@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "aistudio-official",
+  "identity": {
+    "serviceProviderKey": "aistudio_platform",
+    "serviceProviderLabel": "AI Studio Platform",
+    "providerSurfaceKey": "google-gemini-api",
+    "providerSurfaceLabel": "Google Gemini API Modular",
+    "protocolProfile": "aistudio_official_api",
+    "implementationLine": "official_api",
+    "adapter": "gemini_api_modular_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http"
+  },
+  "capabilities": {
+    "families": ["conversation", "images", "audio_speech", "embeddings", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/gemini/official_api/google-gemini-api.minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/gemini/official_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/服务商实现线与Provider目录.md",
+    "buildDocPath": "docs/20-ai-gateway/实现线可选编译与物理隔离规范.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "aistudio-official-verify",
+    "focusedCargoFilters": [
+      "protocol::gemini_api",
+      "upstream::gemini::api"
+    ],
+    "fixtureSuiteId": "google_gemini_api_modular_fixture",
+    "liveSuiteId": "google_gemini_api_modular_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-aistudio-official",
+    "binaryInclusionGroup": "aistudio-official"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/gemini/api",
+    "upstreamModule": "gateway/src/upstream/gemini/api",
+    "platformDeltaModule": "gateway/src/protocol/gemini/api"
+  }
+}

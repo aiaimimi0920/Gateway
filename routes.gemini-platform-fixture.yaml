@@ -1,0 +1,94 @@
+providers:
+  - id: google-gemini-api-fixture
+    preset: gemini-api
+    base_url: "http://127.0.0.1:42335/v1beta"
+    supported_models:
+      - google-gemini-api-fixture
+    credentials:
+      - id: google-gemini-api-fixture-key
+        api_key: "profile-matrix-fixture-token"
+
+  - id: google-vertex-gemini-fixture
+    preset: vertex-gemini
+    base_url: "http://127.0.0.1:42335/vertex/v1/projects/demo/locations/us-central1/publishers/google/models"
+    supported_models:
+      - google-vertex-gemini-fixture
+    credentials:
+      - id: google-vertex-gemini-fixture-key
+        auth_token: "Bearer profile-matrix-fixture-token"
+
+  - id: gemini-business-fixture
+    preset: gemini-business
+    base_url: "http://127.0.0.1:42335"
+    supported_models:
+      - nano-banana-pro
+      - gemini-3-pro-image-preview
+    credentials:
+      - id: gemini-business-fixture-key
+        api_key: "profile-matrix-fixture-token"
+        extra_body:
+          configId: "fixture-config"
+          session: "projects/demo/sessions/profile-matrix"
+
+  - id: gemini-canvas-chat-fixture
+    preset: gemini-canvas-chat
+    base_url: "http://127.0.0.1:42335"
+    supported_models:
+      - gemini-3-flash-preview
+      - gemini-2.5-flash
+      - gemini-2.5-flash-preview-tts
+    credentials:
+      - id: gemini-canvas-chat-fixture-key
+        api_key: "profile-matrix-fixture-token"
+        account_name: "gemini-canvas-chat-fixture"
+        runtime_state_object_key: "profile-matrix/gemini-canvas-empty-profile"
+        extra_body:
+          shareId: "fixture-share"
+          apiBaseUrl: "http://127.0.0.1:42335/v1beta"
+
+  - id: gemini-canvas-media-fixture
+    preset: gemini-canvas
+    base_url: "http://127.0.0.1:42335"
+    supported_models:
+      - gemini-2.5-flash-image-preview
+      - gemini-canvas-music-preview
+      - gemini-canvas-video-preview
+    credentials:
+      - id: gemini-canvas-media-fixture-key
+        api_key: "profile-matrix-fixture-token"
+        account_name: "gemini-canvas-media-fixture"
+        runtime_state_object_key: "profile-matrix/gemini-canvas-empty-profile"
+        extra_body:
+          shareId: "fixture-share"
+
+model_routes:
+  - pattern: "google-gemini-api-fixture"
+    provider_ids: [google-gemini-api-fixture]
+    priority: 10
+  - pattern: "google-vertex-gemini-fixture"
+    provider_ids: [google-vertex-gemini-fixture]
+    priority: 10
+  - pattern: "nano-banana-pro"
+    provider_ids: [gemini-business-fixture]
+    priority: 10
+  - pattern: "gemini-3-pro-image-preview"
+    provider_ids: [gemini-business-fixture]
+    priority: 10
+  - pattern: "gemini-3-flash-preview"
+    provider_ids: [gemini-canvas-chat-fixture]
+    priority: 10
+  - pattern: "gemini-2.5-flash"
+    provider_ids: [gemini-canvas-chat-fixture]
+    priority: 10
+  - pattern: "gemini-2.5-flash-preview-tts"
+    provider_ids: [gemini-canvas-chat-fixture]
+    priority: 10
+  - pattern: "gemini-2.5-flash-image-preview"
+    provider_ids: [gemini-canvas-media-fixture]
+    priority: 10
+  - pattern: "gemini-canvas-music-preview"
+    provider_ids: [gemini-canvas-media-fixture]
+    priority: 10
+  - pattern: "gemini-canvas-video-preview"
+    provider_ids: [gemini-canvas-media-fixture]
+    priority: 10

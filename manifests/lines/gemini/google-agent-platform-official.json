@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "google-agent-platform-official",
+  "identity": {
+    "serviceProviderKey": "gemini_platform",
+    "serviceProviderLabel": "Gemini Platform",
+    "providerSurfaceKey": "google-vertex-gemini",
+    "providerSurfaceLabel": "Google Agent Platform Official",
+    "protocolProfile": "google_agent_platform_official_api",
+    "implementationLine": "official_vendor_api",
+    "adapter": "gemini_api_modular_compatible",
+    "sourceKind": "official_vendor_api",
+    "executionMode": "direct_http"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["bearer_token"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/gemini/official_api/google-vertex-gemini.minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/gemini/official_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/服务商实现线与Provider目录.md",
+    "buildDocPath": "docs/20-ai-gateway/实现线可选编译与物理隔离规范.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "google-agent-platform-official-verify",
+    "focusedCargoFilters": [
+      "protocol::gemini_api",
+      "upstream::gemini::api"
+    ],
+    "fixtureSuiteId": "google_vertex_gemini_fixture",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-google-agent-platform-official",
+    "binaryInclusionGroup": "google-agent-platform-official"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/gemini/api",
+    "upstreamModule": "gateway/src/upstream/gemini/api",
+    "platformDeltaModule": "gateway/src/protocol/gemini/api"
+  }
+}

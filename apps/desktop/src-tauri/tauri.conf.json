@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Neuro Gateway",
+  "version": "0.1.0",
+  "identifier": "com.vmjcv.neuro.gateway",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1425",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Neuro Gateway",
+        "width": 1180,
+        "height": 780,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "visible": true,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "kiro-official-vendor-api",
+  "identity": {
+    "serviceProviderKey": "kiro_platform",
+    "serviceProviderLabel": "Kiro Platform",
+    "providerSurfaceKey": "kiro-compatible",
+    "providerSurfaceLabel": "Kiro Compatible",
+    "protocolProfile": "kiro",
+    "implementationLine": "official_vendor_api",
+    "adapter": "kiro_compatible",
+    "sourceKind": "official_vendor_api",
+    "executionMode": "direct_http"
+  },
+  "capabilities": {
+    "families": ["conversation"],
+    "supportsModelsEndpoint": false
+  },
+  "credentials": {
+    "materialKinds": ["bearer_token"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/kiro/official_vendor_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/kiro/official_vendor_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Kiro-compatible平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/kiro/official_vendor_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "kiro-official-vendor-api-verify",
+    "focusedCargoFilters": [
+      "protocol::kiro",
+      "kiro_compatible"
+    ],
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-kiro-official-vendor-api",
+    "binaryInclusionGroup": "kiro-official-vendor-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/kiro.rs",
+    "upstreamModule": "gateway/src/upstream/kiro.rs",
+    "platformDeltaModule": "gateway/src/protocol/kiro.rs"
+  }
+}

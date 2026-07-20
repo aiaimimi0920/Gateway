@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "chatgpt-codex-oauth-official",
+  "identity": {
+    "serviceProviderKey": "chatgpt_platform",
+    "serviceProviderLabel": "ChatGPT Platform",
+    "providerSurfaceKey": "codex",
+    "providerSurfaceLabel": "ChatGPT Codex Backend",
+    "protocolProfile": "chatgpt_codex_backend",
+    "implementationLine": "official_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["bearer_token"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/chatgpt/codex_backend/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/chatgpt/codex_backend/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/ChatGPT官方API与WebReverse双线路基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/chatgpt/codex_backend/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "chatgpt-codex-backend-verify",
+    "focusedCargoFilters": [
+      "protocol::chatgpt::official_api::tests::codex_backend",
+      "upstream::chatgpt::official_api::request_plan::tests::build_request_plan_keeps_codex_backend_responses_bridge",
+      "normalize_chatgpt_codex_backend_import_payload"
+    ],
+    "fixtureSuiteId": "codex_gpt54",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-chatgpt-codex-oauth-official",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "chatgpt-codex-oauth-official"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/chatgpt/official_api.rs",
+    "upstreamModule": "gateway/src/upstream/chatgpt/official_api",
+    "platformDeltaModule": "gateway/src/protocol/chatgpt/official_api.rs"
+  }
+}

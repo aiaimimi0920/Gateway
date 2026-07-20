@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "producer-web-reverse-api",
+  "identity": {
+    "serviceProviderKey": "producer_platform",
+    "serviceProviderLabel": "Producer.ai Platform",
+    "providerSurfaceKey": "producer",
+    "providerSurfaceLabel": "Producer.ai Web Reverse API",
+    "protocolProfile": "producer",
+    "implementationLine": "web_reverse_api",
+    "adapter": "producer_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "direct_http_replay"
+  },
+  "capabilities": {
+    "families": ["images", "music", "videos"],
+    "supportsModelsEndpoint": false
+  },
+  "credentials": {
+    "materialKinds": ["session_auth", "browser_state"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/producer/web_reverse_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/producer/web_reverse_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Producer.ai平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/producer/web_reverse_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "producer-web-reverse-api-verify",
+    "focusedCargoFilters": [
+      "protocol::producer",
+      "upstream::producer_media_helpers",
+      "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+      "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+    ],
+    "liveSuiteId": "producer_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-producer-web-reverse-api",
+    "binaryInclusionGroup": "producer-web-reverse-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/producer.rs",
+    "upstreamModule": "gateway/src/upstream/producer_media_helpers.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

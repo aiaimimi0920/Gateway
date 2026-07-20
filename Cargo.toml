@@ -1,0 +1,192 @@
+[package]
+name = "neuro-gateway"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.91.1"
+description = "Production AI gateway runtime for Neuro"
+license = "MIT"
+repository = "https://github.com/aiaimimi0920/Gateway"
+readme = "README.md"
+
+[lib]
+name = "neuro_gateway"
+path = "src/lib.rs"
+
+[[bin]]
+name = "neuro-gateway"
+path = "src/main.rs"
+
+[features]
+default = [
+    "family-openai-compatible-official-api",
+    "family-anthropic-compatible-official-api",
+    "family-bedrock-converse-official-api",
+    "family-cohere-chat-official-api",
+    "family-search-api-compatible-official-api",
+    "line-accio-web-reverse-api",
+    "line-azure-openai-official-vendor-api",
+    "line-gemini-web-reverse",
+    "line-gemini-canvas-program",
+    "line-aistudio-official",
+    "line-aistudio-web-reverse",
+    "line-google-agent-platform-official",
+    "line-anthropic-messages-official-model-api",
+    "line-aws-bedrock-converse-official-model-api",
+    "line-chatgpt-official-api",
+    "line-chatgpt-codex-oauth-official",
+    "line-chatgpt-web-reverse",
+    "line-cohere-chat-official-model-api",
+    "line-groq-openai-official-vendor-api",
+    "line-nvidia-openai-official-vendor-api",
+    "line-together-openai-aggregator-api",
+    "line-openrouter-openai-aggregator-api",
+    "line-deepseek-openai-official-model-api",
+    "line-mistral-openai-official-model-api",
+    "line-xai-openai-official-vendor-api",
+    "line-perplexity-chat-official-vendor-api",
+    "line-xfyun-openai-official-vendor-api",
+    "line-xfyun-native-websocket-official-vendor-api",
+    "line-freebuff-web-reverse-api",
+    "line-producer-web-reverse-api",
+    "line-grok-web-reverse-api",
+    "line-suno-web-reverse-api",
+    "line-udio-web-reverse-api",
+    "line-lumalabs-web-reverse-api",
+    "line-perplexity-search-official-vendor-api",
+    "line-tavily-search-official-vendor-api",
+    "line-exa-search-official-vendor-api",
+    "line-jina-search-official-vendor-api",
+    "line-jina-reader-official-vendor-api",
+    "line-linkup-search-official-vendor-api",
+    "line-you-search-official-vendor-api",
+    "line-websearchapi-search-official-vendor-api",
+    "line-qwen-official-api",
+    "line-qwen-web-reverse",
+    "line-chataibot-web-reverse",
+    "line-kiro-official-vendor-api",
+]
+family-openai-compatible-official-api = []
+family-anthropic-compatible-official-api = []
+family-bedrock-converse-official-api = []
+family-cohere-chat-official-api = []
+family-search-api-compatible-official-api = []
+line-accio-web-reverse-api = []
+line-azure-openai-official-vendor-api = ["family-openai-compatible-official-api"]
+line-gemini-web-reverse = []
+line-gemini-canvas-program = []
+line-aistudio-official = []
+line-aistudio-web-reverse = []
+line-google-agent-platform-official = []
+line-anthropic-messages-official-model-api = ["family-anthropic-compatible-official-api"]
+line-aws-bedrock-converse-official-model-api = ["family-bedrock-converse-official-api"]
+line-chatgpt-official-core = []
+line-chatgpt-official-api = ["line-chatgpt-official-core", "family-openai-compatible-official-api"]
+line-chatgpt-codex-oauth-official = ["line-chatgpt-official-core", "family-openai-compatible-official-api"]
+line-chatgpt-web-reverse = []
+line-cohere-chat-official-model-api = ["family-cohere-chat-official-api"]
+line-groq-openai-official-vendor-api = ["family-openai-compatible-official-api"]
+line-nvidia-openai-official-vendor-api = ["family-openai-compatible-official-api"]
+line-together-openai-aggregator-api = ["family-openai-compatible-official-api"]
+line-openrouter-openai-aggregator-api = ["family-openai-compatible-official-api"]
+line-deepseek-openai-official-model-api = ["family-openai-compatible-official-api"]
+line-mistral-openai-official-model-api = ["family-openai-compatible-official-api"]
+line-xai-openai-official-vendor-api = ["family-openai-compatible-official-api"]
+line-perplexity-chat-official-vendor-api = ["family-openai-compatible-official-api"]
+line-xfyun-openai-official-vendor-api = ["family-openai-compatible-official-api"]
+line-xfyun-native-websocket-official-vendor-api = []
+line-freebuff-web-reverse-api = []
+line-producer-web-reverse-api = []
+line-grok-web-reverse-api = []
+line-suno-web-reverse-api = []
+line-udio-web-reverse-api = []
+line-lumalabs-web-reverse-api = []
+line-perplexity-search-official-vendor-api = ["family-search-api-compatible-official-api"]
+line-tavily-search-official-vendor-api = ["family-search-api-compatible-official-api"]
+line-exa-search-official-vendor-api = ["family-search-api-compatible-official-api"]
+line-jina-search-official-vendor-api = ["family-search-api-compatible-official-api"]
+line-jina-reader-official-vendor-api = ["family-search-api-compatible-official-api"]
+line-linkup-search-official-vendor-api = ["family-search-api-compatible-official-api"]
+line-you-search-official-vendor-api = ["family-search-api-compatible-official-api"]
+line-websearchapi-search-official-vendor-api = ["family-search-api-compatible-official-api"]
+line-qwen-official-core = []
+line-qwen-official-api = [
+    "line-qwen-official-core",
+    "family-openai-compatible-official-api",
+    "family-anthropic-compatible-official-api",
+]
+line-qwen-web-reverse = []
+line-chataibot-web-reverse = []
+line-kiro-official-vendor-api = []
+[dependencies]
+# HTTP server
+axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "timeout", "limit"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+rustls = "0.23"
+rustls-native-certs = "0.8"
+
+# HTTP client (streaming) — rquest is a reqwest fork with BoringSSL/TLS fingerprinting
+rquest = { version = "5", features = ["stream", "json"] }
+rquest-util = { version = "2", features = ["emulation"] }
+
+# Redis
+deadpool-redis = { version = "0.18", features = ["rt_tokio_1"] }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+notify = "6"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "time", "json"] }
+time = { version = "0.3", features = ["serde", "parsing", "formatting"] }
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+log = "0.4"
+
+# Utilities
+uuid = { version = "1", features = ["v4"] }
+sha2 = "0.10"
+sha1 = "0.10"
+hex = "0.4"
+bytes = "1"
+futures = "0.3"
+async-trait = "0.1"
+thiserror = "1"
+anyhow = "1"
+base64 = "0.22"
+dashmap = "6"
+parking_lot = "0.12"
+rand = "0.8"
+regex = "1"
+sha3 = "0.10"
+percent-encoding = "2"
+crc = "3"
+hmac = "0.12"
+url = "2"
+
+# Config
+dotenvy = "0.15"
+serde_yaml = "0.9"
+aws-sdk-s3 = "1"
+aws-credential-types = "1"
+aws-sigv4 = { version = "1", features = ["http1"] }
+aws-smithy-runtime-api = { version = "1", features = ["client"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+
+[dev-dependencies]
+http-body-util = "0.1"
+
+[profile.release]
+lto = "thin"
+opt-level = 3
+codegen-units = 1

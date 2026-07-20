@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neuroloom.local/schemas/gateway-line-manifest.schema.json",
+  "title": "Gateway Line Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "identity",
+    "capabilities",
+    "docs",
+    "verification",
+    "compilation",
+    "implementation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "gateway-line-manifest/v0-draft-1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "serviceProviderKey",
+        "providerSurfaceKey",
+        "protocolProfile",
+        "implementationLine",
+        "adapter",
+        "sourceKind",
+        "executionMode"
+      ],
+      "properties": {
+        "serviceProviderKey": { "type": "string", "minLength": 1 },
+        "serviceProviderLabel": { "type": "string" },
+        "providerSurfaceKey": { "type": "string", "minLength": 1 },
+        "providerSurfaceLabel": { "type": "string" },
+        "protocolProfile": { "type": "string", "minLength": 1 },
+        "implementationLine": {
+          "type": "string",
+          "enum": [
+            "official_api",
+            "official_model_api",
+            "official_vendor_api",
+            "aggregator_api",
+            "web_reverse",
+            "web_reverse_api",
+            "browser_owned",
+            "program_owned",
+            "direct_http_replay"
+          ]
+        },
+        "adapter": { "type": "string", "minLength": 1 },
+        "sourceKind": {
+          "type": "string",
+          "enum": [
+            "official_model_api",
+            "official_vendor_api",
+            "aggregator_api",
+            "web_reverse_api"
+          ]
+        },
+        "executionMode": {
+          "type": "string",
+          "enum": [
+            "direct_http",
+            "browser_backed",
+            "direct_http_replay"
+          ]
+        },
+        "templateFamily": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["families"],
+      "properties": {
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "supportsModelsEndpoint": { "type": "boolean" }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "materialKinds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "api_key",
+              "bearer_token",
+              "session_auth",
+              "browser_state",
+              "jwt_widget_session"
+            ]
+          }
+        },
+        "samplePath": { "type": "string" },
+        "fieldsDocPath": { "type": "string" }
+      }
+    },
+    "docs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overviewDocPath", "buildDocPath"],
+      "properties": {
+        "overviewDocPath": { "type": "string", "minLength": 1 },
+        "buildDocPath": { "type": "string", "minLength": 1 }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recommendedCargoTargetDirSlug",
+        "focusedCargoFilters",
+        "useNoDefaultFeatures"
+      ],
+      "properties": {
+        "recommendedCargoTargetDirSlug": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "focusedCargoFilters": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "fixtureSuiteId": { "type": "string", "minLength": 1 },
+        "liveSuiteId": { "type": "string", "minLength": 1 },
+        "useNoDefaultFeatures": { "type": "boolean" }
+      }
+    },
+    "compilation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compileLayer"],
+      "properties": {
+        "compileLayer": {
+          "type": "string",
+          "enum": [
+            "minimal_verification_context",
+            "line_compile_gate",
+            "binary_exclusion"
+          ]
+        },
+        "lineFeature": {
+          "type": "string",
+          "pattern": "^line-[a-z0-9-]+$"
+        },
+        "familyCommonFeatures": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^family-[a-z0-9-]+$"
+          }
+        },
+        "binaryInclusionGroup": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        }
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolModule", "upstreamModule", "platformDeltaModule"],
+      "properties": {
+        "protocolModule": { "type": "string", "minLength": 1 },
+        "upstreamModule": { "type": "string", "minLength": 1 },
+        "platformDeltaModule": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

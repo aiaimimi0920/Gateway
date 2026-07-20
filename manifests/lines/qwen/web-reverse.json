@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "qwen-web-reverse",
+  "identity": {
+    "serviceProviderKey": "qwen_platform",
+    "serviceProviderLabel": "Qwen Platform",
+    "providerSurfaceKey": "qwen-web-chat",
+    "providerSurfaceLabel": "Qwen Web Chat",
+    "protocolProfile": "qwen_web_reverse",
+    "implementationLine": "web_reverse",
+    "adapter": "qwen_web_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "browser_backed"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["session_auth", "browser_state"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/qwen/web_reverse/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/qwen/web_reverse/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Qwen平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/qwen/web_reverse/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "qwen-web-reverse-verify",
+    "focusedCargoFilters": [
+      "protocol::qwen::web_reverse"
+    ],
+    "fixtureSuiteId": "qwen_web_chat_fixture",
+    "liveSuiteId": "qwen_web_chat_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "binary_exclusion",
+    "lineFeature": "line-qwen-web-reverse",
+    "binaryInclusionGroup": "qwen-web-reverse"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/qwen/web_reverse.rs",
+    "upstreamModule": "gateway/src/upstream/qwen/web_reverse.rs",
+    "platformDeltaModule": "gateway/src/protocol/qwen/web_reverse.rs"
+  }
+}

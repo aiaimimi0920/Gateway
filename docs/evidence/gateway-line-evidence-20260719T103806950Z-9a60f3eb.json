@@ -1,0 +1,2661 @@
+{
+    "schemaVersion":  "gateway-line-evidence/v1",
+    "runId":  "20260719T103806950Z-9a60f3eb",
+    "generatedAt":  "2026-07-19T10:38:06.944Z",
+    "mode":  "offline",
+    "allowLiveProviderCalls":  false,
+    "selection":  {
+                      "all":  true,
+                      "lineIds":  [
+                                      "accio-web-reverse-api",
+                                      "aistudio-official",
+                                      "aistudio-web-reverse",
+                                      "anthropic-messages-official-model-api",
+                                      "aws-bedrock-converse-official-model-api",
+                                      "azure-openai-official-vendor-api",
+                                      "chataibot-web-reverse",
+                                      "chatgpt-codex-oauth-official",
+                                      "chatgpt-official-api",
+                                      "chatgpt-web-reverse",
+                                      "cohere-chat-official-model-api",
+                                      "deepseek-openai-official-model-api",
+                                      "exa-search-official-vendor-api",
+                                      "freebuff-web-reverse-api",
+                                      "gemini-canvas-program",
+                                      "gemini-web-reverse",
+                                      "google-agent-platform-official",
+                                      "grok-web-reverse-api",
+                                      "groq-openai-official-vendor-api",
+                                      "jina-reader-official-vendor-api",
+                                      "jina-search-official-vendor-api",
+                                      "kiro-official-vendor-api",
+                                      "linkup-search-official-vendor-api",
+                                      "lumalabs-web-reverse-api",
+                                      "mistral-openai-official-model-api",
+                                      "nvidia-openai-official-vendor-api",
+                                      "openrouter-openai-aggregator-api",
+                                      "perplexity-chat-official-vendor-api",
+                                      "perplexity-search-official-vendor-api",
+                                      "producer-web-reverse-api",
+                                      "qwen-official-api",
+                                      "qwen-web-reverse",
+                                      "suno-web-reverse-api",
+                                      "tavily-search-official-vendor-api",
+                                      "together-openai-aggregator-api",
+                                      "udio-web-reverse-api",
+                                      "websearchapi-search-official-vendor-api",
+                                      "xai-openai-official-vendor-api",
+                                      "xfyun-native-websocket-official-vendor-api",
+                                      "xfyun-openai-official-vendor-api",
+                                      "you-search-official-vendor-api"
+                                  ],
+                      "cargoSkipped":  false,
+                      "libOnly":  true
+                  },
+    "records":  [
+                    {
+                        "lineId":  "accio-web-reverse-api",
+                        "providerLine":  "accio-web-reverse-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http_replay",
+                        "verificationCategory":  "direct_http_replay",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation"
+                                             ],
+                        "credentialSource":  "manifest:bearer_token+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http_replay",
+                                         "observedMode":  "direct_http_replay",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/accio/web-reverse-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-accio-web-reverse-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-accio-web-reverse-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "aistudio-official",
+                        "providerLine":  "aistudio-official",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "images",
+                                                 "audio_speech",
+                                                 "embeddings",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/aistudio/official.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-aistudio-official.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-aistudio-official.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "aistudio-web-reverse",
+                        "providerLine":  "aistudio-web-reverse",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "browser_backed",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "images",
+                                                 "audio_speech",
+                                                 "embeddings",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/aistudio/web-reverse.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-aistudio-web-reverse.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-aistudio-web-reverse.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "anthropic-messages-official-model-api",
+                        "providerLine":  "anthropic-messages-official-model-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/anthropic/official-model-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-anthropic-messages-official-model-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-anthropic-messages-official-model-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "aws-bedrock-converse-official-model-api",
+                        "providerLine":  "aws-bedrock-converse-official-model-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:bearer_token",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/aws_bedrock/official-model-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-aws-bedrock-converse-official-model-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-aws-bedrock-converse-official-model-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "azure-openai-official-vendor-api",
+                        "providerLine":  "azure-openai-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/azure_openai/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-azure-openai-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-azure-openai-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "chataibot-web-reverse",
+                        "providerLine":  "chataibot-web-reverse",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http_replay",
+                        "verificationCategory":  "direct_http_replay",
+                        "endpointFamily":  "images",
+                        "endpointFamilies":  [
+                                                 "images",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http_replay",
+                                         "observedMode":  "direct_http_replay",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/chataibot/web-reverse.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-chataibot-web-reverse.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-chataibot-web-reverse.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "chatgpt-codex-oauth-official",
+                        "providerLine":  "chatgpt-codex-oauth-official",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:bearer_token",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/chatgpt/codex-oauth-official.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-chatgpt-codex-oauth-official.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-chatgpt-codex-oauth-official.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "chatgpt-official-api",
+                        "providerLine":  "chatgpt-official-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "embeddings",
+                                                 "audio_transcriptions",
+                                                 "audio_speech",
+                                                 "images",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/chatgpt/official-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-chatgpt-official-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-chatgpt-official-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "chatgpt-web-reverse",
+                        "providerLine":  "chatgpt-web-reverse",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "browser_backed",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/chatgpt/web-reverse.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-chatgpt-web-reverse.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-chatgpt-web-reverse.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "cohere-chat-official-model-api",
+                        "providerLine":  "cohere-chat-official-model-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/cohere/official-model-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-cohere-chat-official-model-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-cohere-chat-official-model-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "deepseek-openai-official-model-api",
+                        "providerLine":  "deepseek-openai-official-model-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/deepseek/official-model-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-deepseek-openai-official-model-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-deepseek-openai-official-model-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "exa-search-official-vendor-api",
+                        "providerLine":  "exa-search-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search",
+                                                 "fetch"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/exa/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-exa-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-exa-search-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "freebuff-web-reverse-api",
+                        "providerLine":  "freebuff-web-reverse-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http_replay",
+                        "verificationCategory":  "direct_http_replay",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation"
+                                             ],
+                        "credentialSource":  "manifest:bearer_token+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http_replay",
+                                         "observedMode":  "direct_http_replay",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/freebuff/web-reverse-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-freebuff-web-reverse-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-freebuff-web-reverse-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "gemini-canvas-program",
+                        "providerLine":  "gemini-canvas-program",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "media",
+                        "endpointFamily":  "media",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "images",
+                                                 "audio_speech",
+                                                 "music",
+                                                 "video",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/gemini/canvas-program.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-gemini-canvas-program.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-gemini-canvas-program.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "gemini-web-reverse",
+                        "providerLine":  "gemini-web-reverse",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "browser_backed",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "images",
+                                                 "audio_speech",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/gemini/web-reverse.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-gemini-web-reverse.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-gemini-web-reverse.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "google-agent-platform-official",
+                        "providerLine":  "google-agent-platform-official",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:bearer_token",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/gemini/google-agent-platform-official.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-google-agent-platform-official.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-google-agent-platform-official.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "grok-web-reverse-api",
+                        "providerLine":  "grok-web-reverse-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http_replay",
+                        "verificationCategory":  "direct_http_replay",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation"
+                                             ],
+                        "credentialSource":  "manifest:session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http_replay",
+                                         "observedMode":  "direct_http_replay",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/grok/web-reverse-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-grok-web-reverse-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-grok-web-reverse-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "groq-openai-official-vendor-api",
+                        "providerLine":  "groq-openai-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/groq/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-groq-openai-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-groq-openai-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "jina-reader-official-vendor-api",
+                        "providerLine":  "jina-reader-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "fetch",
+                        "endpointFamilies":  [
+                                                 "fetch"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/jina/reader-official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-jina-reader-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-jina-reader-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "jina-search-official-vendor-api",
+                        "providerLine":  "jina-search-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/jina/search-official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-jina-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-jina-search-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "kiro-official-vendor-api",
+                        "providerLine":  "kiro-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation"
+                                             ],
+                        "credentialSource":  "manifest:bearer_token",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/kiro/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-kiro-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-kiro-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "linkup-search-official-vendor-api",
+                        "providerLine":  "linkup-search-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search",
+                                                 "fetch",
+                                                 "research",
+                                                 "credits_balance"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/linkup/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-linkup-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-linkup-search-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "lumalabs-web-reverse-api",
+                        "providerLine":  "lumalabs-web-reverse-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "media",
+                        "endpointFamily":  "media",
+                        "endpointFamilies":  [
+                                                 "models",
+                                                 "images",
+                                                 "music",
+                                                 "videos"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/lumalabs/web-reverse-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-lumalabs-web-reverse-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-lumalabs-web-reverse-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "mistral-openai-official-model-api",
+                        "providerLine":  "mistral-openai-official-model-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/mistral/official-model-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-mistral-openai-official-model-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-mistral-openai-official-model-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "nvidia-openai-official-vendor-api",
+                        "providerLine":  "nvidia-openai-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/nvidia/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-nvidia-openai-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-nvidia-openai-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "openrouter-openai-aggregator-api",
+                        "providerLine":  "openrouter-openai-aggregator-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/openrouter/aggregator-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-openrouter-openai-aggregator-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-openrouter-openai-aggregator-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "perplexity-chat-official-vendor-api",
+                        "providerLine":  "perplexity-chat-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/perplexity/chat-official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-perplexity-chat-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-perplexity-chat-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "perplexity-search-official-vendor-api",
+                        "providerLine":  "perplexity-search-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/perplexity/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-perplexity-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-perplexity-search-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "producer-web-reverse-api",
+                        "providerLine":  "producer-web-reverse-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http_replay",
+                        "verificationCategory":  "media",
+                        "endpointFamily":  "media",
+                        "endpointFamilies":  [
+                                                 "images",
+                                                 "music",
+                                                 "videos"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http_replay",
+                                         "observedMode":  "direct_http_replay",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/producer/web-reverse-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-producer-web-reverse-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-producer-web-reverse-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "qwen-official-api",
+                        "providerLine":  "qwen-official-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/qwen/official-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-qwen-official-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-qwen-official-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "qwen-web-reverse",
+                        "providerLine":  "qwen-web-reverse",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "browser_backed",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/qwen/web-reverse.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-qwen-web-reverse.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-qwen-web-reverse.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "suno-web-reverse-api",
+                        "providerLine":  "suno-web-reverse-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "media",
+                        "endpointFamily":  "media",
+                        "endpointFamilies":  [
+                                                 "models",
+                                                 "images",
+                                                 "music",
+                                                 "videos"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/suno/web-reverse-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-suno-web-reverse-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-suno-web-reverse-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "tavily-search-official-vendor-api",
+                        "providerLine":  "tavily-search-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/tavily/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-tavily-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-tavily-search-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "together-openai-aggregator-api",
+                        "providerLine":  "together-openai-aggregator-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/together/aggregator-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-together-openai-aggregator-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-together-openai-aggregator-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "udio-web-reverse-api",
+                        "providerLine":  "udio-web-reverse-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "media",
+                        "endpointFamily":  "media",
+                        "endpointFamilies":  [
+                                                 "models",
+                                                 "images",
+                                                 "music",
+                                                 "videos"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/udio/web-reverse-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-udio-web-reverse-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-udio-web-reverse-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "websearchapi-search-official-vendor-api",
+                        "providerLine":  "websearchapi-search-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/websearchapi/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-websearchapi-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-websearchapi-search-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "xai-openai-official-vendor-api",
+                        "providerLine":  "xai-openai-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/xai/openai-official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-xai-openai-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-xai-openai-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "xfyun-native-websocket-official-vendor-api",
+                        "providerLine":  "xfyun-native-websocket-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "websocket",
+                        "endpointFamily":  "websocket",
+                        "endpointFamilies":  [
+                                                 "conversation"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/xfyun/native-websocket-official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-xfyun-native-websocket-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-xfyun-native-websocket-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "xfyun-openai-official-vendor-api",
+                        "providerLine":  "xfyun-openai-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/xfyun/openai-official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-xfyun-openai-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-xfyun-openai-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "you-search-official-vendor-api",
+                        "providerLine":  "you-search-official-vendor-api",
+                        "state":  "fixture_passed",
+                        "timestamp":  "2026-07-19T10:38:06.944Z",
+                        "observedAt":  "2026-07-19T10:38:06.944Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_focused_fixture_passed",
+                                               "message":  "Focused manifest and Cargo verification passed without live provider calls."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_focused_fixture_passed",
+                        "message":  "Focused manifest and Cargo verification passed without live provider calls.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "manifests/lines/you/official-vendor-api.json",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-you-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260719T103806950Z-9a60f3eb/line-you-search-official-vendor-api.stderr.log"
+                                          ]
+                    }
+                ],
+    "artifacts":  {
+                      "manifestValidation":  "target/provider-evidence/20260719T103806950Z-9a60f3eb/manifest-validator.json",
+                      "manifestValidationStderr":  "target/provider-evidence/20260719T103806950Z-9a60f3eb/manifest-validator.stderr.log",
+                      "inventory":  "docs/provider-inventory.json",
+                      "inventoryGeneration":  "target/provider-evidence/20260719T103806950Z-9a60f3eb/inventory-generator.json",
+                      "inventoryValidation":  "target/provider-evidence/20260719T103806950Z-9a60f3eb/inventory-validator.json"
+                  }
+}

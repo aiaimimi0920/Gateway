@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "nvidia-openai-official-vendor-api",
+  "identity": {
+    "serviceProviderKey": "nvidia_platform",
+    "serviceProviderLabel": "NVIDIA OpenAI-compatible",
+    "providerSurfaceKey": "nvidia-openai",
+    "providerSurfaceLabel": "NVIDIA OpenAI-compatible",
+    "protocolProfile": "nvidia",
+    "implementationLine": "official_vendor_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/nvidia/official_vendor_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/nvidia/official_vendor_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/NVIDIA平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/nvidia/official_vendor_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "nvidia-openai-official-vendor-api-verify",
+    "focusedCargoFilters": [
+      "implementation_lines::tests::protocol_profile_mapping_includes_nvidia_and_grok_lines",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
+    ],
+    "fixtureSuiteId": "nvidia_fixture",
+    "liveSuiteId": "nvidia_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-nvidia-openai-official-vendor-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "nvidia-openai-official-vendor-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/registry.rs",
+    "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

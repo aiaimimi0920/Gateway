@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "cohere-chat-official-model-api",
+  "identity": {
+    "serviceProviderKey": "cohere_platform",
+    "serviceProviderLabel": "Cohere Chat",
+    "providerSurfaceKey": "cohere-chat",
+    "providerSurfaceLabel": "Cohere Chat",
+    "protocolProfile": "cohere",
+    "implementationLine": "official_model_api",
+    "adapter": "cohere_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http",
+    "templateFamily": "cohere_chat_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/cohere/official_model_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/cohere/official_model_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Cohere Chat平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/cohere/official_model_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "cohere-chat-official-model-api-verify",
+    "focusedCargoFilters": [
+      "protocol::cohere",
+      "upstream::cohere_chat_official_api_common"
+    ],
+    "fixtureSuiteId": "cohere_fixture",
+    "liveSuiteId": "cohere_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-cohere-chat-official-model-api",
+    "familyCommonFeatures": ["family-cohere-chat-official-api"],
+    "binaryInclusionGroup": "cohere-chat-official-model-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/cohere.rs",
+    "upstreamModule": "gateway/src/upstream/cohere_chat_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/protocol/cohere.rs"
+  }
+}

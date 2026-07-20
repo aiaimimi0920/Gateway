@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "chatgpt-official-api",
+  "identity": {
+    "serviceProviderKey": "chatgpt_platform",
+    "serviceProviderLabel": "ChatGPT Platform",
+    "providerSurfaceKey": "openai-platform",
+    "providerSurfaceLabel": "OpenAI Platform",
+    "protocolProfile": "chatgpt_official_api",
+    "implementationLine": "official_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "embeddings", "audio_transcriptions", "audio_speech", "images", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/chatgpt/official_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/chatgpt/official_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/ChatGPT官方API与WebReverse双线路基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/chatgpt/official_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "chatgpt-official-api-verify",
+    "focusedCargoFilters": [
+      "protocol::chatgpt::official_api",
+      "upstream::chatgpt::official_api"
+    ],
+    "fixtureSuiteId": "chatgpt_official_api_fixture",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-chatgpt-official-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "chatgpt-official-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/chatgpt/official_api.rs",
+    "upstreamModule": "gateway/src/upstream/chatgpt/official_api",
+    "platformDeltaModule": "gateway/src/protocol/chatgpt/official_api.rs"
+  }
+}

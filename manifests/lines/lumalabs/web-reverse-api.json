@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "lumalabs-web-reverse-api",
+  "identity": {
+    "serviceProviderKey": "lumalabs_platform",
+    "serviceProviderLabel": "LumaLabs Platform",
+    "providerSurfaceKey": "lumalabs",
+    "providerSurfaceLabel": "LumaLabs Web Reverse API",
+    "protocolProfile": "lumalabs",
+    "implementationLine": "web_reverse_api",
+    "adapter": "lumalabs_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "browser_backed"
+  },
+  "capabilities": {
+    "families": ["models", "images", "music", "videos"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["session_auth", "browser_state"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/lumalabs/web_reverse_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/lumalabs/web_reverse_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/LumaLabs平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/lumalabs/web_reverse_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "lumalabs-web-reverse-api-verify",
+    "focusedCargoFilters": [
+      "protocol::lumalabs",
+      "upstream::lumalabs",
+      "upstream::media_platform_compile_gate_test",
+      "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+    ],
+    "liveSuiteId": "lumalabs_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "binary_exclusion",
+    "lineFeature": "line-lumalabs-web-reverse-api",
+    "binaryInclusionGroup": "lumalabs-web-reverse-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/lumalabs.rs",
+    "upstreamModule": "gateway/src/upstream/lumalabs.rs",
+    "platformDeltaModule": "gateway/src/protocol/lumalabs.rs"
+  }
+}

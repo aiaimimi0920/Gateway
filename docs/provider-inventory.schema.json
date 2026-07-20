@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neuroloom.local/schemas/gateway-product-inventory.schema.json",
+  "title": "Gateway Product Inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "sourceRevision",
+    "sources",
+    "evidenceSummary",
+    "lines"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": {
+      "type": "string",
+      "const": "gateway-product-inventory/v1"
+    },
+    "generatedAt": { "$ref": "#/$defs/timestamp" },
+    "sourceRevision": { "type": "string", "minLength": 1 },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifestRoot",
+        "cargoManifest",
+        "implementationLines",
+        "protocolResolution",
+        "protocolRegistry"
+      ],
+      "properties": {
+        "manifestRoot": { "type": "string", "minLength": 1 },
+        "cargoManifest": { "type": "string", "minLength": 1 },
+        "implementationLines": { "type": "string", "minLength": 1 },
+        "protocolResolution": { "type": "string", "minLength": 1 },
+        "protocolRegistry": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidenceSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "counts", "states"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["offline", "mixed", "live"] },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "compiled",
+            "metadata_only",
+            "fixture_passed",
+            "live_passed",
+            "external_gate",
+            "credential_missing",
+            "known_unsupported"
+          ],
+          "properties": {
+            "compiled": { "type": "integer", "minimum": 0 },
+            "metadata_only": { "type": "integer", "minimum": 0 },
+            "fixture_passed": { "type": "integer", "minimum": 0 },
+            "live_passed": { "type": "integer", "minimum": 0 },
+            "external_gate": { "type": "integer", "minimum": 0 },
+            "credential_missing": { "type": "integer", "minimum": 0 },
+            "known_unsupported": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "states": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/evidenceState" }
+        }
+      }
+    },
+    "lines": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/line" }
+    }
+  },
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "evidenceState": {
+      "type": "string",
+      "enum": [
+        "compiled",
+        "metadata_only",
+        "fixture_passed",
+        "live_passed",
+        "external_gate",
+        "credential_missing",
+        "known_unsupported"
+      ]
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failureClass", "failureCode", "message"],
+      "properties": {
+        "failureClass": { "type": "string", "minLength": 1 },
+        "failureCode": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidenceRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "timestamp", "classification"],
+      "properties": {
+        "lineId": { "type": "string", "minLength": 1 },
+        "providerLine": { "type": "string", "minLength": 1 },
+        "state": { "$ref": "#/$defs/evidenceState" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "observedAt": { "$ref": "#/$defs/timestamp" },
+        "mode": { "type": "string", "enum": ["offline", "fixture", "live", "external"] },
+        "status": { "type": "string", "enum": ["pass", "fail"] },
+        "executionMode": { "type": "string" },
+        "verificationCategory": { "type": "string" },
+        "endpointFamilies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "credentialSource": { "type": "string" },
+        "endpointFamily": { "type": "string" },
+        "artifactPaths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "failureClass": { "type": "string" },
+        "failureCode": { "type": "string" },
+        "message": { "type": "string" },
+        "classification": { "$ref": "#/$defs/classification" },
+        "failure": { "$ref": "#/$defs/classification" },
+        "readiness": { "type": "object", "additionalProperties": true },
+        "fallback": { "type": "object", "additionalProperties": true },
+        "targetSummary": { "type": ["object", "null"], "additionalProperties": true },
+        "routeProof": { "$ref": "#/$defs/providerProof" },
+        "observedProvider": { "$ref": "#/$defs/providerProof" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "live_passed" } } },
+          "then": {
+            "required": ["mode", "routeProof", "observedProvider"],
+            "properties": { "mode": { "const": "live" } }
+          }
+        },
+        {
+          "if": { "properties": { "state": { "const": "metadata_only" } } },
+          "then": {
+            "required": ["mode"],
+            "properties": { "mode": { "const": "offline" } }
+          }
+        }
+      ]
+    },
+    "providerProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["providerLine"],
+      "properties": {
+        "providerLine": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "endpoint": { "type": "string", "minLength": 1 },
+        "method": { "type": "string", "minLength": 1 },
+        "httpStatus": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "requestId": { "type": "string", "minLength": 1 },
+        "artifactPath": { "type": "string", "minLength": 1 }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "serviceProviderKey",
+        "providerSurfaceKey",
+        "protocolProfile",
+        "implementationLine",
+        "adapter",
+        "sourceKind",
+        "executionMode"
+      ],
+      "properties": {
+        "serviceProviderKey": { "type": "string", "minLength": 1 },
+        "providerSurfaceKey": { "type": "string", "minLength": 1 },
+        "protocolProfile": { "type": "string", "minLength": 1 },
+        "implementationLine": { "type": "string", "minLength": 1 },
+        "adapter": { "type": "string", "minLength": 1 },
+        "sourceKind": { "type": "string", "minLength": 1 },
+        "executionMode": { "type": "string", "minLength": 1 }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["families"],
+      "properties": {
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "materialKinds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "samplePath": { "type": "string" },
+        "fieldsDocPath": { "type": "string" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["useNoDefaultFeatures"],
+      "properties": {
+        "useNoDefaultFeatures": { "type": "boolean" },
+        "focusedCargoFilters": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "compilation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["compileLayer", "lineFeature", "cargo"],
+      "properties": {
+        "compileLayer": { "type": "string", "minLength": 1 },
+        "lineFeature": { "type": "string", "minLength": 1 },
+        "familyCommonFeatures": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "cargo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lineFeatureDeclared",
+            "declaredDependencies",
+            "familyFeaturesDeclared",
+            "defaultEnabled"
+          ],
+          "properties": {
+            "lineFeatureDeclared": { "type": "boolean" },
+            "declaredDependencies": {
+              "type": "array",
+              "items": { "type": "string" },
+              "uniqueItems": true
+            },
+            "familyFeaturesDeclared": {
+              "type": "object",
+              "additionalProperties": { "type": "boolean" }
+            },
+            "defaultEnabled": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["protocolModule", "upstreamModule", "platformDeltaModule"],
+      "properties": {
+        "protocolModule": { "type": "string", "minLength": 1 },
+        "upstreamModule": { "type": "string", "minLength": 1 },
+        "platformDeltaModule": { "type": "string", "minLength": 1 }
+      }
+    },
+    "implementationLineMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonicalProtocolProfile",
+        "featureName",
+        "protocolProfileMapped",
+        "featureMapped",
+        "sourcePath"
+      ],
+      "properties": {
+        "enumVariant": { "type": ["string", "null"] },
+        "canonicalProtocolProfile": { "type": ["string", "null"] },
+        "featureName": { "type": ["string", "null"] },
+        "protocolProfileMapped": { "type": "boolean" },
+        "adapterMapped": { "type": "boolean" },
+        "featureMapped": { "type": "boolean" },
+        "sourcePath": { "type": "string", "minLength": 1 }
+      }
+    },
+    "routeMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wireProtocolFamilies", "sourcePaths"],
+      "properties": {
+        "wireProtocolFamilies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "sourcePaths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "line": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "manifestPath",
+        "manifest",
+        "identity",
+        "capabilities",
+        "credentials",
+        "docs",
+        "verification",
+        "compilation",
+        "implementation",
+        "implementationLineMetadata",
+        "routeMetadata",
+        "evidence"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "manifestPath": { "type": "string", "minLength": 1 },
+        "manifest": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["id", "schemaVersion"]
+        },
+        "identity": { "$ref": "#/$defs/identity" },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "credentials": { "$ref": "#/$defs/credentials" },
+        "docs": { "type": "object", "additionalProperties": true },
+        "verification": { "$ref": "#/$defs/verification" },
+        "compilation": { "$ref": "#/$defs/compilation" },
+        "implementation": { "$ref": "#/$defs/implementation" },
+        "implementationLineMetadata": { "$ref": "#/$defs/implementationLineMetadata" },
+        "routeMetadata": { "$ref": "#/$defs/routeMetadata" },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "records"],
+          "properties": {
+            "state": { "$ref": "#/$defs/evidenceState" },
+            "records": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/evidenceRecord" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

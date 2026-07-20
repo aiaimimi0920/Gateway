@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "aws-bedrock-converse-official-model-api",
+  "identity": {
+    "serviceProviderKey": "aws_bedrock_platform",
+    "serviceProviderLabel": "AWS Bedrock Converse",
+    "providerSurfaceKey": "bedrock-converse",
+    "providerSurfaceLabel": "AWS Bedrock Converse",
+    "protocolProfile": "aws_bedrock",
+    "implementationLine": "official_model_api",
+    "adapter": "bedrock_converse_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http",
+    "templateFamily": "bedrock_converse_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["bearer_token"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/aws_bedrock/official_model_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/aws_bedrock/official_model_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/AWS Bedrock Converse平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/aws_bedrock/official_model_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "aws-bedrock-converse-official-model-api-verify",
+    "focusedCargoFilters": [
+      "protocol::bedrock_converse",
+      "upstream::bedrock_converse_official_api_common"
+    ],
+    "fixtureSuiteId": "aws_bedrock_fixture",
+    "liveSuiteId": "aws_bedrock_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-aws-bedrock-converse-official-model-api",
+    "familyCommonFeatures": ["family-bedrock-converse-official-api"],
+    "binaryInclusionGroup": "aws-bedrock-converse-official-model-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/bedrock_converse.rs",
+    "upstreamModule": "gateway/src/upstream/bedrock_converse_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/protocol/bedrock_converse.rs"
+  }
+}

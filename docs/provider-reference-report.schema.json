@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neuroloom.local/schemas/provider-reference-report.schema.json",
+  "title": "Gateway Provider Reference Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "generatedAt",
+    "sourceRevision",
+    "sourceFingerprint",
+    "guidePath",
+    "summary",
+    "lines",
+    "references",
+    "uniqueReferences"
+  ],
+  "properties": {
+    "$schema": { "type": "string", "minLength": 1 },
+    "schemaVersion": {
+      "type": "string",
+      "const": "gateway-provider-reference-report/v1"
+    },
+    "generatedAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "sourceRevision": { "type": "string", "minLength": 1 },
+    "sourceFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "guidePath": { "type": "string", "minLength": 1 },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lineCount",
+        "declaredReferenceCount",
+        "uniqueReferenceCount",
+        "localPresentReferenceCount",
+        "externalLegacyReferenceCount",
+        "unclassifiedReferenceCount",
+        "statusCounts",
+        "fieldCounts"
+      ],
+      "properties": {
+        "lineCount": { "type": "integer", "minimum": 0 },
+        "declaredReferenceCount": { "type": "integer", "minimum": 0 },
+        "uniqueReferenceCount": { "type": "integer", "minimum": 0 },
+        "localPresentReferenceCount": { "type": "integer", "minimum": 0 },
+        "externalLegacyReferenceCount": { "type": "integer", "minimum": 0 },
+        "unclassifiedReferenceCount": { "type": "integer", "minimum": 0 },
+        "statusCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["local_present", "external_legacy_reference"],
+          "properties": {
+            "local_present": { "type": "integer", "minimum": 0 },
+            "external_legacy_reference": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "fieldCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credentials.samplePath",
+            "credentials.fieldsDocPath",
+            "docs.overviewDocPath",
+            "docs.buildDocPath"
+          ],
+          "properties": {
+            "credentials.samplePath": { "type": "integer", "minimum": 0 },
+            "credentials.fieldsDocPath": { "type": "integer", "minimum": 0 },
+            "docs.overviewDocPath": { "type": "integer", "minimum": 0 },
+            "docs.buildDocPath": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "lines": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/line" }
+    },
+    "references": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reference" }
+    },
+    "uniqueReferences": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/uniqueReference" }
+    }
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "guidePath", "guideAnchor", "action"],
+      "properties": {
+        "reason": { "type": "string", "minLength": 1 },
+        "guidePath": { "type": "string", "minLength": 1 },
+        "guideAnchor": { "type": "string", "pattern": "^#line-[a-z0-9-]+$" },
+        "action": { "type": "string", "minLength": 1 }
+      }
+    },
+    "gatewayRelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*:)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*\/$)(?!\\s)(?!.*\\s$).+$"
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lineId", "manifestPath", "field", "path", "status", "resolution"],
+      "properties": {
+        "lineId": { "type": "string", "minLength": 1 },
+        "manifestPath": { "type": "string", "minLength": 1 },
+        "field": {
+          "type": "string",
+          "enum": [
+            "credentials.samplePath",
+            "credentials.fieldsDocPath",
+            "docs.overviewDocPath",
+            "docs.buildDocPath"
+          ]
+        },
+        "path": { "$ref": "#/$defs/gatewayRelativePath" },
+        "status": {
+          "type": "string",
+          "enum": ["local_present", "external_legacy_reference"]
+        },
+        "resolution": { "$ref": "#/$defs/resolution" }
+      }
+    },
+    "uniqueReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "status", "declarationCount", "declarations"],
+      "properties": {
+        "path": { "$ref": "#/$defs/gatewayRelativePath" },
+        "status": {
+          "type": "string",
+          "enum": ["local_present", "external_legacy_reference"]
+        },
+        "declarationCount": { "type": "integer", "minimum": 1 },
+        "declarations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["lineId", "field"],
+            "properties": {
+              "lineId": { "type": "string", "minLength": 1 },
+              "field": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "line": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "identity",
+        "capabilities",
+        "materialKinds",
+        "manifestPath",
+        "legacyReferences",
+        "resolution"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "identity": { "$ref": "#/$defs/identity" },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "materialKinds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "manifestPath": { "type": "string", "minLength": 1 },
+        "legacyReferences": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "resolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "localPresentReferenceCount",
+            "externalLegacyReferenceCount",
+            "unclassifiedReferenceCount",
+            "guidePath",
+            "guideAnchor"
+          ],
+          "properties": {
+            "localPresentReferenceCount": { "type": "integer", "minimum": 0 },
+            "externalLegacyReferenceCount": { "type": "integer", "minimum": 0 },
+            "unclassifiedReferenceCount": { "type": "integer", "minimum": 0 },
+            "guidePath": { "type": "string", "minLength": 1 },
+            "guideAnchor": { "type": "string", "pattern": "^#line-[a-z0-9-]+$" }
+          }
+        }
+      }
+    }
+  }
+}

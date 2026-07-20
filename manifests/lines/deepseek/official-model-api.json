@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "deepseek-openai-official-model-api",
+  "identity": {
+    "serviceProviderKey": "deepseek_platform",
+    "serviceProviderLabel": "DeepSeek OpenAI-compatible",
+    "providerSurfaceKey": "deepseek-openai",
+    "providerSurfaceLabel": "DeepSeek OpenAI-compatible",
+    "protocolProfile": "deepseek",
+    "implementationLine": "official_model_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/deepseek/official_model_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/deepseek/official_model_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/DeepSeek平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/deepseek/official_model_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "deepseek-openai-official-model-api-verify",
+    "focusedCargoFilters": [
+      "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+      "protocol::tool_inject::tests::deepseek_needs_injection",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+    ],
+    "fixtureSuiteId": "deepseek_fixture",
+    "liveSuiteId": "deepseek_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-deepseek-openai-official-model-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "deepseek-openai-official-model-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/tool_inject.rs",
+    "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/protocol/tool_inject.rs"
+  }
+}

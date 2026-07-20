@@ -1,0 +1,118 @@
+import pathlib
+import unittest
+
+
+GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
+SCRIPT = GATEWAY_ROOT / "tools" / "smoke-gateway-packaged-runtime.ps1"
+
+
+class GatewayPackagedRuntimeContractTests(unittest.TestCase):
+    def test_packaged_runtime_smoke_has_isolated_process_and_endpoint_contract(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+        for required in [
+            "param(",
+            "$ReleaseDir",
+            "$RedisUrl",
+            "$Port",
+            "$IntegrityOnly",
+            "neuro-gateway.exe",
+            "GATEWAY_RUNTIME_ROLE",
+            "GATEWAY_MANAGEMENT_TOKEN",
+            "/healthz",
+            "/readyz",
+            "/v1/models",
+            "/v1/chat/completions",
+            "/v1/messages",
+            "/v1/responses",
+            "/metrics",
+            "/v1/internal/gateway/runtime/drain",
+            "x-management-token",
+            "x-request-id",
+            "Stop-Process",
+            "WaitForExit",
+            "no leaked",
+        ]:
+            self.assertIn(required, text)
+
+    def test_packaged_runtime_smoke_does_not_print_secret_values(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("temporary-local", text)
+        self.assertNotIn("Write-Output $GatewayApiKey", text)
+        self.assertNotIn("Write-Output $ManagementToken", text)
+
+    def test_packaged_runtime_verifies_manifest_and_exact_checksum_entries_before_start(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+        for required in [
+            "function Read-ChecksumIndex",
+            "function Assert-PackagedReleaseIntegrity",
+            "sha256",
+            "bytes",
+            "two spaces",
+            "checksums.sha256",
+            "manifest.json",
+            "before starting",
+            "checksumEntries",
+            "Set-StrictMode",
+            "PSObject.Properties",
+        ]:
+            self.assertIn(required, text)
+
+    def test_packaged_runtime_retries_refused_connections_without_strict_mode_property_errors(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("TransportError", text)
+        self.assertIn("PSObject.Properties['Response']", text)
+        self.assertIn("Start-Sleep -Milliseconds", text)
+
+    def test_default_packaged_runtime_smoke_owns_disposable_redis_instead_of_reusing_host_default(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+        for required in [
+            "$DockerPath",
+            "$RedisImage",
+            "function Start-TemporaryRedis",
+            "function Stop-TemporaryRedis",
+            "docker run",
+            "--publish",
+            '"port", $containerName, "6379/tcp"',
+            "redis-cli",
+            '"PING"',
+            "containerStarted",
+            "containerRemoved",
+        ]:
+            self.assertIn(required, text)
+
+        # An omitted -RedisUrl must never silently attach the smoke run to the
+        # operator's shared Redis instance or the conventional host port.
+        self.assertNotIn('if ([string]::IsNullOrWhiteSpace($env:GATEWAY_REDIS_URL))', text)
+        self.assertNotIn('"redis://127.0.0.1:6379"', text)
+
+    def test_packaged_runtime_evidence_uses_paths_relative_to_evidence_file(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+        for required in [
+            "function Get-EvidenceRelativePath",
+            'pathBase = "evidence-file-directory"',
+            "releaseDir = Get-EvidenceRelativePath",
+            "stdoutPath = Get-EvidenceRelativePath",
+            "stderrPath = Get-EvidenceRelativePath",
+            "$logRoot = Join-Path $evidenceParent",
+        ]:
+            self.assertIn(required, text)
+
+        self.assertNotIn("releaseDir = $releaseDirFull", text)
+        self.assertNotIn("stdoutPath = $stdoutPath", text)
+        self.assertNotIn("stderrPath = $stderrPath", text)
+
+    def test_packaged_runtime_evidence_records_the_observed_process_exit_code(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        for required in [
+            "$process.WaitForExit() | Out-Null",
+            "$process.Refresh()",
+            "$processExitCode = [int]$process.ExitCode",
+            "if ($processExitCode -ne 0)",
+            "processExitCode = $processExitCode",
+        ]:
+            self.assertIn(required, text)
+
+
+if __name__ == "__main__":
+    unittest.main()

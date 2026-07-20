@@ -1,0 +1,56 @@
+# Rust and Tauri build output
+/target/
+/.linux-target/
+/apps/desktop/src-tauri/target/
+/apps/desktop/target/
+**/*.rs.bk
+
+# Node dependencies and generated frontend output
+/scripts/node_modules/
+/scripts/.runtime/
+/scripts/output/
+/scripts/tmp-*
+/apps/desktop/node_modules/
+/apps/desktop/dist/
+/apps/desktop/.rsbuild/
+*.tsbuildinfo
+
+# Runtime state, release packages, evidence output, and local scratch
+/.runtime/
+/gateway/
+/release/
+/output/
+/evidence/
+/*.log
+/tmp-*
+/_temp/
+/temp/
+/tmp/
+
+# Local configuration and credentials. Versioned route configuration remains
+# tracked for the current private development workflow.
+/.env
+/.env.*
+!/.env.example
+
+# Python validation cache
+__pycache__/
+*.py[cod]
+/.pytest_cache/
+/.venv/
+/venv/
+
+# Editor and operating-system files
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+
+# Gateway is an application repository; retain reproducible lockfiles.
+!Cargo.lock
+!/apps/desktop/package-lock.json
+!/apps/desktop/src-tauri/Cargo.lock
+!/scripts/package-lock.json

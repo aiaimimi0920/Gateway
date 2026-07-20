@@ -1,0 +1,95 @@
+name: Build Windows
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and verify Windows candidate
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            scripts/package-lock.json
+            apps/desktop/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.91.1
+
+      - name: Cache Rust builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            apps/desktop/src-tauri -> target
+
+      - name: Resolve candidate version
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $shortSha = $env:GITHUB_SHA.Substring(0, 8)
+          "GATEWAY_VERSION=ci-$env:GITHUB_RUN_NUMBER-$shortSha" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install browser worker dependencies
+        run: npm ci --prefix scripts --no-audit --no-fund
+
+      - name: Validate browser workers
+        run: node --test scripts/tests/*.test.mjs
+
+      - name: Validate provider manifests
+        run: python tools/validate-gateway-line-manifests.py
+
+      - name: Test Rust gateway
+        run: cargo test --locked
+
+      - name: Build Gateway release binaries
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-gateway-release.ps1
+
+      - name: Package Gateway release candidate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\package-gateway-release.ps1 `
+            -VersionId $env:GATEWAY_VERSION `
+            -ReleaseRoot ".\release\Gateway" `
+            -AllowCustomReleaseRoot `
+            -SkipBuild
+
+      - name: Verify packaged runtime integrity
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\smoke-gateway-packaged-runtime.ps1 `
+            -ReleaseDir ".\release\Gateway\$env:GATEWAY_VERSION" `
+            -IntegrityOnly
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\smoke-gateway-ui-release.ps1 `
+            -ReleaseDir ".\release\Gateway\$env:GATEWAY_VERSION"
+
+      - name: Upload Windows candidate
+        uses: actions/upload-artifact@v6
+        with:
+          name: gateway-windows-x64-${{ github.sha }}
+          path: release/Gateway/${{ env.GATEWAY_VERSION }}
+          if-no-files-found: error
+          retention-days: 14

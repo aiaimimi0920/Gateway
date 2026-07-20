@@ -1,0 +1,135 @@
+groups:
+  - name: neuro-gateway.operations
+    interval: 30s
+    rules:
+      - alert: GatewayLivenessFailed
+        expr: probe_success{job="gateway-liveness"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          owner: gateway-operations
+        annotations:
+          summary: Gateway process liveness probe is failing
+          description: The /healthz blackbox probe has failed for two minutes.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayReadinessFailed
+        expr: probe_success{job="gateway-readiness"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          owner: gateway-operations
+        annotations:
+          summary: Gateway traffic readiness probe is failing
+          description: Classify Redis, configured PostgreSQL, or draining state before replacing the instance.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayOperatorSummaryUnavailable
+        expr: probe_success{job="gateway-operator-summary"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          owner: gateway-operations
+        annotations:
+          summary: Authenticated Gateway operator summary is unavailable
+          description: Verify management access, then use health, readiness, and metrics while restoring the summary probe.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayRequestErrorRatioHigh
+        expr: rate(gateway_request_errors_total[5m]) / clamp_min(rate(gateway_requests_total[5m]), 0.000001) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          owner: gateway-operations
+        annotations:
+          summary: Gateway request error ratio exceeds 5 percent
+          description: Group failures by provider and failure class, then inspect request audit records.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayRequestErrorRatioCritical
+        expr: rate(gateway_request_errors_total[5m]) / clamp_min(rate(gateway_requests_total[5m]), 0.000001) > 0.20
+        for: 5m
+        labels:
+          severity: critical
+          owner: gateway-operations
+        annotations:
+          summary: Gateway request error ratio exceeds 20 percent
+          description: Stop rollout activity, preserve evidence, and use the rollback procedure.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayRequestLatencyHigh
+        expr: rate(gateway_request_duration_ms_sum[5m]) / clamp_min(rate(gateway_request_duration_ms_count[5m]), 0.000001) > 30000
+        for: 10m
+        labels:
+          severity: warning
+          owner: gateway-operations
+        annotations:
+          summary: Gateway mean request duration exceeds 30 seconds
+          description: Check dependency readiness, upstream failure classes, and provider concurrency pressure.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayInFlightSaturation
+        expr: gateway_request_in_flight > 1000
+        for: 5m
+        labels:
+          severity: warning
+          owner: gateway-operations
+        annotations:
+          summary: Gateway in-flight request count is saturated
+          description: Inspect runtime pressure and provider AIMD limits before adding or replacing workers.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayProviderErrorRatioHigh
+        expr: sum by (provider, model) (rate(gateway_provider_errors_total{failure_class=""}[10m])) / clamp_min(sum by (provider, model) (rate(gateway_provider_requests_total[10m])), 0.000001) > 0.20
+        for: 10m
+        labels:
+          severity: warning
+          owner: gateway-operations
+        annotations:
+          summary: Gateway provider and model error ratio exceeds 20 percent
+          description: Isolate the provider and model, inspect failure_class labels, and avoid global rollback unless multiple providers are affected.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayDrainRejectionsPersist
+        expr: increase(gateway_request_drain_rejections_total[10m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+          owner: gateway-operations
+        annotations:
+          summary: Traffic continues to reach a draining Gateway instance
+          description: Confirm the load balancer removed the draining worker and check splitter replacement status.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayRoutesMissing
+        expr: gateway_routes_configured != 1
+        for: 2m
+        labels:
+          severity: critical
+          owner: gateway-operations
+        annotations:
+          summary: Gateway route configuration is missing
+          description: Reject the rollout and restore the last known-good routes file or package.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md
+
+      - alert: GatewayProviderInventoryEmpty
+        expr: gateway_providers_total < 1
+        for: 5m
+        labels:
+          severity: warning
+          owner: gateway-operations
+        annotations:
+          summary: Gateway provider inventory is empty
+          description: Check route configuration loading and provider inventory before accepting traffic.
+          runbook_url: operations-manual.md
+          slo_reference: sli-slo.md

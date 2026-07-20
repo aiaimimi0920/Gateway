@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "aistudio-web-reverse",
+  "identity": {
+    "serviceProviderKey": "aistudio_platform",
+    "serviceProviderLabel": "AI Studio Platform",
+    "providerSurfaceKey": "aistudio-web-reverse",
+    "providerSurfaceLabel": "AI Studio Web Reverse",
+    "protocolProfile": "aistudio_web_reverse",
+    "implementationLine": "web_reverse",
+    "adapter": "aistudio_web_reverse_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "browser_backed"
+  },
+  "capabilities": {
+    "families": ["conversation", "images", "audio_speech", "embeddings", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["session_auth", "browser_state"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/aistudio/web_reverse/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/aistudio/web_reverse/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/AIStudio Web Reverse基线.md",
+    "buildDocPath": "docs/20-ai-gateway/实现线可选编译与物理隔离规范.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "aistudio-web-reverse-verify",
+    "focusedCargoFilters": [
+      "protocol::aistudio_web",
+      "upstream::aistudio_web"
+    ],
+    "fixtureSuiteId": "aistudio_web_reverse_fixture",
+    "liveSuiteId": "aistudio_web_reverse_live_browser_owned_full_text",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-aistudio-web-reverse",
+    "binaryInclusionGroup": "aistudio-web-reverse"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/aistudio",
+    "upstreamModule": "gateway/src/upstream/aistudio",
+    "platformDeltaModule": "gateway/src/protocol/aistudio/web_reverse"
+  }
+}

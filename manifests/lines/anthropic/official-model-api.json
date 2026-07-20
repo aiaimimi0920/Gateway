@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "anthropic-messages-official-model-api",
+  "identity": {
+    "serviceProviderKey": "anthropic_platform",
+    "serviceProviderLabel": "Anthropic Messages",
+    "providerSurfaceKey": "anthropic-compatible",
+    "providerSurfaceLabel": "Anthropic Messages",
+    "protocolProfile": "anthropic",
+    "implementationLine": "official_model_api",
+    "adapter": "anthropic_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http",
+    "templateFamily": "anthropic_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/anthropic/official_model_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/anthropic/official_model_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Anthropic Messages平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/anthropic/official_model_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "anthropic-messages-official-model-api-verify",
+    "focusedCargoFilters": [
+      "protocol::anthropic_messages",
+      "upstream::anthropic_messages"
+    ],
+    "fixtureSuiteId": "anthropic_fixture",
+    "liveSuiteId": "anthropic_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-anthropic-messages-official-model-api",
+    "familyCommonFeatures": ["family-anthropic-compatible-official-api"],
+    "binaryInclusionGroup": "anthropic-messages-official-model-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/anthropic_messages.rs",
+    "upstreamModule": "gateway/src/upstream/anthropic_messages.rs",
+    "platformDeltaModule": "gateway/src/protocol/anthropic_messages.rs"
+  }
+}

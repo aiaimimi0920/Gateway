@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "xai-openai-official-vendor-api",
+  "identity": {
+    "serviceProviderKey": "xai_platform",
+    "serviceProviderLabel": "xAI Platform",
+    "providerSurfaceKey": "xai-openai",
+    "providerSurfaceLabel": "xAI OpenAI-compatible",
+    "protocolProfile": "xai",
+    "implementationLine": "official_vendor_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/xai/openai_official_vendor_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/xai/openai_official_vendor_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/xAI OpenAI-compatible平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/xai/openai_official_vendor_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "xai-openai-official-vendor-api-verify",
+    "focusedCargoFilters": [
+      "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+      "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+    ],
+    "fixtureSuiteId": "xai_fixture",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-xai-openai-official-vendor-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "xai-openai-official-vendor-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/registry.rs",
+    "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

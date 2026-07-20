@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "accio-web-reverse-api",
+  "identity": {
+    "serviceProviderKey": "accio_platform",
+    "serviceProviderLabel": "Accio Platform",
+    "providerSurfaceKey": "accio",
+    "providerSurfaceLabel": "Accio Web Reverse API",
+    "protocolProfile": "accio",
+    "implementationLine": "web_reverse_api",
+    "adapter": "accio_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "direct_http_replay"
+  },
+  "capabilities": {
+    "families": ["conversation"],
+    "supportsModelsEndpoint": false
+  },
+  "credentials": {
+    "materialKinds": ["bearer_token", "session_auth"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/accio/web_reverse_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/accio/web_reverse_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/AI-gateway-accio-platform-baseline.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/accio/web_reverse_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "accio-web-reverse-api-verify",
+    "focusedCargoFilters": [
+      "protocol::accio",
+      "upstream::accio"
+    ],
+    "liveSuiteId": "accio_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "binary_exclusion",
+    "lineFeature": "line-accio-web-reverse-api",
+    "binaryInclusionGroup": "accio-web-reverse-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/accio",
+    "upstreamModule": "gateway/src/upstream/accio",
+    "platformDeltaModule": "gateway/src/protocol/accio/line.rs"
+  }
+}

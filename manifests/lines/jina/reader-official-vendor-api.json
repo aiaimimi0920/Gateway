@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "jina-reader-official-vendor-api",
+  "identity": {
+    "serviceProviderKey": "jina_platform",
+    "serviceProviderLabel": "Jina Reader",
+    "providerSurfaceKey": "jina-reader",
+    "providerSurfaceLabel": "Jina Reader",
+    "protocolProfile": "jina_reader",
+    "implementationLine": "official_vendor_api",
+    "adapter": "search_api_compatible",
+    "sourceKind": "official_vendor_api",
+    "executionMode": "direct_http",
+    "templateFamily": "search_api_common"
+  },
+  "capabilities": {
+    "families": [
+      "fetch"
+    ]
+  },
+  "credentials": {
+    "materialKinds": [
+      "api_key"
+    ],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/jina/reader_official_vendor_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/jina/reader_official_vendor_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Jina Reader平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/jina/reader_official_vendor_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "jina-reader-official-vendor-api-verify",
+    "focusedCargoFilters": [
+      "preset::tests::jina_reader_preset_has_fetch_path_and_json_accept",
+      "implementation_lines::tests::jina_reader_protocol_profiles_compile_when_feature_enabled",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+    ],
+    "fixtureSuiteId": "jina_reader_fixture",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-jina-reader-official-vendor-api",
+    "familyCommonFeatures": [
+      "family-search-api-compatible-official-api"
+    ],
+    "binaryInclusionGroup": "jina-reader-official-vendor-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/search_api.rs",
+    "upstreamModule": "gateway/src/upstream/search_provider_helpers.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

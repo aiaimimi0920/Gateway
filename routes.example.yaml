@@ -1,0 +1,514 @@
+# ---------------------------------------------------------------------------
+# routes.example.yaml — Gateway route configuration
+#
+# Copy to routes.yaml and fill in your API keys (or use env vars with ${VAR}).
+# The gateway loads this file at startup if Redis config is not available.
+# ---------------------------------------------------------------------------
+
+providers:
+  # ── Single credential (api_key directly on provider) ────────────────────
+  - id: openai-default
+    preset: openai
+    base_url: "https://api.openai.com"
+    api_key: "${OPENAI_API_KEY}"
+
+  - id: anthropic-default
+    preset: anthropic
+    base_url: "https://api.anthropic.com"
+    api_key: "${ANTHROPIC_API_KEY}"
+
+  - id: codex-main
+    preset: codex
+    base_url: "https://chatgpt.com/backend-api/codex"
+    api_key: "${CODEX_ACCESS_TOKEN}"
+    headers:
+      Chatgpt-Account-Id: "${CODEX_ACCOUNT_ID}"
+
+  - id: grok-main
+    preset: grok
+    base_url: "https://grok.com"
+    api_key: "${GROK_SSO_TOKEN}"
+    keepalive:
+      service_url: "${AI_GATEWAY_KEEPALIVE_URL}"
+      refresh_before_secs: 120
+    supported_models: [grok-3, grok-3-thinking, grok-3-heavy, grok-4, grok-4-thinking]
+
+  - id: openrouter
+    preset: openrouter-openai
+    base_url: "https://openrouter.ai/api"
+    api_key: "${OPENROUTER_API_KEY}"
+    supported_models:
+      - google/gemma-4-26b-a4b-it:free
+      - nvidia/nemotron-3-super-120b-a12b:free
+      - nvidia/llama-nemotron-embed-vl-1b-v2:free
+    headers:
+      HTTP-Referer: "${OPENROUTER_HTTP_REFERER:-https://neuroplatform.app}"
+      X-Title: "${OPENROUTER_X_TITLE:-NeuroPlatform}"
+
+  - id: qwen-dashscope-openai
+    preset: qwen-dashscope-openai
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    api_key: "${QWEN_DASHSCOPE_API_KEY}"
+    supported_models: [qwen3-coder-plus, qwen-plus, qwen-turbo]
+
+  - id: qwen-coding-plan-openai
+    preset: qwen-coding-plan-openai
+    base_url: "https://coding.dashscope.aliyuncs.com/v1"
+    # Coding Plan current official docs describe a dedicated `sk-sp-...` key shape.
+    # Keep the env var name, but do not assume a generic DashScope `sk-...` key will work here.
+    api_key: "${QWEN_CODING_PLAN_API_KEY}"
+    supported_models: [qwen3-coder-plus, qwen3-max-preview]
+
+  - id: qwen-coding-plan-anthropic
+    preset: qwen-coding-plan-anthropic
+    base_url: "https://coding.dashscope.aliyuncs.com/apps/anthropic"
+    # Coding Plan current official docs describe a dedicated `sk-sp-...` key shape.
+    # Keep the env var name, but do not assume a generic DashScope `sk-...` key will work here.
+    api_key: "${QWEN_CODING_PLAN_API_KEY}"
+    supported_models: [qwen3-coder-plus, qwen3-max-preview]
+
+  - id: qwen-web-chat
+    preset: qwen-web-chat
+    base_url: "https://chat.qwen.ai"
+    api_key: "${QWEN_WEB_SESSION_TOKEN}"
+    supported_models: [qwen3-coder-plus]
+    headers:
+      Cookie: "${QWEN_WEB_COOKIE}"
+
+  - id: xfyun-platform
+    label: "xfyun platform"
+    preset: xfyun
+    base_url: "https://maas-api.cn-huabei-1.xf-yun.com"
+    api_key: "${XFYUN_API_KEY}"
+    supported_models: [xop35qwen2b, xophunyuan7bmt, xophunyuanocr, xopqwen35v35b]
+    model_map:
+      hunyuan-mt-7b: "xophunyuan7bmt"
+      hunyuan-ocr: "xophunyuanocr"
+      qwen-2b: "xop35qwen2b"
+      qwen3.5-35b: "xopqwen35v35b"
+
+  - id: gemini-business-main
+    preset: gemini-business
+    base_url: "https://biz-discoveryengine.googleapis.com/v1alpha"
+    session_auth:
+      transport: "bearer"
+      header_name: "Authorization"
+    keepalive:
+      service_url: "${AI_GATEWAY_KEEPALIVE_URL}"
+      refresh_before_secs: 300
+    supported_models: [nano-banana-pro, gemini-3-pro-image-preview]
+    credentials:
+      - id: gemini-business-001
+        api_key: "${GEMINI_BUSINESS_JWT}"
+        extra_body:
+          configId: "${GEMINI_BUSINESS_CONFIG_ID}"
+          # The widget session should preferably be refreshed/ensured by keepalive.
+          # Static session values are only for manual bootstrap/debug.
+          session: "${GEMINI_BUSINESS_SESSION}"
+
+  - id: linkup-search
+    preset: linkup
+    base_url: "https://api.linkup.so"
+    supported_models: [linkup-search, linkup-fetch, linkup-research, linkup-balance]
+    credentials:
+      - id: linkup-key-1
+        api_key: "${LINKUP_API_KEY_1}"
+      # - id: linkup-key-2
+      #   api_key: "${LINKUP_API_KEY_2}"
+
+  - id: tavily-search
+    preset: tavily
+    base_url: "https://api.tavily.com"
+    supported_models: [tavily-search]
+    credentials:
+      - id: tavily-key-1
+        api_key: "${TAVILY_API_KEY}"
+
+  - id: you-search
+    preset: you
+    base_url: "https://ydc-index.io"
+    supported_models: [you-search]
+    credentials:
+      - id: you-key-1
+        api_key: "${YOU_API_KEY}"
+
+  - id: exa-search
+    preset: exa
+    base_url: "https://api.exa.ai"
+    supported_models: [exa-search, exa-fetch]
+    credentials:
+      - id: exa-key-1
+        api_key: "${EXA_API_KEY_1}"
+      # - id: exa-key-2
+      #   api_key: "${EXA_API_KEY_2}"
+
+  - id: jina-search
+    preset: jina-search
+    base_url: "https://s.jina.ai"
+    supported_models: [jina-search]
+    credentials:
+      - id: jina-key-1
+        api_key: "${JINA_API_KEY_1}"
+      # - id: jina-key-2
+      #   api_key: "${JINA_API_KEY_2}"
+
+  - id: jina-reader
+    preset: jina-reader
+    base_url: "https://r.jina.ai"
+    supported_models: [jina-fetch]
+    credentials:
+      - id: jina-key-1
+        api_key: "${JINA_API_KEY_1}"
+      # - id: jina-key-2
+      #   api_key: "${JINA_API_KEY_2}"
+
+  - id: websearchapi-search
+    preset: websearchapi
+    base_url: "https://api.websearchapi.ai"
+    supported_models: [websearchapi-search]
+    credentials:
+      - id: websearchapi-key-1
+        api_key: "${WEBSEARCHAPI_API_KEY}"
+
+  - id: chataibot-main
+    preset: chataibot
+    base_url: "https://chataibot.pro"
+    supported_models:
+      - gpt-image-1.5
+      - gpt-image-1.5-high
+      - ideogram
+      - google-nano-banana-pro
+      - google-nano-banana
+      - google-nano-banana-2
+      - midjourney-7
+      - qwen-lora
+      - bytedance-seedream
+    keepalive:
+      service_url: "${AI_GATEWAY_KEEPALIVE_URL}"
+      refresh_before_secs: 300
+    credentials:
+      - id: chataibot-account-1
+        api_key: "${CHATAIBOT_TOKEN}"
+
+  - id: lumalabs-main
+    preset: lumalabs
+    base_url: "https://app.lumalabs.ai"
+    supported_models: [uni-1]
+    keepalive:
+      service_url: "${AI_GATEWAY_KEEPALIVE_URL}"
+      refresh_before_secs: 300
+    credentials:
+      - id: lumalabs-account-1
+        api_key: "${LUMALABS_WOS_SESSION}"
+        extra_body:
+          realmId: "${LUMALABS_REALM_ID}"
+
+  - id: gemini-canvas-main
+    preset: gemini-canvas
+    base_url: "https://gemini.google.com"
+    supported_models:
+      - gemini-2.5-flash-image-preview
+      - gemini-2.5-flash-image
+      - gemini-3.1-flash-image-preview
+      - gemini-canvas-music-preview
+      - gemini-canvas-video-preview
+    keepalive:
+      service_url: "${AI_GATEWAY_KEEPALIVE_URL}"
+      refresh_before_secs: 300
+    credentials:
+      - id: gemini-canvas-account-1
+        api_key: ""
+        account_name: "canvas-main"
+        runtime_state_object_key: "${GEMINI_CANVAS_RUNTIME_STATE_OBJECT_KEY}"
+        extra_body:
+          shareId: "${GEMINI_CANVAS_SHARE_ID}"
+
+  - id: gemini-canvas-chat-main
+    preset: gemini-canvas-chat
+    base_url: "https://gemini.google.com"
+    supported_models:
+      - gemini-3-flash-preview
+      - gemini-2.5-flash
+      - gemini-2.5-flash-preview-tts
+    keepalive:
+      service_url: "${AI_GATEWAY_KEEPALIVE_URL}"
+      refresh_before_secs: 300
+    credentials:
+      - id: gemini-canvas-chat-account-1
+        api_key: ""
+        account_name: "canvas-chat-main"
+        runtime_state_object_key: "${GEMINI_CANVAS_RUNTIME_STATE_OBJECT_KEY}"
+        extra_body:
+          shareId: "${GEMINI_CANVAS_SHARE_ID}"
+          apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta"
+
+  - id: producer-main
+    preset: producer
+    base_url: "https://www.flowmusic.app"
+    supported_models:
+      - producer:image
+      - producer:standard
+      - producer:music-video
+    credentials:
+      - id: producer-session-1
+        api_key: "${PRODUCER_SESSION_BEARER_1}"
+      # - id: producer-session-2
+      #   api_key: "${PRODUCER_SESSION_BEARER_2}"
+
+  - id: suno-main
+    preset: suno
+    base_url: "https://studio-api-prod.suno.com"
+    supported_models:
+      - chirp-v3-5
+      - chirp-v3-0
+    keepalive:
+      service_url: "${AI_GATEWAY_KEEPALIVE_URL}"
+      refresh_before_secs: 300
+    credentials:
+      - id: suno-cookie-1
+        api_key: "${SUNO_COOKIE_1}"
+      # - id: suno-cookie-2
+      #   api_key: "${SUNO_COOKIE_2}"
+
+  - id: udio-main
+    preset: udio
+    base_url: "https://www.udio.com"
+    supported_models:
+      - udio-music
+    keepalive:
+      service_url: "${AI_GATEWAY_KEEPALIVE_URL}"
+      refresh_before_secs: 300
+    credentials:
+      - id: udio-cookie-1
+        api_key: "${UDIO_COOKIE_1}"
+        # Optional browser-state snapshot used by the browser worker to
+        # persist challenge-cleared cookies/local storage between runs.
+        # runtime_state_object_key: "credential-runtime/udio/session-1/storage-state.json"
+      # - id: udio-cookie-2
+      #   api_key: "${UDIO_COOKIE_2}"
+
+  - id: perplexity-main
+    preset: perplexity
+    base_url: "https://api.perplexity.ai"
+    supported_models:
+      - sonar
+      - sonar-pro
+      - sonar-reasoning
+      - sonar-reasoning-pro
+      - sonar-deep-research
+    credentials:
+      - id: perplexity-key-1
+        api_key: "${PERPLEXITY_API_KEY_1}"
+      # - id: perplexity-key-2
+      #   api_key: "${PERPLEXITY_API_KEY_2}"
+
+  - id: perplexity-search
+    preset: perplexity-search
+    base_url: "https://api.perplexity.ai"
+    supported_models: [perplexity-search]
+    credentials:
+      - id: perplexity-search-key-1
+        api_key: "${PERPLEXITY_API_KEY_1}"
+
+  # ── Multiple credentials (credentials array) ───────────────────────────
+  # One provider with N credentials. The gateway creates a SINGLE runtime
+  # instance (one AIMD controller, one route entry) and selects a credential
+  # per request using round-robin.
+  #
+  # - id: accio
+  #   preset: accio
+  #   base_url: "https://phoenix-gw.alibaba.com"
+  #   supported_models: [claude-sonnet-4-6, claude-opus-4-6]
+  #   credentials:
+  #     - id: acc-001
+  #       extra_body:
+  #         token: "token_1"
+  #       headers:
+  #         utdid: "utd-001"
+  #     - id: acc-002
+  #       extra_body:
+  #         token: "token_2"
+  #       headers:
+  #         utdid: "utd-002"
+
+model_routes:
+  - pattern: "claude-*"
+    provider_ids: [anthropic-default]
+    priority: 10
+
+  - pattern: "gpt-*"
+    provider_ids: [openai-default]
+    priority: 10
+
+  - pattern: "gpt-5-codex*"
+    provider_ids: [codex-main]
+    priority: 20
+
+  - pattern: "grok-*"
+    provider_ids: [grok-main]
+    priority: 15
+
+  - pattern: "coder-model"
+    provider_ids: [qwen-main]
+    priority: 10
+
+  - pattern: "hunyuan-*"
+    provider_ids: [xfyun-platform]
+    priority: 15
+
+  - pattern: "qwen-2b"
+    provider_ids: [xfyun-platform]
+    priority: 15
+
+  - pattern: "qwen3.5-35b"
+    provider_ids: [xfyun-platform]
+    priority: 15
+
+  - pattern: "nano-banana*"
+    provider_ids: [gemini-business-main]
+    priority: 15
+
+  - pattern: "gemini-3-pro-image-preview"
+    provider_ids: [gemini-business-main]
+    priority: 15
+
+  - pattern: "gpt-image-1.5*"
+    provider_ids: [chataibot-main]
+    priority: 15
+
+  - pattern: "ideogram"
+    provider_ids: [chataibot-main]
+    priority: 15
+
+  - pattern: "google-nano-banana*"
+    provider_ids: [chataibot-main]
+    priority: 15
+
+  - pattern: "midjourney-7"
+    provider_ids: [chataibot-main]
+    priority: 15
+
+  - pattern: "qwen-lora"
+    provider_ids: [chataibot-main]
+    priority: 15
+
+  - pattern: "bytedance-seedream"
+    provider_ids: [chataibot-main]
+    priority: 15
+
+  - pattern: "uni-1"
+    provider_ids: [lumalabs-main]
+    priority: 15
+
+  - pattern: "gemini-2.5-flash-image-preview"
+    provider_ids: [gemini-canvas-main]
+    priority: 15
+
+  - pattern: "gemini-2.5-flash-image"
+    provider_ids: [gemini-canvas-main]
+    priority: 15
+
+  - pattern: "gemini-3.1-flash-image-preview"
+    provider_ids: [gemini-canvas-main]
+    priority: 15
+
+  - pattern: "gemini-canvas-music-preview"
+    provider_ids: [gemini-canvas-main]
+    priority: 15
+
+  - pattern: "gemini-canvas-video-preview"
+    provider_ids: [gemini-canvas-main]
+    priority: 15
+
+  - pattern: "gemini-3-flash-preview"
+    provider_ids: [gemini-canvas-chat-main]
+    priority: 15
+
+  - pattern: "gemini-2.5-flash"
+    provider_ids: [gemini-canvas-chat-main]
+    priority: 15
+
+  - pattern: "gemini-2.5-flash-preview-tts"
+    provider_ids: [gemini-canvas-chat-main]
+    priority: 15
+
+  - pattern: "producer:*"
+    provider_ids: [producer-main]
+    priority: 15
+
+  - pattern: "chirp-*"
+    provider_ids: [suno-main]
+    priority: 15
+
+  - pattern: "udio-*"
+    provider_ids: [udio-main]
+    priority: 15
+
+  - pattern: "linkup-*"
+    provider_ids: [linkup-search]
+    priority: 15
+
+  - pattern: "tavily-*"
+    provider_ids: [tavily-search]
+    priority: 15
+
+  - pattern: "you-*"
+    provider_ids: [you-search]
+    priority: 15
+
+  - pattern: "exa-*"
+    provider_ids: [exa-search]
+    priority: 15
+
+  - pattern: "jina-search"
+    provider_ids: [jina-search]
+    priority: 15
+
+  - pattern: "jina-fetch"
+    provider_ids: [jina-reader]
+    priority: 15
+
+  - pattern: "websearchapi-*"
+    provider_ids: [websearchapi-search]
+    priority: 15
+
+  - pattern: "sonar*"
+    provider_ids: [perplexity-main]
+    priority: 15
+
+  - pattern: "perplexity-search"
+    provider_ids: [perplexity-search]
+    priority: 15
+
+aliases:
+  sonnet: claude-sonnet-4-6
+  codex: gpt-5-codex
+  gpt-5: gpt-5.4
+  gpt-5-mini: gpt-5.4-mini
+  gpt-5-codex: gpt-5.3-codex
+  gpt-5-classic: gpt-5.2
+  grok: grok-3
+  qwen-code: coder-model
+  xfyun-hunyuan: hunyuan-mt-7b
+  xfyun-ocr: hunyuan-ocr
+  xfyun-qwen-2b: qwen-2b
+  xfyun-qwen35: qwen3.5-35b
+  nano-banana: nano-banana-pro
+  gemini-image-preview: nano-banana-pro
+  uni: uni-1
+  producer-image: producer:image
+  producer-audio: producer:standard
+  producer: producer:standard
+  producer-video: producer:music-video
+  suno: chirp-v3-5
+  udio: udio-music
+  linkup: linkup-search
+  tavily: tavily-search
+  you: you-search
+  exa: exa-search
+  exa-contents: exa-fetch
+  jina: jina-search
+  jina-reader: jina-fetch
+  websearchapi: websearchapi-search
+  perplexity: sonar
+  pplx-search: perplexity-search

@@ -1,0 +1,195 @@
+from __future__ import annotations
+
+import json
+import os
+import time
+import urllib.request
+from typing import Any
+
+
+def _clean_optional(value: str | None) -> str | None:
+    text = str(value or "").strip()
+    return text or None
+
+
+def _base_url() -> str | None:
+    return _clean_optional(os.environ.get("CAPTCHA_SERVICE_BASE_URL"))
+
+
+def _is_browser_attach_service_base_url(base_url: str | None) -> bool:
+    normalized = str(base_url or "").strip().lower()
+    if not normalized:
+        return False
+    browser_markers = (
+        "easy-browser",
+        "easybrowser-service",
+        "127.0.0.1:18080",
+        "localhost:18080",
+    )
+    return any(marker in normalized for marker in browser_markers)
+
+
+def _api_key() -> str | None:
+    return _clean_optional(os.environ.get("CAPTCHA_SERVICE_API_KEY"))
+
+
+def _client_key() -> str | None:
+    return _clean_optional(os.environ.get("CAPTCHA_SERVICE_CLIENT_KEY"))
+
+
+def _provider_kind(default: str = "turnstile-solver-camoufox") -> str:
+    return _clean_optional(os.environ.get("DEFAULT_CAPTCHA_PROVIDER")) or default
+
+
+def _poll_interval_seconds() -> float:
+    try:
+        return max(0.25, float(_clean_optional(os.environ.get("CAPTCHA_SERVICE_POLL_INTERVAL_SECONDS")) or "2.5"))
+    except Exception:
+        return 2.5
+
+
+def _max_wait_seconds() -> int:
+    try:
+        return max(5, int(_clean_optional(os.environ.get("CAPTCHA_SERVICE_MAX_WAIT_SECONDS")) or "120"))
+    except Exception:
+        return 120
+
+
+def _headers() -> dict[str, str]:
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    api_key = _api_key()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
+
+
+def _post_json(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    base_url = _base_url()
+    if not base_url:
+        raise RuntimeError("captcha service base url is not configured")
+    if _is_browser_attach_service_base_url(base_url):
+        raise RuntimeError(
+            "captcha service base url points to EasyBrowser attach service; "
+            "expected a captcha task API endpoint that serves /createTask and /getTaskResult"
+        )
+    req = urllib.request.Request(
+        base_url.rstrip("/") + path,
+        data=json.dumps(payload).encode("utf-8"),
+        headers=_headers(),
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def _wait_task_solution(task_id: Any, *, client_key: str | None = None) -> dict[str, Any]:
+    deadline = time.time() + _max_wait_seconds()
+    while time.time() < deadline:
+        time.sleep(_poll_interval_seconds())
+        result_payload: dict[str, Any] = {"taskId": task_id}
+        if client_key:
+            result_payload["clientKey"] = client_key
+        result = _post_json("/getTaskResult", result_payload)
+        if int(result.get("errorId") or 0) != 0:
+            raise RuntimeError(f"captcha getTaskResult failed: {result}")
+        if str(result.get("status") or "").strip().lower() == "ready":
+            solution = result.get("solution")
+            if not isinstance(solution, dict):
+                raise RuntimeError(f"captcha ready response missing solution: {result}")
+            return {
+                "result": result,
+                "solution": solution,
+            }
+    raise RuntimeError(f"captcha task timeout taskId={task_id}")
+
+
+def solve_cloudflare_clearance(
+    *,
+    website_url: str,
+    proxy: str | None = None,
+    user_agent: str | None = None,
+) -> dict[str, Any]:
+    task: dict[str, Any] = {
+        "type": "CloudflareClearanceTask",
+        "websiteURL": website_url,
+    }
+    if proxy:
+        task["proxy"] = proxy
+    if user_agent:
+        task["userAgent"] = user_agent
+
+    create_payload: dict[str, Any] = {"task": task, "provider": _provider_kind("turnstile-solver-camoufox")}
+    client_key = _client_key()
+    if client_key:
+        create_payload["clientKey"] = client_key
+
+    created = _post_json("/createTask", create_payload)
+    if int(created.get("errorId") or 0) != 0:
+        raise RuntimeError(f"captcha createTask failed: {created}")
+    task_id = created.get("taskId")
+    if not task_id:
+        raise RuntimeError(f"captcha createTask missing taskId: {created}")
+
+    resolved = _wait_task_solution(task_id, client_key=client_key)
+    solution = resolved["solution"]
+    token = _clean_optional(str(solution.get("cf_clearance") or solution.get("token") or ""))
+    if not token:
+        raise RuntimeError(f"captcha ready response missing clearance token: {resolved['result']}")
+    return {
+        "taskId": task_id,
+        "solution": solution,
+        "token": token,
+        "cf_clearance": token,
+        "cookies": solution.get("cookies") if isinstance(solution.get("cookies"), list) else [],
+    }
+
+
+def solve_browser_auth_bootstrap(
+    *,
+    website_url: str,
+    proxy: str | None = None,
+    user_agent: str | None = None,
+    cookies: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    task: dict[str, Any] = {
+        "type": "BrowserAuthBootstrapTask",
+        "websiteURL": website_url,
+    }
+    if proxy:
+        task["proxy"] = proxy
+    if user_agent:
+        task["userAgent"] = user_agent
+    if isinstance(cookies, list) and cookies:
+        task["cookies"] = cookies
+
+    create_payload: dict[str, Any] = {"task": task, "provider": _provider_kind("turnstile-solver-camoufox")}
+    client_key = _client_key()
+    if client_key:
+        create_payload["clientKey"] = client_key
+
+    created = _post_json("/createTask", create_payload)
+    if int(created.get("errorId") or 0) != 0:
+        raise RuntimeError(f"captcha createTask failed: {created}")
+    task_id = created.get("taskId")
+    if not task_id:
+        raise RuntimeError(f"captcha createTask missing taskId: {created}")
+
+    resolved = _wait_task_solution(task_id, client_key=client_key)
+    solution = resolved["solution"]
+    auth_url = _clean_optional(str(solution.get("authUrl") or ""))
+    auth_state = _clean_optional(str(solution.get("authState") or ""))
+    if not auth_url or not auth_state:
+        raise RuntimeError(f"captcha ready response missing auth bootstrap fields: {resolved['result']}")
+    return {
+        "taskId": task_id,
+        "solution": solution,
+        "authUrl": auth_url,
+        "authState": auth_state,
+        "cookies": solution.get("cookies") if isinstance(solution.get("cookies"), list) else [],
+        "deviceId": _clean_optional(str(solution.get("deviceId") or "")),
+        "userAgent": _clean_optional(str(solution.get("userAgent") or "")),
+        "currentUrl": _clean_optional(str(solution.get("currentUrl") or "")),
+    }

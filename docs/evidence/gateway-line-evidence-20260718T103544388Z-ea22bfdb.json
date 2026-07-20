@@ -1,0 +1,406 @@
+{
+    "schemaVersion":  "gateway-line-evidence/v1",
+    "runId":  "20260718T103544388Z-ea22bfdb",
+    "generatedAt":  "2026-07-18T10:35:44.383Z",
+    "mode":  "offline",
+    "allowLiveProviderCalls":  false,
+    "selection":  {
+                      "all":  false,
+                      "lineIds":  [
+                                      "anthropic-messages-official-model-api",
+                                      "chatgpt-web-reverse",
+                                      "freebuff-web-reverse-api",
+                                      "jina-search-official-vendor-api",
+                                      "suno-web-reverse-api",
+                                      "xfyun-native-websocket-official-vendor-api"
+                                  ],
+                      "cargoSkipped":  true,
+                      "libOnly":  false
+                  },
+    "records":  [
+                    {
+                        "lineId":  "anthropic-messages-official-model-api",
+                        "providerLine":  "anthropic-messages-official-model-api",
+                        "state":  "compiled",
+                        "timestamp":  "2026-07-18T10:35:44.383Z",
+                        "observedAt":  "2026-07-18T10:35:44.383Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "official_http",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_manifest_and_compile_contract_passed",
+                                               "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_manifest_and_compile_contract_passed",
+                        "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/manifests/lines/anthropic/official-model-api.json",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-anthropic-messages-official-model-api.stdout.log",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-anthropic-messages-official-model-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "chatgpt-web-reverse",
+                        "providerLine":  "chatgpt-web-reverse",
+                        "state":  "compiled",
+                        "timestamp":  "2026-07-18T10:35:44.383Z",
+                        "observedAt":  "2026-07-18T10:35:44.383Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "browser_backed",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation",
+                                                 "models"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_manifest_and_compile_contract_passed",
+                                               "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_manifest_and_compile_contract_passed",
+                        "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/manifests/lines/chatgpt/web-reverse.json",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-chatgpt-web-reverse.stdout.log",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-chatgpt-web-reverse.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "freebuff-web-reverse-api",
+                        "providerLine":  "freebuff-web-reverse-api",
+                        "state":  "compiled",
+                        "timestamp":  "2026-07-18T10:35:44.383Z",
+                        "observedAt":  "2026-07-18T10:35:44.383Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http_replay",
+                        "verificationCategory":  "direct_http_replay",
+                        "endpointFamily":  "conversation",
+                        "endpointFamilies":  [
+                                                 "conversation"
+                                             ],
+                        "credentialSource":  "manifest:bearer_token+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_manifest_and_compile_contract_passed",
+                                               "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_manifest_and_compile_contract_passed",
+                        "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http_replay",
+                                         "observedMode":  "direct_http_replay",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/manifests/lines/freebuff/web-reverse-api.json",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-freebuff-web-reverse-api.stdout.log",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-freebuff-web-reverse-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "jina-search-official-vendor-api",
+                        "providerLine":  "jina-search-official-vendor-api",
+                        "state":  "compiled",
+                        "timestamp":  "2026-07-18T10:35:44.383Z",
+                        "observedAt":  "2026-07-18T10:35:44.383Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_manifest_and_compile_contract_passed",
+                                               "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_manifest_and_compile_contract_passed",
+                        "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/manifests/lines/jina/search-official-vendor-api.json",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-jina-search-official-vendor-api.stdout.log",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-jina-search-official-vendor-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "suno-web-reverse-api",
+                        "providerLine":  "suno-web-reverse-api",
+                        "state":  "compiled",
+                        "timestamp":  "2026-07-18T10:35:44.383Z",
+                        "observedAt":  "2026-07-18T10:35:44.383Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "browser_backed",
+                        "verificationCategory":  "media",
+                        "endpointFamily":  "media",
+                        "endpointFamilies":  [
+                                                 "models",
+                                                 "images",
+                                                 "music",
+                                                 "videos"
+                                             ],
+                        "credentialSource":  "manifest:browser_state+session_auth",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_manifest_and_compile_contract_passed",
+                                               "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_manifest_and_compile_contract_passed",
+                        "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  true,
+                                                                 "status":  "not_checked"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  true,
+                                                                       "status":  "not_checked"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  true,
+                                                                  "status":  "not_checked"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  true,
+                                                                    "status":  "not_checked"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "browser_backed",
+                                         "observedMode":  "browser_backed",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/manifests/lines/suno/web-reverse-api.json",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-suno-web-reverse-api.stdout.log",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-suno-web-reverse-api.stderr.log"
+                                          ]
+                    },
+                    {
+                        "lineId":  "xfyun-native-websocket-official-vendor-api",
+                        "providerLine":  "xfyun-native-websocket-official-vendor-api",
+                        "state":  "compiled",
+                        "timestamp":  "2026-07-18T10:35:44.383Z",
+                        "observedAt":  "2026-07-18T10:35:44.383Z",
+                        "mode":  "offline",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "websocket",
+                        "endpointFamily":  "websocket",
+                        "endpointFamilies":  [
+                                                 "conversation"
+                                             ],
+                        "credentialSource":  "manifest:api_key",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "offline_manifest_and_compile_contract_passed",
+                                               "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "offline_manifest_and_compile_contract_passed",
+                        "message":  "Manifest and focused line metadata validation passed; Cargo fixture execution was explicitly skipped.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "not_checked"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "not_checked"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "artifactPaths":  [
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/manifests/lines/xfyun/native-websocket-official-vendor-api.json",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-xfyun-native-websocket-official-vendor-api.stdout.log",
+                                              "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/line-xfyun-native-websocket-official-vendor-api.stderr.log"
+                                          ]
+                    }
+                ],
+    "artifacts":  {
+                      "manifestValidation":  "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/manifest-validator.json",
+                      "manifestValidationStderr":  "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/manifest-validator.stderr.log",
+                      "inventory":  "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-inventory.json",
+                      "inventoryGeneration":  "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/inventory-generator.json",
+                      "inventoryValidation":  "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/provider-evidence/20260718T103544388Z-ea22bfdb/inventory-validator.json"
+                  }
+}

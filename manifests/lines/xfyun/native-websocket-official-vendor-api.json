@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "xfyun-native-websocket-official-vendor-api",
+  "identity": {
+    "serviceProviderKey": "xfyun_platform",
+    "serviceProviderLabel": "XFYun Platform",
+    "providerSurfaceKey": "xfyun-native-websocket",
+    "providerSurfaceLabel": "XFYun Native WebSocket",
+    "protocolProfile": "xfyun_native_websocket",
+    "implementationLine": "official_vendor_api",
+    "adapter": "xfyun_websocket_compatible",
+    "sourceKind": "official_vendor_api",
+    "executionMode": "direct_http"
+  },
+  "capabilities": {
+    "families": ["conversation"],
+    "supportsModelsEndpoint": false
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/xfyun/native_websocket_official_vendor_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/xfyun/native_websocket_official_vendor_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/XFYun Native WebSocket平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/xfyun/native_websocket_official_vendor_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "xfyun-native-websocket-official-vendor-api-verify",
+    "focusedCargoFilters": [
+      "protocol::xfyun_websocket",
+      "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+      "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+    ],
+    "fixtureSuiteId": "xfyun_qwen_ws",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-xfyun-native-websocket-official-vendor-api",
+    "binaryInclusionGroup": "xfyun-native-websocket-official-vendor-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/xfyun_websocket.rs",
+    "upstreamModule": "gateway/src/upstream/client.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

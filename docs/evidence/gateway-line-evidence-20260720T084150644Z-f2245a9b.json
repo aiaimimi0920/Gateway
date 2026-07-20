@@ -1,0 +1,482 @@
+{
+    "schemaVersion":  "gateway-line-evidence/v1",
+    "runId":  "20260720T084150644Z-f2245a9b",
+    "generatedAt":  "2026-07-20T08:41:50.640Z",
+    "mode":  "live",
+    "allowLiveProviderCalls":  true,
+    "selection":  {
+                      "all":  false,
+                      "lineIds":  [
+                                      "exa-search-official-vendor-api",
+                                      "jina-search-official-vendor-api",
+                                      "linkup-search-official-vendor-api",
+                                      "tavily-search-official-vendor-api",
+                                      "you-search-official-vendor-api"
+                                  ],
+                      "cargoSkipped":  true,
+                      "libOnly":  false
+                  },
+    "records":  [
+                    {
+                        "lineId":  "exa-search-official-vendor-api",
+                        "providerLine":  "exa-search-official-vendor-api",
+                        "state":  "live_passed",
+                        "timestamp":  "2026-07-20T08:41:50.640Z",
+                        "observedAt":  "2026-07-20T08:41:50.640Z",
+                        "mode":  "live",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search",
+                                                 "fetch"
+                                             ],
+                        "credentialSource":  "env:EXA_API_KEY_1",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "live_canary_passed",
+                                               "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "live_canary_passed",
+                        "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "ready"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "ready"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "targetSummary":  {
+                                              "name":  "exa-search",
+                                              "provider_line":  "exa-search-official-vendor-api",
+                                              "endpoint":  "/v1/search",
+                                              "model":  "exa-search",
+                                              "lease_cooling_ready":  true,
+                                              "model_health_ready":  true,
+                                              "method":  "POST",
+                                              "credential_source":  "env:EXA_API_KEY_1"
+                                          },
+                        "artifactPaths":  [
+                                              "manifests/lines/exa/official-vendor-api.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-exa-search-official-vendor-api.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-exa-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stdout.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.117db9682dcd4349a9769754defed52b.body",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.117db9682dcd4349a9769754defed52b.headers",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/summary.json"
+                                          ],
+                        "routeProof":  {
+                                           "providerLine":  "exa-search-official-vendor-api",
+                                           "source":  "gateway_response_headers_v1",
+                                           "endpoint":  "/v1/search",
+                                           "method":  "POST",
+                                           "httpStatus":  200,
+                                           "requestId":  "117db9682dcd4349a9769754defed52b",
+                                           "artifactPath":  "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.117db9682dcd4349a9769754defed52b.headers"
+                                       },
+                        "observedProvider":  {
+                                                 "providerLine":  "exa-search-official-vendor-api",
+                                                 "source":  "gateway_response_headers_v1"
+                                             }
+                    },
+                    {
+                        "lineId":  "jina-search-official-vendor-api",
+                        "providerLine":  "jina-search-official-vendor-api",
+                        "state":  "live_passed",
+                        "timestamp":  "2026-07-20T08:41:50.640Z",
+                        "observedAt":  "2026-07-20T08:41:50.640Z",
+                        "mode":  "live",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search"
+                                             ],
+                        "credentialSource":  "env:JINA_API_KEY_1",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "live_canary_passed",
+                                               "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "live_canary_passed",
+                        "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "ready"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "ready"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "targetSummary":  {
+                                              "name":  "jina-search",
+                                              "provider_line":  "jina-search-official-vendor-api",
+                                              "endpoint":  "/v1/search",
+                                              "model":  "jina-search",
+                                              "lease_cooling_ready":  true,
+                                              "model_health_ready":  true,
+                                              "method":  "POST",
+                                              "credential_source":  "env:JINA_API_KEY_1"
+                                          },
+                        "artifactPaths":  [
+                                              "manifests/lines/jina/search-official-vendor-api.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-jina-search-official-vendor-api.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-jina-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stdout.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.bef6e72a9ac142e388f86bf1592da886.body",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.bef6e72a9ac142e388f86bf1592da886.headers",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/summary.json"
+                                          ],
+                        "routeProof":  {
+                                           "providerLine":  "jina-search-official-vendor-api",
+                                           "source":  "gateway_response_headers_v1",
+                                           "endpoint":  "/v1/search",
+                                           "method":  "POST",
+                                           "httpStatus":  200,
+                                           "requestId":  "bef6e72a9ac142e388f86bf1592da886",
+                                           "artifactPath":  "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.bef6e72a9ac142e388f86bf1592da886.headers"
+                                       },
+                        "observedProvider":  {
+                                                 "providerLine":  "jina-search-official-vendor-api",
+                                                 "source":  "gateway_response_headers_v1"
+                                             }
+                    },
+                    {
+                        "lineId":  "linkup-search-official-vendor-api",
+                        "providerLine":  "linkup-search-official-vendor-api",
+                        "state":  "live_passed",
+                        "timestamp":  "2026-07-20T08:41:50.640Z",
+                        "observedAt":  "2026-07-20T08:41:50.640Z",
+                        "mode":  "live",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search",
+                                                 "fetch",
+                                                 "research",
+                                                 "credits_balance"
+                                             ],
+                        "credentialSource":  "env:LINKUP_API_KEY_1",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "live_canary_passed",
+                                               "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "live_canary_passed",
+                        "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "ready"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "ready"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "targetSummary":  {
+                                              "name":  "linkup-search",
+                                              "provider_line":  "linkup-search-official-vendor-api",
+                                              "endpoint":  "/v1/search",
+                                              "model":  "linkup-search",
+                                              "lease_cooling_ready":  true,
+                                              "model_health_ready":  true,
+                                              "method":  "POST",
+                                              "credential_source":  "env:LINKUP_API_KEY_1"
+                                          },
+                        "artifactPaths":  [
+                                              "manifests/lines/linkup/official-vendor-api.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-linkup-search-official-vendor-api.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-linkup-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stdout.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.98677da4e2ac4af280f388da4302cbd1.body",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.98677da4e2ac4af280f388da4302cbd1.headers",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/summary.json"
+                                          ],
+                        "routeProof":  {
+                                           "providerLine":  "linkup-search-official-vendor-api",
+                                           "source":  "gateway_response_headers_v1",
+                                           "endpoint":  "/v1/search",
+                                           "method":  "POST",
+                                           "httpStatus":  200,
+                                           "requestId":  "98677da4e2ac4af280f388da4302cbd1",
+                                           "artifactPath":  "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.98677da4e2ac4af280f388da4302cbd1.headers"
+                                       },
+                        "observedProvider":  {
+                                                 "providerLine":  "linkup-search-official-vendor-api",
+                                                 "source":  "gateway_response_headers_v1"
+                                             }
+                    },
+                    {
+                        "lineId":  "tavily-search-official-vendor-api",
+                        "providerLine":  "tavily-search-official-vendor-api",
+                        "state":  "live_passed",
+                        "timestamp":  "2026-07-20T08:41:50.640Z",
+                        "observedAt":  "2026-07-20T08:41:50.640Z",
+                        "mode":  "live",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search"
+                                             ],
+                        "credentialSource":  "env:TAVILY_API_KEY",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "live_canary_passed",
+                                               "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "live_canary_passed",
+                        "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "ready"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "ready"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "targetSummary":  {
+                                              "name":  "tavily-search",
+                                              "provider_line":  "tavily-search-official-vendor-api",
+                                              "endpoint":  "/v1/search",
+                                              "model":  "tavily-search",
+                                              "lease_cooling_ready":  true,
+                                              "model_health_ready":  true,
+                                              "method":  "POST",
+                                              "credential_source":  "env:TAVILY_API_KEY"
+                                          },
+                        "artifactPaths":  [
+                                              "manifests/lines/tavily/official-vendor-api.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-tavily-search-official-vendor-api.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-tavily-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stdout.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.ace03662045f407e9405f491ecfbc266.body",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.ace03662045f407e9405f491ecfbc266.headers",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/summary.json"
+                                          ],
+                        "routeProof":  {
+                                           "providerLine":  "tavily-search-official-vendor-api",
+                                           "source":  "gateway_response_headers_v1",
+                                           "endpoint":  "/v1/search",
+                                           "method":  "POST",
+                                           "httpStatus":  200,
+                                           "requestId":  "ace03662045f407e9405f491ecfbc266",
+                                           "artifactPath":  "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.ace03662045f407e9405f491ecfbc266.headers"
+                                       },
+                        "observedProvider":  {
+                                                 "providerLine":  "tavily-search-official-vendor-api",
+                                                 "source":  "gateway_response_headers_v1"
+                                             }
+                    },
+                    {
+                        "lineId":  "you-search-official-vendor-api",
+                        "providerLine":  "you-search-official-vendor-api",
+                        "state":  "live_passed",
+                        "timestamp":  "2026-07-20T08:41:50.640Z",
+                        "observedAt":  "2026-07-20T08:41:50.640Z",
+                        "mode":  "live",
+                        "status":  "pass",
+                        "executionMode":  "direct_http",
+                        "verificationCategory":  "search",
+                        "endpointFamily":  "search",
+                        "endpointFamilies":  [
+                                                 "search"
+                                             ],
+                        "credentialSource":  "env:YOU_API_KEY",
+                        "classification":  {
+                                               "failureClass":  "none",
+                                               "failureCode":  "live_canary_passed",
+                                               "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof."
+                                           },
+                        "failureClass":  "none",
+                        "failureCode":  "live_canary_passed",
+                        "message":  "The explicitly enabled live provider canary passed with matching observed provider and route proof.",
+                        "readiness":  {
+                                          "remoteExecutor":  {
+                                                                 "required":  false,
+                                                                 "status":  "not_required"
+                                                             },
+                                          "localBrowserFallback":  {
+                                                                       "required":  false,
+                                                                       "status":  "not_required"
+                                                                   },
+                                          "sessionMaterial":  {
+                                                                  "required":  false,
+                                                                  "status":  "not_required"
+                                                              },
+                                          "credentialRefresh":  {
+                                                                    "required":  false,
+                                                                    "status":  "not_required"
+                                                                },
+                                          "leaseCooling":  {
+                                                               "required":  true,
+                                                               "status":  "ready"
+                                                           },
+                                          "modelHealth":  {
+                                                              "required":  true,
+                                                              "status":  "ready"
+                                                          }
+                                      },
+                        "fallback":  {
+                                         "declaredMode":  "direct_http",
+                                         "observedMode":  "direct_http",
+                                         "used":  false,
+                                         "reason":  null,
+                                         "evidenceRequired":  true
+                                     },
+                        "targetSummary":  {
+                                              "name":  "you-search",
+                                              "provider_line":  "you-search-official-vendor-api",
+                                              "endpoint":  "/v1/search",
+                                              "model":  "you-search",
+                                              "lease_cooling_ready":  true,
+                                              "model_health_ready":  true,
+                                              "method":  "POST",
+                                              "credential_source":  "env:YOU_API_KEY"
+                                          },
+                        "artifactPaths":  [
+                                              "manifests/lines/you/official-vendor-api.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-you-search-official-vendor-api.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/line-you-search-official-vendor-api.stdout.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stderr.log",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary.stdout.json",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.4205870fc4ae41cab6c87abcc8929730.body",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.4205870fc4ae41cab6c87abcc8929730.headers",
+                                              "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/summary.json"
+                                          ],
+                        "routeProof":  {
+                                           "providerLine":  "you-search-official-vendor-api",
+                                           "source":  "gateway_response_headers_v1",
+                                           "endpoint":  "/v1/search",
+                                           "method":  "POST",
+                                           "httpStatus":  200,
+                                           "requestId":  "4205870fc4ae41cab6c87abcc8929730",
+                                           "artifactPath":  "target/provider-evidence/20260720T084150644Z-f2245a9b/live-canary/canary.4205870fc4ae41cab6c87abcc8929730.headers"
+                                       },
+                        "observedProvider":  {
+                                                 "providerLine":  "you-search-official-vendor-api",
+                                                 "source":  "gateway_response_headers_v1"
+                                             }
+                    }
+                ],
+    "artifacts":  {
+                      "manifestValidation":  "target/provider-evidence/20260720T084150644Z-f2245a9b/manifest-validator.json",
+                      "manifestValidationStderr":  "target/provider-evidence/20260720T084150644Z-f2245a9b/manifest-validator.stderr.log",
+                      "inventory":  "docs/provider-inventory.json",
+                      "inventoryGeneration":  "target/provider-evidence/20260720T084150644Z-f2245a9b/inventory-generator.json",
+                      "inventoryValidation":  "target/provider-evidence/20260720T084150644Z-f2245a9b/inventory-validator.json"
+                  }
+}

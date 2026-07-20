@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "azure-openai-official-vendor-api",
+  "identity": {
+    "serviceProviderKey": "azure_openai_platform",
+    "serviceProviderLabel": "Azure OpenAI",
+    "providerSurfaceKey": "azure-openai",
+    "providerSurfaceLabel": "Azure OpenAI",
+    "protocolProfile": "azure_openai",
+    "implementationLine": "official_vendor_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/azure_openai/official_vendor_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/azure_openai/official_vendor_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Azure OpenAI平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/azure_openai/official_vendor_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "azure-openai-official-vendor-api-verify",
+    "focusedCargoFilters": [
+      "protocol::azure_openai",
+      "upstream::azure_openai"
+    ],
+    "fixtureSuiteId": "azure_openai_fixture",
+    "liveSuiteId": "azure_openai_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-azure-openai-official-vendor-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "azure-openai-official-vendor-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/azure_openai.rs",
+    "upstreamModule": "gateway/src/upstream/azure_openai.rs",
+    "platformDeltaModule": "gateway/src/protocol/azure_openai.rs"
+  }
+}

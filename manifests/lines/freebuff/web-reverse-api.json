@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "freebuff-web-reverse-api",
+  "identity": {
+    "serviceProviderKey": "freebuff_platform",
+    "serviceProviderLabel": "FreeBuff",
+    "providerSurfaceKey": "freebuff-compatible",
+    "providerSurfaceLabel": "FreeBuff",
+    "protocolProfile": "freebuff",
+    "implementationLine": "web_reverse_api",
+    "adapter": "freebuff_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "direct_http_replay"
+  },
+  "capabilities": {
+    "families": ["conversation"],
+    "supportsModelsEndpoint": false
+  },
+  "credentials": {
+    "materialKinds": ["bearer_token", "session_auth"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/freebuff/web_reverse_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/freebuff/web_reverse_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/AI网关FreeBuff兼容Provider接入基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/freebuff/web_reverse_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "freebuff-web-reverse-api-verify",
+    "focusedCargoFilters": [
+      "protocol::freebuff",
+      "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+      "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+    ],
+    "fixtureSuiteId": "freebuff_glm51",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-freebuff-web-reverse-api",
+    "binaryInclusionGroup": "freebuff-web-reverse-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/freebuff.rs",
+    "upstreamModule": "gateway/src/upstream/client.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

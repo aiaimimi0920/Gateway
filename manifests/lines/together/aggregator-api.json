@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "together-openai-aggregator-api",
+  "identity": {
+    "serviceProviderKey": "together_platform",
+    "serviceProviderLabel": "Together OpenAI-compatible",
+    "providerSurfaceKey": "together-openai",
+    "providerSurfaceLabel": "Together OpenAI-compatible",
+    "protocolProfile": "together",
+    "implementationLine": "aggregator_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "aggregator_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/together/aggregator_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/together/aggregator_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Together平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/together/aggregator_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "together-openai-aggregator-api-verify",
+    "focusedCargoFilters": [
+      "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+    ],
+    "fixtureSuiteId": "together_fixture",
+    "liveSuiteId": "together_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-together-openai-aggregator-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "together-openai-aggregator-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/registry.rs",
+    "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

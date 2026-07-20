@@ -1,0 +1,182 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows product validation
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            scripts/package-lock.json
+            apps/desktop/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.91.1
+        with:
+          components: rustfmt
+
+      - name: Cache Rust builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            apps/desktop/src-tauri -> target
+
+      - name: Install browser worker dependencies
+        run: npm ci --prefix scripts --no-audit --no-fund
+
+      - name: Install desktop dependencies
+        run: npm ci --prefix apps/desktop --no-audit --no-fund
+
+      - name: Validate provider manifests
+        run: python tools/validate-gateway-line-manifests.py
+
+      - name: Run gateway-line-matrix
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $sharedTarget = Join-Path $env:RUNNER_TEMP "gateway-line-targets"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\verify-gateway-line.ps1 `
+            -All -LibOnly -SharedCargoTargetDir $sharedTarget
+
+      - name: Run live provider canary preflight
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\invoke-gateway-live-provider-canary.ps1 -AsJson
+
+      - name: Run python-tests
+        run: python -m unittest discover -s tests/python -p "test_*.py" -v
+
+      - name: Run browser-worker-tests
+        run: node --test scripts/tests/*.test.mjs
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check Rust targets
+        run: cargo check --locked --all-targets
+
+      - name: Test Rust gateway
+        run: cargo test --locked
+
+      - name: Typecheck desktop frontend
+        working-directory: apps/desktop
+        run: npm run typecheck
+
+      - name: Build desktop frontend
+        working-directory: apps/desktop
+        run: npm run build
+
+      - name: Check Tauri formatting
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
+
+      - name: Check Tauri wrapper
+        run: cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+  linux:
+    name: Linux product validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            scripts/package-lock.json
+            apps/desktop/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.91.1
+        with:
+          components: rustfmt
+
+      - name: Cache Rust builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            apps/desktop/src-tauri -> target
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            clang \
+            cmake \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            patchelf \
+            pkg-config
+
+      - name: Install browser worker dependencies
+        run: npm ci --prefix scripts --no-audit --no-fund
+
+      - name: Install desktop dependencies
+        run: npm ci --prefix apps/desktop --no-audit --no-fund
+
+      - name: Validate provider manifests
+        run: python tools/validate-gateway-line-manifests.py
+
+      - name: Validate standalone repository contract
+        run: python -m unittest tests.python.test_gateway_standalone_repository_contract -v
+
+      - name: Run browser-worker-tests
+        run: node --test scripts/tests/*.test.mjs
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check Rust targets
+        run: cargo check --locked --all-targets
+
+      - name: Test Rust gateway
+        run: cargo test --locked
+
+      - name: Typecheck desktop frontend
+        working-directory: apps/desktop
+        run: npm run typecheck
+
+      - name: Build desktop frontend
+        working-directory: apps/desktop
+        run: npm run build
+
+      - name: Check Tauri formatting
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
+
+      - name: Check Tauri wrapper
+        run: cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml

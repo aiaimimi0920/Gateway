@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "udio-web-reverse-api",
+  "identity": {
+    "serviceProviderKey": "udio_platform",
+    "serviceProviderLabel": "Udio Platform",
+    "providerSurfaceKey": "udio",
+    "providerSurfaceLabel": "Udio Web Reverse API",
+    "protocolProfile": "udio",
+    "implementationLine": "web_reverse_api",
+    "adapter": "udio_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "browser_backed"
+  },
+  "capabilities": {
+    "families": ["models", "images", "music", "videos"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["session_auth", "browser_state"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/udio/web_reverse_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/udio/web_reverse_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Udio Platform实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/udio/web_reverse_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "udio-web-reverse-api-verify",
+    "focusedCargoFilters": [
+      "protocol::udio",
+      "upstream::udio",
+      "upstream::media_platform_compile_gate_test",
+      "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+    ],
+    "liveSuiteId": "udio_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "binary_exclusion",
+    "lineFeature": "line-udio-web-reverse-api",
+    "binaryInclusionGroup": "udio-web-reverse-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/udio.rs",
+    "upstreamModule": "gateway/src/upstream/udio.rs",
+    "platformDeltaModule": "gateway/src/protocol/udio.rs"
+  }
+}

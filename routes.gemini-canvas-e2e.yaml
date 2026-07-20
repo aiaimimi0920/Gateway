@@ -1,0 +1,51 @@
+providers:
+  - id: gemini-canvas-e2e
+    preset: gemini-canvas
+    base_url: "https://gemini.google.com"
+    supported_models:
+      - gemini-2.5-flash-image-preview
+      - gemini-canvas-music-preview
+      - gemini-canvas-video-preview
+    credentials:
+      - id: gemini-canvas-manual-test
+        api_key: ""
+        account_name: "canvas-manual-test"
+        runtime_state_object_key: "${GEMINI_CANVAS_RUNTIME_STATE_OBJECT_KEY}"
+        extra_body:
+          shareId: "fe24c455a570"
+
+  - id: gemini-canvas-chat-e2e
+    preset: gemini-canvas-chat
+    base_url: "https://gemini.google.com"
+    supported_models:
+      - gemini-3-flash-preview
+      - gemini-2.5-flash
+      - gemini-2.5-flash-preview-tts
+    credentials:
+      - id: gemini-canvas-chat-manual-test
+        api_key: ""
+        account_name: "canvas-chat-manual-test"
+        runtime_state_object_key: "${GEMINI_CANVAS_RUNTIME_STATE_OBJECT_KEY}"
+        extra_body:
+          shareId: "fe24c455a570"
+          apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta"
+
+model_routes:
+  - pattern: "gemini-2.5-flash-image-preview"
+    provider_ids: [gemini-canvas-e2e]
+    priority: 10
+  - pattern: "gemini-canvas-music-preview"
+    provider_ids: [gemini-canvas-e2e]
+    priority: 10
+  - pattern: "gemini-canvas-video-preview"
+    provider_ids: [gemini-canvas-e2e]
+    priority: 10
+  - pattern: "gemini-3-flash-preview"
+    provider_ids: [gemini-canvas-chat-e2e]
+    priority: 10
+  - pattern: "gemini-2.5-flash"
+    provider_ids: [gemini-canvas-chat-e2e]
+    priority: 10
+  - pattern: "gemini-2.5-flash-preview-tts"
+    provider_ids: [gemini-canvas-chat-e2e]
+    priority: 10

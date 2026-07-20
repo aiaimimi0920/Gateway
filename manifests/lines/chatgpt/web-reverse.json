@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "chatgpt-web-reverse",
+  "identity": {
+    "serviceProviderKey": "chatgpt_platform",
+    "serviceProviderLabel": "ChatGPT Platform",
+    "providerSurfaceKey": "chatgpt-web-reverse",
+    "providerSurfaceLabel": "ChatGPT Web Reverse",
+    "protocolProfile": "chatgpt_web_reverse",
+    "implementationLine": "web_reverse",
+    "adapter": "chatgpt_web_reverse_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "browser_backed"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["session_auth", "browser_state"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/chatgpt/web_reverse/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/chatgpt/web_reverse/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/ChatGPT官方API与WebReverse双线路基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/chatgpt/web_reverse/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "chatgpt-web-reverse-verify",
+    "focusedCargoFilters": [
+      "protocol::chatgpt::web_reverse",
+      "upstream::chatgpt::bootstrap",
+      "normalize_chatgpt_web_import_payload"
+    ],
+    "fixtureSuiteId": "chatgpt_web_reverse_fixture",
+    "liveSuiteId": "chatgpt_web_reverse_full_fixture",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-chatgpt-web-reverse",
+    "binaryInclusionGroup": "chatgpt-web-reverse"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/chatgpt/web_reverse.rs",
+    "upstreamModule": "gateway/src/upstream/chatgpt",
+    "platformDeltaModule": "gateway/src/protocol/chatgpt/web_reverse.rs"
+  }
+}

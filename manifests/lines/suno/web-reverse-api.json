@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "suno-web-reverse-api",
+  "identity": {
+    "serviceProviderKey": "suno_platform",
+    "serviceProviderLabel": "Suno Platform",
+    "providerSurfaceKey": "suno",
+    "providerSurfaceLabel": "Suno Web Reverse API",
+    "protocolProfile": "suno",
+    "implementationLine": "web_reverse_api",
+    "adapter": "suno_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "browser_backed"
+  },
+  "capabilities": {
+    "families": ["models", "images", "music", "videos"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["session_auth", "browser_state"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/suno/web_reverse_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/suno/web_reverse_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Suno平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/suno/web_reverse_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "suno-web-reverse-api-verify",
+    "focusedCargoFilters": [
+      "protocol::suno",
+      "upstream::suno",
+      "upstream::media_platform_compile_gate_test",
+      "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+    ],
+    "liveSuiteId": "suno_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "binary_exclusion",
+    "lineFeature": "line-suno-web-reverse-api",
+    "binaryInclusionGroup": "suno-web-reverse-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/suno.rs",
+    "upstreamModule": "gateway/src/upstream/suno.rs",
+    "platformDeltaModule": "gateway/src/protocol/suno.rs"
+  }
+}

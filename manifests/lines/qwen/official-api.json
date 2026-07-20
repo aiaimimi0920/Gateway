@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "qwen-official-api",
+  "identity": {
+    "serviceProviderKey": "qwen_platform",
+    "serviceProviderLabel": "Qwen Platform",
+    "providerSurfaceKey": "qwen-dashscope-openai",
+    "providerSurfaceLabel": "Qwen Official API",
+    "protocolProfile": "qwen_official_api",
+    "implementationLine": "official_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/qwen/official_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/qwen/official_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Qwen平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/qwen/official_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "qwen-official-api-verify",
+    "focusedCargoFilters": [
+      "protocol::qwen::official_api",
+      "upstream::qwen::official_api"
+    ],
+    "fixtureSuiteId": "qwen_dashscope_openai_fixture",
+    "liveSuiteId": "qwen_dashscope_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-qwen-official-api",
+    "familyCommonFeatures": [
+      "family-openai-compatible-official-api",
+      "family-anthropic-compatible-official-api"
+    ],
+    "binaryInclusionGroup": "qwen-official-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/qwen/official_api.rs",
+    "upstreamModule": "gateway/src/upstream/qwen/official_api.rs",
+    "platformDeltaModule": "gateway/src/protocol/qwen/official_api.rs"
+  }
+}

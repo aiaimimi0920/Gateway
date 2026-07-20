@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "gemini-canvas-program",
+  "identity": {
+    "serviceProviderKey": "gemini_platform",
+    "serviceProviderLabel": "Gemini Platform",
+    "providerSurfaceKey": "gemini-canvas-program-relay",
+    "providerSurfaceLabel": "Gemini Canvas Program",
+    "protocolProfile": "gemini_canvas_program_web_reverse_modular",
+    "implementationLine": "program_owned",
+    "adapter": "gemini_canvas_program_web_reverse_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "browser_backed"
+  },
+  "capabilities": {
+    "families": ["conversation", "images", "audio_speech", "music", "video", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["session_auth", "browser_state"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/gemini/canvas_web_reverse/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/gemini/canvas_web_reverse/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Gemini三线路与Canvas派生运行时架构规范.md",
+    "buildDocPath": "docs/20-ai-gateway/服务商实现线与Provider目录.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "gemini-canvas-program-verify",
+    "focusedCargoFilters": [
+      "protocol::gemini::canvas_program_web_reverse",
+      "upstream::gemini::canvas_program_web_reverse"
+    ],
+    "fixtureSuiteId": "gemini_canvas_web_reverse_modular_media_fixture",
+    "liveSuiteId": "gemini_canvas_media_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "binary_exclusion",
+    "lineFeature": "line-gemini-canvas-program",
+    "binaryInclusionGroup": "gemini-canvas-program"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/gemini/canvas_program_web_reverse",
+    "upstreamModule": "gateway/src/upstream/gemini/canvas_program_web_reverse",
+    "platformDeltaModule": "gateway/src/protocol/gemini/canvas_program_web_reverse"
+  }
+}

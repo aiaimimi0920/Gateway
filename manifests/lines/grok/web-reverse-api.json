@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "grok-web-reverse-api",
+  "identity": {
+    "serviceProviderKey": "grok_platform",
+    "serviceProviderLabel": "Grok Web",
+    "providerSurfaceKey": "grok",
+    "providerSurfaceLabel": "Grok Web Reverse API",
+    "protocolProfile": "grok_web",
+    "implementationLine": "web_reverse_api",
+    "adapter": "grok_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "direct_http_replay"
+  },
+  "capabilities": {
+    "families": ["conversation"],
+    "supportsModelsEndpoint": false
+  },
+  "credentials": {
+    "materialKinds": ["session_auth"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/grok/web_reverse_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/grok/web_reverse_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Grok平台实现线、可选编译与物理隔离基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/grok/web_reverse_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "grok-web-reverse-api-verify",
+    "focusedCargoFilters": [
+      "protocol::grok",
+      "implementation_lines::tests::protocol_profile_mapping_includes_nvidia_and_grok_lines",
+      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
+    ],
+    "fixtureSuiteId": "grok_fixture",
+    "liveSuiteId": "grok_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "binary_exclusion",
+    "lineFeature": "line-grok-web-reverse-api",
+    "binaryInclusionGroup": "grok-web-reverse-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/grok",
+    "upstreamModule": "gateway/src/upstream/grok",
+    "platformDeltaModule": "gateway/src/protocol/grok/line.rs"
+  }
+}

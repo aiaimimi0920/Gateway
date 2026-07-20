@@ -1,0 +1,144 @@
+name: Release Tag
+
+on:
+  push:
+    tags:
+      - 'V*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Vx.y.z tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Validate, build, and publish Gateway release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            scripts/package-lock.json
+            apps/desktop/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.91.1
+        with:
+          components: rustfmt
+
+      - name: Cache Rust builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            apps/desktop/src-tauri -> target
+
+      - name: Resolve and validate release tag
+        shell: powershell
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = if ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") { $env:REQUESTED_TAG } else { $env:GITHUB_REF_NAME }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "Release tag is required."
+          }
+          if ($tag -notmatch '^V\d+\.\d+\.\d+$') {
+            throw "Release tag must match Vx.y.z. Received: $tag"
+          }
+          "GATEWAY_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install browser worker dependencies
+        run: npm ci --prefix scripts --no-audit --no-fund
+
+      - name: Install desktop dependencies
+        run: npm ci --prefix apps/desktop --no-audit --no-fund
+
+      - name: Validate provider manifests
+        run: python tools/validate-gateway-line-manifests.py
+
+      - name: Run Python validation
+        run: python -m unittest discover -s tests/python -p "test_*.py" -v
+
+      - name: Run browser worker tests
+        run: node --test scripts/tests/*.test.mjs
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Test Rust gateway
+        run: cargo test --locked
+
+      - name: Typecheck desktop frontend
+        working-directory: apps/desktop
+        run: npm run typecheck
+
+      - name: Check Tauri formatting
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
+
+      - name: Check Tauri wrapper
+        run: cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+      - name: Build Gateway release binaries
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-gateway-release.ps1
+
+      - name: Package Gateway release
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\package-gateway-release.ps1 `
+            -VersionId $env:GATEWAY_TAG `
+            -ReleaseRoot ".\release\Gateway" `
+            -AllowCustomReleaseRoot `
+            -SkipBuild
+
+      - name: Verify packaged release
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\smoke-gateway-packaged-runtime.ps1 `
+            -ReleaseDir ".\release\Gateway\$env:GATEWAY_TAG" `
+            -IntegrityOnly
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\smoke-gateway-ui-release.ps1 `
+            -ReleaseDir ".\release\Gateway\$env:GATEWAY_TAG"
+
+      - name: Create deterministic ZIP and checksum
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\compress-gateway-release.ps1 `
+            -ReleaseDir ".\release\Gateway\$env:GATEWAY_TAG" `
+            -OutputDir ".\release\Gateway\packages" `
+            -VersionId $env:GATEWAY_TAG
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          token: ${{ github.token }}
+          tag_name: ${{ env.GATEWAY_TAG }}
+          name: ${{ env.GATEWAY_TAG }}
+          generate_release_notes: true
+          files: |
+            release/Gateway/packages/Gateway-${{ env.GATEWAY_TAG }}-windows-x64.zip
+            release/Gateway/packages/Gateway-${{ env.GATEWAY_TAG }}-windows-x64.zip.sha256
+          fail_on_unmatched_files: true

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "chataibot-web-reverse",
+  "identity": {
+    "serviceProviderKey": "chataibot_platform",
+    "serviceProviderLabel": "ChatAIBot Platform",
+    "providerSurfaceKey": "chataibot-images",
+    "providerSurfaceLabel": "ChatAIBot Images",
+    "protocolProfile": "chataibot",
+    "implementationLine": "web_reverse_api",
+    "adapter": "chataibot_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "direct_http_replay"
+  },
+  "capabilities": {
+    "families": ["images", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["session_auth", "browser_state"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/chataibot/web_reverse/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/chataibot/web_reverse/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/ChatAIBot图片实现线基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/chataibot/web_reverse/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "chataibot-images-verify",
+    "focusedCargoFilters": [
+      "chataibot",
+      "merge_provider_payload_preserves_non_empty_account_values_when_overlay_is_blank"
+    ],
+    "fixtureSuiteId": "chataibot_images_fixture",
+    "liveSuiteId": "chataibot_images_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "binary_exclusion",
+    "lineFeature": "line-chataibot-web-reverse",
+    "binaryInclusionGroup": "chataibot-web-reverse"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/chataibot",
+    "upstreamModule": "gateway/src/upstream/chataibot.rs",
+    "platformDeltaModule": "gateway/src/protocol/chataibot/mod.rs"
+  }
+}
