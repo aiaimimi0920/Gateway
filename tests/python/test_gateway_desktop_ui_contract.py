@@ -78,6 +78,26 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertEqual(config["identifier"], "com.vmjcv.neuro.gateway")
         self.assertEqual(config["build"]["frontendDist"], "../dist")
 
+    def test_tauri_bundle_declares_cross_platform_icons(self):
+        tauri_root = DESKTOP_ROOT / "src-tauri"
+        config = json.loads(
+            (tauri_root / "tauri.conf.json").read_text(encoding="utf-8")
+        )
+        icons = config.get("bundle", {}).get("icon", [])
+
+        self.assertIn("icons/icon.png", icons)
+        self.assertIn("icons/icon.ico", icons)
+        for icon_name in ("icon.png", "icon.ico"):
+            icon_path = tauri_root / "icons" / icon_name
+            self.assertTrue(icon_path.is_file(), f"missing Tauri icon: {icon_name}")
+
+        png_signature = (tauri_root / "icons" / "icon.png").read_bytes()[:8]
+        self.assertEqual(
+            b"\x89PNG\r\n\x1a\n",
+            png_signature,
+            "Gateway Linux packaging requires a valid PNG icon",
+        )
+
     def test_desktop_uses_neuroterminal_theme_tokens(self):
         styles = DESKTOP_ROOT / "src" / "styles.css"
         self.assertTrue(styles.exists(), "Gateway desktop styles.css must exist")
