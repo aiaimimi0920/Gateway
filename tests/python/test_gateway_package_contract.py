@@ -35,6 +35,7 @@ class GatewayPackageContractTests(unittest.TestCase):
             "scripts/output/result.json": b"excluded\n",
             "docs/provider-inventory.json": b'{"schemaVersion":"gateway-product-inventory/v1"}\n',
             "docs/operations-manual.md": b"# Operations\n",
+            "docs/release/source-notes.md": b"# Release source notes\n",
             "docs/evidence/history.json": b'{"artifactPaths":["C:/Users/Public/host-only.log"]}\n',
             "docs/evidence/README.md": b"# Evidence\n",
             "docs/analysis/project-overview.md": b"C:/Users/Public/internal-analysis\n",
@@ -87,20 +88,19 @@ class GatewayPackageContractTests(unittest.TestCase):
         )
 
     def _source_tree_fingerprint(self, source_root: pathlib.Path) -> str:
-        excluded = {
-            ".git",
-            "target",
-            "node_modules",
-            ".runtime",
-            "output",
-            "release",
-        }
+        excluded = {".git", "target", "node_modules", ".runtime", "output"}
         records = []
         for path in source_root.rglob("*"):
             if not path.is_file():
                 continue
             relative = path.relative_to(source_root)
-            if any(part in excluded or part.startswith("tmp-") for part in relative.parts):
+            parts = tuple(part.lower() for part in relative.parts)
+            if any(
+                part in excluded
+                or part.startswith("tmp-")
+                or (index == 0 and part == "release")
+                for index, part in enumerate(parts)
+            ):
                 continue
             payload = path.read_bytes()
             records.append(
@@ -501,8 +501,10 @@ class GatewayPackageContractTests(unittest.TestCase):
                 time.sleep(0.002)
 
             self.assertIsNotNone(staging_path, "packager completed before staging could be observed")
-            operations_manual = source_root / "docs" / "operations-manual.md"
-            operations_manual.write_bytes(operations_manual.read_bytes() + b"changed during staging\n")
+            release_source = source_root / "docs" / "release" / "source-notes.md"
+            release_source.write_bytes(
+                release_source.read_bytes() + b"changed during staging\n"
+            )
             stdout, stderr = process.communicate(timeout=60)
 
             self.assertNotEqual(process.returncode, 0, msg=stdout + stderr)
@@ -642,5 +644,3 @@ class GatewayPackageContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-

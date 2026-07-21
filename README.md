@@ -74,6 +74,7 @@ cargo test --locked
 Validate manifests and Python contracts:
 
 ```powershell
+python -m pip install --disable-pip-version-check -r tests/python/requirements.txt
 python tools/validate-gateway-line-manifests.py
 python -m unittest discover -s tests/python -p "test_*.py" -v
 ```

@@ -1,4 +1,5 @@
 import pathlib
+import re
 import subprocess
 import tempfile
 import unittest
@@ -13,6 +14,16 @@ GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
+    @staticmethod
+    def _workflow_job_block(workflow: str, job_name: str) -> str:
+        match = re.search(
+            rf"(?ms)^  {re.escape(job_name)}:\r?$.*?(?=^  [A-Za-z0-9_-]+:\r?$|\Z)",
+            workflow,
+        )
+        if match is None:
+            raise AssertionError(f"missing workflow job: {job_name}")
+        return match.group(0)
+
     def test_repository_metadata_and_workflows_exist(self):
         required = [
             ".gitattributes",
@@ -146,7 +157,8 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
             function_end = script.index("\nfunction ", function_start + 1)
             function_text = script[function_start:function_end]
             with self.subTest(script=name):
-                self.assertIn('"release"', function_text)
+                self.assertIn('$excludedRootDirectoryNames = @("release")', function_text)
+                self.assertIn("$index -eq 0", function_text)
 
     def test_python_validation_dependencies_are_pinned_and_installed(self):
         requirements_path = GATEWAY_ROOT / "tests/python/requirements.txt"
@@ -162,17 +174,40 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
             "python -m pip install --disable-pip-version-check "
             "-r tests/python/requirements.txt"
         )
-        for relative_path in (
-            ".github/workflows/ci.yml",
-            ".github/workflows/build-windows.yml",
-            ".github/workflows/release-tag.yml",
-        ):
+        workflow_jobs = {
+            ".github/workflows/ci.yml": ("windows", "linux"),
+            ".github/workflows/build-windows.yml": ("build",),
+            ".github/workflows/release-tag.yml": ("release",),
+        }
+        for relative_path, job_names in workflow_jobs.items():
             workflow = (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
-            self.assertEqual(
-                workflow.count(install_command),
-                workflow.count("uses: actions/setup-python@v6"),
-                msg=relative_path,
-            )
+            for job_name in job_names:
+                job = self._workflow_job_block(workflow, job_name)
+                with self.subTest(workflow=relative_path, job=job_name):
+                    self.assertEqual(job.count(install_command), 1)
+                    setup_index = job.index("uses: actions/setup-python@")
+                    install_index = job.index(install_command)
+                    python_use_indices = [
+                        job.index(marker)
+                        for marker in (
+                            "run: python tools/",
+                            "run: python -m unittest",
+                        )
+                        if marker in job
+                    ]
+                    self.assertTrue(python_use_indices)
+                    self.assertLess(setup_index, install_index)
+                    self.assertLess(install_index, min(python_use_indices))
+
+    def test_readmes_install_python_validation_dependencies(self):
+        install_command = (
+            "python -m pip install --disable-pip-version-check "
+            "-r tests/python/requirements.txt"
+        )
+        for relative_path in ("README.md", "README.zh-CN.md"):
+            readme = (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
+            with self.subTest(readme=relative_path):
+                self.assertIn(install_command, readme)
 
     def test_packager_defaults_to_repository_local_release_root(self):
         script = (GATEWAY_ROOT / "tools/package-gateway-release.ps1").read_text(

@@ -68,6 +68,7 @@ cargo test --locked
 运行线路清单和 Python 合同校验：
 
 ```powershell
+python -m pip install --disable-pip-version-check -r tests/python/requirements.txt
 python tools/validate-gateway-line-manifests.py
 python -m unittest discover -s tests/python -p "test_*.py" -v
 ```
