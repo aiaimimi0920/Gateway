@@ -135,6 +135,19 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
         self.assertEqual(result.stdout.strip(), ".")
 
+    def test_release_artifacts_are_excluded_from_source_fingerprints(self):
+        scripts = {
+            "build": GATEWAY_ROOT / "tools/build-gateway-release.ps1",
+            "package": GATEWAY_ROOT / "tools/package-gateway-release.ps1",
+        }
+        for name, path in scripts.items():
+            script = path.read_text(encoding="utf-8")
+            function_start = script.index("function Get-SourceTreeState")
+            function_end = script.index("\nfunction ", function_start + 1)
+            function_text = script[function_start:function_end]
+            with self.subTest(script=name):
+                self.assertIn('"release"', function_text)
+
     def test_python_validation_dependencies_are_pinned_and_installed(self):
         requirements_path = GATEWAY_ROOT / "tests/python/requirements.txt"
         self.assertTrue(requirements_path.is_file())

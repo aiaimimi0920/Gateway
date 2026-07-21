@@ -362,7 +362,7 @@ function Get-GitRepositoryRoot {
 function Get-SourceTreeState {
     param([Parameter(Mandatory = $true)][string]$Root)
 
-    $excludedDirectoryNames = @(".git", "target", "node_modules", ".runtime", "output")
+    $excludedDirectoryNames = @(".git", "target", "node_modules", ".runtime", "output", "release")
     $records = [System.Collections.Generic.List[string]]::new()
     $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force)
     foreach ($file in $files) {

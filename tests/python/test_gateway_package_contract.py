@@ -87,7 +87,14 @@ class GatewayPackageContractTests(unittest.TestCase):
         )
 
     def _source_tree_fingerprint(self, source_root: pathlib.Path) -> str:
-        excluded = {".git", "target", "node_modules", ".runtime", "output"}
+        excluded = {
+            ".git",
+            "target",
+            "node_modules",
+            ".runtime",
+            "output",
+            "release",
+        }
         records = []
         for path in source_root.rglob("*"):
             if not path.is_file():
@@ -281,6 +288,39 @@ class GatewayPackageContractTests(unittest.TestCase):
             self.assertEqual(manifest_bytes, (destination / "manifest.json").read_bytes())
             self.assertEqual(checksums_bytes, (destination / "checksums.sha256").read_bytes())
             self.assertFalse(any(path.name.startswith(".contract-v1.staging-") for path in release_root.iterdir()))
+
+    def test_repository_local_release_root_does_not_change_source_fingerprint(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            source_root = pathlib.Path(temporary_directory) / "Gateway-source"
+            release_root = source_root / "release" / "Gateway"
+            source_root.mkdir(parents=True)
+            self._write_fixture(source_root)
+
+            result = self._run_packager(
+                source_root,
+                release_root,
+                allow_custom_release_root=False,
+            )
+
+            self.assertEqual(
+                result.returncode,
+                0,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+            )
+            destination = release_root / "contract-v1"
+            self.assertTrue(destination.is_dir())
+            manifest = json.loads(
+                (destination / "manifest.json").read_text(encoding="utf-8")
+            )
+            provenance = json.loads(
+                (destination / "gateway-build-provenance.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                manifest["sourceTreeFingerprint"],
+                provenance["sourceTreeFingerprint"],
+            )
 
     def test_gateway_source_owns_packaged_canary_and_runner_resolves_it_locally(self):
         canary = GATEWAY_ROOT / "scripts" / "invoke-gateway-live-provider-canary.ps1"
@@ -602,6 +642,5 @@ class GatewayPackageContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
 
 

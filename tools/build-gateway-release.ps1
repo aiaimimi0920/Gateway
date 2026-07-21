@@ -107,7 +107,7 @@ function Get-RelativeUnixPath {
 function Get-SourceTreeState {
     param([Parameter(Mandatory = $true)][string]$Root)
 
-    $excludedDirectoryNames = @(".git", "target", "node_modules", ".runtime", "output")
+    $excludedDirectoryNames = @(".git", "target", "node_modules", ".runtime", "output", "release")
     $records = [System.Collections.Generic.List[string]]::new()
     foreach ($file in @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force)) {
         $relative = Get-RelativeUnixPath -BasePath $Root -Path $file.FullName
