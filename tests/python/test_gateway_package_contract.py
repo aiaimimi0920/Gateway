@@ -87,10 +87,34 @@ class GatewayPackageContractTests(unittest.TestCase):
             stderr=subprocess.PIPE,
         )
 
-    def _source_tree_fingerprint(self, source_root: pathlib.Path) -> str:
+    def _source_tree_state(self, source_root: pathlib.Path) -> dict[str, object]:
         excluded = {".git", "target", "node_modules", ".runtime", "output"}
         records = []
-        for path in source_root.rglob("*"):
+        algorithm = "sha256-file-list-v1"
+        if (source_root / ".git").exists():
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(source_root),
+                    "-c",
+                    "core.quotepath=false",
+                    "ls-files",
+                    "--cached",
+                    "--others",
+                    "--exclude-standard",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            paths = [source_root / path for path in result.stdout.splitlines() if path]
+            algorithm = "sha256-git-source-list-v2"
+        else:
+            paths = source_root.rglob("*")
+        for path in paths:
             if not path.is_file():
                 continue
             relative = path.relative_to(source_root)
@@ -106,20 +130,111 @@ class GatewayPackageContractTests(unittest.TestCase):
             records.append(
                 f"{relative.as_posix()}\t{len(payload)}\t{hashlib.sha256(payload).hexdigest()}\n"
             )
-        return hashlib.sha256("".join(sorted(records)).encode("utf-8")).hexdigest()
+        return {
+            "algorithm": algorithm,
+            "fingerprint": hashlib.sha256(
+                "".join(sorted(records)).encode("utf-8")
+            ).hexdigest(),
+            "fileCount": len(records),
+            "dirty": None,
+        }
+
+    def _source_tree_fingerprint(self, source_root: pathlib.Path) -> str:
+        return str(self._source_tree_state(source_root)["fingerprint"])
+
+    def test_packager_source_fingerprint_ignores_git_ignored_local_files(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_root = pathlib.Path(temporary_directory)
+            source_root = temporary_root / "Gateway-source"
+            release_root = temporary_root / "release" / "Gateway"
+            source_root.mkdir(parents=True)
+            self._write_fixture(source_root)
+            (source_root / ".gitignore").write_text(
+                "/.env\n/apps/desktop/dist/\n__pycache__/\n",
+                encoding="utf-8",
+            )
+            ignored_files = {
+                ".env": "GATEWAY_SECRET=fixture-only\n",
+                "apps/desktop/dist/bundle.js": "generated-v1\n",
+                "tests/python/__pycache__/contract.pyc": "cache-v1\n",
+            }
+            for relative, content in ignored_files.items():
+                path = source_root / pathlib.PurePosixPath(relative)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+
+            subprocess.run(
+                ["git", "init"],
+                cwd=source_root,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "add", "."],
+                cwd=source_root,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Gateway Contract",
+                    "-c",
+                    "user.email=gateway-contract@example.invalid",
+                    "commit",
+                    "-m",
+                    "fixture",
+                ],
+                cwd=source_root,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
+            self._write_build_provenance(source_root)
+
+            for relative in ignored_files:
+                path = source_root / pathlib.PurePosixPath(relative)
+                path.write_text(path.read_text(encoding="utf-8") + "changed\n", encoding="utf-8")
+
+            result = self._run_packager(
+                source_root,
+                release_root,
+                write_provenance=False,
+            )
+
+            self.assertEqual(
+                result.returncode,
+                0,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+            )
+            manifest = json.loads(
+                (release_root / "contract-v1" / "manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                manifest["sourceTreeFingerprint"],
+                self._source_tree_fingerprint(source_root),
+            )
 
     def _write_build_provenance(self, source_root: pathlib.Path) -> None:
         # The real build script writes this file. Fixture packages include a
         # deliberately matching provenance record so -SkipBuild cannot bypass
         # the stale-artifact check.
+        source_tree = self._source_tree_state(source_root)
         provenance_path = source_root / "target" / "release" / "gateway-build-provenance.json"
         provenance_path.parent.mkdir(parents=True, exist_ok=True)
         provenance_path.write_text(
             json.dumps(
                 {
                     "schemaVersion": 1,
-                    "sourceTreeFingerprint": self._source_tree_fingerprint(source_root),
-                    "sourceTreeDirty": None,
+                    "sourceTreeFingerprint": source_tree["fingerprint"],
+                    "sourceTreeDirty": source_tree["dirty"],
+                    "sourceTree": source_tree,
                     "artifacts": [
                         {
                             "path": "target/release/neuro-gateway.exe",
@@ -373,6 +488,37 @@ class GatewayPackageContractTests(unittest.TestCase):
             result = self._run_packager(source_root, release_root, write_provenance=False)
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse((release_root / "contract-v1").exists())
+
+    def test_skip_build_rejects_inconsistent_nested_source_provenance(self):
+        mutations = {
+            "algorithm": "sha256-incompatible-source-list",
+            "fingerprint": "f" * 64,
+            "fileCount": -1,
+        }
+        for field, invalid_value in mutations.items():
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temporary_directory:
+                temporary_root = pathlib.Path(temporary_directory)
+                source_root = temporary_root / "Gateway-source"
+                release_root = temporary_root / "release" / "Gateway"
+                source_root.mkdir(parents=True)
+                self._write_fixture(source_root)
+                self._write_build_provenance(source_root)
+                provenance = (
+                    source_root / "target" / "release" / "gateway-build-provenance.json"
+                )
+                payload = json.loads(provenance.read_text(encoding="utf-8"))
+                payload["sourceTree"][field] = invalid_value
+                provenance.write_text(json.dumps(payload), encoding="utf-8")
+
+                result = self._run_packager(
+                    source_root,
+                    release_root,
+                    write_provenance=False,
+                )
+
+                self.assertNotEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+                self.assertIn("build provenance", (result.stdout + result.stderr).lower())
+                self.assertFalse((release_root / "contract-v1").exists())
 
     def test_existing_evidence_provenance_blocks_release_without_overwrite(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

@@ -364,8 +364,35 @@ function Get-SourceTreeState {
 
     $excludedDirectoryNames = @(".git", "target", "node_modules", ".runtime", "output")
     $excludedRootDirectoryNames = @("release")
+    $gitRoot = Get-GitRepositoryRoot -Root $Root
+    $gitCommand = Get-Command "git" -ErrorAction SilentlyContinue
+    $algorithm = "sha256-file-list-v1"
+    $files = @()
+    if ($null -ne $gitRoot) {
+        if ($null -eq $gitCommand) {
+            throw "Unable to enumerate Gateway source files with Git because git is unavailable."
+        }
+        $pathSpec = Get-RelativeUnixPath -BasePath $gitRoot -Path $Root
+        $gitPaths = @(& git -C $gitRoot -c core.quotepath=false ls-files --cached --others --exclude-standard -- $pathSpec 2>$null)
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to enumerate Gateway source files with Git."
+        }
+        $files = @(
+            foreach ($gitPath in $gitPaths) {
+                if ([string]::IsNullOrWhiteSpace($gitPath)) {
+                    continue
+                }
+                $fullPath = Join-Path $gitRoot $gitPath
+                if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
+                    Get-Item -LiteralPath $fullPath
+                }
+            }
+        )
+        $algorithm = "sha256-git-source-list-v2"
+    } else {
+        $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force)
+    }
     $records = [System.Collections.Generic.List[string]]::new()
-    $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force)
     foreach ($file in $files) {
         $relative = Get-RelativeUnixPath -BasePath $Root -Path $file.FullName
         $skip = $false
@@ -400,8 +427,7 @@ function Get-SourceTreeState {
     $fingerprint = ([System.BitConverter]::ToString($fingerprintBytes)).Replace("-", "").ToLowerInvariant()
 
     $dirty = $null
-    $gitRoot = Get-GitRepositoryRoot -Root $Root
-    if ($null -ne $gitRoot -and $null -ne (Get-Command "git" -ErrorAction SilentlyContinue)) {
+    if ($null -ne $gitRoot -and $null -ne $gitCommand) {
         $pathSpec = Get-RelativeUnixPath -BasePath $gitRoot -Path $Root
         $statusOutput = @(& git -C $gitRoot status --porcelain=v1 --untracked-files=all -- $pathSpec 2>$null)
         if ($LASTEXITCODE -eq 0) {
@@ -410,7 +436,7 @@ function Get-SourceTreeState {
     }
 
     return [pscustomobject]@{
-        algorithm = "sha256-file-list-v1"
+        algorithm = $algorithm
         fingerprint = $fingerprint
         fileCount = $sortedRecords.Count
         dirty = $dirty
@@ -437,8 +463,20 @@ function Assert-BuildProvenance {
     if ([int]$provenance.schemaVersion -ne 1) {
         throw "Unsupported Gateway build provenance schema: $($provenance.schemaVersion)"
     }
+    if ($null -eq $provenance.sourceTree) {
+        throw "Gateway build provenance is missing source tree metadata. Rebuild before packaging."
+    }
+    if ([string]$provenance.sourceTree.algorithm -ne [string]$SourceTreeState.algorithm) {
+        throw "Gateway build provenance source tree algorithm does not match the current source enumeration. Rebuild before packaging."
+    }
     if ([string]$provenance.sourceTreeFingerprint -ne [string]$SourceTreeState.fingerprint) {
         throw "Gateway source tree changed after the release binaries were built. Rebuild before packaging."
+    }
+    if ([string]$provenance.sourceTree.fingerprint -ne [string]$SourceTreeState.fingerprint) {
+        throw "Gateway build provenance source tree fingerprint is inconsistent. Rebuild before packaging."
+    }
+    if ([int]$provenance.sourceTree.fileCount -ne [int]$SourceTreeState.fileCount) {
+        throw "Gateway build provenance source tree file count is inconsistent. Rebuild before packaging."
     }
 
     $provenanceArtifacts = @($provenance.artifacts)

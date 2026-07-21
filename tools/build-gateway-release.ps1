@@ -109,8 +109,44 @@ function Get-SourceTreeState {
 
     $excludedDirectoryNames = @(".git", "target", "node_modules", ".runtime", "output")
     $excludedRootDirectoryNames = @("release")
+    $gitRoot = $null
+    $cursor = Get-Item -LiteralPath $Root
+    while ($null -ne $cursor) {
+        if (Test-Path -LiteralPath (Join-Path $cursor.FullName ".git")) {
+            $gitRoot = $cursor.FullName
+            break
+        }
+        $cursor = $cursor.Parent
+    }
+    $gitCommand = Get-Command "git" -ErrorAction SilentlyContinue
+    $algorithm = "sha256-file-list-v1"
+    $files = @()
+    if ($null -ne $gitRoot) {
+        if ($null -eq $gitCommand) {
+            throw "Unable to enumerate Gateway source files with Git because git is unavailable."
+        }
+        $pathSpec = Get-RelativeUnixPath -BasePath $gitRoot -Path $Root
+        $gitPaths = @(& git -C $gitRoot -c core.quotepath=false ls-files --cached --others --exclude-standard -- $pathSpec 2>$null)
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to enumerate Gateway source files with Git."
+        }
+        $files = @(
+            foreach ($gitPath in $gitPaths) {
+                if ([string]::IsNullOrWhiteSpace($gitPath)) {
+                    continue
+                }
+                $fullPath = Join-Path $gitRoot $gitPath
+                if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
+                    Get-Item -LiteralPath $fullPath
+                }
+            }
+        )
+        $algorithm = "sha256-git-source-list-v2"
+    } else {
+        $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force)
+    }
     $records = [System.Collections.Generic.List[string]]::new()
-    foreach ($file in @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force)) {
+    foreach ($file in $files) {
         $relative = Get-RelativeUnixPath -BasePath $Root -Path $file.FullName
         $skip = $false
         $parts = @($relative -split "/")
@@ -142,17 +178,8 @@ function Get-SourceTreeState {
         $sha256.Dispose()
     }
 
-    $gitRoot = $null
-    $cursor = Get-Item -LiteralPath $Root
-    while ($null -ne $cursor) {
-        if (Test-Path -LiteralPath (Join-Path $cursor.FullName ".git")) {
-            $gitRoot = $cursor.FullName
-            break
-        }
-        $cursor = $cursor.Parent
-    }
     $dirty = $null
-    if ($null -ne $gitRoot -and $null -ne (Get-Command "git" -ErrorAction SilentlyContinue)) {
+    if ($null -ne $gitRoot -and $null -ne $gitCommand) {
         $pathSpec = Get-RelativeUnixPath -BasePath $gitRoot -Path $Root
         $statusOutput = @(& git -C $gitRoot status --porcelain=v1 --untracked-files=all -- $pathSpec 2>$null)
         if ($LASTEXITCODE -eq 0) {
@@ -161,7 +188,7 @@ function Get-SourceTreeState {
     }
 
     return [pscustomobject]@{
-        algorithm = "sha256-file-list-v1"
+        algorithm = $algorithm
         fingerprint = ([System.BitConverter]::ToString($fingerprintBytes)).Replace("-", "").ToLowerInvariant()
         fileCount = $sortedRecords.Count
         dirty = $dirty
