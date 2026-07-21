@@ -18,6 +18,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Use runner-local temporary storage
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $gatewayTemp = Join-Path $env:RUNNER_TEMP "gateway-ci-temp"
+          New-Item -ItemType Directory -Force -Path $gatewayTemp | Out-Null
+          "TEMP=$gatewayTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TMP=$gatewayTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:

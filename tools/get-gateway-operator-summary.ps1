@@ -253,7 +253,12 @@ if ($statusCode -lt 200 -or $statusCode -ge 300) {
 }
 
 try {
-    $payload = $response.Content | ConvertFrom-Json -ErrorAction Stop
+    $convertFromJsonParameters = @{ ErrorAction = "Stop" }
+    $convertFromJsonCommand = Get-Command ConvertFrom-Json -ErrorAction Stop
+    if ($convertFromJsonCommand.Parameters.ContainsKey("DateKind")) {
+        $convertFromJsonParameters["DateKind"] = "String"
+    }
+    $payload = $response.Content | ConvertFrom-Json @convertFromJsonParameters
 }
 catch {
     throw "Gateway operator summary response was not valid JSON."

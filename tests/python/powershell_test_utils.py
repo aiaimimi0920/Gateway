@@ -1,9 +1,8 @@
-import os
 import shutil
 
 
 def powershell_executable() -> str:
-    candidates = ["powershell", "pwsh"] if os.name == "nt" else ["pwsh", "powershell"]
+    candidates = ["pwsh", "powershell"]
     for candidate in candidates:
         if shutil.which(candidate):
             return candidate

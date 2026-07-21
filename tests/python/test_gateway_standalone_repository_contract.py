@@ -1,5 +1,12 @@
 import pathlib
+import subprocess
+import tempfile
 import unittest
+
+try:
+    from .powershell_test_utils import powershell_executable
+except ImportError:
+    from powershell_test_utils import powershell_executable
 
 
 GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -47,6 +54,44 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
         self.assertNotIn('Join-Path $PSScriptRoot "..\\.."', script)
         self.assertNotIn("Gateway/Cargo.toml", script)
         self.assertNotIn('"Gateway\\target', script)
+
+    def test_build_source_state_uses_dot_for_the_repository_root_pathspec(self):
+        script = (GATEWAY_ROOT / "tools/build-gateway-release.ps1").read_text(
+            encoding="utf-8"
+        )
+        function_start = script.index("function Get-RelativeUnixPath")
+        function_end = script.index("function Get-SourceTreeState", function_start)
+        function_text = script[function_start:function_end]
+
+        with tempfile.TemporaryDirectory(dir=GATEWAY_ROOT) as temp_dir:
+            probe = pathlib.Path(temp_dir) / "probe-relative-root.ps1"
+            probe.write_text(
+                function_text
+                + "\nGet-RelativeUnixPath -BasePath $args[0] -Path $args[0]\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    powershell_executable(),
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(probe),
+                    str(GATEWAY_ROOT),
+                ],
+                cwd=GATEWAY_ROOT,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=30,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(result.stdout.strip(), ".")
 
     def test_packager_defaults_to_repository_local_release_root(self):
         script = (GATEWAY_ROOT / "tools/package-gateway-release.ps1").read_text(

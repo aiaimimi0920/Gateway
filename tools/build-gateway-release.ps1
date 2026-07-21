@@ -93,8 +93,12 @@ function Get-RelativeUnixPath {
         [Parameter(Mandatory = $true)][string]$Path
     )
 
-    $baseFull = [System.IO.Path]::GetFullPath($BasePath).TrimEnd("\", "/") + [System.IO.Path]::DirectorySeparatorChar
+    $baseRoot = [System.IO.Path]::GetFullPath($BasePath).TrimEnd("\", "/")
     $pathFull = [System.IO.Path]::GetFullPath($Path)
+    if ([string]::Equals($baseRoot, $pathFull.TrimEnd("\", "/"), [System.StringComparison]::OrdinalIgnoreCase)) {
+        return "."
+    }
+    $baseFull = $baseRoot + [System.IO.Path]::DirectorySeparatorChar
     $baseUri = New-Object System.Uri($baseFull)
     $pathUri = New-Object System.Uri($pathFull)
     return [System.Uri]::UnescapeDataString($baseUri.MakeRelativeUri($pathUri).ToString()).Replace("\", "/")

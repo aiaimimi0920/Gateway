@@ -254,6 +254,9 @@ class GatewayOperatorSummaryContractTests(unittest.TestCase):
         self.assertIn("/v1/internal/gateway/operations/summary", script_text)
         self.assertIn("x-management-token", script_text)
         self.assertIn("Bearer", script_text)
+        self.assertIn("ConvertFrom-Json", script_text)
+        self.assertIn("DateKind", script_text)
+        self.assertIn('"String"', script_text)
 
     def test_sli_slo_alerts_and_runbook_reference_real_surfaces(self):
         self.assertTrue(SLI_SLO_DOC.is_file())

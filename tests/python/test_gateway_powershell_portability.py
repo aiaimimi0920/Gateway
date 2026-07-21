@@ -4,6 +4,15 @@ import unittest
 
 
 class GatewayPowerShellPortabilityTests(unittest.TestCase):
+    def test_python_test_helper_prefers_pwsh_before_windows_powershell(self):
+        repo_root = pathlib.Path(__file__).resolve().parents[2]
+        helper = (repo_root / "tests" / "python" / "powershell_test_utils.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('candidates = ["pwsh", "powershell"]', helper)
+        self.assertNotIn('if os.name == "nt"', helper)
+
     def test_python_gateway_tests_do_not_hardcode_windows_powershell(self):
         repo_root = pathlib.Path(__file__).resolve().parents[2]
         python_tests = repo_root / "tests" / "python"
@@ -35,6 +44,17 @@ class GatewayPowerShellPortabilityTests(unittest.TestCase):
         self.assertIn("$PowerShellExecutable", line_matrix)
         self.assertNotIn('"powershell"', preflight)
         self.assertNotIn('"powershell"', line_matrix)
+
+    def test_windows_workflows_use_runner_local_temp_storage(self):
+        repo_root = pathlib.Path(__file__).resolve().parents[2]
+        workflows = repo_root / ".github" / "workflows"
+
+        for name in ("ci.yml", "build-windows.yml"):
+            workflow = (workflows / name).read_text(encoding="utf-8")
+            with self.subTest(workflow=name):
+                self.assertIn("RUNNER_TEMP", workflow)
+                self.assertIn('"TEMP=$gatewayTemp"', workflow)
+                self.assertIn('"TMP=$gatewayTemp"', workflow)
 
 
 if __name__ == "__main__":
