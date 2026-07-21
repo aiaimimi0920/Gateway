@@ -223,7 +223,10 @@ def _source_fingerprint(manifests: Iterable[pathlib.Path]) -> str:
     for path in manifests:
         digest.update(gateway_relative(path).encode("utf-8"))
         digest.update(b"\0")
-        digest.update(path.read_bytes())
+        payload = (
+            path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        )
+        digest.update(payload)
         digest.update(b"\0")
     return digest.hexdigest()
 
@@ -411,8 +414,9 @@ def render_guide(report: dict[str, Any]) -> str:
         "",
         "`sourceRevision` is the content-addressed identity",
         "`manifest-source:<sha256>` and does not depend on Git commit history.",
-        "`sourceFingerprint` is the raw SHA-256 of the same exact sorted manifest",
-        "paths and bytes, including uncommitted source changes.",
+        "`sourceFingerprint` is the SHA-256 of the same sorted manifest paths",
+        "and bytes after normalizing text line endings to LF, including uncommitted",
+        "source changes.",
         "",
         "## Safe local template",
         "",

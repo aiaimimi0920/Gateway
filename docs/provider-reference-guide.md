@@ -17,8 +17,9 @@ Current deterministic baseline: **164 declared references**, **154 unique paths*
 
 `sourceRevision` is the content-addressed identity
 `manifest-source:<sha256>` and does not depend on Git commit history.
-`sourceFingerprint` is the raw SHA-256 of the same exact sorted manifest
-paths and bytes, including uncommitted source changes.
+`sourceFingerprint` is the SHA-256 of the same sorted manifest paths
+and bytes after normalizing text line endings to LF, including uncommitted
+source changes.
 
 ## Safe local template
 

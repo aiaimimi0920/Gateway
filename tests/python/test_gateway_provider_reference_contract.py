@@ -132,6 +132,25 @@ class GatewayProviderReferenceContractTests(unittest.TestCase):
             gateway_provider_references._source_fingerprint(manifests),
         )
 
+    def test_source_fingerprint_normalizes_manifest_line_endings(self):
+        manifest = gateway_provider_references.discover_manifests()[0]
+        canonical = (
+            manifest.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        )
+        with mock.patch.object(
+            pathlib.Path,
+            "read_bytes",
+            return_value=canonical,
+        ):
+            lf_fingerprint = gateway_provider_references._source_fingerprint([manifest])
+        with mock.patch.object(
+            pathlib.Path,
+            "read_bytes",
+            return_value=canonical.replace(b"\n", b"\r\n"),
+        ):
+            crlf_fingerprint = gateway_provider_references._source_fingerprint([manifest])
+        self.assertEqual(lf_fingerprint, crlf_fingerprint)
+
     def test_legacy_paths_are_explicitly_classified_and_point_to_local_guide(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
