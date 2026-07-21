@@ -1,3 +1,4 @@
+import json
 import pathlib
 import subprocess
 import tempfile
@@ -70,9 +71,22 @@ class VerifyGatewayLineListOnlyTests(unittest.TestCase):
             0,
             msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}",
         )
-        self.assertIn('"status":  "pass"', result.stdout)
-        self.assertIn('"lineCount":  41', result.stdout)
-        self.assertIn('"cargoSkipped":  true', result.stdout)
+        payload = None
+        for index in range(len(result.stdout) - 1, -1, -1):
+            if result.stdout[index] != "{":
+                continue
+            try:
+                candidate = json.loads(result.stdout[index:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(candidate, dict):
+                payload = candidate
+                break
+
+        self.assertIsNotNone(payload, msg=f"missing JSON payload:\n{result.stdout}")
+        self.assertEqual(payload["status"], "pass")
+        self.assertEqual(payload["lineCount"], 41)
+        self.assertIs(payload["cargoSkipped"], True)
 
 
 if __name__ == "__main__":

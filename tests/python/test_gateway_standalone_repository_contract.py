@@ -93,6 +93,74 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
         self.assertEqual(result.stdout.strip(), ".")
 
+    def test_package_source_state_uses_dot_for_the_repository_root_pathspec(self):
+        script = (GATEWAY_ROOT / "tools/package-gateway-release.ps1").read_text(
+            encoding="utf-8"
+        )
+        resolve_start = script.index("function Resolve-FullPath")
+        resolve_end = script.index("function Resolve-GatewayRoot", resolve_start)
+        function_start = script.index("function Get-RelativeUnixPath")
+        function_end = script.index("function Write-Utf8NoBom", function_start)
+        function_text = (
+            script[resolve_start:resolve_end] + script[function_start:function_end]
+        )
+
+        with tempfile.TemporaryDirectory(dir=GATEWAY_ROOT) as temp_dir:
+            probe = pathlib.Path(temp_dir) / "probe-package-relative-root.ps1"
+            probe.write_text(
+                function_text
+                + "\nGet-RelativeUnixPath -BasePath $args[0] -Path $args[0]\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    powershell_executable(),
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(probe),
+                    str(GATEWAY_ROOT),
+                ],
+                cwd=GATEWAY_ROOT,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=30,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(result.stdout.strip(), ".")
+
+    def test_python_validation_dependencies_are_pinned_and_installed(self):
+        requirements_path = GATEWAY_ROOT / "tests/python/requirements.txt"
+        self.assertTrue(requirements_path.is_file())
+        requirements = [
+            line.strip()
+            for line in requirements_path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(requirements, ["jsonschema==4.25.1"])
+
+        install_command = (
+            "python -m pip install --disable-pip-version-check "
+            "-r tests/python/requirements.txt"
+        )
+        for relative_path in (
+            ".github/workflows/ci.yml",
+            ".github/workflows/build-windows.yml",
+            ".github/workflows/release-tag.yml",
+        ):
+            workflow = (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
+            self.assertEqual(
+                workflow.count(install_command),
+                workflow.count("uses: actions/setup-python@v6"),
+                msg=relative_path,
+            )
+
     def test_packager_defaults_to_repository_local_release_root(self):
         script = (GATEWAY_ROOT / "tools/package-gateway-release.ps1").read_text(
             encoding="utf-8"
