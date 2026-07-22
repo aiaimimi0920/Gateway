@@ -539,6 +539,7 @@ mod tests {
 
     fn make_config() -> Config {
         Config {
+            console: Default::default(),
             runtime_role: crate::config::GatewayRuntimeRole::Standalone,
             port: 4200,
             redis_url: "redis://localhost".to_string(),
@@ -606,6 +607,7 @@ mod tests {
             auth_adapters: vec![],
             filter_config: None,
             route_config: Arc::new(RouteConfigStore::new()),
+            route_config_runtime: None,
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),
@@ -668,7 +670,7 @@ model_routes:
         let tmp_path = tmp_dir.join("gw_test_routes_dual.yaml");
         std::fs::write(&tmp_path, yaml).unwrap();
 
-        let store = RouteConfigStore::load_from_yaml(tmp_path.to_str().unwrap()).unwrap();
+        let store = RouteConfigStore::load_from_yaml(&tmp_path).unwrap();
         let state = Arc::new(AppState {
             config: make_config(),
             redis_pool: deadpool_redis::Config::from_url("redis://localhost:6379")
@@ -680,6 +682,7 @@ model_routes:
             auth_adapters: vec![],
             filter_config: None,
             route_config: Arc::new(store),
+            route_config_runtime: None,
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),
@@ -723,7 +726,7 @@ model_routes:
         let tmp_path = tmp_dir.join("gw_test_dual_fallback.yaml");
         std::fs::write(&tmp_path, yaml).unwrap();
 
-        let store = RouteConfigStore::load_from_yaml(tmp_path.to_str().unwrap()).unwrap();
+        let store = RouteConfigStore::load_from_yaml(&tmp_path).unwrap();
         let state = Arc::new(AppState {
             config: make_config(),
             redis_pool: deadpool_redis::Config::from_url("redis://localhost:6379")
@@ -735,6 +738,7 @@ model_routes:
             auth_adapters: vec![],
             filter_config: None,
             route_config: Arc::new(store),
+            route_config_runtime: None,
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),

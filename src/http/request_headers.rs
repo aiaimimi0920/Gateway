@@ -114,6 +114,7 @@ mod tests {
         gateway_management_token: Option<&str>,
     ) -> Config {
         Config {
+            console: Default::default(),
             runtime_role: crate::config::GatewayRuntimeRole::Standalone,
             port: 4200,
             redis_url: "redis://localhost".to_string(),

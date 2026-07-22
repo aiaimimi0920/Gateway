@@ -3,26 +3,25 @@ use std::sync::Arc;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use neuro_gateway::concurrency::aimd::AimdConfig;
-use neuro_gateway::concurrency::registry::ConcurrencyRegistry;
 use neuro_gateway::config::{Config, GatewayRuntimeRole};
 use neuro_gateway::http::router::build_router;
 use neuro_gateway::http::routes::internal_runtime::{
     bounded_readiness_probe, optional_postgresql_readiness,
 };
 use neuro_gateway::routing::config::RouteConfigStore;
-use neuro_gateway::state::{
-    AppState, GatewayLifecycleState, GatewayShutdownHandle, ProviderCredentialFolderSyncRuntime,
-};
-use neuro_gateway::upstream::client::UpstreamClient;
+use neuro_gateway::state::AppState;
 use serde_json::Value;
 use std::time::{Duration, Instant};
 use tower::ServiceExt;
+
+mod support;
+use support::build_test_app_state;
 
 const MANAGEMENT_TOKEN: &str = "operator-summary-contract-token";
 
 fn test_config() -> Config {
     Config {
+        console: Default::default(),
         runtime_role: GatewayRuntimeRole::Standalone,
         port: 0,
         redis_url: "redis://127.0.0.1:1/15".to_string(),
@@ -85,23 +84,7 @@ fn test_state() -> Arc<AppState> {
 fn test_state_with_redis_url(redis_url: &str) -> Arc<AppState> {
     let mut config = test_config();
     config.redis_url = redis_url.to_string();
-    let redis_pool = deadpool_redis::Config::from_url(config.redis_url.clone())
-        .create_pool(Some(deadpool_redis::Runtime::Tokio1))
-        .expect("create lazy Redis pool");
-    Arc::new(AppState {
-        config,
-        redis_pool,
-        pg_pool: None,
-        upstream_client: UpstreamClient::new(1),
-        concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
-        auth_adapters: Vec::new(),
-        filter_config: None,
-        route_config: Arc::new(RouteConfigStore::new()),
-        credential_cache: neuro_gateway::credential_store::CredentialMemoryCache::new(30),
-        lifecycle: GatewayLifecycleState::default(),
-        shutdown: GatewayShutdownHandle::default(),
-        provider_credential_folder_sync: ProviderCredentialFolderSyncRuntime::new(false),
-    })
+    build_test_app_state(config, RouteConfigStore::new(), None)
 }
 
 fn test_app() -> axum::Router {

@@ -6,6 +6,7 @@ pub mod balance;
 pub mod browser_executor_runtime;
 pub mod concurrency;
 pub mod config;
+pub mod console;
 pub mod conversation_archive;
 pub mod conversation_dataset;
 pub mod credential_runtime;

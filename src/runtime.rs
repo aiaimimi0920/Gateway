@@ -71,7 +71,7 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         pg_pool.clone(),
     )));
 
-    let route_config = load_route_config(&redis_pool).await;
+    let route_config = load_route_config_from_path(&redis_pool, &config.console.routes_file).await;
     let credential_cache = CredentialMemoryCache::new(30);
 
     Ok(Arc::new(AppState {
@@ -83,6 +83,7 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         auth_adapters,
         filter_config: None,
         route_config: Arc::new(route_config),
+        route_config_runtime: None,
         credential_cache,
         lifecycle: GatewayLifecycleState::default(),
         shutdown: GatewayShutdownHandle::default(),
@@ -202,7 +203,10 @@ pub fn mark_runtime_draining(state: &Arc<AppState>, reason: &str) {
     );
 }
 
-pub async fn load_route_config(pool: &deadpool_redis::Pool) -> RouteConfigStore {
+pub async fn load_route_config_from_path(
+    pool: &deadpool_redis::Pool,
+    yaml_path: &std::path::Path,
+) -> RouteConfigStore {
     match RouteConfigStore::load_from_redis(pool).await {
         Ok(store) => {
             tracing::info!(
@@ -216,19 +220,21 @@ pub async fn load_route_config(pool: &deadpool_redis::Pool) -> RouteConfigStore 
         }
     }
 
-    let yaml_path =
-        std::env::var("GATEWAY_ROUTES_FILE").unwrap_or_else(|_| "routes.yaml".to_string());
-    match RouteConfigStore::load_from_yaml(&yaml_path) {
+    match RouteConfigStore::load_from_yaml(yaml_path) {
         Ok(store) => {
             tracing::info!(
                 providers = store.provider_count(),
-                path = %yaml_path,
+                path = %yaml_path.display(),
                 "Loaded route config from YAML"
             );
             return store;
         }
         Err(error) => {
-            tracing::warn!("YAML route config not available ({}): {}", yaml_path, error);
+            tracing::warn!(
+                "YAML route config not available ({}): {}",
+                yaml_path.display(),
+                error
+            );
         }
     }
 

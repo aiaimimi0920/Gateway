@@ -5,7 +5,6 @@
 //! no upstream providers).
 
 use std::process::Command;
-use std::sync::Arc;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -13,13 +12,12 @@ use http_body_util::BodyExt;
 use serde_json::Value;
 use tower::ServiceExt; // for `oneshot`
 
-use neuro_gateway::concurrency::aimd::AimdConfig;
-use neuro_gateway::concurrency::registry::ConcurrencyRegistry;
 use neuro_gateway::config::Config;
 use neuro_gateway::http::router::build_router;
 use neuro_gateway::routing::config::RouteConfigStore;
-use neuro_gateway::state::AppState;
-use neuro_gateway::upstream::client::UpstreamClient;
+
+mod support;
+use support::build_test_app_state;
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -52,6 +50,7 @@ fn test_app_with_config(
     inbound_aliases: Vec<String>,
 ) -> axum::Router {
     let config = Config {
+        console: Default::default(),
         runtime_role: neuro_gateway::config::GatewayRuntimeRole::Standalone,
         port: 0,
         redis_url: "redis://localhost:6379".to_string(),
@@ -106,25 +105,7 @@ fn test_app_with_config(
         splitter_reload_shutdown_timeout_secs: 600,
     };
 
-    let redis_pool = deadpool_redis::Config::from_url("redis://localhost:6379")
-        .create_pool(Some(deadpool_redis::Runtime::Tokio1))
-        .expect("create lazy pool");
-
-    let state = Arc::new(AppState {
-        config,
-        redis_pool,
-        pg_pool: None,
-        upstream_client: UpstreamClient::new(30),
-        concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
-        auth_adapters: vec![],
-        filter_config: None,
-        route_config: Arc::new(RouteConfigStore::new()),
-        credential_cache: neuro_gateway::credential_store::CredentialMemoryCache::new(30),
-        lifecycle: neuro_gateway::state::GatewayLifecycleState::default(),
-        shutdown: neuro_gateway::state::GatewayShutdownHandle::default(),
-        provider_credential_folder_sync:
-            neuro_gateway::state::ProviderCredentialFolderSyncRuntime::new(false),
-    });
+    let state = build_test_app_state(config, RouteConfigStore::new(), None);
 
     build_router(state)
 }

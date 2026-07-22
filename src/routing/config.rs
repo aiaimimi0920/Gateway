@@ -911,11 +911,12 @@ impl RouteConfigStore {
     ///
     /// Returns `Err` if the file cannot be read or parsed, or if any provider
     /// references an unknown preset.
-    pub fn load_from_yaml(path: &str) -> Result<Self, anyhow::Error> {
+    pub fn load_from_yaml(path: impl AsRef<std::path::Path>) -> Result<Self, anyhow::Error> {
+        let path = path.as_ref();
         let content = std::fs::read_to_string(path)
-            .map_err(|e| anyhow::anyhow!("Cannot read route config '{}': {}", path, e))?;
+            .map_err(|e| anyhow::anyhow!("Cannot read route config '{}': {}", path.display(), e))?;
         let config: RouteConfigYaml = serde_yaml::from_str(&content)
-            .map_err(|e| anyhow::anyhow!("YAML parse error in '{}': {}", path, e))?;
+            .map_err(|e| anyhow::anyhow!("YAML parse error in '{}': {}", path.display(), e))?;
         let inner = compile_yaml(config)?;
         Ok(Self {
             inner: RwLock::new(inner),

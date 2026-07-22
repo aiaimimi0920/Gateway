@@ -1,0 +1,44 @@
+#![allow(dead_code)]
+
+use std::sync::Arc;
+
+use neuro_gateway::concurrency::aimd::AimdConfig;
+use neuro_gateway::concurrency::registry::ConcurrencyRegistry;
+use neuro_gateway::config::Config;
+use neuro_gateway::console::RouteConfigRuntime;
+use neuro_gateway::credential_store::CredentialMemoryCache;
+use neuro_gateway::routing::config::RouteConfigStore;
+use neuro_gateway::state::{
+    AppState, GatewayLifecycleState, GatewayShutdownHandle, ProviderCredentialFolderSyncRuntime,
+};
+use neuro_gateway::upstream::client::UpstreamClient;
+
+pub fn build_test_app_state(
+    config: Config,
+    route_config: RouteConfigStore,
+    route_config_runtime: Option<Arc<RouteConfigRuntime>>,
+) -> Arc<AppState> {
+    let redis_pool = deadpool_redis::Config::from_url(config.redis_url.clone())
+        .create_pool(Some(deadpool_redis::Runtime::Tokio1))
+        .expect("create lazy Redis test pool");
+    let upstream_timeout_secs = config.upstream_timeout_secs;
+    let provider_credential_folder_sync_enabled = config.provider_credential_folder_sync_enabled;
+
+    Arc::new(AppState {
+        config,
+        redis_pool,
+        pg_pool: None,
+        upstream_client: UpstreamClient::new(upstream_timeout_secs),
+        concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
+        auth_adapters: Vec::new(),
+        filter_config: None,
+        route_config: Arc::new(route_config),
+        route_config_runtime,
+        credential_cache: CredentialMemoryCache::new(30),
+        lifecycle: GatewayLifecycleState::default(),
+        shutdown: GatewayShutdownHandle::default(),
+        provider_credential_folder_sync: ProviderCredentialFolderSyncRuntime::new(
+            provider_credential_folder_sync_enabled,
+        ),
+    })
+}

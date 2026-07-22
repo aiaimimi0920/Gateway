@@ -1,6 +1,8 @@
 use std::env;
 use std::path::PathBuf;
 
+use crate::console::ConsoleConfig;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GatewayRuntimeRole {
     Splitter,
@@ -24,6 +26,7 @@ impl GatewayRuntimeRole {
 
 #[derive(Clone, Debug)]
 pub struct Config {
+    pub console: ConsoleConfig,
     pub runtime_role: GatewayRuntimeRole,
     pub port: u16,
     pub redis_url: String,
@@ -92,6 +95,7 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Result<Self, String> {
+        let console = ConsoleConfig::from_env().map_err(|error| error.to_string())?;
         let runtime_role = env::var("GATEWAY_RUNTIME_ROLE")
             .ok()
             .as_deref()
@@ -240,6 +244,7 @@ impl Config {
             parse_env_or("GATEWAY_SPLITTER_RELOAD_SHUTDOWN_TIMEOUT_SECS", 600u64)?;
 
         Ok(Self {
+            console,
             runtime_role,
             port,
             redis_url,

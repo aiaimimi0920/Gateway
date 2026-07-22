@@ -202,6 +202,7 @@ mod tests {
     fn make_state(filter_config: Option<FilterChainConfig>) -> Arc<AppState> {
         Arc::new(AppState {
             config: Config {
+                console: Default::default(),
                 runtime_role: crate::config::GatewayRuntimeRole::Standalone,
                 port: 4200,
                 redis_url: "redis://localhost".to_string(),
@@ -264,6 +265,7 @@ mod tests {
             auth_adapters: vec![],
             filter_config,
             route_config: Arc::new(crate::routing::config::RouteConfigStore::new()),
+            route_config_runtime: None,
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),

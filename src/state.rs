@@ -12,6 +12,7 @@ use tokio::sync::{watch, Notify};
 use crate::auth::adapter::AuthAdapter;
 use crate::concurrency::registry::ConcurrencyRegistry;
 use crate::config::Config;
+use crate::console::RouteConfigRuntime;
 use crate::credential_store::CredentialMemoryCache;
 use crate::filter::chain::FilterChainConfig;
 use crate::redis::pool::RedisPool;
@@ -154,6 +155,8 @@ pub struct AppState {
     pub filter_config: Option<FilterChainConfig>,
     /// Route configuration: providers, model routes, and aliases.
     pub route_config: Arc<RouteConfigStore>,
+    /// Optional transactional route configuration runtime used by the web console.
+    pub route_config_runtime: Option<Arc<RouteConfigRuntime>>,
     /// In-memory credential cache (Tier 1). TTL-based, per-process.
     pub credential_cache: CredentialMemoryCache,
     /// Process lifecycle and in-flight request tracking used for graceful
