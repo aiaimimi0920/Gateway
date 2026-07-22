@@ -6,6 +6,10 @@ use std::fmt;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
+pub mod document;
+pub mod revision;
+pub mod secrets;
+
 const DEFAULT_REDIS_NAMESPACE: &str = "default";
 const DEFAULT_SECRET_GRANT_TTL_SECS: u64 = 300;
 const DEFAULT_MAX_EVENT_RECORDS: usize = 2_000;

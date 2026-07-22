@@ -90,7 +90,7 @@ pub fn system_time_to_rfc3339_millis(time: std::time::SystemTime) -> String {
     let duration = time
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default();
-    let total_secs = duration.as_secs() as i64;
+    let total_secs = i64::try_from(duration.as_secs()).unwrap_or(i64::MAX);
     let millis = duration.subsec_millis();
 
     let days = total_secs / 86_400;
@@ -117,9 +117,11 @@ pub fn system_time_to_rfc3339_millis(time: std::time::SystemTime) -> String {
 }
 
 pub fn future_rfc3339_after_secs(offset_secs: u64) -> String {
-    system_time_to_rfc3339_millis(
-        std::time::SystemTime::now() + std::time::Duration::from_secs(offset_secs),
-    )
+    let bounded = offset_secs.min(i64::MAX as u64);
+    let target = std::time::SystemTime::now()
+        .checked_add(std::time::Duration::from_secs(bounded))
+        .unwrap_or_else(std::time::SystemTime::now);
+    system_time_to_rfc3339_millis(target)
 }
 
 /// A model-routing rule: a glob pattern maps to one or more provider IDs.
@@ -311,7 +313,7 @@ pub struct ProviderConfigYaml {
 // Internal store
 // ---------------------------------------------------------------------------
 
-struct RouteConfigInner {
+pub(crate) struct RouteConfigInner {
     providers: Vec<CompiledProvider>,
     model_routes: Vec<ModelRoute>,
     /// Exact alias map: "opus" → "claude-opus-4-6"
@@ -336,7 +338,7 @@ pub struct RouteConfigStore {
 
 /// Perform `${VAR}` environment-variable substitution in a string value.
 /// Unknown variables are left as-is.
-fn subst_env(s: &str) -> String {
+pub(crate) fn subst_env(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut rest = s;
     while let Some(start) = rest.find("${") {
@@ -711,10 +713,7 @@ fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvider, anyhow:
             .iter()
             .enumerate()
             .map(|(idx, cred)| {
-                let cred_id = cred
-                    .id
-                    .clone()
-                    .unwrap_or_else(|| format!("{}-cred-{}", cfg.id, idx));
+                let cred_id = effective_credential_id(&cfg.id, idx, cred).into_owned();
 
                 let cred_payload = build_base_payload(
                     &cfg,
@@ -743,22 +742,35 @@ fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvider, anyhow:
 
                 // Build OAuth refresh config if refresh_token is provided.
                 let refresh_config = match (&cred.refresh_token, &cred.refresh_endpoint) {
-                    (Some(rt), Some(ep)) => Some(Arc::new(TokenRefreshState {
-                        refresh_token: parking_lot::Mutex::new(rt.clone()),
-                        refresh_endpoint: ep.clone(),
-                        client_id: cred.refresh_client_id.clone().unwrap_or_default(),
-                        expires_in_secs: cred.token_expires_in_secs.unwrap_or(21600),
-                        expires_at: parking_lot::Mutex::new(
-                            std::time::Instant::now()
-                                + std::time::Duration::from_secs(
-                                    cred.token_expires_in_secs.unwrap_or(21600),
-                                ),
-                        ),
-                        expires_at_iso: parking_lot::Mutex::new(Some(future_rfc3339_after_secs(
-                            cred.token_expires_in_secs.unwrap_or(21600),
-                        ))),
-                        api_key_override: parking_lot::Mutex::new(None),
-                    })),
+                    (Some(rt), Some(ep)) => {
+                        let expires_in_secs = cred.token_expires_in_secs.unwrap_or(21600);
+                        let duration = std::time::Duration::from_secs(expires_in_secs);
+                        let expires_at = std::time::Instant::now()
+                            .checked_add(duration)
+                            .ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "token_expires_in_secs cannot be represented by Instant"
+                                )
+                            })?;
+                        let expires_at_system = std::time::SystemTime::now()
+                            .checked_add(duration)
+                            .ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "token_expires_in_secs cannot be represented by SystemTime"
+                                )
+                            })?;
+                        Some(Arc::new(TokenRefreshState {
+                            refresh_token: parking_lot::Mutex::new(rt.clone()),
+                            refresh_endpoint: ep.clone(),
+                            client_id: cred.refresh_client_id.clone().unwrap_or_default(),
+                            expires_in_secs,
+                            expires_at: parking_lot::Mutex::new(expires_at),
+                            expires_at_iso: parking_lot::Mutex::new(Some(
+                                system_time_to_rfc3339_millis(expires_at_system),
+                            )),
+                            api_key_override: parking_lot::Mutex::new(None),
+                        }))
+                    }
                     _ => None,
                 };
 
@@ -796,16 +808,10 @@ fn compile_yaml(config: RouteConfigYaml) -> Result<RouteConfigInner, anyhow::Err
     let aliases = config.aliases;
 
     // Pre-compute normalized alias maps at load time (zero per-request allocation).
-    let normalized_aliases: HashMap<String, String> = aliases
-        .iter()
-        .map(|(k, v)| (normalize_model_name(k), v.clone()))
-        .collect();
-
-    let mut sorted_normalized_keys: Vec<(String, String)> = aliases
-        .iter()
-        .map(|(k, v)| (normalize_model_name(k), v.clone()))
-        .collect();
-    sorted_normalized_keys.sort_by(|a, b| a.0.cmp(&b.0));
+    // Ambiguous normalized keys are rejected instead of depending on HashMap order.
+    let normalized_entries = normalized_alias_entries(&aliases)?;
+    let normalized_aliases: HashMap<String, String> = normalized_entries.iter().cloned().collect();
+    let sorted_normalized_keys = normalized_entries;
 
     Ok(RouteConfigInner {
         providers: providers?,
@@ -814,6 +820,24 @@ fn compile_yaml(config: RouteConfigYaml) -> Result<RouteConfigInner, anyhow::Err
         normalized_aliases,
         sorted_normalized_keys,
     })
+}
+
+pub(crate) fn compile_route_document(
+    document: RouteConfigYaml,
+) -> Result<RouteConfigInner, anyhow::Error> {
+    compile_yaml(document)
+}
+
+pub(crate) fn effective_credential_id<'a>(
+    provider_id: &str,
+    index: usize,
+    credential: &'a ProviderCredentialYaml,
+) -> std::borrow::Cow<'a, str> {
+    credential
+        .id
+        .as_deref()
+        .map(std::borrow::Cow::Borrowed)
+        .unwrap_or_else(|| std::borrow::Cow::Owned(format!("{provider_id}-cred-{index}")))
 }
 
 // ---------------------------------------------------------------------------
@@ -845,11 +869,56 @@ fn glob_match(pattern: &str, model: &str) -> bool {
 /// E.g., `"claude-opus-4-6"` → `"claudeopus46"`,
 ///       `"opus4.6"` → `"opus46"`,
 ///       `"Opus4-6"` → `"opus46"`.
-fn normalize_model_name(name: &str) -> String {
+pub(crate) fn normalize_model_name(name: &str) -> String {
     name.chars()
         .filter(|c| *c != '-' && *c != '.' && *c != '_')
         .flat_map(|c| c.to_lowercase())
         .collect()
+}
+
+pub(crate) fn normalized_alias_conflicts(
+    aliases: &HashMap<String, String>,
+) -> Vec<(String, String, String, String)> {
+    let mut source: Vec<(&String, &String)> = aliases.iter().collect();
+    source.sort_by(|left, right| left.0.cmp(right.0));
+    let mut seen = HashMap::<String, (String, String)>::new();
+    let mut conflicts = Vec::new();
+    for (key, target) in source {
+        let normalized = normalize_model_name(key);
+        if let Some((first_key, first_target)) = seen.get(&normalized) {
+            if first_target != target {
+                conflicts.push((
+                    normalized,
+                    first_key.clone(),
+                    key.clone(),
+                    format!("{first_target} vs {target}"),
+                ));
+            }
+        } else {
+            seen.insert(normalized, (key.clone(), target.clone()));
+        }
+    }
+    conflicts
+}
+
+fn normalized_alias_entries(
+    aliases: &HashMap<String, String>,
+) -> Result<Vec<(String, String)>, anyhow::Error> {
+    if let Some((normalized, first_key, second_key, targets)) =
+        normalized_alias_conflicts(aliases).into_iter().next()
+    {
+        return Err(anyhow::anyhow!(
+            "normalized alias collision for '{normalized}' between '{first_key}' and '{second_key}' ({targets})"
+        ));
+    }
+
+    let mut entries = HashMap::<String, String>::new();
+    for (key, target) in aliases {
+        entries.insert(normalize_model_name(key), target.clone());
+    }
+    let mut entries: Vec<(String, String)> = entries.into_iter().collect();
+    entries.sort_by(|left, right| left.0.cmp(&right.0));
+    Ok(entries)
 }
 
 fn resolve_alias_inner(guard: &RouteConfigInner, model: &str) -> Option<String> {
