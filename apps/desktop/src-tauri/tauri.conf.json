@@ -6,8 +6,8 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1425",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "npm run build:tauri",
+    "frontendDist": "../dist/tauri"
   },
   "app": {
     "windows": [
@@ -25,7 +25,8 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* https://127.0.0.1:* http://localhost:* https://localhost:* http://[::1]:* https://[::1]:*; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "devCsp": "default-src 'self' http://localhost:1425; connect-src 'self' ipc: http://ipc.localhost http://localhost:1425 ws://localhost:1425 http://127.0.0.1:* https://127.0.0.1:* http://localhost:* https://localhost:* http://[::1]:* https://[::1]:*; img-src 'self' asset: http://asset.localhost data: blob:; script-src 'self' 'unsafe-eval' http://localhost:1425; style-src 'self' 'unsafe-inline' http://localhost:1425; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
       "capabilities": ["default"]
     }
   },

@@ -6,10 +6,21 @@ import type {
   GatewayModelListResponse,
   GatewayReadyResponse,
 } from "./types";
+import type { ZodType } from "zod";
+import {
+  publicHealthSchema,
+  publicModelListSchema,
+  publicReadinessSchema,
+  unknownObjectSchema,
+} from "../api/schemas";
 
 export function gatewayBaseUrl(port?: number | null): string {
   const resolvedPort = Number.isFinite(port ?? NaN) && (port ?? 0) > 0 ? port : 4200;
   return `http://127.0.0.1:${resolvedPort}`;
+}
+
+export function gatewayBaseUrlFromProfile(profile: Pick<import("./types").GatewayProfile, "port">): string {
+  return gatewayBaseUrl(profile.port);
 }
 
 function toErrorMessage(error: unknown): string {
@@ -34,6 +45,7 @@ async function decodeResponse(response: Response): Promise<unknown> {
 
 async function requestJson<TData>(
   url: string,
+  schema: ZodType<TData>,
   init?: RequestInit,
 ): Promise<GatewayHttpProbe<TData>> {
   const startedAt = performance.now();
@@ -45,13 +57,29 @@ async function requestJson<TData>(
         ...(init?.headers ?? {}),
       },
     });
-    const payload = (await decodeResponse(response)) as TData;
+    const payload = await decodeResponse(response);
+    if (response.ok) {
+      const parsed = schema.safeParse(payload);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          status: response.status,
+          durationMs: Math.round(performance.now() - startedAt),
+          error: `Gateway response schema validation failed: ${parsed.error.issues.map((issue) => issue.message).join("; ")}`,
+        };
+      }
+      return {
+        ok: true,
+        status: response.status,
+        durationMs: Math.round(performance.now() - startedAt),
+        data: parsed.data,
+      };
+    }
     return {
-      ok: response.ok,
+      ok: false,
       status: response.status,
       durationMs: Math.round(performance.now() - startedAt),
-      data: payload,
-      error: response.ok ? undefined : response.statusText || "Gateway request failed",
+      error: response.statusText || "Gateway request failed",
     };
   } catch (error) {
     return {
@@ -64,11 +92,11 @@ async function requestJson<TData>(
 }
 
 export function fetchGatewayHealth(baseUrl: string): Promise<GatewayHttpProbe<GatewayHealthResponse>> {
-  return requestJson<GatewayHealthResponse>(`${baseUrl}/healthz`);
+  return requestJson<GatewayHealthResponse>(`${baseUrl}/healthz`, publicHealthSchema);
 }
 
 export function fetchGatewayReady(baseUrl: string): Promise<GatewayHttpProbe<GatewayReadyResponse>> {
-  return requestJson<GatewayReadyResponse>(`${baseUrl}/readyz`);
+  return requestJson<GatewayReadyResponse>(`${baseUrl}/readyz`, publicReadinessSchema);
 }
 
 export function fetchGatewayModels(
@@ -80,7 +108,7 @@ export function fetchGatewayModels(
   if (trimmedApiKey.length > 0) {
     headers.Authorization = `Bearer ${trimmedApiKey}`;
   }
-  return requestJson<GatewayModelListResponse>(`${baseUrl}/v1/models`, { headers });
+  return requestJson<GatewayModelListResponse>(`${baseUrl}/v1/models`, publicModelListSchema, { headers });
 }
 
 export async function runGatewayChatCompletionTest(
@@ -96,7 +124,7 @@ export async function runGatewayChatCompletionTest(
     headers.Authorization = `Bearer ${input.apiKey.trim()}`;
   }
 
-  const probe = await requestJson<unknown>(endpoint, {
+  const probe = await requestJson<Record<string, unknown>>(endpoint, unknownObjectSchema, {
     method: "POST",
     headers,
     body: JSON.stringify({
