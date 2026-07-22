@@ -16,6 +16,7 @@
 | Phase 2 provider evidence | completed | Offline runner recorded 41/41 focused line passes; isolated live evidence records Linkup, Tavily, You, Exa, and Jina Search as proof-backed `live_passed` |
 | Phase 3 enterprise operations | completed | Metrics, trace, default-off HTTP route proof, readiness budgets, splitter/access/rate-limit contracts, and isolated recovery verification pass |
 | Final release | completed | `release/Gateway/gateway-product-20260721-010734` is the final v3 package with immutable source/package/evidence provenance and a fresh verification set; prior releases and the RC remain preserved |
+| Embedded Web Console | implementation in progress | Approved design: `docs/superpowers/specs/2026-07-22-gateway-web-console-design.md`; TDD plan: `docs/superpowers/plans/2026-07-22-gateway-web-console.md` |
 
 ## Working-Tree Policy
 

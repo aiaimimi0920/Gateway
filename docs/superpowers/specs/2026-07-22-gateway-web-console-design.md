@@ -444,6 +444,11 @@ failure signals. Repeated cards use a radius of at most 8px. Buttons use the
 existing icon library or an approved icon package; unfamiliar icon-only actions
 have accessible labels/tooltips.
 
+The console root defines explicit foreground colors for every graphite surface;
+it never inherits text color from a surrounding document or webview. Normal
+text and interactive labels meet WCAG AA contrast, and status color is always
+paired with text or an icon instead of carrying meaning alone.
+
 Navigation sections:
 
 - **Overview:** readiness, active revision, source synchronization, request
@@ -463,6 +468,12 @@ Every feature implements loading, empty, error, retry, stale-revision,
 unsaved-draft, and narrow viewport states. Secret fields default to masked
 descriptors; reveal, copy, replace, and clear actions require an explicit
 confirmation affordance. The UI never displays the full key by default.
+
+Below 900px, the fixed rail becomes an overlay drawer and the content column
+uses the full viewport width. Below 640px, data tables render as labeled compact
+rows, filters move into a menu, page actions wrap without overlap, and dialogs
+fit within the viewport. A 390px viewport must have no horizontal page scroll,
+clipped primary action, or text/control overlap.
 
 ### Browser/Tauri adapter boundary
 
@@ -504,6 +515,7 @@ manifest differs from the versioned snapshot. `tauri.conf.json` points to
 The Axum router serves:
 
 - `/ui/` and known static assets from the embedded asset map;
+- `/ui/favicon.svg` from the embedded asset map;
 - an SPA fallback to the embedded `index.html` for `/ui/<client-route>`;
 - `404` for all paths outside `/ui/` that are not Gateway APIs.
 
