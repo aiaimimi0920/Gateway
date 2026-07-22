@@ -179,6 +179,13 @@ revision, Redis synchronization status, and whether the current process can
 write. A successful UI save must never appear to succeed while the process will
 silently reload an older Redis value on the next restart.
 
+Legacy startup remains tolerant enough to load the current compiler-compatible
+document even when new console diagnostics find a dangling route reference or
+other historical issue. Such a snapshot is exposed as `requiresRepair: true`
+and remains usable for live traffic, but the console refuses a new commit until
+the candidate passes the strict console validator. This prevents a product
+upgrade from turning a previously running configuration into a startup outage.
+
 ## Persistence, Transaction, and Recovery
 
 ### State layout
@@ -357,6 +364,11 @@ a `replace` operation missing its value. Sensitive keys include API keys,
 tokens, cookies, passwords, client secrets, authorization headers, proxy
 authorization, refresh tokens, and provider-specific session fields. The
 masker and patch resolver are shared by provider and credential responses.
+
+`keep` resolution is identity-safe. Provider secrets are matched to the active
+revision by provider ID, and credential secrets by explicit credential ID. A
+reordered anonymous credential cannot inherit a secret by array index; the
+server rejects that keep operation and requires an explicit replacement.
 
 ## HTTP API Contract
 

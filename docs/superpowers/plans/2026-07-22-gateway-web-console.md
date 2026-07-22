@@ -194,6 +194,12 @@ pub struct ValidatedRouteDocument {
 
 Validation rejects duplicate provider IDs, duplicate credential IDs after generated-ID resolution, empty IDs, non-HTTP(S) base URLs where HTTP is required, unknown `provider_ids`, empty route patterns, and alias cycles. Existing preset compilation remains the authoritative provider compiler.
 
+Do not replace tolerant legacy startup parsing with this strict validator in
+this task. The current development document contains a historical dangling
+`qwen` route reference that the old runtime skips. Startup may load that
+compiler-compatible snapshot with `requiresRepair` diagnostics, while every new
+console commit must pass strict validation.
+
 - [ ] **Step 4: Implement deterministic serialization and revisions**
 
 Recursively sort JSON object keys before SHA-256 calculation and generate LF-only UTF-8 YAML without BOM. Revision IDs use `r<sequence>-<first-12-hex>` and metadata includes parent, actor, timestamp, document digest, YAML digest, and change message.
@@ -212,6 +218,12 @@ pub struct SecretDescriptor {
 ```
 
 Recognize API key, auth token, refresh token, cookie, authorization, proxy authorization, client secret, password, and recursively sensitive header/body keys. Reject mask sentinels and invalid JSON Pointer paths.
+
+Top-level provider `api_key` is a `String`, so `clear` produces an empty string;
+nested credential `api_key` is optional, so `clear` produces `None`. Resolve a
+`keep` operation by provider ID and explicit credential ID rather than raw array
+index. Reject identity changes and reordered anonymous credentials instead of
+copying a secret from the wrong active entry.
 
 - [ ] **Step 6: Run focused and routing regression tests**
 
