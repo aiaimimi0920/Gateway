@@ -40,17 +40,14 @@ pub async fn handle_metrics(State(state): State<Arc<AppState>>) -> impl IntoResp
     }
 
     // -- Route config stats ---------------------------------------------------
+    let route_snapshot = state.route_config.snapshot();
     output.push_str(&format!(
         "gateway_providers_total {}\n",
-        state.route_config.provider_count()
+        route_snapshot.provider_count()
     ));
     output.push_str(&format!(
         "gateway_routes_configured {}\n",
-        if state.route_config.has_routes() {
-            1
-        } else {
-            0
-        }
+        if route_snapshot.has_routes() { 1 } else { 0 }
     ));
 
     // -- Credential memory cache stats ----------------------------------------

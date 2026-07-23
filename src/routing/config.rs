@@ -8,11 +8,18 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use parking_lot::RwLock;
+use arc_swap::ArcSwap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::sync::Arc;
+use time::OffsetDateTime;
 
+use crate::console::document::{
+    canonicalize_route_document, inspect_route_document, materialize_credential_ids,
+    validate_route_document, RouteConfigDiagnostics, ValidatedRouteDocument,
+};
+use crate::console::revision::{RevisionActor, RevisionMetadata};
 use crate::credential_runtime::{KeepaliveConfig, SessionAuthConfig};
 use crate::preset::{compile_provider_account, get_builtin_preset, AccountOverrides};
 use crate::protocol::registry::{
@@ -75,6 +82,94 @@ pub struct TokenRefreshState {
     pub expires_at_iso: parking_lot::Mutex<Option<String>>,
     /// Overrides payload.api_key when a refreshed token is available.
     pub api_key_override: parking_lot::Mutex<Option<String>>,
+    lifecycle: parking_lot::Mutex<RefreshLifecycle>,
+}
+
+#[derive(Debug)]
+struct RefreshLifecycle {
+    active: bool,
+    generation: u64,
+}
+
+/// The maximum lifetime we use for an in-process `Instant` deadline.  Remote
+/// OAuth servers occasionally return an unbounded or nonsensical `expires_in`;
+/// capping the local deadline keeps refresh bookkeeping panic-free while still
+/// treating the token as long-lived.
+const MAX_REFRESH_LIFETIME_SECS: u64 = 100 * 365 * 24 * 60 * 60;
+
+pub(crate) fn effective_refresh_lifetime_secs(seconds: u64) -> u64 {
+    seconds.min(MAX_REFRESH_LIFETIME_SECS)
+}
+
+pub(crate) fn safe_refresh_deadline(seconds: u64) -> std::time::Instant {
+    let now = std::time::Instant::now();
+    let duration = std::time::Duration::from_secs(effective_refresh_lifetime_secs(seconds));
+    now.checked_add(duration).unwrap_or(now)
+}
+
+impl TokenRefreshState {
+    pub(crate) fn refresh_snapshot(
+        &self,
+        refresh_margin: std::time::Duration,
+    ) -> Option<(u64, String)> {
+        let lifecycle = self.lifecycle.lock();
+        if !lifecycle.active {
+            return None;
+        }
+        let expires_at = *self.expires_at.lock();
+        if expires_at.saturating_duration_since(std::time::Instant::now()) > refresh_margin {
+            return None;
+        }
+        let refresh_token = self.refresh_token.lock().clone();
+        Some((lifecycle.generation, refresh_token))
+    }
+
+    pub(crate) fn apply_refresh_if_active(
+        &self,
+        generation: u64,
+        access_token: String,
+        refresh_token: Option<String>,
+        expires_in_secs: u64,
+        expires_at_iso: String,
+    ) -> Option<u64> {
+        let mut lifecycle = self.lifecycle.lock();
+        if !lifecycle.active || lifecycle.generation != generation {
+            return None;
+        }
+
+        *self.api_key_override.lock() = Some(access_token);
+        if let Some(refresh_token) = refresh_token {
+            *self.refresh_token.lock() = refresh_token;
+        }
+        *self.expires_at.lock() = safe_refresh_deadline(expires_in_secs);
+        *self.expires_at_iso.lock() = Some(expires_at_iso);
+        lifecycle.generation = lifecycle.generation.wrapping_add(1);
+        Some(lifecycle.generation)
+    }
+
+    pub(crate) fn retire(&self) {
+        let mut lifecycle = self.lifecycle.lock();
+        lifecycle.active = false;
+        lifecycle.generation = lifecycle.generation.wrapping_add(1);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_active(&self) -> bool {
+        self.lifecycle.lock().active
+    }
+
+    pub(crate) fn is_generation_active(&self, generation: u64) -> bool {
+        let lifecycle = self.lifecycle.lock();
+        lifecycle.active && lifecycle.generation == generation
+    }
+
+    pub(crate) fn runtime_override(&self) -> (Option<String>, Option<String>) {
+        let _lifecycle = self.lifecycle.lock();
+        (
+            self.api_key_override.lock().clone(),
+            self.expires_at_iso.lock().clone(),
+        )
+    }
 }
 
 impl std::fmt::Debug for TokenRefreshState {
@@ -327,9 +422,151 @@ pub(crate) struct RouteConfigInner {
     sorted_normalized_keys: Vec<(String, String)>,
 }
 
+/// Where the active route document was obtained from.
+///
+/// This is deliberately metadata only.  The snapshot's document and compiled
+/// providers remain private so callers cannot accidentally serialize secrets.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ActiveConfigSource {
+    Yaml,
+    Redis,
+    Database,
+    Recovered,
+}
+
+/// One immutable, internally consistent route configuration view.
+///
+/// Every request-path query pins one `Arc<RouteConfigSnapshot>` and then reads
+/// all of its fields.  A replacement publishes a wholly-built snapshot in one
+/// pointer swap, so readers can never observe a mixed document/compiler state.
+pub struct RouteConfigSnapshot {
+    revision: RevisionMetadata,
+    source: ActiveConfigSource,
+    #[allow(dead_code)] // Consumed by the transaction runtime added in Task 5.
+    document: RouteConfigYaml,
+    diagnostics: RouteConfigDiagnostics,
+    compiled: Arc<RouteConfigInner>,
+    provider_fingerprints: HashMap<String, String>,
+}
+
+impl std::fmt::Debug for RouteConfigSnapshot {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RouteConfigSnapshot")
+            .field("revision", &self.revision)
+            .field("source", &self.source)
+            .field("provider_count", &self.compiled.providers.len())
+            .field("route_count", &self.compiled.model_routes.len())
+            .field("diagnostics", &self.diagnostics)
+            .finish()
+    }
+}
+
+impl RouteConfigSnapshot {
+    fn new(
+        revision: RevisionMetadata,
+        source: ActiveConfigSource,
+        document: RouteConfigYaml,
+        diagnostics: RouteConfigDiagnostics,
+        compiled: RouteConfigInner,
+        provider_fingerprints: HashMap<String, String>,
+    ) -> Self {
+        Self {
+            revision,
+            source,
+            document,
+            diagnostics,
+            compiled: Arc::new(compiled),
+            provider_fingerprints,
+        }
+    }
+
+    pub fn revision(&self) -> &RevisionMetadata {
+        &self.revision
+    }
+
+    pub fn source(&self) -> ActiveConfigSource {
+        self.source
+    }
+
+    pub fn diagnostics(&self) -> &RouteConfigDiagnostics {
+        &self.diagnostics
+    }
+
+    #[allow(dead_code)] // Consumed by the transaction runtime added in Task 5.
+    pub(crate) fn document(&self) -> &RouteConfigYaml {
+        &self.document
+    }
+
+    pub(crate) fn compiled(&self) -> &RouteConfigInner {
+        self.compiled.as_ref()
+    }
+
+    pub(crate) fn provider_fingerprints(&self) -> &HashMap<String, String> {
+        &self.provider_fingerprints
+    }
+
+    pub fn resolve_alias(&self, model: Option<&str>) -> Option<String> {
+        model.and_then(|model| resolve_alias_inner(self.compiled(), model))
+    }
+
+    pub fn resolve_candidates(&self, model: Option<&str>) -> Vec<RouteCandidate> {
+        resolve_candidates_inner(self.compiled(), model)
+    }
+
+    pub fn list_models(&self) -> Vec<ModelInfo> {
+        list_models_inner(self.compiled())
+    }
+
+    pub fn has_routes(&self) -> bool {
+        !self.compiled.providers.is_empty()
+    }
+
+    pub fn provider_count(&self) -> usize {
+        self.compiled.providers.len()
+    }
+
+    pub(crate) fn get_providers(&self) -> Vec<CompiledProvider> {
+        self.compiled.providers.clone()
+    }
+}
+
+#[derive(Debug, thiserror::Error, Clone, Eq, PartialEq)]
+pub enum RouteConfigReplaceError {
+    #[error("revision metadata is invalid: {0}")]
+    InvalidRevision(String),
+    #[error("revision document or YAML digest does not match the validated document")]
+    RevisionDigestMismatch,
+    #[error("validated document canonical bytes do not match its digests")]
+    ValidatedDocumentMismatch,
+    #[error("active route revision is unchanged")]
+    RevisionUnchanged,
+    #[error("replacement revision must be the direct child of the active revision")]
+    RevisionConflict,
+    #[error("strict route validation failed: {0}")]
+    Validation(String),
+    #[error("route document compilation failed: {0}")]
+    Compilation(String),
+}
+
+impl RouteConfigReplaceError {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::InvalidRevision(_) => "console_revision_invalid",
+            Self::RevisionDigestMismatch => "console_revision_digest_mismatch",
+            Self::ValidatedDocumentMismatch => "console_validated_document_mismatch",
+            Self::RevisionUnchanged => "console_revision_unchanged",
+            Self::RevisionConflict => "console_revision_conflict",
+            Self::Validation(_) => "console_route_validation_failed",
+            Self::Compilation(_) => "console_route_compilation_failed",
+        }
+    }
+}
+
 /// Thread-safe route config store.  Wrap in [`Arc`] and share across threads.
 pub struct RouteConfigStore {
-    inner: RwLock<RouteConfigInner>,
+    inner: ArcSwap<RouteConfigSnapshot>,
+    replace_lock: parking_lot::Mutex<()>,
 }
 
 // ---------------------------------------------------------------------------
@@ -769,6 +1006,10 @@ fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvider, anyhow:
                                 system_time_to_rfc3339_millis(expires_at_system),
                             )),
                             api_key_override: parking_lot::Mutex::new(None),
+                            lifecycle: parking_lot::Mutex::new(RefreshLifecycle {
+                                active: true,
+                                generation: 0,
+                            }),
                         }))
                     }
                     _ => None,
@@ -799,11 +1040,32 @@ fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvider, anyhow:
 
 /// Convert a `RouteConfigYaml` into a `RouteConfigInner`.
 fn compile_yaml(config: RouteConfigYaml) -> Result<RouteConfigInner, anyhow::Error> {
-    let providers: Result<Vec<CompiledProvider>, _> = config
-        .providers
-        .into_iter()
-        .map(|p| compile_provider(subst_provider(p)))
-        .collect();
+    compile_yaml_with_fingerprints(config).map(|(inner, _)| inner)
+}
+
+fn compile_yaml_with_fingerprints(
+    config: RouteConfigYaml,
+) -> Result<(RouteConfigInner, HashMap<String, String>), anyhow::Error> {
+    // The compiler has always assigned anonymous credentials by effective
+    // `{provider_id}-cred-{index}` identity. Materialize that identity before
+    // fingerprinting so a legacy raw document (`id: None`) and its first
+    // strict console save (`id: Some(generated)`) reuse the same runtime state.
+    let config = materialize_credential_ids(config);
+    let mut providers = Vec::with_capacity(config.providers.len());
+    let mut fingerprints = HashMap::with_capacity(config.providers.len());
+    for provider in config.providers {
+        let substituted = subst_provider(provider);
+        let fingerprint = provider_runtime_fingerprint(&substituted)?;
+        let compiled = compile_provider(substituted)?;
+        // Duplicate IDs are tolerated by legacy startup for compatibility, but
+        // they are intentionally excluded from reuse because identity is
+        // ambiguous in that case.
+        fingerprints
+            .entry(compiled.id.clone())
+            .and_modify(|existing| *existing = String::new())
+            .or_insert(fingerprint);
+        providers.push(compiled);
+    }
 
     let aliases = config.aliases;
 
@@ -813,13 +1075,43 @@ fn compile_yaml(config: RouteConfigYaml) -> Result<RouteConfigInner, anyhow::Err
     let normalized_aliases: HashMap<String, String> = normalized_entries.iter().cloned().collect();
     let sorted_normalized_keys = normalized_entries;
 
-    Ok(RouteConfigInner {
-        providers: providers?,
-        model_routes: config.model_routes,
-        aliases,
-        normalized_aliases,
-        sorted_normalized_keys,
-    })
+    Ok((
+        RouteConfigInner {
+            providers,
+            model_routes: config.model_routes,
+            aliases,
+            normalized_aliases,
+            sorted_normalized_keys,
+        },
+        fingerprints,
+    ))
+}
+
+fn provider_runtime_fingerprint(config: &ProviderConfigYaml) -> Result<String, anyhow::Error> {
+    let value = serde_json::to_value(config)?;
+    let canonical = canonical_json_value(value);
+    let bytes = serde_json::to_vec(&canonical)?;
+    let mut digest = Sha256::new();
+    digest.update(bytes);
+    Ok(hex::encode(digest.finalize()))
+}
+
+fn canonical_json_value(value: Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let mut entries: Vec<_> = map.into_iter().collect();
+            entries.sort_by(|left, right| left.0.cmp(&right.0));
+            let mut sorted = serde_json::Map::new();
+            for (key, value) in entries {
+                sorted.insert(key, canonical_json_value(value));
+            }
+            Value::Object(sorted)
+        }
+        Value::Array(values) => {
+            Value::Array(values.into_iter().map(canonical_json_value).collect())
+        }
+        value => value,
+    }
 }
 
 pub(crate) fn compile_route_document(
@@ -956,6 +1248,164 @@ fn resolve_alias_inner(guard: &RouteConfigInner, model: &str) -> Option<String> 
     None
 }
 
+fn resolve_candidates_inner(guard: &RouteConfigInner, model: Option<&str>) -> Vec<RouteCandidate> {
+    let provider_map: HashMap<&str, &CompiledProvider> = guard
+        .providers
+        .iter()
+        .map(|provider| (provider.id.as_str(), provider))
+        .collect();
+
+    let resolved_alias = model.and_then(|model| resolve_alias_inner(guard, model));
+    let alias_used = match (model, resolved_alias.as_deref()) {
+        (Some(original), Some(resolved)) if resolved != original => Some(original),
+        _ => None,
+    };
+    let resolved = match (resolved_alias.as_deref(), model) {
+        (Some(target), _) => Some(target),
+        (None, model) => model,
+    };
+
+    struct MatchedProvider<'a> {
+        id: &'a str,
+        priority: i32,
+    }
+
+    let matched: Vec<MatchedProvider> = match resolved {
+        None => guard
+            .providers
+            .iter()
+            .map(|provider| MatchedProvider {
+                id: provider.id.as_str(),
+                priority: 10,
+            })
+            .collect(),
+        Some(model) => {
+            let mut matching: Vec<&ModelRoute> = guard
+                .model_routes
+                .iter()
+                .filter(|route| glob_match(&route.pattern, model))
+                .collect();
+
+            if matching.is_empty() {
+                let explicitly_supported: Vec<MatchedProvider> = guard
+                    .providers
+                    .iter()
+                    .filter(|provider| {
+                        let upstream_model = provider.model_map.get(model).map(String::as_str);
+                        !provider.supported_models.is_empty()
+                            && provider.supported_models.iter().any(|supported| {
+                                supported == model || upstream_model == Some(supported.as_str())
+                            })
+                    })
+                    .map(|provider| MatchedProvider {
+                        id: provider.id.as_str(),
+                        priority: 10,
+                    })
+                    .collect();
+
+                if explicitly_supported.is_empty() {
+                    guard
+                        .providers
+                        .iter()
+                        .map(|provider| MatchedProvider {
+                            id: provider.id.as_str(),
+                            priority: 10,
+                        })
+                        .collect()
+                } else {
+                    explicitly_supported
+                }
+            } else {
+                matching.sort_by(|left, right| right.priority.cmp(&left.priority));
+                let mut seen = std::collections::HashSet::new();
+                let mut result = Vec::new();
+                for route in matching {
+                    for id in &route.provider_ids {
+                        if seen.insert(id.as_str()) {
+                            result.push(MatchedProvider {
+                                id: id.as_str(),
+                                priority: route.priority,
+                            });
+                        }
+                    }
+                }
+                result
+            }
+        }
+    };
+
+    matched
+        .into_iter()
+        .filter_map(|matched| {
+            provider_map.get(matched.id).map(|provider| {
+                provider_to_candidate(provider, resolved, alias_used, matched.priority)
+            })
+        })
+        .collect()
+}
+
+fn reuse_unchanged_providers(
+    current: &RouteConfigSnapshot,
+    replacement: &mut RouteConfigInner,
+    replacement_fingerprints: &HashMap<String, String>,
+) -> std::collections::HashSet<String> {
+    let mut reused = std::collections::HashSet::new();
+    let mut replacement_counts = HashMap::<String, usize>::new();
+    for provider in &replacement.providers {
+        *replacement_counts.entry(provider.id.clone()).or_default() += 1;
+    }
+    for provider in &mut replacement.providers {
+        let id = provider.id.clone();
+        let old_count = current
+            .compiled()
+            .providers
+            .iter()
+            .filter(|candidate| candidate.id == id)
+            .count();
+        let new_count = replacement_counts.get(&id).copied().unwrap_or_default();
+        if old_count != 1 || new_count != 1 {
+            continue;
+        }
+        let Some(old_fingerprint) = current.provider_fingerprints().get(&id) else {
+            continue;
+        };
+        let Some(new_fingerprint) = replacement_fingerprints.get(&id) else {
+            continue;
+        };
+        if old_fingerprint.is_empty()
+            || old_fingerprint != new_fingerprint
+            || new_fingerprint.is_empty()
+        {
+            continue;
+        }
+        let old_provider = current
+            .compiled()
+            .providers
+            .iter()
+            .find(|candidate| candidate.id == id)
+            .expect("unique provider count checked above");
+        *provider = old_provider.clone();
+        reused.insert(id);
+    }
+    reused
+}
+
+fn retire_replaced_refresh_states(
+    current: &RouteConfigSnapshot,
+    reused_provider_ids: &std::collections::HashSet<String>,
+) {
+    for provider in &current.compiled().providers {
+        if reused_provider_ids.contains(&provider.id) {
+            continue;
+        }
+        for credential in &provider.credential_pool {
+            if let Some(refresh) = &credential.refresh_config {
+                refresh.retire();
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // RouteConfigStore public API
 // ---------------------------------------------------------------------------
@@ -965,15 +1415,48 @@ impl RouteConfigStore {
 
     /// Create an empty store (no providers, no routes).
     pub fn new() -> Self {
-        Self {
-            inner: RwLock::new(RouteConfigInner {
-                providers: Vec::new(),
-                model_routes: Vec::new(),
-                aliases: HashMap::new(),
-                normalized_aliases: HashMap::new(),
-                sorted_normalized_keys: Vec::new(),
-            }),
-        }
+        let document = RouteConfigYaml {
+            providers: Vec::new(),
+            model_routes: Vec::new(),
+            aliases: HashMap::new(),
+        };
+        Self::from_unchecked_document(
+            document,
+            ActiveConfigSource::Database,
+            RevisionActor::Bootstrap,
+            0,
+            None,
+            None,
+        )
+        .expect("empty route document must compile")
+    }
+
+    /// Strictly validate and construct a store from a route document.
+    pub fn from_document(document: RouteConfigYaml) -> Result<Self, anyhow::Error> {
+        let validated = validate_route_document(document).map_err(|diagnostics| {
+            anyhow::anyhow!("strict route validation failed: {diagnostics}")
+        })?;
+        let revision = RevisionMetadata::from_validated(
+            0,
+            None,
+            RevisionActor::Bootstrap,
+            OffsetDateTime::now_utc(),
+            None,
+            &validated,
+        );
+        let (compiled, fingerprints) =
+            compile_yaml_with_fingerprints(validated.document().clone())?;
+        Ok(Self {
+            inner: ArcSwap::from_pointee(RouteConfigSnapshot::new(
+                revision,
+                ActiveConfigSource::Database,
+                validated.document().clone(),
+                validated.diagnostics().clone(),
+                compiled,
+                fingerprints,
+            )),
+            replace_lock: parking_lot::Mutex::new(()),
+        })
     }
 
     /// Load from a YAML file at `path`.
@@ -986,10 +1469,14 @@ impl RouteConfigStore {
             .map_err(|e| anyhow::anyhow!("Cannot read route config '{}': {}", path.display(), e))?;
         let config: RouteConfigYaml = serde_yaml::from_str(&content)
             .map_err(|e| anyhow::anyhow!("YAML parse error in '{}': {}", path.display(), e))?;
-        let inner = compile_yaml(config)?;
-        Ok(Self {
-            inner: RwLock::new(inner),
-        })
+        Self::from_unchecked_document(
+            config,
+            ActiveConfigSource::Yaml,
+            RevisionActor::Bootstrap,
+            0,
+            None,
+            None,
+        )
     }
 
     /// Load from Redis (key `gw:config:routes`), where the value is a
@@ -1010,10 +1497,134 @@ impl RouteConfigStore {
         let config: RouteConfigYaml = serde_json::from_str(&raw)
             .map_err(|e| anyhow::anyhow!("JSON parse error from Redis: {}", e))?;
 
-        let inner = compile_yaml(config)?;
+        Self::from_unchecked_document(
+            config,
+            ActiveConfigSource::Redis,
+            RevisionActor::Bootstrap,
+            0,
+            None,
+            None,
+        )
+    }
+
+    fn from_unchecked_document(
+        document: RouteConfigYaml,
+        source: ActiveConfigSource,
+        actor: RevisionActor,
+        sequence: u64,
+        parent: Option<String>,
+        message: Option<String>,
+    ) -> Result<Self, anyhow::Error> {
+        let diagnostics = inspect_route_document(&document).diagnostics;
+        let canonical = canonicalize_route_document(&document)?;
+        let revision = RevisionMetadata::from_canonical(
+            sequence,
+            parent,
+            actor,
+            OffsetDateTime::now_utc(),
+            message,
+            &canonical,
+        );
+        let (compiled, fingerprints) = compile_yaml_with_fingerprints(document.clone())?;
         Ok(Self {
-            inner: RwLock::new(inner),
+            inner: ArcSwap::from_pointee(RouteConfigSnapshot::new(
+                revision,
+                source,
+                document,
+                diagnostics,
+                compiled,
+                fingerprints,
+            )),
+            replace_lock: parking_lot::Mutex::new(()),
         })
+    }
+
+    /// Pin the currently active immutable snapshot.
+    pub fn snapshot(&self) -> Arc<RouteConfigSnapshot> {
+        self.inner.load_full()
+    }
+
+    /// Strictly replace the active document and derive a new local revision.
+    pub fn replace_document(
+        &self,
+        document: RouteConfigYaml,
+    ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigReplaceError> {
+        let validated = validate_route_document(document)
+            .map_err(|diagnostics| RouteConfigReplaceError::Validation(diagnostics.to_string()))?;
+        let current = self.snapshot();
+        let revision = RevisionMetadata::from_validated(
+            current.revision().sequence().saturating_add(1),
+            Some(current.revision().id().to_string()),
+            RevisionActor::EnvironmentOverride,
+            OffsetDateTime::now_utc(),
+            None,
+            &validated,
+        );
+        self.replace_validated(validated, revision)
+    }
+
+    /// Atomically publish a strictly validated document/revision pair.
+    pub fn replace_validated(
+        &self,
+        validated: ValidatedRouteDocument,
+        revision: RevisionMetadata,
+    ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigReplaceError> {
+        let _replace_guard = self.replace_lock.lock();
+        revision
+            .validate()
+            .map_err(|error| RouteConfigReplaceError::InvalidRevision(error.to_string()))?;
+
+        let current = self.inner.load_full();
+        if revision.document_digest() != validated.document_digest()
+            || revision.yaml_digest() != validated.yaml_digest()
+        {
+            return Err(RouteConfigReplaceError::RevisionDigestMismatch);
+        }
+        // Replicas may converge directly from an older active revision to a
+        // later Redis revision, so monotonic gaps are valid. The parent must
+        // still identify the exact snapshot being replaced.
+        if revision.sequence() <= current.revision().sequence()
+            || revision.parent() != Some(current.revision().id())
+        {
+            return Err(RouteConfigReplaceError::RevisionConflict);
+        }
+        if revision.document_digest() == current.revision().document_digest()
+            && revision.yaml_digest() == current.revision().yaml_digest()
+        {
+            return Err(RouteConfigReplaceError::RevisionUnchanged);
+        }
+
+        let canonical = canonicalize_route_document(validated.document())
+            .map_err(|error| RouteConfigReplaceError::Compilation(error.to_string()))?;
+        if canonical.canonical_json() != validated.canonical_json()
+            || canonical.canonical_yaml() != validated.canonical_yaml()
+            || canonical.document_digest() != validated.document_digest()
+            || canonical.yaml_digest() != validated.yaml_digest()
+        {
+            return Err(RouteConfigReplaceError::ValidatedDocumentMismatch);
+        }
+        if validated.diagnostics().requires_repair() {
+            return Err(RouteConfigReplaceError::Validation(
+                validated.diagnostics().to_string(),
+            ));
+        }
+
+        let (mut compiled, fingerprints) =
+            compile_yaml_with_fingerprints(validated.document().clone())
+                .map_err(|error| RouteConfigReplaceError::Compilation(error.to_string()))?;
+        let reusable_ids = reuse_unchanged_providers(&current, &mut compiled, &fingerprints);
+        retire_replaced_refresh_states(&current, &reusable_ids);
+
+        let snapshot = Arc::new(RouteConfigSnapshot::new(
+            revision,
+            current.source(),
+            validated.document().clone(),
+            validated.diagnostics().clone(),
+            compiled,
+            fingerprints,
+        ));
+        self.inner.store(snapshot.clone());
+        Ok(snapshot)
     }
 
     // ── Query API ─────────────────────────────────────────────────────────────
@@ -1029,9 +1640,7 @@ impl RouteConfigStore {
     /// **Zero heap allocation per request** — all normalization is done at
     /// config load time. The only allocation is the cloned result String.
     pub fn resolve_alias(&self, model: Option<&str>) -> Option<String> {
-        let model = model?;
-        let guard = self.inner.read();
-        resolve_alias_inner(&guard, model)
+        self.snapshot().resolve_alias(model)
     }
 
     /// Resolve the ordered list of [`RouteCandidate`]s for `model`.
@@ -1050,108 +1659,7 @@ impl RouteConfigStore {
     ///    configured providers.
     /// 8. If `model` is `None`, return ALL providers.
     pub fn resolve_candidates(&self, model: Option<&str>) -> Vec<RouteCandidate> {
-        let guard = self.inner.read();
-
-        let provider_map: HashMap<&str, &CompiledProvider> =
-            guard.providers.iter().map(|p| (p.id.as_str(), p)).collect();
-
-        // Step 1: resolve alias
-        let resolved_alias = model.and_then(|m| resolve_alias_inner(&guard, m));
-        let alias_used = match (model, resolved_alias.as_deref()) {
-            (Some(original), Some(resolved)) if resolved != original => Some(original),
-            _ => None,
-        };
-        let resolved = match (resolved_alias.as_deref(), model) {
-            (Some(target), _) => Some(target),
-            (None, some_model) => some_model,
-        };
-
-        // Struct to carry provider id + priority from matched routes.
-        struct MatchedProvider<'a> {
-            id: &'a str,
-            priority: i32,
-        }
-
-        let matched: Vec<MatchedProvider> = match resolved {
-            None => {
-                // No model specified → return all providers.
-                guard
-                    .providers
-                    .iter()
-                    .map(|p| MatchedProvider {
-                        id: p.id.as_str(),
-                        priority: 10,
-                    })
-                    .collect()
-            }
-            Some(m) => {
-                // Collect matching routes sorted by priority descending.
-                let mut matching: Vec<&ModelRoute> = guard
-                    .model_routes
-                    .iter()
-                    .filter(|r| glob_match(&r.pattern, m))
-                    .collect();
-
-                if matching.is_empty() {
-                    let explicitly_supported: Vec<MatchedProvider> = guard
-                        .providers
-                        .iter()
-                        .filter(|p| {
-                            let upstream_model = p.model_map.get(m).map(String::as_str);
-                            !p.supported_models.is_empty()
-                                && p.supported_models.iter().any(|supported| {
-                                    supported == m || upstream_model == Some(supported.as_str())
-                                })
-                        })
-                        .map(|p| MatchedProvider {
-                            id: p.id.as_str(),
-                            priority: 10,
-                        })
-                        .collect();
-
-                    if explicitly_supported.is_empty() {
-                        // No explicit provider support → preserve the broad fallback.
-                        guard
-                            .providers
-                            .iter()
-                            .map(|p| MatchedProvider {
-                                id: p.id.as_str(),
-                                priority: 10,
-                            })
-                            .collect()
-                    } else {
-                        explicitly_supported
-                    }
-                } else {
-                    matching.sort_by(|a, b| b.priority.cmp(&a.priority));
-
-                    // Flatten provider IDs, deduplicate preserving order.
-                    let mut seen = std::collections::HashSet::new();
-                    let mut result: Vec<MatchedProvider> = Vec::new();
-                    for route in matching {
-                        for id in &route.provider_ids {
-                            if seen.insert(id.as_str()) {
-                                result.push(MatchedProvider {
-                                    id: id.as_str(),
-                                    priority: route.priority,
-                                });
-                            }
-                        }
-                    }
-                    result
-                }
-            }
-        };
-
-        // Convert to RouteCandidate; silently skip unknown provider IDs.
-        matched
-            .into_iter()
-            .filter_map(|mp| {
-                provider_map
-                    .get(mp.id)
-                    .map(|p| provider_to_candidate(p, resolved, alias_used, mp.priority))
-            })
-            .collect()
+        self.snapshot().resolve_candidates(model)
     }
 
     /// List all models available through this gateway (for `GET /v1/models`).
@@ -1161,58 +1669,60 @@ impl RouteConfigStore {
     /// - Patterns from `model_routes` that are exact names (no `*`).
     /// - Alias keys (the short name) and their resolved targets.
     pub fn list_models(&self) -> Vec<ModelInfo> {
-        let guard = self.inner.read();
-
-        let mut model_ids: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-
-        // Provider supported_models lists.
-        for p in &guard.providers {
-            for m in &p.supported_models {
-                model_ids.insert(m.clone());
-            }
-        }
-
-        // Exact-match route patterns (no wildcard).
-        for r in &guard.model_routes {
-            if !r.pattern.contains('*') {
-                model_ids.insert(r.pattern.clone());
-            }
-        }
-
-        // Alias keys are the platform-facing names users should request
-        // directly. Do not also expose alias targets here because they may be
-        // provider-native model identifiers.
-        for alias in guard.aliases.keys() {
-            model_ids.insert(alias.clone());
-        }
-
-        let created = created_timestamp();
-
-        model_ids
-            .into_iter()
-            .map(|id| ModelInfo {
-                object: "model".to_string(),
-                owned_by: "neuro-gateway".to_string(),
-                created,
-                id,
-            })
-            .collect()
+        self.snapshot().list_models()
     }
 
     /// Returns `true` if at least one provider is configured.
     pub fn has_routes(&self) -> bool {
-        !self.inner.read().providers.is_empty()
+        self.snapshot().has_routes()
     }
 
     /// Number of configured providers.
     pub fn provider_count(&self) -> usize {
-        self.inner.read().providers.len()
+        self.snapshot().provider_count()
     }
 
     /// Get a snapshot of all providers (for token refresh task).
     pub fn get_providers(&self) -> Vec<CompiledProvider> {
-        self.inner.read().providers.clone()
+        self.snapshot().get_providers()
     }
+}
+
+fn list_models_inner(guard: &RouteConfigInner) -> Vec<ModelInfo> {
+    let mut model_ids: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+
+    // Provider supported_models lists.
+    for p in &guard.providers {
+        for m in &p.supported_models {
+            model_ids.insert(m.clone());
+        }
+    }
+
+    // Exact-match route patterns (no wildcard).
+    for r in &guard.model_routes {
+        if !r.pattern.contains('*') {
+            model_ids.insert(r.pattern.clone());
+        }
+    }
+
+    // Alias keys are the platform-facing names users should request
+    // directly. Do not also expose alias targets here because they may be
+    // provider-native model identifiers.
+    for alias in guard.aliases.keys() {
+        model_ids.insert(alias.clone());
+    }
+
+    let created = created_timestamp();
+
+    model_ids
+        .into_iter()
+        .map(|id| ModelInfo {
+            object: "model".to_string(),
+            owned_by: "neuro-gateway".to_string(),
+            created,
+            id,
+        })
+        .collect()
 }
 
 impl Default for RouteConfigStore {
@@ -1291,12 +1801,13 @@ fn select_credential(
 fn apply_token_override(cred: &CompiledCredential) -> ProviderAccountPayload {
     let mut payload = cred.payload.clone();
     if let Some(ref config) = cred.refresh_config {
-        if let Some(ref override_key) = *config.api_key_override.lock() {
-            payload.api_key = override_key.clone();
+        let (override_key, expiry) = config.runtime_override();
+        if let Some(override_key) = override_key {
+            payload.api_key = override_key;
         }
-        if let Some(ref expiry) = *config.expires_at_iso.lock() {
+        if let Some(expiry) = expiry {
             if let Some(session_auth) = payload.session_auth.as_mut() {
-                session_auth.expires_at = Some(expiry.clone());
+                session_auth.expires_at = Some(expiry);
             }
         }
     }
@@ -1461,10 +1972,15 @@ mod tests {
 
     fn make_store_from_yaml(yaml: &str) -> RouteConfigStore {
         let config: RouteConfigYaml = serde_yaml::from_str(yaml).expect("parse yaml");
-        let inner = compile_yaml(config).expect("compile");
-        RouteConfigStore {
-            inner: RwLock::new(inner),
-        }
+        RouteConfigStore::from_unchecked_document(
+            config,
+            ActiveConfigSource::Database,
+            RevisionActor::Bootstrap,
+            0,
+            None,
+            None,
+        )
+        .expect("compile")
     }
 
     #[test]
@@ -2542,5 +3058,211 @@ model_routes: []
         let pool = &inner.providers[0].credential_pool;
         assert_eq!(pool[0].payload.api_key, "cred-key");
         assert_eq!(pool[1].payload.api_key, "provider-key");
+    }
+
+    fn oauth_fixture(endpoint: &str, api_key: &str) -> RouteConfigYaml {
+        serde_yaml::from_str(&format!(
+            r#"
+providers:
+  - id: oauth-provider
+    base_url: https://example.com/v1
+    credentials:
+      - id: oauth-credential
+        api_key: {api_key}
+        refresh_token: refresh-token
+        refresh_endpoint: {endpoint}
+        token_expires_in_secs: 3600
+model_routes:
+  - pattern: oauth-model
+    provider_ids: [oauth-provider]
+aliases: {{}}
+"#
+        ))
+        .expect("oauth fixture must parse")
+    }
+
+    #[test]
+    fn replaced_provider_retires_old_refresh_state_and_drops_delayed_result() {
+        let old_document = oauth_fixture("https://old.example/token", "old-access");
+        let new_document = oauth_fixture("https://new.example/token", "new-access");
+        let store = RouteConfigStore::from_document(old_document).expect("old fixture");
+        let old_state = store
+            .snapshot()
+            .compiled()
+            .providers
+            .first()
+            .and_then(|provider| provider.credential_pool.first())
+            .and_then(|credential| credential.refresh_config.clone())
+            .expect("old refresh state");
+        let attempt = old_state
+            .refresh_snapshot(std::time::Duration::MAX)
+            .expect("refresh attempt");
+
+        let validated =
+            crate::console::document::validate_route_document(new_document).expect("new fixture");
+        let revision = RevisionMetadata::from_validated(
+            store.snapshot().revision().sequence() + 1,
+            Some(store.snapshot().revision().id().to_string()),
+            RevisionActor::ManagementToken,
+            OffsetDateTime::now_utc(),
+            None,
+            &validated,
+        );
+        store
+            .replace_validated(validated, revision)
+            .expect("replacement");
+
+        assert!(!old_state.is_active());
+        assert!(old_state
+            .apply_refresh_if_active(
+                attempt.0,
+                "stale-access".to_string(),
+                Some("stale-refresh".to_string()),
+                60,
+                "stale-expiry".to_string(),
+            )
+            .is_none());
+        let snapshot = store.snapshot();
+        let new_state = snapshot
+            .compiled()
+            .providers
+            .first()
+            .and_then(|provider| provider.credential_pool.first())
+            .and_then(|credential| credential.refresh_config.as_ref())
+            .expect("new refresh state");
+        assert!(!std::sync::Arc::ptr_eq(&old_state, new_state));
+        assert_eq!(new_state.runtime_override().0, None);
+    }
+
+    #[test]
+    fn unchanged_provider_reuses_refresh_state_and_generation() {
+        let old_document = oauth_fixture("https://same.example/token", "old-access");
+        let mut new_document = oauth_fixture("https://same.example/token", "old-access");
+        new_document
+            .aliases
+            .insert("oauth-alias".to_string(), "oauth-model".to_string());
+        let store = RouteConfigStore::from_document(old_document).expect("old fixture");
+        let old_state = store
+            .snapshot()
+            .compiled()
+            .providers
+            .first()
+            .and_then(|provider| provider.credential_pool.first())
+            .and_then(|credential| credential.refresh_config.clone())
+            .expect("old refresh state");
+        let attempt = old_state
+            .refresh_snapshot(std::time::Duration::MAX)
+            .expect("refresh attempt");
+        let generation = old_state
+            .apply_refresh_if_active(
+                attempt.0,
+                "refreshed-access".to_string(),
+                Some("refreshed-refresh".to_string()),
+                60,
+                "refreshed-expiry".to_string(),
+            )
+            .expect("first apply");
+        assert!(old_state.is_generation_active(generation));
+        assert!(old_state
+            .apply_refresh_if_active(
+                attempt.0,
+                "stale-second-attempt".to_string(),
+                None,
+                60,
+                "stale".to_string(),
+            )
+            .is_none());
+
+        let validated =
+            crate::console::document::validate_route_document(new_document).expect("new fixture");
+        let revision = RevisionMetadata::from_validated(
+            store.snapshot().revision().sequence() + 1,
+            Some(store.snapshot().revision().id().to_string()),
+            RevisionActor::ManagementToken,
+            OffsetDateTime::now_utc(),
+            None,
+            &validated,
+        );
+        store
+            .replace_validated(validated, revision)
+            .expect("replacement");
+        let snapshot = store.snapshot();
+        let new_state = snapshot
+            .compiled()
+            .providers
+            .first()
+            .and_then(|provider| provider.credential_pool.first())
+            .and_then(|credential| credential.refresh_config.as_ref())
+            .expect("new refresh state");
+        assert!(std::sync::Arc::ptr_eq(&old_state, new_state));
+        assert_eq!(
+            new_state.runtime_override().0.as_deref(),
+            Some("refreshed-access")
+        );
+    }
+
+    #[test]
+    fn legacy_anonymous_refresh_state_survives_first_strict_save() {
+        let mut legacy_document = oauth_fixture("https://same.example/token", "old-access");
+        legacy_document.providers[0].credentials[0].id = None;
+        let mut replacement = legacy_document.clone();
+        replacement
+            .aliases
+            .insert("oauth-alias".to_string(), "oauth-model".to_string());
+        let store = RouteConfigStore::from_unchecked_document(
+            legacy_document,
+            ActiveConfigSource::Yaml,
+            RevisionActor::Bootstrap,
+            0,
+            None,
+            None,
+        )
+        .expect("legacy fixture");
+        let old_state = store
+            .snapshot()
+            .compiled()
+            .providers
+            .first()
+            .and_then(|provider| provider.credential_pool.first())
+            .and_then(|credential| credential.refresh_config.clone())
+            .expect("old refresh state");
+
+        let validated = crate::console::document::validate_route_document(replacement)
+            .expect("strict replacement");
+        let revision = RevisionMetadata::from_validated(
+            store.snapshot().revision().sequence() + 1,
+            Some(store.snapshot().revision().id().to_string()),
+            RevisionActor::ManagementToken,
+            OffsetDateTime::now_utc(),
+            None,
+            &validated,
+        );
+        store
+            .replace_validated(validated, revision)
+            .expect("replacement");
+        let snapshot = store.snapshot();
+        let new_state = snapshot
+            .compiled()
+            .providers
+            .first()
+            .and_then(|provider| provider.credential_pool.first())
+            .and_then(|credential| credential.refresh_config.as_ref())
+            .expect("new refresh state");
+
+        assert!(std::sync::Arc::ptr_eq(&old_state, new_state));
+    }
+
+    #[test]
+    fn huge_refresh_lifetime_is_capped_without_clock_panic() {
+        assert_eq!(
+            effective_refresh_lifetime_secs(u64::MAX),
+            100 * 365 * 24 * 60 * 60
+        );
+        let deadline = safe_refresh_deadline(u64::MAX);
+        assert!(deadline >= std::time::Instant::now());
+        assert_eq!(
+            future_rfc3339_after_secs(effective_refresh_lifetime_secs(u64::MAX)).len(),
+            24
+        );
     }
 }

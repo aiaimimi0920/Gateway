@@ -7,13 +7,15 @@
 // ---------------------------------------------------------------------------
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use rquest::Client;
 use serde::Deserialize;
 
 use crate::redis::credential_cache;
-use crate::routing::config::{future_rfc3339_after_secs, RouteConfigStore};
+use crate::routing::config::{
+    effective_refresh_lifetime_secs, future_rfc3339_after_secs, RouteConfigStore,
+};
 
 #[derive(Deserialize)]
 struct TokenResponse {
@@ -95,15 +97,11 @@ pub async fn start_token_refresh_task(
                     Some(c) => c,
                     None => continue,
                 };
-
-                let expires_at = *config.expires_at.lock();
-                let now = Instant::now();
-
-                if now + refresh_margin < expires_at {
-                    continue; // not yet time to refresh
-                }
-
-                let current_rt = config.refresh_token.lock().clone();
+                let Some((attempt_generation, current_rt)) =
+                    config.refresh_snapshot(refresh_margin)
+                else {
+                    continue;
+                };
 
                 match refresh_oauth_token(
                     &http,
@@ -114,22 +112,28 @@ pub async fn start_token_refresh_task(
                 .await
                 {
                     Ok((new_access, new_refresh, expires_in)) => {
-                        // Update the api_key override (used by select_credential)
-                        *config.api_key_override.lock() = Some(new_access.clone());
-
-                        // Update refresh_token (single-use tokens like Qwen)
-                        if let Some(ref rt) = new_refresh {
-                            *config.refresh_token.lock() = rt.clone();
-                        }
-
-                        // Update expiry
-                        *config.expires_at.lock() =
-                            Instant::now() + Duration::from_secs(expires_in);
+                        let expires_in = effective_refresh_lifetime_secs(expires_in);
                         let expires_at_iso = future_rfc3339_after_secs(expires_in);
-                        *config.expires_at_iso.lock() = Some(expires_at_iso.clone());
+                        let Some(applied_generation) = config.apply_refresh_if_active(
+                            attempt_generation,
+                            new_access.clone(),
+                            new_refresh.clone(),
+                            expires_in,
+                            expires_at_iso.clone(),
+                        ) else {
+                            tracing::debug!(
+                                cred_id = %cred.id,
+                                provider = %provider.id,
+                                "discarded OAuth refresh response for retired route snapshot"
+                            );
+                            continue;
+                        };
 
                         // Write back to Redis so user-hosted credentials persist
                         // across cache reloads. Best-effort — don't block the loop.
+                        if !config.is_generation_active(applied_generation) {
+                            continue;
+                        }
                         if let Err(e) = credential_cache::write_back_refreshed_token(
                             &redis_pool,
                             &cred.id,
@@ -143,6 +147,15 @@ pub async fn start_token_refresh_task(
                                 error = %e,
                                 "token refresh Redis writeback failed (non-fatal)"
                             );
+                        }
+
+                        if !config.is_generation_active(applied_generation) {
+                            tracing::debug!(
+                                cred_id = %cred.id,
+                                provider = %provider.id,
+                                "stopped stale OAuth refresh writeback after route replacement"
+                            );
+                            continue;
                         }
 
                         if cred.payload.session_auth.is_some() || cred.payload.keepalive.is_some() {

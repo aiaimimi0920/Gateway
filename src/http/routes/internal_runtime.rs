@@ -191,7 +191,8 @@ pub async fn get_gateway_operator_summary(
     let readiness = probe_gateway_runtime_readiness(state.as_ref()).await;
     let request_metrics = global_gateway_metrics().snapshot();
     let draining = state.lifecycle.is_draining();
-    let published_route_count = state.route_config.list_models().len();
+    let route_snapshot = state.route_config.snapshot();
+    let published_route_count = route_snapshot.list_models().len();
     let generated_at = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_else(|_| "unknown".to_string());
@@ -243,8 +244,8 @@ pub async fn get_gateway_operator_summary(
                 },
             },
             "routing": {
-                "configured": state.route_config.has_routes(),
-                "providerCount": state.route_config.provider_count(),
+                "configured": route_snapshot.has_routes(),
+                "providerCount": route_snapshot.provider_count(),
                 "routeCount": published_route_count,
                 "publishedModelCount": published_route_count,
             },
