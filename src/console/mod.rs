@@ -11,6 +11,7 @@ pub mod journal;
 pub mod persistence;
 pub mod redis_store;
 pub mod revision;
+pub mod runtime;
 pub mod secrets;
 
 pub use journal::{
@@ -24,6 +25,10 @@ pub use persistence::{
 pub use redis_store::{
     RouteConfigRedisActivationOutcome, RouteConfigRedisKeys, RouteConfigRedisRevision,
     RouteConfigRedisStore, RouteConfigRedisStoreError,
+};
+pub use runtime::{
+    PooledRouteConfigRedisBackend, RouteConfigCoordinator, RouteConfigRedisBackend,
+    RouteConfigReplica, RouteConfigRuntime, RouteConfigRuntimeError,
 };
 
 const DEFAULT_REDIS_NAMESPACE: &str = "default";
@@ -251,11 +256,6 @@ fn validate_routes_path_views(
 
     Ok(())
 }
-
-/// The configuration boundary is installed in `AppState` before the
-/// transaction engine is assembled by later console modules.
-#[derive(Debug, Default)]
-pub struct RouteConfigRuntime;
 
 #[cfg(test)]
 mod persistence_lock_contract {

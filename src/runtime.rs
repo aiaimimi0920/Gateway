@@ -6,7 +6,7 @@ use crate::auth::user_credential::UserCredentialAdapter;
 use crate::concurrency::aimd::AimdConfig;
 use crate::concurrency::registry::ConcurrencyRegistry;
 use crate::config::Config;
-use crate::console::RouteConfigRedisStore;
+use crate::console::{RouteConfigRedisStore, RouteConfigRuntime};
 use crate::credential_store::CredentialMemoryCache;
 use crate::db::create_pg_pool;
 use crate::redis::pool::create_pool;
@@ -72,12 +72,23 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         pg_pool.clone(),
     )));
 
-    let route_config = load_route_config_from_path(
-        &redis_pool,
-        &config.console.routes_file,
-        &config.console.redis_namespace,
-    )
-    .await;
+    let route_config = Arc::new(
+        load_route_config_from_path(
+            &redis_pool,
+            &config.console.routes_file,
+            &config.console.redis_namespace,
+        )
+        .await,
+    );
+    let route_config_runtime = Arc::new(RouteConfigRuntime::new(
+        Arc::clone(&route_config),
+        &config.console,
+        redis_pool.clone(),
+        !matches!(
+            config.runtime_role,
+            crate::config::GatewayRuntimeRole::Worker
+        ),
+    )?);
     let credential_cache = CredentialMemoryCache::new(30);
 
     Ok(Arc::new(AppState {
@@ -88,8 +99,8 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         concurrency_registry,
         auth_adapters,
         filter_config: None,
-        route_config: Arc::new(route_config),
-        route_config_runtime: None,
+        route_config,
+        route_config_runtime: Some(route_config_runtime),
         credential_cache,
         lifecycle: GatewayLifecycleState::default(),
         shutdown: GatewayShutdownHandle::default(),

@@ -1218,20 +1218,7 @@ impl RouteConfigPersistence {
         record: &TransactionRecord,
     ) -> Result<(), PersistenceError> {
         self.ensure_guard(guard)?;
-        let actual = match fs::symlink_metadata(&self.routes_path) {
-            Ok(metadata) => {
-                reject_link_metadata(&self.routes_path, &metadata)?;
-                if !metadata.is_file() {
-                    return Err(PersistenceError::recovery_required(
-                        "Prepared transaction routes path is not a regular file",
-                    ));
-                }
-                let bytes = read_regular_file(&self.routes_path)?;
-                (true, Some(sha256_hex(&bytes)))
-            }
-            Err(error) if error.kind() == io::ErrorKind::NotFound => (false, None),
-            Err(error) => return Err(PersistenceError::io("reading prepared routes state", error)),
-        };
+        let actual = self.current_routes_state_locked(guard)?;
         if actual.0 != record.previous_yaml_present()
             || actual.1.as_deref() != record.previous_yaml_digest()
         {
@@ -1241,6 +1228,27 @@ impl RouteConfigPersistence {
             ));
         }
         Ok(())
+    }
+
+    pub(crate) fn current_routes_state_locked(
+        &self,
+        guard: &WriterLockGuard,
+    ) -> Result<(bool, Option<String>), PersistenceError> {
+        self.ensure_guard(guard)?;
+        match fs::symlink_metadata(&self.routes_path) {
+            Ok(metadata) => {
+                reject_link_metadata(&self.routes_path, &metadata)?;
+                if !metadata.is_file() {
+                    return Err(PersistenceError::recovery_required(
+                        "Prepared transaction routes path is not a regular file",
+                    ));
+                }
+                let bytes = read_regular_file(&self.routes_path)?;
+                Ok((true, Some(sha256_hex(&bytes))))
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok((false, None)),
+            Err(error) => Err(PersistenceError::io("reading prepared routes state", error)),
+        }
     }
 
     pub(crate) fn restore_routes_yaml_locked(
