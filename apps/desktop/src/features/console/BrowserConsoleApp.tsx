@@ -76,7 +76,9 @@ type ModelRouteDraftRow = {
 type ProviderDraftRow = {
   id: string;
   providerId: string;
+  preset: string;
   baseUrl: string;
+  supportedModelsText: string;
   provider: Record<string, unknown>;
 };
 
@@ -256,15 +258,36 @@ function modelRouteDraftRowsFromDocument(document: ConsoleRouteDocument): ModelR
 
 function createProviderDraftRow(
   providerId = "",
+  preset = "",
   baseUrl = "",
+  supportedModelsText = "",
   provider: Record<string, unknown> = {},
 ): ProviderDraftRow {
   return {
     id: `provider-${Math.random().toString(36).slice(2, 10)}`,
     providerId,
+    preset,
     baseUrl,
+    supportedModelsText,
     provider,
   };
+}
+
+function supportedModelsTextFromProvider(provider: Record<string, unknown>): string {
+  const supportedModels = provider.supported_models;
+  if (!Array.isArray(supportedModels)) {
+    return "";
+  }
+  return supportedModels
+    .filter((entry): entry is string => typeof entry === "string")
+    .join("\n");
+}
+
+function parseSupportedModelsText(value: string): string[] {
+  return value
+    .split(/\r?\n|,/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 function providerDraftRowsFromDocument(document: ConsoleRouteDocument): ProviderDraftRow[] {
@@ -272,7 +295,9 @@ function providerDraftRowsFromDocument(document: ConsoleRouteDocument): Provider
     if (isRecord(provider)) {
       return createProviderDraftRow(
         typeof provider.id === "string" ? provider.id : "",
+        typeof provider.preset === "string" ? provider.preset : "",
         typeof provider.base_url === "string" ? provider.base_url : "",
+        supportedModelsTextFromProvider(provider),
         provider,
       );
     }
@@ -544,11 +569,23 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
             ...row.provider,
             id: row.providerId.trim(),
           };
+          const trimmedPreset = row.preset.trim();
+          if (trimmedPreset.length > 0) {
+            nextProvider.preset = trimmedPreset;
+          } else {
+            delete nextProvider.preset;
+          }
           const trimmedBaseUrl = row.baseUrl.trim();
           if (trimmedBaseUrl.length > 0) {
             nextProvider.base_url = trimmedBaseUrl;
           } else {
             delete nextProvider.base_url;
+          }
+          const supportedModels = parseSupportedModelsText(row.supportedModelsText);
+          if (supportedModels.length > 0) {
+            nextProvider.supported_models = supportedModels;
+          } else {
+            delete nextProvider.supported_models;
           }
           return nextProvider;
         });
@@ -563,7 +600,11 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   }, [applyProviderDraftRows, providerDraftRows]);
 
   const updateProviderRow = useCallback(
-    (rowId: string, field: "providerId" | "baseUrl", value: string) => {
+    (
+      rowId: string,
+      field: "providerId" | "preset" | "baseUrl" | "supportedModelsText",
+      value: string,
+    ) => {
       applyProviderDraftRows(
         providerDraftRows.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)),
       );
@@ -1000,6 +1041,16 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                             }
                           />
                         </label>
+                        <label className="nt-field">
+                          <span>Provider preset {index + 1}</span>
+                          <input
+                            className="nt-input"
+                            value={row.preset}
+                            onChange={(event) =>
+                              updateProviderRow(row.id, "preset", event.currentTarget.value)
+                            }
+                          />
+                        </label>
                         <label className="nt-field nt-field--wide">
                           <span>Provider base URL {index + 1}</span>
                           <input
@@ -1007,6 +1058,21 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                             value={row.baseUrl}
                             onChange={(event) =>
                               updateProviderRow(row.id, "baseUrl", event.currentTarget.value)
+                            }
+                          />
+                        </label>
+                        <label className="nt-field nt-field--wide">
+                          <span>Provider supported models {index + 1}</span>
+                          <textarea
+                            className="nt-input nt-textarea"
+                            value={row.supportedModelsText}
+                            spellCheck={false}
+                            onChange={(event) =>
+                              updateProviderRow(
+                                row.id,
+                                "supportedModelsText",
+                                event.currentTarget.value,
+                              )
                             }
                           />
                         </label>

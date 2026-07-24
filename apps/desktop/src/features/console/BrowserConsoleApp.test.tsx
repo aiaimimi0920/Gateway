@@ -488,4 +488,52 @@ describe("BrowserConsoleApp", () => {
       ),
     );
   });
+
+  it("updates provider preset and supported models through the structured provider editor", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /add provider row/i })).toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: /add provider row/i }));
+    await user.type(screen.getByLabelText(/provider id 2/i), "backup-provider");
+    await user.type(screen.getByLabelText(/provider preset 2/i), "openai");
+    await user.type(
+      screen.getByLabelText(/provider base url 2/i),
+      "https://api.backup.example.com",
+    );
+    await user.type(
+      screen.getByLabelText(/provider supported models 2/i),
+      "gpt-5.4{enter}gpt-5.4-mini",
+    );
+
+    const editor = screen.getByRole("textbox", { name: /route document json/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"preset": "openai"');
+    expect((editor as HTMLTextAreaElement).value).toContain('"supported_models": [');
+    expect((editor as HTMLTextAreaElement).value).toContain('"gpt-5.4-mini"');
+
+    await user.click(screen.getByRole("button", { name: /save route config/i }));
+
+    await waitFor(() =>
+      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          document: expect.objectContaining({
+            providers: expect.arrayContaining([
+              expect.objectContaining({
+                id: "backup-provider",
+                preset: "openai",
+                base_url: "https://api.backup.example.com",
+                supported_models: ["gpt-5.4", "gpt-5.4-mini"],
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
+  });
 });
