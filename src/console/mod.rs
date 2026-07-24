@@ -9,6 +9,7 @@ use std::path::{Component, Path, PathBuf};
 pub mod document;
 pub mod journal;
 pub mod persistence;
+pub mod redis_store;
 pub mod revision;
 pub mod secrets;
 
@@ -20,11 +21,13 @@ pub use persistence::{
     PersistenceError, PlatformAtomicReplaceBackend, RevisionArchive, RouteConfigPersistence,
     TransactionPhase, TransactionRecord, WriterLockGuard, YamlReplaceReceipt,
 };
+pub use redis_store::{RouteConfigRedisKeys, RouteConfigRedisStoreError};
 
 const DEFAULT_REDIS_NAMESPACE: &str = "default";
 const DEFAULT_SECRET_GRANT_TTL_SECS: u64 = 300;
 const DEFAULT_MAX_EVENT_RECORDS: usize = 2_000;
 const DEFAULT_STATE_DIRECTORY_NAME: &str = ".gateway-state";
+const MAX_REDIS_NAMESPACE_BYTES: usize = 64;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConsoleConfig {
@@ -84,6 +87,8 @@ impl ConsoleConfig {
             .state_dir
             .unwrap_or_else(|| default_state_directory(&routes_file));
         let release_payload_root = values.release_payload_root;
+        let redis_namespace = non_empty_or_default(values.redis_namespace, DEFAULT_REDIS_NAMESPACE);
+        validate_redis_namespace(&redis_namespace)?;
 
         let state_paths = resolve_path_views(&state_dir)?;
         let routes_paths = resolve_path_views(&routes_file)?;
@@ -111,7 +116,7 @@ impl ConsoleConfig {
         Ok(Self {
             state_dir: state_paths.lexical,
             routes_file: routes_paths.lexical,
-            redis_namespace: non_empty_or_default(values.redis_namespace, DEFAULT_REDIS_NAMESPACE),
+            redis_namespace,
             remote_access_enabled: values.remote_access_enabled.unwrap_or(false),
             trusted_origins: normalize_origins(values.trusted_origins.unwrap_or_default()),
             tauri_origins: normalize_origins(values.tauri_origins.unwrap_or_default()),
@@ -177,6 +182,21 @@ pub fn validate_state_directory(
         state_dir,
         release_payload_root,
     )
+}
+
+pub(crate) fn validate_redis_namespace(namespace: &str) -> Result<(), ConsoleConfigError> {
+    if namespace.is_empty()
+        || namespace.len() > MAX_REDIS_NAMESPACE_BYTES
+        || !namespace
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Err(ConsoleConfigError::new(
+            "console_invalid_redis_namespace",
+            "Gateway console Redis namespace must be 1-64 ASCII letters, digits, '-' or '_'",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_state_path_views(

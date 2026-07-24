@@ -221,3 +221,35 @@ pub fn credential_affinity_key(affinity_scope: &str, model: &str) -> String {
 pub fn credential_version_key() -> String {
     "gw:cred:version".to_string()
 }
+
+// ---------------------------------------------------------------------------
+// Gateway console route config transactions
+// ---------------------------------------------------------------------------
+
+pub const LEGACY_ROUTE_CONFIG_DOCUMENT_KEY: &str = "gw:config:routes";
+
+pub fn console_route_config_active_revision_key(namespace: &str) -> String {
+    format!("gw:console:route-config:{}:active_revision", namespace)
+}
+
+pub fn console_route_config_active_document_key(namespace: &str) -> String {
+    format!("gw:console:route-config:{}:active_document", namespace)
+}
+
+pub fn console_route_config_revision_key(namespace: &str, revision: &str) -> String {
+    format!(
+        "gw:console:route-config:{}:revisions:{}",
+        namespace, revision
+    )
+}
+
+pub fn console_route_config_transaction_key(namespace: &str, transaction: &str) -> String {
+    format!(
+        "gw:console:route-config:{}:transactions:{}",
+        namespace, transaction
+    )
+}
+
+pub fn console_route_config_events_key(namespace: &str) -> String {
+    format!("gw:console:route-config:{}:events", namespace)
+}

@@ -20,6 +20,17 @@ fn console_defaults_are_loopback_first_and_namespaced() {
 }
 
 #[test]
+fn invalid_console_redis_namespace_is_rejected() {
+    let error = ConsoleConfig::from_values(ConsoleConfigValues {
+        redis_namespace: Some("dev:alpha".to_string()),
+        ..ConsoleConfigValues::default()
+    })
+    .unwrap_err();
+
+    assert_eq!(error.code(), "console_invalid_redis_namespace");
+}
+
+#[test]
 fn release_state_directory_must_not_be_inside_release_payload() {
     let error = validate_state_directory(
         Path::new(r"C:\release\Gateway\V1"),
