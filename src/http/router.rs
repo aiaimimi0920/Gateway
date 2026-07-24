@@ -16,7 +16,7 @@ use crate::state::AppState;
 use super::middleware::{body_limit_layer, request_logging};
 use super::routes::{
     audio, bedrock, browser_executor, cohere, completions, credentials, embeddings, gemini,
-    gemini_live, health, images, internal_access, internal_browser_executor,
+    gemini_live, health, images, internal_access, internal_browser_executor, internal_console,
     internal_conversation_archives, internal_credential_stock, internal_gateway,
     internal_provider_accounts, internal_provider_credentials, internal_requests, internal_routing,
     internal_runtime, keepalive, messages, metrics, models, music, realtime, responses, search,
@@ -587,6 +587,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route(
             "/v1/internal/gateway/runtime/drain",
             post(internal_runtime::drain_gateway_runtime),
+        )
+        .route(
+            "/v1/internal/gateway/route-config",
+            get(internal_console::get_route_config).post(internal_console::commit_route_config),
         )
         .route(
             "/v1/internal/gateway/pressure",
