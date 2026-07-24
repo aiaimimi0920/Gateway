@@ -22,6 +22,7 @@ use super::routes::{
     internal_runtime, keepalive, messages, metrics, models, music, realtime, responses, search,
     videos,
 };
+use super::ui;
 
 /// Build the axum [`Router`] with all gateway routes mounted.
 ///
@@ -234,6 +235,9 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(body_limit_layer(state.config.max_body_videos_bytes));
 
     Router::new()
+        .route("/ui", get(ui::redirect_ui_root))
+        .route("/ui/", get(ui::serve_ui_index))
+        .route("/ui/*path", get(ui::serve_ui_path))
         // -- AI endpoints ------------------------------------------------
         .merge(chat_routes)
         .merge(completions_routes)
