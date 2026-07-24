@@ -301,6 +301,32 @@ describe("BrowserConsoleApp", () => {
     );
   });
 
+  it("renders side-by-side active and selected route document snapshots for revision review", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /inspect revision r0-cafebabefeed/i }),
+      ).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: /inspect revision r0-cafebabefeed/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText(/active route document snapshot/i),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText(/active route document snapshot/i)).toHaveTextContent(
+      '"answer": "gpt-5.4"',
+    );
+    expect(screen.getByLabelText(/selected revision route document snapshot/i)).toHaveTextContent(
+      '"answer": "gpt-4.1"',
+    );
+  });
+
   it("builds replace secret patches when secret access is already granted", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();

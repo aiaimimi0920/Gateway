@@ -193,6 +193,10 @@ function compareRouteDocuments(
   };
 }
 
+function formatRouteDocument(document: ConsoleRouteDocument): string {
+  return JSON.stringify(document, null, 2);
+}
+
 export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const host = useGatewayHost();
   const session = useManagementSession();
@@ -272,6 +276,15 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       selectedRevision.routeConfig.document,
     );
   }, [routeConfig, selectedRevision]);
+  const activeRouteDocumentText = useMemo(
+    () => (routeConfig ? formatRouteDocument(routeConfig.routeConfig.document) : ""),
+    [routeConfig],
+  );
+  const selectedRouteDocumentText = useMemo(
+    () =>
+      selectedRevision ? formatRouteDocument(selectedRevision.routeConfig.document) : "",
+    [selectedRevision],
+  );
 
   const buildCommitRequest = useCallback(
     (document: ConsoleRouteDocument, messageOverride?: string): ConsoleRouteConfigCommitRequest => {
@@ -817,6 +830,20 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                       </ul>
                     </div>
                   ) : null}
+                  <div className="nt-grid nt-grid--2" aria-label="Revision document snapshots">
+                    <div>
+                      <h4>Active route document</h4>
+                      <pre className="nt-code" aria-label="Active route document snapshot">
+                        {activeRouteDocumentText}
+                      </pre>
+                    </div>
+                    <div>
+                      <h4>Selected revision route document</h4>
+                      <pre className="nt-code" aria-label="Selected revision route document snapshot">
+                        {selectedRouteDocumentText}
+                      </pre>
+                    </div>
+                  </div>
                   <div className="nt-actions nt-actions--right">
                     <button
                       className="nt-btn nt-btn--secondary"
