@@ -60,6 +60,24 @@ type SecretPatchDraft = {
   value: string;
 };
 
+type RouteDocumentDiff = {
+  activeAliasCount: number;
+  selectedAliasCount: number;
+  aliasChanges: Array<{
+    alias: string;
+    activeModel: string | null;
+    selectedModel: string | null;
+  }>;
+  activeProviderCount: number;
+  selectedProviderCount: number;
+  addedProviders: string[];
+  removedProviders: string[];
+  activeModelRouteCount: number;
+  selectedModelRouteCount: number;
+  addedModelRoutes: string[];
+  removedModelRoutes: string[];
+};
+
 function createSecretPatchDrafts(
   routeConfig: ConsoleRouteConfigResponse | null,
 ): Record<string, SecretPatchDraft> {
@@ -108,6 +126,71 @@ function diagnosticsList(
   validation: ConsoleRouteConfigValidationResponse | null,
 ): Array<{ code: string; severity: string; path: string; message: string }> {
   return validation?.validation.diagnostics.diagnostics ?? [];
+}
+
+function routeProviderIds(document: ConsoleRouteDocument): string[] {
+  return document.providers.map((provider, index) => {
+    if (
+      typeof provider === "object" &&
+      provider !== null &&
+      "id" in provider &&
+      typeof provider.id === "string"
+    ) {
+      return provider.id;
+    }
+    return `provider-${index}`;
+  });
+}
+
+function routeModelPatterns(document: ConsoleRouteDocument): string[] {
+  return document.model_routes.map((route, index) => {
+    if (
+      typeof route === "object" &&
+      route !== null &&
+      "pattern" in route &&
+      typeof route.pattern === "string"
+    ) {
+      return route.pattern;
+    }
+    return `route-${index}`;
+  });
+}
+
+function compareRouteDocuments(
+  active: ConsoleRouteDocument,
+  selected: ConsoleRouteDocument,
+): RouteDocumentDiff {
+  const aliasKeys = new Set([
+    ...Object.keys(active.aliases),
+    ...Object.keys(selected.aliases),
+  ]);
+  const activeProviders = routeProviderIds(active);
+  const selectedProviders = routeProviderIds(selected);
+  const activeRoutes = routeModelPatterns(active);
+  const selectedRoutes = routeModelPatterns(selected);
+
+  return {
+    activeAliasCount: Object.keys(active.aliases).length,
+    selectedAliasCount: Object.keys(selected.aliases).length,
+    aliasChanges: [...aliasKeys]
+      .sort((left, right) => left.localeCompare(right))
+      .map((alias) => ({
+        alias,
+        activeModel: active.aliases[alias] ?? null,
+        selectedModel: selected.aliases[alias] ?? null,
+      }))
+      .filter((entry) => entry.activeModel !== entry.selectedModel),
+    activeProviderCount: activeProviders.length,
+    selectedProviderCount: selectedProviders.length,
+    addedProviders: selectedProviders.filter((providerId) => !activeProviders.includes(providerId)),
+    removedProviders: activeProviders.filter(
+      (providerId) => !selectedProviders.includes(providerId),
+    ),
+    activeModelRouteCount: activeRoutes.length,
+    selectedModelRouteCount: selectedRoutes.length,
+    addedModelRoutes: selectedRoutes.filter((pattern) => !activeRoutes.includes(pattern)),
+    removedModelRoutes: activeRoutes.filter((pattern) => !selectedRoutes.includes(pattern)),
+  };
 }
 
 export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
@@ -180,27 +263,43 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     [routeConfig, secretDrafts],
   );
   const hasSecretAccess = Boolean(session.session?.secretAccessGranted);
+  const selectedRevisionDiff = useMemo(() => {
+    if (!routeConfig || !selectedRevision) {
+      return null;
+    }
+    return compareRouteDocuments(
+      routeConfig.routeConfig.document,
+      selectedRevision.routeConfig.document,
+    );
+  }, [routeConfig, selectedRevision]);
+
+  const buildCommitRequest = useCallback(
+    (document: ConsoleRouteDocument, messageOverride?: string): ConsoleRouteConfigCommitRequest => {
+      if (!routeConfig) {
+        throw new Error("Route configuration is not loaded yet.");
+      }
+      const message = messageOverride?.trim() || commitMessage.trim();
+      for (const patch of secretPatches) {
+        if (patch.operation !== "keep" && !hasSecretAccess) {
+          throw new Error("Secret replacement or clearing requires confirmed secret access.");
+        }
+        if (patch.operation === "replace" && (!patch.value || patch.value.trim().length === 0)) {
+          throw new Error(`Replacement secret for ${patch.path} cannot be empty.`);
+        }
+      }
+      return {
+        expectedRevision: routeConfig.routeConfig.revision.id,
+        document,
+        secretPatches,
+        ...(message ? { message } : {}),
+      };
+    },
+    [commitMessage, hasSecretAccess, routeConfig, secretPatches],
+  );
 
   const parseDraft = useCallback((): ConsoleRouteConfigCommitRequest => {
-    if (!routeConfig) {
-      throw new Error("Route configuration is not loaded yet.");
-    }
-    const message = commitMessage.trim();
-    for (const patch of secretPatches) {
-      if (patch.operation !== "keep" && !hasSecretAccess) {
-        throw new Error("Secret replacement or clearing requires confirmed secret access.");
-      }
-      if (patch.operation === "replace" && (!patch.value || patch.value.trim().length === 0)) {
-        throw new Error(`Replacement secret for ${patch.path} cannot be empty.`);
-      }
-    }
-    return {
-      expectedRevision: routeConfig.routeConfig.revision.id,
-      document: parseRouteDocument(editorText),
-      secretPatches,
-      ...(message ? { message } : {}),
-    };
-  }, [commitMessage, editorText, hasSecretAccess, routeConfig, secretPatches]);
+    return buildCommitRequest(parseRouteDocument(editorText));
+  }, [buildCommitRequest, editorText]);
 
   const handleValidate = useCallback(async () => {
     if (!managementToken) {
@@ -272,6 +371,33 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     setCommitMessage(selectedRevision.routeConfig.revision.message ?? "");
     setValidation(null);
   }, [selectedRevision]);
+
+  const handleRestoreSelectedRevision = useCallback(async () => {
+    if (!managementToken) {
+      setError("Gateway management token is unavailable.");
+      return;
+    }
+    if (!selectedRevision) {
+      setError("Select a revision before restoring it.");
+      return;
+    }
+    setActionBusy("save");
+    setError(null);
+    try {
+      const message = `restore revision ${selectedRevision.routeConfig.revision.id}`;
+      const draft = buildCommitRequest(selectedRevision.routeConfig.document, message);
+      const result = await api.commitRouteConfig(managementToken, draft);
+      setRouteConfig({ routeConfig: result.routeConfig });
+      setValidation(null);
+      setEditorText(JSON.stringify(selectedRevision.routeConfig.document, null, 2));
+      setCommitMessage(message);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setActionBusy(null);
+    }
+  }, [api, buildCommitRequest, managementToken, refresh, selectedRevision]);
 
   const validationDiagnostics = diagnosticsList(validation);
   const mutationSupported = routeConfig?.routeConfig.mutationSupported ?? false;
@@ -660,6 +786,37 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                       return <li key={`${selectedRevision.routeConfig.revision.id}:${providerId}`}>{providerId}</li>;
                     })}
                   </ul>
+                  {selectedRevisionDiff ? (
+                    <div className="nt-validation-list nt-validation-list--warning">
+                      <strong>Revision diff summary</strong>
+                      <ul>
+                        <li>Active aliases: {selectedRevisionDiff.activeAliasCount}</li>
+                        <li>Selected aliases: {selectedRevisionDiff.selectedAliasCount}</li>
+                        <li>Active providers: {selectedRevisionDiff.activeProviderCount}</li>
+                        <li>Selected providers: {selectedRevisionDiff.selectedProviderCount}</li>
+                        <li>Active model routes: {selectedRevisionDiff.activeModelRouteCount}</li>
+                        <li>Selected model routes: {selectedRevisionDiff.selectedModelRouteCount}</li>
+                        {selectedRevisionDiff.aliasChanges.map((entry) => (
+                          <li key={`alias-change:${entry.alias}`}>
+                            {entry.alias}: {entry.activeModel ?? "<none>"} -&gt;{" "}
+                            {entry.selectedModel ?? "<none>"}
+                          </li>
+                        ))}
+                        {selectedRevisionDiff.addedProviders.map((providerId) => (
+                          <li key={`provider-added:${providerId}`}>Added provider: {providerId}</li>
+                        ))}
+                        {selectedRevisionDiff.removedProviders.map((providerId) => (
+                          <li key={`provider-removed:${providerId}`}>Removed provider: {providerId}</li>
+                        ))}
+                        {selectedRevisionDiff.addedModelRoutes.map((pattern) => (
+                          <li key={`route-added:${pattern}`}>Added route: {pattern}</li>
+                        ))}
+                        {selectedRevisionDiff.removedModelRoutes.map((pattern) => (
+                          <li key={`route-removed:${pattern}`}>Removed route: {pattern}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   <div className="nt-actions nt-actions--right">
                     <button
                       className="nt-btn nt-btn--secondary"
@@ -667,6 +824,16 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                       onClick={loadSelectedRevisionIntoEditor}
                     >
                       Load revision into editor
+                    </button>
+                    <button
+                      className="nt-btn nt-btn--primary"
+                      type="button"
+                      disabled={
+                        selectedRevision.active || busy || actionBusy !== null || !mutationSupported
+                      }
+                      onClick={() => void handleRestoreSelectedRevision()}
+                    >
+                      Restore revision as active config
                     </button>
                   </div>
                 </div>

@@ -265,6 +265,42 @@ describe("BrowserConsoleApp", () => {
     expect((editor as HTMLTextAreaElement).value).toContain('"answer": "gpt-4.1"');
   });
 
+  it("shows a revision diff summary and restores the selected revision through the active commit path", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /inspect revision r0-cafebabefeed/i }),
+      ).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: /inspect revision r0-cafebabefeed/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/active aliases: 1/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/selected aliases: 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/answer: gpt-5\.4 -> gpt-4\.1/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /restore revision as active config/i }));
+
+    await waitFor(() =>
+      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          expectedRevision: "r1-deadbeefcafe",
+          document: expect.objectContaining({
+            aliases: { answer: "gpt-4.1" },
+          }),
+          secretPatches: [{ path: "/providers/0/api_key", operation: "keep" }],
+          message: "restore revision r0-cafebabefeed",
+        }),
+      ),
+    );
+  });
+
   it("builds replace secret patches when secret access is already granted", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
