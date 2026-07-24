@@ -17,6 +17,7 @@
 
 # Runtime state, release packages, evidence output, and local scratch
 /.runtime/
+/.gateway-state/
 /gateway/
 /release/
 /output/

@@ -595,6 +595,21 @@ mod tests {
         }
     }
 
+    fn test_console_auth_runtime() -> Arc<crate::console::ConsoleAuthRuntime> {
+        let temp = std::env::temp_dir().join(format!(
+            "gateway-stage-route-console-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let console =
+            crate::console::ConsoleConfig::from_values(crate::console::ConsoleConfigValues {
+                state_dir: Some(temp.clone()),
+                routes_file: Some(temp.join("routes.yaml")),
+                ..Default::default()
+            })
+            .unwrap();
+        Arc::new(crate::console::ConsoleAuthRuntime::new(&console, None).unwrap())
+    }
+
     fn make_state() -> Arc<AppState> {
         Arc::new(AppState {
             config: make_config(),
@@ -608,6 +623,7 @@ mod tests {
             filter_config: None,
             route_config: Arc::new(RouteConfigStore::new()),
             route_config_runtime: None,
+            console_auth: test_console_auth_runtime(),
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),
@@ -683,6 +699,7 @@ model_routes:
             filter_config: None,
             route_config: Arc::new(store),
             route_config_runtime: None,
+            console_auth: test_console_auth_runtime(),
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),
@@ -739,6 +756,7 @@ model_routes:
             filter_config: None,
             route_config: Arc::new(store),
             route_config_runtime: None,
+            console_auth: test_console_auth_runtime(),
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),

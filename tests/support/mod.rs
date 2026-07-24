@@ -5,7 +5,7 @@ use std::sync::Arc;
 use neuro_gateway::concurrency::aimd::AimdConfig;
 use neuro_gateway::concurrency::registry::ConcurrencyRegistry;
 use neuro_gateway::config::Config;
-use neuro_gateway::console::RouteConfigRuntime;
+use neuro_gateway::console::{ConsoleAuthRuntime, RouteConfigRuntime};
 use neuro_gateway::credential_store::CredentialMemoryCache;
 use neuro_gateway::routing::config::RouteConfigStore;
 use neuro_gateway::state::{
@@ -23,6 +23,10 @@ pub fn build_test_app_state(
         .expect("create lazy Redis test pool");
     let upstream_timeout_secs = config.upstream_timeout_secs;
     let provider_credential_folder_sync_enabled = config.provider_credential_folder_sync_enabled;
+    let console_auth = Arc::new(
+        ConsoleAuthRuntime::new(&config.console, config.gateway_management_token.clone())
+            .expect("create test console auth runtime"),
+    );
 
     Arc::new(AppState {
         config,
@@ -34,6 +38,7 @@ pub fn build_test_app_state(
         filter_config: None,
         route_config: Arc::new(route_config),
         route_config_runtime,
+        console_auth,
         credential_cache: CredentialMemoryCache::new(30),
         lifecycle: GatewayLifecycleState::default(),
         shutdown: GatewayShutdownHandle::default(),

@@ -12,8 +12,8 @@ use neuro_gateway::concurrency::registry::ConcurrencyRegistry;
 use neuro_gateway::config::{Config, GatewayRuntimeRole};
 use neuro_gateway::console::secrets::redact_route_document;
 use neuro_gateway::console::{
-    RouteConfigRedisActivationOutcome, RouteConfigRedisBackend, RouteConfigRedisRevision,
-    RouteConfigRedisStoreError, RouteConfigRuntime,
+    ConsoleAuthRuntime, RouteConfigRedisActivationOutcome, RouteConfigRedisBackend,
+    RouteConfigRedisRevision, RouteConfigRedisStoreError, RouteConfigRuntime,
 };
 use neuro_gateway::credential_store::CredentialMemoryCache;
 use neuro_gateway::http::router::build_router;
@@ -578,6 +578,7 @@ fn build_state(
         .expect("create lazy Redis test pool");
     let upstream_timeout_secs = config.upstream_timeout_secs;
     let provider_credential_folder_sync_enabled = config.provider_credential_folder_sync_enabled;
+    let console_auth = test_console_auth_runtime(config.gateway_management_token.clone());
 
     Arc::new(AppState {
         config,
@@ -589,6 +590,7 @@ fn build_state(
         filter_config: None,
         route_config,
         route_config_runtime,
+        console_auth,
         credential_cache: CredentialMemoryCache::new(30),
         lifecycle: GatewayLifecycleState::default(),
         shutdown: GatewayShutdownHandle::default(),
@@ -596,6 +598,22 @@ fn build_state(
             provider_credential_folder_sync_enabled,
         ),
     })
+}
+
+fn test_console_auth_runtime(env_management_token: Option<String>) -> Arc<ConsoleAuthRuntime> {
+    let temp = std::env::temp_dir().join(format!(
+        "gateway-console-auth-management-{}",
+        uuid::Uuid::new_v4()
+    ));
+    let console = neuro_gateway::console::ConsoleConfig::from_values(
+        neuro_gateway::console::ConsoleConfigValues {
+            state_dir: Some(temp.clone()),
+            routes_file: Some(temp.join("routes.yaml")),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    Arc::new(ConsoleAuthRuntime::new(&console, env_management_token).unwrap())
 }
 
 #[derive(Clone, Debug, Default)]

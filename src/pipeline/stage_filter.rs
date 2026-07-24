@@ -199,6 +199,21 @@ mod tests {
         }
     }
 
+    fn test_console_auth_runtime() -> Arc<crate::console::ConsoleAuthRuntime> {
+        let temp = std::env::temp_dir().join(format!(
+            "gateway-stage-filter-console-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let console =
+            crate::console::ConsoleConfig::from_values(crate::console::ConsoleConfigValues {
+                state_dir: Some(temp.clone()),
+                routes_file: Some(temp.join("routes.yaml")),
+                ..Default::default()
+            })
+            .unwrap();
+        Arc::new(crate::console::ConsoleAuthRuntime::new(&console, None).unwrap())
+    }
+
     fn make_state(filter_config: Option<FilterChainConfig>) -> Arc<AppState> {
         Arc::new(AppState {
             config: Config {
@@ -266,6 +281,7 @@ mod tests {
             filter_config,
             route_config: Arc::new(crate::routing::config::RouteConfigStore::new()),
             route_config_runtime: None,
+            console_auth: test_console_auth_runtime(),
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),

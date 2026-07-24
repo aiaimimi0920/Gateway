@@ -6,6 +6,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
+pub mod auth;
 pub mod document;
 pub mod journal;
 pub mod persistence;
@@ -14,6 +15,10 @@ pub mod revision;
 pub mod runtime;
 pub mod secrets;
 
+pub use auth::{
+    AuthenticatedConsoleActor, ConsoleAuthRuntime, ConsoleBootstrapStatus, ConsoleRequestContext,
+    ConsoleSessionView, SecretGrantView,
+};
 pub use journal::{
     JournalEntry, JournalError, RecoveryDisposition, RecoveryReport, TransactionJournal,
 };

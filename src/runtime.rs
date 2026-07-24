@@ -6,7 +6,7 @@ use crate::auth::user_credential::UserCredentialAdapter;
 use crate::concurrency::aimd::AimdConfig;
 use crate::concurrency::registry::ConcurrencyRegistry;
 use crate::config::Config;
-use crate::console::{RouteConfigRedisStore, RouteConfigRuntime};
+use crate::console::{ConsoleAuthRuntime, RouteConfigRedisStore, RouteConfigRuntime};
 use crate::credential_store::CredentialMemoryCache;
 use crate::db::create_pg_pool;
 use crate::redis::pool::create_pool;
@@ -89,6 +89,10 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
             crate::config::GatewayRuntimeRole::Worker
         ),
     )?);
+    let console_auth = Arc::new(ConsoleAuthRuntime::new(
+        &config.console,
+        config.gateway_management_token.clone(),
+    )?);
     if let Err(error) = route_config_runtime.recover_startup().await {
         tracing::warn!(
             code = error.code(),
@@ -108,6 +112,7 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         filter_config: None,
         route_config,
         route_config_runtime: Some(route_config_runtime),
+        console_auth,
         credential_cache,
         lifecycle: GatewayLifecycleState::default(),
         shutdown: GatewayShutdownHandle::default(),
@@ -164,9 +169,12 @@ pub async fn run_gateway_server(app_state: Arc<AppState>, port: u16) -> anyhow::
     tracing::info!(port, "Gateway worker listening");
 
     let shutdown_state = Arc::clone(&app_state);
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal(shutdown_state))
-        .await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal(shutdown_state))
+    .await?;
 
     tracing::info!(port, "Gateway worker shut down complete");
     Ok(())

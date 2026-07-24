@@ -601,6 +601,30 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             get(internal_console::get_route_config).put(internal_console::commit_route_config),
         )
         .route(
+            "/v1/internal/gateway/console/bootstrap/status",
+            get(internal_console::get_bootstrap_status),
+        )
+        .route(
+            "/v1/internal/gateway/console/bootstrap",
+            post(internal_console::bootstrap_console_admin),
+        )
+        .route(
+            "/v1/internal/gateway/console/session/verify",
+            post(internal_console::verify_console_session),
+        )
+        .route(
+            "/v1/internal/gateway/console/session/confirm-secret-access",
+            post(internal_console::confirm_console_secret_access),
+        )
+        .route(
+            "/v1/internal/gateway/console/session/rotate",
+            post(internal_console::rotate_console_session),
+        )
+        .route(
+            "/v1/internal/gateway/console/session/logout",
+            post(internal_console::logout_console_session),
+        )
+        .route(
             "/v1/internal/gateway/console/route-config/validate",
             post(internal_console::validate_route_config),
         )

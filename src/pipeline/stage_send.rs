@@ -3576,13 +3576,24 @@ mod tests {
         use crate::concurrency::aimd::AimdConfig;
         use crate::concurrency::registry::ConcurrencyRegistry;
         use crate::config::Config;
+        use crate::console::{ConsoleAuthRuntime, ConsoleConfig, ConsoleConfigValues};
         use crate::pipeline::PipelineContext;
         use crate::protocol::canonical::{CanonicalMessage, ContentPart, MessageRole};
         use crate::upstream::client::UpstreamClient;
 
+        let console_temp = std::env::temp_dir().join(format!(
+            "gateway-stage-send-console-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let console = ConsoleConfig::from_values(ConsoleConfigValues {
+            state_dir: Some(console_temp.clone()),
+            routes_file: Some(console_temp.join("routes.yaml")),
+            ..Default::default()
+        })
+        .unwrap();
         let state = Arc::new(AppState {
             config: Config {
-                console: Default::default(),
+                console: console.clone(),
                 runtime_role: crate::config::GatewayRuntimeRole::Standalone,
                 port: 4200,
                 redis_url: "redis://localhost".to_string(),
@@ -3646,6 +3657,7 @@ mod tests {
             filter_config: None,
             route_config: Arc::new(crate::routing::config::RouteConfigStore::new()),
             route_config_runtime: None,
+            console_auth: Arc::new(ConsoleAuthRuntime::new(&console, None).unwrap()),
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),
