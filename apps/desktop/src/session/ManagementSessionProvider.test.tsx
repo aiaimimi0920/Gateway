@@ -65,6 +65,18 @@ function createApi(overrides: Partial<ConsoleApi> = {}): ConsoleApi {
         requiresRepair: false,
       },
     }),
+    commitRouteConfig: vi.fn().mockResolvedValue({
+      routeConfig: {
+        revision: { id: "r2-beadfeed", sequence: 2 },
+        source: "redis",
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: { providers: [], model_routes: [], aliases: {} },
+        secrets: [],
+        mutationSupported: true,
+      },
+      committed: true,
+    }),
     listRouteConfigRevisions: vi.fn().mockResolvedValue({
       revisions: [],
     }),

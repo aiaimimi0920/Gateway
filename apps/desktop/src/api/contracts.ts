@@ -69,6 +69,20 @@ export type ConsoleRouteConfigResponse = {
   routeConfig: ConsoleRouteConfigView;
 };
 
+export type ConsoleRouteConfigCommitResponse = ConsoleRouteConfigResponse & {
+  committed: boolean;
+};
+
+export type ConsoleRouteConfigValidationRequest = {
+  document: ConsoleRouteDocument;
+  secretPatches: ConsoleSecretPatch[];
+};
+
+export type ConsoleRouteConfigCommitRequest = ConsoleRouteConfigValidationRequest & {
+  expectedRevision: string;
+  message?: string;
+};
+
 export type ConsoleRouteConfigValidationResponse = {
   validation: {
     document: ConsoleRouteDocument;
@@ -94,6 +108,12 @@ export type ConsoleRouteRevisionListEntry = {
 
 export type ConsoleRouteRevisionListResponse = {
   revisions: ConsoleRouteRevisionListEntry[];
+};
+
+export type ConsoleSecretPatch = {
+  path: string;
+  operation: "keep" | "replace" | "clear";
+  value?: string;
 };
 
 export type ConsoleEvent = {

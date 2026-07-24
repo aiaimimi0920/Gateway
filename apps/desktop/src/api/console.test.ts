@@ -120,4 +120,52 @@ describe("console API", () => {
     expect(response.revisions[0].revision.id).toBe("r2-beadfeedcafe");
     expect(response.revisions[0].active).toBe(true);
   });
+
+  it("commits route-config updates through the canonical console path", async () => {
+    let observedBody: unknown = null;
+    server.use(
+      http.put(routeConfigUrl, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({
+          routeConfig: {
+            revision: { id: "r2-beadfeedcafe", sequence: 2 },
+            source: "redis",
+            diagnostics: { diagnostics: [] },
+            requiresRepair: false,
+            document: {
+              providers: [],
+              model_routes: [],
+              aliases: { answer: "gpt-5.4" },
+            },
+            secrets: [],
+            mutationSupported: true,
+          },
+          committed: true,
+        });
+      }),
+    );
+    const api = createConsoleApi(
+      createGatewayApiClient({
+        host: createBrowserHost(),
+      }),
+    );
+
+    const response = await api.commitRouteConfig("management-secret", {
+      expectedRevision: "r1-deadbeefcafe",
+      document: {
+        providers: [],
+        model_routes: [],
+        aliases: { answer: "gpt-5.4" },
+      },
+      secretPatches: [{ path: "/providers/0/api_key", operation: "keep" }],
+      message: "enable gpt-5.4 route",
+    });
+
+    expect(observedBody).toMatchObject({
+      expectedRevision: "r1-deadbeefcafe",
+      secretPatches: [{ path: "/providers/0/api_key", operation: "keep" }],
+      message: "enable gpt-5.4 route",
+    });
+    expect(response.routeConfig.revision.id).toBe("r2-beadfeedcafe");
+  });
 });

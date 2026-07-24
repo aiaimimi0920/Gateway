@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ConsoleApi } from "../../api/console";
@@ -52,6 +53,22 @@ function createConsoleApi(): ConsoleApi {
     confirmSecretAccess: vi.fn(),
     rotateSession: vi.fn(),
     logout: vi.fn(),
+    commitRouteConfig: vi.fn().mockResolvedValue({
+      routeConfig: {
+        revision: { id: "r2-beadfeedcafe", sequence: 2, message: "save update" },
+        source: "redis",
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: {
+          providers: [{ id: "managed-provider" }],
+          model_routes: [{ pattern: "gpt-5.4" }],
+          aliases: { answer: "gpt-5.4" },
+        },
+        secrets: [{ path: "/providers/0/api_key", configured: true, preview: "sk-***" }],
+        mutationSupported: true,
+      },
+      committed: true,
+    }),
     getRouteConfig: vi.fn().mockResolvedValue({
       routeConfig: {
         revision: { id: "r1-deadbeefcafe", sequence: 1, message: "initial import" },
@@ -63,11 +80,22 @@ function createConsoleApi(): ConsoleApi {
           model_routes: [{ pattern: "gpt-5.4" }],
           aliases: { answer: "gpt-5.4" },
         },
-        secrets: [],
+        secrets: [{ path: "/providers/0/api_key", configured: true, preview: "sk-***" }],
         mutationSupported: true,
       },
     }),
-    validateRouteConfig: vi.fn(),
+    validateRouteConfig: vi.fn().mockResolvedValue({
+      validation: {
+        document: {
+          providers: [{ id: "managed-provider" }],
+          model_routes: [{ pattern: "gpt-5.4" }],
+          aliases: { answer: "gpt-5.4" },
+        },
+        secrets: [{ path: "/providers/0/api_key", configured: true, preview: "sk-***" }],
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+      },
+    }),
     listRouteConfigRevisions: vi.fn().mockResolvedValue({
       revisions: [
         {
@@ -112,5 +140,57 @@ describe("BrowserConsoleApp", () => {
     expect(screen.getByText("seed route")).toBeInTheDocument();
     expect(consoleApi.getRouteConfig).toHaveBeenCalledWith("management-secret");
     expect(consoleApi.listRouteConfigRevisions).toHaveBeenCalledWith("management-secret");
+  });
+
+  it("validates and saves edited route documents while preserving existing secret paths", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: /route document json/i })).toBeInTheDocument(),
+    );
+    const editor = screen.getByRole("textbox", { name: /route document json/i });
+    fireEvent.change(editor, {
+      target: {
+        value: JSON.stringify(
+          {
+            providers: [{ id: "managed-provider" }],
+            model_routes: [{ pattern: "gpt-5.4" }],
+            aliases: { answer: "gpt-5.4-mini" },
+          },
+          null,
+          2,
+        ),
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: /validate draft/i }));
+    await waitFor(() =>
+      expect(consoleApi.validateRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          document: expect.objectContaining({
+            aliases: { answer: "gpt-5.4-mini" },
+          }),
+          secretPatches: [{ path: "/providers/0/api_key", operation: "keep" }],
+        }),
+      ),
+    );
+
+    await user.click(screen.getByRole("button", { name: /save route config/i }));
+    await waitFor(() =>
+      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          expectedRevision: "r1-deadbeefcafe",
+          document: expect.objectContaining({
+            aliases: { answer: "gpt-5.4-mini" },
+          }),
+          secretPatches: [{ path: "/providers/0/api_key", operation: "keep" }],
+        }),
+      ),
+    );
   });
 });

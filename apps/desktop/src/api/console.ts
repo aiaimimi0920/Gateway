@@ -1,6 +1,9 @@
 import type {
   BootstrapStatus,
+  ConsoleRouteConfigCommitRequest,
+  ConsoleRouteConfigCommitResponse,
   ConsoleRouteConfigResponse,
+  ConsoleRouteConfigValidationRequest,
   ConsoleRouteConfigValidationResponse,
   ConsoleRouteRevisionListResponse,
   ManagementSession,
@@ -10,6 +13,7 @@ import type {
 import type { GatewayApiClient } from "./client";
 import {
   bootstrapStatusSchema,
+  consoleRouteConfigCommitResponseSchema,
   consoleRouteConfigResponseSchema,
   consoleRouteConfigValidationResponseSchema,
   consoleRouteRevisionListResponseSchema,
@@ -30,11 +34,12 @@ export type ConsoleApi = {
   getRouteConfig(managementToken: string): Promise<ConsoleRouteConfigResponse>;
   validateRouteConfig(
     managementToken: string,
-    draft: {
-      document: Record<string, unknown>;
-      secretPatches: Array<Record<string, unknown>>;
-    },
+    draft: ConsoleRouteConfigValidationRequest,
   ): Promise<ConsoleRouteConfigValidationResponse>;
+  commitRouteConfig(
+    managementToken: string,
+    draft: ConsoleRouteConfigCommitRequest,
+  ): Promise<ConsoleRouteConfigCommitResponse>;
   listRouteConfigRevisions(managementToken: string): Promise<ConsoleRouteRevisionListResponse>;
 };
 
@@ -83,6 +88,12 @@ export function createConsoleApi(client: GatewayApiClient): ConsoleApi {
           body: draft,
         },
       ),
+    commitRouteConfig: (managementToken, draft) =>
+      client.request(`${CONSOLE_ROOT}/route-config`, consoleRouteConfigCommitResponseSchema, {
+        method: "PUT",
+        managementToken,
+        body: draft,
+      }),
     listRouteConfigRevisions: (managementToken) =>
       client.request(`${CONSOLE_ROOT}/revisions`, consoleRouteRevisionListResponseSchema, {
         managementToken,

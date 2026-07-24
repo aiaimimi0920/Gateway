@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   BootstrapStatus,
   ConsoleEvent,
+  ConsoleRouteConfigCommitResponse,
   ConsoleRouteConfigResponse,
   ConsoleRouteConfigValidationResponse,
   ConsoleRouteRevisionListResponse,
@@ -107,6 +108,12 @@ const consoleRouteConfigViewSchema = z.object({
 export const consoleRouteConfigResponseSchema: z.ZodType<ConsoleRouteConfigResponse> = z.object({
   routeConfig: consoleRouteConfigViewSchema,
 });
+
+export const consoleRouteConfigCommitResponseSchema: z.ZodType<ConsoleRouteConfigCommitResponse> =
+  z.object({
+    routeConfig: consoleRouteConfigViewSchema,
+    committed: z.boolean(),
+  });
 
 export const consoleRouteConfigValidationResponseSchema: z.ZodType<ConsoleRouteConfigValidationResponse> =
   z.object({
