@@ -302,6 +302,55 @@ fn replacement_revision_must_descend_from_the_active_revision() {
 }
 
 #[test]
+fn recovered_install_accepts_a_monotonic_revision_gap() {
+    let old = document("old-provider", "old-model", "old-model");
+    let new = document("new-provider", "new-model", "new-model");
+    let store = RouteConfigStore::from_document(old).expect("old fixture");
+    let validated = validate_route_document(new).expect("new fixture");
+    let recovered_revision = RevisionMetadata::from_validated(
+        4,
+        Some("r3-aaaaaaaaaaaa".to_string()),
+        RevisionActor::Recovery,
+        OffsetDateTime::now_utc(),
+        Some("redis recovery".to_string()),
+        &validated,
+    );
+
+    let snapshot = store
+        .install_external_validated(validated, recovered_revision, ActiveConfigSource::Recovered)
+        .expect("recovered snapshot must install");
+
+    assert_eq!(snapshot.source(), ActiveConfigSource::Recovered);
+    assert_eq!(snapshot.revision().sequence(), 4);
+    assert_eq!(
+        snapshot.resolve_alias(Some("answer")),
+        Some("new-model".to_string())
+    );
+}
+
+#[test]
+fn recovered_install_allows_a_newer_revision_with_identical_document() {
+    let old = document("stable-provider", "stable-model", "stable-model");
+    let store = RouteConfigStore::from_document(old.clone()).expect("fixture");
+    let validated = validate_route_document(old).expect("fixture");
+    let revision = RevisionMetadata::from_validated(
+        store.snapshot().revision().sequence() + 5,
+        Some("r4-aaaaaaaaaaaa".to_string()),
+        RevisionActor::Recovery,
+        OffsetDateTime::now_utc(),
+        Some("same document newer revision".to_string()),
+        &validated,
+    );
+
+    let snapshot = store
+        .install_external_validated(validated, revision, ActiveConfigSource::Recovered)
+        .expect("same document recovered revision must install");
+
+    assert_eq!(snapshot.revision().sequence(), 5);
+    assert_eq!(snapshot.source(), ActiveConfigSource::Recovered);
+}
+
+#[test]
 fn legacy_yaml_startup_keeps_dangling_routes_with_repair_diagnostics() {
     let path = std::env::temp_dir().join(format!(
         "gateway-console-hot-reload-{}-routes.yaml",

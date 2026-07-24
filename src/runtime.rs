@@ -6,6 +6,7 @@ use crate::auth::user_credential::UserCredentialAdapter;
 use crate::concurrency::aimd::AimdConfig;
 use crate::concurrency::registry::ConcurrencyRegistry;
 use crate::config::Config;
+use crate::console::RouteConfigRedisStore;
 use crate::credential_store::CredentialMemoryCache;
 use crate::db::create_pg_pool;
 use crate::redis::pool::create_pool;
@@ -71,7 +72,12 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         pg_pool.clone(),
     )));
 
-    let route_config = load_route_config_from_path(&redis_pool, &config.console.routes_file).await;
+    let route_config = load_route_config_from_path(
+        &redis_pool,
+        &config.console.routes_file,
+        &config.console.redis_namespace,
+    )
+    .await;
     let credential_cache = CredentialMemoryCache::new(30);
 
     Ok(Arc::new(AppState {
@@ -206,17 +212,50 @@ pub fn mark_runtime_draining(state: &Arc<AppState>, reason: &str) {
 pub async fn load_route_config_from_path(
     pool: &deadpool_redis::Pool,
     yaml_path: &std::path::Path,
+    redis_namespace: &str,
 ) -> RouteConfigStore {
-    match RouteConfigStore::load_from_redis(pool).await {
-        Ok(store) => {
-            tracing::info!(
-                providers = store.provider_count(),
-                "Loaded route config from Redis"
-            );
-            return store;
-        }
+    match RouteConfigRedisStore::new(redis_namespace) {
+        Ok(redis_store) => match redis_store.load_active_store(pool).await {
+            Ok(Some(store)) => {
+                tracing::info!(
+                    providers = store.provider_count(),
+                    namespace = redis_namespace,
+                    "Loaded route config from console Redis revision state"
+                );
+                return store;
+            }
+            Ok(None) => {}
+            Err(error) => {
+                tracing::debug!(
+                    code = error.code(),
+                    namespace = redis_namespace,
+                    "Console Redis route config not available: {}",
+                    error
+                );
+            }
+        },
         Err(error) => {
-            tracing::debug!("Redis route config not available: {}", error);
+            tracing::warn!(
+                code = error.code(),
+                namespace = redis_namespace,
+                "Console Redis namespace is invalid: {}",
+                error
+            );
+        }
+    }
+
+    if redis_namespace == "default" {
+        match RouteConfigStore::load_from_redis(pool).await {
+            Ok(store) => {
+                tracing::info!(
+                    providers = store.provider_count(),
+                    "Loaded route config from legacy Redis mirror"
+                );
+                return store;
+            }
+            Err(error) => {
+                tracing::debug!("Legacy Redis route config not available: {}", error);
+            }
         }
     }
 

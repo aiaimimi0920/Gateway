@@ -21,7 +21,10 @@ pub use persistence::{
     PersistenceError, PlatformAtomicReplaceBackend, RevisionArchive, RouteConfigPersistence,
     TransactionPhase, TransactionRecord, WriterLockGuard, YamlReplaceReceipt,
 };
-pub use redis_store::{RouteConfigRedisKeys, RouteConfigRedisStoreError};
+pub use redis_store::{
+    RouteConfigRedisActivationOutcome, RouteConfigRedisKeys, RouteConfigRedisRevision,
+    RouteConfigRedisStore, RouteConfigRedisStoreError,
+};
 
 const DEFAULT_REDIS_NAMESPACE: &str = "default";
 const DEFAULT_SECRET_GRANT_TTL_SECS: u64 = 300;

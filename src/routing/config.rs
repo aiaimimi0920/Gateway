@@ -543,6 +543,8 @@ pub enum RouteConfigReplaceError {
     RevisionUnchanged,
     #[error("replacement revision must be the direct child of the active revision")]
     RevisionConflict,
+    #[error("external snapshot installs only support Redis or recovered revisions")]
+    ExternalSourceUnsupported,
     #[error("strict route validation failed: {0}")]
     Validation(String),
     #[error("route document compilation failed: {0}")]
@@ -557,6 +559,7 @@ impl RouteConfigReplaceError {
             Self::ValidatedDocumentMismatch => "console_validated_document_mismatch",
             Self::RevisionUnchanged => "console_revision_unchanged",
             Self::RevisionConflict => "console_revision_conflict",
+            Self::ExternalSourceUnsupported => "console_revision_source_invalid",
             Self::Validation(_) => "console_route_validation_failed",
             Self::Compilation(_) => "console_route_compilation_failed",
         }
@@ -1570,16 +1573,8 @@ impl RouteConfigStore {
         revision: RevisionMetadata,
     ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigReplaceError> {
         let _replace_guard = self.replace_lock.lock();
-        revision
-            .validate()
-            .map_err(|error| RouteConfigReplaceError::InvalidRevision(error.to_string()))?;
-
         let current = self.inner.load_full();
-        if revision.document_digest() != validated.document_digest()
-            || revision.yaml_digest() != validated.yaml_digest()
-        {
-            return Err(RouteConfigReplaceError::RevisionDigestMismatch);
-        }
+        validate_revision_matches_document(&revision, &validated)?;
         // Replicas may converge directly from an older active revision to a
         // later Redis revision, so monotonic gaps are valid. The parent must
         // still identify the exact snapshot being replaced.
@@ -1594,35 +1589,48 @@ impl RouteConfigStore {
             return Err(RouteConfigReplaceError::RevisionUnchanged);
         }
 
-        let canonical = canonicalize_route_document(validated.document())
-            .map_err(|error| RouteConfigReplaceError::Compilation(error.to_string()))?;
-        if canonical.canonical_json() != validated.canonical_json()
-            || canonical.canonical_yaml() != validated.canonical_yaml()
-            || canonical.document_digest() != validated.document_digest()
-            || canonical.yaml_digest() != validated.yaml_digest()
-        {
-            return Err(RouteConfigReplaceError::ValidatedDocumentMismatch);
-        }
-        if validated.diagnostics().requires_repair() {
-            return Err(RouteConfigReplaceError::Validation(
-                validated.diagnostics().to_string(),
-            ));
-        }
+        let snapshot = build_snapshot(validated, revision, current.source(), Some(&current))?;
+        self.inner.store(snapshot.clone());
+        Ok(snapshot)
+    }
 
-        let (mut compiled, fingerprints) =
-            compile_yaml_with_fingerprints(validated.document().clone())
-                .map_err(|error| RouteConfigReplaceError::Compilation(error.to_string()))?;
-        let reusable_ids = reuse_unchanged_providers(&current, &mut compiled, &fingerprints);
-        retire_replaced_refresh_states(&current, &reusable_ids);
+    pub fn from_external_validated(
+        validated: ValidatedRouteDocument,
+        revision: RevisionMetadata,
+        source: ActiveConfigSource,
+    ) -> Result<Self, RouteConfigReplaceError> {
+        if !matches!(
+            source,
+            ActiveConfigSource::Redis | ActiveConfigSource::Recovered
+        ) {
+            return Err(RouteConfigReplaceError::ExternalSourceUnsupported);
+        }
+        let snapshot = build_snapshot(validated, revision, source, None)?;
+        Ok(Self {
+            inner: ArcSwap::from(snapshot),
+            replace_lock: parking_lot::Mutex::new(()),
+        })
+    }
 
-        let snapshot = Arc::new(RouteConfigSnapshot::new(
-            revision,
-            current.source(),
-            validated.document().clone(),
-            validated.diagnostics().clone(),
-            compiled,
-            fingerprints,
-        ));
+    pub fn install_external_validated(
+        &self,
+        validated: ValidatedRouteDocument,
+        revision: RevisionMetadata,
+        source: ActiveConfigSource,
+    ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigReplaceError> {
+        if !matches!(
+            source,
+            ActiveConfigSource::Redis | ActiveConfigSource::Recovered
+        ) {
+            return Err(RouteConfigReplaceError::ExternalSourceUnsupported);
+        }
+        let _replace_guard = self.replace_lock.lock();
+        let current = self.inner.load_full();
+        validate_revision_matches_document(&revision, &validated)?;
+        if revision.sequence() <= current.revision().sequence() {
+            return Err(RouteConfigReplaceError::RevisionConflict);
+        }
+        let snapshot = build_snapshot(validated, revision, source, Some(&current))?;
         self.inner.store(snapshot.clone());
         Ok(snapshot)
     }
@@ -1686,6 +1694,57 @@ impl RouteConfigStore {
     pub fn get_providers(&self) -> Vec<CompiledProvider> {
         self.snapshot().get_providers()
     }
+}
+
+fn validate_revision_matches_document(
+    revision: &RevisionMetadata,
+    validated: &ValidatedRouteDocument,
+) -> Result<(), RouteConfigReplaceError> {
+    revision
+        .validate()
+        .map_err(|error| RouteConfigReplaceError::InvalidRevision(error.to_string()))?;
+    if revision.document_digest() != validated.document_digest()
+        || revision.yaml_digest() != validated.yaml_digest()
+    {
+        return Err(RouteConfigReplaceError::RevisionDigestMismatch);
+    }
+    let canonical = canonicalize_route_document(validated.document())
+        .map_err(|error| RouteConfigReplaceError::Compilation(error.to_string()))?;
+    if canonical.canonical_json() != validated.canonical_json()
+        || canonical.canonical_yaml() != validated.canonical_yaml()
+        || canonical.document_digest() != validated.document_digest()
+        || canonical.yaml_digest() != validated.yaml_digest()
+    {
+        return Err(RouteConfigReplaceError::ValidatedDocumentMismatch);
+    }
+    if validated.diagnostics().requires_repair() {
+        return Err(RouteConfigReplaceError::Validation(
+            validated.diagnostics().to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn build_snapshot(
+    validated: ValidatedRouteDocument,
+    revision: RevisionMetadata,
+    source: ActiveConfigSource,
+    current: Option<&Arc<RouteConfigSnapshot>>,
+) -> Result<Arc<RouteConfigSnapshot>, RouteConfigReplaceError> {
+    let (mut compiled, fingerprints) = compile_yaml_with_fingerprints(validated.document().clone())
+        .map_err(|error| RouteConfigReplaceError::Compilation(error.to_string()))?;
+    if let Some(current) = current {
+        let reusable_ids = reuse_unchanged_providers(current, &mut compiled, &fingerprints);
+        retire_replaced_refresh_states(current, &reusable_ids);
+    }
+    Ok(Arc::new(RouteConfigSnapshot::new(
+        revision,
+        source,
+        validated.document().clone(),
+        validated.diagnostics().clone(),
+        compiled,
+        fingerprints,
+    )))
 }
 
 fn list_models_inner(guard: &RouteConfigInner) -> Vec<ModelInfo> {
