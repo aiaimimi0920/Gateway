@@ -6,6 +6,16 @@ type ModelsPayload = {
   data?: Array<{ id?: string }>;
 };
 
+type ChatCompletionsPayload = {
+  model?: string;
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+    finish_reason?: string;
+  }>;
+};
+
 type RevisionEntry = {
   revision?: {
     id?: string;
@@ -177,4 +187,47 @@ test("restores a live archived revision through the browser console", async ({ p
     .poll(async () => (await fetchModelIds(request, apiBaseUrl, apiToken)).includes(removedModelId))
     .toBe(false);
   await expect.poll(() => fetchModelIds(request, apiBaseUrl, apiToken)).toContain(restoredModelId);
+});
+
+test("routes a live chat completion through a browser-configured provider", async ({ page, request }) => {
+  const managementToken = requiredEnvironment("GATEWAY_LIVE_MANAGEMENT_TOKEN");
+  const apiBaseUrl = requiredEnvironment("GATEWAY_LIVE_API_BASE_URL");
+  const apiToken = requiredEnvironment("GATEWAY_LIVE_API_TOKEN");
+  const upstreamBaseUrl = requiredEnvironment("GATEWAY_LIVE_UPSTREAM_BASE_URL");
+  const chatModel = requiredEnvironment("GATEWAY_LIVE_CHAT_MODEL");
+  const expectedText = requiredEnvironment("GATEWAY_LIVE_CHAT_EXPECT_TEXT");
+
+  await signIntoConsole(page, managementToken);
+
+  await page.getByLabel("Provider base URL 1").fill(upstreamBaseUrl);
+  await page.getByLabel("Provider supported models 1").fill(chatModel);
+  await page.getByLabel("Model route pattern 1").fill(chatModel);
+
+  await expect(page.getByLabel("Route document JSON")).toContainText(
+    `"base_url": "${upstreamBaseUrl}"`,
+  );
+  await expect(page.getByLabel("Route document JSON")).toContainText(`"${chatModel}"`);
+
+  await page.getByRole("button", { name: "Save route config" }).click();
+
+  await expect(
+    page.getByRole("status", { name: "Gateway console last action" }),
+  ).toContainText("Saved route config as active revision");
+  await expect.poll(() => fetchModelIds(request, apiBaseUrl, apiToken)).toContain(chatModel);
+
+  const chatResponse = await request.post(`${apiBaseUrl}/v1/chat/completions`, {
+    headers: { Authorization: `Bearer ${apiToken}` },
+    data: {
+      model: chatModel,
+      messages: [{ role: "user", content: "Say fixture" }],
+      stream: false,
+    },
+  });
+  const chatResponseText = await chatResponse.text();
+  expect(chatResponse.ok(), chatResponseText).toBeTruthy();
+
+  const chatPayload = JSON.parse(chatResponseText) as ChatCompletionsPayload;
+  expect(chatPayload.model).toBe(chatModel);
+  expect(chatPayload.choices?.[0]?.message?.content).toContain(expectedText);
+  expect(chatPayload.choices?.[0]?.finish_reason).toBe("stop");
 });

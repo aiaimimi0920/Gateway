@@ -36,5 +36,23 @@ class GatewayConsoleLiveE2EContractTests(unittest.TestCase):
         self.assertIn("Confirm restore", spec)
         self.assertIn("GATEWAY_LIVE_EXPECT_REMOVED_MODEL", spec)
 
+    def test_live_console_runner_routes_chat_completions_through_local_fixture_upstream(self):
+        repo_root = pathlib.Path(__file__).resolve().parents[2]
+        script_path = repo_root / "tools" / "run-gateway-console-live-e2e.ps1"
+        spec_path = repo_root / "apps" / "desktop" / "e2e" / "console.live.spec.ts"
+
+        script = script_path.read_text(encoding="utf-8")
+        spec = spec_path.read_text(encoding="utf-8")
+
+        self.assertIn("Start-LiveOpenAiCompatibleUpstream", script)
+        self.assertIn("GATEWAY_LIVE_UPSTREAM_BASE_URL", script)
+        self.assertIn("GATEWAY_LIVE_CHAT_MODEL", script)
+        self.assertIn("GATEWAY_LIVE_CHAT_EXPECT_TEXT", script)
+        self.assertIn("routes a live chat completion through a browser-configured provider", spec)
+        self.assertIn("/v1/chat/completions", spec)
+        self.assertIn("GATEWAY_LIVE_UPSTREAM_BASE_URL", spec)
+        self.assertIn("GATEWAY_LIVE_CHAT_MODEL", spec)
+
+
 if __name__ == "__main__":
     unittest.main()
