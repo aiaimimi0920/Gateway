@@ -295,6 +295,9 @@ describe("BrowserConsoleApp", () => {
     expect(within(dialog).getByText("r1-deadbeefcafe")).toBeInTheDocument();
     expect(within(dialog).getByText(/revision to restore/i)).toBeInTheDocument();
     expect(within(dialog).getByText("r0-cafebabefeed")).toBeInTheDocument();
+    expect(within(dialog).getByText(/alias changes/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/provider changes/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/model route changes/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /confirm restore/i }));
 
@@ -310,6 +313,9 @@ describe("BrowserConsoleApp", () => {
           message: "restore revision r0-cafebabefeed",
         }),
       ),
+    );
+    expect(screen.getByRole("status", { name: /gateway console last action/i })).toHaveTextContent(
+      /restored revision r0-cafebabefeed as active revision r2-beadfeedcafe/i,
     );
   });
 

@@ -219,6 +219,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const [secretDrafts, setSecretDrafts] = useState<Record<string, SecretPatchDraft>>({});
   const [secretDialogOpen, setSecretDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!managementToken) {
@@ -363,6 +364,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     }
     setActionBusy("validate");
     setError(null);
+    setSuccessMessage(null);
     try {
       const draft = parseDraft();
       const result = await api.validateRouteConfig(managementToken, {
@@ -385,11 +387,15 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     }
     setActionBusy("save");
     setError(null);
+    setSuccessMessage(null);
     try {
       const draft = parseDraft();
       const result = await api.commitRouteConfig(managementToken, draft);
       setRouteConfig({ routeConfig: result.routeConfig });
       setValidation(null);
+      setSuccessMessage(
+        `Saved route config as active revision ${result.routeConfig.revision.id}.`,
+      );
       await refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -406,6 +412,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       }
       setRevisionBusy(true);
       setError(null);
+      setSuccessMessage(null);
       try {
         const detail = await api.getRouteConfigRevision(managementToken, revisionId);
         setSelectedRevision(detail);
@@ -438,6 +445,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     }
     setActionBusy("save");
     setError(null);
+    setSuccessMessage(null);
     try {
       const draft = buildCommitRequest(selectedRevision.routeConfig.document, restoreCommitMessage);
       const result = await api.commitRouteConfig(managementToken, draft);
@@ -445,6 +453,10 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       setValidation(null);
       setEditorText(JSON.stringify(selectedRevision.routeConfig.document, null, 2));
       setCommitMessage(restoreCommitMessage);
+      setSuccessMessage(
+        `Restored revision ${selectedRevision.routeConfig.revision.id} as active revision ${result.routeConfig.revision.id}.`,
+      );
+      setRestoreDialogOpen(false);
       await refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -484,6 +496,19 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       {error ? (
         <div className="nt-alert nt-alert--danger" role="alert">
           <span>{error}</span>
+        </div>
+      ) : null}
+
+      {successMessage ? (
+        <div
+          className="nt-alert nt-alert--success"
+          role="status"
+          aria-label="Gateway console last action"
+        >
+          <span>{successMessage}</span>
+          <button type="button" onClick={() => setSuccessMessage(null)}>
+            Dismiss
+          </button>
         </div>
       ) : null}
 

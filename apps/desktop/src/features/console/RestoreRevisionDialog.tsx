@@ -19,6 +19,21 @@ export type RestoreRevisionDialogProps = {
   onConfirm(): Promise<void>;
 };
 
+function renderChangeBlock(title: string, lines: string[], emptyMessage: string) {
+  return (
+    <div className="nt-validation-list nt-validation-list--warning">
+      <strong>{title}</strong>
+      <ul>
+        {lines.length > 0 ? (
+          lines.map((line) => <li key={`${title}:${line}`}>{line}</li>)
+        ) : (
+          <li>{emptyMessage}</li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
 export function RestoreRevisionDialog({
   open,
   busy,
@@ -77,24 +92,30 @@ export function RestoreRevisionDialog({
               </ul>
             </div>
 
-            <div className="nt-validation-list nt-validation-list--warning">
-              <strong>Restore diff review</strong>
-              <ul>
-                {aliasChangeLines.map((line) => (
-                  <li key={`alias:${line}`}>{line}</li>
-                ))}
-                {providerChangeLines.map((line) => (
-                  <li key={`provider:${line}`}>{line}</li>
-                ))}
-                {modelRouteChangeLines.map((line) => (
-                  <li key={`route:${line}`}>{line}</li>
-                ))}
-                {aliasChangeLines.length === 0 &&
-                providerChangeLines.length === 0 &&
-                modelRouteChangeLines.length === 0 ? (
-                  <li>No document changes detected between the active and selected revisions.</li>
-                ) : null}
-              </ul>
+            <div className="nt-stack">
+              <div className="nt-validation-list nt-validation-list--warning">
+                <strong>Restore diff review</strong>
+                <ul>
+                  <li>Review each change block before promoting the archived revision.</li>
+                </ul>
+              </div>
+              <div className="nt-grid nt-grid--2">
+                {renderChangeBlock(
+                  "Alias changes",
+                  aliasChangeLines,
+                  "No alias changes detected.",
+                )}
+                {renderChangeBlock(
+                  "Provider changes",
+                  providerChangeLines,
+                  "No provider changes detected.",
+                )}
+                {renderChangeBlock(
+                  "Model route changes",
+                  modelRouteChangeLines,
+                  "No model route changes detected.",
+                )}
+              </div>
             </div>
 
             <div className="dialog-actions">
