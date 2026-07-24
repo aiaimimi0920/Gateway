@@ -11,6 +11,7 @@ import type {
   ConsoleRouteRevisionListResponse,
 } from "../../api/contracts";
 import { SecretConfirmDialog } from "../auth/SecretConfirmDialog";
+import { RestoreRevisionDialog } from "./RestoreRevisionDialog";
 import { useGatewayHost } from "../../platform/HostProvider";
 import { useManagementSession } from "../../session/useManagementSession";
 
@@ -217,6 +218,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const [revisionBusy, setRevisionBusy] = useState(false);
   const [secretDrafts, setSecretDrafts] = useState<Record<string, SecretPatchDraft>>({});
   const [secretDialogOpen, setSecretDialogOpen] = useState(false);
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!managementToken) {
@@ -284,6 +286,46 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     () =>
       selectedRevision ? formatRouteDocument(selectedRevision.routeConfig.document) : "",
     [selectedRevision],
+  );
+  const restoreCommitMessage = useMemo(
+    () =>
+      selectedRevision ? `restore revision ${selectedRevision.routeConfig.revision.id}` : "",
+    [selectedRevision],
+  );
+  const secretPatchSummary = useMemo(
+    () =>
+      secretPatches.reduce(
+        (summary, patch) => {
+          summary[patch.operation] += 1;
+          return summary;
+        },
+        { keep: 0, replace: 0, clear: 0 },
+      ),
+    [secretPatches],
+  );
+  const aliasChangeLines = useMemo(
+    () =>
+      (selectedRevisionDiff?.aliasChanges ?? []).map(
+        (entry) =>
+          `${entry.alias}: ${entry.activeModel ?? "<none>"} -> ${entry.selectedModel ?? "<none>"}`,
+      ),
+    [selectedRevisionDiff],
+  );
+  const providerChangeLines = useMemo(
+    () => [
+      ...(selectedRevisionDiff?.addedProviders ?? []).map((providerId) => `Added provider: ${providerId}`),
+      ...(selectedRevisionDiff?.removedProviders ?? []).map(
+        (providerId) => `Removed provider: ${providerId}`,
+      ),
+    ],
+    [selectedRevisionDiff],
+  );
+  const modelRouteChangeLines = useMemo(
+    () => [
+      ...(selectedRevisionDiff?.addedModelRoutes ?? []).map((pattern) => `Added route: ${pattern}`),
+      ...(selectedRevisionDiff?.removedModelRoutes ?? []).map((pattern) => `Removed route: ${pattern}`),
+    ],
+    [selectedRevisionDiff],
   );
 
   const buildCommitRequest = useCallback(
@@ -397,20 +439,19 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     setActionBusy("save");
     setError(null);
     try {
-      const message = `restore revision ${selectedRevision.routeConfig.revision.id}`;
-      const draft = buildCommitRequest(selectedRevision.routeConfig.document, message);
+      const draft = buildCommitRequest(selectedRevision.routeConfig.document, restoreCommitMessage);
       const result = await api.commitRouteConfig(managementToken, draft);
       setRouteConfig({ routeConfig: result.routeConfig });
       setValidation(null);
       setEditorText(JSON.stringify(selectedRevision.routeConfig.document, null, 2));
-      setCommitMessage(message);
+      setCommitMessage(restoreCommitMessage);
       await refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setActionBusy(null);
     }
-  }, [api, buildCommitRequest, managementToken, refresh, selectedRevision]);
+  }, [api, buildCommitRequest, managementToken, refresh, restoreCommitMessage, selectedRevision]);
 
   const validationDiagnostics = diagnosticsList(validation);
   const mutationSupported = routeConfig?.routeConfig.mutationSupported ?? false;
@@ -858,7 +899,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                       disabled={
                         selectedRevision.active || busy || actionBusy !== null || !mutationSupported
                       }
-                      onClick={() => void handleRestoreSelectedRevision()}
+                      onClick={() => setRestoreDialogOpen(true)}
                     >
                       Restore revision as active config
                     </button>
@@ -880,6 +921,21 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
         onOpenChange={setSecretDialogOpen}
         onConfirm={session.confirmSecretAccess}
       />
+      {selectedRevision && routeConfig ? (
+        <RestoreRevisionDialog
+          open={restoreDialogOpen}
+          busy={actionBusy === "save"}
+          activeRevisionId={routeConfig.routeConfig.revision.id}
+          selectedRevisionId={selectedRevision.routeConfig.revision.id}
+          commitMessage={restoreCommitMessage}
+          secretPatchSummary={secretPatchSummary}
+          aliasChangeLines={aliasChangeLines}
+          providerChangeLines={providerChangeLines}
+          modelRouteChangeLines={modelRouteChangeLines}
+          onOpenChange={setRestoreDialogOpen}
+          onConfirm={handleRestoreSelectedRevision}
+        />
+      ) : null}
     </main>
   );
 }

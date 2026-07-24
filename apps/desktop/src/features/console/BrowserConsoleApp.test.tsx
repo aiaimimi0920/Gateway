@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -265,7 +265,7 @@ describe("BrowserConsoleApp", () => {
     expect((editor as HTMLTextAreaElement).value).toContain('"answer": "gpt-4.1"');
   });
 
-  it("shows a revision diff summary and restores the selected revision through the active commit path", async () => {
+  it("reviews a revision restore before committing it through the active commit path", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
 
@@ -285,6 +285,18 @@ describe("BrowserConsoleApp", () => {
     expect(screen.getByText(/answer: gpt-5\.4 -> gpt-4\.1/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /restore revision as active config/i }));
+    expect(consoleApi.commitRouteConfig).not.toHaveBeenCalled();
+
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: /review revision restore/i })).toBeInTheDocument(),
+    );
+    const dialog = screen.getByRole("dialog", { name: /review revision restore/i });
+    expect(within(dialog).getByText(/current active revision/i)).toBeInTheDocument();
+    expect(within(dialog).getByText("r1-deadbeefcafe")).toBeInTheDocument();
+    expect(within(dialog).getByText(/revision to restore/i)).toBeInTheDocument();
+    expect(within(dialog).getByText("r0-cafebabefeed")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /confirm restore/i }));
 
     await waitFor(() =>
       expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
