@@ -13,6 +13,7 @@
 /apps/desktop/node_modules/
 /apps/desktop/dist/
 /apps/desktop/.rsbuild/
+/apps/desktop/test-results/
 *.tsbuildinfo
 
 # Runtime state, release packages, evidence output, and local scratch

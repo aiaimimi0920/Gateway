@@ -19,6 +19,7 @@
   },
   "include": [
     "src",
+    "e2e",
     "rsbuild.config.ts",
     "vitest.config.ts",
     "playwright.config.ts"
