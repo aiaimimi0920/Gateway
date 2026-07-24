@@ -274,6 +274,106 @@ async fn route_config_management_commit_reports_runtime_unavailable_when_not_con
     );
 }
 
+#[tokio::test]
+async fn route_config_management_revisions_list_returns_archived_history() {
+    let fixture = ConsoleStateFixture::new(document("managed", "old-model", "live-secret"), true);
+    let snapshot = fixture
+        .commit_route_document(
+            document("managed", "new-model", "live-secret"),
+            Some("archive history"),
+        )
+        .await;
+
+    let response = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::get("/v1/internal/gateway/route-config/revisions")
+                .header("x-management-token", MANAGEMENT_TOKEN)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json(response).await;
+    let revisions = body["revisions"].as_array().expect("revisions array");
+    assert_eq!(revisions.len(), 1);
+    assert_eq!(
+        revisions[0]["revision"]["id"].as_str(),
+        Some(snapshot.revision().id())
+    );
+    assert_eq!(revisions[0]["active"], true);
+    assert_eq!(revisions[0]["hasArchive"], true);
+    assert_eq!(
+        revisions[0]["revision"]["message"].as_str(),
+        Some("archive history")
+    );
+}
+
+#[tokio::test]
+async fn route_config_management_revision_detail_returns_redacted_current_snapshot() {
+    let active = document("managed", "old-model", "live-secret");
+    let fixture = ConsoleStateFixture::new(active.clone(), true);
+    let revision_id = fixture
+        .state
+        .route_config
+        .snapshot()
+        .revision()
+        .id()
+        .to_string();
+
+    let response = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::get(format!(
+                "/v1/internal/gateway/route-config/revisions/{revision_id}"
+            ))
+            .header("x-management-token", MANAGEMENT_TOKEN)
+            .body(Body::empty())
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json(response).await;
+    assert_eq!(
+        body["routeConfig"]["revision"]["id"].as_str(),
+        Some(revision_id.as_str())
+    );
+    assert_eq!(body["active"], true);
+    assert_eq!(body["hasArchive"], false);
+    assert_ne!(
+        body["routeConfig"]["document"]["providers"][0]["api_key"].as_str(),
+        Some("live-secret")
+    );
+    assert_eq!(
+        redact_route_document(&active).unwrap().secrets.len(),
+        body["routeConfig"]["secrets"].as_array().unwrap().len()
+    );
+}
+
+#[tokio::test]
+async fn route_config_management_revision_detail_returns_not_found_for_unknown_revision() {
+    let fixture = ConsoleStateFixture::new(document("managed", "old-model", "live-secret"), true);
+
+    let response = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::get("/v1/internal/gateway/route-config/revisions/r99-deadbeefcafe")
+                .header("x-management-token", MANAGEMENT_TOKEN)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let body = parse_json(response).await;
+    assert_eq!(
+        body["error"]["code"].as_str(),
+        Some("console_revision_not_found")
+    );
+}
+
 async fn parse_json(response: axum::response::Response) -> serde_json::Value {
     let bytes = response
         .into_body()
@@ -316,6 +416,29 @@ impl ConsoleStateFixture {
             state: build_state(Arc::clone(&store), runtime),
             _temp: temp,
         }
+    }
+
+    async fn commit_route_document(
+        &self,
+        document: RouteConfigYaml,
+        message: Option<&str>,
+    ) -> Arc<neuro_gateway::routing::config::RouteConfigSnapshot> {
+        let runtime = self
+            .state
+            .route_config_runtime
+            .as_ref()
+            .expect("runtime must be configured");
+        let current_revision = self
+            .state
+            .route_config
+            .snapshot()
+            .revision()
+            .id()
+            .to_string();
+        runtime
+            .commit_document(&current_revision, document, message.map(str::to_string))
+            .await
+            .expect("commit route document")
     }
 }
 

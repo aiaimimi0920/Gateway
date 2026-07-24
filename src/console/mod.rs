@@ -20,7 +20,7 @@ pub use journal::{
 pub use persistence::{
     AtomicReplaceBackend, ConsolePersistenceError, FirstSavePresence, FirstSaveStatus,
     PersistenceError, PlatformAtomicReplaceBackend, RevisionArchive, RouteConfigPersistence,
-    TransactionPhase, TransactionRecord, WriterLockGuard, YamlReplaceReceipt,
+    StoredRouteRevision, TransactionPhase, TransactionRecord, WriterLockGuard, YamlReplaceReceipt,
 };
 pub use redis_store::{
     RouteConfigRedisActivationOutcome, RouteConfigRedisKeys, RouteConfigRedisRevision,

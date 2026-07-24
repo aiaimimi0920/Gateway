@@ -10,7 +10,8 @@ use uuid::Uuid;
 use super::document::{canonicalize_route_document, validate_route_document};
 use super::journal::TransactionJournal;
 use super::persistence::{
-    PersistenceError, RouteConfigPersistence, TransactionPhase, TransactionRecord,
+    PersistenceError, RouteConfigPersistence, StoredRouteRevision, TransactionPhase,
+    TransactionRecord,
 };
 use super::redis_store::{
     RouteConfigRedisActivationOutcome, RouteConfigRedisRevision, RouteConfigRedisStore,
@@ -174,6 +175,21 @@ impl std::fmt::Debug for RouteConfigCoordinator {
 impl RouteConfigCoordinator {
     pub fn route_config(&self) -> &Arc<RouteConfigStore> {
         &self.route_config
+    }
+
+    pub fn load_revisions(&self) -> Result<Vec<StoredRouteRevision>, RouteConfigRuntimeError> {
+        self.persistence
+            .load_revisions()
+            .map_err(RouteConfigRuntimeError::from_persistence)
+    }
+
+    pub fn load_revision(
+        &self,
+        revision_id: &str,
+    ) -> Result<Option<StoredRouteRevision>, RouteConfigRuntimeError> {
+        self.persistence
+            .load_revision(revision_id)
+            .map_err(RouteConfigRuntimeError::from_persistence)
     }
 
     pub async fn recover_startup(&self) -> Result<(), RouteConfigRuntimeError> {

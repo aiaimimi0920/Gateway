@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use super::document::CanonicalRouteDocument;
 use super::revision::RevisionMetadata;
+use crate::routing::config::RouteConfigYaml;
 
 const STATE_VERSION: u32 = 1;
 const FIRST_SAVE_STATUS_FILE: &str = "routes-first-save.json";
@@ -296,6 +297,27 @@ impl RevisionArchive {
 
     pub fn relative_path(&self) -> &Path {
         &self.relative_path
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct StoredRouteRevision {
+    archive: RevisionArchive,
+    metadata: RevisionMetadata,
+    document: RouteConfigYaml,
+}
+
+impl StoredRouteRevision {
+    pub fn archive(&self) -> &RevisionArchive {
+        &self.archive
+    }
+
+    pub fn metadata(&self) -> &RevisionMetadata {
+        &self.metadata
+    }
+
+    pub fn document(&self) -> &RouteConfigYaml {
+        &self.document
     }
 }
 
@@ -918,6 +940,72 @@ impl RouteConfigPersistence {
         self.transaction_path(tx_id)
     }
 
+    pub fn load_revision(
+        &self,
+        revision_id: &str,
+    ) -> Result<Option<StoredRouteRevision>, PersistenceError> {
+        validate_revision_id(revision_id)?;
+        let relative_path = PathBuf::from("revisions").join(revision_id);
+        validate_archive_relative_path(&normalized_relative_string(&relative_path))?;
+        let path = self.state_root.join(&relative_path);
+        match fs::symlink_metadata(&path) {
+            Ok(metadata) => {
+                reject_link_metadata(&path, &metadata)?;
+                if !metadata.is_dir() {
+                    return Err(PersistenceError::corruption(
+                        "Revision archive path is not a directory",
+                    ));
+                }
+                self.read_revision_archive(RevisionArchive {
+                    path,
+                    relative_path,
+                })
+                .map(Some)
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(PersistenceError::io(
+                "reading revision archive metadata",
+                error,
+            )),
+        }
+    }
+
+    pub fn load_revisions(&self) -> Result<Vec<StoredRouteRevision>, PersistenceError> {
+        let revisions_dir = self.revisions_dir();
+        let mut archives = Vec::new();
+        for entry in fs::read_dir(&revisions_dir)
+            .map_err(|error| PersistenceError::io("listing revision archives", error))?
+        {
+            let entry = entry.map_err(|error| {
+                PersistenceError::io("reading revision archive directory", error)
+            })?;
+            let path = entry.path();
+            let metadata = fs::symlink_metadata(&path).map_err(|error| {
+                PersistenceError::io("reading revision archive metadata", error)
+            })?;
+            reject_link_metadata(&path, &metadata)?;
+            if !metadata.is_dir() {
+                return Err(PersistenceError::corruption(
+                    "Revision archives directory contains a non-directory entry",
+                ));
+            }
+            let relative_path = PathBuf::from("revisions").join(entry.file_name());
+            validate_archive_relative_path(&normalized_relative_string(&relative_path))?;
+            archives.push(self.read_revision_archive(RevisionArchive {
+                path,
+                relative_path,
+            })?);
+        }
+        archives.sort_by(|left, right| {
+            right
+                .metadata()
+                .sequence()
+                .cmp(&left.metadata().sequence())
+                .then_with(|| right.metadata().id().cmp(left.metadata().id()))
+        });
+        Ok(archives)
+    }
+
     pub(crate) fn validate_optional_managed_file(
         &self,
         path: &Path,
@@ -1004,6 +1092,87 @@ impl RouteConfigPersistence {
             ));
         }
         Ok(())
+    }
+
+    fn read_revision_archive(
+        &self,
+        archive: RevisionArchive,
+    ) -> Result<StoredRouteRevision, PersistenceError> {
+        let metadata = fs::symlink_metadata(archive.path())
+            .map_err(|error| PersistenceError::io("reading revision archive metadata", error))?;
+        reject_link_metadata(archive.path(), &metadata)?;
+        if !metadata.is_dir() {
+            return Err(PersistenceError::corruption(
+                "Revision archive path is not a directory",
+            ));
+        }
+        let expected_files = vec![
+            "document.json".to_string(),
+            "metadata.json".to_string(),
+            "routes.yaml".to_string(),
+        ];
+        let mut actual_files = Vec::new();
+        for entry in fs::read_dir(archive.path())
+            .map_err(|error| PersistenceError::io("listing revision archive", error))?
+        {
+            let entry = entry
+                .map_err(|error| PersistenceError::io("reading revision archive entry", error))?;
+            let path = entry.path();
+            let metadata = fs::symlink_metadata(&path)
+                .map_err(|error| PersistenceError::io("checking revision archive entry", error))?;
+            reject_link_metadata(&path, &metadata)?;
+            if !metadata.is_file() {
+                return Err(PersistenceError::corruption(
+                    "Revision archive contains a non-file entry",
+                ));
+            }
+            actual_files.push(entry.file_name().to_string_lossy().into_owned());
+        }
+        actual_files.sort();
+        if actual_files != expected_files {
+            return Err(PersistenceError::corruption(
+                "Revision archive contains missing or unexpected files",
+            ));
+        }
+
+        let document_bytes = read_regular_file(&archive.path().join("document.json"))?;
+        let yaml_bytes = read_regular_file(&archive.path().join("routes.yaml"))?;
+        let metadata_bytes = read_regular_file(&archive.path().join("metadata.json"))?;
+        let metadata: RevisionMetadata = serde_json::from_slice(&metadata_bytes)
+            .map_err(|_| PersistenceError::corruption("Revision metadata JSON is malformed"))?;
+        metadata
+            .validate()
+            .map_err(|error| PersistenceError::corruption(error.to_string()))?;
+
+        let expected_relative = PathBuf::from("revisions").join(metadata.id());
+        if archive.relative_path() != expected_relative.as_path() {
+            return Err(PersistenceError::corruption(
+                "Revision archive path does not match its metadata identity",
+            ));
+        }
+        if sha256_hex(&document_bytes) != metadata.document_digest()
+            || sha256_hex(&yaml_bytes) != metadata.yaml_digest()
+        {
+            return Err(PersistenceError::corruption(
+                "Revision archive digest mismatch",
+            ));
+        }
+        let canonical_metadata = serde_json::to_vec(&metadata)
+            .map_err(|error| PersistenceError::io("serializing revision metadata", error))?;
+        if metadata_bytes != canonical_metadata {
+            return Err(PersistenceError::corruption(
+                "Revision metadata JSON is not in canonical form",
+            ));
+        }
+
+        let document: RouteConfigYaml = serde_json::from_slice(&document_bytes)
+            .map_err(|_| PersistenceError::corruption("Revision document JSON is malformed"))?;
+
+        Ok(StoredRouteRevision {
+            archive,
+            metadata,
+            document,
+        })
     }
 
     pub(crate) fn ensure_first_save_backup_locked(
