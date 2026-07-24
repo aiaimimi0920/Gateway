@@ -1,6 +1,25 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
+
+type ModelsPayload = {
+  data?: Array<{ id?: string }>;
+};
+
+type RevisionEntry = {
+  revision?: {
+    id?: string;
+    sequence?: number;
+    message?: string;
+  };
+  active?: boolean;
+  hasArchive?: boolean;
+  source?: string;
+};
+
+type RevisionListPayload = {
+  revisions?: RevisionEntry[];
+};
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name];
@@ -10,13 +29,7 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
-test("signs into a live Gateway browser console and reads /v1/models", async ({ page, request }) => {
-  const managementToken = requiredEnvironment("GATEWAY_LIVE_MANAGEMENT_TOKEN");
-  const apiBaseUrl = requiredEnvironment("GATEWAY_LIVE_API_BASE_URL");
-  const apiToken = requiredEnvironment("GATEWAY_LIVE_API_TOKEN");
-  const expectedProviderId = requiredEnvironment("GATEWAY_LIVE_EXPECT_PROVIDER_ID");
-  const expectedModel = requiredEnvironment("GATEWAY_LIVE_EXPECT_MODEL");
-
+async function signIntoConsole(page: Page, managementToken: string): Promise<void> {
   await page.goto("/ui/");
 
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
@@ -24,6 +37,51 @@ test("signs into a live Gateway browser console and reads /v1/models", async ({ 
   await page.getByRole("button", { name: "Sign in" }).click();
 
   await expect(page.getByRole("heading", { name: "Gateway Web Console" })).toBeVisible();
+}
+
+async function fetchModelIds(
+  request: APIRequestContext,
+  apiBaseUrl: string,
+  apiToken: string,
+): Promise<string[]> {
+  const modelsResponse = await request.get(`${apiBaseUrl}/v1/models`, {
+    headers: { Authorization: `Bearer ${apiToken}` },
+  });
+  expect(modelsResponse.ok()).toBeTruthy();
+  const modelsPayload = (await modelsResponse.json()) as ModelsPayload;
+  return (modelsPayload.data ?? [])
+    .map((entry) => entry.id)
+    .filter((entry): entry is string => typeof entry === "string");
+}
+
+async function fetchRevisionEntries(
+  request: APIRequestContext,
+  apiBaseUrl: string,
+  managementToken: string,
+): Promise<RevisionEntry[]> {
+  const revisionsResponse = await request.get(
+    `${apiBaseUrl}/v1/internal/gateway/console/revisions`,
+    { headers: { "x-management-token": managementToken } },
+  );
+  expect(revisionsResponse.ok()).toBeTruthy();
+  const revisionsPayload = (await revisionsResponse.json()) as RevisionListPayload;
+  return revisionsPayload.revisions ?? [];
+}
+
+function revisionId(entry: RevisionEntry): string | null {
+  const id = entry.revision?.id;
+  return typeof id === "string" && id.trim().length > 0 ? id : null;
+}
+
+test("signs into a live Gateway browser console and reads /v1/models", async ({ page, request }) => {
+  const managementToken = requiredEnvironment("GATEWAY_LIVE_MANAGEMENT_TOKEN");
+  const apiBaseUrl = requiredEnvironment("GATEWAY_LIVE_API_BASE_URL");
+  const apiToken = requiredEnvironment("GATEWAY_LIVE_API_TOKEN");
+  const expectedProviderId = requiredEnvironment("GATEWAY_LIVE_EXPECT_PROVIDER_ID");
+  const expectedModel = requiredEnvironment("GATEWAY_LIVE_EXPECT_MODEL");
+
+  await signIntoConsole(page, managementToken);
+
   await expect(
     page
       .locator("article")
@@ -32,33 +90,18 @@ test("signs into a live Gateway browser console and reads /v1/models", async ({ 
   ).toBeVisible();
   await expect(page.getByLabel("Route document JSON")).toContainText(expectedModel);
 
-  const modelsResponse = await request.get(`${apiBaseUrl}/v1/models`, {
-    headers: { Authorization: `Bearer ${apiToken}` },
-  });
-  expect(modelsResponse.ok()).toBeTruthy();
-  const modelsPayload = (await modelsResponse.json()) as {
-    data?: Array<{ id?: string }>;
-  };
-  const modelIds = (modelsPayload.data ?? [])
-    .map((entry) => entry.id)
-    .filter((entry): entry is string => typeof entry === "string");
-  expect(modelIds).toContain(expectedModel);
+  await expect.poll(() => fetchModelIds(request, apiBaseUrl, apiToken)).toContain(expectedModel);
 });
 
 test("saves a live provider update through the browser console and extends /v1/models", async ({ page, request }) => {
   const managementToken = requiredEnvironment("GATEWAY_LIVE_MANAGEMENT_TOKEN");
   const apiBaseUrl = requiredEnvironment("GATEWAY_LIVE_API_BASE_URL");
   const apiToken = requiredEnvironment("GATEWAY_LIVE_API_TOKEN");
-  const addedProviderId = "backup-provider";
-  const addedModelId = "gpt-5.4-mini";
+  const addedProviderId = requiredEnvironment("GATEWAY_LIVE_EXPECT_ADDED_PROVIDER_ID");
+  const addedModelId = requiredEnvironment("GATEWAY_LIVE_EXPECT_ADDED_MODEL");
 
-  await page.goto("/ui/");
+  await signIntoConsole(page, managementToken);
 
-  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  await page.getByLabel("Management token").fill(managementToken);
-  await page.getByRole("button", { name: "Sign in" }).click();
-
-  await expect(page.getByRole("heading", { name: "Gateway Web Console" })).toBeVisible();
   await page.getByRole("button", { name: "Add provider row" }).click();
   await page.getByLabel("Provider id 2").fill(addedProviderId);
   await page.getByLabel("Provider preset 2").fill("openai");
@@ -80,20 +123,58 @@ test("saves a live provider update through the browser console and extends /v1/m
       .getByText(addedProviderId, { exact: true }),
   ).toBeVisible();
 
+  await expect.poll(() => fetchModelIds(request, apiBaseUrl, apiToken)).toContain(addedModelId);
+});
+
+test("restores a live archived revision through the browser console", async ({ page, request }) => {
+  const managementToken = requiredEnvironment("GATEWAY_LIVE_MANAGEMENT_TOKEN");
+  const apiBaseUrl = requiredEnvironment("GATEWAY_LIVE_API_BASE_URL");
+  const apiToken = requiredEnvironment("GATEWAY_LIVE_API_TOKEN");
+  const expectedProviderId = requiredEnvironment("GATEWAY_LIVE_EXPECT_PROVIDER_ID");
+  const restoredModelId = requiredEnvironment("GATEWAY_LIVE_EXPECT_RESTORED_MODEL");
+  const addedProviderId = requiredEnvironment("GATEWAY_LIVE_EXPECT_ADDED_PROVIDER_ID");
+  const removedModelId = requiredEnvironment("GATEWAY_LIVE_EXPECT_REMOVED_MODEL");
+
+  await expect.poll(() => fetchModelIds(request, apiBaseUrl, apiToken)).toContain(removedModelId);
+
+  await signIntoConsole(page, managementToken);
+
+  const activeConfigCard = page
+    .locator("article")
+    .filter({ has: page.getByRole("heading", { name: "当前路由配置" }) });
+  await expect(activeConfigCard.getByText(addedProviderId, { exact: true })).toBeVisible();
+
+  const archivedRevision = (await fetchRevisionEntries(request, apiBaseUrl, managementToken)).find(
+    (entry) => entry.active === false && entry.hasArchive === true && revisionId(entry) !== null,
+  );
+  const archivedRevisionId = archivedRevision ? revisionId(archivedRevision) : null;
+  expect(archivedRevisionId).toBeTruthy();
+
+  await page.getByRole("button", { name: `Inspect revision ${archivedRevisionId}` }).click();
+
+  const selectedRevisionDetail = page.getByLabel("Selected revision detail");
+  await expect(selectedRevisionDetail.getByText(expectedProviderId, { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Selected revision route document snapshot")).toContainText(restoredModelId);
+  await expect(page.getByLabel("Selected revision route document snapshot")).not.toContainText(removedModelId);
+
+  await page.getByRole("button", { name: "Restore revision as active config" }).click();
+
+  await expect(page.getByRole("dialog", { name: "Review revision restore" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Review revision restore" })).toContainText(
+    archivedRevisionId ?? "",
+  );
+
+  await page.getByRole("button", { name: "Confirm restore" }).click();
+
+  await expect(
+    page.getByRole("status", { name: "Gateway console last action" }),
+  ).toContainText(`Restored revision ${archivedRevisionId} as active revision`);
+  await expect(activeConfigCard.getByText(addedProviderId, { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Route document JSON")).toContainText(restoredModelId);
+  await expect(page.getByLabel("Route document JSON")).not.toContainText(removedModelId);
+
   await expect
-    .poll(async () => {
-      const modelsResponse = await request.get(`${apiBaseUrl}/v1/models`, {
-        headers: { Authorization: `Bearer ${apiToken}` },
-      });
-      if (!modelsResponse.ok()) {
-        return [];
-      }
-      const modelsPayload = (await modelsResponse.json()) as {
-        data?: Array<{ id?: string }>;
-      };
-      return (modelsPayload.data ?? [])
-        .map((entry) => entry.id)
-        .filter((entry): entry is string => typeof entry === "string");
-    })
-    .toContain(addedModelId);
+    .poll(async () => (await fetchModelIds(request, apiBaseUrl, apiToken)).includes(removedModelId))
+    .toBe(false);
+  await expect.poll(() => fetchModelIds(request, apiBaseUrl, apiToken)).toContain(restoredModelId);
 });

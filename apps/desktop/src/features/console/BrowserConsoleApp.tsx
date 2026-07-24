@@ -144,6 +144,37 @@ function buildSecretPatches(
     });
 }
 
+function filterSecretPatchesForDocument(
+  patches: ConsoleSecretPatch[],
+  document: ConsoleRouteDocument,
+  allowedPaths?: Set<string>,
+): ConsoleSecretPatch[] {
+  return patches.filter((patch) => {
+    if (allowedPaths && !allowedPaths.has(patch.path)) {
+      return false;
+    }
+    const providerMatch = /^\/providers\/(\d+)(?:\/|$)/.exec(patch.path);
+    if (!providerMatch) {
+      return true;
+    }
+    return Number(providerMatch[1]) < document.providers.length;
+  });
+}
+
+function summarizeSecretPatches(secretPatches: ConsoleSecretPatch[]): {
+  keep: number;
+  replace: number;
+  clear: number;
+} {
+  return secretPatches.reduce(
+    (summary, patch) => {
+      summary[patch.operation] += 1;
+      return summary;
+    },
+    { keep: 0, replace: 0, clear: 0 },
+  );
+}
+
 function diagnosticsList(
   validation: ConsoleRouteConfigValidationResponse | null,
 ): Array<{ code: string; severity: string; path: string; message: string }> {
@@ -412,16 +443,24 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       selectedRevision ? `restore revision ${selectedRevision.routeConfig.revision.id}` : "",
     [selectedRevision],
   );
+  const restoreSecretPatches = useMemo(() => {
+    if (!selectedRevision) {
+      return secretPatches;
+    }
+    const selectedSecretPaths = new Set(
+      selectedRevision.routeConfig.secrets
+        .map((secret) => secret.path.trim())
+        .filter((path) => path.length > 0),
+    );
+    return filterSecretPatchesForDocument(
+      secretPatches,
+      selectedRevision.routeConfig.document,
+      selectedSecretPaths,
+    );
+  }, [secretPatches, selectedRevision]);
   const secretPatchSummary = useMemo(
-    () =>
-      secretPatches.reduce(
-        (summary, patch) => {
-          summary[patch.operation] += 1;
-          return summary;
-        },
-        { keep: 0, replace: 0, clear: 0 },
-      ),
-    [secretPatches],
+    () => summarizeSecretPatches(restoreDialogOpen ? restoreSecretPatches : secretPatches),
+    [restoreDialogOpen, restoreSecretPatches, secretPatches],
   );
   const aliasChangeLines = useMemo(
     () =>
@@ -449,12 +488,17 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   );
 
   const buildCommitRequest = useCallback(
-    (document: ConsoleRouteDocument, messageOverride?: string): ConsoleRouteConfigCommitRequest => {
+    (
+      document: ConsoleRouteDocument,
+      messageOverride?: string,
+      secretPatchOverride?: ConsoleSecretPatch[],
+    ): ConsoleRouteConfigCommitRequest => {
       if (!routeConfig) {
         throw new Error("Route configuration is not loaded yet.");
       }
       const message = messageOverride?.trim() || commitMessage.trim();
-      for (const patch of secretPatches) {
+      const commitSecretPatches = secretPatchOverride ?? secretPatches;
+      for (const patch of commitSecretPatches) {
         if (patch.operation !== "keep" && !hasSecretAccess) {
           throw new Error("Secret replacement or clearing requires confirmed secret access.");
         }
@@ -465,7 +509,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       return {
         expectedRevision: routeConfig.routeConfig.revision.id,
         document,
-        secretPatches,
+        secretPatches: commitSecretPatches,
         ...(message ? { message } : {}),
       };
     },
@@ -699,8 +743,8 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       setError(null);
       setSuccessMessage(null);
       try {
-      const detail = await api.getRouteConfigRevision(managementToken, revisionId);
-      setSelectedRevision(detail);
+        const detail = await api.getRouteConfigRevision(managementToken, revisionId);
+        setSelectedRevision(detail);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       } finally {
@@ -731,7 +775,11 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     setError(null);
     setSuccessMessage(null);
     try {
-      const draft = buildCommitRequest(selectedRevision.routeConfig.document, restoreCommitMessage);
+      const draft = buildCommitRequest(
+        selectedRevision.routeConfig.document,
+        restoreCommitMessage,
+        restoreSecretPatches,
+      );
       const result = await api.commitRouteConfig(managementToken, draft);
       setRouteConfig({ routeConfig: result.routeConfig });
       setValidation(null);
@@ -754,6 +802,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     refresh,
     replaceEditorDocument,
     restoreCommitMessage,
+    restoreSecretPatches,
     selectedRevision,
   ]);
 

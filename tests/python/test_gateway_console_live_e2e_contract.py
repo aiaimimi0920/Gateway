@@ -19,6 +19,22 @@ class GatewayConsoleLiveE2EContractTests(unittest.TestCase):
         self.assertIn("target\\debug\\neuro-gateway.exe", script)
         self.assertIn("redis:7-alpine", script)
 
+    def test_live_console_runner_covers_revision_restore_after_browser_mutation(self):
+        repo_root = pathlib.Path(__file__).resolve().parents[2]
+        script_path = repo_root / "tools" / "run-gateway-console-live-e2e.ps1"
+        spec_path = repo_root / "apps" / "desktop" / "e2e" / "console.live.spec.ts"
+
+        script = script_path.read_text(encoding="utf-8")
+        spec = spec_path.read_text(encoding="utf-8")
+
+        self.assertIn("GATEWAY_LIVE_EXPECT_ADDED_PROVIDER_ID", script)
+        self.assertIn("GATEWAY_LIVE_EXPECT_ADDED_MODEL", script)
+        self.assertIn("GATEWAY_LIVE_EXPECT_RESTORED_MODEL", script)
+        self.assertIn("GATEWAY_LIVE_EXPECT_REMOVED_MODEL", script)
+        self.assertIn("restores a live archived revision through the browser console", spec)
+        self.assertIn("Restore revision as active config", spec)
+        self.assertIn("Confirm restore", spec)
+        self.assertIn("GATEWAY_LIVE_EXPECT_REMOVED_MODEL", spec)
 
 if __name__ == "__main__":
     unittest.main()

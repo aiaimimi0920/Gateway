@@ -249,6 +249,80 @@ function Get-RedisString {
 
   return Invoke-RedisCommand -Port $Port -Arguments @("GET", $Key)
 }
+function Get-Utf8Sha256Hex {
+  param([Parameter(Mandatory = $true)][string] $Text)
+
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
+    return [System.BitConverter]::ToString($sha256.ComputeHash($bytes)).Replace("-", "").ToLowerInvariant()
+  } finally {
+    $sha256.Dispose()
+  }
+}
+function ConvertTo-JsonLiteral {
+  param($Value)
+
+  if ($null -eq $Value) {
+    return "null"
+  }
+  return $Value | ConvertTo-Json -Depth 20 -Compress
+}
+
+function New-SeedRevisionMetadataJson {
+  param([Parameter(Mandatory = $true)] $RevisionMetadata)
+
+  $id = ConvertTo-JsonLiteral ([string]$RevisionMetadata.id)
+  $sequence = ConvertTo-JsonLiteral ([int64]$RevisionMetadata.sequence)
+  $parent = ConvertTo-JsonLiteral $RevisionMetadata.parent
+  $actor = ConvertTo-JsonLiteral ([string]$RevisionMetadata.actor)
+  $timestamp = ConvertTo-JsonLiteral ([string]$RevisionMetadata.timestamp)
+  $documentDigest = ConvertTo-JsonLiteral ([string]$RevisionMetadata.documentDigest)
+  $yamlDigest = ConvertTo-JsonLiteral ([string]$RevisionMetadata.yamlDigest)
+  $message = ConvertTo-JsonLiteral $RevisionMetadata.message
+  return "{`"id`":$id,`"sequence`":$sequence,`"parent`":$parent,`"actor`":$actor,`"timestamp`":$timestamp,`"documentDigest`":$documentDigest,`"yamlDigest`":$yamlDigest,`"message`":$message}"
+}
+
+function Install-SeedRouteRevisionArchive {
+  param(
+    [Parameter(Mandatory = $true)][string] $StateRoot,
+    [Parameter(Mandatory = $true)][string] $RevisionId,
+    [Parameter(Mandatory = $true)] $RevisionMetadata,
+    [Parameter(Mandatory = $true)][string] $CanonicalDocumentJson,
+    [Parameter(Mandatory = $true)][string] $CanonicalRoutesYaml
+  )
+
+  $metadataDocumentDigest = [string]$RevisionMetadata.documentDigest
+  $metadataYamlDigest = [string]$RevisionMetadata.yamlDigest
+  $documentDigest = Get-Utf8Sha256Hex -Text $CanonicalDocumentJson
+  $yamlDigest = Get-Utf8Sha256Hex -Text $CanonicalRoutesYaml
+  if ($metadataDocumentDigest -ne $documentDigest) {
+    throw "Seed revision document digest mismatch: metadata=$metadataDocumentDigest generated=$documentDigest"
+  }
+  if ($metadataYamlDigest -ne $yamlDigest) {
+    throw "Seed revision YAML digest mismatch: metadata=$metadataYamlDigest generated=$yamlDigest"
+  }
+
+  $archiveRoot = Join-Path $StateRoot "console\revisions\$RevisionId"
+  $null = Ensure-Directory -Path $archiveRoot
+  $metadataJson = New-SeedRevisionMetadataJson -RevisionMetadata $RevisionMetadata
+  [System.IO.File]::WriteAllText(
+    (Join-Path $archiveRoot "document.json"),
+    $CanonicalDocumentJson,
+    [System.Text.UTF8Encoding]::new($false)
+  )
+  [System.IO.File]::WriteAllText(
+    (Join-Path $archiveRoot "routes.yaml"),
+    $CanonicalRoutesYaml,
+    [System.Text.UTF8Encoding]::new($false)
+  )
+  [System.IO.File]::WriteAllText(
+    (Join-Path $archiveRoot "metadata.json"),
+    $metadataJson,
+    [System.Text.UTF8Encoding]::new($false)
+  )
+  Write-LiveLog "installed seed revision archive revision=$RevisionId"
+}
 
 function Start-TemporaryRedis {
   param(
@@ -487,6 +561,54 @@ model_routes:
 aliases:
   answer: gpt-5.4
 '@
+
+$SeedCanonicalDocumentJson = '{"aliases":{"answer":"gpt-5.4"},"model_routes":[{"pattern":"gpt-5.4","priority":10,"provider_ids":["managed-provider"]}],"providers":[{"account_name":null,"adapter":null,"api_key":"sk-test","audio_speech_path":null,"audio_transcriptions_path":null,"auth_token":null,"balance_path":null,"base_url":"https://api.primary.example.com","chat_completions_path":null,"completions_path":null,"credentials":[],"default_model":null,"embeddings_path":null,"endpoint_execution_modes":null,"execution_mode":null,"expires_at":null,"extra_body":{},"fetch_path":null,"fetch_urls_field":null,"headers":{},"id":"managed-provider","keepalive":null,"label":null,"messages_path":null,"model_map":{},"preset":"openai","protocol_family":null,"protocol_profile":null,"research_path":null,"responses_path":null,"runtime_state_object_key":null,"search_path":null,"search_query_field":null,"session_auth":null,"supported_models":["gpt-5.4"]}]}'
+$SeedCanonicalRoutesYaml = (@(
+  'aliases:',
+  '  answer: gpt-5.4',
+  'model_routes:',
+  '- pattern: gpt-5.4',
+  '  priority: 10',
+  '  provider_ids:',
+  '  - managed-provider',
+  'providers:',
+  '- account_name: null',
+  '  adapter: null',
+  '  api_key: sk-test',
+  '  audio_speech_path: null',
+  '  audio_transcriptions_path: null',
+  '  auth_token: null',
+  '  balance_path: null',
+  '  base_url: https://api.primary.example.com',
+  '  chat_completions_path: null',
+  '  completions_path: null',
+  '  credentials: []',
+  '  default_model: null',
+  '  embeddings_path: null',
+  '  endpoint_execution_modes: null',
+  '  execution_mode: null',
+  '  expires_at: null',
+  '  extra_body: {}',
+  '  fetch_path: null',
+  '  fetch_urls_field: null',
+  '  headers: {}',
+  '  id: managed-provider',
+  '  keepalive: null',
+  '  label: null',
+  '  messages_path: null',
+  '  model_map: {}',
+  '  preset: openai',
+  '  protocol_family: null',
+  '  protocol_profile: null',
+  '  research_path: null',
+  '  responses_path: null',
+  '  runtime_state_object_key: null',
+  '  search_path: null',
+  '  search_query_field: null',
+  '  session_auth: null',
+  '  supported_models:',
+  '  - gpt-5.4'
+) -join "`n") + "`n"
 [System.IO.File]::WriteAllText(
   $RoutesPath,
   $routesYaml.Replace("`r`n", "`n") + "`n",
@@ -547,6 +669,10 @@ $environmentKeys = @(
   "GATEWAY_LIVE_API_TOKEN",
   "GATEWAY_LIVE_EXPECT_PROVIDER_ID",
   "GATEWAY_LIVE_EXPECT_MODEL",
+  "GATEWAY_LIVE_EXPECT_ADDED_PROVIDER_ID",
+  "GATEWAY_LIVE_EXPECT_ADDED_MODEL",
+  "GATEWAY_LIVE_EXPECT_RESTORED_MODEL",
+  "GATEWAY_LIVE_EXPECT_REMOVED_MODEL",
   "PLAYWRIGHT_HTML_OUTPUT_DIR"
 )
 foreach ($key in $environmentKeys) {
@@ -621,6 +747,12 @@ try {
   if ($activeRevisionReadback.Trim() -ne $revisionId) {
     throw "Redis seed readback for active revision did not match: expected '$revisionId', actual '$activeRevisionReadback'"
   }
+  Install-SeedRouteRevisionArchive `
+    -StateRoot $GatewayStateRoot `
+    -RevisionId $revisionId `
+    -RevisionMetadata $routeConfigPayload.routeConfig.revision `
+    -CanonicalDocumentJson $SeedCanonicalDocumentJson `
+    -CanonicalRoutesYaml $SeedCanonicalRoutesYaml
 
   Stop-Process -Id $gatewayProcess.Id -Force -ErrorAction SilentlyContinue
   $gatewayProcess.WaitForExit(5000) | Out-Null
@@ -650,6 +782,10 @@ try {
   [System.Environment]::SetEnvironmentVariable("GATEWAY_LIVE_API_TOKEN", $apiToken, "Process")
   [System.Environment]::SetEnvironmentVariable("GATEWAY_LIVE_EXPECT_PROVIDER_ID", "managed-provider", "Process")
   [System.Environment]::SetEnvironmentVariable("GATEWAY_LIVE_EXPECT_MODEL", "gpt-5.4", "Process")
+  [System.Environment]::SetEnvironmentVariable("GATEWAY_LIVE_EXPECT_ADDED_PROVIDER_ID", "backup-provider", "Process")
+  [System.Environment]::SetEnvironmentVariable("GATEWAY_LIVE_EXPECT_ADDED_MODEL", "gpt-5.4-mini", "Process")
+  [System.Environment]::SetEnvironmentVariable("GATEWAY_LIVE_EXPECT_RESTORED_MODEL", "gpt-5.4", "Process")
+  [System.Environment]::SetEnvironmentVariable("GATEWAY_LIVE_EXPECT_REMOVED_MODEL", "gpt-5.4-mini", "Process")
   [System.Environment]::SetEnvironmentVariable("PLAYWRIGHT_HTML_OUTPUT_DIR", $ArtifactsRoot, "Process")
 
   Invoke-LoggedCommand -LogPath $playwrightLog -Command @(

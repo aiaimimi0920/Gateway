@@ -319,6 +319,76 @@ describe("BrowserConsoleApp", () => {
     );
   });
 
+  it("filters restore secret patches to paths that exist in the selected revision schema", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        revision: { id: "r1-deadbeefcafe", sequence: 1, message: "active with backup" },
+        source: "redis",
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: {
+          providers: [{ id: "managed-provider" }, { id: "backup-provider" }],
+          model_routes: [{ pattern: "gpt-5.4" }],
+          aliases: { answer: "gpt-5.4" },
+        },
+        secrets: [
+          { path: "/providers/0/api_key", configured: true, preview: "sk-***" },
+          { path: "/providers/0/auth_token", configured: false, preview: null },
+          { path: "/providers/1/api_key", configured: false, preview: null },
+          { path: "/providers/1/auth_token", configured: false, preview: null },
+        ],
+        mutationSupported: true,
+      },
+    });
+    vi.mocked(consoleApi.getRouteConfigRevision).mockResolvedValue({
+      routeConfig: {
+        revision: {
+          id: "r0-cafebabefeed",
+          sequence: 0,
+          message: "seed route",
+        },
+        source: "archived",
+        diagnostics: null,
+        requiresRepair: false,
+        document: {
+          providers: [{ id: "managed-provider" }],
+          model_routes: [{ pattern: "gpt-5.4" }],
+          aliases: { answer: "gpt-5.4" },
+        },
+        secrets: [{ path: "/providers/0/api_key", configured: true, preview: "sk-***" }],
+        mutationSupported: true,
+      },
+      active: false,
+      hasArchive: true,
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /inspect revision r0-cafebabefeed/i }),
+      ).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: /inspect revision r0-cafebabefeed/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/removed provider: backup-provider/i)).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: /restore revision as active config/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: /review revision restore/i })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: /confirm restore/i }));
+
+    await waitFor(() => expect(consoleApi.commitRouteConfig).toHaveBeenCalled());
+    const request = vi.mocked(consoleApi.commitRouteConfig).mock.calls.at(-1)?.[1];
+    expect(request?.secretPatches).toEqual([
+      { path: "/providers/0/api_key", operation: "keep" },
+    ]);
+  });
   it("renders side-by-side active and selected route document snapshots for revision review", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
