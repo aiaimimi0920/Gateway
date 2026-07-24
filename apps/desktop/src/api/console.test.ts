@@ -8,6 +8,7 @@ import { createConsoleApi } from "./console";
 const routeConfigUrl = `${window.location.origin}/v1/internal/gateway/console/route-config`;
 const validateRouteConfigUrl = `${window.location.origin}/v1/internal/gateway/console/route-config/validate`;
 const revisionsUrl = `${window.location.origin}/v1/internal/gateway/console/revisions`;
+const revisionDetailUrl = `${window.location.origin}/v1/internal/gateway/console/revisions/r2-beadfeedcafe`;
 
 describe("console API", () => {
   it("loads the canonical route-config endpoint with the management header", async () => {
@@ -119,6 +120,44 @@ describe("console API", () => {
     expect(response.revisions).toHaveLength(1);
     expect(response.revisions[0].revision.id).toBe("r2-beadfeedcafe");
     expect(response.revisions[0].active).toBe(true);
+  });
+
+  it("loads revision details from the canonical console revisions detail path", async () => {
+    let observedToken: string | null = null;
+    server.use(
+      http.get(revisionDetailUrl, ({ request }) => {
+        observedToken = request.headers.get("x-management-token");
+        return HttpResponse.json({
+          routeConfig: {
+            revision: { id: "r2-beadfeedcafe", sequence: 2, message: "enable gpt-5.4 route" },
+            source: "archived",
+            diagnostics: null,
+            requiresRepair: false,
+            document: {
+              providers: [{ id: "managed-provider" }],
+              model_routes: [{ pattern: "gpt-5.4-preview" }],
+              aliases: { answer: "gpt-5.4-preview" },
+            },
+            secrets: [{ path: "/providers/0/api_key", configured: true, preview: "sk-***" }],
+            mutationSupported: true,
+          },
+          active: false,
+          hasArchive: true,
+        });
+      }),
+    );
+    const api = createConsoleApi(
+      createGatewayApiClient({
+        host: createBrowserHost(),
+      }),
+    );
+
+    const response = await api.getRouteConfigRevision("management-secret", "r2-beadfeedcafe");
+
+    expect(observedToken).toBe("management-secret");
+    expect(response.routeConfig.revision.id).toBe("r2-beadfeedcafe");
+    expect(response.active).toBe(false);
+    expect(response.hasArchive).toBe(true);
   });
 
   it("commits route-config updates through the canonical console path", async () => {

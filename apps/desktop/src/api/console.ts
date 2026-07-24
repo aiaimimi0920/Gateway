@@ -5,6 +5,7 @@ import type {
   ConsoleRouteConfigResponse,
   ConsoleRouteConfigValidationRequest,
   ConsoleRouteConfigValidationResponse,
+  ConsoleRouteRevisionDetailResponse,
   ConsoleRouteRevisionListResponse,
   ManagementSession,
   OperationSuccess,
@@ -16,6 +17,7 @@ import {
   consoleRouteConfigCommitResponseSchema,
   consoleRouteConfigResponseSchema,
   consoleRouteConfigValidationResponseSchema,
+  consoleRouteRevisionDetailResponseSchema,
   consoleRouteRevisionListResponseSchema,
   managementSessionSchema,
   operationSuccessSchema,
@@ -41,6 +43,10 @@ export type ConsoleApi = {
     draft: ConsoleRouteConfigCommitRequest,
   ): Promise<ConsoleRouteConfigCommitResponse>;
   listRouteConfigRevisions(managementToken: string): Promise<ConsoleRouteRevisionListResponse>;
+  getRouteConfigRevision(
+    managementToken: string,
+    revisionId: string,
+  ): Promise<ConsoleRouteRevisionDetailResponse>;
 };
 
 export function createConsoleApi(client: GatewayApiClient): ConsoleApi {
@@ -98,5 +104,13 @@ export function createConsoleApi(client: GatewayApiClient): ConsoleApi {
       client.request(`${CONSOLE_ROOT}/revisions`, consoleRouteRevisionListResponseSchema, {
         managementToken,
       }),
+    getRouteConfigRevision: (managementToken, revisionId) =>
+      client.request(
+        `${CONSOLE_ROOT}/revisions/${encodeURIComponent(revisionId)}`,
+        consoleRouteRevisionDetailResponseSchema,
+        {
+          managementToken,
+        },
+      ),
   };
 }

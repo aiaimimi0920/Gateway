@@ -110,6 +110,12 @@ export type ConsoleRouteRevisionListResponse = {
   revisions: ConsoleRouteRevisionListEntry[];
 };
 
+export type ConsoleRouteRevisionDetailResponse = {
+  routeConfig: ConsoleRouteConfigView;
+  active: boolean;
+  hasArchive: boolean;
+};
+
 export type ConsoleSecretPatch = {
   path: string;
   operation: "keep" | "replace" | "clear";

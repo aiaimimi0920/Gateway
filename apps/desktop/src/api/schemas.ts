@@ -5,6 +5,7 @@ import type {
   ConsoleRouteConfigCommitResponse,
   ConsoleRouteConfigResponse,
   ConsoleRouteConfigValidationResponse,
+  ConsoleRouteRevisionDetailResponse,
   ConsoleRouteRevisionListResponse,
   ManagementSession,
   OperationSuccess,
@@ -135,6 +136,13 @@ export const consoleRouteRevisionListResponseSchema: z.ZodType<ConsoleRouteRevis
         source: z.string().min(1),
       }),
     ),
+  });
+
+export const consoleRouteRevisionDetailResponseSchema: z.ZodType<ConsoleRouteRevisionDetailResponse> =
+  z.object({
+    routeConfig: consoleRouteConfigViewSchema,
+    active: z.boolean(),
+    hasArchive: z.boolean(),
   });
 
 export const publicHealthSchema: z.ZodType<PublicHealth> = z

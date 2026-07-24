@@ -11,8 +11,14 @@ import {
 } from "../../session/ManagementSessionProvider";
 import { BrowserConsoleApp } from "./BrowserConsoleApp";
 
-function sessionValue(): ManagementSessionContextValue {
-  return {
+type SessionOverrides = Omit<Partial<ManagementSessionContextValue>, "session"> & {
+  session?: Partial<NonNullable<ManagementSessionContextValue["session"]>> | null;
+};
+
+function sessionValue(
+  overrides: SessionOverrides = {},
+): ManagementSessionContextValue {
+  const base: ManagementSessionContextValue = {
     phase: "authenticated",
     bootstrapStatus: null,
     session: {
@@ -33,12 +39,28 @@ function sessionValue(): ManagementSessionContextValue {
     clearSecretGrant: () => undefined,
     retryInitialization: async () => undefined,
   };
+  const mergedSession =
+    overrides.session === null
+      ? null
+      : ({
+          ...base.session,
+          ...(overrides.session ?? {}),
+        } as NonNullable<ManagementSessionContextValue["session"]>);
+
+  return {
+    ...base,
+    ...overrides,
+    session: mergedSession,
+  };
 }
 
-function renderWithProviders(children: ReactNode) {
+function renderWithProviders(
+  children: ReactNode,
+  overrides: SessionOverrides = {},
+) {
   return render(
     <HostProvider adapter={createBrowserHost()}>
-      <ManagementSessionContext.Provider value={sessionValue()}>
+      <ManagementSessionContext.Provider value={sessionValue(overrides)}>
         {children}
       </ManagementSessionContext.Provider>
     </HostProvider>,
@@ -120,6 +142,27 @@ function createConsoleApi(): ConsoleApi {
         },
       ],
     }),
+    getRouteConfigRevision: vi.fn().mockResolvedValue({
+      routeConfig: {
+        revision: {
+          id: "r0-cafebabefeed",
+          sequence: 0,
+          message: "seed route",
+        },
+        source: "archived",
+        diagnostics: null,
+        requiresRepair: false,
+        document: {
+          providers: [{ id: "legacy-provider" }],
+          model_routes: [{ pattern: "gpt-4.1" }],
+          aliases: { answer: "gpt-4.1" },
+        },
+        secrets: [{ path: "/providers/0/api_key", configured: true, preview: "sk-***" }],
+        mutationSupported: true,
+      },
+      active: false,
+      hasArchive: true,
+    }),
   };
 }
 
@@ -189,6 +232,69 @@ describe("BrowserConsoleApp", () => {
             aliases: { answer: "gpt-5.4-mini" },
           }),
           secretPatches: [{ path: "/providers/0/api_key", operation: "keep" }],
+        }),
+      ),
+    );
+  });
+
+  it("loads archived revision details and copies them into the route editor", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /inspect revision r0-cafebabefeed/i }),
+      ).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: /inspect revision r0-cafebabefeed/i }));
+
+    await waitFor(() =>
+      expect(consoleApi.getRouteConfigRevision).toHaveBeenCalledWith(
+        "management-secret",
+        "r0-cafebabefeed",
+      ),
+    );
+    expect(screen.getByText("legacy-provider")).toBeInTheDocument();
+    expect(screen.getByText("gpt-4.1")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /load revision into editor/i }));
+
+    const editor = screen.getByRole("textbox", { name: /route document json/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"answer": "gpt-4.1"');
+  });
+
+  it("builds replace secret patches when secret access is already granted", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
+      session: { secretAccessGranted: true },
+      secretGrant: { grant: "short-lived-grant", expiresAt: "2099-01-01T00:00:00Z" },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /replace \/providers\/0\/api_key/i })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: /replace \/providers\/0\/api_key/i }));
+    await user.type(
+      screen.getByLabelText(/replacement for \/providers\/0\/api_key/i),
+      "sk-new-secret",
+    );
+
+    await user.click(screen.getByRole("button", { name: /validate draft/i }));
+    await waitFor(() =>
+      expect(consoleApi.validateRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          secretPatches: [
+            {
+              path: "/providers/0/api_key",
+              operation: "replace",
+              value: "sk-new-secret",
+            },
+          ],
         }),
       ),
     );

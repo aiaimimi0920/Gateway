@@ -7,8 +7,10 @@ import type {
   ConsoleRouteDocument,
   ConsoleSecretPatch,
   ConsoleRouteConfigResponse,
+  ConsoleRouteRevisionDetailResponse,
   ConsoleRouteRevisionListResponse,
 } from "../../api/contracts";
+import { SecretConfirmDialog } from "../auth/SecretConfirmDialog";
 import { useGatewayHost } from "../../platform/HostProvider";
 import { useManagementSession } from "../../session/useManagementSession";
 
@@ -53,13 +55,53 @@ function parseRouteDocument(text: string): ConsoleRouteDocument {
   return parsed;
 }
 
-function buildKeepSecretPatches(routeConfig: ConsoleRouteConfigResponse | null): ConsoleSecretPatch[] {
+type SecretPatchDraft = {
+  operation: ConsoleSecretPatch["operation"];
+  value: string;
+};
+
+function createSecretPatchDrafts(
+  routeConfig: ConsoleRouteConfigResponse | null,
+): Record<string, SecretPatchDraft> {
+  return Object.fromEntries(
+    (routeConfig?.routeConfig.secrets ?? [])
+      .filter((secret) => secret.path.trim().length > 0)
+      .map((secret) => [
+        secret.path,
+        {
+          operation: "keep" as const,
+          value: "",
+        },
+      ]),
+  );
+}
+
+function buildSecretPatches(
+  routeConfig: ConsoleRouteConfigResponse | null,
+  drafts: Record<string, SecretPatchDraft>,
+): ConsoleSecretPatch[] {
   return (routeConfig?.routeConfig.secrets ?? [])
     .filter((secret) => secret.path.trim().length > 0)
-    .map((secret) => ({
-      path: secret.path,
-      operation: "keep" as const,
-    }));
+    .map((secret) => {
+      const draft = drafts[secret.path];
+      if (draft?.operation === "replace") {
+        return {
+          path: secret.path,
+          operation: "replace" as const,
+          value: draft.value,
+        };
+      }
+      if (draft?.operation === "clear") {
+        return {
+          path: secret.path,
+          operation: "clear" as const,
+        };
+      }
+      return {
+        path: secret.path,
+        operation: "keep" as const,
+      };
+    });
 }
 
 function diagnosticsList(
@@ -82,6 +124,12 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const [commitMessage, setCommitMessage] = useState("");
   const [validation, setValidation] = useState<ConsoleRouteConfigValidationResponse | null>(null);
   const [actionBusy, setActionBusy] = useState<"validate" | "save" | null>(null);
+  const [selectedRevision, setSelectedRevision] = useState<ConsoleRouteRevisionDetailResponse | null>(
+    null,
+  );
+  const [revisionBusy, setRevisionBusy] = useState(false);
+  const [secretDrafts, setSecretDrafts] = useState<Record<string, SecretPatchDraft>>({});
+  const [secretDialogOpen, setSecretDialogOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!managementToken) {
@@ -98,6 +146,15 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       ]);
       setRouteConfig(nextRouteConfig);
       setRevisions(nextRevisions);
+      setSelectedRevision((current) =>
+        current?.routeConfig.revision.id === nextRouteConfig.routeConfig.revision.id
+          ? {
+              routeConfig: nextRouteConfig.routeConfig,
+              active: true,
+              hasArchive: current.hasArchive,
+            }
+          : current,
+      );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -111,26 +168,39 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     }
     setEditorText(JSON.stringify(routeConfig.routeConfig.document, null, 2));
     setCommitMessage(routeConfig.routeConfig.revision.message ?? "");
+    setSecretDrafts(createSecretPatchDrafts(routeConfig));
   }, [routeConfig?.routeConfig.revision.id]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  const secretPatches = useMemo(() => buildKeepSecretPatches(routeConfig), [routeConfig]);
+  const secretPatches = useMemo(
+    () => buildSecretPatches(routeConfig, secretDrafts),
+    [routeConfig, secretDrafts],
+  );
+  const hasSecretAccess = Boolean(session.session?.secretAccessGranted);
 
   const parseDraft = useCallback((): ConsoleRouteConfigCommitRequest => {
     if (!routeConfig) {
       throw new Error("Route configuration is not loaded yet.");
     }
     const message = commitMessage.trim();
+    for (const patch of secretPatches) {
+      if (patch.operation !== "keep" && !hasSecretAccess) {
+        throw new Error("Secret replacement or clearing requires confirmed secret access.");
+      }
+      if (patch.operation === "replace" && (!patch.value || patch.value.trim().length === 0)) {
+        throw new Error(`Replacement secret for ${patch.path} cannot be empty.`);
+      }
+    }
     return {
       expectedRevision: routeConfig.routeConfig.revision.id,
       document: parseRouteDocument(editorText),
       secretPatches,
       ...(message ? { message } : {}),
     };
-  }, [commitMessage, editorText, routeConfig, secretPatches]);
+  }, [commitMessage, editorText, hasSecretAccess, routeConfig, secretPatches]);
 
   const handleValidate = useCallback(async () => {
     if (!managementToken) {
@@ -173,6 +243,35 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       setActionBusy(null);
     }
   }, [api, managementToken, parseDraft, refresh]);
+
+  const handleInspectRevision = useCallback(
+    async (revisionId: string) => {
+      if (!managementToken) {
+        setError("Gateway management token is unavailable.");
+        return;
+      }
+      setRevisionBusy(true);
+      setError(null);
+      try {
+        const detail = await api.getRouteConfigRevision(managementToken, revisionId);
+        setSelectedRevision(detail);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+      } finally {
+        setRevisionBusy(false);
+      }
+    },
+    [api, managementToken],
+  );
+
+  const loadSelectedRevisionIntoEditor = useCallback(() => {
+    if (!selectedRevision) {
+      return;
+    }
+    setEditorText(JSON.stringify(selectedRevision.routeConfig.document, null, 2));
+    setCommitMessage(selectedRevision.routeConfig.revision.message ?? "");
+    setValidation(null);
+  }, [selectedRevision]);
 
   const validationDiagnostics = diagnosticsList(validation);
   const mutationSupported = routeConfig?.routeConfig.mutationSupported ?? false;
@@ -338,16 +437,120 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
               </div>
               {secretPatches.length > 0 ? (
                 <ul className="nt-simple-list">
-                  {secretPatches.map((patch) => (
-                    <li key={patch.path}>
-                      <strong>{patch.path}</strong>
-                      <span>{patch.operation}</span>
-                    </li>
-                  ))}
+                  {routeConfig.routeConfig.secrets.map((secret) => {
+                    const draft = secretDrafts[secret.path] ?? {
+                      operation: "keep" as const,
+                      value: "",
+                    };
+                    return (
+                      <li key={secret.path}>
+                        <div className="nt-stack">
+                          <div>
+                            <strong>{secret.path}</strong>
+                            <span>
+                              {secret.preview ??
+                                (secret.configured ? "configured" : "not configured")}
+                            </span>
+                          </div>
+                          <div className="nt-actions">
+                            <button
+                              className={`nt-btn${draft.operation === "keep" ? " nt-btn--primary" : " nt-btn--outline"}`}
+                              type="button"
+                              aria-pressed={draft.operation === "keep"}
+                              onClick={() =>
+                                setSecretDrafts((current) => ({
+                                  ...current,
+                                  [secret.path]: { operation: "keep", value: "" },
+                                }))
+                              }
+                            >
+                              Keep {secret.path}
+                            </button>
+                            <button
+                              className={`nt-btn${draft.operation === "replace" ? " nt-btn--primary" : " nt-btn--outline"}`}
+                              type="button"
+                              aria-pressed={draft.operation === "replace"}
+                              disabled={!hasSecretAccess}
+                              onClick={() =>
+                                setSecretDrafts((current) => ({
+                                  ...current,
+                                  [secret.path]: {
+                                    operation: "replace",
+                                    value: current[secret.path]?.value ?? "",
+                                  },
+                                }))
+                              }
+                            >
+                              Replace {secret.path}
+                            </button>
+                            <button
+                              className={`nt-btn${draft.operation === "clear" ? " nt-btn--primary" : " nt-btn--outline"}`}
+                              type="button"
+                              aria-pressed={draft.operation === "clear"}
+                              disabled={!hasSecretAccess}
+                              onClick={() =>
+                                setSecretDrafts((current) => ({
+                                  ...current,
+                                  [secret.path]: { operation: "clear", value: "" },
+                                }))
+                              }
+                            >
+                              Clear {secret.path}
+                            </button>
+                          </div>
+                          {draft.operation === "replace" ? (
+                            <label className="nt-field nt-field--wide">
+                              <span>Replacement for {secret.path}</span>
+                              <input
+                                className="nt-input"
+                                type="password"
+                                autoComplete="off"
+                                value={draft.value}
+                                onChange={(event) => {
+                                  const { value } = event.currentTarget;
+                                  setSecretDrafts((current) => ({
+                                    ...current,
+                                    [secret.path]: {
+                                      operation: "replace",
+                                      value,
+                                    },
+                                  }));
+                                }}
+                              />
+                            </label>
+                          ) : null}
+                          <span>{draft.operation}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="nt-empty">当前配置没有需要保留的已登记敏感字段。</p>
               )}
+              {secretPatches.length > 0 ? (
+                hasSecretAccess ? (
+                  <div className="nt-validation-list nt-validation-list--warning">
+                    <strong>Secret access active</strong>
+                    <ul>
+                      <li>
+                        当前会话已获得短时 secret grant，可执行 replace / clear 操作。
+                      </li>
+                      <li>Grant expires at: {session.secretGrant?.expiresAt ?? "unknown"}</li>
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="nt-actions">
+                    <button
+                      className="nt-btn nt-btn--outline"
+                      type="button"
+                      onClick={() => setSecretDialogOpen(true)}
+                    >
+                      Confirm secret access
+                    </button>
+                  </div>
+                )
+              ) : null}
 
               {!mutationSupported ? (
                 <div className="nt-validation-list nt-validation-list--warning">
@@ -398,14 +601,91 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                       <strong>{entry.revision.id}</strong>
                       <span>{entry.revision.message ?? "no message"}</span>
                     </div>
-                    <span>{entry.active ? "ACTIVE" : entry.source}</span>
+                    <div className="nt-actions nt-actions--right">
+                      <span>{entry.active ? "ACTIVE" : entry.source}</span>
+                      <button
+                        className="nt-btn nt-btn--outline"
+                        type="button"
+                        disabled={revisionBusy}
+                        onClick={() => void handleInspectRevision(entry.revision.id)}
+                      >
+                        Inspect revision {entry.revision.id}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
+              {selectedRevision ? (
+                <div className="nt-stack" aria-label="Selected revision detail">
+                  <h3>Revision detail</h3>
+                  <dl className="nt-meta-list">
+                    <div>
+                      <dt>Revision</dt>
+                      <dd>{selectedRevision.routeConfig.revision.id}</dd>
+                    </div>
+                    <div>
+                      <dt>Source</dt>
+                      <dd>{selectedRevision.routeConfig.source}</dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>{selectedRevision.active ? "active" : "archived"}</dd>
+                    </div>
+                    <div>
+                      <dt>Archive</dt>
+                      <dd>{selectedRevision.hasArchive ? "available" : "not stored"}</dd>
+                    </div>
+                  </dl>
+                  <h4>Aliases</h4>
+                  <ul className="nt-simple-list">
+                    {Object.entries(selectedRevision.routeConfig.document.aliases).map(
+                      ([alias, model]) => (
+                        <li key={`${selectedRevision.routeConfig.revision.id}:${alias}`}>
+                          <strong>{alias}</strong>
+                          <span>{model}</span>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                  <h4>Providers</h4>
+                  <ul className="nt-simple-list">
+                    {selectedRevision.routeConfig.document.providers.map((provider, index) => {
+                      const providerId =
+                        typeof provider === "object" &&
+                        provider !== null &&
+                        "id" in provider &&
+                        typeof provider.id === "string"
+                          ? provider.id
+                          : `provider-${index}`;
+                      return <li key={`${selectedRevision.routeConfig.revision.id}:${providerId}`}>{providerId}</li>;
+                    })}
+                  </ul>
+                  <div className="nt-actions nt-actions--right">
+                    <button
+                      className="nt-btn nt-btn--secondary"
+                      type="button"
+                      onClick={loadSelectedRevisionIntoEditor}
+                    >
+                      Load revision into editor
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="nt-empty">
+                  选择任意 revision 可查看归档详情，并将历史配置直接装载到编辑器中。
+                </p>
+              )}
             </article>
           </section>
         </>
       ) : null}
+      <SecretConfirmDialog
+        open={secretDialogOpen}
+        busy={session.busy}
+        error={session.error}
+        onOpenChange={setSecretDialogOpen}
+        onConfirm={session.confirmSecretAccess}
+      />
     </main>
   );
 }
