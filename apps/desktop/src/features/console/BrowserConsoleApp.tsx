@@ -61,6 +61,12 @@ type SecretPatchDraft = {
   value: string;
 };
 
+type AliasDraftRow = {
+  id: string;
+  alias: string;
+  model: string;
+};
+
 type RouteDocumentDiff = {
   activeAliasCount: number;
   selectedAliasCount: number;
@@ -198,6 +204,20 @@ function formatRouteDocument(document: ConsoleRouteDocument): string {
   return JSON.stringify(document, null, 2);
 }
 
+function createAliasDraftRow(alias = "", model = ""): AliasDraftRow {
+  return {
+    id: `alias-${Math.random().toString(36).slice(2, 10)}`,
+    alias,
+    model,
+  };
+}
+
+function aliasDraftRowsFromDocument(document: ConsoleRouteDocument): AliasDraftRow[] {
+  return Object.entries(document.aliases).map(([alias, model]) =>
+    createAliasDraftRow(alias, model),
+  );
+}
+
 export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const host = useGatewayHost();
   const session = useManagementSession();
@@ -220,6 +240,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const [secretDialogOpen, setSecretDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [aliasDraftRows, setAliasDraftRows] = useState<AliasDraftRow[]>([]);
 
   const refresh = useCallback(async () => {
     if (!managementToken) {
@@ -259,6 +280,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     setEditorText(JSON.stringify(routeConfig.routeConfig.document, null, 2));
     setCommitMessage(routeConfig.routeConfig.revision.message ?? "");
     setSecretDrafts(createSecretPatchDrafts(routeConfig));
+    setAliasDraftRows(aliasDraftRowsFromDocument(routeConfig.routeConfig.document));
   }, [routeConfig?.routeConfig.revision.id]);
 
   useEffect(() => {
@@ -357,6 +379,63 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     return buildCommitRequest(parseRouteDocument(editorText));
   }, [buildCommitRequest, editorText]);
 
+  const replaceEditorDocument = useCallback(
+    (document: ConsoleRouteDocument, syncAliasRows = false) => {
+      setEditorText(formatRouteDocument(document));
+      setValidation(null);
+      if (syncAliasRows) {
+        setAliasDraftRows(aliasDraftRowsFromDocument(document));
+      }
+    },
+    [],
+  );
+
+  const applyAliasDraftRows = useCallback(
+    (nextRows: AliasDraftRow[]) => {
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError("Fix Route document JSON before using the structured alias editor.");
+        return;
+      }
+      setError((current) =>
+        current === "Fix Route document JSON before using the structured alias editor."
+          ? null
+          : current,
+      );
+      const aliases = Object.fromEntries(
+        nextRows
+          .filter((row) => row.alias.trim().length > 0)
+          .map((row) => [row.alias.trim(), row.model.trim()]),
+      );
+      document.aliases = aliases;
+      setAliasDraftRows(nextRows);
+      replaceEditorDocument(document);
+    },
+    [editorText, replaceEditorDocument],
+  );
+
+  const addAliasRow = useCallback(() => {
+    applyAliasDraftRows([...aliasDraftRows, createAliasDraftRow()]);
+  }, [aliasDraftRows, applyAliasDraftRows]);
+
+  const updateAliasRow = useCallback(
+    (rowId: string, field: "alias" | "model", value: string) => {
+      applyAliasDraftRows(
+        aliasDraftRows.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)),
+      );
+    },
+    [aliasDraftRows, applyAliasDraftRows],
+  );
+
+  const removeAliasRow = useCallback(
+    (rowId: string) => {
+      applyAliasDraftRows(aliasDraftRows.filter((row) => row.id !== rowId));
+    },
+    [aliasDraftRows, applyAliasDraftRows],
+  );
+
   const handleValidate = useCallback(async () => {
     if (!managementToken) {
       setError("Gateway management token is unavailable.");
@@ -414,8 +493,8 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       setError(null);
       setSuccessMessage(null);
       try {
-        const detail = await api.getRouteConfigRevision(managementToken, revisionId);
-        setSelectedRevision(detail);
+      const detail = await api.getRouteConfigRevision(managementToken, revisionId);
+      setSelectedRevision(detail);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       } finally {
@@ -429,10 +508,9 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     if (!selectedRevision) {
       return;
     }
-    setEditorText(JSON.stringify(selectedRevision.routeConfig.document, null, 2));
+    replaceEditorDocument(selectedRevision.routeConfig.document, true);
     setCommitMessage(selectedRevision.routeConfig.revision.message ?? "");
-    setValidation(null);
-  }, [selectedRevision]);
+  }, [replaceEditorDocument, selectedRevision]);
 
   const handleRestoreSelectedRevision = useCallback(async () => {
     if (!managementToken) {
@@ -451,7 +529,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       const result = await api.commitRouteConfig(managementToken, draft);
       setRouteConfig({ routeConfig: result.routeConfig });
       setValidation(null);
-      setEditorText(JSON.stringify(selectedRevision.routeConfig.document, null, 2));
+      replaceEditorDocument(selectedRevision.routeConfig.document, true);
       setCommitMessage(restoreCommitMessage);
       setSuccessMessage(
         `Restored revision ${selectedRevision.routeConfig.revision.id} as active revision ${result.routeConfig.revision.id}.`,
@@ -463,7 +541,15 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     } finally {
       setActionBusy(null);
     }
-  }, [api, buildCommitRequest, managementToken, refresh, restoreCommitMessage, selectedRevision]);
+  }, [
+    api,
+    buildCommitRequest,
+    managementToken,
+    refresh,
+    replaceEditorDocument,
+    restoreCommitMessage,
+    selectedRevision,
+  ]);
 
   const validationDiagnostics = diagnosticsList(validation);
   const mutationSupported = routeConfig?.routeConfig.mutationSupported ?? false;
@@ -621,6 +707,59 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                 />
               </label>
 
+              <div className="nt-stack" aria-label="Structured alias editor">
+                <div className="nt-section__head">
+                  <div>
+                    <p className="nt-kicker">// Alias editor</p>
+                    <h3>结构化 Alias 编辑</h3>
+                  </div>
+                  <div className="nt-actions">
+                    <button className="nt-btn nt-btn--secondary" type="button" onClick={addAliasRow}>
+                      Add alias row
+                    </button>
+                  </div>
+                </div>
+                {aliasDraftRows.length > 0 ? (
+                  <div className="nt-stack">
+                    {aliasDraftRows.map((row, index) => (
+                      <div className="nt-form-grid" key={row.id}>
+                        <label className="nt-field">
+                          <span>Alias name {index + 1}</span>
+                          <input
+                            className="nt-input"
+                            value={row.alias}
+                            onChange={(event) =>
+                              updateAliasRow(row.id, "alias", event.currentTarget.value)
+                            }
+                          />
+                        </label>
+                        <label className="nt-field nt-field--wide">
+                          <span>Alias target {index + 1}</span>
+                          <input
+                            className="nt-input"
+                            value={row.model}
+                            onChange={(event) =>
+                              updateAliasRow(row.id, "model", event.currentTarget.value)
+                            }
+                          />
+                        </label>
+                        <div className="nt-actions nt-actions--right">
+                          <button
+                            className="nt-btn nt-btn--outline"
+                            type="button"
+                            onClick={() => removeAliasRow(row.id)}
+                          >
+                            Remove alias row {index + 1}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="nt-empty">当前还没有 alias。可以直接添加结构化 alias 行。</p>
+                )}
+              </div>
+
               <label className="nt-field nt-field--wide">
                 <span>Route document JSON</span>
                 <textarea
@@ -628,10 +767,17 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                   value={editorText}
                   spellCheck={false}
                   onChange={(event) => {
-                    setEditorText(event.currentTarget.value);
+                    const nextText = event.currentTarget.value;
+                    setEditorText(nextText);
                     setValidation(null);
                     if (error?.startsWith("Route document JSON")) {
                       setError(null);
+                    }
+                    try {
+                      const document = parseRouteDocument(nextText);
+                      setAliasDraftRows(aliasDraftRowsFromDocument(document));
+                    } catch {
+                      // Keep the last structured alias snapshot until the JSON becomes valid again.
                     }
                   }}
                 />

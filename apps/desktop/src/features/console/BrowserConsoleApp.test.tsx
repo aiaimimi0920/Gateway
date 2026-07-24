@@ -379,4 +379,38 @@ describe("BrowserConsoleApp", () => {
       ),
     );
   });
+
+  it("updates aliases through the structured alias editor and keeps the JSON draft in sync", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /add alias row/i })).toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: /add alias row/i }));
+    await user.type(screen.getByLabelText(/alias name 2/i), "fast");
+    await user.type(screen.getByLabelText(/alias target 2/i), "gpt-5.4-mini");
+
+    const editor = screen.getByRole("textbox", { name: /route document json/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"fast": "gpt-5.4-mini"');
+
+    await user.click(screen.getByRole("button", { name: /save route config/i }));
+
+    await waitFor(() =>
+      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          document: expect.objectContaining({
+            aliases: {
+              answer: "gpt-5.4",
+              fast: "gpt-5.4-mini",
+            },
+          }),
+        }),
+      ),
+    );
+  });
 });
