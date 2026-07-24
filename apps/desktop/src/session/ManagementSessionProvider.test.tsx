@@ -46,6 +46,28 @@ function createApi(overrides: Partial<ConsoleApi> = {}): ConsoleApi {
     }),
     rotateSession: vi.fn().mockResolvedValue({ success: true }),
     logout: vi.fn().mockResolvedValue({ success: true }),
+    getRouteConfig: vi.fn().mockResolvedValue({
+      routeConfig: {
+        revision: { id: "r1-deadbeef", sequence: 1 },
+        source: "redis",
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: { providers: [], model_routes: [], aliases: {} },
+        secrets: [],
+        mutationSupported: true,
+      },
+    }),
+    validateRouteConfig: vi.fn().mockResolvedValue({
+      validation: {
+        document: { providers: [], model_routes: [], aliases: {} },
+        secrets: [],
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+      },
+    }),
+    listRouteConfigRevisions: vi.fn().mockResolvedValue({
+      revisions: [],
+    }),
     ...overrides,
   };
 }

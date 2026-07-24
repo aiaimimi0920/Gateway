@@ -1,5 +1,8 @@
 import type {
   BootstrapStatus,
+  ConsoleRouteConfigResponse,
+  ConsoleRouteConfigValidationResponse,
+  ConsoleRouteRevisionListResponse,
   ManagementSession,
   OperationSuccess,
   SecretGrant,
@@ -7,6 +10,9 @@ import type {
 import type { GatewayApiClient } from "./client";
 import {
   bootstrapStatusSchema,
+  consoleRouteConfigResponseSchema,
+  consoleRouteConfigValidationResponseSchema,
+  consoleRouteRevisionListResponseSchema,
   managementSessionSchema,
   operationSuccessSchema,
   secretGrantSchema,
@@ -21,6 +27,15 @@ export type ConsoleApi = {
   confirmSecretAccess(managementToken: string, confirmationToken: string): Promise<SecretGrant>;
   rotateSession(currentToken: string, newToken: string): Promise<OperationSuccess>;
   logout(token: string): Promise<OperationSuccess>;
+  getRouteConfig(managementToken: string): Promise<ConsoleRouteConfigResponse>;
+  validateRouteConfig(
+    managementToken: string,
+    draft: {
+      document: Record<string, unknown>;
+      secretPatches: Array<Record<string, unknown>>;
+    },
+  ): Promise<ConsoleRouteConfigValidationResponse>;
+  listRouteConfigRevisions(managementToken: string): Promise<ConsoleRouteRevisionListResponse>;
 };
 
 export function createConsoleApi(client: GatewayApiClient): ConsoleApi {
@@ -53,6 +68,24 @@ export function createConsoleApi(client: GatewayApiClient): ConsoleApi {
       client.request(`${CONSOLE_ROOT}/session/logout`, operationSuccessSchema, {
         method: "POST",
         managementToken: token,
+      }),
+    getRouteConfig: (managementToken) =>
+      client.request(`${CONSOLE_ROOT}/route-config`, consoleRouteConfigResponseSchema, {
+        managementToken,
+      }),
+    validateRouteConfig: (managementToken, draft) =>
+      client.request(
+        `${CONSOLE_ROOT}/route-config/validate`,
+        consoleRouteConfigValidationResponseSchema,
+        {
+          method: "POST",
+          managementToken,
+          body: draft,
+        },
+      ),
+    listRouteConfigRevisions: (managementToken) =>
+      client.request(`${CONSOLE_ROOT}/revisions`, consoleRouteRevisionListResponseSchema, {
+        managementToken,
       }),
   };
 }

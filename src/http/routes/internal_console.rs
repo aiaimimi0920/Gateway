@@ -1,11 +1,16 @@
 use std::sync::Arc;
 
 use axum::extract::{Path, State};
-use axum::http::HeaderMap;
+use axum::http::{
+    header::{CACHE_CONTROL, ETAG, IF_MATCH},
+    HeaderMap, HeaderValue,
+};
+use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::console::document::validate_route_document;
 use crate::console::secrets::{redact_route_document, resolve_secret_patches, SecretPatch};
 use crate::console::{RouteConfigCoordinator, RouteConfigRuntimeError, StoredRouteRevision};
 use crate::error::GatewayError;
@@ -26,15 +31,27 @@ pub struct CommitRouteConfigRequest {
     pub message: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidateRouteConfigRequest {
+    pub document: RouteConfigYaml,
+    #[serde(default)]
+    pub secret_patches: Vec<SecretPatch>,
+}
+
 pub async fn get_route_config(
     State(state): State<Arc<AppState>>,
     OptionalBearerToken(token): OptionalBearerToken,
     headers: HeaderMap,
-) -> Result<Json<Value>, GatewayError> {
+) -> Result<Response, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    Ok(Json(serde_json::json!({
-        "routeConfig": route_config_payload(state.as_ref(), &state.route_config.snapshot())?
-    })))
+    let snapshot = state.route_config.snapshot();
+    Ok(json_with_no_store_and_etag(
+        serde_json::json!({
+            "routeConfig": route_config_payload(state.as_ref(), &snapshot)?
+        }),
+        snapshot.revision().id(),
+    ))
 }
 
 pub async fn commit_route_config(
@@ -42,8 +59,9 @@ pub async fn commit_route_config(
     OptionalBearerToken(token): OptionalBearerToken,
     headers: HeaderMap,
     Json(body): Json<CommitRouteConfigRequest>,
-) -> Result<Json<Value>, GatewayError> {
+) -> Result<Response, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
+    assert_if_match_consistent(&headers, &body.expected_revision)?;
     let runtime = state.route_config_runtime.as_ref().ok_or_else(|| {
         GatewayError::service_unavailable(
             "Gateway console runtime is not configured for route mutations",
@@ -61,9 +79,37 @@ pub async fn commit_route_config(
         .commit_document(&body.expected_revision, candidate, body.message)
         .await
         .map_err(runtime_error_to_gateway_error)?;
-    Ok(Json(serde_json::json!({
+    Ok(json_with_no_store(serde_json::json!({
         "routeConfig": route_config_payload(state.as_ref(), &snapshot)?,
         "committed": true
+    })))
+}
+
+pub async fn validate_route_config(
+    State(state): State<Arc<AppState>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<ValidateRouteConfigRequest>,
+) -> Result<Response, GatewayError> {
+    assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
+    let active = state.route_config.snapshot();
+    let candidate = resolve_secret_patches(active.document(), body.document, &body.secret_patches)
+        .map_err(secret_patch_to_gateway_error)?;
+    let validated = validate_route_document(candidate).map_err(|diagnostics| {
+        let mut error = GatewayError::bad_request(diagnostics.to_string())
+            .with_code("console_route_validation_failed");
+        error.http_status = Some(422);
+        error
+    })?;
+    let redacted =
+        redact_route_document(validated.document()).map_err(secret_patch_to_gateway_error)?;
+    Ok(json_with_no_store(serde_json::json!({
+        "validation": {
+            "document": redacted.document,
+            "secrets": redacted.secrets,
+            "diagnostics": validated.diagnostics(),
+            "requiresRepair": validated.diagnostics().requires_repair(),
+        }
     })))
 }
 
@@ -71,7 +117,7 @@ pub async fn list_route_config_revisions(
     State(state): State<Arc<AppState>>,
     OptionalBearerToken(token): OptionalBearerToken,
     headers: HeaderMap,
-) -> Result<Json<Value>, GatewayError> {
+) -> Result<Response, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     let coordinator = route_config_coordinator(state.as_ref())?;
     let active = state.route_config.snapshot();
@@ -88,7 +134,9 @@ pub async fn list_route_config_revisions(
     {
         revisions.insert(0, current_revision_summary_payload(active.as_ref(), false));
     }
-    Ok(Json(serde_json::json!({ "revisions": revisions })))
+    Ok(json_with_no_store(
+        serde_json::json!({ "revisions": revisions }),
+    ))
 }
 
 pub async fn get_route_config_revision(
@@ -96,7 +144,7 @@ pub async fn get_route_config_revision(
     Path(revision_id): Path<String>,
     OptionalBearerToken(token): OptionalBearerToken,
     headers: HeaderMap,
-) -> Result<Json<Value>, GatewayError> {
+) -> Result<Response, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     let coordinator = route_config_coordinator(state.as_ref())?;
     let active = state.route_config.snapshot();
@@ -105,11 +153,14 @@ pub async fn get_route_config_revision(
             .load_revision(&revision_id)
             .map_err(runtime_error_to_gateway_error)?
             .is_some();
-        return Ok(Json(serde_json::json!({
-            "routeConfig": route_config_payload(state.as_ref(), &active)?,
-            "active": true,
-            "hasArchive": has_archive,
-        })));
+        return Ok(json_with_no_store_and_etag(
+            serde_json::json!({
+                "routeConfig": route_config_payload(state.as_ref(), &active)?,
+                "active": true,
+                "hasArchive": has_archive,
+            }),
+            active.revision().id(),
+        ));
     }
 
     let stored = coordinator
@@ -122,11 +173,14 @@ pub async fn get_route_config_revision(
             ))
             .with_code("console_revision_not_found")
         })?;
-    Ok(Json(serde_json::json!({
-        "routeConfig": archived_route_config_payload(state.as_ref(), &stored)?,
-        "active": false,
-        "hasArchive": true,
-    })))
+    Ok(json_with_no_store_and_etag(
+        serde_json::json!({
+            "routeConfig": archived_route_config_payload(state.as_ref(), &stored)?,
+            "active": false,
+            "hasArchive": true,
+        }),
+        stored.metadata().id(),
+    ))
 }
 
 fn route_config_payload(
@@ -206,6 +260,41 @@ fn route_config_coordinator(state: &AppState) -> Result<&RouteConfigCoordinator,
         })
 }
 
+fn json_with_no_store(value: Value) -> Response {
+    let mut response = Json(value).into_response();
+    response
+        .headers_mut()
+        .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
+fn json_with_no_store_and_etag(value: Value, revision_id: &str) -> Response {
+    let mut response = json_with_no_store(value);
+    response.headers_mut().insert(
+        ETAG,
+        HeaderValue::from_str(&format!("\"{revision_id}\"")).expect("valid revision etag"),
+    );
+    response
+}
+
+fn assert_if_match_consistent(
+    headers: &HeaderMap,
+    expected_revision: &str,
+) -> Result<(), GatewayError> {
+    let Some(if_match) = headers.get(IF_MATCH).and_then(|value| value.to_str().ok()) else {
+        return Ok(());
+    };
+    let if_match = if_match.trim().trim_matches('"');
+    if if_match.is_empty() || if_match == expected_revision {
+        return Ok(());
+    }
+    Err(GatewayError::bad_request(format!(
+        "If-Match revision '{}' does not match expectedRevision '{}'",
+        if_match, expected_revision
+    ))
+    .with_code("console_if_match_mismatch"))
+}
+
 fn active_source_name(source: ActiveConfigSource) -> &'static str {
     match source {
         ActiveConfigSource::Yaml => "yaml",
@@ -216,7 +305,14 @@ fn active_source_name(source: ActiveConfigSource) -> &'static str {
 }
 
 fn secret_patch_to_gateway_error(error: crate::console::secrets::SecretPatchError) -> GatewayError {
-    GatewayError::bad_request(error.to_string()).with_code(error.code())
+    let mut gateway_error = GatewayError::bad_request(error.to_string()).with_code(error.code());
+    if matches!(
+        error.code(),
+        "secret_mask_sentinel_rejected" | "secret_value_must_use_patch"
+    ) {
+        gateway_error.http_status = Some(422);
+    }
+    gateway_error
 }
 
 fn runtime_error_to_gateway_error(error: RouteConfigRuntimeError) -> GatewayError {

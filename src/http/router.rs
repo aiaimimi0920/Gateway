@@ -597,11 +597,27 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             get(internal_console::get_route_config).post(internal_console::commit_route_config),
         )
         .route(
+            "/v1/internal/gateway/console/route-config",
+            get(internal_console::get_route_config).put(internal_console::commit_route_config),
+        )
+        .route(
+            "/v1/internal/gateway/console/route-config/validate",
+            post(internal_console::validate_route_config),
+        )
+        .route(
             "/v1/internal/gateway/route-config/revisions",
             get(internal_console::list_route_config_revisions),
         )
         .route(
             "/v1/internal/gateway/route-config/revisions/:revision_id",
+            get(internal_console::get_route_config_revision),
+        )
+        .route(
+            "/v1/internal/gateway/console/revisions",
+            get(internal_console::list_route_config_revisions),
+        )
+        .route(
+            "/v1/internal/gateway/console/revisions/:revision_id",
             get(internal_console::get_route_config_revision),
         )
         .route(

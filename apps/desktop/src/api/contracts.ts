@@ -21,6 +21,81 @@ export type OperationSuccess = {
   message?: string;
 };
 
+export type ConsoleRevisionMetadata = {
+  id: string;
+  sequence: number;
+  parent?: string | null;
+  actor?: string;
+  timestamp?: string;
+  documentDigest?: string;
+  yamlDigest?: string;
+  message?: string | null;
+};
+
+export type ConsoleSecretDescriptor = {
+  path: string;
+  kind?: string;
+  configured?: boolean;
+  preview?: string | null;
+  fingerprint?: string | null;
+  [key: string]: unknown;
+};
+
+export type ConsoleRouteDocument = {
+  providers: unknown[];
+  model_routes: unknown[];
+  aliases: Record<string, string>;
+  [key: string]: unknown;
+};
+
+export type ConsoleRouteConfigView = {
+  revision: ConsoleRevisionMetadata;
+  source: string;
+  diagnostics: {
+    diagnostics: Array<{
+      code: string;
+      severity: string;
+      path: string;
+      message: string;
+    }>;
+  } | null;
+  requiresRepair: boolean;
+  document: ConsoleRouteDocument;
+  secrets: ConsoleSecretDescriptor[];
+  mutationSupported: boolean;
+};
+
+export type ConsoleRouteConfigResponse = {
+  routeConfig: ConsoleRouteConfigView;
+};
+
+export type ConsoleRouteConfigValidationResponse = {
+  validation: {
+    document: ConsoleRouteDocument;
+    secrets: ConsoleSecretDescriptor[];
+    diagnostics: {
+      diagnostics: Array<{
+        code: string;
+        severity: string;
+        path: string;
+        message: string;
+      }>;
+    };
+    requiresRepair: boolean;
+  };
+};
+
+export type ConsoleRouteRevisionListEntry = {
+  revision: ConsoleRevisionMetadata;
+  active: boolean;
+  hasArchive: boolean;
+  source: string;
+};
+
+export type ConsoleRouteRevisionListResponse = {
+  revisions: ConsoleRouteRevisionListEntry[];
+};
+
 export type ConsoleEvent = {
   id: string;
   kind: string;

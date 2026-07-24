@@ -150,6 +150,44 @@ async fn route_config_management_route_returns_redacted_active_document() {
 }
 
 #[tokio::test]
+async fn route_config_console_alias_returns_no_store_and_etag() {
+    let fixture = ConsoleStateFixture::new(document("managed", "old-model", "live-secret"), true);
+    let revision_id = fixture
+        .state
+        .route_config
+        .snapshot()
+        .revision()
+        .id()
+        .to_string();
+
+    let response = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::get("/v1/internal/gateway/console/route-config")
+                .header("x-management-token", MANAGEMENT_TOKEN)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get("cache-control")
+            .and_then(|value| value.to_str().ok()),
+        Some("no-store")
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get("etag")
+            .and_then(|value| value.to_str().ok()),
+        Some(format!("\"{revision_id}\"").as_str())
+    );
+}
+
+#[tokio::test]
 async fn route_config_management_commit_applies_secret_patches_and_updates_runtime() {
     let active = document("managed", "old-model", "live-secret");
     let fixture = ConsoleStateFixture::new(active.clone(), true);
@@ -205,6 +243,49 @@ async fn route_config_management_commit_applies_secret_patches_and_updates_runti
     assert_eq!(
         fixture.state.route_config.snapshot().source(),
         neuro_gateway::routing::config::ActiveConfigSource::Redis
+    );
+}
+
+#[tokio::test]
+async fn route_config_console_validate_returns_redacted_candidate_document() {
+    let active = document("managed", "old-model", "live-secret");
+    let fixture = ConsoleStateFixture::new(active.clone(), true);
+    let mut draft = redact_route_document(&active).unwrap().document;
+    draft.providers[0].supported_models = vec!["candidate-model".to_string()];
+    draft.model_routes[0].pattern = "candidate-model".to_string();
+    draft
+        .aliases
+        .insert("answer".to_string(), "candidate-model".to_string());
+
+    let response = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::post("/v1/internal/gateway/console/route-config/validate")
+                .header("x-management-token", MANAGEMENT_TOKEN)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "document": draft,
+                        "secretPatches": [
+                            { "path": "/providers/0/api_key", "operation": "keep" }
+                        ]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json(response).await;
+    assert_eq!(
+        body["validation"]["document"]["aliases"]["answer"].as_str(),
+        Some("candidate-model")
+    );
+    assert_eq!(body["validation"]["requiresRepair"], false);
+    assert_ne!(
+        body["validation"]["document"]["providers"][0]["api_key"].as_str(),
+        Some("live-secret")
     );
 }
 
@@ -271,6 +352,51 @@ async fn route_config_management_commit_reports_runtime_unavailable_when_not_con
     assert_eq!(
         body["error"]["code"].as_str(),
         Some("console_runtime_unavailable")
+    );
+}
+
+#[tokio::test]
+async fn route_config_console_put_rejects_if_match_mismatch() {
+    let active = document("managed", "old-model", "live-secret");
+    let fixture = ConsoleStateFixture::new(active.clone(), true);
+    let current_revision = fixture
+        .state
+        .route_config
+        .snapshot()
+        .revision()
+        .id()
+        .to_string();
+    let mut draft = redact_route_document(&active).unwrap().document;
+    draft
+        .aliases
+        .insert("answer".to_string(), "new-model".to_string());
+
+    let response = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::put("/v1/internal/gateway/console/route-config")
+                .header("x-management-token", MANAGEMENT_TOKEN)
+                .header("if-match", "\"r99-deadbeefcafe\"")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "expectedRevision": current_revision,
+                        "document": draft,
+                        "secretPatches": [
+                            { "path": "/providers/0/api_key", "operation": "keep" }
+                        ]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = parse_json(response).await;
+    assert_eq!(
+        body["error"]["code"].as_str(),
+        Some("console_if_match_mismatch")
     );
 }
 
