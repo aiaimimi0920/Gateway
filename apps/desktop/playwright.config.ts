@@ -7,7 +7,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: "list",
   use: {
-    baseURL: process.env.GATEWAY_UI_BASE_URL ?? "http://127.0.0.1:4200/ui/",
+    baseURL: process.env.GATEWAY_UI_BASE_URL ?? "http://127.0.0.1:1425/ui/",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
