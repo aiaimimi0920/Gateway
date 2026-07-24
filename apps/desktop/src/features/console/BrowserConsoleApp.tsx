@@ -67,6 +67,12 @@ type AliasDraftRow = {
   model: string;
 };
 
+type ModelRouteDraftRow = {
+  id: string;
+  pattern: string;
+  route: Record<string, unknown>;
+};
+
 type RouteDocumentDiff = {
   activeAliasCount: number;
   selectedAliasCount: number;
@@ -218,6 +224,33 @@ function aliasDraftRowsFromDocument(document: ConsoleRouteDocument): AliasDraftR
   );
 }
 
+function createModelRouteDraftRow(
+  pattern = "",
+  route: Record<string, unknown> = {},
+): ModelRouteDraftRow {
+  return {
+    id: `route-${Math.random().toString(36).slice(2, 10)}`,
+    pattern,
+    route,
+  };
+}
+
+function modelRouteDraftRowsFromDocument(document: ConsoleRouteDocument): ModelRouteDraftRow[] {
+  return document.model_routes.map((route) => {
+    if (isRecord(route)) {
+      return createModelRouteDraftRow(
+        typeof route.pattern === "string" ? route.pattern : "",
+        route,
+      );
+    }
+    return createModelRouteDraftRow();
+  });
+}
+
+const ALIAS_EDITOR_JSON_ERROR = "Fix Route document JSON before using the structured alias editor.";
+const MODEL_ROUTE_EDITOR_JSON_ERROR =
+  "Fix Route document JSON before using the structured model route editor.";
+
 export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const host = useGatewayHost();
   const session = useManagementSession();
@@ -241,6 +274,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [aliasDraftRows, setAliasDraftRows] = useState<AliasDraftRow[]>([]);
+  const [modelRouteDraftRows, setModelRouteDraftRows] = useState<ModelRouteDraftRow[]>([]);
 
   const refresh = useCallback(async () => {
     if (!managementToken) {
@@ -281,6 +315,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     setCommitMessage(routeConfig.routeConfig.revision.message ?? "");
     setSecretDrafts(createSecretPatchDrafts(routeConfig));
     setAliasDraftRows(aliasDraftRowsFromDocument(routeConfig.routeConfig.document));
+    setModelRouteDraftRows(modelRouteDraftRowsFromDocument(routeConfig.routeConfig.document));
   }, [routeConfig?.routeConfig.revision.id]);
 
   useEffect(() => {
@@ -380,11 +415,12 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   }, [buildCommitRequest, editorText]);
 
   const replaceEditorDocument = useCallback(
-    (document: ConsoleRouteDocument, syncAliasRows = false) => {
+    (document: ConsoleRouteDocument, syncStructuredEditors = false) => {
       setEditorText(formatRouteDocument(document));
       setValidation(null);
-      if (syncAliasRows) {
+      if (syncStructuredEditors) {
         setAliasDraftRows(aliasDraftRowsFromDocument(document));
+        setModelRouteDraftRows(modelRouteDraftRowsFromDocument(document));
       }
     },
     [],
@@ -396,13 +432,11 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       try {
         document = parseRouteDocument(editorText);
       } catch {
-        setError("Fix Route document JSON before using the structured alias editor.");
+        setError(ALIAS_EDITOR_JSON_ERROR);
         return;
       }
       setError((current) =>
-        current === "Fix Route document JSON before using the structured alias editor."
-          ? null
-          : current,
+        current === ALIAS_EDITOR_JSON_ERROR ? null : current,
       );
       const aliases = Object.fromEntries(
         nextRows
@@ -427,6 +461,48 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       );
     },
     [aliasDraftRows, applyAliasDraftRows],
+  );
+
+  const applyModelRouteDraftRows = useCallback(
+    (nextRows: ModelRouteDraftRow[]) => {
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError(MODEL_ROUTE_EDITOR_JSON_ERROR);
+        return;
+      }
+      setError((current) => (current === MODEL_ROUTE_EDITOR_JSON_ERROR ? null : current));
+      document.model_routes = nextRows
+        .filter((row) => row.pattern.trim().length > 0)
+        .map((row) => ({
+          ...row.route,
+          pattern: row.pattern.trim(),
+        }));
+      setModelRouteDraftRows(nextRows);
+      replaceEditorDocument(document);
+    },
+    [editorText, replaceEditorDocument],
+  );
+
+  const addModelRouteRow = useCallback(() => {
+    applyModelRouteDraftRows([...modelRouteDraftRows, createModelRouteDraftRow()]);
+  }, [applyModelRouteDraftRows, modelRouteDraftRows]);
+
+  const updateModelRouteRow = useCallback(
+    (rowId: string, value: string) => {
+      applyModelRouteDraftRows(
+        modelRouteDraftRows.map((row) => (row.id === rowId ? { ...row, pattern: value } : row)),
+      );
+    },
+    [applyModelRouteDraftRows, modelRouteDraftRows],
+  );
+
+  const removeModelRouteRow = useCallback(
+    (rowId: string) => {
+      applyModelRouteDraftRows(modelRouteDraftRows.filter((row) => row.id !== rowId));
+    },
+    [applyModelRouteDraftRows, modelRouteDraftRows],
   );
 
   const removeAliasRow = useCallback(
@@ -760,6 +836,55 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                 )}
               </div>
 
+              <div className="nt-stack" aria-label="Structured model route editor">
+                <div className="nt-section__head">
+                  <div>
+                    <p className="nt-kicker">// Model routes</p>
+                    <h3>结构化 Model Route 编辑</h3>
+                  </div>
+                  <div className="nt-actions">
+                    <button
+                      className="nt-btn nt-btn--secondary"
+                      type="button"
+                      onClick={addModelRouteRow}
+                    >
+                      Add model route row
+                    </button>
+                  </div>
+                </div>
+                {modelRouteDraftRows.length > 0 ? (
+                  <div className="nt-stack">
+                    {modelRouteDraftRows.map((row, index) => (
+                      <div className="nt-form-grid" key={row.id}>
+                        <label className="nt-field nt-field--wide">
+                          <span>Model route pattern {index + 1}</span>
+                          <input
+                            className="nt-input"
+                            value={row.pattern}
+                            onChange={(event) =>
+                              updateModelRouteRow(row.id, event.currentTarget.value)
+                            }
+                          />
+                        </label>
+                        <div className="nt-actions nt-actions--right">
+                          <button
+                            className="nt-btn nt-btn--outline"
+                            type="button"
+                            onClick={() => removeModelRouteRow(row.id)}
+                          >
+                            Remove model route row {index + 1}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="nt-empty">
+                    当前还没有 model route。可以直接添加结构化 route 行。
+                  </p>
+                )}
+              </div>
+
               <label className="nt-field nt-field--wide">
                 <span>Route document JSON</span>
                 <textarea
@@ -776,6 +901,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                     try {
                       const document = parseRouteDocument(nextText);
                       setAliasDraftRows(aliasDraftRowsFromDocument(document));
+                      setModelRouteDraftRows(modelRouteDraftRowsFromDocument(document));
                     } catch {
                       // Keep the last structured alias snapshot until the JSON becomes valid again.
                     }

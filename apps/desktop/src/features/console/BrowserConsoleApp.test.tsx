@@ -413,4 +413,37 @@ describe("BrowserConsoleApp", () => {
       ),
     );
   });
+
+  it("updates model routes through the structured route editor and keeps the JSON draft in sync", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /add model route row/i })).toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: /add model route row/i }));
+    await user.type(screen.getByLabelText(/model route pattern 2/i), "gpt-5.4-mini");
+
+    const editor = screen.getByRole("textbox", { name: /route document json/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"pattern": "gpt-5.4-mini"');
+
+    await user.click(screen.getByRole("button", { name: /save route config/i }));
+
+    await waitFor(() =>
+      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          document: expect.objectContaining({
+            model_routes: [
+              { pattern: "gpt-5.4" },
+              { pattern: "gpt-5.4-mini" },
+            ],
+          }),
+        }),
+      ),
+    );
+  });
 });
