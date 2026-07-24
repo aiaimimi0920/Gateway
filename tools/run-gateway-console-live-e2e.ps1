@@ -24,6 +24,7 @@ $ArtifactsRoot = Join-Path $SessionRoot "artifacts"
 $GatewayBinary = Join-Path $RepoRoot "target\debug\neuro-gateway.exe"
 $LiveSpecPath = "e2e/console.live.spec.ts"
 $RedisImage = "redis:7-alpine"
+$RedisNamespace = "default"
 
 function Write-LiveLog {
   param([Parameter(Mandatory = $true)][string] $Message)
@@ -144,6 +145,109 @@ function Stop-TemporaryRedis {
     -Arguments @("rm", "--force", $ContainerName) `
     -Operation "remove disposable Redis container" `
     -AllowFailure
+}
+
+function Read-RedisLine {
+  param([Parameter(Mandatory = $true)][System.IO.Stream] $Stream)
+
+  $buffer = New-Object System.Collections.Generic.List[byte]
+  while ($true) {
+    $value = $Stream.ReadByte()
+    if ($value -lt 0) {
+      throw "Redis connection closed while reading a RESP line."
+    }
+    if ($value -eq 13) {
+      $lineFeed = $Stream.ReadByte()
+      if ($lineFeed -ne 10) {
+        throw "Redis RESP line did not terminate with LF."
+      }
+      return [System.Text.Encoding]::UTF8.GetString($buffer.ToArray())
+    }
+    $buffer.Add([byte]$value)
+  }
+}
+
+function Invoke-RedisCommand {
+  param(
+    [Parameter(Mandatory = $true)][int] $Port,
+    [Parameter(Mandatory = $true)][string[]] $Arguments
+  )
+
+  $client = [System.Net.Sockets.TcpClient]::new()
+  try {
+    $client.Connect("127.0.0.1", $Port)
+    $stream = $client.GetStream()
+    $stream.ReadTimeout = 5000
+    $stream.WriteTimeout = 5000
+
+    $builder = New-Object System.Text.StringBuilder
+    [void]$builder.Append("*$($Arguments.Count)`r`n")
+    foreach ($argument in $Arguments) {
+      $argumentValue = [string]$argument
+      $argumentByteCount = [System.Text.Encoding]::UTF8.GetByteCount($argumentValue)
+      [void]$builder.Append("$" + $argumentByteCount + "`r`n")
+      [void]$builder.Append($argumentValue)
+      [void]$builder.Append("`r`n")
+    }
+
+    $payload = [System.Text.Encoding]::UTF8.GetBytes($builder.ToString())
+    $stream.Write($payload, 0, $payload.Length)
+    $stream.Flush()
+
+    $firstLine = Read-RedisLine -Stream $stream
+    if ([string]::IsNullOrEmpty($firstLine)) {
+      throw "Redis returned an empty RESP line."
+    }
+
+    switch ($firstLine[0]) {
+      '+' { return $firstLine.Substring(1) }
+      '-' { throw "Redis command failed: $($firstLine.Substring(1))" }
+      ':' { return [int64]$firstLine.Substring(1) }
+      '$' {
+        $length = [int]$firstLine.Substring(1)
+        if ($length -lt 0) {
+          return $null
+        }
+        $buffer = New-Object byte[] ($length + 2)
+        $offset = 0
+        while ($offset -lt $buffer.Length) {
+          $read = $stream.Read($buffer, $offset, $buffer.Length - $offset)
+          if ($read -le 0) {
+            throw "Redis connection closed while reading a bulk string."
+          }
+          $offset += $read
+        }
+        return [System.Text.Encoding]::UTF8.GetString($buffer, 0, $length)
+      }
+      default {
+        throw "Unsupported Redis RESP reply: $firstLine"
+      }
+    }
+  } finally {
+    $client.Dispose()
+  }
+}
+
+function Set-RedisString {
+  param(
+    [Parameter(Mandatory = $true)][int] $Port,
+    [Parameter(Mandatory = $true)][string] $Key,
+    [Parameter(Mandatory = $true)][string] $Value
+  )
+
+  $result = Invoke-RedisCommand -Port $Port -Arguments @("SET", $Key, $Value)
+  if ([string]$result -ne "OK") {
+    throw "Redis seed for '$Key' did not return OK: $result"
+  }
+}
+
+function Get-RedisString {
+  param(
+    [Parameter(Mandatory = $true)][int] $Port,
+    [Parameter(Mandatory = $true)][string] $Key
+  )
+
+  return Invoke-RedisCommand -Port $Port -Arguments @("GET", $Key)
 }
 
 function Start-TemporaryRedis {
@@ -273,6 +377,52 @@ function Invoke-SmokeHttpRequest {
   throw "HTTP smoke request did not produce a result."
 }
 
+function Start-LiveGatewayProcess {
+  param(
+    [Parameter(Mandatory = $true)][string] $BinaryPath,
+    [Parameter(Mandatory = $true)][string] $WorkingDirectory,
+    [Parameter(Mandatory = $true)][string] $StdoutPath,
+    [Parameter(Mandatory = $true)][string] $StderrPath
+  )
+
+  return Start-Process `
+    -FilePath $BinaryPath `
+    -WorkingDirectory $WorkingDirectory `
+    -RedirectStandardOutput $StdoutPath `
+    -RedirectStandardError $StderrPath `
+    -PassThru `
+    -WindowStyle Hidden
+}
+
+function Wait-ForGatewayReady {
+  param(
+    [Parameter(Mandatory = $true)] $Process,
+    [Parameter(Mandatory = $true)][string] $BaseUrl,
+    [Parameter(Mandatory = $true)][string] $StderrPath,
+    [ValidateRange(1, 120)][int] $TimeoutSeconds = 30
+  )
+
+  $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
+  $health = $null
+  while ([DateTimeOffset]::UtcNow -lt $deadline) {
+    if ($Process.HasExited) {
+      $stderrTail = if (Test-Path -LiteralPath $StderrPath) {
+        (Get-Content -LiteralPath $StderrPath -Tail 50 -Encoding UTF8) -join "`n"
+      } else {
+        ""
+      }
+      throw "Gateway exited before readiness: $stderrTail"
+    }
+
+    $health = Invoke-SmokeHttpRequest -Method "GET" -Uri "$BaseUrl/healthz" -RetryCount 3
+    if ($health.StatusCode -eq 200) {
+      break
+    }
+    Start-Sleep -Milliseconds 250
+  }
+  Assert-StatusCode -Name "/healthz" -Expected 200 -Response $health
+}
+
 function Assert-StatusCode {
   param(
     [Parameter(Mandatory = $true)][string] $Name,
@@ -300,6 +450,28 @@ $buildLog = Join-Path $LogsRoot "build.log"
 $playwrightLog = Join-Path $LogsRoot "playwright.log"
 $gatewayStdout = Join-Path $LogsRoot "gateway.stdout.log"
 $gatewayStderr = Join-Path $LogsRoot "gateway.stderr.log"
+
+$SeedRouteDocument = [ordered]@{
+  providers = @(
+    [ordered]@{
+      id = "managed-provider"
+      preset = "openai"
+      base_url = "https://api.primary.example.com"
+      api_key = "sk-test"
+      supported_models = @("gpt-5.4")
+    }
+  )
+  model_routes = @(
+    [ordered]@{
+      pattern = "gpt-5.4"
+      provider_ids = @("managed-provider")
+      priority = 10
+    }
+  )
+  aliases = [ordered]@{
+    answer = "gpt-5.4"
+  }
+}
 
 $routesYaml = @'
 providers:
@@ -365,6 +537,7 @@ $environmentKeys = @(
   "GATEWAY_MANAGEMENT_TOKEN",
   "GATEWAY_PUBLIC_BASE_URL",
   "GATEWAY_ROUTES_FILE",
+  "GATEWAY_CONSOLE_REDIS_NAMESPACE",
   "GATEWAY_STATE_DIR",
   "RUST_LOG",
   "GATEWAY_UI_BASE_URL",
@@ -401,34 +574,14 @@ try {
   [System.Environment]::SetEnvironmentVariable("GATEWAY_STATE_DIR", $GatewayStateRoot, "Process")
   [System.Environment]::SetEnvironmentVariable("RUST_LOG", "info", "Process")
 
-  $gatewayProcess = Start-Process `
-    -FilePath $GatewayBinary `
+  $gatewayProcess = Start-LiveGatewayProcess `
+    -BinaryPath $GatewayBinary `
     -WorkingDirectory $RepoRoot `
-    -RedirectStandardOutput $gatewayStdout `
-    -RedirectStandardError $gatewayStderr `
-    -PassThru `
-    -WindowStyle Hidden
+    -StdoutPath $gatewayStdout `
+    -StderrPath $gatewayStderr
   Write-LiveLog "started Gateway pid=$($gatewayProcess.Id) port=$port"
 
-  $deadline = [DateTimeOffset]::UtcNow.AddSeconds(30)
-  $health = $null
-  while ([DateTimeOffset]::UtcNow -lt $deadline) {
-    if ($gatewayProcess.HasExited) {
-      $stderrTail = if (Test-Path -LiteralPath $gatewayStderr) {
-        (Get-Content -LiteralPath $gatewayStderr -Tail 50 -Encoding UTF8) -join "`n"
-      } else {
-        ""
-      }
-      throw "Gateway exited before readiness: $stderrTail"
-    }
-
-    $health = Invoke-SmokeHttpRequest -Method "GET" -Uri "$baseUrl/healthz" -RetryCount 3
-    if ($health.StatusCode -eq 200) {
-      break
-    }
-    Start-Sleep -Milliseconds 250
-  }
-  Assert-StatusCode -Name "/healthz" -Expected 200 -Response $health
+  Wait-ForGatewayReady -Process $gatewayProcess -BaseUrl $baseUrl -StderrPath $gatewayStderr
 
   $uiShellResponse = Invoke-SmokeHttpRequest -Method "GET" -Uri "$baseUrl/ui/" -RetryCount 3
   Assert-StatusCode -Name "/ui/" -Expected 200 -Response $uiShellResponse
@@ -440,6 +593,54 @@ try {
   Assert-StatusCode -Name "/v1/models" -Expected 200 -Response $models
   if ($models.Content -notmatch "gpt-5\.4") {
     throw "/v1/models did not contain the expected gpt-5.4 entry."
+  }
+
+  $routeConfigResponse = Invoke-SmokeHttpRequest `
+    -Method "GET" `
+    -Uri "$baseUrl/v1/internal/gateway/console/route-config" `
+    -Headers @{ "x-management-token" = $managementToken } `
+    -RetryCount 3
+  Assert-StatusCode -Name "/console/route-config" -Expected 200 -Response $routeConfigResponse
+  $routeConfigPayload = $routeConfigResponse.Content | ConvertFrom-Json
+  $revisionId = [string]$routeConfigPayload.routeConfig.revision.id
+  if ([string]::IsNullOrWhiteSpace($revisionId)) {
+    throw "Live console route-config response did not include an active revision id."
+  }
+  $revisionKey = "gw:console:route-config:$($RedisNamespace):revisions:$revisionId"
+  $activeRevisionKey = "gw:console:route-config:$($RedisNamespace):active_revision"
+  $activeDocumentKey = "gw:console:route-config:$($RedisNamespace):active_document"
+  $revisionPayload = @{
+    metadata = $routeConfigPayload.routeConfig.revision
+    document = $SeedRouteDocument
+  } | ConvertTo-Json -Depth 100 -Compress
+  $activeDocumentPayload = $SeedRouteDocument | ConvertTo-Json -Depth 100 -Compress
+  Set-RedisString -Port $temporaryRedis.HostPort -Key $revisionKey -Value $revisionPayload
+  Set-RedisString -Port $temporaryRedis.HostPort -Key $activeRevisionKey -Value $revisionId
+  Set-RedisString -Port $temporaryRedis.HostPort -Key $activeDocumentKey -Value $activeDocumentPayload
+  $activeRevisionReadback = Get-RedisString -Port $temporaryRedis.HostPort -Key $activeRevisionKey
+  if ($activeRevisionReadback.Trim() -ne $revisionId) {
+    throw "Redis seed readback for active revision did not match: expected '$revisionId', actual '$activeRevisionReadback'"
+  }
+
+  Stop-Process -Id $gatewayProcess.Id -Force -ErrorAction SilentlyContinue
+  $gatewayProcess.WaitForExit(5000) | Out-Null
+  $gatewayProcess = Start-LiveGatewayProcess `
+    -BinaryPath $GatewayBinary `
+    -WorkingDirectory $RepoRoot `
+    -StdoutPath $gatewayStdout `
+    -StderrPath $gatewayStderr
+  Write-LiveLog "restarted Gateway pid=$($gatewayProcess.Id) after Redis seeding"
+  Wait-ForGatewayReady -Process $gatewayProcess -BaseUrl $baseUrl -StderrPath $gatewayStderr
+
+  $redisBackedRouteConfig = Invoke-SmokeHttpRequest `
+    -Method "GET" `
+    -Uri "$baseUrl/v1/internal/gateway/console/route-config" `
+    -Headers @{ "x-management-token" = $managementToken } `
+    -RetryCount 3
+  Assert-StatusCode -Name "/console/route-config after Redis seed" -Expected 200 -Response $redisBackedRouteConfig
+  $redisBackedPayload = $redisBackedRouteConfig.Content | ConvertFrom-Json
+  if ([string]$redisBackedPayload.routeConfig.source -ne "redis") {
+    throw "Gateway did not adopt the seeded Redis revision state before live browser mutation."
   }
 
   [System.Environment]::SetEnvironmentVariable("GATEWAY_UI_BASE_URL", "$baseUrl/ui/", "Process")
