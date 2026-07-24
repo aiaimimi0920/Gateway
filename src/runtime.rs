@@ -89,6 +89,13 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
             crate::config::GatewayRuntimeRole::Worker
         ),
     )?);
+    if let Err(error) = route_config_runtime.recover_startup().await {
+        tracing::warn!(
+            code = error.code(),
+            "Gateway console startup recovery did not fully converge: {}",
+            error
+        );
+    }
     let credential_cache = CredentialMemoryCache::new(30);
 
     Ok(Arc::new(AppState {

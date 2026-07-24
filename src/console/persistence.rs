@@ -1334,6 +1334,30 @@ impl RouteConfigPersistence {
         }
     }
 
+    pub(crate) fn install_routes_yaml_recovered_locked(
+        &self,
+        guard: &WriterLockGuard,
+        canonical_yaml: &[u8],
+    ) -> Result<(), PersistenceError> {
+        let receipt = self.replace_routes_yaml_locked(guard, canonical_yaml)?;
+        if let Some(leaf) = receipt.backup_leaf() {
+            let parent = self.routes_path.parent().ok_or_else(|| {
+                PersistenceError::new(
+                    "console_unsupported_platform_operation",
+                    "Configured routes path has no parent directory",
+                )
+            })?;
+            let backup = parent.join(leaf);
+            fs::remove_file(&backup).map_err(|error| {
+                PersistenceError::recovery_required(format!(
+                    "Recovered routes YAML but could not remove transient backup '{}': {error}",
+                    backup.display()
+                ))
+            })?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn archive_revision_locked(
         &self,
         guard: &WriterLockGuard,

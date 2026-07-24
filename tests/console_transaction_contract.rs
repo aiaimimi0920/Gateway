@@ -18,6 +18,7 @@ use neuro_gateway::redis::keys::{
     console_route_config_transaction_key, LEGACY_ROUTE_CONFIG_DOCUMENT_KEY,
 };
 use neuro_gateway::routing::config::{ActiveConfigSource, RouteConfigStore, RouteConfigYaml};
+use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 
 #[test]
@@ -283,6 +284,112 @@ async fn indeterminate_activation_rolls_back_when_old_revision_remains_active() 
     );
 }
 
+#[tokio::test]
+async fn startup_recovery_commits_prepared_transaction_when_redis_already_points_to_new_revision() {
+    let old = document("old-provider", "old-model");
+    let new = document("new-provider", "new-model");
+    let harness = RuntimeHarness::new(
+        "startup-prepared-redis-new",
+        old.clone(),
+        FakeRedisMode::Activated,
+        true,
+    );
+    let staged = stage_transaction(&harness, &new, TransactionPhase::Prepared);
+    harness
+        .backend
+        .set_active_revision(staged.redis_revision.clone());
+
+    harness.runtime.recover_startup().await.unwrap();
+
+    let recovered = harness
+        .journal
+        .load_transaction(staged.record.tx_id())
+        .unwrap();
+    assert_eq!(recovered.phase(), TransactionPhase::Committed);
+    assert_eq!(
+        harness.store.snapshot().resolve_alias(Some("answer")),
+        Some("new-model".to_string())
+    );
+    assert_eq!(
+        harness.store.snapshot().source(),
+        ActiveConfigSource::Recovered
+    );
+    assert_eq!(
+        fs::read(&harness.routes).unwrap(),
+        canonicalize_route_document(&new).unwrap().canonical_yaml()
+    );
+}
+
+#[tokio::test]
+async fn startup_recovery_finishes_redis_activated_transaction_and_repairs_yaml() {
+    let old = document("old-provider", "old-model");
+    let new = document("new-provider", "new-model");
+    let harness = RuntimeHarness::new(
+        "startup-redis-activated",
+        old.clone(),
+        FakeRedisMode::Activated,
+        true,
+    );
+    let staged = stage_transaction(&harness, &new, TransactionPhase::RedisActivated);
+    harness
+        .backend
+        .set_active_revision(staged.redis_revision.clone());
+    fs::write(
+        &harness.routes,
+        canonicalize_route_document(&old).unwrap().canonical_yaml(),
+    )
+    .unwrap();
+
+    harness.runtime.recover_startup().await.unwrap();
+
+    let recovered = harness
+        .journal
+        .load_transaction(staged.record.tx_id())
+        .unwrap();
+    assert_eq!(recovered.phase(), TransactionPhase::Committed);
+    assert_eq!(
+        fs::read(&harness.routes).unwrap(),
+        canonicalize_route_document(&new).unwrap().canonical_yaml()
+    );
+}
+
+#[tokio::test]
+async fn startup_recovery_uses_latest_local_committed_revision_when_redis_is_empty() {
+    let old = document("old-provider", "old-model");
+    let new = document("new-provider", "new-model");
+    let harness = RuntimeHarness::new(
+        "startup-local-committed",
+        old.clone(),
+        FakeRedisMode::Activated,
+        true,
+    );
+    let staged = stage_transaction(&harness, &new, TransactionPhase::Committed);
+    fs::write(
+        &harness.routes,
+        canonicalize_route_document(&old).unwrap().canonical_yaml(),
+    )
+    .unwrap();
+
+    harness.runtime.recover_startup().await.unwrap();
+
+    assert_eq!(
+        harness.store.snapshot().revision().id(),
+        staged.record.new_revision()
+    );
+    assert_eq!(
+        harness.store.snapshot().source(),
+        ActiveConfigSource::Recovered
+    );
+    assert_eq!(
+        harness.store.snapshot().resolve_alias(Some("answer")),
+        Some("new-model".to_string())
+    );
+    assert_eq!(
+        fs::read(&harness.routes).unwrap(),
+        canonicalize_route_document(&new).unwrap().canonical_yaml()
+    );
+}
+
 struct RuntimeHarness {
     _temp: TestDirectory,
     routes: PathBuf,
@@ -290,6 +397,7 @@ struct RuntimeHarness {
     runtime: RouteConfigRuntime,
     backend: FakeRedisBackend,
     journal: TransactionJournal,
+    persistence: RouteConfigPersistence,
 }
 
 impl RuntimeHarness {
@@ -300,11 +408,12 @@ impl RuntimeHarness {
         fs::write(&routes, canonical.canonical_yaml()).unwrap();
         let store = Arc::new(RouteConfigStore::from_document(document).unwrap());
         let persistence = RouteConfigPersistence::for_test(temp.path(), &routes).unwrap();
+        let runtime_persistence = persistence.clone();
         let journal = TransactionJournal::new(persistence.clone());
         let backend = FakeRedisBackend::new(mode);
         let runtime = RouteConfigRuntime::with_backend(
             Arc::clone(&store),
-            persistence,
+            runtime_persistence,
             Arc::new(backend.clone()),
             writable,
         );
@@ -315,6 +424,7 @@ impl RuntimeHarness {
             runtime,
             backend,
             journal,
+            persistence,
         }
     }
 }
@@ -498,4 +608,93 @@ fn redis_revision_with_metadata(
     document: &RouteConfigYaml,
 ) -> RouteConfigRedisRevision {
     RouteConfigRedisRevision::new(metadata, document.clone()).unwrap()
+}
+
+struct StagedTransaction {
+    record: TransactionRecord,
+    redis_revision: RouteConfigRedisRevision,
+}
+
+fn stage_transaction(
+    harness: &RuntimeHarness,
+    document: &RouteConfigYaml,
+    phase: TransactionPhase,
+) -> StagedTransaction {
+    let validated =
+        neuro_gateway::console::document::validate_route_document(document.clone()).unwrap();
+    let metadata = RevisionMetadata::from_validated(
+        harness.store.snapshot().revision().sequence() + 1,
+        Some(harness.store.snapshot().revision().id().to_string()),
+        RevisionActor::Recovery,
+        OffsetDateTime::from_unix_timestamp(1_700_000_200).unwrap(),
+        Some("staged recovery".to_string()),
+        &validated,
+    );
+    let canonical = canonicalize_route_document(validated.document()).unwrap();
+    harness
+        .persistence
+        .archive_revision(&metadata, &canonical)
+        .unwrap();
+    let previous_yaml = fs::read(&harness.routes).unwrap();
+    let previous_digest = sha256(&previous_yaml);
+    let mut record = TransactionRecord::new_prepared(
+        format!("tx-stage-{}", uuid::Uuid::new_v4()),
+        Some(harness.store.snapshot().revision().id()),
+        metadata.id(),
+        format!("revisions/{}", metadata.id()),
+        true,
+        Some(&previous_digest),
+        validated.yaml_digest(),
+        OffsetDateTime::from_unix_timestamp(1_700_000_200).unwrap(),
+    )
+    .unwrap();
+    harness.journal.persist(&record).unwrap();
+    if matches!(
+        phase,
+        TransactionPhase::YamlReplaced
+            | TransactionPhase::RedisActivated
+            | TransactionPhase::Committed
+    ) {
+        let receipt = harness
+            .persistence
+            .replace_routes_yaml_for_transaction(&record, validated.canonical_yaml())
+            .unwrap();
+        record = harness
+            .journal
+            .record_yaml_replaced(record.tx_id(), &receipt, OffsetDateTime::now_utc())
+            .unwrap();
+    }
+    if matches!(
+        phase,
+        TransactionPhase::RedisActivated | TransactionPhase::Committed
+    ) {
+        record = harness
+            .journal
+            .transition(
+                record.tx_id(),
+                TransactionPhase::RedisActivated,
+                OffsetDateTime::now_utc(),
+                None,
+            )
+            .unwrap();
+    }
+    if phase == TransactionPhase::Committed {
+        record = harness
+            .journal
+            .transition(
+                record.tx_id(),
+                TransactionPhase::Committed,
+                OffsetDateTime::now_utc(),
+                None,
+            )
+            .unwrap();
+    }
+    StagedTransaction {
+        record,
+        redis_revision: RouteConfigRedisRevision::new(metadata, document.clone()).unwrap(),
+    }
+}
+
+fn sha256(bytes: &[u8]) -> String {
+    hex::encode(Sha256::digest(bytes))
 }

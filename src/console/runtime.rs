@@ -1,3 +1,5 @@
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -172,6 +174,105 @@ impl std::fmt::Debug for RouteConfigCoordinator {
 impl RouteConfigCoordinator {
     pub fn route_config(&self) -> &Arc<RouteConfigStore> {
         &self.route_config
+    }
+
+    pub async fn recover_startup(&self) -> Result<(), RouteConfigRuntimeError> {
+        let guard = self
+            .persistence
+            .try_writer_lock()
+            .map_err(RouteConfigRuntimeError::from_persistence)?;
+        let records = self
+            .journal
+            .inspect_locked(&guard)
+            .map_err(RouteConfigRuntimeError::from_persistence)?;
+        let active_revision = self
+            .redis
+            .load_active_revision()
+            .await
+            .map_err(RouteConfigRuntimeError::from_redis)?;
+
+        for record in &records {
+            match record.phase() {
+                TransactionPhase::Prepared => {
+                    if redis_revision_matches_record(active_revision.as_ref(), record)? {
+                        self.complete_recovered_commit(
+                            &guard,
+                            record,
+                            active_revision.as_ref(),
+                            record.phase(),
+                        )?;
+                    } else if redis_kept_previous_revision(active_revision.as_ref(), record) {
+                        self.abort_prepared_without_cas(&guard, record)?;
+                    } else {
+                        return Err(RouteConfigRuntimeError::new(
+                            "console_recovery_required",
+                            format!(
+                                "Prepared transaction '{}' disagrees with the authoritative Redis active revision",
+                                record.tx_id()
+                            ),
+                        ));
+                    }
+                }
+                TransactionPhase::YamlReplaced => {
+                    if redis_revision_matches_record(active_revision.as_ref(), record)? {
+                        self.complete_recovered_commit(
+                            &guard,
+                            record,
+                            active_revision.as_ref(),
+                            record.phase(),
+                        )?;
+                    } else if redis_kept_previous_revision(active_revision.as_ref(), record) {
+                        self.rollback_yaml_and_abort(
+                            &guard,
+                            record.tx_id(),
+                            &receipt_from_record(record),
+                            "yaml_replaced_without_redis_activation",
+                        )?;
+                    } else {
+                        return Err(RouteConfigRuntimeError::new(
+                            "console_recovery_required",
+                            format!(
+                                "YamlReplaced transaction '{}' disagrees with the authoritative Redis active revision",
+                                record.tx_id()
+                            ),
+                        ));
+                    }
+                }
+                TransactionPhase::RedisActivated => {
+                    if redis_revision_matches_record(active_revision.as_ref(), record)? {
+                        self.complete_recovered_commit(
+                            &guard,
+                            record,
+                            active_revision.as_ref(),
+                            record.phase(),
+                        )?;
+                    } else {
+                        return Err(RouteConfigRuntimeError::new(
+                            "console_recovery_required",
+                            format!(
+                                "RedisActivated transaction '{}' is ahead of the authoritative Redis active revision",
+                                record.tx_id()
+                            ),
+                        ));
+                    }
+                }
+                TransactionPhase::Committed | TransactionPhase::Aborted => {}
+            }
+        }
+
+        if active_revision.is_none() {
+            if let Some(record) = records
+                .iter()
+                .filter(|record| record.phase() == TransactionPhase::Committed)
+                .max_by_key(|record| record.created_at())
+            {
+                self.install_committed_local_revision(&guard, record)?;
+            }
+        } else if let Some(active_revision) = active_revision.as_ref() {
+            self.ensure_store_matches_revision(active_revision)?;
+        }
+
+        Ok(())
     }
 
     pub async fn commit_document(
@@ -462,6 +563,35 @@ impl RouteConfigCoordinator {
         Ok(())
     }
 
+    fn abort_prepared_without_cas(
+        &self,
+        guard: &super::WriterLockGuard,
+        record: &TransactionRecord,
+    ) -> Result<(), RouteConfigRuntimeError> {
+        let current = self
+            .persistence
+            .current_routes_state_locked(guard)
+            .map_err(RouteConfigRuntimeError::from_persistence)?;
+        if current_matches_record_previous(&current, record) {
+            self.abort_without_yaml_change(guard, record.tx_id(), "prepared_without_yaml_replace")
+        } else if current_matches_record_new(&current, record) {
+            self.rollback_yaml_and_abort(
+                guard,
+                record.tx_id(),
+                &receipt_from_record(record),
+                "yaml_replaced_before_phase_record",
+            )
+        } else {
+            Err(RouteConfigRuntimeError::new(
+                "console_recovery_required",
+                format!(
+                    "Prepared transaction '{}' has an ambiguous YAML mirror during startup recovery",
+                    record.tx_id()
+                ),
+            ))
+        }
+    }
+
     fn rollback_yaml_and_abort(
         &self,
         guard: &super::WriterLockGuard,
@@ -482,6 +612,207 @@ impl RouteConfigCoordinator {
             )
             .map_err(RouteConfigRuntimeError::from_persistence)?;
         Ok(())
+    }
+
+    fn complete_recovered_commit(
+        &self,
+        guard: &super::WriterLockGuard,
+        record: &TransactionRecord,
+        active_revision: Option<&RouteConfigRedisRevision>,
+        phase: TransactionPhase,
+    ) -> Result<(), RouteConfigRuntimeError> {
+        let (validated, metadata) = if let Some(active_revision) = active_revision {
+            validated_and_metadata_from_active(active_revision, record)?
+        } else {
+            self.validated_and_metadata_from_archive(record)?
+        };
+        match phase {
+            TransactionPhase::Prepared => {
+                let current = self
+                    .persistence
+                    .current_routes_state_locked(guard)
+                    .map_err(RouteConfigRuntimeError::from_persistence)?;
+                let receipt = if current_matches_record_new(&current, record) {
+                    receipt_from_record(record)
+                } else if current_matches_record_previous(&current, record) {
+                    self.persistence
+                        .replace_routes_yaml_for_transaction_locked(
+                            guard,
+                            record,
+                            validated.canonical_yaml(),
+                        )
+                        .map_err(RouteConfigRuntimeError::from_persistence)?
+                } else {
+                    return Err(RouteConfigRuntimeError::new(
+                        "console_recovery_required",
+                        format!(
+                            "Prepared transaction '{}' does not match either the previous or new YAML during startup recovery",
+                            record.tx_id()
+                        ),
+                    ));
+                };
+                self.journal
+                    .record_yaml_replaced_locked(
+                        guard,
+                        record.tx_id(),
+                        &receipt,
+                        OffsetDateTime::now_utc(),
+                    )
+                    .map_err(RouteConfigRuntimeError::from_persistence)?;
+                self.journal
+                    .transition_locked(
+                        guard,
+                        record.tx_id(),
+                        TransactionPhase::RedisActivated,
+                        OffsetDateTime::now_utc(),
+                        None,
+                    )
+                    .map_err(RouteConfigRuntimeError::from_persistence)?;
+            }
+            TransactionPhase::YamlReplaced
+            | TransactionPhase::RedisActivated
+            | TransactionPhase::Committed => {
+                self.ensure_yaml_matches_revision(guard, record, validated.canonical_yaml())?;
+                if phase == TransactionPhase::YamlReplaced {
+                    self.journal
+                        .transition_locked(
+                            guard,
+                            record.tx_id(),
+                            TransactionPhase::RedisActivated,
+                            OffsetDateTime::now_utc(),
+                            None,
+                        )
+                        .map_err(RouteConfigRuntimeError::from_persistence)?;
+                }
+            }
+            TransactionPhase::Aborted => {}
+        }
+
+        self.install_snapshot_if_needed(metadata, validated)?;
+        if matches!(
+            phase,
+            TransactionPhase::Prepared
+                | TransactionPhase::YamlReplaced
+                | TransactionPhase::RedisActivated
+        ) {
+            self.journal
+                .transition_locked(
+                    guard,
+                    record.tx_id(),
+                    TransactionPhase::Committed,
+                    OffsetDateTime::now_utc(),
+                    None,
+                )
+                .map_err(RouteConfigRuntimeError::from_persistence)?;
+        }
+        Ok(())
+    }
+
+    fn install_committed_local_revision(
+        &self,
+        guard: &super::WriterLockGuard,
+        record: &TransactionRecord,
+    ) -> Result<(), RouteConfigRuntimeError> {
+        let (validated, metadata) = self.validated_and_metadata_from_archive(record)?;
+        self.ensure_yaml_matches_revision(guard, record, validated.canonical_yaml())?;
+        self.install_snapshot_if_needed(metadata, validated)
+    }
+
+    fn ensure_store_matches_revision(
+        &self,
+        active_revision: &RouteConfigRedisRevision,
+    ) -> Result<(), RouteConfigRuntimeError> {
+        let (validated, metadata) = validated_and_metadata_from_active(
+            active_revision,
+            &TransactionRecord::new_prepared(
+                "tx-active-probe",
+                active_revision.metadata().parent(),
+                active_revision.metadata().id(),
+                format!("revisions/{}", active_revision.metadata().id()),
+                true,
+                Some(active_revision.metadata().yaml_digest()),
+                active_revision.metadata().yaml_digest(),
+                OffsetDateTime::now_utc(),
+            )
+            .map_err(RouteConfigRuntimeError::from_persistence)?,
+        )?;
+        self.install_snapshot_if_needed(metadata, validated)
+    }
+
+    fn ensure_yaml_matches_revision(
+        &self,
+        guard: &super::WriterLockGuard,
+        record: &TransactionRecord,
+        canonical_yaml: &[u8],
+    ) -> Result<(), RouteConfigRuntimeError> {
+        let current = self
+            .persistence
+            .current_routes_state_locked(guard)
+            .map_err(RouteConfigRuntimeError::from_persistence)?;
+        if current_matches_record_new(&current, record) {
+            return Ok(());
+        }
+        if !current_matches_record_previous(&current, record) {
+            return Err(RouteConfigRuntimeError::new(
+                "console_recovery_required",
+                format!(
+                    "Gateway console YAML mirror for transaction '{}' is neither the previous nor the authoritative new revision",
+                    record.tx_id()
+                ),
+            ));
+        }
+        self.persistence
+            .install_routes_yaml_recovered_locked(guard, canonical_yaml)
+            .map_err(RouteConfigRuntimeError::from_persistence)
+    }
+
+    fn install_snapshot_if_needed(
+        &self,
+        metadata: RevisionMetadata,
+        validated: super::document::ValidatedRouteDocument,
+    ) -> Result<(), RouteConfigRuntimeError> {
+        if self.route_config.snapshot().revision().id() == metadata.id() {
+            return Ok(());
+        }
+        self.route_config
+            .install_external_validated(validated, metadata, ActiveConfigSource::Recovered)
+            .map(|_| ())
+            .map_err(RouteConfigRuntimeError::from_replace)
+    }
+
+    fn validated_and_metadata_from_archive(
+        &self,
+        record: &TransactionRecord,
+    ) -> Result<(super::document::ValidatedRouteDocument, RevisionMetadata), RouteConfigRuntimeError>
+    {
+        let archive = archive_path(&self.persistence, record);
+        let metadata_bytes = fs::read(archive.join("metadata.json")).map_err(|error| {
+            RouteConfigRuntimeError::new("console_recovery_required", error.to_string())
+        })?;
+        let document_bytes = fs::read(archive.join("document.json")).map_err(|error| {
+            RouteConfigRuntimeError::new("console_recovery_required", error.to_string())
+        })?;
+        let metadata: RevisionMetadata =
+            serde_json::from_slice(&metadata_bytes).map_err(|error| {
+                RouteConfigRuntimeError::new("console_recovery_required", error.to_string())
+            })?;
+        let document: RouteConfigYaml =
+            serde_json::from_slice(&document_bytes).map_err(|error| {
+                RouteConfigRuntimeError::new("console_recovery_required", error.to_string())
+            })?;
+        let validated = validate_route_document(document).map_err(|diagnostics| {
+            RouteConfigRuntimeError::new("console_route_validation_failed", diagnostics.to_string())
+        })?;
+        if metadata.id() != record.new_revision()
+            || metadata.document_digest() != validated.document_digest()
+            || metadata.yaml_digest() != validated.yaml_digest()
+        {
+            return Err(RouteConfigRuntimeError::new(
+                "console_recovery_required",
+                "Gateway console archive metadata no longer matches its validated document",
+            ));
+        }
+        Ok((validated, metadata))
     }
 }
 
@@ -619,6 +950,13 @@ impl RouteConfigRuntime {
         &self.replica
     }
 
+    pub async fn recover_startup(&self) -> Result<(), RouteConfigRuntimeError> {
+        let Some(coordinator) = &self.coordinator else {
+            return Ok(());
+        };
+        coordinator.recover_startup().await
+    }
+
     pub async fn commit_document(
         &self,
         expected_revision: &str,
@@ -638,4 +976,89 @@ impl RouteConfigRuntime {
     ) -> Result<Option<Arc<RouteConfigSnapshot>>, RouteConfigRuntimeError> {
         self.replica.reconcile_active_revision().await
     }
+}
+
+fn receipt_from_record(record: &TransactionRecord) -> super::YamlReplaceReceipt {
+    super::YamlReplaceReceipt::from_record_parts(
+        record.previous_yaml_present(),
+        record.previous_yaml_digest(),
+        record.new_yaml_digest(),
+        record.same_dir_backup_leaf(),
+    )
+}
+
+fn current_matches_record_previous(
+    current: &(bool, Option<String>),
+    record: &TransactionRecord,
+) -> bool {
+    current.0 == record.previous_yaml_present()
+        && current.1.as_deref() == record.previous_yaml_digest()
+}
+
+fn current_matches_record_new(
+    current: &(bool, Option<String>),
+    record: &TransactionRecord,
+) -> bool {
+    current.0 && current.1.as_deref() == Some(record.new_yaml_digest())
+}
+
+fn redis_kept_previous_revision(
+    active_revision: Option<&RouteConfigRedisRevision>,
+    record: &TransactionRecord,
+) -> bool {
+    match active_revision {
+        None => true,
+        Some(active_revision) => {
+            active_revision.metadata().id() == record.old_revision().unwrap_or_default()
+        }
+    }
+}
+
+fn redis_revision_matches_record(
+    active_revision: Option<&RouteConfigRedisRevision>,
+    record: &TransactionRecord,
+) -> Result<bool, RouteConfigRuntimeError> {
+    let Some(active_revision) = active_revision else {
+        return Ok(false);
+    };
+    if active_revision.metadata().id() != record.new_revision() {
+        return Ok(false);
+    }
+    if active_revision.metadata().yaml_digest() != record.new_yaml_digest() {
+        return Err(RouteConfigRuntimeError::new(
+            "console_recovery_required",
+            format!(
+                "Gateway console Redis active revision '{}' does not match the local transaction digest",
+                active_revision.metadata().id()
+            ),
+        ));
+    }
+    Ok(true)
+}
+
+fn validated_and_metadata_from_active(
+    active_revision: &RouteConfigRedisRevision,
+    record: &TransactionRecord,
+) -> Result<(super::document::ValidatedRouteDocument, RevisionMetadata), RouteConfigRuntimeError> {
+    if active_revision.metadata().id() != record.new_revision()
+        || active_revision.metadata().yaml_digest() != record.new_yaml_digest()
+    {
+        return Err(RouteConfigRuntimeError::new(
+            "console_recovery_required",
+            "Gateway console Redis active revision does not match the local transaction record",
+        ));
+    }
+    let validated =
+        validate_route_document(active_revision.document().clone()).map_err(|diagnostics| {
+            RouteConfigRuntimeError::new("console_route_validation_failed", diagnostics.to_string())
+        })?;
+    Ok((validated, active_revision.metadata().clone()))
+}
+
+fn archive_path(persistence: &RouteConfigPersistence, record: &TransactionRecord) -> PathBuf {
+    persistence.state_root().join(
+        record
+            .archive_relative_path()
+            .replace('/', std::path::MAIN_SEPARATOR_STR),
+    )
 }

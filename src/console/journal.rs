@@ -416,6 +416,28 @@ impl TransactionJournal {
         self.recover_local()
     }
 
+    pub(crate) fn inspect_locked(
+        &self,
+        guard: &WriterLockGuard,
+    ) -> Result<Vec<TransactionRecord>, PersistenceError> {
+        self.persistence.ensure_guard(guard)?;
+        self.load_entries_inner(true)?;
+        let entries = self.load_entries_inner(false)?;
+        validate_journal_order(&entries)?;
+        let mut records = self.load_transactions()?;
+        records.sort_by(|left, right| {
+            left.created_at()
+                .cmp(&right.created_at())
+                .then_with(|| left.tx_id().cmp(right.tx_id()))
+        });
+        validate_journal_transaction_cross_refs(&entries, &records)?;
+        self.validate_scratch_files(&records)?;
+        for record in &records {
+            self.persistence.verify_transaction_archive(record)?;
+        }
+        Ok(records)
+    }
+
     pub(crate) fn persist_locked(
         &self,
         guard: &WriterLockGuard,
