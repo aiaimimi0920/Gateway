@@ -73,6 +73,13 @@ type ModelRouteDraftRow = {
   route: Record<string, unknown>;
 };
 
+type ProviderDraftRow = {
+  id: string;
+  providerId: string;
+  baseUrl: string;
+  provider: Record<string, unknown>;
+};
+
 type RouteDocumentDiff = {
   activeAliasCount: number;
   selectedAliasCount: number;
@@ -247,9 +254,37 @@ function modelRouteDraftRowsFromDocument(document: ConsoleRouteDocument): ModelR
   });
 }
 
+function createProviderDraftRow(
+  providerId = "",
+  baseUrl = "",
+  provider: Record<string, unknown> = {},
+): ProviderDraftRow {
+  return {
+    id: `provider-${Math.random().toString(36).slice(2, 10)}`,
+    providerId,
+    baseUrl,
+    provider,
+  };
+}
+
+function providerDraftRowsFromDocument(document: ConsoleRouteDocument): ProviderDraftRow[] {
+  return document.providers.map((provider) => {
+    if (isRecord(provider)) {
+      return createProviderDraftRow(
+        typeof provider.id === "string" ? provider.id : "",
+        typeof provider.base_url === "string" ? provider.base_url : "",
+        provider,
+      );
+    }
+    return createProviderDraftRow();
+  });
+}
+
 const ALIAS_EDITOR_JSON_ERROR = "Fix Route document JSON before using the structured alias editor.";
 const MODEL_ROUTE_EDITOR_JSON_ERROR =
   "Fix Route document JSON before using the structured model route editor.";
+const PROVIDER_EDITOR_JSON_ERROR =
+  "Fix Route document JSON before using the structured provider editor.";
 
 export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const host = useGatewayHost();
@@ -275,6 +310,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [aliasDraftRows, setAliasDraftRows] = useState<AliasDraftRow[]>([]);
   const [modelRouteDraftRows, setModelRouteDraftRows] = useState<ModelRouteDraftRow[]>([]);
+  const [providerDraftRows, setProviderDraftRows] = useState<ProviderDraftRow[]>([]);
 
   const refresh = useCallback(async () => {
     if (!managementToken) {
@@ -316,6 +352,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     setSecretDrafts(createSecretPatchDrafts(routeConfig));
     setAliasDraftRows(aliasDraftRowsFromDocument(routeConfig.routeConfig.document));
     setModelRouteDraftRows(modelRouteDraftRowsFromDocument(routeConfig.routeConfig.document));
+    setProviderDraftRows(providerDraftRowsFromDocument(routeConfig.routeConfig.document));
   }, [routeConfig?.routeConfig.revision.id]);
 
   useEffect(() => {
@@ -421,6 +458,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       if (syncStructuredEditors) {
         setAliasDraftRows(aliasDraftRowsFromDocument(document));
         setModelRouteDraftRows(modelRouteDraftRowsFromDocument(document));
+        setProviderDraftRows(providerDraftRowsFromDocument(document));
       }
     },
     [],
@@ -488,6 +526,57 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const addModelRouteRow = useCallback(() => {
     applyModelRouteDraftRows([...modelRouteDraftRows, createModelRouteDraftRow()]);
   }, [applyModelRouteDraftRows, modelRouteDraftRows]);
+
+  const applyProviderDraftRows = useCallback(
+    (nextRows: ProviderDraftRow[]) => {
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError(PROVIDER_EDITOR_JSON_ERROR);
+        return;
+      }
+      setError((current) => (current === PROVIDER_EDITOR_JSON_ERROR ? null : current));
+      document.providers = nextRows
+        .filter((row) => row.providerId.trim().length > 0)
+        .map((row) => {
+          const nextProvider: Record<string, unknown> = {
+            ...row.provider,
+            id: row.providerId.trim(),
+          };
+          const trimmedBaseUrl = row.baseUrl.trim();
+          if (trimmedBaseUrl.length > 0) {
+            nextProvider.base_url = trimmedBaseUrl;
+          } else {
+            delete nextProvider.base_url;
+          }
+          return nextProvider;
+        });
+      setProviderDraftRows(nextRows);
+      replaceEditorDocument(document);
+    },
+    [editorText, replaceEditorDocument],
+  );
+
+  const addProviderRow = useCallback(() => {
+    applyProviderDraftRows([...providerDraftRows, createProviderDraftRow()]);
+  }, [applyProviderDraftRows, providerDraftRows]);
+
+  const updateProviderRow = useCallback(
+    (rowId: string, field: "providerId" | "baseUrl", value: string) => {
+      applyProviderDraftRows(
+        providerDraftRows.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)),
+      );
+    },
+    [applyProviderDraftRows, providerDraftRows],
+  );
+
+  const removeProviderRow = useCallback(
+    (rowId: string) => {
+      applyProviderDraftRows(providerDraftRows.filter((row) => row.id !== rowId));
+    },
+    [applyProviderDraftRows, providerDraftRows],
+  );
 
   const updateModelRouteRow = useCallback(
     (rowId: string, value: string) => {
@@ -885,6 +974,61 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                 )}
               </div>
 
+              <div className="nt-stack" aria-label="Structured provider editor">
+                <div className="nt-section__head">
+                  <div>
+                    <p className="nt-kicker">// Providers</p>
+                    <h3>结构化 Provider 编辑</h3>
+                  </div>
+                  <div className="nt-actions">
+                    <button className="nt-btn nt-btn--secondary" type="button" onClick={addProviderRow}>
+                      Add provider row
+                    </button>
+                  </div>
+                </div>
+                {providerDraftRows.length > 0 ? (
+                  <div className="nt-stack">
+                    {providerDraftRows.map((row, index) => (
+                      <div className="nt-form-grid" key={row.id}>
+                        <label className="nt-field">
+                          <span>Provider id {index + 1}</span>
+                          <input
+                            className="nt-input"
+                            value={row.providerId}
+                            onChange={(event) =>
+                              updateProviderRow(row.id, "providerId", event.currentTarget.value)
+                            }
+                          />
+                        </label>
+                        <label className="nt-field nt-field--wide">
+                          <span>Provider base URL {index + 1}</span>
+                          <input
+                            className="nt-input"
+                            value={row.baseUrl}
+                            onChange={(event) =>
+                              updateProviderRow(row.id, "baseUrl", event.currentTarget.value)
+                            }
+                          />
+                        </label>
+                        <div className="nt-actions nt-actions--right">
+                          <button
+                            className="nt-btn nt-btn--outline"
+                            type="button"
+                            onClick={() => removeProviderRow(row.id)}
+                          >
+                            Remove provider row {index + 1}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="nt-empty">
+                    当前还没有 provider。可以直接添加结构化 provider 行。
+                  </p>
+                )}
+              </div>
+
               <label className="nt-field nt-field--wide">
                 <span>Route document JSON</span>
                 <textarea
@@ -902,6 +1046,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                       const document = parseRouteDocument(nextText);
                       setAliasDraftRows(aliasDraftRowsFromDocument(document));
                       setModelRouteDraftRows(modelRouteDraftRowsFromDocument(document));
+                      setProviderDraftRows(providerDraftRowsFromDocument(document));
                     } catch {
                       // Keep the last structured alias snapshot until the JSON becomes valid again.
                     }

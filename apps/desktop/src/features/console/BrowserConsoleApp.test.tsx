@@ -446,4 +446,46 @@ describe("BrowserConsoleApp", () => {
       ),
     );
   });
+
+  it("updates providers through the structured provider editor and keeps the JSON draft in sync", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /add provider row/i })).toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: /add provider row/i }));
+    await user.type(screen.getByLabelText(/provider id 2/i), "backup-provider");
+    await user.type(
+      screen.getByLabelText(/provider base url 2/i),
+      "https://api.backup.example.com",
+    );
+
+    const editor = screen.getByRole("textbox", { name: /route document json/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"id": "backup-provider"');
+    expect((editor as HTMLTextAreaElement).value).toContain(
+      '"base_url": "https://api.backup.example.com"',
+    );
+
+    await user.click(screen.getByRole("button", { name: /save route config/i }));
+
+    await waitFor(() =>
+      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          document: expect.objectContaining({
+            providers: expect.arrayContaining([
+              expect.objectContaining({
+                id: "backup-provider",
+                base_url: "https://api.backup.example.com",
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
+  });
 });
