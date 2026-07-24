@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type {
   ConsoleRouteConfigCommitRequest,
   ConsoleRouteConfigResponse,
+  ConsoleRouteRevisionDetailResponse,
   ConsoleRouteRevisionListResponse,
   ManagementSession,
 } from "../src/api/contracts";
@@ -64,6 +65,37 @@ function createRevisionListResponse(): ConsoleRouteRevisionListResponse {
         source: "archived",
       },
     ],
+  };
+}
+
+function createRevisionDetailResponse(): ConsoleRouteRevisionDetailResponse {
+  return {
+    routeConfig: {
+      revision: {
+        id: "r0-cafebabefeed",
+        sequence: 0,
+        message: "seed route",
+      },
+      source: "archived",
+      diagnostics: null,
+      requiresRepair: false,
+      document: {
+        providers: [
+          {
+            id: "legacy-provider",
+            preset: "openai",
+            base_url: "https://api.legacy.example.com",
+            supported_models: ["gpt-4.1"],
+          },
+        ],
+        model_routes: [{ pattern: "gpt-4.1" }],
+        aliases: { answer: "gpt-4.1" },
+      },
+      secrets: [{ path: "/providers/0/api_key", configured: true, preview: "sk-***" }],
+      mutationSupported: true,
+    },
+    active: false,
+    hasArchive: true,
   };
 }
 
@@ -225,6 +257,27 @@ async function installConsoleApiMocks(page: Page, bootstrapRequired = false): Pr
       return;
     }
 
+    if (path.includes("/revisions/") && request.method() === "GET") {
+      const revisionId = decodeURIComponent(path.split("/").pop() ?? "");
+      if (revisionId !== "r0-cafebabefeed") {
+        await route.fulfill({
+          status: 404,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: { message: `Revision not found: ${revisionId}`, type: "not_found", code: "revision_missing" },
+          }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(createRevisionDetailResponse()),
+      });
+      return;
+    }
+
     await route.continue();
   });
 
@@ -297,5 +350,47 @@ test.describe("Gateway web console", () => {
         supported_models: ["gpt-5.4", "gpt-5.4-mini"],
       },
     ]);
+  });
+
+  test("inspects and restores an archived revision through the browser console", async ({ page }) => {
+    const state = await installConsoleApiMocks(page);
+
+    await page.goto("/ui/");
+
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    await page.getByLabel("Management token").fill("gateway-admin-token");
+    await page.getByRole("button", { name: "Sign in" }).click();
+
+    await expect(page.getByRole("heading", { name: "Gateway Web Console" })).toBeVisible();
+    await page.getByRole("button", { name: "Inspect revision r0-cafebabefeed" }).click();
+
+    await expect(
+      page.getByLabel("Selected revision detail").getByText("legacy-provider", { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("answer: gpt-5.4 -> gpt-4.1")).toBeVisible();
+
+    await page.getByRole("button", { name: "Restore revision as active config" }).click();
+
+    await expect(page.getByRole("dialog", { name: "Review revision restore" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Review revision restore" })).toContainText(
+      "r0-cafebabefeed",
+    );
+
+    await page.getByRole("button", { name: "Confirm restore" }).click();
+
+    await expect(
+      page.getByRole("status", { name: "Gateway console last action" }),
+    ).toContainText("Restored revision r0-cafebabefeed as active revision r2-beadfeedcafe.");
+    await expect(
+      page
+        .locator("article")
+        .filter({ has: page.getByRole("heading", { name: "当前路由配置" }) })
+        .getByText("legacy-provider", { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByLabel("Route document JSON")).toContainText('"answer": "gpt-4.1"');
+
+    await expect.poll(() => state.lastCommitRequest?.message).toBe(
+      "restore revision r0-cafebabefeed",
+    );
   });
 });
