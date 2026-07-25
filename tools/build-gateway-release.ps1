@@ -47,14 +47,81 @@ function Invoke-GatewayReleaseStep {
     }
 }
 
+function Resolve-NativeExecutable {
+    param([Parameter(Mandatory = $true)][string]$Command)
+
+    if (Test-Path -LiteralPath $Command -PathType Leaf) {
+        return [System.IO.Path]::GetFullPath($Command)
+    }
+
+    $resolved = Get-Command $Command -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $resolved) {
+        throw "Native command was not found: $Command"
+    }
+    return $resolved.Source
+}
+
+function Invoke-NativeCommandCapture {
+    param(
+        [Parameter(Mandatory = $true)][string]$Command,
+        [string[]]$Arguments = @(),
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory
+    )
+
+    $resolvedCommand = Resolve-NativeExecutable -Command $Command
+    $captureRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
+        "gateway-release-{0}" -f [guid]::NewGuid().ToString("N")
+    )
+    $stdoutPath = Join-Path $captureRoot "stdout.log"
+    $stderrPath = Join-Path $captureRoot "stderr.log"
+    New-Item -ItemType Directory -Path $captureRoot -Force | Out-Null
+
+    try {
+        $startInfo = @{
+            FilePath = $resolvedCommand
+            ArgumentList = $Arguments
+            WorkingDirectory = $WorkingDirectory
+            RedirectStandardOutput = $stdoutPath
+            RedirectStandardError = $stderrPath
+            PassThru = $true
+            Wait = $true
+            WindowStyle = "Hidden"
+        }
+        $process = Start-Process @startInfo
+        $stdoutLines = if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
+            @(Get-Content -LiteralPath $stdoutPath -Encoding UTF8)
+        } else {
+            @()
+        }
+        $stderrLines = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+            @(Get-Content -LiteralPath $stderrPath -Encoding UTF8)
+        } else {
+            @()
+        }
+
+        return [pscustomobject]@{
+            ExitCode = [int]$process.ExitCode
+            Output = @($stdoutLines + $stderrLines)
+        }
+    } finally {
+        if (Test-Path -LiteralPath $captureRoot) {
+            Remove-Item -LiteralPath $captureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Invoke-NpmCiWithRetry {
     param([int]$MaxAttempts = $maxNpmCiAttempts)
 
     for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
         Write-Output "[gateway-release] npm ci attempt $attempt/$MaxAttempts"
 
-        $npmOutput = @(& npm ci 2>&1)
-        $npmExitCode = $LASTEXITCODE
+        $npmResult = Invoke-NativeCommandCapture `
+            -Command "npm" `
+            -Arguments @("ci") `
+            -WorkingDirectory $desktopRoot
+        $npmOutput = @($npmResult.Output)
+        $npmExitCode = [int]$npmResult.ExitCode
         $npmOutput | ForEach-Object { Write-Output $_ }
 
         if ($npmExitCode -eq 0) {
@@ -249,8 +316,12 @@ try {
         }
 
         Invoke-GatewayReleaseStep -Name "typecheck desktop UI" -Action {
-            $typecheckOutput = @(& npm run typecheck 2>&1)
-            $typecheckExitCode = $LASTEXITCODE
+            $typecheckResult = Invoke-NativeCommandCapture `
+                -Command "npm" `
+                -Arguments @("run", "typecheck") `
+                -WorkingDirectory $desktopRoot
+            $typecheckOutput = @($typecheckResult.Output)
+            $typecheckExitCode = [int]$typecheckResult.ExitCode
             $typecheckOutput | ForEach-Object { Write-Output $_ }
             if ($typecheckExitCode -ne 0) {
                 throw "npm typecheck failed for Gateway desktop UI"
@@ -260,8 +331,12 @@ try {
         # Clean worktrees do not have node_modules yet, and the Gateway root
         # build.rs runs the desktop web build as part of cargo build.
         Invoke-GatewayReleaseStep -Name "build headless neuro-gateway" -Action {
-            $cargoOutput = @(& cargo build --locked --release --bin neuro-gateway 2>&1)
-            $cargoExitCode = $LASTEXITCODE
+            $cargoResult = Invoke-NativeCommandCapture `
+                -Command "cargo" `
+                -Arguments @("build", "--locked", "--release", "--bin", "neuro-gateway") `
+                -WorkingDirectory $repoRoot
+            $cargoOutput = @($cargoResult.Output)
+            $cargoExitCode = [int]$cargoResult.ExitCode
             $cargoOutput | ForEach-Object { Write-Output $_ }
             if ($cargoExitCode -ne 0) {
                 throw "cargo build failed for neuro-gateway"
@@ -269,8 +344,12 @@ try {
         }
 
         Invoke-GatewayReleaseStep -Name "build desktop Tauri shell" -Action {
-            $tauriOutput = @(& npm run tauri -- build --no-bundle 2>&1)
-            $tauriExitCode = $LASTEXITCODE
+            $tauriResult = Invoke-NativeCommandCapture `
+                -Command "npm" `
+                -Arguments @("run", "tauri", "--", "build", "--no-bundle") `
+                -WorkingDirectory $desktopRoot
+            $tauriOutput = @($tauriResult.Output)
+            $tauriExitCode = [int]$tauriResult.ExitCode
             $tauriOutput | ForEach-Object { Write-Output $_ }
             if ($tauriExitCode -ne 0) {
                 throw "tauri build failed for Gateway desktop UI"

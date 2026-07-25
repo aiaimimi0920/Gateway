@@ -155,18 +155,17 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("Start-Sleep", script_text)
         self.assertIn("npm ci failed for Gateway desktop UI after", script_text)
 
-    def test_gateway_owned_release_builder_merges_native_stderr_before_exit_checks(self):
+    def test_gateway_owned_release_builder_runs_native_commands_via_process_capture(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
         script_text = build_script.read_text(encoding="utf-8")
-        self.assertIn(
-            "$cargoOutput = @(& cargo build --locked --release --bin neuro-gateway 2>&1)",
-            script_text,
-        )
-        self.assertIn("$typecheckOutput = @(& npm run typecheck 2>&1)", script_text)
-        self.assertIn(
-            "$tauriOutput = @(& npm run tauri -- build --no-bundle 2>&1)",
-            script_text,
-        )
+        self.assertIn("function Invoke-NativeCommandCapture", script_text)
+        self.assertIn("Start-Process", script_text)
+        self.assertIn("RedirectStandardOutput", script_text)
+        self.assertIn("RedirectStandardError", script_text)
+        self.assertIn("PassThru = $true", script_text)
+        self.assertIn('WindowStyle = "Hidden"', script_text)
+        self.assertIn('-Command "cargo"', script_text)
+        self.assertIn('-Command "npm"', script_text)
 
     def test_gateway_owned_release_builder_has_stage_logs_and_artifact_hash_summary(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
@@ -237,7 +236,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
 
         self.assertEqual(config["build"]["beforeBuildCommand"], "npm run build:tauri")
         self.assertNotIn("& npm run build", script_text)
-        self.assertIn("& npm run typecheck", script_text)
+        self.assertIn('-Arguments @("run", "typecheck")', script_text)
 
     def test_desktop_state_supports_explicit_profile_reload_preference(self):
         state_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
