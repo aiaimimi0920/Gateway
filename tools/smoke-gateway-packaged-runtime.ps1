@@ -29,11 +29,62 @@ function Resolve-NativeExecutable {
     if (Test-Path -LiteralPath $Command -PathType Leaf) {
         return [System.IO.Path]::GetFullPath($Command)
     }
-    $resolved = Get-Command $Command -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -eq $resolved) {
+    $resolved = @(Get-Command $Command -All -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandType -eq "Application" } |
+        Select-Object -First 1)
+    if ($resolved.Count -eq 0) {
+        $resolved = @(Get-Command $Command -ErrorAction SilentlyContinue | Select-Object -First 1)
+    }
+    if ($resolved.Count -eq 0 -or $null -eq $resolved[0]) {
         throw "$Name executable was not found. Supply an explicit command path."
     }
-    return $resolved.Source
+    return $resolved[0].Source
+}
+
+function Invoke-NativeCommandCapture {
+    param(
+        [Parameter(Mandatory = $true)][string]$Command,
+        [Parameter(Mandatory = $true)][string[]]$Arguments
+    )
+
+    $captureRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
+        "gateway-packaged-smoke-{0}" -f [guid]::NewGuid().ToString("N")
+    )
+    $stdoutPath = Join-Path $captureRoot "stdout.log"
+    $stderrPath = Join-Path $captureRoot "stderr.log"
+    New-Item -ItemType Directory -Path $captureRoot -Force | Out-Null
+
+    try {
+        $startInfo = @{
+            FilePath = $Command
+            ArgumentList = $Arguments
+            RedirectStandardOutput = $stdoutPath
+            RedirectStandardError = $stderrPath
+            PassThru = $true
+            Wait = $true
+            WindowStyle = "Hidden"
+        }
+        $process = Start-Process @startInfo
+        $stdoutLines = if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
+            @(Get-Content -LiteralPath $stdoutPath -Encoding UTF8)
+        } else {
+            @()
+        }
+        $stderrLines = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+            @(Get-Content -LiteralPath $stderrPath -Encoding UTF8)
+        } else {
+            @()
+        }
+
+        return [pscustomobject]@{
+            ExitCode = [int]$process.ExitCode
+            Text = (($stdoutLines + $stderrLines) | ForEach-Object { [string]$_ }) -join "`n"
+        }
+    } finally {
+        if (Test-Path -LiteralPath $captureRoot) {
+            Remove-Item -LiteralPath $captureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 function Invoke-Docker {
@@ -44,18 +95,17 @@ function Invoke-Docker {
         [switch]$AllowFailure
     )
 
-    $output = & $DockerExecutable @Arguments 2>&1
-    $exitCode = $LASTEXITCODE
-    if ($exitCode -ne 0 -and -not $AllowFailure) {
-        $details = (($output | ForEach-Object { [string]$_ }) -join "`n").Trim()
+    $result = Invoke-NativeCommandCapture -Command $DockerExecutable -Arguments $Arguments
+    if ($result.ExitCode -ne 0 -and -not $AllowFailure) {
+        $details = $result.Text.Trim()
         if ([string]::IsNullOrWhiteSpace($details)) {
-            throw "$Operation failed with exit code $exitCode."
+            throw "$Operation failed with exit code $($result.ExitCode)."
         }
-        throw "$Operation failed with exit code ${exitCode}: $details"
+        throw "$Operation failed with exit code $($result.ExitCode): $details"
     }
     return [pscustomobject]@{
-        ExitCode = $exitCode
-        Text = (($output | ForEach-Object { [string]$_ }) -join "`n").Trim()
+        ExitCode = $result.ExitCode
+        Text = $result.Text.Trim()
     }
 }
 

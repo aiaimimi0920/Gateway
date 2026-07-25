@@ -85,6 +85,19 @@ class GatewayPackagedRuntimeContractTests(unittest.TestCase):
         self.assertNotIn('if ([string]::IsNullOrWhiteSpace($env:GATEWAY_REDIS_URL))', text)
         self.assertNotIn('"redis://127.0.0.1:6379"', text)
 
+    def test_packaged_runtime_smoke_captures_docker_output_via_process_wrapper(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+        for required in [
+            "function Invoke-NativeCommandCapture",
+            "Start-Process",
+            "RedirectStandardOutput",
+            "RedirectStandardError",
+            "PassThru = $true",
+            'WindowStyle = "Hidden"',
+            "Invoke-NativeCommandCapture -Command $DockerExecutable",
+        ]:
+            self.assertIn(required, text)
+
     def test_packaged_runtime_evidence_uses_paths_relative_to_evidence_file(self):
         text = SCRIPT.read_text(encoding="utf-8")
         for required in [
