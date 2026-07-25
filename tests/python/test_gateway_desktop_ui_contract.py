@@ -76,7 +76,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         config = json.loads(tauri_conf.read_text(encoding="utf-8"))
         self.assertEqual(config["productName"], "Neuro Gateway")
         self.assertEqual(config["identifier"], "com.vmjcv.neuro.gateway")
-        self.assertEqual(config["build"]["frontendDist"], "../dist")
+        self.assertEqual(config["build"]["frontendDist"], "../dist/tauri")
 
     def test_tauri_bundle_declares_cross_platform_icons(self):
         tauri_root = DESKTOP_ROOT / "src-tauri"
@@ -128,6 +128,21 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("npm run typecheck", script_text)
         self.assertIn("npm run tauri -- build --no-bundle", script_text)
         self.assertIn("neuro-gateway-ui.exe", script_text)
+
+    def test_gateway_owned_release_builder_installs_desktop_dependencies_before_headless_build(self):
+        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
+        script_text = build_script.read_text(encoding="utf-8")
+        install_index = script_text.index(
+            'Invoke-GatewayReleaseStep -Name "install desktop dependencies"'
+        )
+        cargo_index = script_text.index(
+            'Invoke-GatewayReleaseStep -Name "build headless neuro-gateway"'
+        )
+        self.assertLess(
+            install_index,
+            cargo_index,
+            "Desktop npm dependencies must be installed before cargo build triggers build.rs",
+        )
 
     def test_gateway_owned_release_builder_retries_transient_npm_ci_file_locks(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
@@ -207,7 +222,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         script_text = build_script.read_text(encoding="utf-8")
         config = json.loads(tauri_conf.read_text(encoding="utf-8"))
 
-        self.assertEqual(config["build"]["beforeBuildCommand"], "npm run build")
+        self.assertEqual(config["build"]["beforeBuildCommand"], "npm run build:tauri")
         self.assertNotIn("& npm run build", script_text)
         self.assertIn("& npm run typecheck", script_text)
 

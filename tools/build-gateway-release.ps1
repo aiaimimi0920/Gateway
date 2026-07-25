@@ -11,9 +11,9 @@ $desktopRoot = Join-Path $repoRoot "apps\\desktop"
 $maxNpmCiAttempts = 3
 
 $commands = @(
-    'cargo build --locked --release --bin neuro-gateway',
     'npm ci (retry up to 3 attempts on transient Windows file locks)',
     'npm run typecheck',
+    'cargo build --locked --release --bin neuro-gateway',
     'npm run tauri -- build --no-bundle'
 )
 
@@ -242,13 +242,6 @@ function Write-BuildProvenance {
 
 Push-Location -LiteralPath $repoRoot
 try {
-    Invoke-GatewayReleaseStep -Name "build headless neuro-gateway" -Action {
-        & cargo build --locked --release --bin neuro-gateway
-        if ($LASTEXITCODE -ne 0) {
-            throw "cargo build failed for neuro-gateway"
-        }
-    }
-
     Push-Location -LiteralPath $desktopRoot
     try {
         Invoke-GatewayReleaseStep -Name "install desktop dependencies" -Action {
@@ -259,6 +252,15 @@ try {
             & npm run typecheck
             if ($LASTEXITCODE -ne 0) {
                 throw "npm typecheck failed for Gateway desktop UI"
+            }
+        }
+
+        # Clean worktrees do not have node_modules yet, and the Gateway root
+        # build.rs runs the desktop web build as part of cargo build.
+        Invoke-GatewayReleaseStep -Name "build headless neuro-gateway" -Action {
+            & cargo build --locked --release --bin neuro-gateway
+            if ($LASTEXITCODE -ne 0) {
+                throw "cargo build failed for neuro-gateway"
             }
         }
 
