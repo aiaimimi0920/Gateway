@@ -167,6 +167,12 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn('-Command "cargo"', script_text)
         self.assertIn('-Command "npm"', script_text)
 
+    def test_gateway_owned_release_builder_prefers_application_wrappers_for_start_process(self):
+        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
+        script_text = build_script.read_text(encoding="utf-8")
+        self.assertIn("Get-Command $Command -All", script_text)
+        self.assertIn('$_.CommandType -eq "Application"', script_text)
+
     def test_gateway_owned_release_builder_has_stage_logs_and_artifact_hash_summary(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
         script_text = build_script.read_text(encoding="utf-8")

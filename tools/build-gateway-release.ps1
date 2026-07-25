@@ -54,11 +54,16 @@ function Resolve-NativeExecutable {
         return [System.IO.Path]::GetFullPath($Command)
     }
 
-    $resolved = Get-Command $Command -ErrorAction SilentlyContinue | Select-Object -First 1
+    $resolved = @(Get-Command $Command -All -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandType -eq "Application" } |
+        Select-Object -First 1)
+    if ($resolved.Count -eq 0) {
+        $resolved = @(Get-Command $Command -ErrorAction SilentlyContinue | Select-Object -First 1)
+    }
     if ($null -eq $resolved) {
         throw "Native command was not found: $Command"
     }
-    return $resolved.Source
+    return $resolved[0].Source
 }
 
 function Invoke-NativeCommandCapture {
