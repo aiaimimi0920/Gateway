@@ -101,6 +101,17 @@ class GatewayPackagedRuntimeContractTests(unittest.TestCase):
         self.assertNotIn("stdoutPath = $stdoutPath", text)
         self.assertNotIn("stderrPath = $stderrPath", text)
 
+    def test_packaged_runtime_smoke_redirects_gateway_state_outside_release_dir(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+        for required in [
+            "GATEWAY_STATE_DIR",
+            '$stateRoot = Join-Path $logRoot "gateway-state"',
+            '$env:GATEWAY_STATE_DIR = $stateRoot',
+        ]:
+            self.assertIn(required, text)
+
+        self.assertNotIn('$env:GATEWAY_STATE_DIR = Join-Path $releaseDirFull', text)
+
     def test_packaged_runtime_evidence_records_the_observed_process_exit_code(self):
         text = SCRIPT.read_text(encoding="utf-8")
 

@@ -487,6 +487,8 @@ $apiHeaders = @{ Authorization = "Bearer $gatewayApiKey" }
 $managementHeaders = @{ "x-management-token" = $managementToken }
 $logRoot = Join-Path $evidenceParent "gateway-packaged-smoke-$Port-$([guid]::NewGuid().ToString('N').Substring(0, 12))"
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+$stateRoot = Join-Path $logRoot "gateway-state"
+New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
 $stdoutPath = Join-Path $logRoot "gateway.stdout.log"
 $stderrPath = Join-Path $logRoot "gateway.stderr.log"
 
@@ -499,6 +501,7 @@ $environmentKeys = @(
     "GATEWAY_MANAGEMENT_TOKEN",
     "GATEWAY_PUBLIC_BASE_URL",
     "GATEWAY_ROUTES_FILE",
+    "GATEWAY_STATE_DIR",
     "RUST_LOG"
 )
 $previousEnvironment = @{}
@@ -535,6 +538,7 @@ try {
     $env:GATEWAY_MANAGEMENT_TOKEN = $managementToken
     $env:GATEWAY_PUBLIC_BASE_URL = $baseUrl
     $env:GATEWAY_ROUTES_FILE = Join-Path $releaseDirFull "routes.yaml"
+    $env:GATEWAY_STATE_DIR = $stateRoot
     $env:RUST_LOG = "info"
 
     $startArguments = @{
