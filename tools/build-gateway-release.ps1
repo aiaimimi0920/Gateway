@@ -249,8 +249,10 @@ try {
         }
 
         Invoke-GatewayReleaseStep -Name "typecheck desktop UI" -Action {
-            & npm run typecheck
-            if ($LASTEXITCODE -ne 0) {
+            $typecheckOutput = @(& npm run typecheck 2>&1)
+            $typecheckExitCode = $LASTEXITCODE
+            $typecheckOutput | ForEach-Object { Write-Output $_ }
+            if ($typecheckExitCode -ne 0) {
                 throw "npm typecheck failed for Gateway desktop UI"
             }
         }
@@ -258,15 +260,19 @@ try {
         # Clean worktrees do not have node_modules yet, and the Gateway root
         # build.rs runs the desktop web build as part of cargo build.
         Invoke-GatewayReleaseStep -Name "build headless neuro-gateway" -Action {
-            & cargo build --locked --release --bin neuro-gateway
-            if ($LASTEXITCODE -ne 0) {
+            $cargoOutput = @(& cargo build --locked --release --bin neuro-gateway 2>&1)
+            $cargoExitCode = $LASTEXITCODE
+            $cargoOutput | ForEach-Object { Write-Output $_ }
+            if ($cargoExitCode -ne 0) {
                 throw "cargo build failed for neuro-gateway"
             }
         }
 
         Invoke-GatewayReleaseStep -Name "build desktop Tauri shell" -Action {
-            & npm run tauri -- build --no-bundle
-            if ($LASTEXITCODE -ne 0) {
+            $tauriOutput = @(& npm run tauri -- build --no-bundle 2>&1)
+            $tauriExitCode = $LASTEXITCODE
+            $tauriOutput | ForEach-Object { Write-Output $_ }
+            if ($tauriExitCode -ne 0) {
                 throw "tauri build failed for Gateway desktop UI"
             }
         }

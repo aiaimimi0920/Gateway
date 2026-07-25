@@ -155,6 +155,19 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("Start-Sleep", script_text)
         self.assertIn("npm ci failed for Gateway desktop UI after", script_text)
 
+    def test_gateway_owned_release_builder_merges_native_stderr_before_exit_checks(self):
+        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
+        script_text = build_script.read_text(encoding="utf-8")
+        self.assertIn(
+            "$cargoOutput = @(& cargo build --locked --release --bin neuro-gateway 2>&1)",
+            script_text,
+        )
+        self.assertIn("$typecheckOutput = @(& npm run typecheck 2>&1)", script_text)
+        self.assertIn(
+            "$tauriOutput = @(& npm run tauri -- build --no-bundle 2>&1)",
+            script_text,
+        )
+
     def test_gateway_owned_release_builder_has_stage_logs_and_artifact_hash_summary(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
         script_text = build_script.read_text(encoding="utf-8")
