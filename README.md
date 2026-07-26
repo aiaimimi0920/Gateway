@@ -39,6 +39,7 @@ this repository. The ownership and integration rules are documented in
 ```text
 ./
 ├── apps/desktop/       # TypeScript frontend and Tauri launcher
+├── deploy/             # Official Docker Compose deployment stacks
 ├── manifests/          # Provider line manifests and JSON schema
 ├── scripts/            # Browser workers and worker tests
 ├── src/                # Rust library and gateway binary
@@ -126,8 +127,8 @@ Pop-Location
 Each version directory is immutable and is written to the repository-local
 `release/Gateway/<versionId>` directory by default. A package contains the two
 Windows executables, the selected route files, `.env.example`, build
-provenance, manifests, browser workers, documentation, tools, `manifest.json`,
-and `checksums.sha256`.
+provenance, manifests, browser workers, documentation, the official `deploy/`
+directory, tools, `manifest.json`, and `checksums.sha256`.
 
 Build and package a candidate from the repository root:
 
@@ -191,21 +192,78 @@ evidence root, never inside an immutable package.
 
 ## Docker
 
-Build the service image from the Gateway root:
+For direct server deployment, use the official Compose stack under
+[`deploy/`](deploy/README.md). The recommended local-directory variant keeps
+route and Redis data on the host filesystem for easy backup and migration:
+
+```bash
+cd deploy
+chmod +x docker-deploy.sh
+./docker-deploy.sh
+docker compose -f docker-compose.local.yml up -d
+```
+
+That one-click preparation flow is the closest Gateway equivalent to the
+recommended Sub2API Docker Compose deployment pattern: prepare `.env`, generate
+the required secrets, create local data directories, then start the
+local-directory compose stack.
+
+```bash
+cd deploy
+cp .env.example .env
+mkdir -p gateway_data redis_data
+docker compose -f docker-compose.local.yml up -d
+docker compose -f docker-compose.local.yml logs -f gateway
+```
+
+The image boots in `standalone` mode by default and auto-seeds the persistent
+route file from `routes.example.yaml` on first start.
+
+Named-volume deployment is also provided:
+
+```bash
+cd deploy
+cp .env.example .env
+docker compose up -d
+docker compose logs -f gateway
+```
+
+Raw `docker build` / `docker run` remains available for development-only image
+testing:
 
 ```powershell
 docker build -t gateway:local .
 docker run --rm -p 4200:4200 --env-file .env gateway:local
 ```
 
-The image contains the release binary, route files, provider manifests, and
-browser workers. Runtime secrets are supplied through environment variables or
-an env file; they are not read from `.env` during the image build.
+The image contains the release binary, route files, provider manifests, browser
+workers, and a container entrypoint that initializes `/data/routes.yaml` when a
+persistent route file is missing. Runtime secrets are supplied through
+environment variables or an env file; they are not read from `.env` during the
+image build.
+
+For one-command Docker operations from the repository root, use:
+
+```powershell
+.\tools\deploy-gateway-docker.ps1 -Action up -Mode local
+.\tools\deploy-gateway-docker.ps1 -Action logs -Mode local -Follow
+.\tools\deploy-gateway-docker.ps1 -Action down -Mode local
+```
+
+To run an end-to-end local Docker verification against a locally built image:
+
+```powershell
+.\tools\verify-gateway-docker-stack.ps1 -BuildImage
+```
 
 ## GitHub Automation
 
 - `ci.yml` validates Windows and Linux builds, Python contracts, Node workers,
   Rust targets, the desktop frontend, and the Tauri wrapper.
+- `docker.yml` locally verifies the official Compose deployment stack before any
+  optional GHCR publish.
+- `release-tag.yml` also exports `Gateway-Vx.y.z-docker-deploy.zip` plus a
+  SHA-256 checksum alongside the Windows release ZIP.
 - `build-windows.yml` creates and uploads an immutable Windows candidate under
   `release/Gateway`.
 - `docker.yml` builds on pull requests and publishes

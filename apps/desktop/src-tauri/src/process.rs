@@ -1,8 +1,8 @@
 use crate::logs::read_log_tail_lines;
 use crate::paths::{gateway_log_dir, gateway_runtime_dir};
 use crate::profile::{
-    load_profile, preflight_failure_message, preflight_gateway_profile,
-    profile_working_directory_path, resolve_gateway_sidecar_path, GatewayProfile,
+    load_profile, preflight_gateway_profile, profile_working_directory_path,
+    resolve_gateway_sidecar_path, GatewayProfile, GatewayProfilePreflight, GatewayRuntimeRole,
     DESKTOP_OWNED_ENV_KEYS,
 };
 use crate::state::{GatewayDesktopState, GatewayProcessRuntime, GatewayProcessSnapshot};
@@ -104,6 +104,53 @@ fn render_child_environment(
         }
     }
     Ok(environment)
+}
+
+fn standalone_startup_can_use_yaml_without_redis(
+    preflight: &GatewayProfilePreflight,
+    runtime_role: GatewayRuntimeRole,
+) -> bool {
+    matches!(runtime_role, GatewayRuntimeRole::Standalone)
+        && preflight.sidecar.ok
+        && preflight.working_directory.ok
+        && preflight.gateway_routes_file.is_file
+}
+
+fn startup_preflight_failure_message(
+    profile: &GatewayProfile,
+    preflight: &GatewayProfilePreflight,
+) -> Option<String> {
+    let mut messages = Vec::new();
+
+    for (ok, message) in [
+        (preflight.sidecar.ok, preflight.sidecar.message.as_str()),
+        (
+            preflight.working_directory.ok,
+            preflight.working_directory.message.as_str(),
+        ),
+        (
+            preflight.gateway_routes_file.ok,
+            preflight.gateway_routes_file.message.as_str(),
+        ),
+        (preflight.database.ok, preflight.database.message.as_str()),
+    ] {
+        if !ok {
+            messages.push(message.to_string());
+        }
+    }
+
+    if !preflight.redis.ok
+        && !standalone_startup_can_use_yaml_without_redis(preflight, profile.runtime_role)
+    {
+        messages.push(preflight.redis.message.clone());
+    }
+
+    (!messages.is_empty()).then(|| {
+        format!(
+            "Gateway dependency preflight failed: {}",
+            messages.join("; ")
+        )
+    })
 }
 
 fn configure_child_environment(command: &mut Command, environment: BTreeMap<String, String>) {
@@ -217,7 +264,14 @@ fn wait_for_startup_probe(
                 return StartupProbeResult {
                     running: true,
                     startup_state: if ready_ok { "ready" } else { "healthy" }.to_string(),
-                    last_error: None,
+                    last_error: if ready_ok {
+                        None
+                    } else {
+                        Some(
+                            "Gateway process is healthy, but /readyz is still failing; optional runtime dependencies may be unavailable"
+                                .to_string(),
+                        )
+                    },
                     recent_log_lines: tail_log_lines(log_path, STARTUP_LOG_TAIL_LINES),
                 };
             }
@@ -374,7 +428,7 @@ pub fn start_gateway_sidecar(
 ) -> Result<GatewayProcessSnapshot, String> {
     let profile = load_profile(profile_name)?;
     let preflight = preflight_gateway_profile(&profile)?;
-    if let Some(message) = preflight_failure_message(&preflight) {
+    if let Some(message) = startup_preflight_failure_message(&profile, &preflight) {
         return Err(message);
     }
     let binary_path = gateway_binary_path()?;
@@ -641,6 +695,191 @@ mod tests {
         let status = child.wait().expect("wait exit-status fixture");
         assert!(!status.success());
         assert_eq!(shutdown_state_for_exit(true, &status), "exited");
+    }
+
+    #[test]
+    fn standalone_startup_ignores_redis_preflight_when_local_routes_exist() {
+        let redis_only = crate::profile::GatewayProfilePreflight {
+            ok: false,
+            sidecar: crate::profile::GatewayProfilePathCheckItem {
+                configured_path: None,
+                resolved_path: "gateway.exe".to_string(),
+                expected_kind: "file".to_string(),
+                exists: true,
+                is_file: true,
+                is_dir: false,
+                ok: true,
+                message: "Gateway sidecar executable is available".to_string(),
+            },
+            working_directory: crate::profile::GatewayProfilePathCheckItem {
+                configured_path: None,
+                resolved_path: ".".to_string(),
+                expected_kind: "directory".to_string(),
+                exists: true,
+                is_file: false,
+                is_dir: true,
+                ok: true,
+                message: "working directory is available".to_string(),
+            },
+            gateway_routes_file: crate::profile::GatewayProfilePathCheckItem {
+                configured_path: None,
+                resolved_path: "routes.yaml".to_string(),
+                expected_kind: "file".to_string(),
+                exists: true,
+                is_file: true,
+                is_dir: false,
+                ok: true,
+                message: "default routes.yaml is available".to_string(),
+            },
+            redis: crate::profile::GatewayDependencyCheckItem {
+                name: "Redis".to_string(),
+                required: true,
+                configured: true,
+                ok: false,
+                message: "Redis is not reachable. Start Redis or update GATEWAY_REDIS_URL."
+                    .to_string(),
+            },
+            database: crate::profile::GatewayDependencyCheckItem {
+                name: "PostgreSQL".to_string(),
+                required: false,
+                configured: false,
+                ok: true,
+                message: "PostgreSQL is not configured".to_string(),
+            },
+            messages: vec![
+                "Redis is not reachable. Start Redis or update GATEWAY_REDIS_URL.".to_string(),
+            ],
+        };
+        let profile = portable_profile();
+
+        assert_eq!(startup_preflight_failure_message(&profile, &redis_only), None);
+    }
+
+    #[test]
+    fn standalone_startup_still_blocks_when_redis_is_missing_and_no_routes_file_exists() {
+        let profile = GatewayProfile {
+            gateway_routes_file: None,
+            ..portable_profile()
+        };
+        let redis_without_routes = crate::profile::GatewayProfilePreflight {
+            ok: false,
+            sidecar: crate::profile::GatewayProfilePathCheckItem {
+                configured_path: None,
+                resolved_path: "gateway.exe".to_string(),
+                expected_kind: "file".to_string(),
+                exists: true,
+                is_file: true,
+                is_dir: false,
+                ok: true,
+                message: "Gateway sidecar executable is available".to_string(),
+            },
+            working_directory: crate::profile::GatewayProfilePathCheckItem {
+                configured_path: None,
+                resolved_path: ".".to_string(),
+                expected_kind: "directory".to_string(),
+                exists: true,
+                is_file: false,
+                is_dir: true,
+                ok: true,
+                message: "working directory is available".to_string(),
+            },
+            gateway_routes_file: crate::profile::GatewayProfilePathCheckItem {
+                configured_path: None,
+                resolved_path: "routes.yaml".to_string(),
+                expected_kind: "file".to_string(),
+                exists: false,
+                is_file: false,
+                is_dir: false,
+                ok: true,
+                message: "GATEWAY_ROUTES_FILE is not configured and default routes.yaml is absent; Gateway may still load routes from Redis"
+                    .to_string(),
+            },
+            redis: crate::profile::GatewayDependencyCheckItem {
+                name: "Redis".to_string(),
+                required: true,
+                configured: true,
+                ok: false,
+                message: "Redis is not reachable. Start Redis or update GATEWAY_REDIS_URL."
+                    .to_string(),
+            },
+            database: crate::profile::GatewayDependencyCheckItem {
+                name: "PostgreSQL".to_string(),
+                required: false,
+                configured: false,
+                ok: true,
+                message: "PostgreSQL is not configured".to_string(),
+            },
+            messages: vec![
+                "Redis is not reachable. Start Redis or update GATEWAY_REDIS_URL.".to_string(),
+            ],
+        };
+
+        let failure = startup_preflight_failure_message(&profile, &redis_without_routes)
+            .expect("redis must remain blocking when standalone has no local routes file");
+        assert!(failure.contains("Redis is not reachable"));
+    }
+
+    #[test]
+    fn worker_startup_still_requires_redis_even_when_routes_exist() {
+        let profile = GatewayProfile {
+            runtime_role: GatewayRuntimeRole::Worker,
+            ..portable_profile()
+        };
+        let preflight = crate::profile::GatewayProfilePreflight {
+            ok: false,
+            sidecar: crate::profile::GatewayProfilePathCheckItem {
+                configured_path: None,
+                resolved_path: "gateway.exe".to_string(),
+                expected_kind: "file".to_string(),
+                exists: true,
+                is_file: true,
+                is_dir: false,
+                ok: true,
+                message: "Gateway sidecar executable is available".to_string(),
+            },
+            working_directory: crate::profile::GatewayProfilePathCheckItem {
+                configured_path: None,
+                resolved_path: ".".to_string(),
+                expected_kind: "directory".to_string(),
+                exists: true,
+                is_file: false,
+                is_dir: true,
+                ok: true,
+                message: "working directory is available".to_string(),
+            },
+            gateway_routes_file: crate::profile::GatewayProfilePathCheckItem {
+                configured_path: None,
+                resolved_path: "routes.yaml".to_string(),
+                expected_kind: "file".to_string(),
+                exists: true,
+                is_file: true,
+                is_dir: false,
+                ok: true,
+                message: "default routes.yaml is available".to_string(),
+            },
+            redis: crate::profile::GatewayDependencyCheckItem {
+                name: "Redis".to_string(),
+                required: true,
+                configured: true,
+                ok: false,
+                message: "Redis is not reachable. Start Redis or update GATEWAY_REDIS_URL."
+                    .to_string(),
+            },
+            database: crate::profile::GatewayDependencyCheckItem {
+                name: "PostgreSQL".to_string(),
+                required: false,
+                configured: false,
+                ok: true,
+                message: "PostgreSQL is not configured".to_string(),
+            },
+            messages: vec![
+                "Redis is not reachable. Start Redis or update GATEWAY_REDIS_URL.".to_string(),
+            ],
+        };
+
+        let failure = startup_preflight_failure_message(&profile, &preflight)
+            .expect("worker startup must still block on Redis");
+        assert!(failure.contains("Redis is not reachable"));
     }
 
     #[cfg(windows)]

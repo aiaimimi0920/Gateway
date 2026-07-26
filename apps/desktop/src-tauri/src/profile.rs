@@ -580,15 +580,6 @@ pub fn preflight_gateway_profile(
     Ok(preflight_gateway_profile_from(profile, &package_directory))
 }
 
-pub fn preflight_failure_message(preflight: &GatewayProfilePreflight) -> Option<String> {
-    (!preflight.ok).then(|| {
-        format!(
-            "Gateway dependency preflight failed: {}",
-            preflight.messages.join("; ")
-        )
-    })
-}
-
 fn validate_env_key(key: &str) -> bool {
     let mut chars = key.chars();
     let Some(first) = chars.next() else {

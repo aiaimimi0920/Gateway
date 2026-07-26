@@ -763,6 +763,19 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("!state.isTauriAvailable", config_text)
         self.assertIn("!state.isTauriAvailable", logs_text)
 
+    def test_desktop_readiness_ui_surfaces_degraded_mode(self):
+        app_text = (DESKTOP_ROOT / "src" / "App.tsx").read_text(encoding="utf-8")
+        status_text = (
+            DESKTOP_ROOT / "src" / "features" / "status" / "StatusPanel.tsx"
+        ).read_text(encoding="utf-8")
+        types_text = (DESKTOP_ROOT / "src" / "lib" / "types.ts").read_text(encoding="utf-8")
+
+        self.assertIn("degraded?: boolean", types_text)
+        self.assertIn("readyProbe?.data?.degraded", app_text)
+        self.assertIn("DEGRADED", app_text)
+        self.assertIn("degradedFlag(probe.data)", status_text)
+        self.assertIn("degraded mode", status_text)
+
 
 if __name__ == "__main__":
     unittest.main()

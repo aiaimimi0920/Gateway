@@ -131,6 +131,11 @@ export type GatewayReadyResponse = {
   ready?: boolean;
   status?: string;
   checks?: unknown;
+  degraded?: boolean;
+  reason?: string;
+  redis_required?: boolean;
+  routing_configured?: boolean;
+  runtime_role?: GatewayRuntimeRole;
   [key: string]: unknown;
 };
 

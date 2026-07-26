@@ -1,0 +1,75 @@
+services:
+  gateway:
+    image: ghcr.io/aiaimimi0920/gateway:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${GATEWAY_ENV_FILE:-.env}
+    environment:
+      - PORT=4200
+      - RUST_LOG=${RUST_LOG:-info}
+      - GATEWAY_RUNTIME_ROLE=${GATEWAY_RUNTIME_ROLE:-standalone}
+      - GATEWAY_REDIS_URL=${GATEWAY_REDIS_URL:-redis://redis:6379/0}
+      - GATEWAY_ROUTES_FILE=${GATEWAY_ROUTES_FILE:-/data/routes.yaml}
+      - GATEWAY_STATE_DIR=${GATEWAY_STATE_DIR:-/data/state}
+      - GATEWAY_API_KEY=${GATEWAY_API_KEY:-}
+      - GATEWAY_API_KEY_SECRET=${GATEWAY_API_KEY_SECRET:-}
+      - GATEWAY_MANAGEMENT_TOKEN=${GATEWAY_MANAGEMENT_TOKEN:-}
+      - GATEWAY_CONSOLE_REMOTE_ACCESS=${GATEWAY_CONSOLE_REMOTE_ACCESS:-false}
+      - GATEWAY_DATABASE_URL=${GATEWAY_DATABASE_URL:-}
+    ports:
+      - "${GATEWAY_BIND_HOST:-0.0.0.0}:${GATEWAY_PORT:-4200}:4200"
+    volumes:
+      - gateway_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4200/healthz').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - gateway-network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--save",
+        "60",
+        "1",
+        "--appendonly",
+        "yes",
+        "--appendfsync",
+        "everysec",
+      ]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - gateway-network
+
+volumes:
+  gateway_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  gateway-network:
+    driver: bridge

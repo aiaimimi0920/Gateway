@@ -69,6 +69,7 @@ function App() {
 
   const running = gatewayState.processSnapshot.running;
   const browserPreviewMode = !gatewayState.isTauriAvailable;
+  const readinessDegraded = Boolean(gatewayState.readyProbe?.ok && gatewayState.readyProbe?.data?.degraded);
 
   return (
     <div className="nt-shell">
@@ -174,7 +175,9 @@ function App() {
           </article>
           <article className="nt-card nt-card--stat">
             <span>Ready</span>
-            <strong>{gatewayState.readyProbe?.ok ? "READY" : "PENDING"}</strong>
+            <strong>
+              {readinessDegraded ? "DEGRADED" : gatewayState.readyProbe?.ok ? "READY" : "PENDING"}
+            </strong>
           </article>
         </section>
 

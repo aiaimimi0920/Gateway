@@ -4,14 +4,28 @@ type StatusPanelProps = {
   state: GatewayDesktopState;
 };
 
+function degradedFlag(data: unknown): boolean {
+  if (!data || typeof data !== "object") {
+    return false;
+  }
+  return (data as { degraded?: unknown }).degraded === true;
+}
+
 function statusLabel(probe?: GatewayHttpProbe<unknown>): string {
   if (!probe) {
     return "pending";
+  }
+  if (probe.ok && degradedFlag(probe.data)) {
+    return `degraded mode / HTTP ${probe.status}`;
   }
   if (probe.ok) {
     return `HTTP ${probe.status}`;
   }
   return probe.status === 0 ? "network error" : `HTTP ${probe.status}`;
+}
+
+function isDegradedProbe(probe?: GatewayHttpProbe<unknown>): boolean {
+  return Boolean(probe?.ok && degradedFlag(probe.data));
 }
 
 function ProbeCard({
@@ -23,7 +37,13 @@ function ProbeCard({
   endpoint: string;
   probe?: GatewayHttpProbe<unknown>;
 }) {
-  const ok = probe?.ok ?? false;
+  const degraded = isDegradedProbe(probe);
+  const ok = (probe?.ok ?? false) && !degraded;
+  const toneClass = degraded
+    ? "nt-badge--warning"
+    : ok
+      ? "nt-badge--success"
+      : "nt-badge--warning";
   return (
     <article className="nt-card">
       <div className="nt-row nt-row--between">
@@ -31,7 +51,7 @@ function ProbeCard({
           <p className="nt-kicker">// {endpoint}</p>
           <h3>{title}</h3>
         </div>
-        <span className={`nt-badge ${ok ? "nt-badge--success" : "nt-badge--warning"}`}>
+        <span className={`nt-badge ${toneClass}`}>
           {statusLabel(probe)}
         </span>
       </div>
@@ -43,6 +63,10 @@ function ProbeCard({
         <div>
           <dt>Error</dt>
           <dd>{probe?.error ?? "-"}</dd>
+        </div>
+        <div>
+          <dt>Mode</dt>
+          <dd>{degraded ? "degraded mode" : probe?.ok ? "normal" : "-"}</dd>
         </div>
       </dl>
       <pre className="nt-code">{JSON.stringify(probe?.data ?? null, null, 2)}</pre>

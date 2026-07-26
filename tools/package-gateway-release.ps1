@@ -568,8 +568,9 @@ $buildProvenanceSource = Join-Path $gatewayRoot "target\release\gateway-build-pr
 $manifestsSource = Join-Path $gatewayRoot "manifests"
 $scriptsSource = Join-Path $gatewayRoot "scripts"
 $docsSource = Join-Path $gatewayRoot "docs"
+$deploySource = Join-Path $gatewayRoot "deploy"
 $toolsSource = Join-Path $gatewayRoot "tools"
-foreach ($requiredDirectory in @($manifestsSource, $scriptsSource, $docsSource, $toolsSource)) {
+foreach ($requiredDirectory in @($manifestsSource, $scriptsSource, $docsSource, $deploySource, $toolsSource)) {
     if (-not (Test-Path -LiteralPath $requiredDirectory -PathType Container)) {
         throw "Required Gateway support directory is missing: $requiredDirectory"
     }
@@ -674,6 +675,12 @@ try {
         $supportRecords += New-ArtifactRecord -PackageRoot $staging -Path $documentationFile.FullName -Kind "documentation"
     }
 
+    Copy-FilteredTree -Source $deploySource -Destination (Join-Path $staging "deploy")
+    $deployFiles = @(Get-ChildItem -LiteralPath (Join-Path $staging "deploy") -Recurse -File | Sort-Object FullName)
+    foreach ($deployFile in $deployFiles) {
+        $supportRecords += New-ArtifactRecord -PackageRoot $staging -Path $deployFile.FullName -Kind "docker-deploy"
+    }
+
     Copy-FilteredTree `
         -Source $toolsSource `
         -Destination (Join-Path $staging "tools") `
@@ -714,6 +721,7 @@ try {
             manifests = "manifests/"
             scripts = "scripts/"
             docs = "docs/"
+            deploy = "deploy/"
             tools = "tools/"
         }
         exes = @($exeRecords)

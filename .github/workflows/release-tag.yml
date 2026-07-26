@@ -134,6 +134,14 @@ jobs:
             -OutputDir ".\release\Gateway\packages" `
             -VersionId $env:GATEWAY_TAG
 
+      - name: Export Docker deploy bundle
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\export-gateway-docker-deploy-bundle.ps1 `
+            -VersionId $env:GATEWAY_TAG `
+            -OutputDir ".\release\Gateway\packages"
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v3
         with:
@@ -144,4 +152,6 @@ jobs:
           files: |
             release/Gateway/packages/Gateway-${{ env.GATEWAY_TAG }}-windows-x64.zip
             release/Gateway/packages/Gateway-${{ env.GATEWAY_TAG }}-windows-x64.zip.sha256
+            release/Gateway/packages/Gateway-${{ env.GATEWAY_TAG }}-docker-deploy.zip
+            release/Gateway/packages/Gateway-${{ env.GATEWAY_TAG }}-docker-deploy.zip.sha256
           fail_on_unmatched_files: true

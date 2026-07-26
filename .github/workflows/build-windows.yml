@@ -98,10 +98,28 @@ jobs:
           powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\smoke-gateway-ui-release.ps1 `
             -ReleaseDir ".\release\Gateway\$env:GATEWAY_VERSION"
 
+      - name: Export Docker deploy bundle
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\export-gateway-docker-deploy-bundle.ps1 `
+            -VersionId $env:GATEWAY_VERSION `
+            -OutputDir ".\release\Gateway\packages"
+
       - name: Upload Windows candidate
         uses: actions/upload-artifact@v6
         with:
           name: gateway-windows-x64-${{ github.sha }}
           path: release/Gateway/${{ env.GATEWAY_VERSION }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Docker deploy bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: gateway-docker-deploy-${{ github.sha }}
+          path: |
+            release/Gateway/packages/Gateway-${{ env.GATEWAY_VERSION }}-docker-deploy.zip
+            release/Gateway/packages/Gateway-${{ env.GATEWAY_VERSION }}-docker-deploy.zip.sha256
           if-no-files-found: error
           retention-days: 14

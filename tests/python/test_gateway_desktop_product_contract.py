@@ -76,6 +76,8 @@ class GatewayDesktopProductContractTests(unittest.TestCase):
         self.assertIn("debug", profile_text)
         self.assertIn("release", profile_text)
         self.assertIn("SeekFrom::End", logs_text)
+        self.assertNotIn("desktop-managed redis", process_text.lower())
+        self.assertNotIn("docker_executable", process_text)
 
     def test_desktop_redaction_fails_closed_for_malformed_urls_and_runtime_logs(self):
         diagnostics_text = self.read("src/lib/diagnostics.ts")

@@ -34,6 +34,7 @@ Platform、Loom 和 Hook 的实现代码不会复制进本仓库。模块职责�
 ```text
 ./
 ├── apps/desktop/       # TypeScript 前端与 Tauri 桌面启动器
+├── deploy/             # 官方 Docker Compose 服务端部署栈
 ├── manifests/          # 提供方线路清单与 JSON Schema
 ├── scripts/            # 浏览器 Worker 与 Node 测试
 ├── src/                # Rust 库与 gateway 二进制
@@ -118,7 +119,7 @@ Pop-Location
 
 默认输出目录是当前独立仓内的 `release/Gateway/<versionId>`。每个版本目录
 不可覆盖，包含两个 Windows 可执行文件、线路配置、`.env.example`、精确构建
-来源、清单、浏览器 Worker、文档、工具、`manifest.json` 和
+来源、清单、浏览器 Worker、文档、官方 `deploy/` 目录、工具、`manifest.json` 和
 `checksums.sha256`。
 
 在仓库根目录构建和打包：
@@ -178,24 +179,73 @@ node --test ".\release\Gateway\$id\scripts\tests\*.test.mjs"
 
 ## Docker
 
-从独立仓根目录构建与运行：
+服务端正式部署请优先使用 [`deploy/`](deploy/README.md) 目录下的官方
+Compose 栈。推荐的本地目录版本会把路由文件与 Redis 数据直接落到宿主机：
+
+```bash
+cd deploy
+chmod +x docker-deploy.sh
+./docker-deploy.sh
+docker compose -f docker-compose.local.yml up -d
+```
+
+这套一键准备流程是 Gateway 对齐 Sub2API 推荐 Docker Compose 部署方案的做法：
+先生成 `.env`、自动补齐关键密钥、创建本地持久化目录，再启动
+`docker-compose.local.yml`。
+
+```bash
+cd deploy
+cp .env.example .env
+mkdir -p gateway_data redis_data
+docker compose -f docker-compose.local.yml up -d
+docker compose -f docker-compose.local.yml logs -f gateway
+```
+
+镜像默认以 `standalone` 模式启动，并会在首次启动时自动把
+`routes.example.yaml` 初始化到持久化的路由文件位置。
+
+也提供命名卷版本：
+
+```bash
+cd deploy
+cp .env.example .env
+docker compose up -d
+docker compose logs -f gateway
+```
+
+根目录下的 `docker build` / `docker run` 仍然保留，适合开发阶段验证镜像：
 
 ```powershell
 docker build -t gateway:local .
 docker run --rm -p 4200:4200 --env-file .env gateway:local
 ```
 
-镜像包含核心二进制、线路配置、提供方清单和浏览器 Worker。运行时凭据通过环境
-变量或 env 文件提供，Docker 构建过程不会读取本地 `.env`。
+镜像包含核心二进制、线路配置、提供方清单、浏览器 Worker，以及一个会在持久化
+路由文件缺失时自动初始化 `/data/routes.yaml` 的容器入口脚本。运行时凭据通过
+环境变量或 env 文件提供，Docker 构建过程不会读取本地 `.env`。
+
+如果希望直接在仓库根目录下一键管理 Docker 部署，可使用：
+
+```powershell
+.\tools\deploy-gateway-docker.ps1 -Action up -Mode local
+.\tools\deploy-gateway-docker.ps1 -Action logs -Mode local -Follow
+.\tools\deploy-gateway-docker.ps1 -Action down -Mode local
+```
+
+如果要对本地源码做一次完整的 Docker 端到端验证，可运行：
+
+```powershell
+.\tools\verify-gateway-docker-stack.ps1 -BuildImage
+```
 
 ## GitHub Actions
 
 - `ci.yml`：Windows/Linux、Python、Node、Rust、桌面前端和 Tauri 验证。
 - `build-windows.yml`：构建并上传 `release/Gateway` 下的 Windows 候选包。
 - `docker.yml`：PR 只构建；只有 `main` 或 `Vx.y.z` tag push 才发布
-  `ghcr.io/aiaimimi0920/gateway`。
+  `ghcr.io/aiaimimi0920/gateway`，并会先用官方 Compose 栈做本地部署验证。
 - `release-tag.yml`：只接受 `Vx.y.z`，校验后生成 ZIP、SHA-256，并发布
-  GitHub Release。
+  GitHub Release；同时会附带 `Gateway-Vx.y.z-docker-deploy.zip` 与对应校验文件。
 
 ## 许可证
 

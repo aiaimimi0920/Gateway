@@ -40,6 +40,11 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
             "README.md",
             "README.zh-CN.md",
             "rust-toolchain.toml",
+            "deploy/.env.example",
+            "deploy/README.md",
+            "deploy/docker-compose.yml",
+            "deploy/docker-compose.local.yml",
+            "deploy/docker-deploy.sh",
             ".github/workflows/ci.yml",
             ".github/workflows/build-windows.yml",
             ".github/workflows/docker.yml",
@@ -509,6 +514,162 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
         self.assertIn("git clone", readme)
         self.assertIn(".\\tools\\build-gateway-release.ps1", readme)
         self.assertNotIn("Build and package from the monorepo root", readme)
+
+    def test_service_deploy_stack_exists_for_direct_docker_deployment(self):
+        dockerfile = (GATEWAY_ROOT / "Dockerfile").read_text(encoding="utf-8")
+        compose = (GATEWAY_ROOT / "deploy/docker-compose.yml").read_text(
+            encoding="utf-8"
+        )
+        compose_local = (GATEWAY_ROOT / "deploy/docker-compose.local.yml").read_text(
+            encoding="utf-8"
+        )
+        deploy_env = (GATEWAY_ROOT / "deploy/.env.example").read_text(
+            encoding="utf-8"
+        )
+        deploy_readme = (GATEWAY_ROOT / "deploy/README.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("ENV GATEWAY_RUNTIME_ROLE=standalone", dockerfile)
+        for compose_text in (compose, compose_local):
+            self.assertIn("ghcr.io/aiaimimi0920/gateway", compose_text)
+            self.assertIn("${GATEWAY_ENV_FILE:-.env}", compose_text)
+            self.assertIn("redis:", compose_text)
+            self.assertIn("redis://redis:6379/0", compose_text)
+            self.assertIn("standalone", compose_text)
+            self.assertIn("/healthz", compose_text)
+        self.assertIn("IMAGE_TAG=latest", deploy_env)
+        self.assertIn("docker compose -f docker-compose.local.yml up -d", deploy_readme)
+        self.assertIn("redis_data", compose_local)
+        self.assertIn("gateway_data", compose_local)
+
+    def test_docker_builder_uses_node20_ui_stage_and_prebuilt_web_assets(self):
+        dockerfile = (GATEWAY_ROOT / "Dockerfile").read_text(encoding="utf-8")
+        build_script = (GATEWAY_ROOT / "build.rs").read_text(encoding="utf-8")
+
+        self.assertIn("FROM node:20-bookworm-slim AS ui-builder", dockerfile)
+        self.assertIn("COPY --from=ui-builder /app/apps/desktop/dist/web", dockerfile)
+        self.assertIn("ENV GATEWAY_PREBUILT_WEB_UI=1", dockerfile)
+        self.assertIn("npm ci --prefix apps/desktop --no-audit --no-fund", dockerfile)
+        self.assertNotIn("apt-get install -y --no-install-recommends cmake pkg-config clang nodejs npm", dockerfile)
+        self.assertIn('cargo:rerun-if-env-changed=GATEWAY_PREBUILT_WEB_UI', build_script)
+        self.assertIn("prebuilt_web_ui_enabled", build_script)
+        self.assertIn("prebuilt web console assets requested", build_script)
+
+    def test_docker_helper_scripts_and_release_bundle_are_repository_owned(self):
+        required = [
+            "tools/deploy-gateway-docker.ps1",
+            "tools/verify-gateway-docker-stack.ps1",
+            "tools/export-gateway-docker-deploy-bundle.ps1",
+        ]
+        missing = [path for path in required if not (GATEWAY_ROOT / path).is_file()]
+        self.assertEqual([], missing, f"missing Docker helper scripts: {missing}")
+
+        release = (GATEWAY_ROOT / ".github/workflows/release-tag.yml").read_text(
+            encoding="utf-8"
+        )
+        docker = (GATEWAY_ROOT / ".github/workflows/docker.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("verify-gateway-docker-stack.ps1", docker)
+        self.assertIn("export-gateway-docker-deploy-bundle.ps1", release)
+        self.assertIn("Gateway-${{ env.GATEWAY_TAG }}-docker-deploy.zip", release)
+        self.assertIn(
+            "release/Gateway/packages/Gateway-${{ env.GATEWAY_TAG }}-docker-deploy.zip.sha256",
+            release,
+        )
+
+    def test_packager_includes_deploy_directory_in_release_layout(self):
+        script = (GATEWAY_ROOT / "tools/package-gateway-release.ps1").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('$deploySource = Join-Path $gatewayRoot "deploy"', script)
+        self.assertIn(
+            'Copy-FilteredTree -Source $deploySource -Destination (Join-Path $staging "deploy")',
+            script,
+        )
+        self.assertIn('deploy = "deploy/"', script)
+        self.assertIn('-Kind "docker-deploy"', script)
+
+    def test_docker_readmes_document_one_click_deploy_script(self):
+        for relative_path in ("README.md", "README.zh-CN.md", "deploy/README.md"):
+            content = (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
+            with self.subTest(path=relative_path):
+                self.assertIn("docker-deploy.sh", content)
+
+    def test_verify_docker_stack_script_avoids_unbraced_image_tag_interpolation(self):
+        script = (
+            GATEWAY_ROOT / "tools/verify-gateway-docker-stack.ps1"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('("{0}:{1}" -f $ImageName, $ImageTag)', script)
+        self.assertNotIn('"$ImageName:$ImageTag"', script)
+
+    def test_docker_helper_scripts_are_powershell_parseable(self):
+        probe = (
+            "$ErrorActionPreference='Stop'; "
+            "$scripts=@("
+            "'tools/deploy-gateway-docker.ps1',"
+            "'tools/verify-gateway-docker-stack.ps1',"
+            "'tools/export-gateway-docker-deploy-bundle.ps1'"
+            "); "
+            "foreach($relative in $scripts){ "
+            "$tokens=$null; $errors=$null; "
+            "[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd $relative), [ref]$tokens, [ref]$errors) | Out-Null; "
+            "if($errors.Count -ne 0){ throw ($relative + ': ' + (($errors | ForEach-Object { $_.Message }) -join ' | ')) } "
+            "}"
+        )
+        result = subprocess.run(
+            [powershell_executable(), "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", probe],
+            cwd=GATEWAY_ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+
+    def test_docker_helper_scripts_resolve_compose_filename_before_join_path(self):
+        for relative_path in (
+            "tools/deploy-gateway-docker.ps1",
+            "tools/verify-gateway-docker-stack.ps1",
+        ):
+            script = (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
+            with self.subTest(script=relative_path):
+                self.assertIn(
+                    '$composeFileName = if ($Mode -eq "local") { "docker-compose.local.yml" } else { "docker-compose.yml" }',
+                    script,
+                )
+                self.assertNotIn("Join-Path $deployDir (", script)
+
+    def test_verify_docker_stack_script_restores_compose_env_file(self):
+        script = (
+            GATEWAY_ROOT / "tools/verify-gateway-docker-stack.ps1"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('$composeEnvFile = Join-Path $deployDir ".env"', script)
+        self.assertIn("Copy-Item -LiteralPath $composeEnvFile -Destination $composeEnvBackupPath -Force", script)
+        self.assertIn("Move-Item -LiteralPath $composeEnvBackupPath -Destination $composeEnvFile -Force", script)
+
+    def test_docker_helper_env_writers_accept_blank_lines_from_env_templates(self):
+        for relative_path in (
+            "tools/deploy-gateway-docker.ps1",
+            "tools/verify-gateway-docker-stack.ps1",
+        ):
+            script = (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
+            with self.subTest(script=relative_path):
+                self.assertIn("[AllowEmptyString()][AllowEmptyCollection()][string[]]$Lines", script)
+
+    def test_deploy_helper_avoids_non_dotnet_regex_escape_sequences(self):
+        script = (GATEWAY_ROOT / "tools/deploy-gateway-docker.ps1").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertNotIn("\\Q", script)
+        self.assertIn("[Regex]::Escape($Key)", script)
 
 
 if __name__ == "__main__":
