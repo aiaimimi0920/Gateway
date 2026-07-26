@@ -223,7 +223,7 @@ async fn operator_summary_reports_runtime_state_without_secrets() {
     let body = parse_json(response).await;
     let summary = &body["summary"];
     assert_eq!(summary["schemaVersion"], 1);
-    assert_eq!(summary["build"]["name"], "neuro-gateway");
+    assert_eq!(summary["build"]["name"], "gateway");
     assert_eq!(summary["runtime"]["role"], "standalone");
     assert_eq!(summary["lifecycle"]["draining"], false);
     assert!(summary["lifecycle"]["activeRequests"].is_number());

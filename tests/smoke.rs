@@ -149,14 +149,14 @@ async fn healthz_returns_json_200() {
 
 #[test]
 fn binary_help_does_not_require_runtime_config() {
-    let output = Command::new(env!("CARGO_BIN_EXE_neuro-gateway"))
+    let output = Command::new(env!("CARGO_BIN_EXE_gateway"))
         .arg("--help")
         .env_remove("GATEWAY_REDIS_URL")
         .env_remove("PORT")
         .env_remove("GATEWAY_RUNTIME_ROLE")
         .env_remove("GATEWAY_API_KEY")
         .output()
-        .expect("run neuro-gateway --help");
+        .expect("run gateway --help");
 
     assert!(
         output.status.success(),

@@ -16,7 +16,7 @@ class GatewayConsoleLiveE2EContractTests(unittest.TestCase):
         self.assertIn("GATEWAY_UI_BASE_URL", script)
         self.assertIn("PLAYWRIGHT_SKIP_WEBSERVER", script)
         self.assertIn("console.live.spec.ts", script)
-        self.assertIn("target\\debug\\neuro-gateway.exe", script)
+        self.assertIn("target\\debug\\gateway.exe", script)
         self.assertIn("redis:7-alpine", script)
 
     def test_live_console_runner_covers_revision_restore_after_browser_mutation(self):

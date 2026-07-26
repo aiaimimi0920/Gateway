@@ -62,7 +62,7 @@ class GatewayOperatorSummaryContractTests(unittest.TestCase):
                 "schemaVersion": 1,
                 "generatedAt": "2026-07-18T12:00:00Z",
                 "build": {
-                    "name": "neuro-gateway",
+                    "name": "gateway",
                     "version": "0.1.0",
                     "target": {"os": "windows", "arch": "x86_64"},
                     "debugAssertions": False,

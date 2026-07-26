@@ -21,7 +21,7 @@ $GatewayStateRoot = Join-Path $SessionRoot "gateway-state"
 $RoutesPath = Join-Path $SessionRoot "routes.yaml"
 $ResultsRoot = Join-Path $SessionRoot "test-results"
 $ArtifactsRoot = Join-Path $SessionRoot "artifacts"
-$GatewayBinary = Join-Path $RepoRoot "target\debug\neuro-gateway.exe"
+$GatewayBinary = Join-Path $RepoRoot "target\debug\gateway.exe"
 $LiveSpecPath = "e2e/console.live.spec.ts"
 $RedisImage = "redis:7-alpine"
 $RedisNamespace = "default"
@@ -812,11 +812,11 @@ Invoke-LoggedCommand -LogPath $buildLog -Command @(
   "build",
   "--locked",
   "--bin",
-  "neuro-gateway"
+  "gateway"
 )
 
 if (-not (Test-Path -LiteralPath $GatewayBinary -PathType Leaf)) {
-  throw "Expected debug gateway binary was not produced: target\debug\neuro-gateway.exe"
+  throw "Expected debug gateway binary was not produced: target\debug\gateway.exe"
 }
 
 $dockerExecutable = (Get-Command docker -ErrorAction Stop | Select-Object -First 1).Source
@@ -1013,7 +1013,7 @@ try {
     gatewayBaseUrl = $baseUrl
     redisUrl = $temporaryRedis.Url
     routesPath = $RoutesPath
-    gatewayBinary = "target\debug\neuro-gateway.exe"
+    gatewayBinary = "target\debug\gateway.exe"
     playwrightSpec = $LiveSpecPath
     resultsRoot = $ResultsRoot
     artifactsRoot = $ArtifactsRoot

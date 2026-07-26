@@ -28,7 +28,7 @@ export function LauncherPanel({ state }: LauncherPanelProps) {
           ) : null}
           <p>
             普通用户从这里启动本地 sidecar；嵌入式和服务器场景继续直接运行
-            <code>neuro-gateway.exe</code>。桌面端不会复制 provider routing、credential
+            <code>gateway.exe</code>。桌面端不会复制 provider routing、credential
             pipeline 或请求调度逻辑。
           </p>
           <div className="nt-actions">

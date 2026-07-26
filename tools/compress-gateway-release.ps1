@@ -104,7 +104,7 @@ if ($DryRun) {
 if (-not (Test-Path -LiteralPath $releaseFull -PathType Container)) {
     throw "Release directory does not exist: $releaseFull"
 }
-foreach ($requiredFile in @("manifest.json", "checksums.sha256", "neuro-gateway.exe", "neuro-gateway-ui.exe")) {
+foreach ($requiredFile in @("manifest.json", "checksums.sha256", "gateway.exe", "gateway-ui.exe")) {
     $requiredPath = Join-Path $releaseFull $requiredFile
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Release directory is missing required file: $requiredPath"

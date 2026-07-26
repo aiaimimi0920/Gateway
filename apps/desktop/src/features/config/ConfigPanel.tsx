@@ -385,7 +385,7 @@ export function ConfigPanel({ state }: ConfigPanelProps) {
           <span>粘贴 profile JSON</span>
           <textarea
             className="nt-input nt-textarea"
-            placeholder="粘贴 neuro-gateway-ui-profile JSON，或直接粘贴 GatewayProfile JSON。"
+            placeholder="粘贴 gateway-ui-profile JSON，或直接粘贴 GatewayProfile JSON。"
             value={state.importProfileText}
             onChange={(event) => state.updateImportProfileText(event.currentTarget.value)}
           />

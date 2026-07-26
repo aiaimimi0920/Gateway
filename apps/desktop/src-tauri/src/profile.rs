@@ -228,10 +228,10 @@ pub fn resolve_profile_file_path(profile: &GatewayProfile, value: &str) -> Resul
 
 pub fn resolve_gateway_sidecar_path_from(package_directory: &Path) -> PathBuf {
     let mut candidates = vec![
-        package_directory.join("neuro-gateway.exe"),
-        package_directory.join("neuro-gateway"),
-        package_directory.join("bin").join("neuro-gateway.exe"),
-        package_directory.join("bin").join("neuro-gateway"),
+        package_directory.join("gateway.exe"),
+        package_directory.join("gateway"),
+        package_directory.join("bin").join("gateway.exe"),
+        package_directory.join("bin").join("gateway"),
     ];
 
     let target_profiles = if cfg!(debug_assertions) {
@@ -253,16 +253,16 @@ pub fn resolve_gateway_sidecar_path_from(package_directory: &Path) -> PathBuf {
                 ancestor
                     .join("target")
                     .join(profile)
-                    .join("neuro-gateway.exe"),
+                    .join("gateway.exe"),
             );
-            candidates.push(ancestor.join("target").join(profile).join("neuro-gateway"));
+            candidates.push(ancestor.join("target").join(profile).join("gateway"));
         }
     }
 
     candidates
         .into_iter()
         .find(|candidate| candidate.is_file())
-        .unwrap_or_else(|| package_directory.join("neuro-gateway.exe"))
+        .unwrap_or_else(|| package_directory.join("gateway.exe"))
 }
 
 pub fn resolve_gateway_sidecar_path() -> Result<PathBuf, String> {
@@ -495,7 +495,7 @@ pub fn preflight_gateway_profile_from(
         sidecar_path,
         "file",
         "Gateway sidecar executable is available",
-        "Gateway sidecar executable is missing; place neuro-gateway.exe next to the desktop executable",
+        "Gateway sidecar executable is missing; place gateway.exe next to the desktop executable",
     );
 
     let gateway_routes_file = if let Some(routes_file) = profile
@@ -741,7 +741,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock must be after unix epoch")
             .as_nanos();
-        std::env::temp_dir().join(format!("neuro-gateway-profile-contract-{nonce}"))
+        std::env::temp_dir().join(format!("gateway-profile-contract-{nonce}"))
     }
 
     #[test]
@@ -803,9 +803,9 @@ mod tests {
         fs::create_dir_all(&package_directory).expect("create package directory");
         fs::create_dir_all(&gateway_target).expect("create Gateway target directory");
         let expected = gateway_target.join(if cfg!(windows) {
-            "neuro-gateway.exe"
+            "gateway.exe"
         } else {
-            "neuro-gateway"
+            "gateway"
         });
         fs::write(&expected, b"fixture").expect("write headless fixture");
 

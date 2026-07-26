@@ -1,5 +1,5 @@
 [package]
-name = "neuro-gateway"
+name = "gateway"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.91.1"
@@ -13,7 +13,7 @@ name = "neuro_gateway"
 path = "src/lib.rs"
 
 [[bin]]
-name = "neuro-gateway"
+name = "gateway"
 path = "src/main.rs"
 
 [features]

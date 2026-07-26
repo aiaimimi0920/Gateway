@@ -18,7 +18,7 @@ use crate::upstream::client::UpstreamClient;
 
 pub async fn run_gateway_runtime(config: Config) -> anyhow::Result<()> {
     let port = config.port;
-    tracing::info!(port, role = ?config.runtime_role, "Starting neuro-gateway worker runtime");
+    tracing::info!(port, role = ?config.runtime_role, "Starting gateway worker runtime");
 
     if config.gateway_api_key.is_some() {
         tracing::info!("Gateway API key fallback authentication enabled");

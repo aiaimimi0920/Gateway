@@ -405,7 +405,7 @@ impl SplitterManager {
                 std::env::current_exe()
                     .ok()
                     .map(|path| path.display().to_string())
-                    .unwrap_or_else(|| "neuro-gateway".to_string())
+                    .unwrap_or_else(|| "gateway".to_string())
             });
 
         let port = worker_port.unwrap_or_else(|| self.allocate_worker_port());
@@ -1284,7 +1284,7 @@ mod tests {
             id: "worker-test".to_string(),
             port: 4201,
             base_url: "http://127.0.0.1:4201".to_string(),
-            executable_path: "neuro-gateway".to_string(),
+            executable_path: "gateway".to_string(),
             started_at: "test".to_string(),
             status: RwLock::new(SplitterWorkerStatus::Active),
             drain_requested_at: RwLock::new(None),

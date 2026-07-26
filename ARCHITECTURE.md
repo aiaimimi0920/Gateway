@@ -562,7 +562,7 @@ This still applies to bearer-style browser-gated providers such as the `Qwen Web
 # Single binary, ~6MB
 GATEWAY_REDIS_URL=redis://gateway-redis:6379 \
 RUST_LOG=info \
-./neuro-gateway
+./gateway
 
 # Environment variables
 GATEWAY_REDIS_URL          # Required

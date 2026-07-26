@@ -1,5 +1,5 @@
 {
-  "name": "neuro-gateway-browser-workers",
+  "name": "gateway-browser-workers",
   "private": true,
   "version": "0.1.0",
   "type": "module",

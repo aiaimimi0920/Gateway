@@ -16,9 +16,9 @@ $ErrorActionPreference = "Stop"
 
 $GatewayRoot = Split-Path -Parent $PSScriptRoot
 $CargoToml = Join-Path $GatewayRoot "Cargo.toml"
-$ReleaseBinary = Join-Path $GatewayRoot "target\release\neuro-gateway.exe"
+$ReleaseBinary = Join-Path $GatewayRoot "target\release\gateway.exe"
 if (-not [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
-  $ReleaseBinary = Join-Path $GatewayRoot "target/release/neuro-gateway"
+  $ReleaseBinary = Join-Path $GatewayRoot "target/release/gateway"
 }
 
 if ([string]::IsNullOrWhiteSpace($LogRoot)) {
@@ -559,7 +559,7 @@ try {
     "--locked",
     "--release",
     "--bin",
-    "neuro-gateway"
+    "gateway"
   )
 
   if ($SkipBrowserWorkers) {
@@ -576,7 +576,7 @@ try {
     "-f",
     "Dockerfile",
     "-t",
-    "neuro-gateway:release-candidate",
+    "gateway:release-candidate",
     "."
   )
 

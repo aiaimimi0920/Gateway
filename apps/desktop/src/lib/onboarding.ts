@@ -63,7 +63,7 @@ export function buildGatewayOnboardingSteps(input: GatewayOnboardingInput): Gate
     {
       id: "start-sidecar",
       title: "启动 Gateway sidecar",
-      description: "桌面端只启动同一个 headless neuro-gateway.exe。",
+      description: "桌面端只启动同一个 headless gateway.exe。",
       status: statusFromBoolean(input.processSnapshot.running),
     },
     {

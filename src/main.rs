@@ -16,7 +16,7 @@ fn maybe_handle_meta_cli() -> bool {
         "-h" | "--help" => {
             println!(
                 "\
-Usage: neuro-gateway [OPTIONS]
+Usage: gateway [OPTIONS]
 
 Environment-driven runtime:
   GATEWAY_RUNTIME_ROLE   splitter | worker | standalone

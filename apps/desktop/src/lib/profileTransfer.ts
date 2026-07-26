@@ -98,7 +98,7 @@ function parseGatewayProfile(value: unknown): GatewayProfile {
 export function buildGatewayProfileExportText(profile: GatewayProfile): string {
   const payload: GatewayProfileTransferPayload = {
     schemaVersion: 1,
-    kind: "neuro-gateway-ui-profile",
+    kind: "gateway-ui-profile",
     exportedAt: new Date().toISOString(),
     profile: sanitizeProfileForExport(profile),
   };
@@ -120,7 +120,7 @@ export function parseGatewayProfileTransferText(text: string): GatewayProfile {
 
   if (
     isRecord(parsed) &&
-    parsed.kind === "neuro-gateway-ui-profile" &&
+    parsed.kind === "gateway-ui-profile" &&
     parsed.schemaVersion === 1
   ) {
     return parseGatewayProfile(parsed.profile);

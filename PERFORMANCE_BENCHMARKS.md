@@ -134,10 +134,10 @@ Use `valgrind` and `heaptrack` for memory analysis:
 # macOS: brew install heaptrack
 
 # Profile memory usage
-heaptrack ./target/release/neuro-gateway
+heaptrack ./target/release/gateway
 
 # Generate report
-heaptrack_print heaptrack.neuro-gateway.*.gz
+heaptrack_print heaptrack.gateway.*.gz
 ```
 
 ### 4. CPU Profiling
@@ -149,7 +149,7 @@ Use `perf` and `flamegraph` for CPU analysis:
 cargo install flamegraph
 
 # Profile CPU usage
-cargo flamegraph --bin neuro-gateway
+cargo flamegraph --bin gateway
 
 # Open flamegraph.svg in browser
 ```
@@ -399,7 +399,7 @@ For context, here are performance metrics from other AI gateways:
 
 3. **Profile CPU usage**:
    ```bash
-   cargo flamegraph --bin neuro-gateway
+   cargo flamegraph --bin gateway
    ```
 
 ### Low Throughput
@@ -423,7 +423,7 @@ For context, here are performance metrics from other AI gateways:
 3. **Check for lock contention**:
    ```bash
    # Use perf to find lock contention
-   perf record -g ./target/release/neuro-gateway
+   perf record -g ./target/release/gateway
    perf report
    ```
 
@@ -431,8 +431,8 @@ For context, here are performance metrics from other AI gateways:
 
 1. **Check for memory leaks**:
    ```bash
-   heaptrack ./target/release/neuro-gateway
-   heaptrack_print heaptrack.neuro-gateway.*.gz
+   heaptrack ./target/release/gateway
+   heaptrack_print heaptrack.gateway.*.gz
    ```
 
 2. **Check connection pool size**:

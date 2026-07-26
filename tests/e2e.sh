@@ -17,7 +17,7 @@
 set -euo pipefail
 
 PORT="${PORT:-7777}"
-GATEWAY_BIN="${GATEWAY_BIN:-./target/release/neuro-gateway}"
+GATEWAY_BIN="${GATEWAY_BIN:-./target/release/gateway}"
 BASE="http://localhost:${PORT}"
 PASS=0
 FAIL=0

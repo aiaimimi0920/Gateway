@@ -25,7 +25,7 @@ described here.
 
 Gateway owns:
 
-- The `neuro-gateway` Rust binary and library in `src/`.
+- The `gateway` Rust binary and library in `src/`.
 - Public model-serving HTTP and websocket endpoints.
 - Internal Gateway management endpoints under `/v1/internal/gateway/**`.
 - Gateway runtime health/readiness/metrics endpoints.
@@ -192,5 +192,5 @@ python tools/validate-gateway-line-manifests.py
 python -m unittest discover -s tests/python -p "test_*.py" -v
 node --test scripts/tests/*.test.mjs
 cargo test --locked --no-run
-cargo build --locked --release --bin neuro-gateway
+cargo build --locked --release --bin gateway
 ```

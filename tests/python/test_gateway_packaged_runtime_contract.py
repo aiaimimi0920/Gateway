@@ -15,7 +15,7 @@ class GatewayPackagedRuntimeContractTests(unittest.TestCase):
             "$RedisUrl",
             "$Port",
             "$IntegrityOnly",
-            "neuro-gateway.exe",
+            "gateway.exe",
             "GATEWAY_RUNTIME_ROLE",
             "GATEWAY_MANAGEMENT_TOKEN",
             "/healthz",

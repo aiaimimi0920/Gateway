@@ -70,7 +70,7 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
         )
 
         self.assertIn('Join-Path $PSScriptRoot ".."', script)
-        self.assertIn("cargo build --locked --release --bin neuro-gateway", script)
+        self.assertIn("cargo build --locked --release --bin gateway", script)
         self.assertNotIn('Join-Path $PSScriptRoot "..\\.."', script)
         self.assertNotIn("Gateway/Cargo.toml", script)
         self.assertNotIn('"Gateway\\target', script)

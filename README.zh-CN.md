@@ -19,11 +19,11 @@ Loom 负责编排和本地 AI 大脑工作流；Hook 负责前台采集与集成
 
 ## 项目职责
 
-- Rust 网关运行时和 HTTP/WebSocket API：`neuro-gateway`。
+- Rust 网关运行时和 HTTP/WebSocket API：`gateway`。
 - 提供方路由、运行时读取的凭据与请求中继。
 - `manifests/` 下的线路清单和路由配置。
 - `scripts/` 下基于浏览器的提供方 Worker。
-- Gateway 管理 API 和本地桌面外壳：`neuro-gateway-ui`。
+- Gateway 管理 API 和本地桌面外壳：`gateway-ui`。
 - Windows 发布包、完整性清单、校验和与运行证据工具。
 
 Platform、Loom 和 Hook 的实现代码不会复制进本仓库。模块职责和集成边界见
@@ -36,7 +36,7 @@ Platform、Loom 和 Hook 的实现代码不会复制进本仓库。模块职责�
 ├── apps/desktop/       # TypeScript 前端与 Tauri 桌面启动器
 ├── manifests/          # 提供方线路清单与 JSON Schema
 ├── scripts/            # 浏览器 Worker 与 Node 测试
-├── src/                # Rust 库与 neuro-gateway 二进制
+├── src/                # Rust 库与 gateway 二进制
 ├── tests/              # Rust/Python 合同测试
 ├── tools/              # 校验、构建、打包与冒烟工具
 ├── routes.yaml         # 当前开发线路配置
@@ -103,7 +103,7 @@ cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 启动无界面核心服务：
 
 ```powershell
-cargo run --locked --bin neuro-gateway
+cargo run --locked --bin gateway
 ```
 
 启动桌面开发环境：
@@ -181,8 +181,8 @@ node --test ".\release\Gateway\$id\scripts\tests\*.test.mjs"
 从独立仓根目录构建与运行：
 
 ```powershell
-docker build -t neuro-gateway:local .
-docker run --rm -p 4200:4200 --env-file .env neuro-gateway:local
+docker build -t gateway:local .
+docker run --rm -p 4200:4200 --env-file .env gateway:local
 ```
 
 镜像包含核心二进制、线路配置、提供方清单和浏览器 Worker。运行时凭据通过环境

@@ -388,11 +388,11 @@ function Assert-PackagedReleaseIntegrity {
 
     $exeRecords = @(Get-ObjectPropertyValue -Object $manifest -Name "exes")
     $headlessRecords = @($exeRecords | Where-Object {
-        ([string](Get-ObjectPropertyValue -Object $_ -Name "name") -eq "neuro-gateway.exe") -and
-        ([string](Get-ObjectPropertyValue -Object $_ -Name "path") -eq "neuro-gateway.exe")
+        ([string](Get-ObjectPropertyValue -Object $_ -Name "name") -eq "gateway.exe") -and
+        ([string](Get-ObjectPropertyValue -Object $_ -Name "path") -eq "gateway.exe")
     })
     if ($headlessRecords.Count -ne 1) {
-        throw "manifest.exes must contain exactly one neuro-gateway.exe record at the package root"
+        throw "manifest.exes must contain exactly one gateway.exe record at the package root"
     }
 
     return [pscustomobject]@{
@@ -503,7 +503,7 @@ $releaseDirFull = [System.IO.Path]::GetFullPath($ReleaseDir)
 if (-not (Test-Path -LiteralPath $releaseDirFull -PathType Container)) {
     throw "ReleaseDir does not exist: $releaseDirFull"
 }
-$gatewayBinary = Join-Path $releaseDirFull "neuro-gateway.exe"
+$gatewayBinary = Join-Path $releaseDirFull "gateway.exe"
 if (-not (Test-Path -LiteralPath $gatewayBinary -PathType Leaf)) {
     throw "Packaged Gateway binary is missing: $gatewayBinary"
 }
@@ -692,7 +692,7 @@ try {
         status = "pass"
         pathBase = "evidence-file-directory"
         releaseDir = Get-EvidenceRelativePath -BasePath $evidenceParent -Path $releaseDirFull
-        binary = "neuro-gateway.exe"
+        binary = "gateway.exe"
         runtimeRole = "standalone"
         port = $Port
         startedAt = $startedAt.ToString("o")

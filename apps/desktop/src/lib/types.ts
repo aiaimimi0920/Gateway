@@ -28,7 +28,7 @@ export type GatewayProfile = {
 
 export type GatewayProfileTransferPayload = {
   schemaVersion: 1;
-  kind: "neuro-gateway-ui-profile";
+  kind: "gateway-ui-profile";
   exportedAt: string;
   profile: GatewayProfile;
 };

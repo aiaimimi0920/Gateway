@@ -22,12 +22,12 @@ foreground capture and integration client.
 
 ## What Gateway Owns
 
-- Rust gateway runtime and HTTP/WebSocket APIs (`neuro-gateway`).
+- Rust gateway runtime and HTTP/WebSocket APIs (`gateway`).
 - Provider routing, credentials loaded by the runtime, and relay behavior.
 - Provider line manifests under `manifests/` and route configuration.
 - Browser-backed provider workers under `scripts/`.
 - Gateway management endpoints and the local desktop shell
-  (`neuro-gateway-ui`).
+  (`gateway-ui`).
 - Release packaging, integrity manifests, and operational evidence tools.
 
 Platform, Loom, and Hook implementation code is intentionally not copied into
@@ -41,7 +41,7 @@ this repository. The ownership and integration rules are documented in
 ├── apps/desktop/       # TypeScript frontend and Tauri launcher
 ├── manifests/          # Provider line manifests and JSON schema
 ├── scripts/            # Browser workers and worker tests
-├── src/                # Rust library and neuro-gateway binary
+├── src/                # Rust library and gateway binary
 ├── tests/              # Rust and Python contract tests
 ├── tools/              # Validation, build, package, and smoke tooling
 ├── routes.yaml         # Current development route configuration
@@ -110,7 +110,7 @@ with an empty file when testing the provider matrix.
 Run the headless service directly after configuring the environment:
 
 ```powershell
-cargo run --locked --bin neuro-gateway
+cargo run --locked --bin gateway
 ```
 
 For the desktop shell during development:
@@ -194,8 +194,8 @@ evidence root, never inside an immutable package.
 Build the service image from the Gateway root:
 
 ```powershell
-docker build -t neuro-gateway:local .
-docker run --rm -p 4200:4200 --env-file .env neuro-gateway:local
+docker build -t gateway:local .
+docker run --rm -p 4200:4200 --env-file .env gateway:local
 ```
 
 The image contains the release binary, route files, provider manifests, and

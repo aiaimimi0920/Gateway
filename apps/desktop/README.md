@@ -4,8 +4,8 @@
 
 ## Product boundary
 
-- `neuro-gateway.exe` 是无 UI 的核心运行时。
-- `neuro-gateway-ui.exe` 是给普通用户使用的本地桌面启动器壳层。
+- `gateway.exe` 是无 UI 的核心运行时。
+- `gateway-ui.exe` 是给普通用户使用的本地桌面启动器壳层。
 - 桌面壳层只负责：
   - 本地 profile 管理
   - sidecar 生命周期
@@ -43,7 +43,7 @@ npm run tauri -- dev
 桌面 UI 通过 Tauri 调用本地 Rust 命令，Rust 命令再负责：
 
 1. 读取和保存 profile；
-2. 启动/停止 `neuro-gateway.exe` sidecar；
+2. 启动/停止 `gateway.exe` sidecar；
 3. 读取 sidecar 日志；
 4. 暴露运行时信息给前端。
 
@@ -58,8 +58,8 @@ npm run tauri -- dev
 
 `Gateway` release 构建会同时输出：
 
-- `neuro-gateway.exe`
-- `neuro-gateway-ui.exe`
+- `gateway.exe`
+- `gateway-ui.exe`
 
 目标发布目录：
 

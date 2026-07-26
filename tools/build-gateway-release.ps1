@@ -13,7 +13,7 @@ $maxNpmCiAttempts = 3
 $commands = @(
     'npm ci (retry up to 3 attempts on transient Windows file locks)',
     'npm run typecheck',
-    'cargo build --locked --release --bin neuro-gateway',
+    'cargo build --locked --release --bin gateway',
     'npm run tauri -- build --no-bundle'
 )
 
@@ -335,16 +335,16 @@ try {
 
         # Clean worktrees do not have node_modules yet, and the Gateway root
         # build.rs runs the desktop web build as part of cargo build.
-        Invoke-GatewayReleaseStep -Name "build headless neuro-gateway" -Action {
+        Invoke-GatewayReleaseStep -Name "build headless gateway" -Action {
             $cargoResult = Invoke-NativeCommandCapture `
                 -Command "cargo" `
-                -Arguments @("build", "--locked", "--release", "--bin", "neuro-gateway") `
+                -Arguments @("build", "--locked", "--release", "--bin", "gateway") `
                 -WorkingDirectory $repoRoot
             $cargoOutput = @($cargoResult.Output)
             $cargoExitCode = [int]$cargoResult.ExitCode
             $cargoOutput | ForEach-Object { Write-Output $_ }
             if ($cargoExitCode -ne 0) {
-                throw "cargo build failed for neuro-gateway"
+                throw "cargo build failed for gateway"
             }
         }
 
@@ -364,8 +364,8 @@ try {
         Pop-Location
     }
 
-    $headlessExe = Join-Path $repoRoot "target\\release\\neuro-gateway.exe"
-    $uiExe = Join-Path $repoRoot "apps\\desktop\\src-tauri\\target\\release\\neuro-gateway-ui.exe"
+    $headlessExe = Join-Path $repoRoot "target\\release\\gateway.exe"
+    $uiExe = Join-Path $repoRoot "apps\\desktop\\src-tauri\\target\\release\\gateway-ui.exe"
 
     if (-not (Test-Path -LiteralPath $headlessExe -PathType Leaf)) {
         throw "Missing headless build artifact: $headlessExe"

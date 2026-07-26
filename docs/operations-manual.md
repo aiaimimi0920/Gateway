@@ -12,7 +12,7 @@ The portable Windows release has three separate prerequisite groups:
 
 | Activity | Required tooling | Evidence location |
 | --- | --- | --- |
-| Build `neuro-gateway.exe` and the desktop shell | Rust/cargo, Node.js/npm, locked dependency network access | Source provenance at `target/release/gateway-build-provenance.json`, plus immutable copies in the package and `target/release-evidence/<versionId>/gateway-build-provenance.json` |
+| Build `gateway.exe` and the desktop shell | Rust/cargo, Node.js/npm, locked dependency network access | Source provenance at `target/release/gateway-build-provenance.json`, plus immutable copies in the package and `target/release-evidence/<versionId>/gateway-build-provenance.json` |
 | Run browser-backed provider workers | Node.js/npm on the target host; run `npm ci` in the extracted `scripts` directory | `target/release-evidence/<versionId>/browser-workers.log` |
 | Run validators and the full offline/provider evidence matrix | Source repository only; Python 3, Rust/cargo, and the repository-owned verification helpers requested by the selected matrix | `target/release-evidence/<versionId>/python-tests.log` and line evidence artifacts |
 
@@ -52,7 +52,7 @@ evidence set is:
 Before the headless executable is started, the packaged runtime smoke verifies
 every checksum path and digest, the manifest byte/hash records, and the exact
 file set. The UI smoke applies the same verification and, on a failed launch,
-terminates only newly observed `neuro-gateway.exe` processes so an unrelated
+terminates only newly observed `gateway.exe` processes so an unrelated
 existing Gateway instance is not touched.
 
 Run `build-gateway-release.ps1` once, then invoke the packager with `-SkipBuild`.
@@ -190,7 +190,7 @@ $before = Invoke-RestMethod `
     -Headers $managementHeaders
 
 $reloadBody = @{
-    executablePath = "D:\Gateway\candidate\neuro-gateway.exe"
+    executablePath = "D:\Gateway\candidate\gateway.exe"
     readyTimeoutSecs = 60
     shutdownTimeoutSecs = 600
 } | ConvertTo-Json

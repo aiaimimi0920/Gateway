@@ -1,7 +1,7 @@
 {
-  "name": "neuro-gateway-ui",
+  "name": "gateway-ui",
   "version": "0.1.0",
-  "description": "Neuro Gateway desktop shell for local users",
+  "description": "Gateway UI desktop shell for local users",
   "type": "module",
   "private": true,
   "scripts": {

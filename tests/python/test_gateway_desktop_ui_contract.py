@@ -49,7 +49,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertTrue(package_json.exists(), "Gateway desktop package.json must exist")
         package = json.loads(package_json.read_text(encoding="utf-8"))
 
-        self.assertEqual(package.get("name"), "neuro-gateway-ui")
+        self.assertEqual(package.get("name"), "gateway-ui")
         scripts = package.get("scripts", {})
         for script_name in ["build", "typecheck", "tauri"]:
             self.assertIn(script_name, scripts)
@@ -62,19 +62,19 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("@tauri-apps/cli", dev_deps)
         self.assertIn("typescript", dev_deps)
 
-    def test_desktop_tauri_binary_is_named_neuro_gateway_ui(self):
+    def test_desktop_tauri_binary_is_named_gateway_ui(self):
         cargo_toml = DESKTOP_ROOT / "src-tauri" / "Cargo.toml"
         tauri_conf = DESKTOP_ROOT / "src-tauri" / "tauri.conf.json"
         self.assertTrue(cargo_toml.exists(), "Tauri Cargo.toml must exist")
         self.assertTrue(tauri_conf.exists(), "tauri.conf.json must exist")
 
         cargo_text = cargo_toml.read_text(encoding="utf-8")
-        self.assertRegex(cargo_text, r'name\s*=\s*"neuro-gateway-ui"')
+        self.assertRegex(cargo_text, r'name\s*=\s*"gateway-ui"')
         self.assertIn('tauri = { version = "=2.11.2"', cargo_text)
         self.assertIn('reqwest = { version = "0.12"', cargo_text)
 
         config = json.loads(tauri_conf.read_text(encoding="utf-8"))
-        self.assertEqual(config["productName"], "Neuro Gateway")
+        self.assertEqual(config["productName"], "Gateway UI")
         self.assertEqual(config["identifier"], "com.vmjcv.neuro.gateway")
         self.assertEqual(config["build"]["frontendDist"], "../dist/tauri")
 
@@ -111,10 +111,10 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
     def test_release_plan_includes_headless_and_ui_gateway_exes(self):
         release_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
         script_text = release_script.read_text(encoding="utf-8")
-        self.assertIn("cargo build --locked --release --bin neuro-gateway", script_text)
-        self.assertIn('"target\\\\release\\\\neuro-gateway.exe"', script_text)
+        self.assertIn("cargo build --locked --release --bin gateway", script_text)
+        self.assertIn('"target\\\\release\\\\gateway.exe"', script_text)
         self.assertIn(
-            '"apps\\\\desktop\\\\src-tauri\\\\target\\\\release\\\\neuro-gateway-ui.exe"',
+            '"apps\\\\desktop\\\\src-tauri\\\\target\\\\release\\\\gateway-ui.exe"',
             script_text,
         )
 
@@ -122,12 +122,12 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
         self.assertTrue(build_script.exists(), "Gateway-owned release builder must exist")
         script_text = build_script.read_text(encoding="utf-8")
-        self.assertIn("cargo build --locked --release --bin neuro-gateway", script_text)
+        self.assertIn("cargo build --locked --release --bin gateway", script_text)
         self.assertIn("Push-Location -LiteralPath $desktopRoot", script_text)
         self.assertIn("npm ci", script_text)
         self.assertIn("npm run typecheck", script_text)
         self.assertIn("npm run tauri -- build --no-bundle", script_text)
-        self.assertIn("neuro-gateway-ui.exe", script_text)
+        self.assertIn("gateway-ui.exe", script_text)
 
     def test_gateway_owned_release_builder_installs_desktop_dependencies_before_headless_build(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
@@ -136,7 +136,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
             'Invoke-GatewayReleaseStep -Name "install desktop dependencies"'
         )
         cargo_index = script_text.index(
-            'Invoke-GatewayReleaseStep -Name "build headless neuro-gateway"'
+            'Invoke-GatewayReleaseStep -Name "build headless gateway"'
         )
         self.assertLess(
             install_index,
@@ -194,17 +194,17 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
             "$LaunchUi",
             "manifest.json",
             "checksums.sha256",
-            "neuro-gateway.exe",
-            "neuro-gateway-ui.exe",
+            "gateway.exe",
+            "gateway-ui.exe",
             "Get-FileHash",
             "bytesMatch",
             "shaMatch",
             "Start-Process",
             "-WindowStyle Hidden",
             "Stop-Process",
-            "neuro-gateway-ui",
-            "neuro-gateway",
-            "must not auto-start",
+            "gateway-ui",
+            "gateway",
+            "may auto-start",
         ]:
             self.assertIn(required, script_text)
 
@@ -226,7 +226,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
 
         self.assertNotIn("function Get-ProcessIdsByName", script_text)
         self.assertNotIn('Get-Process -Name $Name', script_text)
-        self.assertNotIn('Get-ProcessIdsByName -Name "neuro-gateway"', script_text)
+        self.assertNotIn('Get-ProcessIdsByName -Name "gateway"', script_text)
 
         self.assertIn("function Read-ChecksumIndex", script_text)
         self.assertIn("function Assert-PackagedReleaseIntegrity", script_text)
@@ -243,7 +243,23 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertEqual(config["build"]["beforeBuildCommand"], "npm run build:tauri")
         self.assertNotIn("& npm run build", script_text)
         self.assertIn('-Arguments @("run", "typecheck")', script_text)
+    def test_vitest_excludes_playwright_e2e_specs(self):
+        vitest_config = DESKTOP_ROOT / "vitest.config.ts"
+        config_text = vitest_config.read_text(encoding="utf-8")
 
+        self.assertIn("exclude", config_text)
+        self.assertIn("e2e/**/*.spec.ts", config_text)
+        self.assertIn("playwright test", (DESKTOP_ROOT / "package.json").read_text(encoding="utf-8"))
+
+    def test_desktop_state_auto_starts_gateway_when_backend_health_is_missing(self):
+        state_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
+        state_text = state_file.read_text(encoding="utf-8")
+
+        self.assertIn("autoStartAttempted", state_text)
+        self.assertIn("setAutoStartAttempted(false)", state_text)
+        self.assertIn("!healthProbe.ok", state_text)
+        self.assertIn("void startGateway()", state_text)
+        self.assertIn("未检测到 Gateway 后端，正在自动启动 gateway.exe", state_text)
     def test_desktop_state_supports_explicit_profile_reload_preference(self):
         state_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
         state_text = state_file.read_text(encoding="utf-8")
@@ -363,7 +379,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("SENSITIVE_ENV_KEY_PATTERN", transfer_text)
         self.assertIn("sanitizeProfileForExport", transfer_text)
         self.assertIn("schemaVersion", transfer_text)
-        self.assertIn("neuro-gateway-ui-profile", transfer_text)
+        self.assertIn("gateway-ui-profile", transfer_text)
         self.assertIn("GatewayProfileTransferPayload", types_text)
         self.assertIn("profileTransferText: string", types_text)
         self.assertIn("importProfileText: string", types_text)

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Neuro Gateway",
+  "productName": "Gateway UI",
   "version": "0.1.0",
   "identifier": "com.vmjcv.neuro.gateway",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Neuro Gateway",
+        "title": "Gateway UI",
         "width": 1180,
         "height": 780,
         "decorations": true,

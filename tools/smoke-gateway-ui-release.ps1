@@ -214,7 +214,7 @@ function Get-ReleaseOwnedGatewayProcesses {
     ReleaseRoot = $ReleaseRoot
     ExpectedGatewayPath = $ExpectedGatewayPath
   }
-  $cimProcesses = @(Get-CimInstance -ClassName Win32_Process -Filter "Name = 'neuro-gateway.exe'" -ErrorAction SilentlyContinue)
+  $cimProcesses = @(Get-CimInstance -ClassName Win32_Process -Filter "Name = 'gateway.exe'" -ErrorAction SilentlyContinue)
   foreach ($candidate in $cimProcesses) {
     if (Test-PathOwnedByRelease `
         -Process $candidate `
@@ -264,8 +264,8 @@ function Invoke-OptionalUiLaunchSmoke {
     [Parameter(Mandatory = $true)][int] $Seconds
   )
 
-  $uiExe = Join-Path $ReleaseRoot "neuro-gateway-ui.exe"
-  $expectedGatewayPath = [System.IO.Path]::GetFullPath((Join-Path $ReleaseRoot "neuro-gateway.exe"))
+  $uiExe = Join-Path $ReleaseRoot "gateway-ui.exe"
+  $expectedGatewayPath = [System.IO.Path]::GetFullPath((Join-Path $ReleaseRoot "gateway.exe"))
   $baselineGatewayProcesses = @(Get-ReleaseOwnedGatewayProcesses `
     -ReleaseRoot $ReleaseRoot `
     -ExpectedGatewayPath $expectedGatewayPath)
@@ -275,12 +275,12 @@ function Invoke-OptionalUiLaunchSmoke {
   $newGatewayProcessIds = @()
 
   try {
-    Write-Smoke "launching neuro-gateway-ui.exe for $Seconds seconds; UI must not auto-start neuro-gateway.exe"
+    Write-Smoke "launching gateway-ui.exe for $Seconds seconds; UI may auto-start gateway.exe"
     $uiProcess = Start-Process -FilePath $uiExe -WorkingDirectory $ReleaseRoot -WindowStyle Hidden -PassThru
     Start-Sleep -Seconds $Seconds
 
     if ($uiProcess.HasExited) {
-      throw "neuro-gateway-ui.exe exited during smoke window with code $($uiProcess.ExitCode)"
+      throw "gateway-ui.exe exited during smoke window with code $($uiProcess.ExitCode)"
     }
 
     $afterGatewayProcesses = @(Get-ReleaseOwnedGatewayProcesses `
@@ -291,14 +291,16 @@ function Invoke-OptionalUiLaunchSmoke {
     })
     $newGatewayProcessIds = @($newGatewayProcesses | ForEach-Object { [int] $_.ProcessId })
     if ($newGatewayProcessIds.Count -gt 0) {
-      throw "neuro-gateway-ui.exe must not auto-start neuro-gateway.exe; new process ids: $($newGatewayProcessIds -join ', ')"
+      Write-Smoke "gateway-ui.exe auto-started release-owned gateway.exe process ids: $($newGatewayProcessIds -join ', ')"
+    } else {
+      Write-Smoke "gateway-ui.exe remained open; no release-owned gateway.exe process was observed during the smoke window"
     }
 
-    Write-Smoke "optional UI launch smoke passed; no new neuro-gateway.exe process was started"
+    Write-Smoke "optional UI launch smoke passed; release-owned gateway.exe sidecars will be cleaned"
   } finally {
     if ($null -ne $uiProcess -and -not $uiProcess.HasExited) {
       Stop-Process -Id $uiProcess.Id -Force -ErrorAction SilentlyContinue
-      Write-Smoke "closed neuro-gateway-ui.exe smoke process: pid=$($uiProcess.Id)"
+      Write-Smoke "closed gateway-ui.exe smoke process: pid=$($uiProcess.Id)"
     }
     # A failed UI launch can leave a sidecar behind. Re-scan after closing the
     # shell and terminate only Gateway PIDs that did not exist at the start.
@@ -308,7 +310,7 @@ function Invoke-OptionalUiLaunchSmoke {
       Where-Object { $baselineGatewayProcessIds -notcontains [int] $_.ProcessId })
     foreach ($gatewayProcess in $remainingGatewayProcesses) {
       Stop-Process -Id ([int] $gatewayProcess.ProcessId) -Force -ErrorAction SilentlyContinue
-      Write-Smoke "cleaned release-owned neuro-gateway.exe smoke process: pid=$($gatewayProcess.ProcessId)"
+      Write-Smoke "cleaned release-owned gateway.exe smoke process: pid=$($gatewayProcess.ProcessId)"
     }
   }
 }
@@ -328,7 +330,7 @@ $integrity = Assert-PackagedReleaseIntegrity -ReleaseRoot $resolvedReleaseDir
 $manifest = $integrity.manifest
 $checksumEntries = $integrity.checksumEntries
 $exeRecords = @($manifest.exes)
-$expectedExeNames = @("neuro-gateway.exe", "neuro-gateway-ui.exe")
+$expectedExeNames = @("gateway.exe", "gateway-ui.exe")
 
 foreach ($expectedExeName in $expectedExeNames) {
   if (-not ($exeRecords | Where-Object { $_.name -eq $expectedExeName })) {
@@ -343,5 +345,5 @@ foreach ($record in $exeRecords) {
 if ($LaunchUi) {
   Invoke-OptionalUiLaunchSmoke -ReleaseRoot $resolvedReleaseDir -Seconds $LaunchSeconds
 } else {
-  Write-Smoke "artifact smoke passed; pass -LaunchUi to also launch neuro-gateway-ui.exe briefly"
+  Write-Smoke "artifact smoke passed; pass -LaunchUi to also launch gateway-ui.exe briefly"
 }

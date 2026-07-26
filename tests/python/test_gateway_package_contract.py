@@ -19,8 +19,8 @@ UI_SMOKE = GATEWAY_ROOT / "tools" / "smoke-gateway-ui-release.ps1"
 class GatewayPackageContractTests(unittest.TestCase):
     def _write_fixture(self, root: pathlib.Path) -> None:
         files = {
-            "target/release/neuro-gateway.exe": b"gateway-binary-v1\n",
-            "apps/desktop/src-tauri/target/release/neuro-gateway-ui.exe": b"gateway-ui-binary-v1\n",
+            "target/release/gateway.exe": b"gateway-binary-v1\n",
+            "apps/desktop/src-tauri/target/release/gateway-ui.exe": b"gateway-ui-binary-v1\n",
             "routes.yaml": b"routes: []\n",
             "routes.example.yaml": b"routes: []\n",
             ".env.example": b"GATEWAY_RUNTIME_ROLE=standalone\n",
@@ -237,17 +237,17 @@ class GatewayPackageContractTests(unittest.TestCase):
                     "sourceTree": source_tree,
                     "artifacts": [
                         {
-                            "path": "target/release/neuro-gateway.exe",
-                            "bytes": (source_root / "target/release/neuro-gateway.exe").stat().st_size,
+                            "path": "target/release/gateway.exe",
+                            "bytes": (source_root / "target/release/gateway.exe").stat().st_size,
                             "sha256": hashlib.sha256(
-                                (source_root / "target/release/neuro-gateway.exe").read_bytes()
+                                (source_root / "target/release/gateway.exe").read_bytes()
                             ).hexdigest(),
                         },
                         {
-                            "path": "apps/desktop/src-tauri/target/release/neuro-gateway-ui.exe",
-                            "bytes": (source_root / "apps/desktop/src-tauri/target/release/neuro-gateway-ui.exe").stat().st_size,
+                            "path": "apps/desktop/src-tauri/target/release/gateway-ui.exe",
+                            "bytes": (source_root / "apps/desktop/src-tauri/target/release/gateway-ui.exe").stat().st_size,
                             "sha256": hashlib.sha256(
-                                (source_root / "apps/desktop/src-tauri/target/release/neuro-gateway-ui.exe").read_bytes()
+                                (source_root / "apps/desktop/src-tauri/target/release/gateway-ui.exe").read_bytes()
                             ).hexdigest(),
                         },
                     ],
@@ -276,8 +276,8 @@ class GatewayPackageContractTests(unittest.TestCase):
             self.assertEqual([destination], list(release_root.iterdir()))
 
             required_files = {
-                "neuro-gateway.exe",
-                "neuro-gateway-ui.exe",
+                "gateway.exe",
+                "gateway-ui.exe",
                 "routes.yaml",
                 "routes.example.yaml",
                 ".env.example",
@@ -324,7 +324,7 @@ class GatewayPackageContractTests(unittest.TestCase):
             executable_records = {record["name"]: record for record in manifest["exes"]}
             self.assertEqual(
                 set(executable_records),
-                {"neuro-gateway.exe", "neuro-gateway-ui.exe"},
+                {"gateway.exe", "gateway-ui.exe"},
             )
             support_records = {
                 record["path"]: record for record in manifest["supportFiles"]
@@ -775,7 +775,7 @@ class GatewayPackageContractTests(unittest.TestCase):
             checksums = destination / "checksums.sha256"
             checksum_text = checksums.read_text(encoding="ascii")
             checksums.write_text(
-                checksum_text.replace("  neuro-gateway.exe", "  alias-neuro-gateway.exe"),
+                checksum_text.replace("  gateway.exe", "  alias-gateway.exe"),
                 encoding="ascii",
                 newline="",
             )

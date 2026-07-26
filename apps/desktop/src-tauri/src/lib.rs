@@ -24,7 +24,7 @@ pub struct GatewayUiRuntimeInfo {
 #[tauri::command]
 fn get_gateway_ui_runtime_info() -> GatewayUiRuntimeInfo {
     GatewayUiRuntimeInfo {
-        app_name: "Neuro Gateway".to_string(),
+        app_name: "Gateway UI".to_string(),
         theme_family: "NeuroTerminal".to_string(),
         gateway_mode: "headless-first".to_string(),
     }
@@ -47,5 +47,5 @@ pub fn run() {
             read_gateway_log_tail,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Neuro Gateway desktop");
+        .expect("error while running Gateway UI desktop");
 }

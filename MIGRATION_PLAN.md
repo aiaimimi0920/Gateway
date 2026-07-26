@@ -605,7 +605,7 @@ Verification evidence captured during the Neuro workspace migration closure:
   - pass
 - `cargo test --manifest-path Gateway/Cargo.toml --locked --no-run`
   - pass
-- `cargo build --manifest-path Gateway/Cargo.toml --locked --release --bin neuro-gateway`
+- `cargo build --manifest-path Gateway/Cargo.toml --locked --release --bin gateway`
   - pass
 - Provider line verification passed for the final gateway-provider batch:
   `xai-openai-official-vendor-api`, `freebuff-web-reverse-api`,

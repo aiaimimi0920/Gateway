@@ -547,8 +547,8 @@ if (-not $buildSkipped) {
     }
 }
 
-$headlessSource = Join-Path $gatewayRoot "target\release\neuro-gateway.exe"
-$uiSource = Join-Path $gatewayRoot "apps\desktop\src-tauri\target\release\neuro-gateway-ui.exe"
+$headlessSource = Join-Path $gatewayRoot "target\release\gateway.exe"
+$uiSource = Join-Path $gatewayRoot "apps\desktop\src-tauri\target\release\gateway-ui.exe"
 foreach ($requiredBinary in @($headlessSource, $uiSource)) {
     if (-not (Test-Path -LiteralPath $requiredBinary -PathType Leaf)) {
         throw "Required Gateway build artifact is missing: $requiredBinary"
@@ -576,8 +576,8 @@ foreach ($requiredDirectory in @($manifestsSource, $scriptsSource, $docsSource, 
 }
 
 $artifactRelativePaths = @(
-    "target/release/neuro-gateway.exe",
-    "apps/desktop/src-tauri/target/release/neuro-gateway-ui.exe"
+    "target/release/gateway.exe",
+    "apps/desktop/src-tauri/target/release/gateway-ui.exe"
 )
 $sourceTreeState = Get-SourceTreeState -Root $gatewayRoot
 Assert-BuildProvenance `
@@ -616,13 +616,13 @@ try {
     $headlessDestination = Copy-PayloadFile `
         -Source $headlessSource `
         -PackageRoot $staging `
-        -DestinationRelativePath "neuro-gateway.exe"
+        -DestinationRelativePath "gateway.exe"
     $exeRecords += New-ArtifactRecord -PackageRoot $staging -Path $headlessDestination -Kind "exe"
 
     $uiDestination = Copy-PayloadFile `
         -Source $uiSource `
         -PackageRoot $staging `
-        -DestinationRelativePath "neuro-gateway-ui.exe"
+        -DestinationRelativePath "gateway-ui.exe"
     $exeRecords += New-ArtifactRecord -PackageRoot $staging -Path $uiDestination -Kind "exe"
 
     $environmentTemplateDestination = Copy-PayloadFile `
@@ -707,7 +707,7 @@ try {
         packagerVersion = "gateway-package/v3"
         target = "windows-x64"
         layout = [ordered]@{
-            executables = @("neuro-gateway.exe", "neuro-gateway-ui.exe")
+            executables = @("gateway.exe", "gateway-ui.exe")
             environmentTemplate = ".env.example"
             buildProvenance = "gateway-build-provenance.json"
             routes = @($routePaths)

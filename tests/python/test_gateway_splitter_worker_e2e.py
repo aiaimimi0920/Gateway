@@ -162,7 +162,7 @@ class GatewaySplitterWorkerE2ETests(unittest.TestCase):
                     str(GATEWAY_ROOT / "Cargo.toml"),
                     "--locked",
                     "--bin",
-                    "neuro-gateway",
+                    "gateway",
                 ],
                 cwd=REPO_ROOT,
                 text=True,
@@ -174,7 +174,7 @@ class GatewaySplitterWorkerE2ETests(unittest.TestCase):
                     f"failed to build gateway binary\nstdout:\n{build.stdout}\nstderr:\n{build.stderr}"
                 )
             cls.gateway_binary = GATEWAY_ROOT / "target" / "debug" / (
-                "neuro-gateway.exe" if os.name == "nt" else "neuro-gateway"
+                "gateway.exe" if os.name == "nt" else "gateway"
             )
 
         if not cls.gateway_binary.is_file():

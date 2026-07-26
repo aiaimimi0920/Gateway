@@ -74,7 +74,7 @@ const initialProcessSnapshot: GatewayProcessSnapshot = {
 };
 
 const fallbackRuntimeInfo: GatewayUiRuntimeInfo = {
-  appName: "Neuro Gateway",
+  appName: "Gateway UI",
   themeFamily: "NeuroTerminal",
   gatewayMode: "headless-first",
 };
@@ -109,6 +109,7 @@ export function useGatewayDesktopState(): GatewayDesktopState {
   const [logTail, setLogTail] = useState<GatewayLogTail>({ path: null, lines: [] });
   const [stateNotice, setStateNotice] = useState<GatewayDesktopNotice | undefined>();
   const [busy, setBusy] = useState(false);
+  const [autoStartAttempted, setAutoStartAttempted] = useState(false);
   const [apiTestInput, setApiTestInput] = useState<GatewayApiTestInput>(initialApiTestInput);
   const [apiTestResult, setApiTestResult] = useState<GatewayApiTestResult | undefined>();
   const [diagnosticsReportText, setDiagnosticsReportText] = useState<string | undefined>();
@@ -161,6 +162,7 @@ export function useGatewayDesktopState(): GatewayDesktopState {
 
   useEffect(() => {
     selectedProfileNameRef.current = selectedProfileName;
+    setAutoStartAttempted(false);
   }, [selectedProfileName]);
 
   const commitSelectedProfileName = useCallback((name: string) => {
@@ -598,6 +600,32 @@ export function useGatewayDesktopState(): GatewayDesktopState {
     }, 5000);
     return () => window.clearInterval(timer);
   }, [refreshRuntimeSignals]);
+
+  useEffect(() => {
+    const backendHealthMissing = healthProbe ? !healthProbe.ok : false;
+    if (
+      !isTauriAvailable ||
+      autoStartAttempted ||
+      busy ||
+      processSnapshot.running ||
+      !canStartGateway ||
+      !backendHealthMissing
+    ) {
+      return;
+    }
+
+    setAutoStartAttempted(true);
+    setStateNotice(notice("info", "未检测到 Gateway 后端，正在自动启动 gateway.exe。"));
+    void startGateway();
+  }, [
+    autoStartAttempted,
+    busy,
+    canStartGateway,
+    healthProbe,
+    isTauriAvailable,
+    processSnapshot.running,
+    startGateway,
+  ]);
 
   return {
     runtimeInfo,

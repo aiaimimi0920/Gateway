@@ -15,7 +15,7 @@ COPY routes.yaml routes.example.yaml ./
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
   --mount=type=cache,target=/usr/local/cargo/git \
-  cargo build --locked --release --bin neuro-gateway
+  cargo build --locked --release --bin gateway
 
 FROM node:20-bookworm-slim
 
@@ -27,7 +27,7 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY --from=builder /app/target/release/neuro-gateway /usr/local/bin/neuro-gateway
+COPY --from=builder /app/target/release/gateway /usr/local/bin/gateway
 COPY routes.yaml routes.example.yaml ./
 COPY manifests ./manifests
 COPY scripts ./scripts
@@ -38,4 +38,4 @@ RUN cd /app/scripts \
 
 ENV PORT=4200
 
-CMD ["neuro-gateway"]
+CMD ["gateway"]
