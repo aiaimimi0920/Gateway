@@ -23,6 +23,7 @@ const ADMIN_FILE_NAME: &str = "admin.json";
 pub struct ConsoleAuthRuntime {
     persistence: RouteConfigPersistence,
     env_management_token: Option<String>,
+    remote_access_enabled: bool,
     secret_grant_ttl_secs: u64,
     secret_grants: Arc<Mutex<HashMap<String, SecretGrantRecord>>>,
 }
@@ -134,6 +135,7 @@ impl ConsoleAuthRuntime {
         Ok(Self {
             persistence,
             env_management_token,
+            remote_access_enabled: console.remote_access_enabled,
             secret_grant_ttl_secs: console.secret_grant_ttl_secs,
             secret_grants: Arc::new(Mutex::new(HashMap::new())),
         })
@@ -295,7 +297,7 @@ impl ConsoleAuthRuntime {
         request: &ConsoleRequestContext,
         token: &str,
     ) -> Result<AuthenticatedConsoleActor, GatewayError> {
-        if !request.is_loopback() {
+        if !request.is_loopback() && !self.remote_access_enabled {
             return Err(forbidden_error(
                 "Gateway console remote access is disabled for non-loopback clients",
                 "console_remote_access_forbidden",
@@ -423,6 +425,86 @@ fn token_fingerprint(token: &str) -> String {
 fn console_invalid_token_error() -> GatewayError {
     GatewayError::unauthorized("Management token is invalid")
         .with_code("console_management_token_invalid")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::net::IpAddr;
+    use std::path::PathBuf;
+
+    use uuid::Uuid;
+
+    use super::{ConsoleAuthRuntime, ConsoleRequestContext};
+    use crate::console::{ConsoleConfig, ConsoleConfigValues};
+
+    struct TestConsoleFixture {
+        root: PathBuf,
+        config: ConsoleConfig,
+    }
+
+    impl TestConsoleFixture {
+        fn new(remote_access_enabled: bool) -> Self {
+            let root = std::env::temp_dir().join(format!(
+                "gateway-console-auth-{}",
+                Uuid::new_v4()
+            ));
+            fs::create_dir_all(&root).unwrap();
+            let routes_file = root.join("routes.yaml");
+            fs::write(&routes_file, b"providers: []\n").unwrap();
+            let config = ConsoleConfig::from_values(ConsoleConfigValues {
+                state_dir: Some(root.join("state")),
+                routes_file: Some(routes_file),
+                remote_access_enabled: Some(remote_access_enabled),
+                ..ConsoleConfigValues::default()
+            })
+            .unwrap();
+            Self { root, config }
+        }
+    }
+
+    impl Drop for TestConsoleFixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+
+    #[test]
+    fn remote_access_enabled_allows_non_loopback_management_auth() {
+        let fixture = TestConsoleFixture::new(true);
+        let runtime =
+            ConsoleAuthRuntime::new(&fixture.config, Some("123456".to_string())).unwrap();
+        let request = ConsoleRequestContext::new(
+            IpAddr::from([192, 0, 2, 10]),
+            "http://127.0.0.1:4210".to_string(),
+        );
+
+        let actor = runtime
+            .authenticate_management_token(&request, "123456")
+            .expect("remote access flag should allow configured non-loopback console auth");
+
+        assert!(!actor.secret_access_granted());
+    }
+
+    #[test]
+    fn loopback_only_default_still_rejects_non_loopback_management_auth() {
+        let fixture = TestConsoleFixture::new(false);
+        let runtime =
+            ConsoleAuthRuntime::new(&fixture.config, Some("123456".to_string())).unwrap();
+        let request = ConsoleRequestContext::new(
+            IpAddr::from([192, 0, 2, 10]),
+            "http://127.0.0.1:4210".to_string(),
+        );
+
+        let error = runtime
+            .authenticate_management_token(&request, "123456")
+            .expect_err("loopback-only default must reject non-loopback clients");
+
+        assert_eq!(
+            error.code.as_deref(),
+            Some("console_remote_access_forbidden")
+        );
+    }
 }
 
 fn forbidden_error(message: impl Into<String>, code: &'static str) -> GatewayError {
