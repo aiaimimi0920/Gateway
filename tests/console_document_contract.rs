@@ -145,6 +145,17 @@ aliases: {}
 }
 
 #[test]
+fn bundled_routes_example_is_readable_by_console_redaction_pipeline() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("routes.example.yaml");
+    let yaml = fs::read_to_string(&path).expect("read routes.example.yaml");
+    let candidate: RouteConfigYaml =
+        serde_yaml::from_str(&yaml).expect("routes.example.yaml must parse");
+
+    redact_route_document(&candidate)
+        .expect("routes.example.yaml must be readable by the console redaction pipeline");
+}
+
+#[test]
 fn strict_validation_rejects_empty_ids_invalid_urls_routes_and_alias_cycles() {
     let candidate = document(
         r#"

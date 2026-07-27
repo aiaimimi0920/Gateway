@@ -147,7 +147,7 @@ providers:
     base_url: "https://s.jina.ai"
     supported_models: [jina-search]
     credentials:
-      - id: jina-key-1
+      - id: jina-search-key-1
         api_key: "${JINA_API_KEY_1}"
       # - id: jina-key-2
       #   api_key: "${JINA_API_KEY_2}"
@@ -157,7 +157,7 @@ providers:
     base_url: "https://r.jina.ai"
     supported_models: [jina-fetch]
     credentials:
-      - id: jina-key-1
+      - id: jina-reader-key-1
         api_key: "${JINA_API_KEY_1}"
       # - id: jina-key-2
       #   api_key: "${JINA_API_KEY_2}"
