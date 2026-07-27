@@ -671,6 +671,26 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
         self.assertNotIn("\\Q", script)
         self.assertIn("[Regex]::Escape($Key)", script)
 
+    def test_deploy_helper_seeds_loopback_console_defaults_for_fresh_local_users(self):
+        script = (GATEWAY_ROOT / "tools/deploy-gateway-docker.ps1").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("function Test-IsLoopbackBindHost", script)
+        self.assertIn('Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_MANAGEMENT_TOKEN" -Value "123456"', script)
+        self.assertIn('Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_CONSOLE_REMOTE_ACCESS" -Value "true"', script)
+
+    def test_readmes_explain_the_default_loopback_console_login_for_the_root_helper(self):
+        readme = (GATEWAY_ROOT / "README.md").read_text(encoding="utf-8")
+        deploy_readme = (GATEWAY_ROOT / "deploy/README.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("GATEWAY_MANAGEMENT_TOKEN=123456", readme)
+        self.assertIn("127.0.0.1", readme)
+        self.assertIn("GATEWAY_MANAGEMENT_TOKEN=123456", deploy_readme)
+        self.assertIn("/ui/", deploy_readme)
+
 
 if __name__ == "__main__":
     unittest.main()

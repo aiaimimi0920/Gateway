@@ -122,6 +122,22 @@ From the repository root you can drive the same deployment stack with:
 .\tools\deploy-gateway-docker.ps1 -Action down -Mode local
 ```
 
+For fresh local users, that PowerShell helper defaults to
+`GATEWAY_BIND_HOST=127.0.0.1`. When the stack is loopback-bound, it also seeds
+missing console login values in `deploy/.env` without overwriting explicit
+user choices:
+
+- `GATEWAY_MANAGEMENT_TOKEN=123456`
+- `GATEWAY_CONSOLE_REMOTE_ACCESS=true`
+
+After `-Action up`, open:
+
+- `http://127.0.0.1:4200/ui/`
+
+and sign in with the management token `123456`. If you are preparing a public
+server instead, change `GATEWAY_BIND_HOST` to `0.0.0.0` and replace the
+default management token before exposing the service.
+
 For a disposable end-to-end validation using a locally built image:
 
 ```powershell

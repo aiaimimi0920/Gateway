@@ -7,7 +7,7 @@ param(
     [string]$EnvFile = "",
     [string]$ComposeProjectName = "gateway",
     [string]$ImageTag = "latest",
-    [string]$BindHost = "0.0.0.0",
+    [string]$BindHost = "127.0.0.1",
     [int]$GatewayPort = 4200,
     [string]$RuntimeRole = "standalone",
     [switch]$Follow,
@@ -71,6 +71,48 @@ function Set-DotEnvValue {
     Write-Utf8NoBomLines -Path $Path -Lines $existing
 }
 
+function Get-DotEnvValue {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Key
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $null
+    }
+
+    $escapedKey = [Regex]::Escape($Key)
+    foreach ($line in @(Get-Content -LiteralPath $Path -Encoding UTF8)) {
+        if ($line -match ("^{0}=(.*)$" -f $escapedKey)) {
+            return $Matches[1]
+        }
+    }
+
+    return $null
+}
+
+function Set-DotEnvValueIfMissing {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Key,
+        [Parameter(Mandatory = $true)][string]$Value
+    )
+
+    $currentValue = Get-DotEnvValue -Path $Path -Key $Key
+    if ([string]::IsNullOrWhiteSpace($currentValue)) {
+        Set-DotEnvValue -Path $Path -Key $Key -Value $Value
+    }
+}
+
+function Test-IsLoopbackBindHost {
+    param(
+        [Parameter(Mandatory = $true)][string]$BindHost
+    )
+
+    $normalized = $BindHost.Trim().ToLowerInvariant()
+    return $normalized -in @("127.0.0.1", "localhost", "::1", "[::1]")
+}
+
 function Invoke-DockerCompose {
     param(
         [Parameter(Mandatory = $true)][string]$ComposeFile,
@@ -129,6 +171,21 @@ if ($Action -eq "up") {
 
     foreach ($entry in $updatableValues.GetEnumerator()) {
         Set-DotEnvValue -Path $envPath -Key $entry.Key -Value $entry.Value
+    }
+
+    $effectiveBindHost = if ($updatableValues.Contains("GATEWAY_BIND_HOST")) {
+        [string]$updatableValues["GATEWAY_BIND_HOST"]
+    } else {
+        [string](Get-DotEnvValue -Path $envPath -Key "GATEWAY_BIND_HOST")
+    }
+
+    if (Test-IsLoopbackBindHost -BindHost $effectiveBindHost) {
+        Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_MANAGEMENT_TOKEN" -Value "123456"
+        if ($createdEnv) {
+            Set-DotEnvValue -Path $envPath -Key "GATEWAY_CONSOLE_REMOTE_ACCESS" -Value "true"
+        } else {
+            Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_CONSOLE_REMOTE_ACCESS" -Value "true"
+        }
     }
 }
 

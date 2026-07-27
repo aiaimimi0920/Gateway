@@ -232,6 +232,20 @@ docker run --rm -p 4200:4200 --env-file .env gateway:local
 .\tools\deploy-gateway-docker.ps1 -Action down -Mode local
 ```
 
+这个 PowerShell helper 针对“本地新用户直接启动”的场景做了默认优化。首次执行
+`-Action up` 时，它会默认写入 `GATEWAY_BIND_HOST=127.0.0.1`，并在 loopback
+绑定场景下自动补齐以下控制台登录配置，且不会覆盖你已经显式设置过的值：
+
+- `GATEWAY_MANAGEMENT_TOKEN=123456`
+- `GATEWAY_CONSOLE_REMOTE_ACCESS=true`
+
+启动完成后，直接访问：
+
+- `http://127.0.0.1:4200/ui/`
+
+然后使用管理密钥 `123456` 登录即可。如果你要部署成对外提供服务的服务器形态，
+请显式传入 `-BindHost 0.0.0.0`，并在暴露端口前改成你自己的管理密钥。
+
 如果要对本地源码做一次完整的 Docker 端到端验证，可运行：
 
 ```powershell

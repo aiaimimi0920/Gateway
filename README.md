@@ -250,6 +250,22 @@ For one-command Docker operations from the repository root, use:
 .\tools\deploy-gateway-docker.ps1 -Action down -Mode local
 ```
 
+The root PowerShell helper is optimized for a fresh local workstation flow. On
+the first `-Action up`, it writes `GATEWAY_BIND_HOST=127.0.0.1` by default and,
+for loopback-bound stacks, seeds these missing console values without
+overwriting existing user settings:
+
+- `GATEWAY_MANAGEMENT_TOKEN=123456`
+- `GATEWAY_CONSOLE_REMOTE_ACCESS=true`
+
+After the stack is up, open:
+
+- `http://127.0.0.1:4200/ui/`
+
+and sign in with the management token `123456`. If you want a server-style
+public bind instead, pass `-BindHost 0.0.0.0` and set your own management
+token before exposing the port externally.
+
 To run an end-to-end local Docker verification against a locally built image:
 
 ```powershell
