@@ -595,6 +595,60 @@ class GatewayReleasePublicationContractTests(unittest.TestCase):
                 zip_path, checksum_path, journal_path=case["journal"]
             )
 
+    def test_docker_bundle_entries_are_portable_exact_and_deterministic(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            case = self._docker_case(
+                pathlib.Path(temporary_directory), "portable-docker"
+            )
+            result = self._run_script(
+                case["script"], case["args"], case["cwd"], case["env"]
+            )
+            self.assertEqual(0, result[0], msg=repr(result))
+
+            zip_path = case["zip"]
+            checksum_path = case["checksum"]
+            assert isinstance(zip_path, pathlib.Path)
+            assert isinstance(checksum_path, pathlib.Path)
+            bundle_root = "Gateway-portable-docker-docker-deploy"
+            expected_entries = sorted(
+                (
+                    f"{bundle_root}/{relative_path}"
+                    for relative_path in (
+                        "LICENSE",
+                        "README.md",
+                        "README.zh-CN.md",
+                        "deploy/.env.example",
+                        "deploy/README.md",
+                        "deploy/docker-compose.local.yml",
+                        "deploy/docker-compose.yml",
+                        "deploy/docker-deploy.sh",
+                        "deploy/docker-entrypoint.sh",
+                        "tools/deploy-gateway-docker.ps1",
+                    )
+                ),
+                key=str.lower,
+            )
+            with zipfile.ZipFile(zip_path) as archive:
+                infos = archive.infolist()
+                self.assertIsNone(archive.testzip())
+            self.assertEqual(expected_entries, [info.filename for info in infos])
+            for info in infos:
+                self.assertNotIn("\\", info.filename)
+                self.assertFalse(info.is_dir())
+                self.assertEqual((1980, 1, 1, 0, 0, 0), info.date_time)
+
+            digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+            self.assertEqual(
+                f"{digest} *{zip_path.name}\n",
+                checksum_path.read_text(encoding="utf-8"),
+            )
+            self._assert_no_private_residue(
+                zip_path,
+                checksum_path,
+                case["staging"],
+                case["journal"],
+            )
+
     def test_ready_barrier_serializes_three_concurrent_publishers(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = pathlib.Path(temporary_directory)

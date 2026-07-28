@@ -20,6 +20,19 @@ function Resolve-FullPath {
     return $fullPath
 }
 
+function Get-RelativeUnixPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$BasePath,
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    $baseFull = (Resolve-FullPath -Path $BasePath).TrimEnd("\", "/") + [System.IO.Path]::DirectorySeparatorChar
+    $pathFull = Resolve-FullPath -Path $Path
+    $baseUri = New-Object System.Uri($baseFull)
+    $pathUri = New-Object System.Uri($pathFull)
+    return [System.Uri]::UnescapeDataString($baseUri.MakeRelativeUri($pathUri).ToString()).Replace("\", "/")
+}
+
 function Assert-VersionId {
     param([Parameter(Mandatory = $true)][string]$Value)
 
@@ -437,13 +450,64 @@ try {
     Copy-RepositoryPayload -Source (Join-Path $gatewayRoot "README.zh-CN.md") -Destination (Join-Path $bundleRoot "README.zh-CN.md")
     Copy-RepositoryPayload -Source (Join-Path $gatewayRoot "LICENSE") -Destination (Join-Path $bundleRoot "LICENSE")
 
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::CreateFromDirectory(
-        $bundleRoot,
-        $stagingZip,
-        [System.IO.Compression.CompressionLevel]::Optimal,
-        $true
-    )
+    $bundleFiles = @(Get-ChildItem -LiteralPath $bundleRoot -Recurse -File -Force |
+        ForEach-Object {
+            $relativePath = Get-RelativeUnixPath -BasePath $bundleRoot -Path $_.FullName
+            [pscustomobject]@{
+                Item = $_
+                EntryName = "$bundleRootName/$relativePath"
+            }
+        } |
+        Sort-Object { $_.EntryName.ToLowerInvariant() })
+    $zipArchive = $null
+    $zipStream = $null
+    try {
+        Add-Type -AssemblyName System.IO.Compression
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $zipStream = [System.IO.File]::Open(
+            $stagingZip,
+            [System.IO.FileMode]::CreateNew,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None
+        )
+        $zipArchive = New-Object System.IO.Compression.ZipArchive(
+            $zipStream,
+            [System.IO.Compression.ZipArchiveMode]::Create,
+            $false,
+            [System.Text.Encoding]::UTF8
+        )
+        $fixedTimestamp = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
+        foreach ($bundleFile in $bundleFiles) {
+            $entry = $zipArchive.CreateEntry(
+                $bundleFile.EntryName,
+                [System.IO.Compression.CompressionLevel]::Optimal
+            )
+            $entry.LastWriteTime = $fixedTimestamp
+            $input = $null
+            $entryStream = $null
+            try {
+                $input = [System.IO.File]::OpenRead($bundleFile.Item.FullName)
+                $entryStream = $entry.Open()
+                $input.CopyTo($entryStream, 1048576)
+            }
+            finally {
+                if ($null -ne $entryStream) {
+                    $entryStream.Dispose()
+                }
+                if ($null -ne $input) {
+                    $input.Dispose()
+                }
+            }
+        }
+    }
+    finally {
+        if ($null -ne $zipArchive) {
+            $zipArchive.Dispose()
+        }
+        if ($null -ne $zipStream) {
+            $zipStream.Dispose()
+        }
+    }
 
     $zipHash = (Get-FileHash -LiteralPath $stagingZip -Algorithm SHA256).Hash.ToLowerInvariant()
     $zipName = Split-Path -Leaf $zipPath
