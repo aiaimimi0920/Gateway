@@ -741,7 +741,11 @@ fn backend_spy_receives_only_safe_existing_and_absent_replace_flags() {
             backup_existed,
         } => {
             assert_eq!(*flags, 0);
-            assert!(!backup_existed);
+            assert_eq!(
+                *backup_existed,
+                cfg!(not(windows)),
+                "Windows ReplaceFileW requires an absent backup path, while non-Windows stages the previous contents before invoking the backend"
+            );
             assert_eq!(destination.parent(), replacement.parent());
             assert_eq!(destination.parent(), backup.parent());
         }
