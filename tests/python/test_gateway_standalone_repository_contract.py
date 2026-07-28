@@ -1804,7 +1804,9 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
                 self.assertEqual(checksum_record, checksum_file.read())
             self.assertFalse(journal_path.exists())
 
-    def test_docker_deploy_bundle_rolls_back_new_zip_when_hash_publish_fails(self):
+    def test_docker_deploy_bundle_rejects_late_hash_path_collision_before_publication(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as temporary_directory:
             temporary_root = pathlib.Path(temporary_directory)
             fixture_root = temporary_root / "Gateway"
@@ -1814,7 +1816,39 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
             fixture_deploy.mkdir(parents=True)
 
             exporter = GATEWAY_ROOT / "tools/export-gateway-docker-deploy-bundle.ps1"
-            (fixture_tools / exporter.name).write_bytes(exporter.read_bytes())
+            exporter_text = exporter.read_text(encoding="utf-8")
+            publish_anchor = (
+                "    foreach ($artifactPath in @($zipPath, $hashPath, $journalPath)) {"
+            )
+            ready_gate = r'''    $testReadyPath = [Environment]::GetEnvironmentVariable("GATEWAY_TEST_EXPORT_READY_PATH")
+    $testGatePath = [Environment]::GetEnvironmentVariable("GATEWAY_TEST_EXPORT_GATE_PATH")
+    if (
+        [string]::IsNullOrWhiteSpace($testReadyPath) -or
+        [string]::IsNullOrWhiteSpace($testGatePath)
+    ) {
+        throw "Test export synchronization paths are required."
+    }
+    $testReadyTemporaryPath = $testReadyPath + ".write-" + [guid]::NewGuid().ToString("N")
+    try {
+        Write-Utf8NoBom -Path $testReadyTemporaryPath -Value $stagingRoot
+        [System.IO.File]::Move($testReadyTemporaryPath, $testReadyPath)
+    }
+    finally {
+        if (Test-Path -LiteralPath $testReadyTemporaryPath) {
+            Remove-Item -LiteralPath $testReadyTemporaryPath -Force
+        }
+    }
+    while (-not (Test-Path -LiteralPath $testGatePath -PathType Leaf)) {
+        Start-Sleep -Milliseconds 10
+    }
+
+'''
+            self.assertEqual(1, exporter_text.count(publish_anchor))
+            fixture_exporter = fixture_tools / exporter.name
+            fixture_exporter.write_text(
+                exporter_text.replace(publish_anchor, ready_gate + publish_anchor),
+                encoding="utf-8",
+            )
             fixture_files = {
                 "README.md": b"x" * (16 * 1024 * 1024),
                 "README.zh-CN.md": b"# Gateway\n",
@@ -1835,12 +1869,16 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
             output_root = temporary_root / "output"
             staging_parent = temporary_root / "temp"
             staging_parent.mkdir()
-            version_id = "contract-hash-publish-failure"
+            version_id = "contract-late-hash-path-collision"
             zip_path = output_root / f"Gateway-{version_id}-docker-deploy.zip"
             hash_path = pathlib.Path(str(zip_path) + ".sha256")
+            ready_path = temporary_root / "export-ready"
+            gate_path = temporary_root / "export-gate"
             environment = os.environ.copy()
             environment["TEMP"] = str(staging_parent)
             environment["TMP"] = str(staging_parent)
+            environment["GATEWAY_TEST_EXPORT_READY_PATH"] = str(ready_path)
+            environment["GATEWAY_TEST_EXPORT_GATE_PATH"] = str(gate_path)
             process = subprocess.Popen(
                 [
                     powershell_executable(),
@@ -1850,7 +1888,7 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
-                    str(fixture_tools / exporter.name),
+                    str(fixture_exporter),
                     "-VersionId",
                     version_id,
                     "-OutputDir",
@@ -1863,26 +1901,67 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
             )
 
-            staging_root = None
-            deadline = time.monotonic() + 30
-            while process.poll() is None and time.monotonic() < deadline:
-                candidates = list(staging_parent.glob("gateway-docker-deploy-*"))
-                if candidates:
-                    staging_root = candidates[0]
-                    break
-                time.sleep(0.002)
+            output_collected = False
+            try:
+                deadline = time.monotonic() + 30
+                while not ready_path.is_file():
+                    if process.poll() is not None:
+                        stdout, stderr = process.communicate()
+                        output_collected = True
+                        self.fail(
+                            "exporter exited before signaling staging readiness:\n"
+                            f"stdout:\n{stdout}\nstderr:\n{stderr}"
+                        )
+                    if time.monotonic() >= deadline:
+                        self.fail("timed out waiting for exporter staging readiness")
+                    time.sleep(0.01)
 
-            self.assertIsNotNone(staging_root, "exporter completed before staging was observable")
-            hash_path.mkdir(parents=True)
-            collision_marker = hash_path / "existing-artifact.txt"
-            collision_marker.write_text("preserve me\n", encoding="utf-8")
-            stdout, stderr = process.communicate(timeout=60)
+                staging_root = pathlib.Path(
+                    ready_path.read_text(encoding="utf-8")
+                )
+                self.assertTrue(
+                    staging_root.is_dir(), "exporter signaled a missing staging directory"
+                )
+                hash_path.mkdir(parents=True)
+                collision_marker = hash_path / "existing-artifact.txt"
+                collision_marker.write_text("preserve me\n", encoding="utf-8")
+                gate_path.touch()
+                stdout, stderr = process.communicate(timeout=60)
+                output_collected = True
 
-            self.assertNotEqual(0, process.returncode, msg=stdout + stderr)
-            self.assertFalse(zip_path.exists(), "new ZIP was not rolled back")
-            self.assertTrue(hash_path.is_dir(), "existing hash-path artifact was removed")
-            self.assertEqual("preserve me\n", collision_marker.read_text(encoding="utf-8"))
-            self.assertFalse(staging_root.exists(), "export staging directory was not cleaned")
+                process_output = stdout + stderr
+                self.assertNotEqual(0, process.returncode, msg=process_output)
+                self.assertIn(
+                    "Docker deploy bundle publication path became occupied and is immutable",
+                    process_output,
+                )
+                self.assertFalse(
+                    zip_path.exists(),
+                    "ZIP was published despite the late hash-path collision",
+                )
+                self.assertTrue(
+                    hash_path.is_dir(), "existing hash-path artifact was removed"
+                )
+                self.assertEqual(
+                    "preserve me\n", collision_marker.read_text(encoding="utf-8")
+                )
+                self.assertFalse(
+                    staging_root.exists(), "export staging directory was not cleaned"
+                )
+            finally:
+                try:
+                    gate_path.touch(exist_ok=True)
+                finally:
+                    if not output_collected:
+                        try:
+                            process.communicate(timeout=10)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.communicate()
+                    if process.stdout is not None:
+                        process.stdout.close()
+                    if process.stderr is not None:
+                        process.stderr.close()
 
     def test_docker_readmes_document_one_click_deploy_script(self):
         for relative_path in ("README.md", "README.zh-CN.md", "deploy/README.md"):
