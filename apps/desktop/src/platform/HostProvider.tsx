@@ -1,5 +1,5 @@
 import { createContext, type ReactNode, useContext } from "react";
-import { BrowserRouter, HashRouter } from "react-router-dom";
+import { BrowserRouter, HashRouter } from "react-router";
 import type { GatewayHostAdapter } from "./types";
 
 const GatewayHostContext = createContext<GatewayHostAdapter | undefined>(undefined);

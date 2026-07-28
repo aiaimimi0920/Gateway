@@ -10,13 +10,19 @@ $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $desktopRoot = Join-Path $repoRoot "apps\\desktop"
 $maxNpmCiAttempts = 3
 $defaultCargoBuildJobs = 1
+$scriptsRoot = Join-Path $repoRoot "scripts"
+$minimumNodeVersion = [version]"22.22.0"
 
 $commands = @(
-    'npm ci (retry up to 3 attempts on transient Windows file locks)',
-    'npm run typecheck',
-    'npm run build:web',
+    'Node.js >= 22.22.0',
+    'npm ci --prefix scripts --no-audit --no-fund (retry up to 3 attempts on transient Windows file locks)',
+    'npm run audit:prod --prefix scripts',
+    'npm ci --prefix apps/desktop --no-audit --no-fund (retry up to 3 attempts on transient Windows file locks)',
+    'npm run audit:prod --prefix apps/desktop',
+    'npm run typecheck --prefix apps/desktop',
+    'npm run build:web --prefix apps/desktop',
     'cargo build --locked --release --bin gateway',
-    'npm run tauri -- build --no-bundle'
+    'npm run tauri --prefix apps/desktop -- build --no-bundle'
 )
 
 if ($DryRun) {
@@ -74,7 +80,7 @@ function Resolve-NativeExecutable {
     if ($resolved.Count -eq 0) {
         $resolved = @(Get-Command $Command -ErrorAction SilentlyContinue | Select-Object -First 1)
     }
-    if ($null -eq $resolved) {
+    if ($resolved.Count -eq 0) {
         throw "Native command was not found: $Command"
     }
     return $resolved[0].Source
@@ -130,15 +136,19 @@ function Invoke-NativeCommandCapture {
 }
 
 function Invoke-NpmCiWithRetry {
-    param([int]$MaxAttempts = $maxNpmCiAttempts)
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory,
+        [Parameter(Mandatory = $true)][string]$ComponentName,
+        [int]$MaxAttempts = $maxNpmCiAttempts
+    )
 
     for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
-        Write-Output "[gateway-release] npm ci attempt $attempt/$MaxAttempts"
+        Write-Output "[gateway-release] npm ci for $ComponentName attempt $attempt/$MaxAttempts"
 
         $npmResult = Invoke-NativeCommandCapture `
             -Command "npm" `
-            -Arguments @("ci") `
-            -WorkingDirectory $desktopRoot
+            -Arguments @("ci", "--no-audit", "--no-fund") `
+            -WorkingDirectory $WorkingDirectory
         $npmOutput = @($npmResult.Output)
         $npmExitCode = [int]$npmResult.ExitCode
         $npmOutput | ForEach-Object { Write-Output $_ }
@@ -155,8 +165,56 @@ function Invoke-NpmCiWithRetry {
             continue
         }
 
-        throw "npm ci failed for Gateway desktop UI after $attempt attempt(s)"
+        throw "npm ci failed for $ComponentName after $attempt attempt(s)"
     }
+}
+
+function Invoke-NpmProductionAudit {
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory,
+        [Parameter(Mandatory = $true)][string]$ComponentName
+    )
+
+    $auditResult = Invoke-NativeCommandCapture `
+        -Command "npm" `
+        -Arguments @("run", "audit:prod") `
+        -WorkingDirectory $WorkingDirectory
+    $auditOutput = @($auditResult.Output)
+    $auditExitCode = [int]$auditResult.ExitCode
+    $auditOutput | ForEach-Object { Write-Output $_ }
+    if ($auditExitCode -ne 0) {
+        throw "npm production dependency audit failed for $ComponentName"
+    }
+}
+
+function Assert-MinimumNodeVersion {
+    param([version]$MinimumVersion = $minimumNodeVersion)
+
+    $nodeResult = Invoke-NativeCommandCapture `
+        -Command "node" `
+        -Arguments @("-p", "process.versions.node") `
+        -WorkingDirectory $repoRoot
+    $nodeOutput = @($nodeResult.Output)
+    if ([int]$nodeResult.ExitCode -ne 0) {
+        $nodeOutput | ForEach-Object { Write-Output $_ }
+        throw "Unable to determine the installed Node.js version. Gateway release builds require Node.js >= $MinimumVersion."
+    }
+
+    $nodeVersionText = @($nodeOutput | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1)
+    if ($nodeVersionText.Count -ne 1) {
+        throw "Node.js did not report a version. Gateway release builds require Node.js >= $MinimumVersion."
+    }
+
+    try {
+        $nodeVersion = [version]$nodeVersionText[0].Trim()
+    } catch {
+        throw "Unable to parse Node.js version '$($nodeVersionText[0])'. Gateway release builds require Node.js >= $MinimumVersion."
+    }
+
+    if ($nodeVersion -lt $MinimumVersion) {
+        throw "Node.js >= $MinimumVersion is required for Gateway release builds; found $nodeVersion."
+    }
+    Write-Output "[gateway-release] using Node.js $nodeVersion (minimum $MinimumVersion)"
 }
 
 function Write-ArtifactHashSummary {
@@ -328,11 +386,35 @@ function Write-BuildProvenance {
 
 Push-Location -LiteralPath $repoRoot
 try {
+    Assert-MinimumNodeVersion
     Initialize-GatewayBuildThrottle | Out-Null
+
+    Invoke-GatewayReleaseStep -Name "install browser worker dependencies" -Action {
+        Invoke-NpmCiWithRetry `
+            -WorkingDirectory $scriptsRoot `
+            -ComponentName "Gateway browser workers" `
+            -MaxAttempts $maxNpmCiAttempts
+    }
+
+    Invoke-GatewayReleaseStep -Name "audit production browser worker dependencies" -Action {
+        Invoke-NpmProductionAudit `
+            -WorkingDirectory $scriptsRoot `
+            -ComponentName "Gateway browser workers"
+    }
+
     Push-Location -LiteralPath $desktopRoot
     try {
         Invoke-GatewayReleaseStep -Name "install desktop dependencies" -Action {
-            Invoke-NpmCiWithRetry -MaxAttempts $maxNpmCiAttempts
+            Invoke-NpmCiWithRetry `
+                -WorkingDirectory $desktopRoot `
+                -ComponentName "Gateway desktop UI" `
+                -MaxAttempts $maxNpmCiAttempts
+        }
+
+        Invoke-GatewayReleaseStep -Name "audit production desktop dependencies" -Action {
+            Invoke-NpmProductionAudit `
+                -WorkingDirectory $desktopRoot `
+                -ComponentName "Gateway desktop UI"
         }
 
         Invoke-GatewayReleaseStep -Name "typecheck desktop UI" -Action {

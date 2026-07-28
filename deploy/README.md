@@ -112,7 +112,12 @@ docker compose -f docker-compose.dev.yml logs -f gateway
 What this development stack does:
 
 - bind-mounts the repository root into `/workspace`
-- keeps Cargo, npm, target, and `node_modules` caches inside Docker volumes
+- keeps Cargo, npm, target, desktop `node_modules`, and browser-worker
+  `node_modules` caches in separate Docker volumes
+- requires Node.js `>=22.22.0` at development-image build time and checks the
+  runtime again whenever the development entrypoint starts
+- installs each Node dependency tree when its `package-lock.json` hash changes,
+  then audits both production dependency trees before starting either watcher
 - runs `npm run build:web -- --watch`
 - runs `cargo watch --poll -x 'run --locked --bin gateway'`
 - gives the first cold boot a longer health-check grace period because the
@@ -186,6 +191,19 @@ For a disposable end-to-end validation using a locally built image:
 ```powershell
 .\tools\verify-gateway-docker-stack.ps1 -BuildImage
 ```
+
+The official wrapper generates a unique `GATEWAY_AUDIT_NONCE` for the Docker
+image build, which forces both in-image production dependency audits to run
+without requiring Node.js or host `node_modules`. To perform the same
+dependency-fresh image build manually:
+
+```powershell
+$auditNonce = [guid]::NewGuid().ToString("N")
+docker build --build-arg "GATEWAY_AUDIT_NONCE=$auditNonce" -t gateway:local .
+```
+
+A raw `docker build -t gateway:local .` remains useful for cached development
+iterations, but it does not prove that the dependency audit was refreshed.
 
 ## Environment Variables
 

@@ -36,6 +36,19 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
             raise AssertionError(f"missing workflow job: {job_name}")
         return match.group(0)
 
+    @staticmethod
+    def _assert_markers_in_order(text: str, *markers: str) -> None:
+        positions = []
+        for marker in markers:
+            position = text.find(marker)
+            if position < 0:
+                raise AssertionError(f"missing ordered marker: {marker}")
+            positions.append(position)
+        if positions != sorted(positions):
+            raise AssertionError(
+                f"markers are out of order: {list(zip(markers, positions))}"
+            )
+
     def test_repository_metadata_and_workflows_exist(self):
         required = [
             ".gitattributes",
@@ -418,6 +431,158 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
             with self.subTest(readme=relative_path):
                 self.assertIn(install_command, readme)
 
+    def test_both_node_production_dependency_trees_define_high_severity_audits(self):
+        expected_audit = "npm audit --omit=dev --audit-level=high"
+        for relative_path in (
+            "apps/desktop/package.json",
+            "scripts/package.json",
+        ):
+            package = json.loads(
+                (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
+            )
+            with self.subTest(package=relative_path):
+                self.assertEqual(
+                    package.get("scripts", {}).get("audit:prod"),
+                    expected_audit,
+                )
+
+    def test_ci_and_release_workflows_install_then_audit_both_node_trees(self):
+        workflow_jobs = {
+            ".github/workflows/ci.yml": ("windows", "linux"),
+            ".github/workflows/build-windows.yml": ("build",),
+            ".github/workflows/release-tag.yml": ("release",),
+        }
+        scripts_install = "npm ci --prefix scripts --no-audit --no-fund"
+        scripts_audit = "npm run audit:prod --prefix scripts"
+        desktop_install = "npm ci --prefix apps/desktop --no-audit --no-fund"
+        desktop_audit = "npm run audit:prod --prefix apps/desktop"
+
+        for relative_path, job_names in workflow_jobs.items():
+            workflow = (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
+            for job_name in job_names:
+                job = self._workflow_job_block(workflow, job_name)
+                with self.subTest(workflow=relative_path, job=job_name):
+                    self.assertIn('node-version: "22.22.0"', job)
+                    self.assertEqual(job.count(scripts_install), 1)
+                    self.assertEqual(job.count(scripts_audit), 1)
+                    self.assertEqual(job.count(desktop_install), 1)
+                    self.assertEqual(job.count(desktop_audit), 1)
+                    self.assertEqual(
+                        job.count("cargo test --locked -- --test-threads=1"), 1
+                    )
+                    self._assert_markers_in_order(
+                        job,
+                        scripts_install,
+                        scripts_audit,
+                        "node --test scripts/tests/*.test.mjs",
+                    )
+                    self._assert_markers_in_order(
+                        job,
+                        desktop_install,
+                        desktop_audit,
+                        "run: cargo",
+                    )
+
+    def test_docker_workflow_audits_both_node_trees_outside_buildkit_cache(self):
+        workflow = (GATEWAY_ROOT / ".github/workflows/docker.yml").read_text(
+            encoding="utf-8"
+        )
+        job = self._workflow_job_block(workflow, "docker")
+        first_docker_build = "uses: docker/build-push-action@v6"
+
+        self.assertIn('node-version: "22.22.0"', job)
+        self._assert_markers_in_order(
+            job,
+            "uses: actions/setup-node@v6",
+            "npm ci --prefix scripts --no-audit --no-fund",
+            "npm run audit:prod --prefix scripts",
+            first_docker_build,
+        )
+        self._assert_markers_in_order(
+            job,
+            "uses: actions/setup-node@v6",
+            "npm ci --prefix apps/desktop --no-audit --no-fund",
+            "npm run audit:prod --prefix apps/desktop",
+            first_docker_build,
+        )
+
+        dockerfile = (GATEWAY_ROOT / "Dockerfile").read_text(encoding="utf-8")
+        self._assert_markers_in_order(
+            dockerfile,
+            "npm ci --prefix apps/desktop --no-audit --no-fund",
+            "npm run audit:prod --prefix apps/desktop",
+            "npm run build:web --prefix apps/desktop",
+        )
+        self._assert_markers_in_order(
+            dockerfile,
+            "npm ci --omit=dev --no-audit --no-fund",
+            "npm run audit:prod --prefix /app/scripts",
+            "npm cache clean --force",
+        )
+
+    def test_release_builder_checks_node_and_installs_then_audits_both_node_trees(self):
+        script_path = GATEWAY_ROOT / "tools/build-gateway-release.ps1"
+        script = script_path.read_text(encoding="utf-8")
+        main = script[script.index("Push-Location -LiteralPath $repoRoot") :]
+        npm_ci_function = self._powershell_function_block(
+            script, "Invoke-NpmCiWithRetry"
+        )
+
+        self.assertIn('$minimumNodeVersion = [version]"22.22.0"', script)
+        self.assertIn("function Assert-MinimumNodeVersion", script)
+        self.assertIn(
+            '-Arguments @("ci", "--no-audit", "--no-fund")', npm_ci_function
+        )
+        self._assert_markers_in_order(
+            main,
+            "Assert-MinimumNodeVersion",
+            'Invoke-GatewayReleaseStep -Name "install browser worker dependencies"',
+            'Invoke-GatewayReleaseStep -Name "audit production browser worker dependencies"',
+            'Invoke-GatewayReleaseStep -Name "install desktop dependencies"',
+            'Invoke-GatewayReleaseStep -Name "audit production desktop dependencies"',
+            'Invoke-GatewayReleaseStep -Name "typecheck desktop UI"',
+            'Invoke-GatewayReleaseStep -Name "build headless gateway"',
+        )
+        self.assertIn("-WorkingDirectory $scriptsRoot", main)
+        self.assertIn("-WorkingDirectory $desktopRoot", main)
+
+        result = subprocess.run(
+            [
+                powershell_executable(),
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(script_path),
+                "-DryRun",
+            ],
+            cwd=GATEWAY_ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self._assert_markers_in_order(
+            result.stdout,
+            "Node.js >= 22.22.0",
+            "npm ci --prefix scripts --no-audit --no-fund",
+            "npm run audit:prod --prefix scripts",
+            "npm ci --prefix apps/desktop --no-audit --no-fund",
+            "npm run audit:prod --prefix apps/desktop",
+            "npm run typecheck --prefix apps/desktop",
+            "cargo build --locked --release --bin gateway",
+        )
+
+    def test_readmes_require_the_supported_node_patch_release(self):
+        for relative_path in ("README.md", "README.zh-CN.md"):
+            readme = (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
+            with self.subTest(readme=relative_path):
+                self.assertIn("Node.js `>=22.22.0`", readme)
+
     def test_packager_defaults_to_repository_local_release_root(self):
         script = (GATEWAY_ROOT / "tools/package-gateway-release.ps1").read_text(
             encoding="utf-8"
@@ -566,7 +731,7 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("FROM node:20-bookworm-slim", dockerfile_dev)
+        self.assertIn("FROM node:22-bookworm-slim", dockerfile_dev)
         self.assertIn("cargo install cargo-watch", dockerfile_dev)
         self.assertIn("dockerfile: Dockerfile.dev", compose_dev)
         self.assertIn("context: ..", compose_dev)
@@ -599,6 +764,7 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
         cargo_config = (GATEWAY_ROOT / ".cargo/config.toml").read_text(
             encoding="utf-8"
         )
+        dockerfile = (GATEWAY_ROOT / "Dockerfile").read_text(encoding="utf-8")
         dockerfile_dev = (GATEWAY_ROOT / "Dockerfile.dev").read_text(
             encoding="utf-8"
         )
@@ -614,6 +780,9 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
 
         self.assertIn("jobs = 1", cargo_config)
         self.assertIn("incremental = false", cargo_config)
+        self.assertIn("COPY .cargo/config.toml ./.cargo/config.toml", dockerfile)
+        self.assertIn("CARGO_BUILD_JOBS=1", dockerfile)
+        self.assertIn("CARGO_INCREMENTAL=0", dockerfile)
         self.assertIn("CARGO_BUILD_JOBS=1", dockerfile_dev)
         self.assertIn("CARGO_INCREMENTAL=0", dockerfile_dev)
         self.assertNotIn("CARGO_BUILD_JOBS=2", dockerfile_dev)
@@ -1334,12 +1503,14 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
         self.assertIn("async function removePathWithRetry", publisher)
         self.assertIn("await removePathWithRetry", publisher)
 
-    def test_docker_builder_uses_node20_ui_stage_and_prebuilt_web_assets(self):
+    def test_docker_builder_uses_node22_ui_stage_and_prebuilt_web_assets(self):
         dockerfile = (GATEWAY_ROOT / "Dockerfile").read_text(encoding="utf-8")
         build_script = (GATEWAY_ROOT / "build.rs").read_text(encoding="utf-8")
         cargo = (GATEWAY_ROOT / "Cargo.toml").read_text(encoding="utf-8")
 
-        self.assertIn("FROM node:20-bookworm-slim AS ui-builder", dockerfile)
+        self.assertIn("FROM node:22-bookworm-slim AS ui-builder", dockerfile)
+        self.assertIn("FROM node:22-bookworm-slim", dockerfile)
+        self.assertNotIn("FROM node:20-bookworm-slim", dockerfile)
         self.assertIn("COPY --from=ui-builder /app/apps/desktop/dist/web", dockerfile)
         self.assertIn(
             "COPY --from=ui-builder /app/apps/desktop/dist/.gateway-web-ready",

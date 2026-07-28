@@ -3,14 +3,20 @@ set -euo pipefail
 
 WORKSPACE_ROOT="/workspace"
 FRONTEND_ROOT="${WORKSPACE_ROOT}/apps/desktop"
+SCRIPTS_ROOT="${WORKSPACE_ROOT}/scripts"
 FRONTEND_DIST_INDEX="${FRONTEND_ROOT}/dist/web/index.html"
 FRONTEND_READY_MARKER="${FRONTEND_ROOT}/dist/.gateway-web-ready"
-NODE_MODULES_STAMP="${FRONTEND_ROOT}/node_modules/.gateway-package-lock.sha256"
+FRONTEND_NODE_MODULES_STAMP="${FRONTEND_ROOT}/node_modules/.gateway-package-lock.sha256"
+SCRIPTS_NODE_MODULES_STAMP="${SCRIPTS_ROOT}/node_modules/.gateway-package-lock.sha256"
 export CARGO_BUILD_JOBS=1
 export CARGO_INCREMENTAL=0
 
 log() {
   printf '[gateway-dev] %s\n' "$*"
+}
+
+assert_supported_node_version() {
+  node -e 'const minimum = [22, 22, 0]; const current = process.versions.node.split(".").map(Number); const difference = current.findIndex((value, index) => value !== minimum[index]); if (difference >= 0 && current[difference] < minimum[difference]) { throw new Error("Node.js >=22.22.0 is required; found " + process.versions.node); }'
 }
 
 ensure_runtime_layout() {
@@ -26,16 +32,26 @@ ensure_runtime_layout() {
   fi
 }
 
-ensure_frontend_dependencies() {
+ensure_node_dependencies() {
+  local package_root="$1"
+  local stamp_path="$2"
+  local package_label="$3"
   local lock_hash=""
-  lock_hash="$(sha256sum "${FRONTEND_ROOT}/package-lock.json" | awk '{print $1}')"
-  if [[ ! -d "${FRONTEND_ROOT}/node_modules" ]] || [[ ! -f "${NODE_MODULES_STAMP}" ]] || [[ "$(cat "${NODE_MODULES_STAMP}")" != "${lock_hash}" ]]; then
-    log "installing desktop UI dependencies"
-    npm ci --prefix "${FRONTEND_ROOT}" --no-audit --no-fund
-    printf '%s' "${lock_hash}" > "${NODE_MODULES_STAMP}"
+  lock_hash="$(sha256sum "${package_root}/package-lock.json" | awk '{print $1}')"
+  if [[ ! -d "${package_root}/node_modules" ]] || [[ ! -f "${stamp_path}" ]] || [[ "$(cat "${stamp_path}")" != "${lock_hash}" ]]; then
+    log "installing ${package_label} dependencies"
+    npm ci --prefix "${package_root}" --no-audit --no-fund
+    printf '%s' "${lock_hash}" > "${stamp_path}"
   else
-    log "desktop UI dependencies already match package-lock.json"
+    log "${package_label} dependencies already match package-lock.json"
   fi
+}
+
+audit_production_dependencies() {
+  local package_root="$1"
+  local package_label="$2"
+  log "auditing ${package_label} production dependencies"
+  npm run audit:prod --prefix "${package_root}"
 }
 
 wait_for_frontend_dist() {
@@ -83,8 +99,12 @@ main() {
 
   cd "${WORKSPACE_ROOT}"
   log "using CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS} CARGO_INCREMENTAL=${CARGO_INCREMENTAL}"
+  assert_supported_node_version
   ensure_runtime_layout
-  ensure_frontend_dependencies
+  ensure_node_dependencies "${SCRIPTS_ROOT}" "${SCRIPTS_NODE_MODULES_STAMP}" "browser worker"
+  ensure_node_dependencies "${FRONTEND_ROOT}" "${FRONTEND_NODE_MODULES_STAMP}" "desktop UI"
+  audit_production_dependencies "${SCRIPTS_ROOT}" "browser worker"
+  audit_production_dependencies "${FRONTEND_ROOT}" "desktop UI"
   cleanup_frontend_staging
 
   rm -f "${FRONTEND_READY_MARKER}"

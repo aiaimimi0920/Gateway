@@ -1,10 +1,16 @@
-FROM node:20-bookworm-slim AS ui-builder
+FROM node:22-bookworm-slim AS ui-builder
+
+ARG GATEWAY_AUDIT_NONCE=""
+
+RUN node -e 'const minimum = [22, 22, 0]; const current = process.versions.node.split(".").map(Number); const difference = current.findIndex((value, index) => value !== minimum[index]); if (difference >= 0 && current[difference] < minimum[difference]) { throw new Error("Node.js >=22.22.0 is required; found " + process.versions.node); }'
 
 WORKDIR /app
 
 COPY apps/desktop/package.json apps/desktop/package-lock.json ./apps/desktop/
 RUN --mount=type=cache,target=/root/.npm \
   npm ci --prefix apps/desktop --no-audit --no-fund
+RUN printf '%s\n' "${GATEWAY_AUDIT_NONCE}" >/dev/null \
+  && npm run audit:prod --prefix apps/desktop
 COPY apps/desktop ./apps/desktop
 RUN GATEWAY_WEB_PRUNE_LIVE=1 npm run build:web --prefix apps/desktop
 
@@ -17,6 +23,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY Cargo.toml Cargo.lock build.rs ./
+COPY .cargo/config.toml ./.cargo/config.toml
 COPY apps/desktop ./apps/desktop
 COPY --from=ui-builder /app/apps/desktop/dist/web ./apps/desktop/dist/web
 COPY --from=ui-builder /app/apps/desktop/dist/.gateway-web-ready ./apps/desktop/dist/.gateway-web-ready
@@ -26,13 +33,19 @@ COPY tests ./tests
 COPY manifests ./manifests
 COPY routes.yaml routes.example.yaml ./
 
-ENV GATEWAY_PREBUILT_WEB_UI=1
+ENV GATEWAY_PREBUILT_WEB_UI=1 \
+  CARGO_BUILD_JOBS=1 \
+  CARGO_INCREMENTAL=0
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
   --mount=type=cache,target=/usr/local/cargo/git \
   cargo build --locked --release --bin gateway
 
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
+
+ARG GATEWAY_AUDIT_NONCE=""
+
+RUN node -e 'const minimum = [22, 22, 0]; const current = process.versions.node.split(".").map(Number); const difference = current.findIndex((value, index) => value !== minimum[index]); if (difference >= 0 && current[difference] < minimum[difference]) { throw new Error("Node.js >=22.22.0 is required; found " + process.versions.node); }'
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -49,7 +62,10 @@ COPY manifests ./manifests
 COPY scripts ./scripts
 
 RUN cd /app/scripts \
-  && npm ci --omit=dev \
+  && npm ci --omit=dev --no-audit --no-fund
+
+RUN printf '%s\n' "${GATEWAY_AUDIT_NONCE}" >/dev/null \
+  && npm run audit:prod --prefix /app/scripts \
   && npm cache clean --force \
   && chmod +x /usr/local/bin/gateway-entrypoint \
   && mkdir -p /data/state

@@ -9,8 +9,6 @@ param(
     [Alias("Tag")]
     [string]$VersionId = "",
 
-    [switch]$Force,
-
     [switch]$DryRun
 )
 
@@ -81,22 +79,229 @@ function Write-EncodedFileNew {
         [Parameter(Mandatory = $true)][System.Text.Encoding]$Encoding
     )
 
-    $bytes = $Encoding.GetBytes($Value)
-    $stream = [System.IO.File]::Open(
-        $Path,
-        [System.IO.FileMode]::CreateNew,
-        [System.IO.FileAccess]::Write,
-        [System.IO.FileShare]::None
-    )
+    $temporaryPath = $Path + ".write-" + [guid]::NewGuid().ToString("N")
+    $stream = $null
     try {
+        $bytes = $Encoding.GetBytes($Value)
+        $stream = [System.IO.File]::Open(
+            $temporaryPath,
+            [System.IO.FileMode]::CreateNew,
+            [System.IO.FileAccess]::Write,
+            [System.IO.FileShare]::None
+        )
         $stream.Write($bytes, 0, $bytes.Length)
         $stream.Flush($true)
+        $stream.Dispose()
+        $stream = $null
+        [System.IO.File]::Move($temporaryPath, $Path)
     }
     finally {
-        $stream.Dispose()
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+        if (Test-Path -LiteralPath $temporaryPath) {
+            Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
+function Read-PublicationLockStreamText {
+    param([Parameter(Mandatory = $true)][System.IO.FileStream]$Stream)
+
+    $originalPosition = $Stream.Position
+    try {
+        $Stream.Position = 0
+        $bytes = New-Object byte[] ([int]$Stream.Length)
+        $offset = 0
+        while ($offset -lt $bytes.Length) {
+            $read = $Stream.Read($bytes, $offset, $bytes.Length - $offset)
+            if ($read -le 0) {
+                throw "Publication lock owner record ended unexpectedly."
+            }
+            $offset += $read
+        }
+        return [System.Text.UTF8Encoding]::new($false).GetString($bytes)
+    }
+    finally {
+        $Stream.Position = $originalPosition
+    }
+}
+
+function Read-PublicationLockOwner {
+    param([Parameter(Mandatory = $true)][string]$LockPath)
+
+    $reader = $null
+    try {
+        $reader = [System.IO.File]::Open(
+            $LockPath,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read,
+            ([System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete)
+        )
+        return Read-PublicationLockStreamText -Stream $reader
+    }
+    catch {
+        return "<owner unavailable while publication lock is active>"
+    }
+    finally {
+        if ($null -ne $reader) {
+            $reader.Dispose()
+        }
+    }
+}
+
+function Get-PublicationMutexName {
+    param([Parameter(Mandatory = $true)][string]$LockPath)
+
+    $normalizedPath = [System.IO.Path]::GetFullPath($LockPath).ToLowerInvariant()
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $digest = $sha256.ComputeHash(
+            [System.Text.UTF8Encoding]::new($false).GetBytes($normalizedPath)
+        )
+    }
+    finally {
+        $sha256.Dispose()
+    }
+    $hex = [System.BitConverter]::ToString($digest).Replace("-", "").ToLowerInvariant()
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        return "Global\GatewayReleasePublication-$hex"
+    }
+    return "GatewayReleasePublication-$hex"
+}
+
+function Enter-PublicationLock {
+    param(
+        [Parameter(Mandatory = $true)][string]$LockPath,
+        [Parameter(Mandatory = $true)][string]$ArtifactName
+    )
+
+    $timeoutSeconds = 600
+    $configuredTimeout = [Environment]::GetEnvironmentVariable(
+        "GATEWAY_RELEASE_PUBLICATION_LOCK_TIMEOUT_SECONDS"
+    )
+    if (-not [string]::IsNullOrWhiteSpace($configuredTimeout)) {
+        $parsedTimeout = 0
+        if (-not [int]::TryParse($configuredTimeout, [ref]$parsedTimeout) -or $parsedTimeout -le 0) {
+            throw "GATEWAY_RELEASE_PUBLICATION_LOCK_TIMEOUT_SECONDS must be a positive integer."
+        }
+        $timeoutSeconds = $parsedTimeout
+    }
+
+    $mutexName = Get-PublicationMutexName -LockPath $LockPath
+    $mutex = [System.Threading.Mutex]::new($false, $mutexName)
+    $mutexHeld = $false
+    $stream = $null
+    try {
+        try {
+            $mutexHeld = $mutex.WaitOne([int]($timeoutSeconds * 1000))
+        }
+        catch [System.Threading.AbandonedMutexException] {
+            $mutexHeld = $true
+        }
+        if (-not $mutexHeld) {
+            $owner = Read-PublicationLockOwner -LockPath $LockPath
+            throw "Timed out waiting for publication lock: $LockPath owner=$owner"
+        }
+
+        $ownerToken = [guid]::NewGuid().ToString("N")
+        $startedUtc = [DateTime]::UtcNow.ToString("o")
+        $ownerRecord = [ordered]@{
+            schemaVersion = 1
+            ownerToken = $ownerToken
+            processId = $PID
+            machineName = [Environment]::MachineName
+            startedUtc = $startedUtc
+            artifactName = $ArtifactName
+            state = "active"
+        } | ConvertTo-Json -Compress
+        $ownerRecord += [Environment]::NewLine
+        $releaseRecord = [ordered]@{
+            schemaVersion = 1
+            ownerToken = $ownerToken
+            processId = $PID
+            machineName = [Environment]::MachineName
+            startedUtc = $startedUtc
+            artifactName = $ArtifactName
+            state = "releasing"
+        } | ConvertTo-Json -Compress
+        $releaseRecord += [Environment]::NewLine
+
+        $stream = [System.IO.File]::Open(
+            $LockPath,
+            [System.IO.FileMode]::Create,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::Read
+        )
+        $ownerBytes = [System.Text.UTF8Encoding]::new($false).GetBytes($ownerRecord)
+        $stream.Write($ownerBytes, 0, $ownerBytes.Length)
+        $stream.Flush($true)
+
+        return [pscustomobject]@{
+            Path = $LockPath
+            ArtifactName = $ArtifactName
+            OwnerToken = $ownerToken
+            OwnerRecord = $ownerRecord
+            ReleaseRecord = $releaseRecord
+            Stream = $stream
+            Mutex = $mutex
+        }
+    }
+    catch {
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+        if ($mutexHeld) {
+            $mutex.ReleaseMutex()
+        }
+        $mutex.Dispose()
+        throw
+    }
+}
+
+function Exit-PublicationLock {
+    param([Parameter(Mandatory = $true)]$Lock)
+
+    $stream = $Lock.Stream
+    $streamDisposed = $false
+    try {
+        $currentOwner = Read-PublicationLockStreamText -Stream $stream
+        if ($currentOwner -cne $Lock.OwnerRecord) {
+            throw "Refusing to remove a publication lock whose owner record changed: $($Lock.Path)"
+        }
+
+        $releaseBytes = [System.Text.UTF8Encoding]::new($false).GetBytes($Lock.ReleaseRecord)
+        $stream.SetLength(0)
+        $stream.Position = 0
+        $stream.Write($releaseBytes, 0, $releaseBytes.Length)
+        $stream.Flush($true)
+        $stream.Dispose()
+        $streamDisposed = $true
+
+        if (-not (Test-Path -LiteralPath $Lock.Path -PathType Leaf)) {
+            throw "Publication lock owner record disappeared before cleanup: $($Lock.Path)"
+        }
+        $persistedOwner = [System.IO.File]::ReadAllText(
+            $Lock.Path,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        if ($persistedOwner -cne $Lock.ReleaseRecord) {
+            throw "Refusing to delete a replacement publication lock owner record: $($Lock.Path)"
+        }
+        [System.IO.File]::Delete($Lock.Path)
+    }
+    finally {
+        if (-not $streamDisposed) {
+            $stream.Dispose()
+        }
+        try {
+            $Lock.Mutex.ReleaseMutex()
+        }
+        finally {
+            $Lock.Mutex.Dispose()
+        }
+    }
+}
 function Complete-InterruptedCompressionPublication {
     param(
         [Parameter(Mandatory = $true)][string]$ZipPath,
@@ -193,6 +398,7 @@ $assetName = "Gateway-$VersionId-windows-x64.zip"
 $zipPath = Join-Path $outputFull $assetName
 $checksumPath = "$zipPath.sha256"
 $journalPath = "$zipPath.publishing.json"
+$lockPath = "$zipPath.publishing.lock"
 
 if ($DryRun) {
     [ordered]@{
@@ -202,6 +408,7 @@ if ($DryRun) {
         assetName = $assetName
         zipPath = $zipPath
         checksumPath = $checksumPath
+        publicationLockPath = $lockPath
         deterministicTimestamp = "1980-01-01T00:00:00Z"
     } | ConvertTo-Json -Depth 5
     exit 0
@@ -221,33 +428,41 @@ if ([string]::Equals($outputFull, $releaseFull, [System.StringComparison]::Ordin
 }
 
 New-Item -ItemType Directory -Path $outputFull -Force | Out-Null
+$publicationLock = Enter-PublicationLock -LockPath $lockPath -ArtifactName $assetName
+try {
+$stagingPrefix = ".gateway-compress-$VersionId-"
+foreach ($staleStaging in @(Get-ChildItem -LiteralPath $outputFull -Directory -Filter ($stagingPrefix + "*") -ErrorAction Stop)) {
+    if (($staleStaging.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "Refusing to clean a reparse-point release staging directory: $($staleStaging.FullName)"
+    }
+    Remove-Item -LiteralPath $staleStaging.FullName -Recurse -Force -ErrorAction Stop
+}
+foreach ($privatePattern in @(
+    ((Split-Path -Leaf $journalPath) + ".write-*"),
+    ((Split-Path -Leaf $checksumPath) + ".recover-*")
+)) {
+    foreach ($privateFile in @(Get-ChildItem -LiteralPath $outputFull -File -Filter $privatePattern -ErrorAction Stop)) {
+        Remove-Item -LiteralPath $privateFile.FullName -Force -ErrorAction Stop
+    }
+}
 if (Complete-InterruptedCompressionPublication -ZipPath $zipPath -ChecksumPath $checksumPath -JournalPath $journalPath) {
     Write-Output "[gateway-compress] recovered interrupted ZIP/checksum publication"
     Write-Output "[gateway-compress] ZIP $zipPath"
     Write-Output "[gateway-compress] SHA256 $checksumPath"
     exit 0
 }
-if ((Test-Path -LiteralPath $zipPath -PathType Leaf) -and -not $Force) {
-    throw "Release ZIP already exists. Choose a new version or pass -Force: $zipPath"
+if (Test-Path -LiteralPath $zipPath) {
+    throw "Release ZIP already exists and is immutable. Choose a new version: $zipPath"
 }
-if ((Test-Path -LiteralPath $checksumPath -PathType Leaf) -and -not $Force) {
-    throw "Release checksum already exists. Choose a new version or pass -Force: $checksumPath"
-}
-if (Test-Path -LiteralPath $zipPath -PathType Leaf) {
-    Remove-Item -LiteralPath $zipPath -Force
-}
-if (Test-Path -LiteralPath $checksumPath -PathType Leaf) {
-    Remove-Item -LiteralPath $checksumPath -Force
+if (Test-Path -LiteralPath $checksumPath) {
+    throw "Release checksum already exists and is immutable. Choose a new version: $checksumPath"
 }
 
-$stagingRoot = Join-Path $outputFull (".gateway-compress-{0}" -f [guid]::NewGuid().ToString("N"))
+$stagingRoot = Join-Path $outputFull ($stagingPrefix + $publicationLock.OwnerToken)
 $stagingZip = Join-Path $stagingRoot $assetName
 $stagingChecksum = "$stagingZip.sha256"
 $zipArchive = $null
 $zipStream = $null
-$publishedZip = $false
-$publishedChecksum = $false
-$journalRecord = $null
 
 try {
     New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
@@ -320,6 +535,11 @@ try {
     $zipHash = (Get-FileHash -LiteralPath $stagingZip -Algorithm SHA256).Hash.ToLowerInvariant()
     $checksumRecord = "{0}  {1}{2}" -f $zipHash, $assetName, [Environment]::NewLine
     Write-AsciiNoBom -Path $stagingChecksum -Value $checksumRecord
+    foreach ($artifactPath in @($zipPath, $checksumPath, $journalPath)) {
+        if (Test-Path -LiteralPath $artifactPath) {
+            throw "Release publication path became occupied and is immutable: $artifactPath"
+        }
+    }
     $journalRecord = @{
         schemaVersion = 1
         zipName = $assetName
@@ -333,34 +553,24 @@ try {
         -Encoding ([System.Text.UTF8Encoding]::new($false))
 
     [System.IO.File]::Move($stagingZip, $zipPath)
-    $publishedZip = $true
     [System.IO.File]::Move($stagingChecksum, $checksumPath)
-    $publishedChecksum = $true
 
     $publishedZipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $publishedChecksumRecord = Get-Content -LiteralPath $checksumPath -Raw -Encoding ASCII
     if ($publishedZipHash -cne $zipHash -or $publishedChecksumRecord -cne $checksumRecord) {
         throw "Release ZIP/checksum final publication verification failed."
     }
+    if (Test-Path -LiteralPath $stagingRoot) {
+        Remove-Item -LiteralPath $stagingRoot -Recurse -Force -ErrorAction Stop
+    }
+    if (Test-Path -LiteralPath $stagingRoot) {
+        throw "Release publication staging cleanup did not complete: $stagingRoot"
+    }
     Remove-Item -LiteralPath $journalPath -Force
 
     Write-Output "[gateway-compress] ZIP $zipPath"
     Write-Output "[gateway-compress] SHA256 $checksumPath ($zipHash)"
     Write-Output "[gateway-compress] files=$($releaseFiles.Count)"
-} catch {
-    if ($publishedChecksum -and (Test-Path -LiteralPath $checksumPath)) {
-        Remove-Item -LiteralPath $checksumPath -Force -ErrorAction SilentlyContinue
-    }
-    if ($publishedZip -and (Test-Path -LiteralPath $zipPath)) {
-        Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
-    }
-    if ($null -ne $journalRecord -and (Test-Path -LiteralPath $journalPath -PathType Leaf)) {
-        $currentJournalRecord = Get-Content -LiteralPath $journalPath -Raw -Encoding UTF8
-        if ($currentJournalRecord -ceq $journalRecord) {
-            Remove-Item -LiteralPath $journalPath -Force -ErrorAction SilentlyContinue
-        }
-    }
-    throw
 } finally {
     if ($null -ne $zipArchive) {
         $zipArchive.Dispose()
@@ -369,6 +579,10 @@ try {
         $zipStream.Dispose()
     }
     if (Test-Path -LiteralPath $stagingRoot) {
-        Remove-Item -LiteralPath $stagingRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $stagingRoot -Recurse -Force -ErrorAction Stop
     }
+}
+}
+finally {
+    Exit-PublicationLock -Lock $publicationLock
 }

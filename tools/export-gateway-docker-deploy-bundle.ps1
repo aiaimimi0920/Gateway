@@ -50,22 +50,230 @@ function Write-Utf8NoBomNew {
         [Parameter(Mandatory = $true)][string]$Value
     )
 
-    $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($Value)
-    $stream = [System.IO.File]::Open(
-        $Path,
-        [System.IO.FileMode]::CreateNew,
-        [System.IO.FileAccess]::Write,
-        [System.IO.FileShare]::None
-    )
+    $temporaryPath = $Path + ".write-" + [guid]::NewGuid().ToString("N")
+    $stream = $null
     try {
+        $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($Value)
+        $stream = [System.IO.File]::Open(
+            $temporaryPath,
+            [System.IO.FileMode]::CreateNew,
+            [System.IO.FileAccess]::Write,
+            [System.IO.FileShare]::None
+        )
         $stream.Write($bytes, 0, $bytes.Length)
         $stream.Flush($true)
+        $stream.Dispose()
+        $stream = $null
+        [System.IO.File]::Move($temporaryPath, $Path)
     }
     finally {
-        $stream.Dispose()
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+        if (Test-Path -LiteralPath $temporaryPath) {
+            Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
+function Read-PublicationLockStreamText {
+    param([Parameter(Mandatory = $true)][System.IO.FileStream]$Stream)
+
+    $originalPosition = $Stream.Position
+    try {
+        $Stream.Position = 0
+        $bytes = New-Object byte[] ([int]$Stream.Length)
+        $offset = 0
+        while ($offset -lt $bytes.Length) {
+            $read = $Stream.Read($bytes, $offset, $bytes.Length - $offset)
+            if ($read -le 0) {
+                throw "Publication lock owner record ended unexpectedly."
+            }
+            $offset += $read
+        }
+        return [System.Text.UTF8Encoding]::new($false).GetString($bytes)
+    }
+    finally {
+        $Stream.Position = $originalPosition
+    }
+}
+
+function Read-PublicationLockOwner {
+    param([Parameter(Mandatory = $true)][string]$LockPath)
+
+    $reader = $null
+    try {
+        $reader = [System.IO.File]::Open(
+            $LockPath,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read,
+            ([System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete)
+        )
+        return Read-PublicationLockStreamText -Stream $reader
+    }
+    catch {
+        return "<owner unavailable while publication lock is active>"
+    }
+    finally {
+        if ($null -ne $reader) {
+            $reader.Dispose()
+        }
+    }
+}
+
+function Get-PublicationMutexName {
+    param([Parameter(Mandatory = $true)][string]$LockPath)
+
+    $normalizedPath = [System.IO.Path]::GetFullPath($LockPath).ToLowerInvariant()
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $digest = $sha256.ComputeHash(
+            [System.Text.UTF8Encoding]::new($false).GetBytes($normalizedPath)
+        )
+    }
+    finally {
+        $sha256.Dispose()
+    }
+    $hex = [System.BitConverter]::ToString($digest).Replace("-", "").ToLowerInvariant()
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        return "Global\GatewayReleasePublication-$hex"
+    }
+    return "GatewayReleasePublication-$hex"
+}
+
+function Enter-PublicationLock {
+    param(
+        [Parameter(Mandatory = $true)][string]$LockPath,
+        [Parameter(Mandatory = $true)][string]$ArtifactName
+    )
+
+    $timeoutSeconds = 600
+    $configuredTimeout = [Environment]::GetEnvironmentVariable(
+        "GATEWAY_RELEASE_PUBLICATION_LOCK_TIMEOUT_SECONDS"
+    )
+    if (-not [string]::IsNullOrWhiteSpace($configuredTimeout)) {
+        $parsedTimeout = 0
+        if (-not [int]::TryParse($configuredTimeout, [ref]$parsedTimeout) -or $parsedTimeout -le 0) {
+            throw "GATEWAY_RELEASE_PUBLICATION_LOCK_TIMEOUT_SECONDS must be a positive integer."
+        }
+        $timeoutSeconds = $parsedTimeout
+    }
+
+    $mutexName = Get-PublicationMutexName -LockPath $LockPath
+    $mutex = [System.Threading.Mutex]::new($false, $mutexName)
+    $mutexHeld = $false
+    $stream = $null
+    try {
+        try {
+            $mutexHeld = $mutex.WaitOne([int]($timeoutSeconds * 1000))
+        }
+        catch [System.Threading.AbandonedMutexException] {
+            $mutexHeld = $true
+        }
+        if (-not $mutexHeld) {
+            $owner = Read-PublicationLockOwner -LockPath $LockPath
+            throw "Timed out waiting for publication lock: $LockPath owner=$owner"
+        }
+
+        $ownerToken = [guid]::NewGuid().ToString("N")
+        $startedUtc = [DateTime]::UtcNow.ToString("o")
+        $ownerRecord = [ordered]@{
+            schemaVersion = 1
+            ownerToken = $ownerToken
+            processId = $PID
+            machineName = [Environment]::MachineName
+            startedUtc = $startedUtc
+            artifactName = $ArtifactName
+            state = "active"
+        } | ConvertTo-Json -Compress
+        $ownerRecord += [Environment]::NewLine
+        $releaseRecord = [ordered]@{
+            schemaVersion = 1
+            ownerToken = $ownerToken
+            processId = $PID
+            machineName = [Environment]::MachineName
+            startedUtc = $startedUtc
+            artifactName = $ArtifactName
+            state = "releasing"
+        } | ConvertTo-Json -Compress
+        $releaseRecord += [Environment]::NewLine
+
+        $stream = [System.IO.File]::Open(
+            $LockPath,
+            [System.IO.FileMode]::Create,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::Read
+        )
+        $ownerBytes = [System.Text.UTF8Encoding]::new($false).GetBytes($ownerRecord)
+        $stream.Write($ownerBytes, 0, $ownerBytes.Length)
+        $stream.Flush($true)
+
+        return [pscustomobject]@{
+            Path = $LockPath
+            ArtifactName = $ArtifactName
+            OwnerToken = $ownerToken
+            OwnerRecord = $ownerRecord
+            ReleaseRecord = $releaseRecord
+            Stream = $stream
+            Mutex = $mutex
+            MutexName = $mutexName
+        }
+    }
+    catch {
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+        if ($mutexHeld) {
+            $mutex.ReleaseMutex()
+        }
+        $mutex.Dispose()
+        throw
+    }
+}
+
+function Exit-PublicationLock {
+    param([Parameter(Mandatory = $true)]$Lock)
+
+    $stream = $Lock.Stream
+    $streamDisposed = $false
+    try {
+        $currentOwner = Read-PublicationLockStreamText -Stream $stream
+        if ($currentOwner -cne $Lock.OwnerRecord) {
+            throw "Refusing to remove a publication lock whose owner record changed: $($Lock.Path)"
+        }
+
+        $releaseBytes = [System.Text.UTF8Encoding]::new($false).GetBytes($Lock.ReleaseRecord)
+        $stream.SetLength(0)
+        $stream.Position = 0
+        $stream.Write($releaseBytes, 0, $releaseBytes.Length)
+        $stream.Flush($true)
+        $stream.Dispose()
+        $streamDisposed = $true
+
+        if (-not (Test-Path -LiteralPath $Lock.Path -PathType Leaf)) {
+            throw "Publication lock owner record disappeared before cleanup: $($Lock.Path)"
+        }
+        $persistedOwner = [System.IO.File]::ReadAllText(
+            $Lock.Path,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        if ($persistedOwner -cne $Lock.ReleaseRecord) {
+            throw "Refusing to delete a replacement publication lock owner record: $($Lock.Path)"
+        }
+        [System.IO.File]::Delete($Lock.Path)
+    }
+    finally {
+        if (-not $streamDisposed) {
+            $stream.Dispose()
+        }
+        try {
+            $Lock.Mutex.ReleaseMutex()
+        }
+        finally {
+            $Lock.Mutex.Dispose()
+        }
+    }
+}
 function Complete-InterruptedPublication {
     param(
         [Parameter(Mandatory = $true)][string]$ZipPath,
@@ -178,6 +386,26 @@ $bundleRootName = "Gateway-$VersionId-docker-deploy"
 $zipPath = Join-Path $outputDirFull ($bundleRootName + ".zip")
 $hashPath = $zipPath + ".sha256"
 $journalPath = $zipPath + ".publishing.json"
+$lockPath = $zipPath + ".publishing.lock"
+$publicationLock = Enter-PublicationLock -LockPath $lockPath -ArtifactName ($bundleRootName + ".zip")
+try {
+$stagingParent = [System.IO.Path]::GetTempPath()
+$artifactKey = $publicationLock.MutexName.Substring($publicationLock.MutexName.Length - 16)
+$stagingPrefix = "gateway-docker-deploy-$VersionId-$artifactKey-"
+foreach ($staleStaging in @(Get-ChildItem -LiteralPath $stagingParent -Directory -Filter ($stagingPrefix + "*") -ErrorAction Stop)) {
+    if (($staleStaging.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "Refusing to clean a reparse-point Docker deploy staging directory: $($staleStaging.FullName)"
+    }
+    Remove-Item -LiteralPath $staleStaging.FullName -Recurse -Force -ErrorAction Stop
+}
+foreach ($privatePattern in @(
+    ((Split-Path -Leaf $journalPath) + ".write-*"),
+    ((Split-Path -Leaf $hashPath) + ".recover-*")
+)) {
+    foreach ($privateFile in @(Get-ChildItem -LiteralPath $outputDirFull -File -Filter $privatePattern -ErrorAction Stop)) {
+        Remove-Item -LiteralPath $privateFile.FullName -Force -ErrorAction Stop
+    }
+}
 if (Complete-InterruptedPublication -ZipPath $zipPath -HashPath $hashPath -JournalPath $journalPath) {
     [pscustomobject]@{
         zip = $zipPath
@@ -191,7 +419,7 @@ foreach ($artifactPath in @($zipPath, $hashPath)) {
         throw "Docker deploy bundle artifact already exists and is immutable: $artifactPath"
     }
 }
-$stagingRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("gateway-docker-deploy-{0}" -f [guid]::NewGuid().ToString("N"))
+$stagingRoot = Join-Path $stagingParent ($stagingPrefix + $publicationLock.OwnerToken)
 $bundleRoot = Join-Path $stagingRoot $bundleRootName
 $stagingZip = Join-Path $stagingRoot ($bundleRootName + ".zip")
 $stagingHash = $stagingZip + ".sha256"
@@ -228,6 +456,11 @@ try {
         throw "Docker deploy bundle staging verification failed."
     }
 
+    foreach ($artifactPath in @($zipPath, $hashPath, $journalPath)) {
+        if (Test-Path -LiteralPath $artifactPath) {
+            throw "Docker deploy bundle publication path became occupied and is immutable: $artifactPath"
+        }
+    }
     $journalRecord = @{
         schemaVersion = 1
         zipName = $zipName
@@ -238,36 +471,18 @@ try {
     Write-Utf8NoBomNew -Path $journalPath -Value $journalRecord
 
     [System.IO.File]::Move($stagingZip, $zipPath)
-    try {
-        [System.IO.File]::Move($stagingHash, $hashPath)
-    }
-    catch {
-        $hashPublishError = $_
-        try {
-            if (Test-Path -LiteralPath $zipPath -PathType Leaf) {
-                $publishedZipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
-                if ($publishedZipHash -ne $zipHash) {
-                    throw "Refusing to roll back a ZIP that no longer matches this export: $zipPath"
-                }
-                Remove-Item -LiteralPath $zipPath -Force -ErrorAction Stop
-            }
-        }
-        catch {
-            throw "Docker deploy bundle checksum publication failed, and ZIP rollback also failed. Checksum error: $($hashPublishError.Exception.Message) Rollback error: $($_.Exception.Message)"
-        }
-        if (Test-Path -LiteralPath $journalPath -PathType Leaf) {
-            $currentJournalRecord = Get-Content -LiteralPath $journalPath -Raw -Encoding UTF8
-            if ($currentJournalRecord -ceq $journalRecord) {
-                Remove-Item -LiteralPath $journalPath -Force
-            }
-        }
-        throw "Docker deploy bundle checksum publication failed; the new ZIP was rolled back. $($hashPublishError.Exception.Message)"
-    }
+    [System.IO.File]::Move($stagingHash, $hashPath)
 
     $publishedZipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $publishedHashRecord = Get-Content -LiteralPath $hashPath -Raw -Encoding UTF8
     if ($publishedZipHash -cne $zipHash -or $publishedHashRecord -cne $expectedHashRecord) {
         throw "Docker deploy bundle final publication verification failed."
+    }
+    if (Test-Path -LiteralPath $stagingRoot) {
+        Remove-Item -LiteralPath $stagingRoot -Recurse -Force -ErrorAction Stop
+    }
+    if (Test-Path -LiteralPath $stagingRoot) {
+        throw "Docker deploy publication staging cleanup did not complete: $stagingRoot"
     }
     Remove-Item -LiteralPath $journalPath -Force
 
@@ -280,4 +495,8 @@ finally {
     if (Test-Path -LiteralPath $stagingRoot) {
         Remove-Item -LiteralPath $stagingRoot -Recurse -Force
     }
+}
+}
+finally {
+    Exit-PublicationLock -Lock $publicationLock
 }

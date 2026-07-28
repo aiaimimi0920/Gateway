@@ -142,7 +142,7 @@ function Invoke-GatewayLineVerification {
       }
 
       foreach ($filter in $Line.FocusedCargoFilters) {
-        $cargoArgs = @("cargo", "test", "--manifest-path", $CargoToml)
+        $cargoArgs = @("cargo", "test", "--manifest-path", $CargoToml, "--locked")
         if ($LibOnly) {
           $cargoArgs += "--lib"
         }
@@ -156,6 +156,7 @@ function Invoke-GatewayLineVerification {
         $cargoArgs += [string]$filter
         $cargoArgs += "--"
         $cargoArgs += "--nocapture"
+        $cargoArgs += "--test-threads=1"
         Invoke-CheckedCommand $cargoArgs
       }
     } finally {

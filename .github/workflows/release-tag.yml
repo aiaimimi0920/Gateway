@@ -35,7 +35,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "22.22.0"
           cache: npm
           cache-dependency-path: |
             scripts/package-lock.json
@@ -71,8 +71,14 @@ jobs:
       - name: Install browser worker dependencies
         run: npm ci --prefix scripts --no-audit --no-fund
 
+      - name: Audit browser worker production dependencies
+        run: npm run audit:prod --prefix scripts
+
       - name: Install desktop dependencies
         run: npm ci --prefix apps/desktop --no-audit --no-fund
+
+      - name: Audit desktop production dependencies
+        run: npm run audit:prod --prefix apps/desktop
 
       - name: Validate provider manifests
         run: python tools/validate-gateway-line-manifests.py
@@ -87,7 +93,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Test Rust gateway
-        run: cargo test --locked
+        run: cargo test --locked -- --test-threads=1
 
       - name: Typecheck desktop frontend
         working-directory: apps/desktop

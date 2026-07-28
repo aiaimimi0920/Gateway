@@ -548,7 +548,9 @@ try {
     "--manifest-path",
     $CargoToml,
     "--locked",
-    "--all-targets"
+    "--all-targets",
+    "--",
+    "--test-threads=1"
   )
 
   Invoke-OptionalCommand -Name "release-build" -Enabled (-not $SkipReleaseBuild) -SkipReason "disabled by -SkipReleaseBuild" -Command @(
@@ -570,9 +572,12 @@ try {
     Invoke-CheckedCommand -Name "browser-worker-tests" -Command @("node", "--test", "scripts/tests/*.test.mjs")
   }
 
+  $auditNonce = [guid]::NewGuid().ToString("N")
   Invoke-OptionalCommand -Name "docker-build" -Enabled ([bool]$IncludeDockerBuild) -SkipReason "opt-in only; pass -IncludeDockerBuild" -Command @(
     "docker",
     "build",
+    "--build-arg",
+    "GATEWAY_AUDIT_NONCE=$auditNonce",
     "-f",
     "Dockerfile",
     "-t",

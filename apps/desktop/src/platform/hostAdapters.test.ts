@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { createElement } from "react";
-import { useInRouterContext } from "react-router-dom";
+import { useInRouterContext } from "react-router";
 import { describe, expect, it } from "vitest";
 import { createBrowserHost } from "./browserHost";
 import { createHostAdapter } from "./createHostAdapter";

@@ -53,7 +53,7 @@ this repository. The ownership and integration rules are documented in
 
 - Windows 10/11 or a current Linux distribution.
 - Rust `1.91.1` or the version pinned in `rust-toolchain.toml`.
-- Node.js `22` and npm for browser workers and the desktop frontend.
+- Node.js `>=22.22.0` and npm for browser workers and the desktop frontend.
 - Python `3.11+` for repository validators and contract tests.
 - PowerShell 5.1+ for the Windows build and smoke scripts.
 - Docker Engine or Docker Desktop for container builds.
@@ -69,7 +69,7 @@ Set-Location Gateway
 
 cargo fmt --all -- --check
 cargo check --locked --all-targets
-cargo test --locked
+cargo test --locked -- --test-threads=1
 ```
 
 Gateway now carries a local-default Cargo throttle under
@@ -91,6 +91,7 @@ Install and test browser workers:
 
 ```powershell
 npm ci --prefix scripts
+npm run audit:prod --prefix scripts
 node --test scripts/tests/*.test.mjs
 ```
 
@@ -98,6 +99,7 @@ Build and check the desktop shell:
 
 ```powershell
 npm ci --prefix apps/desktop
+npm run audit:prod --prefix apps/desktop
 npm --prefix apps/desktop run typecheck
 npm --prefix apps/desktop run build
 cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
@@ -145,12 +147,13 @@ $id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
 .\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild
 ```
 
-`build-gateway-release.ps1` now performs `npm run build:web` explicitly before
-the headless Cargo release build, then exports `GATEWAY_PREBUILT_WEB_UI=1` for
-  that Cargo step so the root `build.rs` reuses prebuilt web assets instead of
-  launching another implicit browser-console build. The script enforces one
-  Cargo job with incremental compilation disabled for both the headless and
-  desktop builds.
+`build-gateway-release.ps1` requires Node.js `>=22.22.0`, installs and audits
+both production Node dependency trees, then performs `npm run build:web`
+explicitly before the headless Cargo release build. It exports
+`GATEWAY_PREBUILT_WEB_UI=1` for that Cargo step so the root `build.rs` reuses
+prebuilt web assets instead of launching another implicit browser-console
+build. The script enforces one Cargo job with incremental compilation disabled
+for both the headless and desktop builds.
 
 The package command can build for you when `-SkipBuild` is omitted. A skipped
 build is accepted only when `target/release/gateway-build-provenance.json`
@@ -193,6 +196,7 @@ after extracting a package:
 
 ```powershell
 npm ci --prefix ".\release\Gateway\$id\scripts"
+npm run audit:prod --prefix ".\release\Gateway\$id\scripts"
 node --test ".\release\Gateway\$id\scripts\tests\*.test.mjs"
 ```
 
@@ -242,12 +246,22 @@ docker compose up -d
 docker compose logs -f gateway
 ```
 
-Raw `docker build` / `docker run` remains available for development-only image
-testing:
+Raw `docker build` / `docker run` remains available for fast, layer-cached
+development image testing. A raw build without an audit nonce
+does not prove that the dependency audit was refreshed because BuildKit may
+reuse the prior audit layer:
 
 ```powershell
 docker build -t gateway:local .
 docker run --rm -p 4200:4200 --env-file .env gateway:local
+```
+
+For a local security-verification build, supply a new nonce so both production
+dependency audit layers execute during this build:
+
+```powershell
+$auditNonce = [guid]::NewGuid().ToString("N")
+docker build --build-arg "GATEWAY_AUDIT_NONCE=$auditNonce" -t gateway:local .
 ```
 
 The image contains the release binary, route files, provider manifests, browser
@@ -346,6 +360,10 @@ To run an end-to-end local Docker verification against a locally built image:
 ```powershell
 .\tools\verify-gateway-docker-stack.ps1 -BuildImage
 ```
+
+`-BuildImage` generates and passes a unique `GATEWAY_AUDIT_NONCE` internally,
+so this official wrapper forces fresh in-image audits without requiring Node.js
+or preinstalled `node_modules` on the host.
 
 ## GitHub Automation
 

@@ -56,8 +56,11 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         deps = package.get("dependencies", {})
         dev_deps = package.get("devDependencies", {})
         self.assertIn("@tauri-apps/api", deps)
-        self.assertIn("react", deps)
-        self.assertIn("react-dom", deps)
+        self.assertEqual(deps.get("react"), "19.2.7")
+        self.assertEqual(deps.get("react-dom"), "19.2.7")
+        self.assertEqual(deps.get("react-router"), "8.3.0")
+        self.assertNotIn("react-router-dom", deps)
+        self.assertEqual(package.get("engines", {}).get("node"), ">=22.22.0")
         self.assertIn("@rsbuild/core", dev_deps)
         self.assertIn("@tauri-apps/cli", dev_deps)
         self.assertIn("typescript", dev_deps)
@@ -126,7 +129,13 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("Push-Location -LiteralPath $desktopRoot", script_text)
         self.assertIn("npm ci", script_text)
         self.assertIn("npm run typecheck", script_text)
-        self.assertIn("npm run tauri -- build --no-bundle", script_text)
+        self.assertIn(
+            "npm run tauri --prefix apps/desktop -- build --no-bundle", script_text
+        )
+        self.assertIn(
+            '-Arguments @("run", "tauri", "--", "build", "--no-bundle")',
+            script_text,
+        )
         self.assertIn("gateway-ui.exe", script_text)
 
     def test_gateway_owned_release_builder_installs_desktop_dependencies_before_headless_build(self):
@@ -153,7 +162,8 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("EBUSY", script_text)
         self.assertIn("ENOTEMPTY", script_text)
         self.assertIn("Start-Sleep", script_text)
-        self.assertIn("npm ci failed for Gateway desktop UI after", script_text)
+        self.assertIn("[string]$ComponentName", script_text)
+        self.assertIn("npm ci failed for $ComponentName after", script_text)
 
     def test_gateway_owned_release_builder_runs_native_commands_via_process_capture(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
@@ -172,6 +182,8 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         script_text = build_script.read_text(encoding="utf-8")
         self.assertIn("Get-Command $Command -All", script_text)
         self.assertIn('$_.CommandType -eq "Application"', script_text)
+        self.assertIn('if ($resolved.Count -eq 0)', script_text)
+        self.assertNotIn('if ($null -eq $resolved)', script_text)
 
     def test_gateway_owned_release_builder_has_stage_logs_and_artifact_hash_summary(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"

@@ -89,7 +89,18 @@ try {
     }
 
     if ($BuildImage) {
-        & docker build -t $targetImage -f (Join-Path $gatewayRoot "Dockerfile") $gatewayRoot
+        $auditNonce = [guid]::NewGuid().ToString("N")
+        $buildArguments = @(
+            "build",
+            "--build-arg",
+            "GATEWAY_AUDIT_NONCE=$auditNonce",
+            "-t",
+            $targetImage,
+            "-f",
+            (Join-Path $gatewayRoot "Dockerfile"),
+            $gatewayRoot
+        )
+        & docker @buildArguments
         if ($LASTEXITCODE -ne 0) {
             throw "docker build failed with exit code $LASTEXITCODE."
         }

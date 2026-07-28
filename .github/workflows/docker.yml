@@ -41,6 +41,27 @@ jobs:
             exit 1
           fi
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.22.0"
+          cache: npm
+          cache-dependency-path: |
+            scripts/package-lock.json
+            apps/desktop/package-lock.json
+
+      - name: Install browser worker dependencies
+        run: npm ci --prefix scripts --no-audit --no-fund
+
+      - name: Audit browser worker production dependencies
+        run: npm run audit:prod --prefix scripts
+
+      - name: Install desktop dependencies
+        run: npm ci --prefix apps/desktop --no-audit --no-fund
+
+      - name: Audit desktop production dependencies
+        run: npm run audit:prod --prefix apps/desktop
+
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -75,6 +96,8 @@ jobs:
           file: ./Dockerfile
           load: true
           tags: ${{ env.IMAGE_NAME }}:${{ steps.verify_tag.outputs.tag }}
+          build-args: |
+            GATEWAY_AUDIT_NONCE=${{ github.run_id }}-${{ github.run_attempt }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -94,5 +117,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GATEWAY_AUDIT_NONCE=${{ github.run_id }}-${{ github.run_attempt }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

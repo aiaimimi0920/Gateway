@@ -48,7 +48,7 @@ Platform、Loom 和 Hook 的实现代码不会复制进本仓库。模块职责�
 
 - Windows 10/11 或当前受支持的 Linux 发行版。
 - Rust `1.91.1`，或 `rust-toolchain.toml` 固定的版本。
-- Node.js `22` 与 npm。
+- Node.js `>=22.22.0` 与 npm。
 - Python `3.11+`。
 - Windows 打包需要 PowerShell 5.1+。
 - 构建容器镜像需要 Docker Engine 或 Docker Desktop。
@@ -63,7 +63,7 @@ Set-Location Gateway
 
 cargo fmt --all -- --check
 cargo check --locked --all-targets
-cargo test --locked
+cargo test --locked -- --test-threads=1
 ```
 
 Gateway 现在自带一个本地默认的 Cargo 限流配置：
@@ -84,6 +84,7 @@ python -m unittest discover -s tests/python -p "test_*.py" -v
 
 ```powershell
 npm ci --prefix scripts
+npm run audit:prod --prefix scripts
 node --test scripts/tests/*.test.mjs
 ```
 
@@ -91,6 +92,7 @@ node --test scripts/tests/*.test.mjs
 
 ```powershell
 npm ci --prefix apps/desktop
+npm run audit:prod --prefix apps/desktop
 npm --prefix apps/desktop run typecheck
 npm --prefix apps/desktop run build
 cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
@@ -136,8 +138,9 @@ $id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
 .\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild
 ```
 
-`build-gateway-release.ps1` 现在会先显式执行一次 `npm run build:web`，再进行
-headless Gateway 的 Cargo release 构建，并在该 Cargo 步骤里导出
+`build-gateway-release.ps1` 要求 Node.js `>=22.22.0`，会先安装并审计两棵
+Node 生产依赖树，再显式执行一次 `npm run build:web`，随后进行 headless
+Gateway 的 Cargo release 构建，并在该 Cargo 步骤里导出
 `GATEWAY_PREBUILT_WEB_UI=1`，让根级 `build.rs` 直接复用已经生成好的 Web UI
 产物，而不是再隐式触发一轮浏览器控制台构建。headless Gateway 和桌面 UI 的
 Cargo 构建都会强制单 job，并关闭 incremental compilation。
@@ -180,6 +183,7 @@ $neuroReleaseRoot = "C:\Users\Public\nas_home\AI\GameEditor\Neuro\release\Gatewa
 
 ```powershell
 npm ci --prefix ".\release\Gateway\$id\scripts"
+npm run audit:prod --prefix ".\release\Gateway\$id\scripts"
 node --test ".\release\Gateway\$id\scripts\tests\*.test.mjs"
 ```
 
@@ -225,11 +229,21 @@ docker compose up -d
 docker compose logs -f gateway
 ```
 
-根目录下的 `docker build` / `docker run` 仍然保留，适合开发阶段验证镜像：
+根目录下的 `docker build` / `docker run` 仍然保留，适合快速复用 Docker 层缓存的
+开发验证。没有传入审计 nonce 的 raw build 不能证明本次重新执行了依赖审计，
+因为 BuildKit 可能直接复用之前的审计层：
 
 ```powershell
 docker build -t gateway:local .
 docker run --rm -p 4200:4200 --env-file .env gateway:local
+```
+
+需要做本地安全验证时，应传入每次都不同的 nonce，强制两棵生产依赖的镜像内
+审计层在本次构建中重新执行：
+
+```powershell
+$auditNonce = [guid]::NewGuid().ToString("N")
+docker build --build-arg "GATEWAY_AUDIT_NONCE=$auditNonce" -t gateway:local .
 ```
 
 镜像包含核心二进制、线路配置、提供方清单、浏览器 Worker，以及一个会在持久化
@@ -314,6 +328,9 @@ IP。探测直接使用 active route-config 编译后的凭据，不依赖 Postg
 ```powershell
 .\tools\verify-gateway-docker-stack.ps1 -BuildImage
 ```
+
+`-BuildImage` 会在内部生成并传入唯一的 `GATEWAY_AUDIT_NONCE`，因此官方 wrapper
+可以强制重新执行镜像内审计，同时不要求宿主机预装 Node.js 或 `node_modules`。
 
 ## GitHub Actions
 

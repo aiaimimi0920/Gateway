@@ -32,6 +32,7 @@ services:
       - ./gateway_data:/data
       - gateway-dev-target:/workspace/target
       - gateway-dev-node-modules:/workspace/apps/desktop/node_modules
+      - gateway-dev-scripts-node-modules:/workspace/scripts/node_modules
       - gateway-dev-cargo-registry:/root/.cargo/registry
       - gateway-dev-cargo-git:/root/.cargo/git
       - gateway-dev-npm-cache:/root/.npm
@@ -75,6 +76,7 @@ services:
 volumes:
   gateway-dev-target:
   gateway-dev-node-modules:
+  gateway-dev-scripts-node-modules:
   gateway-dev-cargo-registry:
   gateway-dev-cargo-git:
   gateway-dev-npm-cache:
