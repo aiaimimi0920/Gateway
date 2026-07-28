@@ -1,0 +1,5 @@
+[build]
+# Repository-wide safety default. Official build entrypoints also force this
+# value so inherited shell or CI settings cannot accidentally saturate hosts.
+jobs = 1
+incremental = false

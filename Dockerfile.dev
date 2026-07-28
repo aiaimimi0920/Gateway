@@ -1,0 +1,38 @@
+FROM node:20-bookworm-slim
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    chromium \
+    clang \
+    cmake \
+    curl \
+    git \
+    pkg-config \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.91.1 \
+  && /root/.cargo/bin/cargo install cargo-watch --locked \
+  && /root/.cargo/bin/rustc --version \
+  && /root/.cargo/bin/cargo --version
+
+ENV PATH="/root/.cargo/bin:${PATH}" \
+  PORT=4200 \
+  GATEWAY_RUNTIME_ROLE=standalone \
+  GATEWAY_ROUTES_FILE=/data/routes.yaml \
+  GATEWAY_STATE_DIR=/data/state \
+  GATEWAY_PREBUILT_WEB_UI=1 \
+  CARGO_BUILD_JOBS=1 \
+  CARGO_INCREMENTAL=0 \
+  WATCHPACK_POLLING=true \
+  CHOKIDAR_USEPOLLING=1
+
+WORKDIR /workspace
+
+COPY deploy/docker-dev-entrypoint.sh /usr/local/bin/gateway-dev-entrypoint
+
+RUN chmod +x /usr/local/bin/gateway-dev-entrypoint \
+  && mkdir -p /data/state
+
+ENTRYPOINT ["gateway-dev-entrypoint"]

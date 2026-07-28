@@ -222,7 +222,13 @@ async fn execute_search_provider(
 ) -> Result<Response, GatewayError> {
     let mut ctx = PipelineContext::new(canonical, token);
 
-    apply_public_request_headers(&mut ctx, &headers, &state.config, &["x-project-id"]);
+    apply_public_request_headers(
+        &mut ctx,
+        &headers,
+        &state.config,
+        state.console_auth.as_ref(),
+        &["x-project-id"],
+    )?;
     if let Some(v) = headers.get("x-project-id").and_then(|v| v.to_str().ok()) {
         ctx.request_headers
             .insert("x-project-id".to_string(), v.to_string());
@@ -272,6 +278,18 @@ async fn inspect_search_provider(
         entries.push(entry);
     } else {
         for credential in &provider.credential_pool {
+            if !credential.enabled {
+                entries.push(SearchProviderBalanceCredentialView {
+                    credential_id: credential.id.clone(),
+                    source: "credential_pool".to_string(),
+                    base_url: credential.payload.base_url.clone(),
+                    status: "disabled".to_string(),
+                    balance: None,
+                    error: None,
+                    raw: None,
+                });
+                continue;
+            }
             let entry = inspect_search_provider_payload(
                 state,
                 &provider.id,

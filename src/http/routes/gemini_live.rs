@@ -260,7 +260,13 @@ async fn run_gemini_live_turn(
     let request_tools = request.tools.clone();
     let request_tool_choice = request.tool_choice.clone();
     let mut ctx = PipelineContext::new(request, token.clone());
-    apply_public_request_headers(&mut ctx, headers, &state.config, &["x-goog-api-key"]);
+    apply_public_request_headers(
+        &mut ctx,
+        headers,
+        &state.config,
+        state.console_auth.as_ref(),
+        &["x-goog-api-key"],
+    )?;
     ctx.query_params = query_params.clone();
 
     let mut assistant_text = String::new();

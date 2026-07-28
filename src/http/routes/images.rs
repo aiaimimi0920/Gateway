@@ -31,7 +31,12 @@ pub async fn handle_image_generations(
         normalize_image_generations(body)?
     };
     let mut ctx = PipelineContext::new(canonical, token);
-    apply_common_headers(&mut ctx, &headers, &state.config);
+    apply_common_headers(
+        &mut ctx,
+        &headers,
+        &state.config,
+        state.console_auth.as_ref(),
+    )?;
     ctx.query_params = query_params;
 
     let output = match run_pipeline(ctx, &state).await {
@@ -82,7 +87,12 @@ pub async fn handle_image_edits(
 
     let canonical = normalize_image_edits(body)?;
     let mut ctx = PipelineContext::new(canonical, token);
-    apply_common_headers(&mut ctx, &headers, &state.config);
+    apply_common_headers(
+        &mut ctx,
+        &headers,
+        &state.config,
+        state.console_auth.as_ref(),
+    )?;
     ctx.query_params = query_params;
 
     let output = match run_pipeline(ctx, &state).await {
@@ -244,11 +254,13 @@ fn apply_common_headers(
     ctx: &mut PipelineContext,
     headers: &HeaderMap,
     config: &crate::config::Config,
-) {
+    console_auth: &crate::console::ConsoleAuthRuntime,
+) -> Result<(), GatewayError> {
     apply_public_request_headers(
         ctx,
         headers,
         config,
+        console_auth,
         &[
             "cookie",
             "origin",
@@ -257,13 +269,14 @@ fn apply_common_headers(
             "accept-language",
             "accept",
         ],
-    );
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::Config;
+    use crate::http::request_headers::TestConsoleAuthFixture;
     use crate::protocol::producer;
 
     fn make_config() -> Config {
@@ -343,11 +356,9 @@ mod tests {
         headers.insert("cookie", "sb-sb-auth-token.0=alpha".parse().unwrap());
         headers.insert("origin", "https://www.producer.ai".parse().unwrap());
 
-        apply_common_headers(
-            &mut ctx,
-            &headers,
-            &make_config_with_management_token(Some("management-token")),
-        );
+        let config = make_config_with_management_token(Some("management-token"));
+        let auth = TestConsoleAuthFixture::with_environment_token("management-token");
+        apply_common_headers(&mut ctx, &headers, &config, &auth.runtime).unwrap();
 
         assert_eq!(
             ctx.request_headers
@@ -383,7 +394,9 @@ mod tests {
         headers.insert("cookie", "sb-sb-auth-token.0=alpha".parse().unwrap());
         headers.insert("origin", "https://www.producer.ai".parse().unwrap());
 
-        apply_common_headers(&mut ctx, &headers, &make_config());
+        let config = make_config();
+        let auth = TestConsoleAuthFixture::without_management_token();
+        apply_common_headers(&mut ctx, &headers, &config, &auth.runtime).unwrap();
 
         assert_eq!(ctx.request_headers.get("x-credential-ref"), None);
         assert_eq!(ctx.request_headers.get("x-neuro-user"), None);

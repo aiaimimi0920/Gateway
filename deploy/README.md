@@ -9,9 +9,10 @@ stack for Gateway.
 | --- | --- | --- |
 | `docker-compose.yml` | Named volumes | Long-running servers where Docker manages persistent volumes |
 | `docker-compose.local.yml` | Local directories | Easier backup, inspection, and migration of `gateway_data/` and `redis_data/` |
+| `docker-compose.dev.yml` | Source bind mount + build caches | Source checkout only; local edits rebuild the running Gateway automatically |
 | `docker-deploy.sh` | One-click local-directory preparation | Linux/macOS server deployment aligned with the recommended Sub2API Docker workflow |
 
-Both variants deploy the current minimum official runtime stack:
+The production variants deploy the current minimum official runtime stack:
 
 - `gateway`
 - `redis`
@@ -93,6 +94,39 @@ docker compose -f docker-compose.local.yml down
 docker compose -f docker-compose.local.yml restart gateway
 ```
 
+## Source-Mounted Development Workflow
+
+This workflow is available only in a full Gateway source checkout.
+`docker-compose.dev.yml` and `docker-dev-entrypoint.sh` are intentionally not
+included in portable or Docker deployment release bundles. For fast local
+iteration against the repository source tree:
+
+```bash
+cd deploy
+cp .env.example .env
+mkdir -p gateway_data redis_data
+docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml logs -f gateway
+```
+
+What this development stack does:
+
+- bind-mounts the repository root into `/workspace`
+- keeps Cargo, npm, target, and `node_modules` caches inside Docker volumes
+- runs `npm run build:web -- --watch`
+- runs `cargo watch --poll -x 'run --locked --bin gateway'`
+- gives the first cold boot a longer health-check grace period because the
+  initial Rust compile can legitimately take several minutes
+
+That means edits under the local `Gateway/` repository are picked up inside the
+container and the 4200 service is rebuilt/restarted automatically.
+
+Notes for the first cold boot:
+
+- `docker compose ps` can stay in `health: starting` for a few minutes
+- once the first compile finishes, later source changes usually rebuild much
+  faster inside the same running container
+
 ## Named-Volume Workflow
 
 ```bash
@@ -120,6 +154,15 @@ From the repository root you can drive the same deployment stack with:
 .\tools\deploy-gateway-docker.ps1 -Action up -Mode local
 .\tools\deploy-gateway-docker.ps1 -Action logs -Mode local -Follow
 .\tools\deploy-gateway-docker.ps1 -Action down -Mode local
+```
+
+For source-mounted development mode in a full source checkout (not a release
+bundle):
+
+```powershell
+.\tools\deploy-gateway-docker.ps1 -Action up -Mode dev -ComposeProjectName gatewaydev
+.\tools\deploy-gateway-docker.ps1 -Action logs -Mode dev -ComposeProjectName gatewaydev -Follow
+.\tools\deploy-gateway-docker.ps1 -Action down -Mode dev -ComposeProjectName gatewaydev
 ```
 
 For fresh local users, that PowerShell helper defaults to

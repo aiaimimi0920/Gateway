@@ -6,11 +6,7 @@ use axum::http::{
 };
 use axum::response::{IntoResponse, Redirect};
 use mime_guess::from_path;
-use rust_embed::RustEmbed;
-
-#[derive(RustEmbed)]
-#[folder = "apps/desktop/dist/web/"]
-struct EmbeddedUi;
+include!(concat!(env!("OUT_DIR"), "/gateway_embedded_ui.rs"));
 
 const INDEX_PATH: &str = "index.html";
 const HTML_CACHE_CONTROL: &str = "no-store";

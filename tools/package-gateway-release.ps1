@@ -570,6 +570,14 @@ $scriptsSource = Join-Path $gatewayRoot "scripts"
 $docsSource = Join-Path $gatewayRoot "docs"
 $deploySource = Join-Path $gatewayRoot "deploy"
 $toolsSource = Join-Path $gatewayRoot "tools"
+$deployPayloadRelativePaths = @(
+    ".env.example",
+    "README.md",
+    "docker-compose.local.yml",
+    "docker-compose.yml",
+    "docker-deploy.sh",
+    "docker-entrypoint.sh"
+)
 foreach ($requiredDirectory in @($manifestsSource, $scriptsSource, $docsSource, $deploySource, $toolsSource)) {
     if (-not (Test-Path -LiteralPath $requiredDirectory -PathType Container)) {
         throw "Required Gateway support directory is missing: $requiredDirectory"
@@ -675,10 +683,15 @@ try {
         $supportRecords += New-ArtifactRecord -PackageRoot $staging -Path $documentationFile.FullName -Kind "documentation"
     }
 
-    Copy-FilteredTree -Source $deploySource -Destination (Join-Path $staging "deploy")
-    $deployFiles = @(Get-ChildItem -LiteralPath (Join-Path $staging "deploy") -Recurse -File | Sort-Object FullName)
-    foreach ($deployFile in $deployFiles) {
-        $supportRecords += New-ArtifactRecord -PackageRoot $staging -Path $deployFile.FullName -Kind "docker-deploy"
+    foreach ($deployRelativePath in $deployPayloadRelativePaths) {
+        $deployDestination = Copy-PayloadFile `
+            -Source (Join-Path $deploySource $deployRelativePath) `
+            -PackageRoot $staging `
+            -DestinationRelativePath (Join-Path "deploy" $deployRelativePath)
+        $supportRecords += New-ArtifactRecord `
+            -PackageRoot $staging `
+            -Path $deployDestination `
+            -Kind "docker-deploy"
     }
 
     Copy-FilteredTree `

@@ -9,10 +9,12 @@ $ErrorActionPreference = "Stop"
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $desktopRoot = Join-Path $repoRoot "apps\\desktop"
 $maxNpmCiAttempts = 3
+$defaultCargoBuildJobs = 1
 
 $commands = @(
     'npm ci (retry up to 3 attempts on transient Windows file locks)',
     'npm run typecheck',
+    'npm run build:web',
     'cargo build --locked --release --bin gateway',
     'npm run tauri -- build --no-bundle'
 )
@@ -26,6 +28,18 @@ function Test-RetryableNpmCiFailure {
     param([string]$Output)
 
     return ($Output -match "EPERM|EBUSY|ENOTEMPTY")
+}
+
+function Initialize-GatewayBuildThrottle {
+    param([int]$DefaultJobs = $defaultCargoBuildJobs)
+
+    if ($DefaultJobs -ne 1) {
+        throw "Gateway release builds require exactly one Cargo build job."
+    }
+    $env:CARGO_BUILD_JOBS = "1"
+    $env:CARGO_INCREMENTAL = "0"
+    Write-Output "[gateway-release] enforcing CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0"
+    return $DefaultJobs
 }
 
 function Invoke-GatewayReleaseStep {
@@ -314,6 +328,7 @@ function Write-BuildProvenance {
 
 Push-Location -LiteralPath $repoRoot
 try {
+    Initialize-GatewayBuildThrottle | Out-Null
     Push-Location -LiteralPath $desktopRoot
     try {
         Invoke-GatewayReleaseStep -Name "install desktop dependencies" -Action {
@@ -333,18 +348,39 @@ try {
             }
         }
 
-        # Clean worktrees do not have node_modules yet, and the Gateway root
-        # build.rs runs the desktop web build as part of cargo build.
+        Invoke-GatewayReleaseStep -Name "build browser console web assets" -Action {
+            $webBuildResult = Invoke-NativeCommandCapture `
+                -Command "npm" `
+                -Arguments @("run", "build:web") `
+                -WorkingDirectory $desktopRoot
+            $webBuildOutput = @($webBuildResult.Output)
+            $webBuildExitCode = [int]$webBuildResult.ExitCode
+            $webBuildOutput | ForEach-Object { Write-Output $_ }
+            if ($webBuildExitCode -ne 0) {
+                throw "npm build:web failed for Gateway browser console"
+            }
+        }
+
         Invoke-GatewayReleaseStep -Name "build headless gateway" -Action {
-            $cargoResult = Invoke-NativeCommandCapture `
-                -Command "cargo" `
-                -Arguments @("build", "--locked", "--release", "--bin", "gateway") `
-                -WorkingDirectory $repoRoot
-            $cargoOutput = @($cargoResult.Output)
-            $cargoExitCode = [int]$cargoResult.ExitCode
-            $cargoOutput | ForEach-Object { Write-Output $_ }
-            if ($cargoExitCode -ne 0) {
-                throw "cargo build failed for gateway"
+            $previousPrebuiltWebUi = $env:GATEWAY_PREBUILT_WEB_UI
+            try {
+                $env:GATEWAY_PREBUILT_WEB_UI = "1"
+                $cargoResult = Invoke-NativeCommandCapture `
+                    -Command "cargo" `
+                    -Arguments @("build", "--locked", "--release", "--bin", "gateway") `
+                    -WorkingDirectory $repoRoot
+                $cargoOutput = @($cargoResult.Output)
+                $cargoExitCode = [int]$cargoResult.ExitCode
+                $cargoOutput | ForEach-Object { Write-Output $_ }
+                if ($cargoExitCode -ne 0) {
+                    throw "cargo build failed for gateway"
+                }
+            } finally {
+                if ([string]::IsNullOrEmpty($previousPrebuiltWebUi)) {
+                    Remove-Item Env:GATEWAY_PREBUILT_WEB_UI -ErrorAction SilentlyContinue
+                } else {
+                    $env:GATEWAY_PREBUILT_WEB_UI = $previousPrebuiltWebUi
+                }
             }
         }
 

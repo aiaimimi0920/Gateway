@@ -29,7 +29,13 @@ pub async fn handle_embeddings(
 ) -> Result<Response, GatewayError> {
     let canonical = normalize_embeddings(body)?;
     let mut ctx = PipelineContext::new(canonical, token);
-    apply_public_request_headers(&mut ctx, &headers, &state.config, &[]);
+    apply_public_request_headers(
+        &mut ctx,
+        &headers,
+        &state.config,
+        state.console_auth.as_ref(),
+        &[],
+    )?;
     ctx.query_params = query_params;
 
     match run_pipeline(ctx, &state).await? {

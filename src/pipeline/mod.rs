@@ -176,6 +176,10 @@ pub struct PipelineContext {
     /// Used for user-scoped credential lookup in hosted mode.
     pub neuro_user_id: Option<String>,
 
+    /// Trusted account-group selector consumed only by Gateway routing.
+    /// This must never be copied into `request_headers` or sent upstream.
+    pub account_group_id: Option<String>,
+
     // ── Request metadata (populated by route handlers) ────────────────────
     /// Query parameters extracted from the request URI.
     pub query_params: HashMap<String, String>,
@@ -236,6 +240,7 @@ impl PipelineContext {
             tools_were_injected: false,
             credential_source: CredentialSource::default(),
             neuro_user_id: None,
+            account_group_id: None,
             query_params: HashMap::new(),
             request_headers: HashMap::new(),
         }

@@ -42,8 +42,9 @@ pub async fn handle_messages(
         &mut ctx,
         &headers,
         &state.config,
+        state.console_auth.as_ref(),
         &["anthropic-version", "anthropic-beta"],
-    );
+    )?;
 
     // Forward ?beta=<value> as the `anthropic-beta` request header so that
     // the upstream header builder can pick it up.  If the header was already

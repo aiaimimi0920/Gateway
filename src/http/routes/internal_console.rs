@@ -9,16 +9,21 @@ use axum::http::{
 };
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::console::document::validate_route_document;
-use crate::console::secrets::{redact_route_document, resolve_secret_patches, SecretPatch};
+use crate::console::secrets::{
+    redact_route_document, resolve_secret_patches, route_config_request_requires_secret_grant,
+    SecretPatch,
+};
 use crate::console::{
-    ConsoleRequestContext, RouteConfigCoordinator, RouteConfigRuntimeError, StoredRouteRevision,
+    AuthenticatedConsoleActor, ConsoleRequestContext, RouteConfigCoordinator,
+    RouteConfigRuntimeError, StoredRouteRevision,
 };
 use crate::error::GatewayError;
 use crate::http::extractors::OptionalBearerToken;
+use crate::provider_runtime::{ProviderPayloadProbeReport, ProviderPayloadProbeStatus};
 use crate::routing::config::{ActiveConfigSource, RouteConfigSnapshot, RouteConfigYaml};
 use crate::state::AppState;
 
@@ -57,6 +62,16 @@ pub struct ValidateRouteConfigRequest {
     pub document: RouteConfigYaml,
     #[serde(default)]
     pub secret_patches: Vec<SecretPatch>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialProbeResponse {
+    pub credential_id: String,
+    pub provider_id: String,
+    pub status: ProviderPayloadProbeStatus,
+    pub message: String,
+    pub checked_at: String,
 }
 
 pub async fn get_bootstrap_status(
@@ -156,6 +171,60 @@ pub async fn logout_console_session(
     })))
 }
 
+pub async fn probe_console_credential(
+    State(state): State<Arc<AppState>>,
+    Path(credential_id): Path<String>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+) -> Result<Response, GatewayError> {
+    let request = console_request_context(&headers, connect_info.as_ref());
+    let actor = state.console_auth.authenticate_management_token(
+        &request,
+        required_console_management_token(token.as_deref(), &headers)?,
+    )?;
+    let secret_grant = headers
+        .get("x-secret-grant")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    state
+        .console_auth
+        .verify_secret_grant(&request, &actor, secret_grant)?;
+
+    let snapshot = state.route_config.snapshot();
+    let target = snapshot
+        .select_credential_probe_target(&credential_id)
+        .ok_or_else(|| {
+            GatewayError::not_found(format!(
+                "Gateway console credential '{}' was not found",
+                credential_id.trim()
+            ))
+            .with_code("console_credential_not_found")
+        })?;
+    let report = if target.enabled {
+        crate::provider_runtime::probe_provider_payload_for_console(
+            state.upstream_client.client(),
+            &target.payload,
+        )
+        .await
+    } else {
+        ProviderPayloadProbeReport {
+            status: ProviderPayloadProbeStatus::Unsupported,
+            message: "Credential is disabled.".to_string(),
+        }
+    };
+
+    let result = serde_json::to_value(CredentialProbeResponse {
+        credential_id: target.credential_id,
+        provider_id: target.provider_id,
+        status: report.status,
+        message: report.message,
+        checked_at: credential_probe_checked_at(),
+    })
+    .expect("credential probe response JSON");
+    Ok(json_with_no_store(serde_json::json!({ "result": result })))
+}
+
 pub async fn get_route_config(
     State(state): State<Arc<AppState>>,
     connect_info: Option<ConnectInfo<SocketAddr>>,
@@ -184,9 +253,17 @@ pub async fn commit_route_config(
     Json(body): Json<CommitRouteConfigRequest>,
 ) -> Result<Response, GatewayError> {
     let request = console_request_context(&headers, connect_info.as_ref());
-    state.console_auth.authenticate_management_token(
+    let actor = state.console_auth.authenticate_management_token(
         &request,
         required_console_management_token(token.as_deref(), &headers)?,
+    )?;
+    verify_route_config_secret_grant_if_required(
+        state.as_ref(),
+        &request,
+        &actor,
+        &headers,
+        &body.document,
+        &body.secret_patches,
     )?;
     assert_if_match_consistent(&headers, &body.expected_revision)?;
     let runtime = state.route_config_runtime.as_ref().ok_or_else(|| {
@@ -196,12 +273,8 @@ pub async fn commit_route_config(
         .with_code("console_runtime_unavailable")
     })?;
     let active = state.route_config.snapshot();
-    let candidate = if body.secret_patches.is_empty() {
-        body.document
-    } else {
-        resolve_secret_patches(active.document(), body.document, &body.secret_patches)
-            .map_err(secret_patch_to_gateway_error)?
-    };
+    let candidate = resolve_secret_patches(active.document(), body.document, &body.secret_patches)
+        .map_err(secret_patch_to_gateway_error)?;
     let snapshot = runtime
         .commit_document(&body.expected_revision, candidate, body.message)
         .await
@@ -220,9 +293,17 @@ pub async fn validate_route_config(
     Json(body): Json<ValidateRouteConfigRequest>,
 ) -> Result<Response, GatewayError> {
     let request = console_request_context(&headers, connect_info.as_ref());
-    state.console_auth.authenticate_management_token(
+    let actor = state.console_auth.authenticate_management_token(
         &request,
         required_console_management_token(token.as_deref(), &headers)?,
+    )?;
+    verify_route_config_secret_grant_if_required(
+        state.as_ref(),
+        &request,
+        &actor,
+        &headers,
+        &body.document,
+        &body.secret_patches,
     )?;
     let active = state.route_config.snapshot();
     let candidate = resolve_secret_patches(active.document(), body.document, &body.secret_patches)
@@ -402,7 +483,33 @@ fn route_config_coordinator(state: &AppState) -> Result<&RouteConfigCoordinator,
         })
 }
 
-fn required_console_management_token<'a>(
+fn credential_probe_checked_at() -> String {
+    time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_else(|_| "unknown".to_string())
+}
+
+fn verify_route_config_secret_grant_if_required(
+    state: &AppState,
+    request: &ConsoleRequestContext,
+    actor: &AuthenticatedConsoleActor,
+    headers: &HeaderMap,
+    document: &RouteConfigYaml,
+    secret_patches: &[SecretPatch],
+) -> Result<(), GatewayError> {
+    if !route_config_request_requires_secret_grant(document, secret_patches) {
+        return Ok(());
+    }
+    let secret_grant = headers
+        .get("x-secret-grant")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    state
+        .console_auth
+        .verify_secret_grant(request, actor, secret_grant)
+}
+
+pub(super) fn required_console_management_token<'a>(
     bearer_token: Option<&'a str>,
     headers: &'a HeaderMap,
 ) -> Result<&'a str, GatewayError> {
@@ -433,7 +540,7 @@ fn required_console_management_token<'a>(
         })
 }
 
-fn console_request_context(
+pub(super) fn console_request_context(
     headers: &HeaderMap,
     connect_info: Option<&ConnectInfo<SocketAddr>>,
 ) -> ConsoleRequestContext {
@@ -464,7 +571,7 @@ fn console_request_context(
     ConsoleRequestContext::new(client_ip, origin_key)
 }
 
-fn json_with_no_store(value: Value) -> Response {
+pub(super) fn json_with_no_store(value: Value) -> Response {
     let mut response = Json(value).into_response();
     response
         .headers_mut()

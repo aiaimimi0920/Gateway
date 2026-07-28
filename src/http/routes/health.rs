@@ -11,10 +11,10 @@ use axum::{
     Json,
 };
 
+use crate::config::GatewayRuntimeRole;
 use crate::http::routes::internal_runtime::{
     bounded_readiness_probe, readiness_probe_timeout, ReadinessProbeOutcome,
 };
-use crate::config::GatewayRuntimeRole;
 use crate::state::AppState;
 
 /// GET /healthz — liveness probe.
@@ -185,12 +185,12 @@ fn readiness_response(status: StatusCode, mut payload: serde_json::Value) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::body::to_bytes;
     use crate::concurrency::aimd::AimdConfig;
     use crate::concurrency::registry::ConcurrencyRegistry;
     use crate::config::{Config, GatewayRuntimeRole};
     use crate::routing::config::RouteConfigStore;
     use crate::upstream::client::UpstreamClient;
+    use axum::body::to_bytes;
     use axum::response::IntoResponse;
     use std::sync::Arc;
     use std::time::{Duration, Instant};
@@ -305,10 +305,8 @@ mod tests {
     }
 
     fn test_console_auth_runtime() -> Arc<crate::console::ConsoleAuthRuntime> {
-        let temp = std::env::temp_dir().join(format!(
-            "gateway-health-console-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let temp =
+            std::env::temp_dir().join(format!("gateway-health-console-{}", uuid::Uuid::new_v4()));
         let console =
             crate::console::ConsoleConfig::from_values(crate::console::ConsoleConfigValues {
                 state_dir: Some(temp.clone()),
@@ -362,8 +360,9 @@ model_routes:
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
             lifecycle: crate::state::GatewayLifecycleState::default(),
             shutdown: crate::state::GatewayShutdownHandle::default(),
-            provider_credential_folder_sync:
-                crate::state::ProviderCredentialFolderSyncRuntime::new(false),
+            provider_credential_folder_sync: crate::state::ProviderCredentialFolderSyncRuntime::new(
+                false,
+            ),
         })
     }
 

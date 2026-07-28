@@ -347,6 +347,16 @@ pub fn resolve_secret_patches(
     Ok(materialize_credential_ids(resolved))
 }
 
+pub(crate) fn route_config_request_requires_secret_grant(
+    document: &RouteConfigYaml,
+    patches: &[SecretPatch],
+) -> bool {
+    patches
+        .iter()
+        .any(|patch| patch.operation != SecretOperation::Keep || patch.value.is_some())
+        || ensure_document_is_redacted(document).is_err()
+}
+
 fn preflight_secret_patch_budget(
     active: &RouteConfigYaml,
     draft: &RouteConfigYaml,
@@ -563,7 +573,7 @@ fn validate_secret_target(
         "headers" if segments.len() == 4 && is_sensitive_key(&segments[3]) => {
             Ok(SecretTarget::Header)
         }
-        "extra_body" if segments.len() >= 4 => validate_extra_body_target(draft_value, pointer, 3),
+        "extra_body" if segments.len() >= 4 => validate_extra_body_target(draft_value, pointer, 2),
         "credentials" if segments.len() >= 5 => {
             let credential_index = parse_array_index(&segments[3], pointer)?;
             let credential = provider
@@ -585,7 +595,7 @@ fn validate_secret_target(
                     Ok(SecretTarget::Header)
                 }
                 "extra_body" if segments.len() >= 6 => {
-                    validate_extra_body_target(draft_value, pointer, 5)
+                    validate_extra_body_target(draft_value, pointer, 4)
                 }
                 _ => Err(outside_schema(pointer)),
             }
@@ -1196,7 +1206,7 @@ fn ensure_document_is_redacted(document: &RouteConfigYaml) -> Result<(), SecretP
     Ok(())
 }
 
-fn redact_url_value(value: &str) -> String {
+pub(crate) fn redact_url_value(value: &str) -> String {
     let Ok(mut url) = Url::parse(value) else {
         return if raw_url_may_contain_secret(value) {
             "<redacted-url>".to_string()

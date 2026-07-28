@@ -31,13 +31,14 @@ pub async fn handle_converse(
         &mut ctx,
         &headers,
         &state.config,
+        state.console_auth.as_ref(),
         &[
             "x-amzn-bedrock-accept",
             "x-amzn-bedrock-content-type",
             "x-amzn-bedrock-guardrailidentifier",
             "x-amzn-bedrock-guardrailversion",
         ],
-    );
+    )?;
     ctx.query_params = query_params;
 
     match run_pipeline(ctx, &state).await? {
@@ -75,13 +76,14 @@ pub async fn handle_converse_stream(
         &mut ctx,
         &headers,
         &state.config,
+        state.console_auth.as_ref(),
         &[
             "x-amzn-bedrock-accept",
             "x-amzn-bedrock-content-type",
             "x-amzn-bedrock-guardrailidentifier",
             "x-amzn-bedrock-guardrailversion",
         ],
-    );
+    )?;
     ctx.query_params = query_params;
 
     match run_pipeline(ctx, &state).await? {

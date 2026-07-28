@@ -10,6 +10,7 @@ pub mod gemini_live;
 pub mod health;
 pub mod images;
 pub mod internal_access;
+pub mod internal_account_groups;
 pub mod internal_browser_executor;
 pub mod internal_console;
 pub mod internal_conversation_archives;

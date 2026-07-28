@@ -2,6 +2,33 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 
 test.describe.configure({ mode: "serial" });
 
+const REQUIRED_LIVE_ENVIRONMENT = [
+  "GATEWAY_LIVE_MANAGEMENT_TOKEN",
+  "GATEWAY_LIVE_API_BASE_URL",
+  "GATEWAY_LIVE_API_TOKEN",
+  "GATEWAY_LIVE_EXPECT_PROVIDER_ID",
+  "GATEWAY_LIVE_EXPECT_MODEL",
+  "GATEWAY_LIVE_EXPECT_ADDED_PROVIDER_ID",
+  "GATEWAY_LIVE_EXPECT_ADDED_MODEL",
+  "GATEWAY_LIVE_EXPECT_RESTORED_MODEL",
+  "GATEWAY_LIVE_EXPECT_REMOVED_MODEL",
+  "GATEWAY_LIVE_UPSTREAM_BASE_URL",
+  "GATEWAY_LIVE_CHAT_MODEL",
+  "GATEWAY_LIVE_CHAT_EXPECT_TEXT",
+] as const;
+
+test.beforeEach(() => {
+  const missingEnvironment = REQUIRED_LIVE_ENVIRONMENT.filter((name) => {
+    const value = process.env[name];
+    return !value || value.trim().length === 0;
+  });
+
+  test.skip(
+    missingEnvironment.length > 0,
+    `Live Gateway E2E requires environment variables: ${missingEnvironment.join(", ")}`,
+  );
+});
+
 type ModelsPayload = {
   data?: Array<{ id?: string }>;
 };
@@ -42,11 +69,11 @@ function requiredEnvironment(name: string): string {
 async function signIntoConsole(page: Page, managementToken: string): Promise<void> {
   await page.goto("/ui/");
 
-  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  await page.getByLabel("Management token").fill(managementToken);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "登录" })).toBeVisible();
+  await page.getByLabel("管理密钥").fill(managementToken);
+  await page.getByRole("button", { name: "登录" }).click();
 
-  await expect(page.getByRole("heading", { name: "Gateway Web Console" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Gateway 网页控制台" })).toBeVisible();
 }
 
 async function fetchModelIds(
@@ -98,7 +125,7 @@ test("signs into a live Gateway browser console and reads /v1/models", async ({ 
       .filter({ has: page.getByRole("heading", { name: "当前路由配置" }) })
       .getByText(expectedProviderId, { exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Route document JSON")).toContainText(expectedModel);
+  await expect(page.getByLabel("路由配置 JSON")).toContainText(expectedModel);
 
   await expect.poll(() => fetchModelIds(request, apiBaseUrl, apiToken)).toContain(expectedModel);
 });
@@ -112,20 +139,20 @@ test("saves a live provider update through the browser console and extends /v1/m
 
   await signIntoConsole(page, managementToken);
 
-  await page.getByRole("button", { name: "Add provider row" }).click();
-  await page.getByLabel("Provider id 2").fill(addedProviderId);
-  await page.getByLabel("Provider preset 2").fill("openai");
-  await page.getByLabel("Provider base URL 2").fill("https://api.backup.example.com");
-  await page.getByLabel("Provider supported models 2").fill(addedModelId);
+  await page.getByRole("button", { name: "添加 Provider 行" }).click();
+  await page.getByLabel("Provider ID 2").fill(addedProviderId);
+  await page.getByLabel("Provider 预设 2").fill("openai");
+  await page.getByLabel("Provider 基础 URL 2").fill("https://api.backup.example.com");
+  await page.getByLabel("Provider 支持模型 2").fill(addedModelId);
 
-  await expect(page.getByLabel("Route document JSON")).toContainText(`"id": "${addedProviderId}"`);
-  await expect(page.getByLabel("Route document JSON")).toContainText(`"${addedModelId}"`);
+  await expect(page.getByLabel("路由配置 JSON")).toContainText(`"id": "${addedProviderId}"`);
+  await expect(page.getByLabel("路由配置 JSON")).toContainText(`"${addedModelId}"`);
 
-  await page.getByRole("button", { name: "Save route config" }).click();
+  await page.getByRole("button", { name: "保存路由配置" }).click();
 
   await expect(
     page.getByRole("status", { name: "Gateway console last action" }),
-  ).toContainText("Saved route config as active revision");
+  ).toContainText("已将路由配置保存为激活修订");
   await expect(
     page
       .locator("article")
@@ -160,28 +187,28 @@ test("restores a live archived revision through the browser console", async ({ p
   const archivedRevisionId = archivedRevision ? revisionId(archivedRevision) : null;
   expect(archivedRevisionId).toBeTruthy();
 
-  await page.getByRole("button", { name: `Inspect revision ${archivedRevisionId}` }).click();
+  await page.getByRole("button", { name: `查看修订 ${archivedRevisionId}` }).click();
 
   const selectedRevisionDetail = page.getByLabel("Selected revision detail");
   await expect(selectedRevisionDetail.getByText(expectedProviderId, { exact: true })).toBeVisible();
   await expect(page.getByLabel("Selected revision route document snapshot")).toContainText(restoredModelId);
   await expect(page.getByLabel("Selected revision route document snapshot")).not.toContainText(removedModelId);
 
-  await page.getByRole("button", { name: "Restore revision as active config" }).click();
+  await page.getByRole("button", { name: "恢复为激活配置" }).click();
 
-  await expect(page.getByRole("dialog", { name: "Review revision restore" })).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "Review revision restore" })).toContainText(
+  await expect(page.getByRole("dialog", { name: "确认恢复修订" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "确认恢复修订" })).toContainText(
     archivedRevisionId ?? "",
   );
 
-  await page.getByRole("button", { name: "Confirm restore" }).click();
+  await page.getByRole("button", { name: "确认恢复" }).click();
 
   await expect(
     page.getByRole("status", { name: "Gateway console last action" }),
-  ).toContainText(`Restored revision ${archivedRevisionId} as active revision`);
+  ).toContainText(`已将修订 ${archivedRevisionId} 恢复为激活修订`);
   await expect(activeConfigCard.getByText(addedProviderId, { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("Route document JSON")).toContainText(restoredModelId);
-  await expect(page.getByLabel("Route document JSON")).not.toContainText(removedModelId);
+  await expect(page.getByLabel("路由配置 JSON")).toContainText(restoredModelId);
+  await expect(page.getByLabel("路由配置 JSON")).not.toContainText(removedModelId);
 
   await expect
     .poll(async () => (await fetchModelIds(request, apiBaseUrl, apiToken)).includes(removedModelId))
@@ -199,20 +226,24 @@ test("routes a live chat completion through a browser-configured provider", asyn
 
   await signIntoConsole(page, managementToken);
 
-  await page.getByLabel("Provider base URL 1").fill(upstreamBaseUrl);
-  await page.getByLabel("Provider supported models 1").fill(chatModel);
-  await page.getByLabel("Model route pattern 1").fill(chatModel);
+  await page
+    .getByRole("navigation", { name: "Gateway console navigation" })
+    .getByRole("button", { name: /路由编辑/ })
+    .click();
+  await page.getByLabel("Provider 基础 URL 1").fill(upstreamBaseUrl);
+  await page.getByLabel("Provider 支持模型 1").fill(chatModel);
+  await page.getByLabel("模型路由模式 1").fill(chatModel);
 
-  await expect(page.getByLabel("Route document JSON")).toContainText(
+  await expect(page.getByLabel("路由配置 JSON")).toContainText(
     `"base_url": "${upstreamBaseUrl}"`,
   );
-  await expect(page.getByLabel("Route document JSON")).toContainText(`"${chatModel}"`);
+  await expect(page.getByLabel("路由配置 JSON")).toContainText(`"${chatModel}"`);
 
-  await page.getByRole("button", { name: "Save route config" }).click();
+  await page.getByRole("button", { name: "保存路由配置" }).click();
 
   await expect(
     page.getByRole("status", { name: "Gateway console last action" }),
-  ).toContainText("Saved route config as active revision");
+  ).toContainText("已将路由配置保存为激活修订");
   await expect.poll(() => fetchModelIds(request, apiBaseUrl, apiToken)).toContain(chatModel);
 
   const chatResponse = await request.post(`${apiBaseUrl}/v1/chat/completions`, {

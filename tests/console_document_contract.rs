@@ -145,6 +145,85 @@ aliases: {}
 }
 
 #[test]
+fn strict_validation_rejects_credential_ids_colliding_with_provider_default_accounts() {
+    let candidate = document(
+        r#"
+providers:
+  - id: fallback-provider
+    base_url: https://fallback.example.com
+    api_key: fallback-key
+  - id: managed-provider
+    base_url: https://managed.example.com
+    credentials:
+      - id: fallback-provider::default
+        api_key: managed-key
+model_routes: []
+aliases: {}
+"#,
+    );
+
+    let error = validate_route_document(candidate)
+        .expect_err("credential IDs must not collide with provider default accounts");
+    assert!(
+        diagnostic_codes(&error).contains(&"account_identity_duplicate")
+            || diagnostic_codes(&error).contains(&"credential_id_duplicate"),
+        "expected a clear account identity collision diagnostic, got {error:?}"
+    );
+    assert!(error.diagnostics.iter().any(|diagnostic| {
+        diagnostic.path == "/providers/1/credentials/0/id"
+            && diagnostic.message.contains("fallback-provider::default")
+    }));
+}
+
+#[test]
+fn strict_validation_rejects_credential_ids_with_leading_or_trailing_whitespace() {
+    let candidate = document(
+        r#"
+providers:
+  - id: managed-provider
+    base_url: https://managed.example.com
+    credentials:
+      - id: " managed-account "
+        api_key: managed-key
+model_routes: []
+aliases: {}
+"#,
+    );
+
+    let error = validate_route_document(candidate)
+        .expect_err("credential IDs with surrounding whitespace must be rejected");
+    assert!(
+        diagnostic_codes(&error).contains(&"credential_id_whitespace"),
+        "expected credential_id_whitespace, got {error:?}"
+    );
+    assert!(error.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "credential_id_whitespace"
+            && diagnostic.path == "/providers/0/credentials/0/id"
+    }));
+}
+
+#[test]
+fn strict_validation_rejects_provider_ids_with_leading_or_trailing_whitespace() {
+    let candidate = document(
+        r#"
+providers:
+  - id: " managed-provider "
+    base_url: https://managed.example.com
+    api_key: managed-key
+model_routes: []
+aliases: {}
+"#,
+    );
+
+    let error = validate_route_document(candidate)
+        .expect_err("provider IDs with surrounding whitespace must be rejected");
+    assert!(diagnostic_codes(&error).contains(&"provider_id_whitespace"));
+    assert!(error.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "provider_id_whitespace" && diagnostic.path == "/providers/0/id"
+    }));
+}
+
+#[test]
 fn bundled_routes_example_is_readable_by_console_redaction_pipeline() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("routes.example.yaml");
     let yaml = fs::read_to_string(&path).expect("read routes.example.yaml");
@@ -153,6 +232,32 @@ fn bundled_routes_example_is_readable_by_console_redaction_pipeline() {
 
     redact_route_document(&candidate)
         .expect("routes.example.yaml must be readable by the console redaction pipeline");
+}
+
+#[test]
+fn bundled_route_documents_have_no_dangling_provider_references() {
+    for file_name in ["routes.example.yaml", "routes.yaml"] {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(file_name);
+        let yaml = fs::read_to_string(&path).unwrap_or_else(|error| {
+            panic!("read {file_name}: {error}");
+        });
+        let candidate: RouteConfigYaml = serde_yaml::from_str(&yaml).unwrap_or_else(|error| {
+            panic!("parse {file_name}: {error}");
+        });
+        let diagnostics = inspect_route_document(&candidate);
+        let dangling = diagnostics
+            .diagnostics
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "route_provider_unknown")
+            .map(|diagnostic| format!("{}: {}", diagnostic.path, diagnostic.message))
+            .collect::<Vec<_>>();
+
+        assert!(
+            dangling.is_empty(),
+            "{file_name} contains dangling provider references: {dangling:?}"
+        );
+    }
 }
 
 #[test]
@@ -906,6 +1011,55 @@ aliases: {}
     )
     .expect_err("non-secret paths cannot use secret patch API");
     assert_eq!(error.code(), "secret_path_outside_schema");
+}
+
+#[test]
+fn top_level_extra_body_secrets_round_trip_for_providers_and_credentials() {
+    let active = document(
+        r#"
+providers:
+  - id: provider
+    base_url: https://example.com
+    extra_body:
+      token: provider-secret
+    credentials:
+      - id: account
+        extra_body:
+          session: credential-secret
+model_routes: []
+aliases: {}
+"#,
+    );
+    let redacted = redact_route_document(&active).expect("redact top-level extra-body secrets");
+    let provider_path = "/providers/0/extra_body/token";
+    let credential_path = "/providers/0/credentials/0/extra_body/session";
+    assert!(redacted
+        .secrets
+        .iter()
+        .any(|descriptor| descriptor.path == provider_path));
+    assert!(redacted
+        .secrets
+        .iter()
+        .any(|descriptor| descriptor.path == credential_path));
+
+    let resolved = resolve_secret_patches(
+        &active,
+        redacted.document,
+        &[
+            SecretPatch::keep(provider_path),
+            SecretPatch::keep(credential_path),
+        ],
+    )
+    .expect("top-level extra-body secrets can be kept after redaction");
+
+    assert_eq!(
+        resolved.providers[0].extra_body["token"],
+        json!("provider-secret")
+    );
+    assert_eq!(
+        resolved.providers[0].credentials[0].extra_body["session"],
+        json!("credential-secret")
+    );
 }
 
 #[test]

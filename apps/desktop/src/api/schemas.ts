@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type {
   BootstrapStatus,
+  ConsoleAccountGroupSummaryResponse,
+  ConsoleCredentialProbeResponse,
   ConsoleEvent,
   ConsoleRouteConfigCommitResponse,
   ConsoleRouteConfigResponse,
@@ -106,6 +108,48 @@ const consoleRouteConfigViewSchema = z.object({
   mutationSupported: z.boolean(),
 });
 
+const consoleAccountGroupSummaryGroupSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().nullable().optional(),
+  billingMultiplier: z.number(),
+  configuredBillingMultiplier: z.number().nullable().optional(),
+  enabled: z.boolean(),
+  notes: z.string().nullable().optional(),
+  memberCount: z.number().int().nonnegative(),
+  providerCredentialIds: z.array(z.string()),
+  providers: z.array(z.string()),
+});
+
+const consoleAccountGroupSummaryAccountSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string().min(1),
+  providerId: z.string().min(1),
+  providerLabel: z.string().min(1),
+  vendorKey: z.string().nullable().optional(),
+  vendorName: z.string().nullable().optional(),
+  providerPreset: z.string().nullable().optional(),
+  credentialId: z.string().nullable().optional(),
+  baseUrl: z.string().nullable().optional(),
+  mode: z.string().min(1),
+  // Older Gateway builds did not expose account status; preserve their
+  // historical routable-by-default behavior while normalizing the result.
+  enabled: z.boolean().default(true),
+  supportedModels: z.array(z.string()),
+  groupIds: z.array(z.string()),
+});
+
+const consoleAccountGroupSummaryProviderSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  vendorKey: z.string().nullable().optional(),
+  vendorName: z.string().nullable().optional(),
+  preset: z.string().nullable().optional(),
+  baseUrl: z.string().nullable().optional(),
+  accountIds: z.array(z.string()),
+  supportedModels: z.array(z.string()),
+});
+
 export const consoleRouteConfigResponseSchema: z.ZodType<ConsoleRouteConfigResponse> = z.object({
   routeConfig: consoleRouteConfigViewSchema,
 });
@@ -143,6 +187,28 @@ export const consoleRouteRevisionDetailResponseSchema: z.ZodType<ConsoleRouteRev
     routeConfig: consoleRouteConfigViewSchema,
     active: z.boolean(),
     hasArchive: z.boolean(),
+  });
+
+export const consoleAccountGroupSummaryResponseSchema: z.ZodType<ConsoleAccountGroupSummaryResponse> =
+  z.object({
+    summary: z.object({
+      routeConfigRevision: z.string().min(1),
+      source: z.string().min(1),
+      accountGroups: z.array(consoleAccountGroupSummaryGroupSchema),
+      accounts: z.array(consoleAccountGroupSummaryAccountSchema),
+      providers: z.array(consoleAccountGroupSummaryProviderSchema),
+    }),
+  });
+
+export const consoleCredentialProbeResponseSchema: z.ZodType<ConsoleCredentialProbeResponse> =
+  z.object({
+    result: z.object({
+      credentialId: z.string().min(1),
+      providerId: z.string().min(1),
+      status: z.enum(["passed", "failed", "unsupported"]),
+      message: z.string().min(1),
+      checkedAt: z.string().min(1),
+    }),
   });
 
 export const publicHealthSchema: z.ZodType<PublicHealth> = z

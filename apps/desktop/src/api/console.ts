@@ -1,5 +1,7 @@
 import type {
   BootstrapStatus,
+  ConsoleAccountGroupSummaryResponse,
+  ConsoleCredentialProbeResponse,
   ConsoleRouteConfigCommitRequest,
   ConsoleRouteConfigCommitResponse,
   ConsoleRouteConfigResponse,
@@ -14,6 +16,8 @@ import type {
 import type { GatewayApiClient } from "./client";
 import {
   bootstrapStatusSchema,
+  consoleAccountGroupSummaryResponseSchema,
+  consoleCredentialProbeResponseSchema,
   consoleRouteConfigCommitResponseSchema,
   consoleRouteConfigResponseSchema,
   consoleRouteConfigValidationResponseSchema,
@@ -34,13 +38,21 @@ export type ConsoleApi = {
   rotateSession(currentToken: string, newToken: string): Promise<OperationSuccess>;
   logout(token: string): Promise<OperationSuccess>;
   getRouteConfig(managementToken: string): Promise<ConsoleRouteConfigResponse>;
+  getAccountGroupSummary(managementToken: string): Promise<ConsoleAccountGroupSummaryResponse>;
+  probeCredential(
+    managementToken: string,
+    secretGrant: string,
+    credentialId: string,
+  ): Promise<ConsoleCredentialProbeResponse>;
   validateRouteConfig(
     managementToken: string,
     draft: ConsoleRouteConfigValidationRequest,
+    secretGrant?: string,
   ): Promise<ConsoleRouteConfigValidationResponse>;
   commitRouteConfig(
     managementToken: string,
     draft: ConsoleRouteConfigCommitRequest,
+    secretGrant?: string,
   ): Promise<ConsoleRouteConfigCommitResponse>;
   listRouteConfigRevisions(managementToken: string): Promise<ConsoleRouteRevisionListResponse>;
   getRouteConfigRevision(
@@ -84,20 +96,40 @@ export function createConsoleApi(client: GatewayApiClient): ConsoleApi {
       client.request(`${CONSOLE_ROOT}/route-config`, consoleRouteConfigResponseSchema, {
         managementToken,
       }),
-    validateRouteConfig: (managementToken, draft) =>
+    getAccountGroupSummary: (managementToken) =>
+      client.request(
+        "/v1/internal/gateway/account-groups",
+        consoleAccountGroupSummaryResponseSchema,
+        {
+          managementToken,
+        },
+      ),
+    probeCredential: (managementToken, secretGrant, credentialId) =>
+      client.request(
+        `/v1/internal/gateway/console/credentials/${encodeURIComponent(credentialId)}/probe`,
+        consoleCredentialProbeResponseSchema,
+        {
+          method: "POST",
+          managementToken,
+          secretGrant,
+        },
+      ),
+    validateRouteConfig: (managementToken, draft, secretGrant) =>
       client.request(
         `${CONSOLE_ROOT}/route-config/validate`,
         consoleRouteConfigValidationResponseSchema,
         {
           method: "POST",
           managementToken,
+          secretGrant,
           body: draft,
         },
       ),
-    commitRouteConfig: (managementToken, draft) =>
+    commitRouteConfig: (managementToken, draft, secretGrant) =>
       client.request(`${CONSOLE_ROOT}/route-config`, consoleRouteConfigCommitResponseSchema, {
         method: "PUT",
         managementToken,
+        secretGrant,
         body: draft,
       }),
     listRouteConfigRevisions: (managementToken) =>

@@ -116,6 +116,77 @@ export type ConsoleRouteRevisionDetailResponse = {
   hasArchive: boolean;
 };
 
+export type ConsoleAccountGroupSummaryGroup = {
+  id: string;
+  name: string;
+  description?: string | null;
+  billingMultiplier: number;
+  configuredBillingMultiplier?: number | null;
+  enabled: boolean;
+  notes?: string | null;
+  memberCount: number;
+  providerCredentialIds: string[];
+  providers: string[];
+};
+
+export type ConsoleAccountGroupSummaryAccount = {
+  id: string;
+  displayName: string;
+  providerId: string;
+  providerLabel: string;
+  /** Stable vendor identifier; omitted by legacy route documents. */
+  vendorKey?: string | null;
+  /** Human-readable vendor name; omitted by legacy route documents. */
+  vendorName?: string | null;
+  providerPreset?: string | null;
+  credentialId?: string | null;
+  baseUrl?: string | null;
+  mode: string;
+  /** Effective routing status; legacy summaries may omit this field. */
+  enabled: boolean;
+  supportedModels: string[];
+  groupIds: string[];
+};
+
+export type ConsoleAccountGroupSummaryProvider = {
+  id: string;
+  label: string;
+  /** Stable vendor identifier; omitted by legacy route documents. */
+  vendorKey?: string | null;
+  /** Human-readable vendor name; omitted by legacy route documents. */
+  vendorName?: string | null;
+  preset?: string | null;
+  baseUrl?: string | null;
+  accountIds: string[];
+  supportedModels: string[];
+};
+
+export type ConsoleAccountGroupSummary = {
+  routeConfigRevision: string;
+  source: string;
+  accountGroups: ConsoleAccountGroupSummaryGroup[];
+  accounts: ConsoleAccountGroupSummaryAccount[];
+  providers: ConsoleAccountGroupSummaryProvider[];
+};
+
+export type ConsoleAccountGroupSummaryResponse = {
+  summary: ConsoleAccountGroupSummary;
+};
+
+export type ConsoleCredentialProbeStatus = "passed" | "failed" | "unsupported";
+
+export type ConsoleCredentialProbeResult = {
+  credentialId: string;
+  providerId: string;
+  status: ConsoleCredentialProbeStatus;
+  message: string;
+  checkedAt: string;
+};
+
+export type ConsoleCredentialProbeResponse = {
+  result: ConsoleCredentialProbeResult;
+};
+
 export type ConsoleSecretPatch = {
   path: string;
   operation: "keep" | "replace" | "clear";

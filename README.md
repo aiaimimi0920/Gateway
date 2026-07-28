@@ -72,6 +72,13 @@ cargo check --locked --all-targets
 cargo test --locked
 ```
 
+Gateway now carries a local-default Cargo throttle under
+[`./.cargo/config.toml`](.cargo/config.toml) with `build.jobs = 1` so routine
+Rust builds do not saturate a workstation by default. The official development
+container and release builder also force `CARGO_BUILD_JOBS=1` and
+`CARGO_INCREMENTAL=0`; inherited shell, `.env`, or CI values cannot raise the
+parallelism of those supported build paths.
+
 Validate manifests and Python contracts:
 
 ```powershell
@@ -137,6 +144,13 @@ $id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
 .\tools\build-gateway-release.ps1
 .\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild
 ```
+
+`build-gateway-release.ps1` now performs `npm run build:web` explicitly before
+the headless Cargo release build, then exports `GATEWAY_PREBUILT_WEB_UI=1` for
+  that Cargo step so the root `build.rs` reuses prebuilt web assets instead of
+  launching another implicit browser-console build. The script enforces one
+  Cargo job with incremental compilation disabled for both the headless and
+  desktop builds.
 
 The package command can build for you when `-SkipBuild` is omitted. A skipped
 build is accepted only when `target/release/gateway-build-provenance.json`
@@ -265,6 +279,67 @@ After the stack is up, open:
 and sign in with the management token `123456`. If you want a server-style
 public bind instead, pass `-BindHost 0.0.0.0` and set your own management
 token before exposing the port externally.
+
+The browser console now includes two account-pool management workspaces on top
+of the existing route-config and revision flows:
+
+- `Accounts` treats `provider.credentials[]` inside `routes.yaml` / the active
+  route-config document as reusable account units and groups them by provider /
+  service provider;
+- `Groups` lets you organize those accounts into logical pools and persist
+  `billing_multiplier` metadata for later Platform-side billing integration.
+
+This metadata lives in the same route-config document under the top-level
+`account_groups` field, so it works in the current standalone / Redis-managed
+product shape without requiring PostgreSQL.
+
+Runtime routing stays backward-compatible by default:
+
+- requests **without** an account-group selector keep the existing routing behavior;
+- trusted internal callers can set `x-neuro-account-group` (or
+  `x-account-group-id`) together with `x-internal-api-key` to force YAML/static
+  routing to stay inside one configured account pool.
+
+For Platform-side billing and account-pool orchestration, the gateway now also
+exposes a management-only summary endpoint:
+
+```bash
+curl http://127.0.0.1:4200/v1/internal/gateway/account-groups \
+  -H "x-internal-api-key: 123456"
+```
+
+The response includes:
+
+- `accountGroups[]`: effective `billingMultiplier`, `memberCount`, enabled
+  state, and member account IDs;
+- `accounts[]`: reverse mapping from account ID to provider and group IDs;
+- `providers[]`: provider-to-account inventory summary.
+
+The `Test` action in the Accounts workspace uses a standalone credential
+connectivity probe:
+
+```text
+POST /v1/internal/gateway/console/credentials/{credential_id}/probe
+```
+
+The endpoint requires an authenticated management session and the exact active
+Secret Grant returned by the confirmation endpoint. Clients must send that
+value in the `x-secret-grant` header; a missing, expired, unknown, or
+context-mismatched grant is rejected with HTTP `403` and
+`console_secret_access_required`. Grants are bound to the management-token
+fingerprint, request origin, and client IP. The probe uses the compiled
+credential from the active route snapshot, so it does not require PostgreSQL;
+disabled credentials never make a network request. The only response statuses
+are:
+
+- `passed`: a supported HTTP credential probe completed successfully;
+- `failed`: the upstream request failed and the returned message was sanitized;
+- `unsupported`: the adapter is fixed-model, browser-backed, stateful, or
+  otherwise has no safe side-effect-free probe.
+
+The response shape is `{ "result": { "credentialId", "providerId", "status",
+"message", "checkedAt" } }`; API keys, cookies, tokens, and upstream bodies
+are never returned.
 
 To run an end-to-end local Docker verification against a locally built image:
 

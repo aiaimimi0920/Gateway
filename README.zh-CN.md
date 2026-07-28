@@ -66,6 +66,12 @@ cargo check --locked --all-targets
 cargo test --locked
 ```
 
+Gateway 现在自带一个本地默认的 Cargo 限流配置：
+[`./.cargo/config.toml`](.cargo/config.toml) 中的 `build.jobs = 1`。这样日常
+Rust 构建默认不会再轻易把整台工作站的 CPU / 内存打满。官方开发容器和 Release
+构建脚本还会强制使用 `CARGO_BUILD_JOBS=1`、`CARGO_INCREMENTAL=0`，不会被
+调用 shell、`.env` 或 CI 中继承的高并发值覆盖。
+
 运行线路清单和 Python 合同校验：
 
 ```powershell
@@ -129,6 +135,12 @@ $id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
 .\tools\build-gateway-release.ps1
 .\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild
 ```
+
+`build-gateway-release.ps1` 现在会先显式执行一次 `npm run build:web`，再进行
+headless Gateway 的 Cargo release 构建，并在该 Cargo 步骤里导出
+`GATEWAY_PREBUILT_WEB_UI=1`，让根级 `build.rs` 直接复用已经生成好的 Web UI
+产物，而不是再隐式触发一轮浏览器控制台构建。headless Gateway 和桌面 UI 的
+Cargo 构建都会强制单 job，并关闭 incremental compilation。
 
 使用 `-SkipBuild` 时，打包器会要求
 `target/release/gateway-build-provenance.json` 与当前源码树、两个可执行文件
@@ -245,6 +257,57 @@ docker run --rm -p 4200:4200 --env-file .env gateway:local
 
 然后使用管理密钥 `123456` 登录即可。如果你要部署成对外提供服务的服务器形态，
 请显式传入 `-BindHost 0.0.0.0`，并在暴露端口前改成你自己的管理密钥。
+
+当前浏览器控制台除了原有的 route-config / revision 能力外，还新增了两个直接面向
+账号池管理的工作区：
+
+- `账号台账`：把 `routes.yaml` / route-config 文档里的 `provider.credentials[]` 视为
+  可复用账号单元，并按 Provider / 服务商分组浏览；
+- `分组策略`：把多个账号组织成逻辑分组，记录 `billing_multiplier` 等后续可供
+  Platform 消费的费率元数据。
+
+这些分组元数据保存在同一份 route-config 文档的顶层 `account_groups` 字段中，
+因此它在当前 standalone / Redis 管理模式下无需 PostgreSQL 也能直接工作。
+
+运行时路由默认保持向后兼容：
+
+- **不带**账号分组选择器的请求，仍按原有路由逻辑运行；
+- 可信内部调用方可在同时携带 `x-internal-api-key` 时，附带
+  `x-neuro-account-group`（或 `x-account-group-id`）请求头，把 YAML/static
+  路由候选限制在指定账号组内。
+
+为了让 Platform 更容易消费计费倍率与账号池关系，Gateway 现在还提供了一个仅管理面可读的汇总接口：
+
+```bash
+curl http://127.0.0.1:4200/v1/internal/gateway/account-groups \
+  -H "x-internal-api-key: 123456"
+```
+
+返回结果包含：
+
+- `accountGroups[]`：已经折算好的 `billingMultiplier`、成员数量、启用状态、成员账号 ID；
+- `accounts[]`：账号到 provider / group 的反向映射；
+- `providers[]`：provider 到账号清单的汇总视图。
+
+账号台账中的 `测试` 按钮调用独立的凭据连通性探测接口：
+
+```text
+POST /v1/internal/gateway/console/credentials/{credential_id}/probe
+```
+
+该接口只接受已登录的管理会话，并要求请求精确携带敏感信息确认接口返回的有效
+`Secret Grant`。客户端必须通过 `x-secret-grant` 请求头发送该值；请求头缺失、Grant
+过期、不存在或上下文不匹配时，后端统一返回 HTTP `403` 和
+`console_secret_access_required`。Grant 会绑定管理密钥指纹、请求 Origin 和客户端
+IP。探测直接使用 active route-config 编译后的凭据，不依赖 PostgreSQL；停用凭据
+不会发起网络请求。返回状态只有：
+
+- `passed`：已完成受支持的 HTTP 凭据探测；
+- `failed`：上游请求失败，消息已清洗；
+- `unsupported`：固定模型、浏览器态、状态型或未知适配器没有安全的无副作用探测。
+
+响应格式为 `{ "result": { "credentialId", "providerId", "status", "message", "checkedAt" } }`，
+不会返回 API Key、Cookie、Token 或上游响应正文。
 
 如果要对本地源码做一次完整的 Docker 端到端验证，可运行：
 

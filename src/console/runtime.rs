@@ -308,7 +308,7 @@ impl RouteConfigCoordinator {
                 current.revision().id()
             )));
         }
-        let revision = RevisionMetadata::from_validated(
+        let proposed_revision = RevisionMetadata::from_validated(
             current.revision().sequence().saturating_add(1),
             Some(current.revision().id().to_string()),
             RevisionActor::ManagementToken,
@@ -319,9 +319,6 @@ impl RouteConfigCoordinator {
         let canonical = canonicalize_route_document(validated.document()).map_err(|error| {
             RouteConfigRuntimeError::new("console_route_compilation_failed", error.to_string())
         })?;
-        let redis_revision =
-            RouteConfigRedisRevision::new(revision.clone(), validated.document().clone())
-                .map_err(RouteConfigRuntimeError::from_redis)?;
 
         let guard = self
             .persistence
@@ -335,6 +332,64 @@ impl RouteConfigCoordinator {
                 locked_current.revision().id()
             )));
         }
+
+        // A YAML-only development runtime has a valid local revision before
+        // Redis has been initialized.  Treat an absent Redis active key as a
+        // bootstrap state and let the Redis CAS script atomically claim it;
+        // if Redis already has an active revision, enforce the normal
+        // optimistic-concurrency check before touching the local journal/YAML.
+        let expected_redis_revision = match self
+            .redis
+            .load_active_revision()
+            .await
+            .map_err(RouteConfigRuntimeError::from_redis)?
+        {
+            Some(active) if active.metadata().id() == expected_revision => Some(expected_revision),
+            Some(active) => {
+                return Err(RouteConfigRuntimeError::revision_conflict(format!(
+                    "Gateway console Redis active revision conflict: expected '{}', actual '{}'",
+                    expected_revision,
+                    active.metadata().id()
+                )));
+            }
+            None => None,
+        };
+
+        // Revision IDs intentionally derive from sequence + document digest.
+        // A failed transaction can therefore leave an immutable archive (and
+        // Redis revision payload) that a safe retry must reuse instead of
+        // recreating with a different timestamp under the same ID. The audit
+        // message remains part of the retry intent and must match exactly.
+        let revision = match self
+            .persistence
+            .load_revision(proposed_revision.id())
+            .map_err(RouteConfigRuntimeError::from_persistence)?
+        {
+            Some(stored)
+                if stored.metadata().sequence() == proposed_revision.sequence()
+                    && stored.metadata().parent() == proposed_revision.parent()
+                    && stored.metadata().actor() == proposed_revision.actor()
+                    && stored.metadata().message() == proposed_revision.message()
+                    && stored.metadata().document_digest()
+                        == proposed_revision.document_digest()
+                    && stored.metadata().yaml_digest() == proposed_revision.yaml_digest() =>
+            {
+                stored.metadata().clone()
+            }
+            Some(_) => {
+                return Err(RouteConfigRuntimeError::new(
+                    "console_revision_collision",
+                    format!(
+                        "Existing immutable revision '{}' does not match the retry candidate",
+                        proposed_revision.id()
+                    ),
+                ));
+            }
+            None => proposed_revision,
+        };
+        let redis_revision =
+            RouteConfigRedisRevision::new(revision.clone(), validated.document().clone())
+                .map_err(RouteConfigRuntimeError::from_redis)?;
 
         self.persistence
             .archive_revision_locked(&guard, &revision, &canonical)
@@ -402,7 +457,7 @@ impl RouteConfigCoordinator {
         match self
             .redis
             .activate_revision(
-                Some(expected_revision),
+                expected_redis_revision,
                 &redis_revision,
                 &prepared,
                 &activated,

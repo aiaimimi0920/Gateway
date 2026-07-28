@@ -35,7 +35,13 @@ pub async fn handle_chat_completions(
     let canonical = normalize_chat_completions(body)?;
     let mut ctx = PipelineContext::new(canonical, token);
 
-    apply_public_request_headers(&mut ctx, &headers, &state.config, &[]);
+    apply_public_request_headers(
+        &mut ctx,
+        &headers,
+        &state.config,
+        state.console_auth.as_ref(),
+        &[],
+    )?;
     ctx.query_params = query_params;
 
     match run_pipeline(ctx, &state).await? {
@@ -63,7 +69,13 @@ pub async fn handle_legacy_completions(
 ) -> Result<Response, GatewayError> {
     let canonical = normalize_legacy_completions(body)?;
     let mut ctx = PipelineContext::new(canonical, token);
-    apply_public_request_headers(&mut ctx, &headers, &state.config, &[]);
+    apply_public_request_headers(
+        &mut ctx,
+        &headers,
+        &state.config,
+        state.console_auth.as_ref(),
+        &[],
+    )?;
     ctx.query_params = query_params;
 
     match run_pipeline(ctx, &state).await? {

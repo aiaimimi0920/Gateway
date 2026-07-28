@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsoleApi } from "../api/console";
 import type { ManagementSession } from "../api/contracts";
 import { GatewayApiError } from "../api/errors";
@@ -46,6 +46,16 @@ function createApi(overrides: Partial<ConsoleApi> = {}): ConsoleApi {
     }),
     rotateSession: vi.fn().mockResolvedValue({ success: true }),
     logout: vi.fn().mockResolvedValue({ success: true }),
+    probeCredential: vi.fn().mockResolvedValue({
+      result: {
+        credentialId: "credential-1",
+        providerId: "provider-1",
+        status: "unsupported",
+        message: "Credential probe is unavailable in this test.",
+        checkedAt: "2099-01-01T00:00:00Z",
+      },
+    }),
+    getAccountGroupSummary: vi.fn().mockRejectedValue(new Error("summary unavailable")),
     getRouteConfig: vi.fn().mockResolvedValue({
       routeConfig: {
         revision: { id: "r1-deadbeef", sequence: 1 },
@@ -147,6 +157,11 @@ function SessionHarness() {
 }
 
 describe("ManagementSessionProvider", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
+
   it("checks bootstrap status before presenting login", async () => {
     let resolveStatus:
       | ((value: {
@@ -175,8 +190,8 @@ describe("ManagementSessionProvider", () => {
       </Providers>,
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent(/checking/i);
-    expect(screen.queryByRole("heading", { name: /sign in/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/正在检查 Gateway 管理员初始化状态/i);
+    expect(screen.queryByRole("heading", { name: /登录/i })).not.toBeInTheDocument();
     expect(getBootstrapStatus).toHaveBeenCalledOnce();
 
     await act(async () =>
@@ -187,7 +202,7 @@ describe("ManagementSessionProvider", () => {
       }),
     );
 
-    expect(await screen.findByRole("heading", { name: /sign in/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /登录/i })).toBeInTheDocument();
   });
 
   it("restores a versioned session only after bootstrap status", async () => {
@@ -470,24 +485,24 @@ describe("ManagementSessionProvider", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: /set up administrator/i }),
+      await screen.findByRole("heading", { name: /初始化管理员/i }),
     ).toBeInTheDocument();
-    await user.type(screen.getByLabelText(/^management token$/i), "new-management-token");
+    await user.type(screen.getByLabelText(/^管理密钥$/i), "new-management-token");
     await user.type(
-      screen.getByLabelText(/confirm management token/i),
+      screen.getByLabelText(/确认管理密钥/i),
       "new-management-token",
     );
-    await user.click(screen.getByRole("button", { name: /create administrator/i }));
+    await user.click(screen.getByRole("button", { name: /创建管理员/i }));
 
     expect(
-      await screen.findByRole("heading", { name: /session unavailable/i }),
+      await screen.findByRole("heading", { name: /会话不可用/i }),
     ).toBeInTheDocument();
     expect(readManagementSessionToken()).toBe("new-management-token");
     expect(
-      screen.queryByRole("heading", { name: /set up administrator/i }),
+      screen.queryByRole("heading", { name: /初始化管理员/i }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /retry initialization/i }));
+    await user.click(screen.getByRole("button", { name: /重新初始化/i }));
 
     expect(await screen.findByText("Console ready")).toBeInTheDocument();
     expect(getBootstrapStatus).toHaveBeenCalledTimes(2);
@@ -524,14 +539,14 @@ describe("ManagementSessionProvider", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: /set up administrator/i }),
+      await screen.findByRole("heading", { name: /初始化管理员/i }),
     ).toBeInTheDocument();
-    await user.type(screen.getByLabelText(/^management token$/i), "new-management-token");
+    await user.type(screen.getByLabelText(/^管理密钥$/i), "new-management-token");
     await user.type(
-      screen.getByLabelText(/confirm management token/i),
+      screen.getByLabelText(/确认管理密钥/i),
       "new-management-token",
     );
-    await user.click(screen.getByRole("button", { name: /create administrator/i }));
+    await user.click(screen.getByRole("button", { name: /创建管理员/i }));
 
     expect(await screen.findByText("Console ready")).toBeInTheDocument();
     expect(getBootstrapStatus).toHaveBeenCalledTimes(2);

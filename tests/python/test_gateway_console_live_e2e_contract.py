@@ -32,8 +32,8 @@ class GatewayConsoleLiveE2EContractTests(unittest.TestCase):
         self.assertIn("GATEWAY_LIVE_EXPECT_RESTORED_MODEL", script)
         self.assertIn("GATEWAY_LIVE_EXPECT_REMOVED_MODEL", script)
         self.assertIn("restores a live archived revision through the browser console", spec)
-        self.assertIn("Restore revision as active config", spec)
-        self.assertIn("Confirm restore", spec)
+        self.assertIn('name: "恢复为激活配置"', spec)
+        self.assertIn('name: "确认恢复"', spec)
         self.assertIn("GATEWAY_LIVE_EXPECT_REMOVED_MODEL", spec)
 
     def test_live_console_runner_routes_chat_completions_through_local_fixture_upstream(self):

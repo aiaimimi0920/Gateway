@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use redis::AsyncCommands;
 use rquest::Method;
+use serde::Serialize;
 use tracing::warn;
 
 use crate::db;
@@ -22,6 +23,20 @@ pub struct ProviderProbeOutcome {
     pub provider_account: db::GatewayProviderAccountView,
     pub error_message: Option<String>,
     pub provider_quota: Option<GatewayProviderQuotaView>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ProviderPayloadProbeStatus {
+    Passed,
+    Failed,
+    Unsupported,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProviderPayloadProbeReport {
+    pub status: ProviderPayloadProbeStatus,
+    pub message: String,
 }
 
 #[derive(Debug, Clone)]
@@ -369,64 +384,19 @@ pub async fn probe_provider_account_payload(
             provider_account.id
         ))
     })?;
-    let client = rquest::Client::builder()
-        .timeout(Duration::from_secs(state.config.upstream_timeout_secs))
-        .build()
-        .map_err(|error| GatewayError::server_error(format!("build probe http client: {error}")))?;
-    let base_url = payload.base_url.trim_end_matches('/').to_string();
-
     if fixed_models_for_payload(&payload).is_some() {
         return Ok(());
     }
 
+    let client = build_probe_http_client(state)?;
+    if let Some(result) = probe_known_http_payload(&client, &payload, ProbePolicy::Legacy).await {
+        return result;
+    }
+
     match payload.canonical_adapter() {
-        "openai_compatible" | "anthropic_compatible" => {
-            send_probe_request(
-                &client,
-                Method::GET,
-                format!("{base_url}/models"),
-                &payload,
-                ProbeExpectation::HttpOk,
-            )
-            .await
-        }
-        "grok_compatible" => {
-            send_probe_request(
-                &client,
-                Method::GET,
-                base_url,
-                &payload,
-                ProbeExpectation::AllowClientErrors,
-            )
-            .await
-        }
         "freebuff_compatible" => freebuff::probe_payload(&client, &payload).await,
-        "search_api_compatible" => {
-            let path = payload
-                .balance_path
-                .clone()
-                .or_else(|| payload.search_path.clone())
-                .unwrap_or_else(|| "/v1/credits/balance".to_string());
-            send_probe_request(
-                &client,
-                Method::GET,
-                build_absolute_url(&base_url, &path),
-                &payload,
-                ProbeExpectation::HttpOk,
-            )
-            .await
-        }
-        "producer_compatible" => {
-            send_probe_request(
-                &client,
-                Method::GET,
-                format!("{base_url}/__api/billing/credits"),
-                &payload,
-                ProbeExpectation::HttpOk,
-            )
-            .await
-        }
         "udio_compatible" => {
+            let base_url = payload.base_url.trim_end_matches('/');
             send_probe_request(
                 &client,
                 Method::GET,
@@ -436,30 +406,206 @@ pub async fn probe_provider_account_payload(
             )
             .await
         }
-        "custom_http" | "provider_passthrough" => {
-            let head_result = send_probe_request(
-                &client,
-                Method::HEAD,
-                base_url.clone(),
-                &payload,
-                ProbeExpectation::AllowClientErrors,
-            )
-            .await;
-            match head_result {
-                Ok(()) => Ok(()),
-                Err(_error) => {
-                    send_probe_request(
-                        &client,
-                        Method::GET,
-                        base_url,
-                        &payload,
-                        ProbeExpectation::AllowClientErrors,
-                    )
-                    .await
-                }
-            }
-        }
         _ => Ok(()),
+    }
+}
+
+pub async fn probe_provider_payload_for_console(
+    client: &rquest::Client,
+    payload: &ProviderAccountPayload,
+) -> ProviderPayloadProbeReport {
+    if payload_requires_browser_backing(payload) {
+        return unsupported_probe_report(
+            "Connectivity probe is unsupported for browser-backed credentials.",
+        );
+    }
+    if fixed_models_for_payload(payload).is_some() {
+        return unsupported_probe_report(
+            "Connectivity probe is unsupported for fixed-model credentials.",
+        );
+    }
+    if payload.canonical_adapter() == "search_api_compatible"
+        && payload
+            .balance_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|path| !path.is_empty())
+            .is_none()
+    {
+        return unsupported_probe_report(
+            "Connectivity probe is unsupported for search_api credentials without an explicit balance_path.",
+        );
+    }
+
+    match probe_known_http_payload(client, payload, ProbePolicy::Strict).await {
+        Some(Ok(())) => ProviderPayloadProbeReport {
+            status: ProviderPayloadProbeStatus::Passed,
+            message: "Credential connectivity probe passed.".to_string(),
+        },
+        Some(Err(error)) => failed_probe_report(&error.message),
+        None => {
+            let adapter = payload.canonical_adapter();
+            let message = match adapter {
+                "freebuff_compatible" => {
+                    "Connectivity probe is unsupported for stateful adapter 'freebuff_compatible'."
+                        .to_string()
+                }
+                "udio_compatible"
+                | "lumalabs_compatible"
+                | "gemini_web_compatible"
+                | "gemini_canvas_compatible"
+                | "chatgpt_web_reverse_compatible"
+                | "qwen_web_compatible"
+                | "aistudio_web_reverse_compatible"
+                | "suno_compatible" => {
+                    format!("Connectivity probe is unsupported for browser adapter '{adapter}'.")
+                }
+                _ => format!("Connectivity probe is unsupported for adapter '{adapter}'."),
+            };
+            unsupported_probe_report(message)
+        }
+    }
+}
+
+fn build_probe_http_client(state: &AppState) -> Result<rquest::Client, GatewayError> {
+    rquest::Client::builder()
+        .timeout(Duration::from_secs(state.config.upstream_timeout_secs))
+        .build()
+        .map_err(|error| GatewayError::server_error(format!("build probe http client: {error}")))
+}
+
+fn failed_probe_report(message: &str) -> ProviderPayloadProbeReport {
+    let message = sanitize_provider_error_message(message);
+    ProviderPayloadProbeReport {
+        status: ProviderPayloadProbeStatus::Failed,
+        message: if message.is_empty() {
+            "Credential connectivity probe failed.".to_string()
+        } else {
+            message
+        },
+    }
+}
+
+fn unsupported_probe_report(message: impl Into<String>) -> ProviderPayloadProbeReport {
+    ProviderPayloadProbeReport {
+        status: ProviderPayloadProbeStatus::Unsupported,
+        message: message.into(),
+    }
+}
+
+fn payload_requires_browser_backing(payload: &ProviderAccountPayload) -> bool {
+    let browser_backed = crate::routing::candidate::ProviderExecutionMode::BrowserBacked;
+    payload.execution_mode == Some(browser_backed)
+        || payload
+            .endpoint_execution_modes
+            .as_ref()
+            .is_some_and(|modes| modes.values().any(|mode| *mode == browser_backed))
+}
+
+#[derive(Clone, Copy)]
+enum ProbePolicy {
+    Legacy,
+    Strict,
+}
+
+async fn probe_known_http_payload(
+    client: &rquest::Client,
+    payload: &ProviderAccountPayload,
+    policy: ProbePolicy,
+) -> Option<Result<(), GatewayError>> {
+    let base_url = payload.base_url.trim_end_matches('/').to_string();
+    let strict_expectation = ProbeExpectation::HttpOk;
+    let reachability_expectation = match policy {
+        ProbePolicy::Legacy => ProbeExpectation::AllowClientErrors,
+        ProbePolicy::Strict => ProbeExpectation::HttpOk,
+    };
+
+    match payload.canonical_adapter() {
+        "openai_compatible" | "anthropic_compatible" => Some(
+            send_probe_request(
+                client,
+                Method::GET,
+                format!("{base_url}/models"),
+                payload,
+                strict_expectation,
+            )
+            .await,
+        ),
+        "grok_compatible" => match policy {
+            ProbePolicy::Legacy => Some(
+                send_probe_request(
+                    client,
+                    Method::GET,
+                    base_url,
+                    payload,
+                    reachability_expectation,
+                )
+                .await,
+            ),
+            ProbePolicy::Strict => None,
+        },
+        "search_api_compatible" => {
+            let path = match policy {
+                ProbePolicy::Legacy => payload
+                    .balance_path
+                    .clone()
+                    .or_else(|| payload.search_path.clone())
+                    .unwrap_or_else(|| "/v1/credits/balance".to_string()),
+                ProbePolicy::Strict => payload
+                    .balance_path
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|path| !path.is_empty())
+                    .map(str::to_string)?,
+            };
+            Some(
+                send_probe_request(
+                    client,
+                    Method::GET,
+                    build_absolute_url(&base_url, &path),
+                    payload,
+                    strict_expectation,
+                )
+                .await,
+            )
+        }
+        "producer_compatible" => Some(
+            send_probe_request(
+                client,
+                Method::GET,
+                format!("{base_url}/__api/billing/credits"),
+                payload,
+                strict_expectation,
+            )
+            .await,
+        ),
+        "custom_http" | "provider_passthrough" => match policy {
+            ProbePolicy::Legacy => {
+                let head_result = send_probe_request(
+                    client,
+                    Method::HEAD,
+                    base_url.clone(),
+                    payload,
+                    reachability_expectation,
+                )
+                .await;
+                Some(match head_result {
+                    Ok(()) => Ok(()),
+                    Err(_error) => {
+                        send_probe_request(
+                            client,
+                            Method::GET,
+                            base_url,
+                            payload,
+                            reachability_expectation,
+                        )
+                        .await
+                    }
+                })
+            }
+            ProbePolicy::Strict => None,
+        },
+        _ => None,
     }
 }
 
@@ -713,5 +859,66 @@ mod tests {
         assert!(sanitized.contains("[REDACTED]"));
         assert!(!sanitized.contains("persisted-secret"));
         assert!(!sanitized.contains("private-session"));
+    }
+
+    fn probe_test_client() -> rquest::Client {
+        rquest::Client::builder()
+            .timeout(Duration::from_millis(100))
+            .build()
+            .expect("probe test client")
+    }
+
+    #[tokio::test]
+    async fn console_probe_rejects_any_browser_backed_execution_mode_without_network() {
+        let mut execution_mode_payload = codex_payload("http://127.0.0.1:1", None);
+        execution_mode_payload.execution_mode = Some(ProviderExecutionMode::BrowserBacked);
+
+        let mut endpoint_mode_payload = codex_payload("http://127.0.0.1:1", None);
+        endpoint_mode_payload.endpoint_execution_modes = Some(HashMap::from([(
+            "chat_completions".to_string(),
+            ProviderExecutionMode::BrowserBacked,
+        )]));
+
+        for payload in [execution_mode_payload, endpoint_mode_payload] {
+            let report = probe_provider_payload_for_console(&probe_test_client(), &payload).await;
+            assert_eq!(report.status, ProviderPayloadProbeStatus::Unsupported);
+            assert!(report.message.contains("browser-backed"));
+        }
+    }
+
+    #[tokio::test]
+    async fn strict_console_probe_does_not_probe_grok_or_generic_http_adapters() {
+        for adapter in ["grok_compatible", "custom_http", "provider_passthrough"] {
+            let mut payload = codex_payload("http://127.0.0.1:1", None);
+            payload.adapter = adapter.to_string();
+
+            let report = probe_provider_payload_for_console(&probe_test_client(), &payload).await;
+            assert_eq!(report.status, ProviderPayloadProbeStatus::Unsupported);
+            assert!(report.message.contains(adapter));
+        }
+    }
+
+    #[tokio::test]
+    async fn strict_search_probe_requires_explicit_balance_path() {
+        let mut payload = codex_payload("http://127.0.0.1:1", None);
+        payload.adapter = "search_api_compatible".to_string();
+        payload.search_path = Some("/search".to_string());
+        payload.balance_path = None;
+
+        let report = probe_provider_payload_for_console(&probe_test_client(), &payload).await;
+        assert_eq!(report.status, ProviderPayloadProbeStatus::Unsupported);
+        assert!(report.message.contains("balance_path"));
+    }
+
+    #[tokio::test]
+    async fn strict_console_probe_does_not_run_freebuff_stateful_probe() {
+        let mut payload = codex_payload("http://127.0.0.1:1", None);
+        payload.adapter = "freebuff_compatible".to_string();
+
+        let report = probe_provider_payload_for_console(&probe_test_client(), &payload).await;
+
+        assert_eq!(report.status, ProviderPayloadProbeStatus::Unsupported);
+        assert!(report.message.contains("stateful"));
+        assert!(report.message.contains("freebuff_compatible"));
     }
 }

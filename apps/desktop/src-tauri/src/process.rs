@@ -752,7 +752,10 @@ mod tests {
         };
         let profile = portable_profile();
 
-        assert_eq!(startup_preflight_failure_message(&profile, &redis_only), None);
+        assert_eq!(
+            startup_preflight_failure_message(&profile, &redis_only),
+            None
+        );
     }
 
     #[test]

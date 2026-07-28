@@ -5,7 +5,7 @@
 // exposes fast candidate resolution and model listing.
 // ---------------------------------------------------------------------------
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use arc_swap::ArcSwap;
@@ -66,6 +66,10 @@ pub struct CompiledProvider {
 pub struct CompiledCredential {
     pub id: String,
     pub payload: ProviderAccountPayload,
+    /// Whether this credential participates in runtime routing. Disabled
+    /// credentials remain compiled so the inventory and management console can
+    /// display and re-enable them without losing their identity.
+    pub enabled: bool,
     /// Models this credential can serve. Empty = any model the provider supports.
     pub supported_models: Vec<String>,
     /// OAuth token refresh config. When present, access_token is auto-refreshed.
@@ -254,6 +258,127 @@ pub struct RouteConfigYaml {
     /// Model aliases: `"sonnet"` → `"claude-sonnet-4-6"`.
     #[serde(default)]
     pub aliases: HashMap<String, String>,
+    /// Optional account-group metadata used by the web console and trusted
+    /// request-time routing selectors.
+    #[serde(default)]
+    pub account_groups: Vec<AccountGroupYaml>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountGroupYaml {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub billing_multiplier: Option<f64>,
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub provider_credential_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteAccountGroupInventory {
+    pub account_groups: Vec<RouteAccountGroupView>,
+    pub accounts: Vec<RouteAccountView>,
+    pub providers: Vec<RouteAccountProviderView>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteAccountGroupView {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub billing_multiplier: f64,
+    pub configured_billing_multiplier: Option<f64>,
+    pub enabled: bool,
+    pub notes: Option<String>,
+    pub member_count: usize,
+    pub provider_credential_ids: Vec<String>,
+    pub providers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteAccountView {
+    pub id: String,
+    pub display_name: String,
+    pub provider_id: String,
+    pub provider_label: String,
+    /// Stable service/vendor identifier supplied by the route document.
+    /// This is intentionally distinct from `provider_id`: multiple providers
+    /// can belong to the same vendor while retaining separate endpoints.
+    pub vendor_key: Option<String>,
+    /// Human-readable service/vendor name supplied by the route document.
+    pub vendor_name: Option<String>,
+    pub provider_preset: Option<String>,
+    pub credential_id: Option<String>,
+    pub base_url: Option<String>,
+    pub mode: String,
+    /// Effective runtime routing state. Disabled accounts remain visible in
+    /// inventory so operators can re-enable them later.
+    pub enabled: bool,
+    pub supported_models: Vec<String>,
+    pub group_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteAccountProviderView {
+    pub id: String,
+    pub label: String,
+    /// Stable service/vendor identifier supplied by the route document.
+    pub vendor_key: Option<String>,
+    /// Human-readable service/vendor name supplied by the route document.
+    pub vendor_name: Option<String>,
+    pub preset: Option<String>,
+    pub base_url: Option<String>,
+    pub account_ids: Vec<String>,
+    pub supported_models: Vec<String>,
+}
+
+#[derive(Debug, thiserror::Error, Clone, Eq, PartialEq)]
+pub enum RouteAccountGroupSelectionError {
+    #[error("requested account group '{0}' was not found")]
+    NotFound(String),
+    #[error("requested account group '{0}' is disabled")]
+    Disabled(String),
+}
+
+/// Validated request-time account-group membership constraint.
+///
+/// Candidate sources use different storage backends, but all of them resolve
+/// to a concrete `RouteCandidate`. Applying one constraint to that common type
+/// makes group isolation independent of whether a candidate came from the
+/// access catalog, Redis, PostgreSQL routing, or the YAML document.
+#[derive(Debug, Clone)]
+pub struct RouteAccountGroupConstraint {
+    requested_group_id: Option<String>,
+    allowed_account_ids: Option<HashSet<String>>,
+}
+
+impl RouteAccountGroupConstraint {
+    pub fn requested_group_id(&self) -> Option<&str> {
+        self.requested_group_id.as_deref()
+    }
+
+    pub fn allows_candidate(&self, candidate: &RouteCandidate) -> bool {
+        self.allowed_account_ids
+            .as_ref()
+            .is_none_or(|allowed| allowed.contains(&route_candidate_account_id(candidate)))
+    }
+
+    pub fn filter_candidates(&self, candidates: Vec<RouteCandidate>) -> Vec<RouteCandidate> {
+        candidates
+            .into_iter()
+            .filter(|candidate| self.allows_candidate(candidate))
+            .collect()
+    }
 }
 
 /// A single credential entry within a provider's `credentials` array.
@@ -294,6 +419,10 @@ pub struct ProviderCredentialYaml {
     pub runtime_state_object_key: Option<String>,
     #[serde(default)]
     pub account_name: Option<String>,
+    /// Optional runtime switch for this credential. Missing means enabled for
+    /// backwards compatibility with existing route documents.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
     #[serde(default)]
     pub execution_mode: Option<ProviderExecutionMode>,
     #[serde(default)]
@@ -326,6 +455,14 @@ pub struct ProviderCredentialYaml {
 pub struct ProviderConfigYaml {
     pub id: String,
     pub label: Option<String>,
+    /// Optional stable service/vendor identifier used by the management UI.
+    /// Kept separate from `id` because several provider endpoints can belong
+    /// to one vendor.  Missing fields remain compatible with legacy YAML.
+    #[serde(default, alias = "vendorKey", skip_serializing_if = "Option::is_none")]
+    pub vendor_key: Option<String>,
+    /// Optional human-readable service/vendor name used by the management UI.
+    #[serde(default, alias = "vendorName", skip_serializing_if = "Option::is_none")]
+    pub vendor_name: Option<String>,
     /// Built-in preset name, e.g. `"codex"`, `"openai"`, `"xfyun"`, or `"anthropic"`.
     pub preset: Option<String>,
     pub base_url: String,
@@ -449,6 +586,14 @@ pub struct RouteConfigSnapshot {
     provider_fingerprints: HashMap<String, String>,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct CredentialProbeTarget {
+    pub credential_id: String,
+    pub provider_id: String,
+    pub enabled: bool,
+    pub payload: ProviderAccountPayload,
+}
+
 impl std::fmt::Debug for RouteConfigSnapshot {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -514,6 +659,26 @@ impl RouteConfigSnapshot {
         resolve_candidates_inner(self.compiled(), model)
     }
 
+    pub fn resolve_candidates_for_account_group(
+        &self,
+        model: Option<&str>,
+        account_group_id: Option<&str>,
+    ) -> Result<Vec<RouteCandidate>, RouteAccountGroupSelectionError> {
+        let constraint = self.account_group_constraint(account_group_id)?;
+        Ok(resolve_candidates_inner_with_account_filter(
+            self.compiled(),
+            model,
+            constraint.allowed_account_ids.as_ref(),
+        ))
+    }
+
+    pub fn account_group_constraint(
+        &self,
+        account_group_id: Option<&str>,
+    ) -> Result<RouteAccountGroupConstraint, RouteAccountGroupSelectionError> {
+        build_account_group_constraint(self.document(), account_group_id)
+    }
+
     pub fn list_models(&self) -> Vec<ModelInfo> {
         list_models_inner(self.compiled())
     }
@@ -528,6 +693,53 @@ impl RouteConfigSnapshot {
 
     pub(crate) fn get_providers(&self) -> Vec<CompiledProvider> {
         self.compiled.providers.clone()
+    }
+
+    pub fn account_group_inventory(&self) -> RouteAccountGroupInventory {
+        build_route_account_group_inventory(self.document(), self.compiled())
+    }
+
+    pub(crate) fn select_credential_probe_target(
+        &self,
+        credential_id: &str,
+    ) -> Option<CredentialProbeTarget> {
+        let credential_id = credential_id.trim();
+        if credential_id.is_empty() {
+            return None;
+        }
+
+        for provider in &self.compiled.providers {
+            if provider.credential_pool.is_empty() {
+                let default_id = provider_default_account_id(&provider.id);
+                if credential_id == default_id {
+                    return Some(CredentialProbeTarget {
+                        credential_id: default_id,
+                        provider_id: provider.id.clone(),
+                        enabled: true,
+                        payload: provider.payload.clone(),
+                    });
+                }
+                continue;
+            }
+
+            if let Some(credential) = provider
+                .credential_pool
+                .iter()
+                .find(|credential| credential.id.trim() == credential_id)
+            {
+                let normalized_id = credential.id.trim().to_string();
+                let mut payload = apply_token_override(credential);
+                payload.credential_id = Some(normalized_id.clone());
+                return Some(CredentialProbeTarget {
+                    credential_id: normalized_id,
+                    provider_id: provider.id.clone(),
+                    enabled: credential.enabled,
+                    payload,
+                });
+            }
+        }
+
+        None
     }
 }
 
@@ -1021,6 +1233,7 @@ fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvider, anyhow:
                 Ok(CompiledCredential {
                     id: cred_id,
                     payload: cred_payload,
+                    enabled: cred.enabled.unwrap_or(true),
                     supported_models: cred.supported_models.clone(),
                     refresh_config,
                 })
@@ -1133,6 +1346,10 @@ pub(crate) fn effective_credential_id<'a>(
         .as_deref()
         .map(std::borrow::Cow::Borrowed)
         .unwrap_or_else(|| std::borrow::Cow::Owned(format!("{provider_id}-cred-{index}")))
+}
+
+pub(crate) fn provider_default_account_id(provider_id: &str) -> String {
+    format!("{provider_id}::default")
 }
 
 // ---------------------------------------------------------------------------
@@ -1252,6 +1469,14 @@ fn resolve_alias_inner(guard: &RouteConfigInner, model: &str) -> Option<String> 
 }
 
 fn resolve_candidates_inner(guard: &RouteConfigInner, model: Option<&str>) -> Vec<RouteCandidate> {
+    resolve_candidates_inner_with_account_filter(guard, model, None)
+}
+
+fn resolve_candidates_inner_with_account_filter(
+    guard: &RouteConfigInner,
+    model: Option<&str>,
+    allowed_account_ids: Option<&HashSet<String>>,
+) -> Vec<RouteCandidate> {
     let provider_map: HashMap<&str, &CompiledProvider> = guard
         .providers
         .iter()
@@ -1340,11 +1565,260 @@ fn resolve_candidates_inner(guard: &RouteConfigInner, model: Option<&str>) -> Ve
     matched
         .into_iter()
         .filter_map(|matched| {
-            provider_map.get(matched.id).map(|provider| {
-                provider_to_candidate(provider, resolved, alias_used, matched.priority)
+            provider_map.get(matched.id).and_then(|provider| {
+                provider_to_candidate(
+                    provider,
+                    resolved,
+                    alias_used,
+                    matched.priority,
+                    allowed_account_ids,
+                )
             })
         })
         .collect()
+}
+
+fn build_route_account_group_inventory(
+    document: &RouteConfigYaml,
+    compiled: &RouteConfigInner,
+) -> RouteAccountGroupInventory {
+    let provider_config_by_id = document
+        .providers
+        .iter()
+        .map(|provider| (provider.id.as_str(), provider))
+        .collect::<HashMap<_, _>>();
+    let mut memberships: HashMap<&str, Vec<&AccountGroupYaml>> = HashMap::new();
+    for group in &document.account_groups {
+        for account_id in &group.provider_credential_ids {
+            let trimmed = account_id.trim();
+            if !trimmed.is_empty() {
+                memberships.entry(trimmed).or_default().push(group);
+            }
+        }
+    }
+
+    let mut accounts = Vec::new();
+    let mut providers = Vec::new();
+    let mut account_provider_map = HashMap::<String, String>::new();
+
+    for provider in &compiled.providers {
+        let provider_config = provider_config_by_id.get(provider.id.as_str()).copied();
+        let provider_vendor_key =
+            provider_config.and_then(|config| trim_optional_field(config.vendor_key.as_deref()));
+        let provider_vendor_name =
+            provider_config.and_then(|config| trim_optional_field(config.vendor_name.as_deref()));
+        let provider_preset =
+            provider_config.and_then(|config| trim_optional_field(config.preset.as_deref()));
+        let provider_base_url = trim_optional_field(Some(provider.payload.base_url.as_str()));
+        let mut provider_account_ids = Vec::new();
+        if provider.credential_pool.is_empty() {
+            let account_id = provider_default_account_id(&provider.id);
+            let account_groups = memberships
+                .get(account_id.as_str())
+                .cloned()
+                .unwrap_or_default();
+            let display_name = provider
+                .payload
+                .account_name
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .unwrap_or_else(|| provider.label.clone());
+            provider_account_ids.push(account_id.clone());
+            account_provider_map.insert(account_id.clone(), provider.id.clone());
+            accounts.push(RouteAccountView {
+                id: account_id,
+                display_name,
+                provider_id: provider.id.clone(),
+                provider_label: provider.label.clone(),
+                vendor_key: provider_vendor_key.clone(),
+                vendor_name: provider_vendor_name.clone(),
+                provider_preset: provider_preset.clone(),
+                credential_id: None,
+                base_url: provider_base_url.clone(),
+                mode: "provider_default".to_string(),
+                enabled: true,
+                supported_models: provider.supported_models.clone(),
+                group_ids: account_groups
+                    .iter()
+                    .map(|group| group.id.trim().to_string())
+                    .collect(),
+            });
+        } else {
+            for credential in &provider.credential_pool {
+                let account_id = credential.id.trim().to_string();
+                let account_groups = memberships
+                    .get(account_id.as_str())
+                    .cloned()
+                    .unwrap_or_default();
+                let display_name = credential
+                    .payload
+                    .account_name
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string)
+                    .unwrap_or_else(|| account_id.clone());
+                provider_account_ids.push(account_id.clone());
+                account_provider_map.insert(account_id.clone(), provider.id.clone());
+                accounts.push(RouteAccountView {
+                    id: account_id.clone(),
+                    display_name,
+                    provider_id: provider.id.clone(),
+                    provider_label: provider.label.clone(),
+                    vendor_key: provider_vendor_key.clone(),
+                    vendor_name: provider_vendor_name.clone(),
+                    provider_preset: provider_preset.clone(),
+                    credential_id: Some(account_id),
+                    base_url: trim_optional_field(Some(credential.payload.base_url.as_str())),
+                    mode: "credential".to_string(),
+                    enabled: credential.enabled,
+                    supported_models: if credential.supported_models.is_empty() {
+                        provider.supported_models.clone()
+                    } else {
+                        credential.supported_models.clone()
+                    },
+                    group_ids: account_groups
+                        .iter()
+                        .map(|group| group.id.trim().to_string())
+                        .collect(),
+                });
+            }
+        }
+
+        providers.push(RouteAccountProviderView {
+            id: provider.id.clone(),
+            label: provider.label.clone(),
+            vendor_key: provider_vendor_key,
+            vendor_name: provider_vendor_name,
+            preset: provider_preset,
+            base_url: provider_base_url,
+            account_ids: provider_account_ids,
+            supported_models: provider.supported_models.clone(),
+        });
+    }
+
+    let mut account_groups = document
+        .account_groups
+        .iter()
+        .map(|group| {
+            let mut provider_ids = BTreeSet::new();
+            let provider_credential_ids = group
+                .provider_credential_ids
+                .iter()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+                .collect::<Vec<_>>();
+            for account_id in &provider_credential_ids {
+                if let Some(provider_id) = account_provider_map.get(account_id) {
+                    provider_ids.insert(provider_id.clone());
+                }
+            }
+
+            RouteAccountGroupView {
+                id: group.id.trim().to_string(),
+                name: group.name.trim().to_string(),
+                description: trim_optional_field(group.description.as_deref()),
+                billing_multiplier: group.billing_multiplier.unwrap_or(1.0),
+                configured_billing_multiplier: group.billing_multiplier,
+                enabled: group.enabled.unwrap_or(true),
+                notes: trim_optional_field(group.notes.as_deref()),
+                member_count: provider_credential_ids.len(),
+                provider_credential_ids,
+                providers: provider_ids.into_iter().collect(),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    account_groups.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+    accounts.sort_by(|left, right| {
+        left.display_name
+            .cmp(&right.display_name)
+            .then(left.id.cmp(&right.id))
+    });
+    providers.sort_by(|left, right| left.label.cmp(&right.label).then(left.id.cmp(&right.id)));
+
+    RouteAccountGroupInventory {
+        account_groups,
+        accounts,
+        providers,
+    }
+}
+
+fn account_group_allowed_accounts(
+    document: &RouteConfigYaml,
+    account_group_id: Option<&str>,
+) -> Result<Option<HashSet<String>>, RouteAccountGroupSelectionError> {
+    let Some(requested_group_id) = account_group_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(None);
+    };
+
+    let Some(group) = document
+        .account_groups
+        .iter()
+        .find(|group| group.id.trim() == requested_group_id)
+    else {
+        return Err(RouteAccountGroupSelectionError::NotFound(
+            requested_group_id.to_string(),
+        ));
+    };
+
+    if !group.enabled.unwrap_or(true) {
+        return Err(RouteAccountGroupSelectionError::Disabled(
+            requested_group_id.to_string(),
+        ));
+    }
+
+    let allowed_accounts = group
+        .provider_credential_ids
+        .iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect::<HashSet<_>>();
+
+    Ok(Some(allowed_accounts))
+}
+
+fn build_account_group_constraint(
+    document: &RouteConfigYaml,
+    account_group_id: Option<&str>,
+) -> Result<RouteAccountGroupConstraint, RouteAccountGroupSelectionError> {
+    let requested_group_id = account_group_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+    let allowed_account_ids = account_group_allowed_accounts(document, account_group_id)?;
+    Ok(RouteAccountGroupConstraint {
+        requested_group_id,
+        allowed_account_ids,
+    })
+}
+
+fn route_candidate_account_id(candidate: &RouteCandidate) -> String {
+    candidate
+        .provider_credential_id
+        .as_deref()
+        .or(candidate.payload.credential_id.as_deref())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| provider_default_account_id(&candidate.provider_account_id))
+}
+
+#[cfg(test)]
+fn candidate_account_group_member_id(candidate: &RouteCandidate) -> String {
+    route_candidate_account_id(candidate)
+}
+
+fn trim_optional_field(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
 }
 
 fn reuse_unchanged_providers(
@@ -1422,6 +1896,7 @@ impl RouteConfigStore {
             providers: Vec::new(),
             model_routes: Vec::new(),
             aliases: HashMap::new(),
+            account_groups: Vec::new(),
         };
         Self::from_unchecked_document(
             document,
@@ -1670,6 +2145,22 @@ impl RouteConfigStore {
         self.snapshot().resolve_candidates(model)
     }
 
+    pub fn resolve_candidates_for_account_group(
+        &self,
+        model: Option<&str>,
+        account_group_id: Option<&str>,
+    ) -> Result<Vec<RouteCandidate>, RouteAccountGroupSelectionError> {
+        self.snapshot()
+            .resolve_candidates_for_account_group(model, account_group_id)
+    }
+
+    pub fn account_group_constraint(
+        &self,
+        account_group_id: Option<&str>,
+    ) -> Result<RouteAccountGroupConstraint, RouteAccountGroupSelectionError> {
+        self.snapshot().account_group_constraint(account_group_id)
+    }
+
     /// List all models available through this gateway (for `GET /v1/models`).
     ///
     /// Derived from:
@@ -1693,6 +2184,10 @@ impl RouteConfigStore {
     /// Get a snapshot of all providers (for token refresh task).
     pub fn get_providers(&self) -> Vec<CompiledProvider> {
         self.snapshot().get_providers()
+    }
+
+    pub fn account_group_inventory(&self) -> RouteAccountGroupInventory {
+        self.snapshot().account_group_inventory()
     }
 }
 
@@ -1771,6 +2266,19 @@ fn list_models_inner(guard: &RouteConfigInner) -> Vec<ModelInfo> {
         model_ids.insert(alias.clone());
     }
 
+    // Discovery must describe models that can produce at least one concrete
+    // runtime candidate. A provider with a credential pool has no default
+    // account fallback, so an all-disabled pool cannot keep its models, exact
+    // routes, or aliases visible. Providers without `credentials` retain their
+    // legacy default-account behavior.
+    let available_provider_ids = guard
+        .providers
+        .iter()
+        .filter(|provider| provider_has_available_account(provider))
+        .map(|provider| provider.id.as_str())
+        .collect::<HashSet<_>>();
+    model_ids.retain(|model| model_has_available_candidate(guard, model, &available_provider_ids));
+
     let created = created_timestamp();
 
     model_ids
@@ -1782,6 +2290,59 @@ fn list_models_inner(guard: &RouteConfigInner) -> Vec<ModelInfo> {
             id,
         })
         .collect()
+}
+
+fn provider_has_available_account(provider: &CompiledProvider) -> bool {
+    provider.credential_pool.is_empty()
+        || provider
+            .credential_pool
+            .iter()
+            .any(|credential| credential.enabled)
+}
+
+fn model_has_available_candidate(
+    guard: &RouteConfigInner,
+    requested_model: &str,
+    available_provider_ids: &HashSet<&str>,
+) -> bool {
+    let resolved_alias = resolve_alias_inner(guard, requested_model);
+    let resolved_model = resolved_alias.as_deref().unwrap_or(requested_model);
+
+    let mut matched_route = false;
+    for route in guard
+        .model_routes
+        .iter()
+        .filter(|route| glob_match(&route.pattern, resolved_model))
+    {
+        matched_route = true;
+        if route
+            .provider_ids
+            .iter()
+            .any(|provider_id| available_provider_ids.contains(provider_id.as_str()))
+        {
+            return true;
+        }
+    }
+    if matched_route {
+        return false;
+    }
+
+    let mut explicitly_supported = false;
+    for provider in &guard.providers {
+        let upstream_model = provider.model_map.get(resolved_model).map(String::as_str);
+        let supports_model = !provider.supported_models.is_empty()
+            && provider.supported_models.iter().any(|supported| {
+                supported == resolved_model || upstream_model == Some(supported.as_str())
+            });
+        if supports_model {
+            explicitly_supported = true;
+            if available_provider_ids.contains(provider.id.as_str()) {
+                return true;
+            }
+        }
+    }
+
+    !explicitly_supported && !available_provider_ids.is_empty()
 }
 
 impl Default for RouteConfigStore {
@@ -1813,18 +2374,39 @@ fn select_credential(
     provider: &CompiledProvider,
     original_model: Option<&str>,
     translated_model: Option<&str>,
-) -> ProviderAccountPayload {
+    allowed_account_ids: Option<&HashSet<String>>,
+) -> Option<ProviderAccountPayload> {
     if provider.credential_pool.is_empty() {
-        return provider.payload.clone();
+        let default_account_id = provider_default_account_id(&provider.id);
+        if allowed_account_ids.is_some_and(|allowed| !allowed.contains(&default_account_id)) {
+            return None;
+        }
+        return Some(provider.payload.clone());
     }
 
-    // Filter credentials that support the requested model.
-    // Match against both the original (user-facing) and translated (upstream) name.
-    let eligible: Vec<usize> = provider
+    // Establish the runtime-available pool first. Group membership and enabled
+    // state are hard constraints and must never be bypassed by model fallback.
+    let available: Vec<usize> = provider
         .credential_pool
         .iter()
         .enumerate()
-        .filter(|(_, cred)| {
+        .filter(|(_, credential)| credential.enabled)
+        .filter(|(_, credential)| {
+            allowed_account_ids.is_none_or(|allowed| allowed.contains(&credential.id))
+        })
+        .map(|(index, _)| index)
+        .collect();
+    if available.is_empty() {
+        return None;
+    }
+
+    // Filter available credentials that support the requested model. Match
+    // against both the original (user-facing) and translated (upstream) name.
+    let model_eligible: Vec<usize> = available
+        .iter()
+        .copied()
+        .filter(|index| {
+            let cred = &provider.credential_pool[*index];
             if cred.supported_models.is_empty() {
                 true // no restriction = supports all provider models
             } else if original_model.is_none() && translated_model.is_none() {
@@ -1840,20 +2422,20 @@ fn select_credential(
                 matches_original || matches_translated
             }
         })
-        .map(|(i, _)| i)
         .collect();
 
-    if eligible.is_empty() {
-        // No credential supports this model — fall back to round-robin over all
-        let idx = provider.credential_counter.fetch_add(1, Ordering::Relaxed)
-            % provider.credential_pool.len();
-        return apply_token_override(&provider.credential_pool[idx]);
-    }
+    // Preserve the existing compatibility fallback when no credential declares
+    // the model, but only inside the already-authorized available subset.
+    let eligible = if model_eligible.is_empty() {
+        &available
+    } else {
+        &model_eligible
+    };
 
     // Round-robin among eligible credentials
     let counter = provider.credential_counter.fetch_add(1, Ordering::Relaxed);
     let idx = eligible[counter % eligible.len()];
-    apply_token_override(&provider.credential_pool[idx])
+    Some(apply_token_override(&provider.credential_pool[idx]))
 }
 
 /// Apply OAuth token override if a refreshed access_token is available.
@@ -1886,7 +2468,8 @@ fn provider_to_candidate(
     model: Option<&str>,
     alias: Option<&str>,
     priority: i32,
-) -> RouteCandidate {
+    allowed_account_ids: Option<&HashSet<String>>,
+) -> Option<RouteCandidate> {
     // Select the payload — either base or a pooled credential.
     // Model-aware: only picks credentials authorized for the requested model.
     //
@@ -1899,7 +2482,7 @@ fn provider_to_candidate(
     // Example 2 — xfyun-coding: user requests "qwen3.5-35b-a3b", model_map → "astron-code-latest",
     //   credential lists "qwen3.5-35b-a3b" → matches via original name.
     let translated_model = model.and_then(|m| p.model_map.get(m).map(|s| s.as_str()));
-    let selected_payload = select_credential(p, model, translated_model);
+    let selected_payload = select_credential(p, model, translated_model, allowed_account_ids)?;
 
     // Apply per-provider model name translation.
     // If the provider has a model_map entry for this canonical model name,
@@ -1909,7 +2492,7 @@ fn provider_to_candidate(
     let resolved_execution_mode = selected_payload
         .resolve_execution_mode(crate::protocol::canonical::EndpointKind::ChatCompletions);
 
-    RouteCandidate {
+    Some(RouteCandidate {
         provider_account_id: p.id.clone(),
         provider_credential_id: None,
         label: p.label.clone(),
@@ -1934,7 +2517,7 @@ fn provider_to_candidate(
         routing_degraded: None,
         routing_breaker_open: None,
         routing_degradation_reasons: Vec::new(),
-    }
+    })
 }
 
 /// A fixed "created" timestamp (2026-01-01T00:00:00Z as UNIX seconds).
@@ -2906,7 +3489,11 @@ model_routes: []
 
         // Call select_credential 6 times and verify round-robin cycling.
         let keys: Vec<String> = (0..6)
-            .map(|_| select_credential(p, None, None).api_key.clone())
+            .map(|_| {
+                select_credential(p, None, None, None)
+                    .expect("credential")
+                    .api_key
+            })
             .collect();
         assert_eq!(
             keys,
@@ -3119,6 +3706,66 @@ model_routes: []
         assert_eq!(pool[1].payload.api_key, "provider-key");
     }
 
+    #[test]
+    fn disabled_credentials_are_never_selected_and_all_disabled_provider_is_skipped() {
+        let yaml = r#"
+providers:
+  - id: credential-status
+    base_url: "https://example.com"
+    credentials:
+      - id: disabled-account
+        api_key: "disabled-key"
+        enabled: false
+      - id: enabled-account
+        api_key: "enabled-key"
+model_routes: []
+"#;
+        let store = make_store_from_yaml(yaml);
+
+        for _ in 0..12 {
+            let candidates = store.resolve_candidates(None);
+            assert_eq!(candidates.len(), 1);
+            assert_eq!(candidates[0].payload.api_key, "enabled-key");
+        }
+
+        let all_disabled_yaml = yaml
+            .replace("enabled: false\n", "enabled: false\n")
+            .replace(
+            "      - id: enabled-account\n        api_key: \"enabled-key\"",
+            "      - id: enabled-account\n        api_key: \"enabled-key\"\n        enabled: false",
+        );
+        let all_disabled = make_store_from_yaml(&all_disabled_yaml);
+        assert!(all_disabled.resolve_candidates(None).is_empty());
+    }
+
+    #[test]
+    fn account_group_filters_credentials_before_round_robin_selection() {
+        let yaml = r#"
+providers:
+  - id: grouped-pool
+    base_url: "https://example.com"
+    credentials:
+      - id: group-account
+        api_key: "group-key"
+      - id: outside-account
+        api_key: "outside-key"
+account_groups:
+  - id: only-group
+    name: "Only group"
+    provider_credential_ids: [group-account]
+model_routes: []
+"#;
+        let store = make_store_from_yaml(yaml);
+
+        for _ in 0..20 {
+            let candidates = store
+                .resolve_candidates_for_account_group(None, Some("only-group"))
+                .expect("group should resolve");
+            assert_eq!(candidates.len(), 1);
+            assert_eq!(candidates[0].payload.api_key, "group-key");
+        }
+    }
+
     fn oauth_fixture(endpoint: &str, api_key: &str) -> RouteConfigYaml {
         serde_yaml::from_str(&format!(
             r#"
@@ -3309,6 +3956,349 @@ aliases: {{}}
             .expect("new refresh state");
 
         assert!(std::sync::Arc::ptr_eq(&old_state, new_state));
+    }
+
+    #[test]
+    fn account_group_inventory_exposes_effective_multiplier_and_membership() {
+        let yaml = r#"
+providers:
+  - id: openai-default
+    label: "OpenAI"
+    preset: openai
+    base_url: "https://api.openai.com"
+    api_key: "sk-openai"
+    account_name: "OpenAI Shared"
+    supported_models: [gpt-5.4]
+  - id: codex-main
+    label: "Codex"
+    preset: codex
+    base_url: "https://muyuan.do/v1"
+    api_key: ""
+    supported_models: [gpt-5.4]
+    credentials:
+      - id: codex-live
+        api_key: "sk-codex"
+        account_name: "Codex Live"
+account_groups:
+  - id: premium
+    name: "Premium"
+    billing_multiplier: 1.25
+    provider_credential_ids: [openai-default::default, codex-live]
+model_routes: []
+"#;
+        let store = make_store_from_yaml(yaml);
+        let inventory = store.account_group_inventory();
+
+        assert_eq!(inventory.account_groups.len(), 1);
+        assert_eq!(inventory.account_groups[0].id, "premium");
+        assert_eq!(inventory.account_groups[0].billing_multiplier, 1.25);
+        assert_eq!(
+            inventory.account_groups[0].configured_billing_multiplier,
+            Some(1.25)
+        );
+        assert_eq!(inventory.account_groups[0].member_count, 2);
+        assert_eq!(
+            inventory.account_groups[0].providers,
+            vec!["codex-main".to_string(), "openai-default".to_string()]
+        );
+
+        assert!(inventory.accounts.iter().any(|account| {
+            account.id == "openai-default::default"
+                && account.display_name == "OpenAI Shared"
+                && account.vendor_key.is_none()
+                && account.vendor_name.is_none()
+                && account.group_ids == vec!["premium".to_string()]
+        }));
+        assert!(inventory.accounts.iter().any(|account| {
+            account.id == "codex-live"
+                && account.display_name == "Codex Live"
+                && account.vendor_key.is_none()
+                && account.vendor_name.is_none()
+                && account.group_ids == vec!["premium".to_string()]
+        }));
+        assert!(inventory
+            .providers
+            .iter()
+            .all(|provider| provider.vendor_key.is_none() && provider.vendor_name.is_none()));
+    }
+
+    #[test]
+    fn account_group_inventory_preserves_optional_vendor_metadata_with_camel_case_json() {
+        let yaml = r#"
+providers:
+  - id: managed-provider
+    label: "Managed OpenAI"
+    vendor_key: muyuan
+    vendor_name: "木元"
+    preset: openai
+    base_url: "https://api.example.com/v1"
+    api_key: "sk-test"
+    credentials:
+      - id: managed-account
+        api_key: "sk-account"
+        account_name: "Managed Account"
+model_routes: []
+"#;
+        let store = make_store_from_yaml(yaml);
+        let inventory = store.account_group_inventory();
+        let account = inventory
+            .accounts
+            .iter()
+            .find(|account| account.id == "managed-account")
+            .expect("credential account");
+        let provider = inventory
+            .providers
+            .iter()
+            .find(|provider| provider.id == "managed-provider")
+            .expect("provider");
+
+        assert_eq!(account.vendor_key.as_deref(), Some("muyuan"));
+        assert_eq!(account.vendor_name.as_deref(), Some("木元"));
+        assert_eq!(provider.vendor_key.as_deref(), Some("muyuan"));
+        assert_eq!(provider.vendor_name.as_deref(), Some("木元"));
+
+        let json = serde_json::to_value(&inventory).expect("inventory JSON");
+        let json_account = json["accounts"]
+            .as_array()
+            .and_then(|accounts| accounts.iter().find(|item| item["id"] == "managed-account"))
+            .expect("serialized account");
+        let json_provider = json["providers"]
+            .as_array()
+            .and_then(|providers| {
+                providers
+                    .iter()
+                    .find(|item| item["id"] == "managed-provider")
+            })
+            .expect("serialized provider");
+        assert_eq!(json_account["vendorKey"], "muyuan");
+        assert_eq!(json_account["vendorName"], "木元");
+        assert_eq!(json_provider["vendorKey"], "muyuan");
+        assert_eq!(json_provider["vendorName"], "木元");
+
+        let legacy_document: RouteConfigYaml = serde_yaml::from_str(
+            r#"
+providers:
+  - id: legacy-provider
+    base_url: "https://legacy.example.com/v1"
+    api_key: "sk-legacy"
+model_routes: []
+"#,
+        )
+        .expect("legacy route document");
+        let legacy_json = serde_json::to_value(legacy_document).expect("legacy JSON");
+        let legacy_provider = &legacy_json["providers"][0];
+        assert!(legacy_provider.get("vendor_key").is_none());
+        assert!(legacy_provider.get("vendor_name").is_none());
+    }
+
+    #[test]
+    fn resolve_candidates_for_account_group_filters_default_and_credential_accounts() {
+        let yaml = r#"
+providers:
+  - id: openai-default
+    label: "OpenAI"
+    preset: openai
+    base_url: "https://api.openai.com"
+    api_key: "sk-openai"
+    supported_models: [gpt-5.4]
+  - id: codex-main
+    label: "Codex"
+    preset: codex
+    base_url: "https://muyuan.do/v1"
+    api_key: ""
+    supported_models: [gpt-5.4]
+    credentials:
+      - id: codex-live
+        api_key: "sk-codex"
+      - id: codex-spare
+        api_key: "sk-codex-2"
+account_groups:
+  - id: premium
+    name: "Premium"
+    provider_credential_ids: [openai-default::default, codex-live]
+model_routes:
+  - pattern: "gpt-*"
+    provider_ids: [openai-default, codex-main]
+    priority: 10
+"#;
+        let store = make_store_from_yaml(yaml);
+
+        let candidates = store
+            .resolve_candidates_for_account_group(Some("gpt-5.4"), Some("premium"))
+            .expect("group candidates");
+        let account_ids = candidates
+            .iter()
+            .map(candidate_account_group_member_id)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            account_ids,
+            vec![
+                "openai-default::default".to_string(),
+                "codex-live".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_candidates_for_account_group_rejects_unknown_or_disabled_group() {
+        let yaml = r#"
+providers:
+  - id: openai-default
+    preset: openai
+    base_url: "https://api.openai.com"
+    api_key: "sk-openai"
+    supported_models: [gpt-5.4]
+account_groups:
+  - id: disabled
+    name: "Disabled"
+    enabled: false
+    provider_credential_ids: [openai-default::default]
+model_routes:
+  - pattern: "gpt-*"
+    provider_ids: [openai-default]
+    priority: 10
+"#;
+        let store = make_store_from_yaml(yaml);
+
+        let missing = store
+            .resolve_candidates_for_account_group(Some("gpt-5.4"), Some("missing"))
+            .expect_err("missing group should fail");
+        assert_eq!(
+            missing,
+            RouteAccountGroupSelectionError::NotFound("missing".to_string())
+        );
+
+        let disabled = store
+            .resolve_candidates_for_account_group(Some("gpt-5.4"), Some("disabled"))
+            .expect_err("disabled group should fail");
+        assert_eq!(
+            disabled,
+            RouteAccountGroupSelectionError::Disabled("disabled".to_string())
+        );
+    }
+
+    #[test]
+    fn credential_probe_target_selects_explicit_global_credential_id() {
+        let store = make_store_from_yaml(
+            r#"
+providers:
+  - id: openai-pool
+    adapter: openai_compatible
+    base_url: "https://provider.example/v1"
+    api_key: "provider-key"
+    credentials:
+      - id: credential-live
+        base_url: "https://credential.example/v1"
+        api_key: "credential-secret"
+        enabled: false
+model_routes: []
+aliases: {}
+"#,
+        );
+
+        let target = store
+            .snapshot()
+            .select_credential_probe_target("credential-live")
+            .expect("explicit credential target");
+        assert_eq!(target.credential_id, "credential-live");
+        assert_eq!(target.provider_id, "openai-pool");
+        assert!(!target.enabled);
+        assert_eq!(target.payload.base_url, "https://credential.example/v1");
+        assert_eq!(target.payload.api_key, "credential-secret");
+    }
+
+    #[test]
+    fn credential_probe_target_selects_provider_default_identity() {
+        let store = make_store_from_yaml(
+            r#"
+providers:
+  - id: default-provider
+    adapter: openai_compatible
+    base_url: "https://default.example/v1"
+    api_key: "default-secret"
+model_routes: []
+aliases: {}
+"#,
+        );
+
+        let snapshot = store.snapshot();
+        let target = snapshot
+            .select_credential_probe_target("default-provider::default")
+            .expect("provider default target");
+        assert_eq!(target.credential_id, "default-provider::default");
+        assert_eq!(target.provider_id, "default-provider");
+        assert!(target.enabled);
+        assert_eq!(target.payload.api_key, "default-secret");
+        assert!(snapshot
+            .select_credential_probe_target("missing-credential")
+            .is_none());
+    }
+
+    #[test]
+    fn credential_probe_target_trims_raw_id_for_ui_lookup_and_response() {
+        let store = make_store_from_yaml(
+            r#"
+providers:
+  - id: openai-pool
+    adapter: openai_compatible
+    base_url: "https://provider.example/v1"
+    api_key: "provider-token"
+    credentials:
+      - id: "  credential-live  "
+        api_key: "credential-token"
+model_routes: []
+aliases: {}
+"#,
+        );
+
+        let target = store
+            .snapshot()
+            .select_credential_probe_target("credential-live")
+            .expect("trimmed credential target");
+        assert_eq!(target.credential_id, "credential-live");
+        assert_eq!(
+            target.payload.credential_id.as_deref(),
+            Some("credential-live")
+        );
+    }
+
+    #[test]
+    fn credential_probe_target_uses_latest_oauth_access_token() {
+        let store = make_store_from_yaml(
+            r#"
+providers:
+  - id: oauth-pool
+    adapter: openai_compatible
+    base_url: "https://provider.example/v1"
+    api_key: "initial-token"
+    credentials:
+      - id: oauth-live
+        api_key: "credential-token"
+        refresh_token: "refresh-token"
+        refresh_endpoint: "https://provider.example/oauth/token"
+model_routes: []
+aliases: {}
+"#,
+        );
+
+        let snapshot = store.snapshot();
+        let provider = snapshot
+            .get_providers()
+            .into_iter()
+            .find(|provider| provider.id == "oauth-pool")
+            .expect("oauth provider");
+        let refresh_state = provider
+            .credential_pool
+            .first()
+            .and_then(|credential| credential.refresh_config.as_ref())
+            .expect("refresh state")
+            .clone();
+        *refresh_state.api_key_override.lock() = Some("latest-access-token".to_string());
+
+        let target = snapshot
+            .select_credential_probe_target("oauth-live")
+            .expect("oauth credential target");
+        assert_eq!(target.payload.api_key, "latest-access-token");
     }
 
     #[test]

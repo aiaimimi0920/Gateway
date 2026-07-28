@@ -6,7 +6,7 @@ COPY apps/desktop/package.json apps/desktop/package-lock.json ./apps/desktop/
 RUN --mount=type=cache,target=/root/.npm \
   npm ci --prefix apps/desktop --no-audit --no-fund
 COPY apps/desktop ./apps/desktop
-RUN npm run build:web --prefix apps/desktop
+RUN GATEWAY_WEB_PRUNE_LIVE=1 npm run build:web --prefix apps/desktop
 
 FROM rust:1.91.1-bookworm AS builder
 
@@ -19,6 +19,7 @@ RUN apt-get update \
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY apps/desktop ./apps/desktop
 COPY --from=ui-builder /app/apps/desktop/dist/web ./apps/desktop/dist/web
+COPY --from=ui-builder /app/apps/desktop/dist/.gateway-web-ready ./apps/desktop/dist/.gateway-web-ready
 COPY src ./src
 COPY examples ./examples
 COPY tests ./tests

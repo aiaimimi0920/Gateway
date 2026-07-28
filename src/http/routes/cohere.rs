@@ -26,7 +26,13 @@ pub async fn handle_chat_v2(
 ) -> Result<Response, GatewayError> {
     let canonical = cohere::normalize_chat_v2(body)?;
     let mut ctx = PipelineContext::new(canonical.clone(), token);
-    apply_public_request_headers(&mut ctx, &headers, &state.config, &["x-client-name"]);
+    apply_public_request_headers(
+        &mut ctx,
+        &headers,
+        &state.config,
+        state.console_auth.as_ref(),
+        &["x-client-name"],
+    )?;
     ctx.query_params = query_params;
 
     match run_pipeline(ctx, &state).await? {

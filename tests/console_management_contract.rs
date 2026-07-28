@@ -5,7 +5,10 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::extract::State as AxumState;
+use axum::http::{HeaderMap, Method, Request, StatusCode};
+use axum::routing::get;
+use axum::Router;
 use http_body_util::BodyExt;
 use neuro_gateway::concurrency::aimd::AimdConfig;
 use neuro_gateway::concurrency::registry::ConcurrencyRegistry;
@@ -25,6 +28,20 @@ use neuro_gateway::upstream::client::UpstreamClient;
 use tower::ServiceExt;
 
 const MANAGEMENT_TOKEN: &str = "console-management-contract-token";
+
+#[derive(Clone)]
+struct ProbeServerState {
+    accepted_authorizations: Vec<String>,
+    status: StatusCode,
+    body: String,
+}
+
+#[derive(Clone, Copy)]
+enum SensitiveCommitKind {
+    Raw,
+    Replace,
+    Clear,
+}
 
 fn document(provider_id: &str, model: &str, api_key: &str) -> RouteConfigYaml {
     serde_yaml::from_str(&format!(
@@ -290,6 +307,193 @@ async fn route_config_console_validate_returns_redacted_candidate_document() {
 }
 
 #[tokio::test]
+async fn route_config_validate_requires_exact_secret_grant_for_sensitive_inputs() {
+    let active = document("managed", "old-model", "live-secret");
+    let fixture = ConsoleStateFixture::new(active.clone(), true);
+    let redacted = redact_route_document(&active).unwrap().document;
+    let cases = [
+        (
+            "raw secret",
+            document("managed", "old-model", "raw-request-secret"),
+            serde_json::json!([]),
+        ),
+        (
+            "replace patch",
+            redacted.clone(),
+            serde_json::json!([
+                {
+                    "path": "/providers/0/api_key",
+                    "operation": "replace",
+                    "value": "replacement-secret"
+                }
+            ]),
+        ),
+        (
+            "clear patch",
+            redacted,
+            serde_json::json!([
+                { "path": "/providers/0/api_key", "operation": "clear" }
+            ]),
+        ),
+    ];
+
+    for (label, draft, secret_patches) in cases {
+        let body = serde_json::json!({
+            "document": draft,
+            "secretPatches": secret_patches,
+        });
+        for supplied_grant in [None, Some("grant-does-not-exist")] {
+            let response = send_console_json(
+                &fixture.state,
+                Method::POST,
+                "/v1/internal/gateway/console/route-config/validate",
+                body.clone(),
+                supplied_grant,
+                None,
+            )
+            .await;
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "{label} accepted a missing or unknown secret grant"
+            );
+            let response_body = parse_json(response).await;
+            assert_eq!(
+                response_body["error"]["code"], "console_secret_access_required",
+                "{label} returned the wrong authorization error"
+            );
+        }
+
+        let exact_grant = grant_console_secret_access(&fixture.state).await;
+        let wrong_origin = send_console_json(
+            &fixture.state,
+            Method::POST,
+            "/v1/internal/gateway/console/route-config/validate",
+            body.clone(),
+            Some(&exact_grant),
+            Some("https://different-origin.example"),
+        )
+        .await;
+        assert_eq!(
+            wrong_origin.status(),
+            StatusCode::FORBIDDEN,
+            "{label} accepted a grant bound to another origin"
+        );
+
+        let exact = send_console_json(
+            &fixture.state,
+            Method::POST,
+            "/v1/internal/gateway/console/route-config/validate",
+            body,
+            Some(&exact_grant),
+            None,
+        )
+        .await;
+        if label == "raw secret" {
+            assert_eq!(exact.status(), StatusCode::UNPROCESSABLE_ENTITY);
+            let response_body = parse_json(exact).await;
+            assert_eq!(
+                response_body["error"]["code"],
+                "secret_value_must_use_patch"
+            );
+        } else {
+            assert_eq!(
+                exact.status(),
+                StatusCode::OK,
+                "{label} rejected the exact grant"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn route_config_commit_requires_exact_secret_grant_for_sensitive_inputs() {
+    for (label, kind) in [
+        ("raw secret", SensitiveCommitKind::Raw),
+        ("replace patch", SensitiveCommitKind::Replace),
+        ("clear patch", SensitiveCommitKind::Clear),
+    ] {
+        for supplied_grant in [None, Some("grant-does-not-exist")] {
+            let active = document("managed", "old-model", "live-secret");
+            let fixture = ConsoleStateFixture::new(active.clone(), true);
+            let body = sensitive_commit_body(&fixture, &active, &kind);
+            let response = send_console_json(
+                &fixture.state,
+                Method::PUT,
+                "/v1/internal/gateway/console/route-config",
+                body,
+                supplied_grant,
+                None,
+            )
+            .await;
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "{label} accepted a missing or unknown secret grant"
+            );
+            let response_body = parse_json(response).await;
+            assert_eq!(
+                response_body["error"]["code"], "console_secret_access_required",
+                "{label} returned the wrong authorization error"
+            );
+            assert_eq!(
+                fixture.state.route_config.get_providers()[0]
+                    .payload
+                    .api_key,
+                "live-secret",
+                "{label} mutated the active secret before authorization"
+            );
+        }
+
+        let active = document("managed", "old-model", "live-secret");
+        let fixture = ConsoleStateFixture::new(active.clone(), true);
+        let exact_grant = grant_console_secret_access(&fixture.state).await;
+        let body = sensitive_commit_body(&fixture, &active, &kind);
+        let exact = send_console_json(
+            &fixture.state,
+            Method::PUT,
+            "/v1/internal/gateway/console/route-config",
+            body,
+            Some(&exact_grant),
+            None,
+        )
+        .await;
+        match kind {
+            SensitiveCommitKind::Raw => {
+                assert_eq!(exact.status(), StatusCode::UNPROCESSABLE_ENTITY);
+                let response_body = parse_json(exact).await;
+                assert_eq!(
+                    response_body["error"]["code"],
+                    "secret_value_must_use_patch"
+                );
+                assert_eq!(
+                    fixture.state.route_config.get_providers()[0]
+                        .payload
+                        .api_key,
+                    "live-secret"
+                );
+            }
+            SensitiveCommitKind::Replace => {
+                assert_eq!(exact.status(), StatusCode::OK);
+                assert_eq!(
+                    fixture.state.route_config.get_providers()[0]
+                        .payload
+                        .api_key,
+                    "replacement-secret"
+                );
+            }
+            SensitiveCommitKind::Clear => {
+                assert_eq!(exact.status(), StatusCode::OK);
+                assert!(fixture.state.route_config.get_providers()[0]
+                    .payload
+                    .api_key
+                    .is_empty());
+            }
+        }
+    }
+}
+
+#[tokio::test]
 async fn route_config_management_commit_rejects_stale_revision_with_conflict() {
     let active = document("managed", "old-model", "live-secret");
     let fixture = ConsoleStateFixture::new(active.clone(), true);
@@ -329,7 +533,10 @@ async fn route_config_management_commit_rejects_stale_revision_with_conflict() {
 #[tokio::test]
 async fn route_config_management_commit_reports_runtime_unavailable_when_not_configured() {
     let active = document("managed", "old-model", "live-secret");
-    let fixture = ConsoleStateFixture::new(active, false);
+    let fixture = ConsoleStateFixture::new(active.clone(), false);
+    let mut draft = redact_route_document(&active).unwrap().document;
+    draft.providers[0].supported_models = vec!["new-model".to_string()];
+    draft.model_routes[0].pattern = "new-model".to_string();
     let response = build_router(Arc::clone(&fixture.state))
         .oneshot(
             Request::post("/v1/internal/gateway/route-config")
@@ -338,7 +545,10 @@ async fn route_config_management_commit_reports_runtime_unavailable_when_not_con
                 .body(Body::from(
                     serde_json::json!({
                         "expectedRevision": fixture.state.route_config.snapshot().revision().id(),
-                        "document": document("managed", "new-model", "fresh-secret")
+                        "document": draft,
+                        "secretPatches": [
+                            { "path": "/providers/0/api_key", "operation": "keep" }
+                        ]
                     })
                     .to_string(),
                 ))
@@ -498,6 +708,388 @@ async fn route_config_management_revision_detail_returns_not_found_for_unknown_r
         body["error"]["code"].as_str(),
         Some("console_revision_not_found")
     );
+}
+
+#[tokio::test]
+async fn credential_probe_requires_management_authentication_and_secret_access() {
+    let fixture = ConsoleStateFixture::new(
+        serde_yaml::from_str(
+            r#"
+providers:
+  - id: probe-provider
+    adapter: openai_compatible
+    base_url: http://127.0.0.1:9/v1
+    api_key: probe-secret
+model_routes: []
+aliases: {}
+"#,
+        )
+        .unwrap(),
+        false,
+    );
+    let endpoint = "/v1/internal/gateway/console/credentials/probe-provider::default/probe";
+
+    let unauthenticated = build_router(Arc::clone(&fixture.state))
+        .oneshot(Request::post(endpoint).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+
+    let without_secret_grant = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::post(endpoint)
+                .header("x-management-token", MANAGEMENT_TOKEN)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(without_secret_grant.status(), StatusCode::FORBIDDEN);
+    let body = parse_json(without_secret_grant).await;
+    assert_eq!(body["error"]["code"], "console_secret_access_required");
+
+    let secret_grant = grant_console_secret_access(&fixture.state).await;
+
+    let without_grant_header = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::post(endpoint)
+                .header("x-management-token", MANAGEMENT_TOKEN)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(without_grant_header.status(), StatusCode::FORBIDDEN);
+    let body = parse_json(without_grant_header).await;
+    assert_eq!(body["error"]["code"], "console_secret_access_required");
+
+    let wrong_grant_header = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::post(endpoint)
+                .header("x-management-token", MANAGEMENT_TOKEN)
+                .header("x-secret-grant", "grant-does-not-exist")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(wrong_grant_header.status(), StatusCode::FORBIDDEN);
+    let body = parse_json(wrong_grant_header).await;
+    assert_eq!(body["error"]["code"], "console_secret_access_required");
+
+    let with_exact_grant =
+        probe_credential(&fixture.state, &secret_grant, "probe-provider::default").await;
+    assert_eq!(with_exact_grant.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn credential_probe_selects_explicit_and_provider_default_targets() {
+    let (base_url, server) = spawn_probe_server(ProbeServerState {
+        accepted_authorizations: vec![
+            "Bearer explicit-secret".to_string(),
+            "Bearer default-secret".to_string(),
+        ],
+        status: StatusCode::OK,
+        body: r#"{"data":[]}"#.to_string(),
+    })
+    .await;
+    let document: RouteConfigYaml = serde_yaml::from_str(&format!(
+        r#"
+providers:
+  - id: pooled-provider
+    adapter: openai_compatible
+    base_url: "{base_url}"
+    api_key: provider-unused
+    credentials:
+      - id: explicit-credential
+        api_key: explicit-secret
+  - id: default-provider
+    adapter: openai_compatible
+    base_url: "{base_url}"
+    api_key: default-secret
+model_routes: []
+aliases: {{}}
+"#
+    ))
+    .unwrap();
+    let fixture = ConsoleStateFixture::new(document, false);
+    let secret_grant = grant_console_secret_access(&fixture.state).await;
+
+    let explicit = probe_credential(&fixture.state, &secret_grant, "explicit-credential").await;
+    assert_eq!(explicit.status(), StatusCode::OK);
+    let explicit_body = parse_json(explicit).await;
+    assert_eq!(
+        explicit_body["result"]["credentialId"],
+        "explicit-credential"
+    );
+    assert_eq!(explicit_body["result"]["providerId"], "pooled-provider");
+    assert_eq!(explicit_body["result"]["status"], "passed");
+    assert!(explicit_body["result"]["message"].as_str().is_some());
+    assert!(explicit_body["result"]["checkedAt"].as_str().is_some());
+
+    let default =
+        probe_credential(&fixture.state, &secret_grant, "default-provider::default").await;
+    assert_eq!(default.status(), StatusCode::OK);
+    let default_body = parse_json(default).await;
+    assert_eq!(
+        default_body["result"]["credentialId"],
+        "default-provider::default"
+    );
+    assert_eq!(default_body["result"]["providerId"], "default-provider");
+    assert_eq!(default_body["result"]["status"], "passed");
+
+    let serialized = serde_json::to_string(&(explicit_body, default_body)).unwrap();
+    assert!(!serialized.contains("explicit-secret"));
+    assert!(!serialized.contains("default-secret"));
+    server.abort();
+}
+
+#[tokio::test]
+async fn credential_probe_reports_disabled_unknown_and_fixed_targets_as_unsupported() {
+    let document: RouteConfigYaml = serde_yaml::from_str(
+        r#"
+providers:
+  - id: disabled-provider
+    adapter: openai_compatible
+    base_url: http://127.0.0.1:9/v1
+    api_key: provider-unused
+    credentials:
+      - id: disabled-credential
+        api_key: disabled-secret
+        enabled: false
+  - id: unknown-provider
+    adapter: gemini_web_compatible
+    base_url: http://127.0.0.1:9/v1
+    api_key: unknown-secret
+  - id: browser-provider
+    adapter: openai_compatible
+    base_url: http://127.0.0.1:9/v1
+    api_key: browser-secret
+    execution_mode: browser_backed
+  - id: fixed-provider
+    preset: codex
+    base_url: https://chatgpt.com/backend-api/codex
+    api_key: fixed-secret
+model_routes: []
+aliases: {}
+"#,
+    )
+    .unwrap();
+    let fixture = ConsoleStateFixture::new(document, false);
+    let secret_grant = grant_console_secret_access(&fixture.state).await;
+
+    for (credential_id, expected_fragment) in [
+        ("disabled-credential", "disabled"),
+        ("unknown-provider::default", "gemini_web_compatible"),
+        ("browser-provider::default", "browser-backed"),
+        ("fixed-provider::default", "fixed-model"),
+    ] {
+        let response = probe_credential(&fixture.state, &secret_grant, credential_id).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = parse_json(response).await;
+        assert_eq!(body["result"]["credentialId"], credential_id);
+        assert_eq!(body["result"]["status"], "unsupported");
+        assert!(body["result"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains(expected_fragment)));
+    }
+}
+
+#[tokio::test]
+async fn credential_probe_sanitizes_failed_probe_response() {
+    let api_key = "sk-probe-api-secret";
+    let cookie_secret = "cookie-probe-secret";
+    let body_secret = "body-probe-secret";
+    let (base_url, server) = spawn_probe_server(ProbeServerState {
+        accepted_authorizations: vec![format!("Bearer {api_key}")],
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+        body: format!(
+            "Authorization: Bearer {api_key}; Cookie: session={cookie_secret}; body={body_secret}"
+        ),
+    })
+    .await;
+    let document: RouteConfigYaml = serde_yaml::from_str(&format!(
+        r#"
+providers:
+  - id: failing-provider
+    adapter: openai_compatible
+    base_url: "{base_url}"
+    api_key: "{api_key}"
+    headers:
+      Cookie: "session={cookie_secret}"
+model_routes: []
+aliases: {{}}
+"#
+    ))
+    .unwrap();
+    let fixture = ConsoleStateFixture::new(document, false);
+    let secret_grant = grant_console_secret_access(&fixture.state).await;
+
+    let response =
+        probe_credential(&fixture.state, &secret_grant, "failing-provider::default").await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json(response).await;
+    assert_eq!(body["result"]["status"], "failed");
+    assert!(body["result"]["checkedAt"].as_str().is_some());
+    let serialized = serde_json::to_string(&body).unwrap();
+    for secret in [api_key, cookie_secret, body_secret] {
+        assert!(
+            !serialized.contains(secret),
+            "probe response leaked {secret}"
+        );
+    }
+    server.abort();
+}
+
+#[tokio::test]
+async fn credential_probe_returns_not_found_for_unknown_global_id() {
+    let fixture = ConsoleStateFixture::new(document("managed", "gpt-5.4", "live-secret"), false);
+    let secret_grant = grant_console_secret_access(&fixture.state).await;
+
+    let response = probe_credential(&fixture.state, &secret_grant, "missing-credential").await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let body = parse_json(response).await;
+    assert_eq!(body["error"]["code"], "console_credential_not_found");
+}
+
+async fn grant_console_secret_access(state: &Arc<AppState>) -> String {
+    let response = build_router(Arc::clone(state))
+        .oneshot(
+            Request::post("/v1/internal/gateway/console/session/confirm-secret-access")
+                .header("x-management-token", MANAGEMENT_TOKEN)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "token": MANAGEMENT_TOKEN }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json(response).await;
+    body["grant"]
+        .as_str()
+        .expect("secret access response must include a grant")
+        .to_string()
+}
+
+fn sensitive_commit_body(
+    fixture: &ConsoleStateFixture,
+    active: &RouteConfigYaml,
+    kind: &SensitiveCommitKind,
+) -> serde_json::Value {
+    let (draft, secret_patches) = match kind {
+        SensitiveCommitKind::Raw => (
+            document("managed", "old-model", "raw-request-secret"),
+            serde_json::json!([]),
+        ),
+        SensitiveCommitKind::Replace => (
+            redact_route_document(active).unwrap().document,
+            serde_json::json!([
+                {
+                    "path": "/providers/0/api_key",
+                    "operation": "replace",
+                    "value": "replacement-secret"
+                }
+            ]),
+        ),
+        SensitiveCommitKind::Clear => (
+            redact_route_document(active).unwrap().document,
+            serde_json::json!([
+                { "path": "/providers/0/api_key", "operation": "clear" }
+            ]),
+        ),
+    };
+    serde_json::json!({
+        "expectedRevision": fixture.state.route_config.snapshot().revision().id(),
+        "document": draft,
+        "secretPatches": secret_patches,
+    })
+}
+
+async fn send_console_json(
+    state: &Arc<AppState>,
+    method: Method,
+    endpoint: &str,
+    body: serde_json::Value,
+    secret_grant: Option<&str>,
+    origin: Option<&str>,
+) -> axum::response::Response {
+    let mut request = Request::builder()
+        .method(method)
+        .uri(endpoint)
+        .header("x-management-token", MANAGEMENT_TOKEN)
+        .header("content-type", "application/json");
+    if let Some(secret_grant) = secret_grant {
+        request = request.header("x-secret-grant", secret_grant);
+    }
+    if let Some(origin) = origin {
+        request = request.header("origin", origin);
+    }
+    build_router(Arc::clone(state))
+        .oneshot(request.body(Body::from(body.to_string())).unwrap())
+        .await
+        .unwrap()
+}
+
+async fn probe_credential(
+    state: &Arc<AppState>,
+    secret_grant: &str,
+    credential_id: &str,
+) -> axum::response::Response {
+    build_router(Arc::clone(state))
+        .oneshot(
+            Request::post(format!(
+                "/v1/internal/gateway/console/credentials/{credential_id}/probe"
+            ))
+            .header("x-management-token", MANAGEMENT_TOKEN)
+            .header("x-secret-grant", secret_grant)
+            .body(Body::empty())
+            .unwrap(),
+        )
+        .await
+        .unwrap()
+}
+
+async fn spawn_probe_server(state: ProbeServerState) -> (String, tokio::task::JoinHandle<()>) {
+    async fn models(
+        AxumState(state): AxumState<ProbeServerState>,
+        headers: HeaderMap,
+    ) -> (StatusCode, String) {
+        let authorization = headers
+            .get("authorization")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default();
+        if !state
+            .accepted_authorizations
+            .iter()
+            .any(|expected| expected == authorization)
+        {
+            return (
+                StatusCode::UNAUTHORIZED,
+                "unexpected authorization".to_string(),
+            );
+        }
+        (state.status, state.body)
+    }
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind credential probe fixture");
+    let address = listener
+        .local_addr()
+        .expect("credential probe fixture address");
+    let server = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            Router::new()
+                .route("/v1/models", get(models))
+                .with_state(state),
+        )
+        .await
+        .expect("serve credential probe fixture");
+    });
+    (format!("http://{address}/v1"), server)
 }
 
 async fn parse_json(response: axum::response::Response) -> serde_json::Value {

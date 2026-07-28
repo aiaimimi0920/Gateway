@@ -290,12 +290,12 @@ test.describe("Gateway web console", () => {
 
     await page.goto("/ui/");
 
-    await expect(page.getByRole("heading", { name: "Set up administrator" })).toBeVisible();
-    await page.getByLabel(/^Management token$/).fill("gateway-admin-token");
-    await page.getByLabel("Confirm management token").fill("gateway-admin-token");
-    await page.getByRole("button", { name: "Create administrator" }).click();
+    await expect(page.getByRole("heading", { name: "初始化管理员" })).toBeVisible();
+    await page.getByLabel(/^管理密钥$/).fill("gateway-admin-token");
+    await page.getByLabel("确认管理密钥").fill("gateway-admin-token");
+    await page.getByRole("button", { name: "创建管理员" }).click();
 
-    await expect(page.getByRole("heading", { name: "Gateway Web Console" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Gateway 网页控制台" })).toBeVisible();
     await expect.poll(() => state.bootstrappedTokens).toEqual(["gateway-admin-token"]);
     await expect.poll(() => state.verifiedTokens).toEqual(["gateway-admin-token"]);
   });
@@ -305,34 +305,46 @@ test.describe("Gateway web console", () => {
 
     await page.goto("/ui/");
 
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-    await page.getByLabel("Management token").fill("gateway-admin-token");
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { name: "登录" })).toBeVisible();
+    await page.getByLabel("管理密钥").fill("gateway-admin-token");
+    await page.getByRole("button", { name: "登录" }).click();
 
-    await expect(page.getByRole("heading", { name: "Gateway Web Console" })).toBeVisible();
-    await page.getByRole("button", { name: "Add provider row" }).click();
-    await page.getByLabel("Provider id 2").fill("backup-provider");
-    await page.getByLabel("Provider preset 2").fill("openai");
-    await page.getByLabel("Provider base URL 2").fill("https://api.backup.example.com");
-    await page.getByLabel("Provider supported models 2").fill("gpt-5.4\ngpt-5.4-mini");
+    await expect(page.getByRole("heading", { name: "Gateway 网页控制台" })).toBeVisible();
+    await page
+      .getByRole("navigation", { name: "Gateway console navigation" })
+      .getByRole("button", { name: /路由编辑/ })
+      .click();
+    await page.getByRole("button", { name: "添加 Provider 行" }).click();
+    await page.getByLabel("Provider ID 2").fill("backup-provider");
+    await page.getByLabel("Provider 预设 2").fill("openai");
+    await page.getByLabel("Provider 基础 URL 2").fill("https://api.backup.example.com");
+    await page.getByLabel("Provider 支持模型 2").fill("gpt-5.4\ngpt-5.4-mini");
 
-    await expect(page.getByLabel("Route document JSON")).toContainText('"backup-provider"');
-    await expect(page.getByLabel("Route document JSON")).toContainText(
+    await page
+      .getByRole("navigation", { name: "Gateway console navigation" })
+      .getByRole("button", { name: /高级 JSON/ })
+      .click();
+    await expect(page.getByLabel("路由配置 JSON")).toContainText('"backup-provider"');
+    await expect(page.getByLabel("路由配置 JSON")).toContainText(
       '"supported_models": [',
     );
 
-    await page.getByRole("button", { name: "Save route config" }).click();
+    await page.getByRole("button", { name: "保存路由配置" }).click();
 
     await expect(
       page.getByRole("status", { name: "Gateway console last action" }),
-    ).toContainText("Saved route config as active revision r2-beadfeedcafe.");
+    ).toContainText("已将路由配置保存为激活修订 r2-beadfeedcafe。");
     await expect(
       page.getByLabel("Gateway console summary").getByText("r2-beadfeedcafe"),
     ).toBeVisible();
+    await page
+      .getByRole("navigation", { name: "Gateway console navigation" })
+      .getByRole("button", { name: /Provider 资源/ })
+      .click();
     await expect(
       page
         .locator("article")
-        .filter({ has: page.getByRole("heading", { name: "当前路由配置" }) })
+        .filter({ has: page.getByRole("heading", { name: "Provider 概览" }) })
         .getByText("backup-provider", { exact: true }),
     ).toBeVisible();
 
@@ -352,45 +364,57 @@ test.describe("Gateway web console", () => {
     ]);
   });
 
+  test("keeps the workspace scrollable at a tablet viewport", async ({ page }) => {
+    await installConsoleApiMocks(page);
+    await page.setViewportSize({ width: 1024, height: 720 });
+
+    await page.goto("/ui/");
+    await page.getByLabel("管理密钥").fill("gateway-admin-token");
+    await page.getByRole("button", { name: "登录" }).click();
+    await expect(page.getByRole("heading", { name: "Gateway 网页控制台" })).toBeVisible();
+
+    const stage = page.locator(".nt-stage");
+    await expect.poll(async () => stage.evaluate((element) => element.clientHeight)).toBeGreaterThan(120);
+    await stage.hover();
+    await page.mouse.wheel(0, 600);
+    await expect.poll(async () => stage.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  });
+
   test("inspects and restores an archived revision through the browser console", async ({ page }) => {
     const state = await installConsoleApiMocks(page);
 
     await page.goto("/ui/");
 
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-    await page.getByLabel("Management token").fill("gateway-admin-token");
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { name: "登录" })).toBeVisible();
+    await page.getByLabel("管理密钥").fill("gateway-admin-token");
+    await page.getByRole("button", { name: "登录" }).click();
 
-    await expect(page.getByRole("heading", { name: "Gateway Web Console" })).toBeVisible();
-    await page.getByRole("button", { name: "Inspect revision r0-cafebabefeed" }).click();
+    await expect(page.getByRole("heading", { name: "Gateway 网页控制台" })).toBeVisible();
+    await page.getByRole("button", { name: "查看修订 r0-cafebabefeed" }).click();
 
     await expect(
       page.getByLabel("Selected revision detail").getByText("legacy-provider", { exact: true }),
     ).toBeVisible();
     await expect(page.getByText("answer: gpt-5.4 -> gpt-4.1")).toBeVisible();
 
-    await page.getByRole("button", { name: "Restore revision as active config" }).click();
+    await page.getByRole("button", { name: "恢复为激活配置" }).click();
 
-    await expect(page.getByRole("dialog", { name: "Review revision restore" })).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "Review revision restore" })).toContainText(
+    await expect(page.getByRole("dialog", { name: "确认恢复修订" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "确认恢复修订" })).toContainText(
       "r0-cafebabefeed",
     );
 
-    await page.getByRole("button", { name: "Confirm restore" }).click();
+    await page.getByRole("button", { name: "确认恢复" }).click();
 
     await expect(
       page.getByRole("status", { name: "Gateway console last action" }),
-    ).toContainText("Restored revision r0-cafebabefeed as active revision r2-beadfeedcafe.");
-    await expect(
-      page
-        .locator("article")
-        .filter({ has: page.getByRole("heading", { name: "当前路由配置" }) })
-        .getByText("legacy-provider", { exact: true }),
-    ).toBeVisible();
-    await expect(page.getByLabel("Route document JSON")).toContainText('"answer": "gpt-4.1"');
+    ).toContainText("已将修订 r0-cafebabefeed 恢复为激活修订 r2-beadfeedcafe。");
+    const activeRouteSnapshot = page.getByLabel("Active route document snapshot");
+    await expect(activeRouteSnapshot).toContainText('"id": "legacy-provider"');
+    await expect(activeRouteSnapshot).toContainText('"answer": "gpt-4.1"');
 
     await expect.poll(() => state.lastCommitRequest?.message).toBe(
-      "restore revision r0-cafebabefeed",
+      "恢复修订 r0-cafebabefeed",
     );
   });
 });

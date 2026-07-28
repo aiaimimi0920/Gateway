@@ -1,5 +1,7 @@
 providers:
   - id: codex
+    vendor_key: openai
+    vendor_name: "OpenAI"
     preset: codex
     base_url: "https://chatgpt.com/backend-api/codex"
     api_key: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5MzQ0ZTY1LWJiYzktNDRkMS1hOWQwLWY5NTdiMDc5YmQwZSIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS92MSJdLCJjbGllbnRfaWQiOiJhcHBfRU1vYW1FRVo3M2YwQ2tYYVhwN2hyYW5uIiwiZXhwIjoxNzc2NDIyOTYwLCJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiMDZjZGFjNGEtNmM1YS00ZTVlLTliNmItOGQzY2RjMWVmZDhiIiwiY2hhdGdwdF9hY2NvdW50X3VzZXJfaWQiOiJ1c2VyLW9DZ054NldwbFRWTXJGZ3gxZWtIN3I3U19fMDZjZGFjNGEtNmM1YS00ZTVlLTliNmItOGQzY2RjMWVmZDhiIiwiY2hhdGdwdF9jb21wdXRlX3Jlc2lkZW5jeSI6Im5vX2NvbnN0cmFpbnQiLCJjaGF0Z3B0X3BsYW5fdHlwZSI6ImZyZWUiLCJjaGF0Z3B0X3VzZXJfaWQiOiJ1c2VyLW9DZ054NldwbFRWTXJGZ3gxZWtIN3I3UyIsImxvY2FsaG9zdCI6dHJ1ZSwidXNlcl9pZCI6InVzZXItb0NnTng2V3BsVFZNckZneDFla0g3cjdTIn0sImh0dHBzOi8vYXBpLm9wZW5haS5jb20vcHJvZmlsZSI6eyJlbWFpbCI6ImF6dXJlaG9sbG93NjJlODAwQG1haWwuYWlhaW1pbWkuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJpYXQiOjE3NzU1NTg5NTksImlzcyI6Imh0dHBzOi8vYXV0aC5vcGVuYWkuY29tIiwianRpIjoiMDNlMDlkZjctYzUxZi00MDI4LTkzYWQtMjFiYTcyYWQ5ZjI1IiwibmJmIjoxNzc1NTU4OTU5LCJwd2RfYXV0aF90aW1lIjoxNzc0NjY4NDQ1ODYzLCJzY3AiOlsib3BlbmlkIiwiZW1haWwiLCJwcm9maWxlIiwib2ZmbGluZV9hY2Nlc3MiXSwic2Vzc2lvbl9pZCI6ImF1dGhzZXNzXzZWTUgzOURiMlBZc2w4S2lCaDhEZnNFdyIsInNsIjp0cnVlLCJzdWIiOiJhdXRoMHxaSmlianBNNlFNbDA0NGJ0WHJRdldZVFEifQ.GCM-85gofPBL1YbV4Xd8oWmLsWPg7HeeAp0BBGqOCR04N6U2VCxtOTE7A4xafbws1jkS2mfdrAzwoZntP-_3CijLmD2Od0-0lSJlc6RKjXYyYLyZ-3hE-1kIz5g-9VBKxaJa9g0IRji02LuPaQ8_sSrnFhNlkuYrCFWpRUZAvkPdorpcP7KVMMGTtwv_-DKNFIeHwfX3V64ET7KzUe2BosdE7YzfdCQHoTg5q4VZ0u2MJ0B-j4xiuRFZ7j-01SXqxWlH6ktLn-jK6faoxYvg9IohgIA35VYg3VtGLMABp3CWWDrt46C9z-dgUhDZ9OZUybwPpmweNVQmb62xUXjDgFUvO9AHv9CtPp_ok91icPJt1OdUtGjRQ3axXeoD0BVBZxKDvwWOHKbiL4ASoS0_ST4qwrbh3v-l35VQdTSnRJjyjKHxJA6-miJxHtsnZtO6tO06KnauO0cQXRNCol1PKqCalwrkqBHbW0T7Z9B8xG8xI_NCsCW0BPrFTsoYWnYC1c3ULLFIsJvp30U-dsqUN5tMvqCbUUVeY9vYVH_UF2o7gYlfDC4pCZUTXBU-43rdBO_I88baGtY8kAYQVbHXfP0Di4vkEBhS8yQrEQwWDPNxbfS0Vvp1TK-DAYB-NGpmUSuWjJbOXPtSkavIZa_T8NewHfzTwKy4cR059meOfyU"
@@ -11,7 +13,18 @@ providers:
       - gpt-5.3-codex
       - gpt-5.2
 
+  - id: muyuan-openai
+    vendor_key: muyuan
+    vendor_name: "Muyuan"
+    preset: openai
+    base_url: "https://muyuan.do/v1"
+    api_key: "sk-fI5P07x3Xn9K5Ne1EGNyy9DbVLHTizT4TiLfSMMbA2Vtru3F"
+    chat_completions_path: "/chat/completions"
+    supported_models: [gpt-5.4]
+
   - id: accio
+    vendor_key: alibaba
+    vendor_name: "Alibaba"
     preset: accio
     base_url: "https://phoenix-gw.alibaba.com"
     supported_models: [claude-sonnet-4-6, claude-opus-4-6]
@@ -21,6 +34,8 @@ providers:
 
   # 讯飞星辰 MaaS — v2 端点，标准 OpenAI 兼容
   - id: xfyun-maas
+    vendor_key: xfyun
+    vendor_name: "iFlytek / XFYun"
     preset: openai
     base_url: "https://maas-api.cn-huabei-1.xf-yun.com"
     chat_completions_path: "/v2/chat/completions"
@@ -42,6 +57,8 @@ providers:
   # model_map 将用户可见模型名翻译为统一的 astron-code-latest 发给上游
   # 每个凭证的 supported_models 标注该 key 背后绑定的实际模型
   - id: xfyun-coding
+    vendor_key: xfyun
+    vendor_name: "iFlytek / XFYun"
     preset: openai
     base_url: "https://maas-coding-api.cn-huabei-1.xf-yun.com"
     chat_completions_path: "/v2/chat/completions"
@@ -57,6 +74,8 @@ providers:
 
   # NVIDIA NIM — 189 models, OpenAI 兼容, Bearer 认证, 多凭证轮询
   - id: nvidia
+    vendor_key: nvidia
+    vendor_name: "NVIDIA"
     preset: nvidia-openai
     base_url: "https://integrate.api.nvidia.com"
     supported_models:
@@ -81,6 +100,8 @@ providers:
 
   # Poe — OpenAI 兼容, Bearer 认证, 多凭证轮询
   - id: poe
+    vendor_key: poe
+    vendor_name: "Poe"
     preset: openai
     base_url: "https://api.poe.com"
     supported_models: [Gemma-4-31B]
@@ -91,6 +112,8 @@ providers:
   # 注意: base_url 路径含 /api 前缀 (openrouter.ai/api/v1/...)
   # 可选头: HTTP-Referer, X-Title (用于 OpenRouter 排名)
   - id: openrouter
+    vendor_key: openrouter
+    vendor_name: "OpenRouter"
     preset: openai
     base_url: "https://openrouter.ai/api"
     supported_models:
@@ -105,6 +128,8 @@ providers:
 
   # LongCat — 美团 AI, OpenAI 兼容, base_url 含 /openai 前缀
   - id: longcat
+    vendor_key: longcat
+    vendor_name: "LongCat"
     preset: openai
     base_url: "https://api.longcat.chat/openai"
     supported_models:
@@ -117,6 +142,8 @@ providers:
 
   # Qwen Platform — official API key lines + WebUI reverse surface
   - id: qwen-dashscope-openai
+    vendor_key: alibaba-qwen
+    vendor_name: "Alibaba / Qwen"
     preset: qwen-dashscope-openai
     base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
     supported_models: [qwen3-coder-plus, qwen-plus, qwen-turbo]
@@ -124,6 +151,8 @@ providers:
       - api_key: "${QWEN_DASHSCOPE_API_KEY}"
 
   - id: qwen-coding-plan-openai
+    vendor_key: alibaba-qwen
+    vendor_name: "Alibaba / Qwen"
     preset: qwen-coding-plan-openai
     base_url: "https://coding.dashscope.aliyuncs.com/v1"
     supported_models: [qwen3-coder-plus, qwen3-max-preview]
@@ -131,6 +160,8 @@ providers:
       - api_key: "${QWEN_CODING_PLAN_API_KEY}"
 
   - id: qwen-coding-plan-anthropic
+    vendor_key: alibaba-qwen
+    vendor_name: "Alibaba / Qwen"
     preset: qwen-coding-plan-anthropic
     base_url: "https://coding.dashscope.aliyuncs.com/apps/anthropic"
     supported_models: [qwen3-coder-plus, qwen3-max-preview]
@@ -138,6 +169,8 @@ providers:
       - api_key: "${QWEN_CODING_PLAN_API_KEY}"
 
   - id: qwen-web-chat
+    vendor_key: alibaba-qwen
+    vendor_name: "Alibaba / Qwen"
     preset: qwen-web-chat
     base_url: "https://chat.qwen.ai"
     supported_models: [qwen3-coder-plus]
@@ -147,6 +180,8 @@ providers:
           Cookie: "${QWEN_WEB_COOKIE}"
 
   - id: gemini-business
+    vendor_key: google-gemini
+    vendor_name: "Google / Gemini"
     preset: gemini-business
     base_url: "https://biz-discoveryengine.googleapis.com/v1alpha"
     supported_models: [nano-banana-pro, gemini-3-pro-image-preview]
@@ -163,6 +198,8 @@ providers:
           session: "${GEMINI_BUSINESS_SESSION}"
 
   - id: linkup
+    vendor_key: linkup
+    vendor_name: "Linkup"
     preset: linkup
     base_url: "https://api.linkup.so"
     supported_models: [linkup-search, linkup-fetch, linkup-research, linkup-balance]
@@ -170,6 +207,8 @@ providers:
       - api_key: "${LINKUP_API_KEY_1}"
 
   - id: tavily
+    vendor_key: tavily
+    vendor_name: "Tavily"
     preset: tavily
     base_url: "https://api.tavily.com"
     supported_models: [tavily-search]
@@ -177,6 +216,8 @@ providers:
       - api_key: "${TAVILY_API_KEY}"
 
   - id: you
+    vendor_key: you
+    vendor_name: "You.com"
     preset: you
     base_url: "https://ydc-index.io"
     supported_models: [you-search]
@@ -184,6 +225,8 @@ providers:
       - api_key: "${YOU_API_KEY}"
 
   - id: exa
+    vendor_key: exa
+    vendor_name: "Exa"
     preset: exa
     base_url: "https://api.exa.ai"
     supported_models: [exa-search, exa-fetch]
@@ -191,6 +234,8 @@ providers:
       - api_key: "${EXA_API_KEY_1}"
 
   - id: jina-search
+    vendor_key: jina-ai
+    vendor_name: "Jina AI"
     preset: jina-search
     base_url: "https://s.jina.ai"
     supported_models: [jina-search]
@@ -198,6 +243,8 @@ providers:
       - api_key: "${JINA_API_KEY_1}"
 
   - id: jina-reader
+    vendor_key: jina-ai
+    vendor_name: "Jina AI"
     preset: jina-reader
     base_url: "https://r.jina.ai"
     supported_models: [jina-fetch]
@@ -205,6 +252,8 @@ providers:
       - api_key: "${JINA_API_KEY_1}"
 
   - id: websearchapi
+    vendor_key: websearchapi
+    vendor_name: "WebSearchAPI"
     preset: websearchapi
     base_url: "https://api.websearchapi.ai"
     supported_models: [websearchapi-search]
@@ -212,6 +261,8 @@ providers:
       - api_key: "${WEBSEARCHAPI_API_KEY}"
 
   - id: chataibot
+    vendor_key: chataibot
+    vendor_name: "ChatAIBot"
     preset: chataibot
     base_url: "https://chataibot.pro"
     supported_models:
@@ -231,6 +282,8 @@ providers:
       - api_key: "${CHATAIBOT_TOKEN}"
 
   - id: lumalabs
+    vendor_key: luma-ai
+    vendor_name: "Luma AI"
     preset: lumalabs
     base_url: "https://app.lumalabs.ai"
     supported_models: [uni-1, ray3.14, elevenlabs-music-v1]
@@ -248,6 +301,8 @@ providers:
           # audioArtifactField: "${LUMALABS_AUDIO_ARTIFACT_FIELD}"
 
   - id: gemini-canvas
+    vendor_key: google-gemini
+    vendor_name: "Google / Gemini"
     preset: gemini-canvas
     base_url: "https://gemini.google.com"
     supported_models:
@@ -267,6 +322,8 @@ providers:
           shareId: "${GEMINI_CANVAS_SHARE_ID}"
 
   - id: gemini-canvas-chat
+    vendor_key: google-gemini
+    vendor_name: "Google / Gemini"
     preset: gemini-canvas-chat
     base_url: "https://gemini.google.com"
     supported_models:
@@ -285,6 +342,8 @@ providers:
           apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta"
 
   - id: producer
+    vendor_key: producer
+    vendor_name: "Producer"
     preset: producer
     base_url: "https://www.flowmusic.app"
     supported_models: [producer:image, producer:standard, producer:music-video]
@@ -292,6 +351,8 @@ providers:
       - api_key: "${PRODUCER_SESSION_BEARER_1}"
 
   - id: suno
+    vendor_key: suno
+    vendor_name: "Suno"
     preset: suno
     base_url: "https://studio-api-prod.suno.com"
     supported_models: [chirp-v3-5, chirp-v3-0]
@@ -302,6 +363,8 @@ providers:
       - api_key: "${SUNO_COOKIE_1}"
 
   - id: udio
+    vendor_key: udio
+    vendor_name: "Udio"
     preset: udio
     base_url: "https://www.udio.com"
     supported_models: [udio-music]
@@ -314,6 +377,10 @@ providers:
         runtime_state_object_key: "credential-runtime/udio/manual-browser-helper/storage-state.json"
 
 model_routes:
+  - pattern: "gpt-5.4"
+    provider_ids: [muyuan-openai]
+    priority: 100
+
   - pattern: "gpt-5-codex-*"
     provider_ids: [codex]
     priority: 20
@@ -364,9 +431,6 @@ model_routes:
     priority: 5
   - pattern: "astron-*"
     provider_ids: [xfyun-coding]
-    priority: 10
-  - pattern: "coder-model"
-    provider_ids: [qwen]
     priority: 10
   - pattern: "nano-banana*"
     provider_ids: [gemini-business]

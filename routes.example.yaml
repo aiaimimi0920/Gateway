@@ -8,16 +8,22 @@
 providers:
   # ── Single credential (api_key directly on provider) ────────────────────
   - id: openai-default
+    vendor_key: openai
+    vendor_name: "OpenAI"
     preset: openai
     base_url: "https://api.openai.com"
     api_key: "${OPENAI_API_KEY}"
 
   - id: anthropic-default
+    vendor_key: anthropic
+    vendor_name: "Anthropic"
     preset: anthropic
     base_url: "https://api.anthropic.com"
     api_key: "${ANTHROPIC_API_KEY}"
 
   - id: codex-main
+    vendor_key: openai
+    vendor_name: "OpenAI"
     preset: codex
     base_url: "https://chatgpt.com/backend-api/codex"
     api_key: "${CODEX_ACCESS_TOKEN}"
@@ -25,6 +31,8 @@ providers:
       Chatgpt-Account-Id: "${CODEX_ACCOUNT_ID}"
 
   - id: grok-main
+    vendor_key: xai
+    vendor_name: "xAI"
     preset: grok
     base_url: "https://grok.com"
     api_key: "${GROK_SSO_TOKEN}"
@@ -34,6 +42,8 @@ providers:
     supported_models: [grok-3, grok-3-thinking, grok-3-heavy, grok-4, grok-4-thinking]
 
   - id: openrouter
+    vendor_key: openrouter
+    vendor_name: "OpenRouter"
     preset: openrouter-openai
     base_url: "https://openrouter.ai/api"
     api_key: "${OPENROUTER_API_KEY}"
@@ -46,12 +56,16 @@ providers:
       X-Title: "${OPENROUTER_X_TITLE:-NeuroPlatform}"
 
   - id: qwen-dashscope-openai
+    vendor_key: alibaba-qwen
+    vendor_name: "Alibaba / Qwen"
     preset: qwen-dashscope-openai
     base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
     api_key: "${QWEN_DASHSCOPE_API_KEY}"
     supported_models: [qwen3-coder-plus, qwen-plus, qwen-turbo]
 
   - id: qwen-coding-plan-openai
+    vendor_key: alibaba-qwen
+    vendor_name: "Alibaba / Qwen"
     preset: qwen-coding-plan-openai
     base_url: "https://coding.dashscope.aliyuncs.com/v1"
     # Coding Plan current official docs describe a dedicated `sk-sp-...` key shape.
@@ -60,6 +74,8 @@ providers:
     supported_models: [qwen3-coder-plus, qwen3-max-preview]
 
   - id: qwen-coding-plan-anthropic
+    vendor_key: alibaba-qwen
+    vendor_name: "Alibaba / Qwen"
     preset: qwen-coding-plan-anthropic
     base_url: "https://coding.dashscope.aliyuncs.com/apps/anthropic"
     # Coding Plan current official docs describe a dedicated `sk-sp-...` key shape.
@@ -68,6 +84,8 @@ providers:
     supported_models: [qwen3-coder-plus, qwen3-max-preview]
 
   - id: qwen-web-chat
+    vendor_key: alibaba-qwen
+    vendor_name: "Alibaba / Qwen"
     preset: qwen-web-chat
     base_url: "https://chat.qwen.ai"
     api_key: "${QWEN_WEB_SESSION_TOKEN}"
@@ -76,6 +94,8 @@ providers:
       Cookie: "${QWEN_WEB_COOKIE}"
 
   - id: xfyun-platform
+    vendor_key: xfyun
+    vendor_name: "iFlytek / XFYun"
     label: "xfyun platform"
     preset: xfyun
     base_url: "https://maas-api.cn-huabei-1.xf-yun.com"
@@ -88,6 +108,8 @@ providers:
       qwen3.5-35b: "xopqwen35v35b"
 
   - id: gemini-business-main
+    vendor_key: google-gemini
+    vendor_name: "Google / Gemini"
     preset: gemini-business
     base_url: "https://biz-discoveryengine.googleapis.com/v1alpha"
     session_auth:
@@ -107,6 +129,8 @@ providers:
           session: "${GEMINI_BUSINESS_SESSION}"
 
   - id: linkup-search
+    vendor_key: linkup
+    vendor_name: "Linkup"
     preset: linkup
     base_url: "https://api.linkup.so"
     supported_models: [linkup-search, linkup-fetch, linkup-research, linkup-balance]
@@ -117,6 +141,8 @@ providers:
       #   api_key: "${LINKUP_API_KEY_2}"
 
   - id: tavily-search
+    vendor_key: tavily
+    vendor_name: "Tavily"
     preset: tavily
     base_url: "https://api.tavily.com"
     supported_models: [tavily-search]
@@ -125,6 +151,8 @@ providers:
         api_key: "${TAVILY_API_KEY}"
 
   - id: you-search
+    vendor_key: you
+    vendor_name: "You.com"
     preset: you
     base_url: "https://ydc-index.io"
     supported_models: [you-search]
@@ -133,6 +161,8 @@ providers:
         api_key: "${YOU_API_KEY}"
 
   - id: exa-search
+    vendor_key: exa
+    vendor_name: "Exa"
     preset: exa
     base_url: "https://api.exa.ai"
     supported_models: [exa-search, exa-fetch]
@@ -143,6 +173,8 @@ providers:
       #   api_key: "${EXA_API_KEY_2}"
 
   - id: jina-search
+    vendor_key: jina-ai
+    vendor_name: "Jina AI"
     preset: jina-search
     base_url: "https://s.jina.ai"
     supported_models: [jina-search]
@@ -153,6 +185,8 @@ providers:
       #   api_key: "${JINA_API_KEY_2}"
 
   - id: jina-reader
+    vendor_key: jina-ai
+    vendor_name: "Jina AI"
     preset: jina-reader
     base_url: "https://r.jina.ai"
     supported_models: [jina-fetch]
@@ -163,6 +197,8 @@ providers:
       #   api_key: "${JINA_API_KEY_2}"
 
   - id: websearchapi-search
+    vendor_key: websearchapi
+    vendor_name: "WebSearchAPI"
     preset: websearchapi
     base_url: "https://api.websearchapi.ai"
     supported_models: [websearchapi-search]
@@ -171,6 +207,8 @@ providers:
         api_key: "${WEBSEARCHAPI_API_KEY}"
 
   - id: chataibot-main
+    vendor_key: chataibot
+    vendor_name: "ChatAIBot"
     preset: chataibot
     base_url: "https://chataibot.pro"
     supported_models:
@@ -191,6 +229,8 @@ providers:
         api_key: "${CHATAIBOT_TOKEN}"
 
   - id: lumalabs-main
+    vendor_key: luma-ai
+    vendor_name: "Luma AI"
     preset: lumalabs
     base_url: "https://app.lumalabs.ai"
     supported_models: [uni-1]
@@ -204,6 +244,8 @@ providers:
           realmId: "${LUMALABS_REALM_ID}"
 
   - id: gemini-canvas-main
+    vendor_key: google-gemini
+    vendor_name: "Google / Gemini"
     preset: gemini-canvas
     base_url: "https://gemini.google.com"
     supported_models:
@@ -224,6 +266,8 @@ providers:
           shareId: "${GEMINI_CANVAS_SHARE_ID}"
 
   - id: gemini-canvas-chat-main
+    vendor_key: google-gemini
+    vendor_name: "Google / Gemini"
     preset: gemini-canvas-chat
     base_url: "https://gemini.google.com"
     supported_models:
@@ -243,6 +287,8 @@ providers:
           apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta"
 
   - id: producer-main
+    vendor_key: producer
+    vendor_name: "Producer"
     preset: producer
     base_url: "https://www.flowmusic.app"
     supported_models:
@@ -256,6 +302,8 @@ providers:
       #   api_key: "${PRODUCER_SESSION_BEARER_2}"
 
   - id: suno-main
+    vendor_key: suno
+    vendor_name: "Suno"
     preset: suno
     base_url: "https://studio-api-prod.suno.com"
     supported_models:
@@ -271,6 +319,8 @@ providers:
       #   api_key: "${SUNO_COOKIE_2}"
 
   - id: udio-main
+    vendor_key: udio
+    vendor_name: "Udio"
     preset: udio
     base_url: "https://www.udio.com"
     supported_models:
@@ -288,6 +338,8 @@ providers:
       #   api_key: "${UDIO_COOKIE_2}"
 
   - id: perplexity-main
+    vendor_key: perplexity
+    vendor_name: "Perplexity"
     preset: perplexity
     base_url: "https://api.perplexity.ai"
     supported_models:
@@ -303,6 +355,8 @@ providers:
       #   api_key: "${PERPLEXITY_API_KEY_2}"
 
   - id: perplexity-search
+    vendor_key: perplexity
+    vendor_name: "Perplexity"
     preset: perplexity-search
     base_url: "https://api.perplexity.ai"
     supported_models: [perplexity-search]
@@ -331,6 +385,23 @@ providers:
   #       headers:
   #         utdid: "utd-002"
 
+# Optional account-pool metadata consumed by the browser console / platform side.
+# This does not change runtime route resolution directly; it tags reusable
+# provider credentials into logical groups for management and later billing.
+account_groups:
+  - id: premium-openai
+    name: Premium OpenAI
+    billing_multiplier: 1.25
+    provider_credential_ids:
+      - openai-default::default
+      - codex-main::default
+  - id: search-shared
+    name: Search Shared Pool
+    billing_multiplier: 0.8
+    provider_credential_ids:
+      - linkup-key-1
+      - tavily-key-1
+
 model_routes:
   - pattern: "claude-*"
     provider_ids: [anthropic-default]
@@ -347,10 +418,6 @@ model_routes:
   - pattern: "grok-*"
     provider_ids: [grok-main]
     priority: 15
-
-  - pattern: "coder-model"
-    provider_ids: [qwen-main]
-    priority: 10
 
   - pattern: "hunyuan-*"
     provider_ids: [xfyun-platform]
@@ -488,7 +555,7 @@ aliases:
   gpt-5-codex: gpt-5.3-codex
   gpt-5-classic: gpt-5.2
   grok: grok-3
-  qwen-code: coder-model
+  qwen-code: qwen3-coder-plus
   xfyun-hunyuan: hunyuan-mt-7b
   xfyun-ocr: hunyuan-ocr
   xfyun-qwen-2b: qwen-2b

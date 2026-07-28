@@ -5,6 +5,7 @@
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use rquest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 
+use crate::http::request_headers::{is_internal_gateway_header, INTERNAL_GATEWAY_HEADER_DENYLIST};
 use crate::protocol::kiro;
 use crate::routing::candidate::ProviderAccountPayload;
 use crate::upstream::accio as accio_upstream;
@@ -280,8 +281,9 @@ pub fn build_upstream_headers_with(
     if let Some(extra) = extra_headers {
         for (name, value) in extra {
             // Skip auth-related headers — those are handled by adapter logic above.
-            match name.to_lowercase().as_str() {
+            match name.to_ascii_lowercase().as_str() {
                 "authorization" | "x-api-key" | "api-key" | "x-goog-api-key" | "content-type" => {}
+                _ if is_internal_gateway_header(name) => {}
                 _ => {
                     insert_header(&mut map, name, value);
                 }
@@ -291,6 +293,9 @@ pub fn build_upstream_headers_with(
 
     // Append / override with provider-specific custom headers.
     for (name, value) in &payload.headers {
+        if is_internal_gateway_header(name) {
+            continue;
+        }
         if matches!(
             payload.canonical_adapter(),
             "gemini_web_compatible" | "gemini_web_reverse_modular_compatible"
@@ -319,6 +324,10 @@ pub fn build_upstream_headers_with(
             }
         }
         insert_header(&mut map, name, value);
+    }
+
+    for name in INTERNAL_GATEWAY_HEADER_DENYLIST {
+        map.remove(*name);
     }
 
     map
@@ -749,6 +758,47 @@ mod tests {
         let headers = build_upstream_headers_with(&payload, Some(&extra_headers));
         assert_eq!(header_str(&headers, "x-goog-api-key"), Some("sk-test-1234"));
         assert!(headers.get("authorization").is_none());
+    }
+
+    #[test]
+    fn account_group_headers_are_never_forwarded_to_upstream() {
+        let mut payload = make_payload("openai_compatible");
+        payload.headers.insert(
+            "x-neuro-account-group".to_string(),
+            "provider-internal".to_string(),
+        );
+        payload.headers.insert(
+            "X-Account-Group-Id".to_string(),
+            "provider-legacy".to_string(),
+        );
+        let extra_headers = HashMap::from([
+            (
+                "x-neuro-account-group".to_string(),
+                "internal-premium".to_string(),
+            ),
+            (
+                "X-Account-Group-Id".to_string(),
+                "internal-legacy".to_string(),
+            ),
+            ("x-request-id".to_string(), "request-42".to_string()),
+        ]);
+
+        let headers = build_upstream_headers_with(&payload, Some(&extra_headers));
+
+        assert!(headers.get("x-neuro-account-group").is_none());
+        assert!(headers.get("x-account-group-id").is_none());
+        assert_eq!(header_str(&headers, "x-request-id"), Some("request-42"));
+    }
+
+    #[test]
+    fn internal_account_group_header_cannot_be_reintroduced_as_auth_header() {
+        let mut payload = make_payload("custom_http");
+        payload.auth_header_name = Some("X-Account-Group-Id".to_string());
+        payload.auth_token = Some("internal-selector-value".to_string());
+
+        let headers = build_upstream_headers(&payload);
+
+        assert!(headers.get("x-account-group-id").is_none());
     }
 
     #[test]

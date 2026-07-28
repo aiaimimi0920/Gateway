@@ -21,6 +21,7 @@ use crate::redis::credential_cache::{
     get_credential, get_credential_affinity, lookup_credentials_by_model, CredentialKind,
 };
 use crate::routing::candidate::RouteCandidate;
+use crate::routing::config::RouteAccountGroupConstraint;
 use crate::routing::credential_routing::credential_to_candidate;
 use crate::routing::protocol_resolution::{
     finalize_candidate_protocol_family, route_policy_family_matches_candidate,
@@ -40,6 +41,11 @@ use super::{CredentialSource, PipelineContext};
 /// - `PlatformUnlimited` / `PlatformLimited`: shared across all project users
 pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(), GatewayError> {
     let model = ctx.canonical_req.requested_model.as_deref();
+    let requested_account_group_id = ctx.account_group_id.clone();
+    let account_group_constraint = state
+        .route_config
+        .account_group_constraint(requested_account_group_id.as_deref())
+        .map_err(map_account_group_selection_error)?;
     let credential_ref = ctx
         .credential_ref
         .clone()
@@ -84,7 +90,18 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             ctx.canonical_req.explicit_session_key.as_deref(),
         )
         .await?;
-        if route_context.route_candidates.is_empty() {
+        let (route_candidates, projected_candidates) = filter_candidate_pairs_by_account_group(
+            &account_group_constraint,
+            route_context.route_candidates,
+            route_context.candidates,
+        );
+        if route_candidates.is_empty() {
+            if let Some(error) = account_group_candidates_unavailable_error(
+                &account_group_constraint,
+                Some(requested_model),
+            ) {
+                return Err(error);
+            }
             return Err(GatewayError::quota_exceeded("当前 key 没有可用的访问候选")
                 .with_code("access_candidates_exhausted"));
         }
@@ -94,7 +111,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             .and_then(|s| s.access_key_kind.as_deref())
             == Some("auto_route")
         {
-            if let Some(selected) = route_context.selected.as_ref() {
+            if let Some(selected) = projected_candidates.first() {
                 let decision = db::pre_deduct_access_key_balance(
                     pg_pool,
                     &state.redis_pool,
@@ -117,8 +134,8 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         }
         let finalized = finalize_candidate_pairs_for_request(
             &ctx.canonical_req,
-            route_context.route_candidates,
-            Some(route_context.candidates),
+            route_candidates,
+            Some(projected_candidates),
         );
         ctx.projected_access_candidates = finalized.1.unwrap_or_default();
         ctx.candidates = finalized.0;
@@ -301,10 +318,18 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             selection_strategy = route_context.selection_strategy;
             all_candidates.extend(route_context.candidates);
         } else {
-            let yaml_candidates = state.route_config.resolve_candidates(model);
+            let yaml_candidates = state
+                .route_config
+                .resolve_candidates_for_account_group(model, requested_account_group_id.as_deref())
+                .map_err(map_account_group_selection_error)?;
             all_candidates.extend(yaml_candidates);
         }
     }
+
+    // Redis and PostgreSQL candidates are already concrete accounts. Apply
+    // the same validated group constraint used by access-catalog and YAML
+    // routing before affinity or queue ordering can select an outside account.
+    all_candidates = account_group_constraint.filter_candidates(all_candidates);
 
     // ── Credential Affinity: boost sticky credential to front ────────────
     //
@@ -385,6 +410,11 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     }
 
     if all_candidates.is_empty() {
+        if let Some(error) =
+            account_group_candidates_unavailable_error(&account_group_constraint, model)
+        {
+            return Err(error);
+        }
         let model_str = model.unwrap_or("<none>");
         warn!(
             req_id = %ctx.req_id,
@@ -456,6 +486,54 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     ctx.candidates = queue;
     ctx.route_selection_strategy = Some(selection_strategy);
     Ok(())
+}
+
+fn map_account_group_selection_error(
+    error: crate::routing::config::RouteAccountGroupSelectionError,
+) -> GatewayError {
+    match error {
+        crate::routing::config::RouteAccountGroupSelectionError::NotFound(group_id) => {
+            GatewayError::bad_request(format!(
+                "Requested account group '{}' was not found",
+                group_id
+            ))
+            .with_code("account_group_not_found")
+        }
+        crate::routing::config::RouteAccountGroupSelectionError::Disabled(group_id) => {
+            GatewayError::bad_request(format!(
+                "Requested account group '{}' is disabled",
+                group_id
+            ))
+            .with_code("account_group_disabled")
+        }
+    }
+}
+
+fn account_group_candidates_unavailable_error(
+    constraint: &RouteAccountGroupConstraint,
+    model: Option<&str>,
+) -> Option<GatewayError> {
+    let account_group_id = constraint.requested_group_id()?;
+    let model_label = model.unwrap_or("<none>");
+    Some(
+        GatewayError::bad_request(format!(
+            "No providers/accounts configured for requested account group '{}' and model '{}'",
+            account_group_id, model_label
+        ))
+        .with_code("account_group_candidates_unavailable"),
+    )
+}
+
+fn filter_candidate_pairs_by_account_group<T>(
+    constraint: &RouteAccountGroupConstraint,
+    candidates: Vec<RouteCandidate>,
+    rows: Vec<T>,
+) -> (Vec<RouteCandidate>, Vec<T>) {
+    candidates
+        .into_iter()
+        .zip(rows)
+        .filter(|(candidate, _)| constraint.allows_candidate(candidate))
+        .unzip()
 }
 
 fn finalize_candidate_pairs_for_request<T: Clone>(
@@ -533,6 +611,7 @@ mod tests {
         CanonicalMessage, CanonicalRelayRequest, ContentPart, EndpointKind, MessageRole,
         ProtocolFamily,
     };
+    use crate::redis::credential_cache::{CredentialEntry, CredentialKind};
     use crate::routing::config::RouteConfigStore;
     use crate::upstream::client::UpstreamClient;
     use std::collections::HashMap;
@@ -611,6 +690,10 @@ mod tests {
     }
 
     fn make_state() -> Arc<AppState> {
+        make_state_with_route_store(RouteConfigStore::new())
+    }
+
+    fn make_state_with_route_store(route_config: RouteConfigStore) -> Arc<AppState> {
         Arc::new(AppState {
             config: make_config(),
             redis_pool: deadpool_redis::Config::from_url("redis://localhost:6379")
@@ -621,7 +704,7 @@ mod tests {
             concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
             auth_adapters: vec![],
             filter_config: None,
-            route_config: Arc::new(RouteConfigStore::new()),
+            route_config: Arc::new(route_config),
             route_config_runtime: None,
             console_auth: test_console_auth_runtime(),
             credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
@@ -631,6 +714,25 @@ mod tests {
                 false,
             ),
         })
+    }
+
+    fn make_cached_credential(id: &str) -> CredentialEntry {
+        CredentialEntry {
+            id: id.to_string(),
+            kind: CredentialKind::PlatformUnlimited,
+            project_id: "default".to_string(),
+            user_id: "platform".to_string(),
+            provider: "openai".to_string(),
+            api_key: Some(format!("{id}-key")),
+            api_base_url: Some("https://redis.example.com".to_string()),
+            headers: None,
+            account_payload: None,
+            quota_total_tokens: None,
+            quota_remaining_tokens: None,
+            expires_at: None,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+        }
     }
 
     fn make_request() -> CanonicalRelayRequest {
@@ -779,5 +881,274 @@ model_routes:
         assert_eq!(ctx.candidates[0].provider_account_id, "anthropic-fallback");
 
         let _ = std::fs::remove_file(&tmp_path);
+    }
+
+    #[tokio::test]
+    async fn route_stage_filters_yaml_candidates_by_requested_account_group() {
+        let yaml = r#"
+providers:
+  - id: openai-default
+    preset: openai
+    base_url: "https://api.openai.com"
+    api_key: "sk-openai"
+    supported_models: [gpt-5.4]
+  - id: codex-main
+    preset: codex
+    base_url: "https://muyuan.do/v1"
+    api_key: ""
+    supported_models: [gpt-5.4]
+    credentials:
+      - id: codex-live
+        api_key: "sk-codex"
+      - id: codex-spare
+        api_key: "sk-codex-2"
+account_groups:
+  - id: premium
+    name: "Premium"
+    provider_credential_ids: [codex-live]
+model_routes:
+  - pattern: "gpt-*"
+    provider_ids: [openai-default, codex-main]
+    priority: 10
+"#;
+        let tmp_dir = std::env::temp_dir();
+        let tmp_path = tmp_dir.join("gw_test_account_group_filter.yaml");
+        std::fs::write(&tmp_path, yaml).unwrap();
+
+        let store = RouteConfigStore::load_from_yaml(&tmp_path).unwrap();
+        let state = Arc::new(AppState {
+            config: make_config(),
+            redis_pool: deadpool_redis::Config::from_url("redis://localhost:6379")
+                .create_pool(Some(deadpool_redis::Runtime::Tokio1))
+                .expect("pool"),
+            pg_pool: None,
+            upstream_client: UpstreamClient::new(30),
+            concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
+            auth_adapters: vec![],
+            filter_config: None,
+            route_config: Arc::new(store),
+            route_config_runtime: None,
+            console_auth: test_console_auth_runtime(),
+            credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
+            lifecycle: crate::state::GatewayLifecycleState::default(),
+            shutdown: crate::state::GatewayShutdownHandle::default(),
+            provider_credential_folder_sync: crate::state::ProviderCredentialFolderSyncRuntime::new(
+                false,
+            ),
+        });
+
+        let mut req = make_request();
+        req.requested_model = Some("gpt-5.4".to_string());
+        let mut ctx = PipelineContext::new(req, None);
+        ctx.account_group_id = Some("premium".to_string());
+
+        let result = run(&mut ctx, &state).await;
+        assert!(
+            result.is_ok(),
+            "grouped route should succeed: {:?}",
+            result.err()
+        );
+        assert_eq!(ctx.candidates.len(), 1);
+        assert_eq!(ctx.candidates[0].provider_account_id, "codex-main");
+        assert_eq!(
+            ctx.candidates[0].payload.credential_id.as_deref(),
+            Some("codex-live")
+        );
+
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+
+    #[tokio::test]
+    async fn route_stage_errors_for_unknown_requested_account_group() {
+        let yaml = r#"
+providers:
+  - id: openai-default
+    preset: openai
+    base_url: "https://api.openai.com"
+    api_key: "sk-openai"
+    supported_models: [gpt-5.4]
+model_routes:
+  - pattern: "gpt-*"
+    provider_ids: [openai-default]
+    priority: 10
+"#;
+        let tmp_dir = std::env::temp_dir();
+        let tmp_path = tmp_dir.join("gw_test_account_group_missing.yaml");
+        std::fs::write(&tmp_path, yaml).unwrap();
+
+        let store = RouteConfigStore::load_from_yaml(&tmp_path).unwrap();
+        let state = Arc::new(AppState {
+            config: make_config(),
+            redis_pool: deadpool_redis::Config::from_url("redis://localhost:6379")
+                .create_pool(Some(deadpool_redis::Runtime::Tokio1))
+                .expect("pool"),
+            pg_pool: None,
+            upstream_client: UpstreamClient::new(30),
+            concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
+            auth_adapters: vec![],
+            filter_config: None,
+            route_config: Arc::new(store),
+            route_config_runtime: None,
+            console_auth: test_console_auth_runtime(),
+            credential_cache: crate::credential_store::CredentialMemoryCache::new(30),
+            lifecycle: crate::state::GatewayLifecycleState::default(),
+            shutdown: crate::state::GatewayShutdownHandle::default(),
+            provider_credential_folder_sync: crate::state::ProviderCredentialFolderSyncRuntime::new(
+                false,
+            ),
+        });
+
+        let mut req = make_request();
+        req.requested_model = Some("gpt-5.4".to_string());
+        let mut ctx = PipelineContext::new(req, None);
+        ctx.account_group_id = Some("missing".to_string());
+
+        let error = run(&mut ctx, &state)
+            .await
+            .expect_err("missing group should fail");
+        assert_eq!(error.code.as_deref(), Some("account_group_not_found"));
+
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+
+    #[test]
+    fn access_catalog_candidate_pairs_are_group_filtered_without_losing_row_alignment() {
+        let store = RouteConfigStore::from_document(
+            serde_yaml::from_str(
+                r#"
+providers:
+  - id: access-provider
+    base_url: "https://example.com"
+    credentials:
+      - { id: access-live, api_key: live-key }
+      - { id: access-outside, api_key: outside-key }
+account_groups:
+  - id: isolated
+    name: Isolated
+    provider_credential_ids: [access-live]
+model_routes: []
+"#,
+            )
+            .expect("route document"),
+        )
+        .expect("route store");
+        let template = store
+            .resolve_candidates(None)
+            .into_iter()
+            .next()
+            .expect("candidate template");
+        let mut outside = template.clone();
+        outside.provider_credential_id = Some("access-outside".to_string());
+        outside.payload.credential_id = Some("access-outside".to_string());
+        let mut live = template;
+        live.provider_credential_id = Some("access-live".to_string());
+        live.payload.credential_id = Some("access-live".to_string());
+        let constraint = store
+            .account_group_constraint(Some("isolated"))
+            .expect("account group");
+
+        let (candidates, rows) = filter_candidate_pairs_by_account_group(
+            &constraint,
+            vec![outside, live],
+            vec!["outside-row", "live-row"],
+        );
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(
+            candidates[0].payload.credential_id.as_deref(),
+            Some("access-live")
+        );
+        assert_eq!(rows, vec!["live-row"]);
+    }
+
+    #[tokio::test]
+    async fn route_stage_filters_cached_redis_candidates_before_queue_selection() {
+        let store = RouteConfigStore::from_document(
+            serde_yaml::from_str(
+                r#"
+providers:
+  - id: yaml-provider
+    base_url: "https://yaml.example.com"
+    supported_models: [gpt-5.4]
+    credentials:
+      - { id: yaml-live, api_key: yaml-key }
+account_groups:
+  - id: isolated
+    name: Isolated
+    provider_credential_ids: [yaml-live]
+model_routes:
+  - pattern: gpt-5.4
+    provider_ids: [yaml-provider]
+    priority: 10
+"#,
+            )
+            .expect("route document"),
+        )
+        .expect("route store");
+        let state = make_state_with_route_store(store);
+        state.credential_cache.put(
+            "default",
+            "gpt-5.4",
+            vec![make_cached_credential("redis-outside")],
+        );
+        let mut request = make_request();
+        request.requested_model = Some("gpt-5.4".to_string());
+        let mut ctx = PipelineContext::new(request, None);
+        ctx.account_group_id = Some("isolated".to_string());
+
+        run(&mut ctx, &state).await.expect("grouped route");
+
+        assert_eq!(ctx.candidates.len(), 1);
+        assert_eq!(
+            ctx.candidates[0].payload.credential_id.as_deref(),
+            Some("yaml-live")
+        );
+    }
+
+    #[tokio::test]
+    async fn route_stage_never_falls_back_to_an_out_of_group_cached_credential() {
+        let store = RouteConfigStore::from_document(
+            serde_yaml::from_str(
+                r#"
+providers:
+  - id: yaml-provider
+    base_url: "https://yaml.example.com"
+    supported_models: [gpt-5.4]
+    credentials:
+      - id: yaml-disabled
+        api_key: disabled-key
+        enabled: false
+account_groups:
+  - id: isolated
+    name: Isolated
+    provider_credential_ids: [yaml-disabled]
+model_routes:
+  - pattern: gpt-5.4
+    provider_ids: [yaml-provider]
+    priority: 10
+"#,
+            )
+            .expect("route document"),
+        )
+        .expect("route store");
+        let state = make_state_with_route_store(store);
+        state.credential_cache.put(
+            "default",
+            "gpt-5.4",
+            vec![make_cached_credential("redis-outside")],
+        );
+        let mut request = make_request();
+        request.requested_model = Some("gpt-5.4".to_string());
+        let mut ctx = PipelineContext::new(request, None);
+        ctx.account_group_id = Some("isolated".to_string());
+
+        let error = run(&mut ctx, &state)
+            .await
+            .expect_err("out-of-group Redis credential must not be used");
+
+        assert_eq!(
+            error.code.as_deref(),
+            Some("account_group_candidates_unavailable")
+        );
     }
 }

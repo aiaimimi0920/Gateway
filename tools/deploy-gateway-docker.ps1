@@ -2,7 +2,7 @@
 param(
     [ValidateSet("up", "down", "ps", "logs", "restart")]
     [string]$Action = "up",
-    [ValidateSet("named", "local")]
+    [ValidateSet("named", "local", "dev")]
     [string]$Mode = "named",
     [string]$EnvFile = "",
     [string]$ComposeProjectName = "gateway",
@@ -129,7 +129,7 @@ function Invoke-DockerCompose {
 
 $gatewayRoot = Resolve-FullPath -Path (Join-Path $PSScriptRoot "..") -RequireExisting
 $deployDir = Resolve-FullPath -Path (Join-Path $gatewayRoot "deploy") -RequireExisting
-$composeFileName = if ($Mode -eq "local") { "docker-compose.local.yml" } else { "docker-compose.yml" }
+$composeFileName = if ($Mode -eq "local") { "docker-compose.local.yml" } elseif ($Mode -eq "dev") { "docker-compose.dev.yml" } else { "docker-compose.yml" }
 $composeFile = Resolve-FullPath -Path (Join-Path $deployDir $composeFileName) -RequireExisting
 $envTemplate = Resolve-FullPath -Path (Join-Path $deployDir ".env.example") -RequireExisting
 $envPath = if ([string]::IsNullOrWhiteSpace($EnvFile)) {
@@ -146,7 +146,7 @@ if (-not (Test-Path -LiteralPath $envPath -PathType Leaf)) {
 }
 
 if ($Action -eq "up") {
-    if ($Mode -eq "local") {
+    if ($Mode -in @("local", "dev")) {
         New-Item -ItemType Directory -Path (Join-Path $deployDir "gateway_data") -Force | Out-Null
         New-Item -ItemType Directory -Path (Join-Path $deployDir "redis_data") -Force | Out-Null
     }

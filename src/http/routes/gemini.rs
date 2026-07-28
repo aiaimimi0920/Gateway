@@ -50,7 +50,13 @@ async fn handle_model_action(
     let (model, stream) = parse_model_action(action.as_str())?;
     let canonical = gemini_api::normalize_generate_content(body, Some(model.clone()), stream)?;
     let mut ctx = PipelineContext::new(canonical, token);
-    apply_public_request_headers(&mut ctx, &headers, &state.config, &["x-goog-api-key"]);
+    apply_public_request_headers(
+        &mut ctx,
+        &headers,
+        &state.config,
+        state.console_auth.as_ref(),
+        &["x-goog-api-key"],
+    )?;
     ctx.query_params = query_params;
 
     match (stream, run_pipeline(ctx, &state).await?) {

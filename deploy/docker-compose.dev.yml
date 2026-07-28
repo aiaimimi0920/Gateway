@@ -1,0 +1,84 @@
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${GATEWAY_ENV_FILE:-.env}
+    environment:
+      - PORT=4200
+      - RUST_LOG=${RUST_LOG:-info}
+      - GATEWAY_RUNTIME_ROLE=${GATEWAY_RUNTIME_ROLE:-standalone}
+      - GATEWAY_REDIS_URL=${GATEWAY_REDIS_URL:-redis://redis:6379/0}
+      - GATEWAY_ROUTES_FILE=${GATEWAY_ROUTES_FILE:-/data/routes.yaml}
+      - GATEWAY_STATE_DIR=${GATEWAY_STATE_DIR:-/data/state}
+      - GATEWAY_API_KEY=${GATEWAY_API_KEY:-}
+      - GATEWAY_API_KEY_SECRET=${GATEWAY_API_KEY_SECRET:-}
+      - GATEWAY_MANAGEMENT_TOKEN=${GATEWAY_MANAGEMENT_TOKEN:-}
+      - GATEWAY_CONSOLE_REMOTE_ACCESS=${GATEWAY_CONSOLE_REMOTE_ACCESS:-true}
+      - GATEWAY_DATABASE_URL=${GATEWAY_DATABASE_URL:-}
+      - GATEWAY_PREBUILT_WEB_UI=1
+      - CARGO_BUILD_JOBS=1
+      - CARGO_INCREMENTAL=0
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=1
+    entrypoint: ["gateway-dev-entrypoint"]
+    ports:
+      - "${GATEWAY_BIND_HOST:-0.0.0.0}:${GATEWAY_PORT:-4200}:4200"
+    volumes:
+      - ..:/workspace
+      - ./gateway_data:/data
+      - gateway-dev-target:/workspace/target
+      - gateway-dev-node-modules:/workspace/apps/desktop/node_modules
+      - gateway-dev-cargo-registry:/root/.cargo/registry
+      - gateway-dev-cargo-git:/root/.cargo/git
+      - gateway-dev-npm-cache:/root/.npm
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4200/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+    networks:
+      - gateway-network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--save",
+        "60",
+        "1",
+        "--appendonly",
+        "yes",
+        "--appendfsync",
+        "everysec",
+      ]
+    volumes:
+      - ./redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - gateway-network
+
+volumes:
+  gateway-dev-target:
+  gateway-dev-node-modules:
+  gateway-dev-cargo-registry:
+  gateway-dev-cargo-git:
+  gateway-dev-npm-cache:
+
+networks:
+  gateway-network:
+    driver: bridge

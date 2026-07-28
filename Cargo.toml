@@ -191,6 +191,11 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Storage_FileSystem"] }
 
+[build-dependencies]
+hex = "0.4"
+serde_json = "1"
+sha2 = "0.10"
+
 [dev-dependencies]
 http-body-util = "0.1"
 

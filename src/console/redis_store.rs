@@ -12,6 +12,17 @@ use crate::routing::config::{ActiveConfigSource, RouteConfigStore, RouteConfigYa
 use super::{validate_redis_namespace, TransactionPhase, TransactionRecord};
 
 const ACTIVATE_SENTINEL_NONE: &str = "__NONE__";
+const NORMALIZE_IMMUTABLE_JSON_LUA: &str = r#"
+local current = redis.call('GET', KEYS[1])
+if current == ARGV[1] then
+  redis.call('SET', KEYS[1], ARGV[2])
+  return 1
+end
+if current == ARGV[2] then
+  return 1
+end
+return 0
+"#;
 const ACTIVATE_LUA: &str = r#"
 local current = redis.call('GET', KEYS[1])
 if not current then current = '' end
@@ -182,11 +193,7 @@ impl RouteConfigRedisRevision {
     }
 
     pub fn to_json(&self) -> Result<String, RouteConfigRedisStoreError> {
-        serde_json::to_string(self).map_err(|error| {
-            RouteConfigRedisStoreError::invalid_state(format!(
-                "Redis route revision JSON serialization failed: {error}"
-            ))
-        })
+        serialize_json_canonically(self, "Redis route revision JSON serialization failed")
     }
 
     pub fn metadata(&self) -> &RevisionMetadata {
@@ -301,11 +308,10 @@ impl RouteConfigRedisStore {
         self.ensure_single_node(pool).await?;
 
         let revision_json = revision.to_json()?;
-        let active_document_json = serde_json::to_string(revision.document()).map_err(|error| {
-            RouteConfigRedisStoreError::invalid_state(format!(
-                "Gateway console active document JSON serialization failed: {error}"
-            ))
-        })?;
+        let active_document_json = serialize_json_canonically(
+            revision.document(),
+            "Gateway console active document JSON serialization failed",
+        )?;
         let prepared_json = serialize_transaction_record(prepared_record)?;
         let activated_json = serialize_transaction_record(activated_record)?;
 
@@ -503,12 +509,7 @@ async fn store_json_if_absent_or_identical(
         ))
     })?;
     if let Some(existing) = existing {
-        if existing == value {
-            return Ok(());
-        }
-        return Err(RouteConfigRedisStoreError::invalid_state(format!(
-            "Gateway console Redis key '{key}' already contains a different immutable value",
-        )));
+        return accept_or_normalize_existing_json(connection, key, &existing, value).await;
     }
     let result: Option<String> = redis::cmd("SET")
         .arg(key)
@@ -527,24 +528,90 @@ async fn store_json_if_absent_or_identical(
                 "Gateway console Redis re-read failed for '{key}': {error}"
             ))
         })?;
-        if existing.as_deref() == Some(value) {
-            return Ok(());
-        }
-        return Err(RouteConfigRedisStoreError::invalid_state(format!(
-            "Gateway console Redis key '{key}' changed before the immutable payload could be stored",
-        )));
+        let Some(existing) = existing else {
+            return Err(RouteConfigRedisStoreError::invalid_state(format!(
+                "Gateway console Redis key '{key}' disappeared before the immutable payload could be stored",
+            )));
+        };
+        return accept_or_normalize_existing_json(connection, key, &existing, value).await;
     }
     Ok(())
+}
+
+async fn accept_or_normalize_existing_json(
+    connection: &mut deadpool_redis::Connection,
+    key: &str,
+    existing: &str,
+    value: &str,
+) -> Result<(), RouteConfigRedisStoreError> {
+    if existing == value {
+        return Ok(());
+    }
+    if !json_payloads_equivalent(existing, value) {
+        return Err(RouteConfigRedisStoreError::invalid_state(format!(
+            "Gateway console Redis key '{key}' already contains a different immutable value",
+        )));
+    }
+
+    let normalized = redis::Script::new(NORMALIZE_IMMUTABLE_JSON_LUA)
+        .key(key)
+        .arg(existing)
+        .arg(value)
+        .invoke_async::<i64>(connection)
+        .await
+        .map_err(|error| {
+            RouteConfigRedisStoreError::unavailable(format!(
+                "Gateway console Redis immutable JSON normalization failed for '{key}': {error}"
+            ))
+        })?;
+    if normalized == 1 {
+        return Ok(());
+    }
+
+    let latest: Option<String> = connection.get(key).await.map_err(|error| {
+        RouteConfigRedisStoreError::unavailable(format!(
+            "Gateway console Redis re-read failed for '{key}': {error}"
+        ))
+    })?;
+    if latest.as_deref() == Some(value) {
+        return Ok(());
+    }
+    Err(RouteConfigRedisStoreError::invalid_state(format!(
+        "Gateway console Redis key '{key}' changed while an equivalent immutable JSON payload was normalized",
+    )))
+}
+
+fn json_payloads_equivalent(left: &str, right: &str) -> bool {
+    if left == right {
+        return true;
+    }
+    match (
+        serde_json::from_str::<serde_json::Value>(left),
+        serde_json::from_str::<serde_json::Value>(right),
+    ) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => false,
+    }
+}
+
+fn serialize_json_canonically<T: Serialize>(
+    value: &T,
+    context: &str,
+) -> Result<String, RouteConfigRedisStoreError> {
+    let value = serde_json::to_value(value).map_err(|error| {
+        RouteConfigRedisStoreError::invalid_state(format!("{context}: {error}"))
+    })?;
+    serde_json::to_string(&value)
+        .map_err(|error| RouteConfigRedisStoreError::invalid_state(format!("{context}: {error}")))
 }
 
 fn serialize_transaction_record(
     record: &TransactionRecord,
 ) -> Result<String, RouteConfigRedisStoreError> {
-    serde_json::to_string(record).map_err(|error| {
-        RouteConfigRedisStoreError::invalid_state(format!(
-            "Gateway console transaction JSON serialization failed: {error}"
-        ))
-    })
+    serialize_json_canonically(
+        record,
+        "Gateway console transaction JSON serialization failed",
+    )
 }
 
 fn cluster_enabled(info: &str) -> bool {
@@ -601,6 +668,34 @@ aliases:
             roundtrip.metadata().document_digest(),
             revision.metadata().document_digest()
         );
+    }
+
+    #[test]
+    fn redis_revision_json_uses_canonical_object_key_order() {
+        let mut route_document = document("managed", "gpt-5.4");
+        for index in (0..64).rev() {
+            route_document.providers[0].headers.insert(
+                format!("x-route-header-{index:02}"),
+                format!("value-{index:02}"),
+            );
+        }
+        let revision = revision(&route_document);
+        let canonical = serde_json::to_string(&serde_json::to_value(&revision).unwrap()).unwrap();
+
+        assert_eq!(revision.to_json().unwrap(), canonical);
+    }
+
+    #[test]
+    fn immutable_json_equivalence_ignores_object_key_order_only() {
+        assert!(json_payloads_equivalent(
+            r#"{"outer":{"a":1,"b":2}}"#,
+            r#"{"outer":{"b":2,"a":1}}"#,
+        ));
+        assert!(!json_payloads_equivalent(
+            r#"{"outer":{"a":1}}"#,
+            r#"{"outer":{"a":2}}"#,
+        ));
+        assert!(!json_payloads_equivalent("not-json", "not-json-either"));
     }
 
     #[test]

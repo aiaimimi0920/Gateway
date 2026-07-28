@@ -93,6 +93,9 @@ pub async fn start_token_refresh_task(
 
         for provider in &providers {
             for cred in &provider.credential_pool {
+                if !cred.enabled {
+                    continue;
+                }
                 let config = match &cred.refresh_config {
                     Some(c) => c,
                     None => continue,

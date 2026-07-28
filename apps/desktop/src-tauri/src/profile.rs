@@ -249,12 +249,7 @@ pub fn resolve_gateway_sidecar_path_from(package_directory: &Path) -> PathBuf {
             continue;
         }
         for profile in target_profiles {
-            candidates.push(
-                ancestor
-                    .join("target")
-                    .join(profile)
-                    .join("gateway.exe"),
-            );
+            candidates.push(ancestor.join("target").join(profile).join("gateway.exe"));
             candidates.push(ancestor.join("target").join(profile).join("gateway"));
         }
     }

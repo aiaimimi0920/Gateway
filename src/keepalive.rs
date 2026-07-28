@@ -19,6 +19,7 @@ use crate::credential_runtime::SessionAuthConfig;
 use crate::db;
 use crate::db::UpsertGatewaySessionInput;
 use crate::error::{classify_network_error, classify_upstream_error, GatewayError};
+use crate::http::request_headers::is_internal_gateway_header;
 use crate::implementation_lines;
 use crate::protocol::canonical::CanonicalRelayRequest;
 use crate::protocol::gemini::shared::{
@@ -508,6 +509,7 @@ fn build_keepalive_probe_headers(
             || normalized == "content-type"
             || normalized == "authorization"
             || normalized == "cookie"
+            || is_internal_gateway_header(&normalized)
         {
             continue;
         }
@@ -523,14 +525,18 @@ fn build_keepalive_probe_headers(
                 .and_then(SessionAuthConfig::header_name)
                 .unwrap_or("authorization")
                 .to_string();
-            result.insert(header_name, format!("Bearer {api_key}"));
+            if !is_internal_gateway_header(&header_name) {
+                result.insert(header_name, format!("Bearer {api_key}"));
+            }
         }
         "header" => {
             let header_name = session_auth
                 .and_then(SessionAuthConfig::header_name)
                 .unwrap_or("x-session-token")
                 .to_string();
-            result.insert(header_name, api_key.to_string());
+            if !is_internal_gateway_header(&header_name) {
+                result.insert(header_name, api_key.to_string());
+            }
         }
         _ => {
             let primary = session_auth
@@ -768,7 +774,7 @@ fn qwen_web_signin_password_attempts(seed: &QwenWebSigninSeed) -> Vec<String> {
 
 fn qwen_web_signin_headers(payload: &ProviderAccountPayload) -> HashMap<String, String> {
     let base_url = payload.base_url.trim_end_matches('/').to_string();
-    let mut headers = payload.headers.clone();
+    let mut headers = external_gateway_headers(&payload.headers);
     let defaults = [
         (
             "User-Agent".to_string(),
@@ -1425,6 +1431,9 @@ fn request_builder_with_headers(
 ) -> rquest::RequestBuilder {
     let mut builder = client.request(method, url);
     for (key, value) in headers {
+        if is_internal_gateway_header(key) {
+            continue;
+        }
         if let (Ok(name), Ok(value)) = (
             HeaderName::try_from(key.as_str()),
             HeaderValue::from_str(value.as_str()),
@@ -1433,6 +1442,14 @@ fn request_builder_with_headers(
         }
     }
     builder
+}
+
+fn external_gateway_headers(headers: &HashMap<String, String>) -> HashMap<String, String> {
+    headers
+        .iter()
+        .filter(|(name, _)| !is_internal_gateway_header(name))
+        .map(|(name, value)| (name.clone(), value.clone()))
+        .collect()
 }
 
 fn qwen_web_session_worker_script_path() -> PathBuf {
@@ -1831,7 +1848,7 @@ fn merge_chatgpt_web_runtime_headers(
     cookie_header: Option<&str>,
     user_agent: Option<&str>,
 ) -> HashMap<String, String> {
-    let mut headers = current_headers.clone();
+    let mut headers = external_gateway_headers(current_headers);
     if let Some(cookie_header) = cookie_header {
         upsert_header_case_insensitive(&mut headers, "Cookie", cookie_header.to_string());
     }
@@ -2593,7 +2610,7 @@ fn merge_qwen_web_runtime_headers(
     current_headers: &HashMap<String, String>,
     cookie_header: Option<&str>,
 ) -> HashMap<String, String> {
-    let mut headers = current_headers.clone();
+    let mut headers = external_gateway_headers(current_headers);
     if let Some(cookie_header) = cookie_header {
         headers.insert("Cookie".to_string(), cookie_header.to_string());
     }
@@ -2893,7 +2910,7 @@ pub async fn ensure_payload_ready(
         base_url: payload.base_url.clone(),
         model: model.to_string(),
         api_key: Some(payload.api_key.clone()),
-        headers: payload.headers.clone(),
+        headers: external_gateway_headers(&payload.headers),
         extra_body: payload.extra_body.clone(),
         session_auth: payload.session_auth.clone(),
         expires_at: payload.expires_at.clone().or_else(|| {
@@ -2950,6 +2967,7 @@ pub async fn ensure_payload_ready(
     }
 
     let mut effective = payload.clone();
+    effective.headers = external_gateway_headers(&effective.headers);
 
     if let Some(api_key) = ensured.api_key.as_ref() {
         effective.api_key = api_key.clone();
@@ -2976,6 +2994,9 @@ pub async fn ensure_payload_ready(
 
     if let Some(ref header_patch) = ensured.headers {
         for (k, v) in header_patch {
+            if is_internal_gateway_header(k) {
+                continue;
+            }
             effective.headers.insert(k.clone(), v.clone());
         }
     }
@@ -3109,8 +3130,9 @@ pub async fn ensure_credential_runtime(
     redis_pool: &Pool,
     pg_pool: Option<&PgPool>,
     http: &Client,
-    input: GatewayKeepaliveEnsureRequest,
+    mut input: GatewayKeepaliveEnsureRequest,
 ) -> Result<GatewayKeepaliveEnsureResponse, GatewayError> {
+    input.headers = external_gateway_headers(&input.headers);
     implementation_lines::assert_adapter_compiled(
         input.adapter.as_str(),
         "keepalive credential runtime requested",
@@ -4155,12 +4177,139 @@ mod tests {
     fn qwen_web_refresh_merges_cookie_header() {
         let mut headers = HashMap::new();
         headers.insert("Accept".to_string(), "application/json".to_string());
+        headers.insert("x-neuro-account-group".to_string(), "premium".to_string());
         let merged = merge_qwen_web_runtime_headers(&headers, Some("token=abc"));
         assert_eq!(
             merged.get("Accept").map(String::as_str),
             Some("application/json")
         );
         assert_eq!(merged.get("Cookie").map(String::as_str), Some("token=abc"));
+        assert!(!merged
+            .keys()
+            .any(|name| name.eq_ignore_ascii_case("x-neuro-account-group")));
+    }
+
+    #[test]
+    fn chatgpt_web_runtime_header_merge_drops_internal_account_group_selectors() {
+        let headers = HashMap::from([
+            (
+                "X-Account-Group-Id".to_string(),
+                "legacy-premium".to_string(),
+            ),
+            ("Accept".to_string(), "application/json".to_string()),
+        ]);
+
+        let merged = merge_chatgpt_web_runtime_headers(&headers, Some("a=b"), None);
+
+        assert!(!merged
+            .keys()
+            .any(|name| name.eq_ignore_ascii_case("x-account-group-id")));
+        assert_eq!(
+            merged.get("Accept").map(String::as_str),
+            Some("application/json")
+        );
+        assert_eq!(merged.get("Cookie").map(String::as_str), Some("a=b"));
+    }
+
+    #[test]
+    fn keepalive_probe_headers_drop_internal_account_group_selectors() {
+        let headers = HashMap::from([
+            ("x-neuro-account-group".to_string(), "premium".to_string()),
+            (
+                "X-Account-Group-Id".to_string(),
+                "legacy-premium".to_string(),
+            ),
+            ("x-provider-runtime".to_string(), "allowed".to_string()),
+        ]);
+
+        let result = build_keepalive_probe_headers(Some(&headers), None, "session-token");
+
+        assert!(!result
+            .keys()
+            .any(|name| name.eq_ignore_ascii_case("x-neuro-account-group")));
+        assert!(!result
+            .keys()
+            .any(|name| name.eq_ignore_ascii_case("x-account-group-id")));
+        assert_eq!(
+            result.get("x-provider-runtime").map(String::as_str),
+            Some("allowed")
+        );
+    }
+
+    #[test]
+    fn keepalive_probe_auth_cannot_reintroduce_internal_account_group_selector() {
+        let session_auth = SessionAuthConfig {
+            transport: "header".to_string(),
+            primary_cookie_name: None,
+            secondary_cookie_name: None,
+            header_name: Some("X-Account-Group-Id".to_string()),
+            expires_at: None,
+        };
+
+        let result = build_keepalive_probe_headers(None, Some(&session_auth), "session-token");
+
+        assert!(!result
+            .keys()
+            .any(|name| name.eq_ignore_ascii_case("x-account-group-id")));
+    }
+
+    #[test]
+    fn qwen_web_signin_headers_drop_internal_account_group_selectors() {
+        let mut payload = qwen_payload(None);
+        payload
+            .headers
+            .insert("x-neuro-account-group".to_string(), "premium".to_string());
+        payload.headers.insert(
+            "X-Account-Group-Id".to_string(),
+            "legacy-premium".to_string(),
+        );
+        payload
+            .headers
+            .insert("x-provider-runtime".to_string(), "allowed".to_string());
+
+        let result = qwen_web_signin_headers(&payload);
+
+        assert!(!result
+            .keys()
+            .any(|name| name.eq_ignore_ascii_case("x-neuro-account-group")));
+        assert!(!result
+            .keys()
+            .any(|name| name.eq_ignore_ascii_case("x-account-group-id")));
+        assert_eq!(
+            result.get("x-provider-runtime").map(String::as_str),
+            Some("allowed")
+        );
+    }
+
+    #[test]
+    fn raw_keepalive_request_builder_drops_internal_account_group_selectors() {
+        let headers = HashMap::from([
+            ("x-neuro-account-group".to_string(), "premium".to_string()),
+            (
+                "X-Account-Group-Id".to_string(),
+                "legacy-premium".to_string(),
+            ),
+            ("x-provider-runtime".to_string(), "allowed".to_string()),
+        ]);
+
+        let request = request_builder_with_headers(
+            &Client::new(),
+            rquest::Method::GET,
+            "https://example.com/probe",
+            &headers,
+        )
+        .build()
+        .expect("build keepalive request");
+
+        assert!(request.headers().get("x-neuro-account-group").is_none());
+        assert!(request.headers().get("x-account-group-id").is_none());
+        assert_eq!(
+            request
+                .headers()
+                .get("x-provider-runtime")
+                .and_then(|value| value.to_str().ok()),
+            Some("allowed")
+        );
     }
 
     #[test]

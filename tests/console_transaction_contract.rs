@@ -139,6 +139,125 @@ async fn coordinator_commit_persists_yaml_installs_redis_snapshot_and_commits_tr
 }
 
 #[tokio::test]
+async fn coordinator_bootstraps_redis_when_yaml_revision_has_no_active_key() {
+    let old = document("old-provider", "old-model");
+    let new = document("new-provider", "new-model");
+    let harness = RuntimeHarness::new(
+        "bootstrap-missing-redis-active",
+        old,
+        FakeRedisMode::BootstrapOnly,
+        true,
+    );
+    let expected_revision = harness.store.snapshot().revision().id().to_string();
+
+    let snapshot = harness
+        .runtime
+        .commit_document(
+            &expected_revision,
+            new,
+            Some("bootstrap redis active revision".to_string()),
+        )
+        .await
+        .expect("a YAML-only runtime should bootstrap Redis on first commit");
+
+    assert_eq!(snapshot.source(), ActiveConfigSource::Redis);
+    assert_eq!(
+        harness.backend.active_revision_id(),
+        Some(snapshot.revision().id().to_string())
+    );
+}
+
+#[tokio::test]
+async fn coordinator_retry_reuses_aborted_revision_archive_after_bootstrap_conflict() {
+    let old = document("old-provider", "old-model");
+    let new = document("new-provider", "new-model");
+    let harness = RuntimeHarness::new(
+        "retry-aborted-bootstrap",
+        old,
+        FakeRedisMode::RevisionConflict { actual: None },
+        true,
+    );
+    let expected_revision = harness.store.snapshot().revision().id().to_string();
+    let message = "bootstrap attempt";
+
+    let first_error = harness
+        .runtime
+        .commit_document(&expected_revision, new.clone(), Some(message.to_string()))
+        .await
+        .expect_err("the simulated Redis conflict should abort the first attempt");
+    assert_eq!(first_error.code(), "console_revision_conflict");
+
+    harness.backend.set_mode(FakeRedisMode::BootstrapOnly);
+    let snapshot = harness
+        .runtime
+        .commit_document(&expected_revision, new, Some(message.to_string()))
+        .await
+        .expect("retry should reuse the immutable archive left by the aborted attempt");
+
+    assert_eq!(snapshot.source(), ActiveConfigSource::Redis);
+    let transactions = harness.journal.load_transactions().unwrap();
+    assert_eq!(transactions.len(), 2);
+    assert_eq!(
+        transactions
+            .iter()
+            .filter(|record| record.phase() == TransactionPhase::Aborted)
+            .count(),
+        1
+    );
+    assert_eq!(
+        transactions
+            .iter()
+            .filter(|record| record.phase() == TransactionPhase::Committed)
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn coordinator_retry_rejects_changed_message_for_aborted_revision_archive() {
+    let old = document("old-provider", "old-model");
+    let new = document("new-provider", "new-model");
+    let harness = RuntimeHarness::new(
+        "retry-aborted-message-collision",
+        old,
+        FakeRedisMode::RevisionConflict { actual: None },
+        true,
+    );
+    let expected_revision = harness.store.snapshot().revision().id().to_string();
+
+    let first_error = harness
+        .runtime
+        .commit_document(
+            &expected_revision,
+            new.clone(),
+            Some("first bootstrap attempt".to_string()),
+        )
+        .await
+        .expect_err("the simulated Redis conflict should abort the first attempt");
+    assert_eq!(first_error.code(), "console_revision_conflict");
+
+    harness.backend.set_mode(FakeRedisMode::BootstrapOnly);
+    let retry_error = harness
+        .runtime
+        .commit_document(
+            &expected_revision,
+            new,
+            Some("changed retry message".to_string()),
+        )
+        .await
+        .expect_err("a changed message must not silently reuse immutable audit metadata");
+
+    assert_eq!(retry_error.code(), "console_revision_collision");
+    assert!(retry_error
+        .to_string()
+        .contains("does not match the retry candidate"));
+    assert_eq!(harness.backend.active_revision_id(), None);
+    let transactions = harness.journal.load_transactions().unwrap();
+    assert_eq!(transactions.len(), 1);
+    assert_eq!(transactions[0].phase(), TransactionPhase::Aborted);
+}
+
+#[tokio::test]
 async fn replica_runtime_rejects_mutations() {
     let old = document("old-provider", "old-model");
     let harness = RuntimeHarness::new("replica-read-only", old, FakeRedisMode::Activated, false);
@@ -456,6 +575,10 @@ impl FakeRedisBackend {
     fn set_active_revision(&self, revision: RouteConfigRedisRevision) {
         self.state.lock().unwrap().active_revision = Some(revision);
     }
+
+    fn set_mode(&self, mode: FakeRedisMode) {
+        self.state.lock().unwrap().mode = mode;
+    }
 }
 
 #[async_trait]
@@ -501,6 +624,15 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
                 state.active_revision = Some(revision.clone());
                 Ok(RouteConfigRedisActivationOutcome::Activated)
             }
+            FakeRedisMode::BootstrapOnly => {
+                if _expected_active_revision.is_some() {
+                    return Ok(RouteConfigRedisActivationOutcome::RevisionConflict {
+                        actual: None,
+                    });
+                }
+                state.active_revision = Some(revision.clone());
+                Ok(RouteConfigRedisActivationOutcome::Activated)
+            }
             FakeRedisMode::RevisionConflict { actual } => {
                 Ok(RouteConfigRedisActivationOutcome::RevisionConflict {
                     actual: actual.clone(),
@@ -535,6 +667,7 @@ struct FakeRedisState {
 enum FakeRedisMode {
     #[default]
     Activated,
+    BootstrapOnly,
     RevisionConflict {
         actual: Option<String>,
     },

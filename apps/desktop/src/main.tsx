@@ -7,6 +7,7 @@ import { HostProvider } from "./platform/HostProvider";
 import { createBrowserHost } from "./platform/browserHost";
 import type { GatewayUiTarget } from "./platform/types";
 import { ManagementSessionProvider } from "./session/ManagementSessionProvider";
+import { UiLocaleProvider } from "./i18n/UiLocaleProvider";
 import "./styles.css";
 
 declare const __GATEWAY_UI_TARGET__: GatewayUiTarget | undefined;
@@ -21,16 +22,18 @@ const target = typeof __GATEWAY_UI_TARGET__ === "undefined" ? "web" : __GATEWAY_
 
 createRoot(rootElement).render(
   <React.StrictMode>
-    {target === "web" ? (
-      <HostProvider adapter={createBrowserHost()}>
-        <ManagementSessionProvider>
-          <AuthBoundary>
-            <BrowserConsoleApp />
-          </AuthBoundary>
-        </ManagementSessionProvider>
-      </HostProvider>
-    ) : (
-      <App />
-    )}
+    <UiLocaleProvider>
+      {target === "web" ? (
+        <HostProvider adapter={createBrowserHost()}>
+          <ManagementSessionProvider>
+            <AuthBoundary>
+              <BrowserConsoleApp />
+            </AuthBoundary>
+          </ManagementSessionProvider>
+        </HostProvider>
+      ) : (
+        <App />
+      )}
+    </UiLocaleProvider>
   </React.StrictMode>,
 );

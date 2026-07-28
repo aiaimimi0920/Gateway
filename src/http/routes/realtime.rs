@@ -297,7 +297,13 @@ async fn run_realtime_response(
     let request_tools = request.tools.clone();
     let request_tool_choice = request.tool_choice.clone();
     let mut ctx = PipelineContext::new(request, token.clone());
-    apply_public_request_headers(&mut ctx, headers, &state.config, &[]);
+    apply_public_request_headers(
+        &mut ctx,
+        headers,
+        &state.config,
+        state.console_auth.as_ref(),
+        &[],
+    )?;
     ctx.query_params = query_params.clone();
 
     send_json(

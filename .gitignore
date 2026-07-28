@@ -34,6 +34,14 @@
 /.env
 /.env.*
 !/.env.example
+/deploy/.env
+/deploy/gateway_data/
+/deploy/redis_data/
+
+# Local Codex/browser automation state (never part of source or releases)
+/.playwright-cli/
+/.playwright-mcp/
+/.superpowers/
 
 # Python validation cache
 __pycache__/
