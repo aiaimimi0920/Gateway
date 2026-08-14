@@ -1,11 +1,21 @@
+import { BarChart3, CalendarClock, Play, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createGatewayApiClient } from "../../api/client";
 import { createConsoleApi, type ConsoleApi } from "../../api/console";
 import { GatewayApiError } from "../../api/errors";
+import { ActionTooltip, NeuroTooltipProvider } from "../../components/ActionTooltip";
+import { pushAppToast } from "../../components/AppToast";
 import type {
   ConsoleAccountGroupSummaryResponse,
   ConsoleCredentialProbeResult,
   ConsoleCredentialProbeStatus,
+  ConsoleCredentialPoolAutomationProvider,
+  ConsoleCredentialPoolAutomationResponse,
+  ConsoleCredentialRefillDemand,
+  ConsoleCredentialRefillResponse,
+  ConsoleGeminiAuthFamily,
+  ConsoleGeminiAuthSession,
+  ConsoleGeminiGeneratedCredentialDraft,
   ConsoleRouteConfigCommitRequest,
   ConsoleRouteConfigValidationResponse,
   ConsoleRouteDocument,
@@ -16,19 +26,41 @@ import type {
 } from "../../api/contracts";
 import { SecretConfirmDialog } from "../auth/SecretConfirmDialog";
 import {
+  AccountsLedgerWorkspace,
+  type AccountsLedgerPilotAccount,
+  type AccountsLedgerPilotSection,
+} from "./AccountsLedgerWorkspace";
+import { CredentialGroupsWorkspace } from "./CredentialGroupsWorkspace";
+import {
   CredentialDialog,
   type CredentialDialogMode,
   type CredentialDialogValue,
 } from "./CredentialDialog";
 import { DiscardDraftDialog } from "./DiscardDraftDialog";
+import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
 import { RestoreRevisionDialog } from "./RestoreRevisionDialog";
 import {
   addExplicitCredential,
+  addProviderWithCredential,
   buildCredentialSecretPatches,
   deleteExplicitCredential,
   type CredentialSecretEdit,
   updateExplicitCredential,
 } from "./credentialDocument";
+import {
+  type AccountLedgerRow,
+  buildAccountLedgerRows,
+  buildCredentialGroupDirectory,
+  buildGroupMemberCandidates,
+  filterAccountLedgerRows,
+  resolveGeminiLogicalChannel,
+} from "./accountManagementViewModel";
+import {
+  PROVIDER_CATALOG_TEMPLATES,
+  providerCatalogClassification,
+  providerDefinitionFromCatalogDraft,
+  type ProviderCatalogDraft,
+} from "./providerCatalog";
 import { useGatewayHost } from "../../platform/HostProvider";
 import { useManagementSession } from "../../session/useManagementSession";
 import { LanguageToggleButton } from "../../i18n/LanguageToggleButton";
@@ -39,6 +71,23 @@ export type BrowserConsoleAppProps = {
 };
 
 type SecretAccessRecovery = "not-required" | "recovered" | "stale";
+
+type PilotActionDialogState =
+  | {
+      kind: "probe";
+      providerId: string;
+      account: AccountsLedgerPilotAccount;
+    }
+  | {
+      kind: "stats";
+      providerId: string;
+      account: AccountsLedgerPilotAccount;
+    }
+  | {
+      kind: "schedule";
+      providerId: string;
+      account: AccountsLedgerPilotAccount;
+    };
 
 type ConsoleActionRequest = {
   api: ConsoleApi;
@@ -124,6 +173,13 @@ type ProviderDraftRow = {
 type CredentialDialogState = {
   mode: CredentialDialogMode;
   initialValue: CredentialDialogValue | null;
+};
+
+type GeminiManualAddDialogState = {
+  targetFamily: ConsoleGeminiAuthFamily;
+  providerId: string;
+  session: ConsoleGeminiAuthSession | null;
+  busy: boolean;
 };
 
 type RouteDocumentDiff = {
@@ -485,6 +541,121 @@ function credentialDialogValueFromDocument(
   };
 }
 
+function duplicateCredentialDialogValue(
+  document: ConsoleRouteDocument,
+  providerId: string,
+  account: AccountsLedgerPilotAccount,
+): CredentialDialogValue {
+  const copiedValue = credentialDialogValueFromDocument(document, providerId, account.accountId);
+  const sourceName = copiedValue?.accountName || account.displayName || account.accountId;
+  return {
+    providerId,
+    credentialId: `${account.accountId}-copy`,
+    accountName: `${sourceName} Copy`,
+    enabled: account.enabled,
+    baseUrl: copiedValue?.baseUrl ?? "",
+    supportedModelsText: copiedValue?.supportedModelsText ?? "",
+    apiKeyOperation: "replace",
+    apiKeyValue: "",
+  };
+}
+
+function isGeminiAuthSessionTerminal(status: ConsoleGeminiAuthSession["status"]): boolean {
+  return status === "succeeded" || status === "failed";
+}
+
+function canManuallyCompleteGeminiAuthSession(
+  session: ConsoleGeminiAuthSession | null,
+): boolean {
+  if (!session || session.status !== "waiting_user") {
+    return false;
+  }
+  return (
+    session.targetFamily === "gemini-canvas" || session.targetFamily === "gemini-canvas-chat"
+  );
+}
+
+function mergeCredentialSecretEditEntries(
+  current: CredentialSecretEdit[],
+  nextEntries: CredentialSecretEdit[],
+): CredentialSecretEdit[] {
+  const merged = [...current];
+  for (const nextEntry of nextEntries) {
+    const existingIndex = merged.findIndex(
+      (entry) =>
+        entry.providerId === nextEntry.providerId &&
+        entry.credentialId === nextEntry.credentialId &&
+        entry.field === nextEntry.field,
+    );
+    if (existingIndex >= 0) {
+      merged[existingIndex] = nextEntry;
+      continue;
+    }
+    merged.push(nextEntry);
+  }
+  return merged;
+}
+
+function applyGeminiGeneratedDraftsToDocument(
+  document: ConsoleRouteDocument,
+  generatedDrafts: ConsoleGeminiGeneratedCredentialDraft[],
+): {
+  document: ConsoleRouteDocument;
+  secretEdits: CredentialSecretEdit[];
+} {
+  let nextDocument = document;
+  const secretEdits: CredentialSecretEdit[] = [];
+
+  for (const draft of generatedDrafts) {
+    const credentialIdValue = draft.credential.id;
+    if (typeof credentialIdValue !== "string" || credentialIdValue.trim().length === 0) {
+      throw new Error("Generated Gemini credential is missing a stable id.");
+    }
+    const credentialId = credentialIdValue.trim();
+    const provider = nextDocument.providers.find(
+      (entry) => isRecord(entry) && entry.id === draft.providerId,
+    );
+    if (!isRecord(provider)) {
+      throw new Error(`Provider '${draft.providerId}' could not be found.`);
+    }
+
+    const updates = { ...draft.credential, id: credentialId };
+    const existingCredential =
+      Array.isArray(provider.credentials) &&
+      provider.credentials.some((entry) => isRecord(entry) && entry.id === credentialId);
+    nextDocument = existingCredential
+      ? updateExplicitCredential(
+          nextDocument,
+          {
+            providerId: draft.providerId,
+            credentialId,
+          },
+          updates,
+        )
+      : addExplicitCredential(nextDocument, {
+          providerId: draft.providerId,
+          credential: updates,
+        });
+
+    for (const secretEdit of draft.secretEdits) {
+      if (
+        (secretEdit.field === "api_key" || secretEdit.field === "auth_token") &&
+        secretEdit.operation === "replace"
+      ) {
+        secretEdits.push({
+          providerId: draft.providerId,
+          credentialId,
+          field: secretEdit.field,
+          operation: "replace",
+          value: secretEdit.value,
+        });
+      }
+    }
+  }
+
+  return { document: nextDocument, secretEdits };
+}
+
 function providerDraftRowsFromDocument(document: ConsoleRouteDocument): ProviderDraftRow[] {
   return document.providers.map((provider) => {
     if (isRecord(provider)) {
@@ -627,6 +798,22 @@ type RouteAccountCatalog = {
 type AccountMembershipFilter = "all" | "grouped" | "ungrouped";
 type AccountEnabledFilter = "all" | "enabled" | "disabled";
 
+type PilotIdentityCategoryDefinition = {
+  id: string;
+  label: string;
+  poolTargetSize: number;
+  autoRefillEnabled: boolean;
+  autoPruneEnabled: boolean;
+};
+
+type PilotProviderPolicyDefinition = {
+  poolTargetSize: number;
+  autoRefillEnabled: boolean;
+  autoPruneEnabled: boolean;
+};
+
+const DEFAULT_PILOT_POOL_TARGET_SIZE = 30;
+
 type CredentialProbeViewResult = ConsoleCredentialProbeResult | {
   credentialId: string;
   providerId: string;
@@ -647,6 +834,689 @@ function normalizeBucketKey(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+const CODEX_IDENTITY_CATEGORY_DEFAULTS: PilotIdentityCategoryDefinition[] = [
+  {
+    id: "free",
+    label: "Free",
+    poolTargetSize: DEFAULT_PILOT_POOL_TARGET_SIZE,
+    autoRefillEnabled: false,
+    autoPruneEnabled: false,
+  },
+  {
+    id: "plus",
+    label: "Plus",
+    poolTargetSize: DEFAULT_PILOT_POOL_TARGET_SIZE,
+    autoRefillEnabled: false,
+    autoPruneEnabled: false,
+  },
+];
+
+type CodexDemoAccountDefinition = {
+  accountId: string;
+  displayName: string;
+  mode: "credential" | "provider-default";
+  enabled: boolean;
+  logicalLabels: string[];
+  capacityLabel: string;
+  statusLabel: string;
+  dispatchEnabled: boolean;
+  dispatchEditable: boolean;
+  previewOnly: boolean;
+  usageWindowBadges: string[];
+  recentUseLabel: string;
+  verificationStatus: "verified" | "failed" | "blocked" | "not-tested";
+  verificationFamilies: string[];
+  verificationCheckedAt: string | null;
+  verificationEvidenceRef: string | null;
+  verificationNote: string;
+};
+
+const CODEX_DEMO_ACCOUNTS_BY_CATEGORY: Record<
+  string,
+  CodexDemoAccountDefinition[]
+> = {
+  free: [
+    {
+      accountId: "codex-free-demo-a",
+      displayName: "Codex Free Demo A",
+      mode: "credential",
+      enabled: true,
+      logicalLabels: ["普通用户"],
+      capacityLabel: "1 / 1",
+      statusLabel: "正常",
+      dispatchEnabled: true,
+      dispatchEditable: true,
+      previewOnly: true,
+      usageWindowBadges: ["18 req", "0", "A $0.00", "U $0.00"],
+      recentUseLabel: "12 分钟前",
+      verificationStatus: "not-tested",
+      verificationFamilies: [],
+      verificationCheckedAt: null,
+      verificationEvidenceRef: null,
+      verificationNote: "演示账号未执行 live semantic canary.",
+    },
+  ],
+  plus: [
+    {
+      accountId: "codex-plus-demo-a",
+      displayName: "Codex Plus Demo A",
+      mode: "credential",
+      enabled: true,
+      logicalLabels: ["VIP 用户"],
+      capacityLabel: "2 / 3",
+      statusLabel: "正常",
+      dispatchEnabled: true,
+      dispatchEditable: true,
+      previewOnly: true,
+      usageWindowBadges: ["32 req", "0", "A $0.00", "U $0.00"],
+      recentUseLabel: "2 分钟前",
+      verificationStatus: "not-tested",
+      verificationFamilies: [],
+      verificationCheckedAt: null,
+      verificationEvidenceRef: null,
+      verificationNote: "演示账号未执行 live semantic canary.",
+    },
+    {
+      accountId: "codex-plus-demo-b",
+      displayName: "Codex Plus Demo B",
+      mode: "credential",
+      enabled: true,
+      logicalLabels: ["普通用户"],
+      capacityLabel: "1 / 2",
+      statusLabel: "正常",
+      dispatchEnabled: true,
+      dispatchEditable: true,
+      previewOnly: true,
+      usageWindowBadges: ["9 req", "0", "A $0.00", "U $0.00"],
+      recentUseLabel: "8 分钟前",
+      verificationStatus: "not-tested",
+      verificationFamilies: [],
+      verificationCheckedAt: null,
+      verificationEvidenceRef: null,
+      verificationNote: "演示账号未执行 live semantic canary.",
+    },
+  ],
+};
+
+function findCodexDemoAccount(
+  credentialId: string,
+): { categoryId: string; account: CodexDemoAccountDefinition } | null {
+  for (const [categoryId, accounts] of Object.entries(CODEX_DEMO_ACCOUNTS_BY_CATEGORY)) {
+    const account = accounts.find((entry) => entry.accountId === credentialId);
+    if (account) {
+      return { categoryId, account };
+    }
+  }
+  return null;
+}
+
+function materializeCodexDemoCredential(
+  document: ConsoleRouteDocument,
+  providerId: string,
+  credentialId: string,
+  nextEnabled: boolean,
+): ConsoleRouteDocument | null {
+  const demoAccount = findCodexDemoAccount(credentialId);
+  if (!demoAccount) {
+    return null;
+  }
+  return addExplicitCredential(document, {
+    providerId,
+    credential: {
+      id: demoAccount.account.accountId,
+      account_name: demoAccount.account.displayName,
+      enabled: nextEnabled,
+      credential_identity_category_id: demoAccount.categoryId,
+      preview_capacity: demoAccount.account.capacityLabel,
+      preview_status: demoAccount.account.statusLabel,
+      preview_usage_window_badges: [...demoAccount.account.usageWindowBadges],
+      preview_recent_use: demoAccount.account.recentUseLabel,
+      preview_logical_labels: [...demoAccount.account.logicalLabels],
+      preview_seeded_demo: true,
+    },
+  });
+}
+
+function defaultPilotCapacityLabel(categoryId: string): string {
+  switch (categoryId) {
+    case "free":
+      return "1 / 1";
+    case "plus":
+      return "3 / 3";
+    default:
+      return "2 / 2";
+  }
+}
+
+function normalizePilotCapacityLabel(value: string | null, fallback: string): string {
+  if (!value) {
+    return fallback;
+  }
+  const normalized = value.trim();
+  const legacyMatch = normalized.match(/^(\d+)\s*并发$/);
+  if (legacyMatch) {
+    return `${legacyMatch[1]} / ${legacyMatch[1]}`;
+  }
+  return normalized;
+}
+
+function defaultPilotUsageWindowBadges(categoryId: string): string[] {
+  return categoryId === "free"
+    ? ["0 req", "0", "A $0.00", "U $0.00"]
+    : ["0 req", "0", "A $0.00", "U $0.00"];
+}
+
+function normalizePilotPoolTargetSize(
+  value: unknown,
+  fallback = DEFAULT_PILOT_POOL_TARGET_SIZE,
+): number {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 1) {
+    return Math.floor(value);
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed >= 1) {
+      return Math.floor(parsed);
+    }
+  }
+  return fallback;
+}
+
+function readPilotProviderPolicy(
+  provider: Record<string, unknown>,
+): PilotProviderPolicyDefinition {
+  return {
+    poolTargetSize: normalizePilotPoolTargetSize(provider.pool_target_size),
+    autoRefillEnabled: optionalBoolean(provider, "auto_refill_enabled") ?? false,
+    autoPruneEnabled: optionalBoolean(provider, "auto_prune_enabled") ?? false,
+  };
+}
+
+function optionalStringArray(record: Record<string, unknown>, key: string): string[] {
+  const value = record[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    .map((entry) => entry.trim());
+}
+
+function readPilotUsageWindowBadges(
+  categoryId: string,
+  credential: Record<string, unknown>,
+): string[] {
+  const badges = optionalStringArray(credential, "preview_usage_window_badges");
+  if (badges.length > 0) {
+    return badges;
+  }
+  const legacyLabel = optionalString(credential, "preview_usage_window");
+  if (legacyLabel) {
+    return [legacyLabel];
+  }
+  return defaultPilotUsageWindowBadges(categoryId);
+}
+
+function buildPilotPreviewMetrics(
+  categoryId: string,
+  credential: Record<string, unknown>,
+  enabled: boolean,
+): {
+  capacityLabel: string;
+  statusLabel: string;
+  dispatchEnabled: boolean;
+  usageWindowBadges: string[];
+  recentUseLabel: string;
+} {
+  return {
+    capacityLabel: normalizePilotCapacityLabel(
+      optionalString(credential, "preview_capacity"),
+      defaultPilotCapacityLabel(categoryId),
+    ),
+    statusLabel: enabled ? optionalString(credential, "preview_status") ?? "正常" : "暂停",
+    dispatchEnabled: enabled,
+    usageWindowBadges: readPilotUsageWindowBadges(categoryId, credential),
+    recentUseLabel: optionalString(credential, "preview_recent_use") ?? "刚刚同步",
+  };
+}
+
+function buildFlatPilotPreviewMetrics(
+  credential: Record<string, unknown> | null,
+  enabled: boolean,
+): {
+  capacityLabel: string;
+  statusLabel: string;
+  dispatchEnabled: boolean;
+  usageWindowBadges: string[];
+  recentUseLabel: string;
+} {
+  const fallbackCapacity = enabled ? "1 / 1" : "0 / 1";
+  return {
+    capacityLabel: normalizePilotCapacityLabel(
+      credential ? optionalString(credential, "preview_capacity") : null,
+      fallbackCapacity,
+    ),
+    statusLabel:
+      enabled && credential
+        ? optionalString(credential, "preview_status") ?? "正常"
+        : enabled
+          ? "正常"
+          : "暂停",
+    dispatchEnabled: enabled,
+    usageWindowBadges: credential
+      ? readPilotUsageWindowBadges("default", credential)
+      : defaultPilotUsageWindowBadges("default"),
+    recentUseLabel: credential ? optionalString(credential, "preview_recent_use") ?? "刚刚同步" : "刚刚同步",
+  };
+}
+
+function buildPilotSectionAccount(
+  row: AccountLedgerRow,
+  options: {
+    credential?: Record<string, unknown> | null;
+    categoryId?: string;
+    logicalLabels?: string[];
+    previewOnly?: boolean;
+  } = {},
+): AccountsLedgerPilotAccount {
+  const credential = options.credential ?? null;
+  const logicalLabels = options.logicalLabels ?? row.groupLabels;
+  const metrics =
+    credential && options.categoryId
+      ? buildPilotPreviewMetrics(options.categoryId, credential, row.enabled)
+      : buildFlatPilotPreviewMetrics(credential, row.enabled);
+
+  return {
+    accountId: row.accountId,
+    providerId: row.providerId,
+    displayName: row.displayName,
+    mode: row.mode,
+    enabled: row.enabled,
+    logicalLabels: [...logicalLabels],
+    dispatchEditable: row.mode === "credential",
+    previewOnly: options.previewOnly ?? false,
+    verificationStatus: row.verificationStatus,
+    verificationFamilies: [...row.verificationFamilies],
+    verificationCheckedAt: row.verificationCheckedAt,
+    verificationEvidenceRef: row.verificationEvidenceRef,
+    verificationNote: row.verificationNote,
+    ...metrics,
+  };
+}
+
+function mergeGeminiAccountLedgerSections(
+  sections: AccountsLedgerPilotSection[],
+): AccountsLedgerPilotSection[] {
+  const passthrough: AccountsLedgerPilotSection[] = [];
+  const geminiGroups = new Map<
+    string,
+    {
+      channel: NonNullable<ReturnType<typeof resolveGeminiLogicalChannel>>;
+      sections: AccountsLedgerPilotSection[];
+    }
+  >();
+
+  for (const section of sections) {
+    const channel = resolveGeminiLogicalChannel(
+      section.providerId,
+      section.providerPreset,
+      section.providerLabel,
+    );
+    if (!channel) {
+      passthrough.push(section);
+      continue;
+    }
+    const group = geminiGroups.get(channel.key) ?? { channel, sections: [] };
+    group.sections.push(section);
+    geminiGroups.set(channel.key, group);
+  }
+
+  const mergedGeminiSections = [...geminiGroups.values()].map(({ channel, sections: members }) => {
+    const primary =
+      members.find((section) => section.providerId === channel.primaryProviderId) ?? members[0];
+    const accountMap = new Map<string, AccountsLedgerPilotAccount>();
+    for (const member of members) {
+      const memberAccounts = [
+        ...member.directAccounts,
+        ...member.identityCategories.flatMap((category) => category.accounts),
+      ];
+      for (const account of memberAccounts) {
+        accountMap.set(`${account.providerId}:${account.accountId}`, account);
+      }
+    }
+
+    return {
+      ...primary,
+      providerIds: [...new Set(members.flatMap((section) => section.providerIds))],
+      providerLabel: channel.label,
+      vendorLabel: "Google / Gemini",
+      manualAddFamily: channel.manualAddFamily,
+      hasExplicitAccounts: members.some((section) => section.hasExplicitAccounts),
+      supportsIdentityCategories: false,
+      identityCategories: [],
+      directAccounts: [...accountMap.values()].sort((left, right) =>
+        left.displayName.localeCompare(right.displayName),
+      ),
+    } satisfies AccountsLedgerPilotSection;
+  });
+
+  return [...passthrough, ...mergedGeminiSections].sort((left, right) => {
+    const leftChannel = resolveGeminiLogicalChannel(
+      left.providerId,
+      left.providerPreset,
+      left.providerLabel,
+    );
+    const rightChannel = resolveGeminiLogicalChannel(
+      right.providerId,
+      right.providerPreset,
+      right.providerLabel,
+    );
+    if (leftChannel && rightChannel && leftChannel.order !== rightChannel.order) {
+      return leftChannel.order - rightChannel.order;
+    }
+    return left.providerLabel.localeCompare(right.providerLabel);
+  });
+}
+
+type PilotStatsView = {
+  totalStandardCostText: string;
+  totalUserCostText: string;
+  totalCostText: string;
+  totalRequestsText: string;
+  avgDailyCostText: string;
+  avgDailyRequestsText: string;
+  activeDaysText: string;
+  activeDaysDenominatorText: string;
+  todayRequestsText: string;
+  todayTokenText: string;
+  totalTokenText: string;
+  avgDailyTokenText: string;
+  avgResponseText: string;
+};
+
+function parsePilotCurrencyBadge(
+  badges: string[],
+  prefix: "A" | "U",
+): number {
+  const badge = badges.find((entry) => entry.startsWith(`${prefix} `));
+  if (!badge) {
+    return 0;
+  }
+  const match = badge.match(/\$([0-9]+(?:\.[0-9]+)?)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function parsePilotRequestBadge(badges: string[]): number {
+  const badge = badges.find((entry) => /req$/i.test(entry));
+  if (!badge) {
+    return 0;
+  }
+  const match = badge.match(/(\d+)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function formatPilotMoney(value: number): string {
+  return `$${value.toFixed(4)}`;
+}
+
+function buildPilotStatsView(account: AccountsLedgerPilotAccount): PilotStatsView {
+  const totalRequests = parsePilotRequestBadge(account.usageWindowBadges);
+  const totalStandardCost = parsePilotCurrencyBadge(account.usageWindowBadges, "A");
+  const totalUserCost = parsePilotCurrencyBadge(account.usageWindowBadges, "U");
+  const totalCost = totalStandardCost;
+  const activeDays = totalRequests > 0 ? 1 : 0;
+  const avgDailyCost = activeDays > 0 ? totalCost / activeDays : 0;
+  const avgDailyRequests = activeDays > 0 ? totalRequests / activeDays : 0;
+
+  return {
+    totalStandardCostText: formatPilotMoney(totalStandardCost),
+    totalUserCostText: formatPilotMoney(totalUserCost),
+    totalCostText: formatPilotMoney(totalCost),
+    totalRequestsText: String(totalRequests),
+    avgDailyCostText: formatPilotMoney(avgDailyCost),
+    avgDailyRequestsText: String(Math.round(avgDailyRequests)),
+    activeDaysText: String(activeDays),
+    activeDaysDenominatorText: "31",
+    todayRequestsText: activeDays > 0 ? String(totalRequests) : "0",
+    todayTokenText: "0",
+    totalTokenText: "0",
+    avgDailyTokenText: "0",
+    avgResponseText: "0ms",
+  };
+}
+
+function normalizePilotCategoryId(value: string, fallback: string): string {
+  const normalized = normalizeBucketKey(value);
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function isCodexPilotProvider(providerId: string, providerLabel: string): boolean {
+  const normalizedId = providerId.trim().toLowerCase();
+  const normalizedLabel = providerLabel.trim().toLowerCase();
+  return normalizedId === "codex" || normalizedLabel === "codex";
+}
+
+function resolveGeminiManualAddFamily(
+  provider: Record<string, unknown>,
+  providerId: string,
+): ConsoleGeminiAuthFamily | null {
+  const candidates = [
+    providerId,
+    optionalString(provider, "preset"),
+    optionalString(provider, "label"),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.trim().toLowerCase());
+  if (candidates.includes("gemini-canvas")) {
+    return "gemini-canvas";
+  }
+  if (candidates.includes("gemini-canvas-chat")) {
+    return "gemini-canvas-chat";
+  }
+  if (candidates.includes("gemini-business")) {
+    return "gemini-business";
+  }
+  if (
+    candidates.includes("gemini-web") ||
+    candidates.includes("gemini-web-chat") ||
+    candidates.includes("gemini-web-chat-modular") ||
+    candidates.includes("gemini-web-secondary")
+  ) {
+    return "gemini-web";
+  }
+  return null;
+}
+
+function readPilotIdentityCategories(
+  provider: Record<string, unknown>,
+  providerId: string,
+  providerLabel: string,
+): PilotIdentityCategoryDefinition[] {
+  const rawCategories = provider.credential_identity_categories;
+  const definitions = Array.isArray(rawCategories)
+    ? rawCategories
+        .map((entry, index) => {
+          if (typeof entry === "string" && entry.trim().length > 0) {
+            const label = entry.trim();
+            return {
+              id: normalizePilotCategoryId(label, `identity-${index + 1}`),
+              label,
+              poolTargetSize: DEFAULT_PILOT_POOL_TARGET_SIZE,
+              autoRefillEnabled: false,
+              autoPruneEnabled: false,
+            } satisfies PilotIdentityCategoryDefinition;
+          }
+          if (!isRecord(entry)) {
+            return null;
+          }
+          const label = optionalString(entry, "label") ?? optionalString(entry, "name");
+          if (!label) {
+            return null;
+          }
+          return {
+            id: optionalString(entry, "id") ?? normalizePilotCategoryId(label, `identity-${index + 1}`),
+            label,
+            poolTargetSize: normalizePilotPoolTargetSize(entry.pool_target_size),
+            autoRefillEnabled: optionalBoolean(entry, "auto_refill_enabled") ?? false,
+            autoPruneEnabled: optionalBoolean(entry, "auto_prune_enabled") ?? false,
+          } satisfies PilotIdentityCategoryDefinition;
+        })
+        .filter(
+          (entry): entry is PilotIdentityCategoryDefinition =>
+            entry !== null && entry.id.trim().length > 0,
+        )
+    : [];
+
+  const deduped = definitions.filter(
+    (entry, index, collection) => collection.findIndex((candidate) => candidate.id === entry.id) === index,
+  );
+  if (deduped.length > 0) {
+    return deduped;
+  }
+  return isCodexPilotProvider(providerId, providerLabel)
+    ? CODEX_IDENTITY_CATEGORY_DEFAULTS
+    : [];
+}
+
+function buildAccountLedgerSections(
+  document: ConsoleRouteDocument | null,
+  rows: AccountLedgerRow[],
+): AccountsLedgerPilotSection[] {
+  if (!document) {
+    return [];
+  }
+
+  const visibleRowsByProviderId = new Map<string, AccountLedgerRow[]>();
+  for (const row of rows) {
+    const providerRows = visibleRowsByProviderId.get(row.providerId) ?? [];
+    providerRows.push(row);
+    visibleRowsByProviderId.set(row.providerId, providerRows);
+  }
+
+  const sections = document.providers
+    .filter(isRecord)
+    .flatMap((provider) => {
+      const providerId = optionalString(provider, "id");
+      if (!providerId) {
+        return [];
+      }
+      const providerLabel = optionalString(provider, "label") ?? providerId;
+      const visibleRows = visibleRowsByProviderId.get(providerId) ?? [];
+      if (visibleRows.length === 0) {
+        return [];
+      }
+      const providerPolicy = readPilotProviderPolicy(provider);
+      const manualAddFamily = resolveGeminiManualAddFamily(provider, providerId);
+      const providerPreset = optionalString(provider, "preset");
+      const providerClassification = providerCatalogClassification(
+        providerId,
+        providerPreset,
+        optionalString(provider, "adapter"),
+        optionalString(provider, "protocol_profile"),
+      );
+
+      const defaultAccount = visibleRows.find((row) => row.mode === "provider-default") ?? null;
+      const explicitRows = visibleRows.filter((row) => row.mode === "credential");
+      const credentials = Array.isArray(provider.credentials)
+        ? provider.credentials.filter(isRecord)
+        : [];
+      const credentialRecordById = new Map(
+        credentials
+          .map((entry) => {
+            const id = optionalString(entry, "id");
+            return id ? ([id, entry] as const) : null;
+          })
+          .filter((entry): entry is readonly [string, Record<string, unknown>] => entry !== null),
+      );
+
+      const identityDefinitions = readPilotIdentityCategories(provider, providerId, providerLabel);
+      const supportsIdentityCategories = identityDefinitions.length > 0;
+      const allowSeededDemoAccounts =
+        explicitRows.length === 0 ||
+        explicitRows.every((row) => {
+          const credential = credentialRecordById.get(row.accountId);
+          return credential ? optionalBoolean(credential, "preview_seeded_demo") === true : false;
+        });
+      const identityCategories = identityDefinitions.map((definition) => {
+        const accounts = explicitRows
+          .filter((row) => {
+            const credential = credentialRecordById.get(row.accountId);
+            if (!credential) {
+              return false;
+            }
+            return optionalString(credential, "credential_identity_category_id") === definition.id;
+          })
+          .map((account) => {
+            const credential = credentialRecordById.get(account.accountId) ?? {};
+            const previewLogicalLabels = optionalStringArray(
+              credential,
+              "preview_logical_labels",
+            );
+            return buildPilotSectionAccount(account, {
+              credential,
+              categoryId: definition.id,
+              logicalLabels:
+                account.groupLabels.length > 0
+                  ? [...account.groupLabels]
+                  : [...previewLogicalLabels],
+            });
+          });
+        const seededDemoAccounts =
+          allowSeededDemoAccounts && accounts.length === 0
+            ? (CODEX_DEMO_ACCOUNTS_BY_CATEGORY[definition.id] ?? []).map((account) => ({
+                ...account,
+                providerId,
+                logicalLabels: [...account.logicalLabels],
+              }))
+            : [];
+        const categoryAccounts = accounts.length > 0 ? accounts : seededDemoAccounts;
+        return {
+          id: definition.id,
+          label: definition.label,
+          count: categoryAccounts.length,
+          poolTargetSize: definition.poolTargetSize,
+          autoRefillEnabled: definition.autoRefillEnabled,
+          autoPruneEnabled: definition.autoPruneEnabled,
+          accounts: categoryAccounts,
+        };
+      });
+
+      return [
+        {
+          providerId,
+          providerIds: [providerId],
+          providerLabel,
+          vendorLabel:
+            optionalString(provider, "vendor_name") ??
+            optionalString(provider, "vendorName") ??
+            providerLabel,
+          providerPreset,
+          providerCompatibility: providerClassification?.compatibility ?? null,
+          hostLabel: hostLabelFromUrl(optionalString(provider, "base_url")),
+          defaultAccountId: defaultAccount?.accountId ?? null,
+          manualAddFamily,
+          hasExplicitAccounts: explicitRows.length > 0,
+          poolTargetSize: providerPolicy.poolTargetSize,
+          autoRefillEnabled: providerPolicy.autoRefillEnabled,
+          autoPruneEnabled: providerPolicy.autoPruneEnabled,
+          supportsIdentityCategories,
+          identityCategories,
+          directAccounts: supportsIdentityCategories
+            ? []
+            : visibleRows.map((row) =>
+                buildPilotSectionAccount(row, {
+                  credential:
+                    row.mode === "credential"
+                      ? credentialRecordById.get(row.accountId) ?? null
+                      : null,
+                }),
+              ),
+        } satisfies AccountsLedgerPilotSection,
+      ];
+    });
+  return mergeGeminiAccountLedgerSections(sections);
+}
+
 type ProviderVendorMetadata = {
   bucketKey: string;
   key: string;
@@ -656,6 +1526,11 @@ type ProviderVendorMetadata = {
 function optionalString(record: Record<string, unknown>, key: string): string | null {
   const value = record[key];
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function optionalBoolean(record: Record<string, unknown>, key: string): boolean | null {
+  const value = record[key];
+  return typeof value === "boolean" ? value : null;
 }
 
 function providerVendorMetadata(
@@ -931,10 +1806,11 @@ function buildRouteAccountCatalogFromSummary(
   const providerBucketsMap = new Map<string, RouteProviderBucket>();
 
   const accounts = summary.accounts
+    .filter((account) => providersById.has(account.providerId))
     .map((account) => {
-      const provider = providersById.get(account.providerId);
-      const baseUrl = account.baseUrl ?? provider?.baseUrl ?? null;
-      const providerRecord = (provider ?? {}) as unknown as Record<string, unknown>;
+      const provider = providersById.get(account.providerId)!;
+      const baseUrl = account.baseUrl ?? provider.baseUrl ?? null;
+      const providerRecord = provider as unknown as Record<string, unknown>;
       const accountRecord = account as unknown as Record<string, unknown>;
       const vendor = providerVendorMetadata(
         {
@@ -1175,7 +2051,15 @@ function reconcileSelectedRevision(
   };
 }
 
-export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
+export function BrowserConsoleApp(props: BrowserConsoleAppProps) {
+  return (
+    <NeuroTooltipProvider>
+      <BrowserConsoleContent {...props} />
+    </NeuroTooltipProvider>
+  );
+}
+
+function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
   const host = useGatewayHost();
   const session = useManagementSession();
   const { t } = useUiLocale();
@@ -1206,6 +2090,16 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const [accountGroupSummary, setAccountGroupSummary] =
     useState<ConsoleAccountGroupSummaryResponse["summary"] | null>(null);
   const [accountGroupSummaryError, setAccountGroupSummaryError] = useState<string | null>(null);
+  const [credentialPoolAutomation, setCredentialPoolAutomation] =
+    useState<ConsoleCredentialPoolAutomationResponse | null>(null);
+  const [credentialPoolAutomationError, setCredentialPoolAutomationError] =
+    useState<string | null>(null);
+  const [credentialPoolAutomationBusy, setCredentialPoolAutomationBusy] =
+    useState<string | null>(null);
+  const [credentialRefill, setCredentialRefill] =
+    useState<ConsoleCredentialRefillResponse | null>(null);
+  const [credentialRefillError, setCredentialRefillError] = useState<string | null>(null);
+  const [credentialRefillBusy, setCredentialRefillBusy] = useState<string | null>(null);
   const [revisions, setRevisions] = useState<ConsoleRouteRevisionListResponse | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1222,23 +2116,34 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   const [secretDialogOpen, setSecretDialogOpen] = useState(false);
   const [credentialDialogState, setCredentialDialogState] =
     useState<CredentialDialogState | null>(null);
+  const [providerCatalogDialogOpen, setProviderCatalogDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [discardRefreshDialogOpen, setDiscardRefreshDialogOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [geminiManualAddDialogState, setGeminiManualAddDialogState] =
+    useState<GeminiManualAddDialogState | null>(null);
+  const [pilotActionDialog, setPilotActionDialog] = useState<PilotActionDialogState | null>(null);
+  const [pilotProbeModel, setPilotProbeModel] = useState("GPT-5.6 (Sol)");
+  const [pilotProbeMode, setPilotProbeMode] = useState("常规请求");
   const [aliasDraftRows, setAliasDraftRows] = useState<AliasDraftRow[]>([]);
   const [modelRouteDraftRows, setModelRouteDraftRows] = useState<ModelRouteDraftRow[]>([]);
   const [providerDraftRows, setProviderDraftRows] = useState<ProviderDraftRow[]>([]);
   const [accountGroupDraftRows, setAccountGroupDraftRows] = useState<AccountGroupDraftRow[]>([]);
-  const [accountGroupSearches, setAccountGroupSearches] = useState<Record<string, string>>({});
   const [activeWorkspace, setActiveWorkspace] = useState<ConsoleWorkspaceId>("overview");
   const [accountSearch, setAccountSearch] = useState("");
   const [accountMembershipFilter, setAccountMembershipFilter] =
     useState<AccountMembershipFilter>("all");
   const [accountEnabledFilter, setAccountEnabledFilter] = useState<AccountEnabledFilter>("all");
+  const [selectedAccountGroupFilter, setSelectedAccountGroupFilter] = useState("all");
+  const [selectedProviderFilter, setSelectedProviderFilter] = useState("all");
+  const [selectedAccountGroupRowId, setSelectedAccountGroupRowId] = useState<string | null>(null);
+  const [groupMemberQuery, setGroupMemberQuery] = useState("");
+  const [groupMemberMode, setGroupMemberMode] = useState<"all" | "members" | "ungrouped">("all");
   const [credentialProbeBusy, setCredentialProbeBusy] = useState<string | null>(null);
   const [credentialProbeResults, setCredentialProbeResults] = useState<
     Record<string, CredentialProbeViewResult>
   >({});
+  const geminiManualAddPollTimeoutRef = useRef<number | null>(null);
+  const appliedGeminiManualAddSessionIdsRef = useRef<Set<string>>(new Set());
 
   const beginConsoleActionRequest = useCallback(
     (requestManagementToken: string): ConsoleActionRequest => {
@@ -1340,10 +2245,32 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
           summary: null,
           error: cause instanceof Error ? cause.message : String(cause),
         }));
-      const [nextRouteConfig, nextRevisions, nextAccountGroupSummary] = await Promise.all([
+      const credentialPoolAutomationPromise = api
+        .getCredentialPoolAutomation(managementToken)
+        .then((response) => ({ response, error: null as string | null }))
+        .catch((cause: unknown) => ({
+          response: null,
+          error: cause instanceof Error ? cause.message : String(cause),
+        }));
+      const credentialRefillPromise = api
+        .getCredentialRefill(managementToken)
+        .then((response) => ({ response, error: null as string | null }))
+        .catch((cause: unknown) => ({
+          response: null,
+          error: cause instanceof Error ? cause.message : String(cause),
+        }));
+      const [
+        nextRouteConfig,
+        nextRevisions,
+        nextAccountGroupSummary,
+        nextCredentialPoolAutomation,
+        nextCredentialRefill,
+      ] = await Promise.all([
         api.getRouteConfig(managementToken),
         api.listRouteConfigRevisions(managementToken),
         accountGroupSummaryPromise,
+        credentialPoolAutomationPromise,
+        credentialRefillPromise,
       ]);
       if (requestId !== refreshRequestIdRef.current) {
         return;
@@ -1353,6 +2280,10 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       setRevisions(nextRevisions);
       setAccountGroupSummary(nextAccountGroupSummary.summary);
       setAccountGroupSummaryError(nextAccountGroupSummary.error);
+      setCredentialPoolAutomation(nextCredentialPoolAutomation.response);
+      setCredentialPoolAutomationError(nextCredentialPoolAutomation.error);
+      setCredentialRefill(nextCredentialRefill.response);
+      setCredentialRefillError(nextCredentialRefill.error);
       setSelectedRevision((current) =>
         reconcileSelectedRevision(current, nextRouteConfig, nextRevisions),
       );
@@ -1377,6 +2308,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     setSecretDrafts(createSecretPatchDrafts(routeConfig));
     setCredentialSecretEdits([]);
     setCredentialDialogState(null);
+    setProviderCatalogDialogOpen(false);
     setCredentialProbeBusy(null);
     setCredentialProbeResults({});
     setAliasDraftRows(aliasDraftRowsFromDocument(routeConfig.routeConfig.document));
@@ -1660,6 +2592,159 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       ),
     [accountEnabledFilter, accountMembershipFilter, accountSearch, displayedAccountCatalog],
   );
+  const accountLedgerRows = useMemo(
+    () => buildAccountLedgerRows(displayedAccountCatalog, credentialProbeResults),
+    [credentialProbeResults, displayedAccountCatalog],
+  );
+  const filteredAccountLedgerRows = useMemo(
+    () =>
+      filterAccountLedgerRows(accountLedgerRows, {
+        query: accountSearch,
+        membership: accountMembershipFilter,
+        enabled: accountEnabledFilter,
+        groupId: selectedAccountGroupFilter,
+        providerKey: selectedProviderFilter,
+      }),
+    [
+      accountEnabledFilter,
+      accountLedgerRows,
+      accountMembershipFilter,
+      accountSearch,
+      selectedAccountGroupFilter,
+      selectedProviderFilter,
+    ],
+  );
+  const accountPilotSections = useMemo(
+    () =>
+      buildAccountLedgerSections(
+        draftDocumentState.document,
+        filteredAccountLedgerRows,
+      ),
+    [draftDocumentState.document, filteredAccountLedgerRows],
+  );
+  const credentialPoolAutomationByProvider = useMemo(
+    () =>
+      new Map<string, ConsoleCredentialPoolAutomationProvider>(
+        credentialPoolAutomation?.automation.providers.map((provider) => [
+          provider.providerId,
+          provider,
+        ]) ?? [],
+      ),
+    [credentialPoolAutomation],
+  );
+  const credentialRefillByProvider = useMemo(
+    () =>
+      new Map<string, ConsoleCredentialRefillDemand>(
+        credentialRefill?.refill.providers.map((provider) => [provider.providerId, provider]) ?? [],
+      ),
+    [credentialRefill],
+  );
+  const accountLedgerGroupOptions = useMemo(
+    () => [
+      { value: "all", label: t("全部分组", "All groups") },
+      ...displayedAccountCatalog.groups.map((group) => ({
+        value: group.id,
+        label: group.name,
+      })),
+    ],
+    [displayedAccountCatalog.groups, t],
+  );
+  const accountLedgerProviderOptions = useMemo(
+    () => {
+      const options = new Map<string, string>();
+      for (const bucket of displayedAccountCatalog.providerBuckets) {
+        let hasLogicalGeminiProvider = false;
+        for (const provider of bucket.providers) {
+          const channel = resolveGeminiLogicalChannel(
+            provider.id,
+            provider.preset,
+            provider.label,
+          );
+          if (!channel) {
+            continue;
+          }
+          hasLogicalGeminiProvider = true;
+          options.set(channel.key, channel.label);
+        }
+        if (!hasLogicalGeminiProvider) {
+          options.set(bucket.providers[0]?.preset ?? bucket.vendorKey, bucket.label);
+        }
+      }
+      return [
+        { value: "all", label: t("全部服务商", "All providers") },
+        ...[...options.entries()]
+          .map(([value, label]) => ({ value, label }))
+          .sort((left, right) => left.label.localeCompare(right.label)),
+      ];
+    },
+    [displayedAccountCatalog.providerBuckets, t],
+  );
+  const displayedAccountsById = useMemo(
+    () => new Map(displayedAccountCatalog.accounts.map((account) => [account.id, account])),
+    [displayedAccountCatalog.accounts],
+  );
+  const activePilotManagedAccount = useMemo(
+    () =>
+      pilotActionDialog
+        ? (displayedAccountsById.get(pilotActionDialog.account.accountId) ?? null)
+        : null,
+    [displayedAccountsById, pilotActionDialog],
+  );
+  const activePilotProbeResult = useMemo(
+    () =>
+      pilotActionDialog
+        ? (credentialProbeResults[pilotActionDialog.account.accountId] ?? null)
+        : null,
+    [credentialProbeResults, pilotActionDialog],
+  );
+  const activePilotStatsView = useMemo(
+    () => (pilotActionDialog ? buildPilotStatsView(pilotActionDialog.account) : null),
+    [pilotActionDialog],
+  );
+  const groupDirectory = useMemo(
+    () => buildCredentialGroupDirectory(displayedAccountCatalog, accountGroupDraftRows),
+    [accountGroupDraftRows, displayedAccountCatalog],
+  );
+  const enabledGroupCount = useMemo(
+    () => groupDirectory.filter((group) => group.enabled).length,
+    [groupDirectory],
+  );
+  const effectiveSelectedAccountGroupRowId = selectedAccountGroupRowId ?? groupDirectory[0]?.rowId ?? null;
+  const selectedAccountGroupDraft = useMemo(
+    () =>
+      accountGroupDraftRows.find((row) => row.id === effectiveSelectedAccountGroupRowId) ?? null,
+    [accountGroupDraftRows, effectiveSelectedAccountGroupRowId],
+  );
+  const selectedGroupMemberCandidates = useMemo(
+    () =>
+      buildGroupMemberCandidates(displayedAccountCatalog.accounts, {
+        selectedCredentialIds: selectedAccountGroupDraft?.providerCredentialIds ?? [],
+        query: groupMemberQuery,
+        mode: groupMemberMode,
+      }),
+    [displayedAccountCatalog.accounts, groupMemberMode, groupMemberQuery, selectedAccountGroupDraft],
+  );
+  const selectedGroupIdInvalid = selectedAccountGroupDraft
+    ? accountGroupDraftNeedsId(selectedAccountGroupDraft)
+    : false;
+  const selectedGroupBillingInvalid = selectedAccountGroupDraft
+    ? parseAccountGroupBillingMultiplier(selectedAccountGroupDraft.billingMultiplier) === null
+    : false;
+
+  useEffect(() => {
+    if (groupDirectory.length === 0) {
+      if (selectedAccountGroupRowId !== null) {
+        setSelectedAccountGroupRowId(null);
+      }
+      return;
+    }
+    if (
+      selectedAccountGroupRowId === null ||
+      !groupDirectory.some((group) => group.rowId === selectedAccountGroupRowId)
+    ) {
+      setSelectedAccountGroupRowId(groupDirectory[0]?.rowId ?? null);
+    }
+  }, [groupDirectory, selectedAccountGroupRowId]);
   const credentialProviderOptions = useMemo(
     () =>
       (draftDocumentState.document?.providers ?? []).flatMap((provider, index) => {
@@ -1790,6 +2875,698 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     [invalidateCredentialProbes],
   );
 
+  const persistGeminiGeneratedDrafts = useCallback(
+    async (
+      document: ConsoleRouteDocument,
+      secretEdits: CredentialSecretEdit[],
+      sessionId: string,
+      targetFamily: ConsoleGeminiAuthFamily,
+      generatedDraftCount: number,
+    ) => {
+      if (
+        targetFamily !== "gemini-canvas" &&
+        targetFamily !== "gemini-canvas-chat" &&
+        targetFamily !== "gemini-web"
+      ) {
+        return false;
+      }
+      if (!managementToken || !routeConfig) {
+        return false;
+      }
+
+      const commitSecretPatches = buildCredentialSecretPatches({
+        activeDocument: routeConfig.routeConfig.document,
+        draftDocument: document,
+        activeSecrets: routeConfig.routeConfig.secrets,
+        activeSecretPatches,
+        credentialSecretEdits: secretEdits,
+      });
+      const requiresSecretGrant = commitSecretPatches.some(
+        (patch) => patch.operation !== "keep",
+      );
+      if (requiresSecretGrant) {
+        return false;
+      }
+
+      const actionRequest = beginConsoleActionRequest(managementToken);
+      setActionBusy("save");
+      try {
+        const draft = buildCommitRequest(
+          document,
+          `Import Gemini manual credentials (${sessionId})`,
+          commitSecretPatches,
+        );
+        const result = await actionRequest.api.commitRouteConfig(
+          actionRequest.managementToken,
+          draft,
+        );
+        if (!isConsoleActionRequestCurrent(actionRequest)) {
+          return true;
+        }
+        setRouteConfig({ routeConfig: result.routeConfig });
+        setValidation(null);
+        setError(null);
+        pushAppToast(
+          "success",
+          t(
+            `Gemini 凭证已导入并保存为激活修订 ${result.routeConfig.revision.id}（${generatedDraftCount} 条）。`,
+            `Gemini credentials were imported and saved as active revision ${result.routeConfig.revision.id} (${generatedDraftCount} entries).`,
+          ),
+        );
+        await refresh();
+        return true;
+      } catch (cause) {
+        const secretRecovery = handleSecretAccessRequiredError(
+          cause,
+          () => isConsoleActionRecoveryCurrent(actionRequest),
+        );
+        if (secretRecovery !== "not-required") {
+          return false;
+        }
+        if (!isConsoleActionRequestCurrent(actionRequest)) {
+          return true;
+        }
+        setError(cause instanceof Error ? cause.message : String(cause));
+        return false;
+      } finally {
+        if (actionRequest.generation === consoleActionGenerationRef.current) {
+          setActionBusy(null);
+        }
+      }
+    },
+    [
+      activeSecretPatches,
+      beginConsoleActionRequest,
+      buildCommitRequest,
+      handleSecretAccessRequiredError,
+      isConsoleActionRecoveryCurrent,
+      isConsoleActionRequestCurrent,
+      managementToken,
+      refresh,
+      routeConfig,
+      t,
+    ],
+  );
+
+  const applyGeminiManualAddSessionResult = useCallback(
+    (nextSession: ConsoleGeminiAuthSession) => {
+      if (nextSession.status !== "succeeded") {
+        return;
+      }
+      if (appliedGeminiManualAddSessionIdsRef.current.has(nextSession.id)) {
+        return;
+      }
+      if (nextSession.generatedDrafts.length === 0) {
+        appliedGeminiManualAddSessionIdsRef.current.add(nextSession.id);
+        return;
+      }
+
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError(t("当前 JSON 草稿不可解析。", "The current JSON draft is invalid."));
+        return;
+      }
+
+      try {
+        const generated = applyGeminiGeneratedDraftsToDocument(document, nextSession.generatedDrafts);
+        const mergedSecretEdits = mergeCredentialSecretEditEntries(
+          credentialSecretEdits,
+          generated.secretEdits,
+        );
+        setCredentialSecretEdits((current) =>
+          mergeCredentialSecretEditEntries(current, generated.secretEdits),
+        );
+        replaceEditorDocument(generated.document, true);
+        appliedGeminiManualAddSessionIdsRef.current.add(nextSession.id);
+        setError(null);
+        void persistGeminiGeneratedDrafts(
+          generated.document,
+          mergedSecretEdits,
+          nextSession.id,
+          nextSession.targetFamily,
+          nextSession.generatedDrafts.length,
+        ).then((autoPersisted) => {
+          if (autoPersisted) {
+            return;
+          }
+          pushAppToast(
+            "info",
+            t(
+              `Gemini 凭证已写入草稿（${nextSession.generatedDrafts.length} 条），保存路由配置后生效。`,
+              `Gemini credentials were added to the draft (${nextSession.generatedDrafts.length} entries). Save the route config to apply them.`,
+            ),
+          );
+        });
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+      }
+    },
+    [credentialSecretEdits, editorText, persistGeminiGeneratedDrafts, replaceEditorDocument, t],
+  );
+
+  const refreshGeminiManualAddSession = useCallback(
+    async (sessionId: string) => {
+      if (!managementToken) {
+        return;
+      }
+      const response = await api.getGeminiAuthSession(managementToken, sessionId);
+      setGeminiManualAddDialogState((current) => {
+        if (!current || current.session?.id !== sessionId) {
+          return current;
+        }
+        return {
+          ...current,
+          busy: false,
+          session: response.session,
+        };
+      });
+      applyGeminiManualAddSessionResult(response.session);
+    },
+    [api, applyGeminiManualAddSessionResult, managementToken],
+  );
+
+  const requestGeminiManualAddCompletion = useCallback(async () => {
+    const session = geminiManualAddDialogState?.session ?? null;
+    if (!managementToken || !session || !canManuallyCompleteGeminiAuthSession(session)) {
+      return;
+    }
+    const sessionId = session.id;
+    setError(null);
+    setGeminiManualAddDialogState((current) =>
+      current
+        ? {
+            ...current,
+            busy: true,
+          }
+        : current,
+    );
+
+    try {
+      const response = await api.completeGeminiAuthSession(managementToken, sessionId);
+      setGeminiManualAddDialogState((current) => {
+        if (!current || current.session?.id !== sessionId) {
+          return current;
+        }
+        return {
+          ...current,
+          busy: false,
+          session: response.session,
+        };
+      });
+      if (isGeminiAuthSessionTerminal(response.session.status)) {
+        applyGeminiManualAddSessionResult(response.session);
+      } else {
+        void refreshGeminiManualAddSession(response.session.id);
+      }
+    } catch (cause) {
+      setGeminiManualAddDialogState((current) =>
+        current
+          ? {
+              ...current,
+              busy: false,
+            }
+          : current,
+      );
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }, [
+    api,
+    applyGeminiManualAddSessionResult,
+    geminiManualAddDialogState?.session,
+    managementToken,
+    refreshGeminiManualAddSession,
+    setError,
+    t,
+  ]);
+
+  const closeGeminiManualAddDialog = useCallback(() => {
+    if (geminiManualAddPollTimeoutRef.current !== null) {
+      window.clearTimeout(geminiManualAddPollTimeoutRef.current);
+      geminiManualAddPollTimeoutRef.current = null;
+    }
+    setGeminiManualAddDialogState(null);
+  }, []);
+
+  const openGeminiManualAddDialog = useCallback(
+    async (targetFamily: ConsoleGeminiAuthFamily, providerId: string) => {
+      if (!managementToken) {
+        setError(t("当前没有可用的 Gateway 管理密钥。", "Gateway management token is unavailable."));
+        return;
+      }
+
+      if (geminiManualAddPollTimeoutRef.current !== null) {
+        window.clearTimeout(geminiManualAddPollTimeoutRef.current);
+        geminiManualAddPollTimeoutRef.current = null;
+      }
+      setError(null);
+      setGeminiManualAddDialogState({
+        targetFamily,
+        providerId,
+        session: null,
+        busy: true,
+      });
+
+      try {
+        const response = await api.createGeminiAuthSession(managementToken, {
+          targetFamily,
+          providerId,
+        });
+        setGeminiManualAddDialogState({
+          targetFamily,
+          providerId,
+          session: response.session,
+          busy: false,
+        });
+        if (isGeminiAuthSessionTerminal(response.session.status)) {
+          applyGeminiManualAddSessionResult(response.session);
+        } else {
+          void refreshGeminiManualAddSession(response.session.id);
+        }
+      } catch (cause) {
+        setGeminiManualAddDialogState(null);
+        setError(cause instanceof Error ? cause.message : String(cause));
+      }
+    },
+    [api, applyGeminiManualAddSessionResult, managementToken, refreshGeminiManualAddSession, t],
+  );
+
+  useEffect(() => {
+    if (geminiManualAddPollTimeoutRef.current !== null) {
+      window.clearTimeout(geminiManualAddPollTimeoutRef.current);
+      geminiManualAddPollTimeoutRef.current = null;
+    }
+    const sessionId = geminiManualAddDialogState?.session?.id;
+    const sessionStatus = geminiManualAddDialogState?.session?.status;
+    if (!sessionId || !sessionStatus || isGeminiAuthSessionTerminal(sessionStatus)) {
+      return;
+    }
+    geminiManualAddPollTimeoutRef.current = window.setTimeout(() => {
+      geminiManualAddPollTimeoutRef.current = null;
+      void refreshGeminiManualAddSession(sessionId);
+    }, 1500);
+    return () => {
+      if (geminiManualAddPollTimeoutRef.current !== null) {
+        window.clearTimeout(geminiManualAddPollTimeoutRef.current);
+        geminiManualAddPollTimeoutRef.current = null;
+      }
+    };
+  }, [
+    geminiManualAddDialogState?.session?.id,
+    geminiManualAddDialogState?.session?.status,
+    geminiManualAddDialogState?.session?.updatedAt,
+    refreshGeminiManualAddSession,
+  ]);
+
+  const handleAddIdentityCategory = useCallback(
+    (providerId: string) => {
+      const requestedLabel = window.prompt(
+        t("输入新的账号类别名称。", "Enter the new identity class label."),
+      );
+      const label = requestedLabel?.trim() ?? "";
+      if (label.length === 0) {
+        return;
+      }
+
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError(t("当前 JSON 草稿不可解析。", "The current JSON draft is invalid."));
+        return;
+      }
+
+      const provider = document.providers.find(
+        (entry) => isRecord(entry) && entry.id === providerId,
+      );
+      if (!isRecord(provider)) {
+        setError(
+          t(
+            `找不到服务商 ${providerId}。`,
+            `Provider ${providerId} could not be found.`,
+          ),
+        );
+        return;
+      }
+
+      const providerLabel = optionalString(provider, "label") ?? providerId;
+      const existingCategories = readPilotIdentityCategories(provider, providerId, providerLabel);
+      const existingIds = new Set(existingCategories.map((category) => category.id));
+      const baseId = normalizePilotCategoryId(label, `identity-${existingCategories.length + 1}`);
+      let nextId = baseId;
+      let suffix = 2;
+      while (existingIds.has(nextId)) {
+        nextId = `${baseId}-${suffix}`;
+        suffix += 1;
+      }
+
+      provider.credential_identity_categories = [
+        ...existingCategories,
+        {
+          id: nextId,
+          label,
+          poolTargetSize: DEFAULT_PILOT_POOL_TARGET_SIZE,
+          autoRefillEnabled: false,
+          autoPruneEnabled: false,
+        },
+      ];
+
+      replaceEditorDocument(document, true);
+      setError(null);
+      pushAppToast(
+        "success",
+        t(
+          `服务商 ${providerLabel} 已新增账号类别 ${label}。`,
+          `Provider ${providerLabel} now includes the identity class ${label}.`,
+        ),
+      );
+    },
+    [editorText, replaceEditorDocument, t],
+  );
+
+  const updatePilotIdentityCategoryPolicy = useCallback(
+    (
+      providerId: string,
+      categoryId: string,
+      updates: Partial<
+        Pick<
+          PilotIdentityCategoryDefinition,
+          "poolTargetSize" | "autoRefillEnabled" | "autoPruneEnabled"
+        >
+      >,
+    ) => {
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError(t("当前 JSON 草稿不可解析。", "The current JSON draft is invalid."));
+        return;
+      }
+
+      const provider = document.providers.find(
+        (entry) => isRecord(entry) && entry.id === providerId,
+      );
+      if (!isRecord(provider)) {
+        setError(
+          t(
+            `找不到服务商 ${providerId}。`,
+            `Provider ${providerId} could not be found.`,
+          ),
+        );
+        return;
+      }
+
+      const providerLabel = optionalString(provider, "label") ?? providerId;
+      const existingCategories = readPilotIdentityCategories(provider, providerId, providerLabel);
+      const nextCategories = existingCategories.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              ...updates,
+              poolTargetSize:
+                updates.poolTargetSize !== undefined
+                  ? Math.max(1, Math.floor(updates.poolTargetSize))
+                  : category.poolTargetSize,
+            }
+          : category,
+      );
+
+      provider.credential_identity_categories = nextCategories.map((category) => ({
+        id: category.id,
+        label: category.label,
+        pool_target_size: category.poolTargetSize,
+        auto_refill_enabled: category.autoRefillEnabled,
+        auto_prune_enabled: category.autoPruneEnabled,
+      }));
+      if (updates.autoRefillEnabled === true) {
+        provider.auto_refill_enabled = true;
+      }
+      if (updates.autoPruneEnabled === true) {
+        provider.auto_prune_enabled = true;
+      }
+
+      replaceEditorDocument(document, true);
+      setError(null);
+    },
+    [editorText, replaceEditorDocument, t],
+  );
+
+  const updatePilotProviderPolicy = useCallback(
+    (
+      providerId: string,
+      updates: Partial<
+        Pick<
+          PilotProviderPolicyDefinition,
+          "poolTargetSize" | "autoRefillEnabled" | "autoPruneEnabled"
+        >
+      >,
+    ) => {
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError(t("当前 JSON 草稿不可解析。", "The current JSON draft is invalid."));
+        return;
+      }
+
+      const provider = document.providers.find(
+        (entry) => isRecord(entry) && entry.id === providerId,
+      );
+      if (!isRecord(provider)) {
+        setError(
+          t(
+            `找不到服务商 ${providerId}。`,
+            `Provider ${providerId} could not be found.`,
+          ),
+        );
+        return;
+      }
+
+      const currentPolicy = readPilotProviderPolicy(provider);
+      provider.pool_target_size =
+        updates.poolTargetSize !== undefined
+          ? Math.max(1, Math.floor(updates.poolTargetSize))
+          : currentPolicy.poolTargetSize;
+      provider.auto_refill_enabled =
+        updates.autoRefillEnabled !== undefined
+          ? updates.autoRefillEnabled
+          : currentPolicy.autoRefillEnabled;
+      provider.auto_prune_enabled =
+        updates.autoPruneEnabled !== undefined
+          ? updates.autoPruneEnabled
+          : currentPolicy.autoPruneEnabled;
+
+      replaceEditorDocument(document, true);
+      setError(null);
+    },
+    [editorText, replaceEditorDocument, t],
+  );
+
+  const updateProviderAutomationToggle = useCallback(
+    (
+      providerId: string,
+      field: "autoRefillEnabled" | "autoPruneEnabled",
+      nextEnabled: boolean,
+    ) => {
+      const automation = credentialPoolAutomationByProvider.get(providerId);
+      const refillQueueAvailable = credentialRefill?.refill.enabled === true;
+      const requiresDirectDriver = field === "autoPruneEnabled";
+      if (
+        nextEnabled &&
+        credentialPoolAutomation &&
+        !automation?.driverConfigured &&
+        (requiresDirectDriver || !refillQueueAvailable)
+      ) {
+        pushAppToast(
+          "warning",
+          t(
+            requiresDirectDriver
+              ? `渠道 ${providerId} 尚未配置受信任的自动剔号驱动器。`
+              : `渠道 ${providerId} 尚未配置补号队列或受信任驱动器。`,
+            requiresDirectDriver
+              ? `Provider ${providerId} does not have a trusted prune driver configured.`
+              : `Provider ${providerId} has neither a refill queue nor a trusted driver.`,
+          ),
+        );
+        return;
+      }
+      updatePilotProviderPolicy(providerId, { [field]: nextEnabled });
+    },
+    [
+      credentialPoolAutomation,
+      credentialPoolAutomationByProvider,
+      credentialRefill,
+      t,
+      updatePilotProviderPolicy,
+    ],
+  );
+
+  const updateIdentityCategoryAutomationToggle = useCallback(
+    (
+      providerId: string,
+      categoryId: string,
+      field: "autoRefillEnabled" | "autoPruneEnabled",
+      nextEnabled: boolean,
+    ) => {
+      const automation = credentialPoolAutomationByProvider.get(providerId);
+      const refillQueueAvailable = credentialRefill?.refill.enabled === true;
+      const requiresDirectDriver = field === "autoPruneEnabled";
+      if (
+        nextEnabled &&
+        credentialPoolAutomation &&
+        !automation?.driverConfigured &&
+        (requiresDirectDriver || !refillQueueAvailable)
+      ) {
+        pushAppToast(
+          "warning",
+          t(
+            requiresDirectDriver
+              ? `渠道 ${providerId} 尚未配置受信任的自动剔号驱动器。`
+              : `渠道 ${providerId} 尚未配置补号队列或受信任驱动器。`,
+            requiresDirectDriver
+              ? `Provider ${providerId} does not have a trusted prune driver configured.`
+              : `Provider ${providerId} has neither a refill queue nor a trusted driver.`,
+          ),
+        );
+        return;
+      }
+      updatePilotIdentityCategoryPolicy(providerId, categoryId, { [field]: nextEnabled });
+    },
+    [
+      credentialPoolAutomation,
+      credentialPoolAutomationByProvider,
+      credentialRefill,
+      t,
+      updatePilotIdentityCategoryPolicy,
+    ],
+  );
+
+  const handleRunCredentialPoolAutomation = useCallback(
+    async (providerId: string) => {
+      if (!managementToken) {
+        const message = t(
+          "当前没有可用的 Gateway 管理密钥。",
+          "Gateway management token is unavailable.",
+        );
+        setError(message);
+        pushAppToast("error", message);
+        return;
+      }
+      if (draftDirty) {
+        pushAppToast(
+          "warning",
+          t(
+            "请先保存当前路由草稿，再运行自动补号/剔号。",
+            "Save the current route draft before running pool automation.",
+          ),
+        );
+        return;
+      }
+      const automation = credentialPoolAutomationByProvider.get(providerId);
+      if (!automation?.driverConfigured) {
+        pushAppToast(
+          "warning",
+          t(
+            `渠道 ${providerId} 尚未配置受信任的自动补号驱动器。`,
+            `Provider ${providerId} does not have a trusted automation driver configured.`,
+          ),
+        );
+        return;
+      }
+      setError(null);
+      setCredentialPoolAutomationBusy(providerId);
+      try {
+        const result = await api.runCredentialPoolAutomation(managementToken, providerId);
+        setCredentialPoolAutomation((current) =>
+          current
+            ? {
+                automation: {
+                  ...current.automation,
+                  providers: current.automation.providers.map((provider) =>
+                    provider.providerId === providerId ? result.provider : provider,
+                  ),
+                },
+              }
+            : current,
+        );
+        pushAppToast(
+          "success",
+          result.provider.message ??
+            t(
+              `渠道 ${providerId} 的凭证池自动化已完成。`,
+              `Credential pool automation completed for ${providerId}.`,
+            ),
+        );
+        await refresh();
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        setError(message);
+        pushAppToast("error", message);
+      } finally {
+        setCredentialPoolAutomationBusy(null);
+      }
+    },
+    [api, credentialPoolAutomationByProvider, draftDirty, managementToken, refresh, t],
+  );
+
+  const handleRequestCredentialRefill = useCallback(
+    async (providerId: string) => {
+      if (!managementToken) {
+        const message = t(
+          "当前没有可用的 Gateway 管理密钥。",
+          "Gateway management token is unavailable.",
+        );
+        setError(message);
+        pushAppToast("error", message);
+        return;
+      }
+      if (draftDirty) {
+        pushAppToast(
+          "warning",
+          t(
+            "请先保存当前路由草稿，再发起主动补号。",
+            "Save the current route draft before requesting a refill.",
+          ),
+        );
+        return;
+      }
+      const demand = credentialRefillByProvider.get(providerId);
+      if (!demand?.userRequestEnabled) {
+        pushAppToast(
+          "warning",
+          t("当前补号任务框架不可用。", "The credential refill framework is unavailable."),
+        );
+        return;
+      }
+      setError(null);
+      setCredentialRefillBusy(providerId);
+      try {
+        const result = await api.requestCredentialRefill(managementToken, providerId);
+        pushAppToast(
+          result.created ? "success" : "info",
+          result.created
+            ? t(
+                `渠道 ${providerId} 的主动补号任务已投递。`,
+                `A user-requested refill task was published for ${providerId}.`,
+              )
+            : t(
+                `渠道 ${providerId} 已有未完成的补号任务。`,
+                `Provider ${providerId} already has an outstanding refill task.`,
+              ),
+        );
+        await refresh();
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        setError(message);
+        pushAppToast("error", message);
+      } finally {
+        setCredentialRefillBusy(null);
+      }
+    },
+    [api, credentialRefillByProvider, draftDirty, managementToken, refresh, t],
+  );
+
   const openAddCredentialDialog = useCallback((providerId = "") => {
     setCredentialDialogState({
       mode: "add",
@@ -1900,7 +3677,8 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
         updateCredentialSecretEdit(value);
         replaceEditorDocument(nextDocument, true);
         setError(null);
-        setSuccessMessage(
+        pushAppToast(
+          "info",
           t(
             `账号 ${value.accountName || value.credentialId} 已写入草稿，保存路由配置后生效。`,
             `Account ${value.accountName || value.credentialId} was added to the draft and will take effect after saving the route config.`,
@@ -1917,6 +3695,180 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       t,
       updateCredentialSecretEdit,
     ],
+  );
+
+  const applyProviderCatalogDraft = useCallback(
+    (value: ProviderCatalogDraft) => {
+      const template = PROVIDER_CATALOG_TEMPLATES.find(
+        (candidate) => candidate.id === value.templateId,
+      );
+      if (!template) {
+        setError(
+          t(
+            `找不到服务商模板 ${value.templateId}。`,
+            `Provider template ${value.templateId} could not be found.`,
+          ),
+        );
+        return;
+      }
+
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError(t("当前 JSON 草稿不可解析。", "The current JSON draft is invalid."));
+        return;
+      }
+
+      try {
+        const provider = providerDefinitionFromCatalogDraft(template, value);
+        const nextDocument = addProviderWithCredential(document, {
+          provider,
+          credential: {
+            id: value.credentialId,
+            account_name: value.accountName || undefined,
+            enabled: true,
+            supported_models: [...value.supportedModels],
+          },
+          routePatterns: value.supportedModels,
+        });
+        updateCredentialSecretEdit({
+          providerId: value.providerId,
+          credentialId: value.credentialId,
+          accountName: value.accountName,
+          enabled: true,
+          baseUrl: "",
+          supportedModelsText: value.supportedModels.join("\n"),
+          apiKeyOperation: "replace",
+          apiKeyValue: value.apiKey,
+        });
+        replaceEditorDocument(nextDocument, true);
+        setActiveWorkspace("accounts");
+        setError(null);
+        pushAppToast(
+          "info",
+          t(
+            `服务商 ${value.providerLabel}、首个账号和 ${value.supportedModels.length} 条模型聚合路由已写入草稿。保存路由配置后生效。`,
+            `Provider ${value.providerLabel}, its first account, and ${value.supportedModels.length} model aggregation routes were added to the draft. Save the route config to apply them.`,
+          ),
+        );
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+      }
+    },
+    [editorText, replaceEditorDocument, t, updateCredentialSecretEdit],
+  );
+
+  const togglePilotCredentialDispatch = useCallback(
+    (providerId: string, credentialId: string, nextEnabled: boolean) => {
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError(t("当前 JSON 草稿不可解析。", "The current JSON draft is invalid."));
+        return;
+      }
+
+      try {
+        const nextDocument =
+          credentialDialogValueFromDocument(document, providerId, credentialId) !== null
+            ? updateExplicitCredential(
+                document,
+                {
+                  providerId,
+                  credentialId,
+                },
+                {
+                  enabled: nextEnabled,
+                },
+              )
+            : materializeCodexDemoCredential(
+                document,
+                providerId,
+                credentialId,
+                nextEnabled,
+              ) ??
+              updateExplicitCredential(
+                document,
+                {
+                  providerId,
+                  credentialId,
+                },
+                {
+                  enabled: nextEnabled,
+                },
+              );
+        replaceEditorDocument(nextDocument, true);
+        setError(null);
+        pushAppToast(
+          "info",
+          nextEnabled
+            ? t(
+                `账号 ${credentialId} 已恢复调度，保存路由配置后生效。`,
+                `Account ${credentialId} was resumed in the draft and will take effect after saving the route config.`,
+              )
+            : t(
+                `账号 ${credentialId} 已暂停调度，保存路由配置后生效。`,
+                `Account ${credentialId} was paused in the draft and will take effect after saving the route config.`,
+              ),
+        );
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+      }
+    },
+    [editorText, replaceEditorDocument, t],
+  );
+
+  const openPilotProbeDialog = useCallback(
+    (providerId: string, account: AccountsLedgerPilotAccount) => {
+      setPilotProbeModel("GPT-5.6 (Sol)");
+      setPilotProbeMode(t("常规请求", "Normal request"));
+      setPilotActionDialog({
+        kind: "probe",
+        providerId,
+        account,
+      });
+    },
+    [t],
+  );
+
+  const openPilotStatsDialog = useCallback(
+    (providerId: string, account: AccountsLedgerPilotAccount) => {
+      setPilotActionDialog({
+        kind: "stats",
+        providerId,
+        account,
+      });
+    },
+    [],
+  );
+
+  const openPilotScheduleDialog = useCallback(
+    (providerId: string, account: AccountsLedgerPilotAccount) => {
+      setPilotActionDialog({
+        kind: "schedule",
+        providerId,
+        account,
+      });
+    },
+    [],
+  );
+
+  const openDuplicateCredentialDialog = useCallback(
+    (providerId: string, account: AccountsLedgerPilotAccount) => {
+      let document: ConsoleRouteDocument;
+      try {
+        document = parseRouteDocument(editorText);
+      } catch {
+        setError(t("当前 JSON 草稿不可解析。", "The current JSON draft is invalid."));
+        return;
+      }
+      setCredentialDialogState({
+        mode: "add",
+        initialValue: duplicateCredentialDialogValue(document, providerId, account),
+      });
+    },
+    [editorText, t],
   );
 
   const removeCredential = useCallback(
@@ -1951,7 +3903,8 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
         );
         replaceEditorDocument(nextDocument, true);
         setError(null);
-        setSuccessMessage(
+        pushAppToast(
+          "info",
           t(
             `账号 ${displayName} 已从草稿删除，保存路由配置后生效。`,
             `Account ${displayName} was removed from the draft and will take effect after saving the route config.`,
@@ -2065,6 +4018,13 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       t,
     ],
   );
+
+  const startPilotProbe = useCallback(async () => {
+    if (pilotActionDialog?.kind !== "probe" || !activePilotManagedAccount) {
+      return;
+    }
+    await handleCredentialProbe(activePilotManagedAccount);
+  }, [activePilotManagedAccount, handleCredentialProbe, pilotActionDialog]);
 
   const applyAliasDraftRows = useCallback(
     (nextRows: AliasDraftRow[]) => {
@@ -2301,7 +4261,11 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
   );
 
   const addAccountGroupRow = useCallback(() => {
-    applyAccountGroupDraftRows([...accountGroupDraftRows, createAccountGroupDraftRow()]);
+    const nextRow = createAccountGroupDraftRow();
+    applyAccountGroupDraftRows([...accountGroupDraftRows, nextRow]);
+    setSelectedAccountGroupRowId(nextRow.id);
+    setGroupMemberQuery("");
+    setGroupMemberMode("all");
   }, [accountGroupDraftRows, applyAccountGroupDraftRows]);
 
   const updateAccountGroupRow = useCallback(
@@ -2348,7 +4312,11 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
 
   const removeAccountGroupRow = useCallback(
     (rowId: string) => {
-      applyAccountGroupDraftRows(accountGroupDraftRows.filter((row) => row.id !== rowId));
+      const nextRows = accountGroupDraftRows.filter((row) => row.id !== rowId);
+      applyAccountGroupDraftRows(nextRows);
+      setSelectedAccountGroupRowId((current) =>
+        current === rowId ? nextRows[0]?.id ?? null : current,
+      );
     },
     [accountGroupDraftRows, applyAccountGroupDraftRows],
   );
@@ -2361,7 +4329,6 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     const actionRequest = beginConsoleActionRequest(managementToken);
     setActionBusy("validate");
     setError(null);
-    setSuccessMessage(null);
     try {
       const draft = parseDraft();
       const validationRequest = {
@@ -2422,7 +4389,6 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     const actionRequest = beginConsoleActionRequest(managementToken);
     setActionBusy("save");
     setError(null);
-    setSuccessMessage(null);
     try {
       const draft = parseDraft();
       const result = actionRequest.secretGrant
@@ -2437,7 +4403,8 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       }
       setRouteConfig({ routeConfig: result.routeConfig });
       setValidation(null);
-      setSuccessMessage(
+      pushAppToast(
+        "success",
         t(
           `已将路由配置保存为激活修订 ${result.routeConfig.revision.id}。`,
           `Saved route config as active revision ${result.routeConfig.revision.id}.`,
@@ -2480,7 +4447,6 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       }
       setRevisionBusy(true);
       setError(null);
-      setSuccessMessage(null);
       try {
         const detail = await api.getRouteConfigRevision(managementToken, revisionId);
         setSelectedRevision(detail);
@@ -2514,7 +4480,6 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     const actionRequest = beginConsoleActionRequest(managementToken);
     setActionBusy("save");
     setError(null);
-    setSuccessMessage(null);
     try {
       const draft = buildCommitRequest(
         selectedRevision.routeConfig.document,
@@ -2535,7 +4500,8 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
       setValidation(null);
       replaceEditorDocument(selectedRevision.routeConfig.document, true);
       setCommitMessage(restoreCommitMessage);
-      setSuccessMessage(
+      pushAppToast(
+        "success",
         t(
           `已将修订 ${selectedRevision.routeConfig.revision.id} 恢复为激活修订 ${result.routeConfig.revision.id}。`,
           `Restored revision ${selectedRevision.routeConfig.revision.id} as active revision ${result.routeConfig.revision.id}.`,
@@ -2612,7 +4578,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     },
     {
       id: "groups" as const,
-      label: t("分组策略", "Groups"),
+      label: t("凭证分组", "Credential Groups"),
       eyebrow: t("费率与隔离", "Billing and isolation"),
       meta: countText(displayedAccountCatalog.groups.length, "组", "group", "groups"),
     },
@@ -2743,7 +4709,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                 value: "",
               };
               return (
-                <li key={secret.path}>
+                <li className="nt-secret-entry" key={secret.path}>
                   <div className="nt-stack">
                     <div>
                       <strong>{secret.path}</strong>
@@ -2755,6 +4721,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                       <button
                         className={`nt-btn${draft.operation === "keep" ? " nt-btn--primary" : " nt-btn--outline"}`}
                         type="button"
+                        aria-label={t(`保留 ${secret.path}`, `Keep ${secret.path}`)}
                         aria-pressed={draft.operation === "keep"}
                         disabled={editorLocked}
                         onClick={() =>
@@ -2764,11 +4731,12 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                           }))
                         }
                       >
-                        {t(`保留 ${secret.path}`, `Keep ${secret.path}`)}
+                        {t("保留", "Keep")}
                       </button>
                       <button
                         className={`nt-btn${draft.operation === "replace" ? " nt-btn--primary" : " nt-btn--outline"}`}
                         type="button"
+                        aria-label={t(`替换 ${secret.path}`, `Replace ${secret.path}`)}
                         aria-pressed={draft.operation === "replace"}
                         disabled={!hasSecretAccess || editorLocked}
                         onClick={() =>
@@ -2781,11 +4749,12 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                           }))
                         }
                       >
-                        {t(`替换 ${secret.path}`, `Replace ${secret.path}`)}
+                        {t("替换", "Replace")}
                       </button>
                       <button
                         className={`nt-btn${draft.operation === "clear" ? " nt-btn--primary" : " nt-btn--outline"}`}
                         type="button"
+                        aria-label={t(`清空 ${secret.path}`, `Clear ${secret.path}`)}
                         aria-pressed={draft.operation === "clear"}
                         disabled={!hasSecretAccess || editorLocked}
                         onClick={() =>
@@ -2795,7 +4764,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                           }))
                         }
                       >
-                        {t(`清空 ${secret.path}`, `Clear ${secret.path}`)}
+                        {t("清空", "Clear")}
                       </button>
                     </div>
                     {draft.operation === "replace" ? (
@@ -3352,6 +5321,14 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
             <button
               className="nt-btn nt-btn--secondary"
               type="button"
+              disabled={editorLocked}
+              onClick={() => setProviderCatalogDialogOpen(true)}
+            >
+              {t("添加服务商", "Add provider")}
+            </button>
+            <button
+              className="nt-btn nt-btn--outline"
+              type="button"
               onClick={() => setActiveWorkspace("editor")}
             >
               {t("进入结构化编辑", "Open structured editor")}
@@ -3405,582 +5382,136 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
     </div>
   );
   const accountsWorkspace = (
-    <div className="nt-stack">
-      {draftStructureNotice}
-      <article className="nt-card nt-card--panel">
-        <div className="nt-section__head">
-          <div>
-            <p className="nt-kicker">// Accounts</p>
-            <h2>{t("账号台账", "Accounts")}</h2>
-            <p className="nt-copy">
-              {t(
-                "把 route-config 中的 provider credentials 视为可复用账号单元，并按照服务商/Provider 进行分组浏览。",
-                "Treat provider credentials in the route config as reusable account units and browse them grouped by service provider / provider.",
-              )}
-            </p>
-          </div>
-          <div className="nt-actions">
-            <button
-              className="nt-btn nt-btn--primary"
-              type="button"
-              disabled={editorLocked || credentialProviderOptions.length === 0}
-              onClick={() => openAddCredentialDialog()}
-            >
-              {t("添加账号", "Add account")}
-            </button>
-            <button
-              className="nt-btn nt-btn--secondary"
-              type="button"
-              onClick={() => setActiveWorkspace("groups")}
-            >
-              {t("进入分组策略", "Open groups workspace")}
-            </button>
-            <button
-              className="nt-btn nt-btn--outline"
-              type="button"
-              onClick={() => setActiveWorkspace("editor")}
-            >
-              {t("返回路由编辑", "Back to route editor")}
-            </button>
-          </div>
-        </div>
-        <dl className="nt-meta-list nt-meta-list--inline">
-          <div>
-            <dt>{t("账号总数", "Accounts")}</dt>
-            <dd>{displayedAccountCatalog.accounts.length}</dd>
-          </div>
-          <div>
-            <dt>{t("分组数量", "Groups")}</dt>
-            <dd>{displayedAccountCatalog.groups.length}</dd>
-          </div>
-          <div>
-            <dt>{t("未分组账号", "Ungrouped")}</dt>
-            <dd>{displayedAccountCatalog.ungroupedCount}</dd>
-          </div>
-          <div>
-            <dt>{t("服务商", "Vendors")}</dt>
-            <dd>{displayedAccountCatalog.providerBuckets.length}</dd>
-          </div>
-        </dl>
-        <div className="nt-account-toolbar">
-          <label className="nt-field">
-            <span>{t("筛选账号", "Filter accounts")}</span>
-            <input
-              className="nt-input"
-              type="search"
-              value={accountSearch}
-              placeholder={t("账号、Provider、模型或分组", "Account, provider, model, or group")}
-              onChange={(event) => setAccountSearch(event.currentTarget.value)}
-            />
-          </label>
-          <label className="nt-field">
-            <span>{t("分组状态", "Grouping status")}</span>
-            <select
-              className="nt-select"
-              value={accountMembershipFilter}
-              onChange={(event) =>
-                setAccountMembershipFilter(event.currentTarget.value as AccountMembershipFilter)
-              }
-            >
-              <option value="all">{t("全部账号", "All accounts")}</option>
-              <option value="grouped">{t("已分组账号", "Grouped accounts")}</option>
-              <option value="ungrouped">{t("未分组账号", "Ungrouped accounts")}</option>
-            </select>
-          </label>
-          <label className="nt-field">
-            <span>{t("启用状态", "Enabled status")}</span>
-            <select
-              className="nt-select"
-              value={accountEnabledFilter}
-              onChange={(event) =>
-                setAccountEnabledFilter(event.currentTarget.value as AccountEnabledFilter)
-              }
-            >
-              <option value="all">{t("全部状态", "All statuses")}</option>
-              <option value="enabled">{t("已启用", "Enabled")}</option>
-              <option value="disabled">{t("已停用", "Disabled")}</option>
-            </select>
-          </label>
-          <div className="nt-filter-count" role="status">
-            <span>{t("当前显示", "Showing")}</span>
-            <strong>
-              {filteredAccountCatalog.accounts.length} / {displayedAccountCatalog.accounts.length}
-            </strong>
-          </div>
-        </div>
-      </article>
-
-      {filteredAccountCatalog.providerBuckets.length > 0 ? (
-        filteredAccountCatalog.providerBuckets.map((bucket) => (
-          <details
-            className="nt-account-bucket"
-            open={filteredAccountCatalog.providerBuckets.length <= 4 ? true : undefined}
-            key={`${bucket.key}:${accountSearch}:${accountMembershipFilter}:${accountEnabledFilter}`}
-          >
-            <summary className="nt-account-bucket__summary">
-              <span className="nt-account-bucket__title">
-                <small className="nt-kicker">// {bucket.vendorKey}</small>
-                <span role="heading" aria-level={3}>
-                  {bucket.label} · {countText(bucket.accountCount, "个账号", "account", "accounts")}
-                </span>
+    <AccountsLedgerWorkspace
+      t={t}
+      notice={
+        <>
+          {draftStructureNotice}
+          {credentialPoolAutomationError ? (
+            <div className="nt-alert nt-alert--warning" role="status">
+              <span>
+                {t(
+                  `自动补号状态暂时不可用：${credentialPoolAutomationError}`,
+                  `Pool automation status is temporarily unavailable: ${credentialPoolAutomationError}`,
+                )}
               </span>
-              <span className="nt-account-bucket__hint">
-                {t("查看账号", "View accounts")}
-              </span>
-            </summary>
-            <div className="nt-stack nt-account-bucket__body">
-              {bucket.providers.map((provider) => (
-                <article className="nt-card nt-card--panel nt-console-mini-card" key={provider.id}>
-                  <div className="nt-section__head">
-                    <div>
-                      <strong>{provider.label}</strong>
-                      <p className="nt-copy">
-                        {provider.preset ?? t("未设置 preset", "No preset")} ·{" "}
-                        {hostLabelFromUrl(provider.baseUrl) ?? t("未配置地址", "No base URL")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="nt-scroll-panel">
-                    <ul className="nt-simple-list">
-                      {provider.accounts.map((account) => {
-                        const probeResult = credentialProbeResults[account.id];
-                        const probeDisabled =
-                          busy ||
-                          actionBusy !== null ||
-                          credentialProbeBusy !== null ||
-                          !account.enabled ||
-                          draftDirty ||
-                          !draftMatchesActiveRevision;
-                        return (
-                          <li key={account.id}>
-                            <div>
-                              <strong>{account.displayName}</strong>
-                              <span
-                                className={`nt-badge ${
-                                  account.enabled ? "nt-badge--success" : "nt-badge--warning"
-                                }`}
-                              >
-                                {account.enabled
-                                  ? t("已启用", "Enabled")
-                                  : t("已停用", "Disabled")}
-                              </span>
-                              <span>
-                                {account.id} ·{" "}
-                                {account.mode === "provider-default"
-                                  ? t("Provider 默认凭据", "Provider default credential")
-                                  : t("显式凭据", "Explicit credential")}
-                              </span>
-                              <span>
-                                {account.supportedModels.length > 0
-                                  ? account.supportedModels.join(", ")
-                                  : t("未声明模型", "No declared models")}
-                              </span>
-                              {probeResult ? (
-                                <span
-                                  className={`nt-badge ${
-                                    probeResult.status === "passed"
-                                      ? "nt-badge--success"
-                                      : probeResult.status === "unsupported"
-                                        ? "nt-badge--warning"
-                                        : "nt-badge--danger"
-                                  }`}
-                                >
-                                  {probeResult.status === "passed"
-                                    ? t("连通正常", "Connectivity passed")
-                                    : probeResult.status === "failed"
-                                      ? t("连接失败", "Connectivity failed")
-                                      : probeResult.status === "unsupported"
-                                        ? t("暂不支持测试", "Probe unsupported")
-                                        : t("测试异常", "Probe error")}
-                                </span>
-                              ) : (
-                                <span>{t("尚未测试", "Not tested")}</span>
-                              )}
-                            </div>
-                            <div className="nt-stack">
-                              {account.groupNames.length > 0 ? (
-                                <div className="nt-actions nt-actions--right">
-                                  {account.groupNames.map((groupName) => (
-                                    <span className="nt-chip" key={`${account.id}:${groupName}`}>
-                                      {groupName}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span>{t("未加入分组", "Ungrouped")}</span>
-                              )}
-                              {probeResult ? (
-                                <div className="nt-probe-result" role="status">
-                                  <span>{probeResult.message}</span>
-                                  <time dateTime={probeResult.checkedAt}>
-                                    {probeResult.checkedAt}
-                                  </time>
-                                </div>
-                              ) : null}
-                              <div className="nt-actions nt-actions--right">
-                                <button
-                                  className="nt-btn nt-btn--outline"
-                                  type="button"
-                                  disabled={probeDisabled}
-                                  aria-label={t(
-                                    `测试账号 ${account.displayName}`,
-                                    `Test account ${account.displayName}`,
-                                  )}
-                                  onClick={() => void handleCredentialProbe(account)}
-                                >
-                                  {credentialProbeBusy === account.id
-                                    ? t("测试中...", "Probing...")
-                                    : t("测试", "Probe")}
-                                </button>
-                                {account.mode === "credential" ? (
-                                  <>
-                                    <button
-                                      className="nt-btn nt-btn--outline"
-                                      type="button"
-                                      disabled={editorLocked}
-                                      aria-label={t(
-                                        `编辑账号 ${account.displayName}`,
-                                        `Edit account ${account.displayName}`,
-                                      )}
-                                      onClick={() =>
-                                        openEditCredentialDialog(account.providerId, account.id)
-                                      }
-                                    >
-                                      {t("编辑", "Edit")}
-                                    </button>
-                                    <button
-                                      className="nt-btn nt-btn--danger"
-                                      type="button"
-                                      disabled={editorLocked}
-                                      aria-label={t(
-                                        `删除账号 ${account.displayName}`,
-                                        `Delete account ${account.displayName}`,
-                                      )}
-                                      onClick={() =>
-                                        removeCredential(
-                                          account.providerId,
-                                          account.id,
-                                          account.displayName,
-                                        )
-                                      }
-                                    >
-                                      {t("删除", "Delete")}
-                                    </button>
-                                  </>
-                                ) : (
-                                  <button
-                                    className="nt-btn nt-btn--outline"
-                                    type="button"
-                                    disabled={editorLocked}
-                                    aria-label={t(
-                                      `为 ${account.providerLabel} 添加显式账号`,
-                                      `Add explicit account for ${account.providerLabel}`,
-                                    )}
-                                    onClick={() => openAddCredentialDialog(account.providerId)}
-                                  >
-                                    {t("添加显式账号", "Add explicit account")}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                </article>
-              ))}
             </div>
-          </details>
-        ))
-      ) : displayedAccountCatalog.accounts.length > 0 ? (
-        <article className="nt-card nt-card--panel">
-          <h2>{t("没有匹配账号", "No matching accounts")}</h2>
-          <p className="nt-copy">
-            {t(
-              "当前筛选条件没有匹配任何账号，请调整关键词或账号状态。",
-              "No accounts match the current filters. Adjust the query or account status.",
-            )}
-          </p>
-        </article>
-      ) : (
-        <article className="nt-card nt-card--panel">
-          <h2>{t("暂无账号", "No accounts yet")}</h2>
-          <p className="nt-copy">
-            {t(
-              "当前 route-config 里还没有解析出 provider credential。当前结构化编辑器不直接编辑 credentials，请在高级 JSON 中添加 credentials，再回到这里管理账号池。",
-              "No provider credentials were found in the current route config. The structured editor does not edit credentials directly; add them in Advanced JSON, then come back here to manage the account pool.",
-            )}
-          </p>
-        </article>
-      )}
-    </div>
+          ) : null}
+          {credentialRefillError ? (
+            <div className="nt-alert nt-alert--warning" role="status">
+              <span>
+                {t(
+                  `补号任务状态暂时不可用：${credentialRefillError}`,
+                  `Credential refill task status is temporarily unavailable: ${credentialRefillError}`,
+                )}
+              </span>
+            </div>
+          ) : null}
+        </>
+      }
+      editorLocked={editorLocked}
+      totalAccounts={displayedAccountCatalog.accounts.length}
+      totalGroups={displayedAccountCatalog.groups.length}
+      ungroupedCount={displayedAccountCatalog.ungroupedCount}
+      providerCount={accountLedgerProviderOptions.length - 1}
+      visibleCount={filteredAccountLedgerRows.length}
+      rows={filteredAccountLedgerRows}
+      query={accountSearch}
+      membership={accountMembershipFilter}
+      enabled={accountEnabledFilter}
+      selectedGroupId={selectedAccountGroupFilter}
+      selectedProviderKey={selectedProviderFilter}
+      groupOptions={accountLedgerGroupOptions}
+      providerOptions={accountLedgerProviderOptions}
+      pilotSections={accountPilotSections}
+      automationByProvider={credentialPoolAutomationByProvider}
+      automationBusyProviderId={credentialPoolAutomationBusy}
+      refillByProvider={credentialRefillByProvider}
+      refillBusyProviderId={credentialRefillBusy}
+      onQueryChange={setAccountSearch}
+      onMembershipChange={setAccountMembershipFilter}
+      onEnabledChange={setAccountEnabledFilter}
+      onGroupChange={setSelectedAccountGroupFilter}
+      onProviderChange={setSelectedProviderFilter}
+      onOpenAddProvider={() => setProviderCatalogDialogOpen(true)}
+      onOpenAddAccount={() => openAddCredentialDialog()}
+      onOpenGroups={() => setActiveWorkspace("groups")}
+      onBackToEditor={() => setActiveWorkspace("editor")}
+      onAddIdentityCategory={handleAddIdentityCategory}
+      onOpenGeminiManualAdd={openGeminiManualAddDialog}
+      onEdit={openEditCredentialDialog}
+      onRemove={removeCredential}
+      onAddExplicit={(providerId) => openAddCredentialDialog(providerId)}
+      onToggleDispatch={togglePilotCredentialDispatch}
+      onUpdatePoolTargetSize={(providerId, categoryId, nextTargetSize) =>
+        updatePilotIdentityCategoryPolicy(providerId, categoryId, {
+          poolTargetSize: nextTargetSize,
+        })
+      }
+      onToggleAutoRefill={(providerId, categoryId, nextEnabled) =>
+        updateIdentityCategoryAutomationToggle(
+          providerId,
+          categoryId,
+          "autoRefillEnabled",
+          nextEnabled,
+        )
+      }
+      onToggleAutoPrune={(providerId, categoryId, nextEnabled) =>
+        updateIdentityCategoryAutomationToggle(
+          providerId,
+          categoryId,
+          "autoPruneEnabled",
+          nextEnabled,
+        )
+      }
+      onUpdateProviderPoolTargetSize={(providerId, nextTargetSize) =>
+        updatePilotProviderPolicy(providerId, {
+          poolTargetSize: nextTargetSize,
+        })
+      }
+      onToggleProviderAutoRefill={(providerId, nextEnabled) =>
+        updateProviderAutomationToggle(providerId, "autoRefillEnabled", nextEnabled)
+      }
+      onToggleProviderAutoPrune={(providerId, nextEnabled) =>
+        updateProviderAutomationToggle(providerId, "autoPruneEnabled", nextEnabled)
+      }
+      onRunProviderAutomation={(providerId) =>
+        void handleRunCredentialPoolAutomation(providerId)
+      }
+      onRequestProviderRefill={(providerId) => void handleRequestCredentialRefill(providerId)}
+      onOpenProbe={openPilotProbeDialog}
+      onOpenStats={openPilotStatsDialog}
+      onOpenSchedule={openPilotScheduleDialog}
+      onDuplicate={openDuplicateCredentialDialog}
+    />
   );
   const groupsWorkspace = (
-    <div className="nt-stack">
-      {draftStructureNotice}
-      <article className="nt-card nt-card--panel">
-        <div className="nt-section__head">
-          <div>
-            <p className="nt-kicker">// Groups</p>
-            <h2>{t("分组策略", "Groups")}</h2>
-            <p className="nt-copy">
-              {t(
-                "为多个账号建立隔离池，并记录后续 Platform 可消费的计费倍率元数据。",
-                "Create isolated pools across multiple accounts and store billing-multiplier metadata for later Platform consumption.",
-              )}
-            </p>
-          </div>
-          <div className="nt-actions">
-            <button
-              className="nt-btn nt-btn--secondary"
-              type="button"
-              disabled={editorLocked}
-              onClick={addAccountGroupRow}
-            >
-              {t("添加分组", "Add group")}
-            </button>
-            <button
-              className="nt-btn nt-btn--outline"
-              type="button"
-              onClick={() => setActiveWorkspace("accounts")}
-            >
-              {t("返回账号台账", "Back to accounts")}
-            </button>
-          </div>
-        </div>
-        <dl className="nt-meta-list nt-meta-list--inline">
-          <div>
-            <dt>{t("已定义分组", "Groups")}</dt>
-            <dd>{displayedAccountCatalog.groups.length}</dd>
-          </div>
-          <div>
-            <dt>{t("可选账号", "Accounts available")}</dt>
-            <dd>{displayedAccountCatalog.accounts.length}</dd>
-          </div>
-          <div>
-            <dt>{t("未分组账号", "Ungrouped")}</dt>
-            <dd>{displayedAccountCatalog.ungroupedCount}</dd>
-          </div>
-          <div>
-            <dt>{t("跨 Provider 组织", "Cross-provider")}</dt>
-            <dd>{t("支持", "enabled")}</dd>
-          </div>
-        </dl>
-      </article>
-
-      {accountGroupDraftRows.length > 0 ? (
-        accountGroupDraftRows.map((row, index) => {
-          const accountSearchValue = accountGroupSearches[row.id] ?? "";
-          const groupIdIncomplete = accountGroupDraftNeedsId(row);
-          const groupIdErrorId = `${row.id}-group-id-error`;
-          const billingMultiplierInvalid =
-            parseAccountGroupBillingMultiplier(row.billingMultiplier) === null;
-          const billingMultiplierErrorId = `${row.id}-billing-multiplier-error`;
-          const matchingAccountCatalog = filterRouteAccountCatalog(
-            displayedAccountCatalog,
-            accountSearchValue,
-            "all",
-          );
-          return (
-          <article className="nt-card nt-card--panel" key={row.id}>
-            <div className="nt-section__head">
-              <div>
-                <p className="nt-kicker">// {row.groupId || row.name || t("新分组", "New group")}</p>
-                <h3>{row.name || t("未命名分组", "Unnamed group")}</h3>
-              </div>
-              <div className="nt-actions">
-                <label className="nt-chip">
-                  <input
-                    checked={row.enabled}
-                    disabled={editorLocked}
-                    aria-label={t(
-                      `${row.name || row.groupId || `分组 ${index + 1}`} 启用状态`,
-                      `${row.name || row.groupId || `Group ${index + 1}`} enabled state`,
-                    )}
-                    onChange={(event) =>
-                      updateAccountGroupEnabled(row.id, event.currentTarget.checked)
-                    }
-                    type="checkbox"
-                  />
-                  <span>{row.enabled ? t("启用", "Enabled") : t("停用", "Disabled")}</span>
-                </label>
-                <button
-                  className="nt-btn nt-btn--outline"
-                  type="button"
-                  disabled={editorLocked}
-                  onClick={() => removeAccountGroupRow(row.id)}
-                >
-                  {t(`移除分组 ${index + 1}`, `Remove group ${index + 1}`)}
-                </button>
-              </div>
-            </div>
-            <div className="nt-form-grid">
-              <label className="nt-field">
-                <span>{t(`分组 ID ${index + 1}`, `Group ID ${index + 1}`)}</span>
-                <input
-                  className="nt-input"
-                  value={row.groupId}
-                  disabled={editorLocked}
-                  aria-invalid={groupIdIncomplete}
-                  aria-describedby={groupIdIncomplete ? groupIdErrorId : undefined}
-                  onChange={(event) =>
-                    updateAccountGroupRow(row.id, "groupId", event.currentTarget.value)
-                  }
-                />
-                {groupIdIncomplete ? (
-                  <small id={groupIdErrorId}>
-                    {t(ACCOUNT_GROUP_ID_REQUIRED_ERROR_ZH, ACCOUNT_GROUP_ID_REQUIRED_ERROR_EN)}
-                  </small>
-                ) : null}
-              </label>
-              <label className="nt-field">
-                <span>{t(`分组名称 ${index + 1}`, `Group name ${index + 1}`)}</span>
-                <input
-                  className="nt-input"
-                  value={row.name}
-                  disabled={editorLocked}
-                  onChange={(event) =>
-                    updateAccountGroupRow(row.id, "name", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label className="nt-field">
-                <span>{t(`计费倍率 ${index + 1}`, `Billing multiplier ${index + 1}`)}</span>
-                <input
-                  className="nt-input"
-                  inputMode="decimal"
-                  value={row.billingMultiplier}
-                  disabled={editorLocked}
-                  aria-invalid={billingMultiplierInvalid}
-                  aria-describedby={
-                    billingMultiplierInvalid ? billingMultiplierErrorId : undefined
-                  }
-                  onChange={(event) =>
-                    updateAccountGroupRow(row.id, "billingMultiplier", event.currentTarget.value)
-                  }
-                />
-                {billingMultiplierInvalid ? (
-                  <small id={billingMultiplierErrorId}>
-                    {t(
-                      ACCOUNT_GROUP_BILLING_MULTIPLIER_ERROR_ZH,
-                      ACCOUNT_GROUP_BILLING_MULTIPLIER_ERROR_EN,
-                    )}
-                  </small>
-                ) : null}
-              </label>
-              <label className="nt-field nt-field--wide">
-                <span>{t(`描述 ${index + 1}`, `Description ${index + 1}`)}</span>
-                <input
-                  className="nt-input"
-                  value={row.description}
-                  disabled={editorLocked}
-                  onChange={(event) =>
-                    updateAccountGroupRow(row.id, "description", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label className="nt-field nt-field--wide">
-                <span>{t(`备注 ${index + 1}`, `Notes ${index + 1}`)}</span>
-                <textarea
-                  className="nt-input nt-textarea"
-                  value={row.notes}
-                  disabled={editorLocked}
-                  onChange={(event) =>
-                    updateAccountGroupRow(row.id, "notes", event.currentTarget.value)
-                  }
-                />
-              </label>
-            </div>
-            <fieldset className="nt-field nt-field--wide">
-              <legend>{t(`关联账号 ${index + 1}`, `Accounts ${index + 1}`)}</legend>
-              <div className="nt-account-toolbar nt-account-toolbar--picker">
-                <label className="nt-field">
-                  <span>{t(`筛选关联账号 ${index + 1}`, `Filter accounts ${index + 1}`)}</span>
-                  <input
-                    className="nt-input"
-                    type="search"
-                    value={accountSearchValue}
-                    placeholder={t("账号、Provider 或模型", "Account, provider, or model")}
-                    onChange={(event) => {
-                      const nextValue = event.currentTarget.value;
-                      setAccountGroupSearches((current) => ({
-                        ...current,
-                        [row.id]: nextValue,
-                      }));
-                    }}
-                  />
-                </label>
-                <div className="nt-filter-count" role="status">
-                  <span>{t("已选 / 匹配", "Selected / matching")}</span>
-                  <strong>
-                    {row.providerCredentialIds.length} / {matchingAccountCatalog.accounts.length}
-                  </strong>
-                </div>
-              </div>
-              <div
-                className="nt-stack nt-account-picker"
-                role="region"
-                tabIndex={0}
-                aria-label={t(
-                  `${row.name || row.groupId || `分组 ${index + 1}`} 可选账号`,
-                  `${row.name || row.groupId || `Group ${index + 1}`} selectable accounts`,
-                )}
-              >
-                {matchingAccountCatalog.providerBuckets.map((bucket) => (
-                  <article className="nt-card nt-card--panel nt-console-mini-card" key={bucket.key}>
-                    <strong>{bucket.label}</strong>
-                    <div className="nt-stack">
-                      {bucket.providers.map((provider) => (
-                        <div className="nt-stack" key={provider.id}>
-                          <span>
-                            {provider.label} ·{" "}
-                            {hostLabelFromUrl(provider.baseUrl) ?? t("未配置地址", "No base URL")}
-                          </span>
-                          <div className="nt-actions">
-                            {provider.accounts.map((account) => (
-                              <label className="nt-chip" key={`${row.id}:${account.id}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={row.providerCredentialIds.includes(account.id)}
-                                  disabled={editorLocked}
-                                  onChange={() => toggleAccountGroupMember(row.id, account.id)}
-                                  aria-label={t(
-                                    `${row.name || row.groupId || `分组 ${index + 1}`} · ${provider.label} · ${account.displayName}`,
-                                    `${row.name || row.groupId || `Group ${index + 1}`} · ${provider.label} · ${account.displayName}`,
-                                  )}
-                                />
-                                <span>{account.displayName}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-                {matchingAccountCatalog.accounts.length === 0 ? (
-                  <p className="nt-empty">
-                    {t("没有匹配的可选账号。", "No selectable accounts match this filter.")}
-                  </p>
-                ) : null}
-              </div>
-            </fieldset>
-          </article>
-          );
-        })
-      ) : (
-        <article className="nt-card nt-card--panel">
-          <h2>{t("暂无分组", "No groups yet")}</h2>
-          <p className="nt-copy">
-            {t(
-              "可以先创建分组，把不同服务商的账号拉进不同池中，并写入计费倍率元数据。",
-              "Create a group first, pull accounts from different providers into separate pools, and store billing multiplier metadata.",
-            )}
-          </p>
-        </article>
-      )}
-    </div>
+    <CredentialGroupsWorkspace
+      t={t}
+      notice={draftStructureNotice}
+      editorLocked={editorLocked}
+      totalAccounts={displayedAccountCatalog.accounts.length}
+      totalGroups={groupDirectory.length}
+      enabledGroupCount={enabledGroupCount}
+      ungroupedCount={displayedAccountCatalog.ungroupedCount}
+      groups={groupDirectory}
+      selectedGroupRowId={effectiveSelectedAccountGroupRowId}
+      selectedGroup={selectedAccountGroupDraft}
+      selectedGroupIdInvalid={selectedGroupIdInvalid}
+      selectedGroupBillingInvalid={selectedGroupBillingInvalid}
+      memberCandidates={selectedGroupMemberCandidates}
+      memberQuery={groupMemberQuery}
+      memberMode={groupMemberMode}
+      onSelectGroup={setSelectedAccountGroupRowId}
+      onAddGroup={addAccountGroupRow}
+      onBackToAccounts={() => setActiveWorkspace("accounts")}
+      onUpdateField={updateAccountGroupRow}
+      onToggleEnabled={updateAccountGroupEnabled}
+      onRemoveGroup={removeAccountGroupRow}
+      onMemberQueryChange={setGroupMemberQuery}
+      onMemberModeChange={setGroupMemberMode}
+      onToggleMember={toggleAccountGroupMember}
+    />
   );
   const advancedWorkspace = (
     <article className="nt-card nt-card--panel">
@@ -4250,6 +5781,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
             : activeWorkspace === "revisions"
               ? revisionsWorkspace
               : advancedWorkspace;
+  const primaryAdminWorkspace = activeWorkspace === "accounts" || activeWorkspace === "groups";
 
   if (busy && !routeConfig) {
     return <main role="status">{t("正在加载 Gateway 控制台...", "Loading Gateway console...")}</main>;
@@ -4310,22 +5842,7 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                 <dd>{hasSecretAccess ? t("已授权", "granted") : t("未授权", "locked")}</dd>
               </div>
             </dl>
-          </div>
-        </aside>
-
-        <section className="nt-board nt-board--browser-console">
-          <header className="nt-board__header">
-            <div>
-              <p className="nt-kicker">// {t("Gateway 控制台", "Gateway Console")}</p>
-              <h1>{t("Gateway 网页控制台", "Gateway Web Console")}</h1>
-              <p className="nt-board__copy">
-                {t(
-                  "直接通过 Gateway 本体托管的浏览器控制台，当前已接入 route-config 与 revision 历史能力。",
-                  "Browser control panel hosted directly by the Gateway runtime, currently wired to route-config and revision history capabilities.",
-                )}
-              </p>
-            </div>
-            <div className="nt-actions nt-actions--right">
+            <div className="nt-rail__footer-actions">
               <LanguageToggleButton className="nt-btn nt-btn--outline" />
               <button
                 className="nt-btn nt-btn--secondary"
@@ -4343,122 +5860,137 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
                 {t("退出登录", "Sign out")}
               </button>
             </div>
-          </header>
+          </div>
+        </aside>
 
+        <section className="nt-board nt-board--browser-console">
           {error ? (
             <div className="nt-alert nt-alert--danger" role="alert">
               <span>{error}</span>
             </div>
           ) : null}
 
-          {successMessage ? (
-            <div
-              className="nt-alert nt-alert--success"
-              role="status"
-              aria-label="Gateway console last action"
-            >
-              <span>{successMessage}</span>
-              <button type="button" onClick={() => setSuccessMessage(null)}>
-                {t("关闭", "Dismiss")}
-              </button>
-            </div>
-          ) : null}
-
           {routeConfig ? (
             <>
-              <section className="nt-hud-strip" aria-label="Gateway console summary">
-                <article className="nt-card nt-card--stat">
-                  <span>{t("激活修订", "Active revision")}</span>
-                  <strong>{routeConfig.routeConfig.revision.id}</strong>
-                </article>
-                <article className="nt-card nt-card--stat">
-                  <span>{t("来源", "Source")}</span>
-                  <strong>{routeConfig.routeConfig.source}</strong>
-                </article>
-                <article className="nt-card nt-card--stat">
-                  <span>{t("Provider 数量", "Providers")}</span>
-                  <strong>{routeConfig.routeConfig.document.providers.length}</strong>
-                </article>
-                <article className="nt-card nt-card--stat">
-                  <span>{t("模型路由", "Model routes")}</span>
-                  <strong>{routeConfig.routeConfig.document.model_routes.length}</strong>
-                </article>
-              </section>
+              {!primaryAdminWorkspace ? (
+                <section className="nt-hud-strip" aria-label="Gateway console summary">
+                  <article className="nt-card nt-card--stat">
+                    <span>{t("激活修订", "Active revision")}</span>
+                    <strong>{routeConfig.routeConfig.revision.id}</strong>
+                  </article>
+                  <article className="nt-card nt-card--stat">
+                    <span>{t("来源", "Source")}</span>
+                    <strong>{routeConfig.routeConfig.source}</strong>
+                  </article>
+                  <article className="nt-card nt-card--stat">
+                    <span>{t("Provider 数量", "Providers")}</span>
+                    <strong>{routeConfig.routeConfig.document.providers.length}</strong>
+                  </article>
+                  <article className="nt-card nt-card--stat">
+                    <span>{t("模型路由", "Model routes")}</span>
+                    <strong>{routeConfig.routeConfig.document.model_routes.length}</strong>
+                  </article>
+                </section>
+              ) : null}
 
               <section className="nt-stage">
                 {activeDiagnosticsFeedback}
                 {accountSummaryFeedback}
-                <article className="nt-card nt-card--panel">
-                  <div className="nt-section__head">
-                    <div>
-                      <p className="nt-kicker">// Workspace</p>
-                      <h2>{workspaceItems.find((item) => item.id === activeWorkspace)?.label}</h2>
-                    </div>
-                    <div className="nt-actions nt-actions--right">
-                      <span
-                        className={draftDirty ? "nt-chip" : "nt-chip nt-chip--online"}
-                        role="status"
-                        aria-label="Draft status"
-                        aria-live="polite"
-                      >
-                        {incompleteAccountGroupDraftCount > 0
-                          ? t(
-                              `有未保存修改 · ${incompleteAccountGroupDraftCount} 个未完成分组草稿`,
-                              `Unsaved changes · ${incompleteAccountGroupDraftCount} incomplete group draft${incompleteAccountGroupDraftCount === 1 ? "" : "s"}`,
-                            )
-                          : draftDirty
-                            ? t("有未保存修改", "Unsaved changes")
-                            : t("草稿已同步", "Draft in sync")}
-                      </span>
-                      <button
-                        className="nt-btn nt-btn--secondary"
-                        type="button"
-                        disabled={busy || actionBusy !== null || !mutationSupported}
-                        onClick={() => void handleValidate()}
-                      >
-                        {t("校验草稿", "Validate draft")}
-                      </button>
-                      <button
-                        className="nt-btn nt-btn--primary"
-                        type="button"
-                        disabled={busy || actionBusy !== null || !mutationSupported}
-                        onClick={() => void handleSave()}
-                      >
-                        {t("保存路由配置", "Save route config")}
-                      </button>
-                    </div>
+                <section
+                  className="nt-workspace-action-bar"
+                  aria-label={t("草稿操作", "Draft actions")}
+                >
+                  <span
+                    className={draftDirty ? "nt-chip" : "nt-chip nt-chip--online"}
+                    role="status"
+                    aria-label="Draft status"
+                    aria-live="polite"
+                  >
+                    {incompleteAccountGroupDraftCount > 0
+                      ? t(
+                          `有未保存修改 · ${incompleteAccountGroupDraftCount} 个未完成分组草稿`,
+                          `Unsaved changes · ${incompleteAccountGroupDraftCount} incomplete group draft${incompleteAccountGroupDraftCount === 1 ? "" : "s"}`,
+                        )
+                      : draftDirty
+                        ? t("有未保存修改", "Unsaved changes")
+                        : t("草稿已同步", "Draft in sync")}
+                  </span>
+                  <div className="nt-actions nt-actions--right">
+                    <button
+                      className="nt-btn nt-btn--secondary"
+                      type="button"
+                      disabled={busy || actionBusy !== null || !mutationSupported}
+                      onClick={() => void handleValidate()}
+                    >
+                      {t("校验草稿", "Validate draft")}
+                    </button>
+                    <button
+                      className="nt-btn nt-btn--primary"
+                      type="button"
+                      disabled={busy || actionBusy !== null || !mutationSupported}
+                      onClick={() => void handleSave()}
+                    >
+                      {t("保存路由配置", "Save route config")}
+                    </button>
                   </div>
+                </section>
+                {primaryAdminWorkspace ? (
+                  <section className="nt-workspace-ops">
+                    {!mutationSupported ? (
+                      <div className="nt-validation-list nt-validation-list--warning">
+                        <strong>{t("当前实例是只读模式", "This instance is read only")}</strong>
+                        <ul>
+                          <li>
+                            {t(
+                              "route-config runtime 没有启用写入支持，浏览器控制台暂时只能查看。",
+                              "Route-config mutation support is disabled, so this browser console is currently view-only.",
+                            )}
+                          </li>
+                        </ul>
+                      </div>
+                    ) : null}
+                    {validationFeedback}
+                  </section>
+                ) : (
+                  <article
+                    className="nt-card nt-card--panel nt-workspace-toolbar"
+                    aria-label={t("工作区操作", "Workspace actions")}
+                  >
+                    <h2 className="nt-visually-hidden">
+                      {workspaceItems.find((item) => item.id === activeWorkspace)?.label}
+                    </h2>
 
-                  <label className="nt-field nt-field--wide">
-                    <span>{t("修订说明", "Revision message")}</span>
-                    <input
-                      className="nt-input"
-                      placeholder={t(
-                        "可选：写入修订历史的说明",
-                        "Optional: description stored in revision history",
-                      )}
-                      value={commitMessage}
-                      disabled={editorLocked}
-                      onChange={(event) => setCommitMessage(event.currentTarget.value)}
-                    />
-                  </label>
+                    <label className="nt-field nt-field--wide">
+                      <span>{t("修订说明", "Revision message")}</span>
+                      <input
+                        className="nt-input"
+                        placeholder={t(
+                          "可选：写入修订历史的说明",
+                          "Optional: description stored in revision history",
+                        )}
+                        value={commitMessage}
+                        disabled={editorLocked}
+                        onChange={(event) => setCommitMessage(event.currentTarget.value)}
+                      />
+                    </label>
 
-                  {!mutationSupported ? (
-                    <div className="nt-validation-list nt-validation-list--warning">
-                      <strong>{t("当前实例是只读模式", "This instance is read only")}</strong>
-                      <ul>
-                        <li>
-                          {t(
-                            "route-config runtime 没有启用写入支持，浏览器控制台暂时只能查看。",
-                            "Route-config mutation support is disabled, so this browser console is currently view-only.",
-                          )}
-                        </li>
-                      </ul>
-                    </div>
-                  ) : null}
+                    {!mutationSupported ? (
+                      <div className="nt-validation-list nt-validation-list--warning">
+                        <strong>{t("当前实例是只读模式", "This instance is read only")}</strong>
+                        <ul>
+                          <li>
+                            {t(
+                              "route-config runtime 没有启用写入支持，浏览器控制台暂时只能查看。",
+                              "Route-config mutation support is disabled, so this browser console is currently view-only.",
+                            )}
+                          </li>
+                        </ul>
+                      </div>
+                    ) : null}
 
-                  {validationFeedback}
-                </article>
+                    {validationFeedback}
+                  </article>
+                )}
 
                 {workspaceContent}
               </section>
@@ -4466,6 +5998,17 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
           ) : null}
         </section>
       </main>
+      <ProviderCatalogDialog
+        open={providerCatalogDialogOpen}
+        existingProviderIds={credentialProviderOptions.map((provider) => provider.id)}
+        existingCredentialIds={explicitCredentialIds}
+        locked={editorLocked}
+        hasSecretAccess={hasSecretAccess}
+        onOpenChange={setProviderCatalogDialogOpen}
+        onRequestSecretAccess={() => setSecretDialogOpen(true)}
+        onAddAccount={openAddCredentialDialog}
+        onSubmit={applyProviderCatalogDraft}
+      />
       {credentialDialogState ? (
         <CredentialDialog
           open
@@ -4483,6 +6026,446 @@ export function BrowserConsoleApp({ consoleApi }: BrowserConsoleAppProps) {
           onRequestSecretAccess={() => setSecretDialogOpen(true)}
           onSubmit={applyCredentialDialogValue}
         />
+      ) : null}
+      {geminiManualAddDialogState ? (
+        <>
+          <div className="dialog-overlay" onClick={closeGeminiManualAddDialog} />
+          <section
+            className="dialog-content nt-pilot-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("Gemini 手动添加", "Gemini manual add")}
+          >
+            <div className="nt-pilot-dialog__header">
+              <h2>{t("Gemini 手动添加", "Gemini manual add")}</h2>
+              <button
+                className="nt-icon-close"
+                type="button"
+                aria-label={t("关闭", "Close")}
+                onClick={closeGeminiManualAddDialog}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="nt-stack">
+              <article className="nt-card nt-card--panel">
+                <div className="nt-copy">
+                  <strong>{geminiManualAddDialogState.providerId}</strong>
+                </div>
+                <p className="nt-copy">
+                  {geminiManualAddDialogState.busy
+                    ? t("正在启动本地 Gemini 认证助手。", "Starting the local Gemini auth helper.")
+                    : geminiManualAddDialogState.session?.message ??
+                      t("等待 Gemini 认证结果。", "Waiting for Gemini auth results.")}
+                </p>
+                {geminiManualAddDialogState.session ? (
+                  <div className="nt-ledger-chip-list nt-ledger-chip-list--dense">
+                    <span className="nt-chip nt-chip--muted">
+                      {t("状态", "Status")} {geminiManualAddDialogState.session.status}
+                    </span>
+                    <span className="nt-chip nt-chip--muted">
+                      {t("目标族", "Target family")} {geminiManualAddDialogState.session.targetFamily}
+                    </span>
+                  </div>
+                ) : null}
+              </article>
+              {geminiManualAddDialogState.session?.status === "succeeded" ? (
+                <article className="nt-card nt-card--panel">
+                  <p className="nt-copy">
+                    {t(
+                      "认证结果已经写入当前草稿。保存路由配置后生效。",
+                      "The generated credentials were merged into the current draft. Save the route config to apply them.",
+                    )}
+                  </p>
+                </article>
+              ) : null}
+              {canManuallyCompleteGeminiAuthSession(geminiManualAddDialogState.session) ? (
+                <article className="nt-card nt-card--panel">
+                  <p className="nt-copy">
+                    {t(
+                      "如果你已经在弹出的浏览器里完成 Gemini 登录，但仍然没有自动导入，请点击下面的按钮继续导入。",
+                      "If you already completed Gemini login in the opened browser window but the import did not finish automatically, click the button below to continue the import.",
+                    )}
+                  </p>
+                  <div className="dialog-actions">
+                    <button
+                      className="nt-btn"
+                      type="button"
+                      disabled={geminiManualAddDialogState.busy}
+                      onClick={() => {
+                        void requestGeminiManualAddCompletion();
+                      }}
+                    >
+                      {geminiManualAddDialogState.busy
+                        ? t("正在导入…", "Importing…")
+                        : t("已完成登录，继续导入", "I finished login, continue import")}
+                    </button>
+                  </div>
+                </article>
+              ) : null}
+            </div>
+          </section>
+        </>
+      ) : null}
+      {pilotActionDialog ? (
+        <>
+          <div className="dialog-overlay" onClick={() => setPilotActionDialog(null)} />
+          <section
+            className="dialog-content nt-pilot-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              pilotActionDialog.kind === "probe"
+                ? t("测试账号连接", "Test account connection")
+                : pilotActionDialog.kind === "stats"
+                  ? t("查看账号统计", "View account stats")
+                  : t("定时测试", "Scheduled tests")
+            }
+          >
+            <div className="nt-pilot-dialog__header">
+              <h2>
+                {pilotActionDialog.kind === "probe"
+                  ? t("测试账号连接", "Test account connection")
+                  : pilotActionDialog.kind === "stats"
+                    ? t("查看账号统计", "View account stats")
+                    : t("定时测试", "Scheduled tests")}
+              </h2>
+              <button
+                className="nt-icon-close"
+                type="button"
+                aria-label={t("关闭", "Close")}
+                onClick={() => setPilotActionDialog(null)}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            {pilotActionDialog.kind === "probe" ? (
+              <div className="nt-stack">
+                <article className="nt-pilot-dialog__hero">
+                  <div className="nt-pilot-dialog__hero-icon">
+                    <Play size={20} aria-hidden="true" />
+                  </div>
+                  <div className="nt-pilot-dialog__hero-copy">
+                    <strong>{pilotActionDialog.account.displayName}</strong>
+                    <div className="nt-ledger-chip-list nt-ledger-chip-list--dense">
+                      <span className="nt-chip nt-chip--muted">APIKEY</span>
+                      <span className="nt-chip nt-chip--muted">{t("账号", "Account")}</span>
+                    </div>
+                  </div>
+                  <span
+                    className={
+                      pilotActionDialog.account.dispatchEnabled
+                        ? "nt-badge nt-badge--success"
+                        : "nt-badge nt-badge--warning"
+                    }
+                  >
+                    {pilotActionDialog.account.dispatchEnabled ? "active" : t("暂停", "Paused")}
+                  </span>
+                </article>
+
+                <label className="nt-field">
+                  <span>{t("选择测试模型", "Select test model")}</span>
+                  <select
+                    className="nt-select"
+                    value={pilotProbeModel}
+                    onChange={(event) => setPilotProbeModel(event.currentTarget.value)}
+                  >
+                    <option>GPT-5.6 (Sol)</option>
+                    <option>GPT-5.5</option>
+                    <option>GPT-5.4</option>
+                  </select>
+                </label>
+
+                <label className="nt-field">
+                  <span>{t("测试模式", "Test mode")}</span>
+                  <select
+                    className="nt-select"
+                    value={pilotProbeMode}
+                    onChange={(event) => setPilotProbeMode(event.currentTarget.value)}
+                  >
+                    <option>{t("常规请求", "Normal request")}</option>
+                    <option>{t("快速探测", "Quick probe")}</option>
+                  </select>
+                </label>
+
+                <div className="nt-pilot-terminal">
+                  {pilotActionDialog.account.previewOnly
+                    ? t(
+                        "演示账号仅展示 UI，不会发起真实连接测试。",
+                        "Demo accounts only preview the UI and do not start a real connection test.",
+                      )
+                    : credentialProbeBusy === pilotActionDialog.account.accountId
+                      ? t("正在测试连接，请稍候...", "Testing connectivity, please wait...")
+                      : activePilotProbeResult
+                        ? activePilotProbeResult.message
+                        : t(
+                            "准备测试。点击“开始测试”按钮开始...",
+                            'Ready to test. Click "Start test" to begin...',
+                          )}
+                </div>
+
+                <div className="nt-pilot-dialog__meta">
+                  <span>{t("测试模型", "Test model")}</span>
+                  <span>{t('提示词: "hi"', 'Prompt: "hi"')}</span>
+                </div>
+
+                <div className="dialog-actions">
+                  <button
+                    className="nt-btn nt-btn--secondary"
+                    type="button"
+                    onClick={() => setPilotActionDialog(null)}
+                  >
+                    {t("关闭", "Close")}
+                  </button>
+                  <button
+                    className="nt-btn nt-btn--primary"
+                    type="button"
+                    disabled={
+                      pilotActionDialog.account.previewOnly ||
+                      !activePilotManagedAccount ||
+                      credentialProbeBusy === pilotActionDialog.account.accountId
+                    }
+                    onClick={() => void startPilotProbe()}
+                  >
+                    {t("开始测试", "Start test")}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {pilotActionDialog.kind === "stats" ? (
+              <div className="nt-stack">
+                <article className="nt-pilot-dialog__hero">
+                  <div className="nt-pilot-dialog__hero-icon">
+                    <BarChart3 size={20} aria-hidden="true" />
+                  </div>
+                  <div className="nt-pilot-dialog__hero-copy">
+                    <strong>{pilotActionDialog.account.displayName}</strong>
+                    <span>
+                      {t(
+                        "近30天使用统计（日均基于实际使用天数）",
+                        "Usage summary for the last 30 days (daily averages use active days only)",
+                      )}
+                    </span>
+                  </div>
+                  <span
+                    className={
+                      pilotActionDialog.account.dispatchEnabled
+                        ? "nt-badge nt-badge--success"
+                        : "nt-badge nt-badge--warning"
+                    }
+                  >
+                    {pilotActionDialog.account.dispatchEnabled ? "active" : "paused"}
+                  </span>
+                </article>
+
+                <div className="nt-pilot-stats-overview-grid">
+                  <article className="nt-card nt-card--panel nt-pilot-stat-card nt-pilot-stat-card--emerald">
+                    <div className="nt-pilot-stat-card__head">
+                      <span>{t("30天总费用", "30-day total cost")}</span>
+                    </div>
+                    <strong>{activePilotStatsView?.totalCostText ?? "$0.0000"}</strong>
+                    <p>
+                      {t("累计成本", "Accumulated cost")} (
+                      {t("用户扣费", "User charge")}: {activePilotStatsView?.totalUserCostText ?? "$0.0000"} ·
+                      {t("标准计费", "Standard billing")}: {activePilotStatsView?.totalStandardCostText ?? "$0.0000"})
+                    </p>
+                  </article>
+                  <article className="nt-card nt-card--panel nt-pilot-stat-card nt-pilot-stat-card--blue">
+                    <div className="nt-pilot-stat-card__head">
+                      <span>{t("30天总请求", "30-day total requests")}</span>
+                    </div>
+                    <strong>{activePilotStatsView?.totalRequestsText ?? "0"}</strong>
+                    <p>{t("累计调用次数", "Accumulated request count")}</p>
+                  </article>
+                  <article className="nt-card nt-card--panel nt-pilot-stat-card nt-pilot-stat-card--orange">
+                    <div className="nt-pilot-stat-card__head">
+                      <span>{t("日均费用", "Average daily cost")}</span>
+                    </div>
+                    <strong>{activePilotStatsView?.avgDailyCostText ?? "$0.0000"}</strong>
+                    <p>
+                      {t("基于", "Based on")} {activePilotStatsView?.activeDaysText ?? "0"}{" "}
+                      {t("天实际使用", "active day(s)")}
+                    </p>
+                  </article>
+                  <article className="nt-card nt-card--panel nt-pilot-stat-card nt-pilot-stat-card--purple">
+                    <div className="nt-pilot-stat-card__head">
+                      <span>{t("日均请求", "Average daily requests")}</span>
+                    </div>
+                    <strong>{activePilotStatsView?.avgDailyRequestsText ?? "0"}</strong>
+                    <p>{t("平均每日调用", "Average calls per active day")}</p>
+                  </article>
+                </div>
+
+                <div className="nt-pilot-stats-detail-grid">
+                  <article className="nt-card nt-card--panel nt-pilot-metric-card">
+                    <h3>{t("今日概览", "Today overview")}</h3>
+                    <dl className="nt-pilot-metric-list">
+                      <div>
+                        <dt>{t("账号计费", "Account billing")}</dt>
+                        <dd>{activePilotStatsView?.totalStandardCostText ?? "$0.0000"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("用户扣费", "User charge")}</dt>
+                        <dd>{activePilotStatsView?.totalUserCostText ?? "$0.0000"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("请求", "Requests")}</dt>
+                        <dd>{activePilotStatsView?.todayRequestsText ?? "0"}</dd>
+                      </div>
+                      <div>
+                        <dt>Token</dt>
+                        <dd>{activePilotStatsView?.todayTokenText ?? "0"}</dd>
+                      </div>
+                    </dl>
+                  </article>
+
+                  <article className="nt-card nt-card--panel nt-pilot-metric-card">
+                    <h3>{t("最高费用日", "Highest cost day")}</h3>
+                    <dl className="nt-pilot-metric-list">
+                      <div>
+                        <dt>{t("日期", "Date")}</dt>
+                        <dd>-</dd>
+                      </div>
+                      <div>
+                        <dt>{t("账号计费", "Account billing")}</dt>
+                        <dd>{activePilotStatsView?.totalStandardCostText ?? "$0.0000"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("用户扣费", "User charge")}</dt>
+                        <dd>{activePilotStatsView?.totalUserCostText ?? "$0.0000"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("请求", "Requests")}</dt>
+                        <dd>{activePilotStatsView?.totalRequestsText ?? "0"}</dd>
+                      </div>
+                    </dl>
+                  </article>
+
+                  <article className="nt-card nt-card--panel nt-pilot-metric-card">
+                    <h3>{t("最高请求日", "Highest request day")}</h3>
+                    <dl className="nt-pilot-metric-list">
+                      <div>
+                        <dt>{t("日期", "Date")}</dt>
+                        <dd>-</dd>
+                      </div>
+                      <div>
+                        <dt>{t("请求", "Requests")}</dt>
+                        <dd>{activePilotStatsView?.totalRequestsText ?? "0"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("账号计费", "Account billing")}</dt>
+                        <dd>{activePilotStatsView?.totalStandardCostText ?? "$0.0000"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("用户扣费", "User charge")}</dt>
+                        <dd>{activePilotStatsView?.totalUserCostText ?? "$0.0000"}</dd>
+                      </div>
+                    </dl>
+                  </article>
+
+                  <article className="nt-card nt-card--panel nt-pilot-metric-card">
+                    <h3>{t("累计 Token", "Token totals")}</h3>
+                    <dl className="nt-pilot-metric-list">
+                      <div>
+                        <dt>{t("30天总计", "30-day total")}</dt>
+                        <dd>{activePilotStatsView?.totalTokenText ?? "0"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("日均 Token", "Average daily token")}</dt>
+                        <dd>{activePilotStatsView?.avgDailyTokenText ?? "0"}</dd>
+                      </div>
+                    </dl>
+                  </article>
+
+                  <article className="nt-card nt-card--panel nt-pilot-metric-card">
+                    <h3>{t("性能", "Performance")}</h3>
+                    <dl className="nt-pilot-metric-list">
+                      <div>
+                        <dt>{t("平均响应", "Average response")}</dt>
+                        <dd>{activePilotStatsView?.avgResponseText ?? "0ms"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("活跃天数", "Active days")}</dt>
+                        <dd>
+                          {activePilotStatsView?.activeDaysText ?? "0"} /{" "}
+                          {activePilotStatsView?.activeDaysDenominatorText ?? "31"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </article>
+
+                  <article className="nt-card nt-card--panel nt-pilot-metric-card">
+                    <h3>{t("最近统计", "Recent stats")}</h3>
+                    <dl className="nt-pilot-metric-list">
+                      <div>
+                        <dt>{t("今日请求", "Today's requests")}</dt>
+                        <dd>{activePilotStatsView?.todayRequestsText ?? "0"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("今日 Token", "Today's token")}</dt>
+                        <dd>{activePilotStatsView?.todayTokenText ?? "0"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("今日费用", "Today's cost")}</dt>
+                        <dd>{activePilotStatsView?.totalCostText ?? "$0.0000"}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("最近使用", "Recent use")}</dt>
+                        <dd>{pilotActionDialog.account.recentUseLabel}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                </div>
+
+                <article className="nt-card nt-card--panel nt-pilot-chart-panel">
+                  <h3>{t("30天费用与请求趋势", "30-day cost and request trend")}</h3>
+                  <div className="nt-pilot-chart-empty">{t("暂无数据", "No data")}</div>
+                </article>
+
+                <article className="nt-card nt-card--panel nt-pilot-chart-panel">
+                  <h3>{t("模型分布", "Model distribution")}</h3>
+                  <div className="nt-pilot-chart-empty">{t("暂无数据", "No data")}</div>
+                </article>
+
+                <article className="nt-card nt-card--panel nt-pilot-chart-panel">
+                  <h3>{t("入站端点", "Ingress nodes")}</h3>
+                  <div className="nt-pilot-chart-empty">{t("暂无数据", "No data")}</div>
+                </article>
+
+                <article className="nt-card nt-card--panel nt-pilot-chart-panel">
+                  <h3>{t("上游端点", "Upstream nodes")}</h3>
+                  <div className="nt-pilot-chart-empty">{t("暂无数据", "No data")}</div>
+                </article>
+
+                <div className="dialog-actions">
+                  <button
+                    className="nt-btn nt-btn--secondary"
+                    type="button"
+                    onClick={() => setPilotActionDialog(null)}
+                  >
+                    {t("关闭", "Close")}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {pilotActionDialog.kind === "schedule" ? (
+              <div className="nt-stack">
+                <div className="nt-actions nt-actions--right">
+                  <button className="nt-btn nt-btn--primary" type="button">
+                    {t("添加计划", "Add schedule")}
+                  </button>
+                </div>
+                <article className="nt-pilot-schedule-empty">
+                  <CalendarClock size={24} aria-hidden="true" />
+                  <span>{t("暂无定时测试计划", "No scheduled test plans")}</span>
+                </article>
+              </div>
+            ) : null}
+          </section>
+        </>
       ) : null}
       <DiscardDraftDialog
         open={discardRefreshDialogOpen}

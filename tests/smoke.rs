@@ -98,6 +98,7 @@ fn test_app_with_config(
         provider_credential_refresh_lock_ttl_secs: 300,
         credential_stock_monitor_enabled: false,
         credential_stock_monitor_interval_secs: 60,
+        credential_pool_automation: Default::default(),
         splitter_worker_executable_path: None,
         splitter_initial_worker_port: 1,
         splitter_ready_timeout_secs: 120,

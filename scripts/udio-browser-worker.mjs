@@ -51,7 +51,9 @@ async function main() {
     validateInput(input);
 
     runtimeStateObjectKey = normalizeString(input.runtimeStateObjectKey);
-    debugLogPath = normalizeString(input.debugLogPath);
+    debugLogPath = normalizeString(
+      input.debugLogPath ?? process.env.UDIO_BROWSER_DEBUG_LOG_PATH ?? null,
+    );
     const timeoutMs = normalizeTimeoutMs(input.timeoutMs, DEFAULT_TIMEOUT_MS, 30_000, 30 * 60 * 1000);
     const waitTimeoutMs = normalizeTimeoutMs(
       input.waitTimeoutMs,
@@ -129,6 +131,11 @@ async function main() {
           timeout: cdpConnectTimeoutMs,
         });
         context =
+          browser
+            .contexts()
+            .find((candidate) =>
+              candidate.pages().some((candidatePage) => candidatePage.url().startsWith(baseUrl)),
+            ) ??
           browser.contexts()[0] ??
           (await browser.newContext({
             locale,
@@ -205,7 +212,10 @@ async function main() {
 
         context = await browser.newContext(contextOptions);
       }
-      if (cookieHeader) {
+      // The exported runtime state is refreshed by the signed-in helper and is
+      // newer than a static credential cookie. Do not overwrite it with stale
+      // cookie material after the context has been created.
+      if (cookieHeader && !runtimeStateObjectKey && !browserCdpUrl) {
         await context.addCookies(parseCookieHeader(cookieHeader, baseUrl));
         await debugLog(debugLogPath, "cookie_header_loaded", {
           cookieCount: parseCookieHeader(cookieHeader, baseUrl).length,
@@ -217,6 +227,7 @@ async function main() {
             targetUrl: browserCdpTargetUrl,
             fallbackUrl: referer,
             navigationTimeoutMs,
+            borrowedContext: true,
           })
         : await createWorkerPage(context, referer, navigationTimeoutMs);
       await debugLog(debugLogPath, "worker_page_ready", {
@@ -225,97 +236,144 @@ async function main() {
 
       const requestBody = deepClone(input.requestBody);
       const overallDeadline = Date.now() + timeoutMs;
-      await debugLog(debugLogPath, "captcha_probe_start", {});
-      const captchaRequirement = requireJsonResponse(
-        await runWithChallengeRetries({
-          page,
-          overallDeadline,
-          retryIntervalMs: challengeRetryIntervalMs,
-          onChallenge: async () => {
-            await openChallengeSurface(page, baseUrl, referer, navigationTimeoutMs);
-          },
-          action: () =>
-            browserFetch(page, {
-              requestUrl: `${baseUrl}/api/generate-proxy/captcha`,
-              method: "GET",
-              headers: {
-                accept: "application/json, text/plain, */*",
-                origin,
-                referer,
-              },
-              timeoutMs: Math.min(timeoutMs, 30_000),
-            }),
-        }),
-        "udio_invalid_captcha_json",
-        "Udio captcha probe returned invalid JSON.",
-      );
-      await debugLog(debugLogPath, "captcha_probe_result", {
-        required: Boolean(captchaRequirement?.required),
+      const authToken = await resolveUdioAccessToken(page, baseUrl);
+      await debugLog(debugLogPath, "auth_token_resolved", {
+        hasAuthToken: Boolean(authToken),
       });
-      if (captchaRequirement?.required && !normalizeString(requestBody.captchaToken)) {
-        requestBody.captchaToken = await refreshCaptchaToken(page, {
-          baseUrl,
-          referer,
-          navigationTimeoutMs,
-          manualChallengeWaitMs,
-          debugLogPath,
+      if (!browserCdpUrl) {
+        await debugLog(debugLogPath, "captcha_probe_start", {});
+        const captchaRequirement = requireJsonResponse(
+          await runWithChallengeRetries({
+            page,
+            overallDeadline,
+            retryIntervalMs: challengeRetryIntervalMs,
+            onChallenge: async () => {
+              await openChallengeSurface(page, baseUrl, referer, navigationTimeoutMs, {
+                allowNavigation: true,
+              });
+            },
+            action: () =>
+              browserFetch(page, {
+                requestUrl: `${baseUrl}/api/generate-proxy/captcha`,
+                method: "GET",
+                headers: {
+                  accept: "application/json, text/plain, */*",
+                  origin,
+                  referer,
+                  ...(authToken ? { authorization: authToken } : {}),
+                },
+                timeoutMs: Math.min(timeoutMs, 30_000),
+              }),
+          }),
+          "udio_invalid_captcha_json",
+          "Udio captcha probe returned invalid JSON.",
+        );
+        await debugLog(debugLogPath, "captcha_probe_result", {
+          required: Boolean(captchaRequirement?.required),
         });
-        await debugLog(debugLogPath, "captcha_token_ready", {
-          tokenLength: requestBody.captchaToken?.length ?? 0,
-          source: "pre_submit",
-        });
+        if (captchaRequirement?.required) {
+          delete requestBody.captchaToken;
+          requestBody.captchaToken = await refreshCaptchaToken(page, {
+            baseUrl,
+            referer,
+            navigationTimeoutMs,
+            manualChallengeWaitMs,
+            debugLogPath,
+            allowNavigation: true,
+          });
+          await debugLog(debugLogPath, "captcha_token_ready", {
+            tokenLength: requestBody.captchaToken?.length ?? 0,
+            source: "pre_submit",
+          });
+        }
+      } else {
+        await debugLog(debugLogPath, "native_submit_selected", {});
       }
-
-      const refreshSubmitCaptchaToken = async () => {
-        await debugLog(debugLogPath, "submit_challenge_refresh_start", {});
-        requestBody.captchaToken = await refreshCaptchaToken(page, {
-          baseUrl,
-          referer,
-          navigationTimeoutMs,
-          manualChallengeWaitMs,
-          debugLogPath,
-        });
-        await debugLog(debugLogPath, "captcha_token_ready", {
-          tokenLength: requestBody.captchaToken?.length ?? 0,
-          source: "submit_retry",
-        });
-        await debugLog(debugLogPath, "submit_challenge_refresh_ready", {});
-      };
 
       await debugLog(debugLogPath, "submit_start", {
         hasCaptchaToken: Boolean(normalizeString(requestBody.captchaToken)),
-        promptLength: normalizeString(requestBody.prompt)?.length ?? 0,
+        promptLength:
+          normalizeString(requestBody.gen_params?.prompt ?? requestBody.prompt)?.length ?? 0,
       });
-      const submitOutcome = await runWithChallengeRetries({
-        page,
-        overallDeadline,
-        retryIntervalMs: challengeRetryIntervalMs,
-        onChallenge: refreshSubmitCaptchaToken,
-        action: async () => {
-          const outcome = await browserFetch(page, {
-            requestUrl: `${baseUrl}/api/generate-proxy`,
-            method: "POST",
-            headers: {
-              accept: "application/json, text/plain, */*",
-              "content-type": "application/json",
-              origin,
-              referer,
+      const submitGeneration = async () => {
+        const outcome = browserCdpUrl
+          ? await submitGenerationThroughPageUi(page, {
+              baseUrl,
+              requestBody,
+              timeoutMs: Math.min(
+                Math.max(60_000, manualChallengeWaitMs + 60_000),
+                Math.max(60_000, overallDeadline - Date.now()),
+              ),
+            })
+          : await browserFetch(page, {
+              requestUrl: `${baseUrl}/api/generate-proxy`,
+              method: "POST",
+              headers: {
+                accept: "application/json, text/plain, */*",
+                "content-type": "application/json",
+                origin,
+                referer,
+                ...(authToken ? { authorization: authToken } : {}),
+              },
+              bodyText: JSON.stringify(requestBody),
+              timeoutMs: Math.min(timeoutMs, 60_000),
+            });
+        await debugLog(debugLogPath, "submit_action_result", {
+          ok: outcome.ok,
+          status: outcome.status,
+          contentType: outcome.contentType,
+          mitigated: outcome.mitigated,
+          transportError: Boolean(outcome.transportError),
+          textLength: String(outcome.text ?? "").length,
+          challengeOutcome: isChallengeOutcome(outcome),
+        });
+        return outcome;
+      };
+      let submitOutcome = await submitGeneration();
+      if (isChallengeOutcome(submitOutcome)) {
+        if (browserCdpUrl) {
+          await debugLog(debugLogPath, "native_checkpoint_start", {
+            status: submitOutcome.status,
+          });
+          await resolveVercelCheckpointInBorrowedPage(page, {
+            baseUrl,
+            referer,
+            timeoutMs: Math.min(
+              Math.max(60_000, manualChallengeWaitMs),
+              Math.max(60_000, overallDeadline - Date.now()),
+            ),
+          });
+          await debugLog(debugLogPath, "native_checkpoint_ready", {});
+        } else {
+          await debugLog(debugLogPath, "submit_challenge_refresh_start", {});
+          delete requestBody.captchaToken;
+          requestBody.captchaToken = await refreshCaptchaToken(page, {
+            baseUrl,
+            referer,
+            navigationTimeoutMs,
+            manualChallengeWaitMs,
+            debugLogPath,
+            allowNavigation: true,
+          });
+          await debugLog(debugLogPath, "captcha_token_ready", {
+            tokenLength: requestBody.captchaToken?.length ?? 0,
+            source: "submit_retry",
+          });
+        }
+        submitOutcome = await submitGeneration();
+        if (isChallengeOutcome(submitOutcome)) {
+          throw Object.assign(
+            new Error(
+              "Udio requires a browser security check or captcha challenge before generation can continue.",
+            ),
+            {
+              status: submitOutcome.status ?? 429,
+              code: "udio_browser_challenge_required",
+              body: trimBody(submitOutcome.text ?? ""),
             },
-            bodyText: JSON.stringify(requestBody),
-            timeoutMs: Math.min(timeoutMs, 60_000),
-          });
-          await debugLog(debugLogPath, "submit_action_result", {
-            ok: outcome.ok,
-            status: outcome.status,
-            contentType: outcome.contentType,
-            mitigated: outcome.mitigated,
-            transportError: Boolean(outcome.transportError),
-            textLength: String(outcome.text ?? "").length,
-            challengeOutcome: isChallengeOutcome(outcome),
-          });
-          return outcome;
-        },
-      });
+          );
+        }
+      }
       await debugLog(debugLogPath, "submit_outcome", {
         ok: submitOutcome.ok,
         status: submitOutcome.status,
@@ -335,11 +393,6 @@ async function main() {
         trackIds,
         songCount: latestSongs.length,
       });
-      const authToken = await resolveUdioAccessToken(page, baseUrl);
-      await debugLog(debugLogPath, "auth_token_resolved", {
-        hasAuthToken: Boolean(authToken),
-      });
-
       if (!parseBoolean(input.waitAudio, true)) {
         await debugLog(debugLogPath, "worker_success_no_wait", {
           trackIds,
@@ -357,7 +410,7 @@ async function main() {
         });
       }
 
-      const waitDeadline = Math.min(overallDeadline, Date.now() + waitTimeoutMs);
+      const waitDeadline = Date.now() + waitTimeoutMs;
       while (Date.now() < waitDeadline) {
         if (songsReadyForTarget(latestSongs, targetAssetKind)) {
           await debugLog(debugLogPath, "worker_success", {
@@ -392,7 +445,9 @@ async function main() {
           overallDeadline: waitDeadline,
           retryIntervalMs: challengeRetryIntervalMs,
           onChallenge: async () => {
-            await openChallengeSurface(page, baseUrl, referer, navigationTimeoutMs);
+            await openChallengeSurface(page, baseUrl, referer, navigationTimeoutMs, {
+              allowNavigation: !browserCdpUrl,
+            });
           },
           action: () =>
             browserFetch(page, {
@@ -458,12 +513,18 @@ async function main() {
 }
 
 async function refreshCaptchaToken(page, options) {
-  const { baseUrl, referer, navigationTimeoutMs, manualChallengeWaitMs, debugLogPath } = options;
+  const {
+    baseUrl,
+    referer,
+    navigationTimeoutMs,
+    manualChallengeWaitMs,
+    debugLogPath,
+    allowNavigation,
+  } = options;
   const sitekey =
     normalizeString(process.env.UDIO_HCAPTCHA_SITEKEY) ?? DEFAULT_HCAPTCHA_SITEKEY;
   const apiSrc =
     normalizeString(process.env.UDIO_HCAPTCHA_API_SRC) ?? DEFAULT_HCAPTCHA_API_SRC;
-  await page.bringToFront().catch(() => undefined);
   await debugLog(debugLogPath, "captcha_refresh_start", {
     url: safePageUrl(page),
     manualChallengeWaitMs,
@@ -479,7 +540,12 @@ async function refreshCaptchaToken(page, options) {
     await debugLog(debugLogPath, "captcha_refresh_retry_surface", {
       message: error?.message ?? String(error),
     });
-    await openChallengeSurface(page, baseUrl, referer, navigationTimeoutMs);
+    if (!allowNavigation) {
+      throw error;
+    }
+    await openChallengeSurface(page, baseUrl, referer, navigationTimeoutMs, {
+      allowNavigation,
+    });
     const token = await obtainHCaptchaToken(page, sitekey, apiSrc, manualChallengeWaitMs);
     await debugLog(debugLogPath, "captcha_refresh_ready", {
       tokenLength: token?.length ?? 0,
@@ -581,21 +647,23 @@ async function createWorkerPage(context, referer, navigationTimeoutMs) {
 }
 
 async function resolveWorkerPage(context, options) {
-  const { targetUrl, fallbackUrl, navigationTimeoutMs } = options;
+  const { targetUrl, fallbackUrl, navigationTimeoutMs, borrowedContext } = options;
   const target = safeUrl(targetUrl);
   const fallback = safeUrl(fallbackUrl);
   const existingPage = context
     .pages()
     .find((page) => pageMatchesTarget(page, target) || pageMatchesTarget(page, fallback));
+  if (borrowedContext && !existingPage) {
+    throw new Error("Udio CDP session does not contain the expected create page.");
+  }
   const page = existingPage ?? (await context.newPage());
 
-  if (!existingPage || !pageMatchesTarget(page, target)) {
+  if (!borrowedContext && (!existingPage || !pageMatchesTarget(page, target))) {
     await page.goto(target?.toString() ?? fallbackUrl, {
       waitUntil: "domcontentloaded",
       timeout: navigationTimeoutMs,
     });
   } else {
-    await page.bringToFront().catch(() => undefined);
     await page.waitForLoadState("domcontentloaded", { timeout: navigationTimeoutMs }).catch(
       () => undefined,
     );
@@ -742,14 +810,201 @@ async function gotoUdio(page, url, timeoutMs) {
   }).catch(() => undefined);
 }
 
-async function openChallengeSurface(page, baseUrl, referer, timeoutMs) {
+async function openChallengeSurface(page, baseUrl, referer, timeoutMs, options = {}) {
+  if (options.allowNavigation === false) {
+    return;
+  }
   const targetUrl = page.url()?.startsWith(baseUrl) ? page.url() : referer;
-  await page.bringToFront().catch(() => undefined);
   try {
     await gotoUdio(page, targetUrl || referer || `${baseUrl}/`, timeoutMs);
   } catch {
     await gotoUdio(page, `${baseUrl}/`, timeoutMs).catch(() => undefined);
   }
+}
+
+async function resolveVercelCheckpointInBorrowedPage(page, options) {
+  const { baseUrl, referer, timeoutMs } = options;
+  const checkpointUrl = `${baseUrl}/api/users/current`;
+  const response = await page.goto(checkpointUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: Math.min(timeoutMs, DEFAULT_NAVIGATION_TIMEOUT_MS),
+  });
+  if (!response) {
+    throw Object.assign(new Error("Udio security checkpoint did not return a response."), {
+      status: 502,
+      code: "udio_checkpoint_navigation_failed",
+    });
+  }
+
+  const initialOutcome = {
+    status: response.status(),
+    contentType: response.headers()["content-type"] ?? "",
+    mitigated: response.headers()["x-vercel-mitigated"] ?? "",
+    text: await response.text().catch(() => ""),
+  };
+  if (!response.ok() && !isChallengeOutcome(initialOutcome)) {
+    requireJsonResponse(
+      initialOutcome,
+      "udio_checkpoint_invalid_json",
+      "Udio security checkpoint probe returned invalid JSON.",
+    );
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  while (!response.ok() && Date.now() < deadline) {
+    const probe = await page.evaluate(async (requestUrl) => {
+      try {
+        const result = await fetch(requestUrl, { credentials: "include" });
+        return {
+          ok: result.ok,
+          status: result.status,
+          mitigated: result.headers.get("x-vercel-mitigated") || "",
+        };
+      } catch {
+        return { ok: false, status: 0, mitigated: "" };
+      }
+    }, checkpointUrl);
+    if (probe.ok && !probe.mitigated) {
+      await gotoUdio(page, referer || `${baseUrl}/create`, DEFAULT_NAVIGATION_TIMEOUT_MS);
+      return;
+    }
+    await page.waitForTimeout(Math.min(1_000, Math.max(100, deadline - Date.now())));
+  }
+
+  if (response.ok()) {
+    await gotoUdio(page, referer || `${baseUrl}/create`, DEFAULT_NAVIGATION_TIMEOUT_MS);
+    return;
+  }
+  throw Object.assign(
+    new Error("Udio requires the visible Vercel Security Checkpoint to be completed."),
+    {
+      status: 429,
+      code: "udio_browser_challenge_required",
+    },
+  );
+}
+
+async function submitGenerationThroughPageUi(page, options) {
+  const { baseUrl, requestBody, timeoutMs } = options;
+  const prompt = normalizeString(requestBody?.gen_params?.prompt ?? requestBody?.prompt);
+  if (!prompt) {
+    throw Object.assign(new Error("Udio native generation requires a non-empty prompt."), {
+      status: 400,
+      code: "udio_browser_missing_prompt",
+    });
+  }
+
+  await page.evaluate(() => {
+    for (const id of [
+      "__udio-hcaptcha-manual-wrapper",
+      "__udio-hcaptcha-manual-container",
+      "__udio-hcaptcha-container",
+    ]) {
+      document.getElementById(id)?.remove();
+    }
+  });
+
+  const promptInput = page.locator("textarea").first();
+  await promptInput.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 30_000) });
+  await promptInput.fill(prompt);
+
+  const createButton = await waitForNativeCreateButton(page, Math.min(timeoutMs, 60_000));
+
+  const responsePromise = page
+    .waitForResponse(
+      (response) => {
+        try {
+          const requestUrl = new URL(response.url());
+          return (
+            requestUrl.origin === baseUrl &&
+            normalizePathname(requestUrl.pathname) === "/api/generate-proxy" &&
+            response.request().method() === "POST"
+          );
+        } catch {
+          return false;
+        }
+      },
+      { timeout: timeoutMs },
+    )
+    .then(
+      (response) => ({ response, error: null }),
+      (error) => ({ response: null, error }),
+    );
+  await createButton.click();
+
+  try {
+    const deadline = Date.now() + timeoutMs;
+    let sawCreateUnavailable = false;
+    let challengeCycleRetries = 0;
+    let responseResult = null;
+    while (Date.now() < deadline) {
+      responseResult = await Promise.race([
+        responsePromise,
+        page.waitForTimeout(Math.min(250, Math.max(50, deadline - Date.now()))).then(() => null),
+      ]);
+      if (responseResult) {
+        break;
+      }
+
+      const availableCreateButton = await findNativeCreateButton(page);
+      if (!availableCreateButton) {
+        sawCreateUnavailable = true;
+        continue;
+      }
+      if (sawCreateUnavailable && challengeCycleRetries < 3) {
+        sawCreateUnavailable = false;
+        challengeCycleRetries += 1;
+        await availableCreateButton.click();
+      }
+    }
+    responseResult ??= await responsePromise;
+    if (responseResult.error) {
+      throw responseResult.error;
+    }
+    const response = responseResult.response;
+    const headers = response.headers();
+    const text = await response.text().catch(() => "");
+    return {
+      ok: response.ok(),
+      status: response.status(),
+      contentType: headers["content-type"] ?? "",
+      mitigated: headers["x-vercel-mitigated"] ?? "",
+      text,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 504,
+      transportError: true,
+      text: typeof error?.message === "string" ? error.message : String(error),
+    };
+  }
+}
+
+async function waitForNativeCreateButton(page, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const createButton = await findNativeCreateButton(page);
+    if (createButton) {
+      return createButton;
+    }
+    await page.waitForTimeout(Math.min(500, Math.max(50, deadline - Date.now())));
+  }
+  throw Object.assign(new Error("Udio native Create button did not become available."), {
+    status: 409,
+    code: "udio_browser_create_unavailable",
+  });
+}
+
+async function findNativeCreateButton(page) {
+  const createButtons = page.getByRole("button", { name: "Create", exact: true });
+  for (let index = 0; index < (await createButtons.count()); index += 1) {
+    const candidate = createButtons.nth(index);
+    if ((await candidate.isVisible()) && (await candidate.isEnabled())) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 async function browserFetch(page, args) {
@@ -949,14 +1204,7 @@ function songsReadyForTarget(songs, targetAssetKind) {
   return (
     Array.isArray(songs) &&
     songs.length > 0 &&
-    songs.every((song) => {
-      const status = String(song?.status ?? song?.state ?? "").toLowerCase();
-      return (
-        songHasTargetAsset(song, targetAssetKind) ||
-        song?.finished === true ||
-        ["finished", "complete", "completed", "failed", "error"].includes(status)
-      );
-    })
+    songs.every((song) => songHasTargetAsset(song, targetAssetKind))
   );
 }
 
@@ -979,11 +1227,7 @@ function songHasTargetAsset(song, targetAssetKind) {
   if (targetAssetKind === "video") {
     return hasNonEmptyString(song?.video_url ?? song?.videoUrl ?? song?.video_path ?? song?.videoPath);
   }
-  return (
-    song?.readyToStream === true ||
-    song?.ready_to_stream === true ||
-    hasNonEmptyString(song?.song_path ?? song?.songPath ?? song?.audio_url ?? song?.audioUrl)
-  );
+  return hasNonEmptyString(song?.song_path ?? song?.songPath ?? song?.audio_url ?? song?.audioUrl);
 }
 
 function hasNonEmptyString(value) {
@@ -1112,13 +1356,13 @@ async function obtainHCaptchaToken(page, sitekey, apiSrc, manualChallengeWaitMs 
       throw new Error(`challenge required: ${title}`);
     };
 
-    const waitForSolvedToken = async (hcaptcha, widgetIds, timeoutMs) => {
+    const waitForSolvedToken = async (hcaptcha, widgetId, timeoutMs) => {
       if (!timeoutMs || timeoutMs <= 0) {
         return null;
       }
       const deadline = Date.now() + timeoutMs;
       while (Date.now() < deadline) {
-        const token = readSolvedToken(hcaptcha, widgetIds);
+        const token = readWidgetToken(hcaptcha, widgetId);
         if (token) {
           return token;
         }
@@ -1127,107 +1371,47 @@ async function obtainHCaptchaToken(page, sitekey, apiSrc, manualChallengeWaitMs 
       return null;
     };
 
-    const readSolvedToken = (hcaptcha, widgetIds) => {
-      const candidates = [];
-      if (typeof hcaptcha?.getResponse === "function") {
-        try {
-          candidates.push(hcaptcha.getResponse());
-        } catch {
-          // Ignore default-widget lookup failures and continue with explicit candidates.
-        }
+    const validWidgetId = (widgetId) =>
+      typeof widgetId === "number" ||
+      (typeof widgetId === "string" && Boolean(widgetId.trim()));
+
+    const readWidgetToken = (hcaptcha, widgetId) => {
+      const callbackToken = window.__udioManualHcaptchaResolvedToken;
+      if (typeof callbackToken === "string" && callbackToken.trim()) {
+        return callbackToken.trim();
       }
-      for (const widgetId of Array.isArray(widgetIds) ? widgetIds : []) {
-        if (typeof widgetId === "number" && typeof hcaptcha?.getResponse === "function") {
-          try {
-            candidates.push(hcaptcha.getResponse(widgetId));
-          } catch {
-            // Ignore invalid widget ids discovered from stale state.
-          }
-        }
+      if (!validWidgetId(widgetId) || typeof hcaptcha?.getResponse !== "function") {
+        return null;
       }
-      for (const selector of [
-        'textarea[name="h-captcha-response"]',
-        'textarea[name="g-recaptcha-response"]',
-        'input[name="h-captcha-response"]',
-        'input[name="g-recaptcha-response"]',
-      ]) {
-        for (const node of Array.from(document.querySelectorAll(selector))) {
-          if (node && typeof node.value === "string") {
-            candidates.push(node.value);
-          }
-        }
+      try {
+        const token = hcaptcha.getResponse(widgetId);
+        return typeof token === "string" && token.trim() ? token.trim() : null;
+      } catch {
+        return null;
       }
-      for (const candidate of candidates) {
-        if (typeof candidate === "string" && candidate.trim()) {
-          return candidate.trim();
-        }
-      }
-      return null;
     };
 
-    const extractExecuteToken = (execution, hcaptcha, widgetIds) => {
+    const extractExecuteToken = (execution, hcaptcha, widgetId) => {
       const direct =
         (typeof execution === "object" && typeof execution?.response === "string"
           ? execution.response
           : typeof execution === "string"
             ? execution
-            : null) || readSolvedToken(hcaptcha, widgetIds);
+            : null) || readWidgetToken(hcaptcha, widgetId);
       return typeof direct === "string" && direct.trim() ? direct.trim() : null;
     };
 
-    const tryExecuteNativeWidget = async (hcaptcha, widgetIds) => {
-      if (typeof hcaptcha?.execute !== "function") {
-        return null;
-      }
-
-      const attempts = [
-        () => hcaptcha.execute(),
-        () => hcaptcha.execute(undefined, { async: true }),
-        () => hcaptcha.execute(null, { async: true }),
-      ];
-      for (const invoke of attempts) {
+    const hcaptcha = await waitForHCaptcha();
+    const removeWidget = (widgetId, container) => {
+      if (validWidgetId(widgetId) && typeof hcaptcha.remove === "function") {
         try {
-          const execution = await withTimeout(
-            Promise.resolve().then(() => invoke()),
-            executeTimeoutMs,
-            "hCaptcha native execute",
-          );
-          const token = extractExecuteToken(execution, hcaptcha, widgetIds);
-          if (token) {
-            return token;
-          }
+          hcaptcha.remove(widgetId);
         } catch {
-          // Native-widget execute signatures vary; keep trying before falling back.
+          // Ignore stale widget ids.
         }
       }
-      return null;
+      container?.replaceChildren();
     };
-
-    const hcaptcha = await waitForHCaptcha();
-    let widgetId = window.__udioHcaptchaWidgetId;
-    const widgetIds = [];
-    if (typeof widgetId === "number") {
-      widgetIds.push(widgetId);
-    }
-    const existingToken = readSolvedToken(hcaptcha, widgetIds);
-    if (existingToken) {
-      return existingToken;
-    }
-
-    const visibleChallengeBeforeExecute = readVisibleChallengeFrame();
-    if (visibleChallengeBeforeExecute && manualChallengeWaitMs <= 0) {
-      throwVisibleChallengeRequired(visibleChallengeBeforeExecute);
-    }
-
-    const nativeExecuteToken = await tryExecuteNativeWidget(hcaptcha, widgetIds);
-    if (nativeExecuteToken) {
-      return nativeExecuteToken;
-    }
-
-    const visibleChallengeAfterNativeExecute = readVisibleChallengeFrame();
-    if (visibleChallengeAfterNativeExecute && manualChallengeWaitMs <= 0) {
-      throwVisibleChallengeRequired(visibleChallengeAfterNativeExecute);
-    }
 
     if (manualChallengeWaitMs > 0) {
       ensureContainer(
@@ -1248,12 +1432,6 @@ async function obtainHCaptchaToken(page, sitekey, apiSrc, manualChallengeWaitMs 
         "Complete the captcha in this window to continue the Udio generation request.",
       );
 
-      const manualNativeToken = await waitForSolvedToken(hcaptcha, widgetIds, manualChallengeWaitMs);
-      if (manualNativeToken) {
-        return manualNativeToken;
-      }
-
-      let manualWidgetId = window.__udioManualHcaptchaWidgetId;
       const manualContainer = ensureContainer(
         manualContainerId,
         [
@@ -1269,25 +1447,35 @@ async function obtainHCaptchaToken(page, sitekey, apiSrc, manualChallengeWaitMs 
           "box-shadow:0 20px 60px rgba(0,0,0,0.35)",
         ].join(";"),
       );
+      removeWidget(window.__udioManualHcaptchaWidgetId, manualContainer);
+      window.__udioManualHcaptchaResolvedToken = null;
+      const manualWidgetId = hcaptcha.render(manualContainer, {
+        sitekey,
+        size: "normal",
+        theme: "light",
+        callback: (token) => {
+          window.__udioManualHcaptchaResolvedToken =
+            typeof token === "string" && token.trim() ? token.trim() : null;
+        },
+        "expired-callback": () => {
+          window.__udioManualHcaptchaResolvedToken = null;
+        },
+        "error-callback": () => {
+          window.__udioManualHcaptchaResolvedToken = null;
+        },
+      });
+      window.__udioManualHcaptchaWidgetId = manualWidgetId;
 
-      if (typeof manualWidgetId !== "number") {
-        manualWidgetId = hcaptcha.render(manualContainer, {
-          sitekey,
-          size: "normal",
-          theme: "light",
-        });
-        window.__udioManualHcaptchaWidgetId = manualWidgetId;
+      const manualToken = await waitForSolvedToken(hcaptcha, manualWidgetId, manualChallengeWaitMs);
+      if (manualToken) {
+        window.__udioManualHcaptchaWidgetId = null;
+        window.__udioManualHcaptchaResolvedToken = null;
+        removeWidget(manualWidgetId, manualContainer);
+        return manualToken;
       }
-      widgetIds.push(manualWidgetId);
-
-      const manualFallbackToken = await waitForSolvedToken(
-        hcaptcha,
-        widgetIds,
-        manualChallengeWaitMs,
+      throwVisibleChallengeRequired(
+        readVisibleChallengeFrame() ?? { title: "hCaptcha challenge was not completed" },
       );
-      if (manualFallbackToken) {
-        return manualFallbackToken;
-      }
     }
 
     const container = ensureContainer(
@@ -1295,15 +1483,13 @@ async function obtainHCaptchaToken(page, sitekey, apiSrc, manualChallengeWaitMs 
       "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;",
     );
 
-    if (typeof widgetId !== "number") {
-      widgetId = hcaptcha.render(container, {
-        sitekey,
-        size: "invisible",
-        theme: "dark",
-        });
-      window.__udioHcaptchaWidgetId = widgetId;
-      widgetIds.unshift(widgetId);
-    }
+    removeWidget(window.__udioHcaptchaWidgetId, container);
+    const widgetId = hcaptcha.render(container, {
+      sitekey,
+      size: "invisible",
+      theme: "dark",
+    });
+    window.__udioHcaptchaWidgetId = widgetId;
 
     const execution = await withTimeout(
       hcaptcha.execute(widgetId, { async: true }),
@@ -1315,7 +1501,7 @@ async function obtainHCaptchaToken(page, sitekey, apiSrc, manualChallengeWaitMs 
         ? execution.response
         : typeof execution === "string"
           ? execution
-          : null) || readSolvedToken(hcaptcha, widgetIds);
+          : null) || readWidgetToken(hcaptcha, widgetId);
 
     if (!token || typeof token !== "string") {
       const visibleChallengeAfterHelperExecute = readVisibleChallengeFrame();
@@ -1325,6 +1511,8 @@ async function obtainHCaptchaToken(page, sitekey, apiSrc, manualChallengeWaitMs 
       throw new Error("hCaptcha execute completed without returning a token.");
     }
 
+    window.__udioHcaptchaWidgetId = null;
+    removeWidget(widgetId, container);
     return token;
     }, { sitekey, apiSrc, manualChallengeWaitMs });
   } catch (error) {
@@ -1352,7 +1540,25 @@ async function obtainHCaptchaToken(page, sitekey, apiSrc, manualChallengeWaitMs 
 }
 
 async function resolveUdioAccessToken(page, baseUrl) {
-  const cookies = await page.context().cookies([`${baseUrl}/`]).catch(() => []);
+  const context = page.context();
+  let cookies = await context.cookies([`${baseUrl}/`]).catch(() => []);
+  // Some CDP-backed Chromium contexts return an empty URL-filtered cookie set
+  // even though the provider cookies are present. Fall back to the complete
+  // context cookie jar and let the auth-cookie prefix filter narrow it.
+  if (!cookies.length) {
+    cookies = await context.cookies().catch(() => []);
+  }
+  if (!cookies.length) {
+    const session = await context.newCDPSession(page).catch(() => null);
+    if (session) {
+      try {
+        const result = await session.send("Network.getAllCookies");
+        cookies = Array.isArray(result?.cookies) ? result.cookies : [];
+      } finally {
+        await session.detach().catch(() => undefined);
+      }
+    }
+  }
   const tokenFromCookie = extractSupabaseAccessTokenFromCookies(cookies);
   if (tokenFromCookie) {
     return tokenFromCookie;

@@ -111,6 +111,7 @@ fn test_config() -> Config {
         provider_credential_refresh_lock_ttl_secs: 300,
         credential_stock_monitor_enabled: false,
         credential_stock_monitor_interval_secs: 60,
+        credential_pool_automation: Default::default(),
         splitter_worker_executable_path: None,
         splitter_initial_worker_port: 1,
         splitter_ready_timeout_secs: 1,
@@ -952,6 +953,30 @@ async fn credential_probe_returns_not_found_for_unknown_global_id() {
     assert_eq!(body["error"]["code"], "console_credential_not_found");
 }
 
+#[tokio::test]
+async fn gemini_auth_manual_completion_route_is_registered_on_complete_suffix() {
+    let fixture = ConsoleStateFixture::new(document("managed", "gpt-5.4", "live-secret"), false);
+
+    let response = build_router(Arc::clone(&fixture.state))
+        .oneshot(
+            Request::post(
+                "/v1/internal/gateway/console/gemini-auth-sessions/nonexistent-session/complete",
+            )
+            .header("x-management-token", MANAGEMENT_TOKEN)
+            .body(Body::empty())
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let body = parse_json(response).await;
+    assert_eq!(
+        body["error"]["code"],
+        "console_gemini_auth_session_not_found"
+    );
+}
+
 async fn grant_console_secret_access(state: &Arc<AppState>) -> String {
     let response = build_router(Arc::clone(state))
         .oneshot(
@@ -1188,6 +1213,9 @@ fn build_state(
         shutdown: GatewayShutdownHandle::default(),
         provider_credential_folder_sync: ProviderCredentialFolderSyncRuntime::new(
             provider_credential_folder_sync_enabled,
+        ),
+        credential_pool_automation: Arc::new(
+            neuro_gateway::credential_pool_automation::CredentialPoolAutomationRuntime::disabled(),
         ),
     })
 }

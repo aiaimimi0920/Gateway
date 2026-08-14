@@ -13,6 +13,8 @@ use crate::upstream::common::RequestPlan;
 pub const PRODUCER_DEFAULT_MODEL: &str = "producer:standard";
 pub const PRODUCER_IMAGE_DEFAULT_MODEL: &str = "producer:image";
 pub const PRODUCER_VIDEO_DEFAULT_MODEL: &str = "producer:music-video";
+const PRODUCER_PUBLIC_ASSET_BASE_URL: &str =
+    "https://storage.googleapis.com/producer-app-public/assets";
 
 pub fn unsupported_request_plan_error() -> GatewayError {
     GatewayError::bad_request(
@@ -447,6 +449,10 @@ pub fn build_video_detail_path(job_id: &str) -> String {
 
 pub fn build_image_generation_url(base_url: &str) -> String {
     format!("{}/__api/generate/image", base_url.trim_end_matches('/'))
+}
+
+pub fn build_clips_library_url(base_url: &str) -> String {
+    format!("{}/__api/clips/auth-user", base_url.trim_end_matches('/'))
 }
 
 pub fn build_video_library_path() -> &'static str {
@@ -1776,39 +1782,18 @@ fn derive_image_url_from_auth(
     if token.is_empty() {
         return None;
     }
-    let claims = decode_auth_claims(token)?;
-    let iss = claims.get("iss")?.as_str()?.trim();
-    let mut base = iss
-        .strip_suffix("/auth/v1")
-        .unwrap_or(iss)
-        .trim_end_matches('/')
-        .to_string();
-    if base.is_empty() {
-        return None;
+    decode_auth_claims(token)?;
+    let legacy_bucket = producer_image_bucket(image_type)?;
+    if let ProducerImageBucket::UserScoped(bucket_name) = legacy_bucket {
+        let _ = bucket_name;
     }
-    let bucket = producer_image_bucket(image_type)?;
-    match bucket {
-        ProducerImageBucket::UserScoped(bucket_name) => {
-            let user_id = claims.get("sub")?.as_str()?.trim();
-            if user_id.is_empty() {
-                return None;
-            }
-            base.push_str("/storage/v1/object/public/");
-            base.push_str(bucket_name);
-            base.push('/');
-            base.push_str(user_id);
-            base.push_str("/image/");
-            base.push_str(image_id);
-            base.push_str(".jpg");
-            Some(base)
-        }
-        ProducerImageBucket::Space => {
-            base.push_str("/storage/v1/object/public/spaces/images/");
-            base.push_str(image_id);
-            base.push_str(".jpg");
-            Some(base)
-        }
-    }
+
+    // Flow Music keeps Supabase only as its auth issuer; generated image
+    // assets now live in the public producer-app-public GCS bucket.
+    Some(format!(
+        "{PRODUCER_PUBLIC_ASSET_BASE_URL}/{}.jpg",
+        image_id.trim()
+    ))
 }
 
 fn decode_auth_claims(token: &str) -> Option<Value> {
@@ -2072,7 +2057,7 @@ mod tests {
         assert_eq!(response["data"][0]["image_id"], "img-42");
         assert_eq!(
             response["data"][0]["url"],
-            "https://demo-project.supabase.co/storage/v1/object/public/clips/user-123/image/img-42.jpg"
+            "https://storage.googleapis.com/producer-app-public/assets/img-42.jpg"
         );
     }
 
@@ -2294,6 +2279,14 @@ mod tests {
         assert_eq!(
             build_image_generation_url("https://producer.ai"),
             "https://producer.ai/__api/generate/image"
+        );
+    }
+
+    #[test]
+    fn build_clips_library_url_trims_trailing_slash() {
+        assert_eq!(
+            build_clips_library_url("https://www.flowmusic.app/"),
+            "https://www.flowmusic.app/__api/clips/auth-user"
         );
     }
 

@@ -155,10 +155,12 @@ pub fn response_indicates_browser_challenge(
         || lower.contains("waf")
         || lower.contains("x5sec")
         || lower.contains("access denied");
+    let rgv587_challenge = (lower.contains("rgv587") || lower.contains("fail_sys_user_validate"))
+        && lower.contains("\"ret\"")
+        && lower.contains("\"url\"");
 
     (status == 403 || status == 429 || status == 503 || status == 200)
-        && html_like
-        && challenge_like
+        && ((html_like && challenge_like) || rgv587_challenge)
 }
 
 pub fn response_indicates_session_invalid(
@@ -235,47 +237,101 @@ pub async fn accumulate_qwen_web_stream(
     response: rquest::Response,
     model: &str,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
+    let status = response.status().as_u16();
+    let content_type = response
+        .headers()
+        .get(rquest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
     let body = response
         .text()
         .await
         .map_err(|error| GatewayError::server_error(format!("read qwen web body: {error}")))?;
+    if response_indicates_browser_challenge(status, content_type.as_deref(), &body) {
+        return Err(classify_qwen_web_http_error(
+            status,
+            content_type.as_deref(),
+            &body,
+        ));
+    }
+    accumulate_qwen_web_body(&body, model)
+}
+
+fn accumulate_qwen_web_body(
+    body: &str,
+    model: &str,
+) -> Result<CanonicalRelayResponse, GatewayError> {
     let mut parser = SseParseState::new();
     let mut text = String::new();
     let mut reported_model = model.to_string();
     let mut usage: Option<TokenUsage> = None;
-    let mut finish_reason: Option<String> = Some("stop".to_string());
+    let mut finish_reason: Option<String> = None;
+    let mut parsed_frame = false;
 
     for raw_line in body.lines() {
+        let normalized_line = raw_line.trim_end_matches('\r');
+        if let Some(data_line) = normalized_line.strip_prefix("data:") {
+            let data_line = data_line.strip_prefix(' ').unwrap_or(data_line).trim();
+            if data_line == "[DONE]" {
+                break;
+            }
+            if let Ok(data) = serde_json::from_str::<Value>(data_line) {
+                parsed_frame |= apply_qwen_web_response_value(
+                    Some(&data),
+                    &mut reported_model,
+                    &mut text,
+                    &mut usage,
+                    &mut finish_reason,
+                );
+                continue;
+            }
+        }
         if let Some(frame) = parse_sse_line(raw_line, &mut parser) {
             if frame.data == "[DONE]" {
                 break;
             }
-            let data: Value = match serde_json::from_str(&frame.data) {
-                Ok(value) => value,
-                Err(_) => continue,
-            };
-
-            if let Some(candidate_model) = data.get("model").and_then(|value| value.as_str()) {
-                reported_model = candidate_model.to_string();
-            }
-
-            if let Some(token_usage) = parse_token_usage(data.get("usage")) {
-                usage = Some(token_usage);
-            }
-
-            if let Some(choice) = data
-                .get("choices")
-                .and_then(|value| value.as_array())
-                .and_then(|choices| choices.first())
-            {
-                if let Some(reason) = choice.get("finish_reason").and_then(|value| value.as_str()) {
-                    finish_reason = Some(reason.to_string());
-                }
-                if let Some(content) = extract_delta_text(choice) {
-                    text.push_str(content);
-                }
-            }
+            parsed_frame |= apply_qwen_web_response_value(
+                serde_json::from_str(&frame.data).ok().as_ref(),
+                &mut reported_model,
+                &mut text,
+                &mut usage,
+                &mut finish_reason,
+            );
         }
+    }
+
+    // A few Qwen deployments omit the final blank SSE delimiter. Flush the
+    // parser explicitly so the last data frame is not lost at EOF.
+    if let Some(frame) = parse_sse_line("", &mut parser) {
+        if frame.data != "[DONE]" {
+            parsed_frame |= apply_qwen_web_response_value(
+                serde_json::from_str(&frame.data).ok().as_ref(),
+                &mut reported_model,
+                &mut text,
+                &mut usage,
+                &mut finish_reason,
+            );
+        }
+    }
+
+    // Some Qwen responses ignore the requested stream flag and return a
+    // regular OpenAI-shaped JSON response instead of SSE.
+    if !parsed_frame {
+        parsed_frame |= apply_qwen_web_response_value(
+            serde_json::from_str(body.trim()).ok().as_ref(),
+            &mut reported_model,
+            &mut text,
+            &mut usage,
+            &mut finish_reason,
+        );
+    }
+
+    if !parsed_frame || text.trim().is_empty() {
+        return Err(GatewayError::server_error(format!(
+            "Qwen Web response did not include assistant text ({})",
+            qwen_web_response_shape(body)
+        ))
+        .with_code("qwen_web_empty_response"));
     }
 
     Ok(CanonicalRelayResponse {
@@ -286,6 +342,93 @@ pub async fn accumulate_qwen_web_stream(
         upstream_status: Some(200),
         finish_reason,
     })
+}
+
+fn apply_qwen_web_response_value(
+    data: Option<&Value>,
+    reported_model: &mut String,
+    text: &mut String,
+    usage: &mut Option<TokenUsage>,
+    finish_reason: &mut Option<String>,
+) -> bool {
+    let Some(data) = data else {
+        return false;
+    };
+    if let Some(candidate_model) = data.get("model").and_then(Value::as_str) {
+        *reported_model = candidate_model.to_string();
+    }
+    if let Some(token_usage) = parse_token_usage(data.get("usage")) {
+        *usage = Some(token_usage);
+    }
+    let Some(choice) = data
+        .get("choices")
+        .and_then(Value::as_array)
+        .and_then(|choices| choices.first())
+    else {
+        return false;
+    };
+    if let Some(reason) = choice.get("finish_reason").and_then(Value::as_str) {
+        *finish_reason = Some(reason.to_string());
+    }
+    if let Some(content) = extract_choice_text(choice) {
+        text.push_str(&content);
+    }
+    true
+}
+
+fn qwen_web_response_shape(body: &str) -> String {
+    let mut paths = std::collections::BTreeSet::new();
+    let mut json_frames = 0usize;
+    for line in body.lines() {
+        let normalized = line.trim_end_matches('\r');
+        let candidate = normalized
+            .strip_prefix("data:")
+            .map(|value| value.strip_prefix(' ').unwrap_or(value).trim())
+            .unwrap_or(normalized.trim());
+        if candidate.is_empty() || candidate == "[DONE]" {
+            continue;
+        }
+        if let Ok(value) = serde_json::from_str::<Value>(candidate) {
+            json_frames += 1;
+            collect_qwen_web_json_paths(&value, "", &mut paths, 0);
+        }
+    }
+    format!(
+        "json_frames={json_frames}; key_paths={}",
+        paths.into_iter().take(80).collect::<Vec<_>>().join(",")
+    )
+}
+
+fn collect_qwen_web_json_paths(
+    value: &Value,
+    prefix: &str,
+    paths: &mut std::collections::BTreeSet<String>,
+    depth: usize,
+) {
+    if depth >= 6 || paths.len() >= 80 {
+        return;
+    }
+    match value {
+        Value::Object(object) => {
+            for (key, child) in object {
+                let path = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{prefix}.{key}")
+                };
+                paths.insert(path.clone());
+                collect_qwen_web_json_paths(child, &path, paths, depth + 1);
+            }
+        }
+        Value::Array(items) => {
+            if let Some(first) = items.first() {
+                let path = format!("{prefix}[]");
+                paths.insert(path.clone());
+                collect_qwen_web_json_paths(first, &path, paths, depth + 1);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn parse_token_usage(value: Option<&Value>) -> Option<TokenUsage> {
@@ -308,13 +451,39 @@ fn parse_token_usage(value: Option<&Value>) -> Option<TokenUsage> {
     })
 }
 
-fn extract_delta_text(choice: &Value) -> Option<&str> {
-    let delta = choice.get("delta")?;
-    let phase = delta.get("phase").and_then(|value| value.as_str());
-    if matches!(phase, Some("think") | Some("thinking_summary")) {
-        return None;
+fn extract_choice_text(choice: &Value) -> Option<String> {
+    if let Some(delta) = choice.get("delta") {
+        let phase = delta.get("phase").and_then(Value::as_str);
+        if matches!(phase, Some("think") | Some("thinking_summary")) {
+            return None;
+        }
+        if let Some(content) = extract_content_text(delta.get("content")) {
+            return Some(content);
+        }
     }
-    delta.get("content").and_then(|value| value.as_str())
+    extract_content_text(
+        choice
+            .get("message")
+            .and_then(|message| message.get("content")),
+    )
+}
+
+fn extract_content_text(content: Option<&Value>) -> Option<String> {
+    match content? {
+        Value::String(text) if !text.is_empty() => Some(text.clone()),
+        Value::Array(parts) => {
+            let text = parts
+                .iter()
+                .filter_map(|part| {
+                    part.get("text")
+                        .or_else(|| part.get("content"))
+                        .and_then(Value::as_str)
+                })
+                .collect::<String>();
+            (!text.is_empty()).then_some(text)
+        }
+        _ => None,
+    }
 }
 
 pub fn translate_qwen_web_frame_to_openai_sse(
@@ -334,7 +503,7 @@ pub fn translate_qwen_web_frame_to_openai_sse(
         .get("choices")
         .and_then(|value| value.as_array())
         .and_then(|choices| choices.first())?;
-    let content = extract_delta_text(choice);
+    let content = extract_choice_text(choice);
     let finish_reason = choice
         .get("finish_reason")
         .and_then(|value| value.as_str())
@@ -565,6 +734,52 @@ mod tests {
     }
 
     #[test]
+    fn accumulate_qwen_web_body_flushes_final_sse_frame_at_eof() {
+        let response = accumulate_qwen_web_body(
+            r#"data: {"model":"qwen3-coder-plus","choices":[{"delta":{"content":"巴黎","phase":"answer"},"finish_reason":"stop"}]}"#,
+            "qwen3-coder-plus",
+        )
+        .unwrap();
+        assert_eq!(response.text, "巴黎");
+        assert_eq!(response.finish_reason.as_deref(), Some("stop"));
+    }
+
+    #[test]
+    fn accumulate_qwen_web_body_accepts_regular_message_json() {
+        let response = accumulate_qwen_web_body(
+            r#"{"model":"qwen3-coder-plus","choices":[{"message":{"role":"assistant","content":"法国的首都是巴黎。"},"finish_reason":"stop"}]}"#,
+            "qwen3-coder-plus",
+        )
+        .unwrap();
+        assert_eq!(response.text, "法国的首都是巴黎。");
+    }
+
+    #[test]
+    fn accumulate_qwen_web_body_accepts_data_lines_without_blank_delimiters() {
+        let response = accumulate_qwen_web_body(
+            concat!(
+                "data: {\"choices\":[{\"delta\":{\"content\":\"法国的首都\",\"phase\":\"answer\"},\"finish_reason\":null}]}\n",
+                "data: {\"choices\":[{\"delta\":{\"content\":\"是巴黎。\",\"phase\":\"answer\"},\"finish_reason\":\"stop\"}]}\n",
+                "data: [DONE]\n",
+            ),
+            "qwen3-coder-plus",
+        )
+        .unwrap();
+        assert_eq!(response.text, "法国的首都是巴黎。");
+        assert_eq!(response.finish_reason.as_deref(), Some("stop"));
+    }
+
+    #[test]
+    fn accumulate_qwen_web_body_rejects_empty_success() {
+        let error = accumulate_qwen_web_body(
+            r#"{"choices":[{"message":{"role":"assistant","content":""},"finish_reason":"stop"}]}"#,
+            "qwen3-coder-plus",
+        )
+        .unwrap_err();
+        assert_eq!(error.code.as_deref(), Some("qwen_web_empty_response"));
+    }
+
+    #[test]
     fn classify_qwen_web_html_challenge_as_browser_challenge() {
         let err = classify_qwen_web_http_error(
             403,
@@ -576,6 +791,21 @@ mod tests {
             Some(QWEN_WEB_BROWSER_CHALLENGE_REQUIRED_CODE)
         );
         assert_eq!(err.provider_name.as_deref(), Some("qwen_web_compatible"));
+    }
+
+    #[test]
+    fn classify_qwen_web_rgv587_json_as_browser_challenge() {
+        let body = r#"{"ret":["RGV587_ERROR::SM"],"data":{"url":"https://challenge.invalid/"}}"#;
+        assert!(response_indicates_browser_challenge(
+            200,
+            Some("application/json"),
+            body,
+        ));
+        let error = classify_qwen_web_http_error(200, Some("application/json"), body);
+        assert_eq!(
+            error.code.as_deref(),
+            Some(QWEN_WEB_BROWSER_CHALLENGE_REQUIRED_CODE)
+        );
     }
 
     #[test]

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "longcat-openai-official-model-api",
+  "identity": {
+    "serviceProviderKey": "longcat_platform",
+    "serviceProviderLabel": "LongCat OpenAI-compatible",
+    "providerSurfaceKey": "longcat-openai",
+    "providerSurfaceLabel": "LongCat OpenAI-compatible",
+    "protocolProfile": "longcat",
+    "implementationLine": "official_model_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/LongCat官方模型API实现线基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "longcat-openai-official-model-api-verify",
+    "focusedCargoFilters": [
+      "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+    ],
+    "fixtureSuiteId": "longcat_fixture",
+    "liveSuiteId": "longcat_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-longcat-openai-official-model-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "longcat-openai-official-model-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/registry.rs",
+    "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

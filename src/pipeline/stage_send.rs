@@ -182,34 +182,52 @@ pub async fn run(
             .to_string();
         let reply_model = caller_visible_reply_model(&ctx.canonical_req, &model);
 
-        let mut effective_payload = match keepalive::ensure_payload_ready(
-            &state.redis_pool,
-            state.pg_pool.as_ref(),
-            state.upstream_client.client(),
-            &candidate.payload,
-            ctx.session
-                .as_ref()
-                .map(|session| session.project_id.as_str()),
-            ctx.canonical_req.explicit_session_key.as_deref(),
-            ctx.canonical_req.previous_response_id.as_deref(),
-            &candidate.provider_account_id,
-            &model,
-        )
-        .await
-        {
-            Ok(payload) => payload,
-            Err(e) => {
-                if should_try_next_candidate(&e) {
-                    warn!(
-                        req_id = %ctx.req_id,
-                        provider = %candidate.provider_account_id,
-                        error = %e,
-                        "credential keepalive preflight failed; trying next"
-                    );
-                    last_error = Some(e);
-                    continue;
-                } else {
-                    return Err(e);
+        let remote_browser_executor_configured = state
+            .upstream_client
+            .browser_executor_runtime_health()
+            .remote_base_url
+            .is_some();
+        let browser_session_owns_auth = remote_browser_executor_configured
+            && matches!(
+                candidate.resolved_execution_mode,
+                crate::routing::candidate::ProviderExecutionMode::BrowserBacked
+            )
+            && matches!(
+                candidate.adapter.as_str(),
+                "suno_compatible" | "udio_compatible"
+            );
+        let mut effective_payload = if browser_session_owns_auth {
+            candidate.payload.clone()
+        } else {
+            match keepalive::ensure_payload_ready(
+                &state.redis_pool,
+                state.pg_pool.as_ref(),
+                state.upstream_client.client(),
+                &candidate.payload,
+                ctx.session
+                    .as_ref()
+                    .map(|session| session.project_id.as_str()),
+                ctx.canonical_req.explicit_session_key.as_deref(),
+                ctx.canonical_req.previous_response_id.as_deref(),
+                &candidate.provider_account_id,
+                &model,
+            )
+            .await
+            {
+                Ok(payload) => payload,
+                Err(e) => {
+                    if should_try_next_candidate(&e) {
+                        warn!(
+                            req_id = %ctx.req_id,
+                            provider = %candidate.provider_account_id,
+                            error = %e,
+                            "credential keepalive preflight failed; trying next"
+                        );
+                        last_error = Some(e);
+                        continue;
+                    } else {
+                        return Err(e);
+                    }
                 }
             }
         };
@@ -2771,6 +2789,15 @@ fn retry_policy_for_request(
     payload: &crate::routing::candidate::ProviderAccountPayload,
 ) -> RetryPolicy {
     let mut policy = RetryPolicy::default();
+    if payload.adapter == "gemini_canvas_program_web_reverse_compatible"
+        && matches!(req.endpoint_kind, EndpointKind::ChatCompletions)
+    {
+        // Program text execution already performs its own handle recovery and
+        // can consume the full 300-second operation timeout. Replaying that
+        // entire workflow at the provider layer can keep one request alive for
+        // several additional timeout windows.
+        policy.max_retries = 0;
+    }
     if payload.adapter == "gemini_canvas_compatible"
         && matches!(req.endpoint_kind, EndpointKind::ImagesEdits)
     {
@@ -3323,6 +3350,16 @@ mod tests {
     }
 
     #[test]
+    fn retry_policy_for_gemini_canvas_program_chat_disables_provider_retries() {
+        let req = make_req(ProtocolFamily::OpenAi, EndpointKind::ChatCompletions);
+        let candidate = make_candidate("gemini_canvas_program_web_reverse_compatible");
+
+        let policy = retry_policy_for_request(&req, &candidate.payload);
+
+        assert_eq!(policy.max_retries, 0);
+    }
+
+    #[test]
     fn retry_policy_for_gemini_canvas_program_video_excludes_rate_limit_retries() {
         let req = make_req(ProtocolFamily::OpenAi, EndpointKind::VideosGenerations);
         let candidate = make_candidate("gemini_canvas_program_web_reverse_compatible");
@@ -3641,6 +3678,7 @@ mod tests {
                 provider_credential_refresh_lock_ttl_secs: 300,
                 credential_stock_monitor_enabled: true,
                 credential_stock_monitor_interval_secs: 60,
+                credential_pool_automation: Default::default(),
                 splitter_worker_executable_path: None,
                 splitter_initial_worker_port: 4201,
                 splitter_ready_timeout_secs: 120,
@@ -3663,6 +3701,9 @@ mod tests {
             shutdown: crate::state::GatewayShutdownHandle::default(),
             provider_credential_folder_sync: crate::state::ProviderCredentialFolderSyncRuntime::new(
                 false,
+            ),
+            credential_pool_automation: Arc::new(
+                crate::credential_pool_automation::CredentialPoolAutomationRuntime::disabled(),
             ),
         });
 

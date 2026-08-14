@@ -297,6 +297,22 @@ impl RouteConfigCoordinator {
         document: RouteConfigYaml,
         message: Option<String>,
     ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigRuntimeError> {
+        self.commit_document_as(
+            expected_revision,
+            document,
+            message,
+            RevisionActor::ManagementToken,
+        )
+        .await
+    }
+
+    async fn commit_document_as(
+        &self,
+        expected_revision: &str,
+        document: RouteConfigYaml,
+        message: Option<String>,
+        actor: RevisionActor,
+    ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigRuntimeError> {
         let validated = validate_route_document(document).map_err(|diagnostics| {
             RouteConfigRuntimeError::new("console_route_validation_failed", diagnostics.to_string())
         })?;
@@ -311,7 +327,7 @@ impl RouteConfigCoordinator {
         let proposed_revision = RevisionMetadata::from_validated(
             current.revision().sequence().saturating_add(1),
             Some(current.revision().id().to_string()),
-            RevisionActor::ManagementToken,
+            actor,
             OffsetDateTime::now_utc(),
             message,
             &validated,
@@ -1039,6 +1055,25 @@ impl RouteConfigRuntime {
         };
         coordinator
             .commit_document(expected_revision, document, message)
+            .await
+    }
+
+    pub async fn commit_automation_document(
+        &self,
+        expected_revision: &str,
+        document: RouteConfigYaml,
+        message: Option<String>,
+    ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigRuntimeError> {
+        let Some(coordinator) = &self.coordinator else {
+            return Err(RouteConfigRuntimeError::mutation_not_supported());
+        };
+        coordinator
+            .commit_document_as(
+                expected_revision,
+                document,
+                message,
+                RevisionActor::CredentialPoolAutomation,
+            )
             .await
     }
 

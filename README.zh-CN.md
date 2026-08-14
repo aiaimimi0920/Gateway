@@ -68,9 +68,11 @@ cargo test --locked -- --test-threads=1
 
 Gateway 现在自带一个本地默认的 Cargo 限流配置：
 [`./.cargo/config.toml`](.cargo/config.toml) 中的 `build.jobs = 1`。这样日常
-Rust 构建默认不会再轻易把整台工作站的 CPU / 内存打满。官方开发容器和 Release
-构建脚本还会强制使用 `CARGO_BUILD_JOBS=1`、`CARGO_INCREMENTAL=0`，不会被
-调用 shell、`.env` 或 CI 中继承的高并发值覆盖。
+Rust 构建默认不会再轻易把整台工作站的 CPU / 内存打满。Release 构建脚本仍会
+强制使用 `CARGO_BUILD_JOBS=1`、`CARGO_INCREMENTAL=0`，保证支持的发布路径保持
+可复现；而源码挂载的开发容器现在改为默认使用
+`GATEWAY_DEV_CARGO_BUILD_JOBS=4`、`GATEWAY_DEV_CARGO_INCREMENTAL=1`，
+优先缩短本地迭代重编译时间，同时允许你按机器情况显式覆盖。
 
 运行线路清单和 Python 合同校验：
 

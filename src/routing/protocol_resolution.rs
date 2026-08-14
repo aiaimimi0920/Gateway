@@ -426,9 +426,7 @@ fn request_compatible_wire_protocol_families(
             EndpointKind::VideosGenerations => vec![LUMALABS_VIDEOS_FAMILY.to_string()],
             _ => Vec::new(),
         },
-        "gemini_canvas_compatible"
-        | "gemini_canvas_web_reverse_compatible"
-        | "gemini_canvas_program_web_reverse_compatible" => match endpoint_kind {
+        "gemini_canvas_compatible" => match endpoint_kind {
             EndpointKind::ChatCompletions
             | EndpointKind::Messages
             | EndpointKind::Responses
@@ -443,6 +441,23 @@ fn request_compatible_wire_protocol_families(
             EndpointKind::VideosGenerations => vec![GEMINI_CANVAS_VIDEOS_FAMILY.to_string()],
             _ => Vec::new(),
         },
+        "gemini_canvas_web_reverse_compatible" | "gemini_canvas_program_web_reverse_compatible" => {
+            match endpoint_kind {
+                EndpointKind::ChatCompletions
+                | EndpointKind::Messages
+                | EndpointKind::Responses
+                | EndpointKind::Completions
+                | EndpointKind::AudioSpeech => {
+                    vec![GEMINI_GENERATE_CONTENT_FAMILY.to_string()]
+                }
+                EndpointKind::ImagesGenerations => {
+                    vec![GEMINI_CANVAS_IMAGES_FAMILY.to_string()]
+                }
+                EndpointKind::MusicGenerations => vec![GEMINI_CANVAS_MUSIC_FAMILY.to_string()],
+                EndpointKind::VideosGenerations => vec![GEMINI_CANVAS_VIDEOS_FAMILY.to_string()],
+                _ => Vec::new(),
+            }
+        }
         "gemini_web_reverse_modular_compatible" => match endpoint_kind {
             EndpointKind::ChatCompletions
             | EndpointKind::Messages
@@ -1036,7 +1051,7 @@ mod tests {
     }
 
     #[test]
-    fn gemini_canvas_program_web_reverse_modular_supports_text_tts_and_media_ingress() {
+    fn gemini_canvas_program_web_reverse_modular_supports_text_tts_and_generation_ingress() {
         let payload = ProviderAccountPayload {
             adapter: "gemini_canvas_program_web_reverse_compatible".to_string(),
             ..make_candidate("gemini_canvas").payload
@@ -1068,7 +1083,7 @@ mod tests {
                 EndpointKind::ImagesEdits,
                 "gemini_canvas"
             ),
-            vec![GEMINI_CANVAS_IMAGES_FAMILY.to_string()]
+            Vec::<String>::new()
         );
         assert_eq!(
             request_compatible_wire_protocol_families(

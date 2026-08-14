@@ -261,10 +261,10 @@ pub(crate) fn prepare_suno_request_context(
 ) -> Result<SunoPreparedRequestContext, GatewayError> {
     let prompt = validate_suno_media_request(req)?;
     let base_headers = build_upstream_headers_with(payload, extra_headers);
-    if !base_headers.contains_key(rquest::header::COOKIE) {
+    if !browser_backed && !base_headers.contains_key(rquest::header::COOKIE) {
         return Err(missing_runtime_cookie_error(browser_backed));
     }
-    if !base_headers.contains_key(rquest::header::AUTHORIZATION) {
+    if !browser_backed && !base_headers.contains_key(rquest::header::AUTHORIZATION) {
         return Err(missing_runtime_bearer_error(browser_backed));
     }
 
@@ -803,7 +803,7 @@ mod tests {
     }
 
     #[test]
-    fn prepare_suno_request_context_requires_bearer_for_browser_backed_mode() {
+    fn prepare_suno_request_context_requires_bearer_for_direct_http_mode() {
         let mut payload = make_payload("suno_compatible", "https://studio-api-prod.suno.com/");
         payload
             .headers
@@ -813,13 +813,13 @@ mod tests {
             "prompt": "neon synth chorus"
         });
 
-        let error = prepare_suno_request_context(&payload, &req, None, true)
+        let error = prepare_suno_request_context(&payload, &req, None, false)
             .expect_err("missing bearer should fail");
         assert_eq!(error.http_status, Some(500));
         assert_eq!(error.code.as_deref(), Some("missing_suno_runtime_bearer"));
         assert_eq!(
             error.message.as_str(),
-            "Suno browser-backed requests require a runtime Clerk bearer token from keepalive ensure."
+            "Suno requests require a runtime Clerk bearer token from keepalive ensure."
         );
     }
 
@@ -950,6 +950,23 @@ mod tests {
             Some("https://suno.com/")
         );
         assert!(prepared.runtime_headers.get("browser-token").is_some());
+    }
+
+    #[test]
+    fn browser_backed_context_allows_cdp_session_to_own_auth() {
+        let mut payload = make_payload("suno_compatible", "https://studio-api-prod.suno.com/");
+        payload.api_key = String::new();
+        payload.headers.clear();
+        payload.session_auth = None;
+        let mut req = make_request(EndpointKind::MusicGenerations);
+        req.raw_body = json!({ "prompt": "Paris instrumental" });
+
+        let prepared =
+            prepare_suno_execution_context(&payload, &req, None, true, Duration::from_secs(45))
+                .expect("browser session owns auth");
+
+        assert!(prepared.runtime_headers.get("cookie").is_none());
+        assert!(prepared.runtime_headers.get("authorization").is_none());
     }
 
     #[test]

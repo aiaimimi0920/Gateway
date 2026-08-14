@@ -783,15 +783,26 @@ class GatewayStandaloneRepositoryContractTests(unittest.TestCase):
         self.assertIn("COPY .cargo/config.toml ./.cargo/config.toml", dockerfile)
         self.assertIn("CARGO_BUILD_JOBS=1", dockerfile)
         self.assertIn("CARGO_INCREMENTAL=0", dockerfile)
-        self.assertIn("CARGO_BUILD_JOBS=1", dockerfile_dev)
-        self.assertIn("CARGO_INCREMENTAL=0", dockerfile_dev)
-        self.assertNotIn("CARGO_BUILD_JOBS=2", dockerfile_dev)
-        self.assertIn("CARGO_BUILD_JOBS=1", compose_dev)
-        self.assertNotIn("CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS", compose_dev)
-        self.assertIn("CARGO_INCREMENTAL=0", compose_dev)
-        self.assertIn("export CARGO_BUILD_JOBS=1", entrypoint)
-        self.assertIn("export CARGO_INCREMENTAL=0", entrypoint)
-        self.assertNotIn(': "${CARGO_BUILD_JOBS:=1}"', entrypoint)
+        self.assertIn("GATEWAY_DEV_CARGO_BUILD_JOBS=4", dockerfile_dev)
+        self.assertIn("GATEWAY_DEV_CARGO_INCREMENTAL=1", dockerfile_dev)
+        self.assertNotIn("CARGO_BUILD_JOBS=1", dockerfile_dev)
+        self.assertIn(
+            "GATEWAY_DEV_CARGO_BUILD_JOBS=${GATEWAY_DEV_CARGO_BUILD_JOBS:-4}",
+            compose_dev,
+        )
+        self.assertIn(
+            "GATEWAY_DEV_CARGO_INCREMENTAL=${GATEWAY_DEV_CARGO_INCREMENTAL:-1}",
+            compose_dev,
+        )
+        self.assertIn(': "${GATEWAY_DEV_CARGO_BUILD_JOBS:=4}"', entrypoint)
+        self.assertIn(': "${GATEWAY_DEV_CARGO_INCREMENTAL:=1}"', entrypoint)
+        self.assertIn(
+            'export CARGO_BUILD_JOBS="${GATEWAY_DEV_CARGO_BUILD_JOBS}"', entrypoint
+        )
+        self.assertIn(
+            'export CARGO_INCREMENTAL="${GATEWAY_DEV_CARGO_INCREMENTAL}"',
+            entrypoint,
+        )
         self.assertIn("$defaultCargoBuildJobs = 1", release_builder)
         self.assertIn('$env:CARGO_BUILD_JOBS = "1"', release_builder)
         self.assertIn('$env:CARGO_INCREMENTAL = "0"', release_builder)

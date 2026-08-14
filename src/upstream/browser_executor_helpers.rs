@@ -1,7 +1,7 @@
 use rquest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::Value;
 
-use crate::error::{classify_upstream_error, GatewayError};
+use crate::error::{classify_upstream_error, FallbackHint, GatewayError};
 use crate::protocol::canonical::EndpointKind;
 use crate::upstream::browser_worker_runtime_helpers::{
     gemini_canvas_browser_pool_script_path, lumalabs_browser_worker_script_path,
@@ -172,6 +172,13 @@ pub(crate) fn classify_browser_executor_invocation_failure(
         .as_ref()
         .and_then(|entry| entry.body.as_deref())
         .unwrap_or("");
+    let challenge_required = error.as_ref().is_some_and(|entry| {
+        browser_executor_failure_requires_interactive_challenge(
+            entry.code.as_deref(),
+            entry.message.as_deref(),
+            entry.body.as_deref(),
+        )
+    });
     let mut gateway_error = classify_upstream_error(upstream_status, body, Some(provider));
     if let Some(error) = error {
         if let Some(code) = error.code {
@@ -184,7 +191,33 @@ pub(crate) fn classify_browser_executor_invocation_failure(
             gateway_error.http_status = Some(upstream_status);
         }
     }
+    if challenge_required {
+        gateway_error.retryable = false;
+        gateway_error.fallback_hint = FallbackHint::Abort {
+            reason: "Interactive browser security checks require manual completion and must not be replayed automatically.".to_string(),
+        };
+    }
     gateway_error
+}
+
+fn browser_executor_failure_requires_interactive_challenge(
+    code: Option<&str>,
+    message: Option<&str>,
+    body: Option<&str>,
+) -> bool {
+    let code = code.unwrap_or_default().to_ascii_lowercase();
+    let details = format!(
+        "{} {}",
+        message.unwrap_or_default(),
+        body.unwrap_or_default(),
+    )
+    .to_ascii_lowercase();
+    code.contains("challenge_required")
+        || code.contains("captcha_required")
+        || details.contains("security check")
+        || details.contains("captcha")
+        || details.contains("turnstile")
+        || details.contains("cloudflare challenge")
 }
 
 pub(crate) fn build_browser_executor_service_invocation_failure_response(
@@ -474,6 +507,35 @@ mod tests {
         assert_eq!(error.http_status, Some(503));
         assert_eq!(error.code, None);
         assert!(matches!(error.kind, crate::error::ErrorKind::ServerError));
+    }
+
+    #[test]
+    fn classify_browser_executor_challenge_failure_disables_automatic_replay() {
+        let result = parse_browser_executor_invocation_response_body(
+            "{\"ok\":false,\"status\":429,\"error\":{\"code\":\"suno_browser_challenge_required\",\"message\":\"Complete the visible Suno security check.\",\"status\":429}}",
+        )
+        .expect("browser executor response");
+
+        let error = classify_browser_executor_invocation_failure(result, "suno");
+        assert_eq!(error.http_status, Some(429));
+        assert_eq!(
+            error.code.as_deref(),
+            Some("suno_browser_challenge_required")
+        );
+        assert!(!error.retryable);
+        assert!(matches!(error.fallback_hint, FallbackHint::Abort { .. }));
+    }
+
+    #[test]
+    fn classify_browser_executor_ordinary_rate_limit_remains_retryable() {
+        let result = parse_browser_executor_invocation_response_body(
+            "{\"ok\":false,\"status\":429,\"error\":{\"code\":\"suno_rate_limited\",\"message\":\"Rate limit exceeded.\",\"status\":429}}",
+        )
+        .expect("browser executor response");
+
+        let error = classify_browser_executor_invocation_failure(result, "suno");
+        assert!(error.retryable);
+        assert!(matches!(error.fallback_hint, FallbackHint::Retry { .. }));
     }
 
     #[test]

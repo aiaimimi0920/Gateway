@@ -18,9 +18,10 @@ use super::routes::{
     audio, bedrock, browser_executor, cohere, completions, credentials, embeddings, gemini,
     gemini_live, health, images, internal_access, internal_account_groups,
     internal_browser_executor, internal_console, internal_conversation_archives,
-    internal_credential_stock, internal_gateway, internal_provider_accounts,
-    internal_provider_credentials, internal_requests, internal_routing, internal_runtime,
-    keepalive, messages, metrics, models, music, realtime, responses, search, videos,
+    internal_credential_pool_automation, internal_credential_refill, internal_credential_stock,
+    internal_gateway, internal_provider_accounts, internal_provider_credentials, internal_requests,
+    internal_routing, internal_runtime, keepalive, messages, metrics, models, music, realtime,
+    responses, search, videos,
 };
 use super::ui;
 
@@ -633,6 +634,18 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             post(internal_console::probe_console_credential),
         )
         .route(
+            "/v1/internal/gateway/console/gemini-auth-sessions",
+            post(internal_console::create_gemini_auth_session),
+        )
+        .route(
+            "/v1/internal/gateway/console/gemini-auth-sessions/:session_id",
+            get(internal_console::get_gemini_auth_session),
+        )
+        .route(
+            "/v1/internal/gateway/console/gemini-auth-sessions/:session_id/complete",
+            post(internal_console::complete_gemini_auth_session),
+        )
+        .route(
             "/v1/internal/gateway/console/route-config/validate",
             post(internal_console::validate_route_config),
         )
@@ -741,6 +754,42 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route(
             "/v1/internal/gateway/credential-stock/signals/sweep",
             post(internal_credential_stock::sweep_credential_stock_signals_route),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-automation",
+            get(internal_credential_pool_automation::list_credential_pool_automation_status),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-automation/providers/:providerId/run",
+            post(internal_credential_pool_automation::run_credential_pool_automation_for_provider),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-refill",
+            get(internal_credential_refill::get_credential_refill_status),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-refill/tasks",
+            get(internal_credential_refill::list_credential_refill_tasks_route),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-refill/providers/:providerId/request",
+            post(internal_credential_refill::request_credential_refill_for_provider),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-refill/tasks/claim",
+            post(internal_credential_refill::claim_credential_refill_task_route),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-refill/tasks/:taskId/renew",
+            post(internal_credential_refill::renew_credential_refill_task_route),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-refill/tasks/:taskId/complete",
+            post(internal_credential_refill::complete_credential_refill_task_route),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-refill/tasks/:taskId/fail",
+            post(internal_credential_refill::fail_credential_refill_task_route),
         )
         .route(
             "/v1/internal/gateway/usage-aggregates",

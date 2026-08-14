@@ -345,6 +345,9 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "groq-openai" => "groq",
         "together-openai" => "together",
         "openrouter-openai" => "openrouter",
+        "muyuan-openai" => "muyuan",
+        "poe-openai" => "poe",
+        "longcat-openai" => "longcat",
         "deepseek-openai" => "deepseek",
         "mistral-openai" => "mistral",
         "xai-openai" => "xai",
@@ -1024,6 +1027,15 @@ fn profile_from_base_url(adapter: &str, base_url: &str) -> Option<&'static str> 
     }
     if base_url.contains("openrouter.ai") {
         return Some("openrouter");
+    }
+    if base_url.contains("muyuan.do") {
+        return Some("muyuan");
+    }
+    if base_url.contains("api.poe.com") {
+        return Some("poe");
+    }
+    if base_url.contains("api.longcat.chat") {
+        return Some("longcat");
     }
     if base_url.contains("api.deepseek.com") {
         return Some("deepseek");

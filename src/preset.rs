@@ -411,6 +411,21 @@ pub fn openrouter_openai_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("openrouter-openai")
 }
 
+/// Returns the built-in "muyuan-openai" preset for Muyuan's OpenAI-compatible API.
+pub fn muyuan_openai_preset() -> ProviderPreset {
+    generic_openai_compatible_profile_preset("muyuan-openai")
+}
+
+/// Returns the built-in "poe-openai" preset for Poe's OpenAI-compatible API.
+pub fn poe_openai_preset() -> ProviderPreset {
+    generic_openai_compatible_profile_preset("poe-openai")
+}
+
+/// Returns the built-in "longcat-openai" preset for LongCat's official model API.
+pub fn longcat_openai_preset() -> ProviderPreset {
+    generic_openai_compatible_profile_preset("longcat-openai")
+}
+
 /// Returns the built-in "deepseek-openai" preset for DeepSeek's OpenAI-compatible API.
 pub fn deepseek_openai_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("deepseek-openai")
@@ -1959,6 +1974,18 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     #[cfg(feature = "line-openrouter-openai-aggregator-api")]
     {
         presets.push(openrouter_openai_preset());
+    }
+    #[cfg(feature = "line-muyuan-openai-aggregator-api")]
+    {
+        presets.push(muyuan_openai_preset());
+    }
+    #[cfg(feature = "line-poe-openai-aggregator-api")]
+    {
+        presets.push(poe_openai_preset());
+    }
+    #[cfg(feature = "line-longcat-openai-official-model-api")]
+    {
+        presets.push(longcat_openai_preset());
     }
     #[cfg(feature = "line-deepseek-openai-official-model-api")]
     {

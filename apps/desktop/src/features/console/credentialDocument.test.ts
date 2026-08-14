@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import {
   addExplicitCredential,
+  addProviderWithCredential,
   buildCredentialSecretPatches,
   deleteExplicitCredential,
   updateExplicitCredential,
@@ -119,6 +120,94 @@ describe("credential document mutations", () => {
         credentials: [],
       },
     ]);
+  });
+
+  it("adds a provider with its first account and joins existing or new model routes", () => {
+    const source: ConsoleRouteDocument = {
+      providers: [
+        {
+          id: "primary-provider",
+          credentials: [{ id: "primary-account" }],
+        },
+      ],
+      model_routes: [
+        {
+          pattern: "shared-model",
+          provider_ids: ["primary-provider"],
+          priority: 10,
+        },
+      ],
+      aliases: {},
+      account_groups: [],
+    };
+
+    const result = addProviderWithCredential(source, {
+      provider: {
+        id: "third-party-openai",
+        label: "Third-party OpenAI-compatible",
+        adapter: "openai_compatible",
+        protocol_profile: "openai_compatible_generic",
+        base_url: "https://gateway.example.test/v1",
+        supported_models: ["shared-model", "exclusive-model"],
+      },
+      credential: {
+        id: "third-party-account-1",
+        account_name: "Third-party Account 1",
+        enabled: true,
+      },
+      routePatterns: ["shared-model", "exclusive-model", "shared-model"],
+    });
+
+    expect(result.providers).toHaveLength(2);
+    expect(result.providers[1]).toMatchObject({
+      id: "third-party-openai",
+      adapter: "openai_compatible",
+      protocol_profile: "openai_compatible_generic",
+      credentials: [
+        {
+          id: "third-party-account-1",
+          account_name: "Third-party Account 1",
+          enabled: true,
+        },
+      ],
+    });
+    expect(result.model_routes).toEqual([
+      {
+        pattern: "shared-model",
+        provider_ids: ["primary-provider", "third-party-openai"],
+        priority: 10,
+      },
+      {
+        pattern: "exclusive-model",
+        provider_ids: ["third-party-openai"],
+      },
+    ]);
+    expect(source.providers).toHaveLength(1);
+    expect(source.model_routes[0]).toMatchObject({
+      provider_ids: ["primary-provider"],
+    });
+  });
+
+  it("rejects duplicate provider and credential identities when creating a provider", () => {
+    const source = routeDocument([
+      {
+        id: "existing-provider",
+        credentials: [{ id: "existing-account" }],
+      },
+    ]);
+
+    expect(() =>
+      addProviderWithCredential(source, {
+        provider: { id: "existing-provider", base_url: "https://example.test" },
+        credential: { id: "new-account" },
+      }),
+    ).toThrow(/provider 'existing-provider' already exists/i);
+    expect(() =>
+      addProviderWithCredential(source, {
+        provider: { id: "new-provider", base_url: "https://example.test" },
+        credential: { id: "existing-account" },
+      }),
+    ).toThrow(/credential 'existing-account' already exists/i);
   });
 
   it("updates an explicit credential by stable identity without dropping unknown fields", () => {

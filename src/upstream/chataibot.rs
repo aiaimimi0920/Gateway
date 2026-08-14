@@ -1,13 +1,46 @@
 use rquest::Method;
 use serde_json::Value;
 
-use crate::error::{classify_network_error, classify_upstream_error, GatewayError};
+use crate::error::{
+    classify_network_error, classify_upstream_error, sanitize_provider_error_message, GatewayError,
+};
 use crate::protocol::canonical::{CanonicalRelayRequest, EndpointKind};
 use crate::protocol::chataibot;
 use crate::routing::candidate::ProviderAccountPayload;
 use crate::upstream::client::UpstreamClient;
 use crate::upstream::common::RequestPlan;
 use crate::upstream::headers::build_upstream_headers_with;
+use crate::upstream::response_preview_helpers::compact_response_preview;
+
+fn parse_chataibot_http_response(
+    status: u16,
+    content_type: Option<&str>,
+    body_text: &str,
+    provider: &str,
+) -> Result<Value, GatewayError> {
+    if !(200..300).contains(&status) {
+        return Err(classify_upstream_error(status, body_text, Some(provider)));
+    }
+
+    if body_text.trim().is_empty() {
+        return Err(GatewayError::service_unavailable(format!(
+            "Chataibot returned an empty successful response (HTTP {status}, content-type {}).",
+            content_type.unwrap_or("<missing>")
+        ))
+        .with_provider(provider)
+        .with_code("chataibot_empty_response"));
+    }
+
+    serde_json::from_str(body_text).map_err(|_| {
+        let preview = sanitize_provider_error_message(&compact_response_preview(body_text, 160));
+        GatewayError::server_error(format!(
+            "Chataibot returned a non-JSON successful response (HTTP {status}, content-type {}; body preview: {preview}).",
+            content_type.unwrap_or("<missing>")
+        ))
+        .with_provider(provider)
+        .with_code("chataibot_invalid_response")
+    })
+}
 
 pub(crate) fn unsupported_request_plan_error() -> GatewayError {
     GatewayError::bad_request(
@@ -131,17 +164,21 @@ impl UpstreamClient {
                 .await
                 .map_err(|e| classify_network_error(&e, Some(provider)))?;
             let status = response.status().as_u16();
-            let body: Value = response
-                .json()
+            let content_type = response
+                .headers()
+                .get(rquest::header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_string);
+            let body_text = response
+                .text()
                 .await
                 .map_err(|e| classify_network_error(&e, Some(provider)))?;
-            if !(200..300).contains(&status) {
-                return Err(classify_upstream_error(
-                    status,
-                    &body.to_string(),
-                    Some(provider),
-                ));
-            }
+            let body = parse_chataibot_http_response(
+                status,
+                content_type.as_deref(),
+                &body_text,
+                provider,
+            )?;
             chataibot::extract_image_urls(&body)?
         };
 
@@ -217,17 +254,17 @@ impl UpstreamClient {
             .map_err(|e| classify_network_error(&e, Some(provider)))?;
 
         let status = response.status().as_u16();
-        let body: Value = response
-            .json()
+        let content_type = response
+            .headers()
+            .get(rquest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string);
+        let body_text = response
+            .text()
             .await
             .map_err(|e| classify_network_error(&e, Some(provider)))?;
-        if !(200..300).contains(&status) {
-            return Err(classify_upstream_error(
-                status,
-                &body.to_string(),
-                Some(provider),
-            ));
-        }
+        let body =
+            parse_chataibot_http_response(status, content_type.as_deref(), &body_text, provider)?;
 
         chataibot::extract_image_urls(&body)
     }
@@ -237,9 +274,10 @@ impl UpstreamClient {
 mod tests {
     use std::collections::HashMap;
 
-    use serde_json::json;
+    use serde_json::{json, Value};
 
-    use super::unsupported_request_plan_error;
+    use super::{parse_chataibot_http_response, unsupported_request_plan_error};
+    use crate::error::ErrorKind;
     use crate::protocol::canonical::{CanonicalRelayRequest, EndpointKind, ProtocolFamily};
     use crate::routing::candidate::ProviderAccountPayload;
     use crate::upstream::client::UpstreamClient;
@@ -334,5 +372,65 @@ mod tests {
             .expect_err("mask-based chataibot edits should be rejected");
         assert_eq!(err.http_status, Some(400));
         assert_eq!(err.code.as_deref(), Some("unsupported_chataibot_mask"));
+    }
+
+    #[test]
+    fn chataibot_non_success_plain_text_is_classified_before_json_decode() {
+        let err = parse_chataibot_http_response(
+            401,
+            Some("text/plain"),
+            "Unauthorized",
+            "chataibot_compatible",
+        )
+        .expect_err("plain-text 401 must be classified as an upstream error");
+
+        assert_eq!(err.kind, ErrorKind::Authentication);
+        assert_eq!(err.http_status, Some(401));
+        assert_eq!(err.message, "Unauthorized");
+    }
+
+    #[test]
+    fn chataibot_empty_success_has_explicit_error_code() {
+        let err = parse_chataibot_http_response(
+            204,
+            Some("application/json"),
+            "  ",
+            "chataibot_compatible",
+        )
+        .expect_err("an empty successful response must not be accepted");
+
+        assert_eq!(err.code.as_deref(), Some("chataibot_empty_response"));
+        assert_eq!(err.provider_name.as_deref(), Some("chataibot_compatible"));
+    }
+
+    #[test]
+    fn chataibot_non_json_success_has_explicit_error_code_and_safe_preview() {
+        let err = parse_chataibot_http_response(
+            200,
+            Some("text/html; charset=utf-8"),
+            "<html> token=secret-value </html>",
+            "chataibot_compatible",
+        )
+        .expect_err("a non-JSON successful response must not be accepted");
+
+        assert_eq!(err.code.as_deref(), Some("chataibot_invalid_response"));
+        assert!(err.message.contains("text/html; charset=utf-8"));
+        assert!(!err.message.contains("secret-value"));
+    }
+
+    #[test]
+    fn chataibot_valid_json_success_is_preserved() {
+        let body = parse_chataibot_http_response(
+            200,
+            Some("application/json"),
+            r#"{"imageUrl":"https://example.com/paris.png"}"#,
+            "chataibot_compatible",
+        )
+        .expect("valid JSON response should pass");
+
+        assert_eq!(
+            body.get("imageUrl").and_then(Value::as_str),
+            Some("https://example.com/paris.png")
+        );
     }
 }

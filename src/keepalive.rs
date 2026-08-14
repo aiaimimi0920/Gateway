@@ -1423,6 +1423,85 @@ fn read_suno_cookie_header(input: &GatewayKeepaliveEnsureRequest) -> Option<Stri
     })
 }
 
+fn suno_cookie_header_from_storage_state(state: &Value) -> Option<String> {
+    let cookies = state.get("cookies")?.as_array()?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs_f64())
+        .unwrap_or(0.0);
+    let mut selected = std::collections::BTreeMap::<String, (usize, f64, String)>::new();
+    for cookie in cookies {
+        let Some(domain) = cookie.get("domain").and_then(Value::as_str) else {
+            continue;
+        };
+        let normalized_domain = domain.trim_start_matches('.').to_ascii_lowercase();
+        let is_suno_domain = normalized_domain == "suno.com"
+            || normalized_domain.ends_with(".suno.com")
+            || normalized_domain == "suno.ai"
+            || normalized_domain.ends_with(".suno.ai");
+        if !is_suno_domain {
+            continue;
+        }
+        let Some(name) = cookie.get("name").and_then(Value::as_str).map(str::trim) else {
+            continue;
+        };
+        let Some(value) = cookie.get("value").and_then(Value::as_str).map(str::trim) else {
+            continue;
+        };
+        if name.is_empty() || value.is_empty() {
+            continue;
+        }
+        let expires = cookie
+            .get("expires")
+            .and_then(Value::as_f64)
+            .unwrap_or(-1.0);
+        if expires > 0.0 && expires <= now {
+            continue;
+        }
+        let path_len = cookie
+            .get("path")
+            .and_then(Value::as_str)
+            .map(str::len)
+            .unwrap_or(0);
+        let replace = selected
+            .get(name)
+            .map(|(current_path_len, current_expires, _)| {
+                path_len > *current_path_len
+                    || (path_len == *current_path_len && expires > *current_expires)
+            })
+            .unwrap_or(true);
+        if replace {
+            selected.insert(name.to_string(), (path_len, expires, value.to_string()));
+        }
+    }
+    let cookie_header = selected
+        .into_iter()
+        .map(|(name, (_, _, value))| format!("{name}={value}"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    (!cookie_header.is_empty()).then_some(cookie_header)
+}
+
+async fn resolve_suno_cookie_header(input: &GatewayKeepaliveEnsureRequest) -> Option<String> {
+    if let Some(object_key) = input
+        .runtime_state_object_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        if let Ok(storage) = crate::object_storage::gateway_object_storage() {
+            if let Ok(state) = storage.read_json(object_key).await {
+                if let Some(cookie_header) = suno_cookie_header_from_storage_state(&state) {
+                    if extract_cookie_value(&cookie_header, "__session").is_some() {
+                        return Some(cookie_header);
+                    }
+                }
+            }
+        }
+    }
+    read_suno_cookie_header(input)
+}
+
 fn request_builder_with_headers(
     client: &Client,
     method: rquest::Method,
@@ -1474,10 +1553,10 @@ fn qwen_web_should_refresh(payload: &ProviderAccountPayload, force_refresh: bool
         return true;
     }
 
-    match qwen_web_effective_session_auth(payload) {
-        Some(session_auth) => session_auth.expires_within_secs(QWEN_WEB_REFRESH_BEFORE_SECS),
-        None => false,
-    }
+    qwen_web_effective_session_auth(payload).is_some_and(|session_auth| {
+        session_auth.expires_at.is_some()
+            && session_auth.expires_within_secs(QWEN_WEB_REFRESH_BEFORE_SECS)
+    })
 }
 
 fn sanitize_qwen_web_credential_file_name(value: &str) -> Option<String> {
@@ -3608,7 +3687,7 @@ pub async fn ensure_credential_runtime(
     }
 
     if input.adapter.trim() == "suno_compatible" {
-        let Some(cookie_header) = read_suno_cookie_header(&input) else {
+        let Some(cookie_header) = resolve_suno_cookie_header(&input).await else {
             return Ok(GatewayKeepaliveEnsureResponse {
                 ready: false,
                 message: Some(
@@ -4108,6 +4187,12 @@ mod tests {
         assert!(!qwen_web_should_refresh(&payload, false));
     }
 
+    #[test]
+    fn qwen_web_refresh_skips_when_valid_token_has_no_expiry_metadata() {
+        let payload = qwen_payload(None);
+        assert!(!qwen_web_should_refresh(&payload, false));
+    }
+
     #[tokio::test]
     async fn chatgpt_web_oauth_refresh_posts_form_and_returns_rotated_tokens() {
         #[derive(Clone, Default)]
@@ -4354,6 +4439,55 @@ mod tests {
             Some("refresh-123")
         );
         assert_eq!(extract_cookie_value(cookie_header, "missing"), None);
+    }
+
+    #[test]
+    fn suno_cookie_header_from_storage_state_reads_suno_cookies_only() {
+        let state = serde_json::json!({
+            "cookies": [
+                {"name": "__session", "value": "session-456", "domain": ".suno.com"},
+                {"name": "device", "value": "device-1", "domain": "studio-api-prod.suno.com"},
+                {"name": "unrelated", "value": "ignore-me", "domain": ".example.com"}
+            ]
+        });
+
+        let cookie_header = suno_cookie_header_from_storage_state(&state).expect("Suno cookies");
+        assert!(cookie_header.contains("__session=session-456"));
+        assert!(cookie_header.contains("device=device-1"));
+        assert!(!cookie_header.contains("unrelated"));
+    }
+
+    #[test]
+    fn suno_cookie_header_ignores_expired_and_duplicate_session_cookies() {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock")
+            .as_secs_f64();
+        let future = now + 3_600.0;
+        let past = now - 3_600.0;
+        let state = serde_json::json!({
+            "cookies": [
+                {
+                    "name": "__session",
+                    "value": "expired-session",
+                    "domain": ".suno.com",
+                    "path": "/",
+                    "expires": past
+                },
+                {
+                    "name": "__session",
+                    "value": "current-session",
+                    "domain": "suno.com",
+                    "path": "/",
+                    "expires": future
+                }
+            ]
+        });
+
+        let cookie_header = suno_cookie_header_from_storage_state(&state).expect("Suno cookies");
+        assert!(cookie_header.contains("__session=current-session"));
+        assert!(!cookie_header.contains("expired-session"));
+        assert_eq!(cookie_header.matches("__session=").count(), 1);
     }
 
     #[test]

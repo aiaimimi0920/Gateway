@@ -124,6 +124,7 @@ mod tests {
             provider_credential_refresh_lock_ttl_secs: 300,
             credential_stock_monitor_enabled: true,
             credential_stock_monitor_interval_secs: 60,
+            credential_pool_automation: Default::default(),
             splitter_worker_executable_path: None,
             splitter_initial_worker_port: 4201,
             splitter_ready_timeout_secs: 120,
@@ -175,6 +176,9 @@ mod tests {
             lifecycle: GatewayLifecycleState::default(),
             shutdown: GatewayShutdownHandle::default(),
             provider_credential_folder_sync: ProviderCredentialFolderSyncRuntime::new(false),
+            credential_pool_automation: Arc::new(
+                crate::credential_pool_automation::CredentialPoolAutomationRuntime::disabled(),
+            ),
         })
     }
 
@@ -353,6 +357,11 @@ aliases: {}
                     search_query_field: None,
                     fetch_urls_field: None,
                     model_map: Default::default(),
+                    pool_target_size: None,
+                    auto_refill_enabled: false,
+                    auto_prune_enabled: false,
+                    credential_automation_driver_id: None,
+                    credential_identity_categories: vec![],
                     credentials: vec![],
                 },
                 crate::routing::config::ProviderConfigYaml {
@@ -392,6 +401,11 @@ aliases: {}
                     search_query_field: None,
                     fetch_urls_field: None,
                     model_map: Default::default(),
+                    pool_target_size: None,
+                    auto_refill_enabled: false,
+                    auto_prune_enabled: false,
+                    credential_automation_driver_id: None,
+                    credential_identity_categories: vec![],
                     credentials: vec![crate::routing::config::ProviderCredentialYaml {
                         id: Some("codex-live".to_string()),
                         base_url: None,
@@ -404,6 +418,7 @@ aliases: {}
                         expires_at: None,
                         runtime_state_object_key: None,
                         account_name: Some("Codex Live".to_string()),
+                        credential_identity_category_id: None,
                         enabled: None,
                         execution_mode: None,
                         endpoint_execution_modes: None,

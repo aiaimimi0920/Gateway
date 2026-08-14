@@ -251,14 +251,18 @@ pub fn build_program_bootstrap_invocation_input(
     timeout: std::time::Duration,
 ) -> Result<Value, GatewayError> {
     let config = relay_config_from_payload(payload)?;
-    Ok(build_program_bootstrap_invocation_input_from_config(
+    let mut input = build_program_bootstrap_invocation_input_from_config(
         payload.base_url.trim_end_matches('/'),
         &config,
         bootstrap_operation,
         bootstrap_prompt,
         locale,
         timeout,
-    ))
+    );
+    input["authUser"] = Value::String(crate::protocol::gemini_canvas::direct_http_auth_user(
+        payload,
+    ));
+    Ok(input)
 }
 
 pub fn build_program_bootstrap_invocation_input_from_config(
@@ -275,6 +279,7 @@ pub fn build_program_bootstrap_invocation_input_from_config(
         "runtimeStateObjectKey": config.bootstrap.runtime_state_object_key,
         "operation": "bootstrap_program",
         "discoveryOnly": true,
+        "launchCanvasProxyPreview": true,
         "bootstrapOperation": bootstrap_operation,
         "bootstrapPrompt": bootstrap_prompt,
         "locale": locale,

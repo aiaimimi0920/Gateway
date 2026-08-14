@@ -438,13 +438,21 @@ pub fn extract_clips_from_feed(body: &Value) -> Result<Vec<SunoClip>, GatewayErr
     Ok(parsed)
 }
 
-pub fn clips_ready(clips: &[SunoClip]) -> bool {
-    clips.iter().all(|clip| {
-        matches!(
-            clip.status.as_str(),
-            "streaming" | "complete" | "completed" | "error" | "failed"
-        )
-    })
+pub fn clips_ready_for_endpoint(endpoint_kind: EndpointKind, clips: &[SunoClip]) -> bool {
+    !clips.is_empty()
+        && clips.iter().all(|clip| {
+            matches!(clip.status.as_str(), "complete" | "completed")
+                && match endpoint_kind {
+                    EndpointKind::ImagesGenerations => has_media_url(clip.image_url.as_deref()),
+                    EndpointKind::MusicGenerations => has_media_url(clip.audio_url.as_deref()),
+                    EndpointKind::VideosGenerations => has_media_url(clip.video_url.as_deref()),
+                    _ => false,
+                }
+        })
+}
+
+fn has_media_url(value: Option<&str>) -> bool {
+    value.is_some_and(|candidate| !candidate.trim().is_empty())
 }
 
 pub fn build_music_generation_response(
@@ -1211,8 +1219,8 @@ mod tests {
     }
 
     #[test]
-    fn clips_ready_requires_terminal_states() {
-        assert!(clips_ready(&[SunoClip {
+    fn clips_ready_for_endpoint_requires_completed_status_and_target_asset() {
+        let mut clip = SunoClip {
             id: "clip".to_string(),
             title: None,
             image_url: None,
@@ -1229,24 +1237,38 @@ mod tests {
             negative_tags: None,
             duration: None,
             error_message: None,
-        }]));
-        assert!(!clips_ready(&[SunoClip {
-            id: "clip".to_string(),
-            title: None,
-            image_url: None,
-            lyric: None,
-            audio_url: None,
-            video_url: None,
-            created_at: None,
-            model_name: None,
-            prompt: None,
-            gpt_description_prompt: None,
-            status: "submitted".to_string(),
-            clip_type: None,
-            tags: None,
-            negative_tags: None,
-            duration: None,
-            error_message: None,
-        }]));
+        };
+
+        assert!(!clips_ready_for_endpoint(
+            EndpointKind::MusicGenerations,
+            &[]
+        ));
+        assert!(!clips_ready_for_endpoint(
+            EndpointKind::MusicGenerations,
+            &[clip.clone()]
+        ));
+
+        clip.audio_url = Some("https://cdn.example/audio.mp3".to_string());
+        clip.status = "streaming".to_string();
+        assert!(!clips_ready_for_endpoint(
+            EndpointKind::MusicGenerations,
+            &[clip.clone()]
+        ));
+
+        clip.status = "complete".to_string();
+        assert!(clips_ready_for_endpoint(
+            EndpointKind::MusicGenerations,
+            &[clip.clone()]
+        ));
+        assert!(!clips_ready_for_endpoint(
+            EndpointKind::ImagesGenerations,
+            &[clip.clone()]
+        ));
+
+        clip.image_url = Some("https://cdn.example/image.png".to_string());
+        assert!(clips_ready_for_endpoint(
+            EndpointKind::ImagesGenerations,
+            &[clip]
+        ));
     }
 }

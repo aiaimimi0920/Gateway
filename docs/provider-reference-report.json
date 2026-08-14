@@ -1,26 +1,26 @@
 {
   "$schema": "provider-reference-report.schema.json",
   "schemaVersion": "gateway-provider-reference-report/v1",
-  "generatedAt": "2026-07-19T09:51:23Z",
-  "sourceRevision": "manifest-source:52d8907bf7a7547cff9ce9890f7f34c356d3bcb76f3d99f0aab3ca2f3a0a87bd",
-  "sourceFingerprint": "52d8907bf7a7547cff9ce9890f7f34c356d3bcb76f3d99f0aab3ca2f3a0a87bd",
+  "generatedAt": "2026-07-29T05:19:33Z",
+  "sourceRevision": "manifest-source:e443956e66e6cdfaac993083083fddac172da132a6ca28bdfd5c8632f4447ccb",
+  "sourceFingerprint": "e443956e66e6cdfaac993083083fddac172da132a6ca28bdfd5c8632f4447ccb",
   "guidePath": "docs/provider-reference-guide.md",
   "summary": {
-    "lineCount": 41,
-    "declaredReferenceCount": 164,
-    "uniqueReferenceCount": 154,
+    "lineCount": 44,
+    "declaredReferenceCount": 176,
+    "uniqueReferenceCount": 166,
     "localPresentReferenceCount": 0,
-    "externalLegacyReferenceCount": 164,
+    "externalLegacyReferenceCount": 176,
     "unclassifiedReferenceCount": 0,
     "statusCounts": {
       "local_present": 0,
-      "external_legacy_reference": 164
+      "external_legacy_reference": 176
     },
     "fieldCounts": {
-      "credentials.samplePath": 41,
-      "credentials.fieldsDocPath": 41,
-      "docs.overviewDocPath": 41,
-      "docs.buildDocPath": 41
+      "credentials.samplePath": 44,
+      "credentials.fieldsDocPath": 44,
+      "docs.overviewDocPath": 44,
+      "docs.buildDocPath": 44
     }
   },
   "lines": [
@@ -2030,6 +2030,93 @@
       }
     },
     {
+      "id": "longcat-openai-official-model-api",
+      "identity": {
+        "serviceProviderKey": "longcat_platform",
+        "serviceProviderLabel": "LongCat OpenAI-compatible",
+        "providerSurfaceKey": "longcat-openai",
+        "providerSurfaceLabel": "LongCat OpenAI-compatible",
+        "protocolProfile": "longcat",
+        "implementationLine": "official_model_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_model_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/longcat/official-model-api.json",
+      "legacyReferences": [
+        {
+          "lineId": "longcat-openai-official-model-api",
+          "manifestPath": "manifests/lines/longcat/official-model-api.json",
+          "field": "credentials.samplePath",
+          "path": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/minimal.raw.sample.json",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-longcat-openai-official-model-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        },
+        {
+          "lineId": "longcat-openai-official-model-api",
+          "manifestPath": "manifests/lines/longcat/official-model-api.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/FIELDS.md",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-longcat-openai-official-model-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        },
+        {
+          "lineId": "longcat-openai-official-model-api",
+          "manifestPath": "manifests/lines/longcat/official-model-api.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/20-ai-gateway/LongCat官方模型API实现线基线.md",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-longcat-openai-official-model-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        },
+        {
+          "lineId": "longcat-openai-official-model-api",
+          "manifestPath": "manifests/lines/longcat/official-model-api.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/BUILD.md",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-longcat-openai-official-model-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 0,
+        "externalLegacyReferenceCount": 4,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-longcat-openai-official-model-api"
+      }
+    },
+    {
       "id": "lumalabs-web-reverse-api",
       "identity": {
         "serviceProviderKey": "lumalabs_platform",
@@ -2203,6 +2290,93 @@
         "unclassifiedReferenceCount": 0,
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-mistral-openai-official-model-api"
+      }
+    },
+    {
+      "id": "muyuan-openai-aggregator-api",
+      "identity": {
+        "serviceProviderKey": "muyuan_platform",
+        "serviceProviderLabel": "Muyuan OpenAI-compatible",
+        "providerSurfaceKey": "muyuan-openai",
+        "providerSurfaceLabel": "Muyuan OpenAI-compatible",
+        "protocolProfile": "muyuan",
+        "implementationLine": "aggregator_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "aggregator_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+      "legacyReferences": [
+        {
+          "lineId": "muyuan-openai-aggregator-api",
+          "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+          "field": "credentials.samplePath",
+          "path": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/minimal.raw.sample.json",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-muyuan-openai-aggregator-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        },
+        {
+          "lineId": "muyuan-openai-aggregator-api",
+          "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/FIELDS.md",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-muyuan-openai-aggregator-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        },
+        {
+          "lineId": "muyuan-openai-aggregator-api",
+          "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/20-ai-gateway/Muyuan聚合API实现线基线.md",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-muyuan-openai-aggregator-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        },
+        {
+          "lineId": "muyuan-openai-aggregator-api",
+          "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/BUILD.md",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-muyuan-openai-aggregator-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 0,
+        "externalLegacyReferenceCount": 4,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-muyuan-openai-aggregator-api"
       }
     },
     {
@@ -2549,6 +2723,93 @@
         "unclassifiedReferenceCount": 0,
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-perplexity-search-official-vendor-api"
+      }
+    },
+    {
+      "id": "poe-openai-aggregator-api",
+      "identity": {
+        "serviceProviderKey": "poe_platform",
+        "serviceProviderLabel": "Poe OpenAI-compatible",
+        "providerSurfaceKey": "poe-openai",
+        "providerSurfaceLabel": "Poe OpenAI-compatible",
+        "protocolProfile": "poe",
+        "implementationLine": "aggregator_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "aggregator_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/poe/aggregator-api.json",
+      "legacyReferences": [
+        {
+          "lineId": "poe-openai-aggregator-api",
+          "manifestPath": "manifests/lines/poe/aggregator-api.json",
+          "field": "credentials.samplePath",
+          "path": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/minimal.raw.sample.json",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-poe-openai-aggregator-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        },
+        {
+          "lineId": "poe-openai-aggregator-api",
+          "manifestPath": "manifests/lines/poe/aggregator-api.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/FIELDS.md",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-poe-openai-aggregator-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        },
+        {
+          "lineId": "poe-openai-aggregator-api",
+          "manifestPath": "manifests/lines/poe/aggregator-api.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/20-ai-gateway/Poe聚合API实现线基线.md",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-poe-openai-aggregator-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        },
+        {
+          "lineId": "poe-openai-aggregator-api",
+          "manifestPath": "manifests/lines/poe/aggregator-api.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/BUILD.md",
+          "status": "external_legacy_reference",
+          "resolution": {
+            "reason": "path_not_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-poe-openai-aggregator-api",
+            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 0,
+        "externalLegacyReferenceCount": 4,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-poe-openai-aggregator-api"
       }
     },
     {
@@ -4791,6 +5052,58 @@
       }
     },
     {
+      "lineId": "longcat-openai-official-model-api",
+      "manifestPath": "manifests/lines/longcat/official-model-api.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/FIELDS.md",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-longcat-openai-official-model-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "longcat-openai-official-model-api",
+      "manifestPath": "manifests/lines/longcat/official-model-api.json",
+      "field": "credentials.samplePath",
+      "path": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/minimal.raw.sample.json",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-longcat-openai-official-model-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "longcat-openai-official-model-api",
+      "manifestPath": "manifests/lines/longcat/official-model-api.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/BUILD.md",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-longcat-openai-official-model-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "longcat-openai-official-model-api",
+      "manifestPath": "manifests/lines/longcat/official-model-api.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/20-ai-gateway/LongCat官方模型API实现线基线.md",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-longcat-openai-official-model-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
       "lineId": "lumalabs-web-reverse-api",
       "manifestPath": "manifests/lines/lumalabs/web-reverse-api.json",
       "field": "credentials.fieldsDocPath",
@@ -4891,6 +5204,58 @@
         "reason": "path_not_present_in_gateway",
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-mistral-openai-official-model-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "muyuan-openai-aggregator-api",
+      "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/FIELDS.md",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-muyuan-openai-aggregator-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "muyuan-openai-aggregator-api",
+      "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+      "field": "credentials.samplePath",
+      "path": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/minimal.raw.sample.json",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-muyuan-openai-aggregator-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "muyuan-openai-aggregator-api",
+      "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/BUILD.md",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-muyuan-openai-aggregator-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "muyuan-openai-aggregator-api",
+      "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/20-ai-gateway/Muyuan聚合API实现线基线.md",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-muyuan-openai-aggregator-api",
         "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
       }
     },
@@ -5099,6 +5464,58 @@
         "reason": "path_not_present_in_gateway",
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-perplexity-search-official-vendor-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "poe-openai-aggregator-api",
+      "manifestPath": "manifests/lines/poe/aggregator-api.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/FIELDS.md",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-poe-openai-aggregator-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "poe-openai-aggregator-api",
+      "manifestPath": "manifests/lines/poe/aggregator-api.json",
+      "field": "credentials.samplePath",
+      "path": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/minimal.raw.sample.json",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-poe-openai-aggregator-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "poe-openai-aggregator-api",
+      "manifestPath": "manifests/lines/poe/aggregator-api.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/BUILD.md",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-poe-openai-aggregator-api",
+        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "poe-openai-aggregator-api",
+      "manifestPath": "manifests/lines/poe/aggregator-api.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/20-ai-gateway/Poe聚合API实现线基线.md",
+      "status": "external_legacy_reference",
+      "resolution": {
+        "reason": "path_not_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-poe-openai-aggregator-api",
         "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
       }
     },
@@ -5939,6 +6356,17 @@
       ]
     },
     {
+      "path": "docs/20-ai-gateway/LongCat官方模型API实现线基线.md",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "longcat-openai-official-model-api",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
       "path": "docs/20-ai-gateway/LumaLabs平台实现线、可选编译与物理隔离基线.md",
       "status": "external_legacy_reference",
       "declarationCount": 1,
@@ -5956,6 +6384,17 @@
       "declarations": [
         {
           "lineId": "mistral-openai-official-model-api",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/Muyuan聚合API实现线基线.md",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "muyuan-openai-aggregator-api",
           "field": "docs.overviewDocPath"
         }
       ]
@@ -6000,6 +6439,17 @@
       "declarations": [
         {
           "lineId": "perplexity-search-official-vendor-api",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/Poe聚合API实现线基线.md",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "poe-openai-aggregator-api",
           "field": "docs.overviewDocPath"
         }
       ]
@@ -6816,6 +7266,39 @@
       ]
     },
     {
+      "path": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/BUILD.md",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "longcat-openai-official-model-api",
+          "field": "docs.buildDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/FIELDS.md",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "longcat-openai-official-model-api",
+          "field": "credentials.fieldsDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/minimal.raw.sample.json",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "longcat-openai-official-model-api",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
       "path": "docs/20-ai-gateway/examples/credentials/lumalabs/web_reverse_api/BUILD.md",
       "status": "external_legacy_reference",
       "declarationCount": 1,
@@ -6877,6 +7360,39 @@
       "declarations": [
         {
           "lineId": "mistral-openai-official-model-api",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/BUILD.md",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "muyuan-openai-aggregator-api",
+          "field": "docs.buildDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/FIELDS.md",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "muyuan-openai-aggregator-api",
+          "field": "credentials.fieldsDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/minimal.raw.sample.json",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "muyuan-openai-aggregator-api",
           "field": "credentials.samplePath"
         }
       ]
@@ -7009,6 +7525,39 @@
       "declarations": [
         {
           "lineId": "perplexity-search-official-vendor-api",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/BUILD.md",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "poe-openai-aggregator-api",
+          "field": "docs.buildDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/FIELDS.md",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "poe-openai-aggregator-api",
+          "field": "credentials.fieldsDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/minimal.raw.sample.json",
+      "status": "external_legacy_reference",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "poe-openai-aggregator-api",
           "field": "credentials.samplePath"
         }
       ]

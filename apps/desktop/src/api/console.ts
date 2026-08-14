@@ -2,6 +2,12 @@ import type {
   BootstrapStatus,
   ConsoleAccountGroupSummaryResponse,
   ConsoleCredentialProbeResponse,
+  ConsoleCredentialPoolAutomationResponse,
+  ConsoleCredentialPoolAutomationRunResponse,
+  ConsoleCredentialRefillRequestResponse,
+  ConsoleCredentialRefillResponse,
+  ConsoleGeminiAuthSessionRequest,
+  ConsoleGeminiAuthSessionResponse,
   ConsoleRouteConfigCommitRequest,
   ConsoleRouteConfigCommitResponse,
   ConsoleRouteConfigResponse,
@@ -18,6 +24,11 @@ import {
   bootstrapStatusSchema,
   consoleAccountGroupSummaryResponseSchema,
   consoleCredentialProbeResponseSchema,
+  consoleCredentialPoolAutomationResponseSchema,
+  consoleCredentialPoolAutomationRunResponseSchema,
+  consoleCredentialRefillRequestResponseSchema,
+  consoleCredentialRefillResponseSchema,
+  consoleGeminiAuthSessionResponseSchema,
   consoleRouteConfigCommitResponseSchema,
   consoleRouteConfigResponseSchema,
   consoleRouteConfigValidationResponseSchema,
@@ -39,6 +50,31 @@ export type ConsoleApi = {
   logout(token: string): Promise<OperationSuccess>;
   getRouteConfig(managementToken: string): Promise<ConsoleRouteConfigResponse>;
   getAccountGroupSummary(managementToken: string): Promise<ConsoleAccountGroupSummaryResponse>;
+  getCredentialPoolAutomation(
+    managementToken: string,
+  ): Promise<ConsoleCredentialPoolAutomationResponse>;
+  runCredentialPoolAutomation(
+    managementToken: string,
+    providerId: string,
+  ): Promise<ConsoleCredentialPoolAutomationRunResponse>;
+  getCredentialRefill(managementToken: string): Promise<ConsoleCredentialRefillResponse>;
+  requestCredentialRefill(
+    managementToken: string,
+    providerId: string,
+    requestedCount?: number,
+  ): Promise<ConsoleCredentialRefillRequestResponse>;
+  createGeminiAuthSession(
+    managementToken: string,
+    request: ConsoleGeminiAuthSessionRequest,
+  ): Promise<ConsoleGeminiAuthSessionResponse>;
+  completeGeminiAuthSession(
+    managementToken: string,
+    sessionId: string,
+  ): Promise<ConsoleGeminiAuthSessionResponse>;
+  getGeminiAuthSession(
+    managementToken: string,
+    sessionId: string,
+  ): Promise<ConsoleGeminiAuthSessionResponse>;
   probeCredential(
     managementToken: string,
     secretGrant: string,
@@ -100,6 +136,57 @@ export function createConsoleApi(client: GatewayApiClient): ConsoleApi {
       client.request(
         "/v1/internal/gateway/account-groups",
         consoleAccountGroupSummaryResponseSchema,
+        {
+          managementToken,
+        },
+      ),
+    getCredentialPoolAutomation: (managementToken) =>
+      client.request(
+        "/v1/internal/gateway/credential-pool-automation",
+        consoleCredentialPoolAutomationResponseSchema,
+        { managementToken },
+      ),
+    runCredentialPoolAutomation: (managementToken, providerId) =>
+      client.request(
+        `/v1/internal/gateway/credential-pool-automation/providers/${encodeURIComponent(providerId)}/run`,
+        consoleCredentialPoolAutomationRunResponseSchema,
+        { method: "POST", managementToken },
+      ),
+    getCredentialRefill: (managementToken) =>
+      client.request(
+        "/v1/internal/gateway/credential-pool-refill",
+        consoleCredentialRefillResponseSchema,
+        { managementToken },
+      ),
+    requestCredentialRefill: (managementToken, providerId, requestedCount) =>
+      client.request(
+        `/v1/internal/gateway/credential-pool-refill/providers/${encodeURIComponent(providerId)}/request`,
+        consoleCredentialRefillRequestResponseSchema,
+        {
+          method: "POST",
+          managementToken,
+          body: requestedCount === undefined ? {} : { requestedCount },
+        },
+      ),
+    createGeminiAuthSession: (managementToken, request) =>
+      client.request(`${CONSOLE_ROOT}/gemini-auth-sessions`, consoleGeminiAuthSessionResponseSchema, {
+        method: "POST",
+        managementToken,
+        body: request,
+      }),
+    completeGeminiAuthSession: (managementToken, sessionId) =>
+      client.request(
+        `${CONSOLE_ROOT}/gemini-auth-sessions/${encodeURIComponent(sessionId)}/complete`,
+        consoleGeminiAuthSessionResponseSchema,
+        {
+          method: "POST",
+          managementToken,
+        },
+      ),
+    getGeminiAuthSession: (managementToken, sessionId) =>
+      client.request(
+        `${CONSOLE_ROOT}/gemini-auth-sessions/${encodeURIComponent(sessionId)}`,
+        consoleGeminiAuthSessionResponseSchema,
         {
           managementToken,
         },

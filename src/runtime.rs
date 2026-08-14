@@ -101,6 +101,11 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         );
     }
     let credential_cache = CredentialMemoryCache::new(30);
+    let credential_pool_automation = Arc::new(
+        crate::credential_pool_automation::CredentialPoolAutomationRuntime::load(
+            &config.credential_pool_automation,
+        )?,
+    );
 
     Ok(Arc::new(AppState {
         config,
@@ -119,6 +124,7 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         provider_credential_folder_sync: ProviderCredentialFolderSyncRuntime::new(
             provider_credential_folder_sync_enabled,
         ),
+        credential_pool_automation,
     }))
 }
 
@@ -160,6 +166,22 @@ pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
     tokio::spawn(async move {
         crate::credential_stock::start_credential_stock_monitor_task(state_for_credential_stock)
             .await;
+    });
+
+    let state_for_pool_automation = Arc::clone(app_state);
+    tokio::spawn(async move {
+        crate::credential_pool_automation::start_credential_pool_automation_task(
+            state_for_pool_automation,
+        )
+        .await;
+    });
+
+    let state_for_credential_refill = Arc::clone(app_state);
+    tokio::spawn(async move {
+        crate::credential_refill::start_credential_refill_notification_task(
+            state_for_credential_refill,
+        )
+        .await;
     });
 }
 

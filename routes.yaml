@@ -14,9 +14,10 @@ providers:
       - gpt-5.2
 
   - id: muyuan-openai
+    label: "Muyuan · 第三方 OpenAI 兼容"
     vendor_key: muyuan
     vendor_name: "Muyuan"
-    preset: openai
+    preset: muyuan-openai
     base_url: "https://muyuan.do/v1"
     api_key: "sk-fI5P07x3Xn9K5Ne1EGNyy9DbVLHTizT4TiLfSMMbA2Vtru3F"
     chat_completions_path: "/chat/completions"
@@ -53,26 +54,6 @@ providers:
       - api_key: "7f8d6d1fb9d5b27bbeda41c37c10f053:NmNjMGNiNzI2Yzc4NDUzOTRjMmVjYmI4"
         supported_models: [xopqwen35v35b]
 
-  # 讯飞星辰 Coding Plan — 订阅服务，统一 modelId，实际模型在后台选择
-  # model_map 将用户可见模型名翻译为统一的 astron-code-latest 发给上游
-  # 每个凭证的 supported_models 标注该 key 背后绑定的实际模型
-  - id: xfyun-coding
-    vendor_key: xfyun
-    vendor_name: "iFlytek / XFYun"
-    preset: openai
-    base_url: "https://maas-coding-api.cn-huabei-1.xf-yun.com"
-    chat_completions_path: "/v2/chat/completions"
-    supported_models: [astron-qwen35-35b, astron-glm47-flash, astron-qwen3-coder]
-    model_map:
-      astron-qwen35-35b: "astron-code-latest"
-      astron-glm47-flash: "astron-code-latest"
-      astron-qwen3-coder: "astron-code-latest"
-    credentials:
-      - api_key: "619e922d34f6cad7992db06484068f46:NmMyZGE4ZTUzNzAwZmFkODEzOTI2MDBk"
-        supported_models: [astron-qwen35-35b]
-        # 实际模型: Qwen3.5-35B-A3B
-
-  # NVIDIA NIM — 189 models, OpenAI 兼容, Bearer 认证, 多凭证轮询
   - id: nvidia
     vendor_key: nvidia
     vendor_name: "NVIDIA"
@@ -102,9 +83,9 @@ providers:
   - id: poe
     vendor_key: poe
     vendor_name: "Poe"
-    preset: openai
+    preset: poe-openai
     base_url: "https://api.poe.com"
-    supported_models: [Gemma-4-31B]
+    supported_models: [Gemma-4-31B, Claude-Sonnet-4.6]
     credentials:
       - api_key: "sk-poe-D8db5ScAgBVKNhcQJZ_KA9_HyBVx8BkqRyHCMezsk7U"
 
@@ -130,13 +111,10 @@ providers:
   - id: longcat
     vendor_key: longcat
     vendor_name: "LongCat"
-    preset: openai
+    preset: longcat-openai
     base_url: "https://api.longcat.chat/openai"
     supported_models:
-      - LongCat-Flash-Chat
-      - LongCat-Flash-Thinking
-      - LongCat-Flash-Thinking-2601
-      - LongCat-Flash-Lite
+      - LongCat-2.0
     credentials:
       - api_key: "ak_2yc1cB04Z23m2FF44S8DM3Le06V31"
 
@@ -354,6 +332,7 @@ providers:
     vendor_key: suno
     vendor_name: "Suno"
     preset: suno
+    execution_mode: browser_backed
     base_url: "https://studio-api-prod.suno.com"
     supported_models: [chirp-v3-5, chirp-v3-0]
     keepalive:
@@ -361,6 +340,7 @@ providers:
       refresh_before_secs: 300
     credentials:
       - api_key: "${SUNO_COOKIE_1}"
+        runtime_state_object_key: "credential-runtime/suno/manual-browser-helper/storage-state.json"
 
   - id: udio
     vendor_key: udio
@@ -429,9 +409,6 @@ model_routes:
   - pattern: "google/*"
     provider_ids: [openrouter]
     priority: 5
-  - pattern: "astron-*"
-    provider_ids: [xfyun-coding]
-    priority: 10
   - pattern: "nano-banana*"
     provider_ids: [gemini-business]
     priority: 10
@@ -530,7 +507,7 @@ aliases:
   glm5: z-ai/glm5
   llama: meta/llama-3.3-70b-instruct
   nemotron: nvidia/nemotron-3-super-120b-a12b
-  longcat: LongCat-Flash-Chat
+  longcat: LongCat-2.0
   nano-banana: nano-banana-pro
   gemini-image-preview: nano-banana-pro
   uni: uni-1

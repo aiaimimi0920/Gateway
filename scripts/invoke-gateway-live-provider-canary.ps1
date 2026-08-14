@@ -42,7 +42,21 @@ function Classify-CanaryFailure {
   )
 
   $text = if ($null -eq $Body) { "" } else { $Body.ToLowerInvariant() }
-  if ($StatusCode -eq 429 -or $text.Contains("quota") -or $text.Contains("rate limit")) {
+  if (
+    $text.Contains("challenge_required") -or
+    $text.Contains("challenge required") -or
+    $text.Contains("captcha") -or
+    $text.Contains("security check")
+  ) {
+    return "browser_challenge_required"
+  }
+  if (
+    $StatusCode -eq 402 -or
+    $StatusCode -eq 429 -or
+    $text.Contains("quota") -or
+    $text.Contains("rate limit") -or
+    $text.Contains("insufficient credit")
+  ) {
     return "quota_or_rate_limit"
   }
   if (
@@ -108,7 +122,8 @@ function Invoke-CanaryHttpRequest {
     [string]$Method,
     [string]$Uri,
     [string]$Body,
-    [string]$GatewayApiKey
+    [string]$GatewayApiKey,
+    [int]$MaxTimeSeconds = 60
   )
 
   $curl = if (Get-Command "curl.exe" -ErrorAction SilentlyContinue) { "curl.exe" } else { "curl" }
@@ -130,7 +145,7 @@ function Invoke-CanaryHttpRequest {
     "--noproxy",
     "*",
     "--max-time",
-    "60",
+    ([string]$MaxTimeSeconds),
     "--dump-header",
     $headersPath,
     "--output",
@@ -322,6 +337,23 @@ function Invoke-CanaryTarget {
     Uri = $uri
     GatewayApiKey = $GatewayApiKey
   }
+  $requestMaxTimeSeconds = 60
+  if ($target.PSObject.Properties.Name -contains "request_timeout_secs") {
+    $requestMaxTimeSeconds = [Math]::Max(1, [Math]::Min(3600, [int]$target.request_timeout_secs))
+  } elseif ($body) {
+    try {
+      $parsedBody = $body | ConvertFrom-Json
+      if ($parsedBody.PSObject.Properties.Name -contains "wait_timeout_secs") {
+        $requestMaxTimeSeconds = [Math]::Max(
+          60,
+          [Math]::Min(3600, ([int]$parsedBody.wait_timeout_secs + 30))
+        )
+      }
+    } catch {
+      # The request body is validated by the gateway; keep the conservative default here.
+    }
+  }
+  $requestArguments["MaxTimeSeconds"] = $requestMaxTimeSeconds
   if (-not [string]::Equals($method, "GET", [System.StringComparison]::OrdinalIgnoreCase)) {
     $requestArguments["Body"] = $body
   }

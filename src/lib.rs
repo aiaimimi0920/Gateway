@@ -9,6 +9,8 @@ pub mod config;
 pub mod console;
 pub mod conversation_archive;
 pub mod conversation_dataset;
+pub mod credential_pool_automation;
+pub mod credential_refill;
 pub mod credential_runtime;
 pub mod credential_stock;
 pub mod credential_store;

@@ -34,6 +34,10 @@ pub const LINE_NVIDIA_OPENAI_OFFICIAL_VENDOR_API_FEATURE: &str =
 pub const LINE_TOGETHER_OPENAI_AGGREGATOR_API_FEATURE: &str = "line-together-openai-aggregator-api";
 pub const LINE_OPENROUTER_OPENAI_AGGREGATOR_API_FEATURE: &str =
     "line-openrouter-openai-aggregator-api";
+pub const LINE_MUYUAN_OPENAI_AGGREGATOR_API_FEATURE: &str = "line-muyuan-openai-aggregator-api";
+pub const LINE_POE_OPENAI_AGGREGATOR_API_FEATURE: &str = "line-poe-openai-aggregator-api";
+pub const LINE_LONGCAT_OPENAI_OFFICIAL_MODEL_API_FEATURE: &str =
+    "line-longcat-openai-official-model-api";
 pub const LINE_DEEPSEEK_OPENAI_OFFICIAL_MODEL_API_FEATURE: &str =
     "line-deepseek-openai-official-model-api";
 pub const LINE_MISTRAL_OPENAI_OFFICIAL_MODEL_API_FEATURE: &str =
@@ -97,6 +101,9 @@ pub enum RefactoredImplementationLine {
     NvidiaOpenAiOfficialVendorApi,
     TogetherOpenAiAggregatorApi,
     OpenRouterOpenAiAggregatorApi,
+    MuyuanOpenAiAggregatorApi,
+    PoeOpenAiAggregatorApi,
+    LongCatOpenAiOfficialModelApi,
     DeepSeekOpenAiOfficialModelApi,
     MistralOpenAiOfficialModelApi,
     XaiOpenAiOfficialVendorApi,
@@ -142,6 +149,9 @@ impl RefactoredImplementationLine {
             Self::NvidiaOpenAiOfficialVendorApi => "nvidia",
             Self::TogetherOpenAiAggregatorApi => "together",
             Self::OpenRouterOpenAiAggregatorApi => "openrouter",
+            Self::MuyuanOpenAiAggregatorApi => "muyuan",
+            Self::PoeOpenAiAggregatorApi => "poe",
+            Self::LongCatOpenAiOfficialModelApi => "longcat",
             Self::DeepSeekOpenAiOfficialModelApi => "deepseek",
             Self::MistralOpenAiOfficialModelApi => "mistral",
             Self::XaiOpenAiOfficialVendorApi => "xai",
@@ -191,6 +201,9 @@ impl RefactoredImplementationLine {
             Self::NvidiaOpenAiOfficialVendorApi => LINE_NVIDIA_OPENAI_OFFICIAL_VENDOR_API_FEATURE,
             Self::TogetherOpenAiAggregatorApi => LINE_TOGETHER_OPENAI_AGGREGATOR_API_FEATURE,
             Self::OpenRouterOpenAiAggregatorApi => LINE_OPENROUTER_OPENAI_AGGREGATOR_API_FEATURE,
+            Self::MuyuanOpenAiAggregatorApi => LINE_MUYUAN_OPENAI_AGGREGATOR_API_FEATURE,
+            Self::PoeOpenAiAggregatorApi => LINE_POE_OPENAI_AGGREGATOR_API_FEATURE,
+            Self::LongCatOpenAiOfficialModelApi => LINE_LONGCAT_OPENAI_OFFICIAL_MODEL_API_FEATURE,
             Self::DeepSeekOpenAiOfficialModelApi => LINE_DEEPSEEK_OPENAI_OFFICIAL_MODEL_API_FEATURE,
             Self::MistralOpenAiOfficialModelApi => LINE_MISTRAL_OPENAI_OFFICIAL_MODEL_API_FEATURE,
             Self::XaiOpenAiOfficialVendorApi => LINE_XAI_OPENAI_OFFICIAL_VENDOR_API_FEATURE,
@@ -263,6 +276,15 @@ impl RefactoredImplementationLine {
             }
             Self::OpenRouterOpenAiAggregatorApi => {
                 cfg!(feature = "line-openrouter-openai-aggregator-api")
+            }
+            Self::MuyuanOpenAiAggregatorApi => {
+                cfg!(feature = "line-muyuan-openai-aggregator-api")
+            }
+            Self::PoeOpenAiAggregatorApi => {
+                cfg!(feature = "line-poe-openai-aggregator-api")
+            }
+            Self::LongCatOpenAiOfficialModelApi => {
+                cfg!(feature = "line-longcat-openai-official-model-api")
             }
             Self::DeepSeekOpenAiOfficialModelApi => {
                 cfg!(feature = "line-deepseek-openai-official-model-api")
@@ -372,6 +394,15 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         "openrouter" | "openrouter-openai" | "openrouter_openai" => {
             Some(RefactoredImplementationLine::OpenRouterOpenAiAggregatorApi)
         }
+        "muyuan" | "muyuan-openai" | "muyuan_openai" => {
+            Some(RefactoredImplementationLine::MuyuanOpenAiAggregatorApi)
+        }
+        "poe" | "poe-openai" | "poe_openai" => {
+            Some(RefactoredImplementationLine::PoeOpenAiAggregatorApi)
+        }
+        "longcat" | "longcat-openai" | "longcat_openai" => {
+            Some(RefactoredImplementationLine::LongCatOpenAiOfficialModelApi)
+        }
         "deepseek" | "deepseek-openai" | "deepseek_openai" => {
             Some(RefactoredImplementationLine::DeepSeekOpenAiOfficialModelApi)
         }
@@ -466,7 +497,10 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
 
 pub fn line_for_adapter(adapter: &str) -> Option<RefactoredImplementationLine> {
     match adapter.trim() {
-        "gemini_web_compatible" | "gemini_web_reverse_modular_compatible" => {
+        "gemini_web_compatible"
+        | "gemini_web_reverse_modular_compatible"
+        | "gemini_canvas_compatible"
+        | "gemini_canvas_web_reverse_compatible" => {
             Some(RefactoredImplementationLine::GeminiWebReverse)
         }
         "gemini_canvas_program_web_reverse_compatible" => {
@@ -563,6 +597,12 @@ pub fn line_for_payload(payload: &ProviderAccountPayload) -> Option<RefactoredIm
                 Some(RefactoredImplementationLine::TogetherOpenAiAggregatorApi)
             } else if base_url.contains("openrouter.ai") {
                 Some(RefactoredImplementationLine::OpenRouterOpenAiAggregatorApi)
+            } else if base_url.contains("muyuan.do") {
+                Some(RefactoredImplementationLine::MuyuanOpenAiAggregatorApi)
+            } else if base_url.contains("api.poe.com") {
+                Some(RefactoredImplementationLine::PoeOpenAiAggregatorApi)
+            } else if base_url.contains("api.longcat.chat") {
+                Some(RefactoredImplementationLine::LongCatOpenAiOfficialModelApi)
             } else if base_url.contains("api.deepseek.com") {
                 Some(RefactoredImplementationLine::DeepSeekOpenAiOfficialModelApi)
             } else if base_url.contains("api.mistral.ai") {
@@ -856,6 +896,46 @@ mod tests {
                 "https://api.mistral.ai/v1"
             )),
             Some(RefactoredImplementationLine::MistralOpenAiOfficialModelApi)
+        );
+        assert_eq!(
+            line_for_payload(&make_payload("openai_compatible", "https://muyuan.do/v1")),
+            Some(RefactoredImplementationLine::MuyuanOpenAiAggregatorApi)
+        );
+        assert_eq!(
+            line_for_payload(&make_payload("openai_compatible", "https://api.poe.com")),
+            Some(RefactoredImplementationLine::PoeOpenAiAggregatorApi)
+        );
+        assert_eq!(
+            line_for_payload(&make_payload(
+                "openai_compatible",
+                "https://api.longcat.chat/openai"
+            )),
+            Some(RefactoredImplementationLine::LongCatOpenAiOfficialModelApi)
+        );
+    }
+
+    #[test]
+    fn payload_inference_distinguishes_gemini_chat_and_canvas_program_lanes() {
+        assert_eq!(
+            line_for_payload(&make_payload(
+                "gemini_canvas_compatible",
+                "https://gemini.google.com"
+            )),
+            Some(RefactoredImplementationLine::GeminiWebReverse)
+        );
+        assert_eq!(
+            line_for_payload(&make_payload(
+                "gemini_canvas_web_reverse_compatible",
+                "https://gemini.google.com"
+            )),
+            Some(RefactoredImplementationLine::GeminiWebReverse)
+        );
+        assert_eq!(
+            line_for_payload(&make_payload(
+                "gemini_canvas_program_web_reverse_compatible",
+                "https://gemini.google.com"
+            )),
+            Some(RefactoredImplementationLine::GeminiCanvasProgram)
         );
     }
 

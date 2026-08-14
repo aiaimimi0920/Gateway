@@ -9,6 +9,7 @@ const DEFAULT_LOCALE = "zh-CN";
 const DEFAULT_CONFIRM_PROMPT = "Create the video";
 const DEFAULT_VIDEO_PROMPT = "Create a cinematic music video for this song.";
 const STATUS_POLL_INTERVAL_MS = 5000;
+const DEFAULT_PRODUCER_SUPABASE_URL = "https://sb.flowmusic.app";
 const DEFAULT_PRODUCER_SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkbmpjY3FjbWJ4ZWF4YmlkaW5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjEwNjQsImV4cCI6MjA4NzEzNzA2NH0.XCXSuL7Th1xHecfRrP0vAOFmKwJxwBqVFLu06SxtVzg";
 
@@ -1306,7 +1307,9 @@ async function refreshSupabaseAccessToken(refreshToken) {
   const anonKey =
     normalizeString(process.env.PRODUCER_SUPABASE_ANON_KEY) ??
     DEFAULT_PRODUCER_SUPABASE_ANON_KEY;
-  const response = await fetch("https://sb.producer.ai/auth/v1/token?grant_type=refresh_token", {
+  const response = await fetch(
+    `${DEFAULT_PRODUCER_SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
+    {
     method: "POST",
     headers: {
       apikey: anonKey,
@@ -1317,7 +1320,8 @@ async function refreshSupabaseAccessToken(refreshToken) {
     body: JSON.stringify({
       refresh_token: refreshToken,
     }),
-  }).catch(() => null);
+    },
+  ).catch(() => null);
   if (!response || !response.ok) {
     return null;
   }

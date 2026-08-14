@@ -8,6 +8,7 @@ use std::path::{Component, Path, PathBuf};
 
 pub mod auth;
 pub mod document;
+pub mod gemini_auth_sessions;
 pub mod journal;
 pub mod persistence;
 pub mod redis_store;
@@ -18,6 +19,10 @@ pub mod secrets;
 pub use auth::{
     AuthenticatedConsoleActor, ConsoleAuthRuntime, ConsoleBootstrapStatus, ConsoleRequestContext,
     ConsoleSessionView, SecretGrantView,
+};
+pub use gemini_auth_sessions::{
+    gemini_auth_session_manager, CreateGeminiAuthSessionInput, GeminiAuthFamily,
+    GeminiAuthSessionView,
 };
 pub use journal::{
     JournalEntry, JournalError, RecoveryDisposition, RecoveryReport, TransactionJournal,

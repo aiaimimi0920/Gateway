@@ -111,14 +111,15 @@ impl UpstreamClient {
             &send_body_text,
             prepared.execution_plan.missing_challenge_token,
         )?;
-        if !prepared.execution_plan.wait_completion || suno::clips_ready(&initial_clips) {
+        let initial_clips_ready = suno::clips_ready_for_endpoint(req.endpoint_kind, &initial_clips);
+        if !prepared.execution_plan.wait_completion || initial_clips_ready {
             return self
                 .finalize_suno_media_response(
                     req,
                     model,
                     &prepared.prompt,
                     &initial_clips,
-                    suno::clips_ready(&initial_clips),
+                    initial_clips_ready,
                     None,
                     prepared.execution_plan.request_timeout,
                 )
@@ -151,7 +152,7 @@ impl UpstreamClient {
                 &body_text,
                 prepared.execution_plan.missing_challenge_token,
             )?;
-            if suno::clips_ready(&latest_clips) {
+            if suno::clips_ready_for_endpoint(req.endpoint_kind, &latest_clips) {
                 return self
                     .finalize_suno_media_response(
                         req,

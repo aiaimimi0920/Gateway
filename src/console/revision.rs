@@ -11,6 +11,7 @@ pub enum RevisionActor {
     ManagementToken,
     EnvironmentOverride,
     Recovery,
+    CredentialPoolAutomation,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]

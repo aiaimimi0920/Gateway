@@ -1,8 +1,8 @@
 {
   "$schema": "provider-inventory.schema.json",
   "schemaVersion": "gateway-product-inventory/v1",
-  "generatedAt": "2026-07-20T15:45:49.305Z",
-  "sourceRevision": "0601ce9899b4332e8c434ff02d067a9d46a3729b",
+  "generatedAt": "2026-07-29T05:19:33Z",
+  "sourceRevision": "657956dc43244d77d2245e1327c0f326caad9b16",
   "sources": {
     "manifestRoot": "manifests/lines",
     "cargoManifest": "Cargo.toml",
@@ -11,12 +11,12 @@
     "protocolRegistry": "src/protocol/registry.rs"
   },
   "evidenceSummary": {
-    "mode": "live",
+    "mode": "offline",
     "counts": {
       "compiled": 0,
-      "metadata_only": 36,
+      "metadata_only": 44,
       "fixture_passed": 0,
-      "live_passed": 5,
+      "live_passed": 0,
       "external_gate": 0,
       "credential_missing": 0,
       "known_unsupported": 0
@@ -157,8 +157,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -306,8 +306,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -455,8 +455,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -607,8 +607,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -759,8 +759,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -916,8 +916,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1057,8 +1057,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1215,8 +1215,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1379,8 +1379,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1522,8 +1522,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1674,8 +1674,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1833,8 +1833,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1979,42 +1979,17 @@
         ]
       },
       "evidence": {
-        "state": "live_passed",
+        "state": "metadata_only",
         "records": [
           {
-            "state": "live_passed",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
-            "mode": "live",
+            "state": "metadata_only",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
+            "mode": "offline",
             "classification": {
               "failureClass": "none",
-              "failureCode": "live_canary_passed",
-              "message": "The explicitly enabled live provider canary passed with matching observed provider and route proof."
-            },
-            "credentialSource": "env:EXA_API_KEY_1",
-            "endpointFamily": "search",
-            "artifactPaths": [
-              "manifests/lines/exa/official-vendor-api.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-exa-search-official-vendor-api.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-exa-search-official-vendor-api.stdout.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stdout.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.dafee28096814c2dbd429c730dca19ec.body",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.dafee28096814c2dbd429c730dca19ec.headers",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/summary.json"
-            ],
-            "routeProof": {
-              "providerLine": "exa-search-official-vendor-api",
-              "source": "gateway_response_headers_v1",
-              "endpoint": "/v1/search",
-              "method": "POST",
-              "httpStatus": 200,
-              "requestId": "dafee28096814c2dbd429c730dca19ec",
-              "artifactPath": "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.dafee28096814c2dbd429c730dca19ec.headers"
-            },
-            "observedProvider": {
-              "providerLine": "exa-search-official-vendor-api",
-              "source": "gateway_response_headers_v1"
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
             }
           }
         ]
@@ -2149,8 +2124,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2301,8 +2276,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2450,8 +2425,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2591,8 +2566,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2731,8 +2706,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2888,8 +2863,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3036,8 +3011,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3180,42 +3155,17 @@
         ]
       },
       "evidence": {
-        "state": "live_passed",
+        "state": "metadata_only",
         "records": [
           {
-            "state": "live_passed",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
-            "mode": "live",
+            "state": "metadata_only",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
+            "mode": "offline",
             "classification": {
               "failureClass": "none",
-              "failureCode": "live_canary_passed",
-              "message": "The explicitly enabled live provider canary passed with matching observed provider and route proof."
-            },
-            "credentialSource": "env:JINA_API_KEY_1",
-            "endpointFamily": "search",
-            "artifactPaths": [
-              "manifests/lines/jina/search-official-vendor-api.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-jina-search-official-vendor-api.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-jina-search-official-vendor-api.stdout.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stdout.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.408d5543dac44f94adda798f34bd45e0.body",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.408d5543dac44f94adda798f34bd45e0.headers",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/summary.json"
-            ],
-            "routeProof": {
-              "providerLine": "jina-search-official-vendor-api",
-              "source": "gateway_response_headers_v1",
-              "endpoint": "/v1/search",
-              "method": "POST",
-              "httpStatus": 200,
-              "requestId": "408d5543dac44f94adda798f34bd45e0",
-              "artifactPath": "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.408d5543dac44f94adda798f34bd45e0.headers"
-            },
-            "observedProvider": {
-              "providerLine": "jina-search-official-vendor-api",
-              "source": "gateway_response_headers_v1"
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
             }
           }
         ]
@@ -3343,8 +3293,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3493,42 +3443,172 @@
         ]
       },
       "evidence": {
-        "state": "live_passed",
+        "state": "metadata_only",
         "records": [
           {
-            "state": "live_passed",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
-            "mode": "live",
+            "state": "metadata_only",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
+            "mode": "offline",
             "classification": {
               "failureClass": "none",
-              "failureCode": "live_canary_passed",
-              "message": "The explicitly enabled live provider canary passed with matching observed provider and route proof."
-            },
-            "credentialSource": "env:LINKUP_API_KEY_1",
-            "endpointFamily": "search",
-            "artifactPaths": [
-              "manifests/lines/linkup/official-vendor-api.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-linkup-search-official-vendor-api.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-linkup-search-official-vendor-api.stdout.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stdout.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.3be3d1c3732b40aba3f6bc4dda6dff6f.body",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.3be3d1c3732b40aba3f6bc4dda6dff6f.headers",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/summary.json"
-            ],
-            "routeProof": {
-              "providerLine": "linkup-search-official-vendor-api",
-              "source": "gateway_response_headers_v1",
-              "endpoint": "/v1/search",
-              "method": "POST",
-              "httpStatus": 200,
-              "requestId": "3be3d1c3732b40aba3f6bc4dda6dff6f",
-              "artifactPath": "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.3be3d1c3732b40aba3f6bc4dda6dff6f.headers"
-            },
-            "observedProvider": {
-              "providerLine": "linkup-search-official-vendor-api",
-              "source": "gateway_response_headers_v1"
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "longcat-openai-official-model-api",
+      "manifestPath": "manifests/lines/longcat/official-model-api.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "longcat-openai-official-model-api",
+        "identity": {
+          "serviceProviderKey": "longcat_platform",
+          "serviceProviderLabel": "LongCat OpenAI-compatible",
+          "providerSurfaceKey": "longcat-openai",
+          "providerSurfaceLabel": "LongCat OpenAI-compatible",
+          "protocolProfile": "longcat",
+          "implementationLine": "official_model_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_model_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "models"
+          ],
+          "supportsModelsEndpoint": true
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/20-ai-gateway/LongCat官方模型API实现线基线.md",
+          "buildDocPath": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/BUILD.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "longcat-openai-official-model-api-verify",
+          "focusedCargoFilters": [
+            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+          ],
+          "fixtureSuiteId": "longcat_fixture",
+          "liveSuiteId": "longcat_live",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-longcat-openai-official-model-api",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "longcat-openai-official-model-api"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/registry.rs",
+          "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+          "platformDeltaModule": "gateway/src/implementation_lines.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "longcat_platform",
+        "serviceProviderLabel": "LongCat OpenAI-compatible",
+        "providerSurfaceKey": "longcat-openai",
+        "providerSurfaceLabel": "LongCat OpenAI-compatible",
+        "protocolProfile": "longcat",
+        "implementationLine": "official_model_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_model_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/minimal.raw.sample.json",
+        "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/FIELDS.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/20-ai-gateway/LongCat官方模型API实现线基线.md",
+        "buildDocPath": "docs/20-ai-gateway/examples/credentials/longcat/official_model_api/BUILD.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "longcat-openai-official-model-api-verify",
+        "focusedCargoFilters": [
+          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+        ],
+        "fixtureSuiteId": "longcat_fixture",
+        "liveSuiteId": "longcat_live",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-longcat-openai-official-model-api",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "longcat-openai-official-model-api",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": true
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/registry.rs",
+        "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+        "platformDeltaModule": "gateway/src/implementation_lines.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "LongCatOpenAiOfficialModelApi",
+        "canonicalProtocolProfile": "longcat",
+        "featureName": "line-longcat-openai-official-model-api",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
             }
           }
         ]
@@ -3673,8 +3753,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3832,8 +3912,163 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "muyuan-openai-aggregator-api",
+      "manifestPath": "manifests/lines/muyuan/aggregator-api.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "muyuan-openai-aggregator-api",
+        "identity": {
+          "serviceProviderKey": "muyuan_platform",
+          "serviceProviderLabel": "Muyuan OpenAI-compatible",
+          "providerSurfaceKey": "muyuan-openai",
+          "providerSurfaceLabel": "Muyuan OpenAI-compatible",
+          "protocolProfile": "muyuan",
+          "implementationLine": "aggregator_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "aggregator_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "models"
+          ],
+          "supportsModelsEndpoint": false
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/20-ai-gateway/Muyuan聚合API实现线基线.md",
+          "buildDocPath": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/BUILD.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "muyuan-openai-aggregator-api-verify",
+          "focusedCargoFilters": [
+            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+          ],
+          "fixtureSuiteId": "muyuan_fixture",
+          "liveSuiteId": "muyuan_live",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-muyuan-openai-aggregator-api",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "muyuan-openai-aggregator-api"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/registry.rs",
+          "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+          "platformDeltaModule": "gateway/src/implementation_lines.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "muyuan_platform",
+        "serviceProviderLabel": "Muyuan OpenAI-compatible",
+        "providerSurfaceKey": "muyuan-openai",
+        "providerSurfaceLabel": "Muyuan OpenAI-compatible",
+        "protocolProfile": "muyuan",
+        "implementationLine": "aggregator_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "aggregator_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/minimal.raw.sample.json",
+        "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/FIELDS.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/20-ai-gateway/Muyuan聚合API实现线基线.md",
+        "buildDocPath": "docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/BUILD.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "muyuan-openai-aggregator-api-verify",
+        "focusedCargoFilters": [
+          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+        ],
+        "fixtureSuiteId": "muyuan_fixture",
+        "liveSuiteId": "muyuan_live",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-muyuan-openai-aggregator-api",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "muyuan-openai-aggregator-api",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": true
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/registry.rs",
+        "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+        "platformDeltaModule": "gateway/src/implementation_lines.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "MuyuanOpenAiAggregatorApi",
+        "canonicalProtocolProfile": "muyuan",
+        "featureName": "line-muyuan-openai-aggregator-api",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3989,8 +4224,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4146,8 +4381,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4303,8 +4538,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4451,8 +4686,163 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "poe-openai-aggregator-api",
+      "manifestPath": "manifests/lines/poe/aggregator-api.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "poe-openai-aggregator-api",
+        "identity": {
+          "serviceProviderKey": "poe_platform",
+          "serviceProviderLabel": "Poe OpenAI-compatible",
+          "providerSurfaceKey": "poe-openai",
+          "providerSurfaceLabel": "Poe OpenAI-compatible",
+          "protocolProfile": "poe",
+          "implementationLine": "aggregator_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "aggregator_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "models"
+          ],
+          "supportsModelsEndpoint": false
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/20-ai-gateway/Poe聚合API实现线基线.md",
+          "buildDocPath": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/BUILD.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "poe-openai-aggregator-api-verify",
+          "focusedCargoFilters": [
+            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+          ],
+          "fixtureSuiteId": "poe_fixture",
+          "liveSuiteId": "poe_live",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-poe-openai-aggregator-api",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "poe-openai-aggregator-api"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/registry.rs",
+          "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+          "platformDeltaModule": "gateway/src/implementation_lines.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "poe_platform",
+        "serviceProviderLabel": "Poe OpenAI-compatible",
+        "providerSurfaceKey": "poe-openai",
+        "providerSurfaceLabel": "Poe OpenAI-compatible",
+        "protocolProfile": "poe",
+        "implementationLine": "aggregator_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "aggregator_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/minimal.raw.sample.json",
+        "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/FIELDS.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/20-ai-gateway/Poe聚合API实现线基线.md",
+        "buildDocPath": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/BUILD.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "poe-openai-aggregator-api-verify",
+        "focusedCargoFilters": [
+          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+        ],
+        "fixtureSuiteId": "poe_fixture",
+        "liveSuiteId": "poe_live",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-poe-openai-aggregator-api",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "poe-openai-aggregator-api",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": true
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/registry.rs",
+        "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+        "platformDeltaModule": "gateway/src/implementation_lines.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "PoeOpenAiAggregatorApi",
+        "canonicalProtocolProfile": "poe",
+        "featureName": "line-poe-openai-aggregator-api",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4600,8 +4990,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4762,8 +5152,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4902,8 +5292,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5053,8 +5443,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5197,42 +5587,17 @@
         ]
       },
       "evidence": {
-        "state": "live_passed",
+        "state": "metadata_only",
         "records": [
           {
-            "state": "live_passed",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
-            "mode": "live",
+            "state": "metadata_only",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
+            "mode": "offline",
             "classification": {
               "failureClass": "none",
-              "failureCode": "live_canary_passed",
-              "message": "The explicitly enabled live provider canary passed with matching observed provider and route proof."
-            },
-            "credentialSource": "env:TAVILY_API_KEY",
-            "endpointFamily": "search",
-            "artifactPaths": [
-              "manifests/lines/tavily/official-vendor-api.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-tavily-search-official-vendor-api.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-tavily-search-official-vendor-api.stdout.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stdout.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.3439ba1fd1d5438fb0a01b9befbcca79.body",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.3439ba1fd1d5438fb0a01b9befbcca79.headers",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/summary.json"
-            ],
-            "routeProof": {
-              "providerLine": "tavily-search-official-vendor-api",
-              "source": "gateway_response_headers_v1",
-              "endpoint": "/v1/search",
-              "method": "POST",
-              "httpStatus": 200,
-              "requestId": "3439ba1fd1d5438fb0a01b9befbcca79",
-              "artifactPath": "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.3439ba1fd1d5438fb0a01b9befbcca79.headers"
-            },
-            "observedProvider": {
-              "providerLine": "tavily-search-official-vendor-api",
-              "source": "gateway_response_headers_v1"
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
             }
           }
         ]
@@ -5383,8 +5748,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5534,8 +5899,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5682,8 +6047,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5839,8 +6204,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5979,8 +6344,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6136,8 +6501,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6280,42 +6645,17 @@
         ]
       },
       "evidence": {
-        "state": "live_passed",
+        "state": "metadata_only",
         "records": [
           {
-            "state": "live_passed",
-            "timestamp": "2026-07-20T15:45:49.305Z",
-            "observedAt": "2026-07-20T15:45:49.305Z",
-            "mode": "live",
+            "state": "metadata_only",
+            "timestamp": "2026-07-29T05:19:33Z",
+            "observedAt": "2026-07-29T05:19:33Z",
+            "mode": "offline",
             "classification": {
               "failureClass": "none",
-              "failureCode": "live_canary_passed",
-              "message": "The explicitly enabled live provider canary passed with matching observed provider and route proof."
-            },
-            "credentialSource": "env:YOU_API_KEY",
-            "endpointFamily": "search",
-            "artifactPaths": [
-              "manifests/lines/you/official-vendor-api.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-you-search-official-vendor-api.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/line-you-search-official-vendor-api.stdout.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stderr.log",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary.stdout.json",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.4136c59e251f4551ba296b189740d068.body",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.4136c59e251f4551ba296b189740d068.headers",
-              "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/summary.json"
-            ],
-            "routeProof": {
-              "providerLine": "you-search-official-vendor-api",
-              "source": "gateway_response_headers_v1",
-              "endpoint": "/v1/search",
-              "method": "POST",
-              "httpStatus": 200,
-              "requestId": "4136c59e251f4551ba296b189740d068",
-              "artifactPath": "target/provider-evidence/20260720T154549309Z-6803aec5/live-canary/canary.4136c59e251f4551ba296b189740d068.headers"
-            },
-            "observedProvider": {
-              "providerLine": "you-search-official-vendor-api",
-              "source": "gateway_response_headers_v1"
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
             }
           }
         ]

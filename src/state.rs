@@ -169,6 +169,9 @@ pub struct AppState {
     pub shutdown: GatewayShutdownHandle,
     /// Runtime toggle for provider credential folder sync auto mode.
     pub provider_credential_folder_sync: ProviderCredentialFolderSyncRuntime,
+    /// Trusted script/HTTP automation registry and per-provider run status.
+    pub credential_pool_automation:
+        Arc<crate::credential_pool_automation::CredentialPoolAutomationRuntime>,
 }
 
 // SAFETY: AppState only contains Send+Sync-safe types.

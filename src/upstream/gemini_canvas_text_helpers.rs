@@ -1,7 +1,50 @@
 use serde_json::Value;
 
+use crate::error::GatewayError;
 use crate::protocol::canonical::{CanonicalRelayRequest, CanonicalToolCall, TokenUsage};
 use crate::protocol::{gemini_api, gemini_canvas, tool_inject};
+
+fn prompt_looks_like_greeting(prompt: &str) -> bool {
+    let normalized = prompt
+        .trim()
+        .trim_matches(|ch: char| {
+            ch.is_whitespace() || matches!(ch, '!' | '\u{ff01}' | '.' | '\u{3002}')
+        })
+        .to_lowercase();
+    matches!(
+        normalized.as_str(),
+        "hi" | "hello" | "hey" | "\u{4f60}\u{597d}" | "\u{60a8}\u{597d}" | "\u{55e8}"
+    )
+}
+
+pub(crate) fn gemini_canvas_text_response_is_generic_welcome(prompt: &str, text: &str) -> bool {
+    if prompt_looks_like_greeting(prompt) {
+        return false;
+    }
+    let normalized = text
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    (normalized.starts_with("hello") && normalized.contains("how can i help you today"))
+        || normalized.starts_with("how can i help you today")
+        || normalized.contains("feel free to ask a question")
+        || normalized.contains("feel free to share a piece of writing")
+        || normalized.contains("what project you'd like to work on")
+        || normalized.contains("what project you're working on")
+        || normalized.contains("meet gemini, your personal ai assistant")
+        || normalized.contains(
+            "\u{8ba4}\u{8bc6} gemini\u{ff1a}\u{4f60}\u{7684}\u{79c1}\u{4eba} ai \u{52a9}\u{7406}",
+        )
+}
+
+pub(crate) fn gemini_canvas_generic_welcome_response_error(provider: &str) -> GatewayError {
+    GatewayError::server_error(
+        "Gemini returned a generic welcome message instead of answering the submitted prompt.",
+    )
+    .with_provider(provider)
+    .with_code("gemini_canvas_generic_welcome_response")
+}
 
 pub(crate) fn build_gemini_canvas_text_success_body(
     req: &CanonicalRelayRequest,
@@ -158,5 +201,22 @@ mod tests {
             body["candidates"][0]["finishReason"],
             serde_json::json!("STOP")
         );
+    }
+
+    #[test]
+    fn generic_welcome_detection_requires_a_non_greeting_prompt() {
+        let welcome =
+            "Hello! How can I help you today? Feel free to ask a question or share some writing.";
+        assert!(gemini_canvas_text_response_is_generic_welcome(
+            "\u{6cd5}\u{56fd}\u{7684}\u{9996}\u{90fd}\u{5728}\u{54ea}\u{91cc}",
+            welcome,
+        ));
+        assert!(!gemini_canvas_text_response_is_generic_welcome(
+            "hello", welcome,
+        ));
+        assert!(!gemini_canvas_text_response_is_generic_welcome(
+            "\u{6cd5}\u{56fd}\u{7684}\u{9996}\u{90fd}\u{5728}\u{54ea}\u{91cc}",
+            "\u{6cd5}\u{56fd}\u{7684}\u{9996}\u{90fd}\u{662f}\u{5df4}\u{9ece}\u{3002}",
+        ));
     }
 }

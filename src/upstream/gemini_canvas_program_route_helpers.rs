@@ -5,10 +5,6 @@ use crate::protocol::gemini_canvas;
 use crate::routing::candidate::{ProviderAccountPayload, ProviderExecutionMode};
 use crate::upstream::gemini::canvas_program_web_reverse as gemini_canvas_program_web_reverse_modular;
 
-fn should_fail_closed_gemini_canvas_program_browserless(payload: &ProviderAccountPayload) -> bool {
-    payload.adapter == "gemini_canvas_program_web_reverse_compatible"
-}
-
 pub(crate) fn gemini_canvas_program_payload_has_explicit_official_api_identity(
     payload: &ProviderAccountPayload,
 ) -> bool {
@@ -83,14 +79,6 @@ pub(crate) fn gemini_canvas_program_tts_pure_http_required_error(provider: &str)
     .with_code("gemini_canvas_program_tts_pure_http_required")
 }
 
-pub(crate) fn gemini_canvas_program_text_pure_http_required_error(provider: &str) -> GatewayError {
-    GatewayError::service_unavailable(
-        "Gemini Canvas program-owned text lane requires the pure HTTP page-owned Canvas program contract.",
-    )
-    .with_provider(provider)
-    .with_code("gemini_canvas_program_text_pure_http_required")
-}
-
 pub(crate) fn gemini_canvas_program_image_pure_http_required_error(provider: &str) -> GatewayError {
     GatewayError::service_unavailable(
         "Gemini Canvas program-owned image lane requires the pure HTTP page-owned Canvas program contract.",
@@ -125,12 +113,14 @@ pub(crate) fn should_attempt_gemini_canvas_program_modular_media_direct_http(
 pub(crate) fn should_treat_gemini_canvas_program_modular_media_direct_http_as_authoritative(
     payload: &ProviderAccountPayload,
 ) -> bool {
-    should_fail_closed_gemini_canvas_program_browserless(payload)
-        || matches!(
-            payload.execution_mode,
-            Some(ProviderExecutionMode::DirectHttp)
-        )
-        || gemini_canvas::pure_http_required(payload)
+    if payload.adapter == "gemini_canvas_program_web_reverse_compatible" {
+        return gemini_canvas::pure_http_required(payload);
+    }
+
+    matches!(
+        payload.execution_mode,
+        Some(ProviderExecutionMode::DirectHttp)
+    ) || gemini_canvas::pure_http_required(payload)
 }
 
 #[cfg(test)]
@@ -213,10 +203,12 @@ mod tests {
     }
 
     #[test]
-    fn program_direct_http_authoritative_when_adapter_is_program_owned() {
+    fn program_direct_http_preferred_mode_is_not_authoritative_when_adapter_is_program_owned() {
         let payload = make_payload("gemini_canvas_program_web_reverse_compatible");
         assert!(
-            should_treat_gemini_canvas_program_modular_media_direct_http_as_authoritative(&payload)
+            !should_treat_gemini_canvas_program_modular_media_direct_http_as_authoritative(
+                &payload
+            )
         );
     }
 
@@ -287,26 +279,6 @@ mod tests {
     }
 
     #[test]
-    fn program_text_pure_http_required_error_matches_contract() {
-        let error = gemini_canvas_program_text_pure_http_required_error(
-            "gemini_canvas_program_web_reverse_compatible",
-        );
-        assert_eq!(error.http_status, Some(503));
-        assert_eq!(
-            error.provider_name.as_deref(),
-            Some("gemini_canvas_program_web_reverse_compatible")
-        );
-        assert_eq!(
-            error.code.as_deref(),
-            Some("gemini_canvas_program_text_pure_http_required")
-        );
-        assert_eq!(
-            error.message.as_str(),
-            "Gemini Canvas program-owned text lane requires the pure HTTP page-owned Canvas program contract."
-        );
-    }
-
-    #[test]
     fn program_image_pure_http_required_error_matches_contract() {
         let error = gemini_canvas_program_image_pure_http_required_error(
             "gemini_canvas_program_web_reverse_compatible",
@@ -327,11 +299,14 @@ mod tests {
     }
 
     #[test]
-    fn program_direct_http_authoritative_when_execution_mode_is_direct_http() {
+    fn program_direct_http_preferred_mode_is_not_authoritative_even_with_direct_http_execution_mode(
+    ) {
         let mut payload = make_payload("gemini_canvas_program_web_reverse_compatible");
         payload.execution_mode = Some(ProviderExecutionMode::DirectHttp);
         assert!(
-            should_treat_gemini_canvas_program_modular_media_direct_http_as_authoritative(&payload)
+            !should_treat_gemini_canvas_program_modular_media_direct_http_as_authoritative(
+                &payload
+            )
         );
     }
 
@@ -344,6 +319,20 @@ mod tests {
         )]));
         assert!(
             should_treat_gemini_canvas_program_modular_media_direct_http_as_authoritative(&payload)
+        );
+    }
+
+    #[test]
+    fn program_direct_http_preferred_mode_is_not_authoritative() {
+        let mut payload = make_payload("gemini_canvas_program_web_reverse_compatible");
+        payload.extra_body = Some(HashMap::from([(
+            "pureHttpMode".to_string(),
+            Value::String("preferred".to_string()),
+        )]));
+        assert!(
+            !should_treat_gemini_canvas_program_modular_media_direct_http_as_authoritative(
+                &payload
+            )
         );
     }
 }

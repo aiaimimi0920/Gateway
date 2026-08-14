@@ -9,6 +9,7 @@ use std::time::Duration;
 use crate::upstream::header_map_helpers::{extract_bearer_token, header_map_string};
 
 const PRODUCER_SESSION_REFRESH_MARGIN_SECS: u64 = 300;
+pub(crate) const DEFAULT_PRODUCER_SUPABASE_URL: &str = "https://sb.flowmusic.app";
 
 pub(crate) const DEFAULT_PRODUCER_SUPABASE_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkbmpjY3FjbWJ4ZWF4YmlkaW5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjEwNjQsImV4cCI6MjA4NzEzNzA2NH0.XCXSuL7Th1xHecfRrP0vAOFmKwJxwBqVFLu06SxtVzg";
 
@@ -135,7 +136,9 @@ async fn refresh_producer_supabase_access_token(
     refresh_token: &str,
 ) -> Option<String> {
     let response = http
-        .post("https://sb.producer.ai/auth/v1/token?grant_type=refresh_token")
+        .post(format!(
+            "{DEFAULT_PRODUCER_SUPABASE_URL}/auth/v1/token?grant_type=refresh_token"
+        ))
         .header("apikey", DEFAULT_PRODUCER_SUPABASE_ANON_KEY)
         .header(
             "authorization",
@@ -276,6 +279,7 @@ mod tests {
 
         assert_eq!(payload.access_token, "access-123");
         assert!(DEFAULT_PRODUCER_SUPABASE_ANON_KEY.starts_with("eyJ"));
+        assert_eq!(DEFAULT_PRODUCER_SUPABASE_URL, "https://sb.flowmusic.app");
     }
 
     #[tokio::test]

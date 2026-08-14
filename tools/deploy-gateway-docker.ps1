@@ -127,6 +127,19 @@ function Invoke-DockerCompose {
     }
 }
 
+function Ensure-DevHostBrowserExecutor {
+    param(
+        [Parameter(Mandatory = $true)][string]$GatewayRoot,
+        [Parameter(Mandatory = $true)][string]$EnvPath
+    )
+
+    $scriptPath = Resolve-FullPath -Path (Join-Path $GatewayRoot "tools\start-gateway-browser-executor.ps1") -RequireExisting
+    & $scriptPath -EnvFile $EnvPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to start the Gateway host browser executor helper."
+    }
+}
+
 $gatewayRoot = Resolve-FullPath -Path (Join-Path $PSScriptRoot "..") -RequireExisting
 $deployDir = Resolve-FullPath -Path (Join-Path $gatewayRoot "deploy") -RequireExisting
 $composeFileName = if ($Mode -eq "local") { "docker-compose.local.yml" } elseif ($Mode -eq "dev") { "docker-compose.dev.yml" } else { "docker-compose.yml" }
@@ -187,12 +200,19 @@ if ($Action -eq "up") {
             Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_CONSOLE_REMOTE_ACCESS" -Value "true"
         }
     }
+    if ($Mode -eq "dev") {
+        Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_GEMINI_AUTH_EXECUTOR_BASE_URL" -Value "http://host.docker.internal:42341"
+        Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_GEMINI_AUTH_EXECUTOR_BEARER_TOKEN" -Value "gateway-gemini-auth-dev"
+    }
 }
 
 switch ($Action) {
     "up" {
         Invoke-DockerCompose -ComposeFile $composeFile -EnvFilePath $envPath -Arguments @("up", "-d")
         Invoke-DockerCompose -ComposeFile $composeFile -EnvFilePath $envPath -Arguments @("ps")
+        if ($Mode -eq "dev") {
+            Ensure-DevHostBrowserExecutor -GatewayRoot $gatewayRoot -EnvPath $envPath
+        }
     }
     "down" {
         $arguments = @("down")

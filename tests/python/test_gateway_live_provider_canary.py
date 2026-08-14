@@ -350,6 +350,46 @@ class GatewayLiveProviderCanaryTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_http_402_insufficient_credits_is_classified_as_quota(self):
+        _ProofHandler.response_status = 402
+        _ProofHandler.response_payload = {
+            "error": {"message": "insufficient credits for this account"}
+        }
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _ProofHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                result = self.run_canary(
+                    server.server_port,
+                    pathlib.Path(temp_dir),
+                    [
+                        {
+                            "name": "credits-classification-canary",
+                            "provider_line": "poe-openai-aggregator-api",
+                            "credential_source": "runtime:poe-primary",
+                            "endpoint": "/v1/chat/completions",
+                            "method": "POST",
+                            "model": "Claude-Sonnet-4.6",
+                            "expected_provider_line": "poe-openai-aggregator-api",
+                            "body": {"model": "Claude-Sonnet-4.6", "messages": []},
+                        }
+                    ],
+                )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            target = payload["targets"][0]
+            self.assertEqual(target["http_status"], 402)
+            self.assertEqual(target["failure_classification"], "quota_or_rate_limit")
+        finally:
+            _ProofHandler.response_status = 200
+            _ProofHandler.response_payload = {"ok": True}
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_missing_provider_line_cannot_be_promoted_from_documented_defaults(self):
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _ProofHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)

@@ -9,6 +9,12 @@ export type AddExplicitCredentialInput = {
   credential: Record<string, unknown>;
 };
 
+export type AddProviderWithCredentialInput = {
+  provider: Record<string, unknown>;
+  credential: Record<string, unknown>;
+  routePatterns?: readonly string[];
+};
+
 export type CredentialIdentity = {
   providerId: string;
   credentialId: string;
@@ -17,12 +23,12 @@ export type CredentialIdentity = {
 export type CredentialSecretEdit = CredentialIdentity &
   (
     | {
-        field: "api_key";
+        field: "api_key" | "auth_token";
         operation: "replace";
         value: string;
       }
     | {
-        field: "api_key";
+        field: "api_key" | "auth_token";
         operation: "clear";
       }
   );
@@ -156,6 +162,62 @@ export function addExplicitCredential(
       `${providerId}::default`,
       credentialId,
     );
+  }
+
+  return nextDocument;
+}
+
+export function addProviderWithCredential(
+  document: ConsoleRouteDocument,
+  input: AddProviderWithCredentialInput,
+): ConsoleRouteDocument {
+  const providerId = requiredId(input.provider.id, "provider.id");
+  const credentialId = requiredId(input.credential.id, "credential.id");
+  if (providerIndexById(document, providerId) >= 0) {
+    throw new Error(`Provider '${providerId}' already exists.`);
+  }
+  if (documentHasCredentialId(document, credentialId)) {
+    throw new Error(`Credential '${credentialId}' already exists.`);
+  }
+  if (
+    input.provider.credentials !== undefined &&
+    (!Array.isArray(input.provider.credentials) || input.provider.credentials.length > 0)
+  ) {
+    throw new Error("provider.credentials must be absent or an empty array.");
+  }
+
+  const nextDocument = cloneJsonValue(document);
+  const provider = cloneJsonValue(input.provider);
+  provider.id = providerId;
+  provider.credentials = [
+    {
+      ...cloneJsonValue(input.credential),
+      id: credentialId,
+    },
+  ];
+  nextDocument.providers.push(provider);
+
+  const routePatterns = [
+    ...new Set(
+      (input.routePatterns ?? [])
+        .map((pattern) => pattern.trim())
+        .filter((pattern) => pattern.length > 0),
+    ),
+  ];
+  for (const pattern of routePatterns) {
+    const existingRoute = nextDocument.model_routes.find(
+      (route): route is Record<string, unknown> => isRecord(route) && route.pattern === pattern,
+    );
+    if (!existingRoute) {
+      nextDocument.model_routes.push({ pattern, provider_ids: [providerId] });
+      continue;
+    }
+    if (!Array.isArray(existingRoute.provider_ids)) {
+      throw new Error(`Model route '${pattern}' provider_ids must be an array.`);
+    }
+    if (!existingRoute.provider_ids.includes(providerId)) {
+      existingRoute.provider_ids.push(providerId);
+    }
   }
 
   return nextDocument;

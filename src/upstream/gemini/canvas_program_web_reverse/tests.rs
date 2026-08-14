@@ -41,6 +41,10 @@ fn make_payload() -> ProviderAccountPayload {
         fetch_urls_field: None,
         extra_body: Some(std::collections::HashMap::from([
             ("shareId".to_string(), json!("canvas-share-789")),
+            (
+                "browserRuntimeStateObjectKey".to_string(),
+                json!("credential-runtime/gemini-canvas/program"),
+            ),
             ("canvasProgramHint".to_string(), json!("quota-lane-probe")),
             (
                 "invokeBaseUrl".to_string(),
@@ -179,8 +183,13 @@ fn build_program_bootstrap_invocation_input_defaults_to_discovery_only() {
     )
     .expect("bootstrap invocation input");
     assert_eq!(value["discoveryOnly"].as_bool(), Some(true));
+    assert_eq!(value["launchCanvasProxyPreview"].as_bool(), Some(true));
     assert_eq!(value["bootstrapOperation"].as_str(), Some("video"));
     assert_eq!(value["bootstrapPrompt"].as_str(), Some("bootstrap prompt"));
+    assert_eq!(
+        value["runtimeStateObjectKey"].as_str(),
+        Some("credential-runtime/gemini-canvas/program")
+    );
 }
 
 #[test]

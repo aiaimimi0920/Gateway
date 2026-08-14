@@ -347,6 +347,10 @@ fn insert_header(map: &mut HeaderMap, name: &str, value: &str) {
 }
 
 fn apply_session_auth_headers(map: &mut HeaderMap, payload: &ProviderAccountPayload) {
+    if payload.api_key.trim().is_empty() {
+        return;
+    }
+
     let transport = payload
         .session_auth
         .as_ref()
@@ -1005,6 +1009,22 @@ mod tests {
             header_str(&headers, "authorization"),
             Some("Bearer sk-test-1234")
         );
+    }
+
+    #[test]
+    fn session_auth_does_not_synthesize_headers_from_an_empty_api_key() {
+        let mut payload = make_payload("suno_compatible");
+        payload.api_key.clear();
+
+        let headers = build_upstream_headers(&payload);
+        assert!(headers.get("cookie").is_none());
+        assert!(headers.get("authorization").is_none());
+
+        payload
+            .headers
+            .insert("cookie".to_string(), "manual=session".to_string());
+        let headers = build_upstream_headers(&payload);
+        assert_eq!(header_str(&headers, "cookie"), Some("manual=session"));
     }
 
     #[test]

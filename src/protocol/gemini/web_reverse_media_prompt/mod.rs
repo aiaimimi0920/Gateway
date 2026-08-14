@@ -43,7 +43,18 @@ pub fn prompt_for_media_request(
         }
     }
 
-    let aspect_ratio = aspect_ratio_from_request(req);
+    let has_explicit_aspect_ratio = req
+        .raw_body
+        .get("size")
+        .or_else(|| req.raw_body.get("aspect_ratio"))
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
+    let aspect_ratio =
+        if operation == GeminiCanvasMediaOperation::Video && !has_explicit_aspect_ratio {
+            "16:9".to_string()
+        } else {
+            aspect_ratio_from_request(req)
+        };
     if matches!(
         operation,
         GeminiCanvasMediaOperation::Image | GeminiCanvasMediaOperation::Video

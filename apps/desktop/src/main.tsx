@@ -8,6 +8,7 @@ import { createBrowserHost } from "./platform/browserHost";
 import type { GatewayUiTarget } from "./platform/types";
 import { ManagementSessionProvider } from "./session/ManagementSessionProvider";
 import { UiLocaleProvider } from "./i18n/UiLocaleProvider";
+import { AppToastViewport } from "./components/AppToast";
 import "./styles.css";
 
 declare const __GATEWAY_UI_TARGET__: GatewayUiTarget | undefined;
@@ -34,6 +35,7 @@ createRoot(rootElement).render(
       ) : (
         <App />
       )}
+      <AppToastViewport />
     </UiLocaleProvider>
   </React.StrictMode>,
 );

@@ -2188,6 +2188,18 @@ pub fn pure_http_required(payload: &ProviderAccountPayload) -> bool {
 }
 
 pub fn browser_runtime_state_object_key(payload: &ProviderAccountPayload) -> Option<String> {
+    let primary_runtime_state_object_key = payload
+        .runtime_state_object_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string);
+    if primary_runtime_state_object_key
+        .as_deref()
+        .is_some_and(runtime_state_object_key_looks_like_storage_state_file)
+    {
+        return primary_runtime_state_object_key;
+    }
     payload
         .extra_body
         .as_ref()
@@ -2202,14 +2214,46 @@ pub fn browser_runtime_state_object_key(payload: &ProviderAccountPayload) -> Opt
                 ],
             )
         })
-        .or_else(|| {
-            payload
-                .runtime_state_object_key
-                .as_deref()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(ToString::to_string)
-        })
+        .or(primary_runtime_state_object_key)
+}
+
+pub fn browser_profile_runtime_state_object_key(
+    payload: &ProviderAccountPayload,
+) -> Option<String> {
+    payload.extra_body.as_ref().and_then(|extra| {
+        read_optional_hash_string(
+            extra,
+            &[
+                "browserRuntimeStateObjectKey",
+                "browserProfileRuntimeStateObjectKey",
+                "browser_runtime_state_object_key",
+                "browser_profile_runtime_state_object_key",
+            ],
+        )
+    })
+}
+
+pub fn browser_runtime_state_object_key_for_browser_operation(
+    payload: &ProviderAccountPayload,
+    operation: &str,
+) -> Option<String> {
+    let normalized_operation = operation.trim().to_ascii_lowercase();
+    if matches!(
+        normalized_operation.as_str(),
+        "image" | "music" | "video" | "bootstrap_program"
+    ) {
+        return browser_profile_runtime_state_object_key(payload)
+            .or_else(|| browser_runtime_state_object_key(payload));
+    }
+    browser_runtime_state_object_key(payload)
+}
+
+fn runtime_state_object_key_looks_like_storage_state_file(value: &str) -> bool {
+    value
+        .trim()
+        .replace('\\', "/")
+        .to_ascii_lowercase()
+        .ends_with("/storage-state.json")
 }
 
 pub fn browser_cdp_url(payload: &ProviderAccountPayload) -> Option<String> {
@@ -2677,52 +2721,6 @@ pub fn storage_state_to_pure_http_session(
                 && cookie_domain.eq_ignore_ascii_case(&base_host),
             original_index: index,
         });
-    }
-
-    let is_gemini_google_target = target_host.contains("gemini.google.com")
-        || base_host.contains("gemini.google.com")
-        || target_host.contains("google.com")
-        || base_host.contains("google.com");
-    if is_gemini_google_target {
-        for (index, cookie) in cookies.iter().enumerate() {
-            let Some(name) = cookie.get("name").and_then(Value::as_str).map(str::trim) else {
-                continue;
-            };
-            let Some(value) = cookie.get("value").and_then(Value::as_str).map(str::trim) else {
-                continue;
-            };
-            if name.is_empty() || value.is_empty() {
-                continue;
-            }
-            let cookie_domain = cookie
-                .get("domain")
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .unwrap_or_default();
-            if !cookie_domain.contains("google.") && !cookie_domain.contains("gemini.google.com") {
-                continue;
-            }
-            if matched_cookies
-                .iter()
-                .any(|entry| entry.name == name && entry.value == value)
-            {
-                continue;
-            }
-            let path = cookie
-                .get("path")
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("/")
-                .to_string();
-            matched_cookies.push(MatchedCookie {
-                name: name.to_string(),
-                value: value.to_string(),
-                path,
-                exact_host: false,
-                original_index: index,
-            });
-        }
     }
 
     if matched_cookies.is_empty() && is_fixture_runtime_host(&target_host, &base_host) {
@@ -4705,7 +4703,7 @@ mod tests {
     }
 
     #[test]
-    fn browser_runtime_state_object_key_prefers_explicit_browser_override() {
+    fn browser_runtime_state_object_key_prefers_storage_state_primary_over_browser_override() {
         let mut payload = pure_http_mode_payload(None);
         payload.runtime_state_object_key =
             Some("credential-runtime/gemini-canvas/storage-state.json".to_string());
@@ -4716,7 +4714,70 @@ mod tests {
 
         assert_eq!(
             browser_runtime_state_object_key(&payload).as_deref(),
+            Some("credential-runtime/gemini-canvas/storage-state.json")
+        );
+    }
+
+    #[test]
+    fn browser_runtime_state_object_key_prefers_explicit_browser_override_for_profile_dir() {
+        let mut payload = pure_http_mode_payload(None);
+        payload.runtime_state_object_key =
+            Some("credential-runtime/gemini-canvas/browser/profile".to_string());
+        payload.extra_body = Some(HashMap::from([(
+            "browserRuntimeStateObjectKey".to_string(),
+            Value::String("credential-runtime/gemini-canvas/browser/profile-override".to_string()),
+        )]));
+
+        assert_eq!(
+            browser_runtime_state_object_key(&payload).as_deref(),
+            Some("credential-runtime/gemini-canvas/browser/profile-override")
+        );
+    }
+
+    #[test]
+    fn browser_runtime_state_object_key_prefers_explicit_browser_override_when_primary_missing() {
+        let mut payload = pure_http_mode_payload(None);
+        payload.runtime_state_object_key = None;
+        payload.extra_body = Some(HashMap::from([(
+            "browserRuntimeStateObjectKey".to_string(),
+            Value::String("credential-runtime/gemini-canvas/browser/profile".to_string()),
+        )]));
+
+        assert_eq!(
+            browser_runtime_state_object_key(&payload).as_deref(),
             Some("credential-runtime/gemini-canvas/browser/profile")
+        );
+    }
+
+    #[test]
+    fn browser_runtime_state_object_key_for_browser_operation_prefers_profile_override_for_image() {
+        let mut payload = pure_http_mode_payload(None);
+        payload.runtime_state_object_key =
+            Some("credential-runtime/gemini-canvas/storage-state.json".to_string());
+        payload.extra_body = Some(HashMap::from([(
+            "browserRuntimeStateObjectKey".to_string(),
+            Value::String("credential-runtime/gemini-canvas/browser/profile".to_string()),
+        )]));
+
+        assert_eq!(
+            browser_runtime_state_object_key_for_browser_operation(&payload, "image").as_deref(),
+            Some("credential-runtime/gemini-canvas/browser/profile")
+        );
+    }
+
+    #[test]
+    fn browser_runtime_state_object_key_for_browser_operation_keeps_storage_state_for_text() {
+        let mut payload = pure_http_mode_payload(None);
+        payload.runtime_state_object_key =
+            Some("credential-runtime/gemini-canvas/storage-state.json".to_string());
+        payload.extra_body = Some(HashMap::from([(
+            "browserRuntimeStateObjectKey".to_string(),
+            Value::String("credential-runtime/gemini-canvas/browser/profile".to_string()),
+        )]));
+
+        assert_eq!(
+            browser_runtime_state_object_key_for_browser_operation(&payload, "text").as_deref(),
+            Some("credential-runtime/gemini-canvas/storage-state.json")
         );
     }
 
@@ -7778,6 +7839,55 @@ mod tests {
             .contains("__Secure-1PAPISID=sapisid-123"));
         assert!(session.cookie_header.contains("NID=nid-123"));
         assert!(!session.cookie_header.contains("not-for-google"));
+    }
+
+    #[test]
+    fn storage_state_to_pure_http_session_excludes_accounts_only_cookies_for_gemini_host() {
+        let storage_state = json!({
+            "cookies": [
+                {
+                    "name": "SAPISID",
+                    "value": "sapisid-123",
+                    "domain": ".google.com",
+                    "path": "/"
+                },
+                {
+                    "name": "__Secure-1PSIDTS",
+                    "value": "psidts-123",
+                    "domain": ".google.com",
+                    "path": "/"
+                },
+                {
+                    "name": "LSID",
+                    "value": "accounts-lsid-123",
+                    "domain": "accounts.google.com",
+                    "path": "/"
+                },
+                {
+                    "name": "__Host-1PLSID",
+                    "value": "accounts-host-plsid-123",
+                    "domain": "accounts.google.com",
+                    "path": "/"
+                }
+            ]
+        });
+
+        let session = storage_state_to_pure_http_session(
+            &storage_state,
+            "https://gemini.google.com/share/fe24c455a570",
+            "https://gemini.google.com",
+            "0",
+        )
+        .unwrap();
+
+        assert!(session.cookie_header.contains("SAPISID=sapisid-123"));
+        assert!(session
+            .cookie_header
+            .contains("__Secure-1PSIDTS=psidts-123"));
+        assert!(!session.cookie_header.contains("LSID=accounts-lsid-123"));
+        assert!(!session
+            .cookie_header
+            .contains("__Host-1PLSID=accounts-host-plsid-123"));
     }
 
     #[test]

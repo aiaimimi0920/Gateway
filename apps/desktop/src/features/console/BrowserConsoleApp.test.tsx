@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsoleApi } from "../../api/console";
 import { GatewayApiError } from "../../api/errors";
+import { AppToastViewport } from "../../components/AppToast";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
 import { HostProvider } from "../../platform/HostProvider";
 import { createBrowserHost } from "../../platform/browserHost";
@@ -76,6 +77,7 @@ function renderWithProviders(
       <HostProvider adapter={host}>
         <ManagementSessionContext.Provider value={sessionValue(nextOverrides)}>
           {children}
+          <AppToastViewport />
         </ManagementSessionContext.Provider>
       </HostProvider>
     </UiLocaleProvider>
@@ -107,6 +109,46 @@ function createConsoleApi(): ConsoleApi {
       },
     }),
     getAccountGroupSummary: vi.fn().mockRejectedValue(new Error("summary unavailable")),
+    getCredentialPoolAutomation: vi.fn().mockRejectedValue(new Error("automation unavailable")),
+    runCredentialPoolAutomation: vi.fn(),
+    getCredentialRefill: vi.fn().mockRejectedValue(new Error("refill unavailable")),
+    requestCredentialRefill: vi.fn(),
+    createGeminiAuthSession: vi.fn().mockResolvedValue({
+      session: {
+        id: "gemini-auth-session-1",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "waiting_user",
+        message: "Complete Gemini login in the opened browser window.",
+        createdAt: "2026-07-30T09:00:00Z",
+        updatedAt: "2026-07-30T09:00:00Z",
+        generatedDrafts: [],
+      },
+    }),
+    completeGeminiAuthSession: vi.fn().mockResolvedValue({
+      session: {
+        id: "gemini-auth-session-1",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "waiting_user",
+        message: "Manual Gemini import requested. Finishing capture.",
+        createdAt: "2026-07-30T09:00:00Z",
+        updatedAt: "2026-07-30T09:00:01Z",
+        generatedDrafts: [],
+      },
+    }),
+    getGeminiAuthSession: vi.fn().mockResolvedValue({
+      session: {
+        id: "gemini-auth-session-1",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "waiting_user",
+        message: "Complete Gemini login in the opened browser window.",
+        createdAt: "2026-07-30T09:00:00Z",
+        updatedAt: "2026-07-30T09:00:00Z",
+        generatedDrafts: [],
+      },
+    }),
     commitRouteConfig: vi.fn().mockResolvedValue({
       routeConfig: {
         revision: { id: "r2-beadfeedcafe", sequence: 2, message: "save update" },
@@ -200,7 +242,7 @@ function createConsoleApi(): ConsoleApi {
 
 async function waitForConsoleReady() {
   await waitFor(() =>
-    expect(screen.getByRole("heading", { name: /Gateway 网页控制台/i })).toBeInTheDocument(),
+    expect(screen.getByRole("navigation", { name: /Gateway console navigation/i })).toBeInTheDocument(),
   );
 }
 
@@ -214,55 +256,6 @@ function workspaceButton(name: RegExp) {
 
 async function openWorkspace(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
   await user.click(workspaceButton(name));
-}
-
-async function mockCredentialRoute(
-  consoleApi: ConsoleApi,
-  enabled = true,
-  includeSecondAccount = false,
-) {
-  const initialResponse = await consoleApi.getRouteConfig("management-secret");
-  vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
-    routeConfig: {
-      ...initialResponse.routeConfig,
-      document: {
-        providers: [
-          {
-            id: "managed-provider",
-            label: "Managed OpenAI",
-            credentials: [
-              {
-                id: "acc-prod-1",
-                account_name: "生产账号 A",
-                enabled,
-                supported_models: ["gpt-5.4"],
-              },
-              ...(includeSecondAccount
-                ? [
-                    {
-                      id: "acc-prod-2",
-                      account_name: "生产账号 B",
-                      enabled,
-                      supported_models: ["gpt-5.4-mini"],
-                    },
-                  ]
-                : []),
-            ],
-          },
-        ],
-        model_routes: [],
-        aliases: {},
-        account_groups: [],
-      },
-      secrets: [
-        {
-          path: "/providers/0/credentials/0/api_key",
-          configured: true,
-          preview: "sk-***",
-        },
-      ],
-    },
-  });
 }
 
 describe("BrowserConsoleApp", () => {
@@ -337,13 +330,31 @@ describe("BrowserConsoleApp", () => {
     expect(workspaceButton(/总览/i)).toBeInTheDocument();
     expect(workspaceButton(/路由编辑/i)).toBeInTheDocument();
     expect(workspaceButton(/账号台账/i)).toBeInTheDocument();
-    expect(workspaceButton(/分组策略/i)).toBeInTheDocument();
+    expect(workspaceButton(/凭证分组/i)).toBeInTheDocument();
     expect(workspaceButton(/敏感信息/i)).toBeInTheDocument();
     expect(workspaceButton(/修订历史/i)).toBeInTheDocument();
     expect(workspaceButton(/高级 JSON/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Provider 概览/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Alias 概览/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /模型路由概览/i })).toBeInTheDocument();
+  });
+
+  it("removes the browser-console hero and the accounts ledger overview shell chrome", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    expect(screen.queryByRole("heading", { name: /Gateway 网页控制台/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/直接通过 Gateway 本体托管的浏览器控制台/i)).not.toBeInTheDocument();
+
+    await openWorkspace(user, /账号台账/i);
+    expect(screen.queryByRole("heading", { name: /账号台账/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/统一查看 Gateway 当前可路由账号与启用状态/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("账号总数")).not.toBeInTheDocument();
+    expect(screen.queryByRole("searchbox", { name: /搜索账号/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^当前显示$/)).not.toBeInTheDocument();
   });
 
   it("switches browser console workspaces without losing the current route draft", async () => {
@@ -1263,16 +1274,18 @@ describe("BrowserConsoleApp", () => {
     await openWorkspace(user, /路由编辑/i);
 
     await user.click(screen.getByRole("button", { name: /添加 Provider 行/i }));
-    await user.type(screen.getByLabelText(/Provider ID 2/i), "backup-provider");
-    await user.type(screen.getByLabelText(/Provider 预设 2/i), "openai");
-    await user.type(
-      screen.getByLabelText(/Provider 基础 URL 2/i),
-      "https://api.backup.example.com",
-    );
-    await user.type(
-      screen.getByLabelText(/Provider 支持模型 2/i),
-      "gpt-5.4{enter}gpt-5.4-mini",
-    );
+    fireEvent.change(screen.getByLabelText(/Provider ID 2/i), {
+      target: { value: "backup-provider" },
+    });
+    fireEvent.change(screen.getByLabelText(/Provider 预设 2/i), {
+      target: { value: "openai" },
+    });
+    fireEvent.change(screen.getByLabelText(/Provider 基础 URL 2/i), {
+      target: { value: "https://api.backup.example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Provider 支持模型 2/i), {
+      target: { value: "gpt-5.4\ngpt-5.4-mini" },
+    });
 
     await openWorkspace(user, /高级 JSON/i);
     const editor = screen.getByRole("textbox", { name: /路由配置 JSON/i });
@@ -1318,7 +1331,7 @@ describe("BrowserConsoleApp", () => {
     expect((editor as HTMLTextAreaElement).value).toContain('"vendor_name": "OpenAI"');
   });
 
-  it("renders route-config accounts grouped by provider and shows group assignments in the accounts workspace", async () => {
+  it("renders non-codex providers in the same compact tree ledger layout", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
 
@@ -1372,17 +1385,1254 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /账号台账/i);
 
-    expect(screen.getAllByRole("heading", { name: /账号台账/i }).length).toBeGreaterThan(0);
-    expect(screen.getByText("Managed OpenAI")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Managed OpenAI · 2 个账号/i }).closest("details"),
-    ).not.toBeNull();
-    expect(screen.getByText("生产账号 A")).toBeInTheDocument();
-    expect(screen.getByText("生产账号 B")).toBeInTheDocument();
-    expect(screen.getAllByText("VIP 分组").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("heading", { name: /账号台账/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/统一查看 Gateway 当前可路由账号与启用状态/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("账号总数")).not.toBeInTheDocument();
+    expect(screen.queryByRole("searchbox", { name: /搜索账号/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/凭证分组/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/服务商/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: /账号台账表/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Managed OpenAI$/i })).toBeInTheDocument();
+    expect(screen.queryByText("生产账号 A")).not.toBeInTheDocument();
+    expect(screen.queryByText("生产账号 B")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Managed OpenAI$/i }));
+
+    const providerPanel = screen.getByRole("region", { name: /Managed OpenAI 账号/i });
+    const providerTable = within(providerPanel).getByRole("table", {
+      name: /Managed OpenAI 账号表/i,
+    });
+    const firstRow = within(providerPanel).getByText("acc-prod-1").closest(".nt-provider-account-row");
+    const secondRow = within(providerPanel).getByText("acc-prod-2").closest(".nt-provider-account-row");
+
+    expect(firstRow).not.toBeNull();
+    expect(secondRow).not.toBeNull();
+    expect(within(providerTable).getByRole("columnheader", { name: /账号 ID|Account ID/i })).toBeInTheDocument();
+    expect(within(providerTable).getByRole("columnheader", { name: /分组|Group/i })).toBeInTheDocument();
+    expect(within(providerTable).getByRole("columnheader", { name: /容量|Capacity/i })).toBeInTheDocument();
+    expect(within(providerTable).getByRole("columnheader", { name: /调度|Dispatch/i })).toBeInTheDocument();
+    expect(within(firstRow as HTMLElement).getByText("VIP 分组")).toBeInTheDocument();
+    expect(within(firstRow as HTMLElement).getByRole("switch", { name: /调度 acc-prod-1|Dispatch acc-prod-1/i })).toHaveAttribute("aria-checked", "true");
+    expect(within(secondRow as HTMLElement).getByText(/未分组|Ungrouped/i)).toBeInTheDocument();
+    expect(within(secondRow as HTMLElement).getByRole("switch", { name: /调度 acc-prod-2|Dispatch acc-prod-2/i })).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByRole("button", { name: /测试账号 生产账号 A|Test account 生产账号 A/i })).not.toBeInTheDocument();
+    expect(within(firstRow as HTMLElement).getByRole("button", { name: /删除账号 生产账号 A|Delete account 生产账号 A/i })).toBeInTheDocument();
   });
 
-  it("filters the accounts workspace by query, group membership, and enabled state", async () => {
+  it("creates a custom compatible provider, first account, secret patch, and aggregate model routes", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
+      session: { secretAccessGranted: true },
+      secretGrant: {
+        grant: "test-secret-grant",
+        expiresAt: "2099-01-01T00:00:00Z",
+      },
+    });
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /添加服务商/i }));
+    const dialog = screen.getByRole("dialog", { name: /添加服务商与账号/i });
+    await user.click(within(dialog).getByRole("button", { name: /自定义 OpenAI-compatible/i }));
+    await user.clear(within(dialog).getByLabelText("Provider ID"));
+    await user.type(within(dialog).getByLabelText("Provider ID"), "partner-openai");
+    await user.clear(within(dialog).getByLabelText("显示名称"));
+    await user.type(within(dialog).getByLabelText("显示名称"), "Partner OpenAI");
+    await user.clear(within(dialog).getByLabelText("服务商标识"));
+    await user.type(within(dialog).getByLabelText("服务商标识"), "partner");
+    await user.clear(within(dialog).getByLabelText("服务商名称"));
+    await user.type(within(dialog).getByLabelText("服务商名称"), "Partner");
+    await user.type(within(dialog).getByLabelText("Base URL"), "https://partner.example.test/v1");
+    await user.type(within(dialog).getByLabelText("支持模型与聚合路由"), "shared-model\npartner-model");
+    await user.clear(within(dialog).getByLabelText("首个账号 ID"));
+    await user.type(within(dialog).getByLabelText("首个账号 ID"), "partner-account-1");
+    await user.type(within(dialog).getByLabelText("API Key"), "test-provider-api-key");
+    await user.click(within(dialog).getByRole("button", { name: /创建服务商与首个账号/i }));
+
+    expect(await screen.findByText(/服务商 Partner OpenAI、首个账号和 2 条模型聚合路由已写入草稿/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /保存路由配置/i }));
+
+    await waitFor(() => expect(consoleApi.commitRouteConfig).toHaveBeenCalledTimes(1));
+    const commitRequest = vi.mocked(consoleApi.commitRouteConfig).mock.calls[0]?.[1];
+    expect(commitRequest?.document.providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "partner-openai",
+          adapter: "openai_compatible",
+          protocol_profile: "openai_compatible_generic",
+          credentials: [
+            expect.objectContaining({ id: "partner-account-1", enabled: true }),
+          ],
+        }),
+      ]),
+    );
+    expect(commitRequest?.document.model_routes).toEqual(
+      expect.arrayContaining([
+        { pattern: "shared-model", provider_ids: ["partner-openai"] },
+        { pattern: "partner-model", provider_ids: ["partner-openai"] },
+      ]),
+    );
+    expect(commitRequest?.secretPatches).toEqual(
+      expect.arrayContaining([
+        {
+          path: "/providers/1/credentials/0/api_key",
+          operation: "replace",
+          value: "test-provider-api-key",
+        },
+      ]),
+    );
+  }, 15_000);
+
+  it("groups internal Gemini providers into three operator-visible channels", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        revision: { id: "r1-gemini-channels", sequence: 1, message: "Gemini channels" },
+        source: "redis",
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: {
+          providers: [
+            {
+              id: "gemini-web-secondary",
+              label: "Gemini Web /u/1/",
+              preset: "gemini-web-chat-modular",
+              credentials: [{ id: "gemini-web-account", account_name: "Gemini Web Account" }],
+            },
+            {
+              id: "gemini-business",
+              preset: "gemini-business",
+              credentials: [{ id: "gemini-business-account", account_name: "Business Account" }],
+            },
+            {
+              id: "gemini-canvas",
+              preset: "gemini-canvas-program-relay",
+              credentials: [{ id: "gemini-canvas-account", account_name: "Canvas Account" }],
+            },
+            {
+              id: "gemini-canvas-chat",
+              preset: "gemini-canvas-chat",
+              credentials: [{ id: "gemini-chat-account", account_name: "Gemini Chat Account" }],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        secrets: [],
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+
+    expect(screen.getByRole("button", { name: /^Gemini$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Gemini Business$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Gemini Canvas$/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Gemini Web \/u\/1\/$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^gemini-canvas-chat$/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Gemini$/ }));
+    const geminiPanel = screen.getByRole("region", { name: /^Gemini 账号$/ });
+    expect(within(geminiPanel).getByText("gemini-web-account")).toBeInTheDocument();
+    expect(within(geminiPanel).getByText("gemini-chat-account")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Gemini Canvas$/ }));
+    const canvasPanel = screen.getByRole("region", { name: /^Gemini Canvas 账号$/ });
+    expect(within(canvasPanel).getByText("gemini-canvas-account")).toBeInTheDocument();
+  });
+
+  it("edits provider-level pool policy when a provider has no identity subcategories", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        revision: { id: "r1-deadbeefcafe", sequence: 1, message: "initial import" },
+        source: "redis",
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: {
+          providers: [
+            {
+              id: "managed-provider",
+              label: "Managed OpenAI",
+              preset: "openai",
+              base_url: "https://api.example.com/v1",
+              credentials: [
+                {
+                  id: "acc-prod-1",
+                  account_name: "生产账号 A",
+                  enabled: true,
+                },
+              ],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        secrets: [{ path: "/providers/0/api_key", configured: true, preview: "sk-***" }],
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+
+    const providerRow = screen
+      .getByRole("button", { name: /^Managed OpenAI$/i })
+      .closest(".nt-provider-subtab-row");
+    expect(providerRow).not.toBeNull();
+    expect(within(providerRow as HTMLElement).getByText(/^号池$/)).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText(/^1\/$/)).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText(/^补号$/)).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText(/^剔号$/)).toBeInTheDocument();
+
+    const targetInput = within(providerRow as HTMLElement).getByRole("spinbutton", {
+      name: /Managed OpenAI 目标号池容量|Managed OpenAI target pool size/i,
+    });
+    const autoRefillSwitch = within(providerRow as HTMLElement).getByRole("switch", {
+      name: /Managed OpenAI 自动补号|Managed OpenAI auto refill/i,
+    });
+    const autoPruneSwitch = within(providerRow as HTMLElement).getByRole("switch", {
+      name: /Managed OpenAI 自动剔号|Managed OpenAI auto prune/i,
+    });
+
+    expect(targetInput).toHaveValue(30);
+    expect(autoRefillSwitch).toHaveAttribute("aria-checked", "false");
+    expect(autoPruneSwitch).toHaveAttribute("aria-checked", "false");
+
+    await user.clear(targetInput);
+    await user.type(targetInput, "80");
+    await user.click(autoRefillSwitch);
+    await user.click(autoPruneSwitch);
+
+    expect(targetInput).toHaveValue(80);
+    expect(autoRefillSwitch).toHaveAttribute("aria-checked", "true");
+    expect(autoPruneSwitch).toHaveAttribute("aria-checked", "true");
+
+    await openWorkspace(user, /高级 JSON/i);
+    const editor = screen.getByRole("textbox", { name: /路由配置 JSON/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"pool_target_size": 80');
+    expect((editor as HTMLTextAreaElement).value).toContain('"auto_refill_enabled": true');
+    expect((editor as HTMLTextAreaElement).value).toContain('"auto_prune_enabled": true');
+  });
+
+  it("uses the refill queue without a direct driver and still blocks automatic pruning", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [{ id: "managed-provider", label: "Managed OpenAI", credentials: [] }],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+      },
+    });
+    vi.mocked(consoleApi.getCredentialPoolAutomation).mockResolvedValue({
+      automation: {
+        enabled: true,
+        intervalSeconds: 60,
+        drivers: [],
+        revisionId: "r1-deadbeefcafe",
+        providers: [
+          {
+            providerId: "managed-provider",
+            providerLabel: "Managed OpenAI",
+            targetSize: 1,
+            credentialCount: 0,
+            activeCredentialCount: 0,
+            autoRefillEnabled: false,
+            autoPruneEnabled: false,
+            driverId: null,
+            driverMode: null,
+            driverConfigured: false,
+            state: "not_configured",
+            lastRunAt: null,
+            nextRunAt: null,
+            lastAction: null,
+            createdCount: 0,
+            prunedCount: 0,
+            message: null,
+            revisionId: "r1-deadbeefcafe",
+          },
+        ],
+      },
+    });
+    vi.mocked(consoleApi.getCredentialRefill).mockResolvedValue({
+      refill: {
+        enabled: true,
+        streamKey: "gw:credential-pool:refill:requests",
+        notificationIntervalSeconds: 30,
+        defaultLeaseSeconds: 300,
+        maxLeaseSeconds: 3_600,
+        revisionId: "r1-deadbeefcafe",
+        providers: [
+          {
+            providerId: "managed-provider",
+            providerLabel: "Managed OpenAI",
+            targetSize: 1,
+            credentialCount: 0,
+            activeCredentialCount: 0,
+            deficit: 1,
+            needsRefill: true,
+            autoRefillEnabled: false,
+            directDriverConfigured: false,
+            notificationEnabled: false,
+            inquiryEnabled: true,
+            userRequestEnabled: true,
+            outstandingTaskId: null,
+            outstandingTaskState: null,
+            revisionId: "r1-deadbeefcafe",
+          },
+        ],
+        recentTasks: [],
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    const refillSwitch = screen.getByRole("switch", {
+      name: /Managed OpenAI 自动补号|Managed OpenAI auto refill/i,
+    });
+    const pruneSwitch = screen.getByRole("switch", {
+      name: /Managed OpenAI 自动剔号|Managed OpenAI auto prune/i,
+    });
+    expect(screen.getByText(/补号队列已就绪|Refill queue ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/通知型关闭|Notify off/i)).toBeInTheDocument();
+    expect(screen.getByText(/询问型开启|Inquiry on/i)).toBeInTheDocument();
+    expect(screen.getByText(/主动型开启|User request on/i)).toBeInTheDocument();
+
+    await user.click(refillSwitch);
+    await user.click(pruneSwitch);
+
+    expect(refillSwitch).toHaveAttribute("aria-checked", "true");
+    expect(pruneSwitch).toHaveAttribute("aria-checked", "false");
+    expect(
+      screen.getByRole("status", { name: /尚未配置受信任的自动剔号驱动器/i }),
+    ).toBeInTheDocument();
+
+    await openWorkspace(user, /高级 JSON/i);
+    const editor = screen.getByRole("textbox", { name: /路由配置 JSON/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"auto_refill_enabled": true');
+    expect((editor as HTMLTextAreaElement).value).not.toContain('"auto_prune_enabled": true');
+  });
+
+  it("publishes a user-requested refill task and reports outstanding-task deduplication", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "managed-provider",
+              label: "Managed OpenAI",
+              credentials: [{ id: "managed-account", account_name: "Managed account" }],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+      },
+    });
+    vi.mocked(consoleApi.getCredentialRefill).mockResolvedValue({
+      refill: {
+        enabled: true,
+        streamKey: "gw:credential-pool:refill:requests",
+        notificationIntervalSeconds: 30,
+        defaultLeaseSeconds: 300,
+        maxLeaseSeconds: 3_600,
+        revisionId: "r1-deadbeefcafe",
+        providers: [
+          {
+            providerId: "managed-provider",
+            providerLabel: "Managed OpenAI",
+            targetSize: 2,
+            credentialCount: 1,
+            activeCredentialCount: 1,
+            deficit: 1,
+            needsRefill: true,
+            autoRefillEnabled: false,
+            directDriverConfigured: false,
+            notificationEnabled: false,
+            inquiryEnabled: true,
+            userRequestEnabled: true,
+            outstandingTaskId: null,
+            outstandingTaskState: null,
+            revisionId: "r1-deadbeefcafe",
+          },
+        ],
+        recentTasks: [],
+      },
+    });
+    const task = {
+      id: "task-user-1",
+      providerId: "managed-provider",
+      providerLabel: "Managed OpenAI",
+      trigger: "user_requested" as const,
+      state: "pending" as const,
+      requestedCount: 1,
+      targetSize: 2,
+      activeCredentialCount: 1,
+      routeRevision: "r1-deadbeefcafe",
+      createdAt: "2026-08-14T08:00:00Z",
+      updatedAt: "2026-08-14T08:00:00Z",
+      workerId: null,
+      leaseUntil: null,
+      attempt: 0,
+      deliveryMode: null,
+      createdCount: 0,
+      message: null,
+      revisionId: null,
+    };
+    vi.mocked(consoleApi.requestCredentialRefill)
+      .mockResolvedValueOnce({ task, created: true })
+      .mockResolvedValueOnce({ task, created: false });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    const requestButton = screen.getByRole("button", { name: /主动补号|Request refill/i });
+    await user.click(requestButton);
+
+    await waitFor(() =>
+      expect(consoleApi.requestCredentialRefill).toHaveBeenCalledWith(
+        "management-secret",
+        "managed-provider",
+      ),
+    );
+    expect(
+      screen.getByRole("status", { name: /主动补号任务已投递|user-requested refill task was published/i }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /主动补号|Request refill/i }));
+    await waitFor(() => expect(consoleApi.requestCredentialRefill).toHaveBeenCalledTimes(2));
+    expect(
+      screen.getByRole("status", { name: /已有未完成的补号任务|already has an outstanding refill task/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("runs configured provider automation through the management API", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "managed-provider",
+              label: "Managed OpenAI",
+              auto_refill_enabled: true,
+              credentials: [{ id: "managed-account", account_name: "Managed account" }],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+      },
+    });
+    const automationProvider = {
+      providerId: "managed-provider",
+      providerLabel: "Managed OpenAI",
+      targetSize: 2,
+      credentialCount: 1,
+      activeCredentialCount: 1,
+      autoRefillEnabled: true,
+      autoPruneEnabled: false,
+      driverId: "managed-refill",
+      driverMode: "http" as const,
+      driverConfigured: true,
+      state: "idle" as const,
+      lastRunAt: null,
+      nextRunAt: "2026-08-14T08:01:00Z",
+      lastAction: null,
+      createdCount: 0,
+      prunedCount: 0,
+      message: null,
+      revisionId: "r1-deadbeefcafe",
+    };
+    vi.mocked(consoleApi.getCredentialPoolAutomation).mockResolvedValue({
+      automation: {
+        enabled: true,
+        intervalSeconds: 60,
+        drivers: [{ id: "managed-refill", mode: "http", providerIds: ["managed-provider"] }],
+        providers: [automationProvider],
+        revisionId: "r1-deadbeefcafe",
+      },
+    });
+    vi.mocked(consoleApi.runCredentialPoolAutomation).mockResolvedValue({
+      provider: {
+        ...automationProvider,
+        state: "succeeded",
+        lastRunAt: "2026-08-14T08:00:00Z",
+        createdCount: 1,
+        message: "Pool reconciled.",
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /运行直连|Run direct/i }));
+
+    await waitFor(() =>
+      expect(consoleApi.runCredentialPoolAutomation).toHaveBeenCalledWith(
+        "management-secret",
+        "managed-provider",
+      ),
+    );
+    expect(screen.getByRole("status", { name: /Pool reconciled/i })).toBeInTheDocument();
+  });
+
+  it("renders a collapsed codex provider row before expanding its identity subcategories", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              enabled: true,
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+
+    expect(screen.getByRole("button", { name: /^codex$/i })).toBeInTheDocument();
+    expect(screen.queryByText("Free")).not.toBeInTheDocument();
+    expect(screen.queryByText("Plus")).not.toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: /账号台账表/i })).not.toBeInTheDocument();
+  });
+
+  it("expands codex identity subcategories and shows logical labels on account rows", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              credentials: [
+                {
+                  id: "codex-free-1",
+                  account_name: "Codex Free 1",
+                  enabled: true,
+                  credential_identity_category_id: "free",
+                  preview_capacity: "3 / 4",
+                  preview_status: "正常",
+                  preview_usage_window_badges: ["32 req", "0", "A $0.00", "U $0.00"],
+                  preview_recent_use: "2 分钟前",
+                },
+              ],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [
+            {
+              id: "vip-users",
+              name: "VIP 用户",
+              billing_multiplier: 1,
+              provider_credential_ids: ["codex-free-1"],
+            },
+          ],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+
+    const providerRow = screen.getByRole("button", { name: /^codex$/i }).closest(".nt-provider-tree-item");
+    expect(providerRow).not.toBeNull();
+    expect(within(providerRow as HTMLElement).getByText("统计 1")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText(/容量 3\s*\/\s*4/)).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText("正常 1")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText("调度中 1")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText("32 req")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).queryByText(/最近 /)).not.toBeInTheDocument();
+    expect((providerRow as HTMLElement).querySelectorAll(".nt-chip").length).toBe(0);
+
+    expect(screen.getByText("Free")).toBeInTheDocument();
+    expect(screen.getByText("Plus")).toBeInTheDocument();
+    expect(screen.queryByText(/默认入口 codex::default/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/OpenAI\s*·\s*chatgpt\.com/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Free$/i }));
+
+    const freePanel = screen.getByRole("region", { name: /codex Free 账号/i });
+    const freeTable = within(freePanel).getByRole("table", { name: /codex Free 账号表/i });
+    const freeRow = within(freePanel).getByText("codex-free-1").closest(".nt-provider-account-row");
+    expect(freeRow).not.toBeNull();
+    expect(within(freeTable).getByRole("columnheader", { name: /账号 ID|Account ID/i })).toBeInTheDocument();
+    expect(within(freeTable).getByRole("columnheader", { name: /分组|Group/i })).toBeInTheDocument();
+    expect(within(freeTable).getByRole("columnheader", { name: /容量|Capacity/i })).toBeInTheDocument();
+    expect(within(freeTable).getByRole("columnheader", { name: /调度|Dispatch/i })).toBeInTheDocument();
+    expect(within(freeTable).getByRole("columnheader", { name: /用量窗口|Usage window/i })).toBeInTheDocument();
+    expect(within(freeTable).getByRole("columnheader", { name: /最近使用|Recent use/i })).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("Codex Free 1")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("逻辑分类")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("容量")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("状态")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("调度")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("用量窗口")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("最近使用")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("VIP 用户")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("3 / 4")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("正常")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("VIP 优先")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("32 req")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("0")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("A $0.00")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("U $0.00")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("2 分钟前")).toBeInTheDocument();
+    expect(
+      within(freeRow as HTMLElement).getByRole("switch", { name: /调度 codex-free-1|Dispatch codex-free-1/i }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("toggles codex dispatch to pause an explicit credential in the draft", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              credentials: [
+                {
+                  id: "codex-free-1",
+                  account_name: "Codex Free 1",
+                  enabled: true,
+                  credential_identity_category_id: "free",
+                },
+              ],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+
+    const providerRow = screen.getByRole("button", { name: /^codex$/i }).closest(".nt-provider-tree-item");
+    expect(providerRow).not.toBeNull();
+    expect(within(providerRow as HTMLElement).getByText("统计 1")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText(/容量 1\s*\/\s*1/)).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText("正常 1")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText("调度中 1")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText("0 req")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Free$/i }));
+
+    const freePanel = screen.getByRole("region", { name: /codex Free 账号/i });
+    const dispatchSwitch = within(freePanel).getByRole("switch", {
+      name: /调度 codex-free-1|Dispatch codex-free-1/i,
+    });
+
+    expect(dispatchSwitch).toHaveAttribute("aria-checked", "true");
+    await user.click(dispatchSwitch);
+    expect(dispatchSwitch).toHaveAttribute("aria-checked", "false");
+
+    const pausedRow = within(freePanel).getByText("codex-free-1").closest(".nt-provider-account-row");
+    expect(pausedRow).not.toBeNull();
+    expect(within(pausedRow as HTMLElement).getByText("暂停")).toBeInTheDocument();
+
+    await openWorkspace(user, /高级 JSON/i);
+    const editor = screen.getByRole("textbox", { name: /路由配置 JSON/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"id": "codex-free-1"');
+    expect((editor as HTMLTextAreaElement).value).toContain('"enabled": false');
+  });
+
+  it("opens the codex more menu and starts a connection test from the dialog", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              credentials: [
+                {
+                  id: "codex-free-1",
+                  account_name: "Codex Free 1",
+                  enabled: true,
+                  credential_identity_category_id: "free",
+                },
+              ],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
+      session: { secretAccessGranted: true },
+      secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
+    });
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+
+    const providerRow = screen.getByRole("button", { name: /^codex$/i }).closest(".nt-provider-tree-item");
+    expect(providerRow).not.toBeNull();
+    expect(within(providerRow as HTMLElement).getByText("统计 1")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText(/容量 1\s*\/\s*1/)).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText("正常 1")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText("调度中 1")).toBeInTheDocument();
+    expect(within(providerRow as HTMLElement).getByText("0 req")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Free$/i }));
+
+    const freePanel = screen.getByRole("region", { name: /codex Free 账号/i });
+    const moreButton = within(freePanel).getByRole("button", {
+      name: /更多操作 codex-free-1|More actions codex-free-1/i,
+    });
+    await user.click(moreButton);
+
+    expect(screen.getByRole("menuitem", { name: /测试连接|Test connection/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /查看统计|View stats/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /定时测试|Scheduled tests/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /复制账号|Duplicate account/i })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menuitem", { name: /测试连接|Test connection/i })).not.toBeInTheDocument();
+    expect(moreButton).toHaveFocus();
+
+    await user.click(moreButton);
+    await user.click(within(freePanel).getByText("codex-free-1"));
+    expect(screen.queryByRole("menuitem", { name: /测试连接|Test connection/i })).not.toBeInTheDocument();
+
+    await user.click(moreButton);
+    await user.click(screen.getByRole("menuitem", { name: /测试连接|Test connection/i }));
+
+    const probeDialog = screen.getByRole("dialog", { name: /测试账号连接|Test account connection/i });
+    expect(within(probeDialog).getByText("Codex Free 1")).toBeInTheDocument();
+    await user.click(within(probeDialog).getByRole("button", { name: /开始测试|Start test/i }));
+
+    await waitFor(() =>
+      expect(consoleApi.probeCredential).toHaveBeenCalledWith(
+        "management-secret",
+        "grant-1",
+        "codex-free-1",
+      ),
+    );
+    expect(await within(probeDialog).findByText(/Credential connectivity probe passed\./i)).toBeInTheDocument();
+  });
+
+  it("shows a sub2api-style statistics workspace from the codex more menu", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              credentials: [
+                {
+                  id: "codex-free-1",
+                  account_name: "Codex Free 1",
+                  enabled: true,
+                  credential_identity_category_id: "free",
+                  preview_capacity: "3 / 4",
+                  preview_recent_use: "2 分钟前",
+                  preview_usage_window_badges: ["32 req", "0", "A $0.00", "U $0.00"],
+                },
+              ],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+
+    const providerRow = screen.getByRole("button", { name: /^codex$/i }).closest(".nt-provider-tree-item");
+    expect(providerRow).not.toBeNull();
+    expect(within(providerRow as HTMLElement).queryByText(/最近 /)).not.toBeInTheDocument();
+    expect((providerRow as HTMLElement).querySelectorAll(".nt-chip").length).toBe(0);
+
+    const plusSummaryRow = screen.getByRole("button", { name: /^Plus$/i }).closest(".nt-provider-tree-item");
+    expect(plusSummaryRow).not.toBeNull();
+    expect(within(plusSummaryRow as HTMLElement).queryByText(/最近 /)).not.toBeInTheDocument();
+    expect((plusSummaryRow as HTMLElement).querySelectorAll(".nt-chip").length).toBe(0);
+    await user.click(screen.getByRole("button", { name: /^Free$/i }));
+
+    const freePanel = screen.getByRole("region", { name: /codex Free 账号/i });
+    await user.click(
+      within(freePanel).getByRole("button", {
+        name: /更多操作 codex-free-1|More actions codex-free-1/i,
+      }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: /查看统计|View stats/i }));
+
+    const statsDialog = screen.getByRole("dialog", { name: /查看账号统计|View account stats/i });
+    expect(within(statsDialog).getByText("Codex Free 1")).toBeInTheDocument();
+    expect(within(statsDialog).getByText(/近30天使用统计/i)).toBeInTheDocument();
+    expect(within(statsDialog).getByText("30天总费用")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("30天总请求")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("日均费用")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("日均请求")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("今日概览")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("最高费用日")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("最高请求日")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("累计 Token")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("性能")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("最近统计")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("30天费用与请求趋势")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("模型分布")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("入站端点")).toBeInTheDocument();
+    expect(within(statsDialog).getByText("上游端点")).toBeInTheDocument();
+    expect(within(statsDialog).getAllByText(/暂无数据|No data/i).length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("opens the codex scheduled-test dialog and duplicates an account from the more menu", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              credentials: [
+                {
+                  id: "codex-free-1",
+                  account_name: "Codex Free 1",
+                  enabled: true,
+                  credential_identity_category_id: "free",
+                },
+              ],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+    await user.click(screen.getByRole("button", { name: /^Free$/i }));
+
+    const freePanel = screen.getByRole("region", { name: /codex Free 账号/i });
+    const moreButton = within(freePanel).getByRole("button", {
+      name: /更多操作 codex-free-1|More actions codex-free-1/i,
+    });
+
+    await user.click(moreButton);
+    await user.click(screen.getByRole("menuitem", { name: /定时测试|Scheduled tests/i }));
+
+    const scheduleDialog = screen.getByRole("dialog", { name: /定时测试|Scheduled tests/i });
+    expect(within(scheduleDialog).getByRole("button", { name: /添加计划|Add schedule/i })).toBeInTheDocument();
+    expect(within(scheduleDialog).getByText(/暂无定时测试计划|No scheduled test plans/i)).toBeInTheDocument();
+    await user.click(within(scheduleDialog).getByRole("button", { name: /关闭|Close/i }));
+
+    await user.click(moreButton);
+    await user.click(screen.getByRole("menuitem", { name: /复制账号|Duplicate account/i }));
+
+    const duplicateDialog = screen.getByRole("dialog", { name: /新增账号|Add account/i });
+    expect(within(duplicateDialog).getByLabelText(/账号 ID/i)).toHaveValue("codex-free-1-copy");
+    expect(within(duplicateDialog).getByLabelText(/账号名称/i)).toHaveValue("Codex Free 1 Copy");
+  });
+
+  it("keeps multiple codex identity subcategories expanded at the same time", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              enabled: true,
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+    await user.click(screen.getByRole("button", { name: /^Plus$/i }));
+    expect(screen.getByRole("region", { name: /codex Plus 账号/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Free$/i }));
+
+    expect(screen.getByRole("region", { name: /codex Free 账号/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /codex Plus 账号/i })).toBeInTheDocument();
+  });
+
+  it("renders the codex account column header only once when multiple identity subcategories are expanded", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              enabled: true,
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+    await user.click(screen.getByRole("button", { name: /^Plus$/i }));
+    await user.click(screen.getByRole("button", { name: /^Free$/i }));
+
+    expect(screen.getByRole("region", { name: /codex Free 账号/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /codex Plus 账号/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader", { name: /账号 ID/i })).toHaveLength(1);
+    expect(screen.getAllByRole("columnheader", { name: /操作/i })).toHaveLength(1);
+  });
+
+  it("edits codex identity category pool policy from the category row", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              enabled: true,
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+
+    const plusRow = screen
+      .getByRole("button", { name: /^Plus$/i })
+      .closest(".nt-provider-subtab-row");
+    expect(plusRow).not.toBeNull();
+    expect(within(plusRow as HTMLElement).queryByText(/可用号池容量/i)).not.toBeInTheDocument();
+    expect(within(plusRow as HTMLElement).getByText(/^号池$/)).toBeInTheDocument();
+    expect(within(plusRow as HTMLElement).getByText(/^2\/$/)).toBeInTheDocument();
+    expect(within(plusRow as HTMLElement).getByText(/^补号$/)).toBeInTheDocument();
+    expect(within(plusRow as HTMLElement).getByText(/^剔号$/)).toBeInTheDocument();
+
+    const targetInput = within(plusRow as HTMLElement).getByRole("spinbutton", {
+      name: /Plus 目标号池容量|Plus target pool size/i,
+    });
+    const autoRefillSwitch = within(plusRow as HTMLElement).getByRole("switch", {
+      name: /Plus 自动补号|Plus auto refill/i,
+    });
+    const autoPruneSwitch = within(plusRow as HTMLElement).getByRole("switch", {
+      name: /Plus 自动剔号|Plus auto prune/i,
+    });
+
+    expect(targetInput).toHaveValue(30);
+    expect(autoRefillSwitch).toHaveAttribute("aria-checked", "false");
+    expect(autoPruneSwitch).toHaveAttribute("aria-checked", "false");
+
+    await user.clear(targetInput);
+    await user.type(targetInput, "50");
+    await user.click(autoRefillSwitch);
+    await user.click(autoPruneSwitch);
+
+    expect(targetInput).toHaveValue(50);
+    expect(autoRefillSwitch).toHaveAttribute("aria-checked", "true");
+    expect(autoPruneSwitch).toHaveAttribute("aria-checked", "true");
+
+    await openWorkspace(user, /高级 JSON/i);
+    const editor = screen.getByRole("textbox", { name: /路由配置 JSON/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"pool_target_size": 50');
+    expect((editor as HTMLTextAreaElement).value).toContain('"auto_refill_enabled": true');
+    expect((editor as HTMLTextAreaElement).value).toContain('"auto_prune_enabled": true');
+  });
+
+  it("lets the expanded codex pilot append a provider-specific identity subcategory", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              enabled: true,
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+    const prompt = vi.spyOn(window, "prompt").mockReturnValue("Enterprise");
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+    await user.click(screen.getByRole("button", { name: /添加账号类别/i }));
+
+    expect(prompt).toHaveBeenCalled();
+    expect(screen.getByText("Enterprise")).toBeInTheDocument();
+  });
+
+  it("shows seeded codex demo accounts when only the default codex entry exists", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [
+            {
+              id: "codex",
+              label: "codex",
+              vendor_key: "openai",
+              vendor_name: "OpenAI",
+              base_url: "https://chatgpt.com/backend-api",
+              enabled: true,
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+    await user.click(screen.getByRole("button", { name: /^Free$/i }));
+
+    const freePanel = screen.getByRole("region", { name: /codex Free 账号/i });
+    const freeTable = within(freePanel).getByRole("table", { name: /codex Free 账号表/i });
+    const freeRow = within(freePanel)
+      .getByText("codex-free-demo-a")
+      .closest(".nt-provider-account-row");
+    expect(freeRow).not.toBeNull();
+    expect(within(freeTable).getByRole("columnheader", { name: /账号 ID|Account ID/i })).toBeInTheDocument();
+    expect(within(freeTable).getByRole("columnheader", { name: /分组|Group/i })).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("Codex Free Demo A")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("逻辑分类")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).queryByText("容量")).not.toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("普通用户")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("1 / 1")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("正常")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("18 req")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("0")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("A $0.00")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("U $0.00")).toBeInTheDocument();
+    expect(within(freeRow as HTMLElement).getByText("12 分钟前")).toBeInTheDocument();
+    const freeDispatchSwitch = within(freeRow as HTMLElement).getByRole("switch", {
+      name: /调度 codex-free-demo-a|Dispatch codex-free-demo-a/i,
+    });
+    expect(freeDispatchSwitch).toBeEnabled();
+    expect(freeDispatchSwitch).toHaveAttribute("aria-checked", "true");
+
+    await user.click(freeDispatchSwitch);
+
+    await waitFor(() => expect(freeDispatchSwitch).toHaveAttribute("aria-checked", "false"));
+    expect(screen.getByRole("status", { name: /gateway console last action/i })).toHaveTextContent(
+      /账号 codex-free-demo-a 已暂停调度，保存路由配置后生效/i,
+    );
+
+    await user.click(screen.getByRole("button", { name: /^Plus$/i }));
+    const plusPanel = screen.getByRole("region", { name: /codex Plus 账号/i });
+    const plusTable = within(plusPanel).getByRole("table", { name: /codex Plus 账号表/i });
+    const plusRowA = within(plusPanel)
+      .getByText("codex-plus-demo-a")
+      .closest(".nt-provider-account-row");
+    const plusRowB = within(plusPanel)
+      .getByText("codex-plus-demo-b")
+      .closest(".nt-provider-account-row");
+    expect(plusRowA).not.toBeNull();
+    expect(plusRowB).not.toBeNull();
+    expect(screen.getAllByRole("columnheader", { name: /调度|Dispatch/i })).toHaveLength(1);
+    expect(screen.getAllByRole("columnheader", { name: /用量窗口|Usage window/i })).toHaveLength(1);
+    expect(within(plusTable).queryByRole("columnheader", { name: /调度|Dispatch/i })).not.toBeInTheDocument();
+    expect(within(plusTable).queryByRole("columnheader", { name: /用量窗口|Usage window/i })).not.toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).queryByText("Codex Plus Demo A")).not.toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).queryByText("逻辑分类")).not.toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).queryByText("容量")).not.toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).getByText("VIP 用户")).toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).getByText("2 / 3")).toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).getByText("正常")).toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).queryByText("VIP 优先")).not.toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).getByText("32 req")).toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).getByText("A $0.00")).toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).getByText("U $0.00")).toBeInTheDocument();
+    expect(within(plusRowA as HTMLElement).getByText("2 分钟前")).toBeInTheDocument();
+    expect(within(plusRowB as HTMLElement).queryByText("Codex Plus Demo B")).not.toBeInTheDocument();
+    expect(within(plusRowB as HTMLElement).getByText("普通用户")).toBeInTheDocument();
+    expect(within(plusRowB as HTMLElement).getByText("1 / 2")).toBeInTheDocument();
+    expect(within(plusRowB as HTMLElement).getByText("正常")).toBeInTheDocument();
+    expect(within(plusRowB as HTMLElement).queryByText("共享轮询")).not.toBeInTheDocument();
+    expect(within(plusRowB as HTMLElement).getByText("9 req")).toBeInTheDocument();
+    expect(within(plusRowB as HTMLElement).getByText("A $0.00")).toBeInTheDocument();
+    expect(within(plusRowB as HTMLElement).getByText("U $0.00")).toBeInTheDocument();
+    expect(within(plusRowB as HTMLElement).getByText("8 分钟前")).toBeInTheDocument();
+  });
+
+  it("removes the old accounts filter controls from the ledger workspace", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
 
@@ -1438,22 +2688,11 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /账号台账/i);
 
-    const accountSearch = screen.getByRole("searchbox", { name: /筛选账号/i });
-    await user.type(accountSearch, "生产账号 B");
-    expect(screen.queryByText("生产账号 A")).not.toBeInTheDocument();
-    expect(screen.getByText("生产账号 B")).toBeInTheDocument();
-
-    await user.clear(accountSearch);
-    await user.selectOptions(screen.getByLabelText(/分组状态/i), "ungrouped");
-    expect(screen.queryByText("生产账号 A")).not.toBeInTheDocument();
-    expect(screen.getByText("生产账号 B")).toBeInTheDocument();
-
-    await user.selectOptions(screen.getByLabelText(/分组状态/i), "all");
-    await user.selectOptions(screen.getByLabelText(/启用状态/i), "disabled");
-    expect(screen.queryByText("生产账号 A")).not.toBeInTheDocument();
-    const disabledAccount = screen.getByText("生产账号 B").closest("li");
-    expect(disabledAccount).not.toBeNull();
-    expect(within(disabledAccount as HTMLElement).getByText("已停用")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Managed OpenAI$/i })).toBeInTheDocument();
+    expect(screen.queryByText("acc-prod-1")).not.toBeInTheDocument();
+    expect(screen.queryByText("acc-prod-2")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/凭证分组/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/服务商/i)).not.toBeInTheDocument();
   });
 
   it("prefers the active backend account summary when the draft still matches the active revision", async () => {
@@ -1534,13 +2773,86 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /账号台账/i);
 
-    expect(screen.getAllByText("Managed OpenAI").length).toBeGreaterThan(0);
-    expect(screen.getByText("生产账号 A")).toBeInTheDocument();
-    const summaryAccount = screen.getByText("生产账号 A").closest("li");
+    await user.click(screen.getByRole("button", { name: /^Managed OpenAI$/i }));
+
+    const providerPanel = screen.getByRole("region", { name: /Managed OpenAI 账号/i });
+    const summaryAccount = within(providerPanel).getByText("acc-prod-1").closest('[role="row"]');
     expect(summaryAccount).not.toBeNull();
-    expect(within(summaryAccount as HTMLElement).getByText("已停用")).toBeInTheDocument();
-    expect(screen.getAllByText("VIP 分组").length).toBeGreaterThan(0);
-    expect(screen.getByText("分组数量").nextElementSibling).toHaveTextContent("1");
+    expect(within(summaryAccount as HTMLElement).getByText("暂停")).toBeInTheDocument();
+    expect(within(summaryAccount as HTMLElement).getByText("VIP 分组")).toBeInTheDocument();
+    expect(screen.queryByText("分组数量")).not.toBeInTheDocument();
+  });
+
+  it("drops orphaned summary accounts whose provider is no longer active", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+    const initialResponse = await consoleApi.getRouteConfig("management-secret");
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        ...initialResponse.routeConfig,
+        document: {
+          providers: [{ id: "managed-provider", label: "Managed OpenAI", preset: "openai" }],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+      },
+    });
+    vi.mocked(consoleApi.getAccountGroupSummary).mockResolvedValue({
+      summary: {
+        routeConfigRevision: "r1-deadbeefcafe",
+        source: "redis",
+        accountGroups: [],
+        accounts: [
+          {
+            id: "managed-account",
+            displayName: "Managed account",
+            providerId: "managed-provider",
+            providerLabel: "Managed OpenAI",
+            providerPreset: "openai",
+            credentialId: "managed-account",
+            baseUrl: null,
+            mode: "credential",
+            enabled: true,
+            supportedModels: [],
+            groupIds: [],
+          },
+          {
+            id: "legacy-media-account",
+            displayName: "Legacy media account",
+            providerId: "gemini-canvas-legacy-media",
+            providerLabel: "Gemini Canvas legacy media",
+            providerPreset: "gemini-canvas-legacy-media",
+            credentialId: "legacy-media-account",
+            baseUrl: null,
+            mode: "credential",
+            enabled: true,
+            supportedModels: [],
+            groupIds: [],
+          },
+        ],
+        providers: [
+          {
+            id: "managed-provider",
+            label: "Managed OpenAI",
+            preset: "openai",
+            baseUrl: null,
+            accountIds: ["managed-account"],
+            supportedModels: [],
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+
+    expect(screen.getByRole("button", { name: /^Managed OpenAI$/i })).toBeInTheDocument();
+    expect(screen.queryByText("legacy-media-account")).not.toBeInTheDocument();
+    expect(screen.queryByText("Legacy media account")).not.toBeInTheDocument();
+    expect(screen.queryByText("Gemini Canvas legacy media")).not.toBeInTheDocument();
   });
 
   it("groups accounts by explicit vendor metadata before expanding individual providers", async () => {
@@ -1577,12 +2889,9 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /账号台账/i);
 
-    expect(
-      screen.getByRole("heading", { name: /Alibaba \/ Qwen.*2 个账号/i }),
-    ).toBeInTheDocument();
     expect(screen.getByText("Qwen OpenAI")).toBeInTheDocument();
     expect(screen.getByText("Qwen Web")).toBeInTheDocument();
-    expect(screen.getByText("服务商").nextElementSibling).toHaveTextContent("1");
+    expect(screen.queryByRole("option", { name: "Alibaba / Qwen" })).not.toBeInTheDocument();
   });
 
   it("adds an explicit credential from Accounts and commits its API key as a secret patch", async () => {
@@ -1628,7 +2937,12 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /添加账号/i }));
+    await user.click(screen.getByRole("button", { name: /^Managed OpenAI$/i }));
+    await user.click(
+      within(screen.getByRole("region", { name: /Managed OpenAI 账号/i })).getByRole("button", {
+        name: /为 Managed OpenAI 添加显式账号|Add explicit account for Managed OpenAI/i,
+      }),
+    );
 
     const dialog = screen.getByRole("dialog", { name: /新增账号/i });
     expect(
@@ -1645,10 +2959,7 @@ describe("BrowserConsoleApp", () => {
     await user.type(within(dialog).getByLabelText(/^API Key$/i), "sk-new-account");
     await user.click(within(dialog).getByRole("button", { name: /保存到草稿/i }));
 
-    expect(screen.getByText("生产账号 A")).toBeInTheDocument();
-    expect(screen.getByRole("status", { name: /draft status/i })).toHaveTextContent(
-      /有未保存修改/i,
-    );
+    expect(screen.getByText("acc-prod-1")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /保存路由配置/i }));
     await waitFor(() =>
@@ -1733,7 +3044,12 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /编辑账号 生产账号 A/i }));
+    await user.click(screen.getByRole("button", { name: /^Managed OpenAI$/i }));
+    await user.click(
+      within(screen.getByRole("region", { name: /Managed OpenAI 账号/i })).getByRole("button", {
+        name: /编辑账号 生产账号 A/i,
+      }),
+    );
 
     const dialog = screen.getByRole("dialog", { name: /编辑账号/i });
     expect(within(dialog).getByLabelText(/账号 ID/i)).toBeDisabled();
@@ -1749,10 +3065,18 @@ describe("BrowserConsoleApp", () => {
     await user.type(within(dialog).getByLabelText(/^API Key$/i), "sk-replaced-account");
     await user.click(within(dialog).getByRole("button", { name: /保存到草稿/i }));
 
-    expect(screen.getByText("生产账号 A2")).toBeInTheDocument();
-    const editedAccount = screen.getByText("生产账号 A2").closest("li");
+    const editedAccount = within(
+      screen.getByRole("region", { name: /Managed OpenAI 账号/i }),
+    )
+      .getByText("acc-prod-1")
+      .closest('[role="row"]');
     expect(editedAccount).not.toBeNull();
-    expect(within(editedAccount as HTMLElement).getByText("已停用")).toBeInTheDocument();
+    expect(within(editedAccount as HTMLElement).getByText("暂停")).toBeInTheDocument();
+    expect(
+      within(editedAccount as HTMLElement).getByRole("button", {
+        name: /编辑账号 生产账号 A2/i,
+      }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /保存路由配置/i }));
     await waitFor(() =>
       expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
@@ -1783,482 +3107,6 @@ describe("BrowserConsoleApp", () => {
     );
   });
 
-  it("probes an active credential through the standalone gateway console", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    const initialResponse = await consoleApi.getRouteConfig("management-secret");
-    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
-      routeConfig: {
-        ...initialResponse.routeConfig,
-        document: {
-          providers: [
-            {
-              id: "managed-provider",
-              label: "Managed OpenAI",
-              credentials: [
-                {
-                  id: "acc-prod-1",
-                  account_name: "生产账号 A",
-                  enabled: true,
-                  supported_models: ["gpt-5.4"],
-                },
-              ],
-            },
-          ],
-          model_routes: [],
-          aliases: {},
-          account_groups: [],
-        },
-        secrets: [
-          {
-            path: "/providers/0/credentials/0/api_key",
-            configured: true,
-            preview: "sk-***",
-          },
-        ],
-      },
-    });
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: {
-        grant: "grant-1",
-        expiresAt: "2026-07-28T03:00:00Z",
-      },
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /测试账号 生产账号 A/i }));
-
-    await waitFor(() =>
-      expect(screen.getByText(/连通正常|Connectivity passed/i)).toBeInTheDocument(),
-    );
-    expect(consoleApi.probeCredential).toHaveBeenCalledWith(
-      "management-secret",
-      "grant-1",
-      "acc-prod-1",
-    );
-  });
-
-  it("renders a failed probe result without changing the route draft", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    await mockCredentialRoute(consoleApi);
-    vi.mocked(consoleApi.probeCredential).mockResolvedValue({
-      result: {
-        credentialId: "acc-prod-1",
-        providerId: "managed-provider",
-        status: "failed",
-        message: "Upstream rejected the credential.",
-        checkedAt: "2026-07-28T02:01:00Z",
-      },
-    });
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /测试账号 生产账号 A/i }));
-
-    expect(await screen.findByText("连接失败")).toBeInTheDocument();
-    expect(screen.getByText("Upstream rejected the credential.")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /修订说明/i })).toHaveValue("initial import");
-  });
-
-  it("opens secret access confirmation instead of probing without a secret grant", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    await mockCredentialRoute(consoleApi);
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /测试账号 生产账号 A/i }));
-
-    expect(consoleApi.probeCredential).not.toHaveBeenCalled();
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("dialog")).toHaveTextContent(/确认敏感信息访问权限/i);
-  });
-
-  it("clears an existing probe result with a stale secret grant and reopens confirmation", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    const clearSecretGrant = vi.fn();
-    await mockCredentialRoute(consoleApi);
-    vi.mocked(consoleApi.probeCredential)
-      .mockResolvedValueOnce({
-        result: {
-          credentialId: "acc-prod-1",
-          providerId: "managed-provider",
-          status: "passed",
-          message: "Credential connectivity probe passed.",
-          checkedAt: "2026-07-28T02:00:00Z",
-        },
-      })
-      .mockRejectedValueOnce(
-        new GatewayApiError(
-          "A fresh secret grant is required.",
-          403,
-          "console_secret_access_required",
-        ),
-      );
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: { grant: "stale-grant", expiresAt: "2099-01-01T00:00:00Z" },
-      clearSecretGrant,
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    const probeButton = screen.getByRole("button", { name: /测试账号 生产账号 A/i });
-    await user.click(probeButton);
-    expect(await screen.findByText(/连通正常|Connectivity passed/i)).toBeInTheDocument();
-
-    await user.click(probeButton);
-
-    await waitFor(() => expect(clearSecretGrant).toHaveBeenCalledOnce());
-    expect(await screen.findByRole("dialog")).toHaveTextContent(/确认敏感信息访问权限/i);
-    expect(screen.queryByText(/连通正常|Connectivity passed/i)).not.toBeInTheDocument();
-    expect(screen.queryByText("Credential connectivity probe passed.")).not.toBeInTheDocument();
-    expect(screen.queryByText("A fresh secret grant is required.")).not.toBeInTheDocument();
-  });
-
-  it("clears every account probe result when the shared secret grant expires", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    const clearSecretGrant = vi.fn();
-    await mockCredentialRoute(consoleApi, true, true);
-    vi.mocked(consoleApi.probeCredential)
-      .mockResolvedValueOnce({
-        result: {
-          credentialId: "acc-prod-1",
-          providerId: "managed-provider",
-          status: "passed",
-          message: "Account A connectivity passed.",
-          checkedAt: "2026-07-28T02:00:00Z",
-        },
-      })
-      .mockResolvedValueOnce({
-        result: {
-          credentialId: "acc-prod-2",
-          providerId: "managed-provider",
-          status: "passed",
-          message: "Account B connectivity passed.",
-          checkedAt: "2026-07-28T02:01:00Z",
-        },
-      })
-      .mockRejectedValueOnce(
-        new GatewayApiError(
-          "A fresh secret grant is required.",
-          403,
-          "console_secret_access_required",
-        ),
-      );
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: { grant: "shared-stale-grant", expiresAt: "2099-01-01T00:00:00Z" },
-      clearSecretGrant,
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    const accountAButton = screen.getByRole("button", { name: /测试账号 生产账号 A/i });
-    const accountBButton = screen.getByRole("button", { name: /测试账号 生产账号 B/i });
-    await user.click(accountAButton);
-    expect(await screen.findByText("Account A connectivity passed.")).toBeInTheDocument();
-    await user.click(accountBButton);
-    expect(await screen.findByText("Account B connectivity passed.")).toBeInTheDocument();
-
-    await user.click(accountBButton);
-
-    await waitFor(() => expect(clearSecretGrant).toHaveBeenCalledOnce());
-    expect(await screen.findByRole("dialog")).toHaveTextContent(/确认敏感信息访问权限/i);
-    expect(screen.queryByText("Account A connectivity passed.")).not.toBeInTheDocument();
-    expect(screen.queryByText("Account B connectivity passed.")).not.toBeInTheDocument();
-  });
-
-  it("keeps the secret grant when a probe returns another 403 error", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    const clearSecretGrant = vi.fn();
-    await mockCredentialRoute(consoleApi);
-    vi.mocked(consoleApi.probeCredential).mockRejectedValue(
-      new GatewayApiError(
-        "Remote console access is forbidden.",
-        403,
-        "console_remote_access_forbidden",
-      ),
-    );
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
-      clearSecretGrant,
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /测试账号 生产账号 A/i }));
-
-    expect(await screen.findByText("Remote console access is forbidden.")).toBeInTheDocument();
-    expect(screen.getByText(/测试异常|Probe error/i)).toBeInTheDocument();
-    expect(clearSecretGrant).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("keeps the secret grant when a probe returns 401 with the secret-access code", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    const clearSecretGrant = vi.fn();
-    await mockCredentialRoute(consoleApi);
-    vi.mocked(consoleApi.probeCredential).mockRejectedValue(
-      new GatewayApiError(
-        "Management authentication expired.",
-        401,
-        "console_secret_access_required",
-      ),
-    );
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
-      clearSecretGrant,
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /测试账号 生产账号 A/i }));
-
-    expect(await screen.findByText("Management authentication expired.")).toBeInTheDocument();
-    expect(screen.getByText(/测试异常|Probe error/i)).toBeInTheDocument();
-    expect(clearSecretGrant).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("disables probing for a disabled credential", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    await mockCredentialRoute(consoleApi, false);
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    const probeButton = screen.getByRole("button", { name: /测试账号 生产账号 A/i });
-    expect(probeButton).toBeDisabled();
-    expect(consoleApi.probeCredential).not.toHaveBeenCalled();
-  });
-
-  it("probes a provider default account using its stable default identity", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    const initialResponse = await consoleApi.getRouteConfig("management-secret");
-    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
-      routeConfig: {
-        ...initialResponse.routeConfig,
-        document: {
-          providers: [
-            {
-              id: "managed-provider",
-              label: "Managed OpenAI",
-              enabled: true,
-              supported_models: ["gpt-5.4"],
-            },
-          ],
-          model_routes: [],
-          aliases: {},
-          account_groups: [],
-        },
-      },
-    });
-    vi.mocked(consoleApi.probeCredential).mockResolvedValue({
-      result: {
-        credentialId: "managed-provider::default",
-        providerId: "managed-provider",
-        status: "unsupported",
-        message: "Provider default probe is unsupported.",
-        checkedAt: "2026-07-28T02:02:00Z",
-      },
-    });
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /测试账号 Managed OpenAI/i }));
-
-    expect(await screen.findByText("暂不支持测试")).toBeInTheDocument();
-    expect(consoleApi.probeCredential).toHaveBeenCalledWith(
-      "management-secret",
-      "grant-1",
-      "managed-provider::default",
-    );
-  });
-
-  it("ignores a credential probe response that completes after an authoritative refresh", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    const pendingProbe = deferred<Awaited<ReturnType<ConsoleApi["probeCredential"]>>>();
-    await mockCredentialRoute(consoleApi);
-    vi.mocked(consoleApi.probeCredential).mockReturnValue(pendingProbe.promise);
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /测试账号 生产账号 A/i }));
-    await user.click(screen.getByRole("button", { name: /^刷新$/i }));
-
-    await act(async () => {
-      pendingProbe.resolve({
-        result: {
-          credentialId: "acc-prod-1",
-          providerId: "managed-provider",
-          status: "passed",
-          message: "Stale probe result must stay hidden.",
-          checkedAt: "2026-07-28T02:05:00Z",
-        },
-      });
-      await pendingProbe.promise;
-    });
-
-    expect(screen.queryByText("Stale probe result must stay hidden.")).not.toBeInTheDocument();
-    expect(screen.queryByText(/连通正常|Connectivity passed/i)).not.toBeInTheDocument();
-  });
-
-  it("does not revoke secret access when a stale probe fails after refresh", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    const clearSecretGrant = vi.fn();
-    const pendingProbe = deferred<Awaited<ReturnType<ConsoleApi["probeCredential"]>>>();
-    await mockCredentialRoute(consoleApi);
-    vi.mocked(consoleApi.probeCredential).mockReturnValue(pendingProbe.promise);
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
-      session: { secretAccessGranted: true },
-      secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
-      clearSecretGrant,
-    });
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /测试账号 生产账号 A/i }));
-    await user.click(screen.getByRole("button", { name: /^刷新$/i }));
-
-    await act(async () => {
-      pendingProbe.reject(
-        new GatewayApiError(
-          "Stale grant must not be cleared.",
-          403,
-          "console_secret_access_required",
-        ),
-      );
-      await Promise.resolve();
-    });
-
-    expect(clearSecretGrant).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByText("Stale grant must not be cleared.")).not.toBeInTheDocument();
-  });
-
-  it("rebases keep patches when deleting a credential before another account", async () => {
-    const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
-    const initialResponse = await consoleApi.getRouteConfig("management-secret");
-    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
-      routeConfig: {
-        ...initialResponse.routeConfig,
-        document: {
-          providers: [
-            {
-              id: "managed-provider",
-              label: "Managed OpenAI",
-              credentials: [
-                { id: "acc-prod-1", account_name: "生产账号 A" },
-                { id: "acc-prod-2", account_name: "生产账号 B" },
-              ],
-            },
-          ],
-          model_routes: [],
-          aliases: {},
-          account_groups: [
-            {
-              id: "group-vip",
-              name: "VIP 分组",
-              billing_multiplier: 1.5,
-              provider_credential_ids: ["acc-prod-2"],
-            },
-          ],
-        },
-        secrets: [
-          {
-            path: "/providers/0/credentials/0/api_key",
-            configured: true,
-            preview: "sk-a***",
-          },
-          {
-            path: "/providers/0/credentials/1/api_key",
-            configured: true,
-            preview: "sk-b***",
-          },
-        ],
-      },
-    });
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
-
-    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
-
-    await waitForConsoleReady();
-    await openWorkspace(user, /账号台账/i);
-    await user.click(screen.getByRole("button", { name: /删除账号 生产账号 A/i }));
-
-    expect(confirm).toHaveBeenCalled();
-    expect(screen.queryByText("生产账号 A")).not.toBeInTheDocument();
-    expect(screen.getByText("生产账号 B")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /保存路由配置/i }));
-    await waitFor(() =>
-      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
-        "management-secret",
-        expect.objectContaining({
-          document: expect.objectContaining({
-            providers: [
-              expect.objectContaining({
-                credentials: [
-                  expect.objectContaining({ id: "acc-prod-2", account_name: "生产账号 B" }),
-                ],
-              }),
-            ],
-            account_groups: [
-              expect.objectContaining({
-                id: "group-vip",
-                provider_credential_ids: ["acc-prod-2"],
-              }),
-            ],
-          }),
-          secretPatches: [
-            { path: "/providers/0/credentials/0/api_key", operation: "keep" },
-          ],
-        }),
-      ),
-    );
-  });
-
   it("directs missing credential setup to Advanced JSON without overstating structured editor support", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
@@ -2282,9 +3130,12 @@ describe("BrowserConsoleApp", () => {
       screen.getByText(/请在高级 JSON 中添加 credentials，再回到这里管理账号池/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/路由编辑或高级 JSON 中补充 credentials/i)).not.toBeInTheDocument();
+
+    await openWorkspace(user, /凭证分组|分组策略/i);
+    expect(screen.getByText(/当前还没有任何凭证分组/i)).toBeInTheDocument();
   });
 
-  it("updates account groups through the structured groups workspace and keeps the JSON draft in sync", async () => {
+  it("renders credential groups as a directory plus detail editor", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
 
@@ -2336,31 +3187,76 @@ describe("BrowserConsoleApp", () => {
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
 
     await waitForConsoleReady();
-    await openWorkspace(user, /分组策略/i);
+    await openWorkspace(user, /凭证分组|分组策略/i);
 
-    expect(screen.getByRole("checkbox", { name: /VIP 分组.*启用状态/i })).toBeInTheDocument();
-    expect(
-      screen.getByRole("checkbox", { name: /VIP 分组.*Managed OpenAI.*生产账号 A/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /VIP 分组.*可选账号/i })).toHaveAttribute(
-      "tabindex",
-      "0",
-    );
+    expect(screen.getByRole("navigation", { name: /分组列表/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /VIP 分组/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /分组详情/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /分组 ID/i })).toHaveValue("group-vip");
+    expect(screen.getByRole("region", { name: /成员管理/i })).toBeInTheDocument();
+  });
+
+  it("adds a group and manages members from compact candidate rows while keeping the JSON draft in sync", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        revision: { id: "r1-deadbeefcafe", sequence: 1, message: "initial import" },
+        source: "redis",
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: {
+          providers: [
+            {
+              id: "managed-provider",
+              label: "Managed OpenAI",
+              preset: "openai",
+              base_url: "https://api.example.com/v1",
+              credentials: [
+                {
+                  id: "acc-prod-1",
+                  account_name: "生产账号 A",
+                  api_key: "sk-prod-a",
+                  supported_models: ["gpt-5.4"],
+                },
+                {
+                  id: "acc-prod-2",
+                  account_name: "生产账号 B",
+                  api_key: "sk-prod-b",
+                  supported_models: ["gpt-5.4-mini"],
+                },
+              ],
+            },
+          ],
+          model_routes: [{ pattern: "gpt-5.4", provider_ids: ["managed-provider"] }],
+          aliases: { answer: "gpt-5.4" },
+          account_groups: [
+            {
+              id: "group-vip",
+              name: "VIP 分组",
+              billing_multiplier: 1.5,
+              provider_credential_ids: ["acc-prod-1"],
+            },
+          ],
+        },
+        secrets: [{ path: "/providers/0/api_key", configured: true, preview: "sk-***" }],
+        mutationSupported: true,
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /凭证分组|分组策略/i);
 
     await user.click(screen.getByRole("button", { name: /添加分组/i }));
-    await user.type(screen.getByLabelText(/分组 ID 2/i), "group-team-b");
-    await user.type(screen.getByLabelText(/分组名称 2/i), "Team B");
-    await user.clear(screen.getByLabelText(/计费倍率 2/i));
-    await user.type(screen.getByLabelText(/计费倍率 2/i), "0.8");
-    const teamBCard = screen.getByRole("heading", { name: "Team B" }).closest("article");
-    expect(teamBCard).not.toBeNull();
-    const accountPickerSearch = within(teamBCard as HTMLElement).getByRole("searchbox", {
-      name: /筛选关联账号 2/i,
-    });
-    await user.type(accountPickerSearch, "生产账号 B");
-    expect(within(teamBCard as HTMLElement).queryByText("生产账号 A")).not.toBeInTheDocument();
-    expect(within(teamBCard as HTMLElement).getByText("生产账号 B")).toBeInTheDocument();
-    await user.click(within(teamBCard as HTMLElement).getByRole("checkbox", { name: /生产账号 B/i }));
+    await user.type(screen.getByLabelText(/分组 ID/i), "group-team-b");
+    await user.type(screen.getByLabelText(/分组名称/i), "Team B");
+    await user.clear(screen.getByLabelText(/计费倍率/i));
+    await user.type(screen.getByLabelText(/计费倍率/i), "0.8");
+    await user.type(screen.getByRole("searchbox", { name: /筛选候选账号/i }), "生产账号 B");
+    await user.click(screen.getByRole("button", { name: /加入.*生产账号 B/i }));
 
     await openWorkspace(user, /高级 JSON/i);
     const editor = screen.getByRole("textbox", { name: /路由配置 JSON/i });
@@ -2396,12 +3292,11 @@ describe("BrowserConsoleApp", () => {
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
 
     await waitForConsoleReady();
-    await openWorkspace(user, /分组策略/i);
+    await openWorkspace(user, /凭证分组|分组策略/i);
     await user.click(screen.getByRole("button", { name: /添加分组/i }));
-    await user.type(screen.getByLabelText(/分组名称 1/i), "Incomplete group");
+    await user.type(screen.getByLabelText(/分组名称/i), "Incomplete group");
 
-    expect(screen.getByRole("status", { name: /draft status/i })).toHaveTextContent(/有未保存修改/i);
-    expect(screen.getByLabelText(/分组 ID 1/i)).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText(/分组 ID/i)).toHaveAttribute("aria-invalid", "true");
     expect(screen.getAllByText(/分组 ID 必须填写/i).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: /保存路由配置/i }));
@@ -2419,23 +3314,18 @@ describe("BrowserConsoleApp", () => {
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
 
     await waitForConsoleReady();
-    await openWorkspace(user, /分组策略/i);
+    await openWorkspace(user, /凭证分组|分组策略/i);
     await user.click(screen.getByRole("button", { name: /添加分组/i }));
-    await user.type(screen.getByLabelText(/分组 ID 1/i), "temporary-group");
-    await waitFor(() =>
-      expect(screen.getByRole("status", { name: /draft status/i })).toHaveTextContent(
-        /有未保存修改/i,
-      ),
-    );
-    expect(screen.getByLabelText(/分组 ID 1/i)).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/分组 ID/i), "temporary-group");
+    expect(screen.getByLabelText(/分组 ID/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^刷新$/i }));
 
     const discardDialog = screen.getByRole("dialog", { name: /丢弃未保存修改/i });
     expect(discardDialog).toBeInTheDocument();
-    expect(screen.getByLabelText(/分组 ID 1/i)).toHaveValue("temporary-group");
+    expect(screen.getByLabelText(/分组 ID/i)).toHaveValue("temporary-group");
     await user.click(within(discardDialog).getByRole("button", { name: /继续编辑/i }));
-    expect(screen.getByLabelText(/分组 ID 1/i)).toHaveValue("temporary-group");
+    expect(screen.getByLabelText(/分组 ID/i)).toHaveValue("temporary-group");
 
     await user.click(screen.getByRole("button", { name: /^刷新$/i }));
     await user.click(
@@ -2445,10 +3335,7 @@ describe("BrowserConsoleApp", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByLabelText(/分组 ID 1/i)).not.toBeInTheDocument();
-      expect(screen.getByRole("status", { name: /draft status/i })).toHaveTextContent(
-        /草稿已同步/i,
-      );
+      expect(screen.queryByLabelText(/分组 ID/i)).not.toBeInTheDocument();
     });
   });
 
@@ -2463,9 +3350,9 @@ describe("BrowserConsoleApp", () => {
     expect(window.dispatchEvent(cleanEvent)).toBe(true);
     expect(cleanEvent.defaultPrevented).toBe(false);
 
-    await openWorkspace(user, /分组策略/i);
+    await openWorkspace(user, /凭证分组|分组策略/i);
     await user.click(screen.getByRole("button", { name: /添加分组/i }));
-    await user.type(screen.getByLabelText(/分组 ID 1/i), "temporary-group");
+    await user.type(screen.getByLabelText(/分组 ID/i), "temporary-group");
 
     const dirtyEvent = new Event("beforeunload", { cancelable: true });
     expect(window.dispatchEvent(dirtyEvent)).toBe(false);
@@ -2479,23 +3366,15 @@ describe("BrowserConsoleApp", () => {
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
 
     await waitForConsoleReady();
-    await openWorkspace(user, /分组策略/i);
+    await openWorkspace(user, /凭证分组|分组策略/i);
     await user.click(screen.getByRole("button", { name: /添加分组/i }));
-    await user.type(screen.getByLabelText(/分组 ID 1/i), "temporary-group");
-    await waitFor(() =>
-      expect(screen.getByRole("status", { name: /draft status/i })).toHaveTextContent(
-        /有未保存修改/i,
-      ),
-    );
+    await user.type(screen.getByLabelText(/分组 ID/i), "temporary-group");
     expect(consoleApi.getRouteConfig).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole("button", { name: /切换界面语言/i }));
 
     expect(consoleApi.getRouteConfig).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText(/Group ID 1/i)).toHaveValue("temporary-group");
-    expect(screen.getByRole("status", { name: /draft status/i })).toHaveTextContent(
-      /Unsaved changes/i,
-    );
+    expect(screen.getByLabelText(/Group ID/i)).toHaveValue("temporary-group");
   });
 
   it("clears validation feedback when refresh replaces the authoritative draft", async () => {
@@ -2670,8 +3549,8 @@ describe("BrowserConsoleApp", () => {
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
 
     await waitForConsoleReady();
-    await openWorkspace(user, /分组策略/i);
-    const multiplier = screen.getByLabelText(/计费倍率 1/i);
+    await openWorkspace(user, /凭证分组|分组策略/i);
+    const multiplier = screen.getByLabelText(/计费倍率/i);
 
     fireEvent.change(multiplier, { target: { value: "1abc" } });
     expect(multiplier).toHaveValue("1abc");
@@ -2756,13 +3635,535 @@ describe("BrowserConsoleApp", () => {
     expect(screen.getByLabelText(/模型路由模式 1/i)).toBeDisabled();
     expect(screen.getByLabelText(/Provider ID 1/i)).toBeDisabled();
 
-    await openWorkspace(user, /分组策略/i);
+    await openWorkspace(user, /凭证分组|分组策略/i);
     expect(screen.getByRole("button", { name: /添加分组/i })).toBeDisabled();
-    expect(screen.getByLabelText(/分组 ID 1/i)).toBeDisabled();
-    expect(screen.getByLabelText(/分组名称 1/i)).toBeDisabled();
-    expect(screen.getByRole("checkbox", { name: /Account 1/i })).toBeDisabled();
+    expect(screen.getByLabelText(/分组 ID/i)).toBeDisabled();
+    expect(screen.getByLabelText(/分组名称/i)).toBeDisabled();
+    expect(screen.getByRole("button", { name: /移除.*Account 1/i })).toBeDisabled();
 
     await openWorkspace(user, /高级 JSON/i);
     expect(screen.getByRole("textbox", { name: /路由配置 JSON/i })).toBeDisabled();
+  });
+
+  it("starts a browser-first Gemini Canvas manual-add flow and merges both Canvas families into the draft", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    const initialRouteConfig = {
+      routeConfig: {
+        revision: { id: "r1-deadbeefcafe", sequence: 1, message: "initial import" },
+        source: "redis" as const,
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: {
+          providers: [
+            {
+              id: "gemini-canvas",
+              label: "gemini-canvas",
+              vendor_key: "google-gemini",
+              vendor_name: "Google / Gemini",
+              preset: "gemini-canvas",
+              base_url: "https://gemini.google.com",
+              supported_models: ["gemini-2.5-flash-image-preview"],
+            },
+            {
+              id: "gemini-canvas-chat",
+              label: "gemini-canvas-chat",
+              vendor_key: "google-gemini",
+              vendor_name: "Google / Gemini",
+              preset: "gemini-canvas-chat",
+              base_url: "https://gemini.google.com",
+              supported_models: ["gemini-2.5-flash"],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        secrets: [],
+        mutationSupported: true,
+      },
+    };
+    const committedRouteConfig = {
+      routeConfig: {
+        ...initialRouteConfig.routeConfig,
+        revision: { id: "r2-gemini-import", sequence: 2, message: "Import Gemini manual credentials (gemini-session-1)" },
+        document: {
+          ...initialRouteConfig.routeConfig.document,
+          providers: [
+            {
+              ...initialRouteConfig.routeConfig.document.providers[0],
+              credentials: [
+                {
+                  id: "gemini-canvas-manual-1",
+                  account_name: "Gemini Canvas Manual 1",
+                  runtime_state_object_key:
+                    "credential-runtime/gemini-canvas/manual-1/storage-state.json",
+                  extra_body: {
+                    shareId: "fe24c455a570",
+                  },
+                },
+              ],
+            },
+            {
+              ...initialRouteConfig.routeConfig.document.providers[1],
+              credentials: [
+                {
+                  id: "gemini-canvas-chat-manual-1",
+                  account_name: "Gemini Canvas Chat Manual 1",
+                  runtime_state_object_key:
+                    "credential-runtime/gemini-canvas/manual-1/storage-state.json",
+                  extra_body: {
+                    shareId: "fe24c455a570",
+                    apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    vi.mocked(consoleApi.getRouteConfig)
+      .mockResolvedValueOnce(initialRouteConfig)
+      .mockResolvedValue(committedRouteConfig);
+    vi.mocked(consoleApi.commitRouteConfig).mockResolvedValue({
+      routeConfig: committedRouteConfig.routeConfig,
+      committed: true,
+    });
+    vi.mocked(consoleApi.createGeminiAuthSession).mockResolvedValue({
+      session: {
+        id: "gemini-session-1",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "waiting_user",
+        message: "Complete Gemini login in the opened browser window.",
+        createdAt: "2026-07-30T09:00:00Z",
+        updatedAt: "2026-07-30T09:00:00Z",
+        generatedDrafts: [],
+      },
+    });
+    vi.mocked(consoleApi.getGeminiAuthSession).mockResolvedValue({
+      session: {
+        id: "gemini-session-1",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "succeeded",
+        message: "Gemini Canvas runtime captured.",
+        createdAt: "2026-07-30T09:00:00Z",
+        updatedAt: "2026-07-30T09:02:00Z",
+        generatedDrafts: [
+          {
+            providerId: "gemini-canvas",
+            credential: {
+              id: "gemini-canvas-manual-1",
+              account_name: "Gemini Canvas Manual 1",
+              runtime_state_object_key:
+                "credential-runtime/gemini-canvas/manual-1/storage-state.json",
+              extra_body: {
+                shareId: "fe24c455a570",
+              },
+            },
+            secretEdits: [],
+          },
+          {
+            providerId: "gemini-canvas-chat",
+            credential: {
+              id: "gemini-canvas-chat-manual-1",
+              account_name: "Gemini Canvas Chat Manual 1",
+              runtime_state_object_key:
+                "credential-runtime/gemini-canvas/manual-1/storage-state.json",
+              extra_body: {
+                shareId: "fe24c455a570",
+                apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
+              },
+            },
+            secretEdits: [],
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^Gemini Canvas$/i }));
+
+    const canvasArticle = screen.getByRole("button", { name: /^Gemini Canvas$/i }).closest("article");
+    expect(canvasArticle).not.toBeNull();
+    await user.click(
+      within(canvasArticle as HTMLElement).getByRole("button", { name: /手动添加|Manual add/i }),
+    );
+
+    await waitFor(() =>
+      expect(consoleApi.createGeminiAuthSession).toHaveBeenCalledWith("management-secret", {
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+      }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: /Gemini 手动添加|Gemini manual add/i });
+    expect(within(dialog).getByText("gemini-canvas")).toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(consoleApi.getGeminiAuthSession).toHaveBeenCalledWith(
+        "management-secret",
+        "gemini-session-1",
+      ),
+    );
+    await waitFor(() =>
+      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          document: expect.objectContaining({
+            providers: expect.arrayContaining([
+              expect.objectContaining({
+                id: "gemini-canvas",
+                credentials: expect.arrayContaining([
+                  expect.objectContaining({ id: "gemini-canvas-manual-1" }),
+                ]),
+              }),
+              expect.objectContaining({
+                id: "gemini-canvas-chat",
+                credentials: expect.arrayContaining([
+                  expect.objectContaining({ id: "gemini-canvas-chat-manual-1" }),
+                ]),
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
+
+    await openWorkspace(user, /高级 JSON/i);
+    const editor = screen.getByRole("textbox", { name: /路由配置 JSON/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"id": "gemini-canvas-manual-1"');
+    expect((editor as HTMLTextAreaElement).value).toContain('"id": "gemini-canvas-chat-manual-1"');
+    expect((editor as HTMLTextAreaElement).value).toContain('"shareId": "fe24c455a570"');
+    expect((editor as HTMLTextAreaElement).value).toContain(
+      '"apiBaseUrl": "https://generativelanguage.googleapis.com/v1beta"',
+    );
+  });
+
+  it("captures Gemini Business runtime material and keeps its JWT in a secret patch", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    vi.mocked(consoleApi.getRouteConfig).mockResolvedValue({
+      routeConfig: {
+        revision: { id: "r1-deadbeefcafe", sequence: 1, message: "initial import" },
+        source: "redis",
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: {
+          providers: [
+            {
+              id: "gemini-business",
+              label: "gemini-business",
+              vendor_key: "google-gemini",
+              vendor_name: "Google / Gemini",
+              preset: "gemini-business",
+              base_url: "https://biz-discoveryengine.googleapis.com/v1alpha",
+              supported_models: ["nano-banana-pro"],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        secrets: [],
+        mutationSupported: true,
+      },
+    });
+    vi.mocked(consoleApi.createGeminiAuthSession).mockResolvedValue({
+      session: {
+        id: "gemini-business-session-1",
+        targetFamily: "gemini-business",
+        providerId: "gemini-business",
+        status: "waiting_user",
+        message:
+          "Complete Gemini Business login, then trigger one Gemini Business request in the opened browser window.",
+        createdAt: "2026-07-30T09:00:00Z",
+        updatedAt: "2026-07-30T09:00:00Z",
+        generatedDrafts: [],
+      },
+    });
+    vi.mocked(consoleApi.getGeminiAuthSession).mockResolvedValue({
+      session: {
+        id: "gemini-business-session-1",
+        targetFamily: "gemini-business",
+        providerId: "gemini-business",
+        status: "succeeded",
+        message: "Gemini Business runtime captured.",
+        createdAt: "2026-07-30T09:00:00Z",
+        updatedAt: "2026-07-30T09:00:03Z",
+        generatedDrafts: [
+          {
+            providerId: "gemini-business",
+            credential: {
+              id: "gemini-business-manual-1",
+              account_name: "Gemini Business Manual 1",
+              api_key: "",
+              extra_body: {
+                configId: "cfg-123",
+                session: "projects/demo/sessions/abc",
+              },
+            },
+            secretEdits: [
+              {
+                field: "api_key",
+                operation: "replace",
+                value: "ey.demo.jwt",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
+      session: { secretAccessGranted: true },
+      secretGrant: { grant: "gemini-business-grant", expiresAt: "2099-01-01T00:00:00Z" },
+    });
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^Gemini Business$/i }));
+
+    const businessArticle = screen
+      .getByRole("button", { name: /^Gemini Business$/i })
+      .closest("article");
+    expect(businessArticle).not.toBeNull();
+    await user.click(
+      within(businessArticle as HTMLElement).getByRole("button", { name: /手动添加|Manual add/i }),
+    );
+
+    await waitFor(() =>
+      expect(consoleApi.createGeminiAuthSession).toHaveBeenCalledWith("management-secret", {
+        targetFamily: "gemini-business",
+        providerId: "gemini-business",
+      }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: /Gemini 手动添加|Gemini manual add/i });
+    expect(within(dialog).getByText("gemini-business")).toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(consoleApi.getGeminiAuthSession).toHaveBeenCalledWith(
+        "management-secret",
+        "gemini-business-session-1",
+      ),
+    );
+
+    await openWorkspace(user, /高级 JSON/i);
+    const editor = screen.getByRole("textbox", { name: /路由配置 JSON/i });
+    expect((editor as HTMLTextAreaElement).value).toContain('"id": "gemini-business-manual-1"');
+    expect((editor as HTMLTextAreaElement).value).toContain('"configId": "cfg-123"');
+    expect((editor as HTMLTextAreaElement).value).toContain(
+      '"session": "projects/demo/sessions/abc"',
+    );
+
+    await user.click(screen.getByRole("button", { name: /保存路由配置/i }));
+    await waitFor(() =>
+      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          secretPatches: expect.arrayContaining([
+            expect.objectContaining({
+              operation: "replace",
+              value: "ey.demo.jwt",
+            }),
+          ]),
+        }),
+        "gemini-business-grant",
+      ),
+    );
+  });
+
+  it("allows the operator to manually continue Gemini Canvas import after finishing login", async () => {
+    const consoleApi = createConsoleApi();
+    const user = userEvent.setup();
+
+    const initialRouteConfig = {
+      routeConfig: {
+        revision: { id: "r1-deadbeefcafe", sequence: 1, message: "initial import" },
+        source: "redis" as const,
+        diagnostics: { diagnostics: [] },
+        requiresRepair: false,
+        document: {
+          providers: [
+            {
+              id: "gemini-canvas",
+              label: "gemini-canvas",
+              vendor_key: "google-gemini",
+              vendor_name: "Google / Gemini",
+              preset: "gemini-canvas",
+              base_url: "https://gemini.google.com",
+              supported_models: ["gemini-2.5-flash"],
+            },
+          ],
+          model_routes: [],
+          aliases: {},
+          account_groups: [],
+        },
+        secrets: [],
+        mutationSupported: true,
+      },
+    };
+    const committedRouteConfig = {
+      routeConfig: {
+        ...initialRouteConfig.routeConfig,
+        revision: {
+          id: "r2-gemini-manual-complete",
+          sequence: 2,
+          message: "Import Gemini manual credentials (gemini-session-manual-complete)",
+        },
+        document: {
+          ...initialRouteConfig.routeConfig.document,
+          providers: [
+            {
+              ...initialRouteConfig.routeConfig.document.providers[0],
+              credentials: [
+                {
+                  id: "gemini-canvas-manual-complete-1",
+                  account_name: "Gemini Canvas Manual Complete 1",
+                  runtime_state_object_key:
+                    "credential-runtime/gemini-canvas/manual-complete/storage-state.json",
+                  extra_body: {
+                    shareId: "fe24c455a570",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    vi.mocked(consoleApi.getRouteConfig)
+      .mockResolvedValueOnce(initialRouteConfig)
+      .mockResolvedValue(committedRouteConfig);
+    vi.mocked(consoleApi.commitRouteConfig).mockResolvedValue({
+      routeConfig: committedRouteConfig.routeConfig,
+      committed: true,
+    });
+    vi.mocked(consoleApi.createGeminiAuthSession).mockResolvedValue({
+      session: {
+        id: "gemini-session-manual-complete",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "waiting_user",
+        message: "Complete Gemini login in the opened browser window.",
+        createdAt: "2026-07-30T12:00:00Z",
+        updatedAt: "2026-07-30T12:00:00Z",
+        generatedDrafts: [],
+      },
+    });
+    vi.mocked(consoleApi.completeGeminiAuthSession).mockResolvedValue({
+      session: {
+        id: "gemini-session-manual-complete",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "waiting_user",
+        message: "Manual Gemini import requested. Finishing capture.",
+        createdAt: "2026-07-30T12:00:00Z",
+        updatedAt: "2026-07-30T12:00:02Z",
+        generatedDrafts: [],
+      },
+    });
+    vi.mocked(consoleApi.getGeminiAuthSession)
+      .mockResolvedValueOnce({
+        session: {
+          id: "gemini-session-manual-complete",
+          targetFamily: "gemini-canvas",
+          providerId: "gemini-canvas",
+          status: "waiting_user",
+          message: "Complete Gemini login in the opened browser window.",
+          createdAt: "2026-07-30T12:00:00Z",
+          updatedAt: "2026-07-30T12:00:00Z",
+          generatedDrafts: [],
+        },
+      })
+      .mockResolvedValue({
+        session: {
+          id: "gemini-session-manual-complete",
+          targetFamily: "gemini-canvas",
+          providerId: "gemini-canvas",
+          status: "succeeded",
+          message: "Gemini Canvas runtime captured.",
+          createdAt: "2026-07-30T12:00:00Z",
+          updatedAt: "2026-07-30T12:00:03Z",
+          generatedDrafts: [
+            {
+              providerId: "gemini-canvas",
+              credential: {
+                id: "gemini-canvas-manual-complete-1",
+                account_name: "Gemini Canvas Manual Complete 1",
+                runtime_state_object_key:
+                  "credential-runtime/gemini-canvas/manual-complete/storage-state.json",
+                extra_body: {
+                  shareId: "fe24c455a570",
+                },
+              },
+              secretEdits: [],
+            },
+          ],
+        },
+      });
+
+    renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
+
+    await waitForConsoleReady();
+    await openWorkspace(user, /账号台账/i);
+    await user.click(screen.getByRole("button", { name: /^Gemini Canvas$/i }));
+
+    const canvasArticle = screen.getByRole("button", { name: /^Gemini Canvas$/i }).closest("article");
+    expect(canvasArticle).not.toBeNull();
+    await user.click(
+      within(canvasArticle as HTMLElement).getByRole("button", { name: /手动添加|Manual add/i }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: /Gemini 手动添加|Gemini manual add/i });
+    const continueButton = within(dialog).getByRole("button", {
+      name: /已完成登录.*导入|I finished login.*import/i,
+    });
+    await user.click(continueButton);
+
+    await waitFor(() =>
+      expect(consoleApi.completeGeminiAuthSession).toHaveBeenCalledWith(
+        "management-secret",
+        "gemini-session-manual-complete",
+      ),
+    );
+
+    await waitFor(() =>
+      expect(consoleApi.getGeminiAuthSession).toHaveBeenCalledWith(
+        "management-secret",
+        "gemini-session-manual-complete",
+      ),
+    );
+    await waitFor(() =>
+      expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
+        "management-secret",
+        expect.objectContaining({
+          document: expect.objectContaining({
+            providers: expect.arrayContaining([
+              expect.objectContaining({
+                id: "gemini-canvas",
+                credentials: expect.arrayContaining([
+                  expect.objectContaining({ id: "gemini-canvas-manual-complete-1" }),
+                ]),
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
+
+    await openWorkspace(user, /高级 JSON/i);
+    const editor = screen.getByRole("textbox", { name: /路由配置 JSON/i });
+    expect((editor as HTMLTextAreaElement).value).toContain(
+      '"id": "gemini-canvas-manual-complete-1"',
+    );
   });
 });

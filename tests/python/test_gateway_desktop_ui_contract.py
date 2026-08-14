@@ -105,11 +105,121 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         styles = DESKTOP_ROOT / "src" / "styles.css"
         self.assertTrue(styles.exists(), "Gateway desktop styles.css must exist")
         css = styles.read_text(encoding="utf-8")
-        for required in ["--nt-signal: #d9ff38", "--nt-cyan", "--nt-graphite", "--nt-canvas"]:
+        for required in [
+            "--nt-color-signal-yellow: #d9ff38",
+            "--nt-color-signal-green: #22c55e",
+            "--nt-color-info-blue: #06b6d4",
+            "--nt-color-danger-red: #f43f5e",
+            "--nt-signal: var(--nt-color-signal-yellow)",
+            "--nt-cyan: var(--nt-color-info-blue)",
+            "--nt-graphite: var(--nt-color-background)",
+            "--nt-canvas: var(--nt-color-background)",
+        ]:
             self.assertIn(required, css)
         for selector in [".nt-shell", ".nt-rail", ".nt-board", ".nt-btn", ".nt-input", ".nt-kicker"]:
             self.assertIn(selector, css)
         self.assertNotIn("linear-gradient(135deg, #8b5cf6, #d946ef", css)
+
+    def test_browser_console_uses_global_top_right_dismissible_toasts(self):
+        toast_file = DESKTOP_ROOT / "src" / "components" / "AppToast.tsx"
+        toast_test_file = DESKTOP_ROOT / "src" / "components" / "AppToast.test.tsx"
+        main_file = DESKTOP_ROOT / "src" / "main.tsx"
+        styles_file = DESKTOP_ROOT / "src" / "styles.css"
+
+        toast_text = toast_file.read_text(encoding="utf-8")
+        toast_test_text = toast_test_file.read_text(encoding="utf-8")
+        main_text = main_file.read_text(encoding="utf-8")
+        css = styles_file.read_text(encoding="utf-8")
+
+        self.assertIn("createPortal", toast_text)
+        self.assertIn("document.body", toast_text)
+        self.assertIn("TOAST_LIFETIME_MS", toast_text)
+        self.assertIn("onClick={dismiss}", toast_text)
+        self.assertIn('role={role}', toast_text)
+        self.assertIn("<AppToastViewport />", main_text)
+        self.assertIn(".nt-toast-viewport", css)
+        self.assertIn("position: fixed", css)
+        self.assertIn("top: 64px", css)
+        self.assertIn("right: 18px", css)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", css)
+        self.assertIn("portals the notification viewport to the document body", toast_test_text)
+        self.assertIn("preserves the longer error lifetime", toast_test_text)
+
+    def test_account_ledger_filters_orphans_and_wires_trusted_pool_automation(self):
+        browser_console_text = (
+            DESKTOP_ROOT
+            / "src"
+            / "features"
+            / "console"
+            / "BrowserConsoleApp.tsx"
+        ).read_text(encoding="utf-8")
+        view_model_text = (
+            DESKTOP_ROOT
+            / "src"
+            / "features"
+            / "console"
+            / "accountManagementViewModel.ts"
+        ).read_text(encoding="utf-8")
+
+        orphan_filter = ".filter((account) => providersById.has(account.providerId))"
+        self.assertIn(orphan_filter, browser_console_text)
+        self.assertIn(orphan_filter, view_model_text)
+        self.assertIn("getCredentialPoolAutomation", browser_console_text)
+        self.assertIn("runCredentialPoolAutomation", browser_console_text)
+        self.assertIn("automation?.driverConfigured", browser_console_text)
+        self.assertIn("updateIdentityCategoryAutomationToggle", browser_console_text)
+        self.assertIn("setError(message)", browser_console_text)
+
+    def test_credential_refill_framework_wires_all_three_triggers_without_stream_secrets(self):
+        refill_file = GATEWAY_ROOT / "src" / "credential_refill.rs"
+        refill_route_file = (
+            GATEWAY_ROOT / "src" / "http" / "routes" / "internal_credential_refill.rs"
+        )
+        router_file = GATEWAY_ROOT / "src" / "http" / "router.rs"
+        redis_keys_file = GATEWAY_ROOT / "src" / "redis" / "keys.rs"
+        account_ledger_file = (
+            DESKTOP_ROOT
+            / "src"
+            / "features"
+            / "console"
+            / "AccountsLedgerWorkspace.tsx"
+        )
+
+        self.assertTrue(refill_file.is_file())
+        self.assertTrue(refill_route_file.is_file())
+        refill_text = refill_file.read_text(encoding="utf-8")
+        route_text = refill_route_file.read_text(encoding="utf-8")
+        router_text = router_file.read_text(encoding="utf-8")
+        redis_keys_text = redis_keys_file.read_text(encoding="utf-8")
+        ledger_text = account_ledger_file.read_text(encoding="utf-8")
+
+        for trigger in ["Notification", "Inquiry", "UserRequested"]:
+            self.assertIn(trigger, refill_text)
+        for endpoint_fragment in [
+            '"/v1/internal/gateway/credential-pool-refill"',
+            '"/v1/internal/gateway/credential-pool-refill/tasks"',
+            '"/v1/internal/gateway/credential-pool-refill/tasks/claim"',
+            '"/v1/internal/gateway/credential-pool-refill/tasks/:taskId/renew"',
+            '"/v1/internal/gateway/credential-pool-refill/tasks/:taskId/complete"',
+            '"/v1/internal/gateway/credential-pool-refill/tasks/:taskId/fail"',
+        ]:
+            self.assertIn(endpoint_fragment, router_text)
+        self.assertIn("assert_management_access", route_text)
+        self.assertIn("gw:credential-pool:refill:requests", redis_keys_text)
+        self.assertIn("通知型开启", ledger_text)
+        self.assertIn("询问型开启", ledger_text)
+        self.assertIn("主动型开启", ledger_text)
+        self.assertIn("主动补号", ledger_text)
+
+        stream_event = re.search(
+            r"redis\.call\('XADD'.*?return \{1, ARGV\[2\]\}",
+            refill_text,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(stream_event)
+        event_text = stream_event.group(0).lower()
+        for forbidden in ["api_key", "cookie", "claimtoken", "authorization"]:
+            self.assertNotIn(forbidden, event_text)
 
     def test_release_plan_includes_headless_and_ui_gateway_exes(self):
         release_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
@@ -176,6 +286,21 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn('WindowStyle = "Hidden"', script_text)
         self.assertIn('-Command "cargo"', script_text)
         self.assertIn('-Command "npm"', script_text)
+
+    def test_gateway_owned_release_builder_streams_long_running_child_output(self):
+        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
+        script_text = build_script.read_text(encoding="utf-8")
+        self.assertIn("function Write-NewCaptureLines", script_text)
+        self.assertIn("while (-not $process.HasExited)", script_text)
+        self.assertIn(
+            'Write-NewCaptureLines -Path $stdoutPath -LastLineIndex ([ref]$stdoutLineIndex)',
+            script_text,
+        )
+        self.assertIn(
+            'Write-NewCaptureLines -Path $stderrPath -LastLineIndex ([ref]$stderrLineIndex)',
+            script_text,
+        )
+        self.assertIn("Start-Sleep -Milliseconds 200", script_text)
 
     def test_gateway_owned_release_builder_prefers_application_wrappers_for_start_process(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"

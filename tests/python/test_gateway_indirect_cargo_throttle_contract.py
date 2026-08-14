@@ -168,6 +168,14 @@ class GatewayIndirectCargoThrottleContractTests(unittest.TestCase):
             ],
         )
 
+    def test_release_candidate_docker_build_stays_on_release_profile(self):
+        script = (
+            GATEWAY_ROOT / "tools/verify-gateway-release-candidate.ps1"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("GATEWAY_CARGO_PROFILE=docker-verify", script)
+        self.assertNotIn("GATEWAY_CARGO_PROFILE=release", script)
+
 
 if __name__ == "__main__":
     unittest.main()

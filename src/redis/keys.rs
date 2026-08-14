@@ -130,6 +130,38 @@ pub fn provider_credential_folder_sync_enabled_key() -> String {
 }
 
 // ---------------------------------------------------------------------------
+// Credential pool refill workflow
+// ---------------------------------------------------------------------------
+
+pub fn credential_refill_stream_key() -> &'static str {
+    "gw:credential-pool:refill:requests"
+}
+
+pub fn credential_refill_pending_tasks_key() -> &'static str {
+    "gw:credential-pool:refill:tasks:pending"
+}
+
+pub fn credential_refill_recent_tasks_key() -> &'static str {
+    "gw:credential-pool:refill:tasks:recent"
+}
+
+pub fn credential_refill_task_key(task_id: &str) -> String {
+    format!("gw:credential-pool:refill:task:{task_id}")
+}
+
+pub fn credential_refill_outstanding_key(provider_id: &str) -> String {
+    format!("gw:credential-pool:refill:outstanding:{provider_id}")
+}
+
+pub fn credential_refill_lease_key(task_id: &str) -> String {
+    format!("gw:credential-pool:refill:lease:{task_id}")
+}
+
+pub fn credential_refill_idempotency_key(idempotency_hash: &str) -> String {
+    format!("gw:credential-pool:refill:idempotency:{idempotency_hash}")
+}
+
+// ---------------------------------------------------------------------------
 // Browser executor runtime
 // ---------------------------------------------------------------------------
 

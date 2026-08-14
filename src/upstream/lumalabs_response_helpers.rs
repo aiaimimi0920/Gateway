@@ -153,8 +153,7 @@ pub(crate) fn prepare_lumalabs_media_plan(
     let media_operation = crate::protocol::lumalabs::media_operation_name(operation);
     let artifact_field =
         crate::protocol::lumalabs::output_artifact_field_for_operation(req, &runtime, operation);
-    let page_base_url =
-        crate::upstream::gemini_canvas_runtime_helpers::gemini_canvas_page_base_url(payload);
+    let page_base_url = payload.base_url.trim_end_matches('/').to_string();
     let request_timeout = match operation {
         crate::protocol::lumalabs::LumalabsMediaOperation::Image => {
             default_timeout.max(Duration::from_secs(90))
@@ -174,7 +173,7 @@ pub(crate) fn prepare_lumalabs_media_plan(
         auto_discover_action_type,
         media_operation,
         artifact_field,
-        base_url: page_base_url.trim_end_matches('/').to_string(),
+        base_url: page_base_url,
         request_timeout,
         realm_id: runtime.realm_id,
         locale: crate::upstream::lumalabs_runtime_helpers::lumalabs_locale(payload).to_string(),
@@ -406,7 +405,7 @@ mod tests {
             crate::protocol::lumalabs::LumalabsMediaOperation::Image
         );
         assert_eq!(plan.prompt, "surreal glass flower");
-        assert_eq!(plan.base_url, "https://gemini.google.com");
+        assert_eq!(plan.base_url, "https://app.lumalabs.ai");
         assert_eq!(plan.realm_id, "realm-123");
         assert_eq!(plan.media_operation, "image");
         assert_eq!(plan.artifact_field, "image");
@@ -455,7 +454,7 @@ mod tests {
         .expect("lumalabs media plan");
         let prepared = prepare_lumalabs_browser_execution_input(&plan, "sk-test");
 
-        assert_eq!(prepared.base_url, "https://gemini.google.com");
+        assert_eq!(prepared.base_url, "https://app.lumalabs.ai");
         assert_eq!(prepared.realm_id, "realm-123");
         assert_eq!(prepared.media_operation.as_deref(), Some("image"));
         assert_eq!(prepared.artifact_field, "image");
@@ -483,7 +482,7 @@ mod tests {
 
         assert_eq!(prepared.browser_input.session_token, "sk-test");
         assert_eq!(prepared.media_plan.prompt, "surreal glass flower");
-        assert_eq!(prepared.browser_input.base_url, "https://gemini.google.com");
+        assert_eq!(prepared.browser_input.base_url, "https://app.lumalabs.ai");
         assert_eq!(prepared.browser_input.realm_id, "realm-123");
         assert_eq!(prepared.browser_input.timeout, Duration::from_secs(90));
     }

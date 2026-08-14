@@ -1,12 +1,13 @@
 use rquest::header::HeaderMap;
 use rquest::{Client, Method};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
-use tokio::time::sleep;
+use tokio::time::{sleep, Instant};
 
 use crate::error::{classify_network_error, classify_upstream_error, GatewayError};
 use crate::upstream::browser_executor_helpers::{
@@ -23,6 +24,8 @@ use crate::upstream::header_map_helpers::{
 };
 
 pub(crate) const PRODUCER_IMAGE_MAX_ATTEMPTS: usize = 2;
+const PRODUCER_MUSIC_CLIP_POLL_INTERVAL: Duration = Duration::from_secs(5);
+const PRODUCER_MUSIC_CLIP_POLL_MAX_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Debug)]
 pub(crate) struct ProducerConversationJobData {
@@ -181,6 +184,38 @@ pub(crate) async fn fetch_producer_video_status(
     parse_producer_video_status_http_response(status, &body_text, provider)
 }
 
+async fn poll_producer_video_status_until_complete(
+    http: &Client,
+    base_url: &str,
+    headers: &HeaderMap,
+    job_id: &str,
+    referer: &str,
+    request_timeout: Duration,
+) -> Result<Value, GatewayError> {
+    let provider = "producer_compatible";
+    let deadline = Instant::now() + request_timeout;
+    loop {
+        let status_payload =
+            fetch_producer_video_status(http, base_url, headers, job_id, referer, request_timeout)
+                .await?;
+        let final_status = extract_producer_video_final_status(&status_payload);
+        ensure_successful_producer_video_final_status(provider, &final_status, &status_payload)?;
+        if final_status == "completed"
+            && select_producer_video_final_url(&status_payload, job_id).is_some()
+        {
+            return Ok(status_payload);
+        }
+        if Instant::now() >= deadline {
+            return Err(GatewayError::service_unavailable(
+                "Producer music-video media did not become available before the poll timeout.",
+            )
+            .with_provider(provider)
+            .with_code("producer_video_poll_timeout"));
+        }
+        sleep(PRODUCER_MUSIC_CLIP_POLL_INTERVAL).await;
+    }
+}
+
 pub(crate) async fn execute_producer_image_http(
     http: &Client,
     base_url: &str,
@@ -279,7 +314,234 @@ pub(crate) async fn execute_producer_music_http(
         .text()
         .await
         .map_err(|error| classify_network_error(&error, Some(provider)))?;
-    parse_producer_music_stream_http_response(stream_status, &stream_body, provider, model, &job_id)
+    let stream_summary = parse_producer_music_stream_http_response(
+        stream_status,
+        &stream_body,
+        provider,
+        model,
+        &job_id,
+    )?;
+    poll_producer_music_clip_assets(
+        http,
+        base_url,
+        headers,
+        stream_summary,
+        request_timeout.min(PRODUCER_MUSIC_CLIP_POLL_MAX_TIMEOUT),
+    )
+    .await
+}
+
+async fn fetch_producer_music_library(
+    http: &Client,
+    base_url: &str,
+    headers: &HeaderMap,
+    request_timeout: Duration,
+) -> Result<Value, GatewayError> {
+    let provider = "producer_compatible";
+    let response = http
+        .request(
+            Method::GET,
+            crate::protocol::producer::build_clips_library_url(base_url),
+        )
+        .headers(headers.clone())
+        .timeout(request_timeout.min(Duration::from_secs(60)))
+        .send()
+        .await
+        .map_err(|error| classify_network_error(&error, Some(provider)))?;
+    let status = response.status().as_u16();
+    let body_text = response
+        .text()
+        .await
+        .map_err(|error| classify_network_error(&error, Some(provider)))?;
+    ensure_successful_producer_http_status(
+        status,
+        &body_text,
+        provider,
+        Some("producer_music_clip_poll_failed"),
+    )?;
+    serde_json::from_str(&body_text).map_err(|_| {
+        GatewayError::server_error("Producer music clip library response was not valid JSON.")
+            .with_provider(provider)
+            .with_code("producer_music_clip_poll_invalid_response")
+    })
+}
+
+async fn poll_producer_music_clip_assets(
+    http: &Client,
+    base_url: &str,
+    headers: &HeaderMap,
+    stream_summary: Value,
+    poll_timeout: Duration,
+) -> Result<Value, GatewayError> {
+    let provider = "producer_compatible";
+    let clip_ids = producer_music_clip_ids(&stream_summary);
+    if clip_ids.is_empty() {
+        return Err(GatewayError::server_error(
+            "Producer music stream completed without returning a clip ID.",
+        )
+        .with_provider(provider)
+        .with_code("producer_music_missing_clip_id"));
+    }
+
+    let deadline = Instant::now() + poll_timeout;
+    loop {
+        let library = fetch_producer_music_library(http, base_url, headers, poll_timeout).await?;
+        let clips = producer_music_clip_assets(&library, &clip_ids);
+        if producer_music_clip_assets_complete(&clips, &clip_ids) {
+            return build_producer_music_completed_response(stream_summary, clips);
+        }
+        if Instant::now() >= deadline {
+            break;
+        }
+        sleep(PRODUCER_MUSIC_CLIP_POLL_INTERVAL).await;
+    }
+
+    Err(GatewayError::service_unavailable(
+        "Producer music clip media did not become available before the poll timeout.",
+    )
+    .with_provider(provider)
+    .with_code("producer_music_clip_poll_timeout"))
+}
+
+fn producer_music_clip_ids(value: &Value) -> Vec<String> {
+    fn visit(value: &Value, output: &mut Vec<String>) {
+        match value {
+            Value::Array(values) => {
+                for value in values {
+                    visit(value, output);
+                }
+            }
+            Value::Object(object) => {
+                for (key, value) in object {
+                    if matches!(key.as_str(), "clip_id" | "clipId" | "song_id" | "songId") {
+                        if let Some(value) = value
+                            .as_str()
+                            .map(str::trim)
+                            .filter(|value| !value.is_empty())
+                        {
+                            if !output.iter().any(|entry| entry == value) {
+                                output.push(value.to_string());
+                            }
+                        }
+                    }
+                    visit(value, output);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut output = Vec::new();
+    visit(value, &mut output);
+    output
+}
+
+fn producer_music_clip_assets(library: &Value, clip_ids: &[String]) -> Vec<Value> {
+    fn visit(
+        value: &Value,
+        targets: &HashSet<&str>,
+        seen: &mut HashSet<String>,
+        output: &mut Vec<Value>,
+    ) {
+        match value {
+            Value::Array(values) => {
+                for value in values {
+                    visit(value, targets, seen, output);
+                }
+            }
+            Value::Object(object) => {
+                let candidate_id = ["id", "clip_id", "clipId", "song_id", "songId"]
+                    .iter()
+                    .find_map(|key| object.get(*key).and_then(Value::as_str))
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty());
+                if let Some(candidate_id) = candidate_id {
+                    if targets.contains(candidate_id) && seen.insert(candidate_id.to_string()) {
+                        let mut clip = Map::new();
+                        clip.insert(
+                            "clip_id".to_string(),
+                            Value::String(candidate_id.to_string()),
+                        );
+                        for field in [
+                            "title",
+                            "duration",
+                            "audio_url",
+                            "wav_url",
+                            "image_url",
+                            "video_url",
+                            "status",
+                            "state",
+                        ] {
+                            if let Some(value) = object.get(field) {
+                                clip.insert(field.to_string(), value.clone());
+                            }
+                        }
+                        output.push(Value::Object(clip));
+                    }
+                }
+                for value in object.values() {
+                    visit(value, targets, seen, output);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let targets = clip_ids.iter().map(String::as_str).collect::<HashSet<_>>();
+    let mut seen = HashSet::new();
+    let mut output = Vec::new();
+    visit(library, &targets, &mut seen, &mut output);
+    output
+}
+
+fn producer_music_clip_assets_complete(clips: &[Value], clip_ids: &[String]) -> bool {
+    clip_ids.iter().all(|clip_id| {
+        clips.iter().any(|clip| {
+            clip.get("clip_id").and_then(Value::as_str) == Some(clip_id.as_str())
+                && ["audio_url", "wav_url"].iter().any(|field| {
+                    clip.get(*field)
+                        .and_then(Value::as_str)
+                        .map(str::trim)
+                        .is_some_and(|value| !value.is_empty())
+                })
+        })
+    })
+}
+
+fn build_producer_music_completed_response(
+    mut stream_summary: Value,
+    clips: Vec<Value>,
+) -> Result<Value, GatewayError> {
+    let provider = "producer_compatible";
+    let object = stream_summary.as_object_mut().ok_or_else(|| {
+        GatewayError::server_error("Producer music stream summary must be a JSON object.")
+            .with_provider(provider)
+            .with_code("producer_music_invalid_stream_summary")
+    })?;
+    let data = clips
+        .iter()
+        .filter_map(|clip| {
+            let clip_id = clip.get("clip_id")?.as_str()?;
+            let url = clip
+                .get("audio_url")
+                .or_else(|| clip.get("wav_url"))?
+                .as_str()?;
+            let mut item = Map::new();
+            item.insert("clip_id".to_string(), Value::String(clip_id.to_string()));
+            item.insert("url".to_string(), Value::String(url.to_string()));
+            for field in ["wav_url", "image_url", "title", "duration"] {
+                if let Some(value) = clip.get(field) {
+                    item.insert(field.to_string(), value.clone());
+                }
+            }
+            Some(Value::Object(item))
+        })
+        .collect::<Vec<_>>();
+    object.insert("clips".to_string(), Value::Array(clips));
+    object.insert("data".to_string(), Value::Array(data));
+    object.insert("completed".to_string(), Value::Bool(true));
+    object.insert("media_completed".to_string(), Value::Bool(true));
+    Ok(stream_summary)
 }
 
 pub(crate) async fn execute_producer_video_http(
@@ -387,15 +649,31 @@ pub(crate) async fn execute_producer_video_http(
         provider,
     )?;
 
-    let status_payload = fetch_producer_video_status(
-        http,
-        base_url,
-        headers,
-        &video_job_id,
-        &session_plan.session_referer,
-        request_timeout,
-    )
-    .await?;
+    let accept_async_job = request_body
+        .get("async")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let status_payload = if accept_async_job {
+        fetch_producer_video_status(
+            http,
+            base_url,
+            headers,
+            &video_job_id,
+            &session_plan.session_referer,
+            request_timeout,
+        )
+        .await?
+    } else {
+        poll_producer_video_status_until_complete(
+            http,
+            base_url,
+            headers,
+            &video_job_id,
+            &session_plan.session_referer,
+            request_timeout,
+        )
+        .await?
+    };
     build_producer_video_http_response(
         provider,
         base_url,
@@ -1223,7 +1501,7 @@ pub(crate) fn should_retry_producer_image_request(status: u16, body_text: &str) 
 #[cfg(test)]
 mod tests {
     use rquest::header::HeaderMap;
-    use serde_json::json;
+    use serde_json::{json, Value};
 
     use crate::error::GatewayError;
     use crate::protocol::canonical::{
@@ -1239,10 +1517,10 @@ mod tests {
     use super::{
         build_producer_browser_executor_payload,
         build_producer_browser_executor_payload_from_prepared, build_producer_browser_worker_input,
-        build_producer_video_bootstrap_plan, build_producer_video_http_response,
-        classify_producer_browser_worker_failure, classify_producer_image_request_failure,
-        ensure_producer_video_proposal_seen, ensure_successful_producer_http_status,
-        ensure_successful_producer_message_stream_status,
+        build_producer_music_completed_response, build_producer_video_bootstrap_plan,
+        build_producer_video_http_response, classify_producer_browser_worker_failure,
+        classify_producer_image_request_failure, ensure_producer_video_proposal_seen,
+        ensure_successful_producer_http_status, ensure_successful_producer_message_stream_status,
         ensure_successful_producer_video_final_status, execute_producer_browser_worker,
         execute_producer_image_http, execute_producer_music_http, execute_producer_video_http,
         extract_producer_browser_worker_success, extract_producer_conversation_id,
@@ -1259,7 +1537,8 @@ mod tests {
         producer_http_video_missing_video_job_id_error,
         producer_http_video_missing_video_proposal_error, producer_image_retry_exhausted_error,
         producer_invalid_conversation_response_error, producer_invalid_image_response_error,
-        producer_invalid_video_status_response_error, producer_runtime_headers,
+        producer_invalid_video_status_response_error, producer_music_clip_assets,
+        producer_music_clip_assets_complete, producer_music_clip_ids, producer_runtime_headers,
         producer_stream_headers, producer_summary_find_tool_return_job_id,
         producer_summary_has_tool_name, producer_summary_has_video_proposal,
         read_producer_message_stream, require_producer_conversation_id,
@@ -1273,6 +1552,50 @@ mod tests {
         PreparedProducerBrowserExecutorServiceInput, ProducerConversationJobData,
         ProducerImageAttemptResolution, PRODUCER_IMAGE_MAX_ATTEMPTS,
     };
+
+    #[test]
+    fn producer_music_clip_completion_builds_downloadable_media_contract() {
+        let summary = json!({
+            "object": "music.generation",
+            "completed": true,
+            "parts": [
+                {"part": {"content": {"clip_id": "clip-a"}}},
+                {"part": {"content": {"clip_id": "clip-b"}}}
+            ]
+        });
+        let clip_ids = producer_music_clip_ids(&summary);
+        assert_eq!(clip_ids, vec!["clip-a", "clip-b"]);
+
+        let library = json!({
+            "data": [
+                {
+                    "id": "clip-b",
+                    "title": "Paris B",
+                    "audio_url": "https://storage.example/clips/b.m4a",
+                    "wav_url": "https://storage.example/clips/b.wav"
+                },
+                {
+                    "id": "clip-a",
+                    "title": "Paris A",
+                    "audio_url": "https://storage.example/clips/a.m4a"
+                }
+            ]
+        });
+        let clips = producer_music_clip_assets(&library, &clip_ids);
+        assert!(producer_music_clip_assets_complete(&clips, &clip_ids));
+
+        let completed = build_producer_music_completed_response(summary, clips)
+            .expect("music completion response");
+        assert_eq!(completed["completed"], true);
+        assert_eq!(completed["media_completed"], true);
+        assert_eq!(completed["data"].as_array().map(Vec::len), Some(2));
+        assert!(completed["data"].as_array().is_some_and(|items| {
+            items.iter().all(|item| {
+                item.get("clip_id").and_then(Value::as_str).is_some()
+                    && item.get("url").and_then(Value::as_str).is_some()
+            })
+        }));
+    }
 
     #[test]
     fn producer_http_video_missing_conversation_id_error_matches_contract() {

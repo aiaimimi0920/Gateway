@@ -30,6 +30,7 @@ const LINUX_BROWSER_PATHS = [
 async function main() {
   let browser = null;
   let context = null;
+  let closeBrowser = async () => undefined;
   let easyBrowserLease = null;
   try {
     const raw = await readStdin();
@@ -84,7 +85,16 @@ async function main() {
 
     if (effectiveBrowserTarget.browserCdpUrl) {
       browser = await chromium.connectOverCDP(effectiveBrowserTarget.browserCdpUrl);
-      context = browser.contexts()[0] ?? (await browser.newContext());
+      context =
+        browser
+          .contexts()
+          .find((candidate) =>
+            candidate
+              .pages()
+              .some((candidatePage) => candidatePage.url().startsWith("https://suno.com")),
+          ) ??
+        browser.contexts()[0] ??
+        (await browser.newContext());
     } else {
       const executablePath = resolveExecutablePath(
         input.browserExecutablePath ?? process.env.SUNO_BROWSER_EXECUTABLE_PATH ?? null,
@@ -107,6 +117,9 @@ async function main() {
           "--no-default-browser-check",
         ],
       });
+      closeBrowser = async () => {
+        await browser?.close().catch(() => undefined);
+      };
 
       context = await browser.newContext({
         locale,
@@ -114,7 +127,7 @@ async function main() {
       });
     }
 
-    if (cookieHeader) {
+    if (cookieHeader && !effectiveBrowserTarget.browserCdpUrl) {
       await context.addCookies(parseCookieHeader(cookieHeader));
     }
 
@@ -122,7 +135,8 @@ async function main() {
       targetUrl: effectiveBrowserTarget.browserCdpTargetUrl,
       fallbackUrl: referer,
       navigationTimeoutMs,
-      forceNavigate: Boolean(cookieHeader),
+      forceNavigate: Boolean(cookieHeader && !effectiveBrowserTarget.browserCdpUrl),
+      borrowedContext: Boolean(effectiveBrowserTarget.browserCdpUrl),
     });
     await dismissKnownBlockingOverlays(page);
 
@@ -144,8 +158,11 @@ async function main() {
 
     const createOutcome = await runCreateThroughPageUi(page, {
       prompt,
-      timeoutMs: Math.min(timeoutMs, 60_000),
+      timeoutMs,
     }).catch(async (error) => {
+      if (error?.code === "suno_browser_challenge_required") {
+        throw error;
+      }
       if (await pageLooksChallenged(page)) {
         throw createError(
           403,
@@ -319,7 +336,7 @@ async function main() {
       error: normalizeError(error),
     });
   } finally {
-    await browser?.close().catch(() => undefined);
+    await closeBrowser();
     await releaseEasyBrowserLease(easyBrowserLease).catch(() => undefined);
   }
 }
@@ -572,7 +589,12 @@ function clipHasTargetAsset(clip, targetAssetKind) {
 
 function clipTerminalStatus(clip) {
   const status = normalizeString(clip?.status)?.toLowerCase();
-  return Boolean(status && ["streaming", "complete", "completed", "error", "failed"].includes(status));
+  return Boolean(status && ["complete", "completed", "error", "failed"].includes(status));
+}
+
+function clipCompletedStatus(clip) {
+  const status = normalizeString(clip?.status)?.toLowerCase();
+  return status === "complete" || status === "completed";
 }
 
 function clipsTerminal(clips) {
@@ -580,7 +602,13 @@ function clipsTerminal(clips) {
 }
 
 function clipsReadyForTarget(clips, targetAssetKind) {
-  return Array.isArray(clips) && clips.some((clip) => clipHasTargetAsset(clip, targetAssetKind));
+  return (
+    Array.isArray(clips) &&
+    clips.length > 0 &&
+    clips.every(
+      (clip) => clipCompletedStatus(clip) && clipHasTargetAsset(clip, targetAssetKind),
+    )
+  );
 }
 
 function toCamel(value) {
@@ -613,7 +641,11 @@ async function pageLooksChallenged(page) {
         "iframe[src*='challenges.cloudflare.com']",
         "iframe[src*='turnstile']",
       ];
-      return selectors.some((selector) => document.querySelector(selector));
+      return selectors.some((selector) =>
+        Array.from(document.querySelectorAll(selector)).some(
+          (element) => element.getClientRects().length > 0,
+        ),
+      );
     })
     .catch(() => false);
 }
@@ -636,9 +668,12 @@ async function pageLooksSignedOut(page) {
 async function runCreateThroughPageUi(page, options) {
   const { prompt, timeoutMs } = options;
   await dismissKnownBlockingOverlays(page);
-  const createButton = page
-    .locator('button[aria-label="创作歌曲"], button[aria-label="Create song"], button:has-text("创作"), button:has-text("Create")')
+  let createButton = page
+    .locator('button:visible[aria-label="创作歌曲"], button:visible[aria-label="Create song"]')
     .first();
+  if (!(await createButton.count())) {
+    createButton = page.locator('button:visible:has-text("创作"), button:visible:has-text("Create")').last();
+  }
   await createButton.waitFor({ state: "visible", timeout: timeoutMs });
 
   await fillCreateInputs(page, {
@@ -654,63 +689,40 @@ async function runCreateThroughPageUi(page, options) {
       response.request().method().toUpperCase() === "POST",
     { timeout: timeoutMs },
   );
-
   await createButton.click();
-  const createResponse = await createResponsePromise;
-  return {
-    status: createResponse.status(),
-    bodyText: await createResponse.text(),
-  };
+  try {
+    const createResponse = await createResponsePromise;
+    return {
+      status: createResponse.status(),
+      bodyText: await createResponse.text(),
+    };
+  } catch (error) {
+    if (await pageLooksChallenged(page)) {
+      throw createError(
+        429,
+        "suno_browser_challenge_required",
+        "Complete the visible Suno security check before generation can continue.",
+        error?.message,
+      );
+    }
+    throw error;
+  }
 }
 
 async function fillCreateInputs(page, options) {
   const { prompt, createButton, timeoutMs } = options;
-  const preferredPromptArea = page
-    .locator(
-      [
-        'textarea:visible[maxlength="500"][placeholder*="Describe the sound"]',
-        'textarea:visible[maxlength="500"][placeholder*="关于"]',
-        'textarea:visible[maxlength="500"][placeholder*="描述"]',
-        'textarea:visible[maxlength="500"]',
-      ].join(", "),
-    )
-    .first();
-  if (await preferredPromptArea.count()) {
-    await preferredPromptArea.fill(prompt);
-    await preferredPromptArea.dispatchEvent("input");
-    await preferredPromptArea.dispatchEvent("change");
-    await page.waitForTimeout(300);
-  }
-
-  if (await createButton.isEnabled().catch(() => false)) {
-    return;
-  }
-
-  const visibleTextareas = page.locator("textarea:visible");
-  const visibleCount = await visibleTextareas.count();
-  for (let index = 0; index < visibleCount; index += 1) {
-    const textarea = visibleTextareas.nth(index);
-    const currentValue = normalizeString(await textarea.inputValue().catch(() => "")) ?? "";
-    if (currentValue) {
-      continue;
-    }
-
-    const placeholder = normalizeString(await textarea.getAttribute("placeholder"));
-    const fillValue =
-      index === 0
-        ? buildLyricsPrompt(prompt)
-        : buildStylePrompt(prompt, placeholder);
-    await textarea.fill(fillValue);
-    await textarea.dispatchEvent("input");
-    await textarea.dispatchEvent("change");
-    await page.waitForTimeout(300);
-
-    if (await createButton.isEnabled().catch(() => false)) {
-      return;
-    }
-  }
-
-  await page.waitForTimeout(Math.min(1_000, timeoutMs));
+  const promptArea = page.locator('textarea:visible[maxlength="3000"]').first();
+  await promptArea.waitFor({ state: "visible", timeout: timeoutMs });
+  await promptArea.fill(prompt);
+  await page.waitForFunction(
+    ({ expected }) =>
+      Array.from(document.querySelectorAll('textarea[maxlength="3000"]')).some(
+        (textarea) => textarea.getClientRects().length > 0 && textarea.value === expected,
+      ),
+    { expected: prompt },
+    { timeout: Math.min(timeoutMs, 10_000) },
+  );
+  await expectButtonEnabled(createButton, timeoutMs);
 }
 
 async function maybeClassifyVideoSubscriptionRequired(page) {
@@ -732,10 +744,21 @@ async function maybeClassifyVideoSubscriptionRequired(page) {
 }
 
 async function dismissKnownBlockingOverlays(page) {
-  await page.keyboard.press("Escape").catch(() => undefined);
-  await page.waitForTimeout(150).catch(() => undefined);
-  await page.keyboard.press("Escape").catch(() => undefined);
-  await page.waitForTimeout(150).catch(() => undefined);
+  const hasVisibleSecurityChallenge = await page
+    .evaluate(() =>
+      Array.from(
+        document.querySelectorAll(
+          'iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"], iframe[src*="hcaptcha"]',
+        ),
+      ).some((frame) => frame.getClientRects().length > 0),
+    )
+    .catch(() => false);
+  if (!hasVisibleSecurityChallenge) {
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await page.waitForTimeout(150).catch(() => undefined);
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await page.waitForTimeout(150).catch(() => undefined);
+  }
 
   await page
     .evaluate(() => {
@@ -783,20 +806,22 @@ async function clickButtonByText(page, text) {
 }
 
 async function resolveWorkerPage(context, options) {
-  const { targetUrl, fallbackUrl, navigationTimeoutMs, forceNavigate } = options;
+  const { targetUrl, fallbackUrl, navigationTimeoutMs, forceNavigate, borrowedContext } = options;
   const target = safeUrl(targetUrl);
   const existingPage = context
     .pages()
     .find((page) => pageMatchesTarget(page, target) || pageMatchesTarget(page, safeUrl(fallbackUrl)));
+  if (borrowedContext && !existingPage) {
+    throw new Error("Suno CDP session does not contain the expected create page.");
+  }
   const page = existingPage ?? (await context.newPage());
 
-  if (forceNavigate || !existingPage || !pageMatchesTarget(page, target)) {
+  if (!borrowedContext && (forceNavigate || !existingPage || !pageMatchesTarget(page, target))) {
     await page.goto(target?.toString() ?? fallbackUrl, {
       waitUntil: "domcontentloaded",
       timeout: navigationTimeoutMs,
     });
   } else {
-    await page.bringToFront().catch(() => undefined);
     await page.waitForLoadState("domcontentloaded", { timeout: navigationTimeoutMs }).catch(() => undefined);
   }
   await page.waitForTimeout(1500);
@@ -891,19 +916,6 @@ function normalizeError(error) {
     message: normalizeString(error?.message) ?? "Suno browser worker failed.",
     body: normalizeString(error?.body) ?? undefined,
   };
-}
-
-function buildLyricsPrompt(prompt) {
-  const normalized = normalizeString(prompt) ?? "live regression";
-  return normalized;
-}
-
-function buildStylePrompt(prompt, placeholder) {
-  const normalizedPrompt = normalizeString(prompt) ?? "live regression";
-  if (placeholder && /style|sound|genre|mood/i.test(placeholder)) {
-    return normalizedPrompt;
-  }
-  return normalizedPrompt;
 }
 
 function printJsonAndExit(value) {

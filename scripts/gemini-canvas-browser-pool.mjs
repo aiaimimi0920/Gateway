@@ -88,7 +88,7 @@ function log(...parts) {
 function isBrowserDownloadAssetUrl(url) {
   return (
     typeof url === "string" &&
-    /gg-dl|rd-gg-dl|googleusercontent|work\.fife\.usercontent\.google\.com/i.test(url)
+    /gg-dl|rd-gg-dl|googleusercontent|usercontent\.google\.com|work\.fife\.usercontent\.google\.com/i.test(url)
   );
 }
 
@@ -290,6 +290,46 @@ function normalizeObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
+function scopeGeminiUrlToAuthUser(rawUrl, authUser) {
+  const normalizedUrl = normalizeString(rawUrl);
+  const normalizedAuthUser = normalizeString(authUser);
+  if (!normalizedUrl || !/^\d+$/.test(normalizedAuthUser ?? "")) {
+    return normalizedUrl;
+  }
+  try {
+    const parsed = new URL(normalizedUrl, "https://gemini.google.com");
+    if (!/^(?:www\.)?gemini\.google\.com$/i.test(parsed.hostname)) {
+      return normalizedUrl;
+    }
+    const unscopedPath = parsed.pathname.replace(/^\/u\/\d+(?=\/|$)/i, "") || "/";
+    if (/^\/share\//i.test(unscopedPath)) {
+      parsed.pathname = unscopedPath;
+      parsed.searchParams.set("authuser", normalizedAuthUser);
+      return parsed.toString();
+    }
+    parsed.pathname = `/u/${normalizedAuthUser}${unscopedPath === "/" ? "/" : unscopedPath}`;
+    return parsed.toString().replace(/\/$/, unscopedPath === "/" ? "/" : "");
+  } catch {
+    return normalizedUrl;
+  }
+}
+
+function applyGeminiAccountScope(args) {
+  const normalizedArgs = args && typeof args === "object" ? args : {};
+  const authUser = normalizeString(normalizedArgs.authUser);
+  if (!/^\d+$/.test(authUser ?? "")) {
+    return normalizedArgs;
+  }
+  const scope = (value) => scopeGeminiUrlToAuthUser(value, authUser);
+  return {
+    ...normalizedArgs,
+    baseUrl: scope(normalizedArgs.baseUrl ?? "https://gemini.google.com"),
+    canvasProgramUrl: scope(normalizedArgs.canvasProgramUrl),
+    programUrl: scope(normalizedArgs.programUrl),
+    pageUrl: scope(normalizedArgs.pageUrl),
+  };
+}
+
 export function shouldAttemptConnectedClientFetchFallback(error, options = {}) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   const method = normalizeString(options.method)?.toUpperCase() ?? "GET";
@@ -308,12 +348,18 @@ export function inspectContextEntryForReuse(entry) {
     };
   }
 
-  if (
-    entry.attachedCdp === true &&
-    entry.browser &&
-    typeof entry.browser.isConnected === "function" &&
-    entry.browser.isConnected() === false
-  ) {
+  if (entry.contextClosed === true) {
+    return {
+      recreate: true,
+      adoptedPage: false,
+    };
+  }
+
+  const owningBrowser =
+    entry.browser ??
+    (typeof entry.context?.browser === "function" ? entry.context.browser() : null);
+
+  if (owningBrowser && typeof owningBrowser.isConnected === "function" && owningBrowser.isConnected() === false) {
     return {
       recreate: true,
       adoptedPage: false,
@@ -525,6 +571,112 @@ async function contextHasGeminiAuthCookies(context, baseUrl) {
     );
   } catch {
     return false;
+  }
+}
+
+function embeddedStorageStatePathForProfileDir(profileDir) {
+  if (!normalizeString(profileDir)) {
+    return null;
+  }
+  const candidate = path.join(profileDir, "storage-state.json");
+  return existsSync(candidate) && lstatSync(candidate).isFile() ? candidate : null;
+}
+
+function normalizeEmbeddedStorageStateCookie(cookie) {
+  if (!cookie || typeof cookie !== "object") {
+    return null;
+  }
+  const name = normalizeString(cookie.name);
+  const value = typeof cookie.value === "string" ? cookie.value : null;
+  if (!name || value === null) {
+    return null;
+  }
+  const normalized = {
+    name,
+    value,
+    path: normalizeString(cookie.path) ?? "/",
+    secure: Boolean(cookie.secure),
+    httpOnly: Boolean(cookie.httpOnly),
+  };
+  const sameSite = normalizeString(cookie.sameSite);
+  if (sameSite && /^(Lax|None|Strict)$/i.test(sameSite)) {
+    normalized.sameSite = sameSite[0].toUpperCase() + sameSite.slice(1).toLowerCase();
+  }
+  if (Number.isFinite(cookie.expires)) {
+    normalized.expires = Number(cookie.expires);
+  }
+  const url = normalizeString(cookie.url);
+  const domain = normalizeString(cookie.domain);
+  if (url) {
+    normalized.url = url;
+    return normalized;
+  }
+  if (domain) {
+    normalized.domain = domain;
+    return normalized;
+  }
+  return null;
+}
+
+async function syncEmbeddedStorageStateIntoContext(context, profileDir) {
+  const storageStatePath = embeddedStorageStatePathForProfileDir(profileDir);
+  if (!storageStatePath) {
+    return 0;
+  }
+  const parsed = JSON.parse(readFileSync(storageStatePath, "utf8"));
+  const cookies = Array.isArray(parsed?.cookies)
+    ? parsed.cookies
+      .map((cookie) => normalizeEmbeddedStorageStateCookie(cookie))
+      .filter(Boolean)
+    : [];
+  if (!cookies.length) {
+    return 0;
+  }
+  try {
+    await context.addCookies(cookies);
+    return cookies.length;
+  } catch (error) {
+    let accepted = 0;
+    for (const cookie of cookies) {
+      const domain = normalizeString(cookie.domain);
+      const pathValue = normalizeString(cookie.path) ?? "/";
+      const candidates = [
+        cookie,
+        domain?.startsWith(".")
+          ? {
+              ...cookie,
+              domain: domain.slice(1),
+              path: pathValue,
+            }
+          : null,
+      ].filter(Boolean);
+      let synced = false;
+      for (const candidate of candidates) {
+        try {
+          await context.addCookies([candidate]);
+          accepted += 1;
+          synced = true;
+          break;
+        } catch {
+          // Try the next normalized shape below.
+        }
+      }
+      if (!synced) {
+        log(
+          "embedded storage-state cookie sync skipped invalid cookie",
+          JSON.stringify({
+            name: cookie.name,
+            domain: cookie.domain ?? null,
+            hasUrl: Boolean(cookie.url),
+            path: cookie.path ?? null,
+          }),
+        );
+      }
+    }
+    if (accepted > 0) {
+      return accepted;
+    }
+    throw error;
   }
 }
 
@@ -1320,7 +1472,12 @@ function inferInvokeUiState(operation, snapshot) {
     if (/Generating your video/i.test(bodyText)) {
       return "video_generating";
     }
-    if (controls.some((value) => value.includes("播放视频") || value.includes("下载视频"))) {
+    if (
+      controls.some((value) =>
+        /播放视频|下载视频|Play video|Download video/i.test(value),
+      )
+      || /Your video is ready|视频已准备好|视频已生成/i.test(bodyText)
+    ) {
       return "video_player_ready";
     }
   }
@@ -2076,6 +2233,17 @@ async function mirrorRemoteRuntimeStateObject(config, runtimeStateObjectKey, abs
   return absolutePath;
 }
 
+function looksLikePersistentBrowserProfileDir(absolutePath) {
+  const defaultProfileDir = path.join(absolutePath, "Default");
+  const localStatePath = path.join(absolutePath, "Local State");
+  return (
+    existsSync(defaultProfileDir) &&
+    lstatSync(defaultProfileDir).isDirectory() &&
+    existsSync(localStatePath) &&
+    lstatSync(localStatePath).isFile()
+  );
+}
+
 async function resolveRuntimeStateSource(runtimeStateObjectKey, options = {}) {
   const { allowFixtureEmptyProfile = false } = options;
   const config = resolveObjectStorageConfig();
@@ -2110,6 +2278,19 @@ async function resolveRuntimeStateSource(runtimeStateObjectKey, options = {}) {
   if (existsSync(absolutePath)) {
     const stat = lstatSync(absolutePath);
     if (stat.isDirectory()) {
+      if (looksLikePersistentBrowserProfileDir(absolutePath)) {
+        return {
+          mode: "profile_dir",
+          absolutePath,
+        };
+      }
+      const embeddedStorageStatePath = path.join(absolutePath, "storage-state.json");
+      if (existsSync(embeddedStorageStatePath) && lstatSync(embeddedStorageStatePath).isFile()) {
+        return {
+          mode: "storage_state_file",
+          absolutePath: embeddedStorageStatePath,
+        };
+      }
       return {
         mode: "profile_dir",
         absolutePath,
@@ -2257,7 +2438,25 @@ async function createContextEntry(args) {
     runtimeStateMode: browserCdpUrl ? "browser_cdp" : runtimeStateSource.mode,
     launchClonedProfile,
     attachedCdp: Boolean(browserCdpUrl),
+    contextClosed: false,
   };
+  const markContextClosed = (reason) => {
+    entry.contextClosed = true;
+    if (contexts.get(args.runtimeStateObjectKey) === entry) {
+      contexts.delete(args.runtimeStateObjectKey);
+    }
+    log("Gemini Canvas context closed", JSON.stringify({ runtimeStateObjectKey: args.runtimeStateObjectKey, reason }));
+  };
+  if (typeof context?.on === "function") {
+    context.on("close", () => {
+      markContextClosed("context_close_event");
+    });
+  }
+  if (browser && typeof browser.on === "function") {
+    browser.on("disconnected", () => {
+      markContextClosed("browser_disconnected");
+    });
+  }
   contexts.set(args.runtimeStateObjectKey, entry);
   return entry;
 }
@@ -2296,6 +2495,7 @@ async function closeContext(runtimeStateObjectKey) {
     return;
   }
   contexts.delete(runtimeStateObjectKey);
+  entry.contextClosed = true;
   if (entry.attachedCdp) {
     await entry.browser?.close().catch(() => undefined);
     return;
@@ -2354,11 +2554,24 @@ async function ensureAppPage(entry, baseUrl, timeoutMs, options = {}) {
   const hasExplicitAuthUser =
     typeof currentPageUrl === "string" &&
     (/[?&]authuser=\d+\b/i.test(currentPageUrl) || /\/u\/\d+\b/i.test(currentPageUrl));
-  const authUser = hasExplicitAuthUser ? inferGoogleAuthUser(currentPageUrl) : null;
-  const appUrl =
-    /^\d+$/.test(String(authUser ?? "").trim()) && String(authUser ?? "").trim() !== ""
-      ? `${normalizedBaseUrl}/u/${String(authUser).trim()}/app`
-      : `${normalizedBaseUrl}/app`;
+  const configuredAuthUser = (() => {
+    try {
+      return new URL(normalizedBaseUrl).pathname.match(/^\/u\/(\d+)(?:\/|$)/i)?.[1] ?? null;
+    } catch {
+      return null;
+    }
+  })();
+  const authUser = hasExplicitAuthUser
+    ? inferGoogleAuthUser(currentPageUrl)
+    : configuredAuthUser;
+  const unscopedAppUrl = (() => {
+    try {
+      return `${new URL(normalizedBaseUrl).origin}/app`;
+    } catch {
+      return `${normalizedBaseUrl}/app`;
+    }
+  })();
+  const appUrl = scopeGeminiUrlToAuthUser(unscopedAppUrl, authUser) ?? unscopedAppUrl;
   let shouldNavigate = true;
   let currentBodyText = "";
   try {
@@ -2446,10 +2659,21 @@ async function ensureAppPage(entry, baseUrl, timeoutMs, options = {}) {
   let bodyText = await entry.page
     .evaluate(() => document.body?.innerText ?? "")
     .catch(() => "");
-  const isSignedOutLanding = (text) =>
-    bodyIndicatesGeminiSignedOutLanding(text) ||
-    (/sign in|登录|登入|继续登录/i.test(text) && !bodyTextIndicatesGeminiAppSurface(text));
-  if (isSignedOutLanding(bodyText) && normalizeString(options.cookieHeader) && options.cookieRehydrateAttempted !== true) {
+  const evaluateAuthBlockedSurface = async (text) => {
+    const hasPromptTextboxVisible = await hasPromptTextbox(entry.page);
+    return {
+      hasPromptTextbox: hasPromptTextboxVisible,
+      authBlocked: shouldTreatGeminiPageAsAuthBlocked(text, {
+        hasPromptTextbox: hasPromptTextboxVisible,
+      }),
+    };
+  };
+  let authBlockedSurface = await evaluateAuthBlockedSurface(bodyText);
+  if (
+    authBlockedSurface.authBlocked &&
+    normalizeString(options.cookieHeader) &&
+    options.cookieRehydrateAttempted !== true
+  ) {
     const forcedCookieSyncCount = await syncCookieHeaderIntoContext(
       entry.context,
       options.cookieHeader,
@@ -2487,9 +2711,10 @@ async function ensureAppPage(entry, baseUrl, timeoutMs, options = {}) {
       bodyText = await entry.page
         .evaluate(() => document.body?.innerText ?? "")
         .catch(() => "");
+      authBlockedSurface = await evaluateAuthBlockedSurface(bodyText);
     }
   }
-  if (isSignedOutLanding(bodyText)) {
+  if (authBlockedSurface.authBlocked) {
     const authGateGraceDeadline = Date.now() + Math.min(timeoutMs, 8_000);
     while (Date.now() < authGateGraceDeadline) {
       await entry.page.waitForTimeout(1_000);
@@ -2512,10 +2737,8 @@ async function ensureAppPage(entry, baseUrl, timeoutMs, options = {}) {
       bodyText = await entry.page
         .evaluate(() => document.body?.innerText ?? "")
         .catch(() => "");
-      if (
-        bodyTextIndicatesGeminiAppSurface(bodyText) &&
-        !bodyIndicatesGeminiSignedOutLanding(bodyText)
-      ) {
+      authBlockedSurface = await evaluateAuthBlockedSurface(bodyText);
+      if (!authBlockedSurface.authBlocked) {
         return;
       }
     }
@@ -2523,6 +2746,7 @@ async function ensureAppPage(entry, baseUrl, timeoutMs, options = {}) {
       "ensureAppPage auth gate",
       JSON.stringify({
         finalUrl,
+        hasPromptTextbox: authBlockedSurface.hasPromptTextbox,
         bodyPreview: String(bodyText || "").slice(0, 600),
         runtimeStatePath: entry.runtimeStatePath,
         runtimeStateMode: entry.runtimeStateMode,
@@ -2596,10 +2820,30 @@ async function ensureProgramPage(entry, baseUrl, programPageUrl, timeoutMs) {
 
   if (shouldNavigate) {
     log("navigating to concrete canvas program page", targetUrl);
-    await entry.page.goto(targetUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: timeoutMs,
-    });
+    const navigationTimeoutMs = Math.min(timeoutMs, 25_000);
+    try {
+      await entry.page.goto(targetUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: navigationTimeoutMs,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isNavigationTimeout =
+        error?.name === "TimeoutError" ||
+        /page\.goto: Timeout|Navigation timeout|Timeout .* exceeded/i.test(message);
+      if (!isNavigationTimeout) {
+        throw error;
+      }
+      log(
+        "concrete canvas program navigation timed out before domcontentloaded; continuing with current page state",
+        JSON.stringify({
+          targetUrl,
+          timeoutMs: navigationTimeoutMs,
+          message,
+        }),
+      );
+      await entry.page.waitForLoadState("commit", { timeout: 1_500 }).catch(() => undefined);
+    }
   }
 
   await entry.page.waitForTimeout(1800);
@@ -2668,7 +2912,26 @@ async function ensureSharePage(entry, baseUrl, shareId, timeoutMs) {
     });
   }
 
-  const shareUrl = `${baseUrl.replace(/\/+$/, "")}/share/${targetShareId}`;
+  const configuredAuthUser = (() => {
+    try {
+      const parsed = new URL(baseUrl);
+      return (
+        parsed.pathname.match(/^\/u\/(\d+)(?:\/|$)/i)?.[1] ??
+        parsed.searchParams.get("authuser")
+      );
+    } catch {
+      return null;
+    }
+  })();
+  const unscopedShareUrl = (() => {
+    try {
+      return `${new URL(baseUrl).origin}/share/${targetShareId}`;
+    } catch {
+      return `${baseUrl.replace(/\/+$/, "")}/share/${targetShareId}`;
+    }
+  })();
+  const shareUrl =
+    scopeGeminiUrlToAuthUser(unscopedShareUrl, configuredAuthUser) ?? unscopedShareUrl;
   let shouldNavigate = true;
   try {
     const current = new URL(entry.page.url() || shareUrl);
@@ -2682,10 +2945,30 @@ async function ensureSharePage(entry, baseUrl, shareId, timeoutMs) {
 
   if (shouldNavigate) {
     log("navigating to share page", shareUrl);
-    await entry.page.goto(shareUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: timeoutMs,
-    });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await entry.page.goto(shareUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: timeoutMs,
+        });
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const retryableNavigationFailure =
+          attempt === 0 &&
+          /net::ERR_(?:CONNECTION_CLOSED|CONNECTION_RESET|NETWORK_CHANGED|HTTP2_PROTOCOL_ERROR)/i.test(
+            message,
+          );
+        if (!retryableNavigationFailure) {
+          throw error;
+        }
+        log(
+          "share page navigation failed transiently; retrying once",
+          JSON.stringify({ shareUrl, message }),
+        );
+        await entry.page.waitForTimeout(1200);
+      }
+    }
   }
 
   await waitForShareSurface(entry.page, Math.min(timeoutMs, 20_000));
@@ -2725,7 +3008,11 @@ async function waitForShareSurface(page, deadlineMs) {
   const deadline = Date.now() + deadlineMs;
   while (Date.now() < deadline) {
     const bodyText = await page.evaluate(() => (document.body?.innerText ?? "").slice(0, 4000));
-    if (/继续|试用 Gemini Canvas|在新窗口中打开|不要公开个人信息/i.test(bodyText)) {
+    if (
+      /继续|Continue|试用 Gemini Canvas|Try Gemini Canvas|在新窗口中打开|Open in new window|不要公开个人信息|Keep your personal info private/i.test(
+        bodyText,
+      )
+    ) {
       return true;
     }
     await page.waitForTimeout(1200);
@@ -2784,6 +3071,20 @@ function bodyIndicatesGeminiSignedOutLanding(text) {
 function bodyTextIndicatesGeminiAppSurface(text) {
   return /与 Gemini 对话|Talk to Gemini|Conversation with Gemini|发起新对话|New chat|快速|Fast|制作图片|Create image|Make image|创作音乐|Create music|创作视频|Create video/i.test(
     String(text || ""),
+  );
+}
+
+export function shouldTreatGeminiPageAsAuthBlocked(bodyText, options = {}) {
+  const normalizedText = String(bodyText || "");
+  const hasPromptTextbox = options?.hasPromptTextbox === true;
+  const hasGeminiAppSurface =
+    options?.hasGeminiAppSurface === true || bodyTextIndicatesGeminiAppSurface(normalizedText);
+  if (hasPromptTextbox && hasGeminiAppSurface) {
+    return false;
+  }
+  return (
+    bodyIndicatesGeminiSignedOutLanding(normalizedText) ||
+    (/sign in|登录|登入|继续登录/i.test(normalizedText) && !hasGeminiAppSurface)
   );
 }
 
@@ -2955,34 +3256,145 @@ async function tryResolveGoogleConsent(page, timeoutMs) {
 }
 
 async function tryFollowShareEntryPoint(page) {
-  const candidates = [
-    page.locator("a,button,[role=\"button\"]").filter({ hasText: /试用 Gemini Canvas|Try Gemini Canvas/i }).first(),
-    page.locator("a,button,[role=\"button\"]").filter({ hasText: /继续|Continue/i }).first(),
-    page.locator("a,button,[role=\"button\"]").filter({ hasText: /制作图片|Create image|Create images|Make image/i }).first(),
-    page.locator("a,button,[role=\"button\"]").filter({ hasText: /在新窗口中打开|Open in new window/i }).first(),
+  const candidateFactories = [
+    {
+      kind: "continue",
+      create: () =>
+        page.locator("a,button,[role=\"button\"]").filter({ hasText: /继续|Continue/i }).first(),
+    },
+    {
+      kind: "copy_canvas",
+      create: () => page.locator('button[data-test-id="copy-canvas-button"]').first(),
+    },
+    {
+      kind: "try_canvas",
+      create: () =>
+        page.locator("a,button,[role=\"button\"]").filter({ hasText: /试用 Gemini Canvas|Try Gemini Canvas/i }).first(),
+    },
+    {
+      kind: "create_image",
+      create: () =>
+        page.locator("a,button,[role=\"button\"]").filter({ hasText: /制作图片|Create image|Create images|Make image/i }).first(),
+    },
+    {
+      kind: "open_new_window",
+      create: () =>
+        page.locator("a,button,[role=\"button\"]").filter({ hasText: /在新窗口中打开|Open in new window/i }).first(),
+    },
   ];
+  const attemptedKinds = new Set();
+  const appSurfaceMaterialized = async (targetPage) => {
+    const currentUrl = targetPage.url();
+    if (/\/app(?:\/|$)/i.test(currentUrl)) {
+      return true;
+    }
+    const [promptVisible, bodyText] = await Promise.all([
+      hasPromptTextbox(targetPage).catch(() => false),
+      targetPage.evaluate(() => document.body?.innerText ?? "").catch(() => ""),
+    ]);
+    if (promptVisible && bodyTextIndicatesGeminiAppSurface(bodyText)) {
+      return true;
+    }
+    return (
+      !/\/share\//i.test(String(currentUrl || "")) &&
+      bodyTextIndicatesGeminiAppSurface(bodyText)
+    );
+  };
+  const waitForAppSurfaceMaterialization = async (targetPage, timeoutMs = 10_000) => {
+    const deadline = Date.now() + Math.max(timeoutMs, 1_000);
+    while (Date.now() < deadline) {
+      if (await appSurfaceMaterialized(targetPage)) {
+        return true;
+      }
+      await targetPage.waitForLoadState("domcontentloaded", { timeout: 1_500 }).catch(() => undefined);
+      await targetPage.waitForTimeout(1_000);
+    }
+    return await appSurfaceMaterialized(targetPage);
+  };
 
-  for (const candidate of candidates) {
-    try {
-      if ((await candidate.count()) === 0) {
+  for (let pass = 0; pass < candidateFactories.length; pass += 1) {
+    let clicked = false;
+    for (const factory of candidateFactories) {
+      if (attemptedKinds.has(factory.kind)) {
         continue;
       }
-      await candidate.waitFor({ state: "visible", timeout: 5000 });
-      const popupPromise = page.waitForEvent("popup", { timeout: 6000 }).catch(() => null);
-      await candidate.click({ timeout: 12000, force: true });
-      const popup = await popupPromise;
-      if (popup) {
-        await popup.waitForLoadState("domcontentloaded", { timeout: 20000 }).catch(() => undefined);
-        await popup.waitForTimeout(3000);
-        return { kind: "popup", page: popup };
+      const candidate = factory.create();
+      try {
+        if ((await candidate.count()) === 0) {
+          continue;
+        }
+        await candidate.waitFor({ state: "visible", timeout: 5000 });
+        const candidateSummary =
+          typeof candidate.evaluate === "function"
+            ? await candidate
+                .evaluate((node) => ({
+                  text: node.textContent || "",
+                  ariaLabel: node.getAttribute?.("aria-label") || null,
+                  title: node.getAttribute?.("title") || null,
+                }))
+                .catch(() => null)
+            : null;
+        log(
+          "share entry point candidate click",
+          JSON.stringify({
+            kind: factory.kind,
+            pageUrl: page.url(),
+            candidate: candidateSummary,
+          }),
+        );
+        const popupPromise = page.waitForEvent("popup", { timeout: 6000 }).catch(() => null);
+        await candidate.click({ timeout: 12000, force: true });
+        attemptedKinds.add(factory.kind);
+        clicked = true;
+        const popup = await popupPromise;
+        if (popup) {
+          await popup.waitForLoadState("domcontentloaded", { timeout: 20000 }).catch(() => undefined);
+          const popupMaterialized = await waitForAppSurfaceMaterialization(popup, 10_000).catch(() => false);
+          log(
+            "share entry point popup result",
+            JSON.stringify({
+              kind: factory.kind,
+              popupUrl: popup.url(),
+              materialized: popupMaterialized,
+            }),
+          );
+          return { kind: "popup", page: popup };
+        }
+        const samePageMaterialized = await waitForAppSurfaceMaterialization(page, 10_000);
+        log(
+          "share entry point same-page result",
+          JSON.stringify({
+            kind: factory.kind,
+            pageUrl: page.url(),
+            materialized: samePageMaterialized,
+          }),
+        );
+        if (samePageMaterialized) {
+          return { kind: "same_page", page };
+        }
+        break;
+      } catch {
+        // try next candidate
       }
-      await page.waitForTimeout(3000);
-      return { kind: "same_page", page };
-    } catch {
-      // try next candidate
+    }
+    if (!clicked) {
+      break;
     }
   }
 
+  const [bodyText, buttons] = await Promise.all([
+    page.evaluate(() => document.body?.innerText ?? "").catch(() => ""),
+    collectButtonSnapshot(page).catch(() => []),
+  ]);
+  log(
+    "share entry point follow failed",
+    JSON.stringify({
+      pageUrl: page.url(),
+      attemptedKinds: [...attemptedKinds],
+      bodyPreview: String(bodyText || "").slice(0, 1200),
+      buttons: Array.isArray(buttons) ? buttons.slice(0, 80) : [],
+    }),
+  );
   return { kind: "none", page };
 }
 
@@ -3001,14 +3413,6 @@ async function clickNewChat(page) {
 
 async function tryOpenCanvasProxyPreview(page, timeoutMs) {
   const bodyText = await page.evaluate(() => document.body?.innerText ?? "").catch(() => "");
-  if (!/Browser API Proxy Client/i.test(bodyText)) {
-    return {
-      clicked: false,
-      reason: "canvas_proxy_client_not_visible",
-      bodyPreview: String(bodyText || "").slice(0, 400),
-    };
-  }
-
   const bridge = await installCanvasProxyPreviewAuthIndexBridge(
     page,
     inferGoogleAuthUser(page.url()),
@@ -3016,9 +3420,17 @@ async function tryOpenCanvasProxyPreview(page, timeoutMs) {
   let stampedFrames = [];
 
   const candidates = [
-    page.getByRole("button", { name: /预览|Preview/i }).first(),
-    page.getByRole("tab", { name: /预览|Preview/i }).first(),
-    page.locator("button,[role=\"button\"],[role=\"tab\"]").filter({ hasText: /预览|Preview/i }).first(),
+    page.getByRole("button", { name: /预览(?:应用)?|Preview(?: app)?|运行|Run/i }).first(),
+    page.getByRole("tab", { name: /预览(?:应用)?|Preview(?: app)?|运行|Run/i }).first(),
+    page
+      .locator(
+        'button[aria-label*="预览"], button[aria-label*="Preview"], button[aria-label*="运行"], button[aria-label*="Run"]',
+      )
+      .first(),
+    page
+      .locator("button,[role=\"button\"],[role=\"tab\"]")
+      .filter({ hasText: /预览(?:应用)?|Preview(?: app)?|运行|Run/i })
+      .first(),
   ];
 
   for (const candidate of candidates) {
@@ -3570,6 +3982,16 @@ async function ensureCanvasProxyPreviewFrame(
   }
 
   const preview = await tryOpenCanvasProxyPreview(activePage, timeoutMs);
+  log(
+    "canvas proxy preview open result",
+    JSON.stringify({
+      clicked: preview?.clicked === true,
+      reason: preview?.reason ?? null,
+      pageUrl: activePage.url(),
+      bodyPreview: String(preview?.bodyPreview ?? bodyText ?? "").slice(0, 500),
+      frameCount: activePage.frames().length,
+    }),
+  );
   if (preview?.page) {
     await adoptPage(preview.page);
     activePage = entry.page;
@@ -4472,6 +4894,7 @@ function operationConfig(operation) {
         buttonName: /制作图片|Create image|Create images|Make image/i,
         selectedButtonName: /取消选择.?制作图片|取消选择\"制作图片\"|Deselect.*image|Cancel selection.*image/i,
         modeIndicator: /为图片选择风格|正在创建您的图片|Choose a style for your image|Creating your image/i,
+        routePathPattern: /\/images(?:\/|$|\?)/i,
         resultTimeoutMs: 4 * 60 * 1000,
       };
     case "music":
@@ -4485,6 +4908,7 @@ function operationConfig(operation) {
         buttonName: /创作视频|制作视频|Create video/i,
         selectedButtonName: /取消选择.?创作视频|取消选择.?制作视频|Deselect.*video|Cancel selection.*video/i,
         modeIndicator: /挑选一个模板|开始制作你的视频|choose a template|start creating your video|视频生成模板图片|video generation template/i,
+        routePathPattern: /\/videos(?:\/|$|\?)/i,
         resultTimeoutMs: 12 * 60 * 1000,
       };
     default:
@@ -4493,6 +4917,33 @@ function operationConfig(operation) {
         code: "gemini_canvas_invalid_operation",
       });
   }
+}
+
+function operationNavLabel(operation) {
+  switch (operation) {
+    case "image":
+      return /图片|Images?|Image/i;
+    case "video":
+      return /视频|Videos?|Video/i;
+    default:
+      return null;
+  }
+}
+
+export function shouldExitCanvasProgramSurfaceForMediaMode(operation, snapshot = {}) {
+  if (normalizeString(operation) !== "image") {
+    return false;
+  }
+  const bodyText = String(snapshot?.bodyText || "");
+  const buttons = Array.isArray(snapshot?.buttons) ? snapshot.buttons : [];
+  const flattenedButtons = buttons
+    .flatMap((button) => [button?.text, button?.ariaLabel, button?.title])
+    .filter(Boolean)
+    .join("\n");
+  return (
+    /Browser API Proxy Client/i.test(bodyText) ||
+    /Try again without Canvas|不使用应用，再试一次/i.test(flattenedButtons)
+  );
 }
 
 function isInterestingNetworkUrl(url) {
@@ -5430,6 +5881,46 @@ function hasCanvasProxyProgramCandidate(handlePairs, invokeContract = null) {
   return [...(handlePairs || [])].some((pair) => pair?.sourceSurface === "canvas_proxy_client");
 }
 
+function shouldStayOnCanvasProxyDiscoverySurface(discoveryOnly, snapshot, captureState) {
+  return (
+    discoveryOnly &&
+    (/Browser API Proxy Client/i.test(String(snapshot?.bodyText || "")) ||
+      hasCanvasProxyProgramCandidate(captureState?.handlePairs, captureState?.invokeContract))
+  );
+}
+
+function canvasProxyPreviewNeedsDirectLaunch(
+  canvasProxyPreview,
+  bodyText,
+  hasCapturedCanvasProxyHtml,
+) {
+  if (!hasCapturedCanvasProxyHtml) {
+    return false;
+  }
+  const bridgeEvents = Array.isArray(canvasProxyPreview?.bridgeEvents)
+    ? canvasProxyPreview.bridgeEvents
+    : [];
+  const reportsAuthIndexFailure = bridgeEvents.some(
+    (event) =>
+      event?.type === "error" &&
+      /authIndex postMessage timeout/i.test(String(event?.errorMessage ?? event?.messagePreview ?? "")),
+  );
+  const reportsEmbeddedWebSocketFailure = bridgeEvents.some((event) =>
+    /WebSocket initialization failed|WebSocket connection .* is not allowed in Canvas/i.test(
+      String(event?.errorMessage ?? event?.messagePreview ?? ""),
+    ),
+  );
+  const hasOnlyBootstrapBridgeTraffic =
+    Number(canvasProxyPreview?.bridge?.eventCount ?? 0) <= 1 && bridgeEvents.length <= 1;
+  const alreadyMaterialized = /System Logs Output|Connecting\.\.\.|Connected|Disconnected/i.test(
+    String(bodyText || ""),
+  );
+  return (
+    (reportsAuthIndexFailure || reportsEmbeddedWebSocketFailure || hasOnlyBootstrapBridgeTraffic) &&
+    !alreadyMaterialized
+  );
+}
+
 function buildProgramHandleState(baseUrl, args, pageUrl, captureState) {
   const candidatePairs = dedupeProgramHandlePairs(captureState?.handlePairs || []);
   const requestedProgramUrl = resolveProgramPageUrl(baseUrl, args);
@@ -5531,6 +6022,7 @@ async function clickOperationMode(page, operation, timeoutMs) {
   if (!config.buttonName) {
     return false;
   }
+  const navLabel = operationNavLabel(operation);
   try {
     await dismissGeminiAppInterstitials(page, timeoutMs);
     if (await operationModeAppearsSelected(page, config, Math.min(timeoutMs, 8_000))) {
@@ -5545,6 +6037,13 @@ async function clickOperationMode(page, operation, timeoutMs) {
     page.getByRole("menuitem", { name: config.buttonName }).first(),
     page.locator(`[aria-label*="${operation}"], [title*="${operation}"]`).first(),
     page.getByText(config.buttonName).first(),
+    ...(navLabel
+      ? [
+          page.getByRole("link", { name: navLabel }).first(),
+          page.getByRole("button", { name: navLabel }).first(),
+          page.locator('[aria-label*="Images"], [aria-label*="Videos"]').first(),
+        ]
+      : []),
   ];
 
   for (const candidate of candidates) {
@@ -5554,9 +6053,6 @@ async function clickOperationMode(page, operation, timeoutMs) {
       await candidate.click({ timeout: Math.min(timeoutMs, 15_000), force: true });
       await page.waitForTimeout(1200);
       if (await operationModeAppearsSelected(page, config, timeoutMs)) {
-        return true;
-      }
-      if (["image", "music", "video"].includes(operation)) {
         return true;
       }
     } catch {
@@ -5578,9 +6074,6 @@ async function clickOperationMode(page, operation, timeoutMs) {
         await candidate.click({ timeout: Math.min(timeoutMs, 15_000), force: true });
         await page.waitForTimeout(1200);
         if (await operationModeAppearsSelected(page, config, timeoutMs)) {
-          return true;
-        }
-        if (["image", "music", "video"].includes(operation)) {
           return true;
         }
       } catch {
@@ -5650,9 +6143,6 @@ async function clickOperationMode(page, operation, timeoutMs) {
         log("media operation mode dom fallback clicked", JSON.stringify({ operation, fallbackClicked }));
         await page.waitForTimeout(1200);
         if (await operationModeAppearsSelected(page, config, timeoutMs)) {
-          return true;
-        }
-        if (["image", "music", "video"].includes(operation)) {
           return true;
         }
       }
@@ -5827,11 +6317,21 @@ async function openOperationModeSelector(page, timeoutMs) {
 async function operationModeAppearsSelected(page, config, timeoutMs) {
   const selectedButtonName = config?.selectedButtonName ?? null;
   const modeIndicator = config?.modeIndicator ?? null;
+  const routePathPattern = config?.routePathPattern ?? null;
   if (!selectedButtonName && !modeIndicator) {
     return true;
   }
   const deadline = Date.now() + Math.min(timeoutMs, 8_000);
   while (Date.now() < deadline) {
+    if (routePathPattern && typeof page?.url === "function") {
+      try {
+        if (routePathPattern.test(String(page.url() || ""))) {
+          return true;
+        }
+      } catch {
+        // ignore and continue
+      }
+    }
     if (selectedButtonName) {
       const selectedCandidates = [
         page.getByRole("button", { name: selectedButtonName }).first(),
@@ -5869,8 +6369,9 @@ async function submitPrompt(page, prompt, timeoutMs) {
   await textbox.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 30_000) });
   await textbox.focus();
   let populated = false;
+  let prefersKeyboardTyping = false;
   try {
-    await textbox.evaluate((node, value) => {
+    const populateResult = await textbox.evaluate((node, value) => {
       const textValue = String(value ?? "");
       const fireInput = () =>
         node.dispatchEvent(
@@ -5885,33 +6386,43 @@ async function submitPrompt(page, prompt, timeoutMs) {
         node.value = textValue;
         fireInput();
         node.dispatchEvent(new Event("change", { bubbles: true }));
-        return true;
+        return {
+          populated: true,
+          editorKind: "native_input",
+        };
       }
       if (node instanceof HTMLElement && node.isContentEditable) {
         node.innerHTML = "";
         node.textContent = textValue;
         fireInput();
-        return true;
+        return {
+          populated: true,
+          editorKind: "contenteditable",
+        };
       }
-      return false;
+      return {
+        populated: false,
+        editorKind: "unknown",
+      };
     }, prompt);
-    populated = true;
+    if (populateResult && typeof populateResult === "object") {
+      populated = Boolean(populateResult.populated);
+      prefersKeyboardTyping = populateResult.editorKind === "contenteditable";
+    } else {
+      populated = Boolean(populateResult);
+    }
   } catch {
     populated = false;
   }
 
-  if (!populated) {
+  if (!populated || prefersKeyboardTyping) {
     await page.keyboard.press(process.platform === "win32" ? "Control+A" : "Meta+A").catch(() => undefined);
     await page.keyboard.press("Backspace").catch(() => undefined);
     await page.keyboard.type(prompt, { delay: 14 });
   }
   await page.waitForTimeout(300);
 
-  const sendCandidates = [
-    page.getByRole("button", { name: /发送|Send/i }).first(),
-    page.locator('button[aria-label*="Send"], button[aria-label*="发送"], button[title*="Send"], button[title*="发送"]').first(),
-    page.locator('button:has(svg), button:has(i)').last(),
-  ];
+  const sendCandidates = buildSendButtonCandidates(page);
 
   let clicked = false;
   for (const candidate of sendCandidates) {
@@ -6004,7 +6515,15 @@ async function runBootstrapProgramOperation(entry, args) {
       await ensureSharePage(entry, baseUrl, shareId, timeoutMs);
       await waitForShareSurface(activePage, Math.min(timeoutMs, 20_000));
       await activePage.waitForTimeout(1500);
+      log("bootstrap_program collecting shareBefore snapshot", JSON.stringify({ pageUrl: activePage.url() }));
       const shareBefore = await collectProgramHandleSnapshot(activePage);
+      log(
+        "bootstrap_program collected shareBefore snapshot",
+        JSON.stringify({
+          pageUrl: shareBefore.url,
+          bodyPreview: String(shareBefore.bodyText || "").slice(0, 600),
+        }),
+      );
       mergeProgramHandleHints(aggregateHints, shareBefore.handleHints);
       mergeActionContract(
         capture.state.actionContract,
@@ -6021,13 +6540,28 @@ async function runBootstrapProgramOperation(entry, args) {
           capture.state,
         ),
       );
-
+      log("bootstrap_program trying share entry follow", JSON.stringify({ pageUrl: activePage.url() }));
       shareFollow = await tryFollowShareEntryPoint(activePage);
+      log(
+        "bootstrap_program share entry follow result",
+        JSON.stringify({
+          kind: shareFollow.kind,
+          pageUrl: shareFollow.page?.url?.() ?? activePage.url(),
+        }),
+      );
       if (shareFollow.page) {
         await adoptActivePage(shareFollow.page);
       }
       await activePage.waitForTimeout(3000);
+      log("bootstrap_program collecting shareAfter snapshot", JSON.stringify({ pageUrl: activePage.url() }));
       const shareAfter = await collectProgramHandleSnapshot(activePage);
+      log(
+        "bootstrap_program collected shareAfter snapshot",
+        JSON.stringify({
+          pageUrl: shareAfter.url,
+          bodyPreview: String(shareAfter.bodyText || "").slice(0, 600),
+        }),
+      );
       mergeProgramHandleHints(aggregateHints, shareAfter.handleHints);
       mergeActionContract(
         capture.state.actionContract,
@@ -6098,9 +6632,11 @@ async function runBootstrapProgramOperation(entry, args) {
       await activePage.waitForTimeout(2000);
     }
 
-    const shouldStayOnProxyDiscoverySurface =
-      discoveryOnly &&
-      hasCanvasProxyProgramCandidate(capture.state.handlePairs, capture.state.invokeContract);
+    const shouldStayOnProxyDiscoverySurface = shouldStayOnCanvasProxyDiscoverySurface(
+      discoveryOnly,
+      before,
+      capture.state,
+    );
     if (
       shouldStayOnProxyDiscoverySurface &&
       !/Browser API Proxy Client/i.test(String(before.bodyText || ""))
@@ -6206,25 +6742,11 @@ async function runBootstrapProgramOperation(entry, args) {
           collectCanvasProxyContractTexts(previewSnapshot ?? afterPreview, capture.state),
         ),
       );
-      const previewBridgeReportsAuthIndexFailure =
-        Array.isArray(canvasProxyPreview?.bridgeEvents) &&
-        canvasProxyPreview.bridgeEvents.some(
-          (event) =>
-            event?.type === "error" &&
-            /authIndex postMessage timeout/i.test(String(event?.errorMessage ?? event?.messagePreview ?? "")),
-        );
-      const shouldAttemptDirectCanvasProxyLaunch =
-        hasCapturedCanvasProxyHtml &&
-        (
-          previewBridgeReportsAuthIndexFailure ||
-          (
-            Number(canvasProxyPreview?.bridge?.eventCount ?? 0) <= 1 &&
-            !(Array.isArray(canvasProxyPreview?.bridgeEvents) && canvasProxyPreview.bridgeEvents.length > 1)
-          )
-        ) &&
-        !/System Logs Output|Connecting\.\.\.|Connected|Disconnected/i.test(
-          String(afterPreview.bodyText || ""),
-        );
+      const shouldAttemptDirectCanvasProxyLaunch = canvasProxyPreviewNeedsDirectLaunch(
+        canvasProxyPreview,
+        afterPreview.bodyText,
+        hasCapturedCanvasProxyHtml,
+      );
       if (shouldAttemptDirectCanvasProxyLaunch) {
         const directLaunch = await tryLaunchCanvasProxyClientFromCapturedHtml(
           entry.context,
@@ -6657,18 +7179,57 @@ async function runBootstrapProgramOperation(entry, args) {
   }
 }
 
+function isTransientAssistantStatusLine(line) {
+  const normalized = String(line || "").trim();
+  if (
+    /^(显示思路|Show thinking|Gemini 说|Gemini (?:says?|said)|复制提示|Copy prompt|修改|Modify|重做|Redo|听回答|Listen|答得好|答得不好|立即回答)$/i.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  return /^(Analyzing|Assessing|Checking|Clarifying|Considering|Crafting|Determining|Evaluating|Examining|Exploring|Formulating|Gathering|Identifying|Interpreting|Pinpointing|Planning|Preparing|Reasoning|Refining|Resolving|Reviewing|Searching|Synthesizing|Thinking|Understanding|Verifying)(?:\s+[A-Za-z][A-Za-z'-]*){0,6}$/i.test(
+    normalized,
+  );
+}
+
 function normalizeAssistantText(text) {
   const lines = String(text || "")
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .filter(
-      (line) =>
-        !/^(显示思路|Show thinking|Gemini 说|Gemini says?|复制提示|Copy prompt|修改|Modify|重做|Redo|听回答|Listen|答得好|答得不好|Assessing Prompt Clarity|Resolving Instruction Conflict|立即回答)$/i.test(
-          line,
-        ),
-    );
+    .filter((line) => !isTransientAssistantStatusLine(line));
   return lines.join("\n").trim();
+}
+
+function promptLooksLikeGreeting(prompt) {
+  const normalized = String(prompt || "").trim().toLowerCase();
+  return /^(?:hi|hello|hey|你好|您好|嗨)[!！。.\s]*$/i.test(normalized);
+}
+
+function textLooksLikeGenericWelcome(prompt, text) {
+  if (promptLooksLikeGreeting(prompt)) {
+    return false;
+  }
+  const normalized = String(text || "").replace(/\s+/g, " ").trim().toLowerCase();
+  return (
+    /hello[!,]?\s*(?:it looks like [^.!?]+[.!?]\s*)?how can i help you today/.test(normalized)
+    || normalized.startsWith("how can i help you today")
+    || /feel free to (?:ask a question|share a piece of writing)/.test(normalized)
+    || /what project (?:you would|you'd|you are|you're) like to work on/.test(normalized)
+    || /meet gemini, your personal ai assistant/.test(normalized)
+    || /认识 gemini[：:]?你的私人 ai 助理/.test(normalized)
+  );
+}
+
+function bodyContainsSubmittedPrompt(bodyText, prompt) {
+  const compact = (value) => String(value || "").replace(/\s+/g, " ").trim();
+  const normalizedPrompt = compact(prompt);
+  if (!normalizedPrompt) {
+    return false;
+  }
+  const anchor = normalizedPrompt.slice(0, 120);
+  return compact(bodyText).includes(anchor);
 }
 
 function bodyIndicatesGenerationInProgress(bodyText) {
@@ -6870,10 +7431,16 @@ async function runTextOperation(entry, args) {
         snapshot.primaryTexts.length > 0 ? snapshot.primaryTexts : snapshot.fallbackTexts;
       const rawCandidate = candidateTexts.at(-1) || "";
       const candidate = normalizeAssistantText(rawCandidate);
+      const submittedPromptObserved = bodyContainsSubmittedPrompt(
+        snapshot.bodyText,
+        effectivePrompt,
+      );
       const isNewResponse =
         Boolean(candidate) &&
+        submittedPromptObserved &&
+        !textLooksLikeGenericWelcome(effectivePrompt, candidate) &&
         (candidateTexts.length > baselineTexts.length || candidate !== baselineLastText);
-      return { candidate, candidateTexts, isNewResponse };
+      return { candidate, candidateTexts, isNewResponse, submittedPromptObserved };
     };
 
     log("text submitting prompt");
@@ -6888,7 +7455,8 @@ async function runTextOperation(entry, args) {
     while (Date.now() < deadline) {
       pollCount += 1;
       lastSnapshot = await collectTextSnapshot(page);
-      const { candidate, isNewResponse } = selectLatestCandidate(lastSnapshot);
+      const { candidate, isNewResponse, submittedPromptObserved } =
+        selectLatestCandidate(lastSnapshot);
       const responseInProgress = bodyIndicatesGenerationInProgress(lastSnapshot.bodyText);
 
       if (pollCount <= 3 || pollCount % 10 === 0) {
@@ -6900,6 +7468,7 @@ async function runTextOperation(entry, args) {
             fallbackCount: lastSnapshot.fallbackTexts.length,
             sendDisabled: lastSnapshot.sendDisabled,
             responseInProgress,
+            submittedPromptObserved,
             bodyPreview: String(lastSnapshot.bodyText || "").slice(0, 240),
           }),
         );
@@ -7263,10 +7832,41 @@ async function extractImageBytes(page, asset) {
 async function downloadBinaryViaNavigation(entry, url, timeoutMs) {
   const page = await entry.context.newPage();
   try {
-    const response = await page.goto(url, {
-      waitUntil: "commit",
-      timeout: timeoutMs,
-    });
+    const downloadPromise = page
+      .waitForEvent("download", { timeout: Math.min(timeoutMs, 30_000) })
+      .catch(() => null);
+    let response = null;
+    let navigationError = null;
+    try {
+      response = await page.goto(url, {
+        waitUntil: "commit",
+        timeout: timeoutMs,
+      });
+    } catch (error) {
+      navigationError = error;
+    }
+    const download = await downloadPromise;
+    if (download) {
+      const downloadPath = await download.path();
+      const bodyBuffer = readFileSync(downloadPath);
+      const suggestedFilename = download.suggestedFilename();
+      return {
+        status: 200,
+        ok: true,
+        finalUrl: url,
+        contentType: inferMimeTypeFromUrl(suggestedFilename || url, "application/octet-stream"),
+        headers: {
+          "content-disposition": suggestedFilename
+            ? `attachment; filename="${suggestedFilename.replaceAll('"', "")}"`
+            : "attachment",
+        },
+        bodyText: null,
+        bodyBase64: bodyBuffer.toString("base64"),
+      };
+    }
+    if (navigationError) {
+      throw navigationError;
+    }
     if (!response) {
       throw Object.assign(
         new Error("Gemini Canvas browser navigation download returned no response."),
@@ -7311,6 +7911,34 @@ async function collectButtonSnapshot(page) {
   );
 }
 
+async function tryExitCanvasProgramSurfaceForMediaMode(page, operation, timeoutMs) {
+  if (normalizeString(operation) !== "image") {
+    return false;
+  }
+  const bodyText = await page.evaluate(() => document.body?.innerText ?? "").catch(() => "");
+  const buttons = await collectButtonSnapshot(page).catch(() => []);
+  if (!shouldExitCanvasProgramSurfaceForMediaMode(operation, { bodyText, buttons })) {
+    return false;
+  }
+
+  const candidates = [
+    page.getByRole("button", { name: /Try again without Canvas|不使用应用，再试一次/i }).first(),
+    page.getByRole("link", { name: /Try again without Canvas|不使用应用，再试一次/i }).first(),
+    page.locator('button,[role="button"],a').filter({ hasText: /Try again without Canvas|不使用应用，再试一次/i }).first(),
+  ];
+  for (const candidate of candidates) {
+    try {
+      await candidate.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 2_000) });
+      await candidate.click({ timeout: Math.min(timeoutMs, 8_000), force: true });
+      await page.waitForTimeout(1_500);
+      return true;
+    } catch {
+      // try next candidate
+    }
+  }
+  return false;
+}
+
 function bodyTextSuggestsVideoTemplateSelection(bodyText) {
   const text = String(bodyText || "");
   if (!text) {
@@ -7325,13 +7953,7 @@ function bodyTextSuggestsVideoTemplateSelection(bodyText) {
 }
 
 async function tryClickSendButton(page, timeoutMs) {
-  const sendCandidates = [
-    page.getByRole("button", { name: /发送|Send/i }).first(),
-    page.locator(
-      'button[aria-label*="Send"], button[aria-label*="发送"], button[title*="Send"], button[title*="发送"]',
-    ).first(),
-    page.locator('button:has(svg), button:has(i)').last(),
-  ];
+  const sendCandidates = buildSendButtonCandidates(page);
 
   for (const candidate of sendCandidates) {
     try {
@@ -7343,6 +7965,16 @@ async function tryClickSendButton(page, timeoutMs) {
     }
   }
   return false;
+}
+
+function buildSendButtonCandidates(page) {
+  return [
+    page.getByRole("button", { name: /发送|Send|提交|Submit/i }).first(),
+    page.locator(
+      'button[aria-label*="Send"], button[aria-label*="发送"], button[aria-label*="Submit"], button[aria-label*="提交"], button[title*="Send"], button[title*="发送"], button[title*="Submit"], button[title*="提交"]',
+    ).first(),
+    page.locator('button:has(svg), button:has(i)').last(),
+  ];
 }
 
 async function hasVideoCreateAction(page, timeoutMs) {
@@ -8111,6 +8743,12 @@ async function runDebugOperation(entry, args = {}) {
     });
 
   const networkEvents = capture?.state?.events ?? [];
+  const domHandleHints = extractProgramHandleHintsFromText(
+    await page.content().catch(() => ""),
+  );
+  if (capture?.state?.handleHints) {
+    mergeProgramHandleHints(capture.state.handleHints, domHandleHints);
+  }
   const programHandleState = buildProgramHandleState(
     baseUrl,
     args,
@@ -8425,13 +9063,18 @@ function detectMediaProviderGate(operation, bodyText) {
     (
       /出了点问题\s*\(13\)/.test(text) ||
       /出了点问题\s*\(1099\)/.test(text) ||
-      /something went wrong\s*\(13\)/i.test(text)
+      /something went wrong\s*\(13\)/i.test(text) ||
+      /something went wrong\s*\(1155\)/i.test(text)
     )
   ) {
     return {
-      status: 409,
-      code: "gemini_canvas_video_mode_unavailable",
-      message: "Gemini Canvas video mode could not be activated.",
+      status: /1155/.test(text) ? 502 : 409,
+      code: /1155/.test(text)
+        ? "gemini_canvas_video_generation_transient_failure"
+        : "gemini_canvas_video_mode_unavailable",
+      message: /1155/.test(text)
+        ? "Gemini Canvas video generation returned transient error 1155 after retries."
+        : "Gemini Canvas video mode could not be activated.",
     };
   }
   if (
@@ -8439,6 +9082,8 @@ function detectMediaProviderGate(operation, bodyText) {
     (
       text.includes("已达到视频生成数量上限") ||
       text.includes("视频生成数量上限") ||
+      /out of videos for now/i.test(text) ||
+      /videos will be available again/i.test(text) ||
       /出了点问题\s*\(1053\)/.test(text) ||
       text.includes("1053")
     )
@@ -8450,6 +9095,20 @@ function detectMediaProviderGate(operation, bodyText) {
     };
   }
   return null;
+}
+
+function shouldBlockMediaProviderGate(operation, providerGate, media, invokeContract, bodyText) {
+  if (!providerGate) {
+    return false;
+  }
+  if (operation !== "video") {
+    return true;
+  }
+  const readySurface =
+    media.length > 0
+    || invokeContract?.uiState === "video_player_ready"
+    || /Your video is ready|视频已准备好|视频已生成/i.test(String(bodyText || ""));
+  return !readySurface;
 }
 
 function recentMediaProviderGateText(captureState) {
@@ -8464,6 +9123,132 @@ function recentMediaProviderGateText(captureState) {
     texts.push(event.text);
   }
   return texts.join("\n");
+}
+
+const IMAGE_COMPOSER_BOOTSTRAP_RPC_IDS = new Set([
+  "MyzX6c",
+  "aPya6c",
+  "L5adhe",
+  "XhaU0b",
+  "V8rlHe",
+]);
+
+function extractRpcIdsFromUrl(url) {
+  const value = String(url || "");
+  if (!value) {
+    return [];
+  }
+  const parsed = value.match(/[?&]rpcids=([^&]+)/i)?.[1] ?? "";
+  if (!parsed) {
+    return [];
+  }
+  return parsed.split(",").map((entry) => entry.trim()).filter(Boolean);
+}
+
+function shouldRetryMediaPromptSubmission(operation, diagnostics = {}) {
+  const bodyText = String(diagnostics.bodyText || "");
+  if (operation === "video") {
+    return (
+      /Create videos|Try a template or describe a video in chat|创作视频|描述视频/i.test(bodyText)
+      && !/You said|Gemini is typing|Generating your video|正在生成|Gemini replied/i.test(bodyText)
+    );
+  }
+  if (operation !== "image") {
+    return false;
+  }
+  const prompt = String(diagnostics.prompt || "").trim();
+  const events = Array.isArray(diagnostics.events) ? diagnostics.events : [];
+  if (!prompt || !bodyText) {
+    return false;
+  }
+  const normalizedPrompt = prompt.replace(/\s+/g, " ").trim();
+  const normalizedBodyText = bodyText.replace(/\s+/g, " ").trim();
+  const promptAnchor = normalizedPrompt.split(" ").slice(0, 8).join(" ");
+  const stillAtComposer =
+    /Create images|Create with Nano Banana/i.test(bodyText)
+    && /\bSubmit\b|提交/.test(bodyText)
+    && (normalizedBodyText.includes(normalizedPrompt) || (promptAnchor && normalizedBodyText.includes(promptAnchor)))
+    && !/You said|Gemini is typing|Creating|生成中|正在创建/i.test(bodyText);
+  if (!stillAtComposer) {
+    return false;
+  }
+  const recentEvents = events.slice(-8).filter((event) => /source-path=%2Fimages/i.test(String(event?.url || "")));
+  if (recentEvents.length === 0) {
+    return true;
+  }
+  return recentEvents.every((event) => {
+    const rpcIds = extractRpcIdsFromUrl(event?.url);
+    return rpcIds.length > 0 && rpcIds.every((rpcId) => IMAGE_COMPOSER_BOOTSTRAP_RPC_IDS.has(rpcId));
+  });
+}
+
+async function retryMediaPromptSubmission(page, prompt, timeoutMs) {
+  const textbox = page
+    .locator(
+      '[role="textbox"][aria-label*="Gemini"], [role="textbox"][aria-label*="输入"], [role="textbox"], [contenteditable="true"]',
+    )
+    .first();
+  try {
+    await textbox.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 4_000) });
+    await textbox.focus().catch(() => undefined);
+    await page.keyboard.press(process.platform === "win32" ? "Control+A" : "Meta+A").catch(() => undefined);
+    await page.keyboard.press("Backspace").catch(() => undefined);
+    await page.keyboard.type(prompt, { delay: 18 }).catch(() => undefined);
+    await page.waitForTimeout(250);
+  } catch {
+    // fall through to button/keyboard retries below
+  }
+
+  const submitCandidates = [
+    page.getByRole("button", { name: /提交|Submit/i }).last(),
+    page.locator('button[aria-label*="Submit"], button[aria-label*="提交"], button[title*="Submit"], button[title*="提交"]').last(),
+  ];
+  for (const candidate of submitCandidates) {
+    try {
+      await candidate.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 1_500) });
+      await candidate.click({ timeout: Math.min(timeoutMs, 4_000), force: true });
+      await page.waitForTimeout(600);
+      return;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  try {
+    await page.evaluate(() => {
+      const nodes = Array.from(document.querySelectorAll('button,[role="button"],a'));
+      const matcher = /提交|Submit/i;
+      for (const node of nodes) {
+        const text = `${node.textContent || ""}\n${node.getAttribute?.("aria-label") || ""}\n${node.getAttribute?.("title") || ""}`;
+        if (!matcher.test(text)) {
+          continue;
+        }
+        if (!(node instanceof HTMLElement)) {
+          continue;
+        }
+        const style = window.getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        if (style.display === "none" || style.visibility === "hidden" || rect.width <= 0 || rect.height <= 0) {
+          continue;
+        }
+        node.scrollIntoView({ block: "center", inline: "center" });
+        for (const type of ["pointerdown", "mousedown", "mouseup", "click"]) {
+          node.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, composed: true, view: window }));
+        }
+        if (typeof node.click === "function") {
+          node.click();
+        }
+        return true;
+      }
+      return false;
+    }).catch(() => undefined);
+  } catch {
+    // ignore
+  }
+
+  await page.keyboard.press(process.platform === "win32" ? "Control+Enter" : "Meta+Enter").catch(() => undefined);
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Enter").catch(() => undefined);
 }
 
 async function runMediaOperation(entry, args) {
@@ -8485,6 +9270,7 @@ async function runMediaOperation(entry, args) {
     resultTimeoutMs,
   );
   const fixtureBaseUrl = normalizeString(args.baseUrl);
+  const resumeExistingMedia = args.resumeExistingMedia === true;
   if (args.requireAppPage === false && isFixtureCanvasBaseUrl(fixtureBaseUrl)) {
     const mediaBaseUrl = fixtureBaseUrl.replace(/\/+$/, "");
     if (operation === "image") {
@@ -8560,44 +9346,62 @@ async function runMediaOperation(entry, args) {
   const capture = startNetworkCapture(page, operation);
 
   try {
-    const modeSelected = await clickOperationMode(page, operation, timeoutMs);
-    if (!modeSelected) {
-      const modeUnavailableSnapshot = await collectPageSnapshot(page).catch(() => null);
-      const modeUnavailableButtons = await collectButtonSnapshot(page).catch(() => []);
-      log(
-        "media operation mode unavailable",
-        JSON.stringify({
+    const baseUrl = normalizeString(args.baseUrl) ?? "https://gemini.google.com";
+    if (!resumeExistingMedia) {
+      let modeSelected = await clickOperationMode(page, operation, timeoutMs);
+      if (!modeSelected) {
+        const exitedCanvasProgramSurface = await tryExitCanvasProgramSurfaceForMediaMode(
+          page,
           operation,
-          pageUrl: page.url(),
-          bodyPreview: String(modeUnavailableSnapshot?.pageState?.bodyText ?? "").slice(0, 1200),
-          buttons: modeUnavailableButtons.slice(0, 120),
-        }),
-      );
-      throw Object.assign(
-        new Error(`Gemini Canvas ${operation} mode could not be activated.`),
-        {
-          status: 409,
-          code: `gemini_canvas_${operation}_mode_unavailable`,
-          bodyText: JSON.stringify(
-            {
-              operation,
-              pageUrl: page.url(),
-              bodyText: modeUnavailableSnapshot?.pageState?.bodyText ?? null,
-              buttons: modeUnavailableButtons.slice(0, 120),
-              mediaNodes: modeUnavailableSnapshot?.mediaNodes?.slice(0, 40) ?? [],
-              anchorNodes: modeUnavailableSnapshot?.anchorNodes?.slice(0, 40) ?? [],
-              networkEvents: capture.state.events.slice(-80),
-              rpcCaptures: capture.state.rpcCaptures.slice(-40),
-            },
-            null,
-            2,
-          ),
-        },
-      );
+          timeoutMs,
+        );
+        if (exitedCanvasProgramSurface || operation === "image") {
+          await resetConversation(page, baseUrl, timeoutMs, null, {
+            skipInitialNavigationWhenAppSurfaceReady: true,
+          });
+          modeSelected = await clickOperationMode(page, operation, timeoutMs);
+        }
+      }
+      if (!modeSelected) {
+        const modeUnavailableSnapshot = await collectPageSnapshot(page).catch(() => null);
+        const modeUnavailableButtons = await collectButtonSnapshot(page).catch(() => []);
+        log(
+          "media operation mode unavailable",
+          JSON.stringify({
+            operation,
+            pageUrl: page.url(),
+            bodyPreview: String(modeUnavailableSnapshot?.pageState?.bodyText ?? "").slice(0, 1200),
+            buttons: modeUnavailableButtons.slice(0, 120),
+          }),
+        );
+        throw Object.assign(
+          new Error(`Gemini Canvas ${operation} mode could not be activated.`),
+          {
+            status: 409,
+            code: `gemini_canvas_${operation}_mode_unavailable`,
+            bodyText: JSON.stringify(
+              {
+                operation,
+                pageUrl: page.url(),
+                bodyText: modeUnavailableSnapshot?.pageState?.bodyText ?? null,
+                buttons: modeUnavailableButtons.slice(0, 120),
+                mediaNodes: modeUnavailableSnapshot?.mediaNodes?.slice(0, 40) ?? [],
+                anchorNodes: modeUnavailableSnapshot?.anchorNodes?.slice(0, 40) ?? [],
+                networkEvents: capture.state.events.slice(-80),
+                rpcCaptures: capture.state.rpcCaptures.slice(-40),
+              },
+              null,
+              2,
+            ),
+          },
+        );
+      }
+      log("media operation mode selected", operation);
+      await submitPrompt(page, prompt, timeoutMs);
+      log("media prompt submitted", `${operation}: ${String(prompt).slice(0, 180)}`);
+    } else {
+      log("resuming existing media result", JSON.stringify({ operation, pageUrl: page.url() }));
     }
-    log("media operation mode selected", operation);
-    await submitPrompt(page, prompt, timeoutMs);
-    log("media prompt submitted", `${operation}: ${String(prompt).slice(0, 180)}`);
 
   const deadline = Date.now() + timeoutMs;
   let lastSnapshot = null;
@@ -8606,6 +9410,9 @@ async function runMediaOperation(entry, args) {
   let videoTemplateSelectedAt = null;
   let videoCreateClickAttempts = 0;
   let videoCreateClickedAt = null;
+  let videoTransientFailureRetryCount = 0;
+  let mediaPromptSubmissionRetryCount = 0;
+  let videoComposerResetCount = 0;
   let playerReadyPlayAttempted = false;
   let playerReadyDownloadAttempted = false;
   while (Date.now() < deadline) {
@@ -8666,6 +9473,63 @@ async function runMediaOperation(entry, args) {
             events: operation === "image" ? capture.state.events.slice(-4) : undefined,
           }),
         );
+      }
+
+      if (
+        mediaPromptSubmissionRetryCount < 2
+        && shouldRetryMediaPromptSubmission(operation, {
+          bodyText: lastSnapshot?.pageState?.bodyText ?? "",
+          events: capture.state.events,
+          prompt,
+        })
+      ) {
+        mediaPromptSubmissionRetryCount += 1;
+        log(
+          "retrying media prompt submission after template-only stall",
+          JSON.stringify({
+            operation,
+            pollCount,
+            attempt: mediaPromptSubmissionRetryCount,
+            bodyPreview: String(lastSnapshot?.pageState?.bodyText || "").slice(0, 400),
+          }),
+        );
+        await retryMediaPromptSubmission(page, prompt, timeoutMs);
+        await page.waitForTimeout(1_200);
+        continue;
+      }
+
+      if (
+        operation === "video"
+        && mediaPromptSubmissionRetryCount >= 2
+        && videoComposerResetCount < 3
+        && shouldRetryMediaPromptSubmission(operation, {
+          bodyText: lastSnapshot?.pageState?.bodyText ?? "",
+          events: capture.state.events,
+          prompt,
+        })
+      ) {
+        videoComposerResetCount += 1;
+        log(
+          "resetting stalled video composer",
+          JSON.stringify({
+            operation,
+            pollCount,
+            attempt: videoComposerResetCount,
+          }),
+        );
+        await resetConversation(page, baseUrl, timeoutMs, null, {
+          skipInitialNavigationWhenAppSurfaceReady: true,
+        });
+        const retryModeSelected = await clickOperationMode(page, operation, timeoutMs);
+        if (!retryModeSelected) {
+          throw Object.assign(new Error("Gemini Canvas video mode could not be reactivated."), {
+            status: 409,
+            code: "gemini_canvas_video_mode_unavailable",
+          });
+        }
+        await submitPrompt(page, prompt, timeoutMs);
+        mediaPromptSubmissionRetryCount = 0;
+        continue;
       }
 
       if (
@@ -8737,11 +9601,53 @@ async function runMediaOperation(entry, args) {
         }
       }
 
+      const videoTransientFailure =
+        operation === "video"
+        && /something went wrong\s*\(1155\)/i.test(
+          String(lastSnapshot?.pageState?.bodyText || ""),
+        );
+      if (videoTransientFailure && videoTransientFailureRetryCount < 3) {
+        videoTransientFailureRetryCount += 1;
+        log(
+          "retrying video prompt after transient provider failure",
+          JSON.stringify({
+            operation,
+            pollCount,
+            attempt: videoTransientFailureRetryCount,
+          }),
+        );
+        await page.waitForTimeout(2_000);
+        await resetConversation(page, baseUrl, timeoutMs, null, {
+          skipInitialNavigationWhenAppSurfaceReady: true,
+        });
+        const retryModeSelected = await clickOperationMode(page, operation, timeoutMs);
+        if (!retryModeSelected) {
+          throw Object.assign(new Error("Gemini Canvas video mode could not be reactivated."), {
+            status: 409,
+            code: "gemini_canvas_video_mode_unavailable",
+          });
+        }
+        await submitPrompt(page, prompt, timeoutMs);
+        videoTemplateSelectionAttempts = 0;
+        videoTemplateSelectedAt = null;
+        videoCreateClickAttempts = 0;
+        videoCreateClickedAt = null;
+        continue;
+      }
+
       const providerGate =
         detectMediaProviderGate(operation, quotaGateText)
         || detectMediaProviderGate(operation, lastSnapshot?.pageState?.bodyText)
         || detectMediaProviderGate(operation, recentMediaProviderGateText(capture.state));
-      if (providerGate) {
+      if (
+        shouldBlockMediaProviderGate(
+          operation,
+          providerGate,
+          media,
+          capture.state.invokeContract,
+          lastSnapshot?.pageState?.bodyText,
+        )
+      ) {
         if (
           operation === "video" &&
           videoTemplateSelectedAt &&
@@ -9003,6 +9909,35 @@ async function runFetchOperation(entry, args) {
     normalizeString(args.googleFetchMode) === "canvas_page_no_key";
   const useCanvasPageMusicNoKeyMode =
     normalizeString(args.googleFetchMode) === "canvas_page_music_no_key";
+  const fixtureBaseUrl = normalizeString(args.baseUrl);
+  const pageNoKeyAuthHeaders = useCanvasPageNoKeyMode
+    ? await buildGoogleFetchAuthHeaders(
+        entry,
+        fixtureBaseUrl ?? "https://gemini.google.com",
+        url,
+      )
+    : {};
+  for (const headerName of Object.keys(pageNoKeyAuthHeaders)) {
+    if (headerName.toLowerCase() === "x-origin") {
+      delete pageNoKeyAuthHeaders[headerName];
+    }
+  }
+  if (useCanvasPageNoKeyMode) {
+    log(
+      "canvas page no-key auth headers prepared",
+      JSON.stringify({
+        hasAuthorization: Object.keys(pageNoKeyAuthHeaders).some(
+          (name) => name.toLowerCase() === "authorization",
+        ),
+        hasAuthUser: Object.keys(pageNoKeyAuthHeaders).some(
+          (name) => name.toLowerCase() === "x-goog-authuser",
+        ),
+        hasXOrigin: Object.keys(pageNoKeyAuthHeaders).some(
+          (name) => name.toLowerCase() === "x-origin",
+        ),
+      }),
+    );
+  }
   const requestedHeaders = useCanvasProxyMode
     ? sanitizeCanvasProxyHeaders(fetchRequest.headers)
     : useCanvasPreviewNoKeyMode
@@ -9010,7 +9945,10 @@ async function runFetchOperation(entry, args) {
     : useCanvasPreviewMusicNoKeyMode
     ? sanitizeCanvasProxyHeaders(fetchRequest.headers)
     : useCanvasPageNoKeyMode
-    ? sanitizeCanvasProxyHeaders(fetchRequest.headers)
+    ? sanitizeCanvasProxyHeaders({
+        ...normalizeObject(fetchRequest.headers),
+        ...pageNoKeyAuthHeaders,
+      })
     : useCanvasPageMusicNoKeyMode
     ? sanitizeCanvasProxyHeaders(fetchRequest.headers)
     : sanitizeBrowserFetchHeaders({
@@ -9025,16 +9963,18 @@ async function runFetchOperation(entry, args) {
     Number(args.timeoutMs || DEFAULT_TIMEOUT_MS),
     DEFAULT_TIMEOUT_MS,
   );
-  const fixtureBaseUrl = normalizeString(args.baseUrl);
   const requireSharePage = args.requireSharePage === true;
   const preferredProgramPageUrl = resolveProgramPageUrl(
     fixtureBaseUrl ?? "https://gemini.google.com",
     args,
   );
-  const attachedAppPage = await findAttachedGeminiAppPage(
-    entry,
-    fixtureBaseUrl ?? "https://gemini.google.com",
-  );
+  const attachedAppPage =
+    useCanvasPreviewNoKeyMode && preferredProgramPageUrl
+      ? null
+      : await findAttachedGeminiAppPage(
+          entry,
+          fixtureBaseUrl ?? "https://gemini.google.com",
+        );
   const originalPage = entry.page;
   if (attachedAppPage && attachedAppPage !== entry.page) {
     await attachedAppPage.bringToFront().catch(() => undefined);
@@ -9080,13 +10020,30 @@ async function runFetchOperation(entry, args) {
       headers: requestedHeaders,
       bodyText: requestBodyText,
     };
-    const preview = await ensureCanvasProxyPreviewFrame(
-      entry,
-      fixtureBaseUrl ?? "https://gemini.google.com",
-      normalizeString(args.shareId),
-      timeoutMs,
-      useCanvasPreviewMusicNoKeyMode ? null : previewFetchRequest,
-    );
+    let preview;
+    if (preferredProgramPageUrl && !isFixtureCanvasBaseUrl(fixtureBaseUrl)) {
+      await ensureProgramPage(
+        entry,
+        fixtureBaseUrl ?? "https://gemini.google.com",
+        preferredProgramPageUrl,
+        timeoutMs,
+      );
+      const previewResult = await tryOpenCanvasProxyPreview(entry.page, timeoutMs);
+      preview = {
+        page: entry.page,
+        frame: entry.page.frames().find((frame, index) => index > 0 && isCanvasProxyPreviewFrameUrl(frame.url())) ?? entry.page,
+        preview: previewResult,
+        stampedFrames: [],
+      };
+    } else {
+      preview = await ensureCanvasProxyPreviewFrame(
+        entry,
+        fixtureBaseUrl ?? "https://gemini.google.com",
+        normalizeString(args.shareId),
+        timeoutMs,
+        useCanvasPreviewMusicNoKeyMode ? null : previewFetchRequest,
+      );
+    }
     const probeFetchResult =
       !useCanvasPreviewMusicNoKeyMode
         ? preview.stampedFrames.find((entry) => entry?.stamped && entry?.probeFetchResult)
@@ -9252,6 +10209,22 @@ async function runFetchOperation(entry, args) {
     );
   }
 
+  if (useCanvasProxyMode && method === "GET" && isBrowserDownloadAssetUrl(url)) {
+    const navigationResult = await downloadBinaryViaNavigation(entry, url, timeoutMs);
+    return {
+      operation: "fetch",
+      ...buildProgramHandleState(
+        fixtureBaseUrl ?? "https://gemini.google.com",
+        args,
+        navigationResult.finalUrl ?? entry.page.url(),
+        capture.state,
+      ),
+      ...navigationResult,
+      networkEvents: capture.state.events,
+      rpcCaptures: capture.state.rpcCaptures,
+    };
+  }
+
   if (useCanvasProxyMode) {
     try {
       await ensureLoopbackConnectedClient(entry);
@@ -9300,22 +10273,6 @@ async function runFetchOperation(entry, args) {
         error instanceof Error ? error.message : String(error),
       );
     }
-  }
-
-  if (useCanvasProxyMode && method === "GET" && isBrowserDownloadAssetUrl(url)) {
-    const navigationResult = await downloadBinaryViaNavigation(entry, url, timeoutMs);
-    return {
-      operation: "fetch",
-      ...buildProgramHandleState(
-        fixtureBaseUrl ?? "https://gemini.google.com",
-        args,
-        navigationResult.finalUrl ?? entry.page.url(),
-        capture.state,
-      ),
-      ...navigationResult,
-      networkEvents: capture.state.events,
-      rpcCaptures: capture.state.rpcCaptures,
-    };
   }
 
   if (useCanvasProxyMode) {
@@ -9385,9 +10342,8 @@ async function runFetchOperation(entry, args) {
     };
   }
 
-  let result;
-  try {
-    result = await entry.page.evaluate(
+  const evaluatePageFetch = () =>
+    entry.page.evaluate(
     async ({ url, method, headers, bodyText, timeoutMs, referrer, referrerPolicy, useCanvasProxyMode }) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -9457,9 +10413,20 @@ async function runFetchOperation(entry, args) {
       timeoutMs,
       useCanvasProxyMode,
     },
-  );
+    );
+  let result;
+  try {
+    result = await evaluatePageFetch();
   } catch (error) {
-    if (shouldAttemptConnectedClientFetchFallback(error, { method, useCanvasProxyMode })) {
+    if (
+      useCanvasPageNoKeyMode &&
+      /Execution context was destroyed|frame was detached|navigation/i.test(
+        error instanceof Error ? error.message : String(error),
+      )
+    ) {
+      await entry.page.waitForTimeout(1200).catch(() => undefined);
+      result = await evaluatePageFetch();
+    } else if (shouldAttemptConnectedClientFetchFallback(error, { method, useCanvasProxyMode })) {
       try {
         if (listConnectedClients().length === 0) {
           await ensureLoopbackConnectedClient(entry);
@@ -9499,8 +10466,9 @@ async function runFetchOperation(entry, args) {
           rpcCaptures: capture.state.rpcCaptures,
         };
       }
+    } else {
+      throw error;
     }
-    throw error;
   }
 
   return {
@@ -9522,6 +10490,7 @@ async function runFetchOperation(entry, args) {
 }
 
 async function invokeGeminiCanvas(args) {
+  args = applyGeminiAccountScope(args);
   const runtimeStateObjectKey = normalizeString(args.runtimeStateObjectKey);
   const hasFetchRequest = Boolean(args?.fetchRequest);
   log(
@@ -9531,6 +10500,7 @@ async function invokeGeminiCanvas(args) {
       operation: normalizeString(args?.operation),
       requireAppPage: args?.requireAppPage !== false,
       hasFetchRequest,
+      authUser: normalizeString(args?.authUser),
     }),
   );
   if (!runtimeStateObjectKey) {
@@ -9545,6 +10515,7 @@ async function invokeGeminiCanvas(args) {
   }
 
   let entry = null;
+  let entryLeaseAcquired = false;
   try {
     await evictIfOverCapacity();
     entry = await ensureContext({
@@ -9567,6 +10538,7 @@ async function invokeGeminiCanvas(args) {
     }
 
     entry.busy = true;
+    entryLeaseAcquired = true;
     entry.lastUsedAt = Date.now();
     if (!entry.page || entry.page.isClosed()) {
       entry.page = await entry.context.newPage();
@@ -9575,10 +10547,27 @@ async function invokeGeminiCanvas(args) {
     }
     const cookieSyncBaseUrl = normalizeString(args.baseUrl) ?? "https://gemini.google.com";
     const runtimeHasAuthCookies = await contextHasGeminiAuthCookies(entry.context, cookieSyncBaseUrl);
+    const synchronizedEmbeddedStorageStateCookieCount =
+      entry.runtimeStateMode === "profile_dir"
+        ? await syncEmbeddedStorageStateIntoContext(entry.context, entry.runtimeStatePath).catch(
+            (error) => {
+              log(
+                "embedded storage-state cookie sync failed",
+                runtimeStateObjectKey,
+                error instanceof Error ? error.message : String(error),
+              );
+              return 0;
+            },
+          )
+        : 0;
+    const runtimeHasAuthCookiesAfterEmbeddedSync =
+      synchronizedEmbeddedStorageStateCookieCount > 0
+        ? await contextHasGeminiAuthCookies(entry.context, cookieSyncBaseUrl)
+        : runtimeHasAuthCookies;
     const defaultCookieSyncEnabled =
       entry.runtimeStateMode === "storage_state_file" ||
       entry.launchClonedProfile === true ||
-      runtimeHasAuthCookies === false;
+      runtimeHasAuthCookiesAfterEmbeddedSync === false;
     const cookieSyncEnabled = parseBoolean(
       args.forceCookieSync ?? process.env.GEMINI_CANVAS_BROWSER_FORCE_COOKIE_SYNC,
       defaultCookieSyncEnabled,
@@ -9587,7 +10576,7 @@ async function invokeGeminiCanvas(args) {
       cookieSyncEnabled &&
       entry.runtimeStateMode !== "storage_state_file" &&
       entry.launchClonedProfile !== true
-        ? runtimeHasAuthCookies
+        ? runtimeHasAuthCookiesAfterEmbeddedSync
         : false;
     const synchronizedCookieCount =
       cookieSyncEnabled && !runtimeAlreadyHasAuthCookies
@@ -9606,6 +10595,13 @@ async function invokeGeminiCanvas(args) {
       log("skipped cookie sync because runtime mirroring is authoritative", runtimeStateObjectKey);
     } else if (runtimeAlreadyHasAuthCookies) {
       log("skipped cookie sync because runtime already has Gemini auth cookies", runtimeStateObjectKey);
+    }
+    if (synchronizedEmbeddedStorageStateCookieCount > 0) {
+      log(
+        "synced Gemini auth cookies from embedded storage-state into browser context",
+        runtimeStateObjectKey,
+        synchronizedEmbeddedStorageStateCookieCount,
+      );
     }
     if (synchronizedCookieCount > 0) {
       log("synced Gemini auth cookies into browser context", runtimeStateObjectKey, synchronizedCookieCount);
@@ -9702,7 +10698,7 @@ async function invokeGeminiCanvas(args) {
       },
     };
   } finally {
-    if (entry) {
+    if (entry && entryLeaseAcquired) {
       entry.busy = false;
       entry.lastUsedAt = Date.now();
     }
@@ -9712,6 +10708,7 @@ async function invokeGeminiCanvas(args) {
         runtimeStateObjectKey,
         operation: normalizeString(args.operation),
         hadEntry: Boolean(entry),
+        entryLeaseAcquired,
       }),
     );
   }

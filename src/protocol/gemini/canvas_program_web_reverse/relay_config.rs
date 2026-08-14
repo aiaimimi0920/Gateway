@@ -8,6 +8,7 @@ use super::{
 };
 use crate::error::GatewayError;
 use crate::protocol::gemini::canvas_web_reverse;
+use crate::protocol::gemini_canvas;
 use crate::routing::candidate::ProviderAccountPayload;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -78,6 +79,8 @@ pub fn relay_config_from_payload(
 ) -> Result<GeminiCanvasProgramRelayConfig, GatewayError> {
     let runtime = canvas_web_reverse::runtime_from_payload(payload)?;
     let extra = payload.extra_body.as_ref();
+    let browser_runtime_state_object_key = gemini_canvas::browser_runtime_state_object_key(payload)
+        .unwrap_or_else(|| runtime.runtime_state_object_key.clone());
     let invoke_contract = read_optional_extra_object(
         extra,
         &[
@@ -90,7 +93,7 @@ pub fn relay_config_from_payload(
 
     Ok(GeminiCanvasProgramRelayConfig {
         bootstrap: GeminiCanvasProgramBootstrapContext {
-            runtime_state_object_key: runtime.runtime_state_object_key,
+            runtime_state_object_key: browser_runtime_state_object_key,
             share_id: runtime.share_id,
             api_base_url: runtime.api_base_url,
             relay_ws_endpoint: read_optional_extra_string(

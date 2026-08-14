@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "poe-openai-aggregator-api",
+  "identity": {
+    "serviceProviderKey": "poe_platform",
+    "serviceProviderLabel": "Poe OpenAI-compatible",
+    "providerSurfaceKey": "poe-openai",
+    "providerSurfaceLabel": "Poe OpenAI-compatible",
+    "protocolProfile": "poe",
+    "implementationLine": "aggregator_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "aggregator_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "models"],
+    "supportsModelsEndpoint": false
+  },
+  "credentials": {
+    "materialKinds": ["api_key"],
+    "samplePath": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/minimal.raw.sample.json",
+    "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/FIELDS.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/20-ai-gateway/Poe聚合API实现线基线.md",
+    "buildDocPath": "docs/20-ai-gateway/examples/credentials/poe/aggregator_api/BUILD.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "poe-openai-aggregator-api-verify",
+    "focusedCargoFilters": [
+      "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+    ],
+    "fixtureSuiteId": "poe_fixture",
+    "liveSuiteId": "poe_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-poe-openai-aggregator-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "poe-openai-aggregator-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/registry.rs",
+    "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

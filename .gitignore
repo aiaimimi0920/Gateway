@@ -16,6 +16,13 @@
 /apps/desktop/test-results/
 *.tsbuildinfo
 
+# Importable copies written by scripts/tests/gemini-canvas-browser-pool.test.mjs
+/scripts/tests/.gemini-canvas-browser-pool-testable-*.mjs
+
+# Browser helper screenshots saved when no output path is supplied
+/undefined/
+/scripts/undefined/
+
 # Runtime state, release packages, evidence output, and local scratch
 /.runtime/
 /.gateway-state/

@@ -118,6 +118,10 @@ What this development stack does:
   runtime again whenever the development entrypoint starts
 - installs each Node dependency tree when its `package-lock.json` hash changes,
   then audits both production dependency trees before starting either watcher
+- defaults to `GATEWAY_DEV_CARGO_BUILD_JOBS=4` and
+  `GATEWAY_DEV_CARGO_INCREMENTAL=1` so the dev stack rebuilds faster than the
+  deterministic release path; override those two env values only if your
+  workstation needs a different CPU/latency tradeoff
 - runs `npm run build:web -- --watch`
 - runs `cargo watch --poll -x 'run --locked --bin gateway'`
 - gives the first cold boot a longer health-check grace period because the
@@ -248,3 +252,151 @@ If the service starts but routing is still incomplete, inspect:
   deployment path for Gateway.
 - The Windows desktop shell remains useful for local management, but it is not
   the canonical production deployment shape.
+# Credential pool automation
+
+The account ledger exposes a target size plus automatic refill/prune controls
+for every route provider. These controls are backed by the Gateway worker; they
+are not UI-only flags.
+
+Automation drivers are loaded from a backend-owned JSON registry. Start from
+`credential-pool-drivers.example.json`, store the real registry outside the
+public route document, and set:
+
+```dotenv
+GATEWAY_CREDENTIAL_POOL_AUTOMATION_DRIVER_CONFIG=/data/credential-pool-drivers.json
+GATEWAY_CREDENTIAL_POOL_AUTOMATION_SCRIPT_ROOT=/data/credential-pool-scripts
+```
+
+Route providers can optionally select an allowlisted driver with
+`credential_automation_driver_id`. If that field is absent, Gateway uses the
+single registry driver whose `provider_ids` contains the provider ID. Multiple
+matches require an explicit driver ID.
+
+Both script stdin and HTTP POST use a fixed JSON reconcile request. A driver
+must return:
+
+```json
+{
+  "credentials": [
+    {
+      "id": "provider-account-2",
+      "account_name": "Account 2",
+      "api_key": "secret returned by the trusted driver",
+      "enabled": true
+    }
+  ],
+  "prune": [
+    {
+      "credential_id": "provider-account-old",
+      "classification": "permanent_auth_failure"
+    }
+  ],
+  "message": "reconciled"
+}
+```
+
+Allowed prune classifications are only `permanent_auth_failure`,
+`account_deleted`, and `permanent_upstream_rejection`. Quota exhaustion, rate
+limits, browser challenges, and transient network errors are rejected by the
+response schema and cannot trigger deletion. Script drivers are restricted to
+relative `.ps1`, `.js`/`.mjs`/`.cjs`, `.py`, or `.exe` files inside the
+allowlisted script root. HTTP drivers require HTTPS, except for loopback test
+endpoints, and may reference a bearer token only through `secret_env`.
+
+## Credential refill task framework
+
+Gateway exposes one reliable task state machine for all three refill flows:
+
+| Trigger | Meaning |
+| --- | --- |
+| `notification` | Gateway detects a pool deficit and publishes a task automatically. This applies when `auto_refill_enabled=true` and the Provider has no direct trusted driver. |
+| `inquiry` | A refill worker asks for work. If no matching pending task exists, Gateway evaluates matching Provider deficits, creates a task, and claims it for that worker. |
+| `user_requested` | An operator explicitly requests a refill from the Gateway console or management API. An explicit request defaults to `max(deficit, 1)`, so it can request one account even when the measured deficit is zero. |
+
+All three triggers use these task states:
+
+```text
+pending -> claimed -> succeeded
+                   -> failed
+```
+
+The durable notification stream is:
+
+```text
+gw:credential-pool:refill:requests
+```
+
+External refill programs should create and use a stable Redis Stream consumer
+group. A stream entry is only a wake-up signal: the worker must still call the
+Gateway claim endpoint before doing any work. Claiming provides a lease and
+prevents multiple workers from refilling the same Provider concurrently. A
+long-running worker must renew its lease before it expires.
+
+Every endpoint below requires normal Gateway management authentication. The
+`claimToken` returned by the claim endpoint proves ownership of one lease; it
+does **not** replace the management token.
+
+```text
+GET  /v1/internal/gateway/credential-pool-refill
+GET  /v1/internal/gateway/credential-pool-refill/tasks?providerId=...&state=...&limit=...
+POST /v1/internal/gateway/credential-pool-refill/providers/:providerId/request
+POST /v1/internal/gateway/credential-pool-refill/tasks/claim
+POST /v1/internal/gateway/credential-pool-refill/tasks/:taskId/renew
+POST /v1/internal/gateway/credential-pool-refill/tasks/:taskId/complete
+POST /v1/internal/gateway/credential-pool-refill/tasks/:taskId/fail
+```
+
+Example inquiry/claim request:
+
+```json
+{
+  "workerId": "refill-worker-1",
+  "providerIds": ["suno"],
+  "leaseSeconds": 300
+}
+```
+
+An operator request accepts an optional `requestedCount` and caller-provided
+`idempotencyKey`. Gateway scopes idempotency to the Provider and permits only
+one outstanding task per Provider:
+
+```json
+{
+  "requestedCount": 2,
+  "idempotencyKey": "operator-request-2026-08-14"
+}
+```
+
+Workers can complete a claimed task with one of three delivery modes:
+
+1. `folder_sync`: the worker writes material below the configured credential
+   folder and asks Gateway to run the existing import. `relativePaths` are
+   validated as safe relative paths; the current importer still scans its
+   configured root rather than limiting import to only those hints.
+2. `gateway_pull`: the worker supplies an opaque `artifactReference`. Gateway
+   passes it only to the Provider's backend-allowlisted `collect_refill`
+   script/HTTP driver and commits the returned credentials itself. Route
+   configuration cannot provide an arbitrary pull URL.
+3. `direct_callback`: the worker sends credential drafts in the authenticated
+   completion request. Gateway appends new credential IDs through the normal
+   revisioned route-config commit path. Retrying an already-added credential ID
+   is idempotent.
+
+The Redis Stream event is intentionally secret-free and contains only
+`taskId`, `providerId`, `trigger`, `requestedCount`, `routeRevision`, and
+`createdAt`. Never put API keys, cookies, OAuth tokens, authorization headers,
+claim tokens, cloud URLs, or credential payloads in the Stream, task failure
+reason, or ordinary task metadata. Secret-bearing credentials may enter
+Gateway only through the authenticated `direct_callback` body, the configured
+credential folder, or a backend-trusted pull driver.
+
+Configuration defaults:
+
+```dotenv
+GATEWAY_CREDENTIAL_REFILL_QUEUE_ENABLED=true
+GATEWAY_CREDENTIAL_REFILL_NOTIFICATION_INTERVAL_SECS=30
+GATEWAY_CREDENTIAL_REFILL_TASK_TTL_SECS=604800
+GATEWAY_CREDENTIAL_REFILL_DEFAULT_LEASE_SECS=300
+GATEWAY_CREDENTIAL_REFILL_MAX_LEASE_SECS=3600
+GATEWAY_CREDENTIAL_REFILL_STREAM_MAX_LEN=10000
+```

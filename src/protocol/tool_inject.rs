@@ -1034,20 +1034,25 @@ fn strip_think_blocks(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
     let mut depth = 0u32;
     let mut i = 0;
-    let bytes = text.as_bytes();
-    let len = bytes.len();
+    let len = text.len();
 
     while i < len {
+        let remaining = &text[i..];
         // Check for opening <think> tag (case-insensitive).
-        if i + 7 <= len && bytes[i] == b'<' {
-            let remaining = &text[i..];
-            if remaining.len() >= 7 && remaining[..7].eq_ignore_ascii_case("<think>") {
+        if remaining.starts_with('<') {
+            if remaining
+                .get(..7)
+                .is_some_and(|tag| tag.eq_ignore_ascii_case("<think>"))
+            {
                 depth += 1;
                 i += 7;
                 continue;
             }
             // Check for closing </think> tag.
-            if remaining.len() >= 8 && remaining[..8].eq_ignore_ascii_case("</think>") {
+            if remaining
+                .get(..8)
+                .is_some_and(|tag| tag.eq_ignore_ascii_case("</think>"))
+            {
                 if depth > 0 {
                     depth -= 1;
                 }
@@ -1056,10 +1061,14 @@ fn strip_think_blocks(text: &str) -> String {
             }
         }
 
+        let ch = remaining
+            .chars()
+            .next()
+            .expect("non-empty UTF-8 remainder should contain a character");
         if depth == 0 {
-            result.push(bytes[i] as char);
+            result.push(ch);
         }
-        i += 1;
+        i += ch.len_utf8();
     }
 
     result
@@ -1944,6 +1953,20 @@ mod tests {
         let text = "No thinking here.";
         let result = strip_think_blocks(text);
         assert_eq!(result, "No thinking here.");
+    }
+
+    #[test]
+    fn strip_think_preserves_utf8_without_think_blocks() {
+        let text = "法国的首都是巴黎（Paris）。";
+        let result = strip_think_blocks(text);
+        assert_eq!(result, text);
+    }
+
+    #[test]
+    fn strip_think_preserves_utf8_around_removed_block() {
+        let text = "法国的首都<think>先分析一下</think>是巴黎。";
+        let result = strip_think_blocks(text);
+        assert_eq!(result, "法国的首都是巴黎。");
     }
 
     #[test]

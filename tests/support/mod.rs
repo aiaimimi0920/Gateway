@@ -45,5 +45,8 @@ pub fn build_test_app_state(
         provider_credential_folder_sync: ProviderCredentialFolderSyncRuntime::new(
             provider_credential_folder_sync_enabled,
         ),
+        credential_pool_automation: Arc::new(
+            neuro_gateway::credential_pool_automation::CredentialPoolAutomationRuntime::disabled(),
+        ),
     })
 }

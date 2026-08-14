@@ -1,5 +1,5 @@
 import http from "node:http";
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
 import { readFileSync, existsSync, unlinkSync, rmSync } from "node:fs";
 import { readFile as readFileAsync, rm as rmAsync, unlink as unlinkAsync, writeFile as writeFileAsync } from "node:fs/promises";
 import os from "node:os";
@@ -20,13 +20,19 @@ const BEARER_TOKEN =
 
 const PROVIDER_SCRIPTS = {
   aistudio: path.join(__dirname, "aistudio-web-browser-worker.mjs"),
+  "gemini-auth": path.join(__dirname, "gemini-auth-browser-helper.mjs"),
   udio: path.join(__dirname, "udio-browser-worker.mjs"),
   suno: path.join(__dirname, "suno-browser-worker.mjs"),
   producer: path.join(__dirname, "producer-browser-worker.mjs"),
   lumalabs: path.join(__dirname, "lumalabs-browser-worker.mjs"),
 };
+const activeProviderExecutions = new Map();
+const WORKER_DEADLINE_GRACE_MS = 10_000;
 
 function writeJson(res, status, payload) {
+  if (res.destroyed || res.writableEnded) {
+    return;
+  }
   res.statusCode = status;
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.end(JSON.stringify(payload));
@@ -99,8 +105,41 @@ function createWorkerResultFilePath(provider) {
   );
 }
 
+function terminateChild(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    let completed = false;
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      resolve();
+    };
+    child.once("close", finish);
+    child.once("error", finish);
+    try {
+      child.kill("SIGTERM");
+    } catch (_) {}
+    const forceTimer = setTimeout(() => {
+      if (completed) return;
+      if (process.platform === "win32" && child.pid) {
+        execFile("taskkill", ["/PID", String(child.pid), "/T", "/F"], () => finish());
+      } else {
+        try {
+          child.kill("SIGKILL");
+        } catch (_) {}
+      }
+    }, 500);
+    forceTimer.unref?.();
+    const deadlineTimer = setTimeout(finish, 5_000);
+    deadlineTimer.unref?.();
+  });
+}
+
 function spawnWorker(scriptPath, input, provider = "worker") {
-  return new Promise((resolve, reject) => {
+  let cancel = () => undefined;
+  const promise = new Promise((resolve, reject) => {
     const resultFilePath =
       typeof input?.resultFilePath === "string" && input.resultFilePath.trim()
         ? input.resultFilePath.trim()
@@ -119,25 +158,33 @@ function spawnWorker(scriptPath, input, provider = "worker") {
     let stderr = "";
     let settled = false;
 
+    let pollTimer = null;
+    let deadlineTimer = null;
+    const requestedTimeoutMs = Number(input?.timeoutMs);
+    const workerDeadlineMs =
+      (Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs > 0
+        ? Math.min(requestedTimeoutMs, 30 * 60 * 1000)
+        : 10 * 60 * 1000) + WORKER_DEADLINE_GRACE_MS;
     const finishResolve = async (payload) => {
       if (settled) {
         return;
       }
       settled = true;
-      try {
-        child.kill();
-      } catch (_) {}
+      if (pollTimer) clearTimeout(pollTimer);
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      await terminateChild(child);
       resolve(payload);
     };
 
-    const finishReject = (error) => {
+    const finishReject = async (error) => {
       if (settled) {
         return;
       }
       settled = true;
-      try {
-        child.kill();
-      } catch (_) {}
+      if (pollTimer) clearTimeout(pollTimer);
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      await terminateChild(child);
+      await unlinkAsync(resultFilePath).catch(() => undefined);
       reject(error);
     };
 
@@ -157,7 +204,7 @@ function spawnWorker(scriptPath, input, provider = "worker") {
         );
         return;
       }
-      setTimeout(pollResultFile, 50);
+      pollTimer = setTimeout(pollResultFile, 50);
     };
 
     child.stdout.on("data", (chunk) => {
@@ -166,7 +213,7 @@ function spawnWorker(scriptPath, input, provider = "worker") {
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString("utf8");
     });
-    child.on("error", finishReject);
+    child.on("error", (error) => void finishReject(error));
     child.on("close", async (code) => {
       if (settled) {
         return;
@@ -178,13 +225,13 @@ function spawnWorker(scriptPath, input, provider = "worker") {
           return;
         }
       } catch (error) {
-        finishReject(
+          void finishReject(
           new Error(`Browser worker result-file parse failed: ${error.message}`),
         );
         return;
       }
       if (!stdout.trim()) {
-        finishReject(
+        void finishReject(
           new Error(
             `Browser worker exited without JSON output (code=${code ?? "unknown"}). ${stderr}`.trim(),
           ),
@@ -194,7 +241,7 @@ function spawnWorker(scriptPath, input, provider = "worker") {
       try {
         await finishResolve(JSON.parse(stdout));
       } catch (error) {
-        finishReject(
+        void finishReject(
           new Error(
             `Browser worker returned invalid JSON: ${error.message}. stderr=${stderr}`.trim(),
           ),
@@ -202,11 +249,32 @@ function spawnWorker(scriptPath, input, provider = "worker") {
       }
     });
 
-    pollResultFile().catch(finishReject);
+    pollResultFile().catch((error) => void finishReject(error));
+
+    deadlineTimer = setTimeout(() => {
+      const error = Object.assign(
+        new Error(`Browser worker exceeded its ${workerDeadlineMs}ms execution deadline.`),
+        {
+          code: "browser_executor_worker_timeout",
+          status: 504,
+        },
+      );
+      void finishReject(error);
+    }, workerDeadlineMs);
+    deadlineTimer.unref?.();
+
+    cancel = () => {
+      const error = Object.assign(new Error("Browser executor request was cancelled."), {
+        code: "browser_executor_cancelled",
+        status: 499,
+      });
+      void finishReject(error);
+    };
 
     child.stdin.write(JSON.stringify(workerInput));
     child.stdin.end();
   });
+  return { promise, cancel };
 }
 
 function normalizeWorkerResponse(workerResponse) {
@@ -240,6 +308,7 @@ async function handleHealth(_req, res) {
     mode: "local_node_browser_executor_service",
     remoteBaseUrl: null,
     aistudioScriptPath: PROVIDER_SCRIPTS.aistudio,
+    geminiAuthScriptPath: PROVIDER_SCRIPTS["gemini-auth"],
     lumalabsScriptPath: PROVIDER_SCRIPTS.lumalabs,
     producerScriptPath: PROVIDER_SCRIPTS.producer,
     sunoScriptPath: PROVIDER_SCRIPTS.suno,
@@ -282,11 +351,37 @@ async function handleExecute(req, res) {
     });
     return;
   }
+  if (activeProviderExecutions.has(provider)) {
+    writeJson(res, 409, {
+      ok: false,
+      provider,
+      status: 409,
+      error: {
+        code: "browser_executor_provider_busy",
+        message: `A ${provider} browser execution is already in progress.`,
+        status: 409,
+      },
+      lease: null,
+      browserExecutionStatus: "failed",
+    });
+    return;
+  }
 
+  const executionToken = Symbol(provider);
+  const execution = spawnWorker(scriptPath, body.input ?? {}, provider);
+  activeProviderExecutions.set(provider, {
+    token: executionToken,
+    cancel: execution.cancel,
+  });
+  const cancelOnDisconnect = () => {
+    if (!res.writableEnded && activeProviderExecutions.get(provider)?.token === executionToken) {
+      execution.cancel();
+    }
+  };
+  req.once("aborted", cancelOnDisconnect);
+  res.once("close", cancelOnDisconnect);
   try {
-    const workerResponse = normalizeWorkerResponse(
-      await spawnWorker(scriptPath, body.input ?? {}, provider),
-    );
+    const workerResponse = normalizeWorkerResponse(await execution.promise);
     if (workerResponse?.ok) {
       const resultPayload =
         provider === "aistudio" ? workerResponse : workerResponse.result ?? null;
@@ -318,20 +413,29 @@ async function handleExecute(req, res) {
       browserExecutionStatus: browserExecutionStatusFromError(error),
     });
   } catch (error) {
+    if (req.aborted || res.destroyed) {
+      return;
+    }
     writeJson(res, 200, {
       ok: false,
       provider,
-      status: 500,
+      status: Number.isFinite(error?.status) ? Number(error.status) : 500,
       result: null,
       error: {
-        code: "browser_executor_spawn_failed",
+        code: error?.code ?? "browser_executor_spawn_failed",
         message: error.message,
-        status: 500,
+        status: Number.isFinite(error?.status) ? Number(error.status) : 500,
         body: null,
       },
       lease: null,
       browserExecutionStatus: "failed",
     });
+  } finally {
+    req.off("aborted", cancelOnDisconnect);
+    res.off("close", cancelOnDisconnect);
+    if (activeProviderExecutions.get(provider)?.token === executionToken) {
+      activeProviderExecutions.delete(provider);
+    }
   }
 }
 

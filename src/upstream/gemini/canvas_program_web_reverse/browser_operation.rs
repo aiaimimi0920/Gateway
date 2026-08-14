@@ -16,14 +16,18 @@ pub fn build_browser_operation_invocation_input(
     timeout: std::time::Duration,
 ) -> Result<Value, GatewayError> {
     let config = relay_config_from_payload(payload)?;
-    Ok(build_browser_operation_invocation_input_from_config(
+    let mut input = build_browser_operation_invocation_input_from_config(
         payload.base_url.trim_end_matches('/'),
         &config,
         operation,
         prompt,
         locale,
         timeout,
-    ))
+    );
+    input["authUser"] = Value::String(crate::protocol::gemini_canvas::direct_http_auth_user(
+        payload,
+    ));
+    Ok(input)
 }
 
 pub fn build_browser_operation_invocation_input_from_config(

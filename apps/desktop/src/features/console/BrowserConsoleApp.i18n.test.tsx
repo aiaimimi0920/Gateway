@@ -58,6 +58,32 @@ function createConsoleApi(): ConsoleApi {
     logout: vi.fn(),
     probeCredential: vi.fn(),
     getAccountGroupSummary: vi.fn().mockRejectedValue(new Error("summary unavailable")),
+    getCredentialPoolAutomation: vi.fn().mockResolvedValue({
+      automation: {
+        enabled: true,
+        intervalSeconds: 60,
+        drivers: [],
+        providers: [],
+        revisionId: "r1-deadbeefcafe",
+      },
+    }),
+    runCredentialPoolAutomation: vi.fn(),
+    getCredentialRefill: vi.fn().mockResolvedValue({
+      refill: {
+        enabled: true,
+        streamKey: "gw:credential-pool:refill:requests",
+        notificationIntervalSeconds: 30,
+        defaultLeaseSeconds: 300,
+        maxLeaseSeconds: 3_600,
+        revisionId: "r1-deadbeefcafe",
+        providers: [],
+        recentTasks: [],
+      },
+    }),
+    requestCredentialRefill: vi.fn(),
+    createGeminiAuthSession: vi.fn(),
+    completeGeminiAuthSession: vi.fn(),
+    getGeminiAuthSession: vi.fn(),
     commitRouteConfig: vi.fn(),
     getRouteConfig: vi.fn().mockResolvedValue({
       routeConfig: {
@@ -116,21 +142,22 @@ describe("BrowserConsoleApp localization", () => {
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Gateway 网页控制台" })).toBeInTheDocument(),
+      expect(screen.getByRole("navigation", { name: "Gateway console navigation" })).toBeInTheDocument(),
     );
+    expect(screen.queryByRole("heading", { name: "Gateway 网页控制台" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "刷新" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "退出登录" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /账号台账/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /分组策略/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /凭证分组/i })).toBeInTheDocument();
     expect(screen.getByText("English")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "切换界面语言" }));
 
-    expect(screen.getByRole("heading", { name: "Gateway Web Console" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Gateway Web Console" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Accounts/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Groups/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Credential Groups/i })).toBeInTheDocument();
     expect(screen.getByText("中文")).toBeInTheDocument();
   });
 });

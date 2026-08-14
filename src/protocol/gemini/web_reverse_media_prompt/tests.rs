@@ -45,6 +45,36 @@ fn prompt_for_media_request_adds_requested_aspect_ratio() {
 }
 
 #[test]
+fn prompt_for_media_request_defaults_video_to_landscape() {
+    let req = CanonicalRelayRequest {
+        protocol_family: ProtocolFamily::OpenAi,
+        endpoint_kind: EndpointKind::VideosGenerations,
+        requested_model: Some(GEMINI_CANVAS_VIDEO_PREVIEW_MODEL.to_string()),
+        stream: false,
+        messages: vec![CanonicalMessage {
+            role: MessageRole::User,
+            content: vec![ContentPart::Text {
+                text: "cinematic paper airplane".to_string(),
+            }],
+            name: None,
+            tool_call_id: None,
+            tool_calls: vec![],
+        }],
+        tools: vec![],
+        tool_choice: None,
+        reasoning: None,
+        metadata: None,
+        raw_body: json!({ "prompt": "cinematic paper airplane" }),
+        previous_response_id: None,
+        explicit_session_key: None,
+        extra: HashMap::new(),
+    };
+
+    let prompt = prompt_for_media_request(&req, GeminiCanvasMediaOperation::Video).unwrap();
+    assert!(prompt.contains("Requested aspect ratio: 16:9."));
+}
+
+#[test]
 fn prompt_for_media_request_prepends_image_style_guidance() {
     let req = CanonicalRelayRequest {
         protocol_family: ProtocolFamily::OpenAi,

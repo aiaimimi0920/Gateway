@@ -14,6 +14,8 @@ pub mod internal_account_groups;
 pub mod internal_browser_executor;
 pub mod internal_console;
 pub mod internal_conversation_archives;
+pub mod internal_credential_pool_automation;
+pub mod internal_credential_refill;
 pub mod internal_credential_stock;
 pub mod internal_gateway;
 pub mod internal_provider_accounts;

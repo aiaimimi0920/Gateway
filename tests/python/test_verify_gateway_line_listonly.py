@@ -85,7 +85,7 @@ class VerifyGatewayLineListOnlyTests(unittest.TestCase):
 
         self.assertIsNotNone(payload, msg=f"missing JSON payload:\n{result.stdout}")
         self.assertEqual(payload["status"], "pass")
-        self.assertEqual(payload["lineCount"], 41)
+        self.assertEqual(payload["lineCount"], 44)
         self.assertIs(payload["cargoSkipped"], True)
 
 

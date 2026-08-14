@@ -419,6 +419,9 @@ pub struct ProviderCredentialYaml {
     pub runtime_state_object_key: Option<String>,
     #[serde(default)]
     pub account_name: Option<String>,
+    /// Optional provider-specific identity class used by automation drivers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_identity_category_id: Option<String>,
     /// Optional runtime switch for this credential. Missing means enabled for
     /// backwards compatibility with existing route documents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -533,6 +536,21 @@ pub struct ProviderConfigYaml {
     /// E.g., `{"claude-opus-4-6": "opus4.6"}`.
     #[serde(default)]
     pub model_map: HashMap<String, String>,
+    /// Desired number of active route credentials for automated pool upkeep.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pool_target_size: Option<usize>,
+    /// Enables the trusted refill driver selected for this provider.
+    #[serde(default)]
+    pub auto_refill_enabled: bool,
+    /// Enables permanent-failure pruning reported by the trusted driver.
+    #[serde(default)]
+    pub auto_prune_enabled: bool,
+    /// Optional explicit reference into the backend-owned driver allowlist.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_automation_driver_id: Option<String>,
+    /// Optional UI-defined identity classes retained for provider-specific drivers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub credential_identity_categories: Vec<Value>,
     /// Optional pool of credentials for this provider.
     /// If present, the provider has multiple credentials that are selected at
     /// request time (round-robin).  If absent, `api_key` is used as a single
@@ -2368,8 +2386,8 @@ impl Default for RouteConfigStore {
 /// `translated_model` is the model_map-translated upstream name (e.g. "astron-code-latest").
 ///
 /// A credential matches if its `supported_models` contains EITHER name.
-/// This allows credentials to list user-facing names (xfyun-coding) or
-/// upstream names (xfyun-maas) — both patterns work.
+/// This allows credentials to list either user-facing or translated upstream
+/// model names; both naming schemes work.
 fn select_credential(
     provider: &CompiledProvider,
     original_model: Option<&str>,
@@ -2479,8 +2497,6 @@ fn provider_to_candidate(
     //
     // Example 1 — xfyun-maas: user requests "hunyuan-mt-7b", model_map → "xophunyuan7bmt",
     //   credential lists "xophunyuan7bmt" → matches via translated name.
-    // Example 2 — xfyun-coding: user requests "qwen3.5-35b-a3b", model_map → "astron-code-latest",
-    //   credential lists "qwen3.5-35b-a3b" → matches via original name.
     let translated_model = model.and_then(|m| p.model_map.get(m).map(|s| s.as_str()));
     let selected_payload = select_credential(p, model, translated_model, allowed_account_ids)?;
 

@@ -44,9 +44,14 @@ pub(crate) fn udio_browser_request_timeout(
     base_timeout: Duration,
     wait_timeout: Duration,
 ) -> Duration {
-    base_timeout
-        .max(Duration::from_secs(300))
-        .max(wait_timeout.saturating_add(Duration::from_secs(60)))
+    const MANUAL_CHALLENGE_BUDGET: Duration = Duration::from_secs(300);
+    const SUBMIT_GRACE: Duration = Duration::from_secs(60);
+
+    base_timeout.max(Duration::from_secs(300)).max(
+        MANUAL_CHALLENGE_BUDGET
+            .saturating_add(wait_timeout)
+            .saturating_add(SUBMIT_GRACE),
+    )
 }
 
 pub(crate) fn gemini_canvas_browser_pool_script_path() -> PathBuf {
@@ -560,13 +565,13 @@ mod tests {
     fn udio_browser_request_timeout_respects_wait_timeout_budget() {
         let timeout =
             udio_browser_request_timeout(Duration::from_secs(60), Duration::from_secs(480));
-        assert_eq!(timeout, Duration::from_secs(540));
+        assert_eq!(timeout, Duration::from_secs(840));
     }
 
     #[test]
     fn udio_browser_request_timeout_keeps_minimum_budget() {
         let timeout =
             udio_browser_request_timeout(Duration::from_secs(30), Duration::from_secs(240));
-        assert_eq!(timeout, Duration::from_secs(300));
+        assert_eq!(timeout, Duration::from_secs(600));
     }
 }

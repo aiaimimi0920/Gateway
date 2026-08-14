@@ -41,6 +41,10 @@ fn make_payload() -> ProviderAccountPayload {
         extra_body: Some(HashMap::from([
             ("shareId".to_string(), json!("canvas-share-123")),
             (
+                "browserRuntimeStateObjectKey".to_string(),
+                json!("credential-runtime/gemini-canvas/host-export"),
+            ),
+            (
                 "canvasRelayWsEndpoint".to_string(),
                 json!("ws://127.0.0.1:42321/ws"),
             ),
@@ -106,7 +110,7 @@ fn relay_config_reads_program_fields() {
     assert_eq!(config.bootstrap.share_id, "canvas-share-123");
     assert_eq!(
         config.bootstrap.runtime_state_object_key,
-        "credential-runtime/gemini-canvas/host-export/storage-state.json"
+        "credential-runtime/gemini-canvas/host-export"
     );
     assert_eq!(
         config.bootstrap.relay_ws_endpoint.as_deref(),

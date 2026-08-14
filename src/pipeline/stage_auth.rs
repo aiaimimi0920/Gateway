@@ -203,6 +203,7 @@ mod tests {
                 provider_credential_refresh_lock_ttl_secs: 300,
                 credential_stock_monitor_enabled: true,
                 credential_stock_monitor_interval_secs: 60,
+                credential_pool_automation: Default::default(),
                 splitter_worker_executable_path: None,
                 splitter_initial_worker_port: 4201,
                 splitter_ready_timeout_secs: 120,
@@ -225,6 +226,9 @@ mod tests {
             shutdown: crate::state::GatewayShutdownHandle::default(),
             provider_credential_folder_sync: crate::state::ProviderCredentialFolderSyncRuntime::new(
                 false,
+            ),
+            credential_pool_automation: Arc::new(
+                crate::credential_pool_automation::CredentialPoolAutomationRuntime::disabled(),
             ),
         })
     }

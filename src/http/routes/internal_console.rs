@@ -18,7 +18,8 @@ use crate::console::secrets::{
     SecretPatch,
 };
 use crate::console::{
-    AuthenticatedConsoleActor, ConsoleRequestContext, RouteConfigCoordinator,
+    gemini_auth_session_manager, AuthenticatedConsoleActor, ConsoleRequestContext,
+    CreateGeminiAuthSessionInput, GeminiAuthFamily, RouteConfigCoordinator,
     RouteConfigRuntimeError, StoredRouteRevision,
 };
 use crate::error::GatewayError;
@@ -62,6 +63,15 @@ pub struct ValidateRouteConfigRequest {
     pub document: RouteConfigYaml,
     #[serde(default)]
     pub secret_patches: Vec<SecretPatch>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateGeminiAuthSessionRequest {
+    pub target_family: GeminiAuthFamily,
+    pub provider_id: String,
+    #[serde(default)]
+    pub account_label: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -223,6 +233,94 @@ pub async fn probe_console_credential(
     })
     .expect("credential probe response JSON");
     Ok(json_with_no_store(serde_json::json!({ "result": result })))
+}
+
+pub async fn create_gemini_auth_session(
+    State(state): State<Arc<AppState>>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<CreateGeminiAuthSessionRequest>,
+) -> Result<Response, GatewayError> {
+    let request = console_request_context(&headers, connect_info.as_ref());
+    state.console_auth.authenticate_management_token(
+        &request,
+        required_console_management_token(token.as_deref(), &headers)?,
+    )?;
+    let provider_id = body.provider_id.trim();
+    if provider_id.is_empty() {
+        return Err(
+            GatewayError::bad_request("Gemini auth session providerId is required.")
+                .with_code("console_gemini_auth_provider_required"),
+        );
+    }
+    let session = gemini_auth_session_manager().create_session(CreateGeminiAuthSessionInput {
+        target_family: body.target_family,
+        provider_id: provider_id.to_string(),
+        account_label: body.account_label,
+    });
+    Ok(json_with_no_store(
+        serde_json::json!({ "session": session }),
+    ))
+}
+
+pub async fn get_gemini_auth_session(
+    State(state): State<Arc<AppState>>,
+    Path(session_id): Path<String>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+) -> Result<Response, GatewayError> {
+    let request = console_request_context(&headers, connect_info.as_ref());
+    state.console_auth.authenticate_management_token(
+        &request,
+        required_console_management_token(token.as_deref(), &headers)?,
+    )?;
+    let normalized_session_id = session_id.trim();
+    let session = gemini_auth_session_manager()
+        .get_session(normalized_session_id)
+        .ok_or_else(|| {
+            GatewayError::not_found(format!(
+                "Gateway Gemini auth session '{}' was not found",
+                normalized_session_id
+            ))
+            .with_code("console_gemini_auth_session_not_found")
+        })?;
+    Ok(json_with_no_store(
+        serde_json::json!({ "session": session }),
+    ))
+}
+
+pub async fn complete_gemini_auth_session(
+    State(state): State<Arc<AppState>>,
+    Path(session_id): Path<String>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+) -> Result<Response, GatewayError> {
+    let request = console_request_context(&headers, connect_info.as_ref());
+    state.console_auth.authenticate_management_token(
+        &request,
+        required_console_management_token(token.as_deref(), &headers)?,
+    )?;
+    let normalized_session_id = session_id.trim();
+    let manager = gemini_auth_session_manager();
+    if manager.get_session(normalized_session_id).is_none() {
+        return Err(GatewayError::not_found(format!(
+            "Gateway Gemini auth session '{}' was not found",
+            normalized_session_id
+        ))
+        .with_code("console_gemini_auth_session_not_found"));
+    }
+    let session = manager
+        .request_manual_completion(normalized_session_id)
+        .map_err(|message| {
+            GatewayError::bad_request(message)
+                .with_code("console_gemini_auth_manual_completion_failed")
+        })?;
+    Ok(json_with_no_store(
+        serde_json::json!({ "session": session }),
+    ))
 }
 
 pub async fn get_route_config(

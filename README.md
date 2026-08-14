@@ -75,9 +75,11 @@ cargo test --locked -- --test-threads=1
 Gateway now carries a local-default Cargo throttle under
 [`./.cargo/config.toml`](.cargo/config.toml) with `build.jobs = 1` so routine
 Rust builds do not saturate a workstation by default. The official development
-container and release builder also force `CARGO_BUILD_JOBS=1` and
-`CARGO_INCREMENTAL=0`; inherited shell, `.env`, or CI values cannot raise the
-parallelism of those supported build paths.
+release builder still force `CARGO_BUILD_JOBS=1` and `CARGO_INCREMENTAL=0` so
+the supported release path stays deterministic. The source-mounted development
+container now uses dev-only defaults of `GATEWAY_DEV_CARGO_BUILD_JOBS=4` and
+`GATEWAY_DEV_CARGO_INCREMENTAL=1` to favor faster local rebuilds, while still
+allowing explicit overrides when a workstation needs a different balance.
 
 Validate manifests and Python contracts:
 

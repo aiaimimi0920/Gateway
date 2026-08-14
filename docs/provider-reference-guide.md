@@ -13,7 +13,7 @@ reviews a Gateway-owned, sanitized file.
 | `local_present` | The referenced file exists under Gateway. | Review its contents and keep material outside checked-in docs. |
 | `external_legacy_reference` | The historical path is absent or not owned by Gateway. | Use the safe placeholder below; do not copy a sibling project tree. |
 
-Current deterministic baseline: **164 declared references**, **154 unique paths**, **164 external legacy references**, and **0 unclassified references**.
+Current deterministic baseline: **176 declared references**, **166 unique paths**, **176 external legacy references**, and **0 unclassified references**.
 
 `sourceRevision` is the content-addressed identity
 `manifest-source:<sha256>` and does not depend on Git commit history.
@@ -373,6 +373,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/Linkup Search平台实现线、可选编译与物理隔离基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/linkup/official_vendor_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
 
+<a id="line-longcat-openai-official-model-api"></a>
+### longcat-openai-official-model-api
+
+- Identity: `longcat_platform` / `longcat-openai`
+- Capabilities: `conversation`, `models`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/longcat/official-model-api.json`
+- Resolution: `0` local present, `4` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/20-ai-gateway/examples/credentials/longcat/official_model_api/minimal.raw.sample.json` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/20-ai-gateway/examples/credentials/longcat/official_model_api/FIELDS.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/20-ai-gateway/LongCat官方模型API实现线基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/longcat/official_model_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+
 <a id="line-lumalabs-web-reverse-api"></a>
 ### lumalabs-web-reverse-api
 
@@ -400,6 +414,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `credentials.fieldsDocPath` -> `docs/20-ai-gateway/examples/credentials/mistral/official_model_api/FIELDS.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/Mistral平台实现线、可选编译与物理隔离基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/mistral/official_model_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+
+<a id="line-muyuan-openai-aggregator-api"></a>
+### muyuan-openai-aggregator-api
+
+- Identity: `muyuan_platform` / `muyuan-openai`
+- Capabilities: `conversation`, `models`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/muyuan/aggregator-api.json`
+- Resolution: `0` local present, `4` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/minimal.raw.sample.json` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/FIELDS.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/20-ai-gateway/Muyuan聚合API实现线基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
 
 <a id="line-nvidia-openai-official-vendor-api"></a>
 ### nvidia-openai-official-vendor-api
@@ -456,6 +484,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `credentials.fieldsDocPath` -> `docs/20-ai-gateway/examples/credentials/perplexity/official_vendor_api/FIELDS.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/Perplexity Search平台实现线、可选编译与物理隔离基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/perplexity/official_vendor_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+
+<a id="line-poe-openai-aggregator-api"></a>
+### poe-openai-aggregator-api
+
+- Identity: `poe_platform` / `poe-openai`
+- Capabilities: `conversation`, `models`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/poe/aggregator-api.json`
+- Resolution: `0` local present, `4` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/20-ai-gateway/examples/credentials/poe/aggregator_api/minimal.raw.sample.json` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/20-ai-gateway/examples/credentials/poe/aggregator_api/FIELDS.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/20-ai-gateway/Poe聚合API实现线基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/poe/aggregator_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
 
 <a id="line-producer-web-reverse-api"></a>
 ### producer-web-reverse-api

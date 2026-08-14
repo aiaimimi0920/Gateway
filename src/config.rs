@@ -2,6 +2,7 @@ use std::env;
 use std::path::PathBuf;
 
 use crate::console::ConsoleConfig;
+use crate::credential_pool_automation::CredentialPoolAutomationConfig;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GatewayRuntimeRole {
@@ -86,6 +87,7 @@ pub struct Config {
     pub provider_credential_refresh_lock_ttl_secs: u64,
     pub credential_stock_monitor_enabled: bool,
     pub credential_stock_monitor_interval_secs: u64,
+    pub credential_pool_automation: CredentialPoolAutomationConfig,
     pub splitter_worker_executable_path: Option<String>,
     pub splitter_initial_worker_port: u16,
     pub splitter_ready_timeout_secs: u64,
@@ -158,7 +160,10 @@ impl Config {
         let provider_probe_interval_secs =
             parse_env_or("GATEWAY_PROVIDER_PROBE_INTERVAL_SECS", 30u64)?;
         let log_level = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
-        let gateway_api_key = env::var("GATEWAY_API_KEY").ok();
+        let gateway_api_key = env::var("GATEWAY_API_KEY")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
         let gateway_api_key_secret = env::var("GATEWAY_API_KEY_SECRET")
             .ok()
             .or_else(|| env::var("AI_GATEWAY_API_KEY_SECRET").ok())
@@ -228,6 +233,39 @@ impl Config {
             parse_env_or("GATEWAY_CREDENTIAL_STOCK_MONITOR_ENABLED", true)?;
         let credential_stock_monitor_interval_secs =
             parse_env_or("GATEWAY_CREDENTIAL_STOCK_MONITOR_INTERVAL_SECS", 60u64)?;
+        let credential_pool_automation = CredentialPoolAutomationConfig {
+            enabled: parse_env_or("GATEWAY_CREDENTIAL_POOL_AUTOMATION_ENABLED", true)?,
+            interval_secs: parse_env_or("GATEWAY_CREDENTIAL_POOL_AUTOMATION_INTERVAL_SECS", 60u64)?,
+            driver_config_path: parse_optional_path_env(
+                "GATEWAY_CREDENTIAL_POOL_AUTOMATION_DRIVER_CONFIG",
+            ),
+            script_root: parse_optional_path_env("GATEWAY_CREDENTIAL_POOL_AUTOMATION_SCRIPT_ROOT"),
+            default_timeout_secs: parse_env_or(
+                "GATEWAY_CREDENTIAL_POOL_AUTOMATION_TIMEOUT_SECS",
+                60u64,
+            )?,
+            refill_queue_enabled: parse_env_or("GATEWAY_CREDENTIAL_REFILL_QUEUE_ENABLED", true)?,
+            refill_notification_interval_secs: parse_env_or(
+                "GATEWAY_CREDENTIAL_REFILL_NOTIFICATION_INTERVAL_SECS",
+                30u64,
+            )?,
+            refill_task_ttl_secs: parse_env_or(
+                "GATEWAY_CREDENTIAL_REFILL_TASK_TTL_SECS",
+                7 * 24 * 60 * 60u64,
+            )?,
+            refill_default_lease_secs: parse_env_or(
+                "GATEWAY_CREDENTIAL_REFILL_DEFAULT_LEASE_SECS",
+                300u64,
+            )?,
+            refill_max_lease_secs: parse_env_or(
+                "GATEWAY_CREDENTIAL_REFILL_MAX_LEASE_SECS",
+                3_600u64,
+            )?,
+            refill_stream_max_len: parse_env_or(
+                "GATEWAY_CREDENTIAL_REFILL_STREAM_MAX_LEN",
+                10_000usize,
+            )?,
+        };
         let splitter_worker_executable_path = env::var("GATEWAY_SPLITTER_WORKER_EXECUTABLE_PATH")
             .ok()
             .map(|value| value.trim().to_string())
@@ -292,6 +330,7 @@ impl Config {
             provider_credential_refresh_lock_ttl_secs,
             credential_stock_monitor_enabled,
             credential_stock_monitor_interval_secs,
+            credential_pool_automation,
             splitter_worker_executable_path,
             splitter_initial_worker_port,
             splitter_ready_timeout_secs,
@@ -339,6 +378,43 @@ fn parse_csv_headers(key: &str) -> Vec<String> {
 
 fn default_provider_credential_folder_sync_root_dir() -> Option<String> {
     resolve_home_dir().map(|home_dir| home_dir.join(".neuro").to_string_lossy().into_owned())
+}
+
+fn parse_optional_path_env(key: &str) -> Option<PathBuf> {
+    env::var(key)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_env_treats_blank_gateway_api_key_as_none() {
+        std::env::set_var("GATEWAY_REDIS_URL", "redis://127.0.0.1:6379/0");
+        std::env::set_var("GATEWAY_API_KEY", "   ");
+
+        let config = Config::from_env().expect("config should load");
+        assert_eq!(config.gateway_api_key, None);
+
+        std::env::remove_var("GATEWAY_API_KEY");
+        std::env::remove_var("GATEWAY_REDIS_URL");
+    }
+
+    #[test]
+    fn from_env_trims_gateway_api_key() {
+        std::env::set_var("GATEWAY_REDIS_URL", "redis://127.0.0.1:6379/0");
+        std::env::set_var("GATEWAY_API_KEY", "  temp-public-key  ");
+
+        let config = Config::from_env().expect("config should load");
+        assert_eq!(config.gateway_api_key.as_deref(), Some("temp-public-key"));
+
+        std::env::remove_var("GATEWAY_API_KEY");
+        std::env::remove_var("GATEWAY_REDIS_URL");
+    }
 }
 
 fn resolve_home_dir() -> Option<PathBuf> {

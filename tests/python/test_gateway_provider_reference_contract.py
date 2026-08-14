@@ -82,15 +82,15 @@ class GatewayProviderReferenceContractTests(unittest.TestCase):
             self.assertEqual(
                 payload["schemaVersion"], "gateway-provider-reference-report/v1"
             )
-            self.assertEqual(payload["summary"]["lineCount"], 41)
-            self.assertEqual(payload["summary"]["declaredReferenceCount"], 164)
-            self.assertEqual(payload["summary"]["uniqueReferenceCount"], 154)
+            self.assertEqual(payload["summary"]["lineCount"], 44)
+            self.assertEqual(payload["summary"]["declaredReferenceCount"], 176)
+            self.assertEqual(payload["summary"]["uniqueReferenceCount"], 166)
             self.assertEqual(payload["summary"]["unclassifiedReferenceCount"], 0)
 
             references = payload["references"]
             keys = [(item["lineId"], item["field"]) for item in references]
-            self.assertEqual(len(keys), 164)
-            self.assertEqual(len(set(keys)), 164)
+            self.assertEqual(len(keys), 176)
+            self.assertEqual(len(set(keys)), 176)
             self.assertEqual(
                 {item["field"] for item in references}, set(REFERENCE_FIELDS)
             )
@@ -99,11 +99,11 @@ class GatewayProviderReferenceContractTests(unittest.TestCase):
             )
 
             unique = payload["uniqueReferences"]
-            self.assertEqual(len(unique), 154)
+            self.assertEqual(len(unique), 166)
             self.assertEqual(
-                len({item["path"] for item in unique}), 154
+                len({item["path"] for item in unique}), 166
             )
-            self.assertEqual(len(payload["lines"]), 41)
+            self.assertEqual(len(payload["lines"]), 44)
             for line in payload["lines"]:
                 self.assertEqual(len(line["legacyReferences"]), 4)
                 self.assertIn("identity", line)
@@ -161,7 +161,7 @@ class GatewayProviderReferenceContractTests(unittest.TestCase):
             payload = json.loads(report_path.read_text(encoding="utf-8"))
 
             self.assertEqual(
-                payload["summary"]["externalLegacyReferenceCount"], 164
+                payload["summary"]["externalLegacyReferenceCount"], 176
             )
             self.assertEqual(payload["summary"]["localPresentReferenceCount"], 0)
             for item in payload["references"]:
@@ -446,8 +446,8 @@ class GatewayProviderReferenceContractTests(unittest.TestCase):
         )
         payload = json.loads(result.stdout)
         self.assertEqual(payload["status"], "pass")
-        self.assertEqual(payload["declaredReferenceCount"], 164)
-        self.assertEqual(payload["uniqueReferenceCount"], 154)
+        self.assertEqual(payload["declaredReferenceCount"], 176)
+        self.assertEqual(payload["uniqueReferenceCount"], 166)
 
 
 if __name__ == "__main__":

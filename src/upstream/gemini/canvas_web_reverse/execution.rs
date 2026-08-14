@@ -270,6 +270,25 @@ pub async fn execute_browser_request(
         locale,
         timeout,
     );
+    execute_browser_request_input(
+        http,
+        timeout,
+        provider,
+        browser_pool_base_url,
+        &input,
+        operation,
+    )
+    .await
+}
+
+async fn execute_browser_request_input(
+    http: &Client,
+    timeout: Duration,
+    provider: &str,
+    browser_pool_base_url: &str,
+    input: &Value,
+    operation: &str,
+) -> Result<program::GeminiCanvasBrowserInvocationResult, GatewayError> {
     let response = http
         .request(Method::POST, format!("{}/invoke", browser_pool_base_url))
         .header(rquest::header::CONTENT_TYPE, "application/json")
@@ -285,6 +304,38 @@ pub async fn execute_browser_request(
         .await
         .map_err(|error| classify_network_error(&error, Some(provider)))?;
     parse_browser_invocation_response(provider, status, &body_text, operation)
+}
+
+pub async fn execute_browser_request_input_with_recovery(
+    http: &Client,
+    timeout: Duration,
+    provider: &str,
+    browser_pool_base_url: &str,
+    input: &Value,
+    operation: &str,
+) -> Result<program::GeminiCanvasBrowserInvocationResult, GatewayError> {
+    let mut attempts = 0usize;
+    loop {
+        match execute_browser_request_input(
+            http,
+            timeout,
+            provider,
+            browser_pool_base_url,
+            input,
+            operation,
+        )
+        .await
+        {
+            Ok(result) => return Ok(result),
+            Err(error) => {
+                let Some(delay_ms) = browser_request_retry_delay_ms(&error, attempts) else {
+                    return Err(error);
+                };
+                attempts += 1;
+                sleep(Duration::from_millis(delay_ms)).await;
+            }
+        }
+    }
 }
 
 pub async fn execute_browser_request_with_recovery(

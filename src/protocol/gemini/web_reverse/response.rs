@@ -52,6 +52,11 @@ pub fn response_indicates_browser_challenge(
         || lower.contains("bot verification")
         || lower.contains("unusual traffic")
         || lower.contains("security check");
+    let gemini_shell_like =
+        lower.contains("bardchatui") || lower.contains("gemini.gstatic.com/_/mss/boq-bard-web");
+    if status == 200 && html_like && gemini_shell_like {
+        return false;
+    }
     html_like && challenge_like && matches!(status, 200 | 403 | 429 | 503)
 }
 
@@ -592,6 +597,35 @@ mod tests {
 </body></html>
 "#;
         assert!(response_indicates_session_invalid(
+            200,
+            Some("text/html; charset=utf-8"),
+            html,
+        ));
+    }
+
+    #[test]
+    fn browser_challenge_ignores_gemini_shell_with_incidental_challenge_text() {
+        let html = r#"
+<!doctype html><html><head>
+<script src="https://gemini.gstatic.com/_/mss/boq-bard-web/_/js/k=boq-bard-web.BardChatUi.en_US.test"></script>
+<script>window.challengeConfiguration = {};</script>
+</head><body>Gemini</body></html>
+"#;
+        assert!(!response_indicates_browser_challenge(
+            200,
+            Some("text/html; charset=utf-8"),
+            html,
+        ));
+    }
+
+    #[test]
+    fn browser_challenge_still_detects_plain_captcha_html() {
+        let html = r#"
+<!doctype html><html><body>
+<h1>Verify you are human</h1><div class="captcha">Security check</div>
+</body></html>
+"#;
+        assert!(response_indicates_browser_challenge(
             200,
             Some("text/html; charset=utf-8"),
             html,

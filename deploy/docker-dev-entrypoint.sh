@@ -8,8 +8,11 @@ FRONTEND_DIST_INDEX="${FRONTEND_ROOT}/dist/web/index.html"
 FRONTEND_READY_MARKER="${FRONTEND_ROOT}/dist/.gateway-web-ready"
 FRONTEND_NODE_MODULES_STAMP="${FRONTEND_ROOT}/node_modules/.gateway-package-lock.sha256"
 SCRIPTS_NODE_MODULES_STAMP="${SCRIPTS_ROOT}/node_modules/.gateway-package-lock.sha256"
-export CARGO_BUILD_JOBS=1
-export CARGO_INCREMENTAL=0
+: "${GATEWAY_DEV_CARGO_BUILD_JOBS:=4}"
+: "${GATEWAY_DEV_CARGO_INCREMENTAL:=1}"
+: "${GATEWAY_DEV_RUN_AUDIT:=0}"
+export CARGO_BUILD_JOBS="${GATEWAY_DEV_CARGO_BUILD_JOBS}"
+export CARGO_INCREMENTAL="${GATEWAY_DEV_CARGO_INCREMENTAL}"
 
 log() {
   printf '[gateway-dev] %s\n' "$*"
@@ -50,6 +53,10 @@ ensure_node_dependencies() {
 audit_production_dependencies() {
   local package_root="$1"
   local package_label="$2"
+  if [[ "${GATEWAY_DEV_RUN_AUDIT}" != "1" ]]; then
+    log "skipping production dependency audit in dev entrypoint for ${package_label}"
+    return 0
+  fi
   log "auditing ${package_label} production dependencies"
   npm run audit:prod --prefix "${package_root}"
 }

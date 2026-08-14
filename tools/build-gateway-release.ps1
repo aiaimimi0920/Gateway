@@ -86,6 +86,35 @@ function Resolve-NativeExecutable {
     return $resolved[0].Source
 }
 
+function Write-NewCaptureLines {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][ref]$LastLineIndex
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return @()
+    }
+
+    try {
+        $lines = @(Get-Content -LiteralPath $Path -Encoding UTF8 -ErrorAction Stop)
+    } catch {
+        return @()
+    }
+
+    if ($LastLineIndex.Value -ge $lines.Count) {
+        return @()
+    }
+
+    $newLines = @($lines[$LastLineIndex.Value..($lines.Count - 1)])
+    $LastLineIndex.Value = $lines.Count
+    foreach ($line in $newLines) {
+        [Console]::Out.WriteLine($line)
+    }
+    [Console]::Out.Flush()
+    return $newLines
+}
+
 function Invoke-NativeCommandCapture {
     param(
         [Parameter(Mandatory = $true)][string]$Command,
@@ -99,6 +128,8 @@ function Invoke-NativeCommandCapture {
     )
     $stdoutPath = Join-Path $captureRoot "stdout.log"
     $stderrPath = Join-Path $captureRoot "stderr.log"
+    $stdoutLineIndex = 0
+    $stderrLineIndex = 0
     New-Item -ItemType Directory -Path $captureRoot -Force | Out-Null
 
     try {
@@ -109,20 +140,19 @@ function Invoke-NativeCommandCapture {
             RedirectStandardOutput = $stdoutPath
             RedirectStandardError = $stderrPath
             PassThru = $true
-            Wait = $true
             WindowStyle = "Hidden"
         }
         $process = Start-Process @startInfo
-        $stdoutLines = if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
-            @(Get-Content -LiteralPath $stdoutPath -Encoding UTF8)
-        } else {
-            @()
+        $stdoutLines = @()
+        $stderrLines = @()
+        while (-not $process.HasExited) {
+            $stdoutLines += @(Write-NewCaptureLines -Path $stdoutPath -LastLineIndex ([ref]$stdoutLineIndex))
+            $stderrLines += @(Write-NewCaptureLines -Path $stderrPath -LastLineIndex ([ref]$stderrLineIndex))
+            Start-Sleep -Milliseconds 200
         }
-        $stderrLines = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
-            @(Get-Content -LiteralPath $stderrPath -Encoding UTF8)
-        } else {
-            @()
-        }
+        $process.WaitForExit()
+        $stdoutLines += @(Write-NewCaptureLines -Path $stdoutPath -LastLineIndex ([ref]$stdoutLineIndex))
+        $stderrLines += @(Write-NewCaptureLines -Path $stderrPath -LastLineIndex ([ref]$stderrLineIndex))
 
         return [pscustomobject]@{
             ExitCode = [int]$process.ExitCode
@@ -151,7 +181,6 @@ function Invoke-NpmCiWithRetry {
             -WorkingDirectory $WorkingDirectory
         $npmOutput = @($npmResult.Output)
         $npmExitCode = [int]$npmResult.ExitCode
-        $npmOutput | ForEach-Object { Write-Output $_ }
 
         if ($npmExitCode -eq 0) {
             return
@@ -181,7 +210,6 @@ function Invoke-NpmProductionAudit {
         -WorkingDirectory $WorkingDirectory
     $auditOutput = @($auditResult.Output)
     $auditExitCode = [int]$auditResult.ExitCode
-    $auditOutput | ForEach-Object { Write-Output $_ }
     if ($auditExitCode -ne 0) {
         throw "npm production dependency audit failed for $ComponentName"
     }
@@ -196,7 +224,6 @@ function Assert-MinimumNodeVersion {
         -WorkingDirectory $repoRoot
     $nodeOutput = @($nodeResult.Output)
     if ([int]$nodeResult.ExitCode -ne 0) {
-        $nodeOutput | ForEach-Object { Write-Output $_ }
         throw "Unable to determine the installed Node.js version. Gateway release builds require Node.js >= $MinimumVersion."
     }
 
@@ -424,7 +451,6 @@ try {
                 -WorkingDirectory $desktopRoot
             $typecheckOutput = @($typecheckResult.Output)
             $typecheckExitCode = [int]$typecheckResult.ExitCode
-            $typecheckOutput | ForEach-Object { Write-Output $_ }
             if ($typecheckExitCode -ne 0) {
                 throw "npm typecheck failed for Gateway desktop UI"
             }
@@ -437,7 +463,6 @@ try {
                 -WorkingDirectory $desktopRoot
             $webBuildOutput = @($webBuildResult.Output)
             $webBuildExitCode = [int]$webBuildResult.ExitCode
-            $webBuildOutput | ForEach-Object { Write-Output $_ }
             if ($webBuildExitCode -ne 0) {
                 throw "npm build:web failed for Gateway browser console"
             }
@@ -453,7 +478,6 @@ try {
                     -WorkingDirectory $repoRoot
                 $cargoOutput = @($cargoResult.Output)
                 $cargoExitCode = [int]$cargoResult.ExitCode
-                $cargoOutput | ForEach-Object { Write-Output $_ }
                 if ($cargoExitCode -ne 0) {
                     throw "cargo build failed for gateway"
                 }
@@ -473,7 +497,6 @@ try {
                 -WorkingDirectory $desktopRoot
             $tauriOutput = @($tauriResult.Output)
             $tauriExitCode = [int]$tauriResult.ExitCode
-            $tauriOutput | ForEach-Object { Write-Output $_ }
             if ($tauriExitCode -ne 0) {
                 throw "tauri build failed for Gateway desktop UI"
             }

@@ -56,6 +56,65 @@ function createApi(overrides: Partial<ConsoleApi> = {}): ConsoleApi {
       },
     }),
     getAccountGroupSummary: vi.fn().mockRejectedValue(new Error("summary unavailable")),
+    getCredentialPoolAutomation: vi.fn().mockResolvedValue({
+      automation: {
+        enabled: true,
+        intervalSeconds: 60,
+        drivers: [],
+        providers: [],
+        revisionId: "r1-deadbeef",
+      },
+    }),
+    runCredentialPoolAutomation: vi.fn(),
+    getCredentialRefill: vi.fn().mockResolvedValue({
+      refill: {
+        enabled: true,
+        streamKey: "gw:credential-pool:refill:requests",
+        notificationIntervalSeconds: 30,
+        defaultLeaseSeconds: 300,
+        maxLeaseSeconds: 3_600,
+        revisionId: "r1-deadbeef",
+        providers: [],
+        recentTasks: [],
+      },
+    }),
+    requestCredentialRefill: vi.fn(),
+    createGeminiAuthSession: vi.fn().mockResolvedValue({
+      session: {
+        id: "session-1",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "waiting_user",
+        message: "Complete Gemini login in the opened browser window.",
+        createdAt: "2099-01-01T00:00:00Z",
+        updatedAt: "2099-01-01T00:00:00Z",
+        generatedDrafts: [],
+      },
+    }),
+    completeGeminiAuthSession: vi.fn().mockResolvedValue({
+      session: {
+        id: "session-1",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "waiting_user",
+        message: "Manual Gemini import requested. Finishing capture.",
+        createdAt: "2099-01-01T00:00:00Z",
+        updatedAt: "2099-01-01T00:01:00Z",
+        generatedDrafts: [],
+      },
+    }),
+    getGeminiAuthSession: vi.fn().mockResolvedValue({
+      session: {
+        id: "session-1",
+        targetFamily: "gemini-canvas",
+        providerId: "gemini-canvas",
+        status: "waiting_user",
+        message: "Complete Gemini login in the opened browser window.",
+        createdAt: "2099-01-01T00:00:00Z",
+        updatedAt: "2099-01-01T00:00:00Z",
+        generatedDrafts: [],
+      },
+    }),
     getRouteConfig: vi.fn().mockResolvedValue({
       routeConfig: {
         revision: { id: "r1-deadbeef", sequence: 1 },

@@ -572,9 +572,7 @@ pub fn songs_ready(songs: &[UdioSong]) -> bool {
 }
 
 pub fn songs_ready_for_output(songs: &[UdioSong], output_kind: UdioOutputKind) -> bool {
-    songs
-        .iter()
-        .all(|song| song_has_output(song, output_kind) || song_is_terminal(song))
+    !songs.is_empty() && songs.iter().all(|song| song_has_output(song, output_kind))
 }
 
 pub fn collect_output_urls(
@@ -757,20 +755,8 @@ fn parse_song(value: &Value) -> Option<UdioSong> {
     })
 }
 
-fn song_is_terminal(song: &UdioSong) -> bool {
-    song.finished
-        || matches!(
-            song.status.as_str(),
-            "finished" | "complete" | "completed" | "failed" | "error"
-        )
-}
-
 fn song_has_output(song: &UdioSong, output_kind: UdioOutputKind) -> bool {
-    match output_kind {
-        UdioOutputKind::Image => output_url(song, output_kind).is_some(),
-        UdioOutputKind::Music => song.ready_to_stream || output_url(song, output_kind).is_some(),
-        UdioOutputKind::Video => output_url(song, output_kind).is_some(),
-    }
+    output_url(song, output_kind).is_some()
 }
 
 fn output_url(song: &UdioSong, output_kind: UdioOutputKind) -> Option<&str> {
@@ -1354,7 +1340,7 @@ mod tests {
     }
 
     #[test]
-    fn songs_ready_accepts_ready_to_stream_without_audio_url() {
+    fn songs_ready_requires_audio_url_even_when_ready_to_stream() {
         let songs = extract_songs_from_feed(&json!({
             "songs": [
                 {
@@ -1368,7 +1354,7 @@ mod tests {
 
         assert!(songs[0].ready_to_stream);
         assert_eq!(songs[0].estimated_duration_seconds, Some(130.0));
-        assert!(songs_ready(&songs));
+        assert!(!songs_ready(&songs));
     }
 
     #[test]

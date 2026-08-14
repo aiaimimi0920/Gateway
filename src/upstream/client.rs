@@ -231,7 +231,6 @@ use crate::upstream::gemini_canvas_music_helpers::{
     decode_gemini_canvas_program_music_no_key_audio,
     gemini_canvas_music_body_indicates_accepted_progress, gemini_canvas_music_missing_asset_error,
     gemini_canvas_music_response_requires_browser_followup,
-    gemini_canvas_program_music_browser_fallback_forbidden_error,
     gemini_canvas_program_music_invoke_target_missing_error,
     gemini_canvas_program_music_no_key_browserless_stage_incomplete_error,
     gemini_canvas_program_music_no_key_contract_missing_error,
@@ -249,7 +248,6 @@ use crate::upstream::gemini_canvas_program_route_helpers::{
     ensure_gemini_canvas_program_payload_avoids_official_api_identity,
     gemini_canvas_program_image_pure_http_required_error,
     gemini_canvas_program_runtime_material_official_api_key_forbidden_error,
-    gemini_canvas_program_text_pure_http_required_error,
     gemini_canvas_program_tts_pure_http_required_error,
     should_attempt_gemini_canvas_program_modular_media_direct_http,
     should_treat_gemini_canvas_program_modular_media_direct_http_as_authoritative,
@@ -269,7 +267,10 @@ use crate::upstream::gemini_canvas_runtime_helpers::{
     gemini_canvas_runtime_api_missing_google_api_key_error, gemini_canvas_signaler_zx_token,
     origin_from_url, persist_gemini_canvas_program_runtime_material,
 };
-use crate::upstream::gemini_canvas_text_helpers::build_gemini_canvas_text_success_body;
+use crate::upstream::gemini_canvas_text_helpers::{
+    build_gemini_canvas_text_success_body, gemini_canvas_generic_welcome_response_error,
+    gemini_canvas_text_response_is_generic_welcome,
+};
 use crate::upstream::grok as grok_upstream;
 use crate::upstream::header_map_helpers::header_map_string;
 use crate::upstream::headers::build_upstream_headers_with;
@@ -320,6 +321,17 @@ pub struct UpstreamClient {
     request_time_browser_policy: RequestTimeBrowserPolicy,
     redis_pool: Option<RedisPool>,
     pg_pool: Option<PgPool>,
+}
+
+const BROWSER_EXECUTOR_HTTP_GRACE: Duration = Duration::from_secs(20);
+
+fn browser_executor_remote_request_timeout(default_timeout: Duration, input: &Value) -> Duration {
+    let worker_timeout = input
+        .get("timeoutMs")
+        .and_then(Value::as_u64)
+        .map(Duration::from_millis)
+        .unwrap_or(default_timeout.max(Duration::from_secs(30)));
+    worker_timeout.saturating_add(BROWSER_EXECUTOR_HTTP_GRACE)
 }
 
 impl UpstreamClient {
@@ -1350,6 +1362,7 @@ impl UpstreamClient {
         };
 
         let endpoint_kind_key = browser_executor_endpoint_kind_key(endpoint_kind);
+        let remote_executor_timeout = browser_executor_remote_request_timeout(self.timeout, &input);
         let request = BrowserExecutorInvocationRequest {
             provider,
             provider_account_id,
@@ -1362,7 +1375,7 @@ impl UpstreamClient {
             .http
             .request(Method::POST, &url)
             .header(rquest::header::CONTENT_TYPE, "application/json")
-            .timeout(self.timeout.max(Duration::from_secs(30)))
+            .timeout(remote_executor_timeout)
             .json(&request);
         if let Some(token) = self.browser_executor_bearer_token.as_deref() {
             builder = builder.bearer_auth(token);
@@ -1637,6 +1650,20 @@ impl UpstreamClient {
     ) -> Result<Value, GatewayError> {
         let provider = "gemini_canvas_compatible";
         let runtime = gemini_canvas::runtime_from_payload(payload)?;
+        if operation == gemini_canvas::GeminiCanvasMediaOperation::Video {
+            if let Some(continuation) = gemini_canvas_video_continuation_from_request(req)? {
+                return self
+                    .execute_gemini_canvas_video_continuation(
+                        payload,
+                        model,
+                        &runtime,
+                        &prompt,
+                        continuation,
+                        timeout,
+                    )
+                    .await;
+            }
+        }
         if matches!(
             operation,
             gemini_canvas::GeminiCanvasMediaOperation::Music
@@ -1676,11 +1703,54 @@ impl UpstreamClient {
             }
         }
         if operation == gemini_canvas::GeminiCanvasMediaOperation::Image {
-            return self
+            let image_direct_http_timeout = timeout.min(Duration::from_secs(75));
+            match self
                 .execute_gemini_canvas_direct_http_image(
-                    payload, req, model, &runtime, prompt, timeout,
+                    payload,
+                    req,
+                    model,
+                    &runtime,
+                    prompt.clone(),
+                    image_direct_http_timeout,
                 )
-                .await;
+                .await
+            {
+                Ok(body) => return Ok(body),
+                Err(error) if should_fallback_gemini_canvas_image_to_browser(&error) => {
+                    debug!(
+                        provider,
+                        error = %summarize_gateway_error(&error),
+                        "gemini canvas direct HTTP image lane failed; retrying through browser-backed invocation"
+                    );
+                    let browser_pool_base_url =
+                        self.ensure_gemini_canvas_browser_pool(provider).await?;
+                    let locale = gemini_canvas::locale_from_payload(payload);
+                    let result = self
+                        .execute_gemini_canvas_owned_browser_invocation(
+                            payload,
+                            provider,
+                            &browser_pool_base_url,
+                            payload.base_url.trim_end_matches('/'),
+                            &runtime,
+                            None,
+                            "image",
+                            &prompt,
+                            &locale,
+                            timeout,
+                        )
+                        .await?;
+                    return gemini_canvas_web_reverse_modular::build_image_generation_response_from_invocation(
+                        &self.http,
+                        provider,
+                        req,
+                        &prompt,
+                        &result,
+                        timeout,
+                    )
+                    .await;
+                }
+                Err(error) => return Err(error),
+            }
         }
         let mode_index = gemini_canvas::stream_generate_mode_index(operation);
         let request_started_at = SystemTime::now();
@@ -1743,10 +1813,23 @@ impl UpstreamClient {
                 }
                 let asset = select_preferred_gemini_canvas_music_asset(&assets)
                     .expect("assets is non-empty");
+                let asset = if asset.body_base64.is_some() {
+                    asset.clone()
+                } else {
+                    self.materialize_gemini_canvas_direct_http_media_asset(
+                        payload,
+                        &runtime,
+                        &asset.url,
+                        Some(asset.kind.as_str()),
+                        Some(asset.mime_type.as_str()),
+                        timeout,
+                    )
+                    .await?
+                };
                 Ok(gemini_canvas::build_music_generation_response(
                     model,
                     &prompt,
-                    asset,
+                    &asset,
                     Some(&resolved_body_text),
                 ))
             }
@@ -1809,15 +1892,138 @@ impl UpstreamClient {
                 {
                     return Err(gemini_canvas_video_music_modality_mismatch_error(provider));
                 }
+                let asset = if asset.body_base64.is_some() {
+                    asset.clone()
+                } else {
+                    self.materialize_gemini_canvas_direct_http_media_asset(
+                        payload,
+                        &runtime,
+                        &asset.url,
+                        Some(asset.kind.as_str()),
+                        Some(asset.mime_type.as_str()),
+                        timeout,
+                    )
+                    .await?
+                };
                 Ok(gemini_canvas::build_video_generation_response(
                     model,
                     &prompt,
-                    asset,
+                    &asset,
                     Some(&resolved_body_text),
                 ))
             }
             gemini_canvas::GeminiCanvasMediaOperation::Image => unreachable!(),
         }
+    }
+
+    async fn execute_gemini_canvas_video_continuation(
+        &self,
+        payload: &ProviderAccountPayload,
+        model: &str,
+        runtime: &gemini_canvas::GeminiCanvasRuntime,
+        prompt: &str,
+        continuation: GeminiCanvasVideoContinuation,
+        timeout: Duration,
+    ) -> Result<Value, GatewayError> {
+        let provider = "gemini_canvas_compatible";
+        let locator = gemini_canvas::GeminiCanvasStreamGenerateLocator {
+            conversation_id: continuation.conversation_id.clone(),
+            response_id: continuation.response_id.clone(),
+            app_path: continuation.app_path.clone(),
+        };
+        let seed_body = build_gemini_canvas_video_continuation_seed_body(&continuation);
+        let followup_body = match self
+            .execute_gemini_canvas_direct_http_media_followup_body(
+                payload,
+                model,
+                runtime,
+                gemini_canvas::GeminiCanvasMediaOperation::Video,
+                prompt,
+                &seed_body,
+                Some(locator),
+                SystemTime::now(),
+                timeout,
+                false,
+                None,
+            )
+            .await
+        {
+            Ok(body) => body,
+            Err(error) if should_preserve_gemini_canvas_video_continuation_as_pending(&error) => {
+                debug!(
+                    provider,
+                    error = %summarize_gateway_error(&error),
+                    "gemini canvas video continuation remains pending"
+                );
+                return Ok(build_gemini_canvas_video_accepted_response_from_body(
+                    model,
+                    prompt,
+                    &seed_body,
+                    Some(&continuation.conversation_id),
+                    Some(&continuation.response_id),
+                    Some(&continuation.app_path),
+                ));
+            }
+            Err(error) => return Err(error),
+        };
+
+        let assets = gemini_canvas::extract_stream_generate_media_assets(
+            &followup_body,
+            gemini_canvas::GeminiCanvasMediaOperation::Video,
+        )
+        .or_else(|_| {
+            gemini_canvas::extract_page_blob_media_assets(
+                &followup_body,
+                gemini_canvas::GeminiCanvasMediaOperation::Video,
+            )
+        });
+        let assets = match assets {
+            Ok(assets) if !assets.is_empty() => assets,
+            _ if gemini_canvas::response_indicates_video_generation_pending(&followup_body)
+                || gemini_canvas::response_indicates_video_generation_quota_reached(
+                    &followup_body,
+                ) =>
+            {
+                return Ok(build_gemini_canvas_video_accepted_response_from_body(
+                    model,
+                    prompt,
+                    &followup_body,
+                    Some(&continuation.conversation_id),
+                    Some(&continuation.response_id),
+                    Some(&continuation.app_path),
+                ));
+            }
+            _ => {
+                return Err(build_gemini_canvas_direct_http_video_missing_asset_error(
+                    provider,
+                ));
+            }
+        };
+        if gemini_canvas::video_body_indicates_music_modality_mismatch(&followup_body) {
+            return Err(gemini_canvas_video_music_modality_mismatch_error(provider));
+        }
+        let asset = assets
+            .first()
+            .expect("non-empty continuation assets were checked above");
+        let asset = if asset.body_base64.is_some() {
+            asset.clone()
+        } else {
+            self.materialize_gemini_canvas_direct_http_media_asset(
+                payload,
+                runtime,
+                &asset.url,
+                Some(asset.kind.as_str()),
+                Some(asset.mime_type.as_str()),
+                timeout,
+            )
+            .await?
+        };
+        Ok(gemini_canvas::build_video_generation_response(
+            model,
+            prompt,
+            &asset,
+            Some(&followup_body),
+        ))
     }
 
     async fn execute_gemini_canvas_runtime_api_media_direct_http(
@@ -2825,6 +3031,7 @@ impl UpstreamClient {
                 &runtime,
                 gemini_canvas::GeminiCanvasMediaOperation::Music,
                 &initial_body,
+                None,
                 timeout,
                 false,
                 None,
@@ -3031,6 +3238,7 @@ impl UpstreamClient {
                 gemini_canvas::GeminiCanvasMediaOperation::Music,
                 prompt,
                 seed_body,
+                None,
                 request_started_at,
                 timeout,
                 false,
@@ -3119,7 +3327,6 @@ impl UpstreamClient {
                 if payload.adapter == "gemini_canvas_program_web_reverse_compatible" {
                     debug!(
                         provider,
-                        asset_url = %asset.url,
                         error = %summarize_gateway_error(&error),
                         "gemini canvas program-owned no-key direct asset materialization failed; browser-assisted fallback is disabled on this line"
                     );
@@ -3127,7 +3334,6 @@ impl UpstreamClient {
                 }
                 debug!(
                     provider,
-                    asset_url = %asset.url,
                     error = %summarize_gateway_error(&error),
                     "gemini canvas media asset materialization failed; returning URL-only asset"
                 );
@@ -3493,6 +3699,7 @@ impl UpstreamClient {
                 operation,
                 prompt,
                 primary_body,
+                None,
                 request_started_at,
                 timeout,
                 force_root_app_followup,
@@ -4237,12 +4444,13 @@ impl UpstreamClient {
         runtime: &gemini_canvas::GeminiCanvasRuntime,
         operation: gemini_canvas::GeminiCanvasMediaOperation,
         stream_body: &str,
+        locator_override: Option<gemini_canvas::GeminiCanvasStreamGenerateLocator>,
         timeout: Duration,
         force_root_app_followup: bool,
         locale_override: Option<&str>,
     ) -> Result<GeminiCanvasMediaFollowupContext, GatewayError> {
         let provider = "gemini_canvas_compatible";
-        let page_seed = prepare_gemini_canvas_page_seed(
+        let mut page_seed = prepare_gemini_canvas_page_seed(
             payload,
             runtime,
             operation,
@@ -4253,6 +4461,16 @@ impl UpstreamClient {
             provider,
             "gemini canvas media follow-up",
         )?;
+        if let Some(locator) = locator_override {
+            let page_base_url = gemini_canvas_page_base_url(payload);
+            page_seed.conversation_page_url = Some(format!(
+                "{}{}",
+                page_base_url.trim_end_matches('/'),
+                locator.app_path
+            ));
+            page_seed.prefer_root_app_path = false;
+            page_seed.locator = Some(locator);
+        }
         let locator = page_seed.locator;
         let initial_page_target_mode = classify_gemini_canvas_page_target_mode(
             force_root_app_followup,
@@ -4462,6 +4680,7 @@ impl UpstreamClient {
         operation: gemini_canvas::GeminiCanvasMediaOperation,
         prompt: &str,
         stream_body: &str,
+        locator_override: Option<gemini_canvas::GeminiCanvasStreamGenerateLocator>,
         request_started_at: SystemTime,
         timeout: Duration,
         force_root_app_followup: bool,
@@ -4478,6 +4697,7 @@ impl UpstreamClient {
                 runtime,
                 operation,
                 stream_body,
+                locator_override,
                 timeout,
                 force_root_app_followup,
                 locale_override,
@@ -5029,24 +5249,25 @@ impl UpstreamClient {
         model_header: &str,
         remaining: Duration,
         job_poll_request: Option<&Result<gemini_web::GeminiWebRequest, GatewayError>>,
-    ) {
+    ) -> Option<String> {
         let provider = "gemini_canvas_compatible";
         let Some(job_poll_request) = job_poll_request else {
-            return;
+            return None;
         };
         match job_poll_request {
-            Ok(request) => {
-                if let Err(error) = self
-                    .send_gemini_canvas_text_batchexecute_request(
-                        payload,
-                        model,
-                        request,
-                        session,
-                        model_header,
-                        remaining.min(Duration::from_secs(30)),
-                    )
-                    .await
-                {
+            Ok(request) => match self
+                .send_gemini_canvas_text_batchexecute_request(
+                    payload,
+                    model,
+                    request,
+                    session,
+                    model_header,
+                    remaining.min(Duration::from_secs(30)),
+                )
+                .await
+            {
+                Ok(body) => Some(body),
+                Err(error) => {
                     debug!(
                         provider,
                         attempt,
@@ -5055,8 +5276,9 @@ impl UpstreamClient {
                         error = %summarize_gateway_error(&error),
                         "gemini canvas video kwDCne job poll failed"
                     );
+                    None
                 }
-            }
+            },
             Err(error) => {
                 debug!(
                     provider,
@@ -5066,6 +5288,7 @@ impl UpstreamClient {
                     error = %summarize_gateway_error(error),
                     "gemini canvas video kwDCne request build failed"
                 );
+                None
             }
         }
     }
@@ -6379,18 +6602,24 @@ impl UpstreamClient {
             }
             let attempt = poll_state.next_attempt();
 
-            self.try_send_gemini_canvas_video_job_poll(
-                payload,
-                model,
-                session,
-                attempt,
-                source_path,
-                conversation_id,
-                model_header,
-                remaining,
-                requests.job_poll_request.as_ref(),
-            )
-            .await;
+            if let Some(job_body) = self
+                .try_send_gemini_canvas_video_job_poll(
+                    payload,
+                    model,
+                    session,
+                    attempt,
+                    source_path,
+                    conversation_id,
+                    model_header,
+                    remaining,
+                    requests.job_poll_request.as_ref(),
+                )
+                .await
+            {
+                if let Ok(completed_body) = classify_gemini_canvas_video_stage_body(job_body) {
+                    return Ok(completed_body);
+                }
+            }
 
             let attempt_state = match self
                 .execute_gemini_canvas_video_completion_attempt(
@@ -6991,8 +7220,12 @@ impl UpstreamClient {
     ) -> Result<Value, GatewayError> {
         let provider = "gemini_canvas_compatible";
         let runtime = gemini_canvas::runtime_from_payload(payload)?;
-        let browser_runtime_state_object_key =
-            resolved_gemini_canvas_browser_runtime_state_object_key(payload, &runtime);
+        let browser_runtime_state_object_key_for = |operation: &str| {
+            gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
+                payload, operation,
+            )
+            .unwrap_or_else(|| runtime.runtime_state_object_key.clone())
+        };
         let browser_cdp_url = gemini_canvas::browser_cdp_url(payload);
         let browser_cookie_header = gemini_canvas::browser_cookie_header(payload);
         let locale = gemini_canvas::locale_from_payload(payload);
@@ -7038,6 +7271,8 @@ impl UpstreamClient {
                         }
                     }
                 }
+                let browser_runtime_state_object_key =
+                    browser_runtime_state_object_key_for("image");
                 let request_timeout = self.timeout.max(Duration::from_secs(240));
                 let invocation_input =
                     gemini_canvas_web_reverse_modular::build_browser_operation_invocation_input_from_values(
@@ -7282,6 +7517,8 @@ impl UpstreamClient {
                         }
                     }
                 }
+                let browser_runtime_state_object_key =
+                    browser_runtime_state_object_key_for("music");
                 let request_timeout = self.timeout.max(Duration::from_secs(480));
                 let invocation_input =
                     gemini_canvas_web_reverse_modular::build_browser_operation_invocation_input_from_values(
@@ -7351,7 +7588,22 @@ impl UpstreamClient {
                         req,
                         gemini_canvas::GeminiCanvasMediaOperation::Video,
                     )?;
-                if gemini_canvas::pure_http_enabled(payload) {
+                let continuation = gemini_canvas_video_continuation_from_request(req)?;
+                let is_continuation = continuation.is_some();
+                let browser_resume_requested = req
+                    .raw_body
+                    .get("resume_existing_media")
+                    .and_then(Value::as_bool)
+                    .or_else(|| {
+                        req.raw_body
+                            .get("resumeExistingMedia")
+                            .and_then(Value::as_bool)
+                    })
+                    .unwrap_or(false);
+                if gemini_canvas::pure_http_enabled(payload)
+                    && is_continuation
+                    && !browser_resume_requested
+                {
                     return self
                         .execute_gemini_canvas_media_direct_http(
                             payload,
@@ -7363,8 +7615,10 @@ impl UpstreamClient {
                         )
                         .await;
                 }
+                let browser_runtime_state_object_key =
+                    browser_runtime_state_object_key_for("video");
                 let request_timeout = self.timeout.max(Duration::from_secs(720));
-                let invocation_input =
+                let mut invocation_input =
                     gemini_canvas_web_reverse_modular::build_browser_operation_invocation_input_from_values(
                         base_url,
                         &runtime.share_id,
@@ -7376,12 +7630,18 @@ impl UpstreamClient {
                         &locale,
                         request_timeout,
                     );
+                if let Some(continuation) = continuation.as_ref() {
+                    apply_gemini_canvas_browser_video_continuation(
+                        &mut invocation_input,
+                        continuation,
+                    );
+                }
                 let result = if let Some(result) = self
                     .execute_remote_browser_executor(
                         "gemini_canvas",
                         provider_account_id,
                         req.endpoint_kind,
-                        invocation_input,
+                        invocation_input.clone(),
                     )
                     .await?
                 {
@@ -7391,28 +7651,56 @@ impl UpstreamClient {
                 } else {
                     let browser_pool_base_url =
                         self.ensure_gemini_canvas_browser_pool(provider).await?;
-                    self.execute_gemini_canvas_browser_request_with_recovery(
+                    gemini_canvas_web_reverse_modular::execute_browser_request_input_with_recovery(
+                        &self.http,
+                        request_timeout,
                         provider,
                         &browser_pool_base_url,
-                        base_url,
-                        &runtime.share_id,
-                        &browser_runtime_state_object_key,
-                        browser_cdp_url.as_deref(),
-                        browser_cookie_header.as_deref(),
+                        &invocation_input,
                         "video",
-                        &prompt,
-                        &locale,
-                        request_timeout,
                     )
                     .await?
                 };
 
-                let asset = result
+                let mut asset = result
                     .media
                     .iter()
                     .find(|asset| asset.kind == "video")
                     .map(convert_gemini_canvas_asset)
                     .ok_or_else(|| gemini_canvas_video_missing_asset_error(provider))?;
+
+                if asset.body_base64.is_none()
+                    && (asset.url.starts_with("http://") || asset.url.starts_with("https://"))
+                {
+                    let browser_pool_base_url =
+                        self.ensure_gemini_canvas_browser_pool(provider).await?;
+                    let (bytes, response_content_type) =
+                        gemini_canvas_web_reverse_modular::execute_connected_fetch_get_bytes(
+                            &self.http,
+                            request_timeout,
+                            provider,
+                            &browser_pool_base_url,
+                            base_url,
+                            &runtime.share_id,
+                            &browser_runtime_state_object_key,
+                            browser_cdp_url.as_deref(),
+                            browser_cookie_header.as_deref(),
+                            &asset.url,
+                        )
+                        .await?;
+                    if bytes.is_empty() {
+                        return Err(gemini_canvas_video_missing_asset_error(provider));
+                    }
+                    if let Some(content_type) = response_content_type
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|value| value.starts_with("video/"))
+                    {
+                        asset.mime_type = content_type.to_string();
+                    }
+                    asset.body_base64 =
+                        Some(base64::engine::general_purpose::STANDARD.encode(bytes));
+                }
 
                 Ok(gemini_canvas::build_video_generation_response(
                     model,
@@ -7488,31 +7776,30 @@ impl UpstreamClient {
             payload.clone()
         };
         let runtime = gemini_canvas::runtime_from_payload(&effective_payload)?;
+        if program_owned {
+            let canonical = self
+                .execute_gemini_canvas_direct_http_stream_generate_text(
+                    &effective_payload,
+                    req,
+                    model,
+                    &runtime,
+                    &prompt,
+                    request_timeout,
+                )
+                .await?;
+            if gemini_canvas_text_response_is_generic_welcome(&prompt, &canonical.text) {
+                return Err(gemini_canvas_generic_welcome_response_error(provider));
+            }
+            return Ok(canonical);
+        }
         let browser_runtime_state_object_key =
             resolved_gemini_canvas_browser_runtime_state_object_key(&effective_payload, &runtime);
         let browser_cookie_header = gemini_canvas::browser_cookie_header(&effective_payload);
         let request_body = gemini_canvas::build_text_request_body(req, model);
         let request_url = gemini_canvas::build_text_fetch_url(&runtime, model);
-        let body = if effective_payload.adapter == "gemini_canvas_program_web_reverse_compatible" {
-            ensure_gemini_canvas_program_payload_avoids_official_api_identity(&effective_payload)?;
-            if gemini_canvas::pure_http_enabled(&effective_payload) {
-                return self
-                    .execute_gemini_canvas_direct_http_stream_generate_text(
-                        &effective_payload,
-                        req,
-                        model,
-                        &runtime,
-                        &prompt,
-                        request_timeout,
-                    )
-                    .await;
-            }
-            return Err(gemini_canvas_program_text_pure_http_required_error(
-                provider,
-            ));
-        } else {
-            let browser_pool_base_url = self.ensure_gemini_canvas_browser_pool(provider).await?;
-            self.execute_gemini_canvas_connected_fetch_json_with_mode(
+        let browser_pool_base_url = self.ensure_gemini_canvas_browser_pool(provider).await?;
+        let body = self
+            .execute_gemini_canvas_connected_fetch_json_with_mode(
                 provider,
                 &browser_pool_base_url,
                 payload.base_url.trim_end_matches('/'),
@@ -7525,9 +7812,12 @@ impl UpstreamClient {
                 "canvas_proxy",
                 request_timeout,
             )
-            .await?
-        };
-        gemini_api_modular::parse_generate_content_response(&body, model)
+            .await?;
+        let canonical = gemini_api_modular::parse_generate_content_response(&body, model)?;
+        if gemini_canvas_text_response_is_generic_welcome(&prompt, &canonical.text) {
+            return Err(gemini_canvas_generic_welcome_response_error(provider));
+        }
+        Ok(canonical)
     }
 
     async fn execute_gemini_canvas_modular_browser_relay_text_stream(
@@ -7705,9 +7995,6 @@ impl UpstreamClient {
                     {
                         return Ok(body);
                     }
-                    return Err(
-                        gemini_canvas_program_music_browser_fallback_forbidden_error(provider),
-                    );
                 }
                 let effective_payload = if program_owned {
                     self.ensure_gemini_canvas_program_payload_handle(
@@ -8905,7 +9192,10 @@ impl UpstreamClient {
                     return Err(download_error);
                 }
                 let browser_runtime_state_object_key =
-                    resolved_gemini_canvas_browser_runtime_state_object_key(payload, runtime);
+                    gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
+                        payload, "image",
+                    )
+                    .unwrap_or_else(|| runtime.runtime_state_object_key.clone());
                 let browser_cdp_url = gemini_canvas::browser_cdp_url(payload);
                 let browser_cookie_header = gemini_canvas::browser_cookie_header(payload);
                 let browser_pool_base_url = self
@@ -8976,12 +9266,13 @@ impl UpstreamClient {
         let browser_cookie_header = gemini_canvas::browser_cookie_header(payload);
         let model = gemini_canvas::resolve_text_model(model)?;
         let request_timeout = self.timeout.max(Duration::from_secs(300));
+        let prompt = gemini_canvas::prompt_for_text_request(
+            req,
+            "Gemini Canvas requests require a prompt.",
+            "missing_gemini_canvas_text_prompt",
+        )?;
+        let mut direct_http_failure_summary: Option<String> = None;
         if gemini_canvas::pure_http_enabled(payload) {
-            let prompt = gemini_canvas::prompt_for_text_request(
-                req,
-                "Gemini Canvas requests require a prompt.",
-                "missing_gemini_canvas_text_prompt",
-            )?;
             let primary_stream_error = match self
                 .execute_gemini_canvas_direct_http_stream_generate_text(
                     payload,
@@ -8994,13 +9285,21 @@ impl UpstreamClient {
                 .await
             {
                 Ok(canonical) => {
-                    return Ok(build_gemini_canvas_text_success_body(
-                        req,
-                        model,
-                        &canonical.text,
-                        canonical.usage.as_ref(),
-                        &canonical.tool_calls,
-                    ))
+                    if !gemini_canvas_text_response_is_generic_welcome(&prompt, &canonical.text) {
+                        return Ok(build_gemini_canvas_text_success_body(
+                            req,
+                            model,
+                            &canonical.text,
+                            canonical.usage.as_ref(),
+                            &canonical.tool_calls,
+                        ));
+                    }
+                    let error = gemini_canvas_generic_welcome_response_error(provider);
+                    debug!(
+                        provider,
+                        "Gemini Canvas StreamGenerate returned a generic welcome; falling back to generateContent JSON direct HTTP"
+                    );
+                    error
                 }
                 Err(error) => {
                     let stream_summary = summarize_gateway_error(&error);
@@ -9015,41 +9314,121 @@ impl UpstreamClient {
 
             let request_body = gemini_canvas::build_text_request_body(req, model);
             let request_url = gemini_canvas::build_text_fetch_url(&runtime, model);
-            let body = self
-                .execute_gemini_canvas_direct_http_json(
-                    payload,
-                    &runtime,
-                    &request_url,
-                    &request_body,
-                    request_timeout,
-                )
-                .await
-                .map_err(|fallback_error| {
-                    let mut fallback_error = fallback_error;
-                    fallback_error.message = format!(
-                        "{}; StreamGenerate primary failure: {}",
-                        fallback_error.message,
-                        summarize_gateway_error(&primary_stream_error)
-                    );
-                    fallback_error
-                })?;
-            let canonical = gemini_api_modular::parse_generate_content_response(&body, model)?;
-            return Ok(build_gemini_canvas_text_success_body(
-                req,
-                model,
-                &canonical.text,
-                canonical.usage.as_ref(),
-                &canonical.tool_calls,
-            ));
+            let mut fallback_failures = Vec::new();
+            let runtime_api = if payload.api_key.trim().is_empty() {
+                match self
+                    .prepare_gemini_canvas_runtime_api_payload(payload, &runtime, request_timeout)
+                    .await
+                {
+                    Ok(context) => Some(context),
+                    Err(error) => {
+                        let summary = summarize_gateway_error(&error);
+                        debug!(
+                            provider,
+                            error = %summary,
+                            "Gemini Canvas generateContent text fallback could not prepare runtime API key candidates; retrying legacy direct HTTP request"
+                        );
+                        fallback_failures.push(format!("runtime_api_prepare={summary}"));
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            let attempts = build_gemini_canvas_text_direct_http_fallback_attempts(
+                payload,
+                runtime_api.as_ref(),
+            );
+            let mut last_fallback_error: Option<GatewayError> = None;
+
+            for attempt in attempts {
+                let transports: Vec<GeminiCanvasDirectHttpApiKeyTransport> =
+                    if attempt.api_key_override.is_some() {
+                        gemini_canvas_direct_http_api_key_transports(&request_url).to_vec()
+                    } else {
+                        vec![GeminiCanvasDirectHttpApiKeyTransport::HeaderOnly]
+                    };
+                for transport in transports {
+                    match self
+                        .execute_gemini_canvas_direct_http_json_with_options(
+                            payload,
+                            &runtime,
+                            &request_url,
+                            &request_body,
+                            request_timeout,
+                            attempt.api_key_override,
+                            transport,
+                            None,
+                            attempt.referer_override,
+                            false,
+                            attempt.preserve_cross_origin_referer,
+                            attempt.include_signed_headers,
+                        )
+                        .await
+                    {
+                        Ok(body) => {
+                            let canonical =
+                                gemini_api_modular::parse_generate_content_response(&body, model)?;
+                            if gemini_canvas_text_response_is_generic_welcome(
+                                &prompt,
+                                &canonical.text,
+                            ) {
+                                let error = gemini_canvas_generic_welcome_response_error(provider);
+                                fallback_failures.push(format!(
+                                    "{}[transport={}]={}",
+                                    attempt.label,
+                                    transport.label(),
+                                    summarize_gateway_error(&error)
+                                ));
+                                last_fallback_error = Some(error);
+                                continue;
+                            }
+                            return Ok(build_gemini_canvas_text_success_body(
+                                req,
+                                model,
+                                &canonical.text,
+                                canonical.usage.as_ref(),
+                                &canonical.tool_calls,
+                            ));
+                        }
+                        Err(error) => {
+                            fallback_failures.push(format!(
+                                "{}[transport={}]={}",
+                                attempt.label,
+                                transport.label(),
+                                summarize_gateway_error(&error)
+                            ));
+                            last_fallback_error = Some(error);
+                        }
+                    }
+                }
+            }
+
+            let mut fallback_error = last_fallback_error
+                .expect("Gemini Canvas text direct HTTP fallback attempts should record an error");
+            if !fallback_failures.is_empty() {
+                fallback_error.message = format!(
+                    "{}; direct_http_fallback_attempts={}",
+                    fallback_error.message,
+                    fallback_failures.join(" | ")
+                );
+            }
+            fallback_error.message = format!(
+                "{}; StreamGenerate primary failure: {}",
+                fallback_error.message,
+                summarize_gateway_error(&primary_stream_error)
+            );
+            let summary = summarize_gateway_error(&fallback_error);
+            debug!(
+                provider,
+                error = %summary,
+                "Gemini Canvas direct HTTP text fallback failed; retrying through browser-backed invocation"
+            );
+            direct_http_failure_summary = Some(summary);
         }
 
         let locale = gemini_canvas::locale_from_payload(payload);
         let browser_pool_base_url = self.ensure_gemini_canvas_browser_pool(provider).await?;
-        let prompt = gemini_canvas::prompt_for_text_request(
-            req,
-            "Gemini Canvas requests require a prompt.",
-            "missing_gemini_canvas_text_prompt",
-        )?;
         let invocation = self
             .execute_gemini_canvas_browser_request_with_recovery(
                 provider,
@@ -9064,8 +9443,19 @@ impl UpstreamClient {
                 &locale,
                 request_timeout,
             )
-            .await?;
+            .await
+            .map_err(|error| {
+                if let Some(summary) = direct_http_failure_summary.as_deref() {
+                    let mut error = error;
+                    error.message = format!("{}; direct_http_failure={summary}", error.message);
+                    return error;
+                }
+                error
+            })?;
         let raw_text = gemini_canvas_web_reverse_modular::extract_text_or_body_text(&invocation);
+        if gemini_canvas_text_response_is_generic_welcome(&prompt, &raw_text) {
+            return Err(gemini_canvas_generic_welcome_response_error(provider));
+        }
         Ok(build_gemini_canvas_text_success_body(
             req,
             model,
@@ -9487,7 +9877,7 @@ impl UpstreamClient {
                                 response,
                                 provider,
                                 operation_kind,
-                                operation_kind == gemini_canvas::GeminiCanvasMediaOperation::Image,
+                                operation_kind != gemini_canvas::GeminiCanvasMediaOperation::Music,
                             )
                             .await?;
                         if status == 400 {
@@ -9822,31 +10212,6 @@ impl UpstreamClient {
     // Direct HTTP helpers for the active `gemini_canvas_compatible` hot path.
     // Legacy browser-connected and browser-pool flows remain below as explicit
     // compatibility fallbacks when pure HTTP replay is disabled.
-    async fn execute_gemini_canvas_direct_http_json(
-        &self,
-        payload: &ProviderAccountPayload,
-        runtime: &gemini_canvas::GeminiCanvasRuntime,
-        request_url: &str,
-        request_body: &Value,
-        timeout: Duration,
-    ) -> Result<Value, GatewayError> {
-        self.execute_gemini_canvas_direct_http_json_with_options(
-            payload,
-            runtime,
-            request_url,
-            request_body,
-            timeout,
-            None,
-            GeminiCanvasDirectHttpApiKeyTransport::HeaderOnly,
-            None,
-            None,
-            false,
-            false,
-            true,
-        )
-        .await
-    }
-
     async fn execute_gemini_canvas_direct_http_json_with_options(
         &self,
         payload: &ProviderAccountPayload,
@@ -11519,7 +11884,11 @@ impl UpstreamClient {
             );
         }
         let browser_runtime_state_object_key =
-            resolved_gemini_canvas_browser_runtime_state_object_key(payload, runtime);
+            gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
+                payload,
+                if is_text_mode { "text" } else { "image" },
+            )
+            .unwrap_or_else(|| runtime.runtime_state_object_key.clone());
         let browser_cdp_url = gemini_canvas::browser_cdp_url(payload);
         let browser_cookie_header = gemini_canvas::browser_cookie_header(payload);
         let stream_request_contract = build_gemini_canvas_image_edit_stream_request_contract(
@@ -11689,12 +12058,14 @@ impl UpstreamClient {
                 .get(rquest::header::CONTENT_TYPE)
                 .and_then(|value| value.to_str().ok())
                 .map(str::to_string);
+            let (stream_operation, allow_early_locator) =
+                gemini_canvas_stream_collection_policy(mode_index, is_image_edit_request);
             let body_text = self
                 .collect_gemini_canvas_stream_generate_body(
                     response,
                     provider,
-                    gemini_canvas::GeminiCanvasMediaOperation::Image,
-                    is_image_edit_request,
+                    stream_operation,
+                    allow_early_locator,
                 )
                 .await?;
             if is_image_edit_request {
@@ -13724,7 +14095,7 @@ impl UpstreamClient {
             let response = self
                 .http
                 .request(Method::POST, &batchexecute_url)
-                .headers(headers)
+                .headers(headers.clone())
                 .query(&effective_request.query)
                 .timeout(timeout.max(Duration::from_secs(30)))
                 .form(&effective_request.form)
@@ -13771,6 +14142,81 @@ impl UpstreamClient {
                         upsert_form_field(&mut effective_request.form, "at", &token);
                         xsrf_retry_token = Some(token);
                         continue;
+                    }
+                }
+            }
+
+            let rpcids = effective_request
+                .query
+                .iter()
+                .find(|(key, _)| key == "rpcids")
+                .map(|(_, value)| value.as_str());
+            if status == 302 {
+                let rpcids_log = rpcids.unwrap_or("<unknown>");
+                let browser_fallback = async {
+                    let runtime = gemini_canvas::runtime_from_payload(payload)?;
+                    let browser_runtime_state_object_key =
+                        gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
+                            payload, "video",
+                        )
+                        .unwrap_or_else(|| runtime.runtime_state_object_key.clone());
+                    let browser_pool_base_url =
+                        self.ensure_gemini_canvas_browser_pool(provider).await?;
+                    self.execute_gemini_canvas_browser_fetch_form_request(
+                        provider,
+                        &browser_pool_base_url,
+                        &effective_base_url,
+                        &runtime.share_id,
+                        &browser_runtime_state_object_key,
+                        gemini_canvas::browser_cdp_url(payload).as_deref(),
+                        gemini_canvas::browser_cookie_header(payload).as_deref(),
+                        &batchexecute_url,
+                        &effective_request.query,
+                        &headers,
+                        &effective_request.form,
+                        timeout,
+                    )
+                    .await
+                }
+                .await;
+
+                match browser_fallback {
+                    Ok(invocation) if (200..300).contains(&invocation.status) => {
+                        if let Some(browser_body) = invocation.body_text {
+                            let browser_content_type = invocation.content_type.as_deref();
+                            if !gemini_web::response_indicates_browser_challenge(
+                                invocation.status,
+                                browser_content_type,
+                                &browser_body,
+                            ) && !gemini_web::response_indicates_session_invalid(
+                                invocation.status,
+                                browser_content_type,
+                                &browser_body,
+                            ) {
+                                debug!(
+                                    provider,
+                                    rpcids = rpcids_log,
+                                    "recovered Gemini Canvas batchexecute through browser-backed fetch after upstream challenge redirect"
+                                );
+                                return Ok(browser_body);
+                            }
+                        }
+                    }
+                    Ok(invocation) => {
+                        debug!(
+                            provider,
+                            rpcids = rpcids_log,
+                            browser_status = invocation.status,
+                            "Gemini Canvas batchexecute browser-backed fetch did not recover the upstream redirect"
+                        );
+                    }
+                    Err(error) => {
+                        debug!(
+                            provider,
+                            rpcids = rpcids_log,
+                            error = %summarize_gateway_error(&error),
+                            "Gemini Canvas batchexecute browser-backed fetch failed after upstream redirect"
+                        );
                     }
                 }
             }
@@ -14160,6 +14606,7 @@ impl UpstreamClient {
                 google_fetch_mode,
                 timeout,
             );
+        input["authUser"] = Value::String(gemini_canvas::direct_http_auth_user(payload));
         if gemini_canvas_program_web_reverse_modular::connected_fetch_mode_is_canvas_proxy(
             google_fetch_mode,
         ) {
@@ -14302,7 +14749,10 @@ impl UpstreamClient {
         timeout: Duration,
     ) -> Result<GeminiCanvasBrowserInvocationResult, GatewayError> {
         let browser_runtime_state_object_key =
-            resolved_gemini_canvas_browser_runtime_state_object_key(payload, runtime);
+            gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
+                payload, operation,
+            )
+            .unwrap_or_else(|| runtime.runtime_state_object_key.clone());
         let browser_cookie_header = gemini_canvas::browser_cookie_header(payload);
         let result = if let Some(config) = program_config {
             self.execute_gemini_canvas_browser_request_with_program_context_recovery(
@@ -15175,6 +15625,234 @@ impl UpstreamClient {
 // Tests
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GeminiCanvasTextDirectHttpFallbackAttempt<'a> {
+    label: &'static str,
+    api_key_override: Option<&'a str>,
+    referer_override: Option<&'a str>,
+    preserve_cross_origin_referer: bool,
+    include_signed_headers: bool,
+}
+
+fn build_gemini_canvas_text_direct_http_fallback_attempts<'a>(
+    payload: &'a ProviderAccountPayload,
+    runtime_api: Option<&'a GeminiCanvasRuntimeApiContext>,
+) -> Vec<GeminiCanvasTextDirectHttpFallbackAttempt<'a>> {
+    let mut attempts: Vec<GeminiCanvasTextDirectHttpFallbackAttempt<'a>> = Vec::new();
+
+    if payload.api_key.trim().is_empty() {
+        if let Some(runtime_api) = runtime_api {
+            let referer_override = runtime_api.page_referer.trim();
+            let referer_override = if referer_override.is_empty() {
+                None
+            } else {
+                Some(referer_override)
+            };
+            for candidate in &runtime_api.api_key_candidates {
+                let trimmed = candidate.trim();
+                if trimmed.is_empty()
+                    || attempts.iter().any(
+                        |attempt: &GeminiCanvasTextDirectHttpFallbackAttempt<'a>| {
+                            attempt.api_key_override == Some(trimmed)
+                        },
+                    )
+                {
+                    continue;
+                }
+                attempts.push(GeminiCanvasTextDirectHttpFallbackAttempt {
+                    label: "runtime_api_harvested_key",
+                    api_key_override: Some(trimmed),
+                    referer_override,
+                    preserve_cross_origin_referer: referer_override.is_some(),
+                    include_signed_headers: false,
+                });
+            }
+        }
+    }
+
+    attempts.push(GeminiCanvasTextDirectHttpFallbackAttempt {
+        label: "legacy_payload_direct_http",
+        api_key_override: None,
+        referer_override: None,
+        preserve_cross_origin_referer: false,
+        include_signed_headers: true,
+    });
+
+    attempts
+}
+
+fn should_fallback_gemini_canvas_image_to_browser(error: &GatewayError) -> bool {
+    matches!(
+        error.code.as_deref(),
+        Some(
+            "gemini_canvas_auth_required"
+                | "gemini_canvas_auth_redirect"
+                | "gemini_canvas_pure_http_browser_challenge_required"
+                | "gemini_canvas_pure_http_session_invalid"
+                | "gemini_canvas_media_followup_missing_asset"
+                | "gemini_canvas_media_followup_failed"
+                | "gemini_canvas_media_followup_bootstrap_failed"
+                | "gemini_canvas_page_missing_image_asset"
+        )
+    ) || matches!(error.http_status, Some(401 | 403 | 504))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GeminiCanvasVideoContinuation {
+    conversation_id: String,
+    response_id: String,
+    app_path: String,
+    job_id: Option<String>,
+}
+
+fn apply_gemini_canvas_browser_video_continuation(
+    invocation_input: &mut Value,
+    continuation: &GeminiCanvasVideoContinuation,
+) {
+    let Some(input) = invocation_input.as_object_mut() else {
+        return;
+    };
+    input.insert("resumeExistingMedia".to_string(), Value::Bool(true));
+    input.insert(
+        "conversationId".to_string(),
+        Value::String(continuation.conversation_id.clone()),
+    );
+    input.insert(
+        "responseId".to_string(),
+        Value::String(continuation.response_id.clone()),
+    );
+    input.insert(
+        "appPath".to_string(),
+        Value::String(continuation.app_path.clone()),
+    );
+    if let Some(job_id) = continuation.job_id.as_ref() {
+        input.insert("jobId".to_string(), Value::String(job_id.clone()));
+    }
+}
+
+fn build_gemini_canvas_video_continuation_seed_body(
+    continuation: &GeminiCanvasVideoContinuation,
+) -> String {
+    json!({
+        "status": "video_generation_pending",
+        "marker": "video_gen_chip",
+        "conversation_id": &continuation.conversation_id,
+        "response_id": &continuation.response_id,
+        "app_path": &continuation.app_path,
+        "job_id": continuation.job_id.as_deref(),
+    })
+    .to_string()
+}
+
+fn gemini_canvas_video_continuation_from_request(
+    req: &CanonicalRelayRequest,
+) -> Result<Option<GeminiCanvasVideoContinuation>, GatewayError> {
+    let Some(body) = req.raw_body.as_object() else {
+        return Ok(None);
+    };
+    let read_field = |aliases: &[&str]| {
+        aliases.iter().find_map(|alias| {
+            body.get(*alias)
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+        })
+    };
+    let conversation_id = read_field(&["conversation_id", "conversationId"]);
+    let response_id = read_field(&["response_id", "responseId"]);
+    let app_path = read_field(&["app_path", "appPath"]);
+    let job_id = read_field(&["job_id", "jobId"]);
+    if conversation_id.is_none() && response_id.is_none() && app_path.is_none() && job_id.is_none()
+    {
+        return Ok(None);
+    }
+
+    let invalid = |message: &'static str| {
+        GatewayError::bad_request(message)
+            .with_provider("gemini_canvas_compatible")
+            .with_code("invalid_gemini_canvas_video_continuation")
+    };
+    let conversation_id = conversation_id
+        .ok_or_else(|| invalid("Gemini Canvas video continuation requires conversation_id."))?;
+    let response_id = response_id
+        .ok_or_else(|| invalid("Gemini Canvas video continuation requires response_id."))?;
+    let app_path =
+        app_path.ok_or_else(|| invalid("Gemini Canvas video continuation requires app_path."))?;
+
+    let valid_id = |value: &str, prefix: &str| {
+        value
+            .strip_prefix(prefix)
+            .filter(|suffix| !suffix.is_empty())
+            .is_some_and(|suffix| {
+                suffix
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-'))
+            })
+    };
+    if !valid_id(&conversation_id, "c_") {
+        return Err(invalid(
+            "Gemini Canvas video continuation conversation_id is invalid.",
+        ));
+    }
+    if !valid_id(&response_id, "r_") {
+        return Err(invalid(
+            "Gemini Canvas video continuation response_id is invalid.",
+        ));
+    }
+    let valid_app_path = app_path
+        .strip_prefix("/app/")
+        .filter(|suffix| !suffix.is_empty())
+        .is_some_and(|suffix| {
+            suffix
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-'))
+        });
+    if !valid_app_path {
+        return Err(invalid(
+            "Gemini Canvas video continuation app_path is invalid.",
+        ));
+    }
+
+    Ok(Some(GeminiCanvasVideoContinuation {
+        conversation_id,
+        response_id,
+        app_path,
+        job_id,
+    }))
+}
+
+fn should_preserve_gemini_canvas_video_continuation_as_pending(error: &GatewayError) -> bool {
+    matches!(
+        error.code.as_deref(),
+        Some(
+            "gemini_canvas_media_followup_missing_asset"
+                | "gemini_canvas_media_followup_failed"
+                | "gemini_canvas_page_missing_video_asset"
+                | "gemini_canvas_video_completion_followup_missing_asset"
+                | "gemini_canvas_video_operation_timeout"
+        )
+    ) || error.http_status == Some(504)
+}
+
+fn gemini_canvas_stream_collection_policy(
+    mode_index: i64,
+    is_image_edit_request: bool,
+) -> (gemini_canvas::GeminiCanvasMediaOperation, bool) {
+    let operation = match mode_index {
+        gemini_canvas::GEMINI_CANVAS_STREAM_GENERATE_MUSIC_MODE_INDEX => {
+            gemini_canvas::GeminiCanvasMediaOperation::Music
+        }
+        gemini_canvas::GEMINI_CANVAS_STREAM_GENERATE_VIDEO_MODE_INDEX => {
+            gemini_canvas::GeminiCanvasMediaOperation::Video
+        }
+        _ => gemini_canvas::GeminiCanvasMediaOperation::Image,
+    };
+    let allow_early_locator =
+        is_image_edit_request || operation == gemini_canvas::GeminiCanvasMediaOperation::Video;
+    (operation, allow_early_locator)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -15245,6 +15923,27 @@ mod tests {
         }
     }
 
+    fn make_gemini_canvas_runtime_api_context(
+        payload: ProviderAccountPayload,
+        api_key_candidates: &[&str],
+        page_referer: &str,
+    ) -> GeminiCanvasRuntimeApiContext {
+        GeminiCanvasRuntimeApiContext {
+            payload,
+            api_key_candidates: api_key_candidates
+                .iter()
+                .map(|candidate| (*candidate).to_string())
+                .collect(),
+            session: gemini_canvas::GeminiCanvasPureHttpSession {
+                cookie_header: "SAPISID=session-cookie".to_string(),
+                sapisid: "session-cookie".to_string(),
+                auth_user: "0".to_string(),
+            },
+            page_origin: "https://gemini.google.com".to_string(),
+            page_referer: page_referer.to_string(),
+        }
+    }
+
     fn unused_loopback_base_url() -> String {
         let listener =
             std::net::TcpListener::bind("127.0.0.1:0").expect("bind unused loopback port");
@@ -15277,6 +15976,209 @@ mod tests {
         (format!("http://{addr}"), handle)
     }
 
+    #[test]
+    fn gemini_canvas_text_direct_http_fallback_prefers_harvested_runtime_api_keys() {
+        let mut payload = make_payload("gemini_canvas_compatible", "https://gemini.google.com");
+        payload.api_key.clear();
+        let mut runtime_payload = payload.clone();
+        runtime_payload.api_key = "AIzaHarvestedKeyOne".to_string();
+        let runtime_api = make_gemini_canvas_runtime_api_context(
+            runtime_payload,
+            &[
+                "AIzaHarvestedKeyOne",
+                "AIzaHarvestedKeyTwo",
+                "AIzaHarvestedKeyOne",
+            ],
+            "https://gemini.google.com/share/demo",
+        );
+
+        let attempts =
+            build_gemini_canvas_text_direct_http_fallback_attempts(&payload, Some(&runtime_api));
+
+        assert_eq!(attempts.len(), 3);
+        assert_eq!(attempts[0].label, "runtime_api_harvested_key");
+        assert_eq!(attempts[0].api_key_override, Some("AIzaHarvestedKeyOne"));
+        assert_eq!(
+            attempts[0].referer_override,
+            Some("https://gemini.google.com/share/demo")
+        );
+        assert!(attempts[0].preserve_cross_origin_referer);
+        assert!(!attempts[0].include_signed_headers);
+        assert_eq!(attempts[1].api_key_override, Some("AIzaHarvestedKeyTwo"));
+        assert_eq!(attempts[2].label, "legacy_payload_direct_http");
+        assert_eq!(attempts[2].api_key_override, None);
+        assert!(!attempts[2].preserve_cross_origin_referer);
+        assert!(attempts[2].include_signed_headers);
+    }
+
+    #[test]
+    fn gemini_canvas_text_direct_http_fallback_keeps_legacy_only_when_payload_has_api_key() {
+        let payload = make_payload("gemini_canvas_compatible", "https://gemini.google.com");
+        let runtime_api = make_gemini_canvas_runtime_api_context(
+            payload.clone(),
+            &["AIzaHarvestedKeyOne"],
+            "https://gemini.google.com/share/demo",
+        );
+
+        let attempts =
+            build_gemini_canvas_text_direct_http_fallback_attempts(&payload, Some(&runtime_api));
+
+        assert_eq!(attempts.len(), 1);
+        assert_eq!(attempts[0].label, "legacy_payload_direct_http");
+        assert_eq!(attempts[0].api_key_override, None);
+        assert!(attempts[0].include_signed_headers);
+    }
+
+    #[test]
+    fn gemini_canvas_image_browser_fallback_treats_auth_and_session_errors_as_retryable() {
+        let auth_required =
+            GatewayError::unauthorized("auth required").with_code("gemini_canvas_auth_required");
+        assert!(should_fallback_gemini_canvas_image_to_browser(
+            &auth_required
+        ));
+
+        let session_invalid = GatewayError::bad_request("session invalid")
+            .with_code("gemini_canvas_pure_http_session_invalid");
+        assert!(should_fallback_gemini_canvas_image_to_browser(
+            &session_invalid
+        ));
+
+        let followup_missing = GatewayError::service_unavailable("missing asset")
+            .with_code("gemini_canvas_media_followup_missing_asset");
+        assert!(should_fallback_gemini_canvas_image_to_browser(
+            &followup_missing
+        ));
+
+        let page_missing = GatewayError::server_error("page asset missing")
+            .with_code("gemini_canvas_page_missing_image_asset");
+        assert!(should_fallback_gemini_canvas_image_to_browser(
+            &page_missing
+        ));
+
+        let gateway_timeout = GatewayError::service_unavailable("timed out");
+        let gateway_timeout = GatewayError {
+            http_status: Some(504),
+            ..gateway_timeout
+        };
+        assert!(should_fallback_gemini_canvas_image_to_browser(
+            &gateway_timeout
+        ));
+
+        let unsupported =
+            GatewayError::bad_request("unsupported").with_code("unsupported_image_count");
+        assert!(!should_fallback_gemini_canvas_image_to_browser(
+            &unsupported
+        ));
+    }
+
+    #[test]
+    fn gemini_canvas_stream_collection_hands_video_off_at_locator() {
+        let (music, music_handoff) = gemini_canvas_stream_collection_policy(
+            gemini_canvas::GEMINI_CANVAS_STREAM_GENERATE_MUSIC_MODE_INDEX,
+            false,
+        );
+        assert_eq!(music, gemini_canvas::GeminiCanvasMediaOperation::Music);
+        assert!(!music_handoff);
+
+        let (video, video_handoff) = gemini_canvas_stream_collection_policy(
+            gemini_canvas::GEMINI_CANVAS_STREAM_GENERATE_VIDEO_MODE_INDEX,
+            false,
+        );
+        assert_eq!(video, gemini_canvas::GeminiCanvasMediaOperation::Video);
+        assert!(video_handoff);
+    }
+
+    #[test]
+    fn gemini_canvas_stream_collection_keeps_image_generation_open_until_asset() {
+        let (image, image_handoff) = gemini_canvas_stream_collection_policy(
+            gemini_canvas::GEMINI_CANVAS_STREAM_GENERATE_IMAGE_MODE_INDEX,
+            false,
+        );
+        assert_eq!(image, gemini_canvas::GeminiCanvasMediaOperation::Image);
+        assert!(!image_handoff);
+
+        let (image_edit, image_edit_handoff) = gemini_canvas_stream_collection_policy(
+            gemini_canvas::GEMINI_CANVAS_STREAM_GENERATE_IMAGE_MODE_INDEX,
+            true,
+        );
+        assert_eq!(image_edit, gemini_canvas::GeminiCanvasMediaOperation::Image);
+        assert!(image_edit_handoff);
+    }
+
+    #[test]
+    fn gemini_canvas_video_continuation_reads_completed_locator_fields() {
+        let mut req = make_request(ProtocolFamily::OpenAi, EndpointKind::VideosGenerations);
+        req.raw_body = json!({
+            "prompt": "video",
+            "conversation_id": "c_065d5bde601ff3af",
+            "response_id": "r_f7c7e549d11c849b",
+            "app_path": "/app/065d5bde601ff3af",
+            "job_id": "5cb5f42d-d5a9-4643-99fe-0123456789ab",
+        });
+
+        let continuation = gemini_canvas_video_continuation_from_request(&req)
+            .expect("valid continuation")
+            .expect("continuation fields");
+
+        assert_eq!(continuation.conversation_id, "c_065d5bde601ff3af");
+        assert_eq!(continuation.response_id, "r_f7c7e549d11c849b");
+        assert_eq!(continuation.app_path, "/app/065d5bde601ff3af");
+        assert_eq!(
+            continuation.job_id.as_deref(),
+            Some("5cb5f42d-d5a9-4643-99fe-0123456789ab")
+        );
+        let seed_body = build_gemini_canvas_video_continuation_seed_body(&continuation);
+        assert_eq!(
+            gemini_canvas::extract_video_generation_job_id(&seed_body).as_deref(),
+            Some("5cb5f42d-d5a9-4643-99fe-0123456789ab")
+        );
+        assert!(gemini_canvas::response_indicates_video_generation_pending(
+            &seed_body
+        ));
+
+        let mut browser_input = json!({ "operation": "video" });
+        apply_gemini_canvas_browser_video_continuation(&mut browser_input, &continuation);
+        assert_eq!(browser_input["resumeExistingMedia"], true);
+        assert_eq!(browser_input["conversationId"], "c_065d5bde601ff3af");
+        assert_eq!(browser_input["responseId"], "r_f7c7e549d11c849b");
+        assert_eq!(browser_input["appPath"], "/app/065d5bde601ff3af");
+        assert_eq!(
+            browser_input["jobId"],
+            "5cb5f42d-d5a9-4643-99fe-0123456789ab"
+        );
+    }
+
+    #[test]
+    fn gemini_canvas_video_continuation_rejects_partial_or_unsafe_locator_fields() {
+        let mut partial = make_request(ProtocolFamily::OpenAi, EndpointKind::VideosGenerations);
+        partial.raw_body = json!({
+            "prompt": "video",
+            "conversation_id": "c_065d5bde601ff3af",
+        });
+        let partial_error = gemini_canvas_video_continuation_from_request(&partial)
+            .expect_err("partial continuation must fail");
+        assert_eq!(partial_error.http_status, Some(400));
+        assert_eq!(
+            partial_error.code.as_deref(),
+            Some("invalid_gemini_canvas_video_continuation")
+        );
+
+        let mut unsafe_path = make_request(ProtocolFamily::OpenAi, EndpointKind::VideosGenerations);
+        unsafe_path.raw_body = json!({
+            "prompt": "video",
+            "conversation_id": "c_065d5bde601ff3af",
+            "response_id": "r_f7c7e549d11c849b",
+            "app_path": "/app/065d5bde601ff3af?redirect=unsafe",
+        });
+        let path_error = gemini_canvas_video_continuation_from_request(&unsafe_path)
+            .expect_err("unsafe continuation path must fail");
+        assert_eq!(path_error.http_status, Some(400));
+        assert_eq!(
+            path_error.code.as_deref(),
+            Some("invalid_gemini_canvas_video_continuation")
+        );
+    }
+
     // ── build_request_plan ────────────────────────────────────────────────
 
     #[tokio::test]
@@ -15300,6 +16202,21 @@ mod tests {
             Some("browser_executor_required_unavailable")
         );
         assert_eq!(err.http_status, Some(503));
+    }
+
+    #[test]
+    fn remote_browser_executor_timeout_covers_the_worker_budget() {
+        assert_eq!(
+            browser_executor_remote_request_timeout(
+                Duration::from_secs(120),
+                &json!({"timeoutMs": 300_000}),
+            ),
+            Duration::from_secs(320),
+        );
+        assert_eq!(
+            browser_executor_remote_request_timeout(Duration::from_secs(120), &json!({})),
+            Duration::from_secs(140),
+        );
     }
 
     #[tokio::test]

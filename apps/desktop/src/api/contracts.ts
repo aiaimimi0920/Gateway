@@ -173,6 +173,111 @@ export type ConsoleAccountGroupSummaryResponse = {
   summary: ConsoleAccountGroupSummary;
 };
 
+export type ConsoleCredentialPoolAutomationDriver = {
+  id: string;
+  mode: "script" | "http";
+  providerIds: string[];
+};
+
+export type ConsoleCredentialPoolAutomationProvider = {
+  providerId: string;
+  providerLabel: string;
+  targetSize: number;
+  credentialCount: number;
+  activeCredentialCount: number;
+  autoRefillEnabled: boolean;
+  autoPruneEnabled: boolean;
+  driverId: string | null;
+  driverMode: "script" | "http" | null;
+  driverConfigured: boolean;
+  state: "disabled" | "not_configured" | "idle" | "running" | "succeeded" | "failed";
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  lastAction: string | null;
+  createdCount: number;
+  prunedCount: number;
+  message: string | null;
+  revisionId: string | null;
+};
+
+export type ConsoleCredentialPoolAutomationResponse = {
+  automation: {
+    enabled: boolean;
+    intervalSeconds: number;
+    drivers: ConsoleCredentialPoolAutomationDriver[];
+    providers: ConsoleCredentialPoolAutomationProvider[];
+    revisionId: string;
+  };
+};
+
+export type ConsoleCredentialPoolAutomationRunResponse = {
+  provider: ConsoleCredentialPoolAutomationProvider;
+};
+
+export type ConsoleCredentialRefillTrigger = "notification" | "inquiry" | "user_requested";
+export type ConsoleCredentialRefillTaskState = "pending" | "claimed" | "succeeded" | "failed";
+export type ConsoleCredentialRefillDeliveryMode =
+  | "folder_sync"
+  | "gateway_pull"
+  | "direct_callback";
+
+export type ConsoleCredentialRefillDemand = {
+  providerId: string;
+  providerLabel: string;
+  targetSize: number;
+  credentialCount: number;
+  activeCredentialCount: number;
+  deficit: number;
+  needsRefill: boolean;
+  autoRefillEnabled: boolean;
+  directDriverConfigured: boolean;
+  notificationEnabled: boolean;
+  inquiryEnabled: boolean;
+  userRequestEnabled: boolean;
+  outstandingTaskId: string | null;
+  outstandingTaskState: ConsoleCredentialRefillTaskState | null;
+  revisionId: string;
+};
+
+export type ConsoleCredentialRefillTask = {
+  id: string;
+  providerId: string;
+  providerLabel: string;
+  trigger: ConsoleCredentialRefillTrigger;
+  state: ConsoleCredentialRefillTaskState;
+  requestedCount: number;
+  targetSize: number;
+  activeCredentialCount: number;
+  routeRevision: string;
+  createdAt: string;
+  updatedAt: string;
+  workerId: string | null;
+  leaseUntil: string | null;
+  attempt: number;
+  deliveryMode: ConsoleCredentialRefillDeliveryMode | null;
+  createdCount: number;
+  message: string | null;
+  revisionId: string | null;
+};
+
+export type ConsoleCredentialRefillResponse = {
+  refill: {
+    enabled: boolean;
+    streamKey: string;
+    notificationIntervalSeconds: number;
+    defaultLeaseSeconds: number;
+    maxLeaseSeconds: number;
+    revisionId: string;
+    providers: ConsoleCredentialRefillDemand[];
+    recentTasks: ConsoleCredentialRefillTask[];
+  };
+};
+
+export type ConsoleCredentialRefillRequestResponse = {
+  task: ConsoleCredentialRefillTask;
+  created: boolean;
+};
+
 export type ConsoleCredentialProbeStatus = "passed" | "failed" | "unsupported";
 
 export type ConsoleCredentialProbeResult = {
@@ -185,6 +290,51 @@ export type ConsoleCredentialProbeResult = {
 
 export type ConsoleCredentialProbeResponse = {
   result: ConsoleCredentialProbeResult;
+};
+
+export type ConsoleGeminiAuthFamily =
+  | "gemini-canvas"
+  | "gemini-canvas-chat"
+  | "gemini-business"
+  | "gemini-web";
+
+export type ConsoleGeminiAuthSessionStatus =
+  | "pending"
+  | "waiting_user"
+  | "succeeded"
+  | "failed";
+
+export type ConsoleGeminiAuthSecretEdit = {
+  field: "api_key" | "auth_token";
+  operation: "replace";
+  value: string;
+};
+
+export type ConsoleGeminiGeneratedCredentialDraft = {
+  providerId: string;
+  credential: Record<string, unknown>;
+  secretEdits: ConsoleGeminiAuthSecretEdit[];
+};
+
+export type ConsoleGeminiAuthSession = {
+  id: string;
+  targetFamily: ConsoleGeminiAuthFamily;
+  providerId: string;
+  status: ConsoleGeminiAuthSessionStatus;
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+  generatedDrafts: ConsoleGeminiGeneratedCredentialDraft[];
+};
+
+export type ConsoleGeminiAuthSessionRequest = {
+  targetFamily: ConsoleGeminiAuthFamily;
+  providerId: string;
+  accountLabel?: string;
+};
+
+export type ConsoleGeminiAuthSessionResponse = {
+  session: ConsoleGeminiAuthSession;
 };
 
 export type ConsoleSecretPatch = {
