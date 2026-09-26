@@ -31,8 +31,8 @@
       "protocol::suno",
       "upstream::suno",
       "upstream::media_platform_compile_gate_test",
-      "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
-      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+      "implementation_lines::tests::compile_checks::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+      "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_media_platform_lines"
     ],
     "liveSuiteId": "suno_live",
     "useNoDefaultFeatures": true

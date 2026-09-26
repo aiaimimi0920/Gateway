@@ -2,6 +2,21 @@
 // AuthenticatedSession — the principal attached to a successfully authed request
 // ---------------------------------------------------------------------------
 
+/// `api_key_id` used when no auth is configured at all (dev mode).
+pub const DEV_MODE_API_KEY_ID: &str = "dev-mode";
+
+/// `api_key_id` used when the caller authenticated with the shared
+/// `GATEWAY_API_KEY` secret.
+pub const SHARED_SECRET_API_KEY_ID: &str = "gateway-key";
+
+/// Returns `true` when `api_key_id` is one of the synthetic identifiers the
+/// gateway mints for auth modes that have no `gateway_api_keys` row behind
+/// them. Callers that treat `api_key_id` as a database key (quota accounting,
+/// request audits) must not pass these values through.
+pub fn is_synthetic_api_key_id(api_key_id: &str) -> bool {
+    matches!(api_key_id, DEV_MODE_API_KEY_ID | SHARED_SECRET_API_KEY_ID)
+}
+
 /// Represents a verified caller identity after the auth layer has accepted the
 /// request.  All fields are set by the [`AuthAdapter`] that processed the
 /// request and should be treated as authoritative by the rest of the pipeline.
@@ -86,6 +101,13 @@ mod tests {
     fn has_scope_returns_false_for_empty_scopes() {
         let s = make_session(vec![]);
         assert!(!s.has_scope("inference:chat"));
+    }
+
+    #[test]
+    fn synthetic_api_key_ids_are_recognised() {
+        assert!(is_synthetic_api_key_id(DEV_MODE_API_KEY_ID));
+        assert!(is_synthetic_api_key_id(SHARED_SECRET_API_KEY_ID));
+        assert!(!is_synthetic_api_key_id("key-abc"));
     }
 
     #[test]

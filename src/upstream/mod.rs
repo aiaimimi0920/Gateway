@@ -24,6 +24,9 @@ pub mod bedrock_converse_official_api_common;
 pub mod bedrock_converse_official_api_common;
 mod bedrock_runtime_helpers;
 mod browser_executor_helpers;
+mod browser_executor_request_helpers;
+mod browser_executor_response;
+mod browser_worker_message;
 mod browser_worker_runtime_helpers;
 mod browser_worker_types;
 pub(crate) mod canonical_sse;
@@ -46,19 +49,32 @@ mod gemini_business_helpers;
 mod gemini_canvas_asset_helpers;
 mod gemini_canvas_client_types;
 mod gemini_canvas_conversation_helpers;
+mod gemini_canvas_debug_file;
+mod gemini_canvas_debug_redaction;
+mod gemini_canvas_debug_snapshot;
+mod gemini_canvas_diagnostics;
 mod gemini_canvas_direct_http_helpers;
+mod gemini_canvas_encoder_process;
+mod gemini_canvas_encoder_reaper;
+mod gemini_canvas_encoder_workspace;
 mod gemini_canvas_error_helpers;
 mod gemini_canvas_fetch_headers;
 mod gemini_canvas_followup_types;
 mod gemini_canvas_form_helpers;
 mod gemini_canvas_image_edit_local_helpers;
+mod gemini_canvas_image_encoder;
 mod gemini_canvas_music_helpers;
 mod gemini_canvas_official_api_helpers;
 mod gemini_canvas_program_route_helpers;
 mod gemini_canvas_request_headers;
 mod gemini_canvas_runtime_error_helpers;
 mod gemini_canvas_runtime_helpers;
+mod gemini_canvas_runtime_paths;
 mod gemini_canvas_text_helpers;
+mod gemini_canvas_trace_writer;
+mod gemini_canvas_upload_contract;
+mod gemini_canvas_upload_debug;
+mod gemini_canvas_upload_http;
 #[cfg(feature = "line-grok-web-reverse-api")]
 pub mod grok;
 #[cfg(not(feature = "line-grok-web-reverse-api"))]
@@ -84,6 +100,11 @@ pub mod openai_compatible_common;
 #[cfg(feature = "family-openai-compatible-official-api")]
 pub mod openai_compatible_official_api_common;
 pub mod openai_compatible_request_plan;
+mod producer_browser_worker_io;
+mod producer_browser_worker_process;
+#[cfg(test)]
+mod producer_browser_worker_security_tests;
+mod producer_browser_worker_tree;
 mod producer_media_helpers;
 mod producer_session_helpers;
 pub mod qwen;
@@ -125,6 +146,13 @@ mod canonical_sse_test;
 mod grok_compile_gate_test;
 #[cfg(test)]
 mod media_platform_compile_gate_test;
+#[cfg(all(
+    test,
+    feature = "line-lumalabs-web-reverse-api",
+    feature = "line-suno-web-reverse-api",
+    feature = "line-udio-web-reverse-api"
+))]
+mod media_response_diagnostic_tests;
 #[cfg(test)]
 mod request_time_browser_policy_test;
 #[cfg(test)]

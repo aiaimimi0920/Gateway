@@ -1,0 +1,245 @@
+/* responsive base styles; preserve position in styles.css. */
+@media (max-width: 1200px) {
+  .nt-shell {
+    --nt-shell-rail-width: 168px;
+  }
+
+  .nt-hud-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nt-card--stat {
+    min-height: 82px;
+  }
+
+  .nt-card--hero,
+  .nt-card-grid,
+  .nt-grid--2,
+  .nt-focus-grid,
+  .nt-form-grid,
+  .nt-template-grid,
+  .nt-account-toolbar,
+  .nt-ledger-stats,
+  .nt-ledger-toolbar,
+  .nt-provider-subtabs,
+  .nt-ledger-table__head,
+  .nt-ledger-table__row,
+  .nt-provider-account-table__head,
+  .nt-provider-account-row,
+  .nt-group-admin,
+  .nt-ledger-toolbar--groups,
+  .nt-group-member-row {
+    grid-template-columns: 1fr;
+  }
+
+  .nt-provider-pilot__toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .nt-provider-pilot__toggle,
+  .nt-provider-subtab {
+    grid-template-columns: 1fr;
+  }
+
+  .nt-provider-subtab-row {
+    grid-template-columns: 1fr;
+  }
+
+  .nt-provider-tree-item__summary {
+    justify-content: flex-start;
+  }
+
+  .nt-provider-subtab-policy {
+    justify-content: flex-start;
+    padding-left: 16px;
+  }
+
+  .nt-provider-subtab-stack,
+  .nt-provider-account-branch {
+    padding-left: 0;
+    margin-left: 0;
+    border-left: 0;
+  }
+
+  .nt-table__head,
+  .nt-table__row,
+  .nt-env-row {
+    grid-template-columns: 1fr;
+  }
+
+  .nt-pilot-stats-overview-grid,
+  .nt-pilot-stats-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  body {
+    overflow: auto;
+  }
+
+  .nt-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    width: 100%;
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+
+  .nt-rail {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--nt-border);
+    overflow: visible;
+  }
+
+  .nt-titlebar {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .nt-board {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .nt-brand {
+    padding: 0 10px;
+  }
+
+  .nt-rail__nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 8px;
+    overflow: visible;
+  }
+
+  .nt-rail__item {
+    min-width: 0;
+    height: auto;
+    padding: 8px 6px;
+    text-align: center;
+  }
+
+  .nt-rail__item:hover {
+    transform: none;
+  }
+
+  .nt-rail__item span {
+    overflow-wrap: anywhere;
+  }
+
+  .nt-rail__utility {
+    margin: 0 8px 8px;
+  }
+
+  .nt-rail__footer {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    margin-top: 0;
+    padding-top: 10px;
+  }
+
+  .nt-rail__footer > p {
+    display: none;
+  }
+
+  .nt-mini-list {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .nt-mini-list dd {
+    font-size: 0.76rem;
+  }
+
+  .nt-board {
+    min-height: calc(100vh - 20px);
+    overflow: hidden;
+  }
+
+  .nt-board__header {
+    min-height: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 18px 14px 14px;
+  }
+
+  .nt-board__header h1 {
+    font-size: 1.7rem;
+  }
+
+  .nt-board__copy {
+    line-height: 1.5;
+  }
+
+  .nt-actions--right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .nt-actions--right .nt-btn {
+    flex: 1 1 140px;
+  }
+
+  .nt-alert {
+    align-items: flex-start;
+    margin: 12px 14px 0;
+  }
+
+  .nt-hud-strip {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px 14px 0;
+  }
+
+  .nt-card--stat {
+    min-height: 82px;
+  }
+
+  .nt-stage {
+    overflow: visible;
+    padding: 12px 14px 18px;
+  }
+
+  .nt-card,
+  .nt-card--hero {
+    padding: 16px;
+  }
+
+  .nt-card--hero {
+    clip-path: none;
+  }
+
+  .nt-section__head,
+  .nt-row--between {
+    flex-direction: column;
+  }
+
+  .nt-meta-list--inline,
+  .nt-segmented {
+    grid-template-columns: 1fr;
+  }
+
+  .nt-path-check__item {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .nt-path-check__item code,
+  .nt-path-check__item small {
+    grid-column: 1 / -1;
+  }
+
+  .nt-onboarding-step {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .nt-onboarding-step em {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

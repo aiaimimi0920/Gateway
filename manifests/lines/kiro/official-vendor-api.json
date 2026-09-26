@@ -29,7 +29,7 @@
     "recommendedCargoTargetDirSlug": "kiro-official-vendor-api-verify",
     "focusedCargoFilters": [
       "protocol::kiro",
-      "kiro_compatible"
+      "upstream::headers::tests::api_auth::kiro_uses_runtime_bearer_and_aws_headers"
     ],
     "useNoDefaultFeatures": true
   },

@@ -1,0 +1,275 @@
+/* console workspaces styles; preserve position in styles.css. */
+/* Console workspace shells: 运维 (operations) and 访问密钥 (access keys).
+   Both pages share one vocabulary — `.nt-console-*` primitives plus the
+   per-table column maps further down — so neither page owns private copies. */
+
+.nt-console-page {
+  gap: 14px;
+}
+
+.nt-console-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--nt-text) 3%, transparent);
+  padding: 12px 14px;
+}
+
+.nt-console-toolbar > .nt-copy {
+  flex: 1 1 320px;
+  min-width: 0;
+  margin: 0;
+}
+
+.nt-console-toolbar > .nt-btn {
+  flex: 0 0 auto;
+}
+
+.nt-console-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 12px;
+  margin-top: 10px;
+}
+
+.nt-console-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.nt-console-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nt-console-row-actions > .nt-btn {
+  padding: 5px 10px;
+  font-size: 0.72rem;
+}
+
+.nt-console-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.nt-console-bucket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.nt-console-bucket-group {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.nt-pilot-metric-card > .nt-console-bucket-group {
+  margin-top: 12px;
+}
+
+.nt-console-bucket-group > h4 {
+  margin: 0 0 8px;
+  color: var(--nt-signal);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.nt-console-bucket-group > .nt-pilot-stats-note {
+  margin: 8px 0 0;
+}
+
+/* Table column maps. `.nt-table` ships a 3-column default, so every wider
+   operations table declares its own grid on both the head and the rows. */
+
+.nt-table--pressure .nt-table__head,
+.nt-table--pressure .nt-table__row {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 120px 100px;
+}
+
+.nt-table--pressure-projects .nt-table__head,
+.nt-table--pressure-projects .nt-table__row {
+  grid-template-columns: minmax(0, 1.6fr) 120px 100px;
+}
+
+.nt-table--readiness .nt-table__head,
+.nt-table--readiness .nt-table__row {
+  grid-template-columns: 150px 112px minmax(0, 1fr);
+}
+
+.nt-table--requests .nt-table__head,
+.nt-table--requests .nt-table__row {
+  grid-template-columns: 158px minmax(0, 1.2fr) 118px 92px 92px 84px;
+}
+
+.nt-table--alert-queue .nt-table__head,
+.nt-table--alert-queue .nt-table__row {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 158px minmax(0, 1.2fr);
+}
+
+.nt-table--incidents .nt-table__head,
+.nt-table--incidents .nt-table__row {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 158px 184px;
+}
+
+.nt-table--policies .nt-table__head,
+.nt-table--policies .nt-table__row {
+  grid-template-columns: minmax(0, 1.4fr) 112px minmax(0, 1.1fr) 158px;
+}
+
+.nt-table--remediation-queue .nt-table__head,
+.nt-table--remediation-queue .nt-table__row {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 158px minmax(0, 1.1fr);
+}
+
+.nt-table--remediation-runs .nt-table__head,
+.nt-table--remediation-runs .nt-table__row {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 158px;
+}
+
+.nt-table--exports .nt-table__head,
+.nt-table--exports .nt-table__row {
+  grid-template-columns: minmax(0, 1.6fr) 112px 100px 158px;
+}
+
+.nt-table--access-keys .nt-table__head,
+.nt-table--access-keys .nt-table__row {
+  grid-template-columns: minmax(0, 1.4fr) 112px minmax(0, 1.1fr) 158px 168px;
+}
+
+.nt-table--bundles .nt-table__head,
+.nt-table--bundles .nt-table__row {
+  grid-template-columns: minmax(0, 1.6fr) 112px 120px 100px;
+}
+
+/* A cell that stacks an id/slug under its display name. The row rule below
+   re-enables wrapping for these, since the parent span clips to one line. */
+
+.nt-console-subtext {
+  display: block;
+  opacity: 0.62;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+/* One-shot plaintext (access-key token, project API key, credential key). The
+   gateway answers it exactly once, so the value has to stay selectable and
+   fully visible — never truncated — until the operator dismisses it. */
+
+.nt-console-secret {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nt-console-secret > strong {
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.nt-console-secret__value {
+  overflow-wrap: anywhere;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 12%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--nt-text) 5%, transparent);
+  padding: 8px 10px;
+  font-family: var(--nt-font-mono, ui-monospace, monospace);
+  font-size: 0.76rem;
+  user-select: all;
+}
+
+.nt-console-secret > .nt-pilot-stats-note {
+  margin: 0;
+}
+
+.nt-console-secret__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Copy control that carries its own result for a couple of seconds: these cards
+   sit below the toast channel, and one of the values is plaintext the gateway
+   answers exactly once, so the click has to visibly confirm itself. */
+
+.nt-console-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.nt-console-copy--ok {
+  border-color: color-mix(in srgb, var(--nt-success, #34d399) 55%, transparent);
+  color: var(--nt-success, #34d399);
+}
+
+.nt-console-copy--fail {
+  border-color: color-mix(in srgb, var(--nt-danger, #f87171) 55%, transparent);
+  color: var(--nt-danger, #f87171);
+}
+
+.nt-console-table-page .nt-table__head > span,
+.nt-console-table-page .nt-table__row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-console-table-page .nt-table__row > .nt-console-chip-row,
+.nt-console-table-page .nt-table__row > .nt-console-row-actions {
+  overflow: visible;
+  white-space: normal;
+}
+
+/* A cell holding a `.nt-console-subtext` stacks two lines, so it opts out of
+   the single-line clip above and lets each line ellipsize on its own. */
+
+.nt-console-table-page .nt-table__row > span:has(> .nt-console-subtext) {
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  white-space: normal;
+}
+
+.nt-console-table-page .nt-table__row > span > .nt-console-subtext {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* `.nt-alert` is authored for the app shell and ships a 16px/26px outer
+   margin. Inside a console panel it is just a status strip, so drop it. */
+
+.nt-console-page .nt-alert {
+  margin: 10px 0 0;
+}
+
+.nt-console-page .nt-settings-section__body > .nt-alert:first-child,
+.nt-console-page > .nt-alert:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 1080px) {
+  .nt-console-table-page .nt-table[class*="nt-table--"] .nt-table__head,
+  .nt-console-table-page .nt-table[class*="nt-table--"] .nt-table__row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}

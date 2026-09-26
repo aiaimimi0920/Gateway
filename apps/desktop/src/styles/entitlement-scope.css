@@ -1,0 +1,241 @@
+/* entitlement scope styles; preserve position in styles.css. */
+/* Card back: a multi-select provider band over one aggregate row per model.
+   Both bands page rather than scroll, so the face keeps its fixed height. */
+.nt-entitlement-scope {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.nt-entitlement-scope__band {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+}
+
+.nt-entitlement-scope__band-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nt-entitlement-scope__band-head strong {
+  color: var(--nt-text);
+  font-size: 0.74rem;
+}
+
+.nt-entitlement-scope__band-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.nt-entitlement-scope__count {
+  color: var(--nt-info);
+  font-family: var(--nt-font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.nt-entitlement-scope__band-action {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--nt-text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.nt-entitlement-scope__band-action:hover {
+  color: var(--nt-info);
+}
+
+/* Two fixed columns instead of wrapping chips: a long provider name then
+   ellipsizes instead of pushing the band a row taller on some cards only. */
+.nt-entitlement-scope__tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+}
+
+.nt-entitlement-scope__tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  min-width: 0;
+  height: 24px;
+  border: 1px solid var(--nt-border);
+  border-radius: 999px;
+  padding: 0 8px;
+  background: var(--nt-color-control);
+  color: var(--nt-text-muted);
+  cursor: pointer;
+  font-size: 0.68rem;
+}
+
+.nt-entitlement-scope__tab > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-entitlement-scope__tab small {
+  flex: 0 0 auto;
+  font-family: var(--nt-font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.nt-entitlement-scope__tab[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--nt-info) 48%, var(--nt-border));
+  background: color-mix(in srgb, var(--nt-info) 16%, var(--nt-color-control));
+  color: var(--nt-info);
+}
+
+.nt-entitlement-scope__pager {
+  justify-content: center;
+}
+
+.nt-entitlement-scope__empty {
+  margin: 0;
+  color: var(--nt-text-muted);
+  font-size: 0.7rem;
+}
+
+.nt-entitlement-scope__model-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  list-style: none;
+}
+
+/* One model per row, laid out like the provider card front: the label line
+   carries the name and its concurrency, the second line is the four-slot metric
+   strip, and the third is the availability strip. */
+.nt-entitlement-scope__model-row {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-sm);
+  padding: 5px 8px;
+  background: color-mix(in srgb, var(--nt-color-control) 55%, transparent);
+}
+
+.nt-entitlement-scope__model-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nt-entitlement-scope__model-head strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 0.71rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-entitlement-scope__model-providers {
+  flex: 0 0 auto;
+  color: var(--nt-text-muted);
+  font-size: 0.64rem;
+}
+
+/* Pushed to the right edge of the title line, which is what frees the metric
+   strip below to keep the provider card's four even slots. */
+.nt-entitlement-scope__model-concurrency {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.nt-entitlement-scope__model-concurrency svg {
+  color: var(--nt-text-muted);
+}
+
+.nt-entitlement-scope__model-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px 6px;
+  margin: 0;
+  min-width: 0;
+}
+
+.nt-entitlement-scope__model-metrics > div {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nt-entitlement-scope__model-metrics dt {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--nt-text-muted);
+}
+
+.nt-entitlement-scope__model-metrics dd {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Same window strip as the provider and group cards, one size down so three
+   model rows still fit the card face without a scrollbar. */
+.nt-entitlement-scope__model-success {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nt-entitlement-scope__model-success > svg {
+  flex: 0 0 auto;
+  color: var(--nt-text-muted);
+}
+
+.nt-entitlement-scope__model-success .nt-provider-card__availability-cell {
+  height: 9px;
+}
+
+.nt-entitlement-scope__model-success .nt-provider-card__success-rate {
+  font-size: 0.66rem;
+}
+
+.nt-entitlement-scope__model-success-empty {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--nt-text-muted);
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

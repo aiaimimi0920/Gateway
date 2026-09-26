@@ -2,8 +2,8 @@
   "$schema": "provider-reference-report.schema.json",
   "schemaVersion": "gateway-provider-reference-report/v1",
   "generatedAt": "2026-07-29T05:19:33Z",
-  "sourceRevision": "manifest-source:e443956e66e6cdfaac993083083fddac172da132a6ca28bdfd5c8632f4447ccb",
-  "sourceFingerprint": "e443956e66e6cdfaac993083083fddac172da132a6ca28bdfd5c8632f4447ccb",
+  "sourceRevision": "manifest-source:c9bfa39b7d8ffdc1ce6dc73c44ed69a6c659b50056483bf655ea3fcd28f30ea5",
+  "sourceFingerprint": "c9bfa39b7d8ffdc1ce6dc73c44ed69a6c659b50056483bf655ea3fcd28f30ea5",
   "guidePath": "docs/provider-reference-guide.md",
   "summary": {
     "lineCount": 44,

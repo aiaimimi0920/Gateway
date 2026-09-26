@@ -1,0 +1,1473 @@
+import { ChevronDown, Gauge, ListOrdered, RefreshCw, ShieldAlert } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+
+import type {
+  ConsoleAlertQueue,
+  ConsoleAnalysisExportInventorySummary,
+  ConsoleAnomalyIncident,
+  ConsoleAnomalyIncidentSummary,
+  ConsoleAnomalyPolicy,
+  ConsoleDependencyReadiness,
+  ConsoleGatewayReadiness,
+  ConsoleOperatorSummary,
+  ConsolePersistedAnalysisExport,
+  ConsolePromptCacheSummary,
+  ConsoleRateLimitHotspotSummary,
+  ConsoleRemediationEffectiveness,
+  ConsoleRemediationQueue,
+  ConsoleRemediationRun,
+  ConsoleRequestAudit,
+  ConsoleRequestAuditFullSummary,
+  ConsoleRuntimePressure,
+  ConsoleSummaryBucket,
+  ConsoleUsageAggregateSummary,
+} from "../../api/contracts";
+
+type TranslateFn = (zh: string, en: string) => string;
+
+/** Sections are collapsible so the page opens on 实时 instead of a wall of tables. */
+export type OperationsSectionId = "live" | "requests" | "anomalies";
+
+/**
+ * Each panel loads independently and carries its own error, so a panel whose
+ * endpoint answered 503 (`PostgreSQL 尚未配置`) still renders: it keeps the
+ * placeholder dashes and states the reason, matching the credential-pool cards.
+ */
+export type OperationsPanelState<T> = {
+  data: T | null;
+  error: string | null;
+  loading: boolean;
+};
+
+export type OperationsRequestFilterDraft = {
+  status: string;
+  projectId: string;
+  providerAccountId: string;
+  endpointKind: string;
+  errorCode: string;
+  limit: string;
+};
+
+export const OPERATIONS_DEFAULT_REQUEST_FILTERS: OperationsRequestFilterDraft = {
+  status: "",
+  projectId: "",
+  providerAccountId: "",
+  endpointKind: "",
+  errorCode: "",
+  limit: "100",
+};
+
+export type OperationsWorkspaceProps = {
+  t: TranslateFn;
+  notice?: ReactNode;
+  /** Blocks the mutation buttons while a management-token refresh is in flight. */
+  editorLocked: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
+  pressure: OperationsPanelState<ConsoleRuntimePressure>;
+  readiness: OperationsPanelState<ConsoleGatewayReadiness>;
+  operatorSummary: OperationsPanelState<ConsoleOperatorSummary>;
+  requests: OperationsPanelState<ConsoleRequestAudit[]>;
+  requestSummary: OperationsPanelState<ConsoleRequestAuditFullSummary>;
+  usageSummary: OperationsPanelState<ConsoleUsageAggregateSummary>;
+  promptCache: OperationsPanelState<ConsolePromptCacheSummary>;
+  incidents: OperationsPanelState<ConsoleAnomalyIncident[]>;
+  incidentSummary: OperationsPanelState<ConsoleAnomalyIncidentSummary>;
+  alertQueue: OperationsPanelState<ConsoleAlertQueue>;
+  policies: OperationsPanelState<ConsoleAnomalyPolicy[]>;
+  remediationQueue: OperationsPanelState<ConsoleRemediationQueue>;
+  remediationRuns: OperationsPanelState<ConsoleRemediationRun[]>;
+  remediationEffectiveness: OperationsPanelState<ConsoleRemediationEffectiveness>;
+  hotspots: OperationsPanelState<ConsoleRateLimitHotspotSummary>;
+  exports: OperationsPanelState<ConsolePersistedAnalysisExport[]>;
+  exportInventory: OperationsPanelState<ConsoleAnalysisExportInventorySummary>;
+  requestFilters: OperationsRequestFilterDraft;
+  onRequestFiltersChange: (next: OperationsRequestFilterDraft) => void;
+  onApplyRequestFilters: () => void;
+  incidentBusyId: string | null;
+  onAcknowledgeIncident: (incidentId: string) => void;
+  onResolveIncident: (incidentId: string) => void;
+};
+
+const PLACEHOLDER = "—";
+
+function formatCount(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return PLACEHOLDER;
+  }
+  return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatUsd(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return PLACEHOLDER;
+  }
+  return `$${value.toFixed(4)}`;
+}
+
+/** Backend rates are already fractions of one, not percentages. */
+function formatRate(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return PLACEHOLDER;
+  }
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatMs(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return PLACEHOLDER;
+  }
+  return `${Math.round(value)} ms`;
+}
+
+function formatTimestamp(value: string | null | undefined): string {
+  if (!value) {
+    return PLACEHOLDER;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
+function formatText(value: string | null | undefined): string {
+  return value && value.trim().length > 0 ? value : PLACEHOLDER;
+}
+
+/** Trims long ids so a table row keeps its column widths. */
+function shortId(value: string | null | undefined): string {
+  if (!value) {
+    return PLACEHOLDER;
+  }
+  return value.length > 14 ? `${value.slice(0, 12)}…` : value;
+}
+
+/** `requestDurationMsSum / requestDurationMsCount`, guarded against a zero count. */
+function averageDurationMs(sum: number, count: number): number | null {
+  return count > 0 ? sum / count : null;
+}
+
+function severityBadgeClass(severity: string | null | undefined): string {
+  const normalized = (severity ?? "").toLowerCase();
+  if (normalized === "critical" || normalized === "fatal" || normalized === "high") {
+    return "nt-badge nt-badge--danger";
+  }
+  if (normalized === "warning" || normalized === "medium" || normalized === "warn") {
+    return "nt-badge nt-badge--warning";
+  }
+  return "nt-badge";
+}
+
+function statusBadgeClass(status: string | null | undefined): string {
+  const normalized = (status ?? "").toLowerCase();
+  if (
+    normalized === "resolved" ||
+    normalized === "succeeded" ||
+    normalized === "success" ||
+    normalized === "completed" ||
+    normalized === "active"
+  ) {
+    return "nt-badge nt-badge--success";
+  }
+  if (normalized === "failed" || normalized === "error" || normalized === "open") {
+    return "nt-badge nt-badge--danger";
+  }
+  if (
+    normalized === "acknowledged" ||
+    normalized === "pending" ||
+    normalized === "queued" ||
+    normalized === "running"
+  ) {
+    return "nt-badge nt-badge--warning";
+  }
+  return "nt-badge";
+}
+
+type StatTone = "default" | "emerald" | "danger" | "blue";
+
+function StatCard({
+  label,
+  value,
+  hint,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: StatTone;
+}) {
+  const toneClass = tone === "default" ? "" : ` nt-pilot-stat-card--${tone}`;
+  return (
+    <article className={`nt-pilot-stat-card${toneClass}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {hint ? <small>{hint}</small> : null}
+    </article>
+  );
+}
+
+/**
+ * Shared frame for every panel: heading, loading/error state, then the body. A
+ * failed panel still shows its heading so the operator can tell a missing
+ * dependency from a missing feature.
+ */
+function Panel<T>({
+  t,
+  title,
+  state,
+  emptyLabel,
+  children,
+}: {
+  t: TranslateFn;
+  title: string;
+  state: OperationsPanelState<T>;
+  emptyLabel?: string;
+  children: (data: T) => ReactNode;
+}) {
+  return (
+    <article className="nt-pilot-metric-card">
+      <h3>{title}</h3>
+      {state.error ? (
+        <div className="nt-alert nt-alert--warning" role="status">
+          {state.error}
+        </div>
+      ) : null}
+      {state.loading && state.data === null ? (
+        <div className="nt-pilot-stats-state" role="status">
+          {t("正在读取…", "Loading…")}
+        </div>
+      ) : state.data === null ? (
+        <div className="nt-pilot-stats-state" role="status">
+          {emptyLabel ?? t("暂无数据", "No data yet")}
+        </div>
+      ) : (
+        children(state.data)
+      )}
+    </article>
+  );
+}
+
+/** `{key, count}` buckets are how the gateway reports every breakdown. */
+function BucketList({
+  t,
+  title,
+  buckets,
+}: {
+  t: TranslateFn;
+  title: string;
+  buckets: ConsoleSummaryBucket[];
+}) {
+  if (buckets.length === 0) {
+    return null;
+  }
+  return (
+    <div className="nt-operations-bucket-group">
+      <h4>{title}</h4>
+      <dl className="nt-pilot-metric-list">
+        {buckets.slice(0, 8).map((bucket) => (
+          <div key={bucket.key}>
+            <dt title={bucket.key}>{formatText(bucket.key)}</dt>
+            <dd>{formatCount(bucket.count)}</dd>
+          </div>
+        ))}
+      </dl>
+      {buckets.length > 8 ? (
+        <p className="nt-pilot-stats-note">
+          {t(`另有 ${buckets.length - 8} 项未显示`, `${buckets.length - 8} more not shown`)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function DependencyRow({
+  t,
+  name,
+  dependency,
+}: {
+  t: TranslateFn;
+  name: string;
+  dependency: ConsoleDependencyReadiness;
+}) {
+  const stateClass = dependency.ready
+    ? "nt-badge nt-badge--success"
+    : dependency.configured
+      ? "nt-badge nt-badge--danger"
+      : "nt-chip nt-chip--muted";
+  const stateLabel = dependency.ready
+    ? t("就绪", "Ready")
+    : dependency.configured
+      ? t("异常", "Failing")
+      : t("未配置", "Unconfigured");
+  const notes: string[] = [];
+  if (dependency.required) {
+    notes.push(t("必需", "Required"));
+  }
+  if (dependency.timedOut) {
+    notes.push(t("检查超时", "Check timed out"));
+  }
+  if (dependency.driver) {
+    notes.push(dependency.driver);
+  }
+  return (
+    <div className="nt-table__row">
+      <span>{name}</span>
+      <span>
+        <span className={stateClass}>{stateLabel}</span>
+      </span>
+      <span className="nt-copy">{notes.length > 0 ? notes.join(" · ") : PLACEHOLDER}</span>
+    </div>
+  );
+}
+
+function Section({
+  id,
+  title,
+  icon,
+  open,
+  onToggle,
+  children,
+}: {
+  id: OperationsSectionId;
+  title: string;
+  icon: ReactNode;
+  open: boolean;
+  onToggle: (id: OperationsSectionId) => void;
+  children: ReactNode;
+}) {
+  const bodyId = `nt-operations-section-${id}`;
+  return (
+    <section
+      className={`nt-settings-section${open ? " nt-settings-section--open" : ""}`}
+      data-section={id}
+    >
+      <h2 className="nt-settings-section__heading">
+        <button
+          aria-controls={bodyId}
+          aria-expanded={open}
+          className="nt-settings-section__trigger"
+          onClick={() => onToggle(id)}
+          type="button"
+        >
+          <span className="nt-settings-section__icon" aria-hidden="true">
+            {icon}
+          </span>
+          <span>{title}</span>
+          <span className="nt-settings-section__chevron" aria-hidden="true">
+            <ChevronDown size={18} />
+          </span>
+        </button>
+      </h2>
+      {open ? (
+        <div className="nt-settings-section__body" id={bodyId}>
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * 运维 workspace. Three collapsible sections read straight from the gateway's
+ * internal telemetry endpoints: live pressure and readiness, the request-audit
+ * detail table, and the anomaly/remediation surface.
+ */
+export function OperationsWorkspace({
+  t,
+  notice,
+  editorLocked,
+  refreshing,
+  onRefresh,
+  pressure,
+  readiness,
+  operatorSummary,
+  requests,
+  requestSummary,
+  usageSummary,
+  promptCache,
+  incidents,
+  incidentSummary,
+  alertQueue,
+  policies,
+  remediationQueue,
+  remediationRuns,
+  remediationEffectiveness,
+  hotspots,
+  exports,
+  exportInventory,
+  requestFilters,
+  onRequestFiltersChange,
+  onApplyRequestFilters,
+  incidentBusyId,
+  onAcknowledgeIncident,
+  onResolveIncident,
+}: OperationsWorkspaceProps) {
+  const [openSections, setOpenSections] = useState<OperationsSectionId[]>(["live"]);
+
+  const toggleSection = (id: OperationsSectionId) => {
+    setOpenSections((current) =>
+      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+    );
+  };
+
+  const patchFilters = (patch: Partial<OperationsRequestFilterDraft>) => {
+    onRequestFiltersChange({ ...requestFilters, ...patch });
+  };
+
+  /** Incidents still needing a human decision float to the top of the table. */
+  const sortedIncidents = useMemo(() => {
+    const rows = incidents.data ?? [];
+    const weight = (status: string | null | undefined) => {
+      const normalized = (status ?? "").toLowerCase();
+      if (normalized === "open") {
+        return 0;
+      }
+      return normalized === "acknowledged" ? 1 : 2;
+    };
+    return [...rows].sort((left, right) => {
+      const byStatus = weight(left.status) - weight(right.status);
+      return byStatus !== 0 ? byStatus : right.lastSeenAt.localeCompare(left.lastSeenAt);
+    });
+  }, [incidents.data]);
+
+  return (
+    <div className="nt-settings-page nt-operations-page">
+      {notice}
+      <div className="nt-operations-toolbar">
+        <p className="nt-copy">
+          {t(
+            "运维数据直接来自网关内部接口；未配置 PostgreSQL 的面板会说明原因并保留占位符。",
+            "Operations data comes straight from the gateway internal endpoints; panels without PostgreSQL state the reason and keep placeholders.",
+          )}
+        </p>
+        <button
+          className="nt-btn nt-btn--outline"
+          disabled={refreshing}
+          onClick={onRefresh}
+          type="button"
+        >
+          <RefreshCw size={15} aria-hidden="true" />
+          {refreshing ? t("刷新中…", "Refreshing…") : t("刷新", "Refresh")}
+        </button>
+      </div>
+
+      <div className="nt-settings-accordion">
+        <Section
+          icon={<Gauge size={18} />}
+          id="live"
+          onToggle={toggleSection}
+          open={openSections.includes("live")}
+          title={t("实时", "Live")}
+        >
+          <Panel state={pressure} t={t} title={t("实时压力", "Runtime pressure")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("进行中请求", "Running requests")}
+                    tone="blue"
+                    value={formatCount(data.totalRunningRequests)}
+                  />
+                  <StatCard
+                    label={t("项目并发", "Project concurrency")}
+                    value={formatCount(data.totalProjectConcurrency)}
+                  />
+                  <StatCard
+                    label={t("服务商并发", "Provider concurrency")}
+                    value={formatCount(data.totalProviderConcurrency)}
+                  />
+                  <StatCard
+                    label={t("熔断账号", "Open breakers")}
+                    tone={
+                      data.providers.some((provider) => provider.breakerOpen) ? "danger" : "default"
+                    }
+                    value={formatCount(
+                      data.providers.filter((provider) => provider.breakerOpen).length,
+                    )}
+                  />
+                </div>
+                {data.providers.length === 0 ? (
+                  <div className="nt-pilot-stats-state" role="status">
+                    {t("暂无活跃服务商账号", "No active provider accounts")}
+                  </div>
+                ) : (
+                  <div className="nt-table nt-table--pressure">
+                    <div className="nt-table__head">
+                      <span>{t("服务商账号", "Provider account")}</span>
+                      <span>{t("状态", "Status")}</span>
+                      <span>{t("并发", "Concurrency")}</span>
+                      <span>{t("进行中", "Running")}</span>
+                    </div>
+                    {data.providers.map((provider) => (
+                      <div className="nt-table__row" key={provider.providerAccountId}>
+                        <span title={provider.providerAccountId}>{formatText(provider.label)}</span>
+                        <span>
+                          <span className={statusBadgeClass(provider.status)}>
+                            {formatText(provider.status)}
+                          </span>
+                          {provider.breakerOpen ? (
+                            <span className="nt-badge nt-badge--danger">
+                              {t("熔断", "Breaker")}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span>
+                          {provider.concurrencyLimit === null
+                            ? formatCount(provider.activeConcurrency)
+                            : `${provider.activeConcurrency} / ${provider.concurrencyLimit}`}
+                        </span>
+                        <span>{formatCount(provider.runningRequestCount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {data.projects.length > 0 ? (
+                  <div className="nt-table nt-table--pressure-projects">
+                    <div className="nt-table__head">
+                      <span>{t("项目", "Project")}</span>
+                      <span>{t("并发", "Concurrency")}</span>
+                      <span>{t("进行中", "Running")}</span>
+                    </div>
+                    {data.projects.map((project) => (
+                      <div className="nt-table__row" key={project.projectId}>
+                        <span title={project.projectId}>{formatText(project.displayName)}</span>
+                        <span>{formatCount(project.activeConcurrency)}</span>
+                        <span>{formatCount(project.runningRequestCount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </Panel>
+
+          <Panel state={readiness} t={t} title={t("依赖与就绪", "Dependencies & readiness")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("整体状态", "Overall")}
+                    tone={data.ok ? "emerald" : "danger"}
+                    value={data.ok ? t("就绪", "Ready") : t("未就绪", "Not ready")}
+                  />
+                  <StatCard
+                    label={t("排空中", "Draining")}
+                    tone={data.draining ? "danger" : "default"}
+                    value={data.draining ? t("是", "Yes") : t("否", "No")}
+                    hint={data.drainReason ?? undefined}
+                  />
+                  <StatCard
+                    label={t("活跃请求", "Active requests")}
+                    value={formatCount(data.activeRequests)}
+                  />
+                  <StatCard
+                    label={t("排空开始", "Drain started")}
+                    value={formatTimestamp(data.drainStartedAt)}
+                  />
+                </div>
+                <div className="nt-table nt-table--readiness">
+                  <div className="nt-table__head">
+                    <span>{t("依赖", "Dependency")}</span>
+                    <span>{t("状态", "State")}</span>
+                    <span>{t("说明", "Detail")}</span>
+                  </div>
+                  <DependencyRow dependency={data.dependencies.postgresql} name="PostgreSQL" t={t} />
+                  <DependencyRow dependency={data.dependencies.redis} name="Redis" t={t} />
+                  <DependencyRow
+                    dependency={data.dependencies.objectStorage}
+                    name={t("对象存储", "Object storage")}
+                    t={t}
+                  />
+                </div>
+                <dl className="nt-pilot-metric-list">
+                  <div>
+                    <dt>{t("API 密钥密文", "API key secret")}</dt>
+                    <dd>{data.checks.apiKeySecret ? t("已配置", "Set") : t("缺失", "Missing")}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("公开访问地址", "Public base URL")}</dt>
+                    <dd>{data.checks.publicBaseUrl ? t("已配置", "Set") : t("缺失", "Missing")}</dd>
+                  </div>
+                </dl>
+              </>
+            )}
+          </Panel>
+
+          <Panel state={operatorSummary} t={t} title={t("运行概况", "Operator summary")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    hint={`${data.build.target.os}/${data.build.target.arch}`}
+                    label={t("版本", "Version")}
+                    value={formatText(data.build.version)}
+                  />
+                  <StatCard
+                    hint={data.lifecycle.draining ? t("排空中", "Draining") : undefined}
+                    label={t("生命周期", "Lifecycle")}
+                    tone={data.lifecycle.draining ? "danger" : "emerald"}
+                    value={formatText(data.lifecycle.state)}
+                  />
+                  <StatCard
+                    label={t("已发布模型", "Published models")}
+                    value={formatCount(data.routing.publishedModelCount)}
+                  />
+                  <StatCard
+                    label={t("服务商账号", "Provider accounts")}
+                    value={formatCount(data.routing.providerCount)}
+                  />
+                </div>
+                <dl className="nt-pilot-metric-list">
+                  <div>
+                    <dt>{t("采集时间", "Generated at")}</dt>
+                    <dd>{formatTimestamp(data.generatedAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("角色 / 端口", "Role / port")}</dt>
+                    <dd>{`${formatText(data.runtime.role)} : ${data.runtime.port}`}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("累计请求", "Requests total")}</dt>
+                    <dd>{formatCount(data.requestMetrics.requestsTotal)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("累计错误", "Errors total")}</dt>
+                    <dd>{formatCount(data.requestMetrics.requestErrorsTotal)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("处理中", "In flight")}</dt>
+                    <dd>{formatCount(data.requestMetrics.requestInFlight)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("平均耗时", "Average duration")}</dt>
+                    <dd>
+                      {formatMs(
+                        averageDurationMs(
+                          data.requestMetrics.requestDurationMsSum,
+                          data.requestMetrics.requestDurationMsCount,
+                        ),
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t("限流拒绝", "Rate-limit rejections")}</dt>
+                    <dd>{formatCount(data.requestMetrics.rateLimitRejectionsTotal)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("排空拒绝", "Drain rejections")}</dt>
+                    <dd>{formatCount(data.requestMetrics.requestDrainRejectionsTotal)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("凭据缓存", "Credential cache")}</dt>
+                    <dd>{formatCount(data.credentialCache.entryCount)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("路由条目", "Routes")}</dt>
+                    <dd>{formatCount(data.routing.routeCount)}</dd>
+                  </div>
+                </dl>
+              </>
+            )}
+          </Panel>
+        </Section>
+
+        <Section
+          icon={<ListOrdered size={18} />}
+          id="requests"
+          onToggle={toggleSection}
+          open={openSections.includes("requests")}
+          title={t("请求明细", "Request log")}
+        >
+          <article className="nt-pilot-metric-card">
+            <h3>{t("筛选", "Filters")}</h3>
+            <div className="nt-operations-filter-grid">
+              <label className="nt-field">
+                <span>{t("状态", "Status")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchFilters({ status: event.target.value })}
+                  placeholder="completed / failed"
+                  value={requestFilters.status}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("项目", "Project")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchFilters({ projectId: event.target.value })}
+                  value={requestFilters.projectId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("服务商账号", "Provider account")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchFilters({ providerAccountId: event.target.value })}
+                  value={requestFilters.providerAccountId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("端点类型", "Endpoint kind")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchFilters({ endpointKind: event.target.value })}
+                  placeholder="chat / embeddings"
+                  value={requestFilters.endpointKind}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("错误码", "Error code")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchFilters({ errorCode: event.target.value })}
+                  value={requestFilters.errorCode}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("条数上限", "Limit")}</span>
+                <input
+                  className="nt-input"
+                  inputMode="numeric"
+                  onChange={(event) => patchFilters({ limit: event.target.value })}
+                  value={requestFilters.limit}
+                />
+              </label>
+            </div>
+            <div className="nt-operations-filter-actions">
+              <button
+                className="nt-btn nt-btn--primary"
+                disabled={editorLocked || requests.loading}
+                onClick={onApplyRequestFilters}
+                type="button"
+              >
+                {requests.loading ? t("查询中…", "Querying…") : t("应用筛选", "Apply filters")}
+              </button>
+              <button
+                className="nt-btn nt-btn--secondary"
+                disabled={editorLocked}
+                onClick={() => onRequestFiltersChange({ ...OPERATIONS_DEFAULT_REQUEST_FILTERS })}
+                type="button"
+              >
+                {t("重置", "Reset")}
+              </button>
+            </div>
+          </article>
+
+          <Panel state={requestSummary} t={t} title={t("请求汇总", "Request summary")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("总请求", "Requests")}
+                    value={formatCount(data.totalRequests)}
+                  />
+                  <StatCard
+                    label={t("成功", "Completed")}
+                    tone="emerald"
+                    value={formatCount(data.completedCount)}
+                    hint={
+                      data.totalRequests > 0
+                        ? formatRate(data.completedCount / data.totalRequests)
+                        : undefined
+                    }
+                  />
+                  <StatCard
+                    label={t("失败", "Failed")}
+                    tone={data.failedCount > 0 ? "danger" : "default"}
+                    value={formatCount(data.failedCount)}
+                  />
+                  <StatCard
+                    label={t("进行中", "Running")}
+                    tone="blue"
+                    value={formatCount(data.runningCount)}
+                  />
+                </div>
+                <dl className="nt-pilot-metric-list">
+                  <div>
+                    <dt>{t("已取消", "Cancelled")}</dt>
+                    <dd>{formatCount(data.cancelledCount)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("可回退失败", "Fallback-eligible failures")}</dt>
+                    <dd>{formatCount(data.fallbackEligibleFailures)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("回退耗尽失败", "Fallback-exhausted failures")}</dt>
+                    <dd>{formatCount(data.fallbackExhaustedFailures)}</dd>
+                  </div>
+                </dl>
+                {data.byErrorCode.length > 0 ? (
+                  <div className="nt-operations-bucket-group">
+                    <h4>{t("错误码分布", "By error code")}</h4>
+                    <dl className="nt-pilot-metric-list">
+                      {data.byErrorCode.slice(0, 8).map((bucket) => (
+                        <div key={bucket.value}>
+                          <dt title={bucket.value}>{formatText(bucket.value)}</dt>
+                          <dd>{formatCount(bucket.count)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </Panel>
+
+          <Panel state={usageSummary} t={t} title={t("用量归档", "Usage archive")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("队列深度", "Queue depth")}
+                    /* -1 means the queue could not be read, not an empty queue. */
+                    value={data.queueDepth < 0 ? PLACEHOLDER : formatCount(data.queueDepth)}
+                    hint={data.queueDepth < 0 ? t("Redis 不可用", "Redis unavailable") : undefined}
+                  />
+                  <StatCard
+                    label={t("近期请求", "Recent requests")}
+                    value={formatCount(data.recentRequestCount)}
+                  />
+                  <StatCard
+                    label={t("近期失败", "Recent failures")}
+                    tone={data.recentFailureCount > 0 ? "danger" : "default"}
+                    value={formatCount(data.recentFailureCount)}
+                  />
+                  <StatCard
+                    label={t("近期 Tokens", "Recent tokens")}
+                    tone="blue"
+                    value={formatCount(data.recentTotalTokens)}
+                  />
+                </div>
+                <dl className="nt-pilot-metric-list">
+                  <div>
+                    <dt>{t("归档失败数", "Archive failures")}</dt>
+                    <dd>{formatCount(data.archiveFailureCount)}</dd>
+                  </div>
+                </dl>
+                {data.alerts.length > 0 ? (
+                  <ul className="nt-validation-list nt-validation-list--warning">
+                    {data.alerts.map((alert) => (
+                      <li key={`${alert.code}-${alert.message}`}>
+                        <strong>{alert.severity}</strong> {alert.message}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </>
+            )}
+          </Panel>
+
+          <Panel state={promptCache} t={t} title={t("提示缓存", "Prompt cache")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("命中率", "Hit rate")}
+                    tone="emerald"
+                    value={formatRate(data.cacheHitRate)}
+                  />
+                  <StatCard
+                    label={t("命中请求", "Cache hits")}
+                    value={formatCount(data.cacheHitRequests)}
+                  />
+                  <StatCard
+                    label={t("节省 Tokens", "Tokens saved")}
+                    value={formatCount(data.totalTokensSaved)}
+                  />
+                  <StatCard
+                    label={t("节省成本", "Estimated savings")}
+                    tone="blue"
+                    value={formatUsd(data.estimatedCostSavedUsd)}
+                  />
+                </div>
+                <dl className="nt-pilot-metric-list">
+                  <div>
+                    <dt>{t("样本请求", "Sampled requests")}</dt>
+                    <dd>{formatCount(data.totalRequests)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("缓存写入请求", "Cache-creation requests")}</dt>
+                    <dd>{formatCount(data.cacheCreationRequests)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("客户端标注", "Client-marked")}</dt>
+                    <dd>{formatCount(data.clientMarkedRequests)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("网关自动标注", "Auto-applied")}</dt>
+                    <dd>{formatCount(data.autoAppliedRequests)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("缓存指令覆盖率", "Cache-control coverage")}</dt>
+                    <dd>{formatRate(data.cacheControlCoverageRate)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("输入价格 / 百万", "Input price / M")}</dt>
+                    <dd>{formatUsd(data.inputPricePerMillion)}</dd>
+                  </div>
+                </dl>
+              </>
+            )}
+          </Panel>
+
+          <Panel
+            emptyLabel={t("没有匹配的请求", "No matching requests")}
+            state={requests}
+            t={t}
+            title={t("请求列表", "Requests")}
+          >
+            {(rows) =>
+              rows.length === 0 ? (
+                <div className="nt-pilot-stats-state" role="status">
+                  {t("没有匹配的请求", "No matching requests")}
+                </div>
+              ) : (
+                <div className="nt-table nt-table--requests">
+                  <div className="nt-table__head">
+                    <span>{t("时间", "Time")}</span>
+                    <span>{t("模型", "Model")}</span>
+                    <span>{t("状态", "Status")}</span>
+                    <span>{t("耗时", "Duration")}</span>
+                    <span>{t("Tokens", "Tokens")}</span>
+                    <span>{t("上游", "Upstream")}</span>
+                  </div>
+                  {rows.map((row) => (
+                    <div className="nt-table__row" key={row.id}>
+                      <span>{formatTimestamp(row.createdAt)}</span>
+                      <span title={formatText(row.requestedModel)}>
+                        {formatText(row.resolvedModel ?? row.requestedModel)}
+                      </span>
+                      <span>
+                        <span className={statusBadgeClass(row.status)}>
+                          {formatText(row.status)}
+                        </span>
+                        {row.stream ? (
+                          <span className="nt-chip nt-chip--muted">{t("流式", "Stream")}</span>
+                        ) : null}
+                      </span>
+                      <span>{formatMs(row.durationMs)}</span>
+                      <span>{formatCount(row.totalTokens)}</span>
+                      <span title={formatText(row.errorSummary)}>
+                        {row.upstreamStatus === null ? PLACEHOLDER : row.upstreamStatus}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+          </Panel>
+        </Section>
+
+        <Section
+          icon={<ShieldAlert size={18} />}
+          id="anomalies"
+          onToggle={toggleSection}
+          open={openSections.includes("anomalies")}
+          title={t("异常与处置", "Anomalies & remediation")}
+        >
+          <Panel state={incidentSummary} t={t} title={t("异常概况", "Incident summary")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("总事件", "Incidents")}
+                    value={formatCount(data.totalIncidents)}
+                  />
+                  <StatCard
+                    label={t("未处理", "Open")}
+                    tone={data.openIncidents > 0 ? "danger" : "default"}
+                    value={formatCount(data.openIncidents)}
+                  />
+                  <StatCard
+                    label={t("已确认", "Acknowledged")}
+                    value={formatCount(data.acknowledgedIncidents)}
+                  />
+                  <StatCard
+                    label={t("已解决", "Resolved")}
+                    tone="emerald"
+                    value={formatCount(data.resolvedIncidents)}
+                  />
+                </div>
+                <dl className="nt-pilot-metric-list">
+                  <div>
+                    <dt>{t("已升级", "Escalated")}</dt>
+                    <dd>{formatCount(data.escalatedIncidents)}</dd>
+                  </div>
+                </dl>
+                <BucketList buckets={data.bySeverity} t={t} title={t("按等级", "By severity")} />
+                <BucketList buckets={data.byCode} t={t} title={t("按代码", "By code")} />
+              </>
+            )}
+          </Panel>
+
+          <Panel state={alertQueue} t={t} title={t("待告警队列", "Alert queue")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("队列事件", "Queued incidents")}
+                    value={formatCount(data.incidentCount)}
+                  />
+                  <StatCard
+                    label={t("已到期", "Due now")}
+                    tone={data.dueCount > 0 ? "danger" : "default"}
+                    value={formatCount(data.dueCount)}
+                  />
+                  <StatCard
+                    label={t("仅到期", "Due only")}
+                    value={data.dueOnly ? t("是", "Yes") : t("否", "No")}
+                  />
+                  <StatCard
+                    label={t("采集时间", "Generated at")}
+                    value={formatTimestamp(data.generatedAt)}
+                  />
+                </div>
+                {data.items.length === 0 ? (
+                  <div className="nt-pilot-stats-state" role="status">
+                    {t("没有待告警事件", "No incidents awaiting alerts")}
+                  </div>
+                ) : (
+                  <div className="nt-table nt-table--alert-queue">
+                    <div className="nt-table__head">
+                      <span>{t("事件", "Incident")}</span>
+                      <span>{t("等级", "Severity")}</span>
+                      <span>{t("下次告警", "Next alert")}</span>
+                      <span>{t("处置动作", "Actions")}</span>
+                    </div>
+                    {data.items.map((item) => (
+                      <div className="nt-table__row" key={item.incident.id}>
+                        <span title={item.incident.summary}>{formatText(item.incident.code)}</span>
+                        <span>
+                          <span className={severityBadgeClass(item.webhookSeverity)}>
+                            {formatText(item.webhookSeverity)}
+                          </span>
+                          {item.alertDue ? (
+                            <span className="nt-badge nt-badge--warning">
+                              {t("到期", "Due")}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span>{formatTimestamp(item.nextAlertDueAt)}</span>
+                        <span title={item.remediationActionKeys.join(", ")}>
+                          {item.remediationActionKeys.length === 0
+                            ? PLACEHOLDER
+                            : formatCount(item.remediationActionKeys.length)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </Panel>
+
+          <Panel
+            emptyLabel={t("暂无异常事件", "No incidents yet")}
+            state={incidents}
+            t={t}
+            title={t("异常事件", "Incidents")}
+          >
+            {() =>
+              sortedIncidents.length === 0 ? (
+                <div className="nt-pilot-stats-state" role="status">
+                  {t("暂无异常事件", "No incidents yet")}
+                </div>
+              ) : (
+                <div className="nt-table nt-table--incidents">
+                  <div className="nt-table__head">
+                    <span>{t("代码", "Code")}</span>
+                    <span>{t("等级", "Severity")}</span>
+                    <span>{t("状态", "Status")}</span>
+                    <span>{t("最近出现", "Last seen")}</span>
+                    <span>{t("操作", "Actions")}</span>
+                  </div>
+                  {sortedIncidents.map((incident) => {
+                    const busy = incidentBusyId === incident.id;
+                    const normalized = incident.status.toLowerCase();
+                    const resolved = normalized === "resolved";
+                    return (
+                      <div className="nt-table__row" key={incident.id}>
+                        <span title={incident.summary}>{formatText(incident.code)}</span>
+                        <span>
+                          <span className={severityBadgeClass(incident.severity)}>
+                            {formatText(incident.severity)}
+                          </span>
+                        </span>
+                        <span>
+                          <span className={statusBadgeClass(incident.status)}>
+                            {formatText(incident.status)}
+                          </span>
+                          {incident.escalationStatus !== "none" ? (
+                            <span className="nt-chip nt-chip--muted">
+                              {formatText(incident.escalationStatus)}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span>{formatTimestamp(incident.lastSeenAt)}</span>
+                        <span className="nt-operations-row-actions">
+                          <button
+                            className="nt-btn nt-btn--secondary"
+                            disabled={editorLocked || busy || normalized !== "open"}
+                            onClick={() => onAcknowledgeIncident(incident.id)}
+                            type="button"
+                          >
+                            {t("确认", "Acknowledge")}
+                          </button>
+                          <button
+                            className="nt-btn nt-btn--outline"
+                            disabled={editorLocked || busy || resolved}
+                            onClick={() => onResolveIncident(incident.id)}
+                            type="button"
+                          >
+                            {t("解决", "Resolve")}
+                          </button>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            }
+          </Panel>
+
+          <Panel
+            emptyLabel={t("暂无异常策略", "No policies yet")}
+            state={policies}
+            t={t}
+            title={t("异常策略", "Anomaly policies")}
+          >
+            {(rows) =>
+              rows.length === 0 ? (
+                <div className="nt-pilot-stats-state" role="status">
+                  {t("暂无异常策略", "No policies yet")}
+                </div>
+              ) : (
+                <div className="nt-table nt-table--policies">
+                  <div className="nt-table__head">
+                    <span>{t("策略", "Policy")}</span>
+                    <span>{t("状态", "Status")}</span>
+                    <span>{t("自动化", "Automation")}</span>
+                    <span>{t("下次同步", "Next sync")}</span>
+                  </div>
+                  {rows.map((policy) => (
+                    <div className="nt-table__row" key={policy.id}>
+                      <span title={policy.id}>{formatText(policy.name)}</span>
+                      <span>
+                        <span className={statusBadgeClass(policy.status)}>
+                          {formatText(policy.status)}
+                        </span>
+                      </span>
+                      <span className="nt-operations-chip-row">
+                        {policy.autoSyncEnabled ? (
+                          <span className="nt-chip nt-chip--muted">{t("同步", "Sync")}</span>
+                        ) : null}
+                        {policy.alertingEnabled ? (
+                          <span className="nt-chip nt-chip--muted">{t("告警", "Alerts")}</span>
+                        ) : null}
+                        {policy.autoEscalateEnabled ? (
+                          <span className="nt-chip nt-chip--muted">{t("升级", "Escalate")}</span>
+                        ) : null}
+                        {policy.autoRemediationEnabled ? (
+                          <span className="nt-chip nt-chip--muted">{t("处置", "Remediate")}</span>
+                        ) : null}
+                        {!policy.autoSyncEnabled &&
+                        !policy.alertingEnabled &&
+                        !policy.autoEscalateEnabled &&
+                        !policy.autoRemediationEnabled
+                          ? PLACEHOLDER
+                          : null}
+                      </span>
+                      <span>
+                        {formatTimestamp(policy.nextSyncDueAt)}
+                        {policy.syncDue ? (
+                          <span className="nt-badge nt-badge--warning">{t("到期", "Due")}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+          </Panel>
+
+          <Panel
+            state={remediationEffectiveness}
+            t={t}
+            title={t("处置成效", "Remediation impact")}
+          >
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard label={t("执行次数", "Runs")} value={formatCount(data.totalRuns)} />
+                  <StatCard
+                    label={t("已评估", "Measured")}
+                    tone="blue"
+                    value={formatCount(data.impactedRuns)}
+                  />
+                  <StatCard
+                    label={t("失败率改善", "Failure rate improved")}
+                    tone="emerald"
+                    value={formatCount(data.failureRate.improvedRuns)}
+                  />
+                  <StatCard
+                    label={t("失败率恶化", "Failure rate regressed")}
+                    tone={data.failureRate.regressedRuns > 0 ? "danger" : "default"}
+                    value={formatCount(data.failureRate.regressedRuns)}
+                  />
+                </div>
+                <dl className="nt-pilot-metric-list">
+                  <div>
+                    <dt>{t("统计窗口", "Window")}</dt>
+                    <dd>{`${data.windowMinutes} min`}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("无法评估", "Unavailable")}</dt>
+                    <dd>{formatCount(data.unavailableRuns)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("完成率改善", "Completion improved")}</dt>
+                    <dd>{formatCount(data.completionRate.improvedRuns)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("首字延迟改善", "First-token improved")}</dt>
+                    <dd>{formatCount(data.firstTokenLatencyMsAvg.improvedRuns)}</dd>
+                  </div>
+                </dl>
+                <BucketList buckets={data.byActionKey} t={t} title={t("按动作", "By action")} />
+                <BucketList buckets={data.byStatus} t={t} title={t("按状态", "By status")} />
+              </>
+            )}
+          </Panel>
+
+          <Panel state={remediationQueue} t={t} title={t("处置队列", "Remediation queue")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("队列项", "Queued items")}
+                    value={formatCount(data.itemCount)}
+                  />
+                  <StatCard
+                    label={t("已到期", "Due now")}
+                    tone={data.dueCount > 0 ? "danger" : "default"}
+                    value={formatCount(data.dueCount)}
+                  />
+                  <StatCard
+                    label={t("仅到期", "Due only")}
+                    value={data.dueOnly ? t("是", "Yes") : t("否", "No")}
+                  />
+                  <StatCard
+                    label={t("采集时间", "Generated at")}
+                    value={formatTimestamp(data.generatedAt)}
+                  />
+                </div>
+                {data.items.length === 0 ? (
+                  <div className="nt-pilot-stats-state" role="status">
+                    {t("处置队列为空", "Remediation queue is empty")}
+                  </div>
+                ) : (
+                  <div className="nt-table nt-table--remediation-queue">
+                    <div className="nt-table__head">
+                      <span>{t("动作", "Action")}</span>
+                      <span>{t("事件", "Incident")}</span>
+                      <span>{t("下次执行", "Next run")}</span>
+                      <span>{t("阻塞原因", "Blocked by")}</span>
+                    </div>
+                    {data.items.map((item) => (
+                      <div
+                        className="nt-table__row"
+                        key={`${item.incident.id}-${item.action.actionKey}`}
+                      >
+                        <span title={item.action.description}>
+                          {formatText(item.action.title || item.action.actionKey)}
+                        </span>
+                        <span title={item.incident.id}>{formatText(item.incident.code)}</span>
+                        <span>
+                          {formatTimestamp(item.nextRunDueAt)}
+                          {item.remediationDue ? (
+                            <span className="nt-badge nt-badge--warning">{t("到期", "Due")}</span>
+                          ) : null}
+                        </span>
+                        <span className="nt-copy">{formatText(item.blockedReason)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </Panel>
+
+          <Panel
+            emptyLabel={t("暂无处置记录", "No remediation runs yet")}
+            state={remediationRuns}
+            t={t}
+            title={t("处置记录", "Remediation runs")}
+          >
+            {(rows) =>
+              rows.length === 0 ? (
+                <div className="nt-pilot-stats-state" role="status">
+                  {t("暂无处置记录", "No remediation runs yet")}
+                </div>
+              ) : (
+                <div className="nt-table nt-table--remediation-runs">
+                  <div className="nt-table__head">
+                    <span>{t("动作", "Action")}</span>
+                    <span>{t("状态", "Status")}</span>
+                    <span>{t("事件", "Incident")}</span>
+                    <span>{t("执行时间", "Executed at")}</span>
+                  </div>
+                  {rows.map((run) => (
+                    <div className="nt-table__row" key={run.id}>
+                      <span title={run.actionKey}>{formatText(run.title || run.actionKey)}</span>
+                      <span>
+                        <span className={statusBadgeClass(run.status)}>
+                          {formatText(run.status)}
+                        </span>
+                        {run.dryRun ? (
+                          <span className="nt-chip nt-chip--muted">{t("演练", "Dry run")}</span>
+                        ) : null}
+                      </span>
+                      <span title={run.incidentId}>{shortId(run.incidentId)}</span>
+                      <span title={formatText(run.errorSummary)}>
+                        {formatTimestamp(run.completedAt ?? run.createdAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+          </Panel>
+
+          <Panel state={hotspots} t={t} title={t("限流热点", "Rate-limit hotspots")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("限流请求", "Rate-limited")}
+                    tone={data.totalRateLimitedRequests > 0 ? "danger" : "emerald"}
+                    value={formatCount(data.totalRateLimitedRequests)}
+                  />
+                  <StatCard
+                    label={t("命中错误码", "Error codes")}
+                    value={formatCount(data.byCode.length)}
+                  />
+                  <StatCard
+                    label={t("受影响项目", "Projects")}
+                    value={formatCount(data.byProject.length)}
+                  />
+                  <StatCard
+                    label={t("受影响模型", "Models")}
+                    tone="blue"
+                    value={formatCount(data.byResolvedModel.length)}
+                  />
+                </div>
+                <div className="nt-operations-bucket-grid">
+                  <BucketList buckets={data.byCode} t={t} title={t("按错误码", "By code")} />
+                  <BucketList buckets={data.byProject} t={t} title={t("按项目", "By project")} />
+                  <BucketList
+                    buckets={data.byResolvedModel}
+                    t={t}
+                    title={t("按模型", "By model")}
+                  />
+                  <BucketList
+                    buckets={data.byRoutePolicyId}
+                    t={t}
+                    title={t("按路由策略", "By route policy")}
+                  />
+                </div>
+              </>
+            )}
+          </Panel>
+
+          <Panel state={exportInventory} t={t} title={t("导出台账", "Export inventory")}>
+            {(data) => (
+              <>
+                <div className="nt-pilot-stats-overview-grid">
+                  <StatCard
+                    label={t("导出数", "Exports")}
+                    value={formatCount(data.totalExports)}
+                  />
+                  <StatCard
+                    label={t("有效", "Active")}
+                    tone="emerald"
+                    value={formatCount(data.activeExports)}
+                  />
+                  <StatCard
+                    label={t("24 小时内过期", "Expiring in 24h")}
+                    tone={data.expiringWithin24Hours > 0 ? "danger" : "default"}
+                    value={formatCount(data.expiringWithin24Hours)}
+                  />
+                  <StatCard
+                    label={t("样本总数", "Samples")}
+                    tone="blue"
+                    value={formatCount(data.totalSampleCount)}
+                  />
+                </div>
+                <dl className="nt-pilot-metric-list">
+                  <div>
+                    <dt>{t("已删除", "Deleted")}</dt>
+                    <dd>{formatCount(data.deletedExports)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("已固定", "Pinned")}</dt>
+                    <dd>{formatCount(data.pinnedExports)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("过期未清理", "Expired but active")}</dt>
+                    <dd>{formatCount(data.expiredActiveExports)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("请求工件", "Request artifacts")}</dt>
+                    <dd>{formatCount(data.totalRequestArtifactCount)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("响应工件", "Response artifacts")}</dt>
+                    <dd>{formatCount(data.totalResponseArtifactCount)}</dd>
+                  </div>
+                </dl>
+              </>
+            )}
+          </Panel>
+
+          <Panel
+            emptyLabel={t("暂无导出记录", "No exports yet")}
+            state={exports}
+            t={t}
+            title={t("导出记录", "Exports")}
+          >
+            {(rows) =>
+              rows.length === 0 ? (
+                <div className="nt-pilot-stats-state" role="status">
+                  {t("暂无导出记录", "No exports yet")}
+                </div>
+              ) : (
+                <div className="nt-table nt-table--exports">
+                  <div className="nt-table__head">
+                    <span>{t("标签", "Label")}</span>
+                    <span>{t("状态", "Status")}</span>
+                    <span>{t("样本", "Samples")}</span>
+                    <span>{t("生成时间", "Created at")}</span>
+                  </div>
+                  {rows.slice(0, 20).map((entry) => (
+                    <div className="nt-table__row" key={entry.exportId}>
+                      <span title={entry.exportId}>
+                        {formatText(entry.label ?? entry.exportId)}
+                      </span>
+                      <span>
+                        <span className={statusBadgeClass(entry.status)}>
+                          {formatText(entry.status)}
+                        </span>
+                      </span>
+                      <span>{formatCount(entry.sampleCount)}</span>
+                      <span title={formatText(entry.retentionExpiresAt)}>
+                        {formatTimestamp(entry.createdAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+          </Panel>
+        </Section>
+      </div>
+    </div>
+  );
+}

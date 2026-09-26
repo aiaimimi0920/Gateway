@@ -27,6 +27,7 @@ pub mod pipeline;
 pub mod preset;
 pub mod protocol;
 pub mod provider_credential_folder_sync;
+pub mod provider_credential_probe_scheduler;
 pub mod provider_credential_refresh;
 pub mod provider_failure;
 pub mod provider_health_state;

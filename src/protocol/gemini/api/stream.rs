@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use crate::error::GatewayError;
 use crate::protocol::canonical::{CanonicalRelayResponse, CanonicalToolCall, TokenUsage};
 use crate::protocol::sse_parse::{format_sse_event, parse_sse_line, SseFrame, SseParseState};
+use crate::protocol::upstream_body::collect_bounded_upstream_body;
 
 use super::{
     map_gemini_finish_reason, map_gemini_finish_reason_to_canonical, parse_gemini_tool_call,
@@ -16,18 +17,23 @@ pub async fn accumulate_gemini_stream(
     response: rquest::Response,
     model: &str,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
-    let body = response.bytes().await.map_err(|e| {
-        GatewayError::server_error(format!("failed to read gemini streaming body: {e}"))
-    })?;
-    accumulate_gemini_stream_bytes(&body, model)
+    let body = collect_bounded_upstream_body(response, "Gemini streaming body").await?;
+    accumulate_gemini_stream_buffer(body, model)
 }
 
+#[cfg(test)]
 pub(crate) fn accumulate_gemini_stream_bytes(
     body: &[u8],
     model: &str,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
+    accumulate_gemini_stream_buffer(body.to_vec(), model)
+}
+
+fn accumulate_gemini_stream_buffer(
+    mut buffer: Vec<u8>,
+    model: &str,
+) -> Result<CanonicalRelayResponse, GatewayError> {
     let mut parser = SseParseState::new();
-    let mut buffer = body.to_vec();
     let mut text = String::new();
     let mut tool_calls = Vec::new();
     let mut prompt_tokens = 0u64;

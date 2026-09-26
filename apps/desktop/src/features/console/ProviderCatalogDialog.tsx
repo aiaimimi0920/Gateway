@@ -1,13 +1,14 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Search, X } from "lucide-react";
+import { X } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import {
   PROVIDER_CATALOG_TEMPLATES,
-  type ProviderCatalogCategory,
   type ProviderCatalogDraft,
   type ProviderCatalogTemplate,
 } from "./providerCatalog";
+import { ProviderCatalogDirectory, type CatalogCategoryFilter } from "./ProviderCatalogDirectory";
+import { ProviderCatalogForm } from "./ProviderCatalogForm";
 
 export type ProviderCatalogDialogProps = {
   open: boolean;
@@ -20,8 +21,6 @@ export type ProviderCatalogDialogProps = {
   onAddAccount(providerId: string): void;
   onSubmit(value: ProviderCatalogDraft): void;
 };
-
-type CatalogCategoryFilter = "all" | ProviderCatalogCategory;
 
 function suggestedCredentialId(providerId: string): string {
   const normalized = providerId
@@ -243,7 +242,6 @@ export function ProviderCatalogDialog({
         >
           <div className="nt-pilot-dialog__header">
             <div>
-              <p className="nt-kicker">// Provider catalog</p>
               <Dialog.Title>{t("添加服务商与账号", "Add provider and account")}</Dialog.Title>
             </div>
             <Dialog.Close asChild>
@@ -260,263 +258,32 @@ export function ProviderCatalogDialog({
           </Dialog.Description>
 
           <form className="nt-provider-catalog" onSubmit={submit}>
-            <aside className="nt-provider-catalog__directory" aria-label={t("服务商目录", "Provider directory")}>
-              <label className="nt-field nt-provider-catalog__search">
-                <span>{t("搜索服务商", "Search providers")}</span>
-                <span className="nt-provider-catalog__search-control">
-                  <Search size={15} aria-hidden="true" />
-                  <input
-                    className="nt-input"
-                    value={query}
-                    placeholder={t("名称、Provider ID 或 preset", "Name, provider ID, or preset")}
-                    onChange={(event) => setQuery(event.currentTarget.value)}
-                  />
-                </span>
-              </label>
-              <label className="nt-field">
-                <span>{t("目录分类", "Catalog category")}</span>
-                <select
-                  className="nt-select"
-                  value={category}
-                  onChange={(event) => setCategory(event.currentTarget.value as CatalogCategoryFilter)}
-                >
-                  <option value="all">{t("全部内建模板", "All built-in templates")}</option>
-                  <option value="mainstream">{t("主流官方服务", "Mainstream official services")}</option>
-                  <option value="aggregator">{t("模型聚合服务", "Model aggregators")}</option>
-                  <option value="search">{t("搜索与抓取", "Search and fetch")}</option>
-                  <option value="third-party-compatible">
-                    {t("第三方兼容服务", "Third-party compatible services")}
-                  </option>
-                </select>
-              </label>
-              <div className="nt-provider-catalog__list">
-                {filteredTemplates.map((template) => {
-                  const selected = template.id === selectedTemplateId;
-                  const alreadyAdded = existingProviderIdSet.has(template.providerId);
-                  return (
-                    <button
-                      className={
-                        selected
-                          ? "nt-provider-catalog__item nt-provider-catalog__item--selected"
-                          : "nt-provider-catalog__item"
-                      }
-                      type="button"
-                      aria-pressed={selected}
-                      key={template.id}
-                      onClick={() => selectTemplate(template)}
-                    >
-                      <span className="nt-provider-catalog__item-copy">
-                        <strong>{t(template.labelZh, template.labelEn)}</strong>
-                        <small>{template.providerId}</small>
-                      </span>
-                      {alreadyAdded ? (
-                        <span className="nt-badge nt-badge--success">
-                          {t("已添加", "Added")}
-                        </span>
-                      ) : template.category === "third-party-compatible" ? (
-                        <span className="nt-badge nt-badge--info">
-                          {t("第三方兼容", "Third-party")}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-                {filteredTemplates.length === 0 ? (
-                  <p className="nt-empty">{t("没有匹配的服务商模板。", "No provider templates match.")}</p>
-                ) : null}
-              </div>
-            </aside>
+            <ProviderCatalogDirectory
+              t={t}
+              query={query}
+              category={category}
+              filteredTemplates={filteredTemplates}
+              selectedTemplateId={selectedTemplateId}
+              existingProviderIdSet={existingProviderIdSet}
+              setQuery={setQuery}
+              setCategory={setCategory}
+              selectTemplate={selectTemplate}
+            />
 
-            <section className="nt-provider-catalog__form">
-              <div className="nt-provider-catalog__summary">
-                <div>
-                  <strong>{t(selectedTemplate.labelZh, selectedTemplate.labelEn)}</strong>
-                  <p>{t(selectedTemplate.descriptionZh, selectedTemplate.descriptionEn)}</p>
-                </div>
-                <span className="nt-badge nt-badge--info">
-                  {selectedTemplate.compatibility === "openai"
-                    ? "OpenAI-compatible"
-                    : selectedTemplate.compatibility === "anthropic"
-                      ? "Anthropic Messages"
-                      : selectedTemplate.compatibility === "search"
-                        ? t("搜索协议", "Search protocol")
-                        : t("原生协议", "Native protocol")}
-                </span>
-              </div>
-
-              {providerAlreadyExists ? (
-                <div className="nt-validation-list nt-validation-list--info" role="status">
-                  <strong>{t("该 Provider 已存在", "This provider already exists")}</strong>
-                  <ul>
-                    <li>
-                      {t(
-                        "不会重复创建 Provider；继续后将打开账号对话框，为现有服务商添加另一个账号。",
-                        "Gateway will not create a duplicate provider. Continue to open the account dialog and add another account.",
-                      )}
-                    </li>
-                  </ul>
-                </div>
-              ) : (
-                <>
-                  <div className="nt-grid nt-grid--2">
-                    <label className="nt-field">
-                      <span>Provider ID</span>
-                      <input
-                        className="nt-input"
-                        value={draft.providerId}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const providerId = event.currentTarget.value;
-                          setDraft((current) => ({
-                            ...current,
-                            providerId,
-                            credentialId:
-                              current.credentialId === suggestedCredentialId(current.providerId)
-                                ? suggestedCredentialId(providerId)
-                                : current.credentialId,
-                          }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field">
-                      <span>{t("显示名称", "Display label")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.providerLabel}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const providerLabel = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, providerLabel }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field">
-                      <span>{t("服务商标识", "Vendor key")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.vendorKey}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const vendorKey = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, vendorKey }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field">
-                      <span>{t("服务商名称", "Vendor name")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.vendorName}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const vendorName = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, vendorName }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field nt-field--wide">
-                      <span>Base URL</span>
-                      <input
-                        className="nt-input"
-                        type="url"
-                        value={draft.baseUrl}
-                        disabled={locked}
-                        placeholder="https://api.example.com/v1"
-                        onChange={(event) => {
-                          const baseUrl = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, baseUrl }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field nt-field--wide">
-                      <span>{t("支持模型与聚合路由", "Supported models and aggregation routes")}</span>
-                      <textarea
-                        className="nt-textarea nt-provider-catalog__models"
-                        rows={4}
-                        value={supportedModelsText}
-                        disabled={locked}
-                        placeholder={t("每行一个模型", "One model per line")}
-                        onChange={(event) => setSupportedModelsText(event.currentTarget.value)}
-                      />
-                    </label>
-                    <label className="nt-field">
-                      <span>{t("首个账号 ID", "First account ID")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.credentialId}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const credentialId = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, credentialId }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field">
-                      <span>{t("账号名称", "Account name")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.accountName}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const accountName = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, accountName }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field nt-field--wide">
-                      <span>API Key</span>
-                      <input
-                        className="nt-input"
-                        type="password"
-                        autoComplete="new-password"
-                        value={draft.apiKey}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const apiKey = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, apiKey }));
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  {!hasSecretAccess ? (
-                    <div className="nt-validation-list nt-validation-list--warning">
-                      <strong>{t("保存密钥需要敏感信息权限", "Secret access is required to save the key")}</strong>
-                      <ul>
-                        <li>
-                          {t(
-                            "服务商和账号可以先写入草稿；正式保存路由配置前需要确认管理员敏感信息访问权限。",
-                            "The provider and account can be added to the draft first; confirm administrator secret access before saving the route config.",
-                          )}
-                        </li>
-                      </ul>
-                      <button className="nt-btn nt-btn--outline" type="button" onClick={onRequestSecretAccess}>
-                        {t("确认敏感信息访问权限", "Confirm secret access")}
-                      </button>
-                    </div>
-                  ) : null}
-                </>
-              )}
-
-              {validationError ? (
-                <div className="nt-validation-list" role="alert">
-                  <strong>{validationError}</strong>
-                </div>
-              ) : null}
-
-              <div className="dialog-actions">
-                <Dialog.Close asChild>
-                  <button className="nt-btn nt-btn--outline" type="button" disabled={locked}>
-                    {t("取消", "Cancel")}
-                  </button>
-                </Dialog.Close>
-                <button className="nt-btn nt-btn--primary" type="submit" disabled={locked}>
-                  {providerAlreadyExists
-                    ? t("为现有服务商添加账号", "Add account to existing provider")
-                    : t("创建服务商与首个账号", "Create provider and first account")}
-                </button>
-              </div>
-            </section>
+            <ProviderCatalogForm
+              t={t}
+              selectedTemplate={selectedTemplate}
+              providerAlreadyExists={providerAlreadyExists}
+              draft={draft}
+              setDraft={setDraft}
+              supportedModelsText={supportedModelsText}
+              setSupportedModelsText={setSupportedModelsText}
+              locked={locked}
+              hasSecretAccess={hasSecretAccess}
+              validationError={validationError}
+              onRequestSecretAccess={onRequestSecretAccess}
+              suggestedCredentialId={suggestedCredentialId}
+            />
           </form>
         </Dialog.Content>
       </Dialog.Portal>

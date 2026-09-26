@@ -1,0 +1,46 @@
+/* account ledger alignment styles; preserve position in styles.css. */
+/* Keep the nine account-ledger columns aligned at every viewport. Narrow
+   workspaces scroll this local branch instead of compressing IDs and evidence. */
+.nt-provider-subtab-panel {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+
+.nt-provider-account-table {
+  --nt-provider-account-columns:
+    minmax(190px, 1.35fr)
+    minmax(140px, 1fr)
+    90px
+    90px
+    minmax(300px, 2fr)
+    76px
+    minmax(180px, 1.2fr)
+    minmax(110px, 0.8fr)
+    108px;
+  min-width: 1300px;
+}
+
+.nt-provider-account-table__head,
+.nt-provider-account-row {
+  grid-template-columns: var(--nt-provider-account-columns);
+}
+
+.nt-provider-account-cell--verification {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.nt-provider-account-cell--verification > .nt-ledger-chip-list {
+  min-width: 0;
+}
+
+.nt-provider-account-cell__evidence {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

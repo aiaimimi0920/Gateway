@@ -115,7 +115,7 @@ async fn enforce_quota(
     else {
         return Ok(());
     };
-    if matches!(credential_id, "dev-mode" | "gateway-key") {
+    if crate::auth::session::is_synthetic_api_key_id(credential_id) {
         return Ok(());
     }
 

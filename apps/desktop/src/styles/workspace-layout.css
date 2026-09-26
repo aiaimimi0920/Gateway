@@ -1,0 +1,317 @@
+/* workspace layout styles; preserve position in styles.css. */
+.nt-board {
+  position: relative;
+  display: flex;
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--nt-color-surface);
+  overflow: hidden;
+}
+
+.nt-board::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: none;
+  opacity: 0.7;
+}
+
+.nt-board__header,
+.nt-hud-strip,
+.nt-alert,
+.nt-stage {
+  position: relative;
+  z-index: 1;
+}
+
+.nt-board__header {
+  display: flex;
+  min-height: 86px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--nt-border);
+  padding: 17px 28px 15px;
+}
+
+.nt-board__heading {
+  min-width: 0;
+}
+
+.nt-board__header h1,
+.nt-card h2,
+.nt-card h3 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.nt-board__header h1 {
+  line-height: 1.02;
+  font-size: clamp(1.6rem, 2.4vw, 2.15rem);
+  letter-spacing: -0.03em;
+}
+
+.nt-board__copy,
+.nt-copy {
+  max-width: 760px;
+  margin: 10px 0 0;
+  color: var(--nt-text-muted);
+  line-height: 1.65;
+}
+
+.nt-hud-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px 28px 0;
+}
+
+.nt-stage {
+  display: grid;
+  gap: 18px;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+  padding: 22px 26px 26px;
+}
+
+.nt-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.nt-card {
+  border-radius: var(--nt-radius-md);
+  padding: 18px;
+}
+
+.nt-card:hover {
+  border-color: color-mix(in srgb, var(--nt-signal) 18%, transparent);
+}
+
+.nt-card--hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  padding: 24px;
+  clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 0 100%);
+}
+
+.nt-card--hero p {
+  line-height: 1.68;
+  color: color-mix(in srgb, var(--nt-text) 76%, transparent);
+}
+
+.nt-card--stat {
+  min-height: 100px;
+}
+
+.nt-card--stat span,
+.nt-stat span {
+  display: block;
+  color: color-mix(in srgb, var(--nt-text) 58%, transparent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.nt-card--stat strong,
+.nt-stat strong {
+  display: block;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+  color: var(--nt-text);
+  font-size: 1.55rem;
+}
+
+.nt-card--panel {
+  display: grid;
+  gap: 16px;
+}
+
+.nt-card__body {
+  display: grid;
+  gap: 16px;
+}
+
+.nt-card-grid,
+.nt-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.nt-console-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.nt-console-rail-toggle {
+  display: inline-grid;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--nt-radius-sm);
+  padding: 0;
+  background: transparent;
+  color: var(--nt-text-muted);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.nt-console-rail-toggle:hover {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-hover);
+  color: var(--nt-signal);
+}
+
+.nt-console-rail-toggle:focus-visible {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: -2px;
+}
+
+.nt-stage--console {
+  /* Pack the workspace rows at the top. The stage is a grid, so its default
+     stretch alignment hands the leftover height to every auto row whenever the
+     content is shorter than the viewport -- which pushed a short workspace (one
+     entitlement group, say) into the middle of the board and inflated the empty
+     validation slot above it. */
+  align-content: start;
+  min-height: 0;
+}
+
+.nt-card-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.nt-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nt-focus-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.nt-account-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 240px) minmax(120px, auto);
+  gap: 12px;
+  align-items: end;
+}
+
+.nt-account-toolbar--picker {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px);
+  margin-bottom: 12px;
+}
+
+.nt-ledger-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.nt-ledger-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.nt-ledger-stat {
+  min-height: 118px;
+}
+
+.nt-ledger-toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(240px, 1.6fr)
+    minmax(140px, 0.8fr)
+    minmax(140px, 0.8fr)
+    minmax(160px, 1fr)
+    minmax(160px, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.nt-ledger-table {
+  display: grid;
+  gap: 8px;
+}
+
+.nt-ledger-table__head,
+.nt-ledger-table__row {
+  display: grid;
+  grid-template-columns:
+    minmax(240px, 1.8fr)
+    minmax(160px, 1fr)
+    minmax(110px, 0.8fr)
+    minmax(180px, 0.9fr);
+  gap: 12px;
+  align-items: start;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.nt-ledger-table__head {
+  color: var(--nt-signal);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--nt-signal) 5%, transparent);
+}
+
+.nt-ledger-table__row {
+  background: var(--nt-color-panel);
+}
+
+.nt-ledger-cell {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--nt-text-muted);
+  font-size: 0.8rem;
+}
+
+.nt-ledger-cell strong {
+  color: var(--nt-text);
+  font-size: 0.96rem;
+}
+
+.nt-ledger-cell > span,
+.nt-ledger-cell > time {
+  overflow-wrap: anywhere;
+}
+
+.nt-ledger-cell--account strong {
+  font-size: 1rem;
+}
+
+.nt-ledger-cell--probe time {
+  color: color-mix(in srgb, var(--nt-text) 46%, transparent);
+  font-family: var(--nt-font-mono);
+  font-size: 0.7rem;
+}
+
+.nt-ledger-cell--actions {
+  align-items: start;
+}
+
+.nt-ledger-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

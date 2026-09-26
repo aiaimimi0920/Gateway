@@ -1,28 +1,24 @@
-use std::fmt;
+mod immutable_json;
+mod types;
+
+#[cfg(test)]
+use immutable_json::json_payloads_equivalent;
+use immutable_json::store_json_if_absent_or_identical;
+use types::serialize_json_canonically;
+pub use types::{
+    RouteConfigRedisActivationOutcome, RouteConfigRedisKeys, RouteConfigRedisRevision,
+    RouteConfigRedisStoreError,
+};
 
 use deadpool_redis::Pool;
 use redis::AsyncCommands;
-use serde::{Deserialize, Serialize};
 
 use crate::console::document::validate_route_document;
-use crate::console::revision::RevisionMetadata;
-use crate::redis::keys;
 use crate::routing::config::{ActiveConfigSource, RouteConfigStore, RouteConfigYaml};
 
-use super::{validate_redis_namespace, TransactionPhase, TransactionRecord};
+use super::{TransactionPhase, TransactionRecord};
 
 const ACTIVATE_SENTINEL_NONE: &str = "__NONE__";
-const NORMALIZE_IMMUTABLE_JSON_LUA: &str = r#"
-local current = redis.call('GET', KEYS[1])
-if current == ARGV[1] then
-  redis.call('SET', KEYS[1], ARGV[2])
-  return 1
-end
-if current == ARGV[2] then
-  return 1
-end
-return 0
-"#;
 const ACTIVATE_LUA: &str = r#"
 local current = redis.call('GET', KEYS[1])
 if not current then current = '' end
@@ -58,174 +54,6 @@ redis.call('SET', KEYS[4], ARGV[5])
 redis.call('SET', KEYS[1], ARGV[2])
 return {'activated'}
 "#;
-
-#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-#[error("{message}")]
-pub struct RouteConfigRedisStoreError {
-    code: &'static str,
-    message: String,
-}
-
-impl RouteConfigRedisStoreError {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-        }
-    }
-
-    fn unavailable(message: impl Into<String>) -> Self {
-        Self::new("console_redis_unavailable", message)
-    }
-
-    fn invalid_state(message: impl Into<String>) -> Self {
-        Self::new("console_redis_invalid_state", message)
-    }
-
-    fn unsupported_cluster(message: impl Into<String>) -> Self {
-        Self::new("console_redis_cluster_unsupported", message)
-    }
-
-    fn from_route_config_error(error: impl std::error::Error) -> Self {
-        Self::invalid_state(error.to_string())
-    }
-
-    pub fn code(&self) -> &'static str {
-        self.code
-    }
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct RouteConfigRedisKeys {
-    namespace: String,
-}
-
-impl fmt::Debug for RouteConfigRedisKeys {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("RouteConfigRedisKeys")
-            .field("namespace", &self.namespace)
-            .field("updates_legacy_mirror", &self.updates_legacy_mirror())
-            .finish()
-    }
-}
-
-impl RouteConfigRedisKeys {
-    pub fn new(namespace: impl Into<String>) -> Result<Self, RouteConfigRedisStoreError> {
-        let namespace = namespace.into();
-        validate_redis_namespace(&namespace)
-            .map_err(|error| RouteConfigRedisStoreError::new(error.code(), error.to_string()))?;
-        Ok(Self { namespace })
-    }
-
-    pub fn namespace(&self) -> &str {
-        &self.namespace
-    }
-
-    pub fn active_revision_key(&self) -> String {
-        keys::console_route_config_active_revision_key(&self.namespace)
-    }
-
-    pub fn active_document_key(&self) -> String {
-        keys::console_route_config_active_document_key(&self.namespace)
-    }
-
-    pub fn revision_key(&self, revision: &str) -> String {
-        keys::console_route_config_revision_key(&self.namespace, revision)
-    }
-
-    pub fn transaction_key(&self, tx_id: &str) -> String {
-        keys::console_route_config_transaction_key(&self.namespace, tx_id)
-    }
-
-    pub fn events_key(&self) -> String {
-        keys::console_route_config_events_key(&self.namespace)
-    }
-
-    pub fn updates_legacy_mirror(&self) -> bool {
-        self.namespace == "default"
-    }
-
-    pub fn legacy_document_key(&self) -> Option<&'static str> {
-        self.updates_legacy_mirror()
-            .then_some(keys::LEGACY_ROUTE_CONFIG_DOCUMENT_KEY)
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct RouteConfigRedisRevision {
-    metadata: RevisionMetadata,
-    document: RouteConfigYaml,
-}
-
-impl RouteConfigRedisRevision {
-    pub fn new(
-        metadata: RevisionMetadata,
-        document: RouteConfigYaml,
-    ) -> Result<Self, RouteConfigRedisStoreError> {
-        metadata
-            .validate()
-            .map_err(RouteConfigRedisStoreError::from_route_config_error)?;
-        let validated = validate_route_document(document).map_err(|diagnostics| {
-            RouteConfigRedisStoreError::invalid_state(diagnostics.to_string())
-        })?;
-        if metadata.document_digest() != validated.document_digest()
-            || metadata.yaml_digest() != validated.yaml_digest()
-        {
-            return Err(RouteConfigRedisStoreError::invalid_state(
-                "Redis route revision metadata does not match the validated document digests",
-            ));
-        }
-        Ok(Self {
-            metadata,
-            document: validated.document().clone(),
-        })
-    }
-
-    pub fn from_json(raw: &str) -> Result<Self, RouteConfigRedisStoreError> {
-        let wire: Self = serde_json::from_str(raw).map_err(|error| {
-            RouteConfigRedisStoreError::invalid_state(format!(
-                "Redis route revision JSON is malformed: {error}"
-            ))
-        })?;
-        Self::new(wire.metadata, wire.document)
-    }
-
-    pub fn to_json(&self) -> Result<String, RouteConfigRedisStoreError> {
-        serialize_json_canonically(self, "Redis route revision JSON serialization failed")
-    }
-
-    pub fn metadata(&self) -> &RevisionMetadata {
-        &self.metadata
-    }
-
-    pub fn document(&self) -> &RouteConfigYaml {
-        &self.document
-    }
-
-    pub fn into_store(
-        self,
-        source: ActiveConfigSource,
-    ) -> Result<RouteConfigStore, RouteConfigRedisStoreError> {
-        let validated = validate_route_document(self.document).map_err(|diagnostics| {
-            RouteConfigRedisStoreError::invalid_state(diagnostics.to_string())
-        })?;
-        RouteConfigStore::from_external_validated(validated, self.metadata, source)
-            .map_err(RouteConfigRedisStoreError::from_route_config_error)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum RouteConfigRedisActivationOutcome {
-    Activated,
-    AlreadyActive,
-    RevisionConflict { actual: Option<String> },
-    PreparedTransactionMismatch,
-    RevisionPayloadMismatch,
-    Indeterminate,
-    Unavailable,
-}
 
 #[derive(Clone, Debug)]
 pub struct RouteConfigRedisStore {
@@ -496,113 +324,6 @@ fn parse_activation_response(
             "Gateway console Redis CAS returned an empty response",
         )),
     }
-}
-
-async fn store_json_if_absent_or_identical(
-    connection: &mut deadpool_redis::Connection,
-    key: &str,
-    value: &str,
-) -> Result<(), RouteConfigRedisStoreError> {
-    let existing: Option<String> = connection.get(key).await.map_err(|error| {
-        RouteConfigRedisStoreError::unavailable(format!(
-            "Gateway console Redis read failed for '{key}': {error}"
-        ))
-    })?;
-    if let Some(existing) = existing {
-        return accept_or_normalize_existing_json(connection, key, &existing, value).await;
-    }
-    let result: Option<String> = redis::cmd("SET")
-        .arg(key)
-        .arg(value)
-        .arg("NX")
-        .query_async(connection)
-        .await
-        .map_err(|error| {
-            RouteConfigRedisStoreError::unavailable(format!(
-                "Gateway console Redis write failed for '{key}': {error}"
-            ))
-        })?;
-    if result.as_deref() != Some("OK") {
-        let existing: Option<String> = connection.get(key).await.map_err(|error| {
-            RouteConfigRedisStoreError::unavailable(format!(
-                "Gateway console Redis re-read failed for '{key}': {error}"
-            ))
-        })?;
-        let Some(existing) = existing else {
-            return Err(RouteConfigRedisStoreError::invalid_state(format!(
-                "Gateway console Redis key '{key}' disappeared before the immutable payload could be stored",
-            )));
-        };
-        return accept_or_normalize_existing_json(connection, key, &existing, value).await;
-    }
-    Ok(())
-}
-
-async fn accept_or_normalize_existing_json(
-    connection: &mut deadpool_redis::Connection,
-    key: &str,
-    existing: &str,
-    value: &str,
-) -> Result<(), RouteConfigRedisStoreError> {
-    if existing == value {
-        return Ok(());
-    }
-    if !json_payloads_equivalent(existing, value) {
-        return Err(RouteConfigRedisStoreError::invalid_state(format!(
-            "Gateway console Redis key '{key}' already contains a different immutable value",
-        )));
-    }
-
-    let normalized = redis::Script::new(NORMALIZE_IMMUTABLE_JSON_LUA)
-        .key(key)
-        .arg(existing)
-        .arg(value)
-        .invoke_async::<i64>(connection)
-        .await
-        .map_err(|error| {
-            RouteConfigRedisStoreError::unavailable(format!(
-                "Gateway console Redis immutable JSON normalization failed for '{key}': {error}"
-            ))
-        })?;
-    if normalized == 1 {
-        return Ok(());
-    }
-
-    let latest: Option<String> = connection.get(key).await.map_err(|error| {
-        RouteConfigRedisStoreError::unavailable(format!(
-            "Gateway console Redis re-read failed for '{key}': {error}"
-        ))
-    })?;
-    if latest.as_deref() == Some(value) {
-        return Ok(());
-    }
-    Err(RouteConfigRedisStoreError::invalid_state(format!(
-        "Gateway console Redis key '{key}' changed while an equivalent immutable JSON payload was normalized",
-    )))
-}
-
-fn json_payloads_equivalent(left: &str, right: &str) -> bool {
-    if left == right {
-        return true;
-    }
-    match (
-        serde_json::from_str::<serde_json::Value>(left),
-        serde_json::from_str::<serde_json::Value>(right),
-    ) {
-        (Ok(left), Ok(right)) => left == right,
-        _ => false,
-    }
-}
-
-fn serialize_json_canonically<T: Serialize>(
-    value: &T,
-    context: &str,
-) -> Result<String, RouteConfigRedisStoreError> {
-    let value = serde_json::to_value(value).map_err(|error| {
-        RouteConfigRedisStoreError::invalid_state(format!("{context}: {error}"))
-    })?;
-    serde_json::to_string(&value)
-        .map_err(|error| RouteConfigRedisStoreError::invalid_state(format!("{context}: {error}")))
 }
 
 fn serialize_transaction_record(

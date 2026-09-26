@@ -11,6 +11,8 @@ SCRIPTS_NODE_MODULES_STAMP="${SCRIPTS_ROOT}/node_modules/.gateway-package-lock.s
 : "${GATEWAY_DEV_CARGO_BUILD_JOBS:=4}"
 : "${GATEWAY_DEV_CARGO_INCREMENTAL:=1}"
 : "${GATEWAY_DEV_RUN_AUDIT:=0}"
+: "${GATEWAY_DEV_WATCH:=0}"
+: "${GATEWAY_DEV_MODE:=all}"
 export CARGO_BUILD_JOBS="${GATEWAY_DEV_CARGO_BUILD_JOBS}"
 export CARGO_INCREMENTAL="${GATEWAY_DEV_CARGO_INCREMENTAL}"
 
@@ -101,21 +103,7 @@ cleanup() {
   exit "${exit_code}"
 }
 
-main() {
-  trap cleanup EXIT INT TERM
-
-  cd "${WORKSPACE_ROOT}"
-  log "using CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS} CARGO_INCREMENTAL=${CARGO_INCREMENTAL}"
-  assert_supported_node_version
-  ensure_runtime_layout
-  ensure_node_dependencies "${SCRIPTS_ROOT}" "${SCRIPTS_NODE_MODULES_STAMP}" "browser worker"
-  ensure_node_dependencies "${FRONTEND_ROOT}" "${FRONTEND_NODE_MODULES_STAMP}" "desktop UI"
-  audit_production_dependencies "${SCRIPTS_ROOT}" "browser worker"
-  audit_production_dependencies "${FRONTEND_ROOT}" "desktop UI"
-  cleanup_frontend_staging
-
-  rm -f "${FRONTEND_READY_MARKER}"
-  export GATEWAY_PREBUILT_WEB_UI=1
+run_watch_mode() {
   export WATCHPACK_POLLING=true
   export CHOKIDAR_USEPOLLING=1
 
@@ -137,6 +125,76 @@ main() {
   gateway_watch_pid=$!
 
   wait -n "${frontend_watch_pid}" "${gateway_watch_pid}"
+}
+
+prepare_build_environment() {
+  assert_supported_node_version
+  ensure_node_dependencies "${SCRIPTS_ROOT}" "${SCRIPTS_NODE_MODULES_STAMP}" "browser worker"
+  ensure_node_dependencies "${FRONTEND_ROOT}" "${FRONTEND_NODE_MODULES_STAMP}" "desktop UI"
+  audit_production_dependencies "${SCRIPTS_ROOT}" "browser worker"
+  audit_production_dependencies "${FRONTEND_ROOT}" "desktop UI"
+  cleanup_frontend_staging
+  rm -f "${FRONTEND_READY_MARKER}"
+  export GATEWAY_PREBUILT_WEB_UI=1
+}
+
+build_once() {
+  log "building frontend once for stable runtime"
+  npm run build:web --prefix apps/desktop
+  wait_for_frontend_dist
+
+  log "building gateway once for stable runtime"
+  cargo build --locked --bin gateway
+  cleanup_frontend_staging
+}
+
+start_stable_runtime() {
+  if [[ ! -x "${WORKSPACE_ROOT}/target/debug/gateway" ]]; then
+    log "stable Gateway binary is missing; run the gateway-build service first"
+    return 1
+  fi
+  wait_for_frontend_dist
+  log "starting stable gateway without polling watchers"
+  trap - EXIT INT TERM
+  exec "${WORKSPACE_ROOT}/target/debug/gateway"
+}
+
+main() {
+  trap cleanup EXIT INT TERM
+
+  cd "${WORKSPACE_ROOT}"
+  log "mode=${GATEWAY_DEV_MODE} watch=${GATEWAY_DEV_WATCH} CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS} CARGO_INCREMENTAL=${CARGO_INCREMENTAL}"
+  ensure_runtime_layout
+
+  if [[ "${GATEWAY_DEV_MODE}" == "build" ]]; then
+    prepare_build_environment
+    build_once
+    log "build-only mode completed"
+    return 0
+  fi
+
+  if [[ "${GATEWAY_DEV_MODE}" == "run" ]]; then
+    if [[ "${GATEWAY_DEV_WATCH}" == "1" ]]; then
+      prepare_build_environment
+      run_watch_mode
+    else
+      start_stable_runtime
+    fi
+    return 0
+  fi
+
+  if [[ "${GATEWAY_DEV_MODE}" != "all" ]]; then
+    log "unsupported GATEWAY_DEV_MODE=${GATEWAY_DEV_MODE}; expected build, run, or all"
+    return 1
+  fi
+
+  prepare_build_environment
+  if [[ "${GATEWAY_DEV_WATCH}" == "1" ]]; then
+    run_watch_mode
+  else
+    build_once
+    start_stable_runtime
+  fi
 }
 
 main "$@"

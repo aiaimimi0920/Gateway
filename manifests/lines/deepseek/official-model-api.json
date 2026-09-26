@@ -29,9 +29,9 @@
   "verification": {
     "recommendedCargoTargetDirSlug": "deepseek-openai-official-model-api-verify",
     "focusedCargoFilters": [
-      "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
-      "protocol::tool_inject::tests::deepseek_needs_injection",
-      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+      "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+      "protocol::tool_inject::tests::policy::deepseek_needs_injection",
+      "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
     ],
     "fixtureSuiteId": "deepseek_fixture",
     "liveSuiteId": "deepseek_live",

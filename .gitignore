@@ -30,6 +30,8 @@
 /release/
 /output/
 /evidence/
+/artifacts/
+/.tmp/
 /*.log
 /tmp-*
 /_temp/

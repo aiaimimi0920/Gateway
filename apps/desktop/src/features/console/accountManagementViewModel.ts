@@ -2,63 +2,52 @@ import type {
   ConsoleAccountGroupSummaryResponse,
   ConsoleCredentialProbeResult,
   ConsoleCredentialProbeStatus,
-  ConsoleRouteDocument,
 } from "../../api/contracts";
+import {
+  hostLabelFromUrl,
+  optionalString,
+  providerVendorMetadata,
+} from "./accountCatalogSupport";
+import type {
+  AccountEnabledFilter,
+  AccountMembershipFilter,
+  RouteAccountCatalog,
+  RouteManagedAccount,
+  RouteProviderBucket,
+} from "./accountCatalogTypes";
 import {
   providerVerificationFor,
   type ProviderVerificationStatus,
 } from "./providerVerificationRegistry";
+import { providerBrandLabel } from "./providerBrandLabel";
 
-export type RouteAccountGroup = {
-  id: string;
-  name: string;
-  description: string | null;
-  billingMultiplier: number;
-  enabled: boolean;
-  notes: string | null;
-  providerCredentialIds: string[];
-};
-
-export type RouteManagedAccount = {
-  id: string;
-  displayName: string;
-  vendorKey: string;
-  vendorName: string;
-  providerId: string;
-  providerLabel: string;
-  providerPreset: string | null;
-  baseUrl: string | null;
-  hostLabel: string | null;
-  mode: "credential" | "provider-default";
-  enabled: boolean;
-  supportedModels: string[];
-  groupIds: string[];
-  groupNames: string[];
-};
-
-export type RouteProviderBucket = {
-  key: string;
-  label: string;
-  vendorKey: string;
-  accountCount: number;
-  providers: Array<{
-    id: string;
-    label: string;
-    preset: string | null;
-    baseUrl: string | null;
-    accounts: RouteManagedAccount[];
-  }>;
-};
-
-export type RouteAccountCatalog = {
-  groups: RouteAccountGroup[];
-  accounts: RouteManagedAccount[];
-  providerBuckets: RouteProviderBucket[];
-  ungroupedCount: number;
-};
-
-export type AccountMembershipFilter = "all" | "grouped" | "ungrouped";
-export type AccountEnabledFilter = "all" | "enabled" | "disabled";
+export { hostLabelFromUrl } from "./accountCatalogSupport";
+export type {
+  AccountEnabledFilter,
+  AccountMembershipFilter,
+  RouteAccountCatalog,
+  RouteAccountGroup,
+  RouteManagedAccount,
+  RouteProviderBucket,
+} from "./accountCatalogTypes";
+export {
+  buildRouteAccountCatalog,
+  providerDefaultAccountId,
+  routeAccountGroupsFromDocument,
+} from "./routeDocumentAccountCatalog";
+export {
+  buildCredentialGroupDirectory,
+  buildGroupMemberCandidates,
+} from "./groupDirectoryViewModel";
+export type {
+  AccountGroupDraftLike,
+  CredentialGroupDirectoryItem,
+  CredentialGroupModelProviderMetrics,
+  CredentialGroupModelScope,
+  CredentialGroupProviderScope,
+  CredentialGroupScopeMember,
+  GroupMemberCandidate,
+} from "./groupDirectoryViewModel";
 
 export type GeminiLogicalChannel = {
   key: "logical:gemini" | "logical:gemini-business" | "logical:gemini-canvas";
@@ -74,17 +63,6 @@ export type CredentialProbeViewResult = ConsoleCredentialProbeResult | {
   status: ConsoleCredentialProbeStatus | "error";
   message: string;
   checkedAt: string;
-};
-
-export type AccountGroupDraftLike = {
-  id: string;
-  groupId: string;
-  name: string;
-  description: string;
-  billingMultiplier: string;
-  enabled: boolean;
-  notes: string;
-  providerCredentialIds: string[];
 };
 
 export type AccountLedgerRow = {
@@ -111,48 +89,6 @@ export type AccountLedgerRow = {
   verificationNote: string;
   searchText: string;
 };
-
-export type CredentialGroupDirectoryItem = {
-  rowId: string;
-  groupId: string;
-  name: string;
-  description: string;
-  billingMultiplier: string;
-  enabled: boolean;
-  notes: string;
-  memberCount: number;
-  providerLabels: string[];
-  modelLabels: string[];
-};
-
-export type GroupMemberCandidate = {
-  accountId: string;
-  displayName: string;
-  providerId: string;
-  providerLabel: string;
-  vendorLabel: string;
-  mode: "credential" | "provider-default";
-  enabled: boolean;
-  groupIds: string[];
-  groupLabels: string[];
-  selected: boolean;
-  searchText: string;
-};
-
-type ProviderVendorMetadata = {
-  bucketKey: string;
-  key: string;
-  name: string;
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function optionalString(record: Record<string, unknown>, key: string): string | null {
-  const value = record[key];
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-}
 
 export function resolveGeminiLogicalChannel(
   providerId: string,
@@ -200,249 +136,6 @@ export function resolveGeminiLogicalChannel(
     };
   }
   return null;
-}
-
-function normalizeBucketKey(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function providerVendorMetadata(
-  provider: Record<string, unknown>,
-  providerId: string,
-  providerLabel: string,
-  keyField: "vendor_key" | "vendorKey",
-  nameField: "vendor_name" | "vendorName",
-): ProviderVendorMetadata {
-  const explicitKey = optionalString(provider, keyField);
-  const explicitName = optionalString(provider, nameField);
-  if (explicitKey) {
-    return {
-      bucketKey: `vendor:${normalizeBucketKey(explicitKey) || explicitKey.toLocaleLowerCase()}`,
-      key: explicitKey,
-      name: explicitName ?? explicitKey,
-    };
-  }
-  if (explicitName) {
-    const normalizedName = normalizeBucketKey(explicitName) || providerId;
-    return {
-      bucketKey: `vendor-name:${normalizedName}`,
-      key: normalizedName,
-      name: explicitName,
-    };
-  }
-  return {
-    bucketKey: `provider:${providerId}`,
-    key: providerId,
-    name: providerLabel,
-  };
-}
-
-function readStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .filter((entry): entry is string => typeof entry === "string")
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-}
-
-export function hostLabelFromUrl(url: string | null): string | null {
-  if (!url) {
-    return null;
-  }
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
-}
-
-export function providerDefaultAccountId(providerId: string): string {
-  return `${providerId}::default`;
-}
-
-export function routeAccountGroupsFromDocument(
-  document: ConsoleRouteDocument,
-): RouteAccountGroup[] {
-  const groupsValue = (document as Record<string, unknown>).account_groups;
-  if (!Array.isArray(groupsValue)) {
-    return [];
-  }
-  return groupsValue
-    .filter(isRecord)
-    .map((entry, index) => ({
-      id:
-        typeof entry.id === "string" && entry.id.trim().length > 0
-          ? entry.id.trim()
-          : `group-${index}`,
-      name:
-        typeof entry.name === "string" && entry.name.trim().length > 0
-          ? entry.name.trim()
-          : `Group ${index + 1}`,
-      description:
-        typeof entry.description === "string" && entry.description.trim().length > 0
-          ? entry.description.trim()
-          : null,
-      billingMultiplier:
-        typeof entry.billing_multiplier === "number" &&
-        Number.isFinite(entry.billing_multiplier) &&
-        entry.billing_multiplier >= 0
-          ? entry.billing_multiplier
-          : 1,
-      enabled: typeof entry.enabled === "boolean" ? entry.enabled : true,
-      notes:
-        typeof entry.notes === "string" && entry.notes.trim().length > 0
-          ? entry.notes.trim()
-          : null,
-      providerCredentialIds: readStringArray(entry.provider_credential_ids),
-    }));
-}
-
-export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteAccountCatalog {
-  const groups = routeAccountGroupsFromDocument(document);
-  const memberships = new Map<string, RouteAccountGroup[]>();
-  for (const group of groups) {
-    for (const providerCredentialId of group.providerCredentialIds) {
-      const existing = memberships.get(providerCredentialId) ?? [];
-      existing.push(group);
-      memberships.set(providerCredentialId, existing);
-    }
-  }
-
-  const providerBucketsMap = new Map<string, RouteProviderBucket>();
-  const accounts: RouteManagedAccount[] = [];
-
-  for (const provider of document.providers) {
-    if (!isRecord(provider)) {
-      continue;
-    }
-    const providerId = typeof provider.id === "string" ? provider.id.trim() : "";
-    if (providerId.length === 0) {
-      continue;
-    }
-    const providerLabel =
-      typeof provider.label === "string" && provider.label.trim().length > 0
-        ? provider.label.trim()
-        : providerId;
-    const providerPreset =
-      typeof provider.preset === "string" && provider.preset.trim().length > 0
-        ? provider.preset.trim()
-        : null;
-    const providerBaseUrl =
-      typeof provider.base_url === "string" && provider.base_url.trim().length > 0
-        ? provider.base_url.trim()
-        : null;
-    const providerSupportedModels = readStringArray(provider.supported_models);
-    const vendor = providerVendorMetadata(
-      provider,
-      providerId,
-      providerLabel,
-      "vendor_key",
-      "vendor_name",
-    );
-    const providerAccounts: RouteManagedAccount[] = [];
-
-    const credentials = Array.isArray(provider.credentials)
-      ? provider.credentials.filter(isRecord)
-      : [];
-    if (credentials.length > 0) {
-      credentials.forEach((credential, index) => {
-        const accountId =
-          typeof credential.id === "string" && credential.id.trim().length > 0
-            ? credential.id.trim()
-            : `${providerId}-cred-${index}`;
-        const displayName =
-          typeof credential.account_name === "string" && credential.account_name.trim().length > 0
-            ? credential.account_name.trim()
-            : accountId;
-        const baseUrl =
-          typeof credential.base_url === "string" && credential.base_url.trim().length > 0
-            ? credential.base_url.trim()
-            : providerBaseUrl;
-        const supportedModels = readStringArray(credential.supported_models);
-        const accountGroups = memberships.get(accountId) ?? [];
-        const account: RouteManagedAccount = {
-          id: accountId,
-          displayName,
-          vendorKey: vendor.key,
-          vendorName: vendor.name,
-          providerId,
-          providerLabel,
-          providerPreset,
-          baseUrl,
-          hostLabel: hostLabelFromUrl(baseUrl),
-          mode: "credential",
-          enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
-          supportedModels: supportedModels.length > 0 ? supportedModels : providerSupportedModels,
-          groupIds: accountGroups.map((group) => group.id),
-          groupNames: accountGroups.map((group) => group.name),
-        };
-        providerAccounts.push(account);
-        accounts.push(account);
-      });
-    } else {
-      const accountId = providerDefaultAccountId(providerId);
-      const accountGroups = memberships.get(accountId) ?? [];
-      const account: RouteManagedAccount = {
-        id: accountId,
-        displayName:
-          typeof provider.account_name === "string" && provider.account_name.trim().length > 0
-            ? provider.account_name.trim()
-            : providerLabel,
-        vendorKey: vendor.key,
-        vendorName: vendor.name,
-        providerId,
-        providerLabel,
-        providerPreset,
-        baseUrl: providerBaseUrl,
-        hostLabel: hostLabelFromUrl(providerBaseUrl),
-        mode: "provider-default",
-        enabled: typeof provider.enabled === "boolean" ? provider.enabled : true,
-        supportedModels: providerSupportedModels,
-        groupIds: accountGroups.map((group) => group.id),
-        groupNames: accountGroups.map((group) => group.name),
-      };
-      providerAccounts.push(account);
-      accounts.push(account);
-    }
-
-    providerAccounts.sort((left, right) => left.displayName.localeCompare(right.displayName));
-    const bucket = providerBucketsMap.get(vendor.bucketKey) ?? {
-      key: vendor.bucketKey,
-      label: vendor.name,
-      vendorKey: vendor.key,
-      accountCount: 0,
-      providers: [],
-    };
-    bucket.providers.push({
-      id: providerId,
-      label: providerLabel,
-      preset: providerPreset,
-      baseUrl: providerBaseUrl,
-      accounts: providerAccounts,
-    });
-    bucket.accountCount += providerAccounts.length;
-    providerBucketsMap.set(vendor.bucketKey, bucket);
-  }
-
-  const providerBuckets = [...providerBucketsMap.values()]
-    .map((bucket) => ({
-      ...bucket,
-      providers: [...bucket.providers].sort((left, right) => left.label.localeCompare(right.label)),
-    }))
-    .sort((left, right) => left.label.localeCompare(right.label));
-
-  return {
-    groups: [...groups].sort((left, right) => left.name.localeCompare(right.name)),
-    accounts: [...accounts].sort((left, right) => left.displayName.localeCompare(right.displayName)),
-    providerBuckets,
-    ungroupedCount: accounts.filter((account) => account.groupIds.length === 0).length,
-  };
 }
 
 function normalizeSummaryAccountMode(mode: string): RouteManagedAccount["mode"] {
@@ -512,7 +205,12 @@ export function buildRouteAccountCatalogFromSummary(
       .filter((account) => account.providerId === provider.id)
       .sort((left, right) => left.displayName.localeCompare(right.displayName));
     const providerLabel =
-      provider.label || provider.preset || hostLabelFromUrl(provider.baseUrl ?? null) || provider.id;
+      providerBrandLabel({
+        providerId: provider.id,
+        providerPreset: provider.preset ?? null,
+        providerLabel: provider.label ?? null,
+        vendorName: provider.vendorName ?? null,
+      }) || hostLabelFromUrl(provider.baseUrl ?? null) || provider.id;
     const vendor = providerVendorMetadata(
       provider as unknown as Record<string, unknown>,
       provider.id,
@@ -650,6 +348,7 @@ export function buildAccountLedgerRows(
       searchText: [
         account.displayName,
         account.id,
+        account.providerId,
         account.providerLabel,
         account.vendorName,
         ...account.supportedModels,
@@ -709,82 +408,4 @@ export function filterAccountLedgerRows(
     }
     return true;
   });
-}
-
-export function buildCredentialGroupDirectory(
-  catalog: RouteAccountCatalog,
-  rows: AccountGroupDraftLike[],
-): CredentialGroupDirectoryItem[] {
-  const accountsById = new Map(catalog.accounts.map((account) => [account.id, account]));
-  return rows.map((row) => {
-    const members = row.providerCredentialIds
-      .map((credentialId) => accountsById.get(credentialId))
-      .filter((account): account is RouteManagedAccount => Boolean(account));
-    const providerLabels = [...new Set(members.map((member) => member.providerLabel))].sort(
-      (left, right) => left.localeCompare(right),
-    );
-    const modelLabels = [...new Set(members.flatMap((member) => member.supportedModels))].sort(
-      (left, right) => left.localeCompare(right),
-    );
-    return {
-      rowId: row.id,
-      groupId: row.groupId,
-      name: row.name,
-      description: row.description,
-      billingMultiplier: row.billingMultiplier,
-      enabled: row.enabled,
-      notes: row.notes,
-      memberCount: members.length,
-      providerLabels,
-      modelLabels,
-    };
-  });
-}
-
-export function buildGroupMemberCandidates(
-  accounts: RouteManagedAccount[],
-  filters: {
-    selectedCredentialIds: string[];
-    query: string;
-    mode: "all" | "members" | "ungrouped";
-  },
-): GroupMemberCandidate[] {
-  const selectedIds = new Set(filters.selectedCredentialIds);
-  const normalizedQuery = filters.query.trim().toLowerCase();
-  return accounts
-    .map((account) => ({
-      accountId: account.id,
-      displayName: account.displayName,
-      providerId: account.providerId,
-      providerLabel: account.providerLabel,
-      vendorLabel: account.vendorName,
-      mode: account.mode,
-      enabled: account.enabled,
-      groupIds: [...account.groupIds],
-      groupLabels: [...account.groupNames],
-      selected: selectedIds.has(account.id),
-      searchText: [
-        account.displayName,
-        account.id,
-        account.providerLabel,
-        account.vendorName,
-        ...account.supportedModels,
-        ...account.groupNames,
-      ]
-        .join(" ")
-        .toLowerCase(),
-    }))
-    .filter((account) => {
-      if (filters.mode === "members" && !account.selected) {
-        return false;
-      }
-      if (filters.mode === "ungrouped" && account.groupIds.length > 0 && !account.selected) {
-        return false;
-      }
-      if (normalizedQuery.length > 0 && !account.searchText.includes(normalizedQuery)) {
-        return false;
-      }
-      return true;
-    })
-    .sort((left, right) => left.displayName.localeCompare(right.displayName));
 }

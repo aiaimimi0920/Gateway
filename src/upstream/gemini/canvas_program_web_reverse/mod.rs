@@ -31,6 +31,7 @@ pub use browser_operation::{
     append_api_key_query_if_missing, apply_program_connected_fetch_identity_contract,
     build_browser_operation_invocation_input, build_browser_operation_invocation_input_from_config,
     build_connected_fetch_invocation_input, build_connected_fetch_invocation_input_with_method,
+    build_connected_fetch_invocation_input_with_method_for_payload,
     connected_fetch_mode_is_canvas_page_music_no_key, connected_fetch_mode_is_canvas_page_no_key,
     connected_fetch_mode_is_canvas_preview_music_no_key,
     connected_fetch_mode_is_canvas_preview_no_key, connected_fetch_mode_is_canvas_proxy,

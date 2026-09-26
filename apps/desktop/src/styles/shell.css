@@ -1,0 +1,346 @@
+/* shell styles; preserve position in styles.css. */
+.nt-shell {
+  --nt-shell-rail-width: 186px;
+  --nt-shell-titlebar-height: 50px;
+  display: grid;
+  grid-template-columns: var(--nt-shell-rail-width) minmax(0, 1fr);
+  grid-template-rows: var(--nt-shell-titlebar-height) minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(120deg, var(--nt-hover), transparent 38%),
+    var(--nt-color-background);
+  transition: --nt-shell-rail-width 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nt-shell--rail-collapsed,
+.nt-shell--console-rail-collapsed {
+  --nt-shell-rail-width: 52px;
+}
+
+.nt-card,
+.nt-terminal {
+  position: relative;
+  border: 1px solid var(--nt-border);
+  background: var(--nt-color-panel);
+  box-shadow: var(--nt-shadow-surface);
+}
+
+.nt-rail {
+  display: flex;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0;
+  border-right: 1px solid var(--nt-border);
+  padding: 0;
+  background: var(--nt-rail);
+  overflow: hidden;
+}
+
+.nt-titlebar {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  grid-column: 2;
+  grid-row: 1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-bottom: 1px solid var(--nt-border);
+  background: var(--nt-rail);
+  user-select: none;
+}
+
+.nt-titlebar__drag {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+  padding-left: 6px;
+  cursor: default;
+}
+
+.nt-titlebar__controls {
+  display: flex;
+  align-items: center;
+  height: var(--nt-shell-titlebar-height);
+  gap: 2px;
+  padding-right: 2px;
+}
+
+.nt-shell-icon-button,
+.nt-window-control {
+  display: grid;
+  border: 0;
+  padding: 0;
+  place-items: center;
+  background: transparent;
+  color: var(--nt-text-muted);
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.nt-shell-icon-button {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--nt-radius-md);
+}
+
+.nt-shell-icon-button:hover,
+.nt-window-control:hover {
+  background: var(--nt-hover);
+  color: var(--nt-text);
+}
+
+.nt-shell-icon-button:focus-visible,
+.nt-window-control:focus-visible {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: -2px;
+}
+
+.nt-shell-icon-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.nt-titlebar__back {
+  flex: 0 0 40px;
+  width: 40px;
+}
+
+.nt-window-control {
+  width: 46px;
+  height: 100%;
+}
+
+.nt-window-control--close:hover {
+  background: var(--nt-danger);
+  color: var(--nt-color-focus-surface);
+}
+
+.nt-brand {
+  display: flex;
+  height: var(--nt-shell-titlebar-height, 50px);
+  flex: 0 0 var(--nt-shell-titlebar-height, 50px);
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--nt-border);
+  padding: 0 8px;
+  overflow: hidden;
+  transition:
+    gap 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nt-brand__name {
+  flex: 0 1 108px;
+  min-width: 0;
+  max-width: 108px;
+  overflow: hidden;
+  /* Loom keeps the wordmark on the plain theme text color: near-white on the
+     dark rail, dark ink once data-nt-theme="light" flips the palette. */
+  color: var(--nt-text);
+  font-size: 0.98rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition:
+    flex-basis 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 120ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nt-brand__mark {
+  display: grid;
+  flex: 0 0 22px;
+  width: 22px;
+  place-items: center;
+  transition:
+    flex-basis 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 120ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nt-mark {
+  width: 22px;
+  height: 22px;
+}
+
+.nt-rail__nav,
+.nt-rail__utility-nav {
+  display: grid;
+  gap: 5px;
+}
+
+.nt-rail__nav {
+  margin: 10px 8px 0;
+  min-height: 0;
+  overflow: hidden auto;
+  scrollbar-width: thin;
+}
+
+.nt-rail__item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 7px;
+  width: 100%;
+  height: 36px;
+  min-height: 36px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--nt-radius-md);
+  padding: 3px 8px 3px 5px;
+  background: transparent;
+  color: var(--nt-text-muted);
+  text-align: left;
+  cursor: pointer;
+  /* Collapsing glides gap + padding on the same curve as the rail width so the
+     icon travels with the rail instead of snapping ahead of it. */
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    gap 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nt-rail__item:hover {
+  border-color: color-mix(in srgb, var(--nt-signal) 32%, transparent);
+  background: var(--nt-hover);
+  color: var(--nt-text);
+}
+
+.nt-rail__item--active {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-signal-soft);
+  color: var(--nt-text);
+}
+
+.nt-rail__icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--nt-text-muted);
+  transition: color 160ms ease;
+}
+
+.nt-rail__item:hover .nt-rail__icon,
+.nt-rail__item--active .nt-rail__icon {
+  color: var(--nt-signal);
+}
+
+/* One icon + one label per rail row; the label collapses to zero width when the rail folds. */
+.nt-rail__label {
+  display: block;
+  min-width: 0;
+  max-width: 112px;
+  overflow: hidden;
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 28px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    max-width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 120ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nt-rail__item span {
+  font-weight: 800;
+}
+
+.nt-rail__utility {
+  display: grid;
+  gap: 6px;
+  margin: auto 8px 9px;
+  border-top: 1px solid var(--nt-border);
+  padding-top: 8px;
+}
+
+.nt-rail__status {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 4px;
+  color: var(--nt-text-muted);
+  line-height: 1.5;
+}
+
+.nt-rail__status .nt-chip {
+  padding: 3px 8px;
+  font-size: 0.66rem;
+}
+
+.nt-rail__status .nt-mini-list {
+  gap: 4px;
+  font-size: 0.7rem;
+}
+
+.nt-shell--rail-collapsed .nt-rail__status,
+.nt-shell--console-rail-collapsed .nt-rail__status {
+  display: none;
+}
+
+.nt-shell--rail-collapsed .nt-brand,
+.nt-shell--console-rail-collapsed .nt-brand {
+  gap: 0;
+  padding-inline: 5px;
+}
+
+.nt-shell--rail-collapsed .nt-brand__name,
+.nt-shell--console-rail-collapsed .nt-brand__name {
+  flex-basis: 0;
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
+.nt-shell--rail-collapsed .nt-rail__label,
+.nt-shell--console-rail-collapsed .nt-rail__label {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
+.nt-shell--rail-collapsed .nt-brand__mark,
+.nt-shell--console-rail-collapsed .nt-brand__mark {
+  flex-basis: 0;
+  width: 0;
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
+.nt-shell--rail-collapsed .nt-rail__item,
+.nt-shell--console-rail-collapsed .nt-rail__item {
+  /* Column track stays 28px + 1fr: only gap/padding animate, so the icon keeps
+     its own box and never jumps a pixel on either axis. */
+  gap: 0;
+  padding: 3px;
+}
+
+.nt-rail__footer {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+  border-top: 1px solid color-mix(in srgb, var(--nt-text) 9%, transparent);
+  padding-top: 16px;
+  color: var(--nt-text-muted);
+  line-height: 1.6;
+}
+
+.nt-rail__footer-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.nt-rail__footer-actions .nt-btn {
+  justify-content: center;
+}

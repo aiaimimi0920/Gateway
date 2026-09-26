@@ -1,0 +1,463 @@
+/* workspace controls styles; preserve position in styles.css. */
+.nt-workspace-ops {
+  display: grid;
+  gap: 12px;
+  padding: 0 2px;
+}
+
+.nt-account-picker {
+  max-height: 520px;
+  overflow: auto;
+  overscroll-behavior: auto;
+  scrollbar-gutter: stable;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  border-radius: 16px;
+  padding: 10px;
+  background: rgba(3, 6, 10, 0.36);
+}
+
+.nt-account-bucket {
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-md);
+  background: var(--nt-color-panel);
+  box-shadow: var(--nt-shadow-surface);
+}
+
+.nt-account-bucket[open] {
+  border-color: var(--nt-border-strong);
+}
+
+.nt-account-bucket__summary {
+  display: flex;
+  min-height: 74px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  padding: 16px 18px;
+  list-style: none;
+}
+
+.nt-account-bucket__summary::-webkit-details-marker {
+  display: none;
+}
+
+.nt-account-bucket__summary::after {
+  content: "+";
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--nt-signal) 22%, transparent);
+  border-radius: 10px;
+  color: var(--nt-signal);
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.nt-account-bucket[open] > .nt-account-bucket__summary::after {
+  content: "-";
+}
+
+.nt-account-bucket__title {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nt-account-bucket__title > [role="heading"] {
+  overflow-wrap: anywhere;
+  color: var(--nt-text);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.nt-account-bucket__hint {
+  margin-left: auto;
+  color: var(--nt-text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.nt-account-bucket__body {
+  border-top: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  padding: 14px;
+}
+
+fieldset.nt-field > legend {
+  margin-bottom: 10px;
+  padding: 0;
+  color: var(--nt-text);
+  font-weight: 800;
+}
+
+.nt-filter-count {
+  display: grid;
+  min-height: 65px;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid var(--nt-border-strong);
+  border-radius: var(--nt-radius-md);
+  padding: 10px 14px;
+  background: var(--nt-signal-soft);
+}
+
+.nt-filter-count span {
+  color: var(--nt-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.nt-filter-count strong {
+  color: var(--nt-signal);
+}
+
+.nt-stat {
+  border: 1px solid color-mix(in srgb, var(--nt-text) 9%, transparent);
+  border-radius: 18px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--nt-text) 4%, transparent);
+}
+
+.nt-actions,
+.nt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.nt-actions--right,
+.nt-row--between {
+  justify-content: flex-end;
+}
+
+.nt-row--between {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+/* Card edits commit themselves, so the header reports the autosave state where
+   the commit button used to sit. */
+.nt-console-autosave {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-md);
+  background: var(--nt-color-control);
+  color: var(--nt-text-muted);
+  font-family: var(--nt-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.nt-btn {
+  position: relative;
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--nt-radius-sm);
+  padding: 0 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.nt-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.nt-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.nt-btn--primary {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-signal);
+  color: var(--nt-color-focus-ink);
+}
+
+.nt-btn--secondary {
+  border-color: color-mix(in srgb, var(--nt-info) 42%, var(--nt-border));
+  background: var(--nt-info-soft);
+  color: var(--nt-text);
+}
+
+.nt-btn--outline {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-signal-soft);
+  color: var(--nt-signal);
+}
+
+.nt-btn--danger {
+  border-color: color-mix(in srgb, var(--nt-danger) 46%, var(--nt-border));
+  background: var(--nt-danger-soft);
+  color: var(--nt-danger);
+}
+
+.nt-status-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 14%, transparent);
+  border-radius: 18px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--nt-text) 5.5%, transparent);
+}
+
+.nt-status-pill {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 8px;
+  border-radius: 14px;
+  padding: 7px 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.nt-status-pill--offline {
+  background: var(--nt-danger-soft);
+  color: var(--nt-danger);
+}
+
+.nt-status-pill--online {
+  background: var(--nt-success-soft);
+  color: var(--nt-success);
+}
+
+.nt-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.nt-meta-list,
+.nt-mini-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.nt-meta-list--inline {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nt-meta-list div,
+.nt-mini-list div {
+  display: grid;
+  gap: 4px;
+}
+
+.nt-meta-list dt,
+.nt-mini-list dt {
+  color: color-mix(in srgb, var(--nt-text) 56%, transparent);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.nt-meta-list dd,
+.nt-mini-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--nt-text);
+  font-weight: 700;
+}
+
+.nt-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.nt-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.nt-template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.nt-template-card {
+  display: grid;
+  gap: 8px;
+  min-height: 116px;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-md);
+  padding: 14px;
+  background: var(--nt-color-control);
+  color: var(--nt-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.nt-template-card:hover:not(:disabled) {
+  border-color: var(--nt-border-strong);
+  transform: translateY(-1px);
+}
+
+.nt-template-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.nt-template-card span {
+  color: var(--nt-signal);
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.nt-template-card small {
+  color: var(--nt-text-muted);
+  line-height: 1.55;
+}
+
+.nt-dirty-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--nt-warning) 42%, var(--nt-border));
+  border-radius: var(--nt-radius-sm);
+  margin-top: 8px;
+  padding: 5px 9px;
+  background: var(--nt-warning-soft);
+  color: var(--nt-warning);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.nt-start-save-hint {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid var(--nt-border-strong);
+  border-radius: var(--nt-radius-sm);
+  padding: 5px 9px;
+  background: var(--nt-signal-soft);
+  color: var(--nt-signal);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.nt-field {
+  display: grid;
+  gap: 6px;
+  color: var(--nt-text-muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+fieldset.nt-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.nt-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nt-segmented .nt-btn {
+  width: 100%;
+  min-width: 0;
+}
+
+.nt-field small {
+  color: var(--nt-danger);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.nt-field--wide {
+  grid-column: 1 / -1;
+}
+
+.nt-simple-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nt-simple-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--nt-text) 3.5%, transparent);
+}
+
+.nt-simple-list li > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nt-simple-list strong,
+.nt-simple-list span {
+  overflow-wrap: anywhere;
+}
+
+.nt-simple-list strong {
+  color: var(--nt-text);
+}
+
+.nt-simple-list span {
+  color: var(--nt-text-muted);
+}
+
+.nt-input,
+.nt-select,
+.nt-textarea {
+  min-width: 0;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-md);
+  padding: 10px 12px;
+  background: var(--nt-color-control);
+  color: var(--nt-text);
+}
+
+.nt-select {
+  min-height: 40px;
+}
+
+.nt-input::placeholder,
+.nt-textarea::placeholder {
+  color: var(--nt-text-faint);
+}
+
+.nt-input[aria-invalid="true"],
+.nt-select[aria-invalid="true"],
+.nt-textarea[aria-invalid="true"] {
+  border-color: color-mix(in srgb, var(--nt-danger) 58%, var(--nt-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--nt-danger) 24%, transparent);
+}
+
+.nt-textarea {
+  min-height: 124px;
+  resize: vertical;
+}

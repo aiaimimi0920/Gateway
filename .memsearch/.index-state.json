@@ -1,0 +1,17 @@
+{
+  "collection": "ms_gateway_3040c012",
+  "failed_files": [],
+  "last_completed_at": "2026-09-20T04:32:41.740665Z",
+  "last_error": "MilvusException: <MilvusException: (code=2, message=Fail connecting to server on 127.0.0.1:19532, illegal connection params or server unavailable)>",
+  "last_failed_at": "2026-09-20T04:32:41.740665Z",
+  "last_started_at": "2026-09-20T04:32:33.062591Z",
+  "last_success_at": "2026-09-16T06:32:47.904933Z",
+  "milvus_uri": "http://127.0.0.1:19532",
+  "operation": "index",
+  "paths": [
+    "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/.memsearch/memory"
+  ],
+  "schema_version": 1,
+  "status": "error",
+  "updated_at": "2026-09-20T04:32:41.740665Z"
+}

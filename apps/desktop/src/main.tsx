@@ -8,6 +8,7 @@ import { createBrowserHost } from "./platform/browserHost";
 import type { GatewayUiTarget } from "./platform/types";
 import { ManagementSessionProvider } from "./session/ManagementSessionProvider";
 import { UiLocaleProvider } from "./i18n/UiLocaleProvider";
+import { UiThemeProvider } from "./theme/UiThemeProvider";
 import { AppToastViewport } from "./components/AppToast";
 import "./styles.css";
 
@@ -23,19 +24,21 @@ const target = typeof __GATEWAY_UI_TARGET__ === "undefined" ? "web" : __GATEWAY_
 
 createRoot(rootElement).render(
   <React.StrictMode>
-    <UiLocaleProvider>
-      {target === "web" ? (
-        <HostProvider adapter={createBrowserHost()}>
-          <ManagementSessionProvider>
-            <AuthBoundary>
-              <BrowserConsoleApp />
-            </AuthBoundary>
-          </ManagementSessionProvider>
-        </HostProvider>
-      ) : (
-        <App />
-      )}
-      <AppToastViewport />
-    </UiLocaleProvider>
+    <UiThemeProvider>
+      <UiLocaleProvider>
+        {target === "web" ? (
+          <HostProvider adapter={createBrowserHost()}>
+            <ManagementSessionProvider>
+              <AuthBoundary>
+                <BrowserConsoleApp />
+              </AuthBoundary>
+            </ManagementSessionProvider>
+          </HostProvider>
+        ) : (
+          <App />
+        )}
+        <AppToastViewport />
+      </UiLocaleProvider>
+    </UiThemeProvider>
   </React.StrictMode>,
 );

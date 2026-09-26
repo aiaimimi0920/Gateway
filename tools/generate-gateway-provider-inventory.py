@@ -10,106 +10,42 @@ an operator explicitly supplies an evidence file or directory.
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import json
 import os
 import pathlib
-import re
-import subprocess
 import sys
 from collections import defaultdict
 from typing import Any, Iterable
 
-
-GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[1]
-MANIFEST_ROOT = GATEWAY_ROOT / "manifests" / "lines"
-CARGO_PATH = GATEWAY_ROOT / "Cargo.toml"
-IMPLEMENTATION_LINES_PATH = GATEWAY_ROOT / "src" / "implementation_lines.rs"
-PROTOCOL_RESOLUTION_PATH = GATEWAY_ROOT / "src" / "routing" / "protocol_resolution.rs"
-PROTOCOL_REGISTRY_PATH = GATEWAY_ROOT / "src" / "protocol" / "registry.rs"
-DEFAULT_OUTPUT = GATEWAY_ROOT / "docs" / "provider-inventory.json"
-SCHEMA_PATH = GATEWAY_ROOT / "docs" / "provider-inventory.schema.json"
-
-# This is an intentionally checked-in contract.  Manifest discovery is used
-# for metadata, but it must never silently redefine the product surface.
-CANONICAL_PROVIDER_LINE_IDS = (
-    "accio-web-reverse-api",
-    "aistudio-official",
-    "aistudio-web-reverse",
-    "anthropic-messages-official-model-api",
-    "aws-bedrock-converse-official-model-api",
-    "azure-openai-official-vendor-api",
-    "chataibot-web-reverse",
-    "chatgpt-codex-oauth-official",
-    "chatgpt-official-api",
-    "chatgpt-web-reverse",
-    "cohere-chat-official-model-api",
-    "deepseek-openai-official-model-api",
-    "exa-search-official-vendor-api",
-    "freebuff-web-reverse-api",
-    "gemini-canvas-program",
-    "gemini-web-reverse",
-    "google-agent-platform-official",
-    "grok-web-reverse-api",
-    "groq-openai-official-vendor-api",
-    "jina-reader-official-vendor-api",
-    "jina-search-official-vendor-api",
-    "kiro-official-vendor-api",
-    "linkup-search-official-vendor-api",
-    "longcat-openai-official-model-api",
-    "lumalabs-web-reverse-api",
-    "mistral-openai-official-model-api",
-    "muyuan-openai-aggregator-api",
-    "nvidia-openai-official-vendor-api",
-    "openrouter-openai-aggregator-api",
-    "perplexity-chat-official-vendor-api",
-    "perplexity-search-official-vendor-api",
-    "producer-web-reverse-api",
-    "poe-openai-aggregator-api",
-    "qwen-official-api",
-    "qwen-web-reverse",
-    "suno-web-reverse-api",
-    "tavily-search-official-vendor-api",
-    "together-openai-aggregator-api",
-    "udio-web-reverse-api",
-    "websearchapi-search-official-vendor-api",
-    "xai-openai-official-vendor-api",
-    "xfyun-native-websocket-official-vendor-api",
-    "xfyun-openai-official-vendor-api",
-    "you-search-official-vendor-api",
+from provider_inventory.contracts import (
+    CANONICAL_PROVIDER_LINE_IDS,
+    CARGO_PATH,
+    DEFAULT_OUTPUT,
+    EVIDENCE_STATES,
+    IMPLEMENTATION_LINES_PATH,
+    MANIFEST_ROOT,
+    PROTOCOL_REGISTRY_PATH,
+    PROTOCOL_RESOLUTION_PATH,
+    SCHEMA_PATH,
+    InventoryError,
 )
-
-EVIDENCE_STATES = (
-    "compiled",
-    "metadata_only",
-    "fixture_passed",
-    "live_passed",
-    "external_gate",
-    "credential_missing",
-    "known_unsupported",
+from provider_inventory.metadata import (
+    _normalize_timestamp,
+    _wire_families_for_line,
+    deterministic_timestamp,
+    parse_cargo_features,
+    parse_implementation_metadata,
+    parse_route_metadata,
+    read_implementation_source,
+    read_protocol_resolution_source,
+    source_revision,
 )
-
-SECRET_KEY_RE = re.compile(
-    r"(?:api[_-]?key|access[_-]?token|auth(?:orization)?|cookie|credential|"
-    r"jwt|password|private[_-]?key|refresh[_-]?token|secret|session[_-]?token)",
-    re.IGNORECASE,
+from provider_inventory.redaction import (
+    _safe_proof_object,
+    normalize_gateway_artifact_paths,
+    posix_relative,
+    sanitize,
 )
-SECRET_VALUE_RE = re.compile(
-    r"(?:Bearer\s+[A-Za-z0-9._~+/=-]+|Basic\s+[A-Za-z0-9+/=]{8,}|"
-    r"sk-[A-Za-z0-9._-]+|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{20,}|"
-    r"(?:xox[baprs]-|gh[pousr]_[A-Za-z0-9_]+)|"
-    r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+|"
-    r"(?:cookie|set-cookie)\s*[:=]\s*[^;\r\n]+|"
-    r"(?:session(?:id|_token)?|refresh_token|api[_-]?key|access[_-]?token|"
-    r"authorization|password|secret|aws[_-]?(?:secret[_-]?access[_-]?key|session[_-]?token))\s*[=:]\s*[^;\s,]+|"
-    r"ya29\.[A-Za-z0-9._-]+)",
-    re.IGNORECASE,
-)
-TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
-
-
-class InventoryError(RuntimeError):
-    """Raised for malformed source metadata or explicit evidence."""
 
 
 def load_json(path: pathlib.Path) -> Any:
@@ -117,345 +53,10 @@ def load_json(path: pathlib.Path) -> Any:
         return json.load(handle)
 
 
-def posix_relative(path: pathlib.Path) -> str:
-    return path.resolve().relative_to(GATEWAY_ROOT.resolve()).as_posix()
-
-
 def schema_reference_for_output(output_path: pathlib.Path) -> str:
     return pathlib.PurePath(
         os.path.relpath(SCHEMA_PATH.resolve(), output_path.resolve().parent)
     ).as_posix()
-
-
-def normalize_gateway_artifact_paths(value: Any, line_id: str) -> list[str]:
-    if not isinstance(value, list):
-        raise InventoryError(f"Evidence record for {line_id} has invalid artifactPaths")
-    normalized: list[str] = []
-    for raw_path in value:
-        if not isinstance(raw_path, str) or not raw_path.strip():
-            raise InventoryError(
-                f"Evidence record for {line_id} has an invalid artifact path"
-            )
-        candidate = raw_path.strip().replace("\\", "/")
-        pure = pathlib.PurePosixPath(candidate)
-        if pure.is_absolute() or re.match(r"^[A-Za-z]:", candidate):
-            try:
-                absolute = pathlib.Path(raw_path).resolve()
-                normalized.append(posix_relative(absolute))
-                continue
-            except (OSError, ValueError):
-                pass
-        if ".." in pure.parts:
-            try:
-                absolute = (GATEWAY_ROOT / pathlib.Path(candidate)).resolve()
-                normalized.append(posix_relative(absolute))
-                continue
-            except (OSError, ValueError):
-                pass
-        if pure.is_absolute() or re.match(r"^[A-Za-z]:", candidate) or ".." in pure.parts:
-            raise InventoryError(
-                f"Evidence record for {line_id} artifact paths must be Gateway-relative"
-            )
-        normalized.append(pure.as_posix())
-    return sorted(dict.fromkeys(normalized))
-
-
-def sanitize(value: Any, key: str | None = None) -> Any:
-    """Return JSON-safe metadata with secret-like fields redacted.
-
-    Provider credentials are represented by material kinds and documentation
-    paths only.  This defensive pass also protects explicitly supplied
-    evidence files from accidentally copying a token into the inventory.
-    """
-
-    if key and SECRET_KEY_RE.search(key) and key not in {
-        "credentialSource",
-        "credential_source",
-    }:
-        if isinstance(value, (dict, list)):
-            return "<redacted>"
-        return "<redacted>"
-    if isinstance(value, dict):
-        return {str(k): sanitize(v, str(k)) for k, v in value.items()}
-    if isinstance(value, list):
-        return [sanitize(item) for item in value]
-    if isinstance(value, str):
-        return SECRET_VALUE_RE.sub("<redacted>", value)
-    return value
-
-
-def _safe_proof_object(value: Any, line_id: str, field_name: str) -> dict[str, Any]:
-    if not isinstance(value, dict) or not value:
-        raise InventoryError(
-            f"Evidence record for {line_id} requires non-empty {field_name} route proof"
-        )
-    sanitized = sanitize(value)
-    provider_line = sanitized.get("providerLine") or sanitized.get("provider_line")
-    if provider_line != line_id:
-        raise InventoryError(
-            f"Evidence record for {line_id} {field_name} must identify the same provider line"
-        )
-    return sanitized
-
-
-def _git(*arguments: str) -> str | None:
-    try:
-        completed = subprocess.run(
-            ["git", *arguments],
-            cwd=GATEWAY_ROOT,
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            encoding="utf-8",
-        )
-    except OSError:
-        return None
-    if completed.returncode != 0:
-        return None
-    value = completed.stdout.strip()
-    return value or None
-
-
-def source_revision() -> str:
-    return _git("rev-parse", "HEAD") or "unknown"
-
-
-def _normalize_timestamp(value: str) -> str:
-    raw = value.strip()
-    if raw.endswith("Z") and TIMESTAMP_RE.match(raw):
-        return raw
-    try:
-        parsed = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise InventoryError(f"Invalid evidence timestamp: {value}") from exc
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=dt.timezone.utc)
-    parsed = parsed.astimezone(dt.timezone.utc).replace(microsecond=0)
-    return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def deterministic_timestamp() -> str:
-    """Use an explicit build epoch or HEAD commit time for repeatable output."""
-
-    epoch = os.environ.get("SOURCE_DATE_EPOCH")
-    if epoch:
-        try:
-            return dt.datetime.fromtimestamp(
-                int(epoch), tz=dt.timezone.utc
-            ).strftime("%Y-%m-%dT%H:%M:%SZ")
-        except (TypeError, ValueError, OverflowError):
-            pass
-    commit_time = _git("show", "-s", "--format=%cI", "HEAD")
-    if commit_time:
-        try:
-            return _normalize_timestamp(commit_time)
-        except InventoryError:
-            pass
-    return "1970-01-01T00:00:00Z"
-
-
-def _strip_toml_comment(line: str) -> str:
-    quoted = False
-    escaped = False
-    for index, char in enumerate(line):
-        if char == "\\" and quoted and not escaped:
-            escaped = True
-            continue
-        if char == '"' and not escaped:
-            quoted = not quoted
-        if char == "#" and not quoted:
-            return line[:index]
-        escaped = False
-    return line
-
-
-def _bracket_delta(text: str) -> int:
-    return text.count("[") - text.count("]")
-
-
-def parse_cargo_features(text: str) -> dict[str, list[str]]:
-    """Parse the small `[features]` table without requiring a TOML package."""
-
-    features: dict[str, list[str]] = {}
-    in_features = False
-    pending_name: str | None = None
-    pending_value = ""
-    depth = 0
-
-    for raw_line in text.splitlines():
-        line = _strip_toml_comment(raw_line).strip()
-        if not line:
-            continue
-        if line.startswith("[") and line.endswith("]") and depth == 0:
-            in_features = line == "[features]"
-            continue
-        if not in_features:
-            continue
-        if pending_name is None:
-            match = re.match(r"^([A-Za-z0-9_-]+)\s*=\s*(.*)$", line)
-            if not match:
-                continue
-            pending_name = match.group(1)
-            pending_value = match.group(2)
-            depth = _bracket_delta(pending_value)
-            if depth <= 0:
-                features[pending_name] = re.findall(r'"([^"]+)"', pending_value)
-                pending_name = None
-                pending_value = ""
-                depth = 0
-        else:
-            pending_value += " " + line
-            depth += _bracket_delta(line)
-            if depth <= 0:
-                features[pending_name] = re.findall(r'"([^"]+)"', pending_value)
-                pending_name = None
-                pending_value = ""
-                depth = 0
-
-    return features
-
-
-def extract_function_block(text: str, function_name: str) -> str:
-    marker = f"pub fn {function_name}"
-    start = text.find(marker)
-    if start < 0:
-        return ""
-    brace = text.find("{", start)
-    if brace < 0:
-        return ""
-    depth = 0
-    for index in range(brace, len(text)):
-        char = text[index]
-        if char == "{":
-            depth += 1
-        elif char == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : index + 1]
-    return text[start:]
-
-
-def parse_constants(text: str) -> dict[str, str]:
-    return dict(re.findall(r'pub const ([A-Z0-9_]+):\s*&str\s*=\s*"([^"]+)"', text))
-
-
-def parse_variant_string_map(block: str) -> dict[str, str]:
-    return dict(re.findall(r"Self::([A-Za-z0-9_]+)\s*=>\s*\"([^\"]+)\"", block))
-
-
-def parse_variant_constant_map(block: str, constants: dict[str, str]) -> dict[str, str]:
-    result: dict[str, str] = {}
-    for variant, constant in re.findall(
-        r"Self::([A-Za-z0-9_]+)\s*=>\s*(LINE_[A-Z0-9_]+)", block
-    ):
-        result[variant] = constants.get(constant, constant)
-    return result
-
-
-def parse_alias_variant_map(block: str) -> dict[str, str]:
-    """Parse match arms whose body may be wrapped in braces or span lines."""
-
-    result: dict[str, str] = {}
-    pending: list[str] = []
-    armed = False
-    for line in block.splitlines():
-        if "=>" in line:
-            before, after = line.split("=>", 1)
-            pending.extend(re.findall(r'"([^"]+)"', before))
-            armed = True
-            variant_match = re.search(
-                r"RefactoredImplementationLine::([A-Za-z0-9_]+)", after
-            )
-            if variant_match:
-                for alias in pending:
-                    result[alias] = variant_match.group(1)
-                pending = []
-                armed = False
-        elif armed:
-            variant_match = re.search(
-                r"RefactoredImplementationLine::([A-Za-z0-9_]+)", line
-            )
-            if variant_match:
-                for alias in pending:
-                    result[alias] = variant_match.group(1)
-                pending = []
-                armed = False
-        elif '"' in line and ("|" in line or line.strip().startswith('"')):
-            pending.extend(re.findall(r'"([^"]+)"', line))
-    return result
-
-
-def parse_implementation_metadata(text: str) -> dict[str, Any]:
-    constants = parse_constants(text)
-    canonical = parse_variant_string_map(extract_function_block(text, "canonical_protocol_profile"))
-    feature_by_variant = parse_variant_constant_map(
-        extract_function_block(text, "feature_name"), constants
-    )
-    profile_aliases = parse_alias_variant_map(
-        extract_function_block(text, "line_for_protocol_profile")
-    )
-    adapter_aliases = parse_alias_variant_map(extract_function_block(text, "line_for_adapter"))
-    return {
-        "canonicalByVariant": canonical,
-        "featureByVariant": feature_by_variant,
-        "profileAliases": profile_aliases,
-        "adapterAliases": adapter_aliases,
-        "sourceText": text,
-    }
-
-
-def parse_route_metadata(resolution_text: str, registry_text: str) -> dict[str, Any]:
-    constants = parse_constants(registry_text)
-    block = extract_function_block(
-        resolution_text, "surface_supported_wire_protocol_families"
-    )
-    adapter_map: dict[str, list[str]] = {}
-    arm_pattern = re.compile(
-        r"(?P<patterns>(?:\s*\"[^\"]+\"\s*(?:\|\s*)?)+)=>\s*vec!\[(?P<body>.*?)\]",
-        re.DOTALL,
-    )
-    for match in arm_pattern.finditer(block):
-        aliases = re.findall(r'"([^"]+)"', match.group("patterns"))
-        values: list[str] = []
-        body = match.group("body")
-        for constant in re.findall(r"\b([A-Z][A-Z0-9_]+_FAMILY)\b", body):
-            values.append(constants.get(constant, constant))
-        if not values:
-            values.extend(re.findall(r'"([^"]+)"', body))
-        for alias in aliases:
-            adapter_map[alias] = sorted(dict.fromkeys(values))
-    return {"adapterFamilies": adapter_map, "sourceText": resolution_text}
-
-
-def _wire_families_for_line(
-    manifest: dict[str, Any], route_metadata: dict[str, Any]
-) -> list[str]:
-    adapter = str(manifest.get("identity", {}).get("adapter", ""))
-    profile = str(manifest.get("identity", {}).get("protocolProfile", ""))
-    values = list(route_metadata["adapterFamilies"].get(adapter, []))
-    if values:
-        return values
-    # Search adapters intentionally resolve from the fallback protocol profile.
-    search_profiles = {
-        "perplexity_search": "perplexity_search",
-        "tavily": "tavily_search",
-        "exa": "exa_search",
-        "jina_search": "jina_search",
-        "jina_reader": "jina_reader",
-        "linkup": "linkup_search",
-        "you_search": "you_search",
-        "websearchapi": "websearchapi_search",
-    }
-    if profile in search_profiles:
-        return [search_profiles[profile]]
-    return sorted(
-        {
-            str(family)
-            for family in (manifest.get("capabilities", {}).get("families") or [])
-            if isinstance(family, str)
-        }
-    )
 
 
 def discover_manifests() -> list[pathlib.Path]:
@@ -624,10 +225,10 @@ def build_inventory(
 ) -> dict[str, Any]:
     cargo_text = CARGO_PATH.read_text(encoding="utf-8")
     cargo_features = parse_cargo_features(cargo_text)
-    implementation_text = IMPLEMENTATION_LINES_PATH.read_text(encoding="utf-8")
+    implementation_text = read_implementation_source()
     implementation = parse_implementation_metadata(implementation_text)
     route = parse_route_metadata(
-        PROTOCOL_RESOLUTION_PATH.read_text(encoding="utf-8"),
+        read_protocol_resolution_source(),
         PROTOCOL_REGISTRY_PATH.read_text(encoding="utf-8"),
     )
 

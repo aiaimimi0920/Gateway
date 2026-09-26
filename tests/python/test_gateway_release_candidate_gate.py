@@ -7,6 +7,16 @@ import unittest
 from powershell_test_utils import powershell_executable
 
 
+def read_release_candidate_script(repo_root):
+    return "\n".join(
+        (repo_root / "tools" / name).read_text(encoding="utf-8")
+        for name in (
+            "verify-gateway-release-candidate.ps1",
+            "verify-gateway-release-candidate.runtime.ps1",
+        )
+    )
+
+
 class GatewayReleaseCandidateGateTests(unittest.TestCase):
     def test_release_candidate_script_reports_skipped_heavy_steps_as_json(self):
         repo_root = pathlib.Path(__file__).resolve().parents[2]
@@ -67,9 +77,7 @@ class GatewayReleaseCandidateGateTests(unittest.TestCase):
 
     def test_release_candidate_runtime_smoke_forces_standalone_role(self):
         repo_root = pathlib.Path(__file__).resolve().parents[2]
-        script = (repo_root / "tools" / "verify-gateway-release-candidate.ps1").read_text(
-            encoding="utf-8"
-        )
+        script = read_release_candidate_script(repo_root)
 
         self.assertIn("Invoke-GatewayRuntimeSmoke", script)
         self.assertIn("Invoke-LiveProviderCanaryPreflight", script)
@@ -91,9 +99,7 @@ class GatewayReleaseCandidateGateTests(unittest.TestCase):
 
     def test_release_candidate_live_canary_preflight_cannot_enable_live_calls(self):
         repo_root = pathlib.Path(__file__).resolve().parents[2]
-        script = (repo_root / "tools" / "verify-gateway-release-candidate.ps1").read_text(
-            encoding="utf-8"
-        )
+        script = read_release_candidate_script(repo_root)
         preflight_start = script.index("function Invoke-LiveProviderCanaryPreflight")
         next_function_start = script.index("function Invoke-SmokeHttpRequest", preflight_start)
         preflight = script[preflight_start:next_function_start]

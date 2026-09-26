@@ -1,0 +1,93 @@
+type ConsoleWorkspaceHeaderActionsProps = {
+  activeWorkspace: string;
+  actionBusy: "save" | null;
+  autosavePending: boolean;
+  draftDirty: boolean;
+  editorLocked: boolean;
+  accountLedgerProviderOptions: readonly unknown[];
+  modelPoolDialogProviderOptions: readonly unknown[];
+  setProviderCatalogDialogOpen: (open: boolean) => void;
+  openAddCredentialDialog: () => void;
+  addAccountGroupRow: () => void;
+  openAddModelDialog: () => void;
+  t: (zh: string, en: string) => string;
+};
+
+export function ConsoleWorkspaceHeaderActions({
+  activeWorkspace,
+  actionBusy,
+  autosavePending,
+  draftDirty,
+  editorLocked,
+  accountLedgerProviderOptions,
+  modelPoolDialogProviderOptions,
+  setProviderCatalogDialogOpen,
+  openAddCredentialDialog,
+  addAccountGroupRow,
+  openAddModelDialog,
+  t,
+}: ConsoleWorkspaceHeaderActionsProps) {
+  // Structured edits on the entitlement and model pool pages stage into the same
+  // draft the raw route editor holds, and autosave commits them, so those pages
+  // report the autosave state instead of carrying a commit button.
+  const draftAutosaveStatus = (
+    <span className="nt-console-autosave" role="status">
+      {actionBusy === "save"
+        ? t("自动保存中...", "Autosaving...")
+        : autosavePending
+          ? t("待自动保存", "Autosave pending")
+          : draftDirty
+            ? t("草稿待处理", "Draft pending")
+            : t("已自动保存", "Autosaved")}
+    </span>
+  );
+  // Workspace actions live in the shell board header so no workspace needs a
+  // third command bar of its own.
+  const workspaceHeaderActions =
+    activeWorkspace === "accounts" ? (
+      <>
+        <button
+          className="nt-btn nt-btn--secondary"
+          type="button"
+          disabled={editorLocked}
+          onClick={() => setProviderCatalogDialogOpen(true)}
+        >
+          {t("添加服务商", "Add provider")}
+        </button>
+        <button
+          className="nt-btn nt-btn--outline"
+          type="button"
+          disabled={editorLocked || accountLedgerProviderOptions.length <= 1}
+          onClick={() => openAddCredentialDialog()}
+        >
+          {t("添加账号", "Add account")}
+        </button>
+      </>
+    ) : activeWorkspace === "groups" ? (
+      <>
+        <button
+          className="nt-btn nt-btn--secondary"
+          type="button"
+          disabled={editorLocked}
+          onClick={() => addAccountGroupRow()}
+        >
+          {t("添加分组", "Add group")}
+        </button>
+        {draftAutosaveStatus}
+      </>
+    ) : activeWorkspace === "models" ? (
+      <>
+        <button
+          className="nt-btn nt-btn--secondary"
+          type="button"
+          disabled={editorLocked || modelPoolDialogProviderOptions.length === 0}
+          onClick={openAddModelDialog}
+        >
+          {t("添加模型", "Add model")}
+        </button>
+        {draftAutosaveStatus}
+      </>
+    ) : null;
+
+  return workspaceHeaderActions;
+}

@@ -1,0 +1,230 @@
+use super::*;
+
+#[test]
+fn canonicalize_google_official_aliases_to_new_profiles() {
+    assert_eq!(
+        canonicalize_protocol_profile_key("google_gemini_api"),
+        "aistudio_official_api"
+    );
+    assert_eq!(
+        canonicalize_protocol_profile_key("google_gemini_api_modular"),
+        "aistudio_official_api"
+    );
+    assert_eq!(
+        canonicalize_protocol_profile_key("google_vertex_gemini"),
+        "google_agent_platform_official_api"
+    );
+    assert_eq!(
+        canonicalize_protocol_profile_key("aistudio-official-api"),
+        "aistudio_official_api"
+    );
+    assert_eq!(
+        canonicalize_protocol_profile_key("vertex-official-api"),
+        "google_agent_platform_official_api"
+    );
+    assert_eq!(
+        canonicalize_protocol_profile_key("google-agent-platform-official-api"),
+        "google_agent_platform_official_api"
+    );
+}
+
+#[test]
+fn canonicalize_qwen_webui_replay_aliases_to_qwen_web_chat() {
+    assert_eq!(
+        canonicalize_protocol_profile_key("qwen-web"),
+        "qwen_web_chat"
+    );
+    assert_eq!(
+        canonicalize_protocol_profile_key("qwen-webui"),
+        "qwen_web_chat"
+    );
+    assert_eq!(
+        canonicalize_protocol_profile_key("qwen-webui-replay"),
+        "qwen_web_chat"
+    );
+    assert_eq!(
+        canonicalize_protocol_profile_key("qwen-webui-replay-live"),
+        "qwen_web_chat"
+    );
+}
+
+#[test]
+fn default_qwen_preset_aliases_map_to_canonical_profiles() {
+    assert_eq!(
+        default_protocol_profile_for_preset("qwen-web"),
+        "qwen_web_chat"
+    );
+    assert_eq!(
+        default_protocol_profile_for_preset("qwen-webui"),
+        "qwen_web_chat"
+    );
+    assert_eq!(
+        default_protocol_profile_for_preset("qwen-webui-replay"),
+        "qwen_web_chat"
+    );
+    assert_eq!(
+        default_protocol_profile_for_preset("qwen-webui-replay-live"),
+        "qwen_web_chat"
+    );
+}
+
+#[test]
+fn infer_profile_prefers_new_google_official_profiles_from_base_urls() {
+    assert_eq!(
+        infer_protocol_profile(
+            "gemini_api_compatible",
+            None,
+            Some("https://generativelanguage.googleapis.com/v1beta")
+        ),
+        "aistudio_official_api"
+    );
+    assert_eq!(
+        infer_protocol_profile(
+            "gemini_api_compatible",
+            None,
+            Some(
+                "https://aiplatform.googleapis.com/v1/projects/demo/locations/us-central1/publishers/google/models"
+            )
+        ),
+        "google_agent_platform_official_api"
+    );
+}
+
+#[test]
+fn line_compile_switches_map_profiles_and_adapters() {
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile("chatgpt_official_api"),
+        Some("line-chatgpt-official-api")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile(
+            "chatgpt_codex_oauth_official_api"
+        ),
+        Some("line-chatgpt-codex-oauth-official")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile("chatgpt_web_reverse"),
+        Some("line-chatgpt-web-reverse")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile("nvidia"),
+        Some("line-nvidia-openai-official-vendor-api")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile("grok_web"),
+        Some("line-grok-web-reverse-api")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile("aistudio_official_api"),
+        Some("line-aistudio-official")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile(
+            "google_agent_platform_official_api"
+        ),
+        Some("line-google-agent-platform-official")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile(
+            "gemini_web_reverse_modular"
+        ),
+        Some("line-gemini-web-reverse")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile(
+            "gemini_canvas_program_web_reverse_modular"
+        ),
+        Some("line-gemini-canvas-program")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile("aistudio_web_reverse"),
+        Some("line-aistudio-web-reverse")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile("qwen_dashscope_openai"),
+        Some("line-qwen-official-api")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile(
+            "qwen_coding_plan_openai"
+        ),
+        Some("line-qwen-official-api")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile(
+            "qwen_coding_plan_anthropic"
+        ),
+        Some("line-qwen-official-api")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_protocol_profile("qwen_web_chat"),
+        Some("line-qwen-web-reverse")
+    );
+
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_adapter(
+            "gemini_web_reverse_modular_compatible"
+        ),
+        Some("line-gemini-web-reverse")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_adapter(
+            "gemini_canvas_program_web_reverse_compatible"
+        ),
+        Some("line-gemini-canvas-program")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_adapter(
+            "aistudio_web_reverse_compatible"
+        ),
+        Some("line-aistudio-web-reverse")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_adapter("qwen_web_compatible"),
+        Some("line-qwen-web-reverse")
+    );
+    assert_eq!(
+        crate::implementation_lines::required_feature_for_adapter("grok_compatible"),
+        Some("line-grok-web-reverse-api")
+    );
+}
+
+#[test]
+fn default_build_keeps_nvidia_and_grok_lines_enabled() {
+    assert!(crate::implementation_lines::is_protocol_profile_compiled_in("nvidia"));
+    assert!(crate::implementation_lines::is_protocol_profile_compiled_in("grok_web"));
+}
+
+#[test]
+fn default_build_keeps_all_ten_refactored_lines_enabled() {
+    assert!(crate::implementation_lines::is_protocol_profile_compiled_in("chatgpt_official_api"));
+    assert!(
+        crate::implementation_lines::is_protocol_profile_compiled_in(
+            "chatgpt_codex_oauth_official_api"
+        )
+    );
+    assert!(crate::implementation_lines::is_protocol_profile_compiled_in("chatgpt_web_reverse"));
+    assert!(crate::implementation_lines::is_protocol_profile_compiled_in("aistudio_official_api"));
+    assert!(
+        crate::implementation_lines::is_protocol_profile_compiled_in(
+            "google_agent_platform_official_api"
+        )
+    );
+    assert!(crate::implementation_lines::is_protocol_profile_compiled_in("aistudio_web_reverse"));
+    assert!(
+        crate::implementation_lines::is_protocol_profile_compiled_in("gemini_web_reverse_modular")
+    );
+    assert!(
+        crate::implementation_lines::is_protocol_profile_compiled_in(
+            "gemini_canvas_program_web_reverse_modular"
+        )
+    );
+    assert!(crate::implementation_lines::is_protocol_profile_compiled_in("qwen_dashscope_openai"));
+    assert!(
+        crate::implementation_lines::is_protocol_profile_compiled_in("qwen_coding_plan_openai")
+    );
+    assert!(
+        crate::implementation_lines::is_protocol_profile_compiled_in("qwen_coding_plan_anthropic")
+    );
+    assert!(crate::implementation_lines::is_protocol_profile_compiled_in("qwen_web_chat"));
+}

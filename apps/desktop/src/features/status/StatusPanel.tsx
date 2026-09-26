@@ -48,7 +48,6 @@ function ProbeCard({
     <article className="nt-card">
       <div className="nt-row nt-row--between">
         <div>
-          <p className="nt-kicker">// {endpoint}</p>
           <h3>{title}</h3>
         </div>
         <span className={`nt-badge ${toneClass}`}>
@@ -56,6 +55,10 @@ function ProbeCard({
         </span>
       </div>
       <dl className="nt-meta-list nt-meta-list--inline">
+        <div>
+          <dt>Endpoint</dt>
+          <dd>{endpoint}</dd>
+        </div>
         <div>
           <dt>Latency</dt>
           <dd>{probe ? `${probe.durationMs}ms` : "-"}</dd>
@@ -82,7 +85,6 @@ export function StatusPanel({ state }: StatusPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// Runtime status</p>
             <h2>运行状态与准备度</h2>
           </div>
           <button

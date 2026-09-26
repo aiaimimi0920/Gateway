@@ -32,9 +32,9 @@
   "verification": {
     "recommendedCargoTargetDirSlug": "websearchapi-search-official-vendor-api-verify",
     "focusedCargoFilters": [
-      "preset::tests::websearchapi_preset_has_search_adapter_and_path",
-      "implementation_lines::tests::websearchapi_search_protocol_profiles_compile_when_feature_enabled",
-      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+      "preset::tests::search_presets::websearchapi_preset_has_search_adapter_and_path",
+      "implementation_lines::tests::feature_profiles::websearchapi_search_protocol_profiles_compile_when_feature_enabled",
+      "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
     ],
     "fixtureSuiteId": "websearchapi_fixture",
     "useNoDefaultFeatures": true

@@ -16,6 +16,9 @@ use crate::state::{
 };
 use crate::upstream::client::UpstreamClient;
 
+#[path = "runtime_completion.rs"]
+mod completion;
+
 pub async fn run_gateway_runtime(config: Config) -> anyhow::Result<()> {
     let port = config.port;
     tracing::info!(port, role = ?config.runtime_role, "Starting gateway worker runtime");
@@ -28,7 +31,15 @@ pub async fn run_gateway_runtime(config: Config) -> anyhow::Result<()> {
 
     let app_state = build_app_state(config).await?;
     spawn_background_tasks(&app_state);
-    run_gateway_server(app_state, port).await
+    let freebuff = app_state.upstream_client.freebuff.clone();
+    let server_result = run_gateway_server(app_state, port).await;
+    completion::complete_after_freebuff_cleanup(
+        server_result,
+        freebuff.shutdown(std::time::Duration::from_secs(65)),
+    )
+    .await?;
+    tracing::info!(port, "Gateway worker shut down complete");
+    Ok(())
 }
 
 pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
@@ -162,6 +173,14 @@ pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
         .await;
     });
 
+    let state_for_credential_probe_scheduler = Arc::clone(app_state);
+    tokio::spawn(async move {
+        crate::provider_credential_probe_scheduler::start_provider_credential_probe_scheduler(
+            state_for_credential_probe_scheduler,
+        )
+        .await;
+    });
+
     let state_for_credential_stock = Arc::clone(app_state);
     tokio::spawn(async move {
         crate::credential_stock::start_credential_stock_monitor_task(state_for_credential_stock)
@@ -198,7 +217,7 @@ pub async fn run_gateway_server(app_state: Arc<AppState>, port: u16) -> anyhow::
     .with_graceful_shutdown(shutdown_signal(shutdown_state))
     .await?;
 
-    tracing::info!(port, "Gateway worker shut down complete");
+    tracing::info!(port, "Gateway HTTP server stopped");
     Ok(())
 }
 

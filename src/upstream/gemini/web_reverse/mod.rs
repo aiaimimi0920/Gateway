@@ -12,7 +12,9 @@ mod surface_bridge;
 pub use bootstrap::bootstrap_app;
 pub use direct_http_tts::{
     execute_direct_http_tts_export, execute_direct_http_tts_followups,
-    gemini_canvas_tts_direct_http_audio_unavailable_error, resolve_direct_http_tts_audio_response,
+    gemini_canvas_tts_direct_http_audio_unavailable_error,
+    gemini_canvas_tts_direct_http_audio_unavailable_from_bodies,
+    resolve_direct_http_tts_audio_response,
 };
 pub use execution::{execute, execute_stream};
 pub use headers::build_headers;

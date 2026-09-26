@@ -74,7 +74,6 @@ export function ConfigPanel({ state }: ConfigPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// Templates</p>
             <h2>Profile 快速模板</h2>
           </div>
         </div>
@@ -101,7 +100,6 @@ export function ConfigPanel({ state }: ConfigPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// Profile</p>
             <h2>本地运行配置</h2>
             {state.hasUnsavedProfileChanges ? (
               <span className="nt-dirty-badge">未保存变更</span>
@@ -301,7 +299,6 @@ export function ConfigPanel({ state }: ConfigPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// Extra env</p>
             <h2>附加环境变量</h2>
           </div>
           <button
@@ -362,7 +359,6 @@ export function ConfigPanel({ state }: ConfigPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// Transfer</p>
             <h2>Profile 导入/导出</h2>
           </div>
           <button

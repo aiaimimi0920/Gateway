@@ -1,0 +1,128 @@
+/* action controls styles; preserve position in styles.css. */
+.nt-icon-action {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--nt-radius-sm);
+  padding: 0;
+  background: transparent;
+  color: var(--nt-text-muted);
+  cursor: pointer;
+}
+
+.nt-icon-action span {
+  display: none;
+}
+
+.nt-icon-action:hover:not(:disabled) {
+  background: var(--nt-color-control-hover);
+  color: var(--nt-text);
+}
+
+.nt-icon-action--success {
+  color: var(--nt-success);
+}
+
+.nt-icon-action--danger {
+  color: var(--nt-danger);
+}
+
+.nt-icon-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.nt-pilot-menu {
+  position: relative;
+}
+
+.nt-pilot-menu__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 24;
+  min-width: 170px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  border-radius: 12px;
+  padding: 8px;
+  background: var(--nt-color-control);
+  box-shadow: var(--nt-shadow-surface);
+}
+
+.nt-pilot-menu__item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--nt-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.nt-pilot-menu__item:hover {
+  background: rgba(148, 163, 184, 0.14);
+}
+
+.nt-pilot-menu__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.nt-pilot-menu__item:disabled:hover {
+  background: transparent;
+}
+
+.nt-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 38px;
+  min-width: 38px;
+  padding: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.nt-switch--on {
+  border-color: color-mix(in srgb, var(--nt-success) 46%, var(--nt-border));
+  background: var(--nt-success-soft);
+}
+
+.nt-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.nt-switch__track {
+  display: inline-flex;
+  width: 100%;
+}
+
+.nt-switch__thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.92);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+  transform: translateX(0);
+  transition: transform 160ms ease;
+}
+
+.nt-switch--on .nt-switch__thumb {
+  transform: translateX(18px);
+}

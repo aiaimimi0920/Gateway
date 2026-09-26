@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 
 use crate::error::GatewayError;
 use crate::protocol::gemini::canvas_program_web_reverse as surface;
+use crate::protocol::gemini_canvas;
 use crate::routing::candidate::ProviderAccountPayload;
 
 use super::payload::relay_config_from_payload;
@@ -16,9 +17,13 @@ pub fn build_browser_operation_invocation_input(
     timeout: std::time::Duration,
 ) -> Result<Value, GatewayError> {
     let config = relay_config_from_payload(payload)?;
+    let runtime_state_object_key =
+        gemini_canvas::browser_runtime_state_object_key_for_browser_operation(payload, operation)
+            .unwrap_or_else(|| config.bootstrap.runtime_state_object_key.clone());
     let mut input = build_browser_operation_invocation_input_from_config(
         payload.base_url.trim_end_matches('/'),
         &config,
+        &runtime_state_object_key,
         operation,
         prompt,
         locale,
@@ -33,6 +38,7 @@ pub fn build_browser_operation_invocation_input(
 pub fn build_browser_operation_invocation_input_from_config(
     base_url: &str,
     config: &surface::GeminiCanvasProgramRelayConfig,
+    runtime_state_object_key: &str,
     operation: &str,
     prompt: &str,
     locale: &str,
@@ -41,7 +47,7 @@ pub fn build_browser_operation_invocation_input_from_config(
     json!({
         "baseUrl": base_url.trim_end_matches('/'),
         "shareId": config.bootstrap.share_id,
-        "runtimeStateObjectKey": config.bootstrap.runtime_state_object_key,
+        "runtimeStateObjectKey": runtime_state_object_key,
         "enforceProgramOwner": true,
         "operation": operation,
         "prompt": prompt,
@@ -117,6 +123,35 @@ pub fn build_connected_fetch_invocation_input_with_method(
             "jsonBody": request_body,
         }
     })
+}
+
+pub fn build_connected_fetch_invocation_input_with_method_for_payload(
+    payload: &ProviderAccountPayload,
+    base_url: &str,
+    config: &surface::GeminiCanvasProgramRelayConfig,
+    request_url: &str,
+    method: &str,
+    request_body: Option<&Value>,
+    google_fetch_mode: &str,
+    timeout: std::time::Duration,
+) -> Value {
+    let mut input = build_connected_fetch_invocation_input_with_method(
+        base_url,
+        config,
+        request_url,
+        method,
+        request_body,
+        google_fetch_mode,
+        timeout,
+    );
+    let runtime_state_object_key =
+        gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
+            payload,
+            "bootstrap_program",
+        )
+        .unwrap_or_else(|| config.bootstrap.runtime_state_object_key.clone());
+    input["runtimeStateObjectKey"] = Value::String(runtime_state_object_key);
+    input
 }
 
 pub fn program_prefers_preview_no_key_generate_content_contract(

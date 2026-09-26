@@ -5,6 +5,7 @@ use rquest::{Client, Method};
 
 use crate::error::{classify_network_error, GatewayError};
 use crate::protocol::chatgpt::web_reverse as surface;
+use crate::protocol::upstream_body::collect_bounded_upstream_charset_text_with_provider;
 use crate::routing::candidate::ProviderAccountPayload;
 
 use super::headers::build_bootstrap_headers;
@@ -41,10 +42,12 @@ pub async fn bootstrap_site(
         .get(rquest::header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
-    let body_text = response
-        .text()
-        .await
-        .map_err(|error| classify_network_error(&error, Some(PROVIDER)))?;
+    let body_text = collect_bounded_upstream_charset_text_with_provider(
+        response,
+        "ChatGPT Web reverse bootstrap body",
+        PROVIDER,
+    )
+    .await?;
     if !(200..300).contains(&status)
         || surface::response_indicates_browser_challenge(
             status,

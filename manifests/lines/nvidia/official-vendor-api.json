@@ -29,8 +29,8 @@
   "verification": {
     "recommendedCargoTargetDirSlug": "nvidia-openai-official-vendor-api-verify",
     "focusedCargoFilters": [
-      "implementation_lines::tests::protocol_profile_mapping_includes_nvidia_and_grok_lines",
-      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
+      "implementation_lines::tests::profiles::protocol_profile_mapping_includes_nvidia_and_grok_lines",
+      "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
     ],
     "fixtureSuiteId": "nvidia_fixture",
     "liveSuiteId": "nvidia_live",

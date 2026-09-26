@@ -1,0 +1,261 @@
+/* pilot dialog styles; preserve position in styles.css. */
+.nt-pilot-dialog {
+  width: min(720px, calc(100vw - 32px));
+  gap: 16px;
+}
+
+.nt-pilot-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.nt-icon-close {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--nt-text-muted);
+  cursor: pointer;
+}
+
+.nt-icon-close:hover {
+  color: var(--nt-text);
+}
+
+.nt-pilot-dialog__hero {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.nt-pilot-dialog__hero-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--nt-info);
+  color: var(--nt-color-focus-ink);
+}
+
+.nt-pilot-dialog__hero-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.nt-pilot-dialog__hero-copy strong {
+  font-size: 1.1rem;
+}
+
+.nt-pilot-dialog__hero-copy span {
+  color: var(--nt-text-muted);
+}
+
+.nt-pilot-terminal {
+  min-height: 116px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.9);
+  color: rgba(226, 232, 240, 0.86);
+  padding: 14px;
+  font-family: var(--nt-font-mono);
+  font-size: 0.84rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.nt-pilot-dialog__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--nt-text-muted);
+  font-size: 0.78rem;
+}
+
+.nt-pilot-stats-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nt-pilot-stat-card {
+  display: grid;
+  min-width: 0;
+  min-height: 96px;
+  align-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-sm);
+  padding: 12px;
+  background: var(--nt-color-control);
+  color: var(--nt-text-muted);
+}
+
+.nt-pilot-stat-card strong {
+  overflow: hidden;
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 1.45rem;
+  line-height: 1;
+  text-overflow: ellipsis;
+}
+
+.nt-pilot-stat-card small {
+  color: var(--nt-text-muted);
+  font-family: var(--nt-font-mono);
+}
+
+.nt-pilot-stat-card--emerald {
+  border-color: color-mix(in srgb, var(--nt-success) 42%, var(--nt-border));
+  background: var(--nt-color-control);
+}
+
+.nt-pilot-stat-card--blue {
+  border-color: color-mix(in srgb, var(--nt-info) 42%, var(--nt-border));
+  background: var(--nt-color-control);
+}
+
+.nt-pilot-stat-card--orange {
+  border-color: color-mix(in srgb, var(--nt-warning) 42%, var(--nt-border));
+  background: var(--nt-color-control);
+}
+
+.nt-pilot-stat-card--purple {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-color-control);
+}
+
+.nt-pilot-stat-card--danger {
+  border-color: color-mix(in srgb, var(--nt-danger) 42%, var(--nt-border));
+}
+
+.nt-pilot-stats-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nt-pilot-metric-card,
+.nt-pilot-schedule-panel {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 12px;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-sm);
+  padding: 12px;
+  background: var(--nt-color-panel);
+}
+
+.nt-pilot-metric-card h3,
+.nt-pilot-chart-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.nt-pilot-metric-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.nt-pilot-metric-list div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.nt-pilot-metric-list dt {
+  color: var(--nt-text-muted);
+}
+
+.nt-pilot-metric-list dd {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  font-family: var(--nt-font-mono);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-pilot-stats-state {
+  min-height: 96px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--nt-border);
+  border-radius: var(--nt-radius-sm);
+  color: var(--nt-text-muted);
+}
+
+.nt-pilot-stats-note {
+  margin: 0;
+  color: var(--nt-warning);
+  font-size: 0.72rem;
+}
+
+.nt-pilot-schedule-panel__head,
+.nt-pilot-schedule-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nt-pilot-schedule-panel__head {
+  color: var(--nt-info);
+}
+
+.nt-pilot-schedule-panel__head h3 {
+  margin: 0;
+  color: var(--nt-text);
+  font-size: 1rem;
+}
+
+.nt-pilot-schedule-toggle {
+  color: var(--nt-text-muted);
+  font-size: 0.78rem;
+}
+
+.nt-pilot-schedule-toggle input {
+  accent-color: var(--nt-signal);
+}
+
+.nt-pilot-chart-panel {
+  display: grid;
+  gap: 16px;
+  min-height: 220px;
+}
+
+.nt-pilot-chart-empty {
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  border: 1px dashed color-mix(in srgb, var(--nt-text) 12%, transparent);
+  border-radius: 16px;
+  color: var(--nt-text-muted);
+}
+
+.nt-pilot-schedule-empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  gap: 10px;
+  border: 1px dashed color-mix(in srgb, var(--nt-text) 12%, transparent);
+  border-radius: 18px;
+  color: var(--nt-text-muted);
+}
+
+.nt-empty-state {
+  align-items: start;
+  align-content: center;
+  min-height: 140px;
+  gap: 12px;
+}

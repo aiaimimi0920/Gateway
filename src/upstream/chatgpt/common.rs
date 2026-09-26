@@ -23,6 +23,11 @@ pub fn classify_chatgpt_web_text_response(
 
 pub fn is_event_stream_content_type(content_type: Option<&str>) -> bool {
     content_type
-        .map(|value| value.to_ascii_lowercase().contains("text/event-stream"))
+        .and_then(|value| value.split(';').next())
+        .map(|media_type| {
+            media_type
+                .trim_matches([' ', '\t'])
+                .eq_ignore_ascii_case("text/event-stream")
+        })
         .unwrap_or(false)
 }

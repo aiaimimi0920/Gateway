@@ -1,0 +1,1 @@
+﻿Malformed stdin baseline: input {} -> stdout {"ok":false,"error":{"code":"aistudio_browser_worker_failed","message":"Unexpected end of JSON input","status":500,"body":null}}, exit 1

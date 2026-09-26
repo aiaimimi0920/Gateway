@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gateway 图标提案 · Round 1</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #06080d;
+        --surface: #090c11;
+        --panel: #0e1218;
+        --rail: #070a0f;
+        --text: #f7f8ef;
+        --muted: #929a9f;
+        --primary: #22c55e;
+        --secondary: #d9ff38;
+        --line: color-mix(in srgb, var(--text) 12%, transparent);
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --bg: #f4f6f0;
+        --surface: #fbfcf8;
+        --panel: #ffffff;
+        --rail: #eceee6;
+        --text: #10150e;
+        --muted: #5d6659;
+        --primary: color-mix(in srgb, #22c55e 52%, #10150e);
+        --secondary: color-mix(in srgb, #d9ff38 34%, #10150e);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 28px 32px 64px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Bahnschrift", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      header.page {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 18px;
+        margin-bottom: 26px;
+      }
+      h1 { font-size: 1.35rem; margin: 0 0 6px; letter-spacing: 0.01em; }
+      p.lead { margin: 0; color: var(--muted); font-size: 0.9rem; max-width: 62ch; line-height: 1.55; }
+      .toolbar { display: flex; gap: 8px; }
+      button {
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 7px 13px;
+        font: inherit;
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+      button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); }
+      section.set { margin-bottom: 40px; }
+      .set-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+      .set-head h2 { font-size: 1.05rem; margin: 0; }
+      .set-head .tag {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--secondary);
+      }
+      .set-idea { color: var(--muted); font-size: 0.86rem; margin: 0 0 16px; max-width: 78ch; line-height: 1.5; }
+      article.card.approved { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) inset; }
+      .approved-badge {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--primary);
+        border: 1px solid var(--primary);
+        border-radius: 999px;
+        padding: 2px 8px;
+      }
+      .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 16px; }
+      article.card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px 16px 14px;
+        display: grid;
+        gap: 14px;
+      }
+      .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .card-id {
+        font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+        font-size: 0.95rem;
+        color: var(--secondary);
+      }
+      .card-name { font-size: 0.86rem; color: var(--muted); }
+      .sizes { display: flex; align-items: flex-end; gap: 16px; }
+      .size { display: grid; justify-items: center; gap: 6px; }
+      .size small { color: var(--muted); font-size: 0.68rem; }
+      .tile {
+        width: 96px;
+        height: 96px;
+        border-radius: 18px;
+        background: linear-gradient(160deg, color-mix(in srgb, var(--primary) 12%, var(--panel)), var(--rail));
+        border: 1px solid var(--line);
+        display: grid;
+        place-items: center;
+      }
+      .rail-mock {
+        background: var(--rail);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 11px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .rail-mock strong { font-size: 0.98rem; font-weight: 600; letter-spacing: 0.01em; }
+      svg.mark { display: block; }
+      footer.page {
+        border-top: 1px solid var(--line);
+        padding-top: 18px;
+        color: var(--muted);
+        font-size: 0.86rem;
+        line-height: 1.6;
+      }
+      code {
+        font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+        color: var(--secondary);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="page">
+      <div>
+        <h1>Gateway 图标提案 · 第 1 轮</h1>
+        <p class="lead">
+          三组方向，每组三个变体。全部按 24×24 网格绘制，只用两种品牌色（绿 #22c55e 主 / 荧光黄 #d9ff38
+          次），保证 16px 下不糊。看中哪一个，直接回复编号（例如 <code>A2</code>）；也可以说“A 的外框 + C 的内芯”这类组合意见，我出第 2 轮。
+        </p>
+      </div>
+      <div class="toolbar">
+        <button id="theme-dark" type="button" aria-pressed="true">深色</button>
+        <button id="theme-light" type="button" aria-pressed="false">浅色</button>
+      </div>
+    </header>
+
+    <section class="set">
+      <div class="set-head">
+        <span class="tag">Set A</span>
+        <h2>门 + 链：GATE LINK</h2>
+      </div>
+      <p class="set-idea">
+        外框是“门/关口”，中间是一节链环穿过去 —— 直白表达“流量经由网关被串接转发”。链环是最短路径表达“链接”的符号。
+      </p>
+      <div class="cards" id="set-a"></div>
+    </section>
+
+    <section class="set">
+      <div class="set-head">
+        <span class="tag">Set B</span>
+        <h2>节点分流：NEURAL ROUTER</h2>
+      </div>
+      <p class="set-idea">
+        一进多出的节点图：左侧单入口、中心枢纽、右侧多出口。节点图本身就是“智能/神经网络”的通用符号，分叉表达“智能选路”。
+      </p>
+      <div class="cards" id="set-b"></div>
+    </section>
+
+    <section class="set">
+      <div class="set-head">
+        <span class="tag">Set C</span>
+        <h2>括号 + 脉冲：SIGNAL ARCH</h2>
+      </div>
+      <p class="set-idea">
+        两个方括号构成通道，中间是脉冲/火花。偏“开发者工具”气质，和 Neuro 终端风的等宽排版最搭，16px 下最干净。
+      </p>
+      <div class="cards" id="set-c"></div>
+    </section>
+
+    <footer class="page">
+      <strong>结论：C3（方括号 + 信号波）已在第 1 轮获批，成为正式图标。</strong>
+      已同步替换：左侧栏商标（<code>GatewayMark()</code> in <code>apps/desktop/src/features/shell/AppShell.tsx</code>）、
+      favicon（<code>apps/desktop/public/favicon.svg</code>）、以及 Tauri 打包图标
+      （<code>src-tauri/icons/icon.png</code> 512×512 / <code>icon.ico</code> 16-256 多尺寸，
+      由 <code>apps/desktop/scripts/render-brand-icons.mjs</code> 从 favicon 光栅化生成）。
+      本页保留作为设计记录。
+    </footer>
+
+    <script>
+      // Each proposal is a pure function of size so 16 / 24 / 48 / 96 all come from
+      // the same 24-unit grid — no separate hand-tuned artwork per size.
+      const P = "var(--primary)";
+      const S = "var(--secondary)";
+
+      const proposals = [
+        {
+          set: "set-a",
+          id: "A1",
+          name: "六边关口 + 链环",
+          body: `
+            <path d="M12 2.9 20.1 7.4v9.2L12 21.1 3.9 16.6V7.4Z" fill="none" stroke="${P}" stroke-width="1.7" stroke-linejoin="round"/>
+            <rect x="6.9" y="10.2" width="6.4" height="3.6" rx="1.8" fill="none" stroke="${S}" stroke-width="1.5"/>
+            <rect x="10.7" y="10.2" width="6.4" height="3.6" rx="1.8" fill="none" stroke="${S}" stroke-width="1.5"/>
+          `,
+        },
+        {
+          set: "set-a",
+          id: "A2",
+          name: "双柱门 + 链环",
+          body: `
+            <path d="M5.6 4.6v14.8M18.4 4.6v14.8" fill="none" stroke="${P}" stroke-width="1.9" stroke-linecap="round"/>
+            <rect x="7.6" y="10.2" width="5.6" height="3.6" rx="1.8" fill="none" stroke="${S}" stroke-width="1.5"/>
+            <rect x="10.8" y="10.2" width="5.6" height="3.6" rx="1.8" fill="none" stroke="${S}" stroke-width="1.5"/>
+          `,
+        },
+        {
+          set: "set-a",
+          id: "A3",
+          name: "六边关口 + 穿行箭头",
+          body: `
+            <path d="M12 2.9 20.1 7.4v9.2L12 21.1 3.9 16.6V7.4Z" fill="none" stroke="${P}" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M7.3 12h7.4" fill="none" stroke="${S}" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="m12.6 9.2 3.1 2.8-3.1 2.8" fill="none" stroke="${S}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          `,
+        },
+        {
+          set: "set-b",
+          id: "B1",
+          name: "一进两出 · 圆枢纽",
+          body: `
+            <path d="M5.4 12h4.1M14.5 10.4l3.1-2.4M14.5 13.6l3.1 2.4" fill="none" stroke="${P}" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="12" cy="12" r="2.7" fill="none" stroke="${S}" stroke-width="1.6"/>
+            <circle cx="3.9" cy="12" r="1.6" fill="${P}"/>
+            <circle cx="19.4" cy="6.9" r="1.6" fill="${P}"/>
+            <circle cx="19.4" cy="17.1" r="1.6" fill="${P}"/>
+          `,
+        },
+        {
+          set: "set-b",
+          id: "B2",
+          name: "一进两出 · 菱形枢纽",
+          body: `
+            <path d="M5.4 12h3.2M15.4 10.2l2.4-2M15.4 13.8l2.4 2" fill="none" stroke="${P}" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M12 8.2 15.8 12 12 15.8 8.2 12Z" fill="${S}"/>
+            <circle cx="3.9" cy="12" r="1.6" fill="none" stroke="${P}" stroke-width="1.6"/>
+            <circle cx="19.4" cy="6.9" r="1.6" fill="none" stroke="${P}" stroke-width="1.6"/>
+            <circle cx="19.4" cy="17.1" r="1.6" fill="none" stroke="${P}" stroke-width="1.6"/>
+          `,
+        },
+        {
+          set: "set-b",
+          id: "B3",
+          name: "四向网格枢纽",
+          body: `
+            <path d="M12 5.6v3.1M12 15.3v3.1M5.6 12h3.1M15.3 12h3.1" fill="none" stroke="${P}" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M12 8.7 15.3 12 12 15.3 8.7 12Z" fill="none" stroke="${S}" stroke-width="1.6" stroke-linejoin="round"/>
+            <circle cx="12" cy="3.9" r="1.5" fill="${P}"/>
+            <circle cx="12" cy="20.1" r="1.5" fill="${P}"/>
+            <circle cx="3.9" cy="12" r="1.5" fill="${P}"/>
+            <circle cx="20.1" cy="12" r="1.5" fill="${P}"/>
+          `,
+        },
+        {
+          set: "set-c",
+          id: "C1",
+          name: "方括号 + 闪电",
+          body: `
+            <path d="M9.1 4.8H6.2a1.6 1.6 0 0 0-1.6 1.6v11.2a1.6 1.6 0 0 0 1.6 1.6h2.9M14.9 4.8h2.9a1.6 1.6 0 0 1 1.6 1.6v11.2a1.6 1.6 0 0 1-1.6 1.6h-2.9" fill="none" stroke="${P}" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M13.4 7.6 9.9 13h2.5l-1 3.9 3.6-5.6h-2.5z" fill="${S}"/>
+          `,
+        },
+        {
+          set: "set-c",
+          id: "C2",
+          name: "方括号 + 智能内核",
+          body: `
+            <path d="M9.1 4.8H6.2a1.6 1.6 0 0 0-1.6 1.6v11.2a1.6 1.6 0 0 0 1.6 1.6h2.9M14.9 4.8h2.9a1.6 1.6 0 0 1 1.6 1.6v11.2a1.6 1.6 0 0 1-1.6 1.6h-2.9" fill="none" stroke="${P}" stroke-width="1.7" stroke-linecap="round"/>
+            <circle cx="12" cy="12" r="3.1" fill="none" stroke="${S}" stroke-width="1.6"/>
+            <circle cx="12" cy="12" r="1.15" fill="${S}"/>
+          `,
+        },
+        {
+          set: "set-c",
+          id: "C3",
+          name: "方括号 + 信号波",
+          body: `
+            <path d="M9.1 4.8H6.2a1.6 1.6 0 0 0-1.6 1.6v11.2a1.6 1.6 0 0 0 1.6 1.6h2.9M14.9 4.8h2.9a1.6 1.6 0 0 1 1.6 1.6v11.2a1.6 1.6 0 0 1-1.6 1.6h-2.9" fill="none" stroke="${P}" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M8.4 13.4l1.7-3.4 1.9 4.6 1.7-4 1.9 2.8" fill="none" stroke="${S}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          `,
+        },
+      ];
+
+      function svg(proposal, size) {
+        return `<svg class="mark" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">${proposal.body}</svg>`;
+      }
+
+      // The approved proposal is highlighted so this page doubles as the design record.
+      const APPROVED = "C3";
+
+      for (const proposal of proposals) {
+        const host = document.getElementById(proposal.set);
+        const card = document.createElement("article");
+        const approved = proposal.id === APPROVED;
+        card.className = approved ? "card approved" : "card";
+        card.innerHTML = `
+          <div class="card-head">
+            <span class="card-id">${proposal.id}</span>
+            <span class="card-name">${
+              approved ? '<span class="approved-badge">已采纳</span> ' : ""
+            }${proposal.name}</span>
+          </div>
+          <div class="sizes">
+            <span class="size"><span class="tile">${svg(proposal, 56)}</span><small>tile 96</small></span>
+            <span class="size">${svg(proposal, 48)}<small>48</small></span>
+            <span class="size">${svg(proposal, 24)}<small>24</small></span>
+            <span class="size">${svg(proposal, 16)}<small>16</small></span>
+          </div>
+          <div class="rail-mock">${svg(proposal, 20)}<strong>Gateway</strong></div>
+        `;
+        host.appendChild(card);
+      }
+
+      const darkButton = document.getElementById("theme-dark");
+      const lightButton = document.getElementById("theme-light");
+      function setTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        darkButton.setAttribute("aria-pressed", String(theme === "dark"));
+        lightButton.setAttribute("aria-pressed", String(theme === "light"));
+      }
+      darkButton.addEventListener("click", () => setTheme("dark"));
+      lightButton.addEventListener("click", () => setTheme("light"));
+      setTheme("dark");
+    </script>
+  </body>
+</html>

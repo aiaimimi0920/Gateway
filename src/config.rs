@@ -392,8 +392,13 @@ fn parse_optional_path_env(key: &str) -> Option<PathBuf> {
 mod tests {
     use super::*;
 
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn from_env_treats_blank_gateway_api_key_as_none() {
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         std::env::set_var("GATEWAY_REDIS_URL", "redis://127.0.0.1:6379/0");
         std::env::set_var("GATEWAY_API_KEY", "   ");
 
@@ -406,6 +411,9 @@ mod tests {
 
     #[test]
     fn from_env_trims_gateway_api_key() {
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         std::env::set_var("GATEWAY_REDIS_URL", "redis://127.0.0.1:6379/0");
         std::env::set_var("GATEWAY_API_KEY", "  temp-public-key  ");
 

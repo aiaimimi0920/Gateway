@@ -21,7 +21,6 @@ export function ModelsPanel({ state }: ModelsPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// /v1/models</p>
             <h2>模型目录</h2>
           </div>
           <button
@@ -75,7 +74,7 @@ export function ModelsPanel({ state }: ModelsPanelProps) {
 
       {state.modelsProbe?.data ? (
         <article className="nt-card nt-card--panel">
-          <p className="nt-kicker">// Raw response</p>
+          <h3>原始响应</h3>
           <pre className="nt-code">{JSON.stringify(state.modelsProbe.data, null, 2)}</pre>
         </article>
       ) : null}

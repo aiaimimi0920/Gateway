@@ -1,5 +1,8 @@
 import pathlib
+import re
 import unittest
+
+from gateway_desktop_source import read_native_module, read_styles
 
 
 GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -28,7 +31,7 @@ class GatewayDesktopProductContractTests(unittest.TestCase):
         config_text = self.read("src/features/config/ConfigPanel.tsx")
         status_text = self.read("src/features/status/StatusPanel.tsx")
         state_text = self.read("src/state/useGatewayDesktopState.ts")
-        process_text = (DESKTOP_ROOT / "src-tauri/src/process.rs").read_text(encoding="utf-8")
+        process_text = read_native_module(DESKTOP_ROOT / "src-tauri/src/process.rs")
 
         self.assertIn("preflightOk", types_text)
         self.assertIn("redis", types_text)
@@ -46,20 +49,31 @@ class GatewayDesktopProductContractTests(unittest.TestCase):
 
     def test_desktop_shell_has_a_usable_mobile_layout_and_non_overlapping_brand(self):
         app_text = self.read("src/App.tsx")
-        styles_text = self.read("src/styles.css")
+        shell_text = self.read("src/features/shell/AppShell.tsx")
+        styles_text = read_styles(DESKTOP_ROOT / "src/styles.css")
 
-        self.assertIn('className="nt-brand__copy"', app_text)
-        self.assertIn(".nt-brand__copy", styles_text)
+        self.assertIn('from "./features/shell/AppShell"', app_text)
+        self.assertIn("<AppShell<LauncherSectionId>", app_text)
+        self.assertIn('className="nt-brand__name"', shell_text)
+        brand = re.search(r"(?m)^\.nt-brand__name\s*\{([^}]*)\}", styles_text)
+        self.assertIsNotNone(brand)
+        for declaration in ["min-width: 0", "overflow: hidden", "text-overflow: ellipsis"]:
+            self.assertIn(declaration, brand.group(1))
         self.assertIn("@media (max-width: 720px)", styles_text)
         self.assertIn("grid-template-columns: minmax(0, 1fr);", styles_text)
-        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr));", styles_text)
+        # The final narrow-screen override uses scrollable tabs, not the old grid.
+        mobile = styles_text.rsplit("@media (max-width: 720px)", 1)[1]
+        nav = re.search(r"\.nt-rail__nav\s*\{([^}]*)\}", mobile)
+        self.assertIsNotNone(nav)
+        for declaration in ["display: flex", "overflow-x: auto", "overflow-y: hidden"]:
+            self.assertIn(declaration, nav.group(1))
         self.assertIn("overflow-x: hidden;", styles_text)
         self.assertIn("flex-direction: column;", styles_text)
 
     def test_desktop_process_isolation_and_tree_lifecycle_contract(self):
-        process_text = self.read("src-tauri/src/process.rs")
+        process_text = read_native_module(DESKTOP_ROOT / "src-tauri/src/process.rs")
         state_text = self.read("src-tauri/src/state.rs")
-        profile_text = self.read("src-tauri/src/profile.rs")
+        profile_text = read_native_module(DESKTOP_ROOT / "src-tauri/src/profile.rs")
         logs_text = self.read("src-tauri/src/logs.rs")
 
         for required in [

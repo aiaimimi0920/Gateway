@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "evidence": {
+    "path": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+    "sha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+  },
+  "artifacts": [
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "bytes": 623915,
+      "sha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "bytes": 409567,
+      "sha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "bytes": 546848,
+      "sha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "bytes": 1492251,
+      "sha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0",
+      "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+      "version": "1.0.0.6",
+      "bytes": 544643,
+      "sha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0",
+      "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+      "version": "1.0.0.6",
+      "bytes": 261316,
+      "sha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/WasmTtsEngine/20260806.1/bindings_main.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/suno/WasmTtsEngine/20260806.1",
+      "itemId": "bjbcblmdcnggnibecjikpoljcgkbgphl",
+      "version": "20260806.1",
+      "bytes": 243255,
+      "sha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "bytes": 623915,
+      "sha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "bytes": 409567,
+      "sha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "bytes": 546848,
+      "sha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "bytes": 1492251,
+      "sha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0",
+      "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+      "version": "1.0.0.6",
+      "bytes": 544643,
+      "sha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0",
+      "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+      "version": "1.0.0.6",
+      "bytes": 261316,
+      "sha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/WasmTtsEngine/20260806.1/bindings_main.js",
+      "packagePath": "deploy/gateway_data/browser-profiles/udio/WasmTtsEngine/20260806.1",
+      "itemId": "bjbcblmdcnggnibecjikpoljcgkbgphl",
+      "version": "20260806.1",
+      "bytes": 243255,
+      "sha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+      "reason": "Immutable installed browser package. Do not hand-edit; upgrades require a new provenance review."
+    }
+  ]
+}

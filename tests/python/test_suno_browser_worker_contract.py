@@ -4,11 +4,22 @@ import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORKER = REPO_ROOT / "scripts" / "suno-browser-worker.mjs"
+BROWSER = REPO_ROOT / "scripts" / "suno-browser" / "browser.mjs"
+PURE = REPO_ROOT / "scripts" / "suno-browser" / "pure.mjs"
 
 
 class SunoBrowserWorkerContractTests(unittest.TestCase):
+    def test_entrypoint_uses_the_extracted_browser_and_clip_contracts(self):
+        source = WORKER.read_text(encoding="utf-8")
+        self.assertIn('from "./suno-browser/browser.mjs"', source)
+        self.assertIn('from "./suno-browser/pure.mjs"', source)
+        self.assertIn("await resolveWorkerPage(", source)
+        self.assertIn("await runCreateThroughPageUi(", source)
+        self.assertIn("clipsReadyForTarget(", source)
+
     def test_cdp_context_is_not_overwritten_or_closed(self):
         source = WORKER.read_text(encoding="utf-8")
+        browser = BROWSER.read_text(encoding="utf-8")
 
         self.assertIn(
             "if (cookieHeader && !effectiveBrowserTarget.browserCdpUrl)", source
@@ -21,13 +32,13 @@ class SunoBrowserWorkerContractTests(unittest.TestCase):
             "await browser?.close().catch(() => undefined);\n    await releaseEasyBrowserLease",
             source,
         )
-        self.assertNotIn("bringToFront", source)
+        self.assertNotIn("bringToFront", source + browser)
         self.assertIn("borrowedContext: Boolean(effectiveBrowserTarget.browserCdpUrl)", source)
-        self.assertIn("if (borrowedContext && !existingPage)", source)
-        self.assertIn("if (!borrowedContext && (forceNavigate", source)
+        self.assertIn("if (borrowedContext && !existingPage)", browser)
+        self.assertIn("if (!borrowedContext && (forceNavigate", browser)
 
     def test_hidden_turnstile_inputs_are_not_treated_as_active_challenges(self):
-        source = WORKER.read_text(encoding="utf-8")
+        source = BROWSER.read_text(encoding="utf-8")
 
         self.assertIn("element.getClientRects().length > 0", source)
         self.assertNotIn(
@@ -35,7 +46,7 @@ class SunoBrowserWorkerContractTests(unittest.TestCase):
         )
 
     def test_generation_uses_native_page_verification_and_current_simple_mode_controls(self):
-        source = WORKER.read_text(encoding="utf-8")
+        source = "\n".join(file.read_text(encoding="utf-8") for file in (WORKER, BROWSER, PURE))
 
         self.assertNotIn("requestGenerationTurnstileToken", source)
         self.assertNotIn("window.turnstile.render", source)
@@ -57,7 +68,7 @@ class SunoBrowserWorkerContractTests(unittest.TestCase):
         self.assertNotIn('buildStylePrompt(prompt, placeholder)', source)
 
     def test_wait_completion_requires_every_returned_clip_asset(self):
-        source = WORKER.read_text(encoding="utf-8")
+        source = PURE.read_text(encoding="utf-8")
 
         self.assertIn("clips.length > 0", source)
         self.assertIn(

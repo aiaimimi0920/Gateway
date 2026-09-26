@@ -8,6 +8,7 @@ import {
   filterAccountLedgerRows,
   resolveGeminiLogicalChannel,
 } from "./accountManagementViewModel";
+import type { ProviderMetricsResolver } from "./providerCardMetrics";
 
 describe("accountManagementViewModel", () => {
   const catalog = {
@@ -222,10 +223,188 @@ describe("accountManagementViewModel", () => {
       memberCount: 1,
       providerLabels: ["Managed OpenAI"],
     });
-    expect(candidates[0]).toMatchObject({
+    // Display-name order varies with the host locale.
+    expect(candidates).toHaveLength(2);
+    expect(candidates.find((candidate) => candidate.accountId === "acc-prod-1")).toMatchObject({
       accountId: "acc-prod-1",
       selected: true,
       providerLabel: "Managed OpenAI",
     });
+    expect(candidates.find((candidate) => candidate.accountId === "managed-provider::default"))
+      .toMatchObject({
+        accountId: "managed-provider::default",
+        selected: false,
+        providerLabel: "Managed OpenAI",
+      });
+  });
+
+  it("rolls member usage up per group and ignores non-members", () => {
+    const [directory] = buildCredentialGroupDirectory(
+      catalog,
+      [
+        {
+          id: "draft-group-vip",
+          groupId: "group-vip",
+          name: "VIP 分组",
+          description: "",
+          billingMultiplier: "1.5",
+          enabled: true,
+          notes: "",
+          providerCredentialIds: ["acc-prod-1"],
+        },
+      ],
+      new Map([
+        [
+          "acc-prod-1",
+          {
+            concurrencyUsed: 4,
+            concurrencyTotal: 10,
+            usageWindowBadges: ["120 req"],
+            upstreamCost: 1.5,
+            userCost: 3,
+            successWindows: [{ label: "10:00", success: 9, requests: 10 }],
+          },
+        ],
+        [
+          "acc-prod-2",
+          {
+            concurrencyUsed: 99,
+            concurrencyTotal: 99,
+            usageWindowBadges: ["9,000 req"],
+            upstreamCost: 50,
+            userCost: 80,
+            successWindows: [{ label: "10:00", success: 0, requests: 100 }],
+          },
+        ],
+      ]),
+    );
+
+    expect(directory?.metrics).toMatchObject({
+      concurrency: { used: 4, total: 10 },
+      upstreamCost: 1.5,
+      platformRevenue: 3,
+      requests: 120,
+      successRate: 0.9,
+    });
+  });
+
+  it("leaves group metrics null when no per-account usage is supplied", () => {
+    const [directory] = buildCredentialGroupDirectory(catalog, [
+      {
+        id: "draft-group-vip",
+        groupId: "group-vip",
+        name: "VIP 分组",
+        description: "",
+        billingMultiplier: "1.5",
+        enabled: true,
+        notes: "",
+        providerCredentialIds: ["acc-prod-1"],
+      },
+    ]);
+
+    expect(directory?.metrics).toBeNull();
+  });
+
+  it("counts the provider's whole pool on a scope tab, not just the member credentials", () => {
+    const [directory] = buildCredentialGroupDirectory(catalog, [
+      {
+        id: "draft-group-vip",
+        groupId: "group-vip",
+        name: "VIP 分组",
+        description: "",
+        billingMultiplier: "1.5",
+        enabled: true,
+        notes: "",
+        providerCredentialIds: ["acc-prod-1"],
+      },
+    ]);
+
+    expect(directory?.providerScopes).toEqual([
+      {
+        providerId: "managed-provider",
+        providerLabel: "Managed OpenAI",
+        accountCount: 1,
+        modelCount: 1,
+        // Both catalog accounts belong to this provider, while only one is a
+        // member of the group.
+        providerAccountCount: 2,
+      },
+    ]);
+  });
+
+  it("takes group and per-model numbers from the provider-account resolver rather than the member cards", () => {
+    const resolverCalls: {
+      providerAccounts: string[][];
+      providerAccountModel: [string, string][];
+      billingMultipliers: (number | undefined)[];
+    } = { providerAccounts: [], providerAccountModel: [], billingMultipliers: [] };
+    const resolver: ProviderMetricsResolver = {
+      providerAccounts: (providerAccountIds, options) => {
+        resolverCalls.providerAccounts.push([...providerAccountIds]);
+        resolverCalls.billingMultipliers.push(options?.billingMultiplier);
+        return {
+          concurrencyUsed: 6,
+          concurrencyTotal: 20,
+          requestCount: 400,
+          upstreamCost: 8,
+          userCost: 12,
+          successWindows: [{ label: "10:00", success: 380, requests: 400 }],
+        };
+      },
+      providerAccountModel: (providerAccountId, model) => {
+        resolverCalls.providerAccountModel.push([providerAccountId, model]);
+        return {
+          concurrencyUsed: 2,
+          concurrencyTotal: 5,
+          requestCount: 100,
+          upstreamCost: 2,
+          userCost: 3,
+          successWindows: [{ label: "10:00", success: 90, requests: 100 }],
+        };
+      },
+    };
+
+    const [directory] = buildCredentialGroupDirectory(
+      catalog,
+      [
+        {
+          id: "draft-group-vip",
+          groupId: "group-vip",
+          name: "VIP 分组",
+          description: "",
+          billingMultiplier: "1.5",
+          enabled: true,
+          notes: "",
+          providerCredentialIds: ["acc-prod-1"],
+        },
+      ],
+      // The per-account map is deliberately smaller than the resolver's answer, so
+      // a card that summed its members would report 1/2 instead of 6/20.
+      new Map([
+        [
+          "acc-prod-1",
+          { concurrencyUsed: 1, concurrencyTotal: 2, requestCount: 5, upstreamCost: 1, userCost: 2 },
+        ],
+      ]),
+      resolver,
+    );
+
+    expect(resolverCalls.providerAccounts).toEqual([["managed-provider"]]);
+    expect(resolverCalls.billingMultipliers).toEqual([1.5]);
+    expect(directory?.metrics).toMatchObject({
+      concurrency: { used: 6, total: 20 },
+      requests: 400,
+      upstreamCost: 8,
+      platformRevenue: 12,
+      successRate: 0.95,
+    });
+    expect(resolverCalls.providerAccountModel).toEqual([["managed-provider", "gpt-5.4"]]);
+    expect(directory?.modelScopes).toMatchObject([
+      {
+        model: "gpt-5.4",
+        members: [{ accountId: "acc-prod-1", providerId: "managed-provider" }],
+        providerMetrics: [{ providerId: "managed-provider", metrics: { requestCount: 100 } }],
+      },
+    ]);
   });
 });

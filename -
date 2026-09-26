@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 1,
+  "checkerVersion": 1,
+  "mode": "report",
+  "thresholds": {
+    "target": 150,
+    "acceptable": 500,
+    "soft": 700,
+    "hard": 1500
+  },
+  "baseline": {
+    "sourceKind": "working-tree-adoption",
+    "sourceCommit": "4a7aece6b6531bb97b71afc99ae9e1ad3c4f2d7d",
+    "sourceTree": "11a3db707a486205f24d7fc93c792e15358c44b7",
+    "files": 182
+  },
+  "summary": {
+    "scanned": 2305,
+    "hard": 8,
+    "mandatory": 9,
+    "soft": 14
+  },
+  "violations": [],
+  "warnings": [
+    "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js: unchanged mandatory migration debt",
+    "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js: unchanged mandatory migration debt",
+    "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js: unchanged mandatory migration debt",
+    "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js: unchanged hard-cap migration debt",
+    "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js: unchanged mandatory migration debt",
+    "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js: unchanged 501-700 migration debt (551)",
+    "deploy/gateway_data/browser-profiles/suno/WasmTtsEngine/20260806.1/bindings_main.js: unchanged hard-cap migration debt",
+    "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js: unchanged mandatory migration debt",
+    "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js: unchanged mandatory migration debt",
+    "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js: unchanged mandatory migration debt",
+    "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js: unchanged hard-cap migration debt",
+    "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js: unchanged mandatory migration debt",
+    "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js: unchanged 501-700 migration debt (551)",
+    "deploy/gateway_data/browser-profiles/udio/WasmTtsEngine/20260806.1/bindings_main.js: unchanged hard-cap migration debt",
+    "scripts/udio-capture-next-generate.mjs: unchanged 501-700 migration debt (549)",
+    "src/protocol/gemini_business.rs: unchanged mandatory migration debt",
+    "src/protocol/gemini_canvas.rs: non-growing (7944 -> 7784) hard-cap migration debt",
+    "src/protocol/gemini/canvas_web_reverse/stream_parsers.rs: unchanged 501-700 migration debt (636)",
+    "src/upstream/aistudio/web_reverse/execution.rs: unchanged 501-700 migration debt (655)",
+    "src/upstream/browser_worker_types.rs: unchanged 501-700 migration debt (651)",
+    "src/upstream/client.rs: non-growing (15700 -> 15638) hard-cap migration debt",
+    "src/upstream/gemini_canvas_direct_http_helpers.rs: non-growing (2044 -> 2044) hard-cap migration debt",
+    "src/upstream/gemini_canvas_image_edit_local_helpers.rs: non-growing (3918 -> 2884) hard-cap migration debt",
+    "src/upstream/gemini_canvas_runtime_helpers.rs: unchanged 501-700 migration debt (527)",
+    "src/upstream/gemini/canvas_program_web_reverse/result.rs: unchanged 501-700 migration debt (666)",
+    "src/upstream/gemini/canvas_web_reverse/execution.rs: unchanged 501-700 migration debt (540)",
+    "tests/python/test_gateway_splitter_worker_e2e.py: unchanged 501-700 migration debt (562)",
+    "tools/smoke-gateway-packaged-runtime.ps1: unchanged 501-700 migration debt (680)",
+    "tools/verify-gateway-release-candidate.ps1: unchanged 501-700 migration debt (554)"
+  ],
+  "files": [
+    {
+      "path": "src/upstream/client.rs",
+      "language": "rust",
+      "effectiveLines": 15638,
+      "physicalLines": 16351,
+      "sourceSha256": "ef677ee570a0aa0e4f8266ebc9ed4b0dc013f8a999c4b66547024db7160fc876"
+    },
+    {
+      "path": "src/protocol/gemini_canvas.rs",
+      "language": "rust",
+      "effectiveLines": 7784,
+      "physicalLines": 8343,
+      "sourceSha256": "58cafa97496db04e23abd96c5ce802c6f9ba329cba6da7232f4050b9272a3120"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/WasmTtsEngine/20260806.1/bindings_main.js",
+      "language": "c-like",
+      "effectiveLines": 4986,
+      "physicalLines": 6277,
+      "sourceSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/WasmTtsEngine/20260806.1/bindings_main.js",
+      "language": "c-like",
+      "effectiveLines": 4986,
+      "physicalLines": 6277,
+      "sourceSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66"
+    },
+    {
+      "path": "src/upstream/gemini_canvas_image_edit_local_helpers.rs",
+      "language": "rust",
+      "effectiveLines": 2884,
+      "physicalLines": 3107,
+      "sourceSha256": "98366c37220a3ef32dc8068c92e2dd01ed1118a3ea7a27029b3a1eb82626d245"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js",
+      "language": "c-like",
+      "effectiveLines": 2663,
+      "physicalLines": 2670,
+      "sourceSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js",
+      "language": "c-like",
+      "effectiveLines": 2663,
+      "physicalLines": 2670,
+      "sourceSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476"
+    },
+    {
+      "path": "src/upstream/gemini_canvas_direct_http_helpers.rs",
+      "language": "rust",
+      "effectiveLines": 2044,
+      "physicalLines": 2215,
+      "sourceSha256": "ac3ac7ec902622df871a54835d56867e273fa66dd8e628922542c82b83290c81"
+    },
+    {
+      "path": "src/protocol/gemini_business.rs",
+      "language": "rust",
+      "effectiveLines": 1244,
+      "physicalLines": 1359,
+      "sourceSha256": "3da8f9bb4d8d4e3dedec241d1f525bc64c05e464eb5e37dcc826aa11b9edf107"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js",
+      "language": "c-like",
+      "effectiveLines": 1190,
+      "physicalLines": 1195,
+      "sourceSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js",
+      "language": "c-like",
+      "effectiveLines": 1190,
+      "physicalLines": 1195,
+      "sourceSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js",
+      "language": "c-like",
+      "effectiveLines": 1121,
+      "physicalLines": 1128,
+      "sourceSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js",
+      "language": "c-like",
+      "effectiveLines": 1121,
+      "physicalLines": 1128,
+      "sourceSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js",
+      "language": "c-like",
+      "effectiveLines": 968,
+      "physicalLines": 968,
+      "sourceSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js",
+      "language": "c-like",
+      "effectiveLines": 968,
+      "physicalLines": 968,
+      "sourceSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js",
+      "language": "c-like",
+      "effectiveLines": 821,
+      "physicalLines": 821,
+      "sourceSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js",
+      "language": "c-like",
+      "effectiveLines": 821,
+      "physicalLines": 821,
+      "sourceSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b"
+    },
+    {
+      "path": "apps/desktop/src/features/console/useConsoleController.ts",
+      "language": "c-like",
+      "effectiveLines": 698,
+      "physicalLines": 778,
+      "sourceSha256": "a1f09016ba3b791c01333ca746ed1500676ff12a2fb828d64645125a642e74c9"
+    },
+    {
+      "path": "tools/smoke-gateway-packaged-runtime.ps1",
+      "language": "powershell",
+      "effectiveLines": 680,
+      "physicalLines": 743,
+      "sourceSha256": "84d4e60ecebc9e4c586d09b5885ae8a75f6c5601d594d3dfc436953584db93cd"
+    },
+    {
+      "path": "src/upstream/gemini/canvas_program_web_reverse/result.rs",
+      "language": "rust",
+      "effectiveLines": 666,
+      "physicalLines": 697,
+      "sourceSha256": "5499240c91afdbcca6ec97998593c87efb00fe7091c90fb77405698d0670d7cc"
+    },
+    {
+      "path": "src/upstream/aistudio/web_reverse/execution.rs",
+      "language": "rust",
+      "effectiveLines": 655,
+      "physicalLines": 673,
+      "sourceSha256": "314b65f89a29829ce6a07e2eafefd771f5e6cefef7cfab3890703578897b7889"
+    },
+    {
+      "path": "src/upstream/browser_worker_types.rs",
+      "language": "rust",
+      "effectiveLines": 651,
+      "physicalLines": 703,
+      "sourceSha256": "3c36c1a53b02640e72f0d5744d01fae28be3c2c658ae3ab79a52b2e14d5a5d19"
+    },
+    {
+      "path": "src/protocol/gemini/canvas_web_reverse/stream_parsers.rs",
+      "language": "rust",
+      "effectiveLines": 636,
+      "physicalLines": 685,
+      "sourceSha256": "47cd7647d0a0afd87a4feef511dec38394c99bd0065298b948a5d6a4d33bce9e"
+    },
+    {
+      "path": "tests/python/test_gateway_splitter_worker_e2e.py",
+      "language": "python",
+      "effectiveLines": 562,
+      "physicalLines": 611,
+      "sourceSha256": "cb719d007f1ccd204d83e3d583c3a1d0dc63e1059049d49813774ed709ffc561"
+    },
+    {
+      "path": "tools/verify-gateway-release-candidate.ps1",
+      "language": "powershell",
+      "effectiveLines": 554,
+      "physicalLines": 622,
+      "sourceSha256": "12e5e900f220c94e3086e31bfd9449e14240b46f2a6a682a446f56eb457c0939"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js",
+      "language": "c-like",
+      "effectiveLines": 551,
+      "physicalLines": 556,
+      "sourceSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8"
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js",
+      "language": "c-like",
+      "effectiveLines": 551,
+      "physicalLines": 556,
+      "sourceSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8"
+    },
+    {
+      "path": "apps/desktop/src/features/console/BrowserConsoleApp.tsx",
+      "language": "c-like",
+      "effectiveLines": 549,
+      "physicalLines": 631,
+      "sourceSha256": "35f77a451fef57343749d39db31fa1c3b51f6fdbb6c431bef98b85916802a04e"
+    },
+    {
+      "path": "scripts/udio-capture-next-generate.mjs",
+      "language": "c-like",
+      "effectiveLines": 549,
+      "physicalLines": 597,
+      "sourceSha256": "9ecf10cbc7d01ff4a56d02961d94b9d81c1a76ba647b998b20c1685c0a87f823"
+    },
+    {
+      "path": "src/upstream/gemini/canvas_web_reverse/execution.rs",
+      "language": "rust",
+      "effectiveLines": 540,
+      "physicalLines": 573,
+      "sourceSha256": "1d93a242291a99efa735e33bc9fd554139cbd67e1e5c6aa1e3c0b10e152114d4"
+    },
+    {
+      "path": "src/upstream/gemini_canvas_runtime_helpers.rs",
+      "language": "rust",
+      "effectiveLines": 527,
+      "physicalLines": 567,
+      "sourceSha256": "031210c6075e766ae1fe4e334cd61810c97d16bba19c3b6022ddd1d432ffff22"
+    }
+  ]
+}

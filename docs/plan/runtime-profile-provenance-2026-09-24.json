@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "chromium-webstore-rs256-treehash",
+  "observedAt": "2026-09-24T12:20:14.975Z",
+  "chromiumCommit": "edaa5af80a511ba8bcb75c923c998910e7e839e7",
+  "publicKeySha256": "b5e4096227b83f82101fc2aa49f2a251accde3d98471464dd17d1819b43786b0",
+  "references": [
+    {
+      "file": "extensions/common/constants.cc",
+      "url": "https://raw.githubusercontent.com/chromium/chromium/edaa5af80a511ba8bcb75c923c998910e7e839e7/extensions/common/constants.cc",
+      "sha256": "0c0d14ea4ee20bb49d959e53b258f840f84922acc3dd2be5f28386267daa0d5c"
+    },
+    {
+      "file": "extensions/browser/verified_contents.cc",
+      "url": "https://raw.githubusercontent.com/chromium/chromium/edaa5af80a511ba8bcb75c923c998910e7e839e7/extensions/browser/verified_contents.cc",
+      "sha256": "7a23d7b39951c575fe7d7178c92053daca7452c9be593a5cf2968ab5a7298538"
+    },
+    {
+      "file": "extensions/browser/content_hash_tree.cc",
+      "url": "https://raw.githubusercontent.com/chromium/chromium/edaa5af80a511ba8bcb75c923c998910e7e839e7/extensions/browser/content_hash_tree.cc",
+      "sha256": "68cc25a974975f12e5ba4c9ee36688e6790cea739bd6423b53fd5dea0bf456f6"
+    },
+    {
+      "file": "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
+      "url": "https://raw.githubusercontent.com/chromium/chromium/edaa5af80a511ba8bcb75c923c998910e7e839e7/chrome/browser/extensions/chrome_content_verifier_delegate.cc",
+      "sha256": "4e766e7cfdf77d75d8f63e273128f42f7221ce2f0ab6aee486e8f6ef340b99e7"
+    }
+  ],
+  "packages": [
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/WasmTtsEngine/20260806.1",
+      "itemId": "bjbcblmdcnggnibecjikpoljcgkbgphl",
+      "version": "20260806.1",
+      "manifestKeyMatchesItemId": null,
+      "verifiedContentsSha256": "10df4dbfa2c884ee517b5e23af22db4410facf49cdb709b7109af791951da469",
+      "webstoreSignatureVerified": true,
+      "signatureMutationRejected": true,
+      "files": [
+        {
+          "path": "bindings_main.js",
+          "bytes": 243255,
+          "sha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+          "signedTreeHash": "olBYKAV_soXpvCh5iRTUCoUhO_I9jX6veq0-OOdOdBs",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        }
+      ]
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/WasmTtsEngine/20260806.1",
+      "itemId": "bjbcblmdcnggnibecjikpoljcgkbgphl",
+      "version": "20260806.1",
+      "manifestKeyMatchesItemId": null,
+      "verifiedContentsSha256": "10df4dbfa2c884ee517b5e23af22db4410facf49cdb709b7109af791951da469",
+      "webstoreSignatureVerified": true,
+      "signatureMutationRejected": true,
+      "files": [
+        {
+          "path": "bindings_main.js",
+          "bytes": 243255,
+          "sha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+          "signedTreeHash": "olBYKAV_soXpvCh5iRTUCoUhO_I9jX6veq0-OOdOdBs",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        }
+      ]
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "manifestKeyMatchesItemId": true,
+      "verifiedContentsSha256": "4b907666dd087c00b2325eea0a28b22eadd4e1cc32d690cd364f593c42ba9fa1",
+      "webstoreSignatureVerified": true,
+      "signatureMutationRejected": true,
+      "files": [
+        {
+          "path": "vendor/eslint/eslint.js",
+          "bytes": 1492251,
+          "sha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+          "signedTreeHash": "6b31bktsPvTnD23XYxgA4UaRMRrSFTG6DDvHxC_TAhs",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "background.js",
+          "bytes": 623915,
+          "sha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+          "signedTreeHash": "O-wX7Xy_UQvpU_E2bsSSvBLBGRaQh_MvOzc8XrHOGk8",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "extension.js",
+          "bytes": 546848,
+          "sha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+          "signedTreeHash": "cH1pNIbnBgLxicbWCHVjq-6saMYgQwBCBzAGY7XPp6s",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "editor.js",
+          "bytes": 409567,
+          "sha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+          "signedTreeHash": "SgZYXcxP-pz3srPXEMZhx21fjYDQRja0hmpU0ZztsUU",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "LICENSE",
+          "bytes": 49,
+          "sha256": "192a5be81b3801227a22fc6a9b7ca0ec668117090f15411d0750a597f211aca9",
+          "signedTreeHash": "GSpb6Bs4ASJ6Ivxqm3yg7GaBFwkPFUEdB1Cll_IRrKk",
+          "role": "license-notice",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "vendor/eslint/LICENSE",
+          "bytes": 1094,
+          "sha256": "db83f2ede67f36cfab1ea0721ea2ee97515863e9a65346881f305e430451cc91",
+          "signedTreeHash": "24Py7eZ_Ns-rHqByHqLul1FYY-mmU0aIHzBeQwRRzJE",
+          "role": "license-notice",
+          "byteMutationRejected": true
+        }
+      ]
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0",
+      "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+      "version": "5.6.6239",
+      "manifestKeyMatchesItemId": true,
+      "verifiedContentsSha256": "4b907666dd087c00b2325eea0a28b22eadd4e1cc32d690cd364f593c42ba9fa1",
+      "webstoreSignatureVerified": true,
+      "signatureMutationRejected": true,
+      "files": [
+        {
+          "path": "vendor/eslint/eslint.js",
+          "bytes": 1492251,
+          "sha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+          "signedTreeHash": "6b31bktsPvTnD23XYxgA4UaRMRrSFTG6DDvHxC_TAhs",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "background.js",
+          "bytes": 623915,
+          "sha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+          "signedTreeHash": "O-wX7Xy_UQvpU_E2bsSSvBLBGRaQh_MvOzc8XrHOGk8",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "extension.js",
+          "bytes": 546848,
+          "sha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+          "signedTreeHash": "cH1pNIbnBgLxicbWCHVjq-6saMYgQwBCBzAGY7XPp6s",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "editor.js",
+          "bytes": 409567,
+          "sha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+          "signedTreeHash": "SgZYXcxP-pz3srPXEMZhx21fjYDQRja0hmpU0ZztsUU",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "LICENSE",
+          "bytes": 49,
+          "sha256": "192a5be81b3801227a22fc6a9b7ca0ec668117090f15411d0750a597f211aca9",
+          "signedTreeHash": "GSpb6Bs4ASJ6Ivxqm3yg7GaBFwkPFUEdB1Cll_IRrKk",
+          "role": "license-notice",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "vendor/eslint/LICENSE",
+          "bytes": 1094,
+          "sha256": "db83f2ede67f36cfab1ea0721ea2ee97515863e9a65346881f305e430451cc91",
+          "signedTreeHash": "24Py7eZ_Ns-rHqByHqLul1FYY-mmU0aIHzBeQwRRzJE",
+          "role": "license-notice",
+          "byteMutationRejected": true
+        }
+      ]
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0",
+      "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+      "version": "1.0.0.6",
+      "manifestKeyMatchesItemId": true,
+      "verifiedContentsSha256": "52a24fa2fb3bcb18d9d8571ae385c4a830ff98ce4c18384d40a84ea7f6ba7f69",
+      "webstoreSignatureVerified": true,
+      "signatureMutationRejected": true,
+      "files": [
+        {
+          "path": "craw_background.js",
+          "bytes": 544643,
+          "sha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+          "signedTreeHash": "R6Qz0VpxIJmAcNkxZ-jZzLgNM7lxvXXhGemskEYALEk",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "craw_window.js",
+          "bytes": 261316,
+          "sha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+          "signedTreeHash": "Q5zuwPXsrtAnLRRJmfqfcJKOBT_QpFmSEPIiVCwC1y0",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        }
+      ]
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0",
+      "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+      "version": "1.0.0.6",
+      "manifestKeyMatchesItemId": true,
+      "verifiedContentsSha256": "52a24fa2fb3bcb18d9d8571ae385c4a830ff98ce4c18384d40a84ea7f6ba7f69",
+      "webstoreSignatureVerified": true,
+      "signatureMutationRejected": true,
+      "files": [
+        {
+          "path": "craw_background.js",
+          "bytes": 544643,
+          "sha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+          "signedTreeHash": "R6Qz0VpxIJmAcNkxZ-jZzLgNM7lxvXXhGemskEYALEk",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        },
+        {
+          "path": "craw_window.js",
+          "bytes": 261316,
+          "sha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+          "signedTreeHash": "Q5zuwPXsrtAnLRRJmfqfcJKOBT_QpFmSEPIiVCwC1y0",
+          "role": "strict-inventory-asset",
+          "byteMutationRejected": true
+        }
+      ]
+    }
+  ],
+  "auditSource": {
+    "path": "target/effective-line-evidence/20260924-integration-closure/signatures-2026-09-24T12-20-12-847Z/summary.json",
+    "sha256": "22418e95861ef698cf8aa0ac2e3a1ff2c850264b5547de4d5a9fb9da5707f402"
+  },
+  "limitations": [
+    "The recorded signature audit authenticates the listed bytes and signed item ID/version.",
+    "The checker binds exact bytes to this reviewed audit receipt; it does not repeat signature authentication.",
+    "This receipt does not establish a human publisher identity, installation history, or whole-bundle redistribution rights.",
+    "No browser profile, active checker policy, adoption baseline, or release is changed by this receipt."
+  ]
+}

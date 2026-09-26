@@ -40,6 +40,24 @@ function Write-Utf8NoBomLines {
     [System.IO.File]::WriteAllLines($Path, $Lines, [System.Text.UTF8Encoding]::new($false))
 }
 
+function Invoke-DockerCommand {
+    param([Parameter(Mandatory = $true)][string[]]$Arguments)
+
+    Get-Command docker -ErrorAction Stop | Out-Null
+    $previousPreference = $ErrorActionPreference
+    try {
+        # Windows PowerShell promotes native stderr under Stop, including build progress.
+        $ErrorActionPreference = "Continue"
+        & docker @Arguments 2>&1 | ForEach-Object { $_.ToString() }
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($exitCode -ne 0) {
+        throw "docker $($Arguments[0]) failed with exit code $exitCode."
+    }
+}
+
 function Invoke-DockerCompose {
     param(
         [Parameter(Mandatory = $true)][string]$ComposeFile,
@@ -48,10 +66,7 @@ function Invoke-DockerCompose {
     )
 
     $composeArguments = @("compose", "--env-file", $EnvFilePath, "-f", $ComposeFile) + $Arguments
-    & docker @composeArguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "docker compose failed with exit code $LASTEXITCODE."
-    }
+    Invoke-DockerCommand -Arguments $composeArguments
 }
 
 function Wait-GatewayEndpoint {
@@ -79,6 +94,7 @@ $projectName = "gatewayverify-" + [guid]::NewGuid().ToString("N").Substring(0, 1
 $composeEnvFile = Join-Path $deployDir ".env"
 $composeEnvBackupPath = Join-Path ([System.IO.Path]::GetTempPath()) ("gateway-docker-verify-backup-{0}.env" -f [guid]::NewGuid().ToString("N"))
 $createdComposeEnvFile = $false
+$composeEnvPrepared = $false
 $targetImage = ("{0}:{1}" -f $ImageName, $ImageTag)
 
 try {
@@ -100,16 +116,10 @@ try {
             (Join-Path $gatewayRoot "Dockerfile"),
             $gatewayRoot
         )
-        & docker @buildArguments
-        if ($LASTEXITCODE -ne 0) {
-            throw "docker build failed with exit code $LASTEXITCODE."
-        }
+        Invoke-DockerCommand -Arguments $buildArguments
     } elseif (-not [string]::IsNullOrWhiteSpace($SourceImage) -and
         -not [string]::Equals($SourceImage, $targetImage, [System.StringComparison]::OrdinalIgnoreCase)) {
-        & docker tag $SourceImage $targetImage
-        if ($LASTEXITCODE -ne 0) {
-            throw "docker tag failed with exit code $LASTEXITCODE."
-        }
+        Invoke-DockerCommand -Arguments @("tag", $SourceImage, $targetImage)
     }
 
     $envLines = @(
@@ -126,6 +136,7 @@ try {
         "GATEWAY_ENV_FILE=.env"
     )
     Write-Utf8NoBomLines -Path $composeEnvFile -Lines $envLines
+    $composeEnvPrepared = $true
 
     if ($Mode -eq "local") {
         New-Item -ItemType Directory -Path (Join-Path $deployDir "gateway_data") -Force | Out-Null
@@ -149,16 +160,18 @@ try {
 }
 catch {
     Write-Warning $_
-    try {
-        Invoke-DockerCompose -ComposeFile $composeFile -EnvFilePath $composeEnvFile -Arguments @("logs", "--no-color", "--tail", "200")
-    }
-    catch {
-        Write-Warning $_
+    if ($composeEnvPrepared) {
+        try {
+            Invoke-DockerCompose -ComposeFile $composeFile -EnvFilePath $composeEnvFile -Arguments @("logs", "--no-color", "--tail", "200")
+        }
+        catch {
+            Write-Warning $_
+        }
     }
     throw
 }
 finally {
-    if (Test-Path -LiteralPath $composeEnvFile -PathType Leaf) {
+    if ($composeEnvPrepared -and (Test-Path -LiteralPath $composeEnvFile -PathType Leaf)) {
         try {
             Invoke-DockerCompose -ComposeFile $composeFile -EnvFilePath $composeEnvFile -Arguments @("down", "-v")
         }

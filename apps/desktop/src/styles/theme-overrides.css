@@ -1,0 +1,328 @@
+/* theme overrides styles; preserve position in styles.css. */
+/* Canonical Neuro theme layer. Keep product selectors below this line bound to
+   semantic roles so a future theme change only edits the token block above. */
+.nt-rail,
+.nt-board,
+.nt-card,
+.nt-terminal,
+.nt-ledger-table__row,
+.nt-pilot-menu__panel,
+.dialog-content,
+.nt-pilot-dialog__hero {
+  border-radius: var(--nt-radius-md);
+  background: var(--nt-color-panel);
+  box-shadow: var(--nt-shadow-surface);
+}
+
+.nt-rail,
+.nt-board {
+  border-color: var(--nt-border);
+}
+
+.nt-card--panel,
+.nt-terminal {
+  background: var(--nt-color-panel);
+}
+
+.nt-rail {
+  background: var(--nt-color-surface);
+}
+
+.nt-board {
+  background: var(--nt-color-surface);
+}
+
+.nt-board::before {
+  background: none;
+  border-left: 2px solid color-mix(in srgb, var(--nt-signal) 20%, transparent);
+  opacity: 0.7;
+}
+
+.nt-rail__item,
+.nt-pilot-menu__item,
+.nt-provider-pilot__toggle,
+.nt-provider-subtab {
+  border-radius: var(--nt-radius-sm);
+}
+
+.nt-rail__item:hover,
+.nt-rail__item--active {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-signal-soft);
+}
+
+.nt-chip,
+.nt-badge {
+  border-color: color-mix(in srgb, var(--nt-signal) 42%, var(--nt-border));
+  border-radius: var(--nt-radius-sm);
+  background: var(--nt-signal-soft);
+  color: var(--nt-signal);
+}
+
+.nt-chip--online,
+.nt-badge--success,
+.nt-status-pill--online {
+  border-color: color-mix(in srgb, var(--nt-success) 42%, var(--nt-border));
+  background: var(--nt-success-soft);
+  color: var(--nt-success);
+}
+
+.nt-badge--warning {
+  border-color: color-mix(in srgb, var(--nt-warning) 42%, var(--nt-border));
+  background: var(--nt-warning-soft);
+  color: var(--nt-warning);
+}
+
+.nt-badge--info {
+  border-color: color-mix(in srgb, var(--nt-info) 42%, var(--nt-border));
+  background: var(--nt-info-soft);
+  color: var(--nt-info);
+}
+
+.nt-badge--muted {
+  border-color: var(--nt-border);
+  background: var(--nt-color-control);
+  color: var(--nt-text-muted);
+}
+
+.nt-badge--danger,
+.nt-status-pill--offline {
+  border-color: color-mix(in srgb, var(--nt-danger) 42%, var(--nt-border));
+  background: var(--nt-danger-soft);
+  color: var(--nt-danger);
+}
+
+.nt-chip--muted {
+  border-color: var(--nt-border);
+  background: var(--nt-color-control);
+  color: var(--nt-text-muted);
+}
+
+.nt-card:hover {
+  border-color: var(--nt-border-strong);
+}
+
+.nt-card--panel > .nt-ledger-stats .nt-ledger-stat {
+  border: 0;
+  border-left: 2px solid var(--nt-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.nt-ledger-table__head {
+  border-radius: var(--nt-radius-sm);
+  border-color: var(--nt-border);
+  background: var(--nt-signal-soft);
+}
+
+.nt-ledger-table__row {
+  border-color: var(--nt-border);
+}
+
+.nt-provider-pilot__toggle,
+.nt-provider-subtab {
+  border-bottom-color: var(--nt-border);
+}
+
+.nt-provider-subtab--active {
+  border-left-color: var(--nt-signal);
+}
+
+.nt-pilot-menu__panel {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-color-control);
+}
+
+.nt-pilot-menu__item:hover {
+  background: var(--nt-color-control-hover);
+}
+
+.nt-switch {
+  border-color: var(--nt-border);
+  background: var(--nt-color-control);
+}
+
+.nt-switch--on {
+  border-color: color-mix(in srgb, var(--nt-success) 46%, var(--nt-border));
+  background: var(--nt-success-soft);
+}
+
+.nt-switch__thumb {
+  background: var(--nt-color-focus-surface);
+  box-shadow: none;
+}
+
+.nt-pilot-dialog__hero {
+  border-color: var(--nt-border);
+  background: var(--nt-color-control);
+}
+
+.nt-pilot-dialog__hero-icon {
+  border-radius: var(--nt-radius-md);
+  background: var(--nt-info);
+  color: var(--nt-color-focus-ink);
+}
+
+.nt-pilot-terminal {
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-sm);
+  background: var(--nt-color-background);
+  color: var(--nt-text);
+}
+
+.nt-pilot-stat-card--emerald,
+.nt-pilot-stat-card--blue,
+.nt-pilot-stat-card--orange,
+.nt-pilot-stat-card--purple {
+  border-color: var(--nt-border);
+  background: var(--nt-color-control);
+}
+
+.nt-pilot-stat-card--emerald {
+  border-left: 2px solid var(--nt-success);
+}
+
+.nt-pilot-stat-card--blue {
+  border-left: 2px solid var(--nt-info);
+}
+
+.nt-pilot-stat-card--orange,
+.nt-pilot-stat-card--purple {
+  border-left: 2px solid var(--nt-signal);
+}
+
+.nt-btn {
+  border-radius: var(--nt-radius-sm);
+}
+
+.nt-btn--primary {
+  border-color: color-mix(in srgb, var(--nt-signal) 56%, var(--nt-border));
+  background: var(--nt-signal);
+  color: var(--nt-color-focus-ink);
+}
+
+.nt-btn--secondary {
+  border-color: color-mix(in srgb, var(--nt-info) 42%, var(--nt-border));
+  background: var(--nt-info-soft);
+  color: var(--nt-text);
+}
+
+.nt-btn--outline {
+  border-color: color-mix(in srgb, var(--nt-signal) 42%, var(--nt-border));
+  background: var(--nt-signal-soft);
+  color: var(--nt-signal);
+}
+
+.nt-btn--danger {
+  border-color: color-mix(in srgb, var(--nt-danger) 46%, var(--nt-border));
+  background: var(--nt-danger-soft);
+  color: var(--nt-danger);
+}
+
+.nt-status-card,
+.nt-dialog-content,
+.dialog-content {
+  border-radius: var(--nt-radius-md);
+  background: var(--nt-color-panel);
+}
+
+.dialog-overlay {
+  background: rgba(6, 8, 13, 0.82);
+  backdrop-filter: blur(8px);
+}
+
+.dialog-content {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-color-panel);
+  box-shadow: var(--nt-shadow-overlay);
+}
+
+.nt-secret-entry .nt-actions {
+  align-items: stretch;
+  max-width: 100%;
+}
+
+.nt-secret-entry .nt-actions .nt-btn {
+  flex: 1 1 9rem;
+  min-width: 8rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nt-group-panel--members {
+  border: 0;
+  border-top: 1px solid var(--nt-border);
+  border-radius: 0;
+  padding: 18px 0 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.nt-group-panel--editor {
+  border-color: var(--nt-border);
+  background: var(--nt-color-panel);
+}
+
+.nt-group-member-row:hover {
+  background: var(--nt-color-control-hover);
+}
+
+.nt-workspace-toolbar {
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.nt-workspace-action-bar {
+  position: sticky;
+  z-index: 24;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  border: 1px solid var(--nt-border-strong);
+  border-radius: var(--nt-radius-md);
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--nt-color-panel) 94%, transparent);
+  box-shadow: var(--nt-shadow-surface);
+  backdrop-filter: blur(10px);
+}
+
+.nt-workspace-action-bar > .nt-chip {
+  margin-right: auto;
+}
+
+.nt-alert .nt-icon-action {
+  flex: 0 0 30px;
+  background: transparent;
+  color: var(--nt-text-muted);
+}
+
+.nt-tooltip {
+  z-index: 120;
+  max-width: min(18rem, calc(100vw - 24px));
+  border: 1px solid var(--nt-border-strong);
+  border-radius: var(--nt-radius-sm);
+  padding: 6px 8px;
+  background: var(--nt-color-focus-surface);
+  box-shadow: var(--nt-shadow-surface);
+  color: var(--nt-color-focus-ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.nt-tooltip__arrow {
+  fill: var(--nt-color-focus-surface);
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: 2px;
+}

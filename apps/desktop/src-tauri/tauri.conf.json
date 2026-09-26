@@ -16,12 +16,14 @@
         "title": "Gateway UI",
         "width": 1180,
         "height": 780,
-        "decorations": true,
+        "decorations": false,
         "transparent": false,
         "alwaysOnTop": false,
         "visible": true,
         "center": true,
-        "resizable": true
+        "resizable": true,
+        "minWidth": 900,
+        "minHeight": 600
       }
     ],
     "security": {

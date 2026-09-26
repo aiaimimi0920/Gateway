@@ -8,18 +8,65 @@ stack for Gateway.
 | File | Storage mode | Best for |
 | --- | --- | --- |
 | `docker-compose.yml` | Named volumes | Long-running servers where Docker manages persistent volumes |
-| `docker-compose.local.yml` | Local directories | Easier backup, inspection, and migration of `gateway_data/` and `redis_data/` |
+| `docker-compose.local.yml` | Local directories | Easier backup, inspection, and migration of `gateway_data/` and `redis_data/` (the database still uses a named volume) |
 | `docker-compose.dev.yml` | Source bind mount + build caches | Source checkout only; local edits rebuild the running Gateway automatically |
 | `docker-deploy.sh` | One-click local-directory preparation | Linux/macOS server deployment aligned with the recommended Sub2API Docker workflow |
 
 The production variants deploy the current minimum official runtime stack:
 
 - `gateway`
+- `postgres`
 - `redis`
 
-PostgreSQL remains optional in the current Rust runtime. If you need DB-backed
-features later, point `GATEWAY_DATABASE_URL` at an external PostgreSQL
-instance.
+## PostgreSQL and the Gateway Schema
+
+PostgreSQL is required, not optional. The gateway keeps its request audits,
+usage aggregates and per-credential model states there, so without a database
+the console's live concurrency, cost and success-rate panels answer
+`503 PostgreSQL 尚未配置` and every affected number renders as `—`.
+
+Each compose variant therefore ships its own `postgres:16-alpine` service and
+defaults `GATEWAY_DATABASE_URL` to it. To use an external database instead, set
+`GATEWAY_DATABASE_URL` in `.env` and stop the bundled service.
+
+The Rust runtime does not create tables; it expects the schema to already
+exist. `postgres/initdb/001-gateway-schema.sql` supplies it and is applied by
+the official `postgres` image the first time a data directory is initialised.
+That file is a `pg_dump --schema-only` of the `gateway_*` tables produced by the
+33 migrations in the Platform repository
+(`Platform/packages/ai-gateway-domain/migrations/`, run by
+`src/scripts/migrate.ts`), plus the matching `gateway_schema_migrations` ledger
+rows so a fresh database reports the same migration state as a migrated one.
+Platform remains the owner of the schema: when a migration is added there,
+re-dump this file rather than hand-editing it.
+
+Two more files run after it, and both are specific to a standalone deployment:
+
+- `postgres/initdb/002-gateway-bootstrap.sql` seeds one tenant, the project named
+  by `GATEWAY_DEFAULT_PROJECT_ID` (default `platform-default-project`), that
+  project's default route policy, and the two `gateway_api_keys` identity rows
+  the gateway attributes shared-secret (`gateway-key`) and dev-mode (`dev-mode`)
+  traffic to. Platform inserts equivalent rows itself, so a deployment sharing
+  Platform's database does not need this file. Without the project rows every
+  relay request fails with `404 AI gateway project 不存在`; without the identity
+  rows every request audit fails with `引用的资源不存在` and the console's
+  concurrency and success-rate panels stay empty. The route-policy config is a
+  capture of the Rust defaults, so re-capture it if those change.
+- `postgres/initdb/003-gateway-standalone-constraints.sql` drops
+  `gateway_request_audits_provider_account_id_fkey`. A standalone gateway keeps
+  its providers in the route document (`GATEWAY_ROUTES_FILE`) rather than in
+  `gateway_provider_accounts`, so the provider id recorded on each audit has no
+  row to reference and every audit finalise would fail — leaving rows at
+  `status='running'` for ever and inflating `/v1/internal/gateway/pressure`. A
+  deployment sharing Platform's database writes real `gateway_provider_accounts`
+  ids and should keep the foreign key.
+
+Because the image only runs `docker-entrypoint-initdb.d` on first
+initialisation, applying an updated dump to an existing deployment means either
+running the Platform migrator against it or discarding the volume
+(`docker compose down -v`). The same applies to the two files above: apply them
+by hand (`docker compose exec -T postgres psql -U gateway -d gateway < …`) or
+recreate the volume.
 
 ## Quick Start
 
@@ -222,6 +269,10 @@ Most important variables:
 | `GATEWAY_PORT` | `4200` | Published host port |
 | `RUST_LOG` | `info` | Gateway runtime log level |
 | `GATEWAY_REDIS_URL` | `redis://redis:6379/0` | Internal Redis URL used by the gateway container |
+| `GATEWAY_DATABASE_URL` | `postgres://gateway:gateway@postgres:5432/gateway` | Internal PostgreSQL URL used by the gateway container |
+| `GATEWAY_POSTGRES_USER` | `gateway` | Bundled PostgreSQL role |
+| `GATEWAY_POSTGRES_PASSWORD` | `gateway` | Bundled PostgreSQL password |
+| `GATEWAY_POSTGRES_DB` | `gateway` | Bundled PostgreSQL database name |
 | `GATEWAY_RUNTIME_ROLE` | `standalone` | Single-instance service mode used by the official compose stack |
 | `GATEWAY_ROUTES_FILE` | `/data/routes.yaml` | Persistent route file path inside the container |
 | `GATEWAY_STATE_DIR` | `/data/state` | Persistent Gateway state directory |
@@ -232,11 +283,16 @@ Optional variables:
 - `GATEWAY_API_KEY_SECRET`
 - `GATEWAY_MANAGEMENT_TOKEN`
 - `GATEWAY_CONSOLE_REMOTE_ACCESS`
-- `GATEWAY_DATABASE_URL`
+
+The bundled PostgreSQL port is never published to the host, so the default
+`gateway`/`gateway` credentials stay reachable only from the compose network.
+Change them anyway if the host is shared, and change both
+`GATEWAY_POSTGRES_PASSWORD` and `GATEWAY_DATABASE_URL` together.
 
 ## Health Checks
 
-The compose stack waits for Redis and checks Gateway via:
+The compose stack waits for PostgreSQL and Redis to report healthy, then checks
+Gateway via:
 
 - `/healthz`
 

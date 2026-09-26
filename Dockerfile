@@ -31,6 +31,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   && apt-get install -y --no-install-recommends cmake pkg-config clang lld
 
 COPY Cargo.toml Cargo.lock build.rs ./
+COPY build_support ./build_support
 COPY .cargo/config.toml ./.cargo/config.toml
 COPY apps/desktop ./apps/desktop
 COPY --from=ui-builder /app/apps/desktop/dist/web ./apps/desktop/dist/web

@@ -67,10 +67,19 @@ repository root, not from a Neuro monorepo checkout:
 git clone https://github.com/aiaimimi0920/Gateway.git
 Set-Location Gateway
 
+npm run test:effective-lines --prefix scripts
+npm run check:effective-lines --prefix scripts
 cargo fmt --all -- --check
 cargo check --locked --all-targets
 cargo test --locked -- --test-threads=1
 ```
+
+The effective-code-line gate uses the Neuro thresholds of 150/500/700/1500
+with a checked-in adoption baseline. CI rejects new oversized files and growth
+in recorded files above 700 lines without forcing unrelated work to clear all
+historical debt. The scanner, strict audit, exception schema, supported
+languages, and reviewed exclusions are documented in
+[`docs/effective-code-lines.md`](docs/effective-code-lines.md).
 
 Gateway now carries a local-default Cargo throttle under
 [`./.cargo/config.toml`](.cargo/config.toml) with `build.jobs = 1` so routine

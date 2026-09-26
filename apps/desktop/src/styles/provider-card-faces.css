@@ -1,0 +1,454 @@
+/* provider card faces styles; preserve position in styles.css. */
+.nt-provider-card__back-body .nt-provider-tree-item__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-content: stretch;
+  gap: 5px 12px;
+  width: 100%;
+}
+
+.nt-provider-card__identity {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+}
+
+.nt-provider-card__identity-row {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+
+.nt-provider-card__identity-row dt {
+  color: var(--nt-text-faint);
+  font-size: 0.7rem;
+}
+
+.nt-provider-card__identity-row dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--nt-text-muted);
+  font-size: 0.76rem;
+}
+
+.nt-provider-card--flipped .nt-provider-card__inner {
+  border-color: var(--nt-border-strong);
+  transform: rotateY(180deg);
+}
+
+/* Category art tints. Provider logos are not bundled, so the art area is a
+   category-coded gradient behind the provider initial. */
+.nt-provider-card[data-provider-category="mainstream"] {
+  --nt-provider-card-accent: var(--nt-text-muted);
+  --nt-provider-card-art: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--nt-text-muted) 18%, var(--nt-color-panel)),
+    var(--nt-color-panel)
+  );
+}
+
+.nt-provider-card[data-provider-category="aggregator"] {
+  --nt-provider-card-accent: var(--nt-info);
+  --nt-provider-card-art: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--nt-info) 26%, var(--nt-color-panel)),
+    var(--nt-color-panel)
+  );
+}
+
+.nt-provider-card[data-provider-category="search"] {
+  --nt-provider-card-accent: var(--nt-info);
+  --nt-provider-card-art: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--nt-info) 18%, var(--nt-color-panel)),
+    var(--nt-color-panel)
+  );
+}
+
+.nt-provider-card[data-provider-category="media"] {
+  --nt-provider-card-accent: var(--nt-text-muted);
+  --nt-provider-card-art: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--nt-text-muted) 22%, var(--nt-color-panel)),
+    var(--nt-color-panel)
+  );
+}
+
+.nt-provider-card[data-provider-category="browser"] {
+  --nt-provider-card-accent: var(--nt-info);
+  --nt-provider-card-art: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--nt-info) 18%, var(--nt-color-panel)),
+    var(--nt-color-panel)
+  );
+}
+
+.nt-provider-card[data-provider-category="third-party-compatible"] {
+  --nt-provider-card-accent: var(--nt-text-muted);
+  --nt-provider-card-art: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--nt-text-muted) 24%, var(--nt-color-panel)),
+    var(--nt-color-panel)
+  );
+}
+
+/* Compact provider dashboard face. Brand marks are local monograms so the
+   console remains deterministic and never hot-links third-party assets.
+   Rows are head / scrollable body / action row, so the action row sits at the
+   same y offset on every card in the grid. */
+.nt-provider-card__front {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.nt-provider-card__front-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--nt-border);
+  padding: 11px 12px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--nt-provider-card-accent) 8%, var(--nt-color-panel)),
+    var(--nt-color-panel) 72%
+  );
+}
+
+.nt-provider-card__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--nt-provider-card-accent) 42%, var(--nt-border));
+  border-radius: var(--nt-radius-sm);
+  background: color-mix(in srgb, var(--nt-provider-card-accent) 14%, var(--nt-color-control));
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.nt-provider-card__icon--openai,
+.nt-provider-card__icon--openai-compatible {
+  border-radius: 50%;
+  background: #eef2f2;
+  color: #111827;
+}
+
+.nt-provider-card__icon--google {
+  background: linear-gradient(135deg, #4285f4 0 28%, #34a853 28% 52%, #fbbc05 52% 74%, #ea4335 74%);
+  color: #ffffff;
+}
+
+.nt-provider-card__icon--azure {
+  background: #0078d4;
+  color: #ffffff;
+}
+
+.nt-provider-card__icon--anthropic,
+.nt-provider-card__icon--mistral {
+  background: #d7c6aa;
+  color: #17130f;
+}
+
+.nt-provider-card__icon--nvidia {
+  background: #76b900;
+  color: #0b1300;
+}
+
+.nt-provider-card__icon--longcat {
+  background: #ffc300;
+  color: #17130f;
+}
+
+.nt-provider-card__icon--deepseek,
+.nt-provider-card__icon--qwen {
+  background: #315efb;
+  color: #ffffff;
+}
+
+.nt-provider-card__icon--suno,
+.nt-provider-card__icon--udio {
+  background: var(--nt-color-focus-surface);
+  color: var(--nt-color-focus-ink);
+}
+
+.nt-provider-card__front-head .nt-provider-card__title {
+  min-width: 0;
+}
+
+.nt-provider-card__front-head .nt-provider-tree-item__main {
+  display: grid;
+  gap: 2px;
+}
+
+.nt-provider-card__front-head .nt-provider-card__category {
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+.nt-provider-card__head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+}
+
+.nt-provider-card__library-toggle[aria-expanded="true"] {
+  background: var(--nt-info-soft);
+  color: var(--nt-info);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nt-info) 38%, var(--nt-border));
+}
+
+.nt-icon-action.nt-provider-card__flip--icon {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  grid-auto-flow: row;
+  padding: 0;
+}
+
+.nt-provider-card__front-body {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-height: 0;
+  min-width: 0;
+  padding: 12px;
+}
+
+.nt-provider-card__pool-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.nt-provider-card__pool-value svg,
+.nt-provider-card__metrics dt svg,
+.nt-provider-card__success > svg {
+  color: var(--nt-text-muted);
+}
+
+.nt-provider-card__pool,
+.nt-provider-card__success {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nt-provider-card__pool-bar {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid var(--nt-border);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--nt-text-faint) 22%, var(--nt-color-control));
+}
+
+.nt-provider-card__pool-segment {
+  display: block;
+  height: 100%;
+  transition: width 180ms ease;
+}
+
+.nt-provider-card__pool-segment--available {
+  background: var(--nt-success);
+}
+
+.nt-provider-card__pool-segment--rate-limited {
+  background: var(--nt-accent, #d9ff38);
+}
+
+.nt-provider-card__pool-segment--invalid {
+  background: var(--nt-danger);
+}
+
+.nt-provider-card__pool-segment--remaining {
+  background: color-mix(in srgb, var(--nt-text-faint) 32%, var(--nt-color-control));
+}
+
+/* Bleed the metric rules to the card edges instead of stopping inside the
+   12px body padding, so the hairlines read as card dividers, not floating rules. */
+.nt-provider-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 -12px;
+  border-top: 1px solid var(--nt-border);
+  border-bottom: 1px solid var(--nt-border);
+}
+
+.nt-provider-card__metrics > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 4px;
+}
+
+.nt-provider-card__metrics > div + div {
+  border-top: 0;
+  border-left: 1px solid color-mix(in srgb, var(--nt-border) 72%, transparent);
+}
+
+.nt-provider-card__metrics dt {
+  display: inline-flex;
+  align-items: center;
+  color: var(--nt-text-muted);
+}
+
+.nt-provider-card__metrics dd {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.nt-provider-card__availability-windows {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+}
+
+.nt-provider-card__success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nt-provider-card__availability-window {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(2px, 1fr));
+  gap: 2px;
+  min-width: 0;
+}
+
+.nt-provider-card__availability-cell {
+  display: block;
+  min-width: 0;
+  height: 10px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--nt-text-faint) 28%, var(--nt-color-control));
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.nt-provider-card__availability-cell:hover {
+  opacity: 0.86;
+  transform: translateY(-1px);
+}
+
+.nt-provider-card__availability-cell--success {
+  background: var(--nt-success);
+}
+
+.nt-provider-card__availability-cell--mixed {
+  background: var(--nt-accent, #d9ff38);
+}
+
+.nt-provider-card__availability-cell--failure {
+  background: var(--nt-danger);
+}
+
+.nt-provider-card__availability-cell--empty {
+  background: color-mix(in srgb, var(--nt-text-faint) 32%, var(--nt-color-control));
+}
+
+.nt-provider-card__success-rate {
+  flex: 0 0 auto;
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.nt-provider-card__actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  border-top: 1px solid var(--nt-border);
+  padding: 8px;
+}
+
+.nt-provider-card__action {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: var(--nt-radius-sm);
+  padding: 5px 7px;
+  background: transparent;
+  color: var(--nt-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nt-provider-card__action--icon {
+  padding-inline: 5px;
+}
+
+.nt-provider-card__action:hover:not(:disabled),
+.nt-provider-card__action:focus-visible {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-color-control-hover);
+  color: var(--nt-text);
+}
+
+.nt-provider-card__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.nt-provider-card__action--danger:not(:disabled) {
+  color: var(--nt-danger);
+}
+
+.nt-provider-card__action .nt-switch__track {
+  width: 24px;
+  border: 1px solid var(--nt-border-strong);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--nt-color-control);
+}
+
+.nt-provider-card__action .nt-switch__thumb {
+  width: 9px;
+  height: 9px;
+}
+
+.nt-provider-card__action--active .nt-switch__track {
+  border-color: color-mix(in srgb, var(--nt-success) 54%, var(--nt-border));
+  background: var(--nt-success-soft);
+}
+
+.nt-provider-card__action--active .nt-switch__thumb {
+  transform: translateX(9px);
+}
+
+.nt-provider-card__actions .nt-pilot-menu__panel {
+  top: auto;
+  right: 0;
+  bottom: calc(100% + 8px);
+}

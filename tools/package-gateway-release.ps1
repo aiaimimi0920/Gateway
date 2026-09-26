@@ -12,6 +12,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "package-release/artifact-copy.ps1")
+. (Join-Path $PSScriptRoot "package-release/source-provenance.ps1")
 
 function Resolve-FullPath {
     param(
@@ -145,149 +147,6 @@ function Write-Ascii {
     [System.IO.File]::WriteAllText($Path, $Value, [System.Text.ASCIIEncoding]::new())
 }
 
-function New-ArtifactRecord {
-    param(
-        [Parameter(Mandatory = $true)][string]$PackageRoot,
-        [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$Kind
-    )
-
-    $item = Get-Item -LiteralPath $Path -ErrorAction Stop
-    if ($item.PSIsContainer) {
-        throw "Artifact record path is not a file: $Path"
-    }
-
-    return [ordered]@{
-        kind = $Kind
-        name = $item.Name
-        path = Get-RelativeUnixPath -BasePath $PackageRoot -Path $Path
-        bytes = [int64]$item.Length
-        sha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
-    }
-}
-
-function Copy-PayloadFile {
-    param(
-        [Parameter(Mandatory = $true)][string]$Source,
-        [Parameter(Mandatory = $true)][string]$PackageRoot,
-        [Parameter(Mandatory = $true)][string]$DestinationRelativePath
-    )
-
-    if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) {
-        throw "Required Gateway support file is missing: $Source"
-    }
-
-    $destination = Join-Path $PackageRoot $DestinationRelativePath
-    Assert-PathUnderRoot -Root $PackageRoot -Path $destination
-    $destinationParent = Split-Path -Parent $destination
-    New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
-    Copy-Item -LiteralPath $Source -Destination $destination -Force
-    return $destination
-}
-
-function Copy-ImmutableEvidenceFile {
-    param(
-        [Parameter(Mandatory = $true)][string]$Source,
-        [Parameter(Mandatory = $true)][string]$Destination
-    )
-
-    if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) {
-        throw "Evidence source file is missing: $Source"
-    }
-    if (Test-Path -LiteralPath $Destination) {
-        throw "Evidence file already exists and is immutable: $Destination"
-    }
-
-    $destinationFull = Resolve-FullPath -Path $Destination
-    $destinationParent = Split-Path -Parent $destinationFull
-    $destinationParentExisted = Test-Path -LiteralPath $destinationParent -PathType Container
-    New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
-    $temporaryPath = Join-Path $destinationParent (
-        ".{0}.staging-{1}" -f (Split-Path -Leaf $destinationFull), [guid]::NewGuid().ToString("N")
-    )
-
-    try {
-        [System.IO.File]::Copy((Resolve-FullPath -Path $Source), $temporaryPath, $false)
-        $sourceItem = Get-Item -LiteralPath $Source
-        $temporaryItem = Get-Item -LiteralPath $temporaryPath
-        $sourceHash = (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash
-        $temporaryHash = (Get-FileHash -LiteralPath $temporaryPath -Algorithm SHA256).Hash
-        if ($sourceItem.Length -ne $temporaryItem.Length -or $sourceHash -ne $temporaryHash) {
-            throw "Immutable evidence copy verification failed: $Destination"
-        }
-
-        # File.Move does not replace an existing destination, so a concurrent
-        # writer cannot overwrite evidence after the preflight check.
-        [System.IO.File]::Move($temporaryPath, $destinationFull)
-    } finally {
-        if (Test-Path -LiteralPath $temporaryPath) {
-            Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
-        }
-        if (-not $destinationParentExisted -and (Test-Path -LiteralPath $destinationParent -PathType Container)) {
-            $remaining = @(Get-ChildItem -LiteralPath $destinationParent -Force -ErrorAction SilentlyContinue)
-            if ($remaining.Count -eq 0) {
-                Remove-Item -LiteralPath $destinationParent -Force -ErrorAction SilentlyContinue
-            }
-        }
-    }
-
-    return $destinationFull
-}
-
-function Copy-FilteredTree {
-    param(
-        [Parameter(Mandatory = $true)][string]$Source,
-        [Parameter(Mandatory = $true)][string]$Destination,
-        [switch]$ExcludeEvidenceJson,
-        [string[]]$ExcludedRootDirectories = @(),
-        [string[]]$ExcludedFileNames = @()
-    )
-
-    if (-not (Test-Path -LiteralPath $Source -PathType Container)) {
-        throw "Required Gateway support directory is missing: $Source"
-    }
-
-    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    $excludedDirectories = @("node_modules", ".runtime", "output")
-    $excludedFileNamesLower = @($ExcludedFileNames | ForEach-Object { $_.ToLowerInvariant() })
-    $items = @(Get-ChildItem -LiteralPath $Source -Force | Sort-Object Name)
-    foreach ($item in $items) {
-        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
-            continue
-        }
-
-        if ($item.PSIsContainer) {
-            $lowerName = $item.Name.ToLowerInvariant()
-            if (($excludedDirectories -contains $lowerName) -or
-                ($ExcludedRootDirectories -contains $lowerName) -or
-                $item.Name -like "tmp-*") {
-                continue
-            }
-            Copy-FilteredTree `
-                -Source $item.FullName `
-                -Destination (Join-Path $Destination $item.Name) `
-                -ExcludeEvidenceJson:$ExcludeEvidenceJson `
-                -ExcludedRootDirectories @() `
-                -ExcludedFileNames $ExcludedFileNames
-            continue
-        }
-
-        if ($item.Name -like "*.pyc" -or
-            $item.Name -eq ".DS_Store" -or
-            $excludedFileNamesLower -contains $item.Name.ToLowerInvariant()) {
-            continue
-        }
-
-        if ($ExcludeEvidenceJson -and
-            $item.Extension -ieq ".json" -and
-            (($item.FullName -split "[\\/]") -contains "evidence")) {
-            continue
-        }
-
-        Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $Destination $item.Name) -Force
-    }
-}
-
 function Resolve-PowerShellExecutable {
     $pwsh = Get-Command "pwsh" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -ne $pwsh) {
@@ -300,205 +159,6 @@ function Resolve-PowerShellExecutable {
     }
 
     throw "Neither pwsh nor powershell is available to invoke the Gateway build script."
-}
-
-function Get-GitValue {
-    param(
-        [Parameter(Mandatory = $true)][string]$Root,
-        [Parameter(Mandatory = $true)][string[]]$GitArguments
-    )
-
-    if ($null -eq (Get-Command "git" -ErrorAction SilentlyContinue)) {
-        return $null
-    }
-    $cursor = Get-Item -LiteralPath $Root
-    while ($null -ne $cursor -and -not (Test-Path -LiteralPath (Join-Path $cursor.FullName ".git"))) {
-        $cursor = $cursor.Parent
-    }
-    if ($null -eq $cursor) {
-        return $null
-    }
-    $output = @(& git -C $cursor.FullName @GitArguments 2>$null)
-    if ($LASTEXITCODE -ne 0) {
-        return $null
-    }
-    $value = ($output | ForEach-Object { $_.ToString() }) -join "`n"
-    $value = $value.Trim()
-    if ([string]::IsNullOrWhiteSpace($value)) {
-        return $null
-    }
-    return $value
-}
-
-function Get-DeterministicBuildTimestamp {
-    param([Parameter(Mandatory = $true)][string]$Root)
-
-    if (-not [string]::IsNullOrWhiteSpace($env:SOURCE_DATE_EPOCH)) {
-        $epoch = 0L
-        if ([int64]::TryParse($env:SOURCE_DATE_EPOCH, [ref]$epoch)) {
-            return [DateTimeOffset]::FromUnixTimeSeconds($epoch).UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
-        }
-    }
-    $commitTimestamp = Get-GitValue -Root $Root -GitArguments @("show", "-s", "--format=%cI", "HEAD")
-    if (-not [string]::IsNullOrWhiteSpace($commitTimestamp)) {
-        return $commitTimestamp
-    }
-    return "1970-01-01T00:00:00Z"
-}
-
-function Get-GitRepositoryRoot {
-    param([Parameter(Mandatory = $true)][string]$Root)
-
-    $cursor = Get-Item -LiteralPath $Root
-    while ($null -ne $cursor) {
-        if (Test-Path -LiteralPath (Join-Path $cursor.FullName ".git")) {
-            return $cursor.FullName
-        }
-        $cursor = $cursor.Parent
-    }
-    return $null
-}
-
-function Get-SourceTreeState {
-    param([Parameter(Mandatory = $true)][string]$Root)
-
-    $excludedDirectoryNames = @(".git", "target", "node_modules", ".runtime", "output")
-    $excludedRootDirectoryNames = @("release")
-    $gitRoot = Get-GitRepositoryRoot -Root $Root
-    $gitCommand = Get-Command "git" -ErrorAction SilentlyContinue
-    $algorithm = "sha256-file-list-v1"
-    $files = @()
-    if ($null -ne $gitRoot) {
-        if ($null -eq $gitCommand) {
-            throw "Unable to enumerate Gateway source files with Git because git is unavailable."
-        }
-        $pathSpec = Get-RelativeUnixPath -BasePath $gitRoot -Path $Root
-        $gitPaths = @(& git -C $gitRoot -c core.quotepath=false ls-files --cached --others --exclude-standard -- $pathSpec 2>$null)
-        if ($LASTEXITCODE -ne 0) {
-            throw "Unable to enumerate Gateway source files with Git."
-        }
-        $files = @(
-            foreach ($gitPath in $gitPaths) {
-                if ([string]::IsNullOrWhiteSpace($gitPath)) {
-                    continue
-                }
-                $fullPath = Join-Path $gitRoot $gitPath
-                if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
-                    Get-Item -LiteralPath $fullPath
-                }
-            }
-        )
-        $algorithm = "sha256-git-source-list-v2"
-    } else {
-        $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force)
-    }
-    $records = [System.Collections.Generic.List[string]]::new()
-    foreach ($file in $files) {
-        $relative = Get-RelativeUnixPath -BasePath $Root -Path $file.FullName
-        $skip = $false
-        $parts = @($relative -split "/")
-        for ($index = 0; $index -lt $parts.Count; $index++) {
-            $part = $parts[$index]
-            $lowerPart = $part.ToLowerInvariant()
-            if (($excludedDirectoryNames -contains $lowerPart) -or
-                (($index -eq 0) -and ($excludedRootDirectoryNames -contains $lowerPart)) -or
-                $part.StartsWith("tmp-", [System.StringComparison]::OrdinalIgnoreCase)) {
-                $skip = $true
-                break
-            }
-        }
-        if ($skip) {
-            continue
-        }
-
-        $digest = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-        $records.Add("$relative`t$($file.Length)`t$digest`n") | Out-Null
-    }
-
-    $sortedRecords = $records.ToArray()
-    [Array]::Sort($sortedRecords, [System.StringComparer]::Ordinal)
-    $fingerprintPayload = [string]::Concat($sortedRecords)
-    $sha256 = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        $fingerprintBytes = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($fingerprintPayload))
-    } finally {
-        $sha256.Dispose()
-    }
-    $fingerprint = ([System.BitConverter]::ToString($fingerprintBytes)).Replace("-", "").ToLowerInvariant()
-
-    $dirty = $null
-    if ($null -ne $gitRoot -and $null -ne $gitCommand) {
-        $pathSpec = Get-RelativeUnixPath -BasePath $gitRoot -Path $Root
-        $statusOutput = @(& git -C $gitRoot status --porcelain=v1 --untracked-files=all -- $pathSpec 2>$null)
-        if ($LASTEXITCODE -eq 0) {
-            $dirty = $statusOutput.Count -gt 0
-        }
-    }
-
-    return [pscustomobject]@{
-        algorithm = $algorithm
-        fingerprint = $fingerprint
-        fileCount = $sortedRecords.Count
-        dirty = $dirty
-    }
-}
-
-function Assert-BuildProvenance {
-    param(
-        [Parameter(Mandatory = $true)][string]$GatewayRoot,
-        [Parameter(Mandatory = $true)][object]$SourceTreeState,
-        [Parameter(Mandatory = $true)][string[]]$ArtifactRelativePaths
-    )
-
-    $provenancePath = Join-Path $GatewayRoot "target\release\gateway-build-provenance.json"
-    if (-not (Test-Path -LiteralPath $provenancePath -PathType Leaf)) {
-        throw "Build provenance is missing: $provenancePath. Run tools\build-gateway-release.ps1 before using -SkipBuild or -StageOnly."
-    }
-
-    try {
-        $provenance = Get-Content -LiteralPath $provenancePath -Raw -Encoding UTF8 | ConvertFrom-Json
-    } catch {
-        throw "Build provenance is not valid JSON: $provenancePath"
-    }
-    if ([int]$provenance.schemaVersion -ne 1) {
-        throw "Unsupported Gateway build provenance schema: $($provenance.schemaVersion)"
-    }
-    if ($null -eq $provenance.sourceTree) {
-        throw "Gateway build provenance is missing source tree metadata. Rebuild before packaging."
-    }
-    if ([string]$provenance.sourceTree.algorithm -ne [string]$SourceTreeState.algorithm) {
-        throw "Gateway build provenance source tree algorithm does not match the current source enumeration. Rebuild before packaging."
-    }
-    if ([string]$provenance.sourceTreeFingerprint -ne [string]$SourceTreeState.fingerprint) {
-        throw "Gateway source tree changed after the release binaries were built. Rebuild before packaging."
-    }
-    if ([string]$provenance.sourceTree.fingerprint -ne [string]$SourceTreeState.fingerprint) {
-        throw "Gateway build provenance source tree fingerprint is inconsistent. Rebuild before packaging."
-    }
-    if ([int]$provenance.sourceTree.fileCount -ne [int]$SourceTreeState.fileCount) {
-        throw "Gateway build provenance source tree file count is inconsistent. Rebuild before packaging."
-    }
-
-    $provenanceArtifacts = @($provenance.artifacts)
-    foreach ($relativePath in $ArtifactRelativePaths) {
-        $matchingRecords = @($provenanceArtifacts | Where-Object { [string]$_.path -eq $relativePath })
-        if ($matchingRecords.Count -ne 1) {
-            throw "Build provenance must contain exactly one artifact record for $relativePath"
-        }
-
-        $artifactPath = Join-Path $GatewayRoot $relativePath.Replace("/", [System.IO.Path]::DirectorySeparatorChar)
-        if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf)) {
-            throw "Required Gateway build artifact is missing: $artifactPath"
-        }
-        $artifact = Get-Item -LiteralPath $artifactPath
-        $actualHash = (Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ([int64]$matchingRecords[0].bytes -ne [int64]$artifact.Length -or
-            [string]$matchingRecords[0].sha256 -ne $actualHash) {
-            throw "Gateway build artifact no longer matches build provenance: $relativePath"
-        }
-    }
-
-    return $provenance
 }
 
 if ([string]::IsNullOrWhiteSpace($SourceRoot)) {
@@ -521,6 +181,7 @@ $destination = Resolve-FullPath -Path (Join-Path $releaseRootFull $VersionId)
 Assert-PathUnderRoot -Root $releaseRootFull -Path $destination
 $evidenceVersionRoot = Resolve-FullPath -Path (Join-Path $gatewayRoot "target\release-evidence\$VersionId")
 $evidenceProvenancePath = Resolve-FullPath -Path (Join-Path $evidenceVersionRoot "gateway-build-provenance.json")
+Assert-ArtifactPathWithoutLinks -Root $gatewayRoot -Path $evidenceProvenancePath
 
 if (Test-Path -LiteralPath $destination) {
     throw "Release destination already exists and is immutable: $destination. Choose a new VersionId."
@@ -576,7 +237,15 @@ $deployPayloadRelativePaths = @(
     "docker-compose.local.yml",
     "docker-compose.yml",
     "docker-deploy.sh",
-    "docker-entrypoint.sh"
+    "docker-entrypoint.sh",
+    # The compose files provision their own PostgreSQL and seed it from these
+    # files on first boot; without the schema the console's live concurrency,
+    # cost and success-rate panels answer 503 "PostgreSQL 尚未配置", and without
+    # the bootstrap rows every relay request fails with
+    # 404 "AI gateway project 不存在".
+    "postgres\initdb\001-gateway-schema.sql",
+    "postgres\initdb\002-gateway-bootstrap.sql",
+    "postgres\initdb\003-gateway-standalone-constraints.sql"
 )
 foreach ($requiredDirectory in @($manifestsSource, $scriptsSource, $docsSource, $deploySource, $toolsSource)) {
     if (-not (Test-Path -LiteralPath $requiredDirectory -PathType Container)) {
@@ -697,6 +366,7 @@ try {
     Copy-FilteredTree `
         -Source $toolsSource `
         -Destination (Join-Path $staging "tools") `
+        -ExcludedRootDirectories @("line-evidence") `
         -ExcludedFileNames @("run-gateway-line-evidence.ps1")
     $toolFiles = @(Get-ChildItem -LiteralPath (Join-Path $staging "tools") -Recurse -File | Sort-Object FullName)
     foreach ($toolFile in $toolFiles) {
@@ -774,7 +444,8 @@ try {
     try {
         $evidenceProvenanceSnapshot = Copy-ImmutableEvidenceFile `
             -Source (Join-Path $destination "gateway-build-provenance.json") `
-            -Destination $evidenceProvenancePath
+            -Destination $evidenceProvenancePath `
+            -TrustedRoot $gatewayRoot
     } catch {
         $evidencePublicationError = $_
         try {

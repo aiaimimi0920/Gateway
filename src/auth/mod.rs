@@ -9,7 +9,7 @@ use crate::error::GatewayError;
 use crate::state::AppState;
 
 use self::adapter::{AuthRequest, AuthResult};
-use self::session::AuthenticatedSession;
+use self::session::{AuthenticatedSession, DEV_MODE_API_KEY_ID, SHARED_SECRET_API_KEY_ID};
 
 /// Authenticate a request against the configured adapter chain, falling back
 /// to the shared gateway API key when configured.
@@ -27,7 +27,7 @@ pub async fn authenticate_request(
             user_id: None,
             credential_ref: fallback_credential_ref,
             scopes: vec!["relay".to_string()],
-            api_key_id: Some("dev-mode".to_string()),
+            api_key_id: Some(DEV_MODE_API_KEY_ID.to_string()),
             user_credential_id: None,
             access_key_id: None,
             access_key_kind: None,
@@ -59,7 +59,7 @@ pub async fn authenticate_request(
                 user_id: None,
                 credential_ref: fallback_credential_ref,
                 scopes: vec!["relay".to_string()],
-                api_key_id: Some("gateway-key".to_string()),
+                api_key_id: Some(SHARED_SECRET_API_KEY_ID.to_string()),
                 user_credential_id: None,
                 access_key_id: None,
                 access_key_kind: None,

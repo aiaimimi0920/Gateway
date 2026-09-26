@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -66,7 +67,8 @@ def load_tool(path, module_name):
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load tool module: {path}")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    with patch.object(sys, "path", [str(path.parent), *sys.path]):
+        spec.loader.exec_module(module)
     return module
 
 

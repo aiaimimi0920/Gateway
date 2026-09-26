@@ -21,7 +21,6 @@ export function LauncherPanel({ state }: LauncherPanelProps) {
     <div className="nt-stack">
       <article className="nt-card nt-card--hero">
         <div className="nt-card__body">
-          <p className="nt-kicker">// Local launcher</p>
           <h2>无 UI Gateway 仍是核心，桌面端只负责启动、观察和测试。</h2>
           {state.hasUnsavedProfileChanges ? (
             <span className="nt-dirty-badge">Unsaved changes</span>
@@ -104,7 +103,6 @@ export function LauncherPanel({ state }: LauncherPanelProps) {
 
       {processSnapshot.lastError ? (
         <article className="nt-card nt-card--panel">
-          <p className="nt-kicker">// Startup diagnostic</p>
           <h3>启动诊断</h3>
           <p className="nt-copy">{processSnapshot.lastError}</p>
           {recentLogLines.length > 0 ? (
@@ -118,7 +116,6 @@ export function LauncherPanel({ state }: LauncherPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// First run</p>
             <h3>首次启动引导</h3>
           </div>
         </div>
@@ -138,17 +135,14 @@ export function LauncherPanel({ state }: LauncherPanelProps) {
 
       <div className="nt-card-grid">
         <article className="nt-card">
-          <p className="nt-kicker">// Runtime</p>
           <h3>Headless-first</h3>
           <p>桌面版以子进程方式启动同一个核心二进制，保证 API 流程仍由 Gateway 本体提供。</p>
         </article>
         <article className="nt-card">
-          <p className="nt-kicker">// Local profile</p>
           <h3>环境变量渲染</h3>
           <p>profile 只在启动时转换为环境变量，不把桌面端变成第二套配置真相。</p>
         </article>
         <article className="nt-card">
-          <p className="nt-kicker">// Diagnostics</p>
           <h3>状态与日志一屏可见</h3>
           <p>健康检查、ready 状态、模型目录和日志都通过 Gateway 自己的接口或 Tauri 本地命令读取。</p>
         </article>

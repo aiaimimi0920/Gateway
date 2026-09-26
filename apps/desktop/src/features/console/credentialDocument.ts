@@ -20,6 +20,18 @@ export type CredentialIdentity = {
   credentialId: string;
 };
 
+export type CredentialProbeScheduleInput = CredentialIdentity & {
+  mode: "credential" | "provider-default";
+  enabled: boolean;
+  intervalMinutes: number;
+};
+
+export type ProviderProbeScheduleInput = {
+  providerId: string;
+  enabled: boolean;
+  intervalMinutes: number;
+};
+
 export type CredentialSecretEdit = CredentialIdentity &
   (
     | {
@@ -294,6 +306,86 @@ export function updateExplicitCredential(
     id: credentialId,
   };
 
+  return nextDocument;
+}
+
+export function updateCredentialProbeSchedule(
+  document: ConsoleRouteDocument,
+  input: CredentialProbeScheduleInput,
+): ConsoleRouteDocument {
+  const providerId = requiredId(input.providerId, "providerId");
+  const credentialId = requiredId(input.credentialId, "credentialId");
+  if (
+    !Number.isInteger(input.intervalMinutes) ||
+    input.intervalMinutes < 1 ||
+    input.intervalMinutes > 10_080
+  ) {
+    throw new Error("intervalMinutes must be an integer between 1 and 10080.");
+  }
+
+  const nextDocument = cloneJsonValue(document);
+  const provider = nextDocument.providers.find(
+    (entry): entry is Record<string, unknown> => isRecord(entry) && entry.id === providerId,
+  );
+  if (!provider) {
+    throw new Error(`Provider '${providerId}' was not found.`);
+  }
+  const target =
+    input.mode === "provider-default"
+      ? provider
+      : Array.isArray(provider.credentials)
+        ? provider.credentials.find(
+            (entry): entry is Record<string, unknown> =>
+              isRecord(entry) && entry.id === credentialId,
+          )
+        : undefined;
+  if (!target) {
+    throw new Error(
+      `Credential '${credentialId}' was not found under provider '${providerId}'.`,
+    );
+  }
+
+  target.scheduled_probe_enabled = input.enabled;
+  target.scheduled_probe_interval_minutes = input.intervalMinutes;
+  return nextDocument;
+}
+
+export function updateProviderProbeSchedule(
+  document: ConsoleRouteDocument,
+  input: ProviderProbeScheduleInput,
+): ConsoleRouteDocument {
+  const providerId = requiredId(input.providerId, "providerId");
+  if (
+    !Number.isInteger(input.intervalMinutes) ||
+    input.intervalMinutes < 1 ||
+    input.intervalMinutes > 10_080
+  ) {
+    throw new Error("intervalMinutes must be an integer between 1 and 10080.");
+  }
+
+  const nextDocument = cloneJsonValue(document);
+  const provider = nextDocument.providers.find(
+    (entry): entry is Record<string, unknown> => isRecord(entry) && entry.id === providerId,
+  );
+  if (!provider) {
+    throw new Error(`Provider '${providerId}' was not found.`);
+  }
+
+  const credentials = Array.isArray(provider.credentials)
+    ? provider.credentials.filter((entry): entry is Record<string, unknown> => isRecord(entry))
+    : [];
+  if (credentials.length === 0) {
+    provider.scheduled_probe_enabled = input.enabled;
+    provider.scheduled_probe_interval_minutes = input.intervalMinutes;
+    return nextDocument;
+  }
+
+  provider.scheduled_probe_enabled = false;
+  provider.scheduled_probe_interval_minutes = input.intervalMinutes;
+  for (const credential of credentials) {
+    credential.scheduled_probe_enabled = input.enabled;
+    credential.scheduled_probe_interval_minutes = input.intervalMinutes;
+  }
   return nextDocument;
 }
 

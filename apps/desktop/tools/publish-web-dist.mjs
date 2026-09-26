@@ -6,49 +6,14 @@ import {
   readFile,
   readdir,
   rename,
-  rm,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { acquirePublishLock } from "./web-publish-lock.mjs";
+import { removePathWithRetry } from "./web-publish-cleanup.mjs";
 
-const PUBLISH_LOCK_TIMEOUT_MS = 60_000;
-const PUBLISH_LOCK_RETRY_MS = 50;
-const PUBLISH_LOCK_OWNER_FILE = "owner.json";
 const READY_MARKER_SCHEMA_VERSION = 1;
-const PUBLISH_LOCK_CONTENTION_CODES = new Set(["EEXIST", "EPERM"]);
-const CLEANUP_MAX_ATTEMPTS = 5;
-const CLEANUP_RETRY_MS = 100;
-const CLEANUP_RETRY_CODES = new Set([
-  "EACCES",
-  "EBUSY",
-  "EMFILE",
-  "ENFILE",
-  "ENOTEMPTY",
-  "EPERM",
-]);
-
-function sleep(durationMs) {
-  return new Promise((resolve) => setTimeout(resolve, durationMs));
-}
-
-async function removePathWithRetry(targetPath, options) {
-  for (let attempt = 1; attempt <= CLEANUP_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      await rm(targetPath, options);
-      return;
-    } catch (error) {
-      if (
-        !CLEANUP_RETRY_CODES.has(error?.code) ||
-        attempt === CLEANUP_MAX_ATTEMPTS
-      ) {
-        throw error;
-      }
-      await sleep(CLEANUP_RETRY_MS * attempt);
-    }
-  }
-}
-
 async function assertFile(filePath, description) {
   try {
     const contents = await readFile(filePath);
@@ -194,119 +159,6 @@ async function pruneLiveFiles(
     }
   }
   await removeEmptyDirectories(liveDir);
-}
-
-function processIsAlive(pid) {
-  if (!Number.isSafeInteger(pid) || pid <= 0) {
-    return undefined;
-  }
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    if (error?.code === "ESRCH") {
-      return false;
-    }
-    if (error?.code === "EPERM") {
-      return true;
-    }
-    return undefined;
-  }
-}
-
-async function recoverPublishLockOwnedByDeadProcess(lockDir, ownerFile) {
-  let ownerText;
-  try {
-    ownerText = await readFile(ownerFile, "utf8");
-  } catch (error) {
-    if (error?.code === "ENOENT") {
-      return false;
-    }
-    throw error;
-  }
-
-  let owner;
-  try {
-    owner = JSON.parse(ownerText);
-  } catch {
-    return false;
-  }
-  if (
-    typeof owner?.ownerToken !== "string" ||
-    owner.ownerToken.length === 0 ||
-    processIsAlive(owner.pid) !== false
-  ) {
-    return false;
-  }
-
-  let currentOwnerText;
-  try {
-    currentOwnerText = await readFile(ownerFile, "utf8");
-  } catch (error) {
-    if (error?.code === "ENOENT") {
-      return false;
-    }
-    throw error;
-  }
-  if (currentOwnerText !== ownerText) {
-    return false;
-  }
-
-  await removePathWithRetry(lockDir, { recursive: true, force: true });
-  return true;
-}
-
-async function acquirePublishLock(lockDir) {
-  await mkdir(path.dirname(lockDir), { recursive: true });
-  const deadline = Date.now() + PUBLISH_LOCK_TIMEOUT_MS;
-  const ownerToken = randomUUID();
-  const ownerFile = path.join(lockDir, PUBLISH_LOCK_OWNER_FILE);
-
-  while (true) {
-    let lockDirectoryCreated = false;
-    try {
-      await mkdir(lockDir);
-      lockDirectoryCreated = true;
-      try {
-        await writeFile(
-          ownerFile,
-          `${JSON.stringify({
-            ownerToken,
-            pid: process.pid,
-            acquiredAt: new Date().toISOString(),
-          })}\n`,
-          { encoding: "utf8", flag: "wx" },
-        );
-      } catch (error) {
-        await removePathWithRetry(lockDir, { recursive: true, force: true });
-        throw error;
-      }
-
-      return async () => {
-        const owner = JSON.parse(await readFile(ownerFile, "utf8"));
-        if (owner?.ownerToken !== ownerToken) {
-          throw new Error(
-            `web publish lock owner changed before release: ${lockDir}`,
-          );
-        }
-        await removePathWithRetry(lockDir, { recursive: true, force: true });
-      };
-    } catch (error) {
-      if (lockDirectoryCreated) {
-        throw error;
-      }
-      if (!PUBLISH_LOCK_CONTENTION_CODES.has(error?.code)) {
-        throw error;
-      }
-      if (await recoverPublishLockOwnedByDeadProcess(lockDir, ownerFile)) {
-        continue;
-      }
-      if (Date.now() >= deadline) {
-        throw new Error(`timed out waiting for web publish lock: ${lockDir}`);
-      }
-      await sleep(PUBLISH_LOCK_RETRY_MS);
-    }
-  }
 }
 
 async function validateCommittedMarker(

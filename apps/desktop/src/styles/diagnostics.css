@@ -1,0 +1,285 @@
+/* diagnostics styles; preserve position in styles.css. */
+.nt-validation-list--info {
+  border-color: color-mix(in srgb, var(--nt-info) 42%, var(--nt-border));
+  background: var(--nt-info-soft);
+}
+
+.nt-textarea--json {
+  min-height: 420px;
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  line-height: 1.6;
+}
+
+.nt-scroll-panel {
+  display: grid;
+  gap: 12px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.nt-console-mini-card {
+  align-content: start;
+  min-height: 0;
+}
+
+.nt-console-mini-card small {
+  overflow-wrap: anywhere;
+  color: var(--nt-text-muted);
+  line-height: 1.5;
+}
+
+.nt-validation-list {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--nt-danger) 42%, var(--nt-border));
+  border-radius: var(--nt-radius-md);
+  padding: 12px 14px;
+  background: var(--nt-danger-soft);
+  color: var(--nt-text-soft);
+}
+
+.nt-validation-list--warning {
+  border-color: color-mix(in srgb, var(--nt-warning) 42%, var(--nt-border));
+  background: var(--nt-warning-soft);
+}
+
+.nt-validation-list strong {
+  color: var(--nt-text);
+}
+
+.nt-validation-list ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--nt-text-muted);
+  line-height: 1.55;
+}
+
+.nt-env-list {
+  display: grid;
+  gap: 10px;
+}
+
+.nt-env-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto;
+  gap: 10px;
+}
+
+.nt-env-row__key {
+  display: grid;
+  gap: 6px;
+}
+
+.nt-env-row__key small {
+  color: var(--nt-danger);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.nt-table {
+  display: grid;
+  gap: 8px;
+}
+
+.nt-table__head,
+.nt-table__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 160px 180px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  border-radius: 14px;
+  padding: 11px 12px;
+}
+
+.nt-table__head {
+  color: var(--nt-signal);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.nt-table__row {
+  background: color-mix(in srgb, var(--nt-text) 3.5%, transparent);
+}
+
+.nt-code,
+.nt-terminal {
+  overflow: auto;
+  border-radius: 18px;
+  background: rgba(3, 6, 10, 0.78);
+  color: color-mix(in srgb, var(--nt-text) 86%, transparent);
+}
+
+.nt-code {
+  max-height: 360px;
+  margin: 12px 0 0;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  padding: 14px;
+  white-space: pre-wrap;
+}
+
+.nt-diagnostics-report .nt-code {
+  max-height: 420px;
+  border-color: color-mix(in srgb, var(--nt-signal) 16%, transparent);
+}
+
+.nt-diagnostics-report {
+  align-items: flex-start;
+}
+
+.nt-diagnostics-report > div {
+  min-width: 0;
+}
+
+.nt-diagnostics-report ul {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: color-mix(in srgb, var(--nt-text) 84%, transparent);
+}
+
+.nt-diagnostics-report li {
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.nt-diagnostics-report .nt-copy {
+  margin: 10px 0 0;
+}
+
+.nt-transfer-box {
+  max-height: 320px;
+  border-color: color-mix(in srgb, var(--nt-success) 32%, var(--nt-border));
+}
+
+.nt-path-check {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.nt-path-check__item {
+  display: grid;
+  grid-template-columns: minmax(0, 180px) auto minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--nt-danger) 36%, var(--nt-border));
+  border-radius: var(--nt-radius-md);
+  padding: 11px 12px;
+  background: var(--nt-danger-soft);
+}
+
+.nt-path-check__item--ok {
+  border-color: color-mix(in srgb, var(--nt-success) 36%, var(--nt-border));
+  background: var(--nt-success-soft);
+}
+
+.nt-path-check__item span,
+.nt-path-check__item strong {
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.nt-path-check__item strong {
+  color: var(--nt-signal);
+}
+
+.nt-path-check__item code {
+  overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--nt-text) 86%, transparent);
+}
+
+.nt-path-check__item small {
+  grid-column: 3;
+  color: var(--nt-text-muted);
+}
+
+.nt-onboarding-list {
+  display: grid;
+  gap: 10px;
+}
+
+.nt-onboarding-step {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--nt-text) 8%, transparent);
+  border-radius: 16px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--nt-text) 3.5%, transparent);
+}
+
+.nt-onboarding-step--done {
+  border-color: color-mix(in srgb, var(--nt-success) 36%, var(--nt-border));
+  background: var(--nt-success-soft);
+}
+
+.nt-onboarding-step--warning {
+  border-color: color-mix(in srgb, var(--nt-warning) 42%, var(--nt-border));
+  background: var(--nt-warning-soft);
+}
+
+.nt-onboarding-step > span {
+  color: color-mix(in srgb, var(--nt-signal) 66%, transparent);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.nt-onboarding-step strong {
+  color: var(--nt-text);
+}
+
+.nt-onboarding-step p {
+  margin: 4px 0 0;
+  color: var(--nt-text-muted);
+  line-height: 1.5;
+}
+
+.nt-onboarding-step em {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: color-mix(in srgb, var(--nt-signal) 8%, transparent);
+  color: var(--nt-signal);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.nt-terminal {
+  display: grid;
+  max-height: 520px;
+  gap: 0;
+  padding: 10px;
+}
+
+.nt-terminal__line {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--nt-text) 4.5%, transparent);
+  padding: 6px 4px;
+}
+
+.nt-terminal__line span {
+  color: color-mix(in srgb, var(--nt-signal) 56%, transparent);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 0.78rem;
+}
+
+.nt-terminal__line code {
+  overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--nt-text) 82%, transparent);
+}

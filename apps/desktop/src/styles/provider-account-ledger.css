@@ -1,0 +1,120 @@
+/* provider account ledger styles; preserve position in styles.css. */
+.nt-provider-account-row {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.5fr)
+    minmax(132px, 0.95fr)
+    minmax(88px, 0.75fr)
+    minmax(88px, 0.7fr)
+    76px
+    minmax(168px, 1.2fr)
+    minmax(108px, 0.85fr)
+    minmax(180px, 1.2fr)
+    auto;
+  gap: 10px;
+  align-items: center;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--nt-text) 3.5%, transparent);
+  border-radius: 0;
+  padding: 6px 8px;
+  background: transparent;
+}
+
+.nt-provider-account-table {
+  display: grid;
+  gap: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.nt-provider-account-branch {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 0;
+}
+
+.nt-provider-account-table__head {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.5fr)
+    minmax(132px, 0.95fr)
+    minmax(88px, 0.75fr)
+    minmax(88px, 0.7fr)
+    76px
+  minmax(168px, 1.2fr)
+  minmax(108px, 0.85fr)
+  auto;
+  gap: 10px;
+  align-items: center;
+  padding: 5px 8px 4px;
+  color: var(--nt-signal);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: transparent;
+  border-bottom: 1px solid color-mix(in srgb, var(--nt-text) 3%, transparent);
+}
+
+.nt-provider-account-cell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--nt-text);
+}
+
+.nt-provider-account-cell__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-provider-account-cell--logic .nt-ledger-chip-list {
+  gap: 6px;
+}
+
+.nt-ledger-chip-list--dense {
+  gap: 6px;
+}
+
+.nt-provider-account-cell__muted {
+  color: var(--nt-text-muted);
+}
+
+.nt-provider-account-cell--capacity,
+.nt-provider-account-cell--status,
+.nt-provider-account-cell--dispatch {
+  justify-content: center;
+}
+
+.nt-provider-account-cell--usage {
+  align-items: flex-start;
+}
+
+.nt-provider-account-cell--usage .nt-ledger-chip-list {
+  width: 100%;
+}
+
+.nt-provider-account-cell--status .nt-badge {
+  min-width: 52px;
+  justify-content: center;
+}
+
+.nt-provider-account-cell--actions {
+  position: relative;
+  justify-content: flex-end;
+}
+
+.nt-provider-account-cell--actions .nt-btn {
+  min-width: 0;
+  padding: 8px 12px;
+}
+
+.nt-provider-account-action-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}

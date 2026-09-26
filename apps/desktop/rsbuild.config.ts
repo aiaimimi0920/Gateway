@@ -18,6 +18,12 @@ const pruneLive =
   isWeb &&
   (process.env.GATEWAY_WEB_PRUNE_LIVE === "1" ||
     !process.argv.includes("--watch"));
+// Bind-mounted sources (dev Docker on Windows/macOS) deliver no inotify events,
+// so the watcher has to poll. WATCHPACK_POLLING is a webpack-dev-server
+// convention that rspack never reads, so set watchOptions.poll explicitly.
+const watchPollEnv = Number.parseInt(process.env.GATEWAY_WEB_WATCH_POLL_MS ?? "", 10);
+const watchPollInterval =
+  Number.isFinite(watchPollEnv) && watchPollEnv > 0 ? watchPollEnv : 1000;
 
 const plugins = [pluginReact()];
 if (stagedPublish) {
@@ -72,5 +78,13 @@ export default defineConfig({
   server: {
     port: 1425,
     strictPort: true,
+  },
+  tools: {
+    rspack: {
+      watchOptions: {
+        poll: watchPollInterval,
+        ignored: ["**/node_modules/**", "**/dist/**", "**/target/**"],
+      },
+    },
   },
 });

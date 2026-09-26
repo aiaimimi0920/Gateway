@@ -1,0 +1,158 @@
+/* entitlement members styles; preserve position in styles.css. */
+/* The expanded member panel reads like the credential pool's attached account
+   library: a hairline-separated band under the card, not a second nested panel. */
+.nt-entitlement-group-card__accounts {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border-top: 1px solid var(--nt-border);
+  padding-top: 8px;
+}
+
+.nt-entitlement-group-card__accounts--attached {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: -6px;
+}
+
+.nt-entitlement-group-card__accounts-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--nt-text-muted);
+  font-size: 0.72rem;
+}
+
+.nt-entitlement-group-card__accounts-head > span:first-child {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.nt-entitlement-group-card__accounts-head strong {
+  color: var(--nt-text);
+  font-size: 0.74rem;
+}
+
+/* Only present while the card back narrows the provider scope, so the count
+   next to it is not mistaken for the group's whole membership. */
+.nt-entitlement-group-card__accounts-scope {
+  color: var(--nt-text-muted);
+  font-size: 0.68rem;
+}
+
+.nt-entitlement-group-card__accounts-count {
+  min-width: 22px;
+  flex: 0 0 auto;
+  color: var(--nt-info);
+  font-family: var(--nt-font-mono);
+  font-weight: 800;
+  text-align: right;
+}
+
+.nt-entitlement-account-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Wrap the member cards instead of scrolling them sideways: the attached
+   library reads as part of the card, and cards carry no scroll tracks. Fixed
+   240px tracks keep every member the same width; auto-fill decides how many
+   fit and pushes the rest onto the next row. */
+.nt-entitlement-account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 240px);
+  justify-content: start;
+  min-width: 0;
+  gap: 8px;
+}
+
+/* Fixed geometry, same reasoning as .nt-provider-account-card. Sized to the
+   densest member so no card scrolls. */
+.nt-entitlement-account-card {
+  --nt-entitlement-account-card-height: 112px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: var(--nt-entitlement-account-card-height);
+  min-width: 0;
+  box-sizing: border-box;
+  gap: 8px;
+  border: 1px solid var(--nt-border);
+  border-left: 2px solid var(--nt-text-muted);
+  border-radius: var(--nt-radius-sm);
+  padding: 9px;
+  background: var(--nt-color-panel);
+}
+
+.nt-entitlement-account-card__provider {
+  align-content: start;
+  min-height: 0;
+}
+
+.nt-entitlement-account-card__head > div,
+.nt-entitlement-account-card__provider {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.nt-entitlement-account-card__head strong,
+.nt-entitlement-account-card__head small,
+.nt-entitlement-account-card__provider strong,
+.nt-entitlement-account-card__provider span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-entitlement-account-card__head small,
+.nt-entitlement-account-card__provider span {
+  color: var(--nt-text-muted);
+  font-size: 0.74rem;
+}
+
+.nt-entitlement-account-card__head .nt-badge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nt-entitlement-group-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .nt-entitlement-group-card:hover .nt-entitlement-group-card__inner {
+    border-color: var(--nt-border-strong);
+    box-shadow: var(--nt-shadow-lift);
+  }
+
+  .nt-entitlement-group-card--expanded:hover {
+    transform: none;
+  }
+}
+
+.nt-ledger-toolbar--groups {
+  grid-template-columns: minmax(240px, 1.4fr) minmax(180px, 0.8fr);
+}
+
+.nt-group-member-row {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1.3fr)
+    minmax(160px, 1fr)
+    minmax(110px, 0.8fr)
+    minmax(180px, 1.1fr)
+    minmax(120px, 0.8fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-md);
+  padding: 14px;
+  background: var(--nt-color-control);
+}

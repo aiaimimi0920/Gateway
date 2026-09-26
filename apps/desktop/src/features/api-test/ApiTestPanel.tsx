@@ -13,7 +13,6 @@ export function ApiTestPanel({ state }: ApiTestPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// /v1/chat/completions</p>
             <h2>接口调用试验台</h2>
           </div>
           <button
@@ -65,7 +64,6 @@ export function ApiTestPanel({ state }: ApiTestPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// Response</p>
             <h2>测试响应</h2>
           </div>
           {result ? (

@@ -99,17 +99,25 @@ function Invoke-CheckedCommand {
   param([string[]]$Command)
 
   Write-Host ">>> $($Command -join ' ')"
+  $isCargoTest = $Command.Count -ge 2 -and $Command[0] -eq "cargo" -and $Command[1] -eq "test"
+  $passedTestCount = 0
   $previousErrorActionPreference = $ErrorActionPreference
   try {
     $ErrorActionPreference = "Continue"
     & $Command[0] @($Command | Select-Object -Skip 1) 2>&1 | ForEach-Object {
       Write-Host $_
+      if ($isCargoTest -and [string]$_ -match '^\s*test result: ok\.\s+(\d+)\s+passed;') {
+        $passedTestCount += [int]$Matches[1]
+      }
     }
   } finally {
     $ErrorActionPreference = $previousErrorActionPreference
   }
   if ($LASTEXITCODE -ne 0) {
     throw "Command failed with exit code ${LASTEXITCODE}: $($Command -join ' ')"
+  }
+  if ($isCargoTest -and $passedTestCount -eq 0) {
+    throw "Cargo command executed no tests: $($Command -join ' ')"
   }
 }
 
@@ -187,7 +195,7 @@ if (-not $All -and [string]::IsNullOrWhiteSpace($LineId)) {
   throw "LineId is required unless -ListOnly is provided."
 }
 
-$results = if ($All) {
+[array]$results = if ($All) {
   foreach ($line in $lines) {
     Invoke-GatewayLineVerification -Line $line
   }

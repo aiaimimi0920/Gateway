@@ -29,7 +29,7 @@
   "verification": {
     "recommendedCargoTargetDirSlug": "muyuan-openai-aggregator-api-verify",
     "focusedCargoFilters": [
-      "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+      "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
     ],
     "fixtureSuiteId": "muyuan_fixture",
     "liveSuiteId": "muyuan_live",

@@ -1,0 +1,288 @@
+/* provider card styles; preserve position in styles.css. */
+/* Provider pool cards. Each provider is one card with a front summary face and
+   a flipped face carrying the aggregated detail and pool policy controls. */
+.nt-provider-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 14px;
+  /* Stretch, not start: cards in a row share the tallest card's height, so a
+     neighbour never has to scroll to keep the row tidy. */
+  align-items: stretch;
+}
+
+.nt-provider-card-stack {
+  --nt-provider-card-accent: var(--nt-text-muted);
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 8px;
+}
+
+.nt-provider-card-stack > .nt-provider-card {
+  width: 100%;
+}
+
+.nt-provider-card {
+  --nt-provider-card-accent: var(--nt-text-muted);
+  /* Every provider card is the same size, on both faces, whatever data it
+     carries. Card geometry is layout, not a data readout: letting content drive
+     height made a grid of ragged cards and moved the action row per provider.
+     The size is the taller face's natural height (the back, whose lifecycle
+     rail is the densest block on either side), so the front grows to match
+     rather than the back shrinking behind a scrollbar. No face ever scrolls:
+     a scroll track on a card means the card is too small, and the fix for that
+     is a bigger card. */
+  --nt-provider-card-height: 440px;
+  display: block;
+  min-width: 0;
+  perspective: 1200px;
+  transform-style: preserve-3d;
+  transition: transform 180ms ease;
+}
+
+.nt-provider-card__inner {
+  display: grid;
+  height: var(--nt-provider-card-height);
+  min-width: 0;
+  border: 1px solid var(--nt-border);
+  border-top-color: color-mix(in srgb, var(--nt-provider-card-accent) 42%, var(--nt-border));
+  border-radius: var(--nt-radius-md);
+  background: var(--nt-color-panel);
+  box-shadow: var(--nt-shadow-surface);
+  transform: rotateY(0deg);
+  transform-style: preserve-3d;
+  transition:
+    transform 190ms cubic-bezier(0.2, 0.72, 0.24, 1),
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nt-provider-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .nt-provider-card:hover .nt-provider-card__inner {
+    border-color: var(--nt-border-strong);
+    box-shadow: var(--nt-shadow-lift);
+  }
+}
+
+.nt-provider-card__face {
+  grid-area: 1 / 1;
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  gap: 10px;
+  align-content: start;
+  border-radius: inherit;
+  background: var(--nt-color-panel);
+  backface-visibility: hidden;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  -webkit-backface-visibility: hidden;
+}
+
+.nt-provider-card__face[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+.nt-provider-card__front {
+  transform: rotateY(0deg);
+}
+
+.nt-provider-card__back {
+  grid-template-rows: auto minmax(0, 1fr);
+  transform: rotateY(180deg);
+}
+
+.nt-provider-card__art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  border-bottom: 1px solid var(--nt-border);
+  background: var(--nt-provider-card-art, var(--nt-color-panel));
+}
+
+.nt-provider-card__art::before,
+.nt-provider-card__art::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+}
+
+.nt-provider-card__art::before {
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 31px,
+      color-mix(in srgb, var(--nt-provider-card-accent) 8%, transparent) 31px 32px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 31px,
+      color-mix(in srgb, var(--nt-provider-card-accent) 6%, transparent) 31px 32px
+    );
+  mask-image: linear-gradient(120deg, rgba(0, 0, 0, 0.2), black 68%, rgba(0, 0, 0, 0.58));
+}
+
+.nt-provider-card__art::after {
+  right: -8%;
+  bottom: 10%;
+  width: 46%;
+  height: 1px;
+  background: color-mix(in srgb, var(--nt-provider-card-accent) 24%, transparent);
+  box-shadow:
+    0 8px 0 color-mix(in srgb, var(--nt-provider-card-accent) 12%, transparent),
+    0 16px 0 color-mix(in srgb, var(--nt-provider-card-accent) 7%, transparent);
+  transform: rotate(-24deg);
+}
+
+.nt-provider-card__initial {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 78px;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--nt-provider-card-accent) 36%, var(--nt-border));
+  background: color-mix(in srgb, var(--nt-color-background) 58%, transparent);
+  clip-path: polygon(0 0, 78% 0, 100% 22%, 100% 100%, 22% 100%, 0 78%);
+  color: var(--nt-text);
+  font-size: 2.6rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.nt-provider-card__art-capacity {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 1px solid color-mix(in srgb, var(--nt-provider-card-accent) 42%, var(--nt-border));
+  border-radius: var(--nt-radius-sm);
+  padding: 2px 6px;
+  background: color-mix(in srgb, var(--nt-color-background) 72%, transparent);
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  z-index: 1;
+}
+
+.nt-provider-card__info {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.nt-provider-card__title {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  border-radius: var(--nt-radius-sm);
+  padding: 0;
+  background: transparent;
+  color: var(--nt-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.nt-provider-card__title strong {
+  font-size: 1rem;
+}
+
+.nt-provider-card__title .nt-provider-tree-item__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-content: stretch;
+  gap: 5px 12px;
+  width: 100%;
+}
+
+.nt-provider-card__title .nt-provider-tree-item__metric,
+.nt-provider-card__back-body .nt-provider-tree-item__metric {
+  white-space: normal;
+}
+
+.nt-provider-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  color: var(--nt-text-muted);
+  font-size: 0.72rem;
+}
+
+.nt-provider-card__category {
+  color: color-mix(in srgb, var(--nt-provider-card-accent) 72%, var(--nt-text));
+  font-weight: 700;
+}
+
+.nt-provider-card__host {
+  overflow-wrap: anywhere;
+  font-family: var(--nt-font-mono);
+}
+
+.nt-provider-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--nt-border);
+  padding: 8px 12px;
+}
+
+.nt-provider-card__expand-hint {
+  color: var(--nt-text-faint);
+  font-size: 0.7rem;
+}
+
+/* Keep the flip control visually distinct from refresh/retry actions. */
+.nt-icon-action.nt-provider-card__flip {
+  width: auto;
+  min-width: 0;
+  grid-auto-flow: column;
+  gap: 6px;
+  padding: 4px 8px;
+  color: var(--nt-info);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.nt-icon-action.nt-provider-card__flip span {
+  display: inline;
+}
+
+.nt-provider-card__back-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 6px;
+  border-bottom: 1px solid var(--nt-border);
+  padding: 8px 10px;
+}
+
+.nt-provider-card__back-title {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nt-provider-card__back-title strong {
+  font-size: 0.9rem;
+}
+
+.nt-provider-card__back-body {
+  display: grid;
+  gap: 0;
+  min-height: 0;
+  min-width: 0;
+  padding: 0 10px 8px;
+  align-content: start;
+}

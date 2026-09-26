@@ -1,0 +1,369 @@
+/* entitlement card styles; preserve position in styles.css. */
+.nt-group-admin {
+  display: grid;
+  gap: 16px;
+}
+
+.nt-group-admin__detail,
+.nt-group-members {
+  display: grid;
+  gap: 12px;
+}
+
+.nt-entitlement-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 14px;
+  /* Stretch, not start: cards in a row share the tallest card's height, so a
+     neighbour never has to scroll to keep the row tidy. */
+  align-items: stretch;
+}
+
+.nt-entitlement-group-card {
+  /* Same fixed geometry rule as the provider cards on the credential pool page:
+     one size for both faces and every group, whatever data each one carries.
+     The size follows the taller face (the back, which spells out the provider
+     and model scopes in full); long data stays reachable inside the body rather
+     than changing the card geometry. */
+  --nt-entitlement-group-card-height: 504px;
+  display: block;
+  min-width: 0;
+  perspective: 1200px;
+  transform-style: preserve-3d;
+  transition: transform 180ms ease;
+}
+
+.nt-entitlement-group-card__inner {
+  display: grid;
+  height: var(--nt-entitlement-group-card-height);
+  min-width: 0;
+  border: 1px solid var(--nt-border);
+  border-top-color: color-mix(in srgb, var(--nt-info) 42%, var(--nt-border));
+  border-radius: var(--nt-radius-md);
+  background: var(--nt-color-panel);
+  box-shadow: var(--nt-shadow-surface);
+  transform: rotateY(0deg);
+  transform-style: preserve-3d;
+  transition:
+    transform 190ms cubic-bezier(0.2, 0.72, 0.24, 1),
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.nt-entitlement-group-card--expanded .nt-entitlement-group-card__inner {
+  border-color: var(--nt-border-strong);
+  border-left: 2px solid var(--nt-signal);
+}
+
+.nt-entitlement-group-card--flipped .nt-entitlement-group-card__inner {
+  border-color: var(--nt-border-strong);
+  transform: rotateY(180deg);
+}
+
+.nt-entitlement-group-card__face {
+  grid-area: 1 / 1;
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  align-content: start;
+  border-radius: inherit;
+  background: var(--nt-color-panel);
+  backface-visibility: hidden;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  -webkit-backface-visibility: hidden;
+}
+
+.nt-entitlement-group-card__face[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+.nt-entitlement-group-card__front {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  transform: rotateY(0deg);
+}
+
+.nt-entitlement-group-card__back {
+  grid-template-rows: auto minmax(0, 1fr);
+  transform: rotateY(180deg);
+}
+
+.nt-entitlement-group-card__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--nt-border);
+  padding: 11px 12px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--nt-info) 8%, var(--nt-color-panel)),
+    var(--nt-color-panel) 72%
+  );
+}
+
+.nt-entitlement-group-card__library-toggle[aria-expanded="true"] {
+  background: var(--nt-info-soft);
+  color: var(--nt-info);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nt-info) 38%, var(--nt-border));
+}
+
+.nt-entitlement-group-card__icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--nt-info) 42%, var(--nt-border));
+  border-radius: var(--nt-radius-sm);
+  background: var(--nt-info-soft);
+  color: var(--nt-info);
+}
+
+.nt-entitlement-group-card__toggle {
+  display: block;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--nt-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.nt-entitlement-group-card__head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nt-icon-action.nt-entitlement-group-card__library-toggle,
+.nt-icon-action.nt-entitlement-group-card__flip {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+.nt-icon-action.nt-entitlement-group-card__flip {
+  color: var(--nt-info);
+}
+
+.nt-entitlement-group-card__toggle strong {
+  display: block;
+  overflow: hidden;
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Four fixed slots, same row as .nt-provider-card__actions: state toggle, edit,
+   delete, overflow menu. Pinned to the bottom of the face so the controls do
+   not move between cards. */
+.nt-entitlement-group-card__actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  border-top: 1px solid var(--nt-border);
+  padding: 8px;
+}
+
+/* The menu wrapper is a grid slot itself, so it has to stretch like the three
+   buttons beside it instead of collapsing to its trigger's width. */
+.nt-entitlement-group-card__actions .nt-pilot-menu {
+  display: grid;
+  min-width: 0;
+}
+
+/* Opens upward: the face clips its overflow, so a panel hanging below the
+   footer would be cut off instead of scrolled into view. */
+.nt-entitlement-group-card__actions .nt-pilot-menu__panel {
+  top: auto;
+  right: 0;
+  bottom: calc(100% + 8px);
+}
+
+.nt-entitlement-group-card__action {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: var(--nt-radius-sm);
+  padding: 5px 7px;
+  background: transparent;
+  color: var(--nt-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nt-entitlement-group-card__action--icon {
+  padding-inline: 5px;
+}
+
+.nt-entitlement-group-card__action:hover:not(:disabled),
+.nt-entitlement-group-card__action:focus-visible {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-color-control-hover);
+  color: var(--nt-text);
+}
+
+.nt-entitlement-group-card__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.nt-entitlement-group-card__action--danger:not(:disabled) {
+  color: var(--nt-danger);
+}
+
+.nt-entitlement-group-card__action[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--nt-info) 38%, var(--nt-border));
+  background: var(--nt-info-soft);
+  color: var(--nt-info);
+}
+
+.nt-entitlement-group-card__action .nt-switch__track {
+  width: 24px;
+  border: 1px solid var(--nt-border-strong);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--nt-color-control);
+}
+
+.nt-entitlement-group-card__action .nt-switch__thumb {
+  width: 9px;
+  height: 9px;
+}
+
+.nt-entitlement-group-card__action[role="switch"].nt-entitlement-group-card__action--active
+  .nt-switch__track {
+  border-color: color-mix(in srgb, var(--nt-success) 54%, var(--nt-border));
+  background: var(--nt-success-soft);
+}
+
+.nt-entitlement-group-card__action[role="switch"].nt-entitlement-group-card__action--active
+  .nt-switch__thumb {
+  transform: translateX(9px);
+}
+
+/* Both faces are a fixed box, so the data band scrolls rather than stretching
+   the card. Mirrors .nt-provider-card__front-body on the credential pool page.
+   Rows are max-content, not auto: auto rows are flexible, so a clipped child
+   (anything with overflow: hidden) reports a zero minimum and grid squeezes it
+   to fit instead of letting the band scroll — which cut the description off
+   mid-line. */
+.nt-entitlement-group-card__front-body,
+.nt-entitlement-group-card__back-body {
+  display: grid;
+  grid-auto-rows: max-content;
+  min-height: 0;
+  min-width: 0;
+  gap: 12px;
+  align-content: start;
+  padding: 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* Same compact metric strip as the provider cards: one row of cells with the
+   hairlines bled to the card edges so they read as dividers. */
+.nt-entitlement-group-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 -12px;
+  border-top: 1px solid var(--nt-border);
+  border-bottom: 1px solid var(--nt-border);
+}
+
+.nt-entitlement-group-card__metrics > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 4px;
+}
+
+.nt-entitlement-group-card__metrics > div + div {
+  border-left: 1px solid color-mix(in srgb, var(--nt-border) 72%, transparent);
+}
+
+.nt-entitlement-group-card__metrics dt {
+  display: inline-flex;
+  align-items: center;
+  color: var(--nt-text-muted);
+  font-size: 0.72rem;
+}
+
+.nt-entitlement-group-card__metrics dd {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The usage strip carries one more cell than the structural strip above it.
+   Both keep their own hairlines: the 12px body gap separates them, so dropping
+   one rule would read as a missing divider rather than a shared one. */
+.nt-entitlement-group-card__usage {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.nt-entitlement-group-card__usage dt svg,
+.nt-entitlement-group-card__success > svg {
+  color: var(--nt-text-muted);
+}
+
+/* Same availability strip as .nt-provider-card__success; the cells reuse the
+   provider classes so the two pages cannot drift apart visually. */
+.nt-entitlement-group-card__success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The strip stays even with no dispatches, so the empty state fills the space
+   the window cells would have taken instead of leaving a bare icon and dash. */
+.nt-entitlement-group-card__success-empty {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--nt-text-muted);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-entitlement-group-card__back-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--nt-border);
+  padding: 10px 12px;
+}
+
+.nt-entitlement-group-card__back-title {
+  display: block;
+  min-width: 0;
+}
+
+.nt-entitlement-group-card__back-title strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,24 @@
+/* provider catalog responsive styles; preserve position in styles.css. */
+@media (max-width: 820px) {
+  .nt-provider-catalog__summary {
+    flex-direction: column;
+  }
+
+  .nt-provider-catalog-dialog {
+    grid-template-rows: auto auto minmax(0, 1fr);
+    padding: 16px;
+  }
+
+  .nt-provider-catalog {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .nt-provider-catalog__directory {
+    min-height: 360px;
+  }
+
+  .nt-provider-catalog__form {
+    overflow: visible;
+  }
+}

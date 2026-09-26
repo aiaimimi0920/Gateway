@@ -1,0 +1,184 @@
+/* settings controls styles; preserve position in styles.css. */
+.nt-empty {
+  margin: 0;
+  color: var(--nt-text-muted);
+  line-height: 1.65;
+}
+
+.nt-option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 10px;
+}
+
+.nt-option-card {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-md);
+  padding: 10px 12px;
+  background: var(--nt-color-control);
+  color: var(--nt-text-muted);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.nt-option-card:hover {
+  border-color: color-mix(in srgb, var(--nt-signal) 32%, transparent);
+  background: var(--nt-color-control-hover);
+  color: var(--nt-text);
+}
+
+.nt-option-card--active {
+  border-color: var(--nt-border-strong);
+  background: var(--nt-signal-soft);
+  color: var(--nt-text);
+}
+
+.nt-option-card__icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: var(--nt-radius-sm);
+  color: var(--nt-text-muted);
+}
+
+.nt-option-card--active .nt-option-card__icon {
+  color: var(--nt-signal);
+}
+
+.nt-option-card__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.nt-option-card__copy strong {
+  font-size: 0.9rem;
+}
+
+.nt-option-card__copy small {
+  color: var(--nt-text-faint);
+  font-size: 0.72rem;
+}
+
+/* Settings surfaces follow Loom: one centered column of hairline-separated
+   accordion sections instead of a stack of nested cards. */
+.nt-settings-page {
+  width: min(100%, 1180px);
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.nt-settings-accordion {
+  display: grid;
+  min-width: 0;
+  border-top: 1px solid var(--nt-border);
+}
+
+.nt-settings-section {
+  min-width: 0;
+  border-bottom: 1px solid var(--nt-border);
+}
+
+.nt-settings-section__heading {
+  margin: 0;
+}
+
+.nt-settings-section__trigger {
+  display: grid;
+  width: 100%;
+  min-height: 62px;
+  grid-template-columns: 26px minmax(0, 1fr) 22px;
+  gap: 10px;
+  align-items: center;
+  border: 0;
+  padding: 0 6px;
+  background: transparent;
+  color: var(--nt-text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.nt-settings-section__trigger > span {
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.nt-settings-section__trigger:hover {
+  background: var(--nt-hover);
+}
+
+.nt-settings-section__trigger:focus-visible {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: -2px;
+}
+
+.nt-settings-section__icon,
+.nt-settings-section__chevron {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  color: var(--nt-text-muted);
+}
+
+.nt-settings-section__chevron {
+  transition:
+    transform 160ms ease,
+    color 160ms ease;
+}
+
+.nt-settings-section--open .nt-settings-section__icon,
+.nt-settings-section--open .nt-settings-section__chevron {
+  color: var(--nt-signal);
+}
+
+.nt-settings-section--open .nt-settings-section__chevron {
+  transform: rotate(180deg);
+}
+
+.nt-settings-section__body {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 2px 12px 22px 42px;
+  animation: nt-settings-section-enter 150ms ease-out;
+}
+
+@keyframes nt-settings-section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+.nt-settings-hint {
+  margin: 0;
+  max-width: 78ch;
+  color: var(--nt-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.nt-btn:focus-visible,
+.nt-input:focus-visible,
+.nt-select:focus-visible,
+.nt-textarea:focus-visible,
+.nt-rail__item:focus-visible,
+.nt-toast:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--nt-color-background),
+    0 0 0 4px var(--nt-focus-ring);
+}

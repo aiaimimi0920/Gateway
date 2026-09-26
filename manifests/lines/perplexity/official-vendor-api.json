@@ -32,9 +32,9 @@
   "verification": {
     "recommendedCargoTargetDirSlug": "perplexity-search-official-vendor-api-verify",
     "focusedCargoFilters": [
-      "preset::tests::perplexity_search_preset_uses_query_field",
-      "implementation_lines::tests::perplexity_search_protocol_profiles_compile_when_feature_enabled",
-      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+      "preset::tests::search_presets::perplexity_search_preset_uses_query_field",
+      "implementation_lines::tests::feature_profiles::perplexity_search_protocol_profiles_compile_when_feature_enabled",
+      "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
     ],
     "fixtureSuiteId": "perplexity_search_fixture",
     "useNoDefaultFeatures": true

@@ -122,11 +122,50 @@ pub fn provider_credential_quota_lock_key(provider_credential_id: &str) -> Strin
 }
 
 pub fn provider_credential_folder_sync_status_key() -> String {
-    "gw:provider-credential:folder-sync:status".to_string()
+    "gw:{provider-credential-folder-sync}:status".to_string()
 }
 
 pub fn provider_credential_folder_sync_enabled_key() -> String {
-    "gw:provider-credential:folder-sync:enabled".to_string()
+    "gw:{provider-credential-folder-sync}:enabled".to_string()
+}
+
+pub fn legacy_provider_credential_folder_sync_status_key() -> &'static str {
+    "gw:provider-credential:folder-sync:status"
+}
+
+pub fn legacy_provider_credential_folder_sync_enabled_key() -> &'static str {
+    "gw:provider-credential:folder-sync:enabled"
+}
+
+pub fn provider_credential_folder_sync_events_channel() -> &'static str {
+    "gw:provider-credential:folder-sync:events"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        provider_credential_folder_sync_enabled_key, provider_credential_folder_sync_status_key,
+    };
+
+    #[test]
+    fn folder_sync_state_keys_share_a_redis_cluster_hash_tag() {
+        let status = provider_credential_folder_sync_status_key();
+        let enabled = provider_credential_folder_sync_enabled_key();
+        assert_eq!(
+            redis_hash_tag(&status),
+            Some("provider-credential-folder-sync")
+        );
+        assert_eq!(
+            redis_hash_tag(&enabled),
+            Some("provider-credential-folder-sync")
+        );
+    }
+
+    fn redis_hash_tag(key: &str) -> Option<&str> {
+        let start = key.find('{')?;
+        let end = key[start + 1..].find('}')? + start + 1;
+        (end > start + 1).then(|| &key[start + 1..end])
+    }
 }
 
 // ---------------------------------------------------------------------------

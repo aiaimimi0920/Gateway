@@ -1,8 +1,9 @@
+mod body;
+
 use std::collections::HashMap;
 
 use rquest::header::HeaderMap;
 use rquest::RequestBuilder;
-use serde_json::Value;
 
 use crate::error::{classify_network_error, classify_upstream_error, GatewayError};
 use crate::protocol::canonical::{CanonicalRelayRequest, CanonicalRelayResponse, EndpointKind};
@@ -43,10 +44,7 @@ pub async fn execute_forced_streaming_accumulate(
 
     let status = response.status();
     if !status.is_success() {
-        let body_text = response
-            .text()
-            .await
-            .unwrap_or_else(|_| String::from("<unreadable body>"));
+        let body_text = body::read_error(response, provider).await?;
         return Err(classify_upstream_error(
             status.into(),
             &body_text,
@@ -122,10 +120,7 @@ impl UpstreamClient {
 
         let status = response.status().as_u16();
         if !response.status().is_success() {
-            let body_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| String::from("<unreadable body>"));
+            let body_text = body::read_error(response, context.provider).await?;
             return Err(classify_upstream_error(
                 status,
                 &body_text,
@@ -133,10 +128,7 @@ impl UpstreamClient {
             ));
         }
 
-        let body: Value = response
-            .json()
-            .await
-            .map_err(|error| classify_network_error(&error, Some(context.provider)))?;
+        let body = body::read_json(response, context.provider).await?;
 
         unpack_nonstreaming_response(req.endpoint_kind, &body)
     }
@@ -157,10 +149,7 @@ impl UpstreamClient {
 
         let status = response.status().as_u16();
         if !response.status().is_success() {
-            let body_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| String::from("<unreadable body>"));
+            let body_text = body::read_error(response, context.provider).await?;
             return Err(classify_upstream_error(
                 status,
                 &body_text,
@@ -174,6 +163,11 @@ impl UpstreamClient {
 
 #[cfg(test)]
 mod tests {
+    mod body_limits;
+    mod body_preservation;
+    mod body_targets;
+    mod body_wire;
+
     use super::*;
     use crate::protocol::canonical::{CanonicalMessage, ContentPart, MessageRole, ProtocolFamily};
     use axum::http::StatusCode;

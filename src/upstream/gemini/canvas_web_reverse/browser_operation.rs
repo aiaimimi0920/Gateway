@@ -47,8 +47,10 @@ pub fn build_browser_operation_invocation_input(
 ) -> Result<Value, GatewayError> {
     let relay = relay_config_from_payload(payload)?;
     let browser_runtime_state_object_key =
-        crate::protocol::gemini_canvas::browser_runtime_state_object_key(payload)
-            .unwrap_or_else(|| relay.runtime_state_object_key.clone());
+        crate::protocol::gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
+            payload, operation,
+        )
+        .unwrap_or_else(|| relay.runtime_state_object_key.clone());
     let browser_cdp_url = crate::protocol::gemini_canvas::browser_cdp_url(payload);
     let cookie_header = crate::protocol::gemini_canvas::browser_cookie_header(payload);
     Ok(build_browser_operation_invocation_input_from_values(

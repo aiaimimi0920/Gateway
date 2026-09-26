@@ -25,11 +25,13 @@ use crate::routing::candidate::RouteCandidate;
 use crate::state::AppState;
 use crate::upstream::stream::TrackedStream;
 
+mod route_health_cache;
 pub mod stage_auth;
 pub mod stage_filter;
 pub mod stage_finalize;
 pub mod stage_rate_limit;
 pub mod stage_route;
+mod stage_route_health;
 pub mod stage_send;
 
 // ---------------------------------------------------------------------------
@@ -260,6 +262,20 @@ impl PipelineContext {
 
     pub fn attempted_provider_ids(&self) -> Vec<String> {
         self.attempted_provider_ids.lock().clone()
+    }
+
+    /// The provider a request audit belongs to.
+    ///
+    /// A request that reached an upstream names the candidate that answered it.
+    /// A request whose every attempt failed has no winner, yet the failure still
+    /// belongs to the provider that produced it — the last one tried. Leaving
+    /// those rows unattributed would make the console's per-provider success rate
+    /// count successes only, so it could never fall below 100%.
+    pub fn audited_provider_id(&self) -> Option<String> {
+        if let Some(selected) = self.selected_provider_id.clone() {
+            return Some(selected);
+        }
+        self.attempted_provider_ids.lock().last().cloned()
     }
 }
 

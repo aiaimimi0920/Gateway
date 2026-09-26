@@ -14,7 +14,6 @@ export function LogsPanel({ state }: LogsPanelProps) {
       <article className="nt-card nt-card--panel">
         <div className="nt-section__head">
           <div>
-            <p className="nt-kicker">// Sidecar logs</p>
             <h2>最近启动日志</h2>
           </div>
           <div className="nt-actions">
@@ -74,7 +73,6 @@ export function LogsPanel({ state }: LogsPanelProps) {
         <article className="nt-card nt-card--panel nt-diagnostics-report">
           <div className="nt-section__head">
             <div>
-              <p className="nt-kicker">// Copy fallback</p>
               <h3>脱敏诊断文本</h3>
             </div>
           </div>

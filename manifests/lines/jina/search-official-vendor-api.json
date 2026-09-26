@@ -32,9 +32,9 @@
   "verification": {
     "recommendedCargoTargetDirSlug": "jina-search-official-vendor-api-verify",
     "focusedCargoFilters": [
-      "preset::tests::jina_search_preset_has_search_path_and_json_accept",
-      "implementation_lines::tests::jina_search_protocol_profiles_compile_when_feature_enabled",
-      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+      "preset::tests::search_presets::jina_search_preset_has_search_path_and_json_accept",
+      "implementation_lines::tests::feature_profiles::jina_search_protocol_profiles_compile_when_feature_enabled",
+      "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
     ],
     "fixtureSuiteId": "jina_search_fixture",
     "useNoDefaultFeatures": true

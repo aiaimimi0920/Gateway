@@ -2,7 +2,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const styles = readFileSync(resolve(process.cwd(), "src", "styles.css"), "utf8");
+// Follow the actual flat import entry so these assertions cover the loaded cascade.
+const sourceRoot = resolve(process.cwd(), "src");
+const styles = readFileSync(resolve(sourceRoot, "styles.css"), "utf8").replace(
+  /^@import "(\.\/styles\/[a-z-]+\.css)";\n/gm,
+  (_statement: string, relative: string) => {
+    const owner = readFileSync(resolve(sourceRoot, relative), "utf8");
+    if (owner.includes("@import")) throw new Error("Nested stylesheet import is not covered");
+    return owner;
+  },
+);
+if (styles.includes("@import")) throw new Error("Unsupported stylesheet import");
 
 describe("Gateway Neuro theme contract", () => {
   it("defines the canonical palette once and exposes semantic roles", () => {
@@ -49,15 +59,27 @@ describe("Gateway Neuro theme contract", () => {
     expect(styles).toContain(".nt-provider-account-table {\n    min-width: 980px;");
   });
 
-  it("bounds dense group administration regions and flattens secondary panels", () => {
+  it("uses flippable entitlement cards with attached account expansion", () => {
     expect(styles).toMatch(
-      /@media \(min-width: 1201px\)[\s\S]*\.nt-group-admin__list\s*\{[^}]*max-height: min\(68vh, 720px\);[^}]*overflow: auto;/,
+      /\.nt-entitlement-group-grid\s*\{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 300px\), 1fr\)\);/,
+    );
+    expect(styles).toMatch(
+      /\.nt-entitlement-group-card--flipped \.nt-entitlement-group-card__inner\s*\{[^}]*transform: rotateY\(180deg\);/,
+    );
+    expect(styles).toMatch(
+      /\.nt-entitlement-group-card__face\s*\{[^}]*backface-visibility: hidden;/,
+    );
+    expect(styles).toMatch(
+      /\.nt-entitlement-group-card__front-body,[\s\S]*\.nt-entitlement-group-card__back-body\s*\{[^}]*overflow-y: auto;[^}]*overscroll-behavior: contain;[^}]*scrollbar-gutter: stable;/,
+    );
+    expect(styles).toMatch(
+      /\.nt-entitlement-group-card__accounts--attached\s*\{[^}]*grid-column: 1 \/ -1;/,
     );
     expect(styles).toMatch(
       /@media \(min-width: 1201px\)[\s\S]*\.nt-group-members\s*\{[^}]*max-height: min\(56vh, 620px\);[^}]*overflow: auto;/,
     );
     expect(styles).toMatch(
-      /\.nt-group-panel--summary,[\s\S]*\.nt-group-panel--members\s*\{[^}]*border-top: 1px solid var\(--nt-border\);[^}]*background: transparent;/,
+      /\.nt-group-panel--members\s*\{[^}]*border-top: 1px solid var\(--nt-border\);[^}]*background: transparent;/,
     );
   });
 
@@ -85,10 +107,19 @@ describe("Gateway Neuro theme contract", () => {
       /\.nt-input,[\s\S]*\.nt-textarea\s*\{[^}]*border-radius: var\(--nt-radius-md\);[^}]*padding: 10px 12px;[^}]*background: var\(--nt-color-control\);/,
     );
     expect(styles).toMatch(
-      /@media \(min-width: 721px\) and \(max-width: 1200px\)[\s\S]*\.nt-group-admin__list\s*\{[^}]*max-height: min\(42vh, 420px\);[^}]*overflow: auto;/,
+      /\.nt-entitlement-account-grid\s*\{[^}]*grid-template-columns: repeat\(auto-fill, 240px\);[^}]*justify-content: start;/,
     );
     expect(styles).toMatch(
       /@media \(max-width: 720px\)[\s\S]*\.nt-rail__nav\s*\{[^}]*display: flex;[^}]*overflow-x: auto;/,
+    );
+    expect(styles).toMatch(
+      /\.nt-shell\s*\{[^}]*--nt-shell-rail-width: 186px;[^}]*grid-template-columns: var\(--nt-shell-rail-width\) minmax\(0, 1fr\);/,
+    );
+    expect(styles).toMatch(
+      /\.nt-shell--rail-collapsed,\s*\n\.nt-shell--console-rail-collapsed\s*\{[^}]*--nt-shell-rail-width: 52px;/,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*\.nt-console-rail-toggle\s*\{[^}]*display: none;/,
     );
   });
 

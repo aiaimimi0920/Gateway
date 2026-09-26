@@ -37,7 +37,6 @@ pub mod kiro;
 #[path = "kiro_disabled.rs"]
 pub mod kiro;
 #[cfg(feature = "line-lumalabs-web-reverse-api")]
-#[path = "lumalabs.rs"]
 pub mod lumalabs;
 #[cfg(not(feature = "line-lumalabs-web-reverse-api"))]
 #[path = "lumalabs_disabled.rs"]
@@ -54,8 +53,8 @@ pub mod search_api;
 #[path = "search_api_disabled.rs"]
 pub mod search_api;
 pub mod sse_parse;
+pub(crate) mod stream_decode;
 #[cfg(feature = "line-suno-web-reverse-api")]
-#[path = "suno.rs"]
 pub mod suno;
 #[cfg(not(feature = "line-suno-web-reverse-api"))]
 #[path = "suno_disabled.rs"]
@@ -63,11 +62,11 @@ pub mod suno;
 pub mod tool_choice;
 pub mod tool_inject;
 #[cfg(feature = "line-udio-web-reverse-api")]
-#[path = "udio.rs"]
 pub mod udio;
 #[cfg(not(feature = "line-udio-web-reverse-api"))]
 #[path = "udio_disabled.rs"]
 pub mod udio;
+pub(crate) mod upstream_body;
 pub mod xfyun_websocket;
 
 // Legacy compatibility alias for older imports. New code should use

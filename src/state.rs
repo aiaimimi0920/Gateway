@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use time::OffsetDateTime;
-use tokio::sync::{watch, Notify};
+use tokio::sync::{watch, Mutex, Notify, OwnedMutexGuard};
 
 use crate::auth::adapter::AuthAdapter;
 use crate::concurrency::registry::ConcurrencyRegistry;
@@ -26,6 +26,7 @@ pub struct GatewayLifecycleState {
     active_requests: AtomicUsize,
     drain_started_at: RwLock<Option<String>>,
     drain_reason: RwLock<Option<String>>,
+    provider_deletion: Arc<Mutex<()>>,
 }
 
 impl GatewayLifecycleState {
@@ -56,6 +57,10 @@ impl GatewayLifecycleState {
 
     pub fn end_request(&self) {
         self.active_requests.fetch_sub(1, Ordering::SeqCst);
+    }
+
+    pub(crate) fn try_begin_provider_deletion(&self) -> Option<OwnedMutexGuard<()>> {
+        self.provider_deletion.clone().try_lock_owned().ok()
     }
 
     pub fn drain_started_at(&self) -> Option<String> {
@@ -95,10 +100,12 @@ impl GatewayShutdownHandle {
     }
 
     pub async fn wait(&self) {
+        // notify_waiters remembers futures created before the request, even unpolled.
+        let notified = self.notify.notified();
         if self.is_requested() {
             return;
         }
-        self.notify.notified().await;
+        notified.await;
     }
 
     pub fn requested_at(&self) -> Option<String> {
@@ -111,29 +118,72 @@ impl GatewayShutdownHandle {
 }
 
 #[derive(Clone, Debug)]
+pub struct ProviderCredentialFolderSyncSnapshot {
+    enabled: bool,
+    epoch: Arc<()>,
+}
+
+impl ProviderCredentialFolderSyncSnapshot {
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub(crate) fn same_epoch(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.epoch, &other.epoch)
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct ProviderCredentialFolderSyncRuntime {
-    tx: watch::Sender<bool>,
+    tx: watch::Sender<ProviderCredentialFolderSyncSnapshot>,
+    enable_update: Arc<Mutex<()>>,
+    sync_run: Arc<Mutex<()>>,
 }
 
 impl ProviderCredentialFolderSyncRuntime {
     pub fn new(enabled: bool) -> Self {
-        let (tx, _rx) = watch::channel(enabled);
-        Self { tx }
+        let (tx, _rx) = watch::channel(ProviderCredentialFolderSyncSnapshot {
+            enabled,
+            epoch: Arc::new(()),
+        });
+        Self {
+            tx,
+            enable_update: Arc::new(Mutex::new(())),
+            sync_run: Arc::new(Mutex::new(())),
+        }
+    }
+
+    pub(crate) async fn begin_enable_update(&self) -> OwnedMutexGuard<()> {
+        self.enable_update.clone().lock_owned().await
+    }
+
+    pub(crate) fn try_begin_sync_run(&self) -> Option<OwnedMutexGuard<()>> {
+        self.sync_run.clone().try_lock_owned().ok()
     }
 
     pub fn enabled(&self) -> bool {
-        *self.tx.borrow()
+        self.tx.borrow().enabled
+    }
+
+    pub(crate) fn snapshot(&self) -> ProviderCredentialFolderSyncSnapshot {
+        self.tx.borrow().clone()
     }
 
     pub fn set_enabled(&self, enabled: bool) -> bool {
-        if self.enabled() == enabled {
-            return false;
-        }
-        self.tx.send_replace(enabled);
-        true
+        self.tx.send_if_modified(|state| {
+            if state.enabled == enabled {
+                return false;
+            }
+            // Retained old snapshots prevent identity reuse across a coalesced disable.
+            if !enabled {
+                state.epoch = Arc::new(());
+            }
+            state.enabled = enabled;
+            true
+        })
     }
 
-    pub fn subscribe(&self) -> watch::Receiver<bool> {
+    pub fn subscribe(&self) -> watch::Receiver<ProviderCredentialFolderSyncSnapshot> {
         self.tx.subscribe()
     }
 }

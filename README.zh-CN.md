@@ -61,10 +61,17 @@ Platform、Loom 和 Hook 的实现代码不会复制进本仓库。模块职责�
 git clone https://github.com/aiaimimi0920/Gateway.git
 Set-Location Gateway
 
+npm run test:effective-lines --prefix scripts
+npm run check:effective-lines --prefix scripts
 cargo fmt --all -- --check
 cargo check --locked --all-targets
 cargo test --locked -- --test-threads=1
 ```
+
+有效代码行门禁采用 Neuro 的 150/500/700/1500 阈值和已审查的采用时基线。
+CI 会阻止新增超大文件和既有 700 行以上文件继续增长，但不会要求无关任务先
+清偿全部历史旧债。扫描器、严格审计、例外 schema、支持语言和显式排除规则见
+[`docs/effective-code-lines.md`](docs/effective-code-lines.md)。
 
 Gateway 现在自带一个本地默认的 Cargo 限流配置：
 [`./.cargo/config.toml`](.cargo/config.toml) 中的 `build.jobs = 1`。这样日常

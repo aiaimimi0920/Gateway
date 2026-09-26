@@ -1475,6 +1475,7 @@ dependencies = [
  "hmac",
  "http-body-util",
  "image",
+ "libc",
  "log",
  "mime_guess",
  "notify",

@@ -29,9 +29,9 @@
   "verification": {
     "recommendedCargoTargetDirSlug": "xfyun-openai-official-vendor-api-verify",
     "focusedCargoFilters": [
-      "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-      "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+      "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+      "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+      "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
     ],
     "fixtureSuiteId": "xfyun_qwen_http",
     "useNoDefaultFeatures": true

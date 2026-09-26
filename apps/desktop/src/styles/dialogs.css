@@ -1,0 +1,192 @@
+/* dialogs styles; preserve position in styles.css. */
+.dialog-overlay {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  background: rgba(2, 4, 8, 0.76);
+  backdrop-filter: blur(10px);
+}
+
+.dialog-content {
+  position: fixed;
+  z-index: 81;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(860px, calc(100vh - 32px));
+  gap: 16px;
+  overflow: auto;
+  border: 1px solid var(--nt-border-strong);
+  border-radius: var(--nt-radius-md);
+  padding: 24px;
+  background: var(--nt-color-panel);
+  box-shadow: var(--nt-shadow-overlay);
+  color: var(--nt-text);
+  transform: translate(-50%, -50%);
+}
+
+.dialog-content > h2,
+.dialog-content > p {
+  margin: 0;
+}
+
+.dialog-content > p {
+  color: var(--nt-text-muted);
+  line-height: 1.65;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.nt-credential-dialog .nt-grid {
+  align-items: start;
+}
+
+/* The model dialog holds one text field plus the ordered provider chain, so it
+   stays narrower than the catalog dialog and lets the chain scroll on its own
+   rather than growing the whole panel. */
+.nt-model-dialog {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.nt-model-dialog__chain-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.nt-model-dialog__chain-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nt-model-dialog__chain-count {
+  color: var(--nt-text-muted);
+  font-family: var(--nt-font-mono);
+  font-size: 0.72rem;
+}
+
+.nt-model-dialog__chain {
+  display: grid;
+  margin: 0;
+  gap: 6px;
+  padding: 0;
+  list-style: none;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.nt-model-dialog__chain-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--nt-border);
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+
+.nt-model-dialog__chain-order {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--nt-color-control);
+  color: var(--nt-text-muted);
+  font-family: var(--nt-font-mono);
+  font-size: 0.68rem;
+}
+
+.nt-model-dialog__chain-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-model-dialog__chain-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--nt-text-muted);
+  font-family: var(--nt-font-mono);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-model-dialog__pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The model-map dialog is two name columns joined by an arrow. The list scrolls
+   inside its panel so a provider with many renames cannot push the footer off
+   screen. */
+.nt-model-map-dialog {
+  width: min(680px, calc(100vw - 32px));
+}
+
+.nt-model-map__panel {
+  display: grid;
+  gap: 12px;
+}
+
+.nt-model-map__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nt-model-map__count {
+  color: var(--nt-text-muted);
+  font-family: var(--nt-font-mono);
+  font-size: 0.72rem;
+}
+
+.nt-model-map__list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.nt-model-map__row {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+}
+
+.nt-model-map__row--head {
+  color: var(--nt-text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nt-model-map__row .nt-input {
+  font-family: var(--nt-font-mono);
+  font-size: 0.78rem;
+}
+
+.nt-model-map__arrow {
+  flex: 0 0 auto;
+  color: var(--nt-text-muted);
+}
+
+.nt-model-map__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

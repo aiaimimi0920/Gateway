@@ -50,22 +50,8 @@ pub async fn request_logging(
     let method = request.method().clone();
     let path = request.uri().path().to_string();
 
-    // Collect sanitised headers for debug-level logging.
-    let sanitised_headers: Vec<(String, String)> = request
-        .headers()
-        .iter()
-        .filter(|(name, _)| {
-            let n = name.as_str().to_lowercase();
-            n == "authorization"
-                || n == "x-api-key"
-                || n == "x-goog-api-key"
-                || n == "anthropic-beta"
-        })
-        .map(|(name, value)| {
-            let v = value.to_str().unwrap_or("<binary>");
-            (name.to_string(), mask_sensitive(v))
-        })
-        .collect();
+    let sanitised_headers =
+        tracing::enabled!(tracing::Level::DEBUG).then(|| sanitised_auth_headers(request.headers()));
 
     let start = Instant::now();
     let metrics = global_gateway_metrics();
@@ -135,8 +121,8 @@ pub async fn request_logging(
 
     // Log sanitised auth headers at debug level (only when RUST_LOG includes
     // debug; avoids string allocation in production).
-    if tracing::enabled!(tracing::Level::DEBUG) && !sanitised_headers.is_empty() {
-        for (name, masked) in &sanitised_headers {
+    if let Some(sanitised_headers) = sanitised_headers {
+        for (name, masked) in sanitised_headers {
             tracing::debug!(
                 request_id = %request_id,
                 header = %name,
@@ -147,6 +133,22 @@ pub async fn request_logging(
     }
 
     response
+}
+
+fn sanitised_auth_headers(headers: &HeaderMap) -> Vec<(String, String)> {
+    headers
+        .iter()
+        .filter(|(name, _)| {
+            matches!(
+                name.as_str(),
+                "authorization" | "x-api-key" | "x-goog-api-key" | "anthropic-beta"
+            )
+        })
+        .map(|(name, value)| {
+            let value = value.to_str().unwrap_or("<binary>");
+            (name.to_string(), mask_sensitive(value))
+        })
+        .collect()
 }
 
 fn resolve_request_id(headers: &HeaderMap) -> String {
@@ -188,9 +190,10 @@ pub fn body_limit_layer(max_size: usize) -> RequestBodyLimitLayer {
 
 /// Mask a potentially sensitive string value.
 ///
-/// - Values of 16 characters or fewer are replaced entirely with `"***"`.
-/// - Longer values show the first 8 characters and last 4 characters with
+/// - Values of 16 bytes or fewer are replaced entirely with `"***"`.
+/// - Longer values show the first 8 bytes and last 4 bytes with
 ///   `***` in between: `sk-abc12345***wxyz`.
+/// - A preview that would split a UTF-8 character is replaced entirely.
 ///
 /// This heuristic keeps enough context to identify a key during debugging
 /// without exposing the full secret.
@@ -198,7 +201,10 @@ pub fn mask_sensitive(value: &str) -> String {
     if value.len() <= 16 {
         return "***".to_string();
     }
-    format!("{}***{}", &value[..8], &value[value.len() - 4..])
+    let (Some(prefix), Some(suffix)) = (value.get(..8), value.get(value.len() - 4..)) else {
+        return "***".to_string();
+    };
+    format!("{prefix}***{suffix}")
 }
 
 // ---------------------------------------------------------------------------
@@ -241,6 +247,22 @@ mod tests {
     }
 
     #[test]
+    fn sanitised_auth_headers_filters_and_masks_without_normalising_names() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "authorization",
+            "Bearer test-secret-that-is-long".parse().unwrap(),
+        );
+        headers.insert("content-type", "application/json".parse().unwrap());
+
+        let sanitised = sanitised_auth_headers(&headers);
+
+        assert_eq!(sanitised.len(), 1);
+        assert_eq!(sanitised[0].0, "authorization");
+        assert!(!sanitised[0].1.contains("test-secret-that-is-long"));
+    }
+
+    #[test]
     fn request_id_reuses_safe_inbound_value() {
         let mut headers = HeaderMap::new();
         headers.insert("x-request-id", "client-request-42".parse().unwrap());
@@ -255,5 +277,22 @@ mod tests {
         let generated = resolve_request_id(&headers);
         assert_ne!(generated, oversized);
         assert!(generated.len() >= 16);
+    }
+
+    #[test]
+    fn secret_preview_rejects_partial_unicode_boundaries() {
+        for value in ["1234567\u{00e9}abcdefghij", "1234567890123\u{00e9}xyz"] {
+            assert_eq!(mask_sensitive(value), "***");
+        }
+    }
+
+    #[test]
+    fn secret_preview_preserves_complete_unicode_boundaries() {
+        let value = "\u{00e9}".repeat(9);
+        assert_eq!(
+            mask_sensitive(&value),
+            format!("{}***{}", "\u{00e9}".repeat(4), "\u{00e9}".repeat(2))
+        );
+        assert_eq!(mask_sensitive(&"\u{00e9}".repeat(8)), "***");
     }
 }

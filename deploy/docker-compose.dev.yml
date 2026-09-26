@@ -1,8 +1,33 @@
+x-gateway-dev-build: &gateway-dev-build
+  context: ..
+  dockerfile: Dockerfile.dev
+
 services:
+  gateway-build:
+    build: *gateway-dev-build
+    image: ${GATEWAY_DEV_IMAGE:-neuro-gateway-dev:local}
+    restart: "no"
+    init: true
+    environment:
+      - GATEWAY_PREBUILT_WEB_UI=1
+      - GATEWAY_DEV_MODE=build
+      - GATEWAY_DEV_CARGO_BUILD_JOBS=${GATEWAY_DEV_CARGO_BUILD_JOBS:-4}
+      - GATEWAY_DEV_CARGO_INCREMENTAL=${GATEWAY_DEV_CARGO_INCREMENTAL:-1}
+      - GATEWAY_DEV_RUN_AUDIT=${GATEWAY_DEV_RUN_AUDIT:-0}
+    entrypoint: ["gateway-dev-entrypoint"]
+    volumes:
+      - ..:/workspace
+      - gateway-dev-target:/workspace/target
+      - gateway-dev-node-modules:/workspace/apps/desktop/node_modules
+      - gateway-dev-scripts-node-modules:/workspace/scripts/node_modules
+      - gateway-dev-cargo-registry:/root/.cargo/registry
+      - gateway-dev-cargo-git:/root/.cargo/git
+      - gateway-dev-npm-cache:/root/.npm
+    networks:
+      - gateway-network
+
   gateway:
-    build:
-      context: ..
-      dockerfile: Dockerfile.dev
+    image: ${GATEWAY_DEV_IMAGE:-neuro-gateway-dev:local}
     restart: unless-stopped
     init: true
     env_file:
@@ -19,7 +44,7 @@ services:
       - GATEWAY_LIVE_ROUTE_PROOF_ENABLED=${GATEWAY_LIVE_ROUTE_PROOF_ENABLED:-false}
       - GATEWAY_MANAGEMENT_TOKEN=${GATEWAY_MANAGEMENT_TOKEN:-}
       - GATEWAY_CONSOLE_REMOTE_ACCESS=${GATEWAY_CONSOLE_REMOTE_ACCESS:-true}
-      - GATEWAY_DATABASE_URL=${GATEWAY_DATABASE_URL:-}
+      - GATEWAY_DATABASE_URL=${GATEWAY_DATABASE_URL:-postgres://gateway:gateway@postgres:5432/gateway}
       - GATEWAY_GEMINI_AUTH_EXECUTOR_BASE_URL=${GATEWAY_GEMINI_AUTH_EXECUTOR_BASE_URL:-http://host.docker.internal:42341}
       - GATEWAY_GEMINI_AUTH_EXECUTOR_BEARER_TOKEN=${GATEWAY_GEMINI_AUTH_EXECUTOR_BEARER_TOKEN:-gateway-gemini-auth-dev}
       - GATEWAY_BROWSER_EXECUTOR_BASE_URL=${GATEWAY_BROWSER_EXECUTOR_BASE_URL:-http://host.docker.internal:42341}
@@ -29,8 +54,8 @@ services:
       - GATEWAY_DEV_CARGO_BUILD_JOBS=${GATEWAY_DEV_CARGO_BUILD_JOBS:-4}
       - GATEWAY_DEV_CARGO_INCREMENTAL=${GATEWAY_DEV_CARGO_INCREMENTAL:-1}
       - GATEWAY_DEV_RUN_AUDIT=${GATEWAY_DEV_RUN_AUDIT:-0}
-      - WATCHPACK_POLLING=true
-      - CHOKIDAR_USEPOLLING=1
+      - GATEWAY_DEV_WATCH=${GATEWAY_DEV_WATCH:-0}
+      - GATEWAY_DEV_MODE=run
     entrypoint: ["gateway-dev-entrypoint"]
     ports:
       - "${GATEWAY_BIND_HOST:-0.0.0.0}:${GATEWAY_PORT:-4200}:4200"
@@ -44,7 +69,11 @@ services:
       - gateway-dev-cargo-git:/root/.cargo/git
       - gateway-dev-npm-cache:/root/.npm
     depends_on:
+      gateway-build:
+        condition: service_completed_successfully
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4200/healthz"]
@@ -54,6 +83,34 @@ services:
       start_period: 600s
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - gateway-network
+
+  # The gateway keeps its request audits, usage aggregates and per-credential
+  # model states in PostgreSQL. Without it the console's live concurrency, cost
+  # and success-rate panels answer 503 "PostgreSQL 尚未配置", so the dev stack
+  # ships its own database instead of borrowing one from another stack.
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${GATEWAY_POSTGRES_USER:-gateway}
+      - POSTGRES_PASSWORD=${GATEWAY_POSTGRES_PASSWORD:-gateway}
+      - POSTGRES_DB=${GATEWAY_POSTGRES_DB:-gateway}
+    volumes:
+      - gateway-dev-postgres:/var/lib/postgresql/data
+      # Applied once, when the data directory is first initialised.
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${GATEWAY_POSTGRES_USER:-gateway} -d ${GATEWAY_POSTGRES_DB:-gateway}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     networks:
       - gateway-network
 
@@ -83,6 +140,7 @@ services:
       - gateway-network
 
 volumes:
+  gateway-dev-postgres:
   gateway-dev-target:
   gateway-dev-node-modules:
   gateway-dev-scripts-node-modules:

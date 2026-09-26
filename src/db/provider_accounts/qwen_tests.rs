@@ -1,0 +1,81 @@
+use super::input::resolve_protocol_profile;
+
+#[test]
+fn resolve_protocol_profile_canonicalizes_qwen_webui_replay_aliases() {
+    assert_eq!(
+        resolve_protocol_profile(
+            Some("qwen-web"),
+            "qwen_web_compatible",
+            Some("qwen-web"),
+            Some("https://chat.qwen.ai"),
+        ),
+        "qwen_web_chat"
+    );
+    assert_eq!(
+        resolve_protocol_profile(
+            Some("qwen-webui"),
+            "qwen_web_compatible",
+            Some("qwen-webui"),
+            Some("https://chat.qwen.ai"),
+        ),
+        "qwen_web_chat"
+    );
+    assert_eq!(
+        resolve_protocol_profile(
+            Some("qwen-webui-replay"),
+            "qwen_web_compatible",
+            Some("qwen-webui-replay"),
+            Some("https://chat.qwen.ai"),
+        ),
+        "qwen_web_chat"
+    );
+    assert_eq!(
+        resolve_protocol_profile(
+            Some("qwen-webui-replay-live"),
+            "qwen_web_compatible",
+            Some("qwen-webui-replay-live"),
+            Some("https://chat.qwen.ai"),
+        ),
+        "qwen_web_chat"
+    );
+}
+
+#[test]
+fn resolve_protocol_profile_infers_qwen_official_and_web_lines() {
+    assert_eq!(
+        resolve_protocol_profile(
+            None,
+            "openai_compatible",
+            Some("qwen"),
+            Some("https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        ),
+        "qwen_dashscope_openai"
+    );
+    assert_eq!(
+        resolve_protocol_profile(
+            None,
+            "openai_compatible",
+            Some("qwen-coding-plan-openai"),
+            Some("https://coding.dashscope.aliyuncs.com/v1"),
+        ),
+        "qwen_coding_plan_openai"
+    );
+    assert_eq!(
+        resolve_protocol_profile(
+            None,
+            "anthropic_compatible",
+            Some("qwen-coding-plan-anthropic"),
+            Some("https://coding.dashscope.aliyuncs.com/apps/anthropic"),
+        ),
+        "qwen_coding_plan_anthropic"
+    );
+    assert_eq!(
+        resolve_protocol_profile(
+            None,
+            "qwen_web_compatible",
+            Some("qwen-web-chat"),
+            Some("https://chat.qwen.ai"),
+        ),
+        "qwen_web_chat"
+    );
+}

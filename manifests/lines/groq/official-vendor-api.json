@@ -29,8 +29,8 @@
   "verification": {
     "recommendedCargoTargetDirSlug": "groq-openai-official-vendor-api-verify",
     "focusedCargoFilters": [
-      "implementation_lines::tests::protocol_profile_inference_includes_wave4_openai_compatible_profiles",
-      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+      "implementation_lines::tests::profiles::protocol_profile_inference_includes_wave4_openai_compatible_profiles",
+      "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
     ],
     "fixtureSuiteId": "groq_fixture",
     "liveSuiteId": "groq_live",

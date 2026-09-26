@@ -72,17 +72,17 @@ pub(crate) fn extract_gemini_canvas_direct_http_image_handoff_url(body: &str) ->
 }
 
 pub(crate) fn should_forward_gemini_canvas_download_cookies(request_url: &str) -> bool {
-    url::Url::parse(request_url)
-        .ok()
-        .and_then(|parsed| parsed.host_str().map(str::to_string))
-        .map(|host| {
-            let host = host.to_ascii_lowercase();
-            host == "gemini.google.com"
-                || host.ends_with(".google.com")
-                || host.ends_with(".googleusercontent.com")
-                || host.ends_with(".usercontent.google.com")
-        })
-        .unwrap_or(false)
+    gemini_canvas_direct_http_asset_url_is_allowed(request_url)
+}
+
+pub(crate) fn gemini_canvas_page_url_is_allowed(request_url: &str) -> bool {
+    let Ok(parsed) = url::Url::parse(request_url) else {
+        return false;
+    };
+    parsed.scheme() == "https"
+        && parsed.host_str() == Some("gemini.google.com")
+        && parsed.username().is_empty()
+        && parsed.password().is_none()
 }
 
 pub(crate) fn resolve_relative_url(base_url: &str, location: &str) -> Option<String> {
@@ -94,6 +94,45 @@ pub(crate) fn resolve_relative_url(base_url: &str, location: &str) -> Option<Str
     parsed.join(location).ok().map(|value| value.to_string())
 }
 
+pub(crate) fn resolve_same_origin_http_redirect(base_url: &str, location: &str) -> Option<String> {
+    let base = parse_http_url_without_userinfo(base_url)?;
+    let mut target = base.join(location.trim()).ok()?;
+    if !url_uses_http_without_userinfo(&target) || target.origin() != base.origin() {
+        return None;
+    }
+    target.set_fragment(None);
+    Some(target.into())
+}
+
+pub(crate) fn gemini_canvas_direct_http_asset_url_is_allowed(request_url: &str) -> bool {
+    let Ok(parsed) = url::Url::parse(request_url) else {
+        return false;
+    };
+    if parsed.scheme() != "https" || !parsed.username().is_empty() || parsed.password().is_some() {
+        return false;
+    }
+    let Some(host) = parsed.host_str().map(str::to_ascii_lowercase) else {
+        return false;
+    };
+    host == "gemini.google.com"
+        || host == "googleusercontent.com"
+        || host.ends_with(".googleusercontent.com")
+        || host == "usercontent.google.com"
+        || host.ends_with(".usercontent.google.com")
+}
+
+fn parse_http_url_without_userinfo(value: &str) -> Option<url::Url> {
+    let parsed = url::Url::parse(value).ok()?;
+    url_uses_http_without_userinfo(&parsed).then_some(parsed)
+}
+
+fn url_uses_http_without_userinfo(value: &url::Url) -> bool {
+    matches!(value.scheme(), "http" | "https")
+        && value.host_str().is_some()
+        && value.username().is_empty()
+        && value.password().is_none()
+}
+
 pub(crate) fn normalize_gemini_canvas_direct_http_asset_url(
     reference_url: Option<&str>,
     candidate: &str,
@@ -102,31 +141,33 @@ pub(crate) fn normalize_gemini_canvas_direct_http_asset_url(
     if trimmed.is_empty() {
         return None;
     }
-    if let Ok(parsed) = url::Url::parse(trimmed) {
-        return Some(parsed.to_string());
-    }
-    if let Some(protocol_relative) = trimmed.strip_prefix("//") {
-        return url::Url::parse(&format!("https://{protocol_relative}"))
+    let normalized = if let Ok(parsed) = url::Url::parse(trimmed) {
+        Some(parsed.to_string())
+    } else if let Some(protocol_relative) = trimmed.strip_prefix("//") {
+        url::Url::parse(&format!("https://{protocol_relative}"))
             .ok()
-            .map(|value| value.to_string());
-    }
-    for host_prefix in [
-        "lh3.googleusercontent.com/",
-        "work.fife.usercontent.google.com/",
-        "contribution.usercontent.google.com/download?",
-    ] {
-        if trimmed.starts_with(host_prefix) {
-            return url::Url::parse(&format!("https://{trimmed}"))
-                .ok()
-                .map(|value| value.to_string());
+            .map(|value| value.to_string())
+    } else {
+        let mut normalized = None;
+        for host_prefix in [
+            "lh3.googleusercontent.com/",
+            "work.fife.usercontent.google.com/",
+            "contribution.usercontent.google.com/download?",
+        ] {
+            if trimmed.starts_with(host_prefix) {
+                normalized = url::Url::parse(&format!("https://{trimmed}"))
+                    .ok()
+                    .map(|value| value.to_string());
+                break;
+            }
         }
-    }
-    if let Some(reference_url) = reference_url {
-        if let Some(joined) = resolve_relative_url(reference_url, trimmed) {
-            return Some(joined);
+        if normalized.is_none() {
+            normalized = reference_url
+                .and_then(|reference_url| resolve_relative_url(reference_url, trimmed));
         }
-    }
-    None
+        normalized
+    };
+    normalized.filter(|value| gemini_canvas_direct_http_asset_url_is_allowed(value))
 }
 
 pub(crate) fn gemini_canvas_asset_url_is_caller_usable(url: &str) -> bool {
@@ -320,6 +361,61 @@ mod tests {
         assert!(!should_forward_gemini_canvas_download_cookies(
             "https://example.com/image.png"
         ));
+        assert!(!should_forward_gemini_canvas_download_cookies(
+            "http://gemini.google.com/share/example"
+        ));
+        assert!(!should_forward_gemini_canvas_download_cookies(
+            "https://drive.google.com/file/example"
+        ));
+    }
+
+    #[test]
+    fn resolve_same_origin_http_redirect_rejects_cross_origin_and_downgrade_targets() {
+        assert_eq!(
+            resolve_same_origin_http_redirect(
+                "https://gemini.google.com/app/start",
+                "/app/next?authuser=1"
+            )
+            .as_deref(),
+            Some("https://gemini.google.com/app/next?authuser=1")
+        );
+        assert_eq!(
+            resolve_same_origin_http_redirect(
+                "https://gemini.google.com/app/start",
+                "https://attacker.example/collect"
+            ),
+            None
+        );
+        assert_eq!(
+            resolve_same_origin_http_redirect(
+                "https://gemini.google.com/app/start",
+                "http://gemini.google.com/app/next"
+            ),
+            None
+        );
+        assert_eq!(
+            resolve_same_origin_http_redirect(
+                "https://gemini.google.com/app/start",
+                "https://user:password@gemini.google.com/app/next"
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn gemini_canvas_page_url_is_allowed_only_for_secure_gemini_origin() {
+        assert!(gemini_canvas_page_url_is_allowed(
+            "https://gemini.google.com/app/example"
+        ));
+        assert!(!gemini_canvas_page_url_is_allowed(
+            "https://lh3.googleusercontent.com/gg-dl/example"
+        ));
+        assert!(!gemini_canvas_page_url_is_allowed(
+            "http://gemini.google.com/app/example"
+        ));
+        assert!(!gemini_canvas_page_url_is_allowed(
+            "https://user:password@gemini.google.com/app/example"
+        ));
     }
 
     #[test]
@@ -348,6 +444,25 @@ mod tests {
             .as_deref(),
             Some("https://lh3.googleusercontent.com/gg-dl/example?s=512")
         );
+    }
+
+    #[test]
+    fn normalize_gemini_canvas_direct_http_asset_url_rejects_untrusted_fetch_targets() {
+        for candidate in [
+            "http://lh3.googleusercontent.com/gg-dl/example",
+            "https://attacker.example/media.mp4",
+            "https://drive.google.com/file/example",
+            "https://user:password@lh3.googleusercontent.com/gg-dl/example",
+        ] {
+            assert_eq!(
+                normalize_gemini_canvas_direct_http_asset_url(
+                    Some("https://gemini.google.com/app"),
+                    candidate
+                ),
+                None,
+                "candidate should be rejected: {candidate}"
+            );
+        }
     }
 
     #[test]

@@ -1,0 +1,149 @@
+use super::*;
+
+#[test]
+fn protocol_profile_inference_includes_wave4_openai_compatible_profiles() {
+    assert_eq!(
+        line_for_protocol_profile("groq"),
+        Some(RefactoredImplementationLine::GroqOpenAiOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("together"),
+        Some(RefactoredImplementationLine::TogetherOpenAiAggregatorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("openrouter"),
+        Some(RefactoredImplementationLine::OpenRouterOpenAiAggregatorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("deepseek"),
+        Some(RefactoredImplementationLine::DeepSeekOpenAiOfficialModelApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("mistral"),
+        Some(RefactoredImplementationLine::MistralOpenAiOfficialModelApi)
+    );
+}
+
+#[test]
+fn protocol_profile_mapping_includes_remaining_unfinished_platform_lines() {
+    assert_eq!(
+        line_for_protocol_profile("xai"),
+        Some(RefactoredImplementationLine::XaiOpenAiOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("perplexity_chat"),
+        Some(RefactoredImplementationLine::PerplexityChatOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("freebuff"),
+        Some(RefactoredImplementationLine::FreeBuffWebReverseApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("xfyun_openai"),
+        Some(RefactoredImplementationLine::XfyunOpenAiOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("xfyun_native_websocket"),
+        Some(RefactoredImplementationLine::XfyunNativeWebSocketOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("producer"),
+        Some(RefactoredImplementationLine::ProducerWebReverseApi)
+    );
+}
+
+#[test]
+fn protocol_profile_mapping_includes_wave3_official_api_lines() {
+    assert_eq!(
+        line_for_protocol_profile("azure_openai"),
+        Some(RefactoredImplementationLine::AzureOpenAIOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("anthropic"),
+        Some(RefactoredImplementationLine::AnthropicMessagesOfficialModelApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("aws_bedrock"),
+        Some(RefactoredImplementationLine::AwsBedrockConverseOfficialModelApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("cohere"),
+        Some(RefactoredImplementationLine::CohereChatOfficialModelApi)
+    );
+}
+
+#[test]
+fn protocol_profile_mapping_includes_nvidia_and_grok_lines() {
+    assert_eq!(
+        line_for_protocol_profile("nvidia"),
+        Some(RefactoredImplementationLine::NvidiaOpenAiOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("grok_web"),
+        Some(RefactoredImplementationLine::GrokWebReverseApi)
+    );
+}
+
+#[test]
+fn protocol_profile_mapping_includes_search_family_lines() {
+    assert_eq!(
+        line_for_protocol_profile("perplexity_search"),
+        Some(RefactoredImplementationLine::PerplexitySearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("tavily"),
+        Some(RefactoredImplementationLine::TavilySearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("exa"),
+        Some(RefactoredImplementationLine::ExaSearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("jina_search"),
+        Some(RefactoredImplementationLine::JinaSearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("jina_reader"),
+        Some(RefactoredImplementationLine::JinaReaderOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("linkup"),
+        Some(RefactoredImplementationLine::LinkupSearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("you_search"),
+        Some(RefactoredImplementationLine::YouSearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("websearchapi"),
+        Some(RefactoredImplementationLine::WebSearchApiSearchOfficialVendorApi)
+    );
+}
+
+#[test]
+fn protocol_profile_mapping_includes_media_platform_lines() {
+    assert_eq!(
+        line_for_protocol_profile("suno"),
+        Some(RefactoredImplementationLine::SunoWebReverseApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("suno-videos"),
+        Some(RefactoredImplementationLine::SunoWebReverseApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("udio"),
+        Some(RefactoredImplementationLine::UdioWebReverseApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("udio-music"),
+        Some(RefactoredImplementationLine::UdioWebReverseApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("lumalabs"),
+        Some(RefactoredImplementationLine::LumaLabsWebReverseApi)
+    );
+    assert_eq!(
+        line_for_protocol_profile("luma-labs"),
+        Some(RefactoredImplementationLine::LumaLabsWebReverseApi)
+    );
+}

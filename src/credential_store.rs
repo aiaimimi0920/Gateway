@@ -5,29 +5,41 @@
 // lock-free concurrent reads and a configurable TTL for cache expiry.
 // ---------------------------------------------------------------------------
 
-use dashmap::DashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+use dashmap::DashMap;
+use parking_lot::Mutex;
 
 use crate::redis::credential_cache::CredentialEntry;
 
 /// In-memory credential cache with TTL.
 /// Sits in front of Redis for hot-path lookups.
 ///
-/// `Clone` is cheap: `DashMap` is internally `Arc`-wrapped, so clones share
-/// the same underlying map. This allows passing a clone to background tasks
-/// (e.g. the credential refresh watcher) without wrapping in an extra `Arc`.
+/// `Clone` is cheap because the map is explicitly shared through `Arc`. This
+/// allows passing a handle to background tasks without copying cached entries.
 #[derive(Clone)]
 pub struct CredentialMemoryCache {
     /// Key: "{project_id}:{model}" -> (entries, cached_at)
-    cache: DashMap<String, (Vec<CredentialEntry>, Instant)>,
+    cache: Arc<DashMap<String, (Vec<CredentialEntry>, Instant)>>,
+    maintenance_lock: Arc<Mutex<()>>,
     ttl: Duration,
+    max_entries: usize,
 }
 
 impl CredentialMemoryCache {
+    const DEFAULT_MAX_ENTRIES: usize = 1024;
+
     pub fn new(ttl_secs: u64) -> Self {
+        Self::new_with_max_entries(ttl_secs, Self::DEFAULT_MAX_ENTRIES)
+    }
+
+    fn new_with_max_entries(ttl_secs: u64, max_entries: usize) -> Self {
         Self {
-            cache: DashMap::new(),
+            cache: Arc::new(DashMap::new()),
+            maintenance_lock: Arc::new(Mutex::new(())),
             ttl: Duration::from_secs(ttl_secs),
+            max_entries: max_entries.max(1),
         }
     }
 
@@ -38,7 +50,8 @@ impl CredentialMemoryCache {
         let (creds, cached_at) = entry.value();
         if cached_at.elapsed() > self.ttl {
             drop(entry);
-            self.cache.remove(&key);
+            self.cache
+                .remove_if(&key, |_, (_, cached_at)| cached_at.elapsed() > self.ttl);
             return None;
         }
         Some(creds.clone())
@@ -47,7 +60,32 @@ impl CredentialMemoryCache {
     /// Store credentials in cache.
     pub fn put(&self, project_id: &str, model: &str, entries: Vec<CredentialEntry>) {
         let key = format!("{}:{}", project_id, model);
+        let _guard = self.maintenance_lock.lock();
+        if !self.cache.contains_key(&key) && self.cache.len() >= self.max_entries {
+            self.prune_expired();
+            if self.cache.len() >= self.max_entries {
+                self.evict_oldest();
+            }
+        }
         self.cache.insert(key, (entries, Instant::now()));
+    }
+
+    /// Remove expired entries without requiring a matching request.
+    pub fn prune_expired(&self) {
+        let now = Instant::now();
+        self.cache
+            .retain(|_, (_, cached_at)| now.duration_since(*cached_at) <= self.ttl);
+    }
+
+    fn evict_oldest(&self) {
+        let oldest_key = self
+            .cache
+            .iter()
+            .min_by_key(|entry| entry.value().1)
+            .map(|entry| entry.key().clone());
+        if let Some(key) = oldest_key {
+            self.cache.remove(&key);
+        }
     }
 
     /// Invalidate all entries for a project.
@@ -90,6 +128,7 @@ pub async fn start_credential_refresh_task(
 
     loop {
         interval.tick().await;
+        cache.prune_expired();
 
         // Check Redis version counter.
         let current_version: i64 = match pool.get().await {
@@ -196,6 +235,61 @@ mod tests {
 
         assert!(cache.get("proj-1", "gpt-4o").is_none());
         assert!(cache.get("proj-2", "claude").is_none());
+    }
+
+    #[test]
+    fn cloned_cache_handles_share_invalidation() {
+        let cache = CredentialMemoryCache::new(30);
+        cache.put("proj-1", "gpt-4o", vec![make_entry("c1")]);
+        let background_handle = cache.clone();
+
+        background_handle.invalidate_all();
+
+        assert!(cache.get("proj-1", "gpt-4o").is_none());
+    }
+
+    #[test]
+    fn cache_evicts_oldest_entry_at_capacity() {
+        let cache = CredentialMemoryCache::new_with_max_entries(30, 2);
+        cache.put("proj-1", "first", vec![make_entry("c1")]);
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        cache.put("proj-1", "second", vec![make_entry("c2")]);
+        cache.put("proj-1", "third", vec![make_entry("c3")]);
+
+        assert!(cache.get("proj-1", "first").is_none());
+        assert!(cache.get("proj-1", "second").is_some());
+        assert!(cache.get("proj-1", "third").is_some());
+        assert_eq!(cache.entry_count(), 2);
+    }
+
+    #[test]
+    fn concurrent_puts_stay_within_capacity() {
+        let cache = CredentialMemoryCache::new_with_max_entries(30, 4);
+        std::thread::scope(|scope| {
+            for index in 0..16 {
+                let cache = cache.clone();
+                scope.spawn(move || {
+                    cache.put(
+                        "proj-1",
+                        &format!("model-{index}"),
+                        vec![make_entry(&format!("c{index}"))],
+                    );
+                });
+            }
+        });
+
+        assert_eq!(cache.entry_count(), 4);
+    }
+
+    #[test]
+    fn prune_expired_removes_entries_without_reads() {
+        let cache = CredentialMemoryCache::new(0);
+        cache.put("proj-1", "gpt-4o", vec![make_entry("c1")]);
+        std::thread::sleep(std::time::Duration::from_millis(1));
+
+        cache.prune_expired();
+
+        assert_eq!(cache.entry_count(), 0);
     }
 
     #[test]

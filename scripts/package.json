@@ -7,7 +7,11 @@
     "node": ">=22.22.0"
   },
   "scripts": {
-    "audit:prod": "npm audit --omit=dev --audit-level=high"
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "test:effective-lines": "node --test tests/effective-code-lines.test.mjs tests/effective-code-lines-runtime-artifacts.test.mjs",
+    "check:effective-lines": "node effective-code-lines.mjs --mode ratchet --json artifacts/effective-code-lines.json",
+    "report:effective-lines": "node effective-code-lines.mjs --mode report --json artifacts/effective-code-lines.json",
+    "strict:effective-lines": "node effective-code-lines.mjs --mode strict --json artifacts/effective-code-lines-strict.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1033.0",

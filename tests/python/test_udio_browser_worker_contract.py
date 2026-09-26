@@ -6,16 +6,24 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORKER = REPO_ROOT / "scripts" / "udio-browser-worker.mjs"
 
 
+def read_sources(*owners):
+    paths = [
+        WORKER if owner == "entry" else WORKER.parent / "udio-browser" / f"{owner}.mjs"
+        for owner in owners
+    ]
+    return "\n".join(path.read_text(encoding="utf-8") for path in paths)
+
+
 class UdioBrowserWorkerContractTests(unittest.TestCase):
     def test_debug_log_path_can_be_injected_without_logging_secrets(self):
-        source = WORKER.read_text(encoding="utf-8")
+        source = read_sources("entry", "captcha", "diagnostics")
 
         self.assertIn("process.env.UDIO_BROWSER_DEBUG_LOG_PATH", source)
         self.assertNotIn('debugLog(debugLogPath, "captcha_token_ready", {\n          token:', source)
         self.assertIn("tokenLength:", source)
 
     def test_cdp_worker_does_not_steal_window_focus(self):
-        source = WORKER.read_text(encoding="utf-8")
+        source = read_sources("entry", "browser", "native-flow")
 
         self.assertNotIn("bringToFront", source)
         self.assertIn("borrowedContext: true", source)
@@ -31,12 +39,16 @@ class UdioBrowserWorkerContractTests(unittest.TestCase):
         )
 
     def test_cdp_attach_prefers_the_authenticated_provider_context(self):
-        source = WORKER.read_text(encoding="utf-8")
+        source = read_sources("entry", "browser")
 
-        self.assertIn("candidatePage.url().startsWith(baseUrl)", source)
+        self.assertIn("resolveBorrowedContext(browser, baseUrl, browserCdpTargetUrl, referer)", source)
+        self.assertIn("target.origin === base.origin", source)
+        self.assertIn("pageMatchesTarget(page, target)", source)
+        self.assertNotIn("candidatePage.url().startsWith(baseUrl)", source)
+        self.assertNotIn("browser.contexts()[0]", source)
 
     def test_generation_submit_resolves_and_sends_authorization_token(self):
-        source = WORKER.read_text(encoding="utf-8")
+        source = read_sources("entry", "auth")
         resolve_index = source.index(
             "const authToken = await resolveUdioAccessToken(page, baseUrl);"
         )
@@ -62,7 +74,7 @@ class UdioBrowserWorkerContractTests(unittest.TestCase):
         self.assertEqual(source.count("submitOutcome = await submitGeneration()"), 2)
 
     def test_manual_captcha_uses_one_bounded_wait_window(self):
-        source = WORKER.read_text(encoding="utf-8")
+        source = read_sources("captcha")
 
         self.assertEqual(source.count("waitForSolvedToken(hcaptcha, manualWidgetId, manualChallengeWaitMs)"), 1)
         self.assertIn("__udioManualHcaptchaWidgetId", source)
@@ -77,7 +89,7 @@ class UdioBrowserWorkerContractTests(unittest.TestCase):
         self.assertIn('"error-callback": () =>', source)
 
     def test_cdp_generation_uses_the_native_create_flow(self):
-        source = WORKER.read_text(encoding="utf-8")
+        source = read_sources("entry", "native-flow", "responses")
 
         helper_index = source.index("async function submitGenerationThroughPageUi")
         response_index = source.index(".waitForResponse", helper_index)

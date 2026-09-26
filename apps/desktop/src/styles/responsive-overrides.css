@@ -1,0 +1,162 @@
+/* responsive overrides styles; preserve position in styles.css. */
+@media (min-width: 721px) and (max-width: 1200px) {
+  .nt-group-members {
+    max-height: min(50vh, 520px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    align-content: start;
+    padding-right: 4px;
+  }
+
+  .nt-provider-subtab-panel {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .nt-provider-account-table {
+    min-width: 980px;
+  }
+
+  .nt-provider-account-table__head,
+  .nt-provider-account-row {
+    grid-template-columns:
+      minmax(0, 1.5fr)
+      minmax(132px, 0.95fr)
+      minmax(88px, 0.75fr)
+      minmax(88px, 0.7fr)
+      76px
+      minmax(168px, 1.2fr)
+      minmax(108px, 0.85fr)
+      minmax(180px, 1.2fr)
+      auto;
+  }
+}
+
+@media (min-width: 1201px) {
+  .nt-group-admin {
+    align-items: start;
+  }
+
+  .nt-group-members {
+    max-height: min(56vh, 620px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    align-content: start;
+    padding-right: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .nt-provider-card:hover {
+    transform: none;
+  }
+
+  .nt-provider-card__inner {
+    transition: none;
+  }
+
+  .nt-entitlement-group-card,
+  .nt-entitlement-group-card__toggle > svg {
+    transition: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .nt-rail__nav {
+    display: flex;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable;
+    padding-bottom: 4px;
+  }
+
+  .nt-rail__item {
+    flex: 0 0 8rem;
+    text-align: left;
+  }
+
+  .nt-console-rail-toggle {
+    display: none;
+  }
+
+  .nt-shell--rail-collapsed .nt-brand,
+  .nt-shell--console-rail-collapsed .nt-brand {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .nt-shell--rail-collapsed .nt-brand__mark,
+  .nt-shell--console-rail-collapsed .nt-brand__mark {
+    width: 22px;
+    flex-basis: 22px;
+    opacity: 1;
+    transform: none;
+  }
+
+  .nt-shell--rail-collapsed .nt-brand__name,
+  .nt-shell--console-rail-collapsed .nt-brand__name,
+  .nt-shell--rail-collapsed .nt-rail__label,
+  .nt-shell--console-rail-collapsed .nt-rail__label {
+    flex-basis: auto;
+    max-width: 132px;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .nt-rail__item,
+  .nt-shell--rail-collapsed .nt-rail__item,
+  .nt-shell--console-rail-collapsed .nt-rail__item {
+    flex: 0 0 10rem;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 7px;
+    justify-content: stretch;
+    padding-inline: 8px;
+  }
+
+  .nt-rail__item span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
+  .nt-card,
+  .dialog-content {
+    border-radius: var(--nt-radius-md);
+  }
+
+  .nt-workspace-action-bar {
+    position: static;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .nt-workspace-action-bar > .nt-chip {
+    margin-right: 0;
+  }
+
+  .nt-workspace-action-bar .nt-actions,
+  .nt-workspace-action-bar .nt-btn {
+    width: 100%;
+  }
+
+  .nt-secret-entry .nt-actions .nt-btn {
+    flex-basis: 7rem;
+  }
+}

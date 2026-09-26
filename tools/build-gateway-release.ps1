@@ -411,6 +411,9 @@ function Write-BuildProvenance {
     Write-Output "[gateway-release] build provenance $provenancePath sourceTreeFingerprint=$($SourceTreeState.fingerprint)"
 }
 
+$previousCargoBuildJobs = $env:CARGO_BUILD_JOBS
+$previousCargoIncremental = $env:CARGO_INCREMENTAL
+
 Push-Location -LiteralPath $repoRoot
 try {
     Assert-MinimumNodeVersion
@@ -523,4 +526,14 @@ try {
         -ArtifactPaths @($headlessExe, $uiExe)
 } finally {
     Pop-Location
+    if ($null -eq $previousCargoBuildJobs) {
+        Remove-Item Env:CARGO_BUILD_JOBS -ErrorAction SilentlyContinue
+    } else {
+        $env:CARGO_BUILD_JOBS = $previousCargoBuildJobs
+    }
+    if ($null -eq $previousCargoIncremental) {
+        Remove-Item Env:CARGO_INCREMENTAL -ErrorAction SilentlyContinue
+    } else {
+        $env:CARGO_INCREMENTAL = $previousCargoIncremental
+    }
 }

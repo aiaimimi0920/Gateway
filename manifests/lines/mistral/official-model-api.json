@@ -29,9 +29,9 @@
   "verification": {
     "recommendedCargoTargetDirSlug": "mistral-openai-official-model-api-verify",
     "focusedCargoFilters": [
-      "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+      "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
       "protocol::hooks::tests::resolve_returns_mistral_hook_for_mistral_provider",
-      "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+      "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
     ],
     "fixtureSuiteId": "mistral_fixture",
     "liveSuiteId": "mistral_live",

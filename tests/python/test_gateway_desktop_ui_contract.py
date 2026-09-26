@@ -3,6 +3,8 @@ import re
 import unittest
 from pathlib import Path
 
+from gateway_desktop_source import read_styles
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GATEWAY_ROOT = REPO_ROOT
@@ -104,7 +106,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
     def test_desktop_uses_neuroterminal_theme_tokens(self):
         styles = DESKTOP_ROOT / "src" / "styles.css"
         self.assertTrue(styles.exists(), "Gateway desktop styles.css must exist")
-        css = styles.read_text(encoding="utf-8")
+        css = read_styles(styles)
         for required in [
             "--nt-color-signal-yellow: #d9ff38",
             "--nt-color-signal-green: #22c55e",
@@ -116,8 +118,10 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
             "--nt-canvas: var(--nt-color-background)",
         ]:
             self.assertIn(required, css)
-        for selector in [".nt-shell", ".nt-rail", ".nt-board", ".nt-btn", ".nt-input", ".nt-kicker"]:
+        for selector in [".nt-shell", ".nt-rail", ".nt-board", ".nt-btn", ".nt-input", ".nt-brand__name"]:
             self.assertIn(selector, css)
+        shell = (DESKTOP_ROOT / "src/features/shell/AppShell.tsx").read_text(encoding="utf-8")
+        self.assertIn('className="nt-brand__name"', shell)
         self.assertNotIn("linear-gradient(135deg, #8b5cf6, #d946ef", css)
 
     def test_browser_console_uses_global_top_right_dismissible_toasts(self):
@@ -129,7 +133,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         toast_text = toast_file.read_text(encoding="utf-8")
         toast_test_text = toast_test_file.read_text(encoding="utf-8")
         main_text = main_file.read_text(encoding="utf-8")
-        css = styles_file.read_text(encoding="utf-8")
+        css = read_styles(styles_file)
 
         self.assertIn("createPortal", toast_text)
         self.assertIn("document.body", toast_text)
@@ -146,13 +150,16 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("preserves the longer error lifetime", toast_test_text)
 
     def test_account_ledger_filters_orphans_and_wires_trusted_pool_automation(self):
-        browser_console_text = (
-            DESKTOP_ROOT
-            / "src"
-            / "features"
-            / "console"
-            / "BrowserConsoleApp.tsx"
-        ).read_text(encoding="utf-8")
+        browser_console_text = "\n".join(
+            (DESKTOP_ROOT / "src/features/console" / owner).read_text(encoding="utf-8")
+            for owner in [
+                "BrowserConsoleApp.tsx",
+                "useConsoleController.ts",
+                "routeAccountCatalog.ts",
+                "useConsoleRouteData.ts",
+                "useCredentialPoolActions.ts",
+            ]
+        )
         view_model_text = (
             DESKTOP_ROOT
             / "src"
@@ -165,7 +172,9 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn(orphan_filter, browser_console_text)
         self.assertIn(orphan_filter, view_model_text)
         self.assertIn("getCredentialPoolAutomation", browser_console_text)
-        self.assertIn("runCredentialPoolAutomation", browser_console_text)
+        self.assertIn("requestCredentialRefill", browser_console_text)
+        self.assertIn("pruneCredentialPool", browser_console_text)
+        self.assertIn("purgeCredentialArchive", browser_console_text)
         self.assertIn("automation?.driverConfigured", browser_console_text)
         self.assertIn("updateIdentityCategoryAutomationToggle", browser_console_text)
         self.assertIn("setError(message)", browser_console_text)
@@ -184,14 +193,24 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
             / "console"
             / "AccountsLedgerWorkspace.tsx"
         )
+        lifecycle_file = account_ledger_file.with_name("ProviderLifecycleBack.tsx")
+        endpoints_file = account_ledger_file.with_name("ProviderStorageEndpoints.tsx")
 
         self.assertTrue(refill_file.is_file())
         self.assertTrue(refill_route_file.is_file())
-        refill_text = refill_file.read_text(encoding="utf-8")
+        refill_text = "\n".join([
+            refill_file.read_text(encoding="utf-8"),
+            (refill_file.with_suffix("") / "creation.rs").read_text(encoding="utf-8"),
+        ])
         route_text = refill_route_file.read_text(encoding="utf-8")
-        router_text = router_file.read_text(encoding="utf-8")
+        router_text = "\n".join([
+            router_file.read_text(encoding="utf-8"),
+            (router_file.with_suffix("") / "credential_lifecycle.rs").read_text(encoding="utf-8"),
+        ])
         redis_keys_text = redis_keys_file.read_text(encoding="utf-8")
         ledger_text = account_ledger_file.read_text(encoding="utf-8")
+        lifecycle_text = lifecycle_file.read_text(encoding="utf-8")
+        endpoints_text = endpoints_file.read_text(encoding="utf-8")
 
         for trigger in ["Notification", "Inquiry", "UserRequested"]:
             self.assertIn(trigger, refill_text)
@@ -199,6 +218,8 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
             '"/v1/internal/gateway/credential-pool-refill"',
             '"/v1/internal/gateway/credential-pool-refill/tasks"',
             '"/v1/internal/gateway/credential-pool-refill/tasks/claim"',
+            '"/v1/internal/gateway/credential-pool-refill/providers/:providerId"',
+            '"/v1/internal/gateway/credential-pool-refill/providers/:providerId/tasks/claim"',
             '"/v1/internal/gateway/credential-pool-refill/tasks/:taskId/renew"',
             '"/v1/internal/gateway/credential-pool-refill/tasks/:taskId/complete"',
             '"/v1/internal/gateway/credential-pool-refill/tasks/:taskId/fail"',
@@ -206,10 +227,16 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
             self.assertIn(endpoint_fragment, router_text)
         self.assertIn("assert_management_access", route_text)
         self.assertIn("gw:credential-pool:refill:requests", redis_keys_text)
-        self.assertIn("通知型开启", ledger_text)
-        self.assertIn("询问型开启", ledger_text)
-        self.assertIn("主动型开启", ledger_text)
-        self.assertIn("主动补号", ledger_text)
+        self.assertIn("mod creation;", refill_text)
+        self.assertIn("credential_lifecycle::mount(router)", router_text)
+        self.assertIn("<ProviderLifecycleBack", ledger_text)
+        self.assertIn("onRequestProviderRefill={onRequestProviderRefill}", ledger_text)
+        self.assertIn("<ProviderStorageEndpoints", lifecycle_text)
+        self.assertIn("refill={refill}", lifecycle_text)
+        self.assertIn("refill?.notificationApi", endpoints_text)
+        self.assertIn("refill?.inquiryApi", endpoints_text)
+        self.assertIn("!refill?.userRequestEnabled", lifecycle_text)
+        self.assertIn("onRequestProviderRefill(section.providerId)", lifecycle_text)
 
         stream_event = re.search(
             r"redis\.call\('XADD'.*?return \{1, ARGV\[2\]\}",
@@ -220,698 +247,6 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         event_text = stream_event.group(0).lower()
         for forbidden in ["api_key", "cookie", "claimtoken", "authorization"]:
             self.assertNotIn(forbidden, event_text)
-
-    def test_release_plan_includes_headless_and_ui_gateway_exes(self):
-        release_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        script_text = release_script.read_text(encoding="utf-8")
-        self.assertIn("cargo build --locked --release --bin gateway", script_text)
-        self.assertIn('"target\\\\release\\\\gateway.exe"', script_text)
-        self.assertIn(
-            '"apps\\\\desktop\\\\src-tauri\\\\target\\\\release\\\\gateway-ui.exe"',
-            script_text,
-        )
-
-    def test_gateway_owned_release_builder_builds_ui_and_headless(self):
-        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        self.assertTrue(build_script.exists(), "Gateway-owned release builder must exist")
-        script_text = build_script.read_text(encoding="utf-8")
-        self.assertIn("cargo build --locked --release --bin gateway", script_text)
-        self.assertIn("Push-Location -LiteralPath $desktopRoot", script_text)
-        self.assertIn("npm ci", script_text)
-        self.assertIn("npm run typecheck", script_text)
-        self.assertIn(
-            "npm run tauri --prefix apps/desktop -- build --no-bundle", script_text
-        )
-        self.assertIn(
-            '-Arguments @("run", "tauri", "--", "build", "--no-bundle")',
-            script_text,
-        )
-        self.assertIn("gateway-ui.exe", script_text)
-
-    def test_gateway_owned_release_builder_installs_desktop_dependencies_before_headless_build(self):
-        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        script_text = build_script.read_text(encoding="utf-8")
-        install_index = script_text.index(
-            'Invoke-GatewayReleaseStep -Name "install desktop dependencies"'
-        )
-        cargo_index = script_text.index(
-            'Invoke-GatewayReleaseStep -Name "build headless gateway"'
-        )
-        self.assertLess(
-            install_index,
-            cargo_index,
-            "Desktop npm dependencies must be installed before cargo build triggers build.rs",
-        )
-
-    def test_gateway_owned_release_builder_retries_transient_npm_ci_file_locks(self):
-        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        script_text = build_script.read_text(encoding="utf-8")
-        self.assertIn("function Invoke-NpmCiWithRetry", script_text)
-        self.assertIn("$maxNpmCiAttempts = 3", script_text)
-        self.assertIn("EPERM", script_text)
-        self.assertIn("EBUSY", script_text)
-        self.assertIn("ENOTEMPTY", script_text)
-        self.assertIn("Start-Sleep", script_text)
-        self.assertIn("[string]$ComponentName", script_text)
-        self.assertIn("npm ci failed for $ComponentName after", script_text)
-
-    def test_gateway_owned_release_builder_runs_native_commands_via_process_capture(self):
-        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        script_text = build_script.read_text(encoding="utf-8")
-        self.assertIn("function Invoke-NativeCommandCapture", script_text)
-        self.assertIn("Start-Process", script_text)
-        self.assertIn("RedirectStandardOutput", script_text)
-        self.assertIn("RedirectStandardError", script_text)
-        self.assertIn("PassThru = $true", script_text)
-        self.assertIn('WindowStyle = "Hidden"', script_text)
-        self.assertIn('-Command "cargo"', script_text)
-        self.assertIn('-Command "npm"', script_text)
-
-    def test_gateway_owned_release_builder_streams_long_running_child_output(self):
-        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        script_text = build_script.read_text(encoding="utf-8")
-        self.assertIn("function Write-NewCaptureLines", script_text)
-        self.assertIn("while (-not $process.HasExited)", script_text)
-        self.assertIn(
-            'Write-NewCaptureLines -Path $stdoutPath -LastLineIndex ([ref]$stdoutLineIndex)',
-            script_text,
-        )
-        self.assertIn(
-            'Write-NewCaptureLines -Path $stderrPath -LastLineIndex ([ref]$stderrLineIndex)',
-            script_text,
-        )
-        self.assertIn("Start-Sleep -Milliseconds 200", script_text)
-
-    def test_gateway_owned_release_builder_prefers_application_wrappers_for_start_process(self):
-        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        script_text = build_script.read_text(encoding="utf-8")
-        self.assertIn("Get-Command $Command -All", script_text)
-        self.assertIn('$_.CommandType -eq "Application"', script_text)
-        self.assertIn('if ($resolved.Count -eq 0)', script_text)
-        self.assertNotIn('if ($null -eq $resolved)', script_text)
-
-    def test_gateway_owned_release_builder_has_stage_logs_and_artifact_hash_summary(self):
-        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        script_text = build_script.read_text(encoding="utf-8")
-        self.assertIn("function Invoke-GatewayReleaseStep", script_text)
-        self.assertIn("[gateway-release] BEGIN", script_text)
-        self.assertIn("[gateway-release] END", script_text)
-        self.assertIn("function Write-ArtifactHashSummary", script_text)
-        self.assertIn("Get-FileHash", script_text)
-        self.assertIn("sha256=", script_text)
-
-    def test_gateway_owned_ui_release_smoke_script_validates_artifacts_and_optional_launch(self):
-        smoke_script = GATEWAY_ROOT / "tools" / "smoke-gateway-ui-release.ps1"
-        self.assertTrue(smoke_script.exists(), "Gateway UI release smoke script must exist")
-        script_text = smoke_script.read_text(encoding="utf-8")
-
-        for required in [
-            "param(",
-            "$ReleaseDir",
-            "$LaunchUi",
-            "manifest.json",
-            "checksums.sha256",
-            "gateway.exe",
-            "gateway-ui.exe",
-            "Get-FileHash",
-            "bytesMatch",
-            "shaMatch",
-            "Start-Process",
-            "-WindowStyle Hidden",
-            "Stop-Process",
-            "gateway-ui",
-            "gateway",
-            "may auto-start",
-        ]:
-            self.assertIn(required, script_text)
-
-    def test_gateway_ui_release_smoke_only_detects_and_cleans_release_owned_sidecars(self):
-        smoke_script = GATEWAY_ROOT / "tools" / "smoke-gateway-ui-release.ps1"
-        script_text = smoke_script.read_text(encoding="utf-8")
-
-        for required in [
-            "function Get-ReleaseOwnedGatewayProcesses",
-            "Get-CimInstance",
-            "Win32_Process",
-            "ExecutablePath",
-            "CommandLine",
-            "$expectedGatewayPath",
-            "Test-PathOwnedByRelease",
-            "ReleaseRoot = $ReleaseRoot",
-        ]:
-            self.assertIn(required, script_text)
-
-        self.assertNotIn("function Get-ProcessIdsByName", script_text)
-        self.assertNotIn('Get-Process -Name $Name', script_text)
-        self.assertNotIn('Get-ProcessIdsByName -Name "gateway"', script_text)
-
-        self.assertIn("function Read-ChecksumIndex", script_text)
-        self.assertIn("function Assert-PackagedReleaseIntegrity", script_text)
-        self.assertIn("newGatewayProcessIds", script_text)
-        self.assertIn("Stop-Process -Id", script_text)
-        self.assertIn("finally", script_text)
-
-    def test_gateway_owned_release_builder_lets_tauri_run_frontend_build_once(self):
-        build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        tauri_conf = DESKTOP_ROOT / "src-tauri" / "tauri.conf.json"
-        script_text = build_script.read_text(encoding="utf-8")
-        config = json.loads(tauri_conf.read_text(encoding="utf-8"))
-
-        self.assertEqual(config["build"]["beforeBuildCommand"], "npm run build:tauri")
-        self.assertNotIn("& npm run build", script_text)
-        self.assertIn('-Arguments @("run", "typecheck")', script_text)
-    def test_vitest_excludes_playwright_e2e_specs(self):
-        vitest_config = DESKTOP_ROOT / "vitest.config.ts"
-        config_text = vitest_config.read_text(encoding="utf-8")
-
-        self.assertIn("exclude", config_text)
-        self.assertIn("e2e/**/*.spec.ts", config_text)
-        self.assertIn("playwright test", (DESKTOP_ROOT / "package.json").read_text(encoding="utf-8"))
-
-    def test_desktop_state_auto_starts_gateway_when_backend_health_is_missing(self):
-        state_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        state_text = state_file.read_text(encoding="utf-8")
-
-        self.assertIn("autoStartAttempted", state_text)
-        self.assertIn("setAutoStartAttempted(false)", state_text)
-        self.assertIn("!healthProbe.ok", state_text)
-        self.assertIn("void startGateway()", state_text)
-        self.assertIn("未检测到 Gateway 后端，正在自动启动 gateway.exe", state_text)
-    def test_desktop_state_supports_explicit_profile_reload_preference(self):
-        state_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        state_text = state_file.read_text(encoding="utf-8")
-        self.assertIn("reloadProfiles = useCallback(async (preferredProfileName?: string) =>", state_text)
-        self.assertIn("preferredProfileName?.trim()", state_text)
-        self.assertIn("await reloadProfiles(draftProfile.name)", state_text)
-        self.assertIn("await reloadProfiles(DEFAULT_PROFILE_NAME)", state_text)
-
-    def test_desktop_process_waits_for_graceful_shutdown_before_kill(self):
-        process_file = DESKTOP_ROOT / "src-tauri" / "src" / "process.rs"
-        process_text = process_file.read_text(encoding="utf-8")
-        self.assertIn("const GRACEFUL_SHUTDOWN_TIMEOUT_MS", process_text)
-        self.assertIn("const GRACEFUL_SHUTDOWN_POLL_INTERVAL_MS", process_text)
-        self.assertIn("fn wait_for_graceful_exit", process_text)
-        self.assertIn("std::thread::sleep", process_text)
-        self.assertIn("fn shutdown_state_for_exit", process_text)
-        self.assertIn("status.success()", process_text)
-        self.assertIn("terminate_process_tree", process_text)
-
-    def test_desktop_process_waits_for_startup_probe_and_reports_fast_exit_logs(self):
-        process_file = DESKTOP_ROOT / "src-tauri" / "src" / "process.rs"
-        state_file = DESKTOP_ROOT / "src-tauri" / "src" / "state.rs"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        launcher_file = DESKTOP_ROOT / "src" / "features" / "launcher" / "LauncherPanel.tsx"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-
-        process_text = process_file.read_text(encoding="utf-8")
-        state_text = state_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        launcher_text = launcher_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-
-        self.assertIn("const STARTUP_PROBE_TIMEOUT_MS", process_text)
-        self.assertIn("fn ensure_port_available", process_text)
-        self.assertIn("std::net::TcpStream::connect", process_text)
-        self.assertIn("fn wait_for_startup_probe", process_text)
-        self.assertIn("/healthz", process_text)
-        self.assertIn("/readyz", process_text)
-        self.assertIn("tail_log_lines", process_text)
-        self.assertIn('startup_state: "exited"', process_text)
-        self.assertIn("pub startup_state: Option<String>", state_text)
-        self.assertIn("pub last_error: Option<String>", state_text)
-        self.assertIn("pub recent_log_lines: Vec<String>", state_text)
-        self.assertIn("startupState?: string | null", types_text)
-        self.assertIn("lastError?: string | null", types_text)
-        self.assertIn("recentLogLines: string[]", types_text)
-        self.assertIn("snapshot.startupState", state_hook_text)
-        self.assertIn("recentLogLines", launcher_text)
-
-    def test_desktop_profile_validation_blocks_bad_config_before_runtime_actions(self):
-        validation_file = DESKTOP_ROOT / "src" / "lib" / "profileValidation.ts"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        config_file = DESKTOP_ROOT / "src" / "features" / "config" / "ConfigPanel.tsx"
-        launcher_file = DESKTOP_ROOT / "src" / "features" / "launcher" / "LauncherPanel.tsx"
-        styles_file = DESKTOP_ROOT / "src" / "styles.css"
-
-        self.assertTrue(validation_file.exists(), "profile validation helper must exist")
-        validation_text = validation_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        config_text = config_file.read_text(encoding="utf-8")
-        launcher_text = launcher_file.read_text(encoding="utf-8")
-        styles_text = styles_file.read_text(encoding="utf-8")
-
-        self.assertIn("export function validateGatewayProfile", validation_text)
-        self.assertIn("profile.name.trim()", validation_text)
-        self.assertIn("profile.port < 1 || profile.port > 65535", validation_text)
-        self.assertIn("redis://", validation_text)
-        self.assertIn("rediss://", validation_text)
-        self.assertIn("ENV_KEY_PATTERN", validation_text)
-        self.assertIn("RESERVED_ENV_KEYS", validation_text)
-        self.assertIn("GatewayProfileValidation", types_text)
-        self.assertIn("profileValidation: GatewayProfileValidation", types_text)
-        self.assertIn("canSaveProfile: boolean", types_text)
-        self.assertIn("canStartGateway: boolean", types_text)
-        self.assertIn("validateGatewayProfile(draftProfile)", state_hook_text)
-        self.assertIn("state.profileValidation.errors.length", config_text)
-        self.assertIn("aria-invalid", config_text)
-        self.assertIn("!state.canSaveProfile", config_text)
-        self.assertIn("!state.canStartGateway", launcher_text)
-        self.assertIn(".nt-validation-list", styles_text)
-
-    def test_desktop_profile_validation_reports_extra_env_errors_by_row(self):
-        validation_file = DESKTOP_ROOT / "src" / "lib" / "profileValidation.ts"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        config_file = DESKTOP_ROOT / "src" / "features" / "config" / "ConfigPanel.tsx"
-
-        validation_text = validation_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        config_text = config_file.read_text(encoding="utf-8")
-
-        self.assertIn("extraEnvErrors: Record<number, string>", types_text)
-        self.assertIn("pushExtraEnvError", validation_text)
-        self.assertIn("validation.extraEnvErrors[index]", validation_text)
-        self.assertIn("const envRowError = validation.extraEnvErrors[index]", config_text)
-        self.assertIn("aria-invalid={Boolean(envRowError)}", config_text)
-        self.assertIn("{envRowError ? <small>{envRowError}</small> : null}", config_text)
-        self.assertNotIn("error.includes(entry.key)", config_text)
-
-    def test_desktop_profile_import_export_uses_sanitized_json_transfer(self):
-        transfer_file = DESKTOP_ROOT / "src" / "lib" / "profileTransfer.ts"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        config_file = DESKTOP_ROOT / "src" / "features" / "config" / "ConfigPanel.tsx"
-        styles_file = DESKTOP_ROOT / "src" / "styles.css"
-
-        self.assertTrue(transfer_file.exists(), "profile transfer helper must exist")
-        transfer_text = transfer_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        config_text = config_file.read_text(encoding="utf-8")
-        styles_text = styles_file.read_text(encoding="utf-8")
-
-        self.assertIn("export function buildGatewayProfileExportText", transfer_text)
-        self.assertIn("export function parseGatewayProfileTransferText", transfer_text)
-        self.assertIn("SENSITIVE_ENV_KEY_PATTERN", transfer_text)
-        self.assertIn("sanitizeProfileForExport", transfer_text)
-        self.assertIn("schemaVersion", transfer_text)
-        self.assertIn("gateway-ui-profile", transfer_text)
-        self.assertIn("GatewayProfileTransferPayload", types_text)
-        self.assertIn("profileTransferText: string", types_text)
-        self.assertIn("importProfileText: string", types_text)
-        self.assertIn("exportDraftProfile: () => Promise<void>", types_text)
-        self.assertIn("importDraftProfile: () => Promise<void>", types_text)
-        self.assertIn("updateImportProfileText: (value: string) => void", types_text)
-        self.assertIn("buildGatewayProfileExportText", state_hook_text)
-        self.assertIn("parseGatewayProfileTransferText", state_hook_text)
-        self.assertIn("navigator.clipboard.writeText(exportText)", state_hook_text)
-        self.assertIn("setProfileTransferText(exportText)", state_hook_text)
-        self.assertIn("state.exportDraftProfile", config_text)
-        self.assertIn("state.importDraftProfile", config_text)
-        self.assertIn("state.updateImportProfileText", config_text)
-        self.assertIn("导出脱敏 JSON", config_text)
-        self.assertIn("导入到草稿", config_text)
-        self.assertIn("nt-transfer-box", styles_text)
-
-    def test_desktop_profile_path_precheck_uses_tauri_backend_resolution(self):
-        profile_file = DESKTOP_ROOT / "src-tauri" / "src" / "profile.rs"
-        tauri_lib_file = DESKTOP_ROOT / "src-tauri" / "src" / "lib.rs"
-        tauri_frontend_file = DESKTOP_ROOT / "src" / "lib" / "tauri.ts"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        config_file = DESKTOP_ROOT / "src" / "features" / "config" / "ConfigPanel.tsx"
-        styles_file = DESKTOP_ROOT / "src" / "styles.css"
-
-        profile_text = profile_file.read_text(encoding="utf-8")
-        tauri_lib_text = tauri_lib_file.read_text(encoding="utf-8")
-        tauri_frontend_text = tauri_frontend_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        config_text = config_file.read_text(encoding="utf-8")
-        styles_text = styles_file.read_text(encoding="utf-8")
-
-        self.assertIn("GatewayProfilePathCheck", profile_text)
-        self.assertIn("GatewayProfilePathCheckItem", profile_text)
-        self.assertIn("check_gateway_profile_paths", profile_text)
-        self.assertIn("profile_working_directory_path(profile)", profile_text)
-        self.assertIn("resolve_profile_file_path(profile, routes_file)", profile_text)
-        self.assertIn("is_file", profile_text)
-        self.assertIn("is_dir", profile_text)
-        self.assertIn("check_gateway_profile_paths", tauri_lib_text)
-        self.assertIn("checkGatewayProfilePaths", tauri_frontend_text)
-        self.assertIn("GatewayProfilePathCheck", types_text)
-        self.assertIn("GatewayProfilePathCheckItem", types_text)
-        self.assertIn("pathCheck?: GatewayProfilePathCheck", types_text)
-        self.assertIn("checkProfilePaths: () => Promise<void>", types_text)
-        self.assertIn("checkGatewayProfilePaths(draftProfile)", state_hook_text)
-        self.assertIn("setPathCheck", state_hook_text)
-        self.assertIn("state.checkProfilePaths", config_text)
-        self.assertIn("检查路径", config_text)
-        self.assertIn("renderPathCheckItem", config_text)
-        self.assertIn("nt-path-check", styles_text)
-
-    def test_desktop_profile_edits_invalidate_stale_path_check(self):
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-
-        self.assertIn("updateDraftProfileAndInvalidateDerivedState", state_hook_text)
-        self.assertIn("setPathCheck(undefined)", state_hook_text)
-        self.assertIn("updateDraftProfile: updateDraftProfileAndInvalidateDerivedState", state_hook_text)
-        self.assertNotIn("updateDraftProfile: setDraftProfile", state_hook_text)
-
-    def test_desktop_profile_templates_update_draft_without_saving(self):
-        templates_file = DESKTOP_ROOT / "src" / "lib" / "profileTemplates.ts"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        config_file = DESKTOP_ROOT / "src" / "features" / "config" / "ConfigPanel.tsx"
-        styles_file = DESKTOP_ROOT / "src" / "styles.css"
-
-        self.assertTrue(templates_file.exists(), "profile templates helper must exist")
-        templates_text = templates_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        config_text = config_file.read_text(encoding="utf-8")
-        styles_text = styles_file.read_text(encoding="utf-8")
-
-        self.assertIn("GatewayProfileTemplate", types_text)
-        self.assertIn("PROFILE_TEMPLATES", templates_text)
-        self.assertIn("local-default", templates_text)
-        self.assertIn("routes-yaml", templates_text)
-        self.assertIn("local-debug", templates_text)
-        self.assertIn("createProfileFromTemplate", templates_text)
-        self.assertIn("routes.yaml", templates_text)
-        self.assertIn("RUST_LOG", templates_text)
-        self.assertIn("applyProfileTemplate: (templateId: string) => void", types_text)
-        self.assertIn("PROFILE_TEMPLATES", state_hook_text)
-        self.assertIn("createProfileFromTemplate(templateId)", state_hook_text)
-        self.assertIn("setPathCheck(undefined)", state_hook_text)
-        self.assertNotIn("saveProfile(profileFromTemplate", state_hook_text)
-        self.assertIn("Profile 快速模板", config_text)
-        self.assertIn("state.applyProfileTemplate", config_text)
-        self.assertIn("nt-template-grid", styles_text)
-        self.assertIn("nt-template-card", styles_text)
-
-    def test_desktop_onboarding_checklist_is_derived_from_runtime_state(self):
-        onboarding_file = DESKTOP_ROOT / "src" / "lib" / "onboarding.ts"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        launcher_file = DESKTOP_ROOT / "src" / "features" / "launcher" / "LauncherPanel.tsx"
-        styles_file = DESKTOP_ROOT / "src" / "styles.css"
-
-        self.assertTrue(onboarding_file.exists(), "onboarding checklist helper must exist")
-        onboarding_text = onboarding_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        launcher_text = launcher_file.read_text(encoding="utf-8")
-        styles_text = styles_file.read_text(encoding="utf-8")
-
-        self.assertIn("GatewayOnboardingStep", types_text)
-        self.assertIn('\"done\" | \"pending\" | \"warning\"', types_text)
-        self.assertIn("onboardingSteps: GatewayOnboardingStep[]", types_text)
-        self.assertIn("export function buildGatewayOnboardingSteps", onboarding_text)
-        self.assertIn("profileValidation.ok", onboarding_text)
-        self.assertIn("pathCheck", onboarding_text)
-        self.assertIn("profileNames.includes", onboarding_text)
-        self.assertIn("processSnapshot.running", onboarding_text)
-        self.assertIn("readyProbe?.ok", onboarding_text)
-        self.assertIn("apiTestResult?.ok", onboarding_text)
-        self.assertIn("buildGatewayOnboardingSteps", state_hook_text)
-        self.assertIn("onboardingSteps", state_hook_text)
-        self.assertIn("首次启动引导", launcher_text)
-        self.assertIn("state.onboardingSteps.map", launcher_text)
-        self.assertIn("nt-onboarding-list", styles_text)
-        self.assertIn("nt-onboarding-step", styles_text)
-
-    def test_desktop_profile_dirty_state_warns_about_unsaved_changes(self):
-        profile_state_file = DESKTOP_ROOT / "src" / "lib" / "profileState.ts"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        config_file = DESKTOP_ROOT / "src" / "features" / "config" / "ConfigPanel.tsx"
-        launcher_file = DESKTOP_ROOT / "src" / "features" / "launcher" / "LauncherPanel.tsx"
-        onboarding_file = DESKTOP_ROOT / "src" / "lib" / "onboarding.ts"
-        styles_file = DESKTOP_ROOT / "src" / "styles.css"
-
-        self.assertTrue(profile_state_file.exists(), "profile dirty-state helper must exist")
-        profile_state_text = profile_state_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        config_text = config_file.read_text(encoding="utf-8")
-        launcher_text = launcher_file.read_text(encoding="utf-8")
-        onboarding_text = onboarding_file.read_text(encoding="utf-8")
-        styles_text = styles_file.read_text(encoding="utf-8")
-
-        self.assertIn("export function normalizeGatewayProfileForComparison", profile_state_text)
-        self.assertIn("export function areGatewayProfilesEqual", profile_state_text)
-        self.assertIn("extraEnv", profile_state_text)
-        self.assertIn("hasUnsavedProfileChanges: boolean", types_text)
-        self.assertIn("savedProfileSnapshot", state_hook_text)
-        self.assertIn("setSavedProfileSnapshot", state_hook_text)
-        self.assertIn("areGatewayProfilesEqual(draftProfile, savedProfileSnapshot)", state_hook_text)
-        self.assertIn("setSavedProfileSnapshot(profile)", state_hook_text)
-        self.assertIn("setSavedProfileSnapshot(draftProfile)", state_hook_text)
-        self.assertIn("hasUnsavedProfileChanges", onboarding_text)
-        self.assertIn("未保存变更", config_text)
-        self.assertIn("state.hasUnsavedProfileChanges", config_text)
-        self.assertIn("Unsaved changes", launcher_text)
-        self.assertIn("nt-dirty-badge", styles_text)
-
-    def test_desktop_start_button_explains_unsaved_profile_auto_save(self):
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        app_file = DESKTOP_ROOT / "src" / "App.tsx"
-        launcher_file = DESKTOP_ROOT / "src" / "features" / "launcher" / "LauncherPanel.tsx"
-        styles_file = DESKTOP_ROOT / "src" / "styles.css"
-
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        app_text = app_file.read_text(encoding="utf-8")
-        launcher_text = launcher_file.read_text(encoding="utf-8")
-        styles_text = styles_file.read_text(encoding="utf-8")
-
-        self.assertIn("startWillSaveDraftProfile: boolean", types_text)
-        self.assertIn("hasUnsavedProfileChanges && !processSnapshot.running", state_hook_text)
-        self.assertIn("startWillSaveDraftProfile", state_hook_text)
-        self.assertIn("启动会先保存当前草稿", app_text)
-        self.assertIn("gatewayState.startWillSaveDraftProfile", app_text)
-        self.assertIn("启动会先保存当前草稿", launcher_text)
-        self.assertIn("state.startWillSaveDraftProfile", launcher_text)
-        self.assertIn("nt-start-save-hint", styles_text)
-
-    def test_desktop_api_test_result_is_invalidated_when_inputs_or_profile_change(self):
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-
-        self.assertIn("updateApiTestInputAndInvalidateResult", state_hook_text)
-        self.assertIn("updateApiTestInput: updateApiTestInputAndInvalidateResult", state_hook_text)
-        self.assertNotIn("updateApiTestInput: setApiTestInput", state_hook_text)
-        self.assertIn("setApiTestResult(undefined)", state_hook_text)
-        self.assertIn("setApiTestResult(result)", state_hook_text)
-        self.assertIn("updateDraftProfileAndInvalidateDerivedState", state_hook_text)
-
-    def test_desktop_api_test_result_records_request_context(self):
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        api_test_file = DESKTOP_ROOT / "src" / "features" / "api-test" / "ApiTestPanel.tsx"
-        styles_file = DESKTOP_ROOT / "src" / "styles.css"
-
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        api_test_text = api_test_file.read_text(encoding="utf-8")
-        styles_text = styles_file.read_text(encoding="utf-8")
-
-        for field in [
-            "requestedAt: string",
-            "profileName: string",
-            "baseUrl: string",
-            "model: string",
-        ]:
-            self.assertIn(field, types_text)
-        self.assertIn("new Date().toISOString()", state_hook_text)
-        self.assertIn("profileName: draftProfile.name", state_hook_text)
-        self.assertIn("baseUrl", state_hook_text)
-        self.assertIn("model: apiTestInput.model.trim()", state_hook_text)
-        self.assertIn("nt-api-context", api_test_text)
-        self.assertIn("Profile: {result.profileName}", api_test_text)
-        self.assertIn("Base URL: {result.baseUrl}", api_test_text)
-        self.assertIn("Model: {result.model}", api_test_text)
-        self.assertIn("Requested: {result.requestedAt}", api_test_text)
-        self.assertIn("nt-api-context", styles_text)
-
-    def test_desktop_profile_source_changes_clear_profile_bound_derived_state(self):
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-
-        self.assertIn("clearProfileBoundDerivedState", state_hook_text)
-        for stale_state_clear in [
-            "setPathCheck(undefined)",
-            "setApiTestResult(undefined)",
-            "setHealthProbe(undefined)",
-            "setReadyProbe(undefined)",
-            "setModelsProbe(undefined)",
-        ]:
-            self.assertIn(stale_state_clear, state_hook_text)
-        self.assertIn("setDraftProfileFromSource", state_hook_text)
-        self.assertIn("setDraftProfileFromSource(profile)", state_hook_text)
-        self.assertIn("setDraftProfileFromSource(initialProfile)", state_hook_text)
-        self.assertIn("setDraftProfileFromSource(importedProfile)", state_hook_text)
-        self.assertIn("setDraftProfileFromSource(profileFromTemplate)", state_hook_text)
-
-    def test_desktop_can_copy_sanitized_diagnostics_bundle(self):
-        diagnostics_file = DESKTOP_ROOT / "src" / "lib" / "diagnostics.ts"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        logs_file = DESKTOP_ROOT / "src" / "features" / "logs" / "LogsPanel.tsx"
-
-        self.assertTrue(diagnostics_file.exists(), "diagnostics helper must exist")
-        diagnostics_text = diagnostics_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        logs_text = logs_file.read_text(encoding="utf-8")
-
-        self.assertIn("export function buildGatewayDiagnosticsReport", diagnostics_text)
-        self.assertIn("function maskSensitiveValue", diagnostics_text)
-        self.assertIn("SENSITIVE_ENV_KEY_PATTERN", diagnostics_text)
-        self.assertIn("GATEWAY_REDIS_URL", diagnostics_text)
-        self.assertIn("recent log tail", diagnostics_text)
-        self.assertIn("copyDiagnostics: () => Promise<void>", types_text)
-        self.assertIn("navigator.clipboard.writeText", state_hook_text)
-        self.assertIn("buildGatewayDiagnosticsReport", state_hook_text)
-        self.assertIn("复制诊断", logs_text)
-        self.assertIn("state.copyDiagnostics", logs_text)
-
-    def test_desktop_diagnostics_include_api_test_context_summary(self):
-        diagnostics_file = DESKTOP_ROOT / "src" / "lib" / "diagnostics.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-
-        diagnostics_text = diagnostics_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-
-        self.assertIn("GatewayApiTestResult", diagnostics_text)
-        self.assertIn("apiTestResult?: GatewayApiTestResult", diagnostics_text)
-        self.assertIn("function formatApiTestResult", diagnostics_text)
-        self.assertIn('section("api test"', diagnostics_text)
-        for required in [
-            "apiTest.ok",
-            "apiTest.status",
-            "apiTest.durationMs",
-            "apiTest.profileName",
-            "apiTest.baseUrl",
-            "apiTest.model",
-            "apiTest.requestedAt",
-            "apiTest.endpoint",
-        ]:
-            self.assertIn(required, diagnostics_text)
-        self.assertIn("apiTestResult", state_hook_text)
-
-    def test_desktop_diagnostics_truncate_long_errors_and_log_tail(self):
-        diagnostics_file = DESKTOP_ROOT / "src" / "lib" / "diagnostics.ts"
-        diagnostics_text = diagnostics_file.read_text(encoding="utf-8")
-
-        for required in [
-            "const DIAGNOSTIC_VALUE_MAX_CHARS",
-            "const DIAGNOSTIC_LOG_LINE_MAX_CHARS",
-            "const DIAGNOSTIC_LOG_LINE_LIMIT",
-            "function truncateDiagnosticValue",
-            "function formatRecentLogTail",
-            "slice(-DIAGNOSTIC_LOG_LINE_LIMIT)",
-            "DIAGNOSTIC_LOG_LINE_MAX_CHARS",
-            "[truncated",
-            "probe.error",
-            "apiTestResult.error",
-            "snapshot.lastError",
-        ]:
-            self.assertIn(required, diagnostics_text)
-
-    def test_desktop_log_panel_opens_log_directory_and_copies_log_path(self):
-        logs_backend_file = DESKTOP_ROOT / "src-tauri" / "src" / "logs.rs"
-        tauri_lib_file = DESKTOP_ROOT / "src-tauri" / "src" / "lib.rs"
-        tauri_frontend_file = DESKTOP_ROOT / "src" / "lib" / "tauri.ts"
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        logs_file = DESKTOP_ROOT / "src" / "features" / "logs" / "LogsPanel.tsx"
-
-        logs_backend_text = logs_backend_file.read_text(encoding="utf-8")
-        tauri_lib_text = tauri_lib_file.read_text(encoding="utf-8")
-        tauri_frontend_text = tauri_frontend_file.read_text(encoding="utf-8")
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        logs_text = logs_file.read_text(encoding="utf-8")
-
-        self.assertIn("open_gateway_log_directory", logs_backend_text)
-        self.assertIn("gateway_log_dir", logs_backend_text)
-        self.assertIn("explorer", logs_backend_text)
-        self.assertIn("open_gateway_log_directory", tauri_lib_text)
-        self.assertIn("openGatewayLogDirectory", tauri_frontend_text)
-        self.assertIn("openLogDirectory: () => Promise<void>", types_text)
-        self.assertIn("copyCurrentLogPath: () => Promise<void>", types_text)
-        self.assertIn("openGatewayLogDirectory", state_hook_text)
-        self.assertIn("const currentLogPath", state_hook_text)
-        self.assertIn("复制日志路径", logs_text)
-        self.assertIn("打开日志目录", logs_text)
-        self.assertIn("state.copyCurrentLogPath", logs_text)
-        self.assertIn("state.openLogDirectory", logs_text)
-
-    def test_desktop_diagnostics_copy_fallback_keeps_report_visible(self):
-        types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
-        state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
-        logs_file = DESKTOP_ROOT / "src" / "features" / "logs" / "LogsPanel.tsx"
-
-        types_text = types_file.read_text(encoding="utf-8")
-        state_hook_text = state_hook_file.read_text(encoding="utf-8")
-        logs_text = logs_file.read_text(encoding="utf-8")
-
-        self.assertIn("diagnosticsReportText?: string", types_text)
-        self.assertIn("setDiagnosticsReportText(report)", state_hook_text)
-        self.assertIn("!navigator.clipboard?.writeText", state_hook_text)
-        self.assertIn("诊断信息已生成在日志面板", state_hook_text)
-        self.assertIn("state.diagnosticsReportText", logs_text)
-        self.assertIn("nt-diagnostics-report", logs_text)
-        self.assertIn("脱敏诊断文本", logs_text)
-
-    def test_tauri_profile_validation_rejects_invalid_paths_and_env_keys(self):
-        profile_file = DESKTOP_ROOT / "src-tauri" / "src" / "profile.rs"
-        profile_text = profile_file.read_text(encoding="utf-8")
-
-        self.assertIn("pub(crate) const DESKTOP_OWNED_ENV_KEYS", profile_text)
-        self.assertIn("reserved.contains(normalized_key.as_str())", profile_text)
-        self.assertIn("fn validate_env_key", profile_text)
-        self.assertIn("std::collections::HashSet", profile_text)
-        self.assertIn("gateway routes file does not exist", profile_text)
-        self.assertIn("working directory does not exist", profile_text)
-        self.assertIn("duplicate extra env key", profile_text)
-        self.assertIn("reserved extra env key", profile_text)
-
-    def test_browser_preview_disables_local_runtime_actions(self):
-        app_text = (DESKTOP_ROOT / "src" / "App.tsx").read_text(encoding="utf-8")
-        launcher_text = (
-            DESKTOP_ROOT / "src" / "features" / "launcher" / "LauncherPanel.tsx"
-        ).read_text(encoding="utf-8")
-        config_text = (
-            DESKTOP_ROOT / "src" / "features" / "config" / "ConfigPanel.tsx"
-        ).read_text(encoding="utf-8")
-        logs_text = (
-            DESKTOP_ROOT / "src" / "features" / "logs" / "LogsPanel.tsx"
-        ).read_text(encoding="utf-8")
-
-        self.assertIn("浏览器预览模式", app_text)
-        self.assertIn("!gatewayState.isTauriAvailable", app_text)
-        self.assertIn("!state.isTauriAvailable", launcher_text)
-        self.assertIn("!state.isTauriAvailable", config_text)
-        self.assertIn("!state.isTauriAvailable", logs_text)
-
-    def test_desktop_readiness_ui_surfaces_degraded_mode(self):
-        app_text = (DESKTOP_ROOT / "src" / "App.tsx").read_text(encoding="utf-8")
-        status_text = (
-            DESKTOP_ROOT / "src" / "features" / "status" / "StatusPanel.tsx"
-        ).read_text(encoding="utf-8")
-        types_text = (DESKTOP_ROOT / "src" / "lib" / "types.ts").read_text(encoding="utf-8")
-
-        self.assertIn("degraded?: boolean", types_text)
-        self.assertIn("readyProbe?.data?.degraded", app_text)
-        self.assertIn("DEGRADED", app_text)
-        self.assertIn("degradedFlag(probe.data)", status_text)
-        self.assertIn("degraded mode", status_text)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1244 @@
+import {
+  ChevronDown,
+  KeyRound,
+  Layers,
+  Link2,
+  RefreshCw,
+  ShieldCheck,
+  UserRoundCheck,
+} from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+
+import type {
+  ConsoleAccessBundle,
+  ConsoleAccessBundleInput,
+  ConsoleAccessCatalog,
+  ConsoleAccessKey,
+  ConsoleAccessKeyInput,
+  ConsoleAccessStickyAffinity,
+  ConsoleApiAccessRotation,
+  ConsoleIssuedUserCredential,
+  ConsoleUserCredentialCacheEntry,
+  ConsoleUserCredentialIssueInput,
+} from "../../api/contracts";
+
+type TranslateFn = (zh: string, en: string) => string;
+
+/** Sections open one at a time by default, mirroring the operations page. */
+export type AccessSectionId = "keys" | "bundles" | "affinity" | "credentials";
+
+export type AccessPanelState<T> = {
+  data: T | null;
+  error: string | null;
+  loading: boolean;
+};
+
+export type AccessKeyDraft = {
+  ownerType: string;
+  ownerId: string;
+  resolvedProjectId: string;
+  resolvedTenantId: string;
+  keyKind: string;
+  publicKeyPrefix: string;
+  displayName: string;
+  expiresAt: string;
+  bundleIds: string[];
+};
+
+export type AccessBundleDraft = {
+  projectId: string;
+  slug: string;
+  displayName: string;
+  billingMode: string;
+  status: string;
+  description: string;
+};
+
+export type AccessAffinityDraft = {
+  accessKeyId: string;
+  model: string;
+  explicitSessionKey: string;
+};
+
+export type ApiAccessRotationDraft = {
+  projectId: string;
+  name: string;
+  actorUserId: string;
+};
+
+export type UserCredentialDraft = {
+  userId: string;
+  projectId: string;
+  credentialType: string;
+  durationDays: string;
+  scope: string;
+};
+
+export type UserCredentialVerifyDraft = {
+  credentialKey: string;
+  scope: string;
+};
+
+/**
+ * A one-shot secret the gateway answers exactly once (`token` on create/rotate,
+ * `credentialKey` on issue). It is held in component state only, never fetched
+ * again, and the operator has to dismiss it explicitly.
+ */
+export type AccessRevealedSecret = {
+  kind: "access-key" | "api-access" | "user-credential";
+  label: string;
+  secret: string;
+  hint?: string;
+};
+
+export const ACCESS_DEFAULT_KEY_DRAFT: AccessKeyDraft = {
+  ownerType: "user",
+  ownerId: "",
+  resolvedProjectId: "",
+  resolvedTenantId: "",
+  keyKind: "user",
+  publicKeyPrefix: "sk-gw",
+  displayName: "",
+  expiresAt: "",
+  bundleIds: [],
+};
+
+export const ACCESS_DEFAULT_BUNDLE_DRAFT: AccessBundleDraft = {
+  projectId: "",
+  slug: "",
+  displayName: "",
+  billingMode: "metered",
+  status: "active",
+  description: "",
+};
+
+export const ACCESS_DEFAULT_AFFINITY_DRAFT: AccessAffinityDraft = {
+  accessKeyId: "",
+  model: "",
+  explicitSessionKey: "",
+};
+
+export const ACCESS_DEFAULT_ROTATION_DRAFT: ApiAccessRotationDraft = {
+  projectId: "",
+  name: "",
+  actorUserId: "",
+};
+
+export const ACCESS_DEFAULT_CREDENTIAL_DRAFT: UserCredentialDraft = {
+  userId: "",
+  projectId: "",
+  credentialType: "session",
+  durationDays: "30",
+  scope: "chat.completions",
+};
+
+export const ACCESS_DEFAULT_VERIFY_DRAFT: UserCredentialVerifyDraft = {
+  credentialKey: "",
+  scope: "",
+};
+
+/** Turns a comma/whitespace separated scope field into the array the API wants. */
+export function parseScopeList(raw: string): string[] {
+  return raw
+    .split(/[\s,]+/u)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+export function buildAccessKeyInput(draft: AccessKeyDraft): ConsoleAccessKeyInput {
+  return {
+    ownerType: draft.ownerType.trim(),
+    ownerId: draft.ownerId.trim(),
+    resolvedProjectId: draft.resolvedProjectId.trim(),
+    resolvedTenantId: draft.resolvedTenantId.trim(),
+    keyKind: draft.keyKind.trim(),
+    publicKeyPrefix: draft.publicKeyPrefix.trim(),
+    displayName: draft.displayName.trim(),
+    expiresAt: draft.expiresAt.trim().length > 0 ? draft.expiresAt.trim() : null,
+    bundleIds: draft.bundleIds,
+  };
+}
+
+export function buildAccessBundleInput(draft: AccessBundleDraft): ConsoleAccessBundleInput {
+  const projectId = draft.projectId.trim();
+  const billingMode = draft.billingMode.trim();
+  const description = draft.description.trim();
+  return {
+    projectId: projectId.length > 0 ? projectId : null,
+    slug: draft.slug.trim(),
+    displayName: draft.displayName.trim(),
+    billingMode: billingMode.length > 0 ? billingMode : null,
+    status: draft.status.trim(),
+    description: description.length > 0 ? description : null,
+  };
+}
+
+export function buildUserCredentialInput(
+  draft: UserCredentialDraft,
+): ConsoleUserCredentialIssueInput {
+  const projectId = draft.projectId.trim();
+  const parsedDays = Number.parseInt(draft.durationDays.trim(), 10);
+  return {
+    userId: draft.userId.trim(),
+    projectId: projectId.length > 0 ? projectId : null,
+    credentialType: draft.credentialType.trim(),
+    durationDays: Number.isFinite(parsedDays) && parsedDays > 0 ? parsedDays : 30,
+    scope: parseScopeList(draft.scope),
+  };
+}
+
+export type AccessKeysWorkspaceProps = {
+  t: TranslateFn;
+  notice?: ReactNode;
+  /** Blocks every mutation while a management-token refresh is in flight. */
+  editorLocked: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
+  catalog: AccessPanelState<ConsoleAccessCatalog>;
+  /** Held from the last create/rotate/issue call; cleared by the operator. */
+  revealedSecret: AccessRevealedSecret | null;
+  onDismissSecret: () => void;
+  keyDraft: AccessKeyDraft;
+  onKeyDraftChange: (next: AccessKeyDraft) => void;
+  onCreateKey: () => void;
+  creatingKey: boolean;
+  keyBusyId: string | null;
+  onRotateKey: (accessKeyId: string) => void;
+  onRevokeKey: (accessKeyId: string) => void;
+  bundleDraft: AccessBundleDraft;
+  onBundleDraftChange: (next: AccessBundleDraft) => void;
+  onCreateBundle: () => void;
+  creatingBundle: boolean;
+  affinityDraft: AccessAffinityDraft;
+  onAffinityDraftChange: (next: AccessAffinityDraft) => void;
+  onInspectAffinity: () => void;
+  onResetAffinity: () => void;
+  affinity: AccessPanelState<ConsoleAccessStickyAffinity | null>;
+  /** Set after a reset so the operator knows the key was actually cleared. */
+  affinityNotice: string | null;
+  rotationDraft: ApiAccessRotationDraft;
+  onRotationDraftChange: (next: ApiAccessRotationDraft) => void;
+  onRotateApiAccess: () => void;
+  rotatingApiAccess: boolean;
+  lastRotation: ConsoleApiAccessRotation | null;
+  credentialDraft: UserCredentialDraft;
+  onCredentialDraftChange: (next: UserCredentialDraft) => void;
+  onIssueCredential: () => void;
+  issuingCredential: boolean;
+  lastIssuedCredential: ConsoleIssuedUserCredential | null;
+  verifyDraft: UserCredentialVerifyDraft;
+  onVerifyDraftChange: (next: UserCredentialVerifyDraft) => void;
+  onVerifyCredential: () => void;
+  onRevokeCredential: () => void;
+  credentialBusy: boolean;
+  verification: AccessPanelState<{
+    valid: boolean;
+    credential: ConsoleUserCredentialCacheEntry | null;
+    reason: string;
+  }>;
+  /** Set after a revoke so the operator gets confirmation without a refetch. */
+  credentialNotice: string | null;
+};
+
+const PLACEHOLDER = "—";
+
+function formatCount(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return PLACEHOLDER;
+  }
+  return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatTimestamp(value: string | null | undefined): string {
+  if (!value) {
+    return PLACEHOLDER;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString();
+}
+
+function formatText(value: string | null | undefined): string {
+  return value && value.trim().length > 0 ? value : PLACEHOLDER;
+}
+
+function statusBadgeClass(status: string | null | undefined): string {
+  const normalized = (status ?? "").toLowerCase();
+  if (normalized === "active" || normalized === "enabled") {
+    return "nt-badge nt-badge--success";
+  }
+  if (normalized === "revoked" || normalized === "disabled" || normalized === "expired") {
+    return "nt-badge nt-badge--danger";
+  }
+  if (normalized === "pending" || normalized === "suspended") {
+    return "nt-badge nt-badge--warning";
+  }
+  return "nt-badge";
+}
+
+type StatTone = "default" | "emerald" | "danger" | "blue";
+
+function StatCard({
+  label,
+  value,
+  hint,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: StatTone;
+}) {
+  const toneClass = tone === "default" ? "" : ` nt-pilot-stat-card--${tone}`;
+  return (
+    <article className={`nt-pilot-stat-card${toneClass}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {hint ? <small>{hint}</small> : null}
+    </article>
+  );
+}
+
+function Section({
+  id,
+  title,
+  icon,
+  open,
+  onToggle,
+  children,
+}: {
+  id: AccessSectionId;
+  title: string;
+  icon: ReactNode;
+  open: boolean;
+  onToggle: (id: AccessSectionId) => void;
+  children: ReactNode;
+}) {
+  const bodyId = `nt-access-section-${id}`;
+  return (
+    <section
+      className={`nt-settings-section${open ? " nt-settings-section--open" : ""}`}
+      data-section={id}
+    >
+      <h2 className="nt-settings-section__heading">
+        <button
+          aria-controls={bodyId}
+          aria-expanded={open}
+          className="nt-settings-section__trigger"
+          onClick={() => onToggle(id)}
+          type="button"
+        >
+          <span className="nt-settings-section__icon" aria-hidden="true">
+            {icon}
+          </span>
+          <span>{title}</span>
+          <span className="nt-settings-section__chevron" aria-hidden="true">
+            <ChevronDown size={18} />
+          </span>
+        </button>
+      </h2>
+      {open ? (
+        <div className="nt-settings-section__body" id={bodyId}>
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * The one-shot secret banner. `token` and `credentialKey` are answered a single
+ * time by the gateway, so the value lives in state until dismissed — there is no
+ * endpoint that can hand it back.
+ */
+function SecretBanner({
+  t,
+  secret,
+  onDismiss,
+}: {
+  t: TranslateFn;
+  secret: AccessRevealedSecret;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="nt-alert nt-alert--success" role="status">
+      <div className="nt-ops-secret">
+        <strong>{secret.label}</strong>
+        <code className="nt-ops-secret__value">{secret.secret}</code>
+        <p className="nt-pilot-stats-note">
+          {secret.hint ??
+            t(
+              "该明文只会返回一次，请立即保存；关闭后无法再次查看。",
+              "This plaintext is returned only once. Save it now; it cannot be shown again.",
+            )}
+        </p>
+      </div>
+      <button className="nt-btn nt-btn--secondary" onClick={onDismiss} type="button">
+        {t("我已保存", "I saved it")}
+      </button>
+    </div>
+  );
+}
+
+export function AccessKeysWorkspace({
+  t,
+  notice,
+  editorLocked,
+  refreshing,
+  onRefresh,
+  catalog,
+  revealedSecret,
+  onDismissSecret,
+  keyDraft,
+  onKeyDraftChange,
+  onCreateKey,
+  creatingKey,
+  keyBusyId,
+  onRotateKey,
+  onRevokeKey,
+  bundleDraft,
+  onBundleDraftChange,
+  onCreateBundle,
+  creatingBundle,
+  affinityDraft,
+  onAffinityDraftChange,
+  onInspectAffinity,
+  onResetAffinity,
+  affinity,
+  affinityNotice,
+  rotationDraft,
+  onRotationDraftChange,
+  onRotateApiAccess,
+  rotatingApiAccess,
+  lastRotation,
+  credentialDraft,
+  onCredentialDraftChange,
+  onIssueCredential,
+  issuingCredential,
+  lastIssuedCredential,
+  verifyDraft,
+  onVerifyDraftChange,
+  onVerifyCredential,
+  onRevokeCredential,
+  credentialBusy,
+  verification,
+  credentialNotice,
+}: AccessKeysWorkspaceProps) {
+  const [openSections, setOpenSections] = useState<AccessSectionId[]>(["keys"]);
+  const toggleSection = (id: AccessSectionId) => {
+    setOpenSections((current) =>
+      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+    );
+  };
+
+  const patchKey = (patch: Partial<AccessKeyDraft>) =>
+    onKeyDraftChange({ ...keyDraft, ...patch });
+  const patchBundle = (patch: Partial<AccessBundleDraft>) =>
+    onBundleDraftChange({ ...bundleDraft, ...patch });
+  const patchAffinity = (patch: Partial<AccessAffinityDraft>) =>
+    onAffinityDraftChange({ ...affinityDraft, ...patch });
+  const patchRotation = (patch: Partial<ApiAccessRotationDraft>) =>
+    onRotationDraftChange({ ...rotationDraft, ...patch });
+  const patchCredential = (patch: Partial<UserCredentialDraft>) =>
+    onCredentialDraftChange({ ...credentialDraft, ...patch });
+  const patchVerify = (patch: Partial<UserCredentialVerifyDraft>) =>
+    onVerifyDraftChange({ ...verifyDraft, ...patch });
+
+  const bundles: ConsoleAccessBundle[] = catalog.data?.bundles ?? [];
+
+  /** Live keys first, then revoked ones, each block newest-first. */
+  const sortedKeys = useMemo<ConsoleAccessKey[]>(() => {
+    const rows = catalog.data?.accessKeys ?? [];
+    const weight = (key: ConsoleAccessKey) => (key.revokedAt ? 1 : 0);
+    return [...rows].sort((left, right) => {
+      const byState = weight(left) - weight(right);
+      return byState !== 0 ? byState : right.createdAt.localeCompare(left.createdAt);
+    });
+  }, [catalog.data]);
+
+  /** `bundleIds` on the create form is a checkbox set over the catalog bundles. */
+  const toggleDraftBundle = (bundleId: string) => {
+    const selected = keyDraft.bundleIds.includes(bundleId);
+    patchKey({
+      bundleIds: selected
+        ? keyDraft.bundleIds.filter((entry) => entry !== bundleId)
+        : [...keyDraft.bundleIds, bundleId],
+    });
+  };
+
+  const bundleNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const bundle of bundles) {
+      map.set(bundle.id, bundle.displayName || bundle.slug);
+    }
+    return map;
+  }, [bundles]);
+
+  /** Bundle bindings per key, so a row can show what the key can reach. */
+  const bundlesByKey = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const binding of catalog.data?.keyBundleBindings ?? []) {
+      const label = bundleNameById.get(binding.bundleId) ?? binding.bundleId;
+      const existing = map.get(binding.accessKeyId);
+      if (existing) {
+        existing.push(label);
+      } else {
+        map.set(binding.accessKeyId, [label]);
+      }
+    }
+    return map;
+  }, [bundleNameById, catalog.data]);
+
+  const itemCountByBundle = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of catalog.data?.bundleItems ?? []) {
+      map.set(item.bundleId, (map.get(item.bundleId) ?? 0) + 1);
+    }
+    return map;
+  }, [catalog.data]);
+
+  const activeKeyCount = sortedKeys.filter((key) => !key.revokedAt).length;
+  const catalogEmpty = catalog.data === null;
+  const keyFormIncomplete =
+    keyDraft.ownerId.trim().length === 0 ||
+    keyDraft.resolvedProjectId.trim().length === 0 ||
+    keyDraft.resolvedTenantId.trim().length === 0 ||
+    keyDraft.displayName.trim().length === 0;
+  const bundleFormIncomplete =
+    bundleDraft.slug.trim().length === 0 || bundleDraft.displayName.trim().length === 0;
+  const affinityFormIncomplete =
+    affinityDraft.accessKeyId.trim().length === 0 || affinityDraft.model.trim().length === 0;
+
+  return (
+    <div className="nt-settings-page nt-ops-page">
+      {notice}
+      <div className="nt-ops-toolbar">
+        <p className="nt-copy">
+          {t(
+            "运营侧签发与吊销；终端用户自助流程仍在 Platform。明文令牌只返回一次。",
+            "Operator-side issuing and revocation; end-user self-service stays in Platform. Plaintext tokens are returned only once.",
+          )}
+        </p>
+        <button
+          className="nt-btn nt-btn--outline"
+          disabled={refreshing}
+          onClick={onRefresh}
+          type="button"
+        >
+          <RefreshCw size={15} aria-hidden="true" />
+          <span>{refreshing ? t("刷新中…", "Refreshing…") : t("刷新", "Refresh")}</span>
+        </button>
+      </div>
+
+      {revealedSecret ? (
+        <SecretBanner onDismiss={onDismissSecret} secret={revealedSecret} t={t} />
+      ) : null}
+
+      <div className="nt-settings-accordion">
+        <Section
+          icon={<KeyRound size={17} />}
+          id="keys"
+          onToggle={toggleSection}
+          open={openSections.includes("keys")}
+          title={t("访问密钥", "Access keys")}
+        >
+          {catalog.error ? (
+            <div className="nt-alert nt-alert--warning" role="status">
+              {catalog.error}
+            </div>
+          ) : null}
+
+          <div className="nt-pilot-stats-overview-grid">
+            <StatCard
+              label={t("生效密钥", "Active keys")}
+              tone="emerald"
+              value={catalogEmpty ? PLACEHOLDER : formatCount(activeKeyCount)}
+            />
+            <StatCard
+              label={t("已吊销", "Revoked")}
+              tone="danger"
+              value={
+                catalogEmpty ? PLACEHOLDER : formatCount(sortedKeys.length - activeKeyCount)
+              }
+            />
+            <StatCard
+              label={t("权益包", "Bundles")}
+              tone="blue"
+              value={catalogEmpty ? PLACEHOLDER : formatCount(bundles.length)}
+            />
+            <StatCard
+              label={t("平台售卖行", "Platform access rows")}
+              value={
+                catalogEmpty ? PLACEHOLDER : formatCount(catalog.data?.platformAccessRows.length)
+              }
+            />
+          </div>
+
+          <article className="nt-pilot-metric-card">
+            <h3>{t("签发新密钥", "Issue a key")}</h3>
+            <div className="nt-ops-filter-grid">
+              <label className="nt-field">
+                <span>{t("归属类型", "Owner type")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchKey({ ownerType: event.target.value })}
+                  placeholder="user / tenant"
+                  value={keyDraft.ownerType}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("归属 ID", "Owner id")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchKey({ ownerId: event.target.value })}
+                  value={keyDraft.ownerId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("项目 ID", "Project id")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchKey({ resolvedProjectId: event.target.value })}
+                  value={keyDraft.resolvedProjectId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("租户 ID", "Tenant id")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchKey({ resolvedTenantId: event.target.value })}
+                  value={keyDraft.resolvedTenantId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("密钥类型", "Key kind")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchKey({ keyKind: event.target.value })}
+                  placeholder="user / aggregate"
+                  value={keyDraft.keyKind}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("前缀", "Public prefix")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchKey({ publicKeyPrefix: event.target.value })}
+                  value={keyDraft.publicKeyPrefix}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("显示名", "Display name")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchKey({ displayName: event.target.value })}
+                  value={keyDraft.displayName}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("过期时间", "Expires at")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchKey({ expiresAt: event.target.value })}
+                  placeholder="2026-12-31T00:00:00Z"
+                  value={keyDraft.expiresAt}
+                />
+              </label>
+            </div>
+
+            {bundles.length > 0 ? (
+              <fieldset className="nt-field nt-field--wide">
+                <span>{t("绑定权益包", "Bind bundles")}</span>
+                <div className="nt-ops-chip-row">
+                  {bundles.map((bundle) => {
+                    const selected = keyDraft.bundleIds.includes(bundle.id);
+                    return (
+                      <button
+                        aria-pressed={selected}
+                        className={`nt-btn ${selected ? "nt-btn--primary" : "nt-btn--secondary"}`}
+                        disabled={editorLocked}
+                        key={bundle.id}
+                        onClick={() => toggleDraftBundle(bundle.id)}
+                        type="button"
+                      >
+                        {bundle.displayName || bundle.slug}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ) : null}
+
+            <div className="nt-ops-filter-actions">
+              <button
+                className="nt-btn nt-btn--primary"
+                disabled={editorLocked || creatingKey || keyFormIncomplete}
+                onClick={onCreateKey}
+                type="button"
+              >
+                {creatingKey ? t("签发中…", "Issuing…") : t("签发密钥", "Issue key")}
+              </button>
+              <button
+                className="nt-btn nt-btn--secondary"
+                disabled={editorLocked}
+                onClick={() => onKeyDraftChange({ ...ACCESS_DEFAULT_KEY_DRAFT })}
+                type="button"
+              >
+                {t("重置", "Reset")}
+              </button>
+            </div>
+          </article>
+
+          <article className="nt-pilot-metric-card">
+            <h3>{t("密钥台账", "Key ledger")}</h3>
+            {catalog.loading && catalogEmpty ? (
+              <div className="nt-pilot-stats-state" role="status">
+                {t("正在读取…", "Loading…")}
+              </div>
+            ) : sortedKeys.length === 0 ? (
+              <div className="nt-pilot-stats-state" role="status">
+                {t("暂无访问密钥", "No access keys yet")}
+              </div>
+            ) : (
+              <div className="nt-table nt-table--access-keys">
+                <div className="nt-table__head">
+                  <span>{t("名称", "Name")}</span>
+                  <span>{t("状态", "Status")}</span>
+                  <span>{t("权益包", "Bundles")}</span>
+                  <span>{t("最近使用", "Last used")}</span>
+                  <span>{t("操作", "Actions")}</span>
+                </div>
+                {sortedKeys.map((key) => {
+                  const busy = keyBusyId === key.id;
+                  const revoked = Boolean(key.revokedAt);
+                  const boundBundles = bundlesByKey.get(key.id) ?? [];
+                  return (
+                    <div className="nt-table__row" key={key.id}>
+                      <span title={key.id}>
+                        {formatText(key.displayName)}
+                        <small className="nt-ops-subtext">{key.publicKeyPrefix}</small>
+                      </span>
+                      <span>
+                        <span className={statusBadgeClass(revoked ? "revoked" : key.status)}>
+                          {revoked ? t("已吊销", "Revoked") : formatText(key.status)}
+                        </span>
+                      </span>
+                      <span title={boundBundles.join(", ")}>
+                        {boundBundles.length > 0 ? boundBundles.join(", ") : PLACEHOLDER}
+                      </span>
+                      <span>{formatTimestamp(key.lastUsedAt)}</span>
+                      <span className="nt-ops-row-actions">
+                        <button
+                          className="nt-btn nt-btn--secondary"
+                          disabled={editorLocked || busy || revoked}
+                          onClick={() => onRotateKey(key.id)}
+                          type="button"
+                        >
+                          {t("轮换", "Rotate")}
+                        </button>
+                        <button
+                          className="nt-btn nt-btn--outline"
+                          disabled={editorLocked || busy || revoked}
+                          onClick={() => onRevokeKey(key.id)}
+                          type="button"
+                        >
+                          {t("吊销", "Revoke")}
+                        </button>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </article>
+        </Section>
+
+        <Section
+          icon={<Layers size={17} />}
+          id="bundles"
+          onToggle={toggleSection}
+          open={openSections.includes("bundles")}
+          title={t("权益包", "Bundles")}
+        >
+          <article className="nt-pilot-metric-card">
+            <h3>{t("新建权益包", "Create a bundle")}</h3>
+            <div className="nt-ops-filter-grid">
+              <label className="nt-field">
+                <span>{t("Slug", "Slug")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchBundle({ slug: event.target.value })}
+                  value={bundleDraft.slug}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("显示名", "Display name")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchBundle({ displayName: event.target.value })}
+                  value={bundleDraft.displayName}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("项目 ID", "Project id")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchBundle({ projectId: event.target.value })}
+                  placeholder={t("留空表示全局", "Blank means global")}
+                  value={bundleDraft.projectId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("计费模式", "Billing mode")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchBundle({ billingMode: event.target.value })}
+                  placeholder="metered / prepaid"
+                  value={bundleDraft.billingMode}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("状态", "Status")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchBundle({ status: event.target.value })}
+                  placeholder="active / disabled"
+                  value={bundleDraft.status}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("描述", "Description")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchBundle({ description: event.target.value })}
+                  value={bundleDraft.description}
+                />
+              </label>
+            </div>
+            <div className="nt-ops-filter-actions">
+              <button
+                className="nt-btn nt-btn--primary"
+                disabled={editorLocked || creatingBundle || bundleFormIncomplete}
+                onClick={onCreateBundle}
+                type="button"
+              >
+                {creatingBundle ? t("创建中…", "Creating…") : t("创建", "Create")}
+              </button>
+              <button
+                className="nt-btn nt-btn--secondary"
+                disabled={editorLocked}
+                onClick={() => onBundleDraftChange({ ...ACCESS_DEFAULT_BUNDLE_DRAFT })}
+                type="button"
+              >
+                {t("重置", "Reset")}
+              </button>
+            </div>
+          </article>
+
+          <article className="nt-pilot-metric-card">
+            <h3>{t("权益包台账", "Bundle ledger")}</h3>
+            {catalog.loading && catalogEmpty ? (
+              <div className="nt-pilot-stats-state" role="status">
+                {t("正在读取…", "Loading…")}
+              </div>
+            ) : bundles.length === 0 ? (
+              <div className="nt-pilot-stats-state" role="status">
+                {t("暂无权益包", "No bundles yet")}
+              </div>
+            ) : (
+              <div className="nt-table nt-table--bundles">
+                <div className="nt-table__head">
+                  <span>{t("名称", "Name")}</span>
+                  <span>{t("状态", "Status")}</span>
+                  <span>{t("计费", "Billing")}</span>
+                  <span>{t("售卖行", "Access rows")}</span>
+                </div>
+                {bundles.map((bundle) => (
+                  <div className="nt-table__row" key={bundle.id}>
+                    <span title={bundle.id}>
+                      {formatText(bundle.displayName)}
+                      <small className="nt-ops-subtext">{bundle.slug}</small>
+                    </span>
+                    <span>
+                      <span className={statusBadgeClass(bundle.status)}>
+                        {formatText(bundle.status)}
+                      </span>
+                    </span>
+                    <span>{formatText(bundle.billingMode)}</span>
+                    <span>{formatCount(itemCountByBundle.get(bundle.id) ?? 0)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+        </Section>
+
+        <Section
+          icon={<Link2 size={17} />}
+          id="affinity"
+          onToggle={toggleSection}
+          open={openSections.includes("affinity")}
+          title={t("会话粘性与项目密钥", "Affinity and project keys")}
+        >
+          <article className="nt-pilot-metric-card">
+            <h3>{t("会话粘性", "Sticky affinity")}</h3>
+            <p className="nt-pilot-stats-note">
+              {t(
+                "粘性记录只存放在 Redis，因此未配置 PostgreSQL 时依然可用。",
+                "Affinity lives in Redis only, so it stays usable without PostgreSQL.",
+              )}
+            </p>
+            <div className="nt-ops-filter-grid">
+              <label className="nt-field">
+                <span>{t("访问密钥 ID", "Access key id")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchAffinity({ accessKeyId: event.target.value })}
+                  value={affinityDraft.accessKeyId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("模型", "Model")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchAffinity({ model: event.target.value })}
+                  value={affinityDraft.model}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("会话键", "Session key")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchAffinity({ explicitSessionKey: event.target.value })}
+                  placeholder={t("可选", "Optional")}
+                  value={affinityDraft.explicitSessionKey}
+                />
+              </label>
+            </div>
+            <div className="nt-ops-filter-actions">
+              <button
+                className="nt-btn nt-btn--primary"
+                disabled={editorLocked || affinity.loading || affinityFormIncomplete}
+                onClick={onInspectAffinity}
+                type="button"
+              >
+                {affinity.loading ? t("查询中…", "Querying…") : t("查询粘性", "Inspect")}
+              </button>
+              <button
+                className="nt-btn nt-btn--outline"
+                disabled={editorLocked || affinity.loading || affinityFormIncomplete}
+                onClick={onResetAffinity}
+                type="button"
+              >
+                {t("清除粘性", "Reset")}
+              </button>
+            </div>
+            {affinity.error ? (
+              <div className="nt-alert nt-alert--warning" role="status">
+                {affinity.error}
+              </div>
+            ) : null}
+            {affinityNotice ? (
+              <div className="nt-alert nt-alert--success" role="status">
+                {affinityNotice}
+              </div>
+            ) : null}
+            {affinity.data ? (
+              <dl className="nt-pilot-metric-list">
+                <div>
+                  <dt>{t("作用域", "Scope")}</dt>
+                  <dd>{formatText(affinity.data.scope)}</dd>
+                </div>
+                <div>
+                  <dt>{t("平台售卖行", "Platform access")}</dt>
+                  <dd>{formatText(affinity.data.platformAccessId)}</dd>
+                </div>
+                <div>
+                  <dt>{t("服务商账号", "Provider account")}</dt>
+                  <dd>{formatText(affinity.data.providerAccountId)}</dd>
+                </div>
+                <div>
+                  <dt>{t("来源密钥", "Source key")}</dt>
+                  <dd>{formatText(affinity.data.sourceAccessKeyId)}</dd>
+                </div>
+                <div>
+                  <dt>{t("过期时间", "Expires at")}</dt>
+                  <dd>{formatTimestamp(affinity.data.expiresAt)}</dd>
+                </div>
+              </dl>
+            ) : (
+              <div className="nt-pilot-stats-state" role="status">
+                {t("尚无粘性记录", "No affinity recorded")}
+              </div>
+            )}
+          </article>
+
+          <article className="nt-pilot-metric-card">
+            <h3>{t("轮换项目 API 密钥", "Rotate project API key")}</h3>
+            <div className="nt-ops-filter-grid">
+              <label className="nt-field">
+                <span>{t("项目 ID", "Project id")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchRotation({ projectId: event.target.value })}
+                  value={rotationDraft.projectId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("密钥名称", "Key name")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchRotation({ name: event.target.value })}
+                  placeholder={t("可选", "Optional")}
+                  value={rotationDraft.name}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("操作人 ID", "Actor user id")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchRotation({ actorUserId: event.target.value })}
+                  placeholder={t("可选", "Optional")}
+                  value={rotationDraft.actorUserId}
+                />
+              </label>
+            </div>
+            <div className="nt-ops-filter-actions">
+              <button
+                className="nt-btn nt-btn--primary"
+                disabled={
+                  editorLocked || rotatingApiAccess || rotationDraft.projectId.trim().length === 0
+                }
+                onClick={onRotateApiAccess}
+                type="button"
+              >
+                {rotatingApiAccess ? t("轮换中…", "Rotating…") : t("轮换", "Rotate")}
+              </button>
+            </div>
+            {lastRotation ? (
+              <dl className="nt-pilot-metric-list">
+                <div>
+                  <dt>{t("项目", "Project")}</dt>
+                  <dd>{formatText(lastRotation.projectId)}</dd>
+                </div>
+                <div>
+                  <dt>{t("租户", "Tenant")}</dt>
+                  <dd>{formatText(lastRotation.tenantId)}</dd>
+                </div>
+              </dl>
+            ) : null}
+          </article>
+        </Section>
+
+        <Section
+          icon={<UserRoundCheck size={17} />}
+          id="credentials"
+          onToggle={toggleSection}
+          open={openSections.includes("credentials")}
+          title={t("用户凭据", "User credentials")}
+        >
+          <article className="nt-pilot-metric-card">
+            <h3>{t("签发凭据", "Issue a credential")}</h3>
+            <div className="nt-ops-filter-grid">
+              <label className="nt-field">
+                <span>{t("用户 ID", "User id")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchCredential({ userId: event.target.value })}
+                  value={credentialDraft.userId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("项目 ID", "Project id")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchCredential({ projectId: event.target.value })}
+                  placeholder={t("可选", "Optional")}
+                  value={credentialDraft.projectId}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("凭据类型", "Credential type")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchCredential({ credentialType: event.target.value })}
+                  value={credentialDraft.credentialType}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("有效天数", "Duration (days)")}</span>
+                <input
+                  className="nt-input"
+                  inputMode="numeric"
+                  onChange={(event) => patchCredential({ durationDays: event.target.value })}
+                  value={credentialDraft.durationDays}
+                />
+              </label>
+              <label className="nt-field nt-field--wide">
+                <span>{t("授权范围", "Scopes")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchCredential({ scope: event.target.value })}
+                  placeholder="chat.completions, responses"
+                  value={credentialDraft.scope}
+                />
+              </label>
+            </div>
+            <div className="nt-ops-filter-actions">
+              <button
+                className="nt-btn nt-btn--primary"
+                disabled={
+                  editorLocked || issuingCredential || credentialDraft.userId.trim().length === 0
+                }
+                onClick={onIssueCredential}
+                type="button"
+              >
+                {issuingCredential ? t("签发中…", "Issuing…") : t("签发", "Issue")}
+              </button>
+              <button
+                className="nt-btn nt-btn--secondary"
+                disabled={editorLocked}
+                onClick={() => onCredentialDraftChange({ ...ACCESS_DEFAULT_CREDENTIAL_DRAFT })}
+                type="button"
+              >
+                {t("重置", "Reset")}
+              </button>
+            </div>
+            {lastIssuedCredential ? (
+              <dl className="nt-pilot-metric-list">
+                <div>
+                  <dt>{t("凭据 ID", "Credential id")}</dt>
+                  <dd>{formatText(lastIssuedCredential.id)}</dd>
+                </div>
+                <div>
+                  <dt>{t("用户", "User")}</dt>
+                  <dd>{formatText(lastIssuedCredential.userId)}</dd>
+                </div>
+                <div>
+                  <dt>{t("过期时间", "Expires at")}</dt>
+                  <dd>{formatTimestamp(lastIssuedCredential.expiresAt)}</dd>
+                </div>
+                <div>
+                  <dt>{t("范围", "Scopes")}</dt>
+                  <dd>
+                    {lastIssuedCredential.scope.length > 0
+                      ? lastIssuedCredential.scope.join(", ")
+                      : PLACEHOLDER}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+          </article>
+
+          <article className="nt-pilot-metric-card">
+            <h3>{t("校验与吊销", "Verify and revoke")}</h3>
+            <div className="nt-ops-filter-grid">
+              <label className="nt-field nt-field--wide">
+                <span>{t("凭据明文", "Credential key")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchVerify({ credentialKey: event.target.value })}
+                  value={verifyDraft.credentialKey}
+                />
+              </label>
+              <label className="nt-field">
+                <span>{t("校验范围", "Scope to check")}</span>
+                <input
+                  className="nt-input"
+                  onChange={(event) => patchVerify({ scope: event.target.value })}
+                  placeholder={t("可选，单个范围", "Optional, single scope")}
+                  value={verifyDraft.scope}
+                />
+              </label>
+            </div>
+            <div className="nt-ops-filter-actions">
+              <button
+                className="nt-btn nt-btn--primary"
+                disabled={
+                  editorLocked || credentialBusy || verifyDraft.credentialKey.trim().length === 0
+                }
+                onClick={onVerifyCredential}
+                type="button"
+              >
+                {credentialBusy ? t("处理中…", "Working…") : t("校验", "Verify")}
+              </button>
+              <button
+                className="nt-btn nt-btn--outline"
+                disabled={
+                  editorLocked || credentialBusy || verifyDraft.credentialKey.trim().length === 0
+                }
+                onClick={onRevokeCredential}
+                type="button"
+              >
+                {t("吊销", "Revoke")}
+              </button>
+            </div>
+            {verification.error ? (
+              <div className="nt-alert nt-alert--warning" role="status">
+                {verification.error}
+              </div>
+            ) : null}
+            {credentialNotice ? (
+              <div className="nt-alert nt-alert--success" role="status">
+                {credentialNotice}
+              </div>
+            ) : null}
+            {verification.data ? (
+              <>
+                <div className="nt-ops-chip-row">
+                  <span
+                    className={
+                      verification.data.valid
+                        ? "nt-badge nt-badge--success"
+                        : "nt-badge nt-badge--danger"
+                    }
+                  >
+                    <ShieldCheck size={13} aria-hidden="true" />
+                    {verification.data.valid ? t("有效", "Valid") : t("无效", "Invalid")}
+                  </span>
+                  <span className="nt-chip nt-chip--muted">
+                    {formatText(verification.data.reason)}
+                  </span>
+                </div>
+                {verification.data.credential ? (
+                  <dl className="nt-pilot-metric-list">
+                    <div>
+                      <dt>{t("用户", "User")}</dt>
+                      <dd>{formatText(verification.data.credential.userId)}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("项目", "Project")}</dt>
+                      <dd>{formatText(verification.data.credential.projectId)}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("状态", "Status")}</dt>
+                      <dd>
+                        <span className={statusBadgeClass(verification.data.credential.status)}>
+                          {formatText(verification.data.credential.status)}
+                        </span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{t("过期时间", "Expires at")}</dt>
+                      <dd>{formatTimestamp(verification.data.credential.expiresAt)}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("范围", "Scopes")}</dt>
+                      <dd>
+                        {verification.data.credential.scope.length > 0
+                          ? verification.data.credential.scope.join(", ")
+                          : PLACEHOLDER}
+                      </dd>
+                    </div>
+                  </dl>
+                ) : null}
+              </>
+            ) : null}
+          </article>
+        </Section>
+      </div>
+    </div>
+  );
+}

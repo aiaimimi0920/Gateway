@@ -1,0 +1,114 @@
+/* status badges styles; preserve position in styles.css. */
+.nt-chip,
+.nt-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid var(--nt-border-strong);
+  border-radius: var(--nt-radius-sm);
+  padding: 6px 10px;
+  background: var(--nt-signal-soft);
+  color: var(--nt-signal);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.nt-chip--online,
+.nt-badge--success {
+  border-color: color-mix(in srgb, var(--nt-success) 42%, var(--nt-border));
+  background: var(--nt-success-soft);
+  color: var(--nt-success);
+}
+
+.nt-badge--warning {
+  border-color: color-mix(in srgb, var(--nt-warning) 42%, var(--nt-border));
+  background: var(--nt-warning-soft);
+  color: var(--nt-warning);
+}
+
+.nt-badge--danger {
+  border-color: color-mix(in srgb, var(--nt-danger) 42%, var(--nt-border));
+  background: var(--nt-danger-soft);
+  color: var(--nt-danger);
+}
+
+.nt-badge--info {
+  border-color: color-mix(in srgb, var(--nt-info) 42%, var(--nt-border));
+  background: var(--nt-info-soft);
+  color: var(--nt-info);
+}
+
+.nt-badge--verification-verified {
+  color: var(--nt-success);
+  border-color: color-mix(in srgb, var(--nt-success) 48%, transparent);
+  background: var(--nt-success-soft);
+}
+
+.nt-badge--verification-failed,
+.nt-badge--verification-blocked {
+  color: var(--nt-warning);
+  border-color: color-mix(in srgb, var(--nt-warning) 48%, transparent);
+  background: var(--nt-warning-soft);
+}
+
+.nt-badge--verification-not-tested {
+  color: var(--nt-text-muted);
+  border-color: var(--nt-border);
+  background: var(--nt-slab-soft);
+}
+
+.nt-chip--muted {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(148, 163, 184, 0.12);
+  color: rgba(226, 232, 240, 0.82);
+}
+
+.nt-simple-list .nt-badge--success,
+.nt-simple-list .nt-badge--warning,
+.nt-simple-list .nt-badge--danger {
+  color: var(--nt-success);
+}
+
+.nt-simple-list .nt-badge--warning {
+  color: var(--nt-warning);
+}
+
+.nt-simple-list .nt-badge--danger {
+  color: var(--nt-danger);
+}
+
+.nt-probe-result {
+  display: grid;
+  gap: 3px;
+  max-width: min(32rem, 100%);
+  border-left: 2px solid color-mix(in srgb, var(--nt-info) 34%, transparent);
+  padding-left: 10px;
+  color: var(--nt-text-muted);
+  font-size: 0.78rem;
+}
+
+.nt-probe-result time {
+  color: color-mix(in srgb, var(--nt-text) 46%, transparent);
+  font-family: var(--nt-font-mono);
+  font-size: 0.7rem;
+}
+
+.nt-api-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.nt-api-context span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(125, 249, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(125, 249, 255, 0.07);
+  padding: 6px 10px;
+  color: color-mix(in srgb, var(--nt-text) 78%, transparent);
+  font-family: var(--nt-font-mono);
+  font-size: 0.72rem;
+}

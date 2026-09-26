@@ -1,0 +1,324 @@
+use super::*;
+
+#[test]
+fn payload_inference_distinguishes_aistudio_and_agent_platform_official() {
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "gemini_api_compatible",
+            "https://generativelanguage.googleapis.com/v1beta"
+        )),
+        Some(RefactoredImplementationLine::AIStudioOfficial)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "gemini_api_compatible",
+            "https://aiplatform.googleapis.com/v1/projects/demo/locations/us-central1/publishers/google"
+        )),
+        Some(RefactoredImplementationLine::GoogleAgentPlatformOfficial)
+    );
+}
+
+#[test]
+fn payload_inference_distinguishes_chatgpt_official_codex_and_web_reverse() {
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://api.openai.com/v1"
+        )),
+        Some(RefactoredImplementationLine::ChatGptOfficialApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://chatgpt.com/backend-api/codex"
+        )),
+        Some(RefactoredImplementationLine::ChatGptCodexOAuthOfficial)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "chatgpt_web_reverse_compatible",
+            "https://chatgpt.com/backend-api/conversation"
+        )),
+        Some(RefactoredImplementationLine::ChatGptWebReverse)
+    );
+}
+
+#[test]
+fn payload_inference_distinguishes_qwen_official_and_web_reverse() {
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        )),
+        Some(RefactoredImplementationLine::QwenOfficialApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://coding.dashscope.aliyuncs.com/v1"
+        )),
+        Some(RefactoredImplementationLine::QwenOfficialApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "anthropic_compatible",
+            "https://coding.dashscope.aliyuncs.com/apps/anthropic"
+        )),
+        Some(RefactoredImplementationLine::QwenOfficialApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload("qwen_web_compatible", "https://chat.qwen.ai")),
+        Some(RefactoredImplementationLine::QwenWebReverse)
+    );
+}
+
+#[test]
+fn payload_inference_distinguishes_wave4_openai_compatible_base_urls() {
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://api.groq.com/openai/v1"
+        )),
+        Some(RefactoredImplementationLine::GroqOpenAiOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://api.together.xyz/v1"
+        )),
+        Some(RefactoredImplementationLine::TogetherOpenAiAggregatorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://openrouter.ai/api/v1"
+        )),
+        Some(RefactoredImplementationLine::OpenRouterOpenAiAggregatorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://api.deepseek.com/v1"
+        )),
+        Some(RefactoredImplementationLine::DeepSeekOpenAiOfficialModelApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://api.mistral.ai/v1"
+        )),
+        Some(RefactoredImplementationLine::MistralOpenAiOfficialModelApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload("openai_compatible", "https://muyuan.do/v1")),
+        Some(RefactoredImplementationLine::MuyuanOpenAiAggregatorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload("openai_compatible", "https://api.poe.com")),
+        Some(RefactoredImplementationLine::PoeOpenAiAggregatorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://api.longcat.chat/openai"
+        )),
+        Some(RefactoredImplementationLine::LongCatOpenAiOfficialModelApi)
+    );
+}
+
+#[test]
+fn payload_inference_distinguishes_gemini_chat_and_canvas_program_lanes() {
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "gemini_canvas_compatible",
+            "https://gemini.google.com"
+        )),
+        Some(RefactoredImplementationLine::GeminiWebReverse)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "gemini_canvas_web_reverse_compatible",
+            "https://gemini.google.com"
+        )),
+        Some(RefactoredImplementationLine::GeminiWebReverse)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "gemini_canvas_program_web_reverse_compatible",
+            "https://gemini.google.com"
+        )),
+        Some(RefactoredImplementationLine::GeminiCanvasProgram)
+    );
+}
+
+#[test]
+fn payload_inference_distinguishes_remaining_unfinished_platform_lines() {
+    assert_eq!(
+        line_for_payload(&make_payload("openai_compatible", "https://api.x.ai/v1")),
+        Some(RefactoredImplementationLine::XaiOpenAiOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://api.perplexity.ai"
+        )),
+        Some(RefactoredImplementationLine::PerplexityChatOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "freebuff_compatible",
+            "https://www.codebuff.com"
+        )),
+        Some(RefactoredImplementationLine::FreeBuffWebReverseApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://spark-api-open.xf-yun.com/v1"
+        )),
+        Some(RefactoredImplementationLine::XfyunOpenAiOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "xfyun_websocket_compatible",
+            "wss://spark-api.xf-yun.com/v1.1/chat"
+        )),
+        Some(RefactoredImplementationLine::XfyunNativeWebSocketOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "producer_compatible",
+            "https://www.flowmusic.app"
+        )),
+        Some(RefactoredImplementationLine::ProducerWebReverseApi)
+    );
+}
+
+#[test]
+fn payload_inference_distinguishes_search_family_base_urls() {
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "search_api_compatible",
+            "https://api.perplexity.ai"
+        )),
+        Some(RefactoredImplementationLine::PerplexitySearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "search_api_compatible",
+            "https://api.tavily.com"
+        )),
+        Some(RefactoredImplementationLine::TavilySearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload("search_api_compatible", "https://api.exa.ai")),
+        Some(RefactoredImplementationLine::ExaSearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "search_api_compatible",
+            "https://s.jina.ai/search"
+        )),
+        Some(RefactoredImplementationLine::JinaSearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload("search_api_compatible", "https://r.jina.ai")),
+        Some(RefactoredImplementationLine::JinaReaderOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload("linkup_compatible", "https://api.linkup.so")),
+        Some(RefactoredImplementationLine::LinkupSearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "search_api_compatible",
+            "https://api.ydc-index.io"
+        )),
+        Some(RefactoredImplementationLine::YouSearchOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "search_api_compatible",
+            "https://api.websearchapi.com"
+        )),
+        Some(RefactoredImplementationLine::WebSearchApiSearchOfficialVendorApi)
+    );
+}
+
+#[test]
+fn payload_inference_distinguishes_azure_anthropic_bedrock_and_cohere() {
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://example.openai.azure.com/openai/v1"
+        )),
+        Some(RefactoredImplementationLine::AzureOpenAIOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "anthropic_compatible",
+            "https://api.anthropic.com"
+        )),
+        Some(RefactoredImplementationLine::AnthropicMessagesOfficialModelApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "bedrock_converse_compatible",
+            "https://bedrock-runtime.us-east-1.amazonaws.com"
+        )),
+        Some(RefactoredImplementationLine::AwsBedrockConverseOfficialModelApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload("cohere_compatible", "https://api.cohere.ai")),
+        Some(RefactoredImplementationLine::CohereChatOfficialModelApi)
+    );
+}
+
+#[test]
+fn payload_inference_distinguishes_nvidia_and_grok_lines() {
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "openai_compatible",
+            "https://integrate.api.nvidia.com/v1"
+        )),
+        Some(RefactoredImplementationLine::NvidiaOpenAiOfficialVendorApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload("grok_compatible", "https://grok.com")),
+        Some(RefactoredImplementationLine::GrokWebReverseApi)
+    );
+}
+
+#[test]
+fn adapter_and_payload_mapping_include_media_platform_lines() {
+    assert_eq!(
+        line_for_adapter("suno_compatible"),
+        Some(RefactoredImplementationLine::SunoWebReverseApi)
+    );
+    assert_eq!(
+        line_for_adapter("udio_compatible"),
+        Some(RefactoredImplementationLine::UdioWebReverseApi)
+    );
+    assert_eq!(
+        line_for_adapter("lumalabs_compatible"),
+        Some(RefactoredImplementationLine::LumaLabsWebReverseApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "suno_compatible",
+            "https://studio-api-prod.suno.com"
+        )),
+        Some(RefactoredImplementationLine::SunoWebReverseApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload("udio_compatible", "https://www.udio.com")),
+        Some(RefactoredImplementationLine::UdioWebReverseApi)
+    );
+    assert_eq!(
+        line_for_payload(&make_payload(
+            "lumalabs_compatible",
+            "https://app.lumalabs.ai"
+        )),
+        Some(RefactoredImplementationLine::LumaLabsWebReverseApi)
+    );
+}

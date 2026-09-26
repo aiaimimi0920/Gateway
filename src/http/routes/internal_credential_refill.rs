@@ -7,11 +7,11 @@ use serde_json::Value;
 
 use crate::credential_refill::{
     claim_credential_refill_task, complete_credential_refill_task,
-    create_user_requested_refill_task, fail_credential_refill_task, list_credential_refill_demands,
-    list_credential_refill_tasks, renew_credential_refill_task, stream_key,
-    ClaimCredentialRefillTaskInput, CompleteCredentialRefillTaskInput,
-    CreateCredentialRefillRequestInput, CredentialRefillTaskFilters, FailCredentialRefillTaskInput,
-    RenewCredentialRefillTaskInput,
+    create_user_requested_refill_task, demand_for_provider, fail_credential_refill_task,
+    list_credential_refill_demands, list_credential_refill_tasks, renew_credential_refill_task,
+    stream_key, ClaimCredentialRefillTaskInput, CompleteCredentialRefillTaskInput,
+    CreateCredentialRefillRequestInput, CredentialRefillDemandView, CredentialRefillTaskFilters,
+    CredentialRefillTaskView, FailCredentialRefillTaskInput, RenewCredentialRefillTaskInput,
 };
 use crate::error::GatewayError;
 use crate::http::extractors::OptionalBearerToken;
@@ -34,7 +34,43 @@ pub async fn get_credential_refill_status(
         },
     )
     .await?;
-    Ok(Json(serde_json::json!({
+    Ok(credential_refill_status_response(
+        state.as_ref(),
+        demands,
+        tasks,
+    ))
+}
+
+pub async fn get_credential_refill_status_for_provider(
+    State(state): State<Arc<AppState>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Path(provider_id): Path<String>,
+) -> Result<Json<Value>, GatewayError> {
+    assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
+    let demand = demand_for_provider(state.as_ref(), &provider_id).await?;
+    let tasks = list_credential_refill_tasks(
+        state.as_ref(),
+        CredentialRefillTaskFilters {
+            provider_id: Some(provider_id),
+            limit: Some(50),
+            ..CredentialRefillTaskFilters::default()
+        },
+    )
+    .await?;
+    Ok(credential_refill_status_response(
+        state.as_ref(),
+        vec![demand],
+        tasks,
+    ))
+}
+
+fn credential_refill_status_response(
+    state: &AppState,
+    demands: Vec<CredentialRefillDemandView>,
+    tasks: Vec<CredentialRefillTaskView>,
+) -> Json<Value> {
+    Json(serde_json::json!({
         "refill": {
             "enabled": state.credential_pool_automation.refill_queue_enabled(),
             "streamKey": stream_key(),
@@ -52,7 +88,7 @@ pub async fn get_credential_refill_status(
             "providers": demands,
             "recentTasks": tasks,
         }
-    })))
+    }))
 }
 
 pub async fn list_credential_refill_tasks_route(
@@ -88,6 +124,22 @@ pub async fn claim_credential_refill_task_route(
     Json(input): Json<ClaimCredentialRefillTaskInput>,
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
+    let result = claim_credential_refill_task(state.as_ref(), input).await?;
+    Ok(Json(serde_json::json!({
+        "task": result.task,
+        "claimToken": result.claim_token,
+    })))
+}
+
+pub async fn claim_credential_refill_task_for_provider_route(
+    State(state): State<Arc<AppState>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Path(provider_id): Path<String>,
+    Json(mut input): Json<ClaimCredentialRefillTaskInput>,
+) -> Result<Json<Value>, GatewayError> {
+    assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
+    input.provider_ids = vec![provider_id];
     let result = claim_credential_refill_task(state.as_ref(), input).await?;
     Ok(Json(serde_json::json!({
         "task": result.task,

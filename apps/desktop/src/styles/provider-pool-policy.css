@@ -1,0 +1,127 @@
+/* provider pool policy styles; preserve position in styles.css. */
+.nt-provider-card .nt-provider-subtab-policy {
+  justify-content: flex-start;
+  border-top: 1px solid var(--nt-border);
+  padding-top: 10px;
+}
+
+/* Card columns are far narrower than the old full-width provider row, so the
+   automation badges and buttons wrap instead of being squeezed per-character. */
+.nt-provider-card .nt-provider-subtab-policy__automation {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.nt-provider-card .nt-provider-subtab-policy__modes {
+  justify-content: flex-start;
+}
+
+.nt-provider-card .nt-provider-subtab-policy__automation .nt-badge,
+.nt-provider-card .nt-provider-subtab-policy__automation .nt-btn {
+  white-space: nowrap;
+}
+
+.nt-provider-detail {
+  display: grid;
+  gap: 12px;
+}
+
+.nt-provider-subtab--active {
+  border-left: 2px solid color-mix(in srgb, var(--nt-signal) 46%, transparent);
+  padding-left: 8px;
+}
+
+.nt-provider-subtab-policy {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.nt-provider-subtab-policy__field,
+.nt-provider-subtab-policy__switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--nt-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.nt-provider-subtab-policy__label {
+  color: color-mix(in srgb, var(--nt-text) 56%, transparent);
+  letter-spacing: 0;
+}
+
+.nt-provider-subtab-policy__capacity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding-bottom: 1px;
+  color: var(--nt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.nt-provider-subtab-policy__capacity-value {
+  color: var(--nt-text);
+  font-weight: 800;
+}
+
+.nt-provider-subtab-policy__input {
+  width: 60px;
+  min-height: 0;
+  padding: 0 0 1px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--nt-text) 14%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--nt-text);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.nt-provider-subtab-policy__input:focus {
+  border-bottom-color: color-mix(in srgb, var(--nt-signal) 58%, transparent);
+}
+
+.nt-provider-subtab-policy__input::-webkit-outer-spin-button,
+.nt-provider-subtab-policy__input::-webkit-inner-spin-button {
+  margin: 0;
+}
+
+.nt-provider-subtab-policy__automation {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nt-provider-subtab-policy__run-result {
+  overflow: hidden;
+  color: var(--nt-text-muted);
+  font-family: var(--nt-font-mono);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-provider-subtab-policy__modes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.nt-btn--compact {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+}

@@ -110,7 +110,7 @@ fn relay_config_reads_program_fields() {
     assert_eq!(config.bootstrap.share_id, "canvas-share-123");
     assert_eq!(
         config.bootstrap.runtime_state_object_key,
-        "credential-runtime/gemini-canvas/host-export"
+        "credential-runtime/gemini-canvas/host-export/storage-state.json"
     );
     assert_eq!(
         config.bootstrap.relay_ws_endpoint.as_deref(),

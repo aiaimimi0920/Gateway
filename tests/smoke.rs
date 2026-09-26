@@ -53,7 +53,8 @@ fn test_app_with_config(
         console: Default::default(),
         runtime_role: neuro_gateway::config::GatewayRuntimeRole::Standalone,
         port: 0,
-        redis_url: "redis://localhost:6379".to_string(),
+        redis_url: std::env::var("GATEWAY_SMOKE_TEST_REDIS_URL")
+            .unwrap_or_else(|_| "redis://localhost:6379".to_string()),
         database_url: None,
         upstream_timeout_secs: 30,
         max_request_body_bytes: chat_limit,

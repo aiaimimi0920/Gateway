@@ -1,8 +1,13 @@
-use rquest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::Value;
 
-use crate::error::{classify_upstream_error, FallbackHint, GatewayError};
-use crate::protocol::canonical::EndpointKind;
+use crate::error::{
+    classify_upstream_error, sanitize_provider_error_message, FallbackHint, GatewayError,
+};
+pub(crate) use crate::upstream::browser_executor_request_helpers::{
+    browser_execution_status_from_message, browser_executor_endpoint_kind_key,
+    build_browser_executor_header_map, missing_browser_executor_field_error, read_json_bool,
+    read_json_u64, unsupported_browser_executor_provider_error,
+};
 use crate::upstream::browser_worker_runtime_helpers::{
     gemini_canvas_browser_pool_script_path, lumalabs_browser_worker_script_path,
     producer_browser_worker_script_path, suno_browser_worker_script_path,
@@ -12,117 +17,6 @@ use crate::upstream::browser_worker_types::{
     BrowserExecutorInvocationError, BrowserExecutorInvocationResponse,
     BrowserExecutorServiceHealth, BrowserExecutorServiceInvocationResponse,
 };
-
-fn read_json_string(value: &Value, key: &str) -> Option<String> {
-    value
-        .get(key)?
-        .as_str()
-        .map(str::trim)
-        .filter(|entry| !entry.is_empty())
-        .map(str::to_string)
-}
-
-pub(crate) fn read_json_u64(value: &Value, key: &str) -> Option<u64> {
-    value.get(key)?.as_u64()
-}
-
-pub(crate) fn read_json_bool(value: &Value, key: &str) -> Option<bool> {
-    value.get(key)?.as_bool()
-}
-
-pub(crate) fn missing_browser_executor_field_error(
-    provider: &str,
-    field: &str,
-    code: &str,
-) -> GatewayError {
-    GatewayError::bad_request(format!("{provider} browser executor requires {field}."))
-        .with_code(code)
-}
-
-pub(crate) fn unsupported_browser_executor_provider_error(provider: &str) -> GatewayError {
-    GatewayError::bad_request(format!(
-        "Unsupported browser executor provider '{provider}'."
-    ))
-    .with_code("browser_executor_unsupported_provider")
-}
-
-pub(crate) fn browser_execution_status_from_message(message: &str) -> String {
-    let normalized = message.trim().to_ascii_lowercase();
-    if normalized.contains("challenge") || normalized.contains("cloudflare") {
-        return "challenge".to_string();
-    }
-    if normalized.contains("timeout") {
-        return "timed_out".to_string();
-    }
-    if normalized.contains("crash")
-        || normalized.contains("browser closed")
-        || normalized.contains("target closed")
-        || normalized.contains("execution context destroyed")
-    {
-        return "crashed".to_string();
-    }
-    "released".to_string()
-}
-
-pub(crate) fn build_browser_executor_header_map(input: &Value) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-
-    if let Some(cookie_header) = read_json_string(input, "cookieHeader") {
-        if let Ok(value) = HeaderValue::from_str(&cookie_header) {
-            headers.insert(rquest::header::COOKIE, value);
-        }
-    }
-    if let Some(auth_token) = read_json_string(input, "authToken") {
-        let bearer = format!("Bearer {auth_token}");
-        if let Ok(value) = HeaderValue::from_str(&bearer) {
-            headers.insert(rquest::header::AUTHORIZATION, value);
-        }
-    }
-
-    for (json_key, header_name) in [
-        ("userAgent", "user-agent"),
-        ("acceptLanguage", "accept-language"),
-        ("origin", "origin"),
-        ("referer", "referer"),
-        ("deviceId", "device-id"),
-        ("browserToken", "browser-token"),
-        ("referringPathname", "referring-pathname"),
-        ("referringOrigin", "referring-origin"),
-    ] {
-        if let Some(value) = read_json_string(input, json_key) {
-            if let (Ok(name), Ok(header_value)) = (
-                HeaderName::from_bytes(header_name.as_bytes()),
-                HeaderValue::from_str(&value),
-            ) {
-                headers.insert(name, header_value);
-            }
-        }
-    }
-
-    headers
-}
-
-pub(crate) fn browser_executor_endpoint_kind_key(endpoint_kind: EndpointKind) -> &'static str {
-    match endpoint_kind {
-        EndpointKind::ChatCompletions => "chat_completions",
-        EndpointKind::Completions => "completions",
-        EndpointKind::Embeddings => "embeddings",
-        EndpointKind::Messages => "messages",
-        EndpointKind::Responses => "responses",
-        EndpointKind::Search => "search",
-        EndpointKind::Fetch => "fetch",
-        EndpointKind::ImagesGenerations => "images_generations",
-        EndpointKind::ImagesEdits => "images_edits",
-        EndpointKind::MusicGenerations => "music_generations",
-        EndpointKind::VideosGenerations => "videos_generations",
-        EndpointKind::AudioTranscriptions => "audio_transcriptions",
-        EndpointKind::AudioSpeech => "audio_speech",
-        EndpointKind::ResearchCreate => "research_create",
-        EndpointKind::ResearchList => "research_list",
-        EndpointKind::ResearchGet => "research_get",
-        EndpointKind::CreditsBalance => "credits_balance",
-    }
-}
 
 pub(crate) fn build_browser_executor_runtime_health(
     remote_base_url: Option<String>,
@@ -185,7 +79,7 @@ pub(crate) fn classify_browser_executor_invocation_failure(
             gateway_error.code = Some(code);
         }
         if let Some(message) = error.message {
-            gateway_error.message = message;
+            gateway_error.message = sanitize_provider_error_message(&message);
         }
         if gateway_error.http_status.is_none() {
             gateway_error.http_status = Some(upstream_status);
@@ -262,6 +156,7 @@ pub(crate) fn build_browser_executor_service_invocation_success_response(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocol::canonical::EndpointKind;
     use crate::upstream::header_map_helpers::header_map_string;
     use serde_json::json;
 
@@ -494,6 +389,26 @@ mod tests {
         assert_eq!(error.code.as_deref(), Some("browser_executor_failed"));
         assert_eq!(error.message, "challenge required");
         assert_eq!(error.http_status, Some(422));
+    }
+
+    #[test]
+    fn classify_browser_executor_invocation_failure_sanitizes_executor_message() {
+        let body = json!({
+            "ok": false,
+            "error": {
+                "code": "browser_executor_failed",
+                "message": "Authorization: Bearer sk-browser-secret",
+                "status": 502
+            }
+        })
+        .to_string();
+        let result = parse_browser_executor_invocation_response_body(&body)
+            .expect("browser executor response");
+
+        let error = classify_browser_executor_invocation_failure(result, "producer");
+
+        assert!(error.message.contains("[REDACTED]"));
+        assert!(!error.message.contains("sk-browser-secret"));
     }
 
     #[test]

@@ -1,0 +1,120 @@
+/* provider tree styles; preserve position in styles.css. */
+.nt-provider-pilot {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.nt-provider-pilot__toggle {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) auto;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--nt-text) 5%, transparent);
+  border-radius: 0;
+  padding: 12px 10px;
+  background: transparent;
+  color: var(--nt-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.nt-provider-pilot__toggle strong {
+  font-size: 1rem;
+}
+
+.nt-provider-pilot__toggle-indicator {
+  color: var(--nt-signal);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.nt-provider-pilot__body,
+.nt-provider-subtabs,
+.nt-provider-subtab-panel {
+  display: grid;
+  gap: 2px;
+}
+
+.nt-provider-subtabs {
+  grid-template-columns: 1fr;
+}
+
+.nt-provider-subtab-stack {
+  display: grid;
+  gap: 2px;
+  padding-left: 8px;
+}
+
+.nt-provider-subtab-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.nt-provider-subtab {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--nt-text) 4.5%, transparent);
+  border-radius: 0;
+  padding: 10px 10px;
+  background: transparent;
+  color: var(--nt-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.nt-provider-subtab strong {
+  font-size: 0.94rem;
+}
+
+.nt-provider-tree-item {
+  min-width: 0;
+}
+
+.nt-provider-tree-item--level-1 {
+  padding-left: 16px;
+}
+
+.nt-provider-tree-item__main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nt-provider-tree-item__summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nt-provider-tree-item__metric {
+  color: var(--nt-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.nt-provider-subtab__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.nt-provider-subtab__indicator {
+  color: var(--nt-signal);
+  font-size: 1rem;
+  font-weight: 900;
+}

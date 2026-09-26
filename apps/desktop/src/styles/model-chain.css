@@ -1,0 +1,102 @@
+/* model chain styles; preserve position in styles.css. */
+/* Model pool card back: one band of ordered provider links. It borrows the
+   entitlement scope geometry wholesale so both card types measure the same, and
+   only adds what the ordering itself needs — a rank badge and the move buttons. */
+.nt-model-chain__order {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nt-info) 20%, var(--nt-color-control));
+  color: var(--nt-info);
+  font-family: var(--nt-font-mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+/* The first link is the one that actually takes the call, so it reads stronger
+   than the fallbacks below it. */
+.nt-model-chain__row[data-model-chain-rank="1"] .nt-model-chain__order {
+  background: var(--nt-info);
+  color: var(--nt-color-control);
+}
+
+.nt-model-chain__label {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--nt-text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.nt-model-chain__label strong {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  /* Provider names are brand names, not identifiers, so they stay in the body
+     face rather than inheriting the model row's monospace. */
+  font-family: inherit;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-model-chain__label[aria-pressed="true"] {
+  color: var(--nt-info);
+}
+
+.nt-model-chain__label:hover {
+  color: var(--nt-text);
+}
+
+/* Listed by the route but backed by no account: kept visible so a reorder never
+   silently drops the entry, dimmed so it does not read as dispatchable. */
+.nt-model-chain__row--detached {
+  border-style: dashed;
+}
+
+.nt-model-chain__detached {
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--nt-warning) 40%, var(--nt-border));
+  border-radius: 999px;
+  padding: 0 6px;
+  color: var(--nt-warning);
+  font-size: 0.6rem;
+  line-height: 15px;
+}
+
+.nt-model-chain__moves {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.nt-model-chain__moves .nt-icon-action {
+  width: 20px;
+  height: 20px;
+}
+
+/* The model card's third counter holds a provider name rather than a number, so
+   it takes the leftover width and clips with an ellipsis instead of squeezing
+   its own label onto two lines. */
+.nt-model-pool-card .nt-entitlement-group-card__metrics:not(.nt-entitlement-group-card__usage) {
+  grid-template-columns: auto auto minmax(0, 1fr);
+}
+
+.nt-model-pool-card
+  .nt-entitlement-group-card__metrics:not(.nt-entitlement-group-card__usage)
+  dt {
+  white-space: nowrap;
+}
+
+.nt-model-pool-card [data-model-pool-metric="primary"] {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

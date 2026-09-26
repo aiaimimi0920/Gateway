@@ -16,13 +16,15 @@ services:
       - GATEWAY_API_KEY_SECRET=${GATEWAY_API_KEY_SECRET:-}
       - GATEWAY_MANAGEMENT_TOKEN=${GATEWAY_MANAGEMENT_TOKEN:-}
       - GATEWAY_CONSOLE_REMOTE_ACCESS=${GATEWAY_CONSOLE_REMOTE_ACCESS:-false}
-      - GATEWAY_DATABASE_URL=${GATEWAY_DATABASE_URL:-}
+      - GATEWAY_DATABASE_URL=${GATEWAY_DATABASE_URL:-postgres://gateway:gateway@postgres:5432/gateway}
     ports:
       - "${GATEWAY_BIND_HOST:-0.0.0.0}:${GATEWAY_PORT:-4200}:4200"
     volumes:
       - gateway_data:/data
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test:
@@ -35,6 +37,34 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 20s
+    networks:
+      - gateway-network
+
+  # The gateway keeps its request audits, usage aggregates and per-credential
+  # model states in PostgreSQL. Without it the console's live concurrency, cost
+  # and success-rate panels answer 503 "PostgreSQL 尚未配置", so the stack ships
+  # its own database instead of expecting an external one.
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${GATEWAY_POSTGRES_USER:-gateway}
+      - POSTGRES_PASSWORD=${GATEWAY_POSTGRES_PASSWORD:-gateway}
+      - POSTGRES_DB=${GATEWAY_POSTGRES_DB:-gateway}
+    volumes:
+      - gateway_postgres_data:/var/lib/postgresql/data
+      # Applied once, when the data directory is first initialised.
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${GATEWAY_POSTGRES_USER:-gateway} -d ${GATEWAY_POSTGRES_DB:-gateway}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 20s
     networks:
       - gateway-network
@@ -66,6 +96,8 @@ services:
 
 volumes:
   gateway_data:
+    driver: local
+  gateway_postgres_data:
     driver: local
   redis_data:
     driver: local

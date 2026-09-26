@@ -1,0 +1,161 @@
+/* foundation styles; preserve position in styles.css. */
+:root {
+  color-scheme: dark;
+  font-family:
+    "Bahnschrift", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  /* Canonical palette: change these values to retheme the whole Gateway UI. */
+  --nt-color-signal-yellow: #d9ff38;
+  --nt-color-signal-green: #22c55e;
+  --nt-color-info-blue: #06b6d4;
+  --nt-color-danger-red: #f43f5e;
+  --nt-color-background: #06080d;
+  --nt-color-surface: #090c11;
+  --nt-color-panel: #0e1218;
+  --nt-color-control: #111720;
+  --nt-color-control-hover: #18222c;
+  --nt-color-text: #f7f8ef;
+  --nt-color-text-muted: #929a9f;
+  --nt-color-focus-surface: #f3f5f1;
+  --nt-color-focus-ink: #20252b;
+  --nt-color-focus-muted: #656b72;
+  --nt-color-rail: #070a0f;
+  --nt-color-shadow-ink: 0, 0, 0;
+
+  /* Semantic roles: components consume these aliases, not raw color values. */
+  --nt-signal: var(--nt-color-signal-yellow);
+  --nt-cyan: var(--nt-color-info-blue);
+  --nt-graphite: var(--nt-color-background);
+  --nt-canvas: var(--nt-color-background);
+  --nt-fog: var(--nt-color-focus-surface);
+  --nt-slab: var(--nt-color-surface);
+  --nt-slab-strong: var(--nt-color-background);
+  --nt-slab-soft: var(--nt-color-panel);
+  --nt-border: color-mix(in srgb, var(--nt-text) 12%, transparent);
+  --nt-border-strong: color-mix(in srgb, var(--nt-signal) 42%, var(--nt-border));
+  --nt-text: var(--nt-color-text);
+  --nt-text-muted: var(--nt-color-text-muted);
+  --nt-danger: var(--nt-color-danger-red);
+  --nt-warning: var(--nt-color-signal-yellow);
+  --nt-success: var(--nt-color-signal-green);
+  --nt-info: var(--nt-color-info-blue);
+  --nt-font-mono: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  --nt-radius-sm: 4px;
+  --nt-radius-md: 8px;
+  --nt-rail: var(--nt-color-rail);
+  --nt-hover: color-mix(in srgb, var(--nt-text) 6%, transparent);
+  --nt-brand-primary: var(--nt-color-signal-green);
+  --nt-brand-secondary: var(--nt-signal);
+  --nt-shadow-surface: 0 16px 34px rgba(0, 0, 0, 0.26);
+  --nt-shadow-lift: 0 18px 38px rgba(var(--nt-color-shadow-ink), 0.34);
+  --nt-shadow-overlay: 0 24px 60px rgba(var(--nt-color-shadow-ink), 0.46);
+  --nt-grid-line: color-mix(in srgb, var(--nt-text) 2.8%, transparent);
+  --nt-signal-soft: color-mix(in srgb, var(--nt-signal) 12%, var(--nt-color-panel));
+  --nt-success-soft: color-mix(in srgb, var(--nt-success) 12%, var(--nt-color-panel));
+  --nt-info-soft: color-mix(in srgb, var(--nt-info) 12%, var(--nt-color-panel));
+  --nt-danger-soft: color-mix(in srgb, var(--nt-danger) 12%, var(--nt-color-panel));
+  --nt-warning-soft: var(--nt-signal-soft);
+  --nt-text-soft: color-mix(in srgb, var(--nt-text) 78%, transparent);
+  --nt-text-faint: color-mix(in srgb, var(--nt-text) 54%, transparent);
+  --nt-focus-ring: color-mix(in srgb, var(--nt-signal) 42%, transparent);
+  --nt-overlay: color-mix(in srgb, var(--nt-color-background) 82%, transparent);
+  background: var(--nt-color-background);
+  color: var(--nt-color-text);
+}
+
+/*
+ * Light theme. UiThemeProvider resolves "system" itself and writes
+ * data-nt-theme="dark|light" on <html>, so only the canonical palette needs to
+ * flip here: every component consumes the semantic aliases above.
+ */
+:root[data-nt-theme="light"] {
+  color-scheme: light;
+  --nt-color-background: #edf1e4;
+  --nt-color-surface: #f8faf3;
+  --nt-color-panel: #ffffff;
+  --nt-color-control: #f1f4ea;
+  --nt-color-control-hover: #e7ecdf;
+  --nt-color-text: #10150e;
+  --nt-color-text-muted: #5d6659;
+  --nt-color-focus-surface: #1b2318;
+  --nt-color-focus-ink: #f4f7ef;
+  --nt-color-focus-muted: #9aa394;
+  --nt-color-rail: #e4e9dc;
+  --nt-color-shadow-ink: 18, 28, 14;
+
+  /* Accents need extra ink on light surfaces to stay legible as text. */
+  --nt-signal: color-mix(in srgb, var(--nt-color-signal-yellow) 34%, var(--nt-color-text));
+  --nt-cyan: color-mix(in srgb, var(--nt-color-info-blue) 52%, var(--nt-color-text));
+  --nt-success: color-mix(in srgb, var(--nt-color-signal-green) 52%, var(--nt-color-text));
+  --nt-info: color-mix(in srgb, var(--nt-color-info-blue) 52%, var(--nt-color-text));
+  --nt-danger: color-mix(in srgb, var(--nt-color-danger-red) 68%, var(--nt-color-text));
+  --nt-warning: color-mix(in srgb, var(--nt-color-signal-yellow) 34%, var(--nt-color-text));
+  --nt-brand-primary: color-mix(in srgb, var(--nt-color-signal-green) 52%, var(--nt-color-text));
+  --nt-border: color-mix(in srgb, var(--nt-text) 16%, transparent);
+  --nt-hover: color-mix(in srgb, var(--nt-text) 6.5%, transparent);
+  --nt-grid-line: color-mix(in srgb, var(--nt-text) 4%, transparent);
+  --nt-shadow-surface: 0 16px 34px rgba(18, 28, 14, 0.14);
+  --nt-overlay: color-mix(in srgb, #10150e 48%, transparent);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.nt-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background:
+    linear-gradient(var(--nt-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--nt-grid-line) 1px, transparent 1px),
+    var(--nt-color-background);
+  background-size:
+    36px 36px,
+    36px 36px,
+    auto;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+code,
+pre {
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+}
+
+@property --nt-shell-rail-width {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 186px;
+}

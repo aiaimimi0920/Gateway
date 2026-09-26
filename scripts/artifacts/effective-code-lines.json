@@ -1,0 +1,427 @@
+{
+  "schemaVersion": 1,
+  "checkerVersion": 2,
+  "mode": "report",
+  "thresholds": {
+    "target": 150,
+    "acceptable": 500,
+    "soft": 700,
+    "hard": 1500
+  },
+  "baseline": {
+    "sourceKind": "working-tree-adoption",
+    "sourceCommit": "4a7aece6b6531bb97b71afc99ae9e1ad3c4f2d7d",
+    "sourceTree": "11a3db707a486205f24d7fc93c792e15358c44b7",
+    "files": 182
+  },
+  "summary": {
+    "scanned": 2502,
+    "hard": 4,
+    "mandatory": 8,
+    "soft": 2
+  },
+  "sourceSummary": {
+    "scanned": 2488,
+    "hard": 0,
+    "mandatory": 0,
+    "soft": 0
+  },
+  "runtimeArtifacts": [
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js",
+      "language": "c-like",
+      "effectiveLines": 1121,
+      "physicalLines": 1128,
+      "sourceSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js",
+      "language": "c-like",
+      "effectiveLines": 821,
+      "physicalLines": 821,
+      "sourceSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js",
+      "language": "c-like",
+      "effectiveLines": 968,
+      "physicalLines": 968,
+      "sourceSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js",
+      "language": "c-like",
+      "effectiveLines": 2663,
+      "physicalLines": 2670,
+      "sourceSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js",
+      "language": "c-like",
+      "effectiveLines": 1190,
+      "physicalLines": 1195,
+      "sourceSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+      "runtimeArtifact": {
+        "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+        "version": "1.0.0.6",
+        "rawSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js",
+      "language": "c-like",
+      "effectiveLines": 551,
+      "physicalLines": 556,
+      "sourceSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+      "runtimeArtifact": {
+        "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+        "version": "1.0.0.6",
+        "rawSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/WasmTtsEngine/20260806.1/bindings_main.js",
+      "language": "c-like",
+      "effectiveLines": 4986,
+      "physicalLines": 6277,
+      "sourceSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+      "runtimeArtifact": {
+        "itemId": "bjbcblmdcnggnibecjikpoljcgkbgphl",
+        "version": "20260806.1",
+        "rawSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js",
+      "language": "c-like",
+      "effectiveLines": 1121,
+      "physicalLines": 1128,
+      "sourceSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js",
+      "language": "c-like",
+      "effectiveLines": 821,
+      "physicalLines": 821,
+      "sourceSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js",
+      "language": "c-like",
+      "effectiveLines": 968,
+      "physicalLines": 968,
+      "sourceSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js",
+      "language": "c-like",
+      "effectiveLines": 2663,
+      "physicalLines": 2670,
+      "sourceSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js",
+      "language": "c-like",
+      "effectiveLines": 1190,
+      "physicalLines": 1195,
+      "sourceSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+      "runtimeArtifact": {
+        "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+        "version": "1.0.0.6",
+        "rawSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js",
+      "language": "c-like",
+      "effectiveLines": 551,
+      "physicalLines": 556,
+      "sourceSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+      "runtimeArtifact": {
+        "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+        "version": "1.0.0.6",
+        "rawSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/WasmTtsEngine/20260806.1/bindings_main.js",
+      "language": "c-like",
+      "effectiveLines": 4986,
+      "physicalLines": 6277,
+      "sourceSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+      "runtimeArtifact": {
+        "itemId": "bjbcblmdcnggnibecjikpoljcgkbgphl",
+        "version": "20260806.1",
+        "rawSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    }
+  ],
+  "violations": [],
+  "warnings": [],
+  "files": [
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/WasmTtsEngine/20260806.1/bindings_main.js",
+      "language": "c-like",
+      "effectiveLines": 4986,
+      "physicalLines": 6277,
+      "sourceSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+      "runtimeArtifact": {
+        "itemId": "bjbcblmdcnggnibecjikpoljcgkbgphl",
+        "version": "20260806.1",
+        "rawSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/WasmTtsEngine/20260806.1/bindings_main.js",
+      "language": "c-like",
+      "effectiveLines": 4986,
+      "physicalLines": 6277,
+      "sourceSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+      "runtimeArtifact": {
+        "itemId": "bjbcblmdcnggnibecjikpoljcgkbgphl",
+        "version": "20260806.1",
+        "rawSha256": "f22f0db0a3bd4623324fba457bc11bee6a96f0267c30f5d0601d011932dd5c66",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js",
+      "language": "c-like",
+      "effectiveLines": 2663,
+      "physicalLines": 2670,
+      "sourceSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/vendor/eslint/eslint.js",
+      "language": "c-like",
+      "effectiveLines": 2663,
+      "physicalLines": 2670,
+      "sourceSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "a64f2b3ed2b74468b6b72cffd6ffd49b6b3c7eba3e8d502ca3e0aaed01348476",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js",
+      "language": "c-like",
+      "effectiveLines": 1190,
+      "physicalLines": 1195,
+      "sourceSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+      "runtimeArtifact": {
+        "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+        "version": "1.0.0.6",
+        "rawSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_background.js",
+      "language": "c-like",
+      "effectiveLines": 1190,
+      "physicalLines": 1195,
+      "sourceSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+      "runtimeArtifact": {
+        "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+        "version": "1.0.0.6",
+        "rawSha256": "04cd9494b0ed83924dad12202630b20d053d9e2819c8e826a386c814cc0a1697",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js",
+      "language": "c-like",
+      "effectiveLines": 1121,
+      "physicalLines": 1128,
+      "sourceSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/background.js",
+      "language": "c-like",
+      "effectiveLines": 1121,
+      "physicalLines": 1128,
+      "sourceSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "2afc3f9955e15f636c34902752f661c31e13146f015abb7868da61690ed28c32",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js",
+      "language": "c-like",
+      "effectiveLines": 968,
+      "physicalLines": 968,
+      "sourceSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/extension.js",
+      "language": "c-like",
+      "effectiveLines": 968,
+      "physicalLines": 968,
+      "sourceSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "a586e8d0efe9307ca1fb7cb20bc4d68c9ff9eb049b42b34e78cf76bb7af9be52",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js",
+      "language": "c-like",
+      "effectiveLines": 821,
+      "physicalLines": 821,
+      "sourceSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/gcalenpjmijncebpfijmoaglllgpjagf/5.6.6239_0/editor.js",
+      "language": "c-like",
+      "effectiveLines": 821,
+      "physicalLines": 821,
+      "sourceSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+      "runtimeArtifact": {
+        "itemId": "gcalenpjmijncebpfijmoaglllgpjagf",
+        "version": "5.6.6239",
+        "rawSha256": "f1c2d1cd9832ebfeeaf7f54328d731278df4d1b4df0ddcf73995fa2d055bda2b",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/suno/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js",
+      "language": "c-like",
+      "effectiveLines": 551,
+      "physicalLines": 556,
+      "sourceSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+      "runtimeArtifact": {
+        "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+        "version": "1.0.0.6",
+        "rawSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    },
+    {
+      "path": "deploy/gateway_data/browser-profiles/udio/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/craw_window.js",
+      "language": "c-like",
+      "effectiveLines": 551,
+      "physicalLines": 556,
+      "sourceSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+      "runtimeArtifact": {
+        "itemId": "nmmhkkegccagdldgiimedpiccmgmieda",
+        "version": "1.0.0.6",
+        "rawSha256": "5721a4b3f8e09c869a629effd350b51c9d46f0ac136717d4db6265c0ee6f9ac8",
+        "evidencePath": "docs/plan/runtime-profile-provenance-2026-09-24.json",
+        "evidenceSha256": "7f2ba612b549dbc9b3f50581594439b474621a69164c188eeadfc1dd44b4f7cb"
+      }
+    }
+  ]
+}

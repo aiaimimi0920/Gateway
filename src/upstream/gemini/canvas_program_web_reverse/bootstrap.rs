@@ -26,10 +26,16 @@ pub fn build_program_bootstrap_probe_input(
 ) -> Result<Value, GatewayError> {
     let config = relay_config_from_payload(payload)?;
     let probe = surface::build_program_bootstrap_probe(payload)?;
+    let runtime_state_object_key =
+        crate::protocol::gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
+            payload,
+            "bootstrap_program",
+        )
+        .unwrap_or_else(|| config.bootstrap.runtime_state_object_key.clone());
     Ok(json!({
         "provider": "gemini_canvas_program_bootstrap_probe",
         "input": {
-            "runtimeStateObjectKey": config.bootstrap.runtime_state_object_key,
+            "runtimeStateObjectKey": runtime_state_object_key,
             "shareId": config.bootstrap.share_id,
             "relayWsEndpoint": config.bootstrap.relay_ws_endpoint,
             "clientLabel": config.bootstrap.client_label,
@@ -259,6 +265,13 @@ pub fn build_program_bootstrap_invocation_input(
         locale,
         timeout,
     );
+    let runtime_state_object_key =
+        crate::protocol::gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
+            payload,
+            "bootstrap_program",
+        )
+        .unwrap_or_else(|| config.bootstrap.runtime_state_object_key.clone());
+    input["runtimeStateObjectKey"] = Value::String(runtime_state_object_key);
     input["authUser"] = Value::String(crate::protocol::gemini_canvas::direct_http_auth_user(
         payload,
     ));

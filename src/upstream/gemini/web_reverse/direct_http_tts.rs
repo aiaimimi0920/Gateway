@@ -1,4 +1,4 @@
-use crate::error::{classify_network_error, GatewayError};
+use crate::error::{classify_network_error, sanitize_provider_error_message, GatewayError};
 use crate::protocol::canonical::CanonicalRelayRequest;
 use crate::protocol::{gemini_canvas, gemini_web};
 use crate::routing::candidate::ProviderAccountPayload;
@@ -9,6 +9,7 @@ use crate::upstream::gemini_canvas_request_headers::{
     apply_gemini_canvas_cookie_header, apply_gemini_canvas_navigation_headers,
 };
 use crate::upstream::gemini_canvas_runtime_error_helpers::summarize_gateway_error;
+use crate::upstream::response_preview_helpers::truncate_response_preview;
 use crate::upstream::response_types::BinaryUpstreamResponse;
 use rquest::{header::HeaderMap, Method};
 use std::time::Duration;
@@ -304,6 +305,51 @@ fn select_direct_http_tts_audio_mime_type(content_type: Option<&str>, audio_url:
     }
 }
 
+pub fn gemini_canvas_tts_direct_http_audio_unavailable_from_bodies(
+    app_path: &str,
+    stream_body: &str,
+    trigger_body: &str,
+    followup_body: &str,
+    export_body: &str,
+) -> GatewayError {
+    // Redact complete bodies before selecting fragments that could hide a credential's shape.
+    let stream_body = sanitize_provider_error_message(stream_body);
+    let trigger_body = sanitize_provider_error_message(trigger_body);
+    let followup_body = sanitize_provider_error_message(followup_body);
+    let export_body = sanitize_provider_error_message(export_body);
+    let preview = |body: &str| {
+        let trimmed = body.trim();
+        if trimmed.is_empty() {
+            "<empty>".to_string()
+        } else {
+            truncate_response_preview(trimmed, 180).to_string()
+        }
+    };
+    let tail_preview = |body: &str| {
+        let trimmed = body.trim();
+        if trimmed.is_empty() {
+            "<empty>".to_string()
+        } else {
+            let chars: Vec<char> = trimmed.chars().collect();
+            let start = chars.len().saturating_sub(180);
+            chars[start..].iter().collect::<String>()
+        }
+    };
+    let stream_head_preview = preview(&stream_body);
+    let stream_tail_preview = tail_preview(&stream_body);
+    let trigger_preview = preview(&trigger_body);
+    let followup_preview = preview(&followup_body);
+    let export_preview = preview(&export_body);
+    gemini_canvas_tts_direct_http_audio_unavailable_error(
+        app_path,
+        &stream_head_preview,
+        &stream_tail_preview,
+        &trigger_preview,
+        &followup_preview,
+        &export_preview,
+    )
+}
+
 pub fn gemini_canvas_tts_direct_http_audio_unavailable_error(
     app_path: &str,
     stream_head: &str,
@@ -312,9 +358,9 @@ pub fn gemini_canvas_tts_direct_http_audio_unavailable_error(
     followup: &str,
     export: &str,
 ) -> GatewayError {
-    GatewayError::service_unavailable(format!(
+    GatewayError::service_unavailable(sanitize_provider_error_message(&format!(
         "Gemini Canvas pure HTTP TTS completed StreamGenerate + captured PCck7e/aPya6c/XqA3Ic follow-ups, but the current direct HTTP path still did not expose a usable audio asset. app_path={app_path}; stream_head={stream_head}; stream_tail={stream_tail}; trigger={trigger}; followup={followup}; export={export}"
-    ))
+    )))
     .with_provider("gemini_canvas_compatible")
     .with_code("gemini_canvas_tts_direct_http_audio_unavailable")
 }

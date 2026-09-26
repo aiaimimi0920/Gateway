@@ -13,6 +13,13 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
         return (GATEWAY_ROOT / relative_path).read_text(encoding="utf-8")
 
     @staticmethod
+    def _shell_function(script: str, name: str) -> str:
+        match = re.search(rf"(?ms)^{re.escape(name)}\(\) \{{\r?\n(.*?)^\}}", script)
+        if match is None:
+            raise AssertionError(f"missing shell function: {name}")
+        return match.group(1)
+
+    @staticmethod
     def _assert_markers_in_order(text: str, *markers: str) -> None:
         positions = []
         for marker in markers:
@@ -80,6 +87,9 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
 
     def test_dev_entrypoint_audits_both_node_trees_before_watchers(self):
         entrypoint = self._read("deploy/docker-dev-entrypoint.sh")
+        prepare = self._shell_function(entrypoint, "prepare_build_environment")
+        watchers = self._shell_function(entrypoint, "run_watch_mode")
+        main = self._shell_function(entrypoint, "main")
 
         scripts_audit = (
             'audit_production_dependencies "${SCRIPTS_ROOT}" "browser worker"'
@@ -92,11 +102,19 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
             entrypoint,
         )
         self._assert_markers_in_order(
-            entrypoint,
+            prepare,
             scripts_audit,
             desktop_audit,
+        )
+        self._assert_markers_in_order(
+            watchers,
             'log "starting frontend build watcher"',
             'log "starting gateway cargo watcher"',
+        )
+        self.assertIn("      prepare_build_environment\n      run_watch_mode", main)
+        self.assertIn(
+            '  prepare_build_environment\n  if [[ "${GATEWAY_DEV_WATCH}" == "1" ]]; then\n    run_watch_mode',
+            main,
         )
 
     def test_worker_package_declares_the_supported_node_floor(self):
@@ -180,16 +198,18 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
 
     def test_dev_entrypoint_checks_node_before_installing_dependencies(self):
         entrypoint = self._read("deploy/docker-dev-entrypoint.sh")
+        prepare = self._shell_function(entrypoint, "prepare_build_environment")
 
         self.assertIn("assert_supported_node_version()", entrypoint)
         self.assertIn("process.versions.node", entrypoint)
         self.assertIn("22.22.0", entrypoint)
         self._assert_markers_in_order(
-            entrypoint,
-            "\n  assert_supported_node_version\n",
+            prepare,
+            "  assert_supported_node_version\n",
             'ensure_node_dependencies "${SCRIPTS_ROOT}"',
+            'ensure_node_dependencies "${FRONTEND_ROOT}"',
             'audit_production_dependencies "${SCRIPTS_ROOT}"',
-            'log "starting frontend build watcher"',
+            'audit_production_dependencies "${FRONTEND_ROOT}"',
         )
 
     def test_dev_entrypoint_uses_faster_cargo_defaults_than_release_builds(self):
@@ -213,7 +233,11 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
             ': "${GATEWAY_DEV_CARGO_INCREMENTAL:=1}"',
             'export CARGO_BUILD_JOBS="${GATEWAY_DEV_CARGO_BUILD_JOBS}"',
             'export CARGO_INCREMENTAL="${GATEWAY_DEV_CARGO_INCREMENTAL}"',
-            'log "using CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS} CARGO_INCREMENTAL=${CARGO_INCREMENTAL}"',
+        )
+        self._assert_markers_in_order(
+            self._shell_function(entrypoint, "main"),
+            'log "mode=${GATEWAY_DEV_MODE} watch=${GATEWAY_DEV_WATCH} CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS} CARGO_INCREMENTAL=${CARGO_INCREMENTAL}"',
+            "ensure_runtime_layout",
         )
 
     def test_dev_compose_routes_gemini_manual_add_to_the_host_browser_executor(self):

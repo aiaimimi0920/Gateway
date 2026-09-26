@@ -4,11 +4,20 @@ import unittest
 
 GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCRIPT = GATEWAY_ROOT / "tools" / "smoke-gateway-packaged-runtime.ps1"
+SCRIPT_PARTS = (
+    SCRIPT,
+    GATEWAY_ROOT / "tools" / "smoke-gateway-packaged-runtime.integrity.ps1",
+    GATEWAY_ROOT / "tools" / "smoke-gateway-packaged-runtime.runtime.ps1",
+)
+
+
+def read_script():
+    return "\n".join(path.read_text(encoding="utf-8") for path in SCRIPT_PARTS)
 
 
 class GatewayPackagedRuntimeContractTests(unittest.TestCase):
     def test_packaged_runtime_smoke_has_isolated_process_and_endpoint_contract(self):
-        text = SCRIPT.read_text(encoding="utf-8")
+        text = read_script()
         for required in [
             "param(",
             "$ReleaseDir",
@@ -35,13 +44,13 @@ class GatewayPackagedRuntimeContractTests(unittest.TestCase):
             self.assertIn(required, text)
 
     def test_packaged_runtime_smoke_does_not_print_secret_values(self):
-        text = SCRIPT.read_text(encoding="utf-8")
+        text = read_script()
         self.assertIn("temporary-local", text)
         self.assertNotIn("Write-Output $GatewayApiKey", text)
         self.assertNotIn("Write-Output $ManagementToken", text)
 
     def test_packaged_runtime_verifies_manifest_and_exact_checksum_entries_before_start(self):
-        text = SCRIPT.read_text(encoding="utf-8")
+        text = read_script()
         for required in [
             "function Read-ChecksumIndex",
             "function Assert-PackagedReleaseIntegrity",
@@ -58,13 +67,13 @@ class GatewayPackagedRuntimeContractTests(unittest.TestCase):
             self.assertIn(required, text)
 
     def test_packaged_runtime_retries_refused_connections_without_strict_mode_property_errors(self):
-        text = SCRIPT.read_text(encoding="utf-8")
+        text = read_script()
         self.assertIn("TransportError", text)
         self.assertIn("PSObject.Properties['Response']", text)
         self.assertIn("Start-Sleep -Milliseconds", text)
 
     def test_default_packaged_runtime_smoke_owns_disposable_redis_instead_of_reusing_host_default(self):
-        text = SCRIPT.read_text(encoding="utf-8")
+        text = read_script()
         for required in [
             "$DockerPath",
             "$RedisImage",
@@ -86,7 +95,7 @@ class GatewayPackagedRuntimeContractTests(unittest.TestCase):
         self.assertNotIn('"redis://127.0.0.1:6379"', text)
 
     def test_packaged_runtime_smoke_captures_docker_output_via_process_wrapper(self):
-        text = SCRIPT.read_text(encoding="utf-8")
+        text = read_script()
         for required in [
             "function Invoke-NativeCommandCapture",
             "Start-Process",
@@ -99,7 +108,7 @@ class GatewayPackagedRuntimeContractTests(unittest.TestCase):
             self.assertIn(required, text)
 
     def test_packaged_runtime_evidence_uses_paths_relative_to_evidence_file(self):
-        text = SCRIPT.read_text(encoding="utf-8")
+        text = read_script()
         for required in [
             "function Get-EvidenceRelativePath",
             'pathBase = "evidence-file-directory"',
@@ -115,7 +124,7 @@ class GatewayPackagedRuntimeContractTests(unittest.TestCase):
         self.assertNotIn("stderrPath = $stderrPath", text)
 
     def test_packaged_runtime_smoke_redirects_gateway_state_outside_release_dir(self):
-        text = SCRIPT.read_text(encoding="utf-8")
+        text = read_script()
         for required in [
             "GATEWAY_STATE_DIR",
             '$stateRoot = Join-Path $logRoot "gateway-state"',
@@ -126,7 +135,7 @@ class GatewayPackagedRuntimeContractTests(unittest.TestCase):
         self.assertNotIn('$env:GATEWAY_STATE_DIR = Join-Path $releaseDirFull', text)
 
     def test_packaged_runtime_evidence_records_the_observed_process_exit_code(self):
-        text = SCRIPT.read_text(encoding="utf-8")
+        text = read_script()
 
         for required in [
             "$process.WaitForExit() | Out-Null",

@@ -152,25 +152,6 @@ pub(crate) fn maybe_dump_gemini_canvas_http_replay_worker_debug(
     let _ = std::fs::write(dir, body);
 }
 
-pub(crate) fn enrich_browser_worker_message(message: String, body: Option<String>) -> String {
-    let normalized_message = message.trim().to_string();
-    let Some(body) = body
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-    else {
-        return normalized_message;
-    };
-    if body == normalized_message {
-        return normalized_message;
-    }
-    let truncated_body = if body.len() > 2000 {
-        format!("{}...(truncated)", &body[..2000])
-    } else {
-        body
-    };
-    format!("{normalized_message} upstream body: {truncated_body}")
-}
-
 pub(crate) fn gemini_canvas_http_replay_worker_wait_failed_error(error: &str) -> GatewayError {
     GatewayError::server_error(format!(
         "Gemini Canvas HTTP replay worker failed before producing output: {error}"
@@ -446,21 +427,6 @@ mod tests {
             err.message.as_str(),
             "Gemini Canvas browser pool did not become healthy in time. Inspect C:/tmp/gemini-canvas-browser-pool.log for startup details."
         );
-    }
-
-    #[test]
-    fn enrich_browser_worker_message_appends_truncated_body_when_distinct() {
-        let long_body = "x".repeat(2205);
-        let enriched = enrich_browser_worker_message("worker failed".to_string(), Some(long_body));
-
-        assert!(enriched.starts_with("worker failed upstream body: "));
-        assert!(enriched.ends_with("...(truncated)"));
-
-        let same = enrich_browser_worker_message(
-            "same message".to_string(),
-            Some("same message".to_string()),
-        );
-        assert_eq!(same, "same message");
     }
 
     #[test]

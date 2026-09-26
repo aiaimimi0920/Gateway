@@ -1,5 +1,4 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsoleApi } from "../../api/console";
@@ -57,6 +56,7 @@ function createConsoleApi(): ConsoleApi {
     rotateSession: vi.fn(),
     logout: vi.fn(),
     probeCredential: vi.fn(),
+    probeProvider: vi.fn(),
     getAccountGroupSummary: vi.fn().mockRejectedValue(new Error("summary unavailable")),
     getCredentialPoolAutomation: vi.fn().mockResolvedValue({
       automation: {
@@ -68,6 +68,8 @@ function createConsoleApi(): ConsoleApi {
       },
     }),
     runCredentialPoolAutomation: vi.fn(),
+    pruneCredentialPool: vi.fn(),
+    purgeCredentialArchive: vi.fn(),
     getCredentialRefill: vi.fn().mockResolvedValue({
       refill: {
         enabled: true,
@@ -135,9 +137,8 @@ describe("BrowserConsoleApp localization", () => {
     window.localStorage.clear();
   });
 
-  it("defaults the web console to Chinese and toggles to English", async () => {
+  it("defaults the web console to Chinese and keeps shell controls in the titlebar", async () => {
     const consoleApi = createConsoleApi();
-    const user = userEvent.setup();
 
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
 
@@ -145,19 +146,12 @@ describe("BrowserConsoleApp localization", () => {
       expect(screen.getByRole("navigation", { name: "Gateway console navigation" })).toBeInTheDocument(),
     );
     expect(screen.queryByRole("heading", { name: "Gateway 网页控制台" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "刷新" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "退出登录" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /账号台账/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /凭证分组/i })).toBeInTheDocument();
-    expect(screen.getByText("English")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "切换界面语言" }));
-
-    expect(screen.queryByRole("heading", { name: "Gateway Web Console" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Accounts/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Credential Groups/i })).toBeInTheDocument();
-    expect(screen.getByText("中文")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "刷新" })).toHaveClass("nt-titlebar__refresh");
+    expect(screen.queryByRole("button", { name: "退出登录" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /凭据池/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /权益组/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "切换到英文" })).toHaveClass("nt-locale-toggle");
+    expect(screen.queryByRole("button", { name: "切换界面语言" })).not.toBeInTheDocument();
+    expect(document.querySelector(".nt-rail .nt-rail__footer")).toBeNull();
   });
 });

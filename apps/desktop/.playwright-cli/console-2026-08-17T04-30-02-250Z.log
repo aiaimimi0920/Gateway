@@ -1,0 +1,5 @@
+[     236ms] [INFO] [rsbuild] WebSocket connecting... @ http://127.0.0.1:1425/static/js/vendors-node_modules_rspack_core_dist_cssExtractHmr_js-node_modules_rsbuild_core_dist_client_-7576fb.js:1299
+[     272ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:1425/static/js/lib-react.js:28006
+[     360ms] [WARNING] <Router basename="/ui"> is not able to match the URL "/" because it does not start with the basename, so the <Router> won't render anything. @ http://127.0.0.1:1425/static/js/lib-router.js:6075
+[     361ms] [WARNING] <Router basename="/ui"> is not able to match the URL "/" because it does not start with the basename, so the <Router> won't render anything. @ http://127.0.0.1:1425/static/js/lib-router.js:6075
+[     380ms] [INFO] [rsbuild] WebSocket connected. @ http://127.0.0.1:1425/static/js/vendors-node_modules_rspack_core_dist_cssExtractHmr_js-node_modules_rsbuild_core_dist_client_-7576fb.js:1299
