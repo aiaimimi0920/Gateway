@@ -111,6 +111,8 @@ export function createGatewayApiClient({
         cache: "no-store",
         credentials: "omit",
         headers,
+        // Custom credential headers must never follow redirects to another host.
+        redirect: "error",
         referrerPolicy: "no-referrer",
       });
       if (!response.ok) {

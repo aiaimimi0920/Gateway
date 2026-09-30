@@ -57,6 +57,10 @@ export function subscribeToConsoleEvents(
   subscription: ConsoleEventSubscription,
   fetchEventSource: FetchEventSource = defaultFetchEventSource,
 ): Promise<void> {
+  // fetch-event-source only listens for future aborts; avoid orphaned streams.
+  if (subscription.signal?.aborted) {
+    return Promise.resolve();
+  }
   const url = new URL(
     "/v1/internal/gateway/console/events/stream",
     `${subscription.host.apiOrigin}/`,
@@ -64,6 +68,8 @@ export function subscribeToConsoleEvents(
   return fetchEventSource(url, {
     method: "GET",
     credentials: "omit",
+    redirect: "error",
+    referrerPolicy: "no-referrer",
     headers: {
       Accept: "text/event-stream",
       "x-management-token": subscription.managementToken,

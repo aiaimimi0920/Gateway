@@ -17,6 +17,25 @@ GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class GatewayStandaloneCiTests(GatewayRepositoryTextFixture, unittest.TestCase):
+    def test_baseline_validating_workflows_fetch_repository_history(self):
+        workflow_jobs = {
+            "ci.yml": ("windows", "linux"),
+            "build-windows.yml": ("build",),
+            "release-tag.yml": ("release",),
+        }
+        for filename, jobs in workflow_jobs.items():
+            workflow = (GATEWAY_ROOT / ".github/workflows" / filename).read_text(
+                encoding="utf-8"
+            )
+            for job_name in jobs:
+                with self.subTest(workflow=filename, job=job_name):
+                    job = self._workflow_job_block(workflow, job_name)
+                    checkout_start = job.index("- name: Checkout")
+                    checkout_end = job.index("\n      - name:", checkout_start + 1)
+                    checkout = job[checkout_start:checkout_end]
+                    self.assertIn("uses: actions/checkout@", checkout)
+                    self.assertRegex(checkout, r"(?m)^\s+fetch-depth: 0\s*$")
+
     def test_linux_standalone_gate_discovers_all_responsibility_suites(self):
         workflow = (GATEWAY_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         linux = self._workflow_job_block(workflow, "linux")

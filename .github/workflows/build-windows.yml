@@ -16,6 +16,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # Worker tests validate the effective-line baseline's historical commit.
+          fetch-depth: 0
 
       - name: Use runner-local temporary storage
         shell: powershell

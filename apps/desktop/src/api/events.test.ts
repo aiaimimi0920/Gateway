@@ -36,6 +36,22 @@ describe("console event stream", () => {
       Accept: "text/event-stream",
       "x-management-token": "management-secret",
     });
+    expect(observedInit?.redirect).toBe("error");
+    expect(observedInit?.referrerPolicy).toBe("no-referrer");
+  });
+
+  it("does not open a stream when its owner has already cancelled", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetchEventSource = vi.fn(async () => {});
+
+    await expect(subscribeToConsoleEvents({
+      host: createTauriHost("http://127.0.0.1:44200"),
+      managementToken: "management-secret",
+      onEvent: vi.fn(),
+      signal: controller.signal,
+    }, fetchEventSource)).resolves.toBeUndefined();
+    expect(fetchEventSource).not.toHaveBeenCalled();
   });
 
   it("treats a clean event-stream EOF as retryable", async () => {
