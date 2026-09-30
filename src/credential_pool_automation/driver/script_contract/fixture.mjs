@@ -38,7 +38,8 @@ async function captureRequest() {
 async function run() {
   if (mode === 'ignore-input') return new Promise(() => {});
   if (mode === 'closed-input') {
-    process.stdin.destroy();
+    // Destroying Node's wrapper can leave the inherited POSIX descriptor open.
+    fs.closeSync(0);
     return new Promise(() => {});
   }
   if (mode === 'stdout-duplex') await write(process.stdout, jsonAtLength(limit));

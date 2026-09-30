@@ -38,7 +38,7 @@ fn compile_codex_account_has_correct_headers_and_extra_body() {
     assert_eq!(compiled.api_key, "tok_xxx");
     assert_eq!(
         compiled.headers.get("User-Agent").unwrap(),
-        "codex_cli_rs/0.116.0 (Mac OS 26.0.1; arm64) Apple_Terminal/464"
+        crate::protocol::chatgpt::codex_client::USER_AGENT
     );
     assert_eq!(compiled.headers.get("Originator").unwrap(), "codex_cli_rs");
     assert_eq!(
@@ -202,7 +202,8 @@ fn preset_default_model_used_when_account_has_none() {
     };
 
     let compiled = compile_provider_account(&preset, &account);
-    assert_eq!(compiled.default_model.as_deref(), Some("gpt-5.4"));
+    assert!(preset.default_model.is_some());
+    assert_eq!(compiled.default_model, preset.default_model);
 }
 
 #[test]

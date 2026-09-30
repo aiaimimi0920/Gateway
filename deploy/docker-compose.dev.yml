@@ -34,6 +34,8 @@ services:
       - ${GATEWAY_ENV_FILE:-.env}
     environment:
       - PORT=4200
+      # The host publish address must not restrict the container listener.
+      - GATEWAY_BIND_HOST=0.0.0.0
       - RUST_LOG=${RUST_LOG:-info}
       - GATEWAY_RUNTIME_ROLE=${GATEWAY_RUNTIME_ROLE:-standalone}
       - GATEWAY_REDIS_URL=${GATEWAY_REDIS_URL:-redis://redis:6379/0}
