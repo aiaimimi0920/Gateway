@@ -5,7 +5,7 @@ use crate::auth::project_api_key::ProjectApiKeyAdapter;
 use crate::auth::user_credential::UserCredentialAdapter;
 use crate::concurrency::aimd::AimdConfig;
 use crate::concurrency::registry::ConcurrencyRegistry;
-use crate::config::Config;
+use crate::config::{Config, GatewayStorageMode};
 use crate::console::{ConsoleAuthRuntime, RouteConfigRedisStore, RouteConfigRuntime};
 use crate::credential_store::CredentialMemoryCache;
 use crate::db::create_pg_pool;
@@ -43,8 +43,18 @@ pub async fn run_gateway_runtime(config: Config) -> anyhow::Result<()> {
 }
 
 pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
-    let redis_pool = create_pool(&config.redis_url)?;
-    let provider_credential_folder_sync_enabled =
+    let local_console = config.storage_mode == GatewayStorageMode::Local;
+    if local_console && config.runtime_role != crate::config::GatewayRuntimeRole::Standalone {
+        anyhow::bail!("Local storage requires standalone runtime role");
+    }
+    let redis_pool = if local_console {
+        crate::redis::pool::disabled_pool()?
+    } else {
+        create_pool(&config.redis_url)?
+    };
+    let provider_credential_folder_sync_enabled = if local_console {
+        false
+    } else {
         crate::provider_credential_folder_sync::load_runtime_enabled(&redis_pool, &config)
             .await
             .unwrap_or_else(|error| {
@@ -53,15 +63,16 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
                     "failed to load provider credential folder sync runtime setting; falling back to config"
                 );
                 crate::provider_credential_folder_sync::default_runtime_enabled(&config)
-            });
-    let pg_pool = match config.database_url.as_deref() {
+            })
+    };
+    let pg_pool = match config.database_url.as_deref().filter(|_| !local_console) {
         Some(database_url) => {
             let pool = create_pg_pool(database_url).await?;
             tracing::info!("PostgreSQL connectivity enabled for Rust-owned gateway state");
             Some(pool)
         }
         None => {
-            tracing::warn!(
+            tracing::debug!(
                 "No GATEWAY_DATABASE_URL or DATABASE_URL configured; DB-owned gateway state disabled"
             );
             None
@@ -70,7 +81,7 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
 
     let upstream_client = UpstreamClient::new_with_runtime(
         config.upstream_timeout_secs,
-        Some(redis_pool.clone()),
+        (!local_console).then(|| redis_pool.clone()),
         pg_pool.clone(),
     );
     let concurrency_registry = ConcurrencyRegistry::new(AimdConfig::default());
@@ -78,33 +89,53 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
     if let (Some(pool), Some(secret)) = (pg_pool.clone(), config.gateway_api_key_secret.clone()) {
         auth_adapters.push(Box::new(ProjectApiKeyAdapter::new(pool, secret)));
     }
-    auth_adapters.push(Box::new(UserCredentialAdapter::new(
-        redis_pool.clone(),
-        pg_pool.clone(),
-    )));
-
-    let route_config = Arc::new(
-        load_route_config_from_path(
-            &redis_pool,
-            &config.console.routes_file,
-            &config.console.redis_namespace,
+    if !local_console {
+        auth_adapters.push(Box::new(UserCredentialAdapter::new(
+            redis_pool.clone(),
+            pg_pool.clone(),
+        )));
+    }
+    let route_config_runtime = Arc::new(if local_console {
+        RouteConfigRuntime::new_local(&config.console)?
+    } else {
+        let route_config = Arc::new(
+            load_route_config_from_path(
+                &redis_pool,
+                &config.console.routes_file,
+                &config.console.redis_namespace,
+            )
+            .await,
+        );
+        RouteConfigRuntime::new(
+            Arc::clone(&route_config),
+            &config.console,
+            redis_pool.clone(),
+            !matches!(
+                config.runtime_role,
+                crate::config::GatewayRuntimeRole::Worker
+            ),
+        )?
+    });
+    let route_config = Arc::clone(route_config_runtime.route_config());
+    let local_runtime = if local_console {
+        Some(
+            crate::local_runtime::LocalRuntime::open(std::path::Path::new(
+                &config.console.state_dir,
+            ))
+            .await?,
         )
-        .await,
-    );
-    let route_config_runtime = Arc::new(RouteConfigRuntime::new(
-        Arc::clone(&route_config),
-        &config.console,
-        redis_pool.clone(),
-        !matches!(
-            config.runtime_role,
-            crate::config::GatewayRuntimeRole::Worker
-        ),
-    )?);
+    } else {
+        None
+    };
     let console_auth = Arc::new(ConsoleAuthRuntime::new(
         &config.console,
         config.gateway_management_token.clone(),
     )?);
     if let Err(error) = route_config_runtime.recover_startup().await {
+        // A local authority must recover before accepting requests or further writes.
+        if local_console {
+            return Err(error.into());
+        }
         tracing::warn!(
             code = error.code(),
             "Gateway console startup recovery did not fully converge: {}",
@@ -122,6 +153,7 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         config,
         redis_pool,
         pg_pool,
+        local_runtime,
         upstream_client,
         concurrency_registry,
         auth_adapters,
@@ -140,6 +172,17 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
 }
 
 pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
+    crate::local_runtime::spawn_maintenance(app_state);
+    let state_for_credential_refill = Arc::clone(app_state);
+    tokio::spawn(async move {
+        crate::credential_refill::start_credential_refill_notification_task(
+            state_for_credential_refill,
+        )
+        .await;
+    });
+    if app_state.local_runtime.is_some() {
+        return;
+    }
     let cache_clone = app_state.credential_cache.clone();
     let pool_clone = app_state.redis_pool.clone();
     tokio::spawn(async move {
@@ -194,19 +237,14 @@ pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
         )
         .await;
     });
-
-    let state_for_credential_refill = Arc::clone(app_state);
-    tokio::spawn(async move {
-        crate::credential_refill::start_credential_refill_notification_task(
-            state_for_credential_refill,
-        )
-        .await;
-    });
 }
 
 pub async fn run_gateway_server(app_state: Arc<AppState>, port: u16) -> anyhow::Result<()> {
     let app = crate::http::router::build_router(Arc::clone(&app_state));
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
+    let bind_host: std::net::IpAddr = std::env::var("GATEWAY_BIND_HOST")
+        .unwrap_or_else(|_| "0.0.0.0".to_string())
+        .parse()?;
+    let listener = tokio::net::TcpListener::bind((bind_host, port)).await?;
     tracing::info!(port, "Gateway worker listening");
 
     let shutdown_state = Arc::clone(&app_state);
@@ -218,6 +256,9 @@ pub async fn run_gateway_server(app_state: Arc<AppState>, port: u16) -> anyhow::
     .await?;
 
     tracing::info!(port, "Gateway HTTP server stopped");
+    if let Some(local) = &app_state.local_runtime {
+        local.close().await;
+    }
     Ok(())
 }
 

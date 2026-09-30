@@ -2,6 +2,27 @@
 
 use super::*;
 
+async fn settle_balance(
+    state: &AppState,
+    id: &str,
+    reserved: u64,
+    actual: u64,
+) -> Result<(), crate::error::GatewayError> {
+    crate::access_balance::AccessBalanceStore::from_state(state)?
+        .settle(id, reserved, actual)
+        .await
+}
+
+async fn refund_balance(
+    state: &AppState,
+    id: &str,
+    reserved: u64,
+) -> Result<(), crate::error::GatewayError> {
+    crate::access_balance::AccessBalanceStore::from_state(state)?
+        .refund(id, reserved)
+        .await
+}
+
 pub(super) async fn settle_pre_deducted_quota(
     ctx: &PipelineContext,
     state: &Arc<AppState>,
@@ -14,12 +35,8 @@ pub(super) async fn settle_pre_deducted_quota(
         return;
     }
     if ctx.requesting_access_key_id.is_some() {
-        let Some(pg_pool) = state.pg_pool.as_ref() else {
-            return;
-        };
-        if let Err(error) = db::settle_access_key_balance(
-            pg_pool,
-            &state.redis_pool,
+        if let Err(error) = settle_balance(
+            state,
             credential_id,
             ctx.quota_pre_deducted_tokens,
             actual_total_tokens,
@@ -64,12 +81,8 @@ pub(super) async fn settle_pre_deducted_quota_snapshot(
         return;
     }
     if snapshot.access_key_id.is_some() {
-        let Some(pg_pool) = state.pg_pool.as_ref() else {
-            return;
-        };
-        if let Err(error) = db::settle_access_key_balance(
-            pg_pool,
-            &state.redis_pool,
+        if let Err(error) = settle_balance(
+            state,
             credential_id,
             snapshot.pre_deducted_tokens,
             actual_total_tokens,
@@ -110,16 +123,8 @@ pub(super) async fn refund_pre_deducted_quota(ctx: &PipelineContext, state: &Arc
         return;
     }
     if ctx.requesting_access_key_id.is_some() {
-        let Some(pg_pool) = state.pg_pool.as_ref() else {
-            return;
-        };
-        if let Err(error) = db::refund_access_key_balance(
-            pg_pool,
-            &state.redis_pool,
-            credential_id,
-            ctx.quota_pre_deducted_tokens,
-        )
-        .await
+        if let Err(error) =
+            refund_balance(state, credential_id, ctx.quota_pre_deducted_tokens).await
         {
             warn!(
                 req_id = %ctx.req_id,
@@ -157,16 +162,7 @@ pub(super) async fn refund_pre_deducted_quota_snapshot(
         return;
     }
     if snapshot.request_audit.access_key_id.is_some() {
-        let Some(pg_pool) = state.pg_pool.as_ref() else {
-            return;
-        };
-        if let Err(error) = db::refund_access_key_balance(
-            pg_pool,
-            &state.redis_pool,
-            credential_id,
-            snapshot.pre_deducted_tokens,
-        )
-        .await
+        if let Err(error) = refund_balance(state, credential_id, snapshot.pre_deducted_tokens).await
         {
             warn!(
                 request_id = %snapshot.request_id,

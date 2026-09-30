@@ -32,7 +32,7 @@ pub use provider_routing::{
     get_provider_routing_anomaly_report, summarize_provider_routing_analysis,
 };
 pub use queries::{get_request_audit, list_request_audits};
-pub use summary::summarize_request_audits;
+pub use summary::{summarize_request_audit_rows, summarize_request_audits};
 
 use filters::{non_empty, parse_request_audit_created_range, push_request_audit_filters};
 use metrics::{
@@ -118,7 +118,7 @@ pub struct RequestAuditFilters {
     pub limit: Option<usize>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayRequestAuditView {
     pub id: String,
@@ -222,6 +222,14 @@ pub struct GatewayRequestAuditProviderModelStatsView {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GatewayRequestAuditCredentialStatsView {
+    pub credential_ref: String,
+    #[serde(flatten)]
+    pub stats: GatewayRequestAuditProviderStatsView,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GatewayRequestAuditSummaryView {
     pub total_requests: usize,
     pub completed_count: usize,
@@ -235,6 +243,7 @@ pub struct GatewayRequestAuditSummaryView {
     pub by_endpoint_kind: Vec<GatewayRequestAuditSummaryBucketView>,
     pub by_error_code: Vec<GatewayRequestAuditSummaryBucketView>,
     pub provider_accounts: Vec<GatewayRequestAuditProviderStatsView>,
+    pub credentials: Vec<GatewayRequestAuditCredentialStatsView>,
 }
 
 #[derive(Debug, Clone, Serialize)]

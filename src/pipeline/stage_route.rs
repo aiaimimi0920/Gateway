@@ -15,9 +15,7 @@ use tracing::{debug, warn};
 use crate::db;
 use crate::error::GatewayError;
 use crate::provider_runtime;
-use crate::redis::credential_cache::{
-    get_credential, get_credential_affinity, lookup_credentials_by_model, CredentialKind,
-};
+use crate::redis::credential_cache::{get_credential, lookup_credentials_by_model, CredentialKind};
 use crate::routing::candidate::RouteCandidate;
 use crate::routing::config::RouteAccountGroupConstraint;
 use crate::routing::credential_routing::credential_to_candidate;
@@ -60,6 +58,13 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         .clone()
         .or_else(|| ctx.request_headers.get("x-credential-ref").cloned());
     let explicit_credential_requested = credential_ref.is_some();
+    let local_access_key_id =
+        crate::local_runtime::access_keys::local_key_id(state, ctx.session.as_ref());
+    if state.local_runtime.is_some() && explicit_credential_requested {
+        return Err(crate::local_runtime::access_keys::denied(
+            "Local access keys cannot override credential ownership",
+        ));
+    }
 
     // Extract identity from auth session for credential isolation.
     let project_id = ctx
@@ -78,6 +83,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         .session
         .as_ref()
         .and_then(|session| session.access_key_id.as_deref())
+        .filter(|_| local_access_key_id.is_none())
     {
         let Some(pg_pool) = &state.pg_pool else {
             return Err(GatewayError::service_unavailable(
@@ -89,7 +95,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         let estimated =
             crate::redis::usage_tracking::estimate_token_count(&ctx.canonical_req.messages_text())
                 .max(1);
-        let route_context = db::resolve_access_key_route_context(
+        let route_context = db::access::resolve_access_key_route_context_with_reservation(
             pg_pool,
             &state.redis_pool,
             access_key_id,
@@ -97,6 +103,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             ctx.canonical_req.endpoint_kind,
             estimated,
             ctx.canonical_req.explicit_session_key.as_deref(),
+            ctx.quota_credential_id.as_deref(),
         )
         .await?;
         let (route_candidates, projected_candidates) = filter_candidate_pairs_by_account_group(
@@ -257,7 +264,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
 
     // If no explicit credential resolved, query the credential pool.
     // Two-tier cache: in-memory first (O(1)), then Redis model index.
-    if redis_candidates.is_empty() {
+    if redis_candidates.is_empty() && state.local_runtime.is_none() {
         if let Some(m) = model {
             // Tier 1: In-memory cache (DashMap, per-process, 30s TTL)
             if let Some(cached) = state.credential_cache.get(project_id, m) {
@@ -313,7 +320,11 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     let mut selection_strategy = "priority_weighted".to_string();
 
     if !explicit_credential_requested && ctx.credential_source != CredentialSource::Hosted {
-        let database_resolved_candidates = if let Some(pg_pool) = &state.pg_pool {
+        let database_resolved_candidates = if let Some(pg_pool) = state
+            .pg_pool
+            .as_ref()
+            .filter(|_| local_access_key_id.is_none())
+        {
             provider_runtime::sweep_cooling_provider_accounts_best_effort(state, 10).await;
             let route_context = crate::db::resolve_route_candidates_allowing_empty(
                 pg_pool,
@@ -365,6 +376,13 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     // the same validated group constraint used by access-catalog and YAML
     // routing before affinity or queue ordering can select an outside account.
     all_candidates = account_group_constraint.filter_candidates(all_candidates);
+    if let Some(id) = local_access_key_id {
+        if let Some(local) = &state.local_runtime {
+            local
+                .authorize_local_candidates(id, model, &mut all_candidates)
+                .await?;
+        }
+    }
 
     // ── Credential Affinity: boost sticky credential to front ────────────
     //
@@ -387,8 +405,8 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
                 .or_else(|| user_id.map(|uid| format!("user:{}", uid)));
 
             if let Some(ref scope) = affinity_scope {
-                match get_credential_affinity(&state.redis_pool, scope, m).await {
-                    Ok(Some(affinity_id)) => {
+                match super::runtime_storage::get_affinity(state, scope, m).await {
+                    Some(affinity_id) => {
                         // Find the affinity credential in the candidate list
                         if let Some(pos) = all_candidates
                             .iter()
@@ -429,19 +447,23 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     .0;
     all_candidates =
         filter_candidates_by_route_policy_family(all_candidates, ctx.route_policy_config.as_ref());
-    if let Some(pg_pool) = &state.pg_pool {
-        if let Err(error) = crate::db::apply_provider_credential_model_states_to_candidates(
+    let model_health = if let Some(local) = &state.local_runtime {
+        local.apply_model_states(&mut all_candidates).await
+    } else if let Some(pg_pool) = &state.pg_pool {
+        crate::db::apply_provider_credential_model_states_to_candidates(
             pg_pool,
             &mut all_candidates,
         )
         .await
-        {
-            warn!(
-                req_id = %ctx.req_id,
-                error = %error,
-                "failed to apply provider credential-model health states"
-            );
-        }
+    } else {
+        Ok(())
+    };
+    if let Err(error) = model_health {
+        warn!(
+            req_id = %ctx.req_id,
+            error = %error,
+            "failed to apply provider credential-model health states"
+        );
     }
 
     if all_candidates.is_empty() {

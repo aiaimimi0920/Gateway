@@ -141,6 +141,10 @@ Pop-Location
 
 在仓库根目录构建和打包：
 
+每次发布前先执行[模型显示静态表更新守则](docs/model-display-catalog-release.md)：
+查询官方模型目录，审核公司与模型的固定知名度排序，记录来源、日期及未归类模型，
+在构建冻结源码之前更新静态表。运行时不联网调整排名，也不据此增加凭据权限。
+
 ```powershell
 $id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
 .\tools\build-gateway-release.ps1
@@ -271,14 +275,14 @@ docker build --build-arg "GATEWAY_AUDIT_NONCE=$auditNonce" -t gateway:local .
 `-Action up` 时，它会默认写入 `GATEWAY_BIND_HOST=127.0.0.1`，并在 loopback
 绑定场景下自动补齐以下控制台登录配置，且不会覆盖你已经显式设置过的值：
 
-- `GATEWAY_MANAGEMENT_TOKEN=123456`
+- `GATEWAY_MANAGEMENT_TOKEN=11011101`
 - `GATEWAY_CONSOLE_REMOTE_ACCESS=true`
 
 启动完成后，直接访问：
 
 - `http://127.0.0.1:4200/ui/`
 
-然后使用管理密钥 `123456` 登录即可。如果你要部署成对外提供服务的服务器形态，
+然后使用管理密钥 `11011101` 登录即可。如果你要部署成对外提供服务的服务器形态，
 请显式传入 `-BindHost 0.0.0.0`，并在暴露端口前改成你自己的管理密钥。
 
 当前浏览器控制台除了原有的 route-config / revision 能力外，还新增了两个直接面向
@@ -303,7 +307,7 @@ docker build --build-arg "GATEWAY_AUDIT_NONCE=$auditNonce" -t gateway:local .
 
 ```bash
 curl http://127.0.0.1:4200/v1/internal/gateway/account-groups \
-  -H "x-internal-api-key: 123456"
+  -H "x-internal-api-key: 11011101"
 ```
 
 返回结果包含：

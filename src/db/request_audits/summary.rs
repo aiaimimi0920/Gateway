@@ -1,5 +1,9 @@
 use super::*;
 
+#[cfg(test)]
+#[path = "summary_tests.rs"]
+mod tests;
+
 #[derive(Default)]
 struct ProviderWindowAccumulator {
     total_requests: usize,
@@ -99,7 +103,12 @@ pub async fn summarize_request_audits(
     filters: &RequestAuditFilters,
 ) -> Result<GatewayRequestAuditSummaryView, GatewayError> {
     let rows = list_request_audits(pool, filters).await?;
+    Ok(summarize_request_audit_rows(&rows))
+}
 
+pub fn summarize_request_audit_rows(
+    rows: &[GatewayRequestAuditView],
+) -> GatewayRequestAuditSummaryView {
     let mut by_status = BTreeMap::new();
     let mut by_provider_account = BTreeMap::new();
     let mut by_endpoint_kind = BTreeMap::new();
@@ -112,8 +121,10 @@ pub async fn summarize_request_audits(
     let mut fallback_eligible_failures = 0;
     let mut fallback_exhausted_failures = 0;
     let mut provider_stats: BTreeMap<String, ProviderStatsAccumulator> = BTreeMap::new();
+    let mut credential_stats: BTreeMap<(String, String), ProviderStatsAccumulator> =
+        BTreeMap::new();
 
-    for row in &rows {
+    for row in rows {
         accumulate_bucket(&mut by_status, Some(row.status.as_str()));
         accumulate_bucket(&mut by_provider_account, row.provider_account_id.as_deref());
         accumulate_bucket(&mut by_endpoint_kind, Some(row.endpoint_kind.as_str()));
@@ -147,6 +158,20 @@ pub async fn summarize_request_audits(
                 .entry(provider_account_id.to_string())
                 .or_default()
                 .accumulate(row);
+            // Missing attribution in older audits must never be guessed from pool size.
+            if let Some(credential_ref) = row
+                .route_trace
+                .as_ref()
+                .and_then(|trace| trace.get("realCredentialRef"))
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                credential_stats
+                    .entry((provider_account_id.to_string(), credential_ref.to_string()))
+                    .or_default()
+                    .accumulate(row);
+            }
         }
     }
 
@@ -155,7 +180,7 @@ pub async fn summarize_request_audits(
         .map(|(provider_account_id, stats)| stats.into_view(provider_account_id))
         .collect();
 
-    Ok(GatewayRequestAuditSummaryView {
+    GatewayRequestAuditSummaryView {
         total_requests: rows.len(),
         completed_count,
         failed_count,
@@ -168,7 +193,16 @@ pub async fn summarize_request_audits(
         by_endpoint_kind: into_summary_buckets(by_endpoint_kind),
         by_error_code: into_summary_buckets(by_error_code),
         provider_accounts,
-    })
+        credentials: credential_stats
+            .into_iter()
+            .map(|((provider_account_id, credential_ref), stats)| {
+                GatewayRequestAuditCredentialStatsView {
+                    credential_ref,
+                    stats: stats.into_view(provider_account_id),
+                }
+            })
+            .collect(),
+    }
 }
 
 fn route_trace_error_code(route_trace: Option<&Value>) -> Option<&str> {

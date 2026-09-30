@@ -97,3 +97,21 @@ commands, and exception process.
    documentation-only governance changes do not require a fake release build.
 
 Any stricter repository-local checker or CI gate overrides this common floor.
+
+## Persistent local data and credential compatibility
+
+- Both EXEs use the shared gateway-local-data owner: an existing executable-adjacent
+  .ng directory takes precedence over the current user's home/.ng. Never create a
+  portable .ng directory implicitly or derive the choice from the working directory.
+- Keep local credentials, state, runtime objects and desktop settings outside versioned
+  release payloads. Preserve explicit server/Docker storage settings.
+- Prefer backward-compatible readers, optional fields and defaults. Do not bump the
+  storage version or rewrite an existing database for an additive application change.
+- If a breaking credential/database change is unavoidable, ship its migration code
+  inside the same binaries and register it with the startup migration owner. It must
+  run before readers/writers start, preserve a recovery copy, be retryable after a
+  crash, and reject incompatible concurrent instances or newer storage versions.
+- Test old-format reads, secret/ID preservation, repeat startup and interrupted
+  migration recovery. Never make end users edit database contents or run manual SQL
+  for a normal upgrade. Server database migrations require their own reviewed design.
+- See docs/local-data-storage.md. Never publish live .ng contents or credentials.

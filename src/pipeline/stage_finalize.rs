@@ -31,13 +31,12 @@ use crate::protocol::registry::{
     OPENAI_VIDEOS_GENERATIONS_FAMILY, SEARCH_API_FAMILY,
 };
 use crate::provider_failure::classify_provider_failure;
-use crate::redis::credential_cache::set_credential_affinity;
 use crate::redis::usage_tracking::{
-    enqueue_usage_report, parse_upstream_usage, refund_quota, settle_quota_after_usage, TokenUsage,
-    UsageReport,
+    parse_upstream_usage, refund_quota, settle_quota_after_usage, TokenUsage, UsageReport,
 };
 use crate::state::AppState;
 
+use super::runtime_storage::{publish_usage, set_affinity};
 use super::PipelineContext;
 
 mod archive;

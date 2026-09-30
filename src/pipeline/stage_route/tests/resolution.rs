@@ -34,6 +34,7 @@ model_routes:
             .create_pool(Some(deadpool_redis::Runtime::Tokio1))
             .expect("pool"),
         pg_pool: None,
+        local_runtime: None,
         upstream_client: UpstreamClient::new(30),
         concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
         auth_adapters: vec![],
@@ -94,6 +95,7 @@ model_routes:
             .create_pool(Some(deadpool_redis::Runtime::Tokio1))
             .expect("pool"),
         pg_pool: None,
+        local_runtime: None,
         upstream_client: UpstreamClient::new(30),
         concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
         auth_adapters: vec![],

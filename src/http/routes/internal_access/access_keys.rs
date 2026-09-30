@@ -2,6 +2,8 @@
 
 use super::super::internal_gateway::assert_management_access;
 use super::required_pg_pool;
+use crate::access_balance::AccessBalanceStore;
+use crate::access_store::AccessStore;
 use crate::db;
 use crate::error::GatewayError;
 use crate::http::extractors::OptionalBearerToken;
@@ -26,6 +28,23 @@ pub struct AccessKeyBody {
     pub metadata: Option<serde_json::Value>,
     #[serde(default)]
     pub bundle_ids: Vec<String>,
+}
+
+impl From<AccessKeyBody> for db::UpsertAccessKeyInput {
+    fn from(body: AccessKeyBody) -> Self {
+        Self {
+            owner_type: body.owner_type,
+            owner_id: body.owner_id,
+            resolved_project_id: body.resolved_project_id,
+            resolved_tenant_id: body.resolved_tenant_id,
+            key_kind: body.key_kind,
+            public_key_prefix: body.public_key_prefix,
+            display_name: body.display_name,
+            expires_at: body.expires_at,
+            metadata: body.metadata,
+            bundle_ids: body.bundle_ids,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -75,27 +94,7 @@ pub async fn create_access_key(
     Json(body): Json<AccessKeyBody>,
 ) -> Result<Json<db::GatewayAccessKeyView>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    Ok(Json(
-        db::save_access_key(
-            required_pg_pool(state.as_ref())?,
-            &state.redis_pool,
-            None,
-            state.config.gateway_api_key_secret.as_deref(),
-            db::UpsertAccessKeyInput {
-                owner_type: body.owner_type,
-                owner_id: body.owner_id,
-                resolved_project_id: body.resolved_project_id,
-                resolved_tenant_id: body.resolved_tenant_id,
-                key_kind: body.key_kind,
-                public_key_prefix: body.public_key_prefix,
-                display_name: body.display_name,
-                expires_at: body.expires_at,
-                metadata: body.metadata,
-                bundle_ids: body.bundle_ids,
-            },
-        )
-        .await?,
-    ))
+    Ok(Json(AccessStore(&state).save(None, body.into()).await?))
 }
 
 pub async fn update_access_key(
@@ -107,25 +106,9 @@ pub async fn update_access_key(
 ) -> Result<Json<db::GatewayAccessKeyView>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     Ok(Json(
-        db::save_access_key(
-            required_pg_pool(state.as_ref())?,
-            &state.redis_pool,
-            Some(path.access_key_id.as_str()),
-            state.config.gateway_api_key_secret.as_deref(),
-            db::UpsertAccessKeyInput {
-                owner_type: body.owner_type,
-                owner_id: body.owner_id,
-                resolved_project_id: body.resolved_project_id,
-                resolved_tenant_id: body.resolved_tenant_id,
-                key_kind: body.key_kind,
-                public_key_prefix: body.public_key_prefix,
-                display_name: body.display_name,
-                expires_at: body.expires_at,
-                metadata: body.metadata,
-                bundle_ids: body.bundle_ids,
-            },
-        )
-        .await?,
+        AccessStore(&state)
+            .save(Some(&path.access_key_id), body.into())
+            .await?,
     ))
 }
 
@@ -136,14 +119,7 @@ pub async fn delete_access_key(
     Path(path): Path<AccessKeyPath>,
 ) -> Result<Json<db::DeleteAccessKeyResult>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    Ok(Json(
-        db::delete_access_key(
-            required_pg_pool(state.as_ref())?,
-            &state.redis_pool,
-            &path.access_key_id,
-        )
-        .await?,
-    ))
+    Ok(Json(AccessStore(&state).delete(&path.access_key_id).await?))
 }
 
 pub async fn rotate_access_key(
@@ -153,15 +129,7 @@ pub async fn rotate_access_key(
     Path(path): Path<AccessKeyPath>,
 ) -> Result<Json<db::GatewayAccessKeyView>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    Ok(Json(
-        db::rotate_access_key(
-            required_pg_pool(state.as_ref())?,
-            &state.redis_pool,
-            &path.access_key_id,
-            state.config.gateway_api_key_secret.as_deref(),
-        )
-        .await?,
-    ))
+    Ok(Json(AccessStore(&state).rotate(&path.access_key_id).await?))
 }
 
 pub async fn revoke_access_key(
@@ -172,13 +140,9 @@ pub async fn revoke_access_key(
     Json(body): Json<RevokeAccessKeyBody>,
 ) -> Result<Json<serde_json::Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    db::revoke_access_key(
-        required_pg_pool(state.as_ref())?,
-        &state.redis_pool,
-        &path.access_key_id,
-        body.reason.as_deref(),
-    )
-    .await?;
+    AccessStore(&state)
+        .revoke(&path.access_key_id, body.reason.as_deref())
+        .await?;
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
@@ -191,25 +155,24 @@ pub async fn adjust_access_key_balance(
 ) -> Result<Json<db::GatewayAccessKeyBalanceView>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     Ok(Json(
-        db::adjust_access_key_balance(
-            required_pg_pool(state.as_ref())?,
-            &state.redis_pool,
-            &path.access_key_id,
-            db::AccessKeyBalanceAdjustInput {
-                balance_mode: body.balance_mode,
-                status: body.status,
-                unlimited_until: body.unlimited_until,
-                period_starts_at: body.period_starts_at,
-                period_ends_at: body.period_ends_at,
-                token_delta: body.token_delta,
-                message_delta: body.message_delta,
-                total_tokens: body.total_tokens,
-                remaining_tokens: body.remaining_tokens,
-                total_messages: body.total_messages,
-                remaining_messages: body.remaining_messages,
-            },
-        )
-        .await?,
+        AccessBalanceStore::from_state(&state)?
+            .adjust(
+                &path.access_key_id,
+                db::AccessKeyBalanceAdjustInput {
+                    balance_mode: body.balance_mode,
+                    status: body.status,
+                    unlimited_until: body.unlimited_until,
+                    period_starts_at: body.period_starts_at,
+                    period_ends_at: body.period_ends_at,
+                    token_delta: body.token_delta,
+                    message_delta: body.message_delta,
+                    total_tokens: body.total_tokens,
+                    remaining_tokens: body.remaining_tokens,
+                    total_messages: body.total_messages,
+                    remaining_messages: body.remaining_messages,
+                },
+            )
+            .await?,
     ))
 }
 
@@ -221,12 +184,9 @@ pub async fn get_access_key_balance(
 ) -> Result<Json<Option<db::GatewayAccessKeyBalanceView>>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     Ok(Json(
-        db::get_access_key_balance(
-            required_pg_pool(state.as_ref())?,
-            &state.redis_pool,
-            &path.access_key_id,
-        )
-        .await?,
+        AccessBalanceStore::from_state(&state)?
+            .get(&path.access_key_id)
+            .await?,
     ))
 }
 

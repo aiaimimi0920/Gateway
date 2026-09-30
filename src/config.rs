@@ -3,6 +3,9 @@ use std::path::PathBuf;
 
 use crate::console::ConsoleConfig;
 use crate::credential_pool_automation::CredentialPoolAutomationConfig;
+mod management;
+mod storage;
+pub use storage::GatewayStorageMode;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GatewayRuntimeRole {
@@ -29,6 +32,7 @@ impl GatewayRuntimeRole {
 pub struct Config {
     pub console: ConsoleConfig,
     pub runtime_role: GatewayRuntimeRole,
+    pub storage_mode: GatewayStorageMode,
     pub port: u16,
     pub redis_url: String,
     pub database_url: Option<String>,
@@ -98,15 +102,29 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Result<Self, String> {
         let console = ConsoleConfig::from_env().map_err(|error| error.to_string())?;
+        let storage_mode = GatewayStorageMode::from_env()?;
         let runtime_role = env::var("GATEWAY_RUNTIME_ROLE")
             .ok()
             .as_deref()
             .map(GatewayRuntimeRole::parse)
             .transpose()?
-            .unwrap_or(GatewayRuntimeRole::Splitter);
+            .unwrap_or(if storage_mode == GatewayStorageMode::Local {
+                GatewayRuntimeRole::Standalone
+            } else {
+                GatewayRuntimeRole::Splitter
+            });
+        if storage_mode == GatewayStorageMode::Local
+            && runtime_role != GatewayRuntimeRole::Standalone
+        {
+            return Err("Local storage requires standalone runtime role".into());
+        }
         let port = parse_env_or("PORT", 4200u16)?;
-        let redis_url = env::var("GATEWAY_REDIS_URL")
-            .map_err(|_| "GATEWAY_REDIS_URL is required but not set".to_string())?;
+        let redis_url = if storage_mode == GatewayStorageMode::Local {
+            String::new()
+        } else {
+            env::var("GATEWAY_REDIS_URL")
+                .map_err(|_| "GATEWAY_REDIS_URL is required but not set".to_string())?
+        };
         let database_url = env::var("GATEWAY_DATABASE_URL")
             .ok()
             .or_else(|| env::var("DATABASE_URL").ok())
@@ -170,10 +188,10 @@ impl Config {
             .or_else(|| env::var("API_KEY_SECRET").ok())
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
-        let gateway_management_token = env::var("GATEWAY_MANAGEMENT_TOKEN")
-            .ok()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty());
+        let gateway_management_token = management::resolve_management_token(
+            env::var("GATEWAY_MANAGEMENT_TOKEN").ok(),
+            console.state_dir.join("console/admin.json").exists(),
+        );
         let gateway_keepalive_bearer_token = env::var("GATEWAY_KEEPALIVE_BEARER_TOKEN")
             .ok()
             .map(|value| value.trim().to_string())
@@ -284,6 +302,7 @@ impl Config {
         Ok(Self {
             console,
             runtime_role,
+            storage_mode,
             port,
             redis_url,
             database_url,

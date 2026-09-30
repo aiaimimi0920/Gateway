@@ -109,7 +109,7 @@ async fn translate_openai_tool_stream_to_responses_events() {
         .find(|frame| frame.event_name.as_deref() == Some("response.completed"))
         .map(|frame| serde_json::from_str::<Value>(&frame.data).unwrap())
         .unwrap();
-    assert_eq!(completed["response"]["status"], "tool_calls");
+    assert_eq!(completed["response"]["status"], "completed");
     assert_eq!(completed["response"]["output"][0]["type"], "function_call");
     assert_eq!(completed["response"]["output"][0]["id"], "fc_call_1");
     assert_eq!(completed["response"]["output"][0]["call_id"], "call_1");

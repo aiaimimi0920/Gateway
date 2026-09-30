@@ -234,7 +234,9 @@ impl axum::response::IntoResponse for GatewayError {
             None => match self.kind {
                 ErrorKind::Authentication => StatusCode::UNAUTHORIZED,
                 ErrorKind::BadRequest => StatusCode::BAD_REQUEST,
-                ErrorKind::RateLimit => StatusCode::TOO_MANY_REQUESTS,
+                ErrorKind::RateLimit | ErrorKind::InsufficientQuota => {
+                    StatusCode::TOO_MANY_REQUESTS
+                }
                 ErrorKind::ModelNotFound => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },

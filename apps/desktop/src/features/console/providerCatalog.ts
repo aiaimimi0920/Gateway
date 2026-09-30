@@ -1,3 +1,5 @@
+import { CHATGPT_POOL_CATEGORIES } from "./chatgptPool";
+
 export type ProviderCatalogCategory =
   | "mainstream"
   | "aggregator"
@@ -44,6 +46,17 @@ export type ProviderCatalogClassification = {
 };
 
 export const PROVIDER_CATALOG_TEMPLATES = [
+  {
+    id: "chatgpt", providerId: "chatgpt",
+    labelZh: "ChatGPT 官方凭证池", labelEn: "ChatGPT OAuth pool",
+    descriptionZh: "ChatGPT Codex OAuth 账号，按订阅类型分组。",
+    descriptionEn: "ChatGPT Codex OAuth accounts grouped by subscription.",
+    category: "mainstream", compatibility: "native",
+    preset: "chatgpt-codex-oauth-official-api",
+    vendorKey: "chatgpt_platform", vendorName: "ChatGPT",
+    baseUrl: "https://chatgpt.com/backend-api/codex",
+    supportedModels: [],
+  },
   {
     id: "openai",
     providerId: "openai",
@@ -468,6 +481,10 @@ export function providerDefinitionFromCatalogDraft(
   } else {
     provider.adapter = template.adapter ?? "openai_compatible";
     provider.protocol_profile = template.protocolProfile ?? "openai_compatible_generic";
+  }
+  if (template.id === "chatgpt") {
+    provider.protocol_profile = "chatgpt_codex_backend";
+    provider.credential_identity_categories = CHATGPT_POOL_CATEGORIES.map((category) => ({ ...category }));
   }
   return provider;
 }

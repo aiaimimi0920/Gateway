@@ -24,6 +24,7 @@ fn make_config() -> Config {
     Config {
         console: Default::default(),
         runtime_role: crate::config::GatewayRuntimeRole::Standalone,
+        storage_mode: Default::default(),
         port: 4200,
         redis_url: test_redis_url(),
         database_url: None,
@@ -104,6 +105,7 @@ fn make_state_with_route_store(route_config: RouteConfigStore) -> Arc<AppState> 
             .create_pool(Some(deadpool_redis::Runtime::Tokio1))
             .expect("pool"),
         pg_pool: None,
+        local_runtime: None,
         upstream_client: UpstreamClient::new(30),
         concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
         auth_adapters: vec![],

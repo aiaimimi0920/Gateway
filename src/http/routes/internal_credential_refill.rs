@@ -73,7 +73,8 @@ fn credential_refill_status_response(
     Json(serde_json::json!({
         "refill": {
             "enabled": state.credential_pool_automation.refill_queue_enabled(),
-            "streamKey": stream_key(),
+            "storageBackend": if state.local_runtime.is_some() { "sqlite" } else { "redis" },
+            "streamKey": if state.local_runtime.is_some() { None } else { Some(stream_key()) },
             "notificationIntervalSeconds": state
                 .credential_pool_automation
                 .refill_notification_interval()

@@ -192,16 +192,16 @@ test("broad response capture preserves body selection and text rejection", async
   }
 });
 
-test("broad response capture fails closed without a trustworthy declared length", async (t) => {
+test("broad response consumer accepts native-admitted bodies independently of declared length", async (t) => {
   const f = captureFixture(t);
   let reads = 0;
   for (const length of [undefined, "invalid", String(maxBodyBytes + 1)]) {
     const headers = { "content-type": "text/plain" };
     if (length !== undefined) headers["content-length"] = length;
     await f.emit("response", responseFixture(requestFixture(), { allHeaders: async () => headers, text: async () => { reads += 1; return "response"; } }));
-    assert.equal(f.capture.events.at(-1).bodyText, null);
+    assert.equal(f.capture.events.at(-1).bodyText, "response");
   }
-  assert.equal(reads, 0);
+  assert.equal(reads, 3);
 });
 
 test("broad response capture validates the returned UTF-8 body after a misleading length", async (t) => {

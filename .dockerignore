@@ -11,6 +11,8 @@ apps/desktop/.rsbuild/
 *.tsbuildinfo
 
 .runtime/
+**/.ng/
+.ng/
 gateway/
 release/
 output/
@@ -30,6 +32,7 @@ venv/
 .env
 .env.*
 !.env.example
+routes.yaml
 
 docs/evidence/*.json
 

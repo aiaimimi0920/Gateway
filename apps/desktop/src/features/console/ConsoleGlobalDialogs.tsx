@@ -1,5 +1,6 @@
 import { SecretConfirmDialog } from "../auth/SecretConfirmDialog";
 import { CredentialDialog } from "./CredentialDialog";
+import { ChatgptOAuthPanel } from "./ChatgptOAuthPanel";
 import { GeminiManualAddDialog } from "./GeminiManualAddDialog";
 import { PilotActionDialog } from "./PilotActionDialog";
 import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
@@ -19,6 +20,9 @@ type ConsoleGlobalDialogsProps = {
     | "closeGeminiManualAddDialog"
     | "closePilotActionDialog"
     | "credentialDialogState"
+    | "client"
+    | "refresh"
+    | "routeConfig"
     | "credentialProbeBusy"
     | "credentialProviderOptions"
     | "draftDirty"
@@ -144,6 +148,14 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
           }}
           onRequestSecretAccess={() => setSecretDialogOpen(true)}
           onSubmit={applyCredentialDialogValue}
+          renderAuthentication={(providerId) => controller.routeConfig?.routeConfig.document.providers.some((provider) =>
+            typeof provider === "object" && provider !== null && "id" in provider && "preset" in provider &&
+            provider.id === providerId && provider.preset === "chatgpt-codex-oauth-official-api") ? (
+              <ChatgptOAuthPanel client={controller.client} providerId={providerId}
+                managementToken={session.managementToken} secretGrant={session.secretGrant?.grant ?? null}
+                disabled={editorLocked || draftDirty} onRequestSecretAccess={() => setSecretDialogOpen(true)}
+                onSaved={() => { setCredentialDialogState(null); void controller.refresh(); }} />
+            ) : null}
         />
       ) : null}
       <GeminiManualAddDialog

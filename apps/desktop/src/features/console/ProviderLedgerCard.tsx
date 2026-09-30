@@ -12,6 +12,8 @@ import type { ReactNode, RefObject } from "react";
 
 import type { AccountsLedgerPilotSection, AccountsLedgerWorkspaceProps } from "./accountsLedgerTypes";
 import { ProviderCardFrontBody } from "./ProviderCardFrontBody";
+import { NvidiaBrandIcon } from "./NvidiaBrandIcon";
+
 import { providerCardVisual } from "./providerCardVisual";
 import type { ProviderCardSnapshot } from "./providerCardSnapshot";
 import type { useAccountCardMenu } from "./useAccountCardMenu";
@@ -80,7 +82,7 @@ export function ProviderLedgerCard({
     actionableAccounts.length === 1 ? actionableAccounts[0] : null;
   const providerDispatchEnabled =
     actionableAccounts.length > 0 &&
-    actionableAccounts.every((account) => account.dispatchEnabled);
+    actionableAccounts.every((account) => account.enabled);
   const providerMenuKey = `provider:${section.providerId}`;
   const visual = providerCardVisual({
     providerId: section.providerId,
@@ -124,7 +126,7 @@ export function ProviderLedgerCard({
             title={section.vendorLabel}
             aria-hidden="true"
           >
-            {visual.iconLabel}
+            {visual.iconKey === "nvidia" ? <NvidiaBrandIcon /> : visual.iconLabel}
           </span>
           <button
             className="nt-provider-card__title nt-provider-tree-item nt-provider-tree-item--level-0"
@@ -187,6 +189,8 @@ export function ProviderLedgerCard({
 
         <ProviderCardFrontBody
           providerLabel={section.providerLabel}
+          supportedModels={snapshot.supportedModels}
+          modelTraffic={section.modelTraffic}
           poolSegments={poolSegments}
           providerConcurrency={providerConcurrency}
           providerCosts={providerCosts}
@@ -199,6 +203,7 @@ export function ProviderLedgerCard({
           providerQuotaRemainingUsd={providerQuotaRemainingUsd}
           t={t}
         />
+
 
         <footer className="nt-provider-card__actions">
           <button

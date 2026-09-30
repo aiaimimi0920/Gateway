@@ -1,6 +1,6 @@
 use super::{
-    build_probe_http_client, db, fixed_models_for_payload, freebuff, probe_known_http_payload,
-    send_probe_request, AppState, GatewayError, Method, ProbeExpectation, ProbePolicy,
+    build_probe_http_client, db, freebuff, probe_known_http_payload, send_probe_request, AppState,
+    GatewayError, Method, ProbeExpectation, ProbePolicy,
 };
 
 pub async fn probe_provider_account_payload(
@@ -17,7 +17,7 @@ pub async fn probe_provider_account_payload(
             provider_account.id
         ))
     })?;
-    if fixed_models_for_payload(&payload).is_some() {
+    if crate::protocol::chatgpt::official_api::is_chatgpt_codex_backend_payload(&payload) {
         return Ok(());
     }
 

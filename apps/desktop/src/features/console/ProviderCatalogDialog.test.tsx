@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ComponentProps } from "react";
+import { type ComponentProps, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
 import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
@@ -32,6 +32,29 @@ function renderDialog(
 describe("ProviderCatalogDialog", () => {
   beforeEach(() => {
     window.localStorage.setItem("gateway-ui-locale", "zh-CN");
+  });
+
+  it("returns keyboard focus to the opener after Escape without submitting", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      return <UiLocaleProvider>
+        <button onClick={() => setOpen(true)}>Add provider</button>
+        <ProviderCatalogDialog open={open} onOpenChange={setOpen}
+          existingProviderIds={[]} existingCredentialIds={[]} locked={false}
+          hasSecretAccess onRequestSecretAccess={vi.fn()} onAddAccount={vi.fn()}
+          onSubmit={onSubmit} />
+      </UiLocaleProvider>;
+    }
+    render(<Harness />);
+    const opener = screen.getByRole("button", { name: "Add provider" });
+    await user.click(opener);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(opener).toHaveFocus());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("creates a custom OpenAI-compatible provider draft with a first account and route models", async () => {

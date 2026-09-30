@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { pushAppToast } from "../../components/AppToast";
 import type { AccountsLedgerPilotAccount } from "./AccountsLedgerWorkspace";
@@ -26,6 +26,9 @@ export function useCredentialDialogEditor({
   replaceEditorDocument,
   t,
 }: CredentialDialogEditorOptions) {
+  // Pool buttons update several credentials before React renders the new draft.
+  const dispatchDraftRef = useRef(editorText);
+  dispatchDraftRef.current = editorText;
   const openAddCredentialDialog = useCallback((providerId = "") => {
     setCredentialDialogState({
       mode: "add",
@@ -160,7 +163,7 @@ export function useCredentialDialogEditor({
     (providerId: string, credentialId: string, nextEnabled: boolean) => {
       let document: ConsoleRouteDocument;
       try {
-        document = parseRouteDocument(editorText);
+        document = parseRouteDocument(dispatchDraftRef.current);
       } catch {
         setError(t("当前 JSON 草稿不可解析。", "The current JSON draft is invalid."));
         return;
@@ -187,18 +190,19 @@ export function useCredentialDialogEditor({
             enabled: nextEnabled,
           },
         );
+        dispatchDraftRef.current = JSON.stringify(nextDocument, null, 2);
         replaceEditorDocument(nextDocument, true);
         setError(null);
         pushAppToast(
           "info",
           nextEnabled
             ? t(
-                `账号 ${credentialId} 已恢复调度，保存路由配置后生效。`,
-                `Account ${credentialId} was resumed in the draft and will take effect after saving the route config.`,
+                `账号 ${credentialId} 已恢复调度，正在自动保存。`,
+                `Account ${credentialId} was resumed in the draft and is being saved automatically.`,
               )
             : t(
-                `账号 ${credentialId} 已暂停调度，保存路由配置后生效。`,
-                `Account ${credentialId} was paused in the draft and will take effect after saving the route config.`,
+                `账号 ${credentialId} 已暂停调度，正在自动保存。`,
+                `Account ${credentialId} was paused in the draft and is being saved automatically.`,
               ),
         );
       } catch (cause) {

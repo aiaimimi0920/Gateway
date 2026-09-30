@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import {
   PROVIDER_CATALOG_TEMPLATES,
@@ -81,6 +81,7 @@ export function ProviderCatalogDialog({
   onSubmit,
 }: ProviderCatalogDialogProps) {
   const { t } = useUiLocale();
+  const openerRef = useRef<HTMLElement | null>(null);
   const firstTemplate: ProviderCatalogTemplate = PROVIDER_CATALOG_TEMPLATES[0];
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CatalogCategoryFilter>("all");
@@ -239,6 +240,16 @@ export function ProviderCatalogDialog({
         <Dialog.Content
           className="dialog-content nt-provider-catalog-dialog"
           aria-describedby="provider-catalog-description"
+          onOpenAutoFocus={() => {
+            openerRef.current = document.activeElement instanceof HTMLElement
+              ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            // Controlled dialogs have no Radix trigger; preserve a successor dialog's focus.
+            event.preventDefault();
+            if (document.activeElement?.closest('[role="dialog"]')?.isConnected) return;
+            if (openerRef.current?.isConnected) openerRef.current.focus();
+          }}
         >
           <div className="nt-pilot-dialog__header">
             <div>

@@ -78,7 +78,7 @@ pub struct GatewayAccessKeyBundleBindingView {
     pub created_at: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayAccessKeyView {
     pub id: String,
@@ -104,7 +104,7 @@ pub struct GatewayAccessKeyView {
     pub updated_at: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayAccessKeyBalanceView {
     pub access_key_id: String,
@@ -235,7 +235,7 @@ pub struct UpsertAccessKeyInput {
     pub bundle_ids: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AccessKeyBalanceAdjustInput {
     pub balance_mode: Option<String>,
     pub status: Option<String>,

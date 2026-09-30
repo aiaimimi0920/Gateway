@@ -18,6 +18,26 @@ pub(super) async fn collect_candidate_health_snapshots(
     state: Arc<AppState>,
     concurrency_snapshots: HashMap<String, ConcurrencySnapshot>,
 ) -> (Vec<RouteCandidate>, HashMap<String, HealthSnapshot>) {
+    if state.local_runtime.is_some() {
+        let health = candidates
+            .iter()
+            .map(|candidate| {
+                let subject = candidate.runtime_subject_id().to_string();
+                let snapshot = HealthSnapshot {
+                    status: "active".into(),
+                    active_concurrency: concurrency_snapshots
+                        .get(&candidate.provider_account_id)
+                        .map(|snapshot| snapshot.active_count)
+                        .unwrap_or(0),
+                    failure_count: candidate.failure_count,
+                    breaker_open: candidate.routing_breaker_open.unwrap_or(false),
+                    balance_status: None,
+                };
+                (subject, snapshot)
+            })
+            .collect();
+        return (candidates, health);
+    }
     let mut quota_slots = Vec::with_capacity(candidates.len());
     let mut quota_runtime_ids = Vec::new();
     for candidate in &candidates {

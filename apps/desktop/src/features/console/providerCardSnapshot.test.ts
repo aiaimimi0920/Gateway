@@ -55,7 +55,7 @@ describe("buildProviderCardSnapshot", () => {
 
     expect(snapshot.accounts.map((item) => item.accountId)).toEqual(["shared", "recovering"]);
     expect(snapshot.availablePoolCount).toBe(1);
-    expect(snapshot.poolSegments.segments.map((segment) => segment.count)).toEqual([1, 1, 0, 2]);
+    expect(snapshot.poolSegments.segments.map((segment) => segment.count)).toEqual([1, 1, 0, 0, 2]);
     expect(snapshot.requestCount).toBe(9);
     expect(snapshot.costs).toEqual({ upstream: 1.25, user: 2.5 });
     expect(snapshot.successRate).toBe(0.75);

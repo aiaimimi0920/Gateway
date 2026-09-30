@@ -1,5 +1,7 @@
 # Rust and Tauri build output
 /target/
+/crates/*/target/
+**/.ng/
 /.linux-target/
 /apps/desktop/src-tauri/target/
 /apps/desktop/target/

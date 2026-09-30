@@ -24,7 +24,7 @@ describe("providerCardMetrics", () => {
     expect(result.rateLimited).toBe(25);
     expect(result.invalid).toBe(37);
     expect(result.remaining).toBe(60);
-    expect(result.segments.map((segment) => segment.count)).toEqual([78, 25, 37, 60]);
+    expect(result.segments.map((segment) => segment.count)).toEqual([78, 25, 37, 0, 60]);
     expect(result.segments.reduce((sum, segment) => sum + segment.ratio, 0)).toBeCloseTo(1);
   });
 
@@ -43,6 +43,15 @@ describe("providerCardMetrics", () => {
 
   it("does not infer unknown states from disabled accounts", () => {
     expect(classifyAccountPoolState({ statusLabel: "暂停", dispatchEnabled: false })).toBe("unknown");
+  });
+
+  it("counts unobserved configured credentials as occupied without claiming health", () => {
+    const result = buildProviderPoolSegments([
+      { statusLabel: "待观测", dispatchEnabled: true },
+      { statusLabel: "not observed", dispatchEnabled: true },
+    ], 30);
+    expect(result).toMatchObject({ available: 0, unknown: 2, remaining: 28, target: 30 });
+    expect(result.segments.reduce((sum, segment) => sum + segment.count, 0)).toBe(30);
   });
 
   it("keeps unavailable monitoring data unavailable", () => {

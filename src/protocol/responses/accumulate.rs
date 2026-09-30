@@ -101,11 +101,10 @@ pub(super) fn accumulate_responses_sse_bytes(
             .unwrap_or_default();
 
         match event_type {
-            "error" => {
-                return Err(GatewayError::server_error(format!(
-                    "responses upstream stream error: {}",
-                    frame.data
-                ))
+            "error" | "response.failed" | "response.cancelled" => {
+                return Err(GatewayError::server_error(
+                    "Responses upstream stream failed before completion.",
+                )
                 .with_code("responses_stream_upstream_error"));
             }
             "response.output_text.delta" => {
@@ -185,7 +184,7 @@ pub(super) fn accumulate_responses_sse_bytes(
                     }
                 }
             }
-            "response.completed" => {
+            "response.completed" | "response.incomplete" => {
                 if let Some(response) = payload.get("response") {
                     completed_response = Some(response.clone());
                 }
@@ -225,7 +224,9 @@ pub(super) fn accumulate_responses_sse_bytes(
                 })
                 .collect();
         }
-        if !canonical.tool_calls.is_empty() {
+        if !canonical.tool_calls.is_empty()
+            && canonical.finish_reason.as_deref() != Some("incomplete")
+        {
             canonical.finish_reason = Some("tool_calls".to_string());
         }
         return Ok(canonical);

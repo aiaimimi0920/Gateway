@@ -145,7 +145,10 @@ pub fn classify_network_error(err: &rquest::Error, provider_name: Option<&str>) 
         kind,
         message,
         code: None,
-        http_status: err.status().map(|s| s.as_u16()),
+        http_status: err
+            .status()
+            .map(|s| s.as_u16())
+            .or_else(|| err.is_timeout().then_some(504)),
         retryable: is_kind_retryable(kind),
         fallback_hint: build_fallback_hint(kind),
         provider_name: provider_name.map(str::to_string),

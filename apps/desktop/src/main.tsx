@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import { DesktopConnectionApp } from "./features/connection/DesktopConnectionApp";
 import { BrowserConsoleApp } from "./features/console/BrowserConsoleApp";
 import { AuthBoundary } from "./features/auth/AuthBoundary";
 import { HostProvider } from "./platform/HostProvider";
@@ -10,6 +10,7 @@ import { ManagementSessionProvider } from "./session/ManagementSessionProvider";
 import { UiLocaleProvider } from "./i18n/UiLocaleProvider";
 import { UiThemeProvider } from "./theme/UiThemeProvider";
 import { AppToastViewport } from "./components/AppToast";
+import { DesktopWindowChrome } from "./features/shell/DesktopWindowChrome";
 import "./styles.css";
 
 declare const __GATEWAY_UI_TARGET__: GatewayUiTarget | undefined;
@@ -26,6 +27,7 @@ createRoot(rootElement).render(
   <React.StrictMode>
     <UiThemeProvider>
       <UiLocaleProvider>
+        <DesktopWindowChrome />
         {target === "web" ? (
           <HostProvider adapter={createBrowserHost()}>
             <ManagementSessionProvider>
@@ -35,7 +37,7 @@ createRoot(rootElement).render(
             </ManagementSessionProvider>
           </HostProvider>
         ) : (
-          <App />
+          <DesktopConnectionApp />
         )}
         <AppToastViewport />
       </UiLocaleProvider>

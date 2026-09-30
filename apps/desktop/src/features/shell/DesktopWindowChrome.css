@@ -1,0 +1,36 @@
+.nt-native-controls {
+  position: fixed;
+  z-index: 2147483000;
+  top: 0;
+  right: 0;
+  display: flex;
+  height: 50px;
+  background: var(--nt-rail);
+  pointer-events: auto;
+}
+
+.nt-native-controls svg {
+  pointer-events: none;
+}
+
+:root:has(.nt-native-controls) .nt-titlebar__controls {
+  padding-right: 186px;
+}
+
+:root:has(.nt-native-controls) .auth-page__toolbar {
+  right: 196px;
+}
+
+.nt-native-auth-drag {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  right: 240px;
+  height: 50px;
+  user-select: none;
+}
+
+:root:has(.nt-shell) .nt-native-auth-drag {
+  display: none;
+}

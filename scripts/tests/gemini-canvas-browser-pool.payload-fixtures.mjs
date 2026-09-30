@@ -46,6 +46,7 @@ export function navigationResponse({ body = Buffer.from("fixture"), contentType 
 export function navigationFixture({ download = null, response = navigationResponse(), navigationError, closeError, newPageError } = {}) {
   const calls = [];
   const page = {
+    fixtureResponse: response,
     async waitForEvent(name, options) {
       calls.push(["event", name, options]);
       if (!download) throw new Error("fixture download event timeout");
@@ -63,6 +64,12 @@ export function navigationFixture({ download = null, response = navigationRespon
     page: { async close() { calls.push(["original-close"]); } },
   };
   return { entry, calls };
+}
+
+export function fixtureNavigationCapture(page) {
+  const result = Promise.resolve().then(() => page.fixtureResponse?.body());
+  void result.catch(() => undefined);
+  return { ready: Promise.resolve(), result, async stop() {} };
 }
 
 export async function downloadFile(t, body) {

@@ -15,6 +15,9 @@ pub async fn list_credential_refill_tasks(
         .as_deref()
         .map(|value| normalize_identifier(value, "providerId", MAX_WORKER_ID_LENGTH))
         .transpose()?;
+    if let Some(db) = &state.local_runtime {
+        return local::list(db, provider_filter.as_deref(), filters.state, limit).await;
+    }
     prune_expired_task_indexes(state).await?;
     let mut conn = redis_connection(state).await?;
     let ids: Vec<String> = redis::cmd("ZREVRANGE")
@@ -52,6 +55,9 @@ pub(super) async fn pending_task_ids(
     state: &AppState,
     limit: usize,
 ) -> Result<Vec<String>, GatewayError> {
+    if let Some(db) = &state.local_runtime {
+        return local::pending(db, limit).await;
+    }
     prune_expired_task_indexes(state).await?;
     let mut conn = redis_connection(state).await?;
     redis::cmd("ZRANGE")
@@ -91,6 +97,9 @@ pub(super) async fn load_outstanding_task(
     state: &AppState,
     provider_id: &str,
 ) -> Result<Option<CredentialRefillTaskRecord>, GatewayError> {
+    if let Some(db) = &state.local_runtime {
+        return local::outstanding(db, provider_id).await;
+    }
     let mut conn = redis_connection(state).await?;
     let task_id: Option<String> = redis::cmd("GET")
         .arg(keys::credential_refill_outstanding_key(provider_id))
@@ -108,6 +117,9 @@ pub(super) async fn load_task(
     state: &AppState,
     task_id: &str,
 ) -> Result<Option<CredentialRefillTaskRecord>, GatewayError> {
+    if let Some(db) = &state.local_runtime {
+        return local::load(db, task_id).await;
+    }
     let mut conn = redis_connection(state).await?;
     let payload: Option<String> = redis::cmd("GET")
         .arg(keys::credential_refill_task_key(task_id))

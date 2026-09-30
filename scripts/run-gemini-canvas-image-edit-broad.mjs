@@ -208,7 +208,7 @@ try {
     maxResourceBufferSize: 32 * 1024 * 1024,
   });
 
-  capture.attach(cdp, page);
+  await capture.attach(cdp, page);
 
   await page.goto("https://gemini.google.com/app", {
     waitUntil: "domcontentloaded",
@@ -437,7 +437,7 @@ try {
   );
 } finally {
   try {
-    capture.stop();
+    await capture.stop();
   } catch {
     // Cleanup must not replace the probe outcome.
   }

@@ -200,7 +200,7 @@ fn build_responses_success_emits_function_call_items() {
         }],
         Some("tool_calls"),
     );
-    assert_eq!(resp["status"], "tool_calls");
+    assert_eq!(resp["status"], "completed");
     assert_eq!(resp["output"][0]["type"], "function_call");
     assert_eq!(resp["output"][0]["call_id"], "call_1");
 }

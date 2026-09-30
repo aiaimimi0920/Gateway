@@ -49,8 +49,13 @@ export function temporaryRoot(t) {
 
 export function loadOwners(options = {}) {
   return vm.runInNewContext(ownerSources() + "\n({ createImageEditBroadCapture, collectImageEditBroadPageState, exportImageEditBroadPageBlobs })", {
-    Buffer, createHash, writeFileSync: fs.writeFileSync, path, ...options,
+    Buffer, createHash, writeFileSync: fs.writeFileSync, path, createProgramResponseCapture: fixtureResponseCapture, ...options,
   }, { timeout: 1000 });
+}
+
+function fixtureResponseCapture(page, { onResponse }) {
+  page.on("response", onResponse);
+  return { ready: Promise.resolve(), stop() { page.off("response", onResponse); } };
 }
 
 export async function dispatch(emitter, event, value) {
@@ -133,7 +138,7 @@ export function executionFixture(t, options = {}) {
     async close() { step("close"); },
   };
   const globals = {
-    Buffer, createHash, path,
+    Buffer, createHash, path, createProgramResponseCapture: fixtureResponseCapture,
     Date: class extends Date { constructor(...args) { super(...(args.length ? args : [now])); } static now() { return now; } },
     existsSync(file) {
       if (file === "fixture-browser") return !options.noBrowser;

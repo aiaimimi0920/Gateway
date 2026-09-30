@@ -77,6 +77,34 @@ pub struct GatewayProfile {
     pub extra_env: Vec<GatewayEnvEntry>,
 }
 
+impl GatewayProfile {
+    pub(crate) fn local_storage(&self) -> bool {
+        self.extra_env
+            .iter()
+            .find(|entry| {
+                entry
+                    .key
+                    .trim()
+                    .eq_ignore_ascii_case("GATEWAY_STORAGE_MODE")
+            })
+            .map(|entry| entry.value.trim().eq_ignore_ascii_case("local"))
+            .unwrap_or_else(|| {
+                self.extra_env.iter().any(|entry| {
+                    (entry
+                        .key
+                        .trim()
+                        .eq_ignore_ascii_case("GATEWAY_DESKTOP_MANAGED")
+                        && entry.value.trim() == "1")
+                        || (entry
+                            .key
+                            .trim()
+                            .eq_ignore_ascii_case("GATEWAY_CONSOLE_STORAGE")
+                            && entry.value.trim() == "local")
+                })
+            })
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayDependencyCheckItem {

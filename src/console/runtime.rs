@@ -2,6 +2,7 @@
 
 mod activation;
 mod commit;
+mod local_backend;
 mod recovery;
 mod revision_state;
 mod snapshots;
@@ -76,6 +77,22 @@ impl RouteConfigRuntimeError {
 
 #[async_trait]
 pub trait RouteConfigRedisBackend: Send + Sync {
+    fn active_source(&self) -> ActiveConfigSource {
+        ActiveConfigSource::Redis
+    }
+
+    async fn activate_revision_locked(
+        &self,
+        _guard: &super::WriterLockGuard,
+        expected: Option<&str>,
+        revision: &RouteConfigRedisRevision,
+        prepared: &TransactionRecord,
+        activated: &TransactionRecord,
+    ) -> Result<RouteConfigRedisActivationOutcome, RouteConfigRedisStoreError> {
+        self.activate_revision(expected, revision, prepared, activated)
+            .await
+    }
+
     async fn store_revision(
         &self,
         revision: &RouteConfigRedisRevision,
@@ -246,7 +263,7 @@ impl RouteConfigReplica {
             .install_external_validated(
                 validated,
                 active.metadata().clone(),
-                ActiveConfigSource::Redis,
+                self.redis.active_source(),
             )
             .map_err(RouteConfigRuntimeError::from_replace)?;
         Ok(Some(snapshot))
@@ -274,6 +291,41 @@ impl std::fmt::Debug for RouteConfigRuntime {
 }
 
 impl RouteConfigRuntime {
+    pub fn new_local(console: &ConsoleConfig) -> Result<Self, RouteConfigRuntimeError> {
+        let persistence = RouteConfigPersistence::new(&console.state_dir, &console.routes_file)
+            .map_err(RouteConfigRuntimeError::from_persistence)?;
+        let backend = Arc::new(local_backend::LocalRouteConfigBackend::new(
+            persistence.clone(),
+        ));
+        if persistence
+            .local_active_revision()
+            .map_err(RouteConfigRuntimeError::from_persistence)?
+            .is_none()
+        {
+            // Materialize legacy credential IDs before deriving the archived revision.
+            let initial = RouteConfigStore::load_from_yaml(&console.routes_file)
+                .and_then(|store| {
+                    RouteConfigStore::from_document(store.snapshot().document().clone())
+                })
+                .map_err(|error| {
+                    RouteConfigRuntimeError::new(
+                        "console_route_validation_failed",
+                        error.to_string(),
+                    )
+                })?;
+            backend
+                .initialize(&initial)
+                .map_err(RouteConfigRuntimeError::from_redis)?;
+        }
+        // Bootstrap from authority, not a YAML mirror that may be mid-transaction.
+        let route_config = Arc::new(
+            backend
+                .load_store()
+                .map_err(RouteConfigRuntimeError::from_redis)?,
+        );
+        Ok(Self::with_backend(route_config, persistence, backend, true))
+    }
+
     pub fn new(
         route_config: Arc<RouteConfigStore>,
         console: &ConsoleConfig,

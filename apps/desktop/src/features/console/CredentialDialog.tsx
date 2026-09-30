@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 
 export type CredentialDialogMode = "add" | "edit";
@@ -32,6 +32,7 @@ export type CredentialDialogProps = {
   onOpenChange(open: boolean): void;
   onRequestSecretAccess(): void;
   onSubmit(value: CredentialDialogValue): void;
+  renderAuthentication?: (providerId: string) => ReactNode;
 };
 
 function emptyValue(providerId = ""): CredentialDialogValue {
@@ -58,6 +59,7 @@ export function CredentialDialog({
   onOpenChange,
   onRequestSecretAccess,
   onSubmit,
+  renderAuthentication,
 }: CredentialDialogProps) {
   const { t } = useUiLocale();
   const [value, setValue] = useState<CredentialDialogValue>(() =>
@@ -138,6 +140,7 @@ export function CredentialDialog({
             )}
           </Dialog.Description>
 
+          {mode === "add" ? renderAuthentication?.(value.providerId) : null}
           <form className="nt-stack" onSubmit={submit}>
             <div className="nt-grid nt-grid--2">
               <label className="nt-field">

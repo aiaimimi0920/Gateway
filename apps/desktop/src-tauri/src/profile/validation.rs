@@ -11,10 +11,13 @@ pub fn validate_profile(profile: &GatewayProfile) -> Result<(), String> {
         return Err("profile port must be greater than 0".to_string());
     }
     let redis_url = profile.gateway_redis_url.trim();
-    if redis_url.is_empty() {
+    if !profile.local_storage() && redis_url.is_empty() {
         return Err("GATEWAY_REDIS_URL cannot be empty".to_string());
     }
-    if !redis_url.starts_with("redis://") && !redis_url.starts_with("rediss://") {
+    if !profile.local_storage()
+        && !redis_url.starts_with("redis://")
+        && !redis_url.starts_with("rediss://")
+    {
         return Err("GATEWAY_REDIS_URL must start with redis:// or rediss://".to_string());
     }
     if let Some(database_url) = profile
@@ -31,6 +34,29 @@ pub fn validate_profile(profile: &GatewayProfile) -> Result<(), String> {
     }
     validate_profile_paths(profile)?;
     validate_extra_env(profile)?;
+    if let Some(mode) = profile
+        .extra_env
+        .iter()
+        .find(|entry| entry.key == "GATEWAY_STORAGE_MODE")
+    {
+        if !matches!(
+            mode.value.trim().to_ascii_lowercase().as_str(),
+            "local" | "server"
+        ) {
+            return Err("GATEWAY_STORAGE_MODE must be local or server".into());
+        }
+    }
+    if profile.local_storage() && profile.runtime_role != super::GatewayRuntimeRole::Standalone {
+        return Err("Local storage requires standalone runtime role".into());
+    }
+    if !profile.local_storage()
+        && profile
+            .extra_env
+            .iter()
+            .any(|entry| entry.key == "GATEWAY_DESKTOP_MANAGED" && entry.value == "1")
+    {
+        return Err("Desktop-managed backends require local storage".into());
+    }
     Ok(())
 }
 

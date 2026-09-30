@@ -19,7 +19,7 @@ type UiThemeContextValue = {
 };
 
 const STORAGE_KEY = "gateway-ui-theme";
-const DEFAULT_MODE: UiThemeMode = "system";
+const DEFAULT_MODE: UiThemeMode = "dark";
 const MODE_ORDER: readonly UiThemeMode[] = ["system", "dark", "light"];
 const LIGHT_QUERY = "(prefers-color-scheme: light)";
 

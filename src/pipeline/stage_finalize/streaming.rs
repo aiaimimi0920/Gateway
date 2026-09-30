@@ -46,7 +46,7 @@ pub async fn run_stream_success(
             error_code: None,
         };
 
-        if let Err(report_error) = enqueue_usage_report(&state.redis_pool, &report).await {
+        if let Err(report_error) = publish_usage(state, &report).await {
             warn!(
                 request_id = %report.request_id,
                 error = %report_error,
@@ -75,9 +75,11 @@ pub async fn run_stream_success(
     .await;
     record_credential_model_success_from_snapshot(&snapshot, state).await;
 
-    if let Some(actual_total_tokens) = usage.as_ref().map(|value| value.total_tokens) {
-        settle_pre_deducted_quota_snapshot(&snapshot, state, actual_total_tokens).await;
-    }
+    let actual_total_tokens = usage
+        .as_ref()
+        .map(|value| value.total_tokens)
+        .unwrap_or(snapshot.pre_deducted_tokens);
+    settle_pre_deducted_quota_snapshot(&snapshot, state, actual_total_tokens).await;
 }
 
 pub(super) fn apply_stream_completion_semantics(

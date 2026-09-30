@@ -157,6 +157,7 @@ mod tests {
             config: Config {
                 console: Default::default(),
                 runtime_role: crate::config::GatewayRuntimeRole::Standalone,
+                storage_mode: Default::default(),
                 port: 4200,
                 redis_url: "redis://localhost".to_string(),
                 database_url: None,
@@ -214,6 +215,7 @@ mod tests {
                 .create_pool(Some(deadpool_redis::Runtime::Tokio1))
                 .expect("pool"),
             pg_pool: None,
+            local_runtime: None,
             upstream_client: UpstreamClient::new(30),
             concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
             auth_adapters: adapters,
@@ -231,6 +233,33 @@ mod tests {
                 crate::credential_pool_automation::CredentialPoolAutomationRuntime::disabled(),
             ),
         })
+    }
+
+    #[tokio::test]
+    async fn local_keys_never_fall_through_to_development_auth() {
+        let mut state = make_state(vec![]);
+        let root =
+            std::env::temp_dir().join(format!("gateway-local-auth-{}", uuid::Uuid::new_v4()));
+        let local = crate::local_runtime::LocalRuntime::open(&root)
+            .await
+            .unwrap();
+        Arc::get_mut(&mut state).unwrap().local_runtime = Some(local.clone());
+        let req = AuthRequest {
+            authorization: None,
+            api_key: None,
+            path: "/v1/models".into(),
+            method: "GET".into(),
+        };
+        assert!(crate::auth::authenticate_request(&state, &req, None)
+            .await
+            .is_err());
+        let mut req = req;
+        req.api_key = Some("sk-gw-local-invalid".into());
+        assert!(crate::auth::authenticate_request(&state, &req, None)
+            .await
+            .is_err());
+        local.close().await;
+        crate::local_runtime::test_support::remove_test_root(&root).await;
     }
 
     #[tokio::test]

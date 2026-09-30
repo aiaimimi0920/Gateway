@@ -69,6 +69,7 @@ pub fn test_config() -> Config {
     Config {
         console: Default::default(),
         runtime_role: GatewayRuntimeRole::Standalone,
+        storage_mode: Default::default(),
         port: 0,
         redis_url: "redis://127.0.0.1:1/15".to_string(),
         database_url: None,
@@ -367,6 +368,7 @@ pub fn build_state(
         config,
         redis_pool,
         pg_pool: None,
+        local_runtime: None,
         upstream_client: UpstreamClient::new(upstream_timeout_secs),
         concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
         auth_adapters: Vec::new(),

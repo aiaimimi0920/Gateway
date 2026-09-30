@@ -192,7 +192,8 @@ impl RouteConfigCoordinator {
 
         match self
             .redis
-            .activate_revision(
+            .activate_revision_locked(
+                &guard,
                 expected_redis_revision,
                 &redis_revision,
                 &prepared,

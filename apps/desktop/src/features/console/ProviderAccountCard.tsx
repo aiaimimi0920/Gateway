@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { ActionTooltip } from "../../components/ActionTooltip";
+import { CardModelList } from "./CardModelList";
 import { ProviderQuotaPanel, quotaWindowRemainingRatio } from "./accountCardQuota";
 import type {
   AccountCardGroupOption,
@@ -242,6 +243,8 @@ export function ProviderAccountCard(props: {
           remainingUsd={account.quotaRemainingUsd ?? null}
         />
 
+        <CardModelList models={account.supportedModels ?? []} label={account.displayName} traffic={account.modelTraffic} t={t} />
+
         <div className="nt-provider-account-card__meta">
           <label className="nt-provider-account-card__groups">
             <span className="nt-provider-account-card__group-label">
@@ -291,17 +294,17 @@ export function ProviderAccountCard(props: {
               label={t(`调度账号 ${account.accountId}`, `Dispatch account ${account.accountId}`)}
             >
               <button
-                className={account.dispatchEnabled ? "nt-switch nt-switch--on" : "nt-switch"}
+className={account.enabled ? "nt-switch nt-switch--on" : "nt-switch"}
                 type="button"
                 role="switch"
-                aria-checked={account.dispatchEnabled}
+aria-checked={account.enabled}
                 aria-label={t(`调度 ${account.accountId}`, `Dispatch ${account.accountId}`)}
                 disabled={editorLocked || !account.dispatchEditable || account.previewOnly}
                 onClick={() =>
                   handlers.onToggleDispatch(
                     account.providerId,
                     account.accountId,
-                    !account.dispatchEnabled,
+                    !account.enabled,
                   )
                 }
               >

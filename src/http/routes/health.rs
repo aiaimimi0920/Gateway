@@ -32,9 +32,8 @@ pub async fn healthz() -> impl IntoResponse {
 
 /// GET /readyz — readiness probe.
 ///
-/// Checks that the Redis pool can establish a connection and that at least one
-/// core dependency path is available. Returns 200 when the gateway is ready to
-/// serve traffic, 503 otherwise.
+/// Probes the selected storage backend. Local management is ready even before
+/// the first provider has been configured.
 pub async fn readyz(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     if state.lifecycle.is_draining() {
         return readiness_response(
@@ -50,6 +49,27 @@ pub async fn readyz(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     }
 
     let probe_timeout = readiness_probe_timeout();
+    if let Some(local) = &state.local_runtime {
+        let sqlite = bounded_health_probe(probe_timeout, async {
+            sqlx::query("SELECT 1").execute(&local.pool).await.is_ok()
+        })
+        .await;
+        return readiness_response(
+            if sqlite.ready {
+                StatusCode::OK
+            } else {
+                StatusCode::SERVICE_UNAVAILABLE
+            },
+            serde_json::json!({
+                "status": if sqlite.ready { "ready" } else { "not_ready" },
+                "storage_backend": "sqlite", "degraded": false, "sqlite": sqlite.ready,
+                "database": sqlite.ready, "redis_required": false, "redis": null,
+                "routing_configured": state.route_config.has_routes(),
+                "runtime_role": public_runtime_role_name(state.config.runtime_role),
+                "auth_configured": true, "active_requests": state.lifecycle.active_requests(),
+            }),
+        );
+    }
     let (redis_probe, database_probe) = bounded_public_readiness_probes(
         probe_timeout,
         async {
@@ -250,6 +270,7 @@ mod tests {
         Config {
             console: Default::default(),
             runtime_role,
+            storage_mode: Default::default(),
             port: 4200,
             redis_url: "redis://localhost".to_string(),
             database_url: None,
@@ -351,6 +372,7 @@ model_routes:
                 .create_pool(Some(deadpool_redis::Runtime::Tokio1))
                 .expect("redis pool"),
             pg_pool: None,
+            local_runtime: None,
             upstream_client: UpstreamClient::new(30),
             concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
             auth_adapters: vec![],

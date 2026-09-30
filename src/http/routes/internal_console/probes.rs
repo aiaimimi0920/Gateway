@@ -6,7 +6,7 @@ use super::{
 };
 use crate::error::GatewayError;
 use crate::http::extractors::OptionalBearerToken;
-use crate::provider_runtime::{ProviderPayloadProbeReport, ProviderPayloadProbeStatus};
+use crate::provider_runtime::ProviderPayloadProbeStatus;
 use crate::state::AppState;
 use axum::extract::{ConnectInfo, Path, State};
 use axum::http::HeaderMap;
@@ -44,19 +44,8 @@ pub async fn probe_console_credential(
             ))
             .with_code("console_credential_not_found")
         })?;
-    let probe_point = crate::provider_runtime::provider_payload_probe_point(&target.payload);
-    let report = if target.enabled {
-        crate::provider_runtime::probe_provider_payload_for_console(
-            state.upstream_client.client(),
-            &target.payload,
-        )
-        .await
-    } else {
-        ProviderPayloadProbeReport {
-            status: ProviderPayloadProbeStatus::Unsupported,
-            message: "Credential is disabled.".to_string(),
-        }
-    };
+    let (probe_point, report) =
+        crate::provider_runtime::probe_console_target(&state, &target).await;
     crate::provider_runtime::record_provider_credential_probe_report(
         state.as_ref(),
         &target.provider_id,
@@ -115,19 +104,8 @@ pub async fn probe_console_provider(
     let mut unsupported_count = 0usize;
 
     for target in targets {
-        let probe_point = crate::provider_runtime::provider_payload_probe_point(&target.payload);
-        let report = if target.enabled {
-            crate::provider_runtime::probe_provider_payload_for_console(
-                state.upstream_client.client(),
-                &target.payload,
-            )
-            .await
-        } else {
-            ProviderPayloadProbeReport {
-                status: ProviderPayloadProbeStatus::Unsupported,
-                message: "Credential is disabled.".to_string(),
-            }
-        };
+        let (probe_point, report) =
+            crate::provider_runtime::probe_console_target(&state, &target).await;
         crate::provider_runtime::record_provider_credential_probe_report(
             state.as_ref(),
             &target.provider_id,

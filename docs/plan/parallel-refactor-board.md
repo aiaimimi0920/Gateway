@@ -1,4 +1,14 @@
-Latest closure checkpoint (2026-09-26 04:40 UTC): the browser-pool main capture
+Latest body-path checkpoint (2026-09-26): navigation downloads now use bounded
+file streaming and main-document native decoded-byte admission. Standalone broad
+capture uses native response admission; its legacy CDP preview no longer trusts
+Content-Length. All 1,362 adjacent tests pass with bounded concurrency; seven real
+Edge loopback cases, package contract, checker tests, ratchet and strict pass.
+This closes the two named owner-level code gaps, not S06/S18 integrated or final
+release acceptance. r2 is unchanged and predates these changes; Docker/WSL decision
+and new-source packaging remain open. See
+`docs/status/2026-09-26-navigation-broad-body-closure.md`.
+
+Earlier closure checkpoint (2026-09-26 04:40 UTC): the browser-pool main capture
 and proxy-launch response transports now use decoded-byte native admission;
 text/binary adapters, page isolation and awaited ready/stop are integrated.
 Adjacent tests pass 1,274/1,274; five real Edge loopback scenarios and the packaged

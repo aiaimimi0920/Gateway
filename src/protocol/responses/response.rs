@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 
+use super::stream_support::map_openai_finish_reason_to_responses_status;
 use crate::error::GatewayError;
 use crate::protocol::canonical::{CanonicalRelayResponse, CanonicalToolCall, TokenUsage};
 
@@ -39,7 +40,8 @@ pub fn build_responses_success(
         "object": "response",
         "model": model,
         "output": output,
-        "status": finish_reason.unwrap_or(if tool_calls.is_empty() { "completed" } else { "tool_calls" }),
+        "status": finish_reason.and_then(map_openai_finish_reason_to_responses_status)
+            .unwrap_or_else(|| "completed".into()),
     });
 
     if let Some(usage) = usage {

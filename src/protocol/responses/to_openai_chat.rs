@@ -144,6 +144,16 @@ impl ResponsesToOpenAiChatState {
             .unwrap_or_default();
 
         match event_type {
+            "error" | "response.failed" | "response.cancelled" => {
+                // Never turn an explicit upstream failure into a successful stop at EOF.
+                let error = json!({"error": {
+                    "message": "Responses upstream stream failed before completion.",
+                    "type": "upstream_error", "code": "responses_stream_upstream_error"
+                }});
+                self.outputs
+                    .push_back(format_sse_event(Some("error"), &error.to_string()).into_bytes());
+                self.final_emitted = true;
+            }
             "response.created" | "response.in_progress" => {
                 if let Some(response) = payload.get("response") {
                     if let Some(id) = response.get("id").and_then(|value| value.as_str()) {
@@ -253,7 +263,7 @@ impl ResponsesToOpenAiChatState {
                     .into_bytes(),
                 );
             }
-            "response.completed" => {
+            "response.completed" | "response.incomplete" => {
                 if let Some(response) = payload.get("response") {
                     if let Some(id) = response.get("id").and_then(|value| value.as_str()) {
                         if !id.trim().is_empty() {
@@ -274,7 +284,9 @@ impl ResponsesToOpenAiChatState {
                         if canonical.tool_calls.is_empty() && !canonical.text.is_empty() {
                             let parse_result =
                                 tool_inject::parse_tool_calls_from_text(&canonical.text);
-                            if parse_result.had_tool_calls {
+                            if parse_result.had_tool_calls
+                                && canonical.finish_reason.as_deref() != Some("incomplete")
+                            {
                                 canonical.text = parse_result.clean_text;
                                 canonical.tool_calls = parse_result.tool_calls;
                                 canonical.finish_reason = Some("tool_calls".to_string());

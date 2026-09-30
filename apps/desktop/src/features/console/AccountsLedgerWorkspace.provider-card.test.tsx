@@ -66,8 +66,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     expect(managedFront?.querySelector('[data-provider-icon="openai"]')).not.toBeNull();
     expect(sunoFront?.querySelector('[data-provider-icon="suno"]')).not.toBeNull();
     expect(within(managedFront as HTMLElement).getByText("1/30")).toBeInTheDocument();
-    // A provider with no dispatch history renders no success strip at all; the row
-    // used to be an Activity icon sitting next to a lone em dash.
+    // No history must not render a fabricated success rate.
     expect(managedFront?.querySelector('[data-provider-availability-scope="provider"]')).toBeNull();
   });
 
@@ -203,9 +202,9 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     );
 
     const providerCard = card("managed-provider");
-    expect(within(providerCard).getByRole("img", { name: /可用 1，待恢复 1，失效 1，剩余 2/ })).toBeInTheDocument();
+    expect(within(providerCard).getByRole("img", { name: /可用 1，待恢复 1，失效 1，待观测 0，剩余 2/ })).toBeInTheDocument();
     expect(within(providerCard).getByText("3/6")).toBeInTheDocument();
-    expect(within(providerCard).getByText("$2.00")).toBeInTheDocument();
+    expect(within(providerCard).getByText("≈$2.00")).toBeInTheDocument();
     expect(within(providerCard).getByText("$4.00")).toBeInTheDocument();
     expect(providerCard.querySelector('[data-provider-metric="requests"]')).toHaveTextContent("36");
     expect(providerCard.querySelector('[data-provider-metric="success-rate"]')).toHaveTextContent(
@@ -221,7 +220,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
       within(providerCard).getByRole("img", {
         name: /最近窗口的调用成功率，所有模型聚合，4\/6 次成功，66\.7%/,
       }),
-    ).toHaveAttribute("title", expect.stringContaining("所有模型聚合，每 5 分钟"));
+    ).toHaveAttribute("title", expect.stringContaining("所有模型聚合，按小时"));
     expect(
       providerCard.querySelector('[data-provider-availability-window="10:00"]'),
     ).toHaveAttribute("title", "10:00：4/6 次成功（67%）");

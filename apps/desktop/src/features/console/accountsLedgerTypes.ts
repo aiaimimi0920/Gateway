@@ -6,6 +6,7 @@ import type {
 import type { AccountLedgerRow } from "./accountManagementViewModel";
 import type { AccountsLedgerPilotAccount } from "./accountCardTypes";
 import type { ProviderAggregateMetrics } from "./providerCardMetrics";
+import type { CardModelTraffic } from "./cardModelTraffic";
 
 export type TranslateFn = (zh: string, en: string) => string;
 
@@ -60,6 +61,7 @@ export type AccountsLedgerPilotSection = {
    * types in the search box.
    */
   telemetry?: ProviderAggregateMetrics | null;
+  modelTraffic?: CardModelTraffic;
 };
 
 export type AccountsLedgerWorkspaceProps = {

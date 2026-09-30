@@ -31,6 +31,7 @@ use super::{
 mod auth;
 mod balance;
 mod balance_adjustment;
+pub(crate) mod balance_store;
 mod bundle_compat;
 mod bundles;
 mod candidates;
@@ -78,6 +79,7 @@ pub use models::{
 };
 pub use projection::list_models_for_access_key;
 pub use route_context::resolve_access_key_route_context;
+pub(crate) use route_context::resolve_access_key_route_context_with_reservation;
 pub use sticky::{
     inspect_access_sticky_affinity, record_access_sticky_affinity, reset_access_sticky_affinity,
 };
@@ -248,22 +250,6 @@ struct ModelAliasProjectionRow {
     alias: String,
     provider_account_id: String,
     upstream_model: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CachedAccessKeyBalance {
-    access_key_id: String,
-    balance_mode: String,
-    status: String,
-    unlimited_until: Option<String>,
-    period_starts_at: Option<String>,
-    period_ends_at: Option<String>,
-    total_tokens: Option<i64>,
-    remaining_tokens: Option<i64>,
-    total_messages: Option<i64>,
-    remaining_messages: Option<i64>,
-    updated_at: String,
 }
 
 fn parse_optional_timestamp(value: Option<&str>) -> Option<OffsetDateTime> {

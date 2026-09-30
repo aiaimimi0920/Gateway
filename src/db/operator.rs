@@ -27,6 +27,7 @@ mod cost_hints;
 mod health;
 mod identity;
 mod inventory;
+mod local_cost;
 mod models;
 mod pressure;
 mod pricing;
@@ -39,6 +40,7 @@ mod usage_queries;
 pub use associations::get_model_association_matrix;
 pub use cost::get_cost_overview;
 pub use inventory::get_provider_inventory;
+pub use local_cost::get_local_cost_overview;
 pub use models::{
     GatewayCatalogMetadataView, GatewayCostModelBucketView, GatewayCostModelProviderRowView,
     GatewayCostOverviewSummaryView, GatewayCostOverviewView, GatewayCostProviderBucketView,

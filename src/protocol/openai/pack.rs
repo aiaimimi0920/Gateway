@@ -1,7 +1,7 @@
 use serde_json::{json, Value};
 
 use crate::protocol::canonical::{
-    CanonicalMessage, CanonicalRelayRequest, CanonicalTool, ContentPart, MessageRole,
+    CanonicalMessage, CanonicalRelayRequest, CanonicalTool, ContentPart, EndpointKind, MessageRole,
     ProtocolFamily,
 };
 
@@ -39,7 +39,7 @@ pub fn pack_openai(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Va
     if !req.tools.is_empty() {
         body["tools"] = json!(req.tools.iter().map(pack_openai_tool).collect::<Vec<_>>());
     }
-    if let Some(tc) = pack_openai_tool_choice(req.protocol_family, req.tool_choice.as_ref()) {
+    if let Some(tc) = pack_openai_tool_choice(req) {
         body["tool_choice"] = tc;
     }
 
@@ -55,11 +55,24 @@ pub fn pack_openai(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Va
             "max_tokens" => {
                 body["max_tokens"] = v.clone();
             }
+            "max_output_tokens" => {}
             // Reasoning models should not receive temperature/top_p.
             "temperature" | "top_p" if is_reasoning => {}
             _ => {
                 body[k] = v.clone();
             }
+        }
+    }
+
+    // Responses uses a different output-limit field than Chat Completions.
+    if !req.extra.contains_key("max_tokens") {
+        if let Some(limit) = req.extra.get("max_output_tokens") {
+            let key = if is_reasoning {
+                "max_completion_tokens"
+            } else {
+                "max_tokens"
+            };
+            body[key] = limit.clone();
         }
     }
 
@@ -76,9 +89,16 @@ pub fn pack_openai(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Va
     body
 }
 
-fn pack_openai_tool_choice(source: ProtocolFamily, tool_choice: Option<&Value>) -> Option<Value> {
-    let tool_choice = tool_choice?;
-    if source == ProtocolFamily::OpenAi {
+fn pack_openai_tool_choice(req: &CanonicalRelayRequest) -> Option<Value> {
+    let tool_choice = req.tool_choice.as_ref()?;
+    if req.endpoint_kind == EndpointKind::Responses
+        && tool_choice.get("type").and_then(Value::as_str) == Some("function")
+    {
+        if let Some(name) = tool_choice.get("name").and_then(Value::as_str) {
+            return Some(json!({"type": "function", "function": {"name": name}}));
+        }
+    }
+    if req.protocol_family == ProtocolFamily::OpenAi {
         return Some(tool_choice.clone());
     }
 

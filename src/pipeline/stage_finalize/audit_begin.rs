@@ -7,9 +7,9 @@ pub async fn begin_request_audit(ctx: &mut PipelineContext, state: &Arc<AppState
         return;
     }
 
-    let Some(pg_pool) = state.pg_pool.as_ref() else {
+    if state.pg_pool.is_none() && state.local_runtime.is_none() {
         return;
-    };
+    }
     let Some(session) = ctx.session.as_ref() else {
         return;
     };
@@ -47,7 +47,7 @@ pub async fn begin_request_audit(ctx: &mut PipelineContext, state: &Arc<AppState
         route_trace: None,
     };
 
-    match db::create_request_audit(pg_pool, input).await {
+    match crate::local_runtime::audits::create(state, input).await {
         Ok(request_audit_id) => {
             ctx.request_audit_id = Some(request_audit_id);
         }

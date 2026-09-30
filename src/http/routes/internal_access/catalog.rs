@@ -55,11 +55,7 @@ pub async fn get_access_catalog(
     Query(_query): Query<CatalogQuery>,
 ) -> Result<Json<db::GatewayAccessCatalogView>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    let catalog = db::list_access_catalog(
-        required_pg_pool(state.as_ref())?,
-        state.config.gateway_api_key_secret.as_deref(),
-    )
-    .await?;
+    let catalog = crate::access_store::AccessStore(&state).catalog().await?;
     Ok(Json(catalog))
 }
 

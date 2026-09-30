@@ -31,9 +31,7 @@ const consoleRequestAuditProviderWindowsSchema = z
   .nullish()
   .transform((value) => value ?? []);
 
-const consoleRequestAuditProviderAccountsSchema = z
-  .array(
-    z.object({
+const consoleRequestAuditProviderStatsSchema = z.object({
       providerAccountId: z.string().min(1),
       totalRequests: z.number().int().nonnegative(),
       completedCount: z.number().int().nonnegative(),
@@ -58,8 +56,10 @@ const consoleRequestAuditProviderAccountsSchema = z
         // Older gateways answer without the per-model breakdown.
         .nullish()
         .transform((value) => value ?? []),
-    }),
-  )
+    });
+
+const consoleRequestAuditProviderAccountsSchema = z
+  .array(consoleRequestAuditProviderStatsSchema)
   // Older gateways answer without the per-provider breakdown.
   .nullish()
   .transform((value) => value ?? []);
@@ -73,6 +73,9 @@ export const consoleRequestAuditSummaryResponseSchema: z.ZodType<ConsoleRequestA
       cancelledCount: z.number().int().nonnegative(),
       runningCount: z.number().int().nonnegative(),
       providerAccounts: consoleRequestAuditProviderAccountsSchema,
+      credentials: z.array(consoleRequestAuditProviderStatsSchema.extend({
+        credentialRef: z.string().min(1),
+      })).optional(),
     }),
   });
 

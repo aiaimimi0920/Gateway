@@ -196,6 +196,7 @@ pub struct AppState {
     pub config: Config,
     pub redis_pool: RedisPool,
     pub pg_pool: Option<PgPool>,
+    pub local_runtime: Option<crate::local_runtime::LocalRuntime>,
     pub upstream_client: UpstreamClient,
     pub concurrency_registry: ConcurrencyRegistry,
     /// Ordered chain of auth adapters tried in sequence for each request.

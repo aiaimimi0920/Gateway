@@ -63,8 +63,12 @@ pub async fn list_request_audits(
     Query(query): Query<RequestAuditQuery>,
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    let requests =
-        db::list_request_audits(required_pg_pool(state.as_ref())?, &into_filters(query)).await?;
+    let filters = into_filters(query);
+    let requests = if let Some(local) = &state.local_runtime {
+        local.list_audits(&filters).await?
+    } else {
+        db::list_request_audits(required_pg_pool(state.as_ref())?, &filters).await?
+    };
     Ok(Json(serde_json::json!({
         "requests": requests,
     })))
@@ -77,9 +81,12 @@ pub async fn summarize_request_audits(
     Query(query): Query<RequestAuditQuery>,
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    let summary =
-        db::summarize_request_audits(required_pg_pool(state.as_ref())?, &into_filters(query))
-            .await?;
+    let filters = into_filters(query);
+    let summary = if let Some(local) = &state.local_runtime {
+        db::request_audits::summarize_request_audit_rows(&local.list_audits(&filters).await?)
+    } else {
+        db::summarize_request_audits(required_pg_pool(state.as_ref())?, &filters).await?
+    };
     Ok(Json(serde_json::json!({
         "summary": summary,
     })))

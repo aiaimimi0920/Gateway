@@ -14,6 +14,9 @@ pub(super) async fn list_route_config_provider_credentials(
 ) -> Result<Value, GatewayError> {
     let snapshot = state.route_config.snapshot();
     let redis_pool = &state.redis_pool;
+    // Quota cache is optional: one deadline bounds the entire inventory, including
+    // queued batches, when a local installation has no Redis service.
+    let cache_deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(1);
     let mut jobs = Vec::new();
 
     for provider in &snapshot.document().providers {
@@ -43,13 +46,17 @@ pub(super) async fn list_route_config_provider_credentials(
                             target.credential_id
                         ))
                     })?;
-                let quota = provider_quota::read_cached_runtime_quota_snapshot(
-                    redis_pool,
-                    target.provider_id.as_str(),
-                    Some(target.credential_id.as_str()),
+                let quota = tokio::time::timeout_at(
+                    cache_deadline,
+                    provider_quota::read_cached_runtime_quota_snapshot(
+                        redis_pool,
+                        target.provider_id.as_str(),
+                        Some(target.credential_id.as_str()),
+                    ),
                 )
                 .await
                 .ok()
+                .and_then(Result::ok)
                 .flatten();
                 Ok::<_, GatewayError>(serde_json::json!({
                     "id": target.credential_id,

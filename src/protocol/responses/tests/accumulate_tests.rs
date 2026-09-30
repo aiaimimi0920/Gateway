@@ -1,6 +1,60 @@
 use super::*;
 
 #[test]
+fn accumulate_responses_rejects_explicit_failure_after_partial_output() {
+    for event_type in ["error", "response.failed", "response.cancelled"] {
+        let sse = [
+            format_sse_event(
+                None,
+                &json!({"type":"response.output_text.delta", "delta":"partial"}).to_string(),
+            ),
+            format_sse_event(
+                Some(event_type),
+                &json!({"type":event_type,
+                "response":{"status":"failed", "error":{"message":"private-upstream-detail"}},
+                "message":"private-upstream-detail"})
+                .to_string(),
+            ),
+        ]
+        .join("");
+        let error = accumulate_responses_sse_bytes(sse.as_bytes(), "gpt-test").unwrap_err();
+        assert_eq!(
+            error.code.as_deref(),
+            Some("responses_stream_upstream_error")
+        );
+        assert!(!error.message.contains("private-upstream-detail"));
+    }
+}
+
+#[test]
+fn accumulate_responses_preserves_incomplete_status_and_usage() {
+    for output in [
+        json!([]),
+        json!([{"type":"function_call", "call_id":"call_1",
+        "name":"weather", "arguments":"{\"city\":"}]),
+    ] {
+        let sse = [
+            format_sse_event(
+                None,
+                &json!({"type":"response.output_text.delta", "delta":"partial"}).to_string(),
+            ),
+            format_sse_event(
+                Some("response.incomplete"),
+                &json!({"type":"response.incomplete",
+                "response":{"model":"gpt-test", "status":"incomplete", "output":output,
+                    "usage":{"input_tokens":2, "output_tokens":3, "total_tokens":5}}})
+                .to_string(),
+            ),
+        ]
+        .join("");
+        let response = accumulate_responses_sse_bytes(sse.as_bytes(), "gpt-test").unwrap();
+        assert_eq!(response.text, "partial");
+        assert_eq!(response.finish_reason.as_deref(), Some("incomplete"));
+        assert_eq!(response.usage.unwrap().total_tokens, 5);
+    }
+}
+
+#[test]
 fn accumulate_responses_sse_bytes_restores_tool_calls_from_item_events() {
     let sse = [
         format_sse_event(

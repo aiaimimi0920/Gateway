@@ -15,6 +15,7 @@ fn make_config_with_management_token(
     Config {
         console: Default::default(),
         runtime_role: crate::config::GatewayRuntimeRole::Standalone,
+        storage_mode: Default::default(),
         port: 4200,
         redis_url: "redis://localhost".to_string(),
         database_url: None,

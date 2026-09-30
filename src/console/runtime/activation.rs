@@ -3,7 +3,7 @@
 use super::{RouteConfigCoordinator, RouteConfigRuntimeError};
 use crate::console::persistence::TransactionPhase;
 use crate::console::revision::RevisionMetadata;
-use crate::routing::config::{ActiveConfigSource, RouteConfigSnapshot};
+use crate::routing::config::RouteConfigSnapshot;
 use std::sync::Arc;
 use time::OffsetDateTime;
 
@@ -26,7 +26,7 @@ impl RouteConfigCoordinator {
             .map_err(RouteConfigRuntimeError::from_persistence)?;
         let snapshot = self
             .route_config
-            .install_external_validated(validated, revision, ActiveConfigSource::Redis)
+            .install_external_validated(validated, revision, self.redis.active_source())
             .map_err(RouteConfigRuntimeError::from_replace)?;
         self.journal
             .transition_locked(

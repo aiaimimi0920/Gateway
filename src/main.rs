@@ -1,4 +1,5 @@
 use neuro_gateway::config::{Config, GatewayRuntimeRole};
+mod local_installation;
 
 const DEFAULT_TOKIO_WORKER_STACK_BYTES: usize = 8 * 1024 * 1024;
 const MIN_TOKIO_WORKER_STACK_BYTES: usize = 2 * 1024 * 1024;
@@ -23,7 +24,8 @@ Usage: gateway [OPTIONS]
 
 Environment-driven runtime:
   GATEWAY_RUNTIME_ROLE   splitter | worker | standalone
-  GATEWAY_REDIS_URL      required Redis connection string
+  GATEWAY_REDIS_URL      Redis connection string for server deployments
+  GATEWAY_DATA_DIR       explicit local data root (default: exe/.ng if present, else ~/.ng)
   PORT                   bind port for worker / standalone runtime
 
 Common validation entrypoints:
@@ -92,7 +94,13 @@ fn main() -> anyhow::Result<()> {
     }
 
     let _ = rustls::crypto::ring::default_provider().install_default();
-    dotenvy::dotenv().ok();
+    let local_data_lease = local_installation::configure()?;
+    // Desktop-managed instances receive a complete, isolated environment.
+    // Do not discover another deployment's .env in the package or its parents.
+    if local_data_lease.is_none() && std::env::var("GATEWAY_DESKTOP_MANAGED").as_deref() != Ok("1")
+    {
+        dotenvy::dotenv().ok();
+    }
 
     let worker_stack_bytes = match parse_tokio_worker_stack_bytes(
         std::env::var("GATEWAY_TOKIO_WORKER_STACK_BYTES")

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use tracing::debug;
 
-use crate::db;
+use crate::access_balance::AccessBalanceStore;
 use crate::error::GatewayError;
 use crate::filter::chain::{run_filter_chain, FilterVerdict};
 use crate::redis::usage_tracking::{check_quota, deduct_quota, estimate_token_count};
@@ -77,24 +77,13 @@ async fn enforce_quota(
         if session.access_key_kind.as_deref() == Some("auto_route") {
             return Ok(());
         }
-        let Some(pg_pool) = state.pg_pool.as_ref() else {
-            return Err(GatewayError::service_unavailable(
-                "统一 access key 额度依赖 PostgreSQL",
-            ));
-        };
         let text = ctx.canonical_req.messages_text();
-        if text.trim().is_empty() {
-            return Ok(());
-        }
-        let estimated = estimate_token_count(&text);
-        if estimated == 0 {
-            return Ok(());
-        }
+        let estimated = estimate_token_count(&text).max(1);
         let estimated =
             ((estimated as f64) * state.config.quota_pre_deduct_estimate_ratio).ceil() as u64;
-        let decision =
-            db::pre_deduct_access_key_balance(pg_pool, &state.redis_pool, access_key_id, estimated)
-                .await?;
+        let decision = AccessBalanceStore::from_state(state)?
+            .reserve(access_key_id, estimated)
+            .await?;
         if !decision.allowed {
             return Err(
                 GatewayError::quota_exceeded("当前 key 的额度不足").with_code(
@@ -219,6 +208,7 @@ mod tests {
             config: Config {
                 console: Default::default(),
                 runtime_role: crate::config::GatewayRuntimeRole::Standalone,
+                storage_mode: Default::default(),
                 port: 4200,
                 redis_url: "redis://localhost".to_string(),
                 database_url: None,
@@ -276,6 +266,7 @@ mod tests {
                 .create_pool(Some(deadpool_redis::Runtime::Tokio1))
                 .expect("pool"),
             pg_pool: None,
+            local_runtime: None,
             upstream_client: UpstreamClient::new(30),
             concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
             auth_adapters: vec![],

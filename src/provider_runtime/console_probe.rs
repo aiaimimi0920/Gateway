@@ -3,9 +3,6 @@ use super::{ProviderPayloadProbeReport, ProviderPayloadProbeStatus};
 use crate::error::sanitize_provider_error_message;
 use crate::routing::candidate::ProviderAccountPayload;
 
-const CODEX_FIXED_SUPPORTED_MODELS: &[&str] =
-    &["gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.2"];
-
 pub async fn probe_provider_payload_for_console(
     client: &rquest::Client,
     payload: &ProviderAccountPayload,
@@ -15,7 +12,7 @@ pub async fn probe_provider_payload_for_console(
             "Connectivity probe is unsupported for browser-backed credentials.",
         );
     }
-    if fixed_models_for_payload(payload).is_some() {
+    if crate::protocol::chatgpt::official_api::is_chatgpt_codex_backend_payload(payload) {
         return unsupported_probe_report(
             "Connectivity probe is unsupported for fixed-model credentials.",
         );
@@ -67,7 +64,7 @@ pub fn provider_payload_probe_point(payload: &ProviderAccountPayload) -> String 
     if payload_requires_browser_backing(payload) {
         return "browser-backed credential (unsupported)".to_string();
     }
-    if fixed_models_for_payload(payload).is_some() {
+    if crate::protocol::chatgpt::official_api::is_chatgpt_codex_backend_payload(payload) {
         return "fixed-model credential (unsupported)".to_string();
     }
 
@@ -121,16 +118,4 @@ fn payload_requires_browser_backing(payload: &ProviderAccountPayload) -> bool {
             .endpoint_execution_modes
             .as_ref()
             .is_some_and(|modes| modes.values().any(|mode| *mode == browser_backed))
-}
-
-pub fn fixed_models_for_payload(payload: &ProviderAccountPayload) -> Option<Vec<String>> {
-    if crate::protocol::chatgpt::official_api::is_chatgpt_codex_backend_payload(payload) {
-        return Some(
-            CODEX_FIXED_SUPPORTED_MODELS
-                .iter()
-                .map(|model| (*model).to_string())
-                .collect(),
-        );
-    }
-    None
 }

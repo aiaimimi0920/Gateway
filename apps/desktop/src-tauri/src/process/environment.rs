@@ -14,9 +14,20 @@ pub(super) fn render_child_environment(
         profile.runtime_role.as_str().to_string(),
     );
     environment.insert(
-        "GATEWAY_REDIS_URL".to_string(),
-        profile.gateway_redis_url.trim().to_string(),
+        "GATEWAY_STORAGE_MODE".into(),
+        if profile.local_storage() {
+            "local"
+        } else {
+            "server"
+        }
+        .into(),
     );
+    if !profile.local_storage() {
+        environment.insert(
+            "GATEWAY_REDIS_URL".to_string(),
+            profile.gateway_redis_url.trim().to_string(),
+        );
+    }
     if let Some(database_url) = profile
         .gateway_database_url
         .as_ref()
@@ -71,6 +82,23 @@ pub(super) fn configure_child_environment(
     command: &mut Command,
     environment: BTreeMap<String, String>,
 ) {
+    // The managed local instance must not inherit another deployment's state,
+    // credentials or background jobs. Keep OS/PATH variables for native workers.
+    if environment
+        .get("GATEWAY_DESKTOP_MANAGED")
+        .map(String::as_str)
+        == Some("1")
+    {
+        for (key, _) in std::env::vars_os() {
+            if key
+                .to_string_lossy()
+                .to_ascii_uppercase()
+                .starts_with("GATEWAY_")
+            {
+                command.env_remove(key);
+            }
+        }
+    }
     for key in DESKTOP_OWNED_ENV_KEYS {
         command.env_remove(key);
     }

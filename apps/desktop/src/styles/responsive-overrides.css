@@ -74,6 +74,47 @@
 }
 
 @media (max-width: 720px) {
+  .nt-shell--console {
+    position: relative;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .nt-shell--console .nt-rail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .nt-shell--console .nt-brand {
+    grid-column: 1 / -1;
+    padding-right: 118px;
+  }
+
+  .nt-shell--console .nt-titlebar {
+    position: absolute;
+    grid-area: auto;
+    top: 0;
+    right: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .nt-shell--console .nt-board {
+    grid-row: 2;
+  }
+
+  .nt-shell--console .nt-rail__nav {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .nt-shell--console .nt-rail__utility {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 8px 8px 8px 0;
+    border: 0;
+    padding: 0;
+  }
+
   .nt-rail__nav {
     display: flex;
     grid-template-columns: none;
@@ -126,6 +167,14 @@
     gap: 7px;
     justify-content: stretch;
     padding-inline: 8px;
+  }
+
+  .nt-shell--console .nt-rail__item {
+    flex: 0 0 auto;
+    grid-template-columns: 20px auto;
+    width: auto;
+    min-height: 36px;
+    gap: 6px;
   }
 
   .nt-rail__item span {

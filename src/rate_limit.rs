@@ -1,4 +1,6 @@
+mod memory;
 mod rules;
+pub use memory::MemoryRateLimitStore;
 
 pub use rules::{
     build_provider_attempt_rate_limit_rule, build_rate_limit_scope_keys,

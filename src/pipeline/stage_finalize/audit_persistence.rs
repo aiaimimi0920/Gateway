@@ -90,9 +90,6 @@ pub(super) async fn finalize_request_audit(
     response_id: Option<String>,
     state: &Arc<AppState>,
 ) {
-    let Some(pg_pool) = state.pg_pool.as_ref() else {
-        return;
-    };
     let Some(request_audit_id) = ctx.request_audit_id.as_deref() else {
         return;
     };
@@ -131,7 +128,8 @@ pub(super) async fn finalize_request_audit(
         response_id,
     };
 
-    if let Err(error) = db::finalize_request_audit(pg_pool, request_audit_id, input).await {
+    if let Err(error) = crate::local_runtime::audits::finalize(state, request_audit_id, input).await
+    {
         warn!(
             req_id = %ctx.req_id,
             request_audit_id = %request_audit_id,
@@ -150,9 +148,6 @@ pub(super) async fn finalize_request_audit_from_snapshot(
     route_trace: Option<Value>,
     state: &Arc<AppState>,
 ) {
-    let Some(pg_pool) = state.pg_pool.as_ref() else {
-        return;
-    };
     let Some(request_audit_id) = snapshot.request_audit_id.as_deref() else {
         return;
     };
@@ -191,7 +186,8 @@ pub(super) async fn finalize_request_audit_from_snapshot(
         response_id: snapshot.response_id.clone(),
     };
 
-    if let Err(error) = db::finalize_request_audit(pg_pool, request_audit_id, input).await {
+    if let Err(error) = crate::local_runtime::audits::finalize(state, request_audit_id, input).await
+    {
         warn!(
             request_audit_id = %request_audit_id,
             error = %error,

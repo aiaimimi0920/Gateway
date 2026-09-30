@@ -45,8 +45,8 @@
   --nt-hover: color-mix(in srgb, var(--nt-text) 6%, transparent);
   --nt-brand-primary: var(--nt-color-signal-green);
   --nt-brand-secondary: var(--nt-signal);
-  --nt-shadow-surface: 0 16px 34px rgba(0, 0, 0, 0.26);
-  --nt-shadow-lift: 0 18px 38px rgba(var(--nt-color-shadow-ink), 0.34);
+  --nt-shadow-surface: 0 2px 8px rgba(var(--nt-color-shadow-ink), 0.14);
+  --nt-shadow-lift: 0 4px 12px rgba(var(--nt-color-shadow-ink), 0.22);
   --nt-shadow-overlay: 0 24px 60px rgba(var(--nt-color-shadow-ink), 0.46);
   --nt-grid-line: color-mix(in srgb, var(--nt-text) 2.8%, transparent);
   --nt-signal-soft: color-mix(in srgb, var(--nt-signal) 12%, var(--nt-color-panel));
@@ -54,6 +54,10 @@
   --nt-info-soft: color-mix(in srgb, var(--nt-info) 12%, var(--nt-color-panel));
   --nt-danger-soft: color-mix(in srgb, var(--nt-danger) 12%, var(--nt-color-panel));
   --nt-warning-soft: var(--nt-signal-soft);
+  --nt-primary: var(--nt-color-signal-yellow);
+  --nt-on-primary: color-mix(in srgb, var(--nt-primary) 14%, black);
+  --nt-primary-hover: color-mix(in srgb, var(--nt-primary) 86%, white);
+  --nt-primary-pressed: color-mix(in srgb, var(--nt-primary) 82%, black);
   --nt-text-soft: color-mix(in srgb, var(--nt-text) 78%, transparent);
   --nt-text-faint: color-mix(in srgb, var(--nt-text) 54%, transparent);
   --nt-focus-ring: color-mix(in srgb, var(--nt-signal) 42%, transparent);
@@ -93,7 +97,7 @@
   --nt-border: color-mix(in srgb, var(--nt-text) 16%, transparent);
   --nt-hover: color-mix(in srgb, var(--nt-text) 6.5%, transparent);
   --nt-grid-line: color-mix(in srgb, var(--nt-text) 4%, transparent);
-  --nt-shadow-surface: 0 16px 34px rgba(18, 28, 14, 0.14);
+  --nt-shadow-surface: 0 2px 8px rgba(var(--nt-color-shadow-ink), 0.08);
   --nt-overlay: color-mix(in srgb, #10150e 48%, transparent);
 }
 
@@ -124,14 +128,7 @@ body,
 
 body {
   overflow: hidden;
-  background:
-    linear-gradient(var(--nt-grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--nt-grid-line) 1px, transparent 1px),
-    var(--nt-color-background);
-  background-size:
-    36px 36px,
-    36px 36px,
-    auto;
+  background: var(--nt-color-background);
 }
 
 body::after {

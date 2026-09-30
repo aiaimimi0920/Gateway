@@ -15,7 +15,21 @@ pub async fn complete_credential_refill_task(
     let task_id = normalize_identifier(task_id, "taskId", MAX_WORKER_ID_LENGTH)?;
     let claim_token = normalize_identifier(&input.claim_token, "claimToken", MAX_WORKER_ID_LENGTH)?;
     let mut task = require_claimed_task(state.as_ref(), &task_id, &claim_token).await?;
-    let outcome = deliver_refill_result(state, &task, input.delivery).await?;
+    let local_delivery_guard = if let Some(db) = &state.local_runtime {
+        let guard = db
+            .try_refill_lock(&task_id)
+            .await?
+            .ok_or_else(claim_conflict)?;
+        local::require(db, &task_id, &claim_token).await?;
+        Some(guard)
+    } else {
+        None
+    };
+    let outcome = if state.local_runtime.is_some() {
+        local_delivery::deliver(state, &task, input.delivery).await?
+    } else {
+        deliver_refill_result(state, &task, input.delivery).await?
+    };
     task.state = CredentialRefillTaskState::Succeeded;
     task.updated_at = now_rfc3339();
     task.lease_until = None;
@@ -24,7 +38,28 @@ pub async fn complete_credential_refill_task(
     task.created_count = outcome.created_count;
     task.message = Some(outcome.message);
     task.revision_id = outcome.revision_id;
-    finish_task(state.as_ref(), &task, &claim_token).await?;
+    if let Some(db) = state
+        .local_runtime
+        .as_ref()
+        .filter(|_| local_delivery_guard.is_some())
+    {
+        let mut tx = db
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(crate::local_runtime::storage_error)?;
+        local::finish_locked(
+            &mut tx,
+            &task,
+            state.credential_pool_automation.refill_task_ttl_seconds(),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(crate::local_runtime::storage_error)?;
+    } else {
+        finish_task(state.as_ref(), &task, &claim_token).await?;
+    }
     Ok(CredentialRefillTaskView::from(&task))
 }
 
@@ -52,6 +87,15 @@ async fn finish_task(
     task: &CredentialRefillTaskRecord,
     claim_token: &str,
 ) -> Result<(), GatewayError> {
+    if let Some(db) = &state.local_runtime {
+        return local::finish(
+            db,
+            task,
+            claim_token,
+            state.credential_pool_automation.refill_task_ttl_seconds(),
+        )
+        .await;
+    }
     let payload = serialize_task(task)?;
     let mut conn = redis_connection(state).await?;
     let finished: i64 = Script::new(

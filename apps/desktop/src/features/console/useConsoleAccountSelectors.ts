@@ -155,10 +155,8 @@ export function useConsoleAccountSelectors({
         credentialInventoryById,
         consoleTelemetry,
         locale,
-        accountGroupSummary,
       ),
     [
-      accountGroupSummary,
       consoleTelemetry,
       credentialInventoryById,
       draftDocumentState.document,
@@ -176,10 +174,8 @@ export function useConsoleAccountSelectors({
         credentialInventoryById,
         consoleTelemetry,
         locale,
-        accountGroupSummary,
       ),
     [
-      accountGroupSummary,
       accountLedgerRows,
       consoleTelemetry,
       credentialInventoryById,

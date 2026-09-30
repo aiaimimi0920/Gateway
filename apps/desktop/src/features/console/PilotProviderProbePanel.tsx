@@ -25,6 +25,7 @@ export function PilotProviderProbePanel({
   draftMatchesActiveRevision,
   startProviderProbe,
 }: PilotProviderProbePanelProps) {
+  const modelTest = section.providerId === "nvidia" || section.providerPreset === "nvidia-openai";
   return (
     <div className="nt-stack">
       <article className="nt-pilot-dialog__hero">
@@ -34,7 +35,10 @@ export function PilotProviderProbePanel({
         <div className="nt-pilot-dialog__hero-copy">
           <strong>{section.providerLabel}</strong>
           <span>
-            {t(
+            {modelTest ? t(
+              "逐个使用 NVIDIA 账号调用其配置的模型，收到有效回复才通过。每个账号最多 256 个输出 token，最长等待 60 秒。",
+              "Call a configured model with each NVIDIA credential. Only a valid reply passes; up to 256 output tokens and 60 seconds per account.",
+            ) : t(
               "顺序测试该服务商的全部已生效账号；每个账号只访问适配器定义的健康端点，不发送模型生成请求。",
               "Sequentially test every active account using only the adapter-defined health endpoint, without sending model-generation requests.",
             )}

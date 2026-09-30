@@ -8,7 +8,7 @@ pub fn codex_preset() -> ProviderPreset {
     let mut headers = HashMap::new();
     headers.insert(
         "User-Agent".to_string(),
-        "codex_cli_rs/0.116.0 (Mac OS 26.0.1; arm64) Apple_Terminal/464".to_string(),
+        crate::protocol::chatgpt::codex_client::USER_AGENT.to_string(),
     );
     headers.insert("Originator".to_string(), "codex_cli_rs".to_string());
 
@@ -20,7 +20,7 @@ pub fn codex_preset() -> ProviderPreset {
         adapter: "openai_compatible".to_string(),
         headers,
         extra_body,
-        default_model: Some("gpt-5.4".to_string()),
+        default_model: Some("gpt-5.6-luna".to_string()),
         auth_mode: None,
         anthropic_version: None,
         beta_headers: None,

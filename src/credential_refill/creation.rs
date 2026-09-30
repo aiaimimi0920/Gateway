@@ -67,6 +67,14 @@ pub(super) async fn create_task_from_demand(
         revision_id: None,
         idempotency_key: idempotency_key.clone(),
     };
+    if let Some(db) = &state.local_runtime {
+        return local::create(
+            db,
+            task,
+            state.credential_pool_automation.refill_task_ttl_seconds(),
+        )
+        .await;
+    }
     let payload = serialize_task(&task)?;
     let idempotency_hash = idempotency_key
         .as_deref()

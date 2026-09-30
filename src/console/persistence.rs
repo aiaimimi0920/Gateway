@@ -4,6 +4,7 @@ mod archives;
 mod atomic_json;
 mod file_io;
 mod first_save;
+mod local_active;
 mod paths;
 mod platform;
 mod records;

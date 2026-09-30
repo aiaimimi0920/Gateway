@@ -203,7 +203,8 @@ export type ConsoleCredentialRefillTask = {
 export type ConsoleCredentialRefillResponse = {
   refill: {
     enabled: boolean;
-    streamKey: string;
+    streamKey: string | null;
+    storageBackend?: "sqlite" | "redis";
     notificationIntervalSeconds: number;
     defaultLeaseSeconds: number;
     maxLeaseSeconds: number;

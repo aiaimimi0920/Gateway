@@ -78,6 +78,7 @@ mod tests {
         Config {
             console: Default::default(),
             runtime_role: crate::config::GatewayRuntimeRole::Standalone,
+            storage_mode: Default::default(),
             port: 4200,
             redis_url: "redis://localhost".to_string(),
             database_url: None,
@@ -165,6 +166,7 @@ mod tests {
                 .create_pool(Some(deadpool_redis::Runtime::Tokio1))
                 .expect("pool"),
             pg_pool: None,
+            local_runtime: None,
             upstream_client: UpstreamClient::new(30),
             concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
             auth_adapters: vec![],

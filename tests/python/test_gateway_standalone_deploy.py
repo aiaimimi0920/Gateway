@@ -28,6 +28,10 @@ class GatewayStandaloneDeployTests(unittest.TestCase):
         )
 
         self.assertIn("ENV GATEWAY_RUNTIME_ROLE=standalone", dockerfile)
+        self.assertIn("COPY routes.example.yaml ./routes.yaml", dockerfile)
+        self.assertNotIn("COPY routes.yaml", dockerfile)
+        dockerignore = (GATEWAY_ROOT / ".dockerignore").read_text(encoding="utf-8")
+        self.assertIn("routes.yaml", dockerignore.splitlines())
         for compose_text in (compose, compose_local):
             self.assertIn("ghcr.io/aiaimimi0920/gateway", compose_text)
             self.assertIn("${GATEWAY_ENV_FILE:-.env}", compose_text)
@@ -235,7 +239,7 @@ class GatewayStandaloneDeployTests(unittest.TestCase):
         )
 
         self.assertIn("function Test-IsLoopbackBindHost", script)
-        self.assertIn('Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_MANAGEMENT_TOKEN" -Value "123456"', script)
+        self.assertIn('Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_MANAGEMENT_TOKEN" -Value "11011101"', script)
         self.assertIn('Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_CONSOLE_REMOTE_ACCESS" -Value "true"', script)
 
     def test_readmes_explain_the_default_loopback_console_login_for_the_root_helper(self):
@@ -244,7 +248,7 @@ class GatewayStandaloneDeployTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("GATEWAY_MANAGEMENT_TOKEN=123456", readme)
+        self.assertIn("GATEWAY_MANAGEMENT_TOKEN=11011101", readme)
         self.assertIn("127.0.0.1", readme)
-        self.assertIn("GATEWAY_MANAGEMENT_TOKEN=123456", deploy_readme)
+        self.assertIn("GATEWAY_MANAGEMENT_TOKEN=11011101", deploy_readme)
         self.assertIn("/ui/", deploy_readme)

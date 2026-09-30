@@ -78,10 +78,10 @@ pub(super) fn map_openai_finish_reason_to_responses_status(value: &str) -> Optio
 
     Some(
         match value {
-            "tool_calls" | "function_call" => "tool_calls",
-            "stop" | "completed" => "completed",
-            "length" | "max_tokens" => "incomplete",
-            other => other,
+            "tool_calls" | "function_call" => "completed",
+            "stop" | "end_turn" | "stop_sequence" | "completed" => "completed",
+            "length" | "max_tokens" | "content_filter" | "incomplete" => "incomplete",
+            _ => "failed",
         }
         .to_string(),
     )

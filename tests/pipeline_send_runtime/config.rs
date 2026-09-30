@@ -5,6 +5,7 @@ pub fn test_config(console: ConsoleConfig) -> Config {
     Config {
         console,
         runtime_role: GatewayRuntimeRole::Standalone,
+        storage_mode: Default::default(),
         port: 0,
         redis_url: "redis://127.0.0.1:1".to_string(),
         database_url: None,

@@ -24,6 +24,21 @@ const providerProbeUrl = `${window.location.origin}/v1/internal/gateway/console/
 const credentialUsageUrl = `${window.location.origin}/v1/internal/gateway/usage-aggregates`;
 
 describe("console credential API", () => {
+  it("accepts a persistent local refill queue without a Redis stream", async () => {
+    server.use(http.get(credentialRefillUrl, () => HttpResponse.json({
+      refill: {
+        enabled: true, storageBackend: "sqlite", streamKey: null,
+        notificationIntervalSeconds: 30, defaultLeaseSeconds: 300,
+        maxLeaseSeconds: 3600, revisionId: "local-test", providers: [], recentTasks: [],
+      },
+    })));
+    const api = createConsoleApi(createGatewayApiClient({ host: createBrowserHost() }));
+    const status = await api.getCredentialRefill("management-secret");
+    expect(status.refill.storageBackend).toBe("sqlite");
+    expect(status.refill.streamKey).toBeNull();
+    expect(status.refill.enabled).toBe(true);
+  });
+
   it("loads masked credential inventory with source paths and cached quota", async () => {
     let observedToken: string | null = null;
     server.use(

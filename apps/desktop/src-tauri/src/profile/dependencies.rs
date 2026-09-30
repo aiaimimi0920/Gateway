@@ -69,6 +69,9 @@ fn tcp_dependency_check(
 }
 
 pub(super) fn optional_database_check(profile: &GatewayProfile) -> GatewayDependencyCheckItem {
+    if profile.local_storage() {
+        return local_dependency("PostgreSQL");
+    }
     let Some(database_url) = profile
         .gateway_database_url
         .as_ref()
@@ -97,6 +100,9 @@ pub(super) fn optional_database_check(profile: &GatewayProfile) -> GatewayDepend
 }
 
 pub(super) fn redis_check(profile: &GatewayProfile) -> GatewayDependencyCheckItem {
+    if profile.local_storage() {
+        return local_dependency("Redis");
+    }
     tcp_dependency_check(
         "Redis",
         profile.gateway_redis_url.trim(),
@@ -105,4 +111,14 @@ pub(super) fn redis_check(profile: &GatewayProfile) -> GatewayDependencyCheckIte
         true,
         "Start Redis or update GATEWAY_REDIS_URL.",
     )
+}
+
+fn local_dependency(name: &str) -> GatewayDependencyCheckItem {
+    GatewayDependencyCheckItem {
+        name: name.into(),
+        required: false,
+        configured: false,
+        ok: true,
+        message: "Local storage uses SQLite and in-process runtime state".into(),
+    }
 }

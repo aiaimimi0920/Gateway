@@ -7,7 +7,7 @@ export type ProviderPoolAccountLike = {
 };
 
 export type ProviderPoolSegment = {
-  state: Exclude<ProviderPoolState, "unknown"> | "remaining";
+  state: ProviderPoolState | "remaining";
   count: number;
   ratio: number;
   percent: number;
@@ -212,7 +212,7 @@ export function classifyAccountPoolState(account: ProviderPoolAccountLike): Prov
   return "unknown";
 }
 
-/** Build a four-colour pool bar without allowing invalid input to overflow. */
+/** Unknown credentials occupy pool slots without claiming verified health. */
 export function buildProviderPoolSegments(
   accounts: readonly ProviderPoolAccountLike[],
   targetValue: number,
@@ -240,7 +240,7 @@ export function buildProviderPoolSegments(
     }
   }
 
-  const known = available + rateLimited + invalid;
+  const known = available + rateLimited + invalid + unknown;
   const remaining = Math.max(target - known, 0);
   const denominator = known + remaining;
   const ratio = (count: number) => (denominator > 0 ? count / denominator : 0);
@@ -253,11 +253,11 @@ export function buildProviderPoolSegments(
       percent: ratio(rateLimited) * 100,
     },
     { state: "invalid", count: invalid, ratio: ratio(invalid), percent: ratio(invalid) * 100 },
+    { state: "unknown", count: unknown, ratio: ratio(unknown), percent: ratio(unknown) * 100 },
     { state: "remaining", count: remaining, ratio: ratio(remaining), percent: ratio(remaining) * 100 },
   ];
 
-  // When known states exceed the target, the grey segment is zero and the
-  // three observed states are normalized against the observed total.
+  // Over-capacity pools are normalized against all configured credentials.
   return { target, available, rateLimited, invalid, remaining, unknown, segments };
 }
 
@@ -535,7 +535,9 @@ export function aggregateProviderMetrics(
 }
 
 export function formatAggregateMoney(value: number): string {
-  return value.toFixed(2);
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2, maximumFractionDigits: 6, useGrouping: false,
+  });
 }
 
 export function formatAggregateRate(rate: number | null): string {

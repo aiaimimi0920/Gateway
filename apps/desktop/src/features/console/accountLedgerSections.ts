@@ -1,5 +1,5 @@
 import type {
-  ConsoleAccountGroupSummary, ConsoleGeminiAuthFamily,
+  ConsoleGeminiAuthFamily,
   ConsoleProviderCredentialInventoryItem, ConsoleRouteDocument,
 } from "../../api/contracts";
 import type { UiLocale } from "../../i18n/UiLocaleProvider";
@@ -7,11 +7,12 @@ import type { AccountsLedgerPilotAccount, AccountsLedgerPilotSection } from "./A
 import { type AccountLedgerRow, resolveGeminiLogicalChannel } from "./accountManagementViewModel";
 import { aggregateProviderMetrics, type ProviderAggregateMetrics } from "./providerCardMetrics";
 import { readQuotaRemainingUsd, type ConsoleTelemetrySnapshot } from "./telemetry";
-import { credentialStatusLabel, formatRelativeSince, resolveBillingMultiplier } from "./telemetryPresentation";
+import { credentialStatusLabel, formatRelativeSince } from "./telemetryPresentation";
 import { rollupProviderAccountTelemetry } from "./telemetryRollups";
 import { optionalString, hostLabelFromUrl } from "./routeAccountCatalog";
 import { optionalBoolean, readPilotProviderPolicy, readPilotIdentityCategories } from "./pilotPoolPolicy";
 import { isRecord } from "./routeDocument";
+import { credentialCardModelTraffic, providerCardModelTraffic } from "./cardModelTraffic";
 
 function optionalStringArray(record: Record<string, unknown>, key: string): string[] {
   const value = record[key];
@@ -77,8 +78,8 @@ function credentialRegisteredEmail(
 /**
  * Everything an account card needs that does not come from the route document.
  *
- * `attributeProviderAccount` exists because the gateway records requests, money
- * and live concurrency per provider account, never per credential. Copying those
+ * `attributeProviderAccount` protects provider-level money and concurrency.
+ * Requests prefer the explicit credential attribution in the audit summary. Copying provider
  * totals onto every credential of a pool would multiply them by the pool size,
  * so they are attributed to a single account row only when that row is the
  * provider's only routable identity; otherwise the provider card reads them from
@@ -88,7 +89,6 @@ type PilotAccountTelemetryContext = {
   snapshot: ConsoleTelemetrySnapshot;
   locale: UiLocale;
   attributeProviderAccount: boolean;
-  billingMultiplier: number;
 };
 
 function buildPilotSectionAccount(
@@ -110,6 +110,7 @@ function buildPilotSectionAccount(
   const scheduledProbeInterval = scheduleSource?.scheduled_probe_interval_minutes;
   const { snapshot, locale } = telemetry;
   const credentialHealth = snapshot.credentials.get(row.accountId) ?? null;
+  const credentialAudit = snapshot.credentialAuditStats?.get(JSON.stringify([row.providerId, row.accountId]));
   const providerAccount = telemetry.attributeProviderAccount
     ? snapshot.providerAccounts.get(row.providerId) ?? null
     : null;
@@ -118,7 +119,9 @@ function buildPilotSectionAccount(
   const concurrencyTotal = providerAccount?.concurrencyLimit ?? null;
   const upstreamCost = providerAccount?.upstreamCostUsd ?? null;
   const healthLabel = credentialStatusLabel(credentialHealth?.status ?? null, locale);
-  const lastUsedAt = credentialHealth?.lastSuccessAt ?? providerAccount?.lastRequestAt ?? null;
+  const lastUsedAt = credentialAudit?.lastRequestAt ?? credentialHealth?.lastSuccessAt ?? providerAccount?.lastRequestAt ?? null;
+  const requestCount = credentialAudit?.totalRequests ?? providerAccount?.requestCount ??
+    (snapshot.providerAccounts.get(row.providerId)?.requestCount === 0 ? 0 : null);
 
   return {
     accountId: row.accountId,
@@ -127,6 +130,10 @@ function buildPilotSectionAccount(
     mode: row.mode,
     enabled: row.enabled,
     logicalLabels: [...logicalLabels],
+    supportedModels: [...row.supportedModels],
+    modelTraffic: row.mode === "provider-default"
+      ? providerCardModelTraffic(snapshot, [row.providerId])
+      : credentialCardModelTraffic(snapshot, row.providerId, row.accountId),
     logicalGroupIds: [...row.groupIds],
     libraryName: credentialLibraryName(
       row.providerId,
@@ -158,10 +165,13 @@ function buildPilotSectionAccount(
     verificationNote: row.verificationNote,
     concurrencyUsed,
     concurrencyTotal,
-    requestCount: providerAccount?.requestCount ?? null,
+    requestCount,
     upstreamCost,
-    userCost: upstreamCost === null ? null : upstreamCost * telemetry.billingMultiplier,
-    successWindows: providerAccount?.successWindows ?? null,
+    // Usage pricing and group multipliers do not prove settled revenue.
+    userCost: null,
+    successWindows: credentialAudit?.windows.map((window) => ({
+      label: window.label, success: window.successCount, requests: window.totalRequests,
+    })) ?? providerAccount?.successWindows ?? null,
     quota: inventory?.providerQuota ?? null,
     quotaRemainingUsd:
       credentialHealth?.quotaRemainingUsd ??
@@ -287,7 +297,6 @@ function resolveGeminiManualAddFamily(
 function buildSectionTelemetry(
   snapshot: ConsoleTelemetrySnapshot,
   providerAccountIds: readonly string[],
-  billingMultiplier: number,
 ): ProviderAggregateMetrics {
   const rollup = rollupProviderAccountTelemetry(snapshot, providerAccountIds);
   return aggregateProviderMetrics([
@@ -296,8 +305,7 @@ function buildSectionTelemetry(
       concurrencyTotal: rollup.concurrencyTotal,
       requestCount: rollup.requestCount,
       upstreamCost: rollup.upstreamCostUsd,
-      userCost:
-        rollup.upstreamCostUsd === null ? null : rollup.upstreamCostUsd * billingMultiplier,
+      userCost: null,
       successWindows: rollup.successWindows,
     },
   ]);
@@ -309,7 +317,6 @@ export function buildAccountLedgerSections(
   credentialInventoryById: ReadonlyMap<string, ConsoleProviderCredentialInventoryItem>,
   snapshot: ConsoleTelemetrySnapshot,
   locale: UiLocale,
-  accountGroupSummary: ConsoleAccountGroupSummary | null,
 ): AccountsLedgerPilotSection[] {
   if (!document) {
     return [];
@@ -360,7 +367,6 @@ export function buildAccountLedgerSections(
         snapshot,
         locale,
         attributeProviderAccount,
-        billingMultiplier: resolveBillingMultiplier(accountGroupSummary, [row.accountId]),
       });
 
       const identityDefinitions = readPilotIdentityCategories(provider, providerId, providerLabel);
@@ -446,18 +452,9 @@ export function buildAccountLedgerSections(
       ];
     });
 
-  return mergeGeminiAccountLedgerSections(sections).map((section) => {
-    const credentialRefs = [
-      ...section.directAccounts,
-      ...section.identityCategories.flatMap((category) => category.accounts),
-    ].map((account) => account.accountId);
-    return {
-      ...section,
-      telemetry: buildSectionTelemetry(
-        snapshot,
-        section.providerIds,
-        resolveBillingMultiplier(accountGroupSummary, credentialRefs),
-      ),
-    } satisfies AccountsLedgerPilotSection;
-  });
+  return mergeGeminiAccountLedgerSections(sections).map((section) => ({
+    ...section,
+    telemetry: buildSectionTelemetry(snapshot, section.providerIds),
+    modelTraffic: providerCardModelTraffic(snapshot, section.providerIds),
+  } satisfies AccountsLedgerPilotSection));
 }

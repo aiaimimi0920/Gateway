@@ -2,18 +2,11 @@ import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
+import { createProgramResponseCapture } from "./gemini-canvas-program-handle-response-capture.mjs";
 
 const MAX_CAPTURED_RESPONSE_BODY_BYTES = 4 * 1024 * 1024;
 const MAX_CAPTURED_BASE64_BODY_CHARS = 4 * Math.ceil(MAX_CAPTURED_RESPONSE_BODY_BYTES / 3);
 const MAX_CONCURRENT_CAPTURED_BODY_READS = 8;
-
-function contentLength(headers) {
-  const raw = Object.entries(headers ?? {}).find(([name]) => name.toLowerCase() === "content-length")?.[1];
-  if (typeof raw === "number") return Number.isSafeInteger(raw) && raw >= 0 ? raw : null;
-  if (typeof raw !== "string" || !/^\d+$/.test(raw.trim())) return null;
-  const parsed = Number(raw.trim());
-  return Number.isSafeInteger(parsed) ? parsed : null;
-}
 
 function hasNoResponseBody(method, status) {
   return method?.toUpperCase() === "HEAD" || [204, 205, 304].includes(status);
@@ -21,9 +14,7 @@ function hasNoResponseBody(method, status) {
 
 function hasNativeBodySizeAdmission(request) {
   if (request.bodySizeInvalid || request.decodedBodyBytes > MAX_CAPTURED_RESPONSE_BODY_BYTES) return false;
-  if (request.hasDecodedBodySize && request.decodedBodyBytes > 0) return true;
-  const declaredLength = contentLength(request.responseHeaders);
-  return declaredLength !== null && declaredLength <= MAX_CAPTURED_RESPONSE_BODY_BYTES;
+  return request.hasDecodedBodySize && request.decodedBodyBytes > 0;
 }
 
 function boundedCdpBodyText(response) {
@@ -37,7 +28,7 @@ function boundedCdpBodyText(response) {
   return Buffer.byteLength(response.body, "utf8") <= MAX_CAPTURED_RESPONSE_BODY_BYTES ? response.body : null;
 }
 
-export function createImageEditBroadCapture({ marker, outDir }) {
+export function createImageEditBroadCapture({ marker, outDir, createResponseCapture = createProgramResponseCapture }) {
   const events = [];
   const MAX_EVENTS = 1600;
   let markerTransport = null;
@@ -50,6 +41,7 @@ export function createImageEditBroadCapture({ marker, outDir }) {
   let activeBodyReads = 0;
   let finalizeUploadCapture = null;
   let stopped = false;
+  let nativeCapture = null, nativeCaptureFailed = false, stopping = null;
   const listeners = [];
 
   function listen(emitter, event, handler) {
@@ -61,7 +53,7 @@ export function createImageEditBroadCapture({ marker, outDir }) {
   }
 
   function stop() {
-    if (stopped) return;
+    if (stopped) return stopping;
     // Invalidate pending callbacks before detaching any listener.
     stopped = true;
     cdpRequests.clear();
@@ -73,6 +65,9 @@ export function createImageEditBroadCapture({ marker, outDir }) {
       }
     }
     listeners.length = 0;
+    try { stopping = Promise.resolve(nativeCapture?.stop()).catch(() => undefined); }
+    catch { stopping = Promise.resolve(); }
+    return stopping;
   }
 
   function beginBodyRead() {
@@ -332,60 +327,68 @@ export function createImageEditBroadCapture({ marker, outDir }) {
       });
     });
 
-    listen(page, "response", async (response) => {
-      const request = response.request();
-      if (!interestingUrl(response.url())) return;
-      const method = request.method().toUpperCase();
-      const resourceType = request.resourceType();
-      if (!["POST", "PUT", "PATCH", "GET"].includes(method)) return;
-      if (method === "GET" && !["image", "media", "fetch", "xhr", "document"].includes(resourceType)) {
-        return;
-      }
+    nativeCapture = createResponseCapture(page, {
+      pageOnly: true, failOnBodyError: true,
+      requestFilter: interestingUrl,
+      onError(error) {
+        nativeCaptureFailed = true;
+        pushEvent({ kind: "capture-error", ts: new Date().toISOString(), code: error.code ?? "native_capture_failed" });
+      },
+      async onResponse(response) {
+        if (stopped || nativeCaptureFailed) return;
+        const request = response.request();
+        if (!interestingUrl(response.url())) return;
+        const method = request.method().toUpperCase();
+        const resourceType = request.resourceType();
+        if (!["POST", "PUT", "PATCH", "GET"].includes(method)) return;
+        if (method === "GET" && !["image", "media", "fetch", "xhr", "document"].includes(resourceType)) {
+          return;
+        }
 
-      let responseHeaders = response.headers();
-      try {
-        responseHeaders = await response.allHeaders();
-      } catch {
-        if (stopped) return;
-        responseHeaders = response.headers();
-      }
-      if (stopped) return;
-      const contentType = responseHeaders["content-type"] ?? "";
-      const event = {
-        kind: "response",
-        ts: new Date().toISOString(),
-        method,
-        resourceType,
-        url: response.url(),
-        status: response.status(),
-        contentType,
-        headers: responseHeaders,
-        bodyText: null,
-      };
-      if (shouldCaptureResponseBody(contentType, response.url())) {
+        let responseHeaders = response.headers();
         try {
-          const status = response.status();
-          if (hasNoResponseBody(method, status)) {
-            event.bodyText = "";
-          } else {
-            const declaredLength = contentLength(responseHeaders);
-            if (declaredLength !== null && declaredLength <= MAX_CAPTURED_RESPONSE_BODY_BYTES && beginBodyRead()) {
-              try {
-                const bodyText = await response.text();
-                if (typeof bodyText === "string" && Buffer.byteLength(bodyText, "utf8") <= MAX_CAPTURED_RESPONSE_BODY_BYTES) {
-                  event.bodyText = bodyText;
+          responseHeaders = await response.allHeaders();
+        } catch {
+          if (stopped) return;
+          responseHeaders = response.headers();
+        }
+        if (stopped) return;
+        const contentType = responseHeaders["content-type"] ?? "";
+        const event = {
+          kind: "response",
+          ts: new Date().toISOString(),
+          method,
+          resourceType,
+          url: response.url(),
+          status: response.status(),
+          contentType,
+          headers: responseHeaders,
+          bodyText: null,
+        };
+        if (shouldCaptureResponseBody(contentType, response.url())) {
+          try {
+            const status = response.status();
+            if (hasNoResponseBody(method, status)) {
+              event.bodyText = "";
+            } else {
+              if (beginBodyRead()) {
+                try {
+                  const bodyText = await response.text();
+                  if (typeof bodyText === "string" && Buffer.byteLength(bodyText, "utf8") <= MAX_CAPTURED_RESPONSE_BODY_BYTES) {
+                    event.bodyText = bodyText;
+                  }
+                } finally {
+                  endBodyRead();
                 }
-              } finally {
-                endBodyRead();
               }
             }
+          } catch {
+            event.bodyText = null;
           }
-        } catch {
-          event.bodyText = null;
         }
-      }
-      if (stopped) return;
-      pushEvent(event);
+        if (stopped || nativeCaptureFailed) return;
+        pushEvent(event);
+      },
     });
 
     listen(page, "websocket", (websocket) => {
@@ -413,6 +416,7 @@ export function createImageEditBroadCapture({ marker, outDir }) {
         pushEvent({ ...base, phase: "close" });
       });
     });
+    return nativeCapture.ready;
   }
 
   return {

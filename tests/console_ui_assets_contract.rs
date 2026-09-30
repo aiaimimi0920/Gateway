@@ -17,6 +17,7 @@ fn test_config() -> Config {
     Config {
         console: Default::default(),
         runtime_role: GatewayRuntimeRole::Standalone,
+        storage_mode: Default::default(),
         port: 0,
         redis_url: "redis://127.0.0.1:1/15".to_string(),
         database_url: None,

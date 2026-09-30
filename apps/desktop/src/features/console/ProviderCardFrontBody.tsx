@@ -1,6 +1,8 @@
 import { Activity, CircleDollarSign, Gauge, Send, TrendingUp, UsersRound } from "lucide-react";
 
 import { ProviderQuotaPanel } from "./ProviderAccountCard";
+import { CardModelList } from "./CardModelList";
+import type { CardModelTraffic } from "./cardModelTraffic";
 import {
   formatAggregateMoney,
   formatAggregateRate,
@@ -16,6 +18,8 @@ type TranslateFn = (zh: string, en: string) => string;
 
 export type ProviderCardFrontBodyProps = {
   providerLabel: string;
+  supportedModels?: readonly string[];
+  modelTraffic?: CardModelTraffic;
   poolSegments: ProviderPoolSegments;
   providerConcurrency: ProviderConcurrency;
   providerCosts: ProviderCosts;
@@ -30,7 +34,7 @@ export type ProviderCardFrontBodyProps = {
 };
 
 function providerPoolSegmentLabel(
-  state: "available" | "rate-limited" | "invalid" | "remaining",
+  state: "available" | "rate-limited" | "invalid" | "unknown" | "remaining",
   count: number,
   t: TranslateFn,
 ): string {
@@ -43,11 +47,15 @@ function providerPoolSegmentLabel(
       return t(`失效 ${count}`, `Invalid ${count}`);
     case "remaining":
       return t(`剩余 ${count}`, `Remaining ${count}`);
+    case "unknown":
+      return t(`待观测 ${count}`, `Not observed ${count}`);
   }
 }
 
 export function ProviderCardFrontBody({
   providerLabel,
+  supportedModels,
+  modelTraffic,
   poolSegments,
   providerConcurrency,
   providerCosts,
@@ -70,16 +78,12 @@ export function ProviderCardFrontBody({
         )}
         aria-label={t(`${providerLabel} 目标账号池`, `${providerLabel} target account pool`)}
       >
-        <div className="nt-provider-card__pool-value">
-          <UsersRound size={15} aria-hidden="true" />
-          <strong>{`${poolSegments.available}/${poolSegments.target}`}</strong>
-        </div>
         <div
           className="nt-provider-card__pool-bar"
           role="img"
           aria-label={t(
-            `可用 ${poolSegments.available}，待恢复 ${poolSegments.rateLimited}，失效 ${poolSegments.invalid}，剩余 ${poolSegments.remaining}`,
-            `Available ${poolSegments.available}, recovering ${poolSegments.rateLimited}, invalid ${poolSegments.invalid}, remaining ${poolSegments.remaining}`,
+            `可用 ${poolSegments.available}，待恢复 ${poolSegments.rateLimited}，失效 ${poolSegments.invalid}，待观测 ${poolSegments.unknown}，剩余 ${poolSegments.remaining}`,
+            `Available ${poolSegments.available}, recovering ${poolSegments.rateLimited}, invalid ${poolSegments.invalid}, not observed ${poolSegments.unknown}, remaining ${poolSegments.remaining}`,
           )}
         >
           {poolSegments.segments.map((segment) => (
@@ -92,6 +96,10 @@ export function ProviderCardFrontBody({
             />
           ))}
         </div>
+        <div className="nt-provider-card__pool-value" aria-label={t("已配置账号 / 目标账号", "Configured accounts / target accounts")}>
+          <UsersRound size={15} aria-hidden="true" />
+          <strong>{`${poolSegments.available + poolSegments.rateLimited + poolSegments.invalid + poolSegments.unknown}/${poolSegments.target}`}</strong>
+        </div>
       </section>
 
       <dl className="nt-provider-card__metrics">
@@ -103,15 +111,19 @@ export function ProviderCardFrontBody({
             {providerConcurrency ? `${providerConcurrency.used}/${providerConcurrency.total ?? "—"}` : "—"}
           </dd>
         </div>
-        <div title={t(`${providerLabel} 上游费用`, `${providerLabel} upstream cost`)}>
+        <div title={providerCosts.upstream === null
+          ? t(`${providerLabel} 上游费用：暂无完整的 USD 用量计价数据`, `${providerLabel} upstream cost: complete USD usage pricing unavailable`)
+          : t(`${providerLabel} 上游费用估算：实际 token 用量 × 配置价格，非上游账单`, `${providerLabel} estimated upstream cost: recorded token usage × configured prices, not an upstream invoice`)}>
           <dt aria-label={t("上游费用", "Upstream cost")}>
             <CircleDollarSign size={15} aria-hidden="true" />
           </dt>
           <dd data-provider-metric="upstream-cost">
-            {providerCosts.upstream === null ? "—" : `$${formatAggregateMoney(providerCosts.upstream)}`}
+            {providerCosts.upstream === null ? "—" : `≈$${formatAggregateMoney(providerCosts.upstream)}`}
           </dd>
         </div>
-        <div title={t(`${providerLabel} 平台收入`, `${providerLabel} platform revenue`)}>
+        <div title={providerCosts.user === null
+          ? t(`${providerLabel} 平台收入：暂无已结算收入数据`, `${providerLabel} platform revenue: settled revenue unavailable`)
+          : t(`${providerLabel} 平台收入`, `${providerLabel} platform revenue`)}>
           <dt aria-label={t("平台收入", "Platform revenue")}>
             <TrendingUp size={15} aria-hidden="true" />
           </dt>
@@ -121,8 +133,8 @@ export function ProviderCardFrontBody({
         </div>
         <div
           title={t(
-            `${providerLabel} 总请求数${providerRequestCount === null ? "暂无数据" : ` ${providerRequestCount}`}`,
-            `${providerLabel} total requests${providerRequestCount === null ? " unavailable" : ` ${providerRequestCount}`}`,
+            `${providerLabel} 已保留调用记录${providerRequestCount === null ? "暂无数据" : ` ${providerRequestCount} 次（含成功、失败和运行中请求）`}`,
+            `${providerLabel} retained request history${providerRequestCount === null ? " unavailable" : `: ${providerRequestCount} calls, including completed, failed and running requests`}`,
           )}
         >
           <dt aria-label={t("请求数", "Requests")}>
@@ -144,8 +156,8 @@ export function ProviderCardFrontBody({
             `${providerLabel} recent window success rate, all models aggregated${providerSuccessRate === null ? ", unavailable" : `, ${providerSuccessTotals.success}/${providerSuccessTotals.requests} successful, ${formatAggregateRate(providerSuccessRate)}`}`,
           )}
           title={t(
-            `${providerLabel} 最近窗口的调用成功率（所有模型聚合，每 5 分钟）`,
-            `${providerLabel} recent window success rate (all models aggregated, 5 min windows)`,
+            `${providerLabel} 最近窗口的调用成功率（所有模型聚合，按小时）`,
+            `${providerLabel} recent window success rate (all models aggregated, hourly windows)`,
           )}
         >
           <Activity size={15} aria-hidden="true" />
@@ -180,7 +192,16 @@ export function ProviderCardFrontBody({
             {formatAggregateRate(providerSuccessRate)}
           </strong>
         </section>
-      ) : null}
+      ) : (
+        <section className="nt-provider-card__success" data-provider-call-state="empty">
+          <Activity size={15} aria-hidden="true" />
+          <span>{providerRequestCount === null
+            ? t("调用统计暂不可用", "Call statistics unavailable")
+            : t("当前统计窗口暂无调用记录", "No calls in the current statistics window")}</span>
+        </section>
+      )}
+
+      {supportedModels && <CardModelList models={supportedModels} label={providerLabel} traffic={modelTraffic} t={t} />}
 
       <ProviderQuotaPanel
         t={t}

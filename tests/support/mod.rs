@@ -32,6 +32,7 @@ pub fn build_test_app_state(
         config,
         redis_pool,
         pg_pool: None,
+        local_runtime: None,
         upstream_client: UpstreamClient::new(upstream_timeout_secs),
         concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
         auth_adapters: Vec::new(),

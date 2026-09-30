@@ -52,6 +52,7 @@ fn test_app_with_config(
     let config = Config {
         console: Default::default(),
         runtime_role: neuro_gateway::config::GatewayRuntimeRole::Standalone,
+        storage_mode: Default::default(),
         port: 0,
         redis_url: std::env::var("GATEWAY_SMOKE_TEST_REDIS_URL")
             .unwrap_or_else(|_| "redis://localhost:6379".to_string()),

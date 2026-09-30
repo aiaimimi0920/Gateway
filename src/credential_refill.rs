@@ -9,6 +9,10 @@ mod completion;
 mod creation;
 mod delivery;
 mod demand;
+mod local;
+mod local_delivery;
+#[cfg(test)]
+mod local_tests;
 mod notifications;
 mod storage;
 mod task_clock;
@@ -246,7 +250,7 @@ pub struct CompleteCredentialRefillTaskInput {
     pub delivery: CredentialRefillDeliveryInput,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum CredentialRefillDeliveryInput {
     FolderSync {

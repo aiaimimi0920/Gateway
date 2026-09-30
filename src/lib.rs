@@ -1,6 +1,8 @@
 #![recursion_limit = "256"]
 
+pub mod access_balance;
 pub mod access_control;
+pub mod access_store;
 pub mod auth;
 pub mod balance;
 pub mod browser_executor_runtime;
@@ -21,6 +23,7 @@ pub mod gateway_api_key;
 pub mod http;
 pub mod implementation_lines;
 pub mod keepalive;
+pub mod local_runtime;
 pub mod metrics;
 pub mod object_storage;
 pub mod pipeline;

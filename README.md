@@ -119,10 +119,15 @@ cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 
 ## Runtime Configuration
 
-The service reads runtime settings from environment variables. `GATEWAY_REDIS_URL`
-is required by `Config::from_env`; `GATEWAY_DATABASE_URL` or `DATABASE_URL` is
-optional. Copy `.env.example` to a local `.env` and fill in the values for a
-development run. `.env` and other local environment files remain ignored.
+The service reads runtime settings from environment variables. Server mode
+(`GATEWAY_STORAGE_MODE=server`) requires `GATEWAY_REDIS_URL`; `GATEWAY_DATABASE_URL`
+or `DATABASE_URL` enables PostgreSQL-owned services. Local mode
+(`GATEWAY_STORAGE_MODE=local`) uses embedded SQLite and a standalone process without
+external database services. Desktop-managed backends select local mode automatically.
+Windows EXE defaults and the stable `.ng` data directory are documented in
+[local data storage](docs/local-data-storage.md); shared quota rules are documented in
+[local access keys](docs/local-access-keys.md). Copy `.env.example` to a local `.env`
+for a server development run. Local environment files remain ignored.
 
 The current development snapshot intentionally retains its versioned route
 configuration and other local development state. Do not replace `routes.yaml`
@@ -151,6 +156,10 @@ provenance, manifests, browser workers, documentation, the official `deploy/`
 directory, tools, `manifest.json`, and `checksums.sha256`.
 
 Build and package a candidate from the repository root:
+
+Before every release, complete the [static model display catalogue review](docs/model-display-catalog-release.md).
+Refresh official model identities, review the fixed company/model prominence order,
+record sources and unknown-model fallback, then freeze the table before building.
 
 ```powershell
 $id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
@@ -199,6 +208,8 @@ Verify the packaged artifacts without modifying the package directory:
 .\tools\smoke-gateway-packaged-runtime.ps1 `
   -ReleaseDir ".\release\Gateway\$id" -IntegrityOnly
 .\tools\smoke-gateway-ui-release.ps1 `
+  -ReleaseDir ".\release\Gateway\$id"
+.\tools\smoke-gateway-local-storage.ps1 `
   -ReleaseDir ".\release\Gateway\$id"
 ```
 
@@ -294,14 +305,14 @@ the first `-Action up`, it writes `GATEWAY_BIND_HOST=127.0.0.1` by default and,
 for loopback-bound stacks, seeds these missing console values without
 overwriting existing user settings:
 
-- `GATEWAY_MANAGEMENT_TOKEN=123456`
+- `GATEWAY_MANAGEMENT_TOKEN=11011101`
 - `GATEWAY_CONSOLE_REMOTE_ACCESS=true`
 
 After the stack is up, open:
 
 - `http://127.0.0.1:4200/ui/`
 
-and sign in with the management token `123456`. If you want a server-style
+and sign in with the management token `11011101`. If you want a server-style
 public bind instead, pass `-BindHost 0.0.0.0` and set your own management
 token before exposing the port externally.
 
@@ -330,7 +341,7 @@ exposes a management-only summary endpoint:
 
 ```bash
 curl http://127.0.0.1:4200/v1/internal/gateway/account-groups \
-  -H "x-internal-api-key: 123456"
+  -H "x-internal-api-key: 11011101"
 ```
 
 The response includes:
@@ -340,8 +351,7 @@ The response includes:
 - `accounts[]`: reverse mapping from account ID to provider and group IDs;
 - `providers[]`: provider-to-account inventory summary.
 
-The `Test` action in the Accounts workspace uses a standalone credential
-connectivity probe:
+The `Test` action in the Accounts workspace uses a credential-scoped probe:
 
 ```text
 POST /v1/internal/gateway/console/credentials/{credential_id}/probe
@@ -357,14 +367,24 @@ credential from the active route snapshot, so it does not require PostgreSQL;
 disabled credentials never make a network request. The only response statuses
 are:
 
-- `passed`: a supported HTTP credential probe completed successfully;
+- `passed`: NVIDIA returned a non-empty model reply; other adapters completed their supported HTTP probe;
 - `failed`: the upstream request failed and the returned message was sanitized;
 - `unsupported`: the adapter is fixed-model, browser-backed, stateful, or
   otherwise has no safe side-effect-free probe.
 
-The response shape is `{ "result": { "credentialId", "providerId", "status",
-"message", "checkedAt" } }`; API keys, cookies, tokens, and upstream bodies
-are never returned.
+For NVIDIA (`nvidia-openai`), manual single-account and provider-wide tests send
+one non-streaming chat-completion request per enabled credential. They use a
+configured default or supported model and its model mapping, request only `OK`,
+cap output at 256 tokens, wait at most 60 seconds, and reject malformed, empty,
+or token-truncated replies even when HTTP succeeds. They never switch credentials
+or fall back to another provider. Missing model configuration is `unsupported`.
+The model test records request attribution and model health in the configured
+runtime store. Scheduled health probes retain their existing non-generative policy.
+
+The response shape is `{ "result": { "credentialId", "providerId", "probePoint",
+"status", "message", "checkedAt" } }`. NVIDIA's message includes the tested model
+and a sanitized reply preview (up to 320 characters). API keys, cookies, tokens,
+and full upstream bodies are never returned.
 
 To run an end-to-end local Docker verification against a locally built image:
 

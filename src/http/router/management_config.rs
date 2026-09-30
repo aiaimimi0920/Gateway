@@ -173,6 +173,18 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
             post(internal_console::create_gemini_auth_session),
         )
         .route(
+            "/v1/internal/gateway/console/chatgpt-auth-sessions",
+            post(internal_console::create_chatgpt_oauth),
+        )
+        .route(
+            "/v1/internal/gateway/console/chatgpt-auth-sessions/:session_id",
+            get(internal_console::get_chatgpt_oauth),
+        )
+        .route(
+            "/v1/internal/gateway/console/chatgpt-auth-sessions/:session_id/:action",
+            post(internal_console::act_chatgpt_oauth),
+        )
+        .route(
             "/v1/internal/gateway/console/gemini-auth-sessions/:session_id",
             get(internal_console::get_gemini_auth_session),
         )

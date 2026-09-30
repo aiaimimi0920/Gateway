@@ -37,6 +37,7 @@ COPY apps/desktop ./apps/desktop
 COPY --from=ui-builder /app/apps/desktop/dist/web ./apps/desktop/dist/web
 COPY --from=ui-builder /app/apps/desktop/dist/.gateway-web-ready ./apps/desktop/dist/.gateway-web-ready
 COPY src ./src
+COPY crates ./crates
 
 ENV GATEWAY_PREBUILT_WEB_UI=1 \
   CARGO_TARGET_DIR=/cargo-target \
@@ -85,7 +86,8 @@ RUN printf '%s\n' "${GATEWAY_AUDIT_NONCE}" >/dev/null \
   && chmod +x /usr/local/bin/gateway-entrypoint \
   && mkdir -p /data/state
 
-COPY routes.yaml routes.example.yaml ./
+COPY routes.example.yaml ./routes.yaml
+COPY routes.example.yaml ./routes.example.yaml
 COPY manifests ./manifests
 COPY scripts ./scripts
 COPY --from=builder /app/gateway-release /usr/local/bin/gateway

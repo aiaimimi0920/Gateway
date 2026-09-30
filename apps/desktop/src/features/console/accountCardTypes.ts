@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import type { ConsoleProviderQuota } from "../../api/contracts";
 import type { ProviderSuccessWindow } from "./providerCardMetrics";
+import type { CardModelTraffic } from "./cardModelTraffic";
 
 export type TranslateFn = (zh: string, en: string) => string;
 
@@ -19,6 +20,8 @@ export type AccountsLedgerPilotAccount = {
   mode: "credential" | "provider-default";
   enabled: boolean;
   logicalLabels: string[];
+  supportedModels?: readonly string[];
+  modelTraffic?: CardModelTraffic;
   logicalGroupIds?: string[];
   libraryName?: string;
   capacityLabel: string;

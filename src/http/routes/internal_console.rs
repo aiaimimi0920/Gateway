@@ -1,6 +1,8 @@
 //! Console wire types, shared request/response boundaries and Gemini session route wiring.
 
+mod chatgpt_oauth;
 mod probes;
+pub use chatgpt_oauth::{act_chatgpt_oauth, create_chatgpt_oauth, get_chatgpt_oauth};
 mod revisions;
 mod route_config;
 mod sessions;

@@ -11,6 +11,7 @@ function captureError(reason, limit = false) {
 export function createProgramResponseCapture(page, {
   requestFilter, onResponse, onWebSocket, onError, bodyBytes = 4 * 1024 * 1024,
   createSessions = createProgramCdpSessions, binaryBodyBytes = bodyBytes, pageOnly = false,
+  mainDocumentOnly = false, failOnBodyError = false,
 }) {
   if (!Number.isSafeInteger(bodyBytes) || bodyBytes < 1 || bodyBytes > 4 * 1024 * 1024) {
     throw new TypeError("Response body limit must lower the positive default limit.");
@@ -54,7 +55,10 @@ export function createProgramResponseCapture(page, {
         fail(captureError("exceeded its decoded body limit", true)); return "";
       }
       return bytes;
-    } catch { return ""; }
+    } catch {
+      if (failOnBodyError) fail(captureError("could not read its native body"));
+      return "";
+    }
     finally { clearTimeout(timer); nativeReads--; nativeEnvelopeBytes -= envelopeBytes; }
   };
   const publish = (entry, response, empty = false) => {
@@ -74,8 +78,8 @@ export function createProgramResponseCapture(page, {
       }
       return value;
     };
-    const result = onResponse({ url: () => response.url, status: () => response.status,
-      request: () => ({ method: () => entry.method, headers: () => entry.headers }), headers: () => headers,
+    const result = onResponse({ url: () => response.url, status: () => response.status, isRedirect: () => empty,
+      request: () => ({ method: () => entry.method, headers: () => entry.headers, resourceType: () => entry.resourceType }), headers: () => headers,
       [BOUNDED_NATIVE_RESPONSE]: true, body, text: () => (text ??= readText()) });
     void Promise.resolve(result).catch(() => fail(captureError("consumer failed")));
     if (empty) settle(entry);
@@ -88,6 +92,9 @@ export function createProgramResponseCapture(page, {
     } catch { fail(captureError("failed")); }
   };
   const configure = async (session, signal) => {
+    if (mainDocumentOnly && (session.nestingDepth ?? 0) !== 0) return () => undefined;
+    const mainFrame = mainDocumentOnly ? (await session.send("Page.getFrameTree")).frameTree.frame.id : null;
+    const selected = (event) => !mainDocumentOnly || (event.type === "Document" && event.frameId === mainFrame);
     let disposed = false;
     const requests = new Map();
     requestsBySession.set(session, requests);
@@ -114,6 +121,7 @@ export function createProgramResponseCapture(page, {
       return entry;
     };
     const request = guard((event) => {
+      if (!selected(event)) return;
       const prior = requests.get(event.requestId);
       if (prior) {
         if (event.redirectResponse && !prior.response) publish(prior, event.redirectResponse, true);
@@ -127,19 +135,23 @@ export function createProgramResponseCapture(page, {
       }
       if (pending.size >= 128) { fail(captureError("exceeded its pending request limit", true)); return; }
       const entry = { session, requestId: event.requestId, method: event.request.method,
+        resourceType: String(event.type ?? "other").toLowerCase(),
         headers: event.request.headers ?? {}, bytes: 0,
         resolve: null, response: null, isDisposed: () => disposed };
       requests.set(event.requestId, entry);
       pending.add(entry);
     });
     const response = guard((event) => {
+      if (!selected(event)) return;
       const entry = find(event.requestId);
       if (!entry && requestFilter(event.response.url)) {
         fail(captureError("has no request identity")); return;
       }
       if (entry && !entry.response) {
         const type = Object.entries(event.response.headers ?? {}).find(([key]) => key.toLowerCase() === "content-type")?.[1] ?? "";
-        entry.bodyLimit = /^(image\/|audio\/|application\/octet-stream)/i.test(type) ? binaryBodyBytes : bodyBytes;
+        const binary = /^(image\/|audio\/|application\/octet-stream)/i.test(type) ||
+          (mainDocumentOnly && !/(json|text|javascript|xml|html)/i.test(type));
+        entry.bodyLimit = binary ? binaryBodyBytes : bodyBytes;
         publish(entry, event.response);
       }
     });
@@ -176,7 +188,10 @@ export function createProgramResponseCapture(page, {
     });
     const loadingFailed = guard(({ requestId }) => {
       const entry = find(requestId);
-      if (entry) { remove(requestId); settle(entry); }
+      if (entry) {
+        remove(requestId); settle(entry);
+        if (failOnBodyError && entry.bodyRequested) fail(captureError("navigation body loading failed"));
+      }
     });
     const listeners = { "Network.requestWillBeSent": request, "Network.responseReceived": response,
       "Network.dataReceived": data, "Network.loadingFinished": finished, "Network.loadingFailed": loadingFailed,

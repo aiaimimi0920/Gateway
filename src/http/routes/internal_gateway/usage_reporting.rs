@@ -88,8 +88,11 @@ pub async fn list_provider_credential_model_states(
     Query(query): Query<db::CredentialModelStateFilters>,
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    let states =
-        db::list_provider_credential_model_states(required_pg_pool(state.as_ref())?, query).await?;
+    let states = if let Some(local) = &state.local_runtime {
+        local.list_model_states(query).await?
+    } else {
+        db::list_provider_credential_model_states(required_pg_pool(state.as_ref())?, query).await?
+    };
     Ok(Json(serde_json::json!({ "states": states })))
 }
 

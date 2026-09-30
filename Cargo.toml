@@ -124,6 +124,7 @@ line-qwen-web-reverse = []
 line-chataibot-web-reverse = []
 line-kiro-official-vendor-api = []
 [dependencies]
+gateway-local-data = { path = "crates/gateway-local-data" }
 # HTTP server
 axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
 axum-extra = { version = "0.9", features = ["typed-header"] }
@@ -151,7 +152,7 @@ serde_json = "1"
 notify = "6"
 
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "time", "json"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "sqlite", "time", "json"] }
 time = { version = "0.3", features = ["serde", "parsing", "formatting"] }
 
 # Observability

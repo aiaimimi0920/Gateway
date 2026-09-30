@@ -209,7 +209,6 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /权益组/i);
-    const commitCallCount = vi.mocked(consoleApi.commitRouteConfig).mock.calls.length;
 
     await user.click(screen.getByRole("button", { name: /添加分组/i }));
     const groupCards = screen.getByRole("region", { name: /权益组卡牌/i });
@@ -221,16 +220,7 @@ describe("BrowserConsoleApp", () => {
     await user.type(screen.getByRole("searchbox", { name: /筛选候选账号/i }), "生产账号 B");
     await user.click(screen.getByRole("button", { name: /加入.*生产账号 B/i }));
 
-    const draft = await waitForCommittedRouteDraft(consoleApi, commitCallCount);
-    expect(draft.account_groups).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "group-team-b",
-          provider_credential_ids: ["acc-prod-2"],
-        }),
-      ]),
-    );
-
+    // Earlier field edits can commit before the member-edit debounce finishes.
     await waitFor(() =>
       expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
         "management-secret",
@@ -247,6 +237,7 @@ describe("BrowserConsoleApp", () => {
           }),
         }),
       ),
+      { timeout: 3000 },
     );
   }, 10_000);
 

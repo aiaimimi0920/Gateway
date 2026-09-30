@@ -186,6 +186,7 @@ export type ConsoleRequestAuditSummary = {
   cancelledCount: number;
   runningCount: number;
   providerAccounts: ConsoleRequestAuditProviderStats[];
+  credentials?: (ConsoleRequestAuditProviderStats & { credentialRef: string })[];
 };
 
 export type ConsoleRequestAuditSummaryResponse = {

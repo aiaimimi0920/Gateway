@@ -245,11 +245,16 @@ pub(super) fn build_response_function_call_item_done(
     format_sse_event(Some("response.output_item.done"), &payload.to_string())
 }
 
-pub(super) fn build_response_completed_event(sequence_number: u64, response: Value) -> String {
+pub(super) fn build_response_terminal_event(sequence_number: u64, response: Value) -> String {
+    let event_type = match response.get("status").and_then(Value::as_str) {
+        Some("incomplete") => "response.incomplete",
+        Some("failed" | "cancelled") => "response.failed",
+        _ => "response.completed",
+    };
     let payload = json!({
-        "type": "response.completed",
+        "type": event_type,
         "sequence_number": sequence_number,
         "response": response,
     });
-    format_sse_event(Some("response.completed"), &payload.to_string())
+    format_sse_event(Some(event_type), &payload.to_string())
 }

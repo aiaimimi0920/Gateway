@@ -3,6 +3,7 @@ import type {
   ConsoleProviderCredentialInventoryItem,
   ConsoleProviderCredentialModelState,
   ConsoleRequestAuditSummary,
+  ConsoleRequestAuditProviderStats,
   ConsoleRuntimePressure,
 } from "../../api/contracts";
 import type { ProviderSuccessWindow } from "./providerCardMetrics";
@@ -13,7 +14,7 @@ const MICROS_PER_USD = 1_000_000;
 export type ConsoleTelemetryCredential = {
   credentialRef: string;
   providerAccountIds: string[];
-  /** Worst status across the credential's models: active < degraded < cooling < blocked. */
+  /** Active if a model works without a credential-wide failure; otherwise the worst status. */
   status: string | null;
   models: string[];
   failureCount: number;
@@ -67,6 +68,7 @@ export type ConsoleTelemetryProviderAccount = {
 };
 
 export type ConsoleTelemetrySnapshot = {
+  credentialAuditStats?: ReadonlyMap<string, ConsoleRequestAuditProviderStats>;
   credentials: ReadonlyMap<string, ConsoleTelemetryCredential>;
   providerAccounts: ReadonlyMap<string, ConsoleTelemetryProviderAccount>;
   /** Credential refs observed for a provider account, from health states. */
@@ -162,6 +164,8 @@ export function readQuotaRemainingUsd(rawData: unknown, depth = 0): number | nul
 type CredentialAccumulator = {
   providerAccountIds: Set<string>;
   status: string | null;
+  hasActiveModel: boolean;
+  hasCredentialFailure: boolean;
   models: Set<string>;
   failureCount: number;
   cooldownUntil: string | null;
@@ -256,7 +260,11 @@ export function buildConsoleTelemetrySnapshot(
     entry.totalTokens = nonNegative(bucket.totalTokens) ?? 0;
     // Null means "no price configured for these models", which must stay null
     // instead of collapsing to $0.00 and reading as a free provider.
-    const costMicros = nonNegative(bucket.estimatedMarketCostMicros);
+    // A subtotal of priced models, or a different currency, cannot be shown as a USD total.
+    const completeUsdPricing = bucket.models.length > 0 && bucket.models.every((row) =>
+      row.marketRate?.currency.toUpperCase() === "USD" &&
+      nonNegative(row.estimatedMarketCostMicros) !== null);
+    const costMicros = completeUsdPricing ? nonNegative(bucket.estimatedMarketCostMicros) : null;
     entry.upstreamCostUsd = costMicros === null ? null : costMicros / MICROS_PER_USD;
     entry.lastRequestAt = laterTimestamp(entry.lastRequestAt, bucket.lastRequestAt);
     entry.models = [
@@ -276,7 +284,8 @@ export function buildConsoleTelemetrySnapshot(
       modelEntry.promptTokens = nonNegative(row.promptTokens) ?? 0;
       modelEntry.completionTokens = nonNegative(row.completionTokens) ?? 0;
       modelEntry.totalTokens = nonNegative(row.totalTokens) ?? 0;
-      const modelCostMicros = nonNegative(row.estimatedMarketCostMicros);
+      const modelCostMicros = row.marketRate?.currency.toUpperCase() === "USD"
+        ? nonNegative(row.estimatedMarketCostMicros) : null;
       modelEntry.upstreamCostUsd =
         modelCostMicros === null ? null : modelCostMicros / MICROS_PER_USD;
       modelEntry.lastRequestAt = laterTimestamp(modelEntry.lastRequestAt, row.lastRequestAt);
@@ -328,6 +337,8 @@ export function buildConsoleTelemetrySnapshot(
     const accumulator = credentialAccumulators.get(credentialRef) ?? {
       providerAccountIds: new Set<string>(),
       status: null,
+      hasActiveModel: false,
+      hasCredentialFailure: false,
       models: new Set<string>(),
       failureCount: 0,
       cooldownUntil: null,
@@ -348,6 +359,9 @@ export function buildConsoleTelemetrySnapshot(
     ) {
       accumulator.status = state.status;
     }
+    const isActive = state.status.trim().toLowerCase() === "active";
+    accumulator.hasActiveModel ||= isActive;
+    accumulator.hasCredentialFailure ||= !isActive && state.failureScope !== "credential_model";
     accumulator.failureCount += nonNegative(state.failureCount) ?? 0;
     accumulator.cooldownUntil = laterTimestamp(accumulator.cooldownUntil, state.cooldownUntil);
     accumulator.lastSuccessAt = laterTimestamp(accumulator.lastSuccessAt, state.lastSuccessAt);
@@ -384,7 +398,9 @@ export function buildConsoleTelemetrySnapshot(
       providerAccountIds: [...(accumulator?.providerAccountIds ?? [])].sort((left, right) =>
         left.localeCompare(right),
       ),
-      status: accumulator?.status ?? null,
+      status: accumulator?.hasActiveModel && !accumulator.hasCredentialFailure
+        ? "active"
+        : accumulator?.status ?? null,
       models: [...(accumulator?.models ?? [])].sort((left, right) => left.localeCompare(right)),
       failureCount: accumulator?.failureCount ?? 0,
       cooldownUntil: accumulator?.cooldownUntil ?? null,
@@ -407,6 +423,11 @@ export function buildConsoleTelemetrySnapshot(
 
   return {
     credentials,
+    credentialAuditStats: input.requestAuditSummary?.credentials === undefined ? undefined : new Map(
+      input.requestAuditSummary.credentials.map((stats) => [
+        JSON.stringify([stats.providerAccountId, stats.credentialRef]), stats,
+      ]),
+    ),
     providerAccounts,
     credentialRefsByProviderAccountId,
     hasPressure: input.pressure !== null,

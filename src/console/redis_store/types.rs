@@ -16,6 +16,10 @@ pub struct RouteConfigRedisStoreError {
 }
 
 impl RouteConfigRedisStoreError {
+    pub(crate) fn from_persistence(error: crate::console::PersistenceError) -> Self {
+        Self::new(error.code(), error.to_string())
+    }
+
     fn new(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             code,

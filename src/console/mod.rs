@@ -2,6 +2,7 @@ pub mod config;
 pub use config::*;
 
 pub mod auth;
+pub mod chatgpt_oauth;
 pub mod document;
 pub mod gemini_auth_sessions;
 pub mod journal;

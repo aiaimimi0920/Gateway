@@ -3,9 +3,6 @@
 use super::*;
 
 pub(super) async fn record_credential_model_success(ctx: &PipelineContext, state: &Arc<AppState>) {
-    let Some(pg_pool) = state.pg_pool.as_ref() else {
-        return;
-    };
     let Some(provider_account_id) = ctx.selected_provider_id.clone() else {
         return;
     };
@@ -29,7 +26,7 @@ pub(super) async fn record_credential_model_success(ctx: &PipelineContext, state
         model,
     };
 
-    if let Err(error) = db::record_provider_credential_model_success(pg_pool, input).await {
+    if let Err(error) = crate::local_runtime::model_states::success(state, input).await {
         warn!(
             req_id = %ctx.req_id,
             error = %error,
@@ -42,9 +39,6 @@ pub(super) async fn record_credential_model_success_from_snapshot(
     snapshot: &RequestAuditFinalizeSnapshot,
     state: &Arc<AppState>,
 ) {
-    let Some(pg_pool) = state.pg_pool.as_ref() else {
-        return;
-    };
     let Some(provider_account_id) = snapshot.provider_account_id.clone() else {
         return;
     };
@@ -67,7 +61,7 @@ pub(super) async fn record_credential_model_success_from_snapshot(
         model,
     };
 
-    if let Err(error) = db::record_provider_credential_model_success(pg_pool, input).await {
+    if let Err(error) = crate::local_runtime::model_states::success(state, input).await {
         warn!(
             request_id = %snapshot.request_id,
             error = %error,
@@ -82,9 +76,6 @@ pub(super) async fn record_credential_model_failure(
     upstream_status: Option<u16>,
     state: &Arc<AppState>,
 ) {
-    let Some(pg_pool) = state.pg_pool.as_ref() else {
-        return;
-    };
     let Some(provider_account_id) = ctx.selected_provider_id.clone() else {
         return;
     };
@@ -116,7 +107,7 @@ pub(super) async fn record_credential_model_failure(
         classification,
     };
 
-    if let Err(error) = db::record_provider_credential_model_failure(pg_pool, input).await {
+    if let Err(error) = crate::local_runtime::model_states::failure(state, input).await {
         warn!(
             req_id = %ctx.req_id,
             error = %error,
@@ -130,9 +121,6 @@ pub(super) async fn record_credential_model_failure_from_snapshot(
     error_summary: Option<&str>,
     state: &Arc<AppState>,
 ) {
-    let Some(pg_pool) = state.pg_pool.as_ref() else {
-        return;
-    };
     let Some(provider_account_id) = snapshot.provider_account_id.clone() else {
         return;
     };
@@ -159,7 +147,7 @@ pub(super) async fn record_credential_model_failure_from_snapshot(
         classification,
     };
 
-    if let Err(error) = db::record_provider_credential_model_failure(pg_pool, input).await {
+    if let Err(error) = crate::local_runtime::model_states::failure(state, input).await {
         warn!(
             request_id = %snapshot.request_id,
             error = %error,

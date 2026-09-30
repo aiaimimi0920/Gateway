@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { importTestableScript } from "./gemini-canvas-browser-pool.fixtures.mjs";
-import { fetchPage, navigationFixture, navigationResponse, downloadFile } from "./gemini-canvas-browser-pool.payload-fixtures.mjs";
+import { fetchPage, navigationFixture, navigationResponse, downloadFile, fixtureNavigationCapture } from "./gemini-canvas-browser-pool.payload-fixtures.mjs";
 import { BROWSER_POOL_BINARY_BODY_LIMIT_BYTES } from "../gemini-canvas-browser-pool-body.mjs";
 
 const app = await importTestableScript();
+const downloadBinaryViaNavigation = (...args) => app.downloadBinaryViaNavigation(...args, fixtureNavigationCapture);
 const rawUrl = "http://lh3.googleusercontent.com/payload";
 const normalizedUrl = "https://lh3.googleusercontent.com/payload";
 const navigationUrl = "https://fixture.invalid/download.mp3";
@@ -118,7 +119,7 @@ test("payload navigation prioritizes download over navigation error and closes i
   const body = Buffer.from([0, 255, 128, 7]), file = await downloadFile(t, body);
   const download = { path: async () => file, suggestedFilename: () => 'a"udio.mp3' };
   const { entry, calls } = navigationFixture({ download, navigationError: new Error("download aborted navigation") });
-  assert.deepEqual(await app.downloadBinaryViaNavigation(entry, navigationUrl, 90000), {
+  assert.deepEqual(await downloadBinaryViaNavigation(entry, navigationUrl, 90000), {
     status: 200, ok: true, finalUrl: navigationUrl, contentType: "audio/mpeg",
     headers: { "content-disposition": 'attachment; filename="audio.mp3"' }, bodyText: null, bodyBase64: body.toString("base64"),
   });
@@ -128,7 +129,7 @@ test("payload navigation prioritizes download over navigation error and closes i
 test("payload navigation unnamed download infers MIME from URL and uses bare attachment", async (t) => {
   const file = await downloadFile(t, Buffer.from("unnamed"));
   const { entry, calls } = navigationFixture({ download: { path: async () => file, suggestedFilename: () => "" } });
-  const result = await app.downloadBinaryViaNavigation(entry, navigationUrl, 25);
+  const result = await downloadBinaryViaNavigation(entry, navigationUrl, 25);
   assert.equal(result.contentType, "audio/mpeg");
   assert.deepEqual(result.headers, { "content-disposition": "attachment" });
   assert.deepEqual(calls[1], ["event", "download", { timeout: 25 }]);
@@ -144,7 +145,7 @@ for (const stage of ["download-path", "download-read"]) {
       suggestedFilename: () => "fixture.bin",
     };
     const { entry, calls } = navigationFixture({ download });
-    await assert.rejects(app.downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => stage === "download-path" ? error === failure : error.code === "ENOENT");
+    await assert.rejects(downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => stage === "download-path" ? error === failure : error.code === "ENOENT");
     assert.deepEqual(calls.at(-1), ["close"]);
   });
 }
@@ -152,7 +153,7 @@ for (const stage of ["download-path", "download-read"]) {
 test("payload navigation returns response status headers final URL and textual body", async () => {
   const body = Buffer.from('{"fixture":true}');
   const { entry, calls } = navigationFixture({ response: navigationResponse({ body, contentType: "application/json", status: 404 }) });
-  assert.deepEqual(await app.downloadBinaryViaNavigation(entry, navigationUrl, 25), {
+  assert.deepEqual(await downloadBinaryViaNavigation(entry, navigationUrl, 25), {
     status: 404, ok: false, finalUrl: "https://fixture.invalid/final", contentType: "application/json",
     headers: { "content-type": "application/json", "content-length": String(body.byteLength), "x-fixture": "retained" }, bodyText: body.toString("utf8"), bodyBase64: body.toString("base64"),
   });
@@ -162,7 +163,7 @@ test("payload navigation returns response status headers final URL and textual b
 test("payload navigation binary or absent content type leaves bodyText null", async () => {
   for (const contentType of ["application/octet-stream", null]) {
     const { entry, calls } = navigationFixture({ response: navigationResponse({ contentType }) });
-    const result = await app.downloadBinaryViaNavigation(entry, navigationUrl, 25);
+    const result = await downloadBinaryViaNavigation(entry, navigationUrl, 25);
     assert.equal(result.contentType, contentType);
     assert.equal(result.bodyText, null);
     assert.equal(result.bodyBase64, Buffer.from("fixture").toString("base64"));
@@ -172,13 +173,13 @@ test("payload navigation binary or absent content type leaves bodyText null", as
 
 test("payload navigation error is rethrown unchanged when download is absent", async () => {
   const failure = new Error("fixture navigation failed"), { entry, calls } = navigationFixture({ navigationError: failure });
-  await assert.rejects(app.downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => error === failure);
+  await assert.rejects(downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => error === failure);
   assert.deepEqual(calls.at(-1), ["close"]);
 });
 
 test("payload navigation absent response retains its 599 error and closes the page", async () => {
   const { entry, calls } = navigationFixture({ response: null });
-  await assert.rejects(app.downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => {
+  await assert.rejects(downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => {
     assert.deepEqual([error.status, error.code], [599, "gemini_canvas_navigation_fetch_missing_response"]);
     return true;
   });
@@ -188,22 +189,39 @@ test("payload navigation absent response retains its 599 error and closes the pa
 test("payload navigation response body failure closes the temporary page", async () => {
   const failure = new Error("fixture body detached");
   const { entry, calls } = navigationFixture({ response: navigationResponse({ bodyFailure: failure }) });
-  await assert.rejects(app.downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => error === failure);
+  await assert.rejects(downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => error === failure);
   assert.deepEqual(calls.at(-1), ["close"]);
 });
 
 test("payload navigation close failure cannot replace success or the primary failure", async () => {
   const closeError = new Error("fixture already closed"), failure = new Error("primary navigation failure");
   const success = navigationFixture({ closeError });
-  assert.equal((await app.downloadBinaryViaNavigation(success.entry, navigationUrl, 25)).ok, true);
+  assert.equal((await downloadBinaryViaNavigation(success.entry, navigationUrl, 25)).ok, true);
   const failed = navigationFixture({ closeError, navigationError: failure });
-  await assert.rejects(app.downloadBinaryViaNavigation(failed.entry, navigationUrl, 25), (error) => error === failure);
+  await assert.rejects(downloadBinaryViaNavigation(failed.entry, navigationUrl, 25), (error) => error === failure);
   assert.deepEqual(success.calls.at(-1), ["close"]);
   assert.deepEqual(failed.calls.at(-1), ["close"]);
 });
 
 test("payload navigation page allocation failure starts no navigation or cleanup", async () => {
   const failure = new Error("fixture context closed"), { entry, calls } = navigationFixture({ newPageError: failure });
-  await assert.rejects(app.downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => error === failure);
+  await assert.rejects(downloadBinaryViaNavigation(entry, navigationUrl, 25), (error) => error === failure);
   assert.deepEqual(calls, [["newPage"]]);
+});
+
+test("payload navigation capture initialization failure still stops owner and closes page", async () => {
+  const failure = new Error("native initialization failed"), { entry, calls } = navigationFixture();
+  await assert.rejects(app.downloadBinaryViaNavigation(entry, navigationUrl, 25, () => ({
+    ready: Promise.reject(failure), async stop() { calls.push(["capture-stop"]); },
+  })), error => error === failure);
+  assert.deepEqual(calls, [["newPage"], ["capture-stop"], ["close"]]);
+});
+
+test("payload navigation capture cleanup failure cannot skip temporary page close", async () => {
+  const { entry, calls } = navigationFixture();
+  const result = await app.downloadBinaryViaNavigation(entry, navigationUrl, 25, page => ({
+    ...fixtureNavigationCapture(page), async stop() { throw new Error("detach failure"); },
+  }));
+  assert.equal(result.ok, true);
+  assert.deepEqual(calls.at(-1), ["close"]);
 });

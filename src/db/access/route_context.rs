@@ -15,6 +15,29 @@ pub async fn resolve_access_key_route_context(
     estimated_tokens: u64,
     explicit_session_key: Option<&str>,
 ) -> Result<ResolvedAccessKeyRouteContext, GatewayError> {
+    resolve_access_key_route_context_with_reservation(
+        pool,
+        redis_pool,
+        access_key_id,
+        requested_model,
+        endpoint_kind,
+        estimated_tokens,
+        explicit_session_key,
+        None,
+    )
+    .await
+}
+
+pub(crate) async fn resolve_access_key_route_context_with_reservation(
+    pool: &PgPool,
+    redis_pool: &RedisPool,
+    access_key_id: &str,
+    requested_model: &str,
+    endpoint_kind: EndpointKind,
+    estimated_tokens: u64,
+    explicit_session_key: Option<&str>,
+    reserved_access_key_id: Option<&str>,
+) -> Result<ResolvedAccessKeyRouteContext, GatewayError> {
     let access_key = find_access_key_auth_by_id(pool, access_key_id)
         .await?
         .ok_or_else(|| GatewayError::not_found("access key 不存在"))?;
@@ -42,15 +65,18 @@ pub async fn resolve_access_key_route_context(
     let mut selected = None;
     let mut route_candidates = Vec::new();
     for row in rows {
-        let balance = evaluate_access_key_balance(
-            pool,
-            redis_pool,
-            &row.source_access_key_id,
-            estimated_tokens,
-        )
-        .await?;
-        if !balance.allowed {
-            continue;
+        // A reservation already spent the available credit; do not demand it a second time.
+        if reserved_access_key_id != Some(row.source_access_key_id.as_str()) {
+            let balance = evaluate_access_key_balance(
+                pool,
+                redis_pool,
+                &row.source_access_key_id,
+                estimated_tokens,
+            )
+            .await?;
+            if !balance.allowed {
+                continue;
+            }
         }
         let Some(provider_row) = provider_meta.get(&row.provider_account_id) else {
             continue;

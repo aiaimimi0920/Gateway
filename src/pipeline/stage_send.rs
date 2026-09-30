@@ -228,6 +228,14 @@ pub async fn run(
             })
             .to_string();
         let reply_model = caller_visible_reply_model(&ctx.canonical_req, &model);
+        if let (Some(local), Some(audit_id)) = (&state.local_runtime, &ctx.request_audit_id) {
+            if let Err(error) = local
+                .route_audit(audit_id, &candidate.provider_account_id, &model)
+                .await
+            {
+                warn!(code = ?error.code, "Failed to attribute local running request");
+            }
+        }
 
         let remote_browser_executor_configured = state
             .upstream_client

@@ -68,6 +68,20 @@ pub async fn get_cost_overview(
             .push((row.model_name, aggregate));
     }
 
+    let mut supported_models = runtime_supported_models;
+    supported_models.extend(provider_supported_models);
+    build_cost_overview(
+        &cost_providers,
+        &provider_model_aggregates,
+        &supported_models,
+    )
+}
+
+pub(super) fn build_cost_overview(
+    cost_providers: &[CostProviderRef<'_>],
+    provider_model_aggregates: &HashMap<String, Vec<(String, GatewayUsageAggregate)>>,
+    provider_supported_models: &HashMap<String, Vec<String>>,
+) -> Result<GatewayCostOverviewView, GatewayError> {
     let mut provider_buckets = Vec::new();
     let mut model_grouped = HashMap::<String, Vec<GatewayCostModelProviderRowView>>::new();
     let mut pricing_editors = Vec::new();
@@ -85,10 +99,9 @@ pub async fn get_cost_overview(
     let mut model_count = 0usize;
     let mut priced_model_count = 0usize;
 
-    for provider in &cost_providers {
+    for provider in cost_providers {
         let supported_models = provider_supported_models
             .get(provider.id)
-            .or_else(|| runtime_supported_models.get(provider.id))
             .cloned()
             .unwrap_or_default();
         let usage_by_model = provider_model_aggregates

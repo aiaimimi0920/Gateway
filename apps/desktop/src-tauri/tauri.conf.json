@@ -13,10 +13,11 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "Gateway UI",
         "width": 1180,
         "height": 780,
-        "decorations": false,
+        "decorations": true,
         "transparent": false,
         "alwaysOnTop": false,
         "visible": true,

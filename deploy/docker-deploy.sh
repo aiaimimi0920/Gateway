@@ -121,7 +121,7 @@ main() {
   declare -gA GENERATED_VALUES=()
   ensure_env_value "GATEWAY_API_KEY" "$(generate_token)"
   ensure_env_value "GATEWAY_API_KEY_SECRET" "$(generate_secret)"
-  ensure_env_value "GATEWAY_MANAGEMENT_TOKEN" "$(generate_secret)"
+  ensure_env_value "GATEWAY_MANAGEMENT_TOKEN" "11011101"
   ensure_env_value "GATEWAY_CONSOLE_REMOTE_ACCESS" "true"
 
   cleanup_backup_file

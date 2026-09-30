@@ -450,6 +450,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
   });
 
   return {
+    client,
     ...accountGroupEditor,
     ...credentialDialogEditor,
     ...credentialPoolActions,

@@ -1,17 +1,19 @@
 #[path = "provider_account_probe.rs"]
 mod account_probe;
+mod codex_model_probe;
+mod console_model_probe;
 mod console_probe;
 mod http_probe;
 mod management;
+mod model_probe_recording;
 mod probe_lock;
 mod recording;
 #[cfg(test)]
 mod tests;
 
 pub use account_probe::probe_provider_account_payload;
-pub use console_probe::{
-    fixed_models_for_payload, probe_provider_payload_for_console, provider_payload_probe_point,
-};
+pub(crate) use console_model_probe::probe_console_target;
+pub use console_probe::{probe_provider_payload_for_console, provider_payload_probe_point};
 pub use management::{
     probe_provider_account_for_management, sweep_cooling_provider_accounts,
     sweep_cooling_provider_accounts_best_effort,

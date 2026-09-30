@@ -13,7 +13,7 @@
 .nt-entitlement-group-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-  gap: 14px;
+  gap: 12px;
   /* Stretch, not start: cards in a row share the tallest card's height, so a
      neighbour never has to scroll to keep the row tidy. */
   align-items: stretch;
@@ -22,10 +22,8 @@
 .nt-entitlement-group-card {
   /* Same fixed geometry rule as the provider cards on the credential pool page:
      one size for both faces and every group, whatever data each one carries.
-     The size follows the taller face (the back, which spells out the provider
-     and model scopes in full); long data stays reachable inside the body rather
-     than changing the card geometry. */
-  --nt-entitlement-group-card-height: 504px;
+     Long provider/model scopes stay reachable inside the back's scroll area. */
+  --nt-entitlement-group-card-height: 320px;
   display: block;
   min-width: 0;
   perspective: 1200px;
@@ -96,11 +94,7 @@
   gap: 10px;
   border-bottom: 1px solid var(--nt-border);
   padding: 11px 12px;
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--nt-info) 8%, var(--nt-color-panel)),
-    var(--nt-color-panel) 72%
-  );
+  background: var(--nt-color-surface);
 }
 
 .nt-entitlement-group-card__library-toggle[aria-expanded="true"] {
@@ -166,6 +160,7 @@
   gap: 4px;
   border-top: 1px solid var(--nt-border);
   padding: 8px;
+  background: var(--nt-color-surface);
 }
 
 /* The menu wrapper is a grid slot itself, so it has to stretch like the three
@@ -190,11 +185,11 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  border: 1px solid transparent;
+  border: 1px solid var(--nt-border);
   border-radius: var(--nt-radius-sm);
   padding: 5px 7px;
-  background: transparent;
-  color: var(--nt-text-muted);
+  background: var(--nt-color-control);
+  color: var(--nt-text);
   font-size: 0.68rem;
   font-weight: 700;
   cursor: pointer;
@@ -213,7 +208,8 @@
 
 .nt-entitlement-group-card__action:disabled {
   cursor: not-allowed;
-  opacity: 0.42;
+  color: var(--nt-text-muted);
+  opacity: 1;
 }
 
 .nt-entitlement-group-card__action--danger:not(:disabled) {
@@ -262,13 +258,15 @@
   grid-auto-rows: max-content;
   min-height: 0;
   min-width: 0;
-  gap: 12px;
+  gap: 8px;
   align-content: start;
   padding: 12px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--nt-text-muted) transparent;
 }
 
 /* Same compact metric strip as the provider cards: one row of cells with the

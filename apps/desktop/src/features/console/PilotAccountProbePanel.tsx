@@ -26,6 +26,7 @@ export function PilotAccountProbePanel({
   draftMatchesActiveRevision,
   startPilotProbe,
 }: PilotAccountProbePanelProps) {
+  const modelTest = account.providerId === "nvidia" || activePilotManagedAccount?.providerPreset === "nvidia-openai";
   return (
     <div className="nt-stack">
       <article className="nt-pilot-dialog__hero">
@@ -57,7 +58,9 @@ export function PilotAccountProbePanel({
               "Demo accounts only preview the UI and do not start a real connection test.",
             )
           : credentialProbeBusy === account.accountId
-            ? t("正在测试连接，请稍候...", "Testing connectivity, please wait...")
+            ? modelTest
+              ? t("正在使用此账号调用模型并等待回复（最长 60 秒）...", "Calling the model with this credential and waiting for a reply (up to 60 seconds)...")
+              : t("正在测试连接，请稍候...", "Testing connectivity, please wait...")
             : activePilotProbeResult
               ? activePilotProbeResult.message
               : t(
@@ -67,10 +70,14 @@ export function PilotAccountProbePanel({
       </div>
 
       <div className="nt-pilot-dialog__meta">
-        <span>{t("非生成单点测试", "Non-generative single-point test")}</span>
+        <span>{modelTest
+          ? t("真实模型调用测试：只有收到有效回复才通过", "Model call test: passes only after receiving a valid reply")
+          : t("非生成单点测试", "Non-generative single-point test")}</span>
         <span>
           {activePilotProbeResult?.probePoint ??
-            t("由服务商适配器选择安全健康端点", "Safe health endpoint selected by the provider adapter")}
+            (modelTest
+              ? t("使用账号配置的默认或支持模型，最多 256 个输出 token", "Uses a configured default or supported model, up to 256 output tokens")
+              : t("由服务商适配器选择安全健康端点", "Safe health endpoint selected by the provider adapter"))}
         </span>
       </div>
 

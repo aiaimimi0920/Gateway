@@ -47,7 +47,7 @@ export function ConsoleWorkspaceHeaderActions({
     activeWorkspace === "accounts" ? (
       <>
         <button
-          className="nt-btn nt-btn--secondary"
+          className="nt-btn nt-btn--primary"
           type="button"
           disabled={editorLocked}
           onClick={() => setProviderCatalogDialogOpen(true)}
@@ -66,7 +66,7 @@ export function ConsoleWorkspaceHeaderActions({
     ) : activeWorkspace === "groups" ? (
       <>
         <button
-          className="nt-btn nt-btn--secondary"
+          className="nt-btn nt-btn--primary"
           type="button"
           disabled={editorLocked}
           onClick={() => addAccountGroupRow()}
@@ -78,7 +78,7 @@ export function ConsoleWorkspaceHeaderActions({
     ) : activeWorkspace === "models" ? (
       <>
         <button
-          className="nt-btn nt-btn--secondary"
+          className="nt-btn nt-btn--primary"
           type="button"
           disabled={editorLocked || modelPoolDialogProviderOptions.length === 0}
           onClick={openAddModelDialog}

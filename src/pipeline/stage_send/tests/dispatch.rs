@@ -24,6 +24,7 @@ async fn empty_candidates_returns_error() {
         config: Config {
             console: console.clone(),
             runtime_role: crate::config::GatewayRuntimeRole::Standalone,
+            storage_mode: Default::default(),
             port: 4200,
             redis_url: "redis://localhost".to_string(),
             database_url: None,
@@ -81,6 +82,7 @@ async fn empty_candidates_returns_error() {
             .create_pool(Some(deadpool_redis::Runtime::Tokio1))
             .expect("pool"),
         pg_pool: None,
+        local_runtime: None,
         upstream_client: UpstreamClient::new(30),
         concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
         auth_adapters: vec![],

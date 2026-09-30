@@ -90,8 +90,11 @@ Major internal API groups include:
   credential stock monitoring.
 - Browser executor node, slot, lease, and health management.
 
-Internal management routes must be protected by `GATEWAY_MANAGEMENT_TOKEN`.
-If the token is missing, Gateway fails closed with
+Internal management routes require a management token. A fresh installation
+defaults to `11011101`; `GATEWAY_MANAGEMENT_TOKEN` overrides that default. An
+existing persisted console administrator is preserved. An explicitly empty
+environment value disables the default; without another configured token,
+Gateway fails closed with
 `gateway_management_token_not_configured`. Local development may explicitly
 override this by setting `GATEWAY_ALLOW_UNAUTHENTICATED_INTERNAL_ROUTES` to
 `1`, `true`, `yes`, or `on`; do not enable that override in shared or

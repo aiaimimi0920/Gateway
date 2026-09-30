@@ -229,7 +229,12 @@ pub(super) async fn send(
                             .and_then(snapshot_tapped_completion_semantics);
                         let archive_snapshot =
                             stream_archive_handle.as_ref().map(snapshot_tapped_archive);
+                        let finalizer = state_for_audit
+                            .local_runtime
+                            .as_ref()
+                            .map(|local| local.track_finalizer());
                         tokio::spawn(async move {
+                            let _finalizer = finalizer;
                             crate::pipeline::stage_finalize::run_stream_success(
                                 audit_snapshot,
                                 usage,
@@ -262,7 +267,12 @@ pub(super) async fn send(
                             "stream terminated before completion".to_string(),
                         );
                         let state_for_finalize = Arc::clone(&state_for_cb);
+                        let finalizer = state_for_finalize
+                            .local_runtime
+                            .as_ref()
+                            .map(|local| local.track_finalizer());
                         tokio::spawn(async move {
+                            let _finalizer = finalizer;
                             crate::pipeline::stage_finalize::run_stream_failure(
                                 failure_finalize_snapshot,
                                 &state_for_finalize,

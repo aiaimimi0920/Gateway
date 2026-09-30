@@ -2,6 +2,7 @@ import { Database, UserPlus } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { AccountLibraryPager } from "./AccountLibraryPager";
+import { CHATGPT_POOL_CATEGORIES, isChatgptPool } from "./chatgptPool";
 import type { AccountsLedgerPilotAccount } from "./accountCardTypes";
 import type { AccountsLedgerPilotSection, AccountsLedgerWorkspaceProps } from "./accountsLedgerTypes";
 
@@ -36,7 +37,12 @@ export function ProviderAccountLibrary({
   onAddExplicit,
   renderAccount,
 }: ProviderAccountLibraryProps) {
-  const libraries = groupAccountsByLibrary(providerAccounts);
+  const libraries = isChatgptPool(section.providerPreset, section.protocolProfile)
+    ? CHATGPT_POOL_CATEGORIES.map((category) => ({
+        name: category.label,
+        accounts: section.identityCategories.find((entry) => entry.id === category.id)?.accounts ?? [],
+      }))
+    : groupAccountsByLibrary(providerAccounts);
   const accountLibraryId = `provider-account-library-${section.providerId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
   return (
     <section

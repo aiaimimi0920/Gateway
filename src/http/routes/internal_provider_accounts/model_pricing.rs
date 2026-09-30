@@ -40,6 +40,47 @@ pub async fn patch_provider_model_pricing(
     Json(body): Json<ProviderModelPricingPatchBody>,
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
+    if let Some(local) = &state.local_runtime {
+        let provider = state
+            .route_config
+            .get_providers()
+            .into_iter()
+            .find(|provider| provider.id == provider_account_id.trim())
+            .ok_or_else(|| GatewayError::not_found("Provider account does not exist"))?;
+        let mut tx = local
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(crate::local_runtime::storage_error)?;
+        let payload: Option<String> =
+            sqlx::query_scalar("SELECT payload FROM provider_pricing WHERE provider_id = ?")
+                .bind(&provider.id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(crate::local_runtime::storage_error)?;
+        let payload = payload
+            .map(|payload| serde_json::from_str(&payload))
+            .transpose()
+            .map_err(|_| GatewayError::server_error("Local pricing data is corrupt"))?
+            .unwrap_or_else(|| serde_json::json!({}));
+        let payload = merge_provider_model_pricing(payload, body.entries)?;
+        sqlx::query(
+            "INSERT INTO provider_pricing(provider_id, payload) VALUES (?, ?)
+            ON CONFLICT(provider_id) DO UPDATE SET payload = excluded.payload",
+        )
+        .bind(&provider.id)
+        .bind(payload.to_string())
+        .execute(&mut *tx)
+        .await
+        .map_err(crate::local_runtime::storage_error)?;
+        tx.commit()
+            .await
+            .map_err(crate::local_runtime::storage_error)?;
+        return Ok(Json(serde_json::json!({ "providerAccount": {
+            "id": provider.id, "label": provider.label, "adapter": provider.payload.adapter,
+            "protocolFamily": provider.protocol_family, "payload": payload,
+        }})));
+    }
     let existing = db::get_provider_account(
         required_pg_pool(state.as_ref())?,
         provider_account_id.trim(),

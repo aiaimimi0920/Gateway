@@ -41,8 +41,11 @@ pub async fn get_cost_overview(
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     let runtime_providers = route_document_provider_identities(state.as_ref());
-    let overview =
-        db::get_cost_overview(required_pg_pool(state.as_ref())?, &runtime_providers).await?;
+    let overview = if let Some(local) = &state.local_runtime {
+        db::operator::get_local_cost_overview(local, &runtime_providers).await?
+    } else {
+        db::get_cost_overview(required_pg_pool(state.as_ref())?, &runtime_providers).await?
+    };
     Ok(Json(serde_json::json!({
         "overview": overview,
     })))
@@ -90,18 +93,25 @@ pub async fn get_runtime_pressure(
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     let concurrency_snapshots = state.concurrency_registry.snapshot_all();
     let runtime_providers = route_document_provider_identities(state.as_ref());
-    let pressure = db::get_runtime_pressure(
-        required_pg_pool(state.as_ref())?,
-        &state.redis_pool,
-        &concurrency_snapshots,
-        &runtime_providers,
-        &db::GatewayRuntimePressureFilters {
-            project_id: query.project_id,
-            provider_account_id: query.provider_account_id,
-            limit: query.limit,
-        },
-    )
-    .await?;
+    let filters = db::GatewayRuntimePressureFilters {
+        project_id: query.project_id,
+        provider_account_id: query.provider_account_id,
+        limit: query.limit,
+    };
+    let pressure = if let Some(local) = &state.local_runtime {
+        local
+            .pressure(&concurrency_snapshots, &runtime_providers, &filters)
+            .await?
+    } else {
+        db::get_runtime_pressure(
+            required_pg_pool(state.as_ref())?,
+            &state.redis_pool,
+            &concurrency_snapshots,
+            &runtime_providers,
+            &filters,
+        )
+        .await?
+    };
     Ok(Json(serde_json::json!({
         "pressure": pressure,
     })))

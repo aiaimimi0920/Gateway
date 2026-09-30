@@ -39,7 +39,10 @@ pub async fn handle_models(
     )
     .await?;
 
-    let models = if let Some(pg_pool) = &state.pg_pool {
+    let local_id = crate::local_runtime::access_keys::local_key_id(&state, Some(&session));
+    let models = if let (Some(local), Some(id)) = (&state.local_runtime, local_id) {
+        local.local_access_models(id, &state.route_config).await?
+    } else if let Some(pg_pool) = &state.pg_pool {
         provider_runtime::sweep_cooling_provider_accounts_best_effort(&state, 10).await;
         if let Some(access_key_id) = session.access_key_id.as_deref() {
             crate::db::list_models_for_access_key(pg_pool, &state.redis_pool, access_key_id).await?

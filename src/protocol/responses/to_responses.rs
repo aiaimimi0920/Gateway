@@ -8,11 +8,11 @@ use super::stream_support::{
     extract_openai_stream_usage, map_openai_finish_reason_to_responses_status, merge_stream_usage,
 };
 use super::to_responses_events::{
-    build_response_completed_event, build_response_content_part_added,
-    build_response_content_part_done, build_response_created_event,
-    build_response_in_progress_event, build_response_message_item_added,
-    build_response_message_item_done, build_response_output_text_delta,
-    build_response_output_text_done,
+    build_response_content_part_added, build_response_content_part_done,
+    build_response_created_event, build_response_in_progress_event,
+    build_response_message_item_added, build_response_message_item_done,
+    build_response_output_text_delta, build_response_output_text_done,
+    build_response_terminal_event,
 };
 use crate::protocol::canonical::TokenUsage;
 use crate::protocol::sse_parse::{format_sse_event, SseFrame};
@@ -294,7 +294,7 @@ impl OpenAiToResponsesState {
         let response = self.build_completed_response(finish_status.as_deref());
 
         let sequence_number = self.next_sequence_number();
-        let completed = build_response_completed_event(sequence_number, response);
+        let completed = build_response_terminal_event(sequence_number, response);
         self.outputs.push_back(completed.into_bytes());
         self.final_emitted = true;
     }
@@ -403,17 +403,7 @@ impl OpenAiToResponsesState {
 
         output.sort_by_key(|(output_index, _)| *output_index);
         let output = output.into_iter().map(|(_, item)| item).collect::<Vec<_>>();
-        let has_tool_calls = self
-            .tool_calls
-            .values()
-            .any(|entry| !entry.call_id.is_empty());
-        let status = finish_status.map(str::to_string).unwrap_or_else(|| {
-            if has_tool_calls {
-                "tool_calls".into()
-            } else {
-                "completed".into()
-            }
-        });
+        let status = finish_status.unwrap_or("completed");
 
         let mut response = json!({
             "id": self.response_id,

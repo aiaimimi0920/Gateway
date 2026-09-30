@@ -4,7 +4,7 @@
 .nt-provider-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-  gap: 14px;
+  gap: 12px;
   /* Stretch, not start: cards in a row share the tallest card's height, so a
      neighbour never has to scroll to keep the row tidy. */
   align-items: stretch;
@@ -59,11 +59,11 @@
 
 @media (hover: hover) and (pointer: fine) {
   .nt-provider-card:hover {
-    transform: translateY(-2px);
+    transform: none;
   }
 
   .nt-provider-card:hover .nt-provider-card__inner {
-    border-color: var(--nt-border-strong);
+    border-color: color-mix(in srgb, var(--nt-text) 26%, transparent);
     box-shadow: var(--nt-shadow-lift);
   }
 }

@@ -1,13 +1,11 @@
-import { readFileSync } from "node:fs";
+import { createNavigationBodyCapture, readNavigationDownload } from "./gemini-canvas-browser-pool-navigation-body.mjs";
 import {
   normalizeGeminiBrowserAssetUrl, isAudioLikeMimeType, isAudioLikeUrl, inferMimeTypeFromUrl,
 } from "./gemini-canvas-browser-pool-media-urls.mjs";
 import {
-  assertBytesWithinLimit,
   assertTextWithinLimit,
   BROWSER_POOL_BINARY_BODY_LIMIT_BYTES,
   BROWSER_POOL_TEXT_BODY_LIMIT_BYTES,
-  readPlaywrightResponseBody,
 } from "./gemini-canvas-browser-pool-body.mjs";
 
 async function fetchAssetBytes(page, url) {
@@ -170,9 +168,12 @@ export async function extractImageBytes(page, asset) {
   };
 }
 
-export async function downloadBinaryViaNavigation(entry, url, timeoutMs) {
+export async function downloadBinaryViaNavigation(entry, url, timeoutMs, createCapture = createNavigationBodyCapture) {
   const page = await entry.context.newPage();
+  let capture;
   try {
+    capture = createCapture(page, timeoutMs);
+    await capture.ready;
     const downloadPromise = page
       .waitForEvent("download", { timeout: Math.min(timeoutMs, 30_000) })
       .catch(() => null);
@@ -189,11 +190,7 @@ export async function downloadBinaryViaNavigation(entry, url, timeoutMs) {
     const download = await downloadPromise;
     if (download) {
       const downloadPath = await download.path();
-      const bodyBuffer = assertBytesWithinLimit(
-        readFileSync(downloadPath),
-        BROWSER_POOL_BINARY_BODY_LIMIT_BYTES,
-        "download",
-      );
+      const bodyBuffer = await readNavigationDownload(downloadPath);
       const suggestedFilename = download.suggestedFilename();
       return {
         status: 200,
@@ -221,13 +218,7 @@ export async function downloadBinaryViaNavigation(entry, url, timeoutMs) {
         },
       );
     }
-    const bodyBuffer = Buffer.from(
-      await readPlaywrightResponseBody(
-        response,
-        BROWSER_POOL_BINARY_BODY_LIMIT_BYTES,
-        "navigation",
-      ),
-    );
+    const bodyBuffer = await capture.result;
     const responseHeaders = response.headers();
     const contentType = responseHeaders["content-type"] ?? null;
     const bodyText =
@@ -248,6 +239,7 @@ export async function downloadBinaryViaNavigation(entry, url, timeoutMs) {
       bodyBase64: bodyBuffer.toString("base64"),
     };
   } finally {
+    await capture?.stop().catch(() => undefined);
     await page.close().catch(() => undefined);
   }
 }

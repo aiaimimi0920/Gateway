@@ -85,6 +85,17 @@ pub async fn renew_credential_refill_task(
     let lease_seconds = normalized_lease_seconds(state, input.lease_seconds);
     task.updated_at = now_rfc3339();
     task.lease_until = Some(future_rfc3339(lease_seconds));
+    if let Some(db) = &state.local_runtime {
+        local::renew(
+            db,
+            &task,
+            &claim_token,
+            lease_seconds,
+            state.credential_pool_automation.refill_task_ttl_seconds(),
+        )
+        .await?;
+        return Ok(CredentialRefillTaskView::from(&task));
+    }
     let payload = serialize_task(&task)?;
     let mut conn = redis_connection(state).await?;
     let renewed: i64 = Script::new(
@@ -130,6 +141,20 @@ async fn try_claim_task(
     task.lease_until = Some(future_rfc3339(lease_seconds));
     task.updated_at = now_rfc3339();
     task.attempt = task.attempt.saturating_add(1);
+    if let Some(db) = &state.local_runtime {
+        let acquired = local::claim(
+            db,
+            &expected_payload,
+            &task,
+            lease_seconds,
+            state.credential_pool_automation.refill_task_ttl_seconds(),
+        )
+        .await?;
+        return Ok(acquired.then(|| ClaimCredentialRefillTaskResult {
+            task: CredentialRefillTaskView::from(&task),
+            claim_token,
+        }));
+    }
     let payload = serialize_task(&task)?;
     let mut conn = redis_connection(state).await?;
     let result: i64 = Script::new(
@@ -189,6 +214,10 @@ pub(super) async fn require_claimed_task(
         .ok_or_else(|| GatewayError::not_found("补号任务不存在"))?;
     if task.state != CredentialRefillTaskState::Claimed {
         return Err(claim_conflict());
+    }
+    if let Some(db) = &state.local_runtime {
+        local::require(db, task_id, claim_token).await?;
+        return Ok(task);
     }
     let mut conn = redis_connection(state).await?;
     let stored_token: Option<String> = redis::cmd("GET")

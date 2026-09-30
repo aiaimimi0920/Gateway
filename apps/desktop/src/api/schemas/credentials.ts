@@ -134,7 +134,8 @@ export const consoleCredentialRefillResponseSchema: z.ZodType<ConsoleCredentialR
   z.object({
     refill: z.object({
       enabled: z.boolean(),
-      streamKey: z.string().min(1),
+      streamKey: z.string().min(1).nullable(),
+      storageBackend: z.enum(["sqlite", "redis"]).optional(),
       notificationIntervalSeconds: z.number().int().positive(),
       defaultLeaseSeconds: z.number().int().positive(),
       maxLeaseSeconds: z.number().int().positive(),

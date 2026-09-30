@@ -9,7 +9,6 @@ use super::model_catalog::{
 use super::tiering_storage::ProviderCapabilityTieringRow;
 use crate::db;
 use crate::error::GatewayError;
-use crate::provider_runtime;
 use crate::routing::candidate::ProviderAccountPayload;
 use crate::state::AppState;
 use crate::upstream::headers::build_upstream_headers;
@@ -58,13 +57,6 @@ pub(super) async fn discover_provider_models(
     payload: &ProviderAccountPayload,
     capabilities: &[ProviderCapabilityTieringRow],
 ) -> (Vec<String>, String) {
-    if let Some(models) = provider_runtime::fixed_models_for_payload(payload) {
-        let normalized = normalize_model_names(models);
-        if !normalized.is_empty() {
-            return (normalized, "fixed_models".to_string());
-        }
-    }
-
     if payload.canonical_adapter() == "accio_compatible" {
         let accio_models = fetch_accio_models_for_provider(state, provider_account)
             .await
@@ -111,6 +103,20 @@ async fn fetch_provider_models_from_upstream(
     provider_account: &db::GatewayProviderAccountView,
     payload: &ProviderAccountPayload,
 ) -> Result<Vec<String>, GatewayError> {
+    if crate::protocol::chatgpt::official_api::is_chatgpt_codex_backend_payload(payload) {
+        let account = payload
+            .headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("Chatgpt-Account-Id"))
+            .map(|(_, value)| value.as_str())
+            .unwrap_or_default();
+        return crate::protocol::chatgpt::codex_client::models(
+            state.upstream_client.client(),
+            &payload.api_key,
+            account,
+        )
+        .await;
+    }
     let base_url = payload.base_url.trim_end_matches('/');
     if base_url.is_empty() {
         return Ok(Vec::new());

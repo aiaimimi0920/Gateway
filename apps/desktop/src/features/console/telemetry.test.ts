@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ConsoleProviderCredentialModelState } from "../../api/contracts";
 import {
   buildConsoleTelemetrySnapshot,
   type ConsoleTelemetryProviderAccount,
@@ -10,6 +11,40 @@ import {
   rollupProviderAccountModelTelemetry,
   rollupProviderAccountTelemetry,
 } from "./telemetryRollups";
+
+function modelState(
+  overrides: Partial<ConsoleProviderCredentialModelState> = {},
+): ConsoleProviderCredentialModelState {
+  return {
+    id: "nvidia-current-model",
+    providerAccountId: "nvidia",
+    providerCredentialId: null,
+    providerCredentialRef: "nvidia-cred-0",
+    protocolProfile: null,
+    model: "nvidia/nemotron-3-super-120b-a12b",
+    status: "active",
+    failureClass: null,
+    failureScope: null,
+    failureCount: 0,
+    lastError: null,
+    lastUpstreamStatus: null,
+    cooldownUntil: null,
+    lastSuccessAt: "2026-09-27T10:11:36Z",
+    lastFailureAt: null,
+    updatedAt: "2026-09-27T10:11:36Z",
+    ...overrides,
+  };
+}
+
+function credentialHealth(states: ConsoleProviderCredentialModelState[]) {
+  return buildConsoleTelemetrySnapshot({
+    pressure: null,
+    costOverview: null,
+    requestAuditSummary: null,
+    credentialModelStates: states,
+    credentialInventory: null,
+  }).credentials.get("nvidia-cred-0");
+}
 
 function snapshot(modelCount = 1): ConsoleTelemetrySnapshot {
   const account: ConsoleTelemetryProviderAccount = {
@@ -57,6 +92,45 @@ function snapshot(modelCount = 1): ConsoleTelemetrySnapshot {
 }
 
 describe("console telemetry ownership contracts", () => {
+  const retiredModel = modelState({
+    id: "nvidia-retired-model",
+    model: "01-ai/yi-large",
+    status: "blocked",
+    failureClass: "model_unsupported",
+    failureScope: "credential_model",
+    failureCount: 1,
+    lastError: "Configured model was not found.",
+    lastUpstreamStatus: 404,
+    lastSuccessAt: null,
+    lastFailureAt: "2026-09-27T09:55:35Z",
+    updatedAt: "2026-09-27T09:55:35Z",
+  });
+
+  it.each([false, true])("keeps a working credential usable after a different model fails (reversed: %s)", (reversed) => {
+    const states = [retiredModel, modelState()];
+    expect(credentialHealth(reversed ? states.reverse() : states)).toMatchObject({
+      status: "active",
+      failureCount: 1,
+      lastError: retiredModel.lastError,
+      lastFailureAt: retiredModel.lastFailureAt,
+      lastSuccessAt: "2026-09-27T10:11:36Z",
+    });
+  });
+
+  it("does not invent availability when every observed model is blocked", () => {
+    expect(credentialHealth([retiredModel])?.status).toBe("blocked");
+  });
+
+  it.each(["credential", null])("retains account-wide or unscoped failures (%s)", (failureScope) => {
+    const invalidCredential = modelState({
+      ...retiredModel,
+      failureClass: "credential_invalid",
+      failureScope,
+      lastUpstreamStatus: 401,
+    });
+    expect(credentialHealth([modelState(), invalidCredential])?.status).toBe("blocked");
+  });
+
   it("counts shared provider accounts once rather than once per credential", () => {
     expect(rollupProviderAccountTelemetry(snapshot(), ["account-a", "account-a", "missing"]))
       .toEqual({

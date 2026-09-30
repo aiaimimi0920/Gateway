@@ -82,7 +82,7 @@ pub(super) fn normalize_codex_import_payload(
         .get("default_model")
         .cloned()
         .or_else(|| provider_account.payload.get("defaultModel").cloned())
-        .unwrap_or_else(|| Value::String("gpt-5.4".to_string()));
+        .unwrap_or_else(|| Value::String("gpt-5.6-luna".to_string()));
     let responses_path = provider_account
         .payload
         .get("responses_path")
@@ -99,7 +99,7 @@ pub(super) fn normalize_codex_import_payload(
         "headers": {
             "Chatgpt-Account-Id": account_id,
             "Originator": "codex_cli_rs",
-            "User-Agent": "codex_cli_rs/0.1.2504151532"
+            "User-Agent": crate::protocol::chatgpt::codex_client::USER_AGENT
         },
         "extraBody": {
             "store": false

@@ -1,4 +1,8 @@
 /* model chain styles; preserve position in styles.css. */
+.nt-model-pool-card {
+  --nt-entitlement-group-card-height: 280px;
+}
+
 /* Model pool card back: one band of ordered provider links. It borrows the
    entitlement scope geometry wholesale so both card types measure the same, and
    only adds what the ordering itself needs — a rank badge and the move buttons. */

@@ -1,0 +1,169 @@
+.nt-card-models {
+  --nt-model-columns: minmax(0, 1fr) minmax(3ch, auto) 84px;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 4px;
+  color: var(--nt-text);
+}
+
+.nt-card-models__heading {
+  display: grid;
+  grid-template-columns: var(--nt-model-columns);
+  gap: 6px;
+  padding-right: 12px;
+  color: var(--nt-text-muted);
+  font-size: 0.7rem;
+}
+
+.nt-card-models__heading > span:not(:first-child) {
+  text-align: right;
+}
+
+.nt-card-models__heading b {
+  margin-left: 4px;
+  color: var(--nt-text);
+  font-family: var(--nt-font-mono);
+  font-weight: 600;
+}
+
+.nt-card-models__scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--nt-text-muted) transparent;
+  font-size: 0.72rem;
+}
+
+.nt-card-models ul {
+  margin: 0;
+  padding: 0 4px 0 0;
+  list-style: none;
+  font-family: var(--nt-font-mono);
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+.nt-card-models summary {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 6px;
+  cursor: pointer;
+  list-style: none;
+  border-bottom: 1px solid var(--nt-border);
+  border-left: 2px solid transparent;
+  font-weight: 600;
+}
+
+.nt-card-models summary:hover {
+  background: var(--nt-color-control-hover);
+}
+
+/* An expanded company is a small reading focus, not a new primary action. */
+.nt-card-models details[open] > summary {
+  border-left-color: var(--nt-signal);
+  background: var(--nt-color-focus-surface);
+  color: var(--nt-color-focus-ink);
+}
+
+.nt-card-models details[open] > summary .nt-card-models__count {
+  color: var(--nt-color-focus-muted);
+}
+
+.nt-card-models summary::-webkit-details-marker {
+  display: none;
+}
+
+.nt-card-models details[open] > summary svg {
+  transform: rotate(90deg);
+}
+
+.nt-card-models__count {
+  margin-left: auto;
+  color: var(--nt-text-muted);
+}
+
+.nt-card-models__row {
+  display: grid;
+  grid-template-columns: var(--nt-model-columns);
+  gap: 6px;
+  align-items: center;
+  min-height: 26px;
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid color-mix(in srgb, var(--nt-border) 45%, transparent);
+}
+
+.nt-card-models__row:hover,
+.nt-card-models__row:focus-within {
+  background: var(--nt-color-control-hover);
+}
+
+.nt-card-models__name {
+  padding-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-card-models__row > [data-model-metric="requests"] {
+  text-align: right;
+}
+
+.nt-card-models__success {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5ch;
+  align-items: center;
+  gap: 4px;
+  text-align: right;
+}
+
+.nt-card-models__cells {
+  display: flex;
+  gap: 1px;
+  height: 9px;
+}
+
+.nt-card-models__cells > span {
+  flex: 1;
+  min-width: 1px;
+  height: 100%;
+}
+
+.nt-card-models :is(.nt-card-models__scroll, summary, .nt-card-models__name):focus-visible {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: 2px;
+}
+
+.nt-card-models__empty,
+.nt-card-models__unclassified {
+  color: var(--nt-text-muted);
+  font-size: 0.68rem;
+}
+
+.nt-provider-account-card:has(.nt-card-models) {
+  --nt-provider-account-card-height: 352px;
+}
+
+.nt-provider-account-card:has(.nt-card-models) .nt-provider-account-card__success {
+  min-height: 22px;
+}
+
+/* Consume remaining body height; expanding a company only scrolls this list. */
+.nt-provider-card__front-body:has(.nt-card-models),
+.nt-provider-account-card__body:has(.nt-card-models) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.nt-provider-card__front-body > :not(.nt-card-models),
+.nt-provider-account-card__body > :not(.nt-card-models) {
+  flex-shrink: 0;
+}

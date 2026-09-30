@@ -47,26 +47,18 @@ fn codex_payload(base_url: &str, originator: Option<&str>) -> ProviderAccountPay
 }
 
 #[test]
-fn returns_fixed_models_for_chatgpt_codex_payload() {
+fn recognizes_chatgpt_codex_payload() {
     let payload = codex_payload(
         "https://chatgpt.com/backend-api/codex",
         Some("codex_cli_rs"),
     );
-    assert_eq!(
-        fixed_models_for_payload(&payload),
-        Some(vec![
-            "gpt-5.4".to_string(),
-            "gpt-5.4-mini".to_string(),
-            "gpt-5.3-codex".to_string(),
-            "gpt-5.2".to_string(),
-        ])
-    );
+    assert!(crate::protocol::chatgpt::official_api::is_chatgpt_codex_backend_payload(&payload));
 }
 
 #[test]
-fn does_not_return_fixed_models_for_non_codex_payload() {
+fn does_not_classify_openai_as_codex_payload() {
     let payload = codex_payload("https://api.openai.com/v1", Some("codex_cli_rs"));
-    assert!(fixed_models_for_payload(&payload).is_none());
+    assert!(!crate::protocol::chatgpt::official_api::is_chatgpt_codex_backend_payload(&payload));
 }
 
 #[test]

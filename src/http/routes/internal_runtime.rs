@@ -5,7 +5,7 @@ use axum::extract::State;
 use axum::http::HeaderMap as AxumHeaderMap;
 use axum::http::StatusCode;
 use axum::Json;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use time::OffsetDateTime;
 use tokio::time::{timeout, timeout_at, Instant as TokioInstant};
@@ -19,25 +19,16 @@ use crate::state::AppState;
 
 use super::internal_gateway::assert_management_access;
 
+#[path = "internal_runtime_local.rs"]
+mod local;
+#[path = "internal_runtime_readiness.rs"]
+mod readiness;
+use readiness::GatewayRuntimeReadiness;
+pub use readiness::{optional_postgresql_readiness, DependencyReadiness, ReadinessProbeOutcome};
+
 #[derive(Debug, Deserialize)]
 pub struct DrainGatewayRuntimeRequest {
     pub reason: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct DependencyReadiness {
-    pub configured: bool,
-    pub required: bool,
-    pub ready: bool,
-    pub timed_out: bool,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct ReadinessProbeOutcome {
-    pub ready: bool,
-    pub timed_out: bool,
 }
 
 pub async fn bounded_readiness_probe<F>(deadline: Duration, probe: F) -> ReadinessProbeOutcome
@@ -54,17 +45,6 @@ where
             timed_out: true,
         },
     }
-}
-
-#[derive(Debug, Clone)]
-struct GatewayRuntimeReadiness {
-    redis: DependencyReadiness,
-    postgresql: DependencyReadiness,
-    object_storage: DependencyReadiness,
-    object_storage_driver: String,
-    api_key_secret: bool,
-    public_base_url: bool,
-    provider_stats: db::GatewayReadinessProviderStatsView,
 }
 
 enum ProviderStatsProbeResult {
@@ -118,28 +98,6 @@ where
     )
 }
 
-impl GatewayRuntimeReadiness {
-    fn overall_ready(&self, draining: bool) -> bool {
-        // Internal readiness keeps its existing enterprise configuration gates;
-        // public /readyz intentionally has a narrower traffic-admission contract.
-        self.redis.ready
-            && self.postgresql.ready
-            && self.object_storage.ready
-            && self.api_key_secret
-            && self.public_base_url
-            && !draining
-    }
-}
-
-pub fn optional_postgresql_readiness(configured: bool, probe_ready: bool) -> DependencyReadiness {
-    DependencyReadiness {
-        configured,
-        required: configured,
-        ready: !configured || probe_ready,
-        timed_out: false,
-    }
-}
-
 pub async fn get_gateway_readiness(
     State(state): State<Arc<AppState>>,
     OptionalBearerToken(token): OptionalBearerToken,
@@ -153,8 +111,8 @@ pub async fn get_gateway_readiness(
         "readiness": {
             "ok": readiness.overall_ready(draining),
             "checks": {
-                "database": readiness.postgresql.ready,
-                "databaseConfigured": readiness.postgresql.configured,
+                "database": readiness.sqlite.as_ref().unwrap_or(&readiness.postgresql).ready,
+                "databaseConfigured": readiness.sqlite.as_ref().unwrap_or(&readiness.postgresql).configured,
                 "redis": readiness.redis.ready,
                 "objectStorage": readiness.object_storage.ready,
                 "apiKeySecret": readiness.api_key_secret,
@@ -164,6 +122,7 @@ pub async fn get_gateway_readiness(
             "dependencies": {
                 "redis": readiness.redis,
                 "postgresql": readiness.postgresql,
+                "sqlite": readiness.sqlite,
                 "objectStorage": {
                     "configured": readiness.object_storage.configured,
                     "required": readiness.object_storage.required,
@@ -230,6 +189,7 @@ pub async fn get_gateway_operator_summary(
                 "dependencies": {
                     "redis": readiness.redis,
                     "postgresql": readiness.postgresql,
+                    "sqlite": readiness.sqlite,
                     "objectStorage": {
                         "configured": readiness.object_storage.configured,
                         "required": readiness.object_storage.required,
@@ -302,6 +262,9 @@ pub async fn drain_gateway_runtime(
 async fn probe_gateway_runtime_readiness(state: &AppState) -> GatewayRuntimeReadiness {
     let probe_timeout = readiness_probe_timeout();
     let deadline = TokioInstant::now() + probe_timeout;
+    if let Some(runtime) = &state.local_runtime {
+        return local::probe(state, runtime, deadline).await;
+    }
     let postgresql_configured = state.pg_pool.is_some();
     let (redis_probe, postgresql_probe, object_storage_probe, provider_stats_probe) =
         bounded_runtime_readiness_probes(
@@ -384,6 +347,7 @@ async fn probe_gateway_runtime_readiness(state: &AppState) -> GatewayRuntimeRead
     GatewayRuntimeReadiness {
         redis,
         postgresql,
+        sqlite: None,
         object_storage,
         object_storage_driver,
         api_key_secret: state

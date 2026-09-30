@@ -22,6 +22,7 @@ pub async fn run(json_body: Option<&Value>, ctx: &PipelineContext, state: &Arc<A
 }
 
 pub async fn run_non_json_success(ctx: &PipelineContext, state: &Arc<AppState>) {
+    settle_pre_deducted_quota(ctx, state, ctx.quota_pre_deducted_tokens).await;
     finalize_request_audit(
         ctx,
         "completed",
@@ -108,7 +109,7 @@ async fn finalize_json(body: &Value, ctx: &PipelineContext, state: &Arc<AppState
         error_code: None,
     };
 
-    if let Err(e) = enqueue_usage_report(&state.redis_pool, &report).await {
+    if let Err(e) = publish_usage(state, &report).await {
         warn!(req_id = %ctx.req_id, error = %e, "failed to enqueue usage report");
     } else {
         debug!(req_id = %ctx.req_id, total_tokens, "usage report enqueued");
@@ -118,9 +119,11 @@ async fn finalize_json(body: &Value, ctx: &PipelineContext, state: &Arc<AppState
     persist_conversation_archive_success(ctx, body, usage.clone(), state).await;
     record_credential_model_success(ctx, state).await;
 
-    if let Some(actual_total_tokens) = usage.as_ref().map(|value| value.total_tokens) {
-        settle_pre_deducted_quota(ctx, state, actual_total_tokens).await;
-    }
+    let actual_total_tokens = usage
+        .as_ref()
+        .map(|value| value.total_tokens)
+        .unwrap_or(ctx.quota_pre_deducted_tokens);
+    settle_pre_deducted_quota(ctx, state, actual_total_tokens).await;
 
     // ── Record credential affinity ──────────────────────────────────────
     // After a successful call, remember which credential was used so the
@@ -152,14 +155,12 @@ async fn finalize_json(body: &Value, ctx: &PipelineContext, state: &Arc<AppState
             // Session-level affinity (conversation stickiness)
             if let Some(ref sk) = ctx.canonical_req.explicit_session_key {
                 let scope = format!("session:{}", sk);
-                let _ =
-                    set_credential_affinity(&state.redis_pool, &scope, model, provider_id).await;
+                set_affinity(state, &scope, model, provider_id).await;
             }
             // User-level affinity (fallback stickiness)
             if let Some(ref uid) = session.user_id {
                 let scope = format!("user:{}", uid);
-                let _ =
-                    set_credential_affinity(&state.redis_pool, &scope, model, provider_id).await;
+                set_affinity(state, &scope, model, provider_id).await;
             }
         }
     }

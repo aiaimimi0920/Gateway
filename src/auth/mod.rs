@@ -18,7 +18,15 @@ pub async fn authenticate_request(
     request: &AuthRequest,
     fallback_credential_ref: Option<String>,
 ) -> Result<AuthenticatedSession, GatewayError> {
-    if state.auth_adapters.is_empty() && state.config.gateway_api_key.is_none() {
+    if let Some(local) = &state.local_runtime {
+        if let Some(session) = local.authenticate_access_key(request).await? {
+            return Ok(session);
+        }
+    }
+    if state.local_runtime.is_none()
+        && state.auth_adapters.is_empty()
+        && state.config.gateway_api_key.is_none()
+    {
         warn!("No auth configured — all requests accepted (dev mode)");
         let (project_id, tenant_id) = resolve_shared_secret_session_scope(state).await;
         return Ok(AuthenticatedSession {

@@ -43,7 +43,7 @@ pub struct CredentialModelStateFilters {
     pub limit: Option<usize>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayProviderCredentialModelStateView {
     pub id: String,
@@ -328,12 +328,15 @@ pub async fn apply_provider_credential_model_states_to_candidates(
 pub fn provider_credential_model_state_id(
     provider_account_id: &str,
     provider_credential_id: Option<&str>,
-    _provider_credential_ref: Option<&str>,
+    provider_credential_ref: Option<&str>,
     protocol_profile: Option<&str>,
     model: &str,
 ) -> String {
     let mut hasher = Sha256::new();
-    let credential_key = provider_credential_id.unwrap_or("");
+    // Route-config credentials have a reference even when no database ID exists.
+    let credential_key = provider_credential_id
+        .or(provider_credential_ref)
+        .unwrap_or("");
     for part in [
         provider_account_id,
         credential_key,
@@ -376,7 +379,7 @@ fn truncate_error(value: &str) -> String {
     value.chars().take(1000).collect()
 }
 
-fn durable_model_error_message(value: &str) -> String {
+pub(crate) fn durable_model_error_message(value: &str) -> String {
     truncate_error(&sanitize_provider_error_message(value))
 }
 

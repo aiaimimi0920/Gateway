@@ -143,6 +143,9 @@ function Invoke-NativeCommandCapture {
             WindowStyle = "Hidden"
         }
         $process = Start-Process @startInfo
+        # Retain the Windows process handle before polling HasExited. Otherwise
+        # PowerShell can lose ExitCode and [int]$null would falsely report success.
+        $null = $process.Handle
         $stdoutLines = @()
         $stderrLines = @()
         while (-not $process.HasExited) {
@@ -151,6 +154,9 @@ function Invoke-NativeCommandCapture {
             Start-Sleep -Milliseconds 200
         }
         $process.WaitForExit()
+        if ($null -eq $process.ExitCode) {
+            throw "Native build command completed without an exit code: $Command"
+        }
         $stdoutLines += @(Write-NewCaptureLines -Path $stdoutPath -LastLineIndex ([ref]$stdoutLineIndex))
         $stderrLines += @(Write-NewCaptureLines -Path $stderrPath -LastLineIndex ([ref]$stderrLineIndex))
 

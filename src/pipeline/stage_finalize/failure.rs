@@ -51,7 +51,7 @@ pub async fn run_failure(
             .or_else(|| Some(format!("{:?}", error.kind))),
     };
 
-    if let Err(report_error) = enqueue_usage_report(&state.redis_pool, &report).await {
+    if let Err(report_error) = publish_usage(state, &report).await {
         warn!(
             req_id = %ctx.req_id,
             error = %report_error,
@@ -94,7 +94,7 @@ pub async fn run_stream_failure(snapshot: FailureFinalizeSnapshot, state: &Arc<A
         error_code: Some("stream_failed".to_string()),
     };
 
-    if let Err(report_error) = enqueue_usage_report(&state.redis_pool, &report).await {
+    if let Err(report_error) = publish_usage(state, &report).await {
         warn!(
             request_id = %report.request_id,
             error = %report_error,

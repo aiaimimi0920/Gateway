@@ -60,6 +60,13 @@ pub fn start_gateway_sidecar(
     profile_name: String,
 ) -> Result<GatewayProcessSnapshot, String> {
     let profile = load_profile(profile_name)?;
+    start_profile(&state, profile)
+}
+
+pub(crate) fn start_profile(
+    state: &GatewayDesktopState,
+    profile: GatewayProfile,
+) -> Result<GatewayProcessSnapshot, String> {
     let preflight = preflight_gateway_profile(&profile)?;
     if let Some(message) = startup_preflight_failure_message(&profile, &preflight) {
         return Err(message);

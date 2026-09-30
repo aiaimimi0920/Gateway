@@ -25,6 +25,7 @@ export type ProviderCardSnapshotSource = {
 export type ProviderCardSnapshot = {
   accounts: AccountsLedgerPilotAccount[];
   availablePoolCount: number;
+  supportedModels: string[];
   poolSegments: ProviderPoolSegments;
   concurrency: ProviderConcurrency;
   costs: ProviderCosts;
@@ -61,6 +62,7 @@ export function buildProviderCardSnapshot(source: ProviderCardSnapshotSource): P
 
   return {
     accounts,
+    supportedModels: [...new Set(accounts.flatMap((account) => account.supportedModels ?? []))],
     availablePoolCount: poolSegments.available,
     poolSegments,
     concurrency: metrics.concurrency,

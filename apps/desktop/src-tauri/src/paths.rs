@@ -1,23 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
-const APP_DIR_NAME: &str = "NeuroGatewayDesktop";
-
-fn env_dir(name: &str) -> Option<PathBuf> {
-    std::env::var(name)
-        .ok()
-        .map(PathBuf::from)
-        .filter(|path| !path.as_os_str().is_empty())
-}
-
-fn local_appdata_root() -> Result<PathBuf, String> {
-    env_dir("LOCALAPPDATA")
-        .or_else(|| env_dir("APPDATA"))
-        .or_else(|| env_dir("TEMP"))
-        .or_else(|| env_dir("TMP"))
-        .or_else(|| Some(std::env::temp_dir()))
-        .ok_or_else(|| "unable to resolve local app data root".to_string())
-}
+// Keep the shared lease alive until this process exits, including external mode.
+static DATA: OnceLock<(PathBuf, fs::File)> = OnceLock::new();
 
 fn ensure_dir(path: PathBuf) -> Result<PathBuf, String> {
     fs::create_dir_all(&path)
@@ -26,7 +12,13 @@ fn ensure_dir(path: PathBuf) -> Result<PathBuf, String> {
 }
 
 pub fn gateway_app_dir() -> Result<PathBuf, String> {
-    ensure_dir(local_appdata_root()?.join(APP_DIR_NAME))
+    if let Some((path, _)) = DATA.get() {
+        return Ok(path.clone());
+    }
+    let path = gateway_local_data::selected_root().map_err(|error| error.to_string())?;
+    let lease = gateway_local_data::prepare(&path).map_err(|error| error.to_string())?;
+    let _ = DATA.set((path.clone(), lease));
+    Ok(path)
 }
 
 pub fn gateway_profile_dir() -> Result<PathBuf, String> {

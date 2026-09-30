@@ -20,6 +20,7 @@ use super::PipelineContext;
 pub struct ProviderAttemptGate {
     req_id: Uuid,
     redis_pool: crate::redis::pool::RedisPool,
+    local_limits: Option<Arc<crate::rate_limit::MemoryRateLimitStore>>,
     rules: Vec<crate::rate_limit::RateLimitRule>,
     outbound_attempt_count: Arc<AtomicU32>,
     attempted_provider_ids: Arc<parking_lot::Mutex<Vec<String>>>,
@@ -28,7 +29,13 @@ pub struct ProviderAttemptGate {
 
 impl ProviderAttemptGate {
     pub async fn admit(&self) -> Result<(), GatewayError> {
-        enforce(self.req_id, &self.redis_pool, &self.rules).await?;
+        enforce(
+            self.req_id,
+            &self.redis_pool,
+            self.local_limits.as_deref(),
+            &self.rules,
+        )
+        .await?;
         self.outbound_attempt_count.fetch_add(1, Ordering::Relaxed);
         let mut attempted = self.attempted_provider_ids.lock();
         if !attempted
@@ -48,7 +55,16 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     };
     let dimensions = request_dimensions(ctx, None)?;
     let rules = build_request_rate_limit_rules(config, &dimensions)?;
-    enforce(ctx.req_id, &state.redis_pool, &rules).await
+    enforce(
+        ctx.req_id,
+        &state.redis_pool,
+        state
+            .local_runtime
+            .as_ref()
+            .map(|local| local.rate_limits.as_ref()),
+        &rules,
+    )
+    .await
 }
 
 pub fn provider_attempt_gate(
@@ -67,6 +83,10 @@ pub fn provider_attempt_gate(
     Ok(ProviderAttemptGate {
         req_id: ctx.req_id,
         redis_pool: state.redis_pool.clone(),
+        local_limits: state
+            .local_runtime
+            .as_ref()
+            .map(|local| Arc::clone(&local.rate_limits)),
         rules,
         outbound_attempt_count: Arc::clone(&ctx.route_attempt_count),
         attempted_provider_ids: Arc::clone(&ctx.attempted_provider_ids),
@@ -77,13 +97,18 @@ pub fn provider_attempt_gate(
 async fn enforce(
     req_id: Uuid,
     redis_pool: &crate::redis::pool::RedisPool,
+    local_limits: Option<&crate::rate_limit::MemoryRateLimitStore>,
     rules: &[crate::rate_limit::RateLimitRule],
 ) -> Result<(), GatewayError> {
     if rules.is_empty() {
         return Ok(());
     }
     let store = RedisRateLimitStore::new(redis_pool);
-    let admission = enforce_rate_limit_rules(&store, rules).await;
+    let store: &dyn crate::rate_limit::RateLimitStore = local_limits
+        .map_or(&store as &dyn crate::rate_limit::RateLimitStore, |local| {
+            local
+        });
+    let admission = enforce_rate_limit_rules(store, rules).await;
     let rejected = matches!(admission, RateLimitAdmission::Rejected { .. });
     let store_failure = matches!(
         admission,

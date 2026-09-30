@@ -193,7 +193,7 @@ if ($Action -eq "up") {
     }
 
     if (Test-IsLoopbackBindHost -BindHost $effectiveBindHost) {
-        Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_MANAGEMENT_TOKEN" -Value "123456"
+        Set-DotEnvValueIfMissing -Path $envPath -Key "GATEWAY_MANAGEMENT_TOKEN" -Value "11011101"
         if ($createdEnv) {
             Set-DotEnvValue -Path $envPath -Key "GATEWAY_CONSOLE_REMOTE_ACCESS" -Value "true"
         } else {
