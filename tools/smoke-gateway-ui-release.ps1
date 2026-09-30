@@ -135,7 +135,7 @@ function Assert-PackagedReleaseIntegrity {
       throw "Manifest references a missing packaged file: $relative"
     }
     $payloadPath = Join-Path $ReleaseRoot $relative
-    $item = Get-Item -LiteralPath $payloadPath
+    $item = Get-Item -LiteralPath $payloadPath -Force
     $recordBytes = [int64](Get-ObjectPropertyValue -Object $record -Name "bytes")
     $recordSha = [string](Get-ObjectPropertyValue -Object $record -Name "sha256")
     if ($item.Length -ne $recordBytes -or $actualFiles[$relative] -ne $recordSha.ToLowerInvariant()) {

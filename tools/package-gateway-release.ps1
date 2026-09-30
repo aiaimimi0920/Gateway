@@ -5,6 +5,7 @@ param(
     [string]$ReleaseRoot = "",
     [switch]$StageOnly,
     [switch]$SkipBuild,
+    [switch]$UseExampleRoutes,
     [switch]$AllowCustomReleaseRoot,
     [Alias("CleanStage", "CleanStaging")]
     [switch]$Clean
@@ -216,7 +217,10 @@ foreach ($requiredBinary in @($headlessSource, $uiSource)) {
     }
 }
 
-$routesSource = Join-Path $gatewayRoot "routes.yaml"
+# Uploaded candidates must opt into example configuration without rewriting
+# developer routes or changing the default behavior of local packaging.
+$routesSourceName = if ($UseExampleRoutes) { "routes.example.yaml" } else { "routes.yaml" }
+$routesSource = Join-Path $gatewayRoot $routesSourceName
 if (-not (Test-Path -LiteralPath $routesSource -PathType Leaf)) {
     throw "Required Gateway route configuration is missing: $routesSource"
 }
@@ -264,10 +268,16 @@ Assert-BuildProvenance `
     -ArtifactRelativePaths $artifactRelativePaths | Out-Null
 
 $routesExampleSource = Join-Path $gatewayRoot "routes.example.yaml"
-$routeSources = [System.Collections.Generic.List[string]]::new()
-$routeSources.Add($routesSource) | Out-Null
+$routeSources = [System.Collections.Generic.List[object]]::new()
+$routeSources.Add([pscustomobject]@{
+    source = $routesSource
+    destination = "routes.yaml"
+}) | Out-Null
 if (Test-Path -LiteralPath $routesExampleSource -PathType Leaf) {
-    $routeSources.Add($routesExampleSource) | Out-Null
+    $routeSources.Add([pscustomobject]@{
+        source = $routesExampleSource
+        destination = "routes.example.yaml"
+    }) | Out-Null
 }
 
 # Repeat the immutable destination checks after build/provenance validation to
@@ -322,11 +332,11 @@ try {
         -Kind "build-provenance"
 
     foreach ($routeSource in $routeSources) {
-        $routeFile = Get-Item -LiteralPath $routeSource
+        $routeFile = Get-Item -LiteralPath $routeSource.source
         $routeDestination = Copy-PayloadFile `
             -Source $routeFile.FullName `
             -PackageRoot $staging `
-            -DestinationRelativePath $routeFile.Name
+            -DestinationRelativePath $routeSource.destination
         $supportRecords += New-ArtifactRecord -PackageRoot $staging -Path $routeDestination -Kind "route-config"
     }
 
@@ -417,7 +427,8 @@ try {
     Write-Utf8NoBom -Path $manifestPath -Value (($manifest | ConvertTo-Json -Depth 12) + [Environment]::NewLine)
 
     $checksumPath = Join-Path $staging "checksums.sha256"
-    $checksumFiles = @(Get-ChildItem -LiteralPath $staging -Recurse -File |
+    # Hash every file already selected into the payload, including .env.example.
+    $checksumFiles = @(Get-ChildItem -LiteralPath $staging -Recurse -File -Force |
         Where-Object { $_.FullName -ne (Resolve-FullPath -Path $checksumPath) } |
         Sort-Object FullName)
     $checksumLines = @()

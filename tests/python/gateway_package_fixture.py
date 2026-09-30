@@ -4,7 +4,7 @@ import pathlib
 import subprocess
 import unittest
 
-from powershell_test_utils import powershell_executable
+from powershell_test_utils import powershell_environment, powershell_executable
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -72,11 +72,13 @@ class GatewayPackageFixture(unittest.TestCase):
         *,
         write_provenance: bool = True,
         allow_custom_release_root: bool = True,
+        use_example_routes: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         if write_provenance:
             self._write_build_provenance(source_root)
+        executable = powershell_executable()
         command = [
-            powershell_executable(),
+            executable,
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",
@@ -94,9 +96,12 @@ class GatewayPackageFixture(unittest.TestCase):
         ]
         if allow_custom_release_root:
             command.append("-AllowCustomReleaseRoot")
+        if use_example_routes:
+            command.append("-UseExampleRoutes")
         return subprocess.run(
             command,
             cwd=REPO_ROOT,
+            env=powershell_environment(executable),
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -219,9 +224,10 @@ class GatewayPackageFixture(unittest.TestCase):
         )
 
     def _run_smoke(self, script: pathlib.Path, destination: pathlib.Path, *extra: str):
+        executable = powershell_executable()
         return subprocess.run(
             [
-                powershell_executable(),
+                executable,
                 "-NoProfile",
                 "-ExecutionPolicy",
                 "Bypass",
@@ -232,6 +238,7 @@ class GatewayPackageFixture(unittest.TestCase):
                 *extra,
             ],
             cwd=REPO_ROOT,
+            env=powershell_environment(executable),
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

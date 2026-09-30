@@ -148,8 +148,12 @@ Pop-Location
 ```powershell
 $id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
 .\tools\build-gateway-release.ps1
-.\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild
+.\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild -UseExampleRoutes
 ```
+
+`-UseExampleRoutes` 将 `routes.example.yaml` 作为包内两份路由文件的来源。
+自动候选构建和标签发布始终使用此模式；不传该开关的本地打包仍保留开发者的
+`routes.yaml`，对外分发前应使用示例模式。两种模式都不会改写源路由文件。
 
 `build-gateway-release.ps1` 要求 Node.js `>=22.22.0`，会先安装并审计两棵
 Node 生产依赖树，再显式执行一次 `npm run build:web`，随后进行 headless
