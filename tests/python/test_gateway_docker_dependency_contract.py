@@ -355,11 +355,13 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
             "COPY scripts/package.json scripts/package-lock.json ./scripts/",
             "cd /app/scripts",
             "npm run audit:prod --prefix /app/scripts",
-            "COPY routes.yaml routes.example.yaml ./",
+            "COPY routes.example.yaml ./routes.yaml",
+            "COPY routes.example.yaml ./routes.example.yaml",
             "COPY manifests ./manifests",
             "COPY scripts ./scripts",
             "COPY --from=builder /app/gateway-release /usr/local/bin/gateway",
         )
+        self.assertNotIn("COPY routes.yaml", runtime_stage)
 
     def test_official_docker_builder_avoids_copying_non_runtime_compile_inputs(self):
         dockerfile = self._read("Dockerfile")

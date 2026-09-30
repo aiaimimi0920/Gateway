@@ -63,7 +63,8 @@ class GatewayDesktopProductContractTests(unittest.TestCase):
         self.assertIn("grid-template-columns: minmax(0, 1fr);", styles_text)
         # The final narrow-screen override uses scrollable tabs, not the old grid.
         mobile = styles_text.rsplit("@media (max-width: 720px)", 1)[1]
-        nav = re.search(r"\.nt-rail__nav\s*\{([^}]*)\}", mobile)
+        # Match the bare selector, not the preceding console-only grid placement.
+        nav = re.search(r"(?m)^[ \t]*\.nt-rail__nav\s*\{([^}]*)\}", mobile)
         self.assertIsNotNone(nav)
         for declaration in ["display: flex", "overflow-x: auto", "overflow-y: hidden"]:
             self.assertIn(declaration, nav.group(1))

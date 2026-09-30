@@ -1,6 +1,9 @@
 import pathlib
 import re
 import unittest
+from unittest import mock
+
+from powershell_test_utils import powershell_executable
 
 
 def read_release_candidate_script(repo_root):
@@ -15,13 +18,20 @@ def read_release_candidate_script(repo_root):
 
 class GatewayPowerShellPortabilityTests(unittest.TestCase):
     def test_python_test_helper_prefers_pwsh_before_windows_powershell(self):
-        repo_root = pathlib.Path(__file__).resolve().parents[2]
-        helper = (repo_root / "tests" / "python" / "powershell_test_utils.py").read_text(
-            encoding="utf-8"
-        )
+        for platform in ("nt", "posix"):
+            with self.subTest(platform=platform):
+                with mock.patch("os.name", platform), mock.patch(
+                    "powershell_test_utils.shutil.which", return_value="available"
+                ) as which:
+                    self.assertEqual("pwsh", powershell_executable())
+                which.assert_called_once_with("pwsh")
 
-        self.assertIn('candidates = ["pwsh", "powershell"]', helper)
-        self.assertNotIn('if os.name == "nt"', helper)
+    def test_python_test_helper_falls_back_only_when_pwsh_is_unavailable(self):
+        with mock.patch(
+            "powershell_test_utils.shutil.which", side_effect=[None, "available"]
+        ) as which:
+            self.assertEqual("powershell", powershell_executable())
+        self.assertEqual([mock.call("pwsh"), mock.call("powershell")], which.call_args_list)
 
     def test_python_gateway_tests_do_not_hardcode_windows_powershell(self):
         repo_root = pathlib.Path(__file__).resolve().parents[2]
