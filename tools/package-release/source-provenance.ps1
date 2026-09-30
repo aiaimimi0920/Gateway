@@ -80,7 +80,7 @@ function Get-SourceTreeState {
                 }
                 $fullPath = Join-Path $gitRoot $gitPath
                 if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
-                    Get-Item -LiteralPath $fullPath
+                    Get-Item -LiteralPath $fullPath -Force
                 }
             }
         )

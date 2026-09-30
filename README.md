@@ -164,8 +164,13 @@ record sources and unknown-model fallback, then freeze the table before building
 ```powershell
 $id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
 .\tools\build-gateway-release.ps1
-.\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild
+.\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild -UseExampleRoutes
 ```
+
+`-UseExampleRoutes` packages `routes.example.yaml` under both route filenames.
+Automated candidates and tagged releases always use this mode. Without the
+switch, local packaging retains the developer's `routes.yaml`; use example
+mode before distributing a package. Neither mode modifies the source route files.
 
 `build-gateway-release.ps1` requires Node.js `>=22.22.0`, installs and audits
 both production Node dependency trees, then performs `npm run build:web`
