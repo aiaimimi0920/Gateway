@@ -85,6 +85,10 @@ jobs:
       - name: Audit desktop production dependencies
         run: npm run audit:prod --prefix apps/desktop
 
+      - name: Test desktop frontend
+        working-directory: apps/desktop
+        run: npm test -- --run
+
       - name: Validate provider manifests
         run: python tools/validate-gateway-line-manifests.py
 
@@ -209,6 +213,10 @@ jobs:
 
       - name: Audit desktop production dependencies
         run: npm run audit:prod --prefix apps/desktop
+
+      - name: Test desktop frontend
+        working-directory: apps/desktop
+        run: npm test -- --run
 
       - name: Validate provider manifests
         run: python tools/validate-gateway-line-manifests.py

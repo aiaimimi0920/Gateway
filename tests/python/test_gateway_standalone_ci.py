@@ -17,6 +17,14 @@ GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class GatewayStandaloneCiTests(GatewayRepositoryTextFixture, unittest.TestCase):
+    def test_both_ci_jobs_run_desktop_regressions(self):
+        workflow = (GATEWAY_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        for job_name in ("windows", "linux"):
+            with self.subTest(job=job_name):
+                job = self._workflow_job_block(workflow, job_name)
+                self.assertEqual(job.count("npm test -- --run"), 1)
+                self._assert_markers_in_order(job, "npm ci --prefix apps/desktop", "npm test -- --run")
+
     def test_baseline_validating_workflows_fetch_repository_history(self):
         workflow_jobs = {
             "ci.yml": ("windows", "linux"),
