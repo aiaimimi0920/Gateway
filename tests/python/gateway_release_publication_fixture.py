@@ -7,9 +7,9 @@ import subprocess
 import time
 
 try:
-    from .powershell_test_utils import powershell_executable
+    from .powershell_test_utils import powershell_environment, powershell_executable
 except ImportError:
-    from powershell_test_utils import powershell_executable
+    from powershell_test_utils import powershell_environment, powershell_executable
 
 
 GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -126,7 +126,7 @@ class ReleasePublicationFixture:
                 command,
             ],
             cwd=cwd,
-            env=environment,
+            env=powershell_environment(POWERSHELL, environment),
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -158,7 +158,7 @@ class ReleasePublicationFixture:
         result = subprocess.run(
             command,
             cwd=cwd,
-            env=environment,
+            env=powershell_environment(POWERSHELL, environment),
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

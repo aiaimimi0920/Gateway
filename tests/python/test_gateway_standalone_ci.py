@@ -17,6 +17,14 @@ GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class GatewayStandaloneCiTests(GatewayRepositoryTextFixture, unittest.TestCase):
+    def test_windows_python_contracts_fail_before_the_long_rust_matrix(self):
+        workflow = (GATEWAY_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        windows = self._workflow_job_block(workflow, "windows")
+        self.assertEqual(windows.count("- name: Run python-tests"), 1)
+        self._assert_markers_in_order(
+            windows, "- name: Run python-tests", "- name: Run gateway-line-matrix"
+        )
+
     def test_both_ci_jobs_run_desktop_regressions(self):
         workflow = (GATEWAY_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         for job_name in ("windows", "linux"):

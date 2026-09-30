@@ -92,6 +92,9 @@ jobs:
       - name: Validate provider manifests
         run: python tools/validate-gateway-line-manifests.py
 
+      - name: Run python-tests
+        run: python -m unittest discover -s tests/python -p "test_*.py" -v
+
       - name: Run gateway-line-matrix
         shell: powershell
         run: |
@@ -105,9 +108,6 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\invoke-gateway-live-provider-canary.ps1 -AsJson
-
-      - name: Run python-tests
-        run: python -m unittest discover -s tests/python -p "test_*.py" -v
 
       - name: Run browser-worker-tests
         run: node --test scripts/tests/*.test.mjs
