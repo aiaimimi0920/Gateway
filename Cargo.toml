@@ -189,7 +189,9 @@ mime_guess = "2"
 # Config
 dotenvy = "0.15"
 serde_yaml = "0.9"
-aws-sdk-s3 = "1"
+# All S3 clients select the latest behavior, which uses this modern HTTPS stack.
+# Do not also compile the unused legacy hyper 0.14 / rustls 0.21 connector.
+aws-sdk-s3 = { version = "1", default-features = false, features = ["sigv4a", "default-https-client", "rt-tokio"] }
 aws-credential-types = "1"
 aws-sigv4 = { version = "1", features = ["http1"] }
 aws-smithy-runtime-api = { version = "1", features = ["client"] }
