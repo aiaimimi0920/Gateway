@@ -12,16 +12,17 @@ type Props = {
   minimum?: number;
   maximum?: number;
   disabled: boolean;
+  discardDraft?: boolean;
   unavailableReason?: string;
   description?: string;
   onSave?: (value: string) => boolean | void;
   t: TranslateFn;
 };
 
-/** Drafts are private to the open editor; cancel/lock never retains a password. */
+/** Drafts are private to the open editor; cancel/explicit lock never retains a password. */
 export function ProviderLifecycleField({ providerLabel, label, value, secret = false,
   configured = false, numeric = false, minimum = 0, maximum = Number.MAX_SAFE_INTEGER,
-  disabled, unavailableReason, description, onSave, t,
+  disabled, discardDraft = false, unavailableReason, description, onSave, t,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -43,12 +44,12 @@ export function ProviderLifecycleField({ providerLabel, label, value, secret = f
     }
   }, [editing]);
   useEffect(() => {
-    if (disabled) {
+    if (discardDraft) {
       setEditing(false);
       setDraft("");
       setError("");
     }
-  }, [disabled]);
+  }, [discardDraft]);
   const save = () => {
     if (disabled || !onSave || saving.current) return;
     if (numeric && (!/^\d+$/.test(draft) || !Number.isSafeInteger(Number(draft)) ||

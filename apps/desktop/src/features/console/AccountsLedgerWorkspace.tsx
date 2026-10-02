@@ -339,6 +339,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
                 {renderProviderLifecycleBack({
                   section,
                   active: flipped,
+                  discardEdits: props.discardLifecycleDrafts,
                   availableCount: providerAvailablePoolCount,
                   coolingCount: poolSegments.rateLimited,
                   invalidCount: poolSegments.invalid,

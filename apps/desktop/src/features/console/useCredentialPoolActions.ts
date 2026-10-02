@@ -26,6 +26,8 @@ export function useCredentialPoolActions({
   setError,
   t,
 }: CredentialPoolActionsOptions) {
+  const draftDirtyRef = useRef(draftDirty);
+  draftDirtyRef.current = draftDirty;
   const [credentialPoolPruneBusy, setCredentialPoolPruneBusy] = useState<string | null>(null);
 
   const [credentialArchivePurgeBusy, setCredentialArchivePurgeBusy] =
@@ -68,7 +70,7 @@ export function useCredentialPoolActions({
         pushAppToast("error", message);
         return;
       }
-      if (draftDirty) {
+      if (draftDirtyRef.current) {
         pushAppToast(
           "warning",
           t(
@@ -141,6 +143,13 @@ export function useCredentialPoolActions({
         return;
       }
       setError(null);
+      if (draftDirtyRef.current) {
+        pushAppToast("warning", t(
+          "请先保存当前路由草稿，再清空账号归档。",
+          "Save the current route draft before purging the credential archive.",
+        ));
+        return;
+      }
       const isCurrent = beginRequest("purge");
       setCredentialArchivePurgeBusy(providerId);
       try {
@@ -178,7 +187,7 @@ export function useCredentialPoolActions({
         pushAppToast("error", message);
         return;
       }
-      if (draftDirty) {
+      if (draftDirtyRef.current) {
         pushAppToast(
           "warning",
           t(

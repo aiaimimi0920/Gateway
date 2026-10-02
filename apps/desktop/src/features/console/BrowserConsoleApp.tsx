@@ -290,6 +290,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
           nextEnabled,
         )
       }
+      discardLifecycleDrafts={!mutationSupported}
       onUpdateProviderPoolMinSize={(providerId, poolMinSize) => updatePilotProviderPolicy(providerId, { poolMinSize })}
       onUpdateProviderPoolTargetSize={(providerId, nextTargetSize) =>
         updatePilotProviderPolicy(providerId, {

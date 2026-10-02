@@ -74,13 +74,29 @@ describe("provider lifecycle inline editing", () => {
     expect(screen.getByLabelText("NVIDIA 存储密码")).toHaveValue("");
   });
 
+  it("keeps an unfinished edit through another field's autosave", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const view = render(<ProviderLifecycleField {...props} onSave={onSave} />);
+    await user.click(screen.getByRole("button", { name: "编辑 NVIDIA 最小可用池" }));
+    await user.clear(screen.getByRole("spinbutton"));
+    await user.type(screen.getByRole("spinbutton"), "42");
+    view.rerender(<ProviderLifecycleField {...props} disabled onSave={onSave} />);
+    expect(screen.getByRole("spinbutton")).toHaveValue(42);
+    expect(screen.getByRole("spinbutton")).toBeDisabled();
+    view.rerender(<ProviderLifecycleField {...props} onSave={onSave} />);
+    expect(screen.getByRole("spinbutton")).toHaveValue(42);
+    await user.click(screen.getByRole("button", { name: "保存 NVIDIA 最小可用池" }));
+    expect(onSave).toHaveBeenCalledExactlyOnceWith("42");
+  });
+
   it("clears the secret editor on permission loss", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     const view = render(<ProviderLifecycleField {...props} numeric={false} secret onSave={onSave} />);
     await user.click(screen.getByRole("button", { name: "编辑 NVIDIA 最小可用池" }));
     await user.type(screen.getByLabelText("NVIDIA 最小可用池"), "test-only-secret");
-    view.rerender(<ProviderLifecycleField {...props} numeric={false} secret disabled onSave={onSave} />);
+    view.rerender(<ProviderLifecycleField {...props} numeric={false} secret disabled discardDraft onSave={onSave} />);
     expect(screen.queryByDisplayValue("test-only-secret")).not.toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
   });

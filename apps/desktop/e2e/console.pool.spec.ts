@@ -51,6 +51,8 @@ test.describe("Gateway web console provider pool", () => {
     await expect(card.getByText("可用池", { exact: true })).toBeVisible();
     await expect(card.getByText("冷却池", { exact: true })).toBeVisible();
     await expect(card.getByText("失效池", { exact: true })).toBeVisible();
+    await expect(back.locator("[data-provider-icon]")).toHaveAttribute("data-provider-icon", "nvidia");
+    await expect(back.locator("[data-provider-icon] svg")).toBeVisible();
     await expect(back.locator("[data-provider-icon]")).toHaveAttribute("data-provider-icon", await front.locator("[data-provider-icon]").getAttribute("data-provider-icon") ?? "");
     await expect(card.locator(".nt-provider-lifecycle__group")).toHaveCount(3);
     for (const label of ["最小可用池", "最大可用池", "存储路径", "存储密码", "归档路径", "归档密码"]) {

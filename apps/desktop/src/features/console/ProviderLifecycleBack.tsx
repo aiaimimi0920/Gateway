@@ -8,6 +8,7 @@ import { ProviderLifecycleField } from "./ProviderLifecycleField";
 export type ProviderLifecycleBackOptions = {
   section: AccountsLedgerPilotSection;
   active?: boolean;
+  discardEdits?: boolean;
   availableCount: number;
   coolingCount: number;
   invalidCount: number;
@@ -45,7 +46,8 @@ export function ProviderLifecycleBack({ options, editorLocked, onUpdateProviderP
       </button>
     </div>
   );
-  const field = { providerLabel, disabled: editorLocked || options.active === false, t };
+  const field = { providerLabel, disabled: editorLocked || options.active === false,
+    discardDraft: options.active === false || options.discardEdits === true, t };
   return <div className="nt-provider-lifecycle" aria-label={t(`${providerLabel} 账号生命周期`, `${providerLabel} credential lifecycle`)}>
     <section className="nt-provider-lifecycle__group" aria-label={t("号池容量", "Pool capacity")}>
       <div className="nt-provider-lifecycle__metrics">
