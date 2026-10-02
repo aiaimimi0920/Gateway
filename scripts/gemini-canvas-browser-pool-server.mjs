@@ -150,7 +150,7 @@ export function createBrowserPoolServerOwner({
       log(`listening on http://${host}:${port}`);
     });
 
-    const tlsBundle = loadOrCreateTlsCertificate(host);
+    const tlsBundle = await loadOrCreateTlsCertificate(host);
     const httpsServer = createHttpsServer(
       {
         key: tlsBundle.key,

@@ -66,3 +66,9 @@ Local contracts and YAML validation cannot prove a GitHub-hosted scan or release
 has run. Activation requires reviewed commits on the relevant remote refs and
 successful real GitHub runs with the repository's effective permissions. No
 workflow should be described as remotely deployed from local checks alone.
+
+The actual GitHub scan and browser-worker TLS dependency repair are recorded in
+[the 2026-10-02 checkpoint](status/2026-10-02-browser-tls-security-closure.md).
+The remaining desktop GTK advisories still block release until fixed or covered
+by a genuinely approved, expiring advisory-level exception; no exception was
+silently added by that repair.

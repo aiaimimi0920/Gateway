@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash, createPrivateKey, X509Certificate } from "node:crypto";
+import { once } from "node:events";
 import fs from "node:fs";
+import { createServer, get } from "node:https";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -48,10 +50,10 @@ test("browser executable override wins only when its normalized path exists", (t
   if (defaultPath !== null) assert.equal(fs.existsSync(defaultPath), true);
 });
 
-test("TLS configuration generates a matching certificate and reuses persisted bytes", (t) => {
+test("TLS configuration generates a matching certificate and reuses persisted bytes", async (t) => {
   const root = temporaryRoot(t);
   tlsRoot(t, path.relative(process.cwd(), root));
-  const first = loadOrCreateTlsCertificate("localhost");
+  const first = await loadOrCreateTlsCertificate("localhost");
   assert.equal(first.generated, true);
   assert.equal(first.keyPath, path.join(root, "localhost.key.pem"));
   assert.equal(first.certPath, path.join(root, "localhost.cert.pem"));
@@ -59,20 +61,30 @@ test("TLS configuration generates a matching certificate and reuses persisted by
   assert.equal(certificate.checkPrivateKey(createPrivateKey(first.key)), true);
   assert.equal(certificate.checkHost("localhost"), "localhost");
   assert.equal(certificate.checkIP("127.0.0.1"), "127.0.0.1");
-  const second = loadOrCreateTlsCertificate("localhost");
+  assert.equal(certificate.verify(certificate.publicKey), true);
+  assert.equal(certificate.publicKey.asymmetricKeyType, "rsa");
+  assert.equal(certificate.publicKey.asymmetricKeyDetails.modulusLength, 2048);
+  assert.equal(Date.parse(certificate.validTo) - Date.parse(certificate.validFrom), 30 * 24 * 60 * 60 * 1000);
+  const second = await loadOrCreateTlsCertificate("localhost");
   assert.equal(second.generated, false);
   assert.equal(hash(second.key), hash(first.key));
   assert.equal(hash(second.cert), hash(first.cert));
   assert.equal(hash(fs.readFileSync(first.keyPath)), hash(first.key));
   assert.equal(hash(fs.readFileSync(first.certPath)), hash(first.cert));
+  const legacyKey = createPrivateKey(first.key).export({ type: "pkcs1", format: "pem" });
+  fs.writeFileSync(first.keyPath, legacyKey, "utf8");
+  const legacy = await loadOrCreateTlsCertificate("localhost");
+  assert.equal(legacy.generated, false);
+  assert.equal(legacy.key, legacyKey);
+  assert.equal(legacy.cert, first.cert);
 });
 
-test("TLS configuration replaces incomplete pairs and retains numeric-host SANs", (t) => {
+test("TLS configuration replaces incomplete pairs and retains numeric-host SANs", async (t) => {
   const root = temporaryRoot(t);
   tlsRoot(t, root);
   const keyPath = path.join(root, "127.0.0.2.key.pem");
   fs.writeFileSync(keyPath, "incomplete fixture pair\n");
-  const bundle = loadOrCreateTlsCertificate("127.0.0.2");
+  const bundle = await loadOrCreateTlsCertificate("127.0.0.2");
   assert.equal(bundle.generated, true);
   const certificate = new X509Certificate(bundle.cert);
   assert.equal(certificate.checkPrivateKey(createPrivateKey(bundle.key)), true);
@@ -82,14 +94,41 @@ test("TLS configuration replaces incomplete pairs and retains numeric-host SANs"
   assert.equal(hash(fs.readFileSync(keyPath)), hash(bundle.key));
 });
 
-test("TLS configuration sanitizes reused asset names and propagates directory errors", (t) => {
+test("TLS configuration sanitizes reused asset names and propagates directory errors", async (t) => {
   const root = temporaryRoot(t);
   tlsRoot(t, root);
   fs.writeFileSync(path.join(root, "a_b_host.key.pem"), "fixture key");
   fs.writeFileSync(path.join(root, "a_b_host.cert.pem"), "fixture cert");
-  assert.equal(loadOrCreateTlsCertificate("a/b:host").generated, false);
+  assert.equal((await loadOrCreateTlsCertificate("a/b:host")).generated, false);
   const blocked = path.join(root, "file-not-directory");
   fs.writeFileSync(blocked, "fixture\n");
   process.env.GEMINI_CANVAS_BROWSER_TLS_DIR = blocked;
-  assert.throws(() => loadOrCreateTlsCertificate("localhost"), (error) => ["EEXIST", "ENOTDIR"].includes(error.code));
+  await assert.rejects(loadOrCreateTlsCertificate("localhost"), (error) => ["EEXIST", "ENOTDIR"].includes(error.code));
+});
+
+test("TLS configuration serves a hostname-verified HTTPS request", { timeout: 10000 }, async (t) => {
+  const root = temporaryRoot(t);
+  tlsRoot(t, root);
+  const bundle = await loadOrCreateTlsCertificate("localhost");
+  const server = createServer({ key: bundle.key, cert: bundle.cert }, (_, response) => {
+    response.end("TLS ready");
+  });
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const body = await new Promise((resolve, reject) => {
+    // Trust only this test's certificate; retain hostname and chain verification.
+    const request = get({ host: "127.0.0.1", port: server.address().port, ca: bundle.cert, servername: "localhost", agent: false }, (response) => {
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.socket.authorized, true);
+      response.setEncoding("utf8");
+      let body = "";
+      response.on("data", (chunk) => { body += chunk; });
+      response.on("end", () => resolve(body));
+      response.on("error", reject);
+    });
+    request.on("error", reject);
+    request.setTimeout(5000, () => request.destroy(new Error("TLS fixture request timed out")));
+  });
+  assert.equal(body, "TLS ready");
 });

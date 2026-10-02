@@ -15,7 +15,7 @@ function normalizeTlsAssetSlug(value) {
   return String(value || "local").replace(/[^a-z0-9._-]+/gi, "_");
 }
 
-export function loadOrCreateTlsCertificate(host) {
+export async function loadOrCreateTlsCertificate(host) {
   const tlsRoot = getTlsAssetRoot();
   mkdirSync(tlsRoot, { recursive: true });
   const slug = normalizeTlsAssetSlug(host);
@@ -40,9 +40,12 @@ export function loadOrCreateTlsCertificate(host) {
     altNames.push({ type: 2, value: host });
   }
   altNames.push({ type: 7, ip: "127.0.0.1" });
-  const generated = selfsigned.generate(attrs, {
+  // selfsigned 5 uses native crypto asynchronously and no longer accepts `days`.
+  const notBeforeDate = new Date();
+  const generated = await selfsigned.generate(attrs, {
     algorithm: "sha256",
-    days: 30,
+    notBeforeDate,
+    notAfterDate: new Date(notBeforeDate.getTime() + 30 * 24 * 60 * 60 * 1000),
     keySize: 2048,
     extensions: [{ name: "subjectAltName", altNames }],
   });

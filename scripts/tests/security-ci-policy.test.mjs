@@ -33,6 +33,15 @@ test("Cargo locks do not restore withdrawn spin 0.9 patch releases", () => {
   }
 });
 
+test("browser TLS uses the async selfsigned API without node-forge in its lock graph", () => {
+  const manifest = JSON.parse(read("scripts/package.json"));
+  const lock = JSON.parse(read("scripts/package-lock.json"));
+  assert.match(manifest.dependencies.selfsigned, /^5\./);
+  assert.equal(lock.packages["node_modules/selfsigned"].version, manifest.dependencies.selfsigned);
+  assert.equal(lock.packages[""].dependencies.selfsigned, manifest.dependencies.selfsigned);
+  assert.equal(Object.keys(lock.packages).some((name) => /(^|\/)node_modules\/node-forge$/.test(name)), false);
+});
+
 test("security actions use immutable pins and every normal trigger", () => {
   for (const source of [security, codeql]) {
     const references = [...source.matchAll(/uses: ([^\s#]+)/g)].map((match) => match[1]);

@@ -61,7 +61,10 @@ export function serverHarness(t, app, options = {}) {
     async invokeGeminiCanvas(...args) { record("invoke", ...args); return result; },
     createServer(handler) { return create("http", handler); },
     createHttpsServer(tls, handler) { record("https-options", tls); return create("https", handler); },
-    loadOrCreateTlsCertificate(...args) { record("certificate", ...args); return tlsBundle; },
+    async loadOrCreateTlsCertificate(...args) {
+      record("certificate", ...args);
+      return options.certificatePromise ?? tlsBundle;
+    },
   };
   const main = vm.runInNewContext(`(${app.main.toString()})`, dependencies, { timeout: 1000 });
   t.after(() => { for (const value of [...servers, ...sockets]) value.removeAllListeners(); connectedClients.clear(); });

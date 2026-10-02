@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { setImmediate } from "node:timers/promises";
 import { importTestableScript } from "./gemini-canvas-browser-pool.fixtures.mjs";
 import { BROWSER_POOL_CONNECTED_CLIENT_FRAME_LIMIT_BYTES } from "../gemini-canvas-browser-pool-body.mjs";
 import { serverCalls, serverHarness } from "./gemini-canvas-browser-pool.server-fixtures.mjs";
@@ -71,6 +72,31 @@ test("Server certificate failure retains rejection after HTTP listen", async (t)
   assert.deepEqual(serverCalls(h, "listen"), [["listen", "http", 42321, "127.0.0.1"]]);
   assert.deepEqual(serverCalls(h, "create-https"), []);
   assert.equal(h.servers[0].listenerCount("upgrade"), 1);
+});
+
+test("Server waits for asynchronous certificate generation before HTTPS creation", async (t) => {
+  let resolveCertificate;
+  const certificatePromise = new Promise((resolve) => { resolveCertificate = resolve; });
+  const h = serverHarness(t, app, { certificatePromise });
+  const starting = h.start();
+  await setImmediate();
+  assert.equal(serverCalls(h, "certificate").length, 1);
+  assert.deepEqual(serverCalls(h, "create-https"), []);
+  resolveCertificate(h.tlsBundle);
+  await starting;
+  assert.equal(serverCalls(h, "create-https").length, 1);
+  assert.equal(serverCalls(h, "https-options")[0][1].cert, h.tlsBundle.cert);
+});
+
+test("Server propagates delayed certificate rejection without HTTPS creation", async (t) => {
+  let rejectCertificate;
+  const certificatePromise = new Promise((_, reject) => { rejectCertificate = reject; });
+  const h = serverHarness(t, app, { certificatePromise });
+  const rejected = assert.rejects(h.start(), (error) => error === h.failure);
+  await setImmediate();
+  rejectCertificate(h.failure);
+  await rejected;
+  assert.deepEqual(serverCalls(h, "create-https"), []);
 });
 
 for (const scheme of ["http", "https"]) {
