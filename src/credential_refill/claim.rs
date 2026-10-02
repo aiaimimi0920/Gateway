@@ -54,7 +54,7 @@ pub async fn claim_credential_refill_task(
                 state,
                 &demand,
                 CredentialRefillTrigger::Inquiry,
-                demand.deficit,
+                demand.deficit.min(MAX_REQUESTED_COUNT),
                 None,
             )
             .await?;

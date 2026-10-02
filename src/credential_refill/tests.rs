@@ -5,7 +5,7 @@ fn provider(value: serde_json::Value) -> ProviderConfigYaml {
 }
 
 #[test]
-fn demand_combines_provider_and_identity_category_deficits() {
+fn identity_category_targets_cannot_exceed_provider_capacity() {
     let provider = provider(serde_json::json!({
         "id": "codex",
         "base_url": "https://example.invalid",
@@ -21,7 +21,10 @@ fn demand_combines_provider_and_identity_category_deficits() {
     }));
 
     assert_eq!(active_credential_count(&provider), 2);
-    assert_eq!(identity_category_deficit(&provider), 3);
+    assert_eq!(
+        crate::credential_pool_automation::capacity::remaining_capacity(&provider),
+        0
+    );
 }
 
 #[test]
@@ -134,4 +137,13 @@ fn delivery_inputs_follow_the_documented_camel_case_contract() {
         CredentialRefillDeliveryInput::DirectCallback { credentials }
             if credentials.len() == 1
     ));
+}
+
+#[test]
+fn namespaced_provider_ids_remain_compatible() {
+    assert_eq!(
+        normalize_identifier("longcat:longcat-live", "providerId", MAX_WORKER_ID_LENGTH).unwrap(),
+        "longcat:longcat-live"
+    );
+    assert!(normalize_identifier("task:injected", "taskId", MAX_WORKER_ID_LENGTH).is_err());
 }

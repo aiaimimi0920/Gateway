@@ -1,9 +1,7 @@
 use super::archive::archive_pruned_credentials;
+use super::capacity::pool_max_size;
 use super::driver::execute_driver;
-use super::inventory::{
-    active_credential_count, effective_credential_id, identity_category_requested_count,
-    normalized_target_size, prune_credentials,
-};
+use super::inventory::{active_credential_count, effective_credential_id, prune_credentials};
 use super::registry::normalize_required_id;
 use super::{
     CredentialAutomationDriver, CredentialPoolAutomationAction, DriverCredentialContext,
@@ -16,24 +14,39 @@ use std::sync::Arc;
 use uuid::Uuid;
 pub(super) async fn reconcile_provider_with_driver(
     state: &Arc<AppState>,
-    snapshot: &crate::routing::config::RouteConfigSnapshot,
+    observed_snapshot: &crate::routing::config::RouteConfigSnapshot,
     provider: ProviderConfigYaml,
     driver: &CredentialAutomationDriver,
     action: CredentialPoolAutomationAction,
 ) -> anyhow::Result<ReconcileOutcome> {
-    let target_size = normalized_target_size(provider.pool_target_size);
+    let target_size = pool_max_size(&provider);
     let active_count = active_credential_count(&provider);
+    let available = super::availability::pool_availability(state, &provider)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     let refill_enabled =
         action == CredentialPoolAutomationAction::Reconcile && provider.auto_refill_enabled;
     let prune_enabled =
         action == CredentialPoolAutomationAction::Prune || provider.auto_prune_enabled;
+    let pending = crate::credential_refill::pending_requested_count(state, &provider.id)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     let requested_count = if refill_enabled {
-        target_size
-            .saturating_sub(active_count)
-            .max(identity_category_requested_count(&provider))
+        state
+            .credential_pool_automation
+            .automatic_refill_count(&provider, available)
+            .saturating_sub(pending)
     } else {
         0
     };
+    if requested_count == 0 && !prune_enabled {
+        return Ok(ReconcileOutcome {
+            created_count: 0,
+            pruned_count: 0,
+            message: Some("未达到补号触发条件，或凭证池已达到上限。".to_string()),
+            revision_id: None,
+        });
+    }
     let request = DriverRequest {
         run_id: Uuid::new_v4().to_string(),
         action: action.as_str(),
@@ -69,6 +82,8 @@ pub(super) async fn reconcile_provider_with_driver(
     if action == CredentialPoolAutomationAction::Prune && !response.credentials.is_empty() {
         anyhow::bail!("prune driver action must not return credentials");
     }
+    // The driver may take minutes. Never commit against its old capacity/config snapshot.
+    let snapshot = state.route_config.snapshot();
     let mut document = snapshot.document().clone();
     let provider_index = document
         .providers
@@ -84,8 +99,18 @@ pub(super) async fn reconcile_provider_with_driver(
         .collect::<HashSet<_>>();
 
     let mut created_count = 0usize;
-    if refill_enabled {
-        for credential in response.credentials.into_iter().take(requested_count) {
+    if refill_enabled && target_provider.auto_refill_enabled {
+        let available = super::availability::pool_availability(state, target_provider)
+            .await
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        let admitted = state
+            .credential_pool_automation
+            .automatic_refill_count(target_provider, available)
+            .min(requested_count);
+        for credential in response.credentials.into_iter().take(admitted) {
+            if !credential.enabled.unwrap_or(true) {
+                anyhow::bail!("refill driver must return enabled credentials");
+            }
             let credential_id = credential
                 .id
                 .as_deref()
@@ -103,7 +128,7 @@ pub(super) async fn reconcile_provider_with_driver(
     }
 
     let mut prune_ids = HashSet::new();
-    if prune_enabled {
+    if action == CredentialPoolAutomationAction::Prune || target_provider.auto_prune_enabled {
         for decision in response.prune {
             let _classification = decision.classification;
             if existing_ids.contains(&decision.credential_id) {
@@ -111,12 +136,29 @@ pub(super) async fn reconcile_provider_with_driver(
             }
         }
     }
+    // Prune evidence belongs to the exact inspected configuration. An operator
+    // may have repaired a key under the same ID while the driver was running.
+    let prune_ids = super::inventory::current_prune_ids(
+        prune_ids,
+        observed_snapshot.revision().id(),
+        snapshot.revision().id(),
+    );
     let archived_count = archive_pruned_credentials(&state.config, target_provider, &prune_ids)?;
     let pruned_count = prune_credentials(target_provider, &prune_ids);
     if !target_provider.credential_permanent_delete_enabled && archived_count != pruned_count {
         anyhow::bail!("credential archive count did not match the prune set");
     }
 
+    let after = super::availability::pool_availability(state, target_provider)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    if action == CredentialPoolAutomationAction::Reconcile && requested_count > 0 {
+        target_provider.pool_refill_in_progress = true;
+    }
+    super::capacity::normalize_refill_state(target_provider);
+    if after.available >= pool_max_size(target_provider) {
+        target_provider.pool_refill_in_progress = false;
+    }
     if created_count == 0 && pruned_count == 0 {
         return Ok(ReconcileOutcome {
             created_count,

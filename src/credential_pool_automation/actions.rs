@@ -17,6 +17,9 @@ pub async fn start_credential_pool_automation_task(state: Arc<AppState>) {
 }
 
 pub async fn sweep_credential_pool_automation_once(state: &Arc<AppState>) {
+    if let Err(error) = super::cycle::settle_refill_cycles(state).await {
+        tracing::warn!(code = ?error.code, "credential refill cycle settlement failed");
+    }
     let provider_ids = state
         .route_config
         .snapshot()
@@ -70,6 +73,9 @@ async fn run_provider_credential_pool_action(
         .credential_pool_automation
         .lock_for_provider(provider_id);
     let _guard = provider_lock.lock().await;
+    let _admission = super::admission::acquire(state, provider_id)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     let snapshot = state.route_config.snapshot();
     let provider = snapshot
         .document()

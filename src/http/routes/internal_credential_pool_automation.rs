@@ -76,19 +76,17 @@ pub async fn purge_credential_pool_archive_for_provider(
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     let snapshot = state.route_config.snapshot();
-    if !snapshot
+    let provider = snapshot
         .document()
         .providers
         .iter()
-        .any(|provider| provider.id == provider_id)
-    {
-        return Err(
+        .find(|provider| provider.id == provider_id)
+        .ok_or_else(|| {
             GatewayError::not_found(format!("Provider '{provider_id}' 不存在"))
-                .with_code("credential_pool_archive_provider_not_found"),
-        );
-    }
+                .with_code("credential_pool_archive_provider_not_found")
+        })?;
     let purged_count =
-        purge_provider_credential_archive(&state.config, &provider_id).map_err(|error| {
+        purge_provider_credential_archive(&state.config, provider).map_err(|error| {
             GatewayError::server_error(error.to_string())
                 .with_code("credential_pool_archive_purge_failed")
         })?;

@@ -15,7 +15,7 @@ export type ProviderLifecycleBackOptions = {
   automation?: ConsoleCredentialPoolAutomationProvider;
   refill?: ConsoleCredentialRefillDemand;
 };
-type Props = Pick<AccountsLedgerWorkspaceProps, "editorLocked" | "pruneBusyProviderId" |
+type Props = Pick<AccountsLedgerWorkspaceProps, "editorLocked" | "lifecycleActionsLocked" | "pruneBusyProviderId" |
   "refillBusyProviderId" | "archivePurgeBusyProviderId" | "onUpdateProviderPoolTargetSize" |
   "onUpdateProviderPoolMinSize" | "onUpdateProviderStoragePath" | "onUpdateProviderArchivePath" |
   "onToggleProviderAutoRefill" | "onToggleProviderAutoPrune" | "onToggleProviderPermanentDelete" |
@@ -24,7 +24,7 @@ type Props = Pick<AccountsLedgerWorkspaceProps, "editorLocked" | "pruneBusyProvi
   requestProviderLifecycleAction: (action: PendingProviderLifecycleAction) => void;
 };
 
-export function ProviderLifecycleBack({ options, editorLocked, onUpdateProviderPoolTargetSize,
+export function ProviderLifecycleBack({ options, editorLocked, lifecycleActionsLocked, onUpdateProviderPoolTargetSize,
   onUpdateProviderPoolMinSize, onUpdateProviderStoragePath, onUpdateProviderArchivePath,
   onToggleProviderAutoRefill, onToggleProviderAutoPrune, pruneBusyProviderId, refillBusyProviderId,
   archivePurgeBusyProviderId, onToggleProviderPermanentDelete, onRequestProviderRefill,
@@ -74,7 +74,7 @@ export function ProviderLifecycleBack({ options, editorLocked, onUpdateProviderP
           <div className="nt-provider-lifecycle__command-row">
             <button className="nt-btn nt-btn--secondary nt-provider-lifecycle__command" type="button"
               aria-label={t(`${providerLabel} 手动补号`, `Manually refill ${providerLabel}`)}
-              disabled={editorLocked || !refill?.userRequestEnabled || refillBusyProviderId === providerId || options.availableCount >= section.poolTargetSize || Boolean(refill?.outstandingTaskId)}
+              disabled={editorLocked || lifecycleActionsLocked || !refill?.userRequestEnabled || refillBusyProviderId === providerId || options.availableCount >= section.poolTargetSize || Boolean(refill?.outstandingTaskId)}
               onClick={() => onRequestProviderRefill(providerId)}><UserPlus size={17} />
               {refillBusyProviderId === providerId ? t("补号中", "Refilling") : t("补号", "Refill")}
             </button>
@@ -96,7 +96,7 @@ export function ProviderLifecycleBack({ options, editorLocked, onUpdateProviderP
           <div className="nt-provider-lifecycle__command-row">
             <button className="nt-btn nt-btn--danger nt-provider-lifecycle__command" type="button"
               aria-label={t(`${providerLabel} 手动删除失效号`, `Manually delete invalid ${providerLabel} credentials`)}
-              disabled={editorLocked || !automation?.driverConfigured || pruneBusyProviderId === providerId}
+              disabled={editorLocked || lifecycleActionsLocked || !automation?.driverConfigured || pruneBusyProviderId === providerId}
               onClick={() => lifecycleAction("prune")}>
               {pruneBusyProviderId === providerId ? t("删除中", "Deleting") : t(`删除（${options.invalidCount}）`, `Delete (${options.invalidCount})`)}
             </button>
@@ -108,7 +108,7 @@ export function ProviderLifecycleBack({ options, editorLocked, onUpdateProviderP
           <div className="nt-provider-lifecycle__command-row">
             <button className="nt-btn nt-btn--secondary nt-provider-lifecycle__command" type="button"
               aria-label={t(`${providerLabel} 手动清空账号归档`, `Manually purge the ${providerLabel} account archive`)}
-              disabled={editorLocked || archivedCount === 0 || archivePurgeBusyProviderId === providerId}
+              disabled={editorLocked || lifecycleActionsLocked || archivedCount === 0 || archivePurgeBusyProviderId === providerId}
               onClick={() => lifecycleAction("purge-archive")}>
               {archivePurgeBusyProviderId === providerId ? t("清理中", "Purging") : t(`清空（${archivedCount}）`, `Purge (${archivedCount})`)}
             </button>

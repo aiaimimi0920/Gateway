@@ -6,7 +6,9 @@ test.describe("Gateway web console provider pool", () => {
     page,
   }, testInfo) => {
     const state = await installConsoleApiMocks(page);
-    Object.assign(state.routeConfig.routeConfig.document.providers[0], {
+    const fixtureProvider = state.routeConfig.routeConfig.document.providers[0];
+    if (!fixtureProvider || typeof fixtureProvider !== "object") throw new Error("Provider fixture is missing");
+    Object.assign(fixtureProvider, {
       label: "NVIDIA", preset: "nvidia-openai", pool_target_size: 100,
     });
 

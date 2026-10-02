@@ -1,4 +1,4 @@
-use super::inventory::{active_credential_count, normalized_target_size};
+use super::capacity::{active_credential_count, pool_max_size, pool_min_size};
 use super::{
     CredentialPoolAutomationConfig, CredentialPoolAutomationRuntime, CredentialPoolDriverView,
     DriverRegistry, ProviderCredentialPoolAutomationView, ProviderRunState,
@@ -113,7 +113,8 @@ impl CredentialPoolAutomationRuntime {
                         .label
                         .clone()
                         .unwrap_or_else(|| provider.id.clone()),
-                    target_size: normalized_target_size(provider.pool_target_size),
+                    target_size: pool_max_size(provider),
+                    min_size: pool_min_size(provider),
                     credential_count: provider.credentials.len(),
                     active_credential_count: active_credential_count(provider),
                     auto_refill_enabled: provider.auto_refill_enabled,
@@ -141,7 +142,19 @@ impl CredentialPoolAutomationRuntime {
             .collect()
     }
 
-    pub(super) fn lock_for_provider(&self, provider_id: &str) -> Arc<Mutex<()>> {
+    pub(crate) fn automatic_refill_count(
+        &self,
+        provider: &ProviderConfigYaml,
+        availability: super::availability::PoolAvailability,
+    ) -> usize {
+        super::capacity::refill_request_count(
+            provider,
+            availability.available,
+            availability.remaining,
+        )
+    }
+
+    pub(crate) fn lock_for_provider(&self, provider_id: &str) -> Arc<Mutex<()>> {
         self.provider_locks
             .entry(provider_id.to_string())
             .or_insert_with(|| Arc::new(Mutex::new(())))

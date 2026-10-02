@@ -72,6 +72,7 @@ export type AccountsLedgerWorkspaceProps = {
   notice?: ReactNode;
   editorLocked: boolean;
   discardLifecycleDrafts?: boolean;
+  lifecycleActionsLocked?: boolean;
   totalAccounts: number;
   visibleCount: number;
   rows: AccountLedgerRow[];

@@ -28,6 +28,7 @@ pub async fn start_credential_refill_notification_task(state: Arc<AppState>) {
 pub async fn publish_notification_refill_demands_once(
     state: &AppState,
 ) -> Result<usize, GatewayError> {
+    crate::credential_pool_automation::cycle::settle_refill_cycles(state).await?;
     let demands = list_credential_refill_demands(state).await?;
     let mut published = 0usize;
     for demand in demands
@@ -38,11 +39,10 @@ pub async fn publish_notification_refill_demands_once(
             state,
             &demand,
             CredentialRefillTrigger::Notification,
-            demand.deficit,
-            Some(format!(
-                "notification:{}:{}",
-                demand.provider_id, demand.revision_id
-            )),
+            demand.deficit.min(MAX_REQUESTED_COUNT),
+            // Outstanding-task deduplication reserves capacity. Failed tasks release it;
+            // the next timed sweep may retry without a permanent revision-key tombstone.
+            None,
         )
         .await?;
         published += usize::from(result.created);

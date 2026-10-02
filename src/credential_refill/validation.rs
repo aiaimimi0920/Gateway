@@ -52,7 +52,9 @@ pub(super) fn normalize_identifier(
     if normalized.is_empty()
         || normalized.chars().count() > max
         || !normalized.chars().all(|character| {
-            character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.')
+            character.is_ascii_alphanumeric()
+                || matches!(character, '-' | '_' | '.')
+                || (matches!(field, "providerId" | "providerIds") && character == ':')
         })
     {
         return Err(GatewayError::bad_request(format!(

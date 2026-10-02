@@ -301,6 +301,7 @@ fn ensure_canonical_size(
 pub(crate) fn materialize_credential_ids(mut document: RouteConfigYaml) -> RouteConfigYaml {
     for provider in &mut document.providers {
         let provider_id = provider.id.clone();
+        crate::credential_pool_automation::capacity::normalize_refill_state(provider);
         for (index, credential) in provider.credentials.iter_mut().enumerate() {
             if credential.id.is_none() {
                 credential.id = Some(format!("{provider_id}-cred-{index}"));

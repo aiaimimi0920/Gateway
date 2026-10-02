@@ -161,6 +161,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   const requestProviderLifecycleAction = (
     action: PendingProviderLifecycleAction,
   ) => {
+    if (props.lifecycleActionsLocked && action.kind !== "enable-permanent-delete") return;
     setPendingProviderLifecycleAction(action);
   };
 
@@ -236,6 +237,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   const renderProviderLifecycleBack = (options: ProviderLifecycleBackOptions) => (
     <ProviderLifecycleBack
       options={options}
+      lifecycleActionsLocked={props.lifecycleActionsLocked}
       editorLocked={editorLocked}
       pruneBusyProviderId={pruneBusyProviderId}
       refillBusyProviderId={refillBusyProviderId}

@@ -51,29 +51,42 @@ pub(super) async fn deliver(
             value @ CredentialRefillDeliveryInput::DirectCallback { .. } => {
                 (value, CredentialRefillDeliveryMode::DirectCallback)
             }
-            value @ CredentialRefillDeliveryInput::FolderSync { .. } => {
-                (value, CredentialRefillDeliveryMode::FolderSync)
+            CredentialRefillDeliveryInput::FolderSync { relative_paths } => {
+                let credentials = folder_delivery::collect(state, task, relative_paths).await?;
+                (
+                    CredentialRefillDeliveryInput::DirectCallback { credentials },
+                    CredentialRefillDeliveryMode::FolderSync,
+                )
             }
         };
-        let expected =
-            if let CredentialRefillDeliveryInput::DirectCallback { credentials } = &delivery {
-                if credentials.is_empty() || credentials.len() > task.requested_count {
-                    return Err(GatewayError::bad_request(
-                        "Refill credential count is outside the requested bounds",
-                    ));
-                }
-                let snapshot = state.route_config.snapshot();
-                let mut provider = snapshot
-                    .document()
-                    .providers
-                    .iter()
-                    .find(|provider| provider.id == task.provider_id)
-                    .cloned()
-                    .ok_or_else(|| GatewayError::not_found("Refill provider does not exist"))?;
-                delivery::append_refill_credentials(&mut provider, credentials.clone())?
-            } else {
-                0
-            };
+        let expected = if let CredentialRefillDeliveryInput::DirectCallback { credentials } =
+            &delivery
+        {
+            if credentials.is_empty() || credentials.len() > task.requested_count {
+                return Err(GatewayError::bad_request(
+                    "Refill credential count is outside the requested bounds",
+                ));
+            }
+            let snapshot = state.route_config.snapshot();
+            let mut provider = snapshot
+                .document()
+                .providers
+                .iter()
+                .find(|provider| provider.id == task.provider_id)
+                .cloned()
+                .ok_or_else(|| GatewayError::not_found("Refill provider does not exist"))?;
+            let availability = crate::credential_pool_automation::availability::pool_availability(
+                state, &provider,
+            )
+            .await?;
+            delivery::append_refill_credentials_with_capacity(
+                &mut provider,
+                credentials.clone(),
+                availability.remaining,
+            )?
+        } else {
+            0
+        };
         let payload = serde_json::to_string(&delivery)
             .map_err(|_| GatewayError::server_error("Cannot prepare refill delivery"))?;
         let mode_json = serde_json::to_string(&mode)
@@ -85,9 +98,7 @@ pub(super) async fn deliver(
     };
     let mut outcome = deliver_refill_result(state, task, delivery).await?;
     outcome.mode = mode;
-    if mode != CredentialRefillDeliveryMode::FolderSync {
-        outcome.created_count = expected_count;
-        outcome.message = format!("Credential delivery committed: {expected_count}");
-    }
+    outcome.created_count = expected_count;
+    outcome.message = format!("Credential delivery committed: {expected_count}");
     Ok(outcome)
 }

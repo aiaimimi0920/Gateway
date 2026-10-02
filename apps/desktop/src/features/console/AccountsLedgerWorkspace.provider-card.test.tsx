@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -284,6 +284,30 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     expect(onPurgeProviderArchive).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "彻底删除归档" }));
     expect(onPurgeProviderArchive).toHaveBeenCalledWith("managed-provider");
+  });
+
+  it("cannot open purge confirmation against an uncommitted archive path", async () => {
+    const user = userEvent.setup();
+    renderWorkspace(workspaceProps({ lifecycleActionsLocked: true }));
+    await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
+    const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
+    expect(trigger).toBeDisabled();
+    await user.click(trigger);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("returns focus to the destructive action after Cancel or Escape", async () => {
+    const user = userEvent.setup();
+    const onPurgeProviderArchive = vi.fn();
+    renderWorkspace(workspaceProps({ onPurgeProviderArchive }));
+    await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
+    const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await user.keyboard("{Enter}{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(onPurgeProviderArchive).not.toHaveBeenCalled();
   });
 
   it("copies provider-scoped values and edits the storage password in the current draft", async () => {
