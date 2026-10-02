@@ -152,7 +152,14 @@ async fn body_read_errors_keep_the_original_provider_classification() {
         collect_bounded_upstream_charset_text_with_provider(failed_response(), LABEL, PROVIDER)
             .await
             .unwrap_err();
-    assert_eq!(actual.message, expected.message);
+    // wreq's text reader adds URI context that its byte stream omits.
+    // Preserve the classification and root cause without coupling to that context.
+    for error in [&actual, &expected] {
+        assert!(error.message.starts_with("Network error: "));
+        assert!(error.message.ends_with(": fixture body reset"));
+    }
+    assert_eq!(actual.kind, expected.kind);
+    assert_ne!(actual.kind, crate::error::ErrorKind::Timeout);
     assert_eq!(actual.code, expected.code);
     assert_eq!(actual.provider_name, expected.provider_name);
     assert_eq!(actual.http_status, expected.http_status);
