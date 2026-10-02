@@ -5,7 +5,10 @@ test.describe("Gateway web console provider pool", () => {
   test("flips a provider pool card while keeping the inactive face out of navigation", async ({
     page,
   }, testInfo) => {
-    await installConsoleApiMocks(page);
+    const state = await installConsoleApiMocks(page);
+    Object.assign(state.routeConfig.routeConfig.document.providers[0], {
+      label: "NVIDIA", preset: "nvidia-openai", pool_target_size: 100,
+    });
 
     await page.goto("/ui/");
     await page.getByLabel("管理密钥").fill("gateway-admin-token");
@@ -38,7 +41,7 @@ test.describe("Gateway web console provider pool", () => {
 
     await flipButton.click();
     if (process.env.GATEWAY_E2E_CAPTURE_CARDS === "1") {
-      await card.screenshot({ path: `output/playwright/provider-card-back-${testInfo.project.name}.png` });
+      await card.screenshot({ animations: "disabled", path: `output/playwright/provider-card-back-${testInfo.project.name}.png` });
     }
 
     await expect(card).toHaveAttribute("data-provider-card-side", "back");
@@ -72,9 +75,24 @@ test.describe("Gateway web console provider pool", () => {
       .toBeLessThanOrEqual(1);
     if (process.env.GATEWAY_E2E_CAPTURE_CARDS === "1") {
       await card.screenshot({
+        animations: "disabled",
         path: `output/playwright/provider-card-back-${testInfo.project.name}.png`,
       });
     }
+
+    await card.getByRole("button", { name: "编辑 NVIDIA 最大可用池" }).click();
+    const maximum = card.getByRole("spinbutton", { name: "NVIDIA 最大可用池" });
+    await maximum.fill("1000000");
+    await maximum.press("Escape");
+    await expect(maximum).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "编辑 NVIDIA 最大可用池" })).toBeFocused();
+    await card.getByRole("button", { name: "编辑 NVIDIA 存储路径" }).click();
+    await card.getByRole("textbox", { name: "NVIDIA 存储路径" }).fill("https://example.invalid/pool");
+    await card.getByRole("button", { name: "保存 NVIDIA 存储路径" }).click();
+    await expect(page.getByText(/HTTP\/HTTPS 云存储尚未配置/)).toBeVisible();
+    await card.getByRole("button", { name: "取消编辑 NVIDIA 存储路径" }).click();
+    await expect.poll(() => backBody.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
+    await card.getByRole("button", { name: /翻回.*卡牌正面/ }).focus();
 
     await page.keyboard.press("Space");
 
@@ -151,6 +169,7 @@ test.describe("Gateway web console provider pool", () => {
     ).toBeVisible();
     if (process.env.GATEWAY_E2E_CAPTURE_CARDS === "1") {
       await card.screenshot({
+        animations: "disabled",
         path: `output/playwright/provider-card-front-${testInfo.project.name}.png`,
       });
     }
