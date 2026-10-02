@@ -1,0 +1,85 @@
+name: Diagnose local storage stack
+
+# Temporary, isolated diagnosis only. This is not a product or release gate.
+# Opening a PR would also run the existing 44-line Windows matrix, so this
+# workflow is restricted to one diagnostic branch push instead.
+on:
+  push:
+    branches: [codex/diagnose-local-storage-stack]
+    paths:
+      - .github/workflows/diagnose-local-storage-stack.yml
+      - tests/local_storage_pipeline_contract.rs
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.repository == 'aiaimimi0920/Gateway'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: '1'
+      CARGO_INCREMENTAL: '0'
+      CARGO_TERM_COLOR: never
+      RUST_BACKTRACE: '1'
+    steps:
+      - name: Checkout exact diagnostic commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.22.0'
+      - name: Setup Rust 1.98
+        uses: dtolnay/rust-toolchain@4dfd137a5aecc12897f37a01818006f58cf58347 # 1.98.0
+        with:
+          toolchain: '1.98.0'
+          components: rustfmt
+      - name: Install native build and debugger dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clang cmake gdb libssl-dev pkg-config
+      - name: Validate diagnostic source
+        run: |
+          cargo fmt --all -- --check
+          npm run test:effective-lines --prefix scripts
+          npm run check:effective-lines --prefix scripts
+          git diff --check
+      - name: Prepare embedded web assets
+        run: |
+          npm ci --prefix apps/desktop --no-audit --no-fund
+          npm run audit:prod --prefix apps/desktop
+      - name: Run only the failing local-storage fixture
+        id: fixture
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --locked --test local_storage_pipeline_contract \
+            local_mode_ignores_external_databases_and_enforces_http_balances \
+            -- --exact --nocapture --test-threads=1 2>&1 | tee gateway-local-stack-diagnostic.log
+          grep -Fx 'running 1 test' gateway-local-stack-diagnostic.log
+      - name: Capture argument-free native frames if the fixture failed
+        if: failure() && steps.fixture.outcome == 'failure'
+        shell: bash
+        run: |
+          set -o pipefail
+          mapfile -t binaries < <(find target/debug/deps -maxdepth 1 -type f -executable -name 'local_storage_pipeline_contract-*' | sort)
+          test "${#binaries[@]}" -eq 1
+          gdb --batch --return-child-result \
+            -ex 'set pagination off' -ex 'set print frame-arguments none' \
+            -ex 'set disable-randomization off' -ex run -ex 'thread apply all bt 40' \
+            --args "${binaries[0]}" \
+            local_mode_ignores_external_databases_and_enforces_http_balances \
+            --exact --nocapture --test-threads=1 2>&1 | tee gateway-local-stack-diagnostic-frames.log
+      - name: Preserve only diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: gateway-local-stack-diagnostic-${{ github.sha }}
+          path: gateway-local-stack-diagnostic*.log
+          if-no-files-found: ignore
+          retention-days: 3

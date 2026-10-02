@@ -57,6 +57,7 @@ async fn request(
         .header("x-management-token", key)
         .body(Body::from(body.to_string()))
         .unwrap();
+    eprintln!("[local-storage-stack] request: dispatch");
     let response = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         build_router(state.clone()).oneshot(request),
@@ -64,12 +65,15 @@ async fn request(
     .await
     .unwrap()
     .unwrap();
+    eprintln!("[local-storage-stack] request: response received");
     let status = response.status();
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    eprintln!("[local-storage-stack] request: body collected");
     (status, String::from_utf8(bytes.to_vec()).unwrap())
 }
 
 async fn remaining(state: &Arc<AppState>, id: &str) -> i64 {
+    eprintln!("[local-storage-stack] balance: read");
     AccessBalanceStore::from_state(state)
         .unwrap()
         .get(id)
@@ -82,6 +86,7 @@ async fn remaining(state: &Arc<AppState>, id: &str) -> i64 {
 
 #[tokio::test]
 async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
+    eprintln!("[local-storage-stack] flow: entered");
     let root = std::env::temp_dir().join(format!("gateway-local-flow-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&root).unwrap();
     let calls = Arc::new(AtomicUsize::new(0));
@@ -100,12 +105,15 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     config.console.state_dir = root.join("state");
     config.console.routes_file = root.join("routes.yaml");
     std::fs::write(&config.console.routes_file, format!("providers:\n  - id: nvidia-fixture\n    base_url: http://{address}\n    api_key: fixture-only\n    supported_models: [nvidia-test]\nmodel_routes: []\n")).unwrap();
+    eprintln!("[local-storage-stack] initial state: build");
     let state = neuro_gateway::runtime::build_app_state(config.clone())
         .await
         .unwrap();
+    eprintln!("[local-storage-stack] initial state: ready");
     assert!(state.pg_pool.is_none());
     assert!(state.redis_pool.is_closed());
     assert!(state.auth_adapters.is_empty());
+    eprintln!("[local-storage-stack] create key: begin");
     let (status, created) = request(&state, "/v1/internal/gateway/access/keys", support::MANAGEMENT_TOKEN,
         json!({"ownerType":"user","ownerId":"fixture","resolvedProjectId":"local","resolvedTenantId":"local",
             "keyKind":"normal","publicKeyPrefix":"sk-gw","displayName":"flow","metadata":{"models":["nvidia-test"]}})).await;
@@ -114,6 +122,7 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     let id = created["id"].as_str().unwrap();
     let token = created["token"].as_str().unwrap();
     let adjust_path = format!("/v1/internal/gateway/access/keys/{id}/balances/adjust");
+    eprintln!("[local-storage-stack] initialize balance: begin");
     let (status, adjusted) = request(
         &state,
         &adjust_path,
@@ -123,6 +132,7 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     .await;
     assert_eq!(status, StatusCode::OK, "{adjusted}");
     let payload = |model: &str, stream: bool, content: &str| json!({"model":model,"stream":stream,"messages":[{"role":"user","content":content}]});
+    eprintln!("[local-storage-stack] reject forbidden model: begin");
     let (status, _) = request(
         &state,
         "/v1/chat/completions",
@@ -133,6 +143,7 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     assert!(!status.is_success());
     assert_eq!(remaining(&state, id).await, 2);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
+    eprintln!("[local-storage-stack] nonstream request: begin");
     let (status, body) = request(
         &state,
         "/v1/chat/completions",
@@ -142,6 +153,7 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(remaining(&state, id).await, 1);
+    eprintln!("[local-storage-stack] stream request: begin");
     let (status, body) = request(
         &state,
         "/v1/chat/completions",
@@ -158,6 +170,7 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     assert_eq!(remaining(&state, id).await, 0);
+    eprintln!("[local-storage-stack] exhausted balance request: begin");
     let (status, body) = request(
         &state,
         "/v1/chat/completions",
@@ -168,13 +181,17 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS, "{body}");
     assert!(body.contains("message_balance_exhausted"), "{body}");
     assert_eq!(calls.load(Ordering::SeqCst), 2);
+    eprintln!("[local-storage-stack] restart: close initial runtime");
     let local = state.local_runtime.as_ref().unwrap();
     local.close().await;
     drop(state);
+    eprintln!("[local-storage-stack] restarted state: build");
     let state = neuro_gateway::runtime::build_app_state(config)
         .await
         .unwrap();
+    eprintln!("[local-storage-stack] restarted state: ready");
     assert_eq!(remaining(&state, id).await, 0);
+    eprintln!("[local-storage-stack] replenish balance: begin");
     let (status, body) = request(
         &state,
         &adjust_path,
@@ -183,6 +200,7 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{body}");
+    eprintln!("[local-storage-stack] failed upstream request: begin");
     let (status, _) = request(
         &state,
         "/v1/chat/completions",
@@ -198,9 +216,11 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
         .await
         .unwrap()
         .unwrap();
+    eprintln!("[local-storage-stack] final balance: read complete");
     assert_eq!(balance.total_messages, Some(3));
     state.local_runtime.as_ref().unwrap().close().await;
     drop(state);
+    eprintln!("[local-storage-stack] flow: cleanup");
     upstream_task.abort();
     let _ = upstream_task.await;
     for attempt in 0..40 {
