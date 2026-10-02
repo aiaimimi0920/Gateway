@@ -69,9 +69,28 @@ jobs:
           set -o pipefail
           mapfile -t binaries < <(find target/debug/deps -maxdepth 1 -type f -executable -name 'local_storage_pipeline_contract-*' | sort)
           test "${#binaries[@]}" -eq 1
+          cat > "$RUNNER_TEMP/gateway-stack-sp.gdb" <<'GDB'
+          python
+          frame = gdb.newest_frame()
+          previous_sp = None
+          for index in range(40):
+              if frame is None:
+                  break
+              try:
+                  sp = int(frame.read_register("rsp"))
+                  delta = "n/a" if previous_sp is None else str(sp - previous_sp)
+                  gdb.write(f"[local-storage-stack-sp] frame={index} sp=0x{sp:x} delta={delta}\n")
+                  previous_sp = sp
+                  frame = frame.older()
+              except gdb.error:
+                  gdb.write(f"[local-storage-stack-sp] frame={index} unavailable\n")
+                  break
+          end
+          GDB
           gdb --batch --return-child-result \
             -ex 'set pagination off' -ex 'set print frame-arguments none' \
-            -ex 'set disable-randomization off' -ex run -ex 'thread apply all bt 40' \
+            -ex 'set disable-randomization off' -ex run \
+            -x "$RUNNER_TEMP/gateway-stack-sp.gdb" -ex 'thread apply all bt 40' \
             --args "${binaries[0]}" \
             local_mode_ignores_external_databases_and_enforces_http_balances \
             --exact --nocapture --test-threads=1 2>&1 | tee gateway-local-stack-diagnostic-frames.log
