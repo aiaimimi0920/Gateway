@@ -42,9 +42,6 @@ test.describe("Gateway web console provider pool", () => {
     await expect(card.getByRole("switch", { name: /调度开关/ })).toBeVisible();
 
     await flipButton.click();
-    if (process.env.GATEWAY_E2E_CAPTURE_CARDS === "1") {
-      await card.screenshot({ animations: "disabled", path: `output/playwright/provider-card-back-${testInfo.project.name}.png` });
-    }
 
     await expect(card).toHaveAttribute("data-provider-card-side", "back");
     await expect(front).toHaveAttribute("aria-hidden", "true");

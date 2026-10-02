@@ -52,11 +52,15 @@ impl LocalRuntime {
         prefix: &str,
         value: &str,
     ) -> Result<Option<File>, GatewayError> {
-        // A fixed stripe set bounds disk metadata and never incorporates user path text.
-        let stripe = Sha256::digest(value.as_bytes())[0];
-        let path = self
-            .lock_directory
-            .join(format!("{prefix}{stripe:02x}.lock"));
+        // Preserve bounded task stripes. Long provider operations need independent
+        // identities so an unrelated provider cannot be stalled by an 8-bit collision.
+        let digest = Sha256::digest(value.as_bytes());
+        let name = if prefix.is_empty() {
+            format!("{:02x}.lock", digest[0])
+        } else {
+            format!("{prefix}{digest:x}.lock")
+        };
+        let path = self.lock_directory.join(name);
         tokio::task::spawn_blocking(move || {
             let file = OpenOptions::new()
                 .create(true)

@@ -91,6 +91,7 @@ pub(super) async fn reconcile_provider_with_driver(
         .position(|candidate| candidate.id == provider.id)
         .ok_or_else(|| anyhow::anyhow!("provider disappeared from route document"))?;
     let target_provider = &mut document.providers[provider_index];
+    let previous_refill_state = target_provider.pool_refill_in_progress;
     let mut existing_ids = target_provider
         .credentials
         .iter()
@@ -159,7 +160,9 @@ pub(super) async fn reconcile_provider_with_driver(
     if after.available >= pool_max_size(target_provider) {
         target_provider.pool_refill_in_progress = false;
     }
-    if created_count == 0 && pruned_count == 0 {
+    // A cycle-only change still needs durable CAS, even after an empty driver delivery.
+    let refill_state_changed = target_provider.pool_refill_in_progress != previous_refill_state;
+    if created_count == 0 && pruned_count == 0 && !refill_state_changed {
         return Ok(ReconcileOutcome {
             created_count,
             pruned_count,

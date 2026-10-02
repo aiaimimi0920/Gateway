@@ -18,6 +18,19 @@ pub(crate) async fn acquire(
     state: &AppState,
     provider_id: &str,
 ) -> Result<ProviderAdmissionGuard, GatewayError> {
+    // Only configured providers can allocate a durable per-provider lock file.
+    if !state
+        .route_config
+        .snapshot()
+        .document()
+        .providers
+        .iter()
+        .any(|p| p.id == provider_id)
+    {
+        return Err(GatewayError::not_found(
+            "Credential pool provider no longer exists",
+        ));
+    }
     if let Some(local) = &state.local_runtime {
         return local
             .try_pool_capacity_lock(provider_id)

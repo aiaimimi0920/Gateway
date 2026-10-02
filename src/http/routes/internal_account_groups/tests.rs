@@ -12,6 +12,18 @@ use axum::response::IntoResponse;
 use http_body_util::BodyExt;
 use serde_json::Value;
 
+struct TestDirectory(std::path::PathBuf);
+
+impl Drop for TestDirectory {
+    fn drop(&mut self) {
+        if let Err(error) = std::fs::remove_dir_all(&self.0) {
+            if !std::thread::panicking() {
+                panic!("Cannot remove isolated account-group test directory: {error}");
+            }
+        }
+    }
+}
+
 fn make_config() -> Config {
     Config {
         console: Default::default(),
@@ -74,21 +86,23 @@ fn make_config() -> Config {
 
 fn test_console_auth_runtime(
     env_management_token: Option<&str>,
-) -> Arc<crate::console::ConsoleAuthRuntime> {
+) -> (TestDirectory, Arc<crate::console::ConsoleAuthRuntime>) {
     let temp = std::env::temp_dir().join(format!(
         "gateway-account-groups-console-{}",
         uuid::Uuid::new_v4()
     ));
+    let directory = TestDirectory(temp.clone());
     let console = crate::console::ConsoleConfig::from_values(ConsoleConfigValues {
         state_dir: Some(temp.clone()),
         routes_file: Some(temp.join("routes.yaml")),
         ..Default::default()
     })
     .unwrap();
-    Arc::new(
+    let runtime = Arc::new(
         crate::console::ConsoleAuthRuntime::new(&console, env_management_token.map(str::to_string))
             .unwrap(),
-    )
+    );
+    (directory, runtime)
 }
 
 fn make_state_with_console_auth(
@@ -119,10 +133,11 @@ fn make_state_with_console_auth(
     })
 }
 
-fn make_state(route_config: RouteConfigStore) -> Arc<AppState> {
-    make_state_with_console_auth(
-        route_config,
-        test_console_auth_runtime(Some("management-token")),
+fn make_state(route_config: RouteConfigStore) -> (TestDirectory, Arc<AppState>) {
+    let (directory, console_auth) = test_console_auth_runtime(Some("management-token"));
+    (
+        directory,
+        make_state_with_console_auth(route_config, console_auth),
     )
 }
 
@@ -137,7 +152,7 @@ fn load_legacy_route_config(yaml: &str) -> RouteConfigStore {
     route_config.expect("load legacy route config")
 }
 
-fn sensitive_url_state() -> Arc<AppState> {
+fn sensitive_url_state() -> (TestDirectory, Arc<AppState>) {
     let route_config = load_legacy_route_config(
         r#"
 providers:
@@ -157,17 +172,14 @@ aliases: {}
 }
 
 async fn sensitive_url_summary_response() -> axum::response::Response {
+    // Declare the directory first so the AppState and writer lock drop before cleanup.
+    let (_directory, state) = sensitive_url_state();
     let mut headers = HeaderMap::new();
     headers.insert("x-internal-api-key", "management-token".parse().unwrap());
-    get_account_groups_summary(
-        State(sensitive_url_state()),
-        None,
-        OptionalBearerToken(None),
-        headers,
-    )
-    .await
-    .expect("summary response")
-    .into_response()
+    get_account_groups_summary(State(state), None, OptionalBearerToken(None), headers)
+        .await
+        .expect("summary response")
+        .into_response()
 }
 
 #[tokio::test]
@@ -229,7 +241,7 @@ aliases: {}
 "#,
     )
     .unwrap();
-    let console_auth = test_console_auth_runtime(None);
+    let (_directory, console_auth) = test_console_auth_runtime(None);
     console_auth
         .bootstrap(
             &crate::console::ConsoleRequestContext::new(
@@ -401,7 +413,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
         }],
     })
     .expect("route config");
-    let state = make_state(route_config);
+    let (_directory, state) = make_state(route_config);
     let mut headers = HeaderMap::new();
     headers.insert("x-internal-api-key", "management-token".parse().unwrap());
 

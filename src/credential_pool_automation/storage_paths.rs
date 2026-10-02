@@ -54,6 +54,10 @@ pub(crate) fn reject_linked_components(path: &Path) -> anyhow::Result<()> {
             anyhow::bail!("parent path traversal is not allowed");
         }
         current.push(component);
+        // A Windows verbatim drive prefix is not queryable until RootDir is appended.
+        if matches!(component, Component::Prefix(_)) {
+            continue;
+        }
         match std::fs::symlink_metadata(&current) {
             Ok(metadata) => {
                 if metadata.file_type().is_symlink() {
@@ -85,5 +89,18 @@ mod tests {
         assert!(validate_storage_path("/tmp/../credentials").is_err());
         assert!(validate_storage_path("").is_ok());
         assert!(validate_storage_path(std::env::temp_dir().to_str().unwrap()).is_ok());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn accepts_canonical_windows_paths_without_querying_the_drive_prefix() {
+        let root = std::env::temp_dir().join(format!("pool-path-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let file = root.join("credential.json");
+        std::fs::write(&file, b"{}").unwrap();
+        let canonical = std::fs::canonicalize(&file).unwrap();
+        assert!(canonical.to_string_lossy().starts_with(r"\\?\"));
+        assert!(reject_linked_components(&canonical).is_ok());
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

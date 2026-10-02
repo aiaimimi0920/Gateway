@@ -16,6 +16,8 @@ pub(crate) mod cycle;
 mod driver;
 mod inventory;
 mod reconciliation;
+#[cfg(test)]
+mod reconciliation_tests;
 mod refill;
 mod registry;
 mod runtime;

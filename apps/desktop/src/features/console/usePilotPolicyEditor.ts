@@ -238,7 +238,10 @@ export function usePilotPolicyEditor({
     try {
       const document = parseRouteDocument(editorText);
       const provider = document.providers.find((entry) => isRecord(entry) && entry.id === providerId);
-      if (!isRecord(provider)) return false;
+      if (!isRecord(provider)) {
+        setError(t(`找不到服务商 ${providerId}。`, `Provider ${providerId} could not be found.`));
+        return false;
+      }
       provider[field] = value.trim();
       replaceEditorDocument(document, true);
       setError(null);
