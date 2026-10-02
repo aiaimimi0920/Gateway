@@ -47,11 +47,13 @@ where
             let _ = done_tx.send(());
         })
         .map_err(|_| task_failed())?;
+    // Teardown may drop the monitor before its first poll; capture an armed guard.
+    let guard = WorkerGuard {
+        cancel: Some(cancel),
+        worker: Some(worker),
+    };
     let monitor = tokio::spawn(async move {
-        let _guard = WorkerGuard {
-            cancel: Some(cancel),
-            worker: Some(worker),
-        };
+        let _guard = guard;
         let _ = done.await;
     });
     let result = result_rx.await;
