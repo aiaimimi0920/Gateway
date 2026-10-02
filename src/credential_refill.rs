@@ -4,11 +4,14 @@ use crate::routing::config::ProviderConfigYaml;
 use crate::routing::config::ProviderCredentialYaml;
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+mod capacity_tests;
 mod claim;
 mod completion;
 mod creation;
 mod delivery;
 mod demand;
+mod folder_delivery;
 mod local;
 mod local_delivery;
 #[cfg(test)]
@@ -29,7 +32,7 @@ use creation::hash_idempotency_key;
 use delivery::append_refill_credentials;
 use delivery::deliver_refill_result;
 #[cfg(test)]
-use demand::{active_credential_count, identity_category_deficit, provider_path_segment};
+use demand::{active_credential_count, provider_path_segment};
 pub use demand::{demand_for_provider, list_credential_refill_demands};
 pub use notifications::{
     publish_notification_refill_demands_once, start_credential_refill_notification_task,
@@ -45,7 +48,7 @@ use validation::{
     validate_folder_paths, validate_requested_count,
 };
 
-const MAX_REQUESTED_COUNT: usize = 10_000;
+const MAX_REQUESTED_COUNT: usize = crate::credential_pool_automation::capacity::MAX_REFILL_BATCH;
 const MAX_TASK_LIST_LIMIT: usize = 200;
 const MAX_WORKER_ID_LENGTH: usize = 128;
 const MAX_IDEMPOTENCY_KEY_LENGTH: usize = 160;
@@ -92,6 +95,8 @@ pub struct CredentialRefillDemandView {
     pub provider_id: String,
     pub provider_label: String,
     pub target_size: usize,
+    pub min_size: usize,
+    pub available_credential_count: usize,
     pub credential_count: usize,
     pub active_credential_count: usize,
     pub deficit: usize,
@@ -280,6 +285,19 @@ struct DeliveryOutcome {
     created_count: usize,
     message: String,
     revision_id: Option<String>,
+}
+
+pub(crate) async fn pending_requested_count(
+    state: &crate::state::AppState,
+    provider_id: &str,
+) -> Result<usize, crate::error::GatewayError> {
+    if !state.credential_pool_automation.refill_queue_enabled() {
+        return Ok(0);
+    }
+    Ok(load_outstanding_task(state, provider_id)
+        .await?
+        .map(|task| task.requested_count)
+        .unwrap_or(0))
 }
 
 pub fn stream_key() -> &'static str {

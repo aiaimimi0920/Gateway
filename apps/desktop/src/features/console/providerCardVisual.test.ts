@@ -145,3 +145,9 @@ describe("providerCardVisual", () => {
     }
   });
 });
+
+
+it("uses NVIDIA branding for a custom-id nvidia-openai provider", () => {
+  expect(providerCardVisual({ providerId: "managed-provider", providerLabel: "NVIDIA", providerPreset: "nvidia-openai" }).iconKey).toBe("nvidia");
+  expect(providerCardVisual({ providerId: "custom-provider", providerLabel: "Custom", providerPreset: "nvidia-openai" }).iconKey).toBe("nvidia");
+});

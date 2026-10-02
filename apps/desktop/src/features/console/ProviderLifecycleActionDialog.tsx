@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
 export type PendingProviderLifecycleAction = {
@@ -21,6 +22,7 @@ export function ProviderLifecycleActionDialog({
   onConfirm: confirmProviderLifecycleAction,
   t,
 }: ProviderLifecycleActionDialogProps) {
+  const returnFocus = useRef<HTMLElement | null>(null);
   return (
     <Dialog.Root
       open={pendingProviderLifecycleAction !== null}
@@ -35,6 +37,17 @@ export function ProviderLifecycleActionDialog({
         <Dialog.Content
           className="dialog-content nt-credential-remove-dialog"
           aria-describedby="provider-lifecycle-action-description"
+          onOpenAutoFocus={() => {
+            returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const trigger = returnFocus.current;
+            if (!trigger?.isConnected || trigger.closest("[inert]")) return;
+            if (trigger instanceof HTMLButtonElement && trigger.disabled) {
+              trigger.closest("article")?.querySelector<HTMLButtonElement>(".nt-provider-card__back .nt-provider-card__flip")?.focus();
+            } else trigger.focus();
+          }}
         >
           <Dialog.Title>
             {pendingProviderLifecycleAction?.kind === "enable-permanent-delete"

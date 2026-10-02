@@ -6,13 +6,22 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 mod actions;
+pub(crate) mod admission;
 mod archive;
+#[cfg(test)]
+mod archive_scope_tests;
+pub(crate) mod availability;
+pub mod capacity;
+pub(crate) mod cycle;
 mod driver;
 mod inventory;
 mod reconciliation;
+#[cfg(test)]
+mod reconciliation_tests;
 mod refill;
 mod registry;
 mod runtime;
+pub mod storage_paths;
 #[cfg(test)]
 use crate::routing::config::ProviderConfigYaml;
 pub use actions::{
@@ -32,7 +41,7 @@ pub use archive::{
 #[cfg(test)]
 use driver::execute_driver;
 #[cfg(test)]
-use inventory::{identity_category_requested_count, prune_credentials};
+use inventory::prune_credentials;
 pub use refill::collect_refill_credentials_from_driver;
 #[cfg(test)]
 use registry::validate_driver;
@@ -139,6 +148,7 @@ pub struct ProviderCredentialPoolAutomationView {
     pub provider_id: String,
     pub provider_label: String,
     pub target_size: usize,
+    pub min_size: usize,
     pub credential_count: usize,
     pub active_credential_count: usize,
     pub auto_refill_enabled: bool,

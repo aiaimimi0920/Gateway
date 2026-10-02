@@ -1,5 +1,6 @@
+use super::capacity::{pool_max_size, MAX_REFILL_BATCH};
 use super::driver::execute_driver;
-use super::inventory::{active_credential_count, effective_credential_id, normalized_target_size};
+use super::inventory::{active_credential_count, effective_credential_id};
 use super::{DriverCredentialContext, DriverProviderContext, DriverRefillContext, DriverRequest};
 use crate::routing::config::ProviderCredentialYaml;
 use crate::state::AppState;
@@ -30,7 +31,16 @@ pub async fn collect_refill_credentials_from_driver(
         .map_err(anyhow::Error::msg)?
         .ok_or_else(|| anyhow::anyhow!("该渠道尚未配置自动补号驱动器"))?
         .clone();
-    let target_size = normalized_target_size(provider.pool_target_size);
+    let target_size = pool_max_size(&provider);
+    let availability = super::availability::pool_availability(state, &provider)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let requested_count = requested_count
+        .min(availability.remaining)
+        .min(MAX_REFILL_BATCH);
+    if requested_count == 0 {
+        anyhow::bail!("credential pool has reached its maximum capacity");
+    }
     let active_count = active_credential_count(&provider);
     let request = DriverRequest {
         run_id: Uuid::new_v4().to_string(),

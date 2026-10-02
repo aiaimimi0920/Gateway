@@ -32,3 +32,19 @@ it("preserves existing category policy fields when adding a new category", () =>
   });
   expect(provider.credential_identity_categories).toHaveLength(1);
 });
+
+it("reports a missing provider without changing the storage-path draft", () => {
+  const setError = vi.fn();
+  const replace = vi.fn();
+  const { result } = renderHook(() => usePilotPolicyEditor({
+    editorText: JSON.stringify({ providers: [], model_routes: [], aliases: {} }),
+    setError, replaceEditorDocument: replace, credentialPoolAutomation: null,
+    credentialPoolAutomationByProvider: new Map(), credentialRefill: null,
+    t: (_zh, en) => en,
+  }));
+  let saved: boolean | undefined;
+  act(() => { saved = result.current.updateProviderStoragePath("missing", "credential_storage_path", "/srv/pool"); });
+  expect(saved).toBe(false);
+  expect(setError).toHaveBeenCalledWith("Provider missing could not be found.");
+  expect(replace).not.toHaveBeenCalled();
+});

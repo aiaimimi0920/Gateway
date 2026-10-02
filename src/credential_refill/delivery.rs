@@ -1,5 +1,4 @@
 use crate::error::GatewayError;
-use crate::provider_credential_folder_sync::{run_folder_sync_once, FolderSyncDirection};
 use crate::routing::config::{ProviderConfigYaml, ProviderCredentialYaml};
 use crate::state::AppState;
 use std::collections::HashSet;
@@ -14,14 +13,14 @@ pub(super) async fn deliver_refill_result(
 ) -> Result<DeliveryOutcome, GatewayError> {
     match delivery {
         CredentialRefillDeliveryInput::FolderSync { relative_paths } => {
-            validate_folder_paths(&relative_paths)?;
-            let status = run_folder_sync_once(state.as_ref(), FolderSyncDirection::Import).await?;
-            let created_count = status.imported_count.saturating_add(status.updated_count);
+            let credentials = folder_delivery::collect(state, task, relative_paths).await?;
+            let (created_count, revision_id) =
+                commit_refill_credentials(state, task, credentials).await?;
             Ok(DeliveryOutcome {
                 mode: CredentialRefillDeliveryMode::FolderSync,
                 created_count,
-                message: format!("文件夹同步已完成，导入或更新 {created_count} 个凭证。"),
-                revision_id: None,
+                message: format!("已从该渠道存储目录导入 {created_count} 个凭证。"),
+                revision_id: Some(revision_id),
             })
         }
         CredentialRefillDeliveryInput::GatewayPull { artifact_reference } => {
@@ -43,13 +42,8 @@ pub(super) async fn deliver_refill_result(
                     GatewayError::bad_request(error.to_string())
                         .with_code("credential_refill_driver_pull_failed")
                 })?;
-            let (created_count, revision_id) = commit_refill_credentials(
-                state,
-                &task.provider_id,
-                task.requested_count,
-                credentials,
-            )
-            .await?;
+            let (created_count, revision_id) =
+                commit_refill_credentials(state, task, credentials).await?;
             Ok(DeliveryOutcome {
                 mode: CredentialRefillDeliveryMode::GatewayPull,
                 created_count,
@@ -58,13 +52,8 @@ pub(super) async fn deliver_refill_result(
             })
         }
         CredentialRefillDeliveryInput::DirectCallback { credentials } => {
-            let (created_count, revision_id) = commit_refill_credentials(
-                state,
-                &task.provider_id,
-                task.requested_count,
-                credentials,
-            )
-            .await?;
+            let (created_count, revision_id) =
+                commit_refill_credentials(state, task, credentials).await?;
             Ok(DeliveryOutcome {
                 mode: CredentialRefillDeliveryMode::DirectCallback,
                 created_count,
@@ -77,10 +66,11 @@ pub(super) async fn deliver_refill_result(
 
 async fn commit_refill_credentials(
     state: &Arc<AppState>,
-    provider_id: &str,
-    requested_count: usize,
+    task: &CredentialRefillTaskRecord,
     credentials: Vec<ProviderCredentialYaml>,
 ) -> Result<(usize, String), GatewayError> {
+    let provider_id = &task.provider_id;
+    let requested_count = task.requested_count;
     if credentials.is_empty() {
         return Err(GatewayError::bad_request("补号结果没有包含任何凭证")
             .with_code("credential_refill_empty_delivery"));
@@ -99,11 +89,38 @@ async fn commit_refill_credentials(
         let provider = document
             .providers
             .iter_mut()
-            .find(|provider| provider.id == provider_id)
+            .find(|provider| provider.id == *provider_id)
             .ok_or_else(|| GatewayError::not_found("补号任务对应的 Provider 已不存在"))?;
-        let created_count = append_refill_credentials(provider, credentials.clone())?;
+        if task.trigger != CredentialRefillTrigger::UserRequested
+            && (!provider.auto_refill_enabled
+                || crate::credential_pool_automation::capacity::pool_min_size(provider) == 0)
+        {
+            return Err(GatewayError::conflict("该渠道已关闭自动补号")
+                .with_code("credential_refill_automatic_disabled"));
+        }
+        let availability =
+            crate::credential_pool_automation::availability::pool_availability(state, provider)
+                .await?;
+        let created_count = append_refill_credentials_with_capacity(
+            provider,
+            credentials.clone(),
+            availability.remaining,
+        )?;
+        if task.trigger != CredentialRefillTrigger::UserRequested {
+            provider.pool_refill_in_progress = true;
+        }
+        if availability.available
+            >= crate::credential_pool_automation::capacity::pool_max_size(provider)
+        {
+            provider.pool_refill_in_progress = false;
+        }
+        crate::credential_pool_automation::capacity::normalize_refill_state(provider);
         if created_count == 0 {
             return Ok((0, snapshot.revision().id().to_string()));
+        }
+        if let Some(claim_token) = task.claim_token.as_deref() {
+            // A long pull may outlive its worker lease; never commit an obsolete claim.
+            require_claimed_task(state, &task.id, claim_token).await?;
         }
         match runtime
             .commit_automation_document(
@@ -129,16 +146,26 @@ async fn commit_refill_credentials(
         .with_code("credential_refill_route_revision_conflict"))
 }
 
+#[cfg(test)]
 pub(super) fn append_refill_credentials(
     provider: &mut ProviderConfigYaml,
     credentials: Vec<ProviderCredentialYaml>,
+) -> Result<usize, GatewayError> {
+    let capacity = crate::credential_pool_automation::capacity::remaining_capacity(provider);
+    append_refill_credentials_with_capacity(provider, credentials, capacity)
+}
+
+pub(super) fn append_refill_credentials_with_capacity(
+    provider: &mut ProviderConfigYaml,
+    credentials: Vec<ProviderCredentialYaml>,
+    capacity: usize,
 ) -> Result<usize, GatewayError> {
     let mut existing_ids = provider
         .credentials
         .iter()
         .filter_map(|credential| credential.id.clone())
         .collect::<HashSet<_>>();
-    let mut created_count = 0usize;
+    let mut additions = Vec::new();
     for credential in credentials {
         let id = credential
             .id
@@ -148,9 +175,18 @@ pub(super) fn append_refill_credentials(
             .ok_or_else(|| GatewayError::bad_request("补号结果中的凭证缺少 ID"))?;
         normalize_identifier(id, "credentialId", MAX_WORKER_ID_LENGTH)?;
         if existing_ids.insert(id.to_string()) {
-            provider.credentials.push(credential);
-            created_count += 1;
+            if !credential.enabled.unwrap_or(true) {
+                return Err(GatewayError::bad_request("补号结果必须包含启用的可用凭证")
+                    .with_code("credential_refill_disabled_credential"));
+            }
+            additions.push(credential);
         }
     }
+    if additions.len() > capacity {
+        return Err(GatewayError::conflict("补号结果超过凭证池当前剩余容量")
+            .with_code("credential_refill_capacity_exceeded"));
+    }
+    let created_count = additions.len();
+    provider.credentials.extend(additions);
     Ok(created_count)
 }

@@ -15,6 +15,14 @@ pub async fn complete_credential_refill_task(
     let task_id = normalize_identifier(task_id, "taskId", MAX_WORKER_ID_LENGTH)?;
     let claim_token = normalize_identifier(&input.claim_token, "claimToken", MAX_WORKER_ID_LENGTH)?;
     let mut task = require_claimed_task(state.as_ref(), &task_id, &claim_token).await?;
+    // One provider gate serializes direct automation and every queue backend.
+    let provider_lock = state
+        .credential_pool_automation
+        .lock_for_provider(&task.provider_id);
+    let _provider_guard = provider_lock.lock().await;
+    let _admission =
+        crate::credential_pool_automation::admission::acquire(state, &task.provider_id).await?;
+    task = require_claimed_task(state.as_ref(), &task_id, &claim_token).await?;
     let local_delivery_guard = if let Some(db) = &state.local_runtime {
         let guard = db
             .try_refill_lock(&task_id)
@@ -73,6 +81,13 @@ pub async fn fail_credential_refill_task(
     let claim_token = normalize_identifier(&input.claim_token, "claimToken", MAX_WORKER_ID_LENGTH)?;
     let reason = normalize_required_text(&input.reason, "reason", MAX_FAILURE_REASON_LENGTH)?;
     let mut task = require_claimed_task(state, &task_id, &claim_token).await?;
+    let provider_lock = state
+        .credential_pool_automation
+        .lock_for_provider(&task.provider_id);
+    let _provider_guard = provider_lock.lock().await;
+    let _admission =
+        crate::credential_pool_automation::admission::acquire(state, &task.provider_id).await?;
+    task = require_claimed_task(state, &task_id, &claim_token).await?;
     task.state = CredentialRefillTaskState::Failed;
     task.updated_at = now_rfc3339();
     task.lease_until = None;

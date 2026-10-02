@@ -3,7 +3,7 @@
    a flipped face carrying the aggregated detail and pool policy controls. */
 .nt-provider-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 380px));
   gap: 12px;
   /* Stretch, not start: cards in a row share the tallest card's height, so a
      neighbour never has to scroll to keep the row tidy. */
@@ -24,15 +24,9 @@
 
 .nt-provider-card {
   --nt-provider-card-accent: var(--nt-text-muted);
-  /* Every provider card is the same size, on both faces, whatever data it
-     carries. Card geometry is layout, not a data readout: letting content drive
-     height made a grid of ragged cards and moved the action row per provider.
-     The size is the taller face's natural height (the back, whose lifecycle
-     rail is the densest block on either side), so the front grows to match
-     rather than the back shrinking behind a scrollbar. No face ever scrolls:
-     a scroll track on a card means the card is too small, and the fix for that
-     is a bigger card. */
-  --nt-provider-card-height: 440px;
+  /* Both faces share the taller face's intrinsic size. Inline validation may
+     grow the card; content must never disappear behind a fixed-height crop. */
+  --nt-provider-card-height: 500px;
   display: block;
   min-width: 0;
   perspective: 1200px;
@@ -42,7 +36,8 @@
 
 .nt-provider-card__inner {
   display: grid;
-  height: var(--nt-provider-card-height);
+  min-height: var(--nt-provider-card-height);
+  height: 100%;
   min-width: 0;
   border: 1px solid var(--nt-border);
   border-top-color: color-mix(in srgb, var(--nt-provider-card-accent) 42%, var(--nt-border));
@@ -71,8 +66,7 @@
 .nt-provider-card__face {
   grid-area: 1 / 1;
   display: grid;
-  height: 100%;
-  min-height: 0;
+  min-height: 100%;
   min-width: 0;
   gap: 10px;
   align-content: start;
@@ -260,12 +254,11 @@
 }
 
 .nt-provider-card__back-head {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 6px;
-  border-bottom: 1px solid var(--nt-border);
-  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
 }
 
 .nt-provider-card__back-title {
@@ -283,6 +276,6 @@
   gap: 0;
   min-height: 0;
   min-width: 0;
-  padding: 0 10px 8px;
+  padding: 0 7px 8px;
   align-content: start;
 }

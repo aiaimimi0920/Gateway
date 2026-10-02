@@ -1,3 +1,4 @@
+import { providerStoragePathError } from "./providerStoragePath";
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { ConsoleRouteDocument, ConsoleCredentialPoolAutomationResponse, ConsoleCredentialPoolAutomationProvider, ConsoleCredentialRefillResponse } from "../../api/contracts";
 import { pushAppToast } from "../../components/AppToast";
@@ -170,6 +171,7 @@ export function usePilotPolicyEditor({
         Pick<
           PilotProviderPolicyDefinition,
           | "poolTargetSize"
+          | "poolMinSize"
           | "autoRefillEnabled"
           | "autoPruneEnabled"
           | "permanentDeleteEnabled"
@@ -198,10 +200,14 @@ export function usePilotPolicyEditor({
       }
 
       const currentPolicy = readPilotProviderPolicy(provider);
-      provider.pool_target_size =
-        updates.poolTargetSize !== undefined
-          ? Math.max(1, Math.floor(updates.poolTargetSize))
-          : currentPolicy.poolTargetSize;
+      const maximum = updates.poolTargetSize ?? currentPolicy.poolTargetSize;
+      const minimum = updates.poolMinSize ?? currentPolicy.poolMinSize;
+      if (!Number.isSafeInteger(maximum) || maximum < 1 || !Number.isSafeInteger(minimum) || minimum < 0 || minimum > maximum) {
+        setError(t("号池上下限必须是安全整数，且 0 ≤ 最小值 ≤ 最大值。", "Pool bounds must be safe integers, with 0 ≤ minimum ≤ maximum."));
+        return;
+      }
+      provider.pool_target_size = maximum;
+      provider.pool_min_size = minimum;
       provider.auto_refill_enabled =
         updates.autoRefillEnabled !== undefined
           ? updates.autoRefillEnabled
@@ -220,6 +226,31 @@ export function usePilotPolicyEditor({
     },
     [editorText, replaceEditorDocument, t],
   );
+
+  const updateProviderStoragePath = useCallback((providerId: string, field: "credential_storage_path" | "credential_archive_path", value: string): boolean => {
+    const invalid = providerStoragePathError(value);
+    if (invalid) {
+      setError(invalid === "cloud"
+        ? t("HTTP/HTTPS 云存储尚未配置读写与认证协议，请使用本地或已挂载云盘目录。", "HTTP/HTTPS storage needs a read/write and authentication protocol. Use a local or mounted directory.")
+        : t("请输入有效的本地目录路径。", "Enter a valid local directory path."));
+      return false;
+    }
+    try {
+      const document = parseRouteDocument(editorText);
+      const provider = document.providers.find((entry) => isRecord(entry) && entry.id === providerId);
+      if (!isRecord(provider)) {
+        setError(t(`找不到服务商 ${providerId}。`, `Provider ${providerId} could not be found.`));
+        return false;
+      }
+      provider[field] = value.trim();
+      replaceEditorDocument(document, true);
+      setError(null);
+      return true;
+    } catch {
+      setError(t("当前 JSON 草稿不可解析。", "The current JSON draft is invalid."));
+      return false;
+    }
+  }, [editorText, replaceEditorDocument, setError, t]);
 
   const updateProviderAutomationToggle = useCallback(
     (
@@ -300,5 +331,5 @@ export function usePilotPolicyEditor({
     ],
   );
 
-  return { handleAddIdentityCategory, updatePilotIdentityCategoryPolicy, updatePilotProviderPolicy, updateProviderAutomationToggle, updateIdentityCategoryAutomationToggle };
+  return { updateProviderStoragePath, handleAddIdentityCategory, updatePilotIdentityCategoryPolicy, updatePilotProviderPolicy, updateProviderAutomationToggle, updateIdentityCategoryAutomationToggle };
 }

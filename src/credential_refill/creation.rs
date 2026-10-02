@@ -17,8 +17,7 @@ pub async fn create_user_requested_refill_task(
     let demand = demand_for_provider(state, provider_id).await?;
     let requested_count = input
         .requested_count
-        .unwrap_or_else(|| demand.deficit.max(1));
-    validate_requested_count(requested_count)?;
+        .unwrap_or_else(|| demand.deficit.min(MAX_REQUESTED_COUNT));
     let idempotency_key = normalize_optional_text(
         input.idempotency_key,
         "idempotencyKey",
@@ -42,6 +41,33 @@ pub(super) async fn create_task_from_demand(
     idempotency_key: Option<String>,
 ) -> Result<CreateCredentialRefillTaskResult, GatewayError> {
     ensure_refill_enabled(state)?;
+    let provider_lock = state
+        .credential_pool_automation
+        .lock_for_provider(&demand.provider_id);
+    let _guard = provider_lock.lock().await;
+    let _admission =
+        crate::credential_pool_automation::admission::acquire(state, &demand.provider_id).await?;
+    if let Some(existing) = load_outstanding_task(state, &demand.provider_id).await? {
+        return Ok(CreateCredentialRefillTaskResult {
+            task: (&existing).into(),
+            created: false,
+        });
+    }
+    // Re-read after admission: route edits or another refill may have consumed capacity.
+    let demand = demand_for_provider(state, &demand.provider_id).await?;
+    let requested_count = if trigger == CredentialRefillTrigger::UserRequested {
+        requested_count
+    } else {
+        requested_count.min(MAX_REQUESTED_COUNT).min(demand.deficit)
+    };
+    if trigger != CredentialRefillTrigger::UserRequested && !demand.needs_refill {
+        return Err(GatewayError::conflict("凭证池未达到自动补号触发条件")
+            .with_code("credential_refill_not_required"));
+    }
+    if demand.deficit == 0 || requested_count > demand.deficit {
+        return Err(GatewayError::conflict("补号数量超过凭证池剩余容量")
+            .with_code("credential_refill_capacity_exceeded"));
+    }
     validate_requested_count(requested_count)?;
     let now = now_rfc3339();
     let task_id = Uuid::new_v4().to_string();

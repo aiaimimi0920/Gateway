@@ -1,14 +1,16 @@
 use super::inventory::effective_credential_id;
 use super::runtime::now_rfc3339;
+use super::storage_paths::{
+    provider_archive_path, provider_storage_path, reject_linked_components,
+};
 use crate::config::Config;
 use crate::routing::config::{ProviderConfigYaml, ProviderCredentialYaml};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
-const CREDENTIAL_ARCHIVE_DIRECTORY: &str = "_archive";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,48 +32,57 @@ pub fn provider_credential_storage_root_path(config: &Config) -> Option<PathBuf>
         .map(PathBuf::from)
 }
 
-pub fn provider_credential_storage_path(config: &Config, provider_id: &str) -> Option<PathBuf> {
-    provider_credential_storage_root_path(config)
-        .map(|root| root.join(safe_archive_path_segment(provider_id)))
+pub fn provider_credential_storage_path(
+    config: &Config,
+    provider: &ProviderConfigYaml,
+) -> Option<PathBuf> {
+    provider_storage_path(config, provider)
 }
 
-pub fn provider_credential_archive_path(config: &Config, provider_id: &str) -> Option<PathBuf> {
-    provider_credential_storage_root_path(config).map(|root| {
-        root.join(CREDENTIAL_ARCHIVE_DIRECTORY)
-            .join(safe_archive_path_segment(provider_id))
-    })
+pub fn provider_credential_archive_path(
+    config: &Config,
+    provider: &ProviderConfigYaml,
+) -> Option<PathBuf> {
+    provider_archive_path(config, provider)
 }
 
-pub fn archived_provider_credential_count(config: &Config, provider_id: &str) -> usize {
-    let Some(directory) = provider_credential_archive_path(config, provider_id) else {
+pub fn archived_provider_credential_count(config: &Config, provider: &ProviderConfigYaml) -> usize {
+    let Some(directory) = provider_credential_archive_path(config, provider) else {
         return 0;
     };
-    archived_credential_count_in_directory(&directory)
+    if reject_linked_components(&directory).is_err() {
+        return 0;
+    }
+    archived_credential_count_in_directory(&directory, &provider.id)
 }
 
-pub(super) fn archived_credential_count_in_directory(directory: &Path) -> usize {
+pub(super) fn archived_credential_count_in_directory(directory: &Path, provider_id: &str) -> usize {
     let Ok(entries) = fs::read_dir(directory) else {
         return 0;
     };
     entries
         .filter_map(Result::ok)
-        .filter(|entry| {
-            matches!(entry.file_type(), Ok(file_type) if file_type.is_file() && !file_type.is_symlink())
-                && entry.path().extension().and_then(|value| value.to_str()) == Some("json")
-        })
+        .filter(|entry| is_provider_archive(&entry.path(), provider_id))
         .count()
 }
 
 pub fn purge_provider_credential_archive(
     config: &Config,
-    provider_id: &str,
+    provider: &ProviderConfigYaml,
 ) -> anyhow::Result<usize> {
-    let directory = provider_credential_archive_path(config, provider_id)
+    if let Some(path) = &provider.credential_archive_path {
+        super::storage_paths::validate_storage_path(path).map_err(anyhow::Error::msg)?;
+    }
+    let directory = provider_credential_archive_path(config, provider)
         .ok_or_else(|| anyhow::anyhow!("credential storage path is unavailable"))?;
-    purge_credential_archive_directory(&directory)
+    purge_credential_archive_directory(&directory, &provider.id)
 }
 
-pub(super) fn purge_credential_archive_directory(directory: &Path) -> anyhow::Result<usize> {
+pub(super) fn purge_credential_archive_directory(
+    directory: &Path,
+    provider_id: &str,
+) -> anyhow::Result<usize> {
+    reject_linked_components(directory)?;
     let metadata = match fs::symlink_metadata(&directory) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
@@ -84,20 +95,68 @@ pub(super) fn purge_credential_archive_directory(directory: &Path) -> anyhow::Re
     let mut purged_count = 0usize;
     for entry in fs::read_dir(&directory)? {
         let entry = entry?;
-        let file_type = entry.file_type()?;
-        if file_type.is_symlink() || !file_type.is_file() {
-            continue;
-        }
-        if entry.path().extension().and_then(|value| value.to_str()) != Some("json") {
+        if !is_provider_archive(&entry.path(), provider_id) {
             continue;
         }
         fs::remove_file(entry.path())?;
         purged_count += 1;
     }
-    if fs::read_dir(&directory)?.next().is_none() {
-        fs::remove_dir(&directory)?;
-    }
+    // The configured directory may be a shared/mounted root; retain it even when empty.
     Ok(purged_count)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ArchiveIdentity {
+    schema_version: u8,
+    provider_id: String,
+    credential_id: String,
+    archived_at: String,
+    reason: String,
+    credential: ProviderCredentialYaml,
+}
+
+fn is_provider_archive(path: &Path, provider_id: &str) -> bool {
+    const MAX_RECORD_BYTES: u64 = 4 * 1024 * 1024;
+    if path.extension().and_then(|value| value.to_str()) != Some("json") {
+        return false;
+    }
+    let Ok(metadata) = fs::symlink_metadata(path) else {
+        return false;
+    };
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > MAX_RECORD_BYTES
+    {
+        return false;
+    }
+    let Ok(file) = fs::File::open(path) else {
+        return false;
+    };
+    let mut bytes = Vec::new();
+    if file
+        .take(MAX_RECORD_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .is_err()
+        || bytes.len() as u64 > MAX_RECORD_BYTES
+    {
+        return false;
+    }
+    let Ok(record) = serde_json::from_slice::<ArchiveIdentity>(&bytes) else {
+        return false;
+    };
+    record.schema_version == 1
+        && record.provider_id == provider_id
+        && !record.credential_id.trim().is_empty()
+        && time::OffsetDateTime::parse(
+            &record.archived_at,
+            &time::format_description::well_known::Rfc3339,
+        )
+        .is_ok()
+        && record.reason == "permanent_driver_rejection"
+        && record
+            .credential
+            .id
+            .as_deref()
+            .is_none_or(|id| id == record.credential_id)
 }
 
 pub(super) fn safe_archive_path_segment(value: &str) -> String {
@@ -126,7 +185,10 @@ pub(super) fn archive_pruned_credentials(
     if prune_ids.is_empty() || provider.credential_permanent_delete_enabled {
         return Ok(0);
     }
-    let directory = provider_credential_archive_path(config, &provider.id)
+    if let Some(path) = &provider.credential_archive_path {
+        super::storage_paths::validate_storage_path(path).map_err(anyhow::Error::msg)?;
+    }
+    let directory = provider_credential_archive_path(config, provider)
         .ok_or_else(|| anyhow::anyhow!("credential archive path is unavailable"))?;
     archive_pruned_credentials_in_directory(provider, prune_ids, &directory)
 }
@@ -136,7 +198,9 @@ pub(super) fn archive_pruned_credentials_in_directory(
     prune_ids: &HashSet<String>,
     directory: &Path,
 ) -> anyhow::Result<usize> {
+    reject_linked_components(directory)?;
     fs::create_dir_all(&directory)?;
+    reject_linked_components(directory)?;
     let metadata = fs::symlink_metadata(&directory)?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         anyhow::bail!("credential archive path is not a regular directory");

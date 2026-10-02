@@ -71,6 +71,15 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
     for (provider_index, provider) in document.providers.iter().enumerate() {
         let provider_path = format!("/providers/{provider_index}");
         let normalized_provider_id = provider.id.trim();
+        if let Err(message) =
+            crate::credential_pool_automation::capacity::validate_pool_capacity(provider)
+        {
+            diagnostics.push_error(
+                "provider_pool_capacity_invalid",
+                format!("{provider_path}/pool_min_size"),
+                message,
+            );
+        }
         if normalized_provider_id.is_empty() {
             diagnostics.push_error(
                 "provider_id_empty",
@@ -93,6 +102,22 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
                     provider.id
                 ),
             );
+        }
+        for (field, value) in [
+            ("credential_storage_path", &provider.credential_storage_path),
+            ("credential_archive_path", &provider.credential_archive_path),
+        ] {
+            if let Some(value) = value {
+                if let Err(message) =
+                    crate::credential_pool_automation::storage_paths::validate_storage_path(value)
+                {
+                    diagnostics.push_error(
+                        "provider_credential_storage_path_invalid",
+                        format!("{provider_path}/{field}"),
+                        message,
+                    );
+                }
+            }
         }
         let websocket_transport = provider_uses_websocket_transport(provider);
         validate_provider_url(

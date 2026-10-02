@@ -117,3 +117,14 @@ it("keeps refill busy when a concurrent purge completes", async () => {
   expect(h.result.current.credentialRefillBusy).toBeNull();
   expect(h.options.setError).toHaveBeenLastCalledWith("refill unavailable");
 });
+
+
+it("blocks purge while the displayed archive path is an uncommitted draft", async () => {
+  const h = setup();
+  const retained = h.result.current.handlePurgeCredentialArchive;
+  h.rerender({ ...h.options, draftDirty: true });
+  await act(() => h.result.current.handlePurgeCredentialArchive("provider"));
+  await act(() => retained("provider"));
+  expect(h.api.purgeCredentialArchive).not.toHaveBeenCalled();
+  expect(pushAppToast).toHaveBeenCalledWith("warning", expect.stringContaining("Save the current route draft"));
+});

@@ -1,316 +1,126 @@
-import { Archive, ArchiveX, Copy, ShieldX, Snowflake, UserMinus, UserPlus, UsersRound } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
+import { Snowflake, TriangleAlert, UserPlus, UsersRound } from "lucide-react";
 import type { ConsoleCredentialPoolAutomationProvider, ConsoleCredentialRefillDemand } from "../../api/contracts";
-import type { AccountsLedgerPilotSection } from "./accountsLedgerTypes";
+import type { AccountsLedgerPilotSection, AccountsLedgerWorkspaceProps } from "./accountsLedgerTypes";
 import type { PendingProviderLifecycleAction } from "./ProviderLifecycleActionDialog";
-import { pushAppToast } from "../../components/AppToast";
 import { ProviderStorageEndpoints } from "./ProviderStorageEndpoints";
+import { ProviderLifecycleField } from "./ProviderLifecycleField";
 
 export type ProviderLifecycleBackOptions = {
-    section: AccountsLedgerPilotSection;
-    availableCount: number;
-    coolingCount: number;
-    invalidCount: number;
-    automation?: ConsoleCredentialPoolAutomationProvider;
-    refill?: ConsoleCredentialRefillDemand;
-  };
-type StoragePasswordDraft = { editing: boolean; value: string };
-type ProviderLifecycleBackProps = {
+  section: AccountsLedgerPilotSection;
+  active?: boolean;
+  discardEdits?: boolean;
+  availableCount: number;
+  coolingCount: number;
+  invalidCount: number;
+  automation?: ConsoleCredentialPoolAutomationProvider;
+  refill?: ConsoleCredentialRefillDemand;
+};
+type Props = Pick<AccountsLedgerWorkspaceProps, "editorLocked" | "lifecycleActionsLocked" | "pruneBusyProviderId" |
+  "refillBusyProviderId" | "archivePurgeBusyProviderId" | "onUpdateProviderPoolTargetSize" |
+  "onUpdateProviderPoolMinSize" | "onUpdateProviderStoragePath" | "onUpdateProviderArchivePath" |
+  "onToggleProviderAutoRefill" | "onToggleProviderAutoPrune" | "onToggleProviderPermanentDelete" |
+  "onRequestProviderRefill" | "onUpdateProviderStoragePassword" | "t"> & {
   options: ProviderLifecycleBackOptions;
-  poolTargetDrafts: Readonly<Record<string, string>>;
-  setPoolTargetDrafts: Dispatch<SetStateAction<Record<string, string>>>;
-  commitPoolTargetDraft: (policyKey: string, committedValue: number, onCommit: (nextTargetSize: number) => void) => void;
-  storagePasswordDrafts: Readonly<Record<string, StoragePasswordDraft>>;
-  setStoragePasswordDrafts: Dispatch<SetStateAction<Record<string, StoragePasswordDraft>>>;
-  editorLocked: boolean;
-  pruneBusyProviderId: string | null;
-  refillBusyProviderId: string | null;
-  archivePurgeBusyProviderId: string | null;
-  onUpdateProviderPoolTargetSize: (providerId: string, nextTargetSize: number) => void;
-  onToggleProviderAutoRefill: (providerId: string, enabled: boolean) => void;
-  onToggleProviderAutoPrune: (providerId: string, enabled: boolean) => void;
-  onToggleProviderPermanentDelete: (providerId: string, enabled: boolean) => void;
-  onRequestProviderRefill: (providerId: string) => void;
-  onUpdateProviderStoragePassword: (providerId: string, password: string) => boolean;
   requestProviderLifecycleAction: (action: PendingProviderLifecycleAction) => void;
-  t: (zh: string, en: string) => string;
 };
 
-export function ProviderLifecycleBack({ options,
-  poolTargetDrafts, setPoolTargetDrafts, commitPoolTargetDraft, storagePasswordDrafts, setStoragePasswordDrafts,
-  editorLocked, onUpdateProviderPoolTargetSize, onToggleProviderAutoRefill, onToggleProviderAutoPrune,
-  pruneBusyProviderId, refillBusyProviderId, archivePurgeBusyProviderId,
-  onToggleProviderPermanentDelete, onRequestProviderRefill,
+export function ProviderLifecycleBack({ options, editorLocked, lifecycleActionsLocked, onUpdateProviderPoolTargetSize,
+  onUpdateProviderPoolMinSize, onUpdateProviderStoragePath, onUpdateProviderArchivePath,
+  onToggleProviderAutoRefill, onToggleProviderAutoPrune, pruneBusyProviderId, refillBusyProviderId,
+  archivePurgeBusyProviderId, onToggleProviderPermanentDelete, onRequestProviderRefill,
   onUpdateProviderStoragePassword, requestProviderLifecycleAction, t,
-}: ProviderLifecycleBackProps) {
+}: Props) {
   const { section, automation, refill } = options;
-    const policyKey = `provider:${section.providerId}`;
-    const inputValue = poolTargetDrafts[policyKey] ?? String(section.poolTargetSize);
-    const archivedCredentialCount = refill?.archivedCredentialCount ?? 0;
-    const copyLifecycleValue = async (label: string, value: string | null | undefined) => {
-      if (!value) {
-        pushAppToast("warning", t(`${label} 暂无可复制内容。`, `${label} is not available to copy.`));
-        return;
-      }
-      if (!navigator.clipboard?.writeText) {
-        pushAppToast("warning", t("当前环境不支持剪贴板写入。", "Clipboard access is unavailable."));
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(value);
-        pushAppToast("success", t(`已复制${label}。`, `${label} copied.`));
-      } catch (cause) {
-        pushAppToast("error", cause instanceof Error ? cause.message : t("复制失败。", "Copy failed."));
-      }
-    };
-    const lifecycleAction = (
-      kind: PendingProviderLifecycleAction["kind"],
-    ): PendingProviderLifecycleAction => ({
-      kind,
-      providerId: section.providerId,
-      providerLabel: section.providerLabel,
-      permanentDeleteEnabled: section.permanentDeleteEnabled,
-      archivedCredentialCount,
-    });
-
-    return (
-      <div
-        className="nt-provider-lifecycle"
-        aria-label={t(
-          `${section.providerLabel} 账号生命周期`,
-          `${section.providerLabel} credential lifecycle`,
-        )}
-      >
-        <div className="nt-provider-lifecycle__row">
-          <div className="nt-provider-lifecycle__metric">
-            <UsersRound size={15} aria-hidden="true" />
-            <span>{t("可用号池", "Available pool")}</span>
-            <span className="nt-provider-lifecycle__capacity">
-              <strong>{options.availableCount}/</strong>
-              <input
-                className="nt-input nt-provider-lifecycle__input"
-                type="number"
-                min={1}
-                inputMode="numeric"
-                aria-label={t(
-                  `${section.providerLabel} 目标号池容量`,
-                  `${section.providerLabel} target pool size`,
-                )}
-                value={inputValue}
-                disabled={editorLocked}
-                onChange={(event) => {
-                  const nextValue = event.currentTarget.value;
-                  setPoolTargetDrafts((current) => ({ ...current, [policyKey]: nextValue }));
-                }}
-                onBlur={() =>
-                  commitPoolTargetDraft(
-                    policyKey,
-                    section.poolTargetSize,
-                    (nextTargetSize) =>
-                      onUpdateProviderPoolTargetSize(section.providerId, nextTargetSize),
-                  )
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.currentTarget.blur();
-                  } else if (event.key === "Escape") {
-                    setPoolTargetDrafts((current) => {
-                      const next = { ...current };
-                      delete next[policyKey];
-                      return next;
-                    });
-                    event.currentTarget.blur();
-                  }
-                }}
-              />
-            </span>
-          </div>
-          <div className="nt-provider-lifecycle__actions">
-            <span className="nt-provider-lifecycle__toggle">
-              <span>{t("自动补号", "Auto refill")}</span>
-              <button
-                className={section.autoRefillEnabled ? "nt-switch nt-switch--on" : "nt-switch"}
-                type="button"
-                role="switch"
-                aria-checked={section.autoRefillEnabled}
-                aria-label={t(
-                  `${section.providerLabel} 自动补号`,
-                  `${section.providerLabel} auto refill`,
-                )}
-                title={t("自动补号", "Auto refill")}
-                disabled={editorLocked}
-                onClick={() =>
-                  onToggleProviderAutoRefill(section.providerId, !section.autoRefillEnabled)
-                }
-              >
-                <span className="nt-switch__track" aria-hidden="true">
-                  <span className="nt-switch__thumb" />
-                </span>
-              </button>
-            </span>
-            <button
-              className="nt-btn nt-btn--secondary nt-btn--compact nt-provider-lifecycle__command"
-              type="button"
-              aria-label={t(
-                `${section.providerLabel} 手动补号`,
-                `Manually refill ${section.providerLabel}`,
-              )}
-              title={t("投递一次补号任务", "Publish one refill task")}
-              disabled={editorLocked || !refill?.userRequestEnabled || refillBusyProviderId === section.providerId}
-              onClick={() => onRequestProviderRefill(section.providerId)}
-            >
-              <UserPlus size={14} aria-hidden="true" />
-              <span className="nt-provider-lifecycle__command-label">
-                {refillBusyProviderId === section.providerId
-                  ? t("补号中", "Refilling")
-                  : t("补号", "Refill")}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div className="nt-provider-lifecycle__row nt-provider-lifecycle__row--quiet">
-          <div className="nt-provider-lifecycle__metric">
-            <Snowflake size={15} aria-hidden="true" />
-            <span>{t("冷却池", "Cooling pool")}</span>
-            <strong>{options.coolingCount}</strong>
-          </div>
-        </div>
-
-        <div className="nt-provider-lifecycle__row">
-          <div className="nt-provider-lifecycle__metric nt-provider-lifecycle__metric--danger">
-            <ShieldX size={15} aria-hidden="true" />
-            <span>{t("失效号", "Invalid")}</span>
-            <strong>{options.invalidCount}</strong>
-          </div>
-          <div className="nt-provider-lifecycle__actions">
-            <span className="nt-provider-lifecycle__toggle">
-              <span>{t("自动删除", "Auto delete")}</span>
-              <button
-                className={section.autoPruneEnabled ? "nt-switch nt-switch--on" : "nt-switch"}
-                type="button"
-                role="switch"
-                aria-checked={section.autoPruneEnabled}
-                aria-label={t(
-                  `${section.providerLabel} 自动删除失效号`,
-                  `${section.providerLabel} auto delete invalid credentials`,
-                )}
-                title={t("自动删除失效号", "Automatically delete invalid credentials")}
-                disabled={editorLocked}
-                onClick={() =>
-                  onToggleProviderAutoPrune(section.providerId, !section.autoPruneEnabled)
-                }
-              >
-                <span className="nt-switch__track" aria-hidden="true">
-                  <span className="nt-switch__thumb" />
-                </span>
-              </button>
-            </span>
-            <button
-              className="nt-btn nt-btn--danger nt-btn--compact nt-provider-lifecycle__command"
-              type="button"
-              aria-label={t(
-                `${section.providerLabel} 手动删除失效号`,
-                `Manually delete invalid ${section.providerLabel} credentials`,
-              )}
-              title={
-                section.permanentDeleteEnabled
-                  ? t("识别并彻底删除失效号", "Identify and permanently delete invalid credentials")
-                  : t("识别失效号并移入归档", "Identify invalid credentials and move them to archive")
-              }
-              disabled={editorLocked || !automation?.driverConfigured || pruneBusyProviderId === section.providerId}
-              onClick={() => requestProviderLifecycleAction(lifecycleAction("prune"))}
-            >
-              <UserMinus size={14} aria-hidden="true" />
-              <span className="nt-provider-lifecycle__command-label">
-                {pruneBusyProviderId === section.providerId
-                  ? t("删除中", "Deleting")
-                  : t("删除", "Delete")}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div className="nt-provider-lifecycle__archive">
-          <div
-            className="nt-provider-lifecycle__archive-path"
-            title={t("账号归档存储路径", "Account archive storage path")}
-          >
-            <Archive size={15} aria-hidden="true" />
-            <span>{t("账号归档存储路径", "Account archive")}</span>
-            <code title={refill?.archiveStoragePath ?? undefined}>{refill?.archiveStoragePath ?? t("未配置", "Not configured")}</code>
-            <strong title={t("当前归档账号数", "Archived credential count")}>{archivedCredentialCount}</strong>
-            <button
-              className="nt-icon-action nt-provider-lifecycle__copy"
-              type="button"
-              aria-label={t(
-                `复制 ${section.providerLabel} 账号归档存储路径`,
-                `Copy ${section.providerLabel} account archive path`,
-              )}
-              title={t("复制账号归档存储路径", "Copy account archive path")}
-              disabled={!refill?.archiveStoragePath}
-              onClick={() => void copyLifecycleValue(t("账号归档存储路径", "Account archive path"), refill?.archiveStoragePath)}
-            >
-              <Copy size={13} aria-hidden="true" />
-            </button>
-          </div>
-          <div className="nt-provider-lifecycle__archive-actions">
-            <span className="nt-provider-lifecycle__toggle nt-provider-lifecycle__toggle--danger">
-              <span>{t("彻底删除", "Permanent delete")}</span>
-              <button
-                className={section.permanentDeleteEnabled ? "nt-switch nt-switch--danger nt-switch--on" : "nt-switch nt-switch--danger"}
-                type="button"
-                role="switch"
-                aria-checked={section.permanentDeleteEnabled}
-                aria-label={t(
-                  `${section.providerLabel} 彻底删除模式`,
-                  `${section.providerLabel} permanent deletion mode`,
-                )}
-                title={t("彻底删除模式", "Permanent deletion mode")}
-                disabled={editorLocked}
-                onClick={() => {
-                  if (section.permanentDeleteEnabled) {
-                    onToggleProviderPermanentDelete(section.providerId, false);
-                  } else {
-                    requestProviderLifecycleAction(lifecycleAction("enable-permanent-delete"));
-                  }
-                }}
-              >
-                <span className="nt-switch__track" aria-hidden="true">
-                  <span className="nt-switch__thumb" />
-                </span>
-              </button>
-            </span>
-            <button
-              className="nt-btn nt-btn--danger nt-btn--compact nt-provider-lifecycle__command"
-              type="button"
-              aria-label={t(
-                `${section.providerLabel} 手动清空账号归档`,
-                `Manually purge the ${section.providerLabel} account archive`,
-              )}
-              title={t("彻底删除当前归档目录中的账号", "Permanently delete credentials in this archive")}
-              disabled={editorLocked || archivedCredentialCount === 0 || archivePurgeBusyProviderId === section.providerId}
-              onClick={() => requestProviderLifecycleAction(lifecycleAction("purge-archive"))}
-            >
-              <ArchiveX size={14} aria-hidden="true" />
-              <span className="nt-provider-lifecycle__command-label">
-                {archivePurgeBusyProviderId === section.providerId
-                  ? t("清理中", "Purging")
-                  : t("清空归档", "Purge archive")}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <ProviderStorageEndpoints
-          section={section}
-          refill={refill}
-          storagePasswordDrafts={storagePasswordDrafts}
-          setStoragePasswordDrafts={setStoragePasswordDrafts}
-          editorLocked={editorLocked}
-          onUpdateProviderStoragePassword={onUpdateProviderStoragePassword}
-          t={t}
-        />
+  const { providerId, providerLabel } = section;
+  const archivedCount = refill?.archivedCredentialCount ?? 0;
+  const lifecycleAction = (kind: PendingProviderLifecycleAction["kind"]) =>
+    requestProviderLifecycleAction({ kind, providerId, providerLabel,
+      permanentDeleteEnabled: section.permanentDeleteEnabled, archivedCredentialCount: archivedCount });
+  const toggle = (label: string, accessible: string, enabled: boolean, action: () => void) => (
+    <div className="nt-provider-lifecycle__toggle">
+      <span>{label}</span>
+      <button className={enabled ? "nt-switch nt-switch--on" : "nt-switch"} type="button"
+        role="switch" aria-checked={enabled} aria-label={`${providerLabel} ${accessible}`}
+        disabled={editorLocked} onClick={action}>
+        <span className="nt-switch__track" aria-hidden="true"><span className="nt-switch__thumb" /></span>
+      </button>
+    </div>
+  );
+  const field = { providerLabel, disabled: editorLocked || options.active === false,
+    discardDraft: options.active === false || options.discardEdits === true, t };
+  return <div className="nt-provider-lifecycle" aria-label={t(`${providerLabel} 账号生命周期`, `${providerLabel} credential lifecycle`)}>
+    <section className="nt-provider-lifecycle__group" aria-label={t("号池容量", "Pool capacity")}>
+      <div className="nt-provider-lifecycle__metrics">
+        <span className="nt-provider-lifecycle__metric nt-provider-lifecycle__metric--available"><UsersRound size={18} /><span>{t("可用池", "Available")}</span><strong>{options.availableCount}</strong></span>
+        <span className="nt-provider-lifecycle__metric nt-provider-lifecycle__metric--cooling"><Snowflake size={18} /><span>{t("冷却池", "Cooling")}</span><strong>{options.coolingCount}</strong></span>
+        <span className="nt-provider-lifecycle__metric nt-provider-lifecycle__metric--danger"><TriangleAlert size={18} /><span>{t("失效池", "Invalid")}</span><strong>{options.invalidCount}</strong></span>
       </div>
-    );
+      <div className="nt-provider-lifecycle__pair nt-provider-lifecycle__inset-rule">
+        <ProviderLifecycleField {...field} label={t("最小可用池", "Minimum pool")} numeric value={String(section.poolMinSize ?? 1)}
+          maximum={section.poolTargetSize} onSave={onUpdateProviderPoolMinSize ? (value) => onUpdateProviderPoolMinSize(providerId, Number(value)) : undefined} />
+        <ProviderLifecycleField {...field} label={t("最大可用池", "Maximum pool")} numeric value={String(section.poolTargetSize)} minimum={Math.max(1, section.poolMinSize ?? 1)}
+          onSave={(value) => onUpdateProviderPoolTargetSize(providerId, Number(value))} />
+      </div>
+    </section>
+    <section className="nt-provider-lifecycle__group" aria-label={t("补号与存储", "Refill and storage")}>
+      <div className="nt-provider-lifecycle__pair nt-provider-lifecycle__operations">
+        <div className="nt-provider-lifecycle__column">
+          <ProviderStorageEndpoints providerLabel={providerLabel} label={t("补号通知", "Refill notification")} value={refill?.notificationApi} t={t} />
+          <ProviderStorageEndpoints providerLabel={providerLabel} label={t("信息查询", "Pool inquiry")} value={refill?.inquiryApi} t={t} />
+        </div>
+        <div className="nt-provider-lifecycle__column">
+          {toggle(t("自动补号", "Auto refill"), t("自动补号", "auto refill"), section.autoRefillEnabled,
+            () => onToggleProviderAutoRefill(providerId, !section.autoRefillEnabled))}
+          <div className="nt-provider-lifecycle__command-row">
+            <button className="nt-btn nt-btn--secondary nt-provider-lifecycle__command" type="button"
+              aria-label={t(`${providerLabel} 手动补号`, `Manually refill ${providerLabel}`)}
+              disabled={editorLocked || lifecycleActionsLocked || !refill?.userRequestEnabled || refillBusyProviderId === providerId || options.availableCount >= section.poolTargetSize || Boolean(refill?.outstandingTaskId)}
+              onClick={() => onRequestProviderRefill(providerId)}><UserPlus size={17} />
+              {refillBusyProviderId === providerId ? t("补号中", "Refilling") : t("补号", "Refill")}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="nt-provider-lifecycle__pair nt-provider-lifecycle__inset-rule">
+        <ProviderLifecycleField {...field} label={t("存储路径", "Storage path")} description={t("补号程序提交的凭证 JSON 读取目录", "Directory for credential JSON supplied by refill workers")} value={section.credentialStoragePath ?? refill?.credentialStoragePath ?? ""}
+          onSave={onUpdateProviderStoragePath ? (value) => onUpdateProviderStoragePath(providerId, value) : undefined} />
+        <ProviderLifecycleField {...field} label={t("存储密码", "Storage password")} description={t("外部补号程序使用的敏感配置；不加密本地文件", "Secret for external refill workers; does not encrypt local files")} secret value="" configured={refill?.storagePasswordConfigured}
+          onSave={(value) => onUpdateProviderStoragePassword(providerId, value)} />
+      </div>
+    </section>
+    <section className="nt-provider-lifecycle__group" aria-label={t("删除与归档", "Deletion and archive")}>
+      <div className="nt-provider-lifecycle__pair nt-provider-lifecycle__operations">
+        <div className="nt-provider-lifecycle__column">
+          {toggle(t("自动删除", "Auto delete"), t("自动删除失效号", "auto delete invalid credentials"), section.autoPruneEnabled,
+            () => onToggleProviderAutoPrune(providerId, !section.autoPruneEnabled))}
+          <div className="nt-provider-lifecycle__command-row">
+            <button className="nt-btn nt-btn--danger nt-provider-lifecycle__command" type="button"
+              aria-label={t(`${providerLabel} 手动删除失效号`, `Manually delete invalid ${providerLabel} credentials`)}
+              disabled={editorLocked || lifecycleActionsLocked || !automation?.driverConfigured || pruneBusyProviderId === providerId}
+              onClick={() => lifecycleAction("prune")}>
+              {pruneBusyProviderId === providerId ? t("删除中", "Deleting") : t(`删除（${options.invalidCount}）`, `Delete (${options.invalidCount})`)}
+            </button>
+          </div>
+        </div>
+        <div className="nt-provider-lifecycle__column">
+          {toggle(t("彻底删除", "Permanent delete"), t("彻底删除模式", "permanent deletion mode"), section.permanentDeleteEnabled,
+            () => section.permanentDeleteEnabled ? onToggleProviderPermanentDelete(providerId, false) : lifecycleAction("enable-permanent-delete"))}
+          <div className="nt-provider-lifecycle__command-row">
+            <button className="nt-btn nt-btn--secondary nt-provider-lifecycle__command" type="button"
+              aria-label={t(`${providerLabel} 手动清空账号归档`, `Manually purge the ${providerLabel} account archive`)}
+              disabled={editorLocked || lifecycleActionsLocked || archivedCount === 0 || archivePurgeBusyProviderId === providerId}
+              onClick={() => lifecycleAction("purge-archive")}>
+              {archivePurgeBusyProviderId === providerId ? t("清理中", "Purging") : t(`清空（${archivedCount}）`, `Purge (${archivedCount})`)}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="nt-provider-lifecycle__pair nt-provider-lifecycle__inset-rule">
+        <ProviderLifecycleField {...field} label={t("归档路径", "Archive path")} description={t("失效凭证删除前写入恢复归档的目录", "Recovery archive written before removing invalid credentials")} value={section.credentialArchivePath ?? refill?.archiveStoragePath ?? ""}
+          onSave={onUpdateProviderArchivePath ? (value) => onUpdateProviderArchivePath(providerId, value) : undefined} />
+        <ProviderLifecycleField {...field} label={t("归档密码", "Archive password")} secret value=""
+          unavailableReason={t("本地归档没有密码加密；云存储认证协议尚未配置", "Local archives are not password encrypted; cloud authentication is not configured")} />
+      </div>
+    </section>
+  </div>;
 }

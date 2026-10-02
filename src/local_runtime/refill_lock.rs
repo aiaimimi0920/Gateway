@@ -36,9 +36,31 @@ impl LocalRuntime {
         &self,
         task_id: &str,
     ) -> Result<Option<File>, GatewayError> {
-        // A fixed stripe set bounds disk metadata and never incorporates user path text.
-        let stripe = Sha256::digest(task_id.as_bytes())[0];
-        let path = self.lock_directory.join(format!("{stripe:02x}.lock"));
+        self.try_named_refill_lock("", task_id).await
+    }
+
+    pub(crate) async fn try_pool_capacity_lock(
+        &self,
+        provider_id: &str,
+    ) -> Result<Option<File>, GatewayError> {
+        // Separate names prevent a provider gate from colliding with its task gate.
+        self.try_named_refill_lock("provider-", provider_id).await
+    }
+
+    async fn try_named_refill_lock(
+        &self,
+        prefix: &str,
+        value: &str,
+    ) -> Result<Option<File>, GatewayError> {
+        // Preserve bounded task stripes. Long provider operations need independent
+        // identities so an unrelated provider cannot be stalled by an 8-bit collision.
+        let digest = Sha256::digest(value.as_bytes());
+        let name = if prefix.is_empty() {
+            format!("{:02x}.lock", digest[0])
+        } else {
+            format!("{prefix}{digest:x}.lock")
+        };
+        let path = self.lock_directory.join(name);
         tokio::task::spawn_blocking(move || {
             let file = OpenOptions::new()
                 .create(true)
@@ -61,3 +83,7 @@ fn lock_error() -> GatewayError {
     GatewayError::server_error("Cannot acquire local refill delivery lock")
         .with_code("local_refill_lock_error")
 }
+
+#[cfg(test)]
+#[path = "refill_lock/tests.rs"]
+mod tests;

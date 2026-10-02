@@ -45,6 +45,9 @@ export type AccountsLedgerPilotSection = {
     | "gemini-web"
     | null;
   hasExplicitAccounts: boolean;
+  poolMinSize?: number;
+  credentialStoragePath?: string;
+  credentialArchivePath?: string;
   poolTargetSize: number;
   autoRefillEnabled: boolean;
   autoPruneEnabled: boolean;
@@ -68,6 +71,8 @@ export type AccountsLedgerWorkspaceProps = {
   t: TranslateFn;
   notice?: ReactNode;
   editorLocked: boolean;
+  discardLifecycleDrafts?: boolean;
+  lifecycleActionsLocked?: boolean;
   totalAccounts: number;
   visibleCount: number;
   rows: AccountLedgerRow[];
@@ -96,6 +101,9 @@ export type AccountsLedgerWorkspaceProps = {
   onUpdatePoolTargetSize: (providerId: string, categoryId: string, nextTargetSize: number) => void;
   onToggleAutoRefill: (providerId: string, categoryId: string, nextEnabled: boolean) => void;
   onToggleAutoPrune: (providerId: string, categoryId: string, nextEnabled: boolean) => void;
+  onUpdateProviderPoolMinSize?: (providerId: string, nextMinSize: number) => void;
+  onUpdateProviderStoragePath?: (providerId: string, path: string) => boolean;
+  onUpdateProviderArchivePath?: (providerId: string, path: string) => boolean;
   onUpdateProviderPoolTargetSize: (providerId: string, nextTargetSize: number) => void;
   onToggleProviderAutoRefill: (providerId: string, nextEnabled: boolean) => void;
   onToggleProviderAutoPrune: (providerId: string, nextEnabled: boolean) => void;

@@ -6,6 +6,10 @@ fn model_route_enabled_default() -> bool {
     true
 }
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 fn is_true(value: &bool) -> bool {
     *value
 }
@@ -248,6 +252,12 @@ pub struct ProviderConfigYaml {
     /// This field is handled as a secret and never exposed in redacted views.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub credential_storage_password: Option<String>,
+    /// Provider-local refill material directory (local or mounted filesystem).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_storage_path: Option<String>,
+    /// Provider-local directory for recoverable plaintext JSON archives.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_archive_path: Option<String>,
     #[serde(default)]
     pub headers: HashMap<String, String>,
     #[serde(default)]
@@ -308,9 +318,15 @@ pub struct ProviderConfigYaml {
     /// E.g., `{"claude-opus-4-6": "opus4.6"}`.
     #[serde(default)]
     pub model_map: HashMap<String, String>,
-    /// Desired number of active route credentials for automated pool upkeep.
+    /// Maximum available credentials (unobserved refill credentials reserve capacity). The legacy name remains compatible; defaults to 100.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pool_target_size: Option<usize>,
+    /// Automatic refill starts strictly below this threshold; zero disables it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pool_min_size: Option<usize>,
+    /// Durable hysteresis marker owned by refill commits, not an operator switch.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub pool_refill_in_progress: bool,
     /// Enables the trusted refill driver selected for this provider.
     #[serde(default)]
     pub auto_refill_enabled: bool,

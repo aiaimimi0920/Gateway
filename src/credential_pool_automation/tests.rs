@@ -150,7 +150,10 @@ fn archive_records_pruned_credentials_and_purge_removes_only_archive_json() {
         archive_pruned_credentials_in_directory(&provider, &prune_ids, &directory).unwrap(),
         1
     );
-    assert_eq!(archived_credential_count_in_directory(&directory), 1);
+    assert_eq!(
+        archived_credential_count_in_directory(&directory, "provider-a"),
+        1
+    );
     let archive_path = fs::read_dir(&directory)
         .unwrap()
         .next()
@@ -165,8 +168,11 @@ fn archive_records_pruned_credentials_and_purge_removes_only_archive_json() {
     assert_eq!(record["reason"], "permanent_driver_rejection");
     assert_eq!(record["credential"]["account_name"], "Account A");
 
-    assert_eq!(purge_credential_archive_directory(&directory).unwrap(), 1);
-    assert!(!directory.exists());
+    assert_eq!(
+        purge_credential_archive_directory(&directory, "provider-a").unwrap(),
+        1
+    );
+    assert!(directory.exists());
     let _ = fs::remove_dir_all(root);
 }
 
@@ -190,7 +196,7 @@ fn permanent_delete_flag_defaults_off_and_accepts_explicit_opt_in() {
 }
 
 #[test]
-fn identity_category_refill_contributes_to_the_driver_request_count() {
+fn identity_categories_cannot_override_the_provider_maximum() {
     let provider: ProviderConfigYaml = serde_json::from_value(serde_json::json!({
         "id": "codex",
         "label": "Codex",
@@ -223,7 +229,9 @@ fn identity_category_refill_contributes_to_the_driver_request_count() {
     }))
     .unwrap();
 
-    assert_eq!(identity_category_requested_count(&provider), 2);
+    let mut provider = provider;
+    provider.pool_target_size = Some(2);
+    assert_eq!(capacity::remaining_capacity(&provider), 0);
 }
 
 #[tokio::test]

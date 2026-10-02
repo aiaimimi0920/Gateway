@@ -1,63 +1,15 @@
-/* provider card compact styles; preserve position in styles.css. */
+/* Keep both columns readable on a narrow viewport rather than hiding labels. */
 @media (max-width: 420px) {
   .nt-provider-card__availability-windows {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     row-gap: 4px;
   }
-
-  .nt-provider-card__actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .nt-provider-card__back-head {
-    padding: 7px 8px;
-  }
-
-  .nt-provider-card__back-body {
-    padding: 0 8px 7px;
-  }
-
-  .nt-provider-lifecycle__row,
-  .nt-provider-lifecycle__archive-actions {
-    align-items: center;
-    flex-direction: row;
-    gap: 5px;
-  }
-
-  .nt-provider-lifecycle__actions,
-  .nt-provider-lifecycle__archive-actions {
-    justify-content: space-between;
-  }
-
-  .nt-provider-lifecycle__toggle > span:first-child,
-  .nt-provider-lifecycle__command-label,
-  .nt-provider-lifecycle__endpoints dt span,
-  .nt-provider-lifecycle__archive-path > span {
-    display: none;
-  }
-
-  .nt-provider-lifecycle__command {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    min-height: 28px;
-    padding: 0;
-  }
-
-  .nt-provider-lifecycle__endpoints > div {
-    grid-template-columns: 18px minmax(0, 1fr);
-    gap: 5px;
-  }
-
-  .nt-provider-lifecycle__endpoints dt {
-    justify-content: center;
-  }
-
-  .nt-provider-lifecycle__archive-path {
-    grid-template-columns: 18px minmax(0, 1fr) auto auto;
-  }
-
-  .nt-provider-lifecycle__archive-path code {
-    grid-column: auto;
-  }
+  .nt-provider-card__back-head { padding: 8px; }
+  .nt-provider-card__back-body { padding: 0 5px 7px; }
+  .nt-provider-lifecycle { font-size: 0.7rem; }
+  .nt-provider-lifecycle__group { padding-right: 3px; padding-left: 3px; }
+  .nt-provider-lifecycle__pair > :first-child { padding-right: 5px; }
+  .nt-provider-lifecycle__pair > :nth-child(2) { padding-left: 5px; }
+  .nt-provider-lifecycle__metric { gap: 3px; }
+  .nt-provider-lifecycle__metric svg { width: 15px; }
 }

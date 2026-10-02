@@ -50,6 +50,9 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     onAddExplicit,
     onToggleDispatch,
     onUpdateProviderPoolTargetSize,
+    onUpdateProviderPoolMinSize,
+    onUpdateProviderStoragePath,
+    onUpdateProviderArchivePath,
     onToggleProviderAutoRefill,
     onToggleProviderAutoPrune,
     onToggleProviderPermanentDelete,
@@ -92,9 +95,6 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     useState<PendingCredentialRemoval | null>(null);
   const [pendingProviderLifecycleAction, setPendingProviderLifecycleAction] =
     useState<PendingProviderLifecycleAction | null>(null);
-  const [storagePasswordDrafts, setStoragePasswordDrafts] = useState<
-    Record<string, { editing: boolean; value: string }>
-  >({});
 
   useEffect(() => {
     const pendingFocus = pendingFlipFocusRef.current;
@@ -161,6 +161,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   const requestProviderLifecycleAction = (
     action: PendingProviderLifecycleAction,
   ) => {
+    if (props.lifecycleActionsLocked && action.kind !== "enable-permanent-delete") return;
     setPendingProviderLifecycleAction(action);
   };
 
@@ -236,16 +237,15 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   const renderProviderLifecycleBack = (options: ProviderLifecycleBackOptions) => (
     <ProviderLifecycleBack
       options={options}
-      poolTargetDrafts={poolTargetDrafts}
-      setPoolTargetDrafts={setPoolTargetDrafts}
-      commitPoolTargetDraft={commitPoolTargetDraft}
-      storagePasswordDrafts={storagePasswordDrafts}
-      setStoragePasswordDrafts={setStoragePasswordDrafts}
+      lifecycleActionsLocked={props.lifecycleActionsLocked}
       editorLocked={editorLocked}
       pruneBusyProviderId={pruneBusyProviderId}
       refillBusyProviderId={refillBusyProviderId}
       archivePurgeBusyProviderId={archivePurgeBusyProviderId}
       onUpdateProviderPoolTargetSize={onUpdateProviderPoolTargetSize}
+      onUpdateProviderPoolMinSize={onUpdateProviderPoolMinSize}
+      onUpdateProviderStoragePath={onUpdateProviderStoragePath}
+      onUpdateProviderArchivePath={onUpdateProviderArchivePath}
       onToggleProviderAutoRefill={onToggleProviderAutoRefill}
       onToggleProviderAutoPrune={onToggleProviderAutoPrune}
       onToggleProviderPermanentDelete={onToggleProviderPermanentDelete}
@@ -340,6 +340,8 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
               >
                 {renderProviderLifecycleBack({
                   section,
+                  active: flipped,
+                  discardEdits: props.discardLifecycleDrafts,
                   availableCount: providerAvailablePoolCount,
                   coolingCount: poolSegments.rateLimited,
                   invalidCount: poolSegments.invalid,

@@ -106,15 +106,20 @@ function providerCardIcon(options: {
   ]
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
+  // Match an explicit brand before protocol suffixes such as nvidia-openai.
+  // Looking for "openai" anywhere first incorrectly painted NVIDIA as OpenAI.
   for (const candidate of candidates) {
     const direct = PROVIDER_ICON_KEYS[candidate];
-    if (direct) {
-      return direct;
-    }
-    const matched = Object.entries(PROVIDER_ICON_KEYS).find(([key]) => candidate.includes(key));
-    if (matched) {
-      return matched[1];
-    }
+    if (direct) return direct;
+  }
+  const entries = Object.entries(PROVIDER_ICON_KEYS).sort(([left], [right]) => right.length - left.length);
+  for (const candidate of candidates) {
+    const prefix = entries.find(([key]) => candidate.startsWith(`${key}-`) || candidate.startsWith(`${key}_`));
+    if (prefix) return prefix[1];
+  }
+  for (const candidate of candidates) {
+    const matched = entries.find(([key]) => candidate.includes(key));
+    if (matched) return matched[1];
   }
   if (options.adapter?.toLowerCase().includes("openai")) {
     return { key: "openai-compatible", label: "AI" };
