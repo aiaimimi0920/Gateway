@@ -369,6 +369,10 @@ export function ProviderLedgerCard({
         inert={!flipped ? true : undefined}
       >
         <header className="nt-provider-card__back-head">
+          <span className={`nt-provider-card__icon nt-provider-card__icon--${visual.iconKey}`}
+            data-provider-icon={visual.iconKey} title={section.vendorLabel} aria-hidden="true">
+            {visual.iconKey === "nvidia" ? <NvidiaBrandIcon /> : visual.iconLabel}
+          </span>
           <div className="nt-provider-card__back-title">
             <strong>{section.providerLabel}</strong>
           </div>

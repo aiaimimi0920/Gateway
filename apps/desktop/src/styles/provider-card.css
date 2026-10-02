@@ -3,7 +3,7 @@
    a flipped face carrying the aggregated detail and pool policy controls. */
 .nt-provider-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 380px));
   gap: 12px;
   /* Stretch, not start: cards in a row share the tallest card's height, so a
      neighbour never has to scroll to keep the row tidy. */
@@ -260,12 +260,11 @@
 }
 
 .nt-provider-card__back-head {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 6px;
-  border-bottom: 1px solid var(--nt-border);
-  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
 }
 
 .nt-provider-card__back-title {
@@ -283,6 +282,6 @@
   gap: 0;
   min-height: 0;
   min-width: 0;
-  padding: 0 10px 8px;
+  padding: 0 7px 8px;
   align-content: start;
 }

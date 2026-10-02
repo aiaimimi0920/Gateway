@@ -30,7 +30,7 @@ test.describe("Gateway web console provider pool", () => {
     await expect(back).toHaveCSS("backface-visibility", "hidden");
     await expect(flipButton).toBeVisible();
     await expect(flipButton.locator(".lucide-gallery-horizontal-end")).toBeVisible();
-    await expect(card.locator("[data-provider-icon]")).toBeVisible();
+    await expect(front.locator("[data-provider-icon]")).toBeVisible();
     await expect(card.getByRole("img", { name: /可用 .*待恢复 .*失效 .*剩余/ })).toBeVisible();
     await expect(card.getByRole("img", { name: /最近窗口的调用成功率/ })).toBeVisible();
     await expect(card.getByRole("switch", { name: /调度开关/ })).toBeVisible();
@@ -41,43 +41,19 @@ test.describe("Gateway web console provider pool", () => {
     await expect(front).toHaveAttribute("aria-hidden", "true");
     await expect(back).toHaveAttribute("aria-hidden", "false");
     await expect(card.getByRole("region", { name: /账号生命周期/ })).toBeVisible();
-    await expect(card.getByText("可用号池", { exact: true })).toBeVisible();
+    await expect(card.getByText("可用池", { exact: true })).toBeVisible();
     await expect(card.getByText("冷却池", { exact: true })).toBeVisible();
-    await expect(card.getByText("失效号", { exact: true })).toBeVisible();
-    await expect(
-      card.locator('dt[title="外部补号程序领取补号任务的地址"]'),
-    ).toBeVisible();
-    await expect(
-      card.locator('.nt-provider-lifecycle__archive-path[title="账号归档存储路径"]'),
-    ).toBeVisible();
+    await expect(card.getByText("失效池", { exact: true })).toBeVisible();
+    await expect(back.locator("[data-provider-icon]")).toHaveAttribute("data-provider-icon", await front.locator("[data-provider-icon]").getAttribute("data-provider-icon") ?? "");
+    await expect(card.locator(".nt-provider-lifecycle__group")).toHaveCount(3);
+    for (const label of ["最小可用池", "最大可用池", "存储路径", "存储密码", "归档路径", "归档密码"]) {
+      await expect(card.getByRole("button", { name: new RegExp(`编辑 .* ${label}`) })).toBeVisible();
+    }
     await expect(card.getByRole("button", { name: /复制 .* 补号通知 API/ })).toBeVisible();
     await expect(card.getByRole("button", { name: /复制 .* 信息查询 API/ })).toBeVisible();
-    await expect(card.getByRole("button", { name: /复制 .* 号码存储路径/ })).toBeVisible();
-    await expect(card.getByRole("button", { name: /复制 .* 账号归档存储路径/ })).toBeVisible();
-    await expect(card.getByRole("button", { name: /编辑 .* 存储密码/ })).toBeVisible();
-    await expect(card.locator(".nt-provider-lifecycle__command svg")).toHaveCount(3);
-    await expect
-      .poll(() =>
-        card.locator(".nt-provider-lifecycle__command svg").evaluateAll((elements) =>
-          elements.every((element) => element.getBoundingClientRect().width > 0),
-        ),
-      )
-      .toBe(true);
-    await expect(
-      card.locator(
-        ".nt-provider-lifecycle > .nt-provider-lifecycle__archive + .nt-provider-lifecycle__endpoints",
-      ),
-    ).toBeVisible();
-    await expect(card.locator(".nt-provider-lifecycle__endpoints code").first()).toHaveText(
-      "/v1/internal/gateway/credential-pool-refill/providers/managed-provider/tasks/claim",
-    );
-    await expect(
-      card.locator('.nt-provider-lifecycle__password code[title="已配置"]'),
-    ).toBeVisible();
-    await expect(card.locator(".nt-provider-lifecycle__archive-path code")).toHaveText(
-      "C:\\Gateway\\credentials\\_archive\\managed-provider",
-    );
-    await expect(card.locator(".nt-provider-lifecycle__archive-path strong")).toHaveText("4");
+    await expect(card.locator(".nt-provider-lifecycle__endpoint a")).toHaveCount(0);
+    await expect(card.locator(".nt-provider-lifecycle__endpoint").first()).not.toContainText("/v1/internal");
+    await expect(card.getByText("清空（4）", { exact: true })).toBeVisible();
     await expect(card.getByRole("button", { name: /翻回.*卡牌正面/ })).toBeFocused();
     await expect
       .poll(() => inner.evaluate((element) => getComputedStyle(element).transform))

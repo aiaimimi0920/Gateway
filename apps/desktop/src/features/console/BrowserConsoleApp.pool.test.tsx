@@ -93,13 +93,12 @@ describe("BrowserConsoleApp", () => {
     await openWorkspace(user, /凭据池/i);
 
     const providerRow = await flipProviderCard(user, /^Managed OpenAI$/i);
-    expect(within(providerRow).getByText(/^可用号池$/)).toBeInTheDocument();
+    expect(within(providerRow).getByText(/^可用池$/)).toBeInTheDocument();
     expect(within(providerRow).getByText(/^补号$/)).toBeInTheDocument();
-    expect(within(providerRow).getByText(/^删除$/)).toBeInTheDocument();
+    expect(within(providerRow).getByText(/^删除（\d+）$/)).toBeInTheDocument();
 
-    const targetInput = within(providerRow).getByRole("spinbutton", {
-      name: /Managed OpenAI 目标号池容量|Managed OpenAI target pool size/i,
-    });
+    await user.click(within(providerRow).getByRole("button", { name: /编辑 Managed OpenAI 最大可用池/ }));
+    const targetInput = within(providerRow).getByRole("spinbutton", { name: /Managed OpenAI 最大可用池/ });
     const autoRefillSwitch = within(providerRow).getByRole("switch", {
       name: /Managed OpenAI 自动补号|Managed OpenAI auto refill/i,
     });
@@ -107,16 +106,17 @@ describe("BrowserConsoleApp", () => {
       name: /Managed OpenAI 自动删除失效号|Managed OpenAI auto delete invalid credentials/i,
     });
 
-    expect(targetInput).toHaveValue(30);
+    expect(targetInput).toHaveValue(100);
     expect(autoRefillSwitch).toHaveAttribute("aria-checked", "false");
     expect(autoPruneSwitch).toHaveAttribute("aria-checked", "false");
 
     await user.clear(targetInput);
     await user.type(targetInput, "80");
+    await user.click(within(providerRow).getByRole("button", { name: /保存 Managed OpenAI 最大可用池/ }));
     await user.click(autoRefillSwitch);
     await user.click(autoPruneSwitch);
 
-    expect(targetInput).toHaveValue(80);
+    expect(within(providerRow).getByText("80")).toBeInTheDocument();
     expect(autoRefillSwitch).toHaveAttribute("aria-checked", "true");
     expect(autoPruneSwitch).toHaveAttribute("aria-checked", "true");
 
@@ -222,10 +222,10 @@ describe("BrowserConsoleApp", () => {
       name: /Managed OpenAI 自动删除失效号|Managed OpenAI auto delete invalid credentials/i,
     });
     expect(
-      screen.getByText(
+      screen.queryByText(
         "/v1/internal/gateway/credential-pool-refill/providers/managed-provider/tasks/claim",
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Managed OpenAI 手动补号/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Managed OpenAI 手动删除失效号/ })).toBeDisabled();
 

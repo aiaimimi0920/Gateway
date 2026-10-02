@@ -193,6 +193,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
     updatePilotProviderPolicy,
     updateProviderAutomationToggle,
     updateProviderStoragePassword,
+    updateProviderStoragePath,
   } = controller;
   const { workspaceItems, utilityItems, activeWorkspaceLabel } =
     buildConsoleNavigation(activeWorkspace, t);
@@ -289,6 +290,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
           nextEnabled,
         )
       }
+      onUpdateProviderPoolMinSize={(providerId, poolMinSize) => updatePilotProviderPolicy(providerId, { poolMinSize })}
       onUpdateProviderPoolTargetSize={(providerId, nextTargetSize) =>
         updatePilotProviderPolicy(providerId, {
           poolTargetSize: nextTargetSize,
@@ -303,6 +305,8 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
       onToggleProviderPermanentDelete={(providerId, nextEnabled) =>
         updatePilotProviderPolicy(providerId, { permanentDeleteEnabled: nextEnabled })
       }
+      onUpdateProviderStoragePath={(providerId, path) => updateProviderStoragePath(providerId, "credential_storage_path", path)}
+      onUpdateProviderArchivePath={(providerId, path) => updateProviderStoragePath(providerId, "credential_archive_path", path)}
       onUpdateProviderStoragePassword={updateProviderStoragePassword}
       onRequestProviderRefill={(providerId) => void handleRequestCredentialRefill(providerId)}
       onPruneProviderCredentials={(providerId) => void handlePruneCredentialPool(providerId)}

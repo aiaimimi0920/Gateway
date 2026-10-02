@@ -107,17 +107,17 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     expect(cardBack).not.toHaveAttribute("inert");
     expect(screen.getByRole("switch", { name: /Managed OpenAI 自动补号/ })).toBeInTheDocument();
     expect(
-      screen.getByRole("spinbutton", { name: /Managed OpenAI 目标号池容量/ }),
+      screen.getByRole("button", { name: /编辑 Managed OpenAI 最大可用池/ }),
     ).toBeInTheDocument();
     expect(screen.getByRole("region", { name: /Managed OpenAI 账号生命周期/ })).toBeInTheDocument();
-    expect(screen.getByText("可用号池")).toBeInTheDocument();
+    expect(screen.getByText("可用池")).toBeInTheDocument();
     expect(screen.getByText("冷却池")).toBeInTheDocument();
-    expect(screen.getByText("失效号")).toBeInTheDocument();
+    expect(screen.getByText("失效池")).toBeInTheDocument();
     expect(
-      screen.getByText(
+      screen.queryByText(
         "/v1/internal/gateway/credential-pool-refill/providers/managed-provider/tasks/claim",
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("api.openai.com")).not.toBeInTheDocument();
     expect(screen.queryByText("openai")).not.toBeInTheDocument();
     expect(screen.queryByText("最近 2 分钟前")).not.toBeInTheDocument();
@@ -253,12 +253,11 @@ describe("AccountsLedgerWorkspace provider cards", () => {
       }),
     );
 
-    const targetInput = screen.getByRole("spinbutton", {
-      name: /Managed OpenAI 目标号池容量/,
-    });
+    await user.click(screen.getByRole("button", { name: /编辑 Managed OpenAI 最大可用池/ }));
+    const targetInput = screen.getByRole("spinbutton", { name: /Managed OpenAI 最大可用池/ });
     await user.clear(targetInput);
     await user.type(targetInput, "42");
-    await user.tab();
+    await user.click(screen.getByRole("button", { name: /保存 Managed OpenAI 最大可用池/ }));
     expect(onUpdateProviderPoolTargetSize).toHaveBeenCalledWith("managed-provider", 42);
 
     await user.click(screen.getByRole("switch", { name: /Managed OpenAI 自动补号/ }));
@@ -300,14 +299,8 @@ describe("AccountsLedgerWorkspace provider cards", () => {
       }),
     );
 
-    const archive = providerCard.querySelector(".nt-provider-lifecycle__archive");
-    const endpoints = providerCard.querySelector(".nt-provider-lifecycle__endpoints");
-    expect(archive).not.toBeNull();
-    expect(endpoints).not.toBeNull();
-    expect(
-      (archive as HTMLElement).compareDocumentPosition(endpoints as HTMLElement) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
+    expect(providerCard.querySelectorAll(".nt-provider-lifecycle__group")).toHaveLength(3);
+    expect(providerCard.querySelector(".nt-provider-lifecycle__endpoint a")).toBeNull();
 
     await user.click(
       within(providerCard).getByRole("button", {
@@ -335,12 +328,10 @@ describe("AccountsLedgerWorkspace provider cards", () => {
       "provider-storage-secret",
     );
 
-    await user.click(
-      within(providerCard).getByRole("button", {
-        name: /复制 Managed OpenAI 存储密码/,
-      }),
-    );
-    expect(writeText).toHaveBeenLastCalledWith("provider-storage-secret");
+    expect(within(providerCard).queryByDisplayValue("provider-storage-secret")).not.toBeInTheDocument();
+    await user.click(within(providerCard).getByRole("button", { name: /编辑 Managed OpenAI 存储密码/ }));
+    expect(within(providerCard).getByLabelText("Managed OpenAI 存储密码")).toHaveValue("");
+
   });
 
   it("runs provider actions and confirms deletion inside the app", async () => {

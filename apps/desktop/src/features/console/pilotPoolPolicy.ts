@@ -10,6 +10,7 @@ export type PilotIdentityCategoryDefinition = {
 };
 
 export type PilotProviderPolicyDefinition = {
+  poolMinSize: number;
   poolTargetSize: number;
   autoRefillEnabled: boolean;
   autoPruneEnabled: boolean;
@@ -17,6 +18,8 @@ export type PilotProviderPolicyDefinition = {
 };
 
 export const DEFAULT_PILOT_POOL_TARGET_SIZE = 30;
+export const DEFAULT_PROVIDER_POOL_MAX_SIZE = 100;
+export const DEFAULT_PROVIDER_POOL_MIN_SIZE = 1;
 
 const CODEX_IDENTITY_CATEGORY_DEFAULTS: PilotIdentityCategoryDefinition[] = [
   {
@@ -39,12 +42,12 @@ export function normalizePilotPoolTargetSize(
   value: unknown,
   fallback = DEFAULT_PILOT_POOL_TARGET_SIZE,
 ): number {
-  if (typeof value === "number" && Number.isFinite(value) && value >= 1) {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 1) {
     return Math.floor(value);
   }
   if (typeof value === "string" && value.trim().length > 0) {
     const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed >= 1) {
+    if (Number.isSafeInteger(parsed) && parsed >= 1) {
       return Math.floor(parsed);
     }
   }
@@ -55,7 +58,9 @@ export function readPilotProviderPolicy(
   provider: Record<string, unknown>,
 ): PilotProviderPolicyDefinition {
   return {
-    poolTargetSize: normalizePilotPoolTargetSize(provider.pool_target_size),
+    poolTargetSize: normalizePilotPoolTargetSize(provider.pool_target_size, DEFAULT_PROVIDER_POOL_MAX_SIZE),
+    poolMinSize: typeof provider.pool_min_size === "number" && Number.isSafeInteger(provider.pool_min_size) && provider.pool_min_size >= 0
+      ? provider.pool_min_size : DEFAULT_PROVIDER_POOL_MIN_SIZE,
     autoRefillEnabled: optionalBoolean(provider, "auto_refill_enabled") ?? false,
     autoPruneEnabled: optionalBoolean(provider, "auto_prune_enabled") ?? false,
     permanentDeleteEnabled:
