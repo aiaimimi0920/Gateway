@@ -327,10 +327,19 @@ impl S3Storage {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct BoundedConnector {
     http: rquest::Client,
     origin: url::Origin,
+}
+
+impl std::fmt::Debug for BoundedConnector {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The production transport intentionally does not expose client internals.
+        formatter
+            .debug_struct("BoundedConnector")
+            .finish_non_exhaustive()
+    }
 }
 
 fn transport_error() -> ConnectorError {

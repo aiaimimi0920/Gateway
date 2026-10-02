@@ -5,7 +5,7 @@ use crate::credential_pool_automation::{
 use crate::error::GatewayError;
 use crate::routing::config::ProviderConfigYaml;
 use crate::state::AppState;
-use futures::{stream, StreamExt, TryStreamExt};
+use futures::{stream::FuturesUnordered, StreamExt};
 use std::time::Duration;
 
 use super::*;
@@ -15,21 +15,30 @@ pub async fn list_credential_refill_demands(
 ) -> Result<Vec<CredentialRefillDemandView>, GatewayError> {
     tokio::time::timeout(Duration::from_secs(30), async {
         let snapshot = state.route_config.snapshot();
-        let results = stream::iter(snapshot.document().providers.iter().enumerate().map(
-            |(index, provider)| {
-                let revision = snapshot.revision().id();
-                async move {
-                    let outstanding = load_outstanding_task(state, &provider.id).await?;
-                    let view =
-                        build_demand_view(state, provider, revision, outstanding.as_ref()).await?;
-                    Ok::<_, GatewayError>((index, view))
-                }
-            },
-        ))
-        .buffer_unordered(4)
-        .try_collect::<Vec<_>>()
-        .await?;
-        let mut results = results;
+        // Keep at most four concrete futures, without an async mapping closure over
+        // borrowed providers (which breaks the complete Axum handler's Send bound).
+        let mut providers = snapshot.document().providers.iter().enumerate();
+        let mut tasks = FuturesUnordered::new();
+        for (index, provider) in providers.by_ref().take(4) {
+            tasks.push(indexed_demand_view(
+                state,
+                provider,
+                snapshot.revision().id(),
+                index,
+            ));
+        }
+        let mut results = Vec::with_capacity(snapshot.document().providers.len());
+        while let Some(result) = tasks.next().await {
+            results.push(result?);
+            if let Some((index, provider)) = providers.next() {
+                tasks.push(indexed_demand_view(
+                    state,
+                    provider,
+                    snapshot.revision().id(),
+                    index,
+                ));
+            }
+        }
         results.sort_by_key(|(index, _)| *index);
         Ok(results.into_iter().map(|(_, view)| view).collect())
     })
@@ -38,6 +47,17 @@ pub async fn list_credential_refill_demands(
         GatewayError::service_unavailable("Credential refill status deadline exceeded")
             .with_code("credential_refill_status_timeout")
     })?
+}
+
+async fn indexed_demand_view(
+    state: &AppState,
+    provider: &ProviderConfigYaml,
+    revision_id: &str,
+    index: usize,
+) -> Result<(usize, CredentialRefillDemandView), GatewayError> {
+    let outstanding = load_outstanding_task(state, &provider.id).await?;
+    let view = build_demand_view(state, provider, revision_id, outstanding.as_ref()).await?;
+    Ok((index, view))
 }
 
 async fn build_demand_view(

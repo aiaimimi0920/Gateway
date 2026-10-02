@@ -67,7 +67,7 @@ impl WebdavStorage {
     }
 
     fn request(&self, method: Method, url: Url) -> RequestBuilder {
-        let request = self.client.request(method, url);
+        let request = self.client.request(method, url.as_str());
         match self.username.as_ref() {
             Some(username) => request.basic_auth(username, self.password.as_ref()),
             None => request,
