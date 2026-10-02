@@ -12,6 +12,8 @@ use std::sync::{Arc, Mutex};
 #[path = "console_contract_support/mod.rs"]
 mod support;
 use support::*;
+#[path = "console_nvidia_model_probe_contract/cleanup.rs"]
+mod cleanup;
 
 async fn completion(
     State(calls): State<Arc<Mutex<Vec<String>>>>,
@@ -110,7 +112,9 @@ async fn nvidia_tests_generate_with_exact_credential_and_persist_model_attributi
             ));
     }
     server.abort();
-    local.close().await;
+    assert!(server.await.unwrap_err().is_cancelled());
     drop(fixture);
-    std::fs::remove_dir_all(directory).unwrap();
+    local.close().await;
+    drop(local);
+    cleanup::remove_probe_directory(&directory).await.unwrap();
 }
