@@ -285,6 +285,7 @@ class GatewayStandaloneSourceStateTests(GatewayRepositoryTextFixture, unittest.T
             self.assertEqual(
                 initial["build"]["algorithm"], "sha256-git-source-list-v2"
             )
+            self.assertEqual(initial["build"]["fileCount"], 4)
 
             (source_root / ".env").write_text("SECRET=changed\n", encoding="utf-8")
             generated.write_text("cache-v2\n", encoding="utf-8")

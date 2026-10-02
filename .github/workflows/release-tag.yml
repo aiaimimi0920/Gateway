@@ -132,6 +132,7 @@ jobs:
             -VersionId $env:GATEWAY_TAG `
             -ReleaseRoot ".\release\Gateway" `
             -AllowCustomReleaseRoot `
+            -UseExampleRoutes `
             -SkipBuild
 
       - name: Verify packaged release

@@ -27,7 +27,7 @@ function New-ArtifactRecord {
         [Parameter(Mandatory = $true)][string]$Kind
     )
 
-    $item = Get-Item -LiteralPath $Path -ErrorAction Stop
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     if ($item.PSIsContainer) {
         throw "Artifact record path is not a file: $Path"
     }
@@ -87,7 +87,7 @@ function Copy-ImmutableEvidenceFile {
     try {
         [System.IO.File]::Copy((Resolve-FullPath -Path $Source), $temporaryPath, $false)
         $sourceItem = Get-Item -LiteralPath $Source
-        $temporaryItem = Get-Item -LiteralPath $temporaryPath
+        $temporaryItem = Get-Item -LiteralPath $temporaryPath -Force
         $sourceHash = (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash
         $temporaryHash = (Get-FileHash -LiteralPath $temporaryPath -Algorithm SHA256).Hash
         if ($sourceItem.Length -ne $temporaryItem.Length -or $sourceHash -ne $temporaryHash) {

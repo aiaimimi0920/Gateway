@@ -110,6 +110,7 @@ jobs:
             -VersionId $env:GATEWAY_VERSION `
             -ReleaseRoot ".\release\Gateway" `
             -AllowCustomReleaseRoot `
+            -UseExampleRoutes `
             -SkipBuild
 
       - name: Verify packaged runtime integrity
