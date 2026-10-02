@@ -31,8 +31,9 @@ export function createConsoleCoreApi(client: GatewayApiClient): ConsoleCoreApi {
         method: "POST",
         body: { token },
       }),
-    verifySession: (token) =>
+    verifySession: (token, options) =>
       client.request(`${CONSOLE_ROOT}/session/verify`, managementSessionSchema, {
+        ...options,
         method: "POST",
         managementToken: token,
       }),

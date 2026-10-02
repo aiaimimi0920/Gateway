@@ -13,6 +13,7 @@ import { createConsoleApi, type ConsoleApi } from "../api/console";
 import type { BootstrapStatus, ManagementSession, SecretGrant } from "../api/contracts";
 import { isAuthenticationError } from "../api/errors";
 import { useGatewayHost } from "../platform/HostProvider";
+import { rotateManagementToken } from "./managementTokenRotation";
 import {
   clearManagementSession,
   getManagementSessionStorage,
@@ -83,6 +84,9 @@ export function ManagementSessionProvider({
   const [secretGrant, setSecretGrant] = useState<SecretGrant | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const credentialIntent = useRef(0);
+  const currentToken = useRef<string | null>(null);
+  useLayoutEffect(() => { currentToken.current = managementToken; }, [managementToken]);
 
   const isCurrentHost = useCallback(() => hostEpochRef.current === hostEpoch, [hostEpoch]);
 
@@ -91,6 +95,7 @@ export function ManagementSessionProvider({
     if (!isCurrentHost()) {
       return;
     }
+    currentToken.current = null;
     setManagementToken(null);
     setSession(null);
     setSecretGrant(null);
@@ -111,7 +116,11 @@ export function ManagementSessionProvider({
     () =>
       createGatewayApiClient({
         host,
-        onAuthenticationFailure: clearLocalSession,
+        onAuthenticationFailure: (_status, token) => {
+          // An old in-flight request must not invalidate a newly rotated credential.
+          if (token && token !== currentToken.current) return;
+          clearLocalSession();
+        },
       }),
     [clearLocalSession, host],
   );
@@ -195,6 +204,7 @@ export function ManagementSessionProvider({
   const authenticateWith = useCallback(
     async (tokenValue: string, bootstrapFirst: boolean) => {
       const token = normalizeToken(tokenValue);
+      credentialIntent.current += 1;
       let bootstrapCompleted = false;
       setBusy(true);
       setError(null);
@@ -261,6 +271,7 @@ export function ManagementSessionProvider({
   );
 
   const logout = useCallback(async () => {
+    credentialIntent.current += 1;
     setBusy(true);
     setError(null);
     try {
@@ -285,20 +296,24 @@ export function ManagementSessionProvider({
         throw new Error("No authenticated management session is available.");
       }
       const newToken = normalizeToken(newTokenValue);
+      const intent = ++credentialIntent.current;
+      const isCurrentRotation = () => isCurrentHost() && credentialIntent.current === intent;
       setBusy(true);
       setError(null);
       try {
-        await api.rotateSession(managementToken, newToken);
+        const verified = await rotateManagementToken(api, managementToken, newToken, isCurrentRotation);
+        if (!isCurrentRotation()) return;
         writeManagementSessionToken(newToken, storage, hostEpoch.namespace);
-        if (!isCurrentHost()) {
-          return;
-        }
+        currentToken.current = newToken;
         setManagementToken(newToken);
         setSecretGrant(null);
         setSession((current) =>
-          current ? { ...current, secretAccessGranted: false } : current,
+          verified ? { ...verified, secretAccessGranted: false }
+            : current ? { ...current, secretAccessGranted: false } : current,
         );
+        setPhase("authenticated");
       } catch (cause) {
+        if (!isCurrentRotation()) return;
         if (isAuthenticationError(cause)) {
           clearLocalSession();
         }
@@ -307,7 +322,7 @@ export function ManagementSessionProvider({
         }
         throw cause;
       } finally {
-        if (isCurrentHost()) {
+        if (isCurrentRotation()) {
           setBusy(false);
         }
       }

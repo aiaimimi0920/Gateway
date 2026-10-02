@@ -85,6 +85,18 @@ describe("Gateway API client", () => {
     expect(readManagementSessionToken()).toBeNull();
   });
 
+  it.each([401, 403])("keeps candidate HTTP %s rejection local to the verification call", async status => {
+    writeManagementSessionToken("current-token");
+    const onAuthenticationFailure = vi.fn(() => clearManagementSession());
+    server.use(http.post(verifyUrl, () => HttpResponse.json({ error: { message: "Rejected" } }, { status })));
+    const client = createGatewayApiClient({ host: createBrowserHost(), onAuthenticationFailure });
+    await expect(client.request("/v1/internal/gateway/console/session/verify", managementSessionSchema, {
+      method: "POST", managementToken: "candidate-token", notifyAuthenticationFailure: false,
+    })).rejects.toMatchObject({ status });
+    expect(onAuthenticationFailure).not.toHaveBeenCalled();
+    expect(readManagementSessionToken()).toBe("current-token");
+  });
+
   it.each([401, 403])(
     "clears authentication before decoding non-JSON HTTP %s bodies",
     async (status) => {
@@ -112,7 +124,7 @@ describe("Gateway API client", () => {
           { method: "POST", managementToken: "expired-token" },
         ),
       ).rejects.toMatchObject({ name: "GatewayApiError", status });
-      expect(onAuthenticationFailure).toHaveBeenCalledWith(status);
+      expect(onAuthenticationFailure).toHaveBeenCalledWith(status, "expired-token");
       expect(readManagementSessionToken()).toBeNull();
     },
   );

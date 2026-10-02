@@ -1,4 +1,5 @@
 import { AppearanceSettings } from "../settings/AppearanceSettings";
+import { ManagementSecuritySettings } from "../settings/ManagementSecuritySettings";
 import { OperationsWorkspace } from "./OperationsWorkspace";
 import { AccessKeysWorkspace } from "./AccessKeysWorkspace";
 import type { useOperationsData } from "./useOperationsData";
@@ -23,6 +24,7 @@ export function ConsoleIndependentWorkspace({
     <div className="nt-settings-page">
       <div className="nt-settings-accordion">
         <AppearanceSettings />
+        <ManagementSecuritySettings />
       </div>
     </div>
   );

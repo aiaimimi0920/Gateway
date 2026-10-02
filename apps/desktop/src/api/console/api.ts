@@ -1,3 +1,4 @@
+import type { GatewayApiRequestOptions } from "../client";
 import type {
   BootstrapStatus,
   ConsoleAccessAffinityResponse,
@@ -71,7 +72,7 @@ import type {
 export type ConsoleApi = {
   getBootstrapStatus(): Promise<BootstrapStatus>;
   bootstrap(token: string): Promise<OperationSuccess>;
-  verifySession(token: string): Promise<ManagementSession>;
+  verifySession(token: string, options?: Pick<GatewayApiRequestOptions, "signal" | "notifyAuthenticationFailure">): Promise<ManagementSession>;
   confirmSecretAccess(managementToken: string, confirmationToken: string): Promise<SecretGrant>;
   rotateSession(currentToken: string, newToken: string): Promise<OperationSuccess>;
   logout(token: string): Promise<OperationSuccess>;

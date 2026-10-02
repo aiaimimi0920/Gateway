@@ -4,6 +4,7 @@ import { GatewayApiError } from "../../api/errors";
 import { createChatgptAuthApi, type ChatgptAuthSession } from "../../api/console/chatgpt-auth";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import { CHATGPT_POOL_CATEGORIES } from "./chatgptPool";
+import { ChatgptAuthorizationLink } from "./ChatgptAuthorizationLink";
 
 type Props = {
   client: GatewayApiClient; managementToken: string | null; secretGrant: string | null;
@@ -65,7 +66,7 @@ export function ChatgptOAuthPanel({ client, managementToken, secretGrant, provid
     return () => { abort.abort(); clearTimeout(timer); };
   }, [api, session?.id, session?.status, busy, t, onSaved]);
 
-  const run = async (action: "create" | "cancel" | "complete" | "import" | "open-browser") => {
+  const run = async (action: "create" | "cancel" | "complete" | "import") => {
     if ((action === "create" || action === "import") && !secretGrant) { onRequestSecretAccess(); return; }
     const current = generation.current;
     setBusy(true); setError(null);
@@ -96,10 +97,11 @@ export function ChatgptOAuthPanel({ client, managementToken, secretGrant, provid
     {session && <p role="status">{session.message}</p>}
     {session?.status === "waiting_user" && <>
       <div className="nt-actions">
-        <button type="button" className="nt-btn nt-btn--secondary" disabled={busy} onClick={() => void run("open-browser")}>{t("打开授权页面", "Open authorization page")}</button>
+        <ChatgptAuthorizationLink key={session.id} value={session.authorizationUrl} busy={busy} />
         <button type="button" className="nt-btn nt-btn--secondary" onClick={() => void Promise.resolve().then(() => navigator.clipboard.writeText(session.authorizationUrl)).catch(() => setError(t("复制失败，请手动复制链接。", "Copy failed; copy the link manually.")))}>{t("复制授权链接", "Copy authorization link")}</button>
       </div>
       <input className="nt-input" readOnly value={session.authorizationUrl} aria-label={t("授权链接", "Authorization URL")} />
+      <p>{t("授权页面在当前设备的浏览器打开。连接远程 Gateway 时，若回调页面无法访问，请复制地址栏中的完整回调地址并粘贴到下方。", "Authorization opens in this device's browser. With a remote Gateway, if the callback page is unreachable, copy its complete address from the address bar and paste it below.")}</p>
       <details><summary>{t("未自动返回？粘贴回调地址", "No automatic callback? Paste the callback URL")}</summary>
         <input className="nt-input" value={callbackUrl} onChange={(event) => setCallbackUrl(event.target.value)} placeholder="http://localhost:1455/auth/callback?..." aria-label={t("回调地址", "Callback URL")} />
         <button type="button" className="nt-btn nt-btn--secondary" disabled={busy || !callbackUrl} onClick={() => void run("complete")}>{t("完成授权", "Complete authorization")}</button>

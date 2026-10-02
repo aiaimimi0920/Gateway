@@ -17,6 +17,16 @@ const props = { client, managementToken: "operator", secretGrant: "grant", provi
 beforeEach(() => { vi.useFakeTimers(); vi.resetAllMocks(); api.create.mockResolvedValue(session("waiting_user")); api.act.mockResolvedValue(session("cancelled")); });
 afterEach(() => { vi.useRealTimers(); });
 
+it("opens authorization on the operator device without asking the server to launch a browser", async () => {
+  render(<ChatgptOAuthPanel {...props} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "通过 ChatGPT 登录" })); });
+  const link = screen.getByRole("link", { name: "打开授权页面" });
+  expect(link).toHaveAttribute("href", session("waiting_user").session.authorizationUrl);
+  expect(link).toHaveAttribute("target", "_blank");
+  expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  expect(api.act).not.toHaveBeenCalled();
+});
+
 it("requires secret confirmation and never creates a session without it", async () => {
   render(<ChatgptOAuthPanel {...props} secretGrant={null} />);
   fireEvent.click(screen.getByRole("button", { name: "通过 ChatGPT 登录" }));

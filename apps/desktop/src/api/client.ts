@@ -15,6 +15,8 @@ export type GatewayApiRequestOptions = Omit<RequestInit, "body" | "headers"> & {
   headers?: HeadersInit;
   managementToken?: string | null;
   secretGrant?: string | null;
+  // Candidate verification may suppress session invalidation, never the request error.
+  notifyAuthenticationFailure?: boolean;
 };
 
 export type GatewayApiClient = {
@@ -24,7 +26,7 @@ export type GatewayApiClient = {
 export type CreateGatewayApiClientOptions = {
   host: GatewayHostAdapter;
   fetchImplementation?: typeof fetch;
-  onAuthenticationFailure?: (status: 401 | 403) => void;
+  onAuthenticationFailure?: (status: 401 | 403, token?: string | null) => void;
 };
 
 function buildApiUrl(origin: string, path: string): string {
@@ -91,6 +93,7 @@ export function createGatewayApiClient({
         headers: suppliedHeaders,
         managementToken,
         secretGrant,
+        notifyAuthenticationFailure = true,
         ...requestInit
       } = options;
       const headers = new Headers(suppliedHeaders);
@@ -116,8 +119,8 @@ export function createGatewayApiClient({
         referrerPolicy: "no-referrer",
       });
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          onAuthenticationFailure?.(response.status);
+        if (notifyAuthenticationFailure && (response.status === 401 || response.status === 403)) {
+          onAuthenticationFailure?.(response.status, managementToken);
         }
         const payload = await decodeGatewayError(response);
         throw parseGatewayError(payload, response.status);

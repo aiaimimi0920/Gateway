@@ -59,6 +59,7 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
     } else {
         let menu = native_menu(app)?;
         let navigation_app = app.clone();
+        let browser_app = app.clone();
         // Server pages receive no native IPC permissions. Window chrome uses only
         // the fixed, intercepted navigation actions in chrome.rs.
         WebviewWindowBuilder::new(app, "gateway-console", WebviewUrl::External(url))
@@ -68,6 +69,13 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
             .min_inner_size(900.0, 600.0)
             .initialization_script(super::chrome::INITIALIZATION_SCRIPT)
             .menu(menu)
+            .on_new_window(move |url, _| {
+                browser_app
+                    .state::<super::authorization_browser::AuthorizationBrowser>()
+                    .open(browser_app.clone(), url);
+                // OAuth uses the system browser, never an IPC-enabled child WebView.
+                tauri::webview::NewWindowResponse::Deny
+            })
             .on_navigation(move |target| {
                 if super::chrome::handle_navigation(&navigation_app, "gateway-console", target) {
                     return false;

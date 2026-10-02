@@ -147,7 +147,9 @@ fn failed_response() -> rquest::Response {
 #[tokio::test]
 async fn body_read_errors_keep_the_original_provider_classification() {
     let original = failed_response().text().await.unwrap_err();
-    let expected = classify_network_error(&original, Some(PROVIDER));
+    // wreq's whole-body collector adds a response URI, while bytes_stream does not.
+    // Compare the same underlying failure without that collector-only context.
+    let expected = classify_network_error(&original.without_uri(), Some(PROVIDER));
     let actual =
         collect_bounded_upstream_charset_text_with_provider(failed_response(), LABEL, PROVIDER)
             .await

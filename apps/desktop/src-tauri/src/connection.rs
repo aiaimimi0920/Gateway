@@ -1,3 +1,4 @@
+pub(crate) mod authorization_browser;
 pub mod chrome;
 mod local;
 mod settings;

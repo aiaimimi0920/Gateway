@@ -35,6 +35,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(GatewayDesktopState::default())
         .manage(connection::ConnectionState::default())
+        .manage(connection::authorization_browser::AuthorizationBrowser::default())
         .setup(|app| {
             let data = paths::gateway_app_dir().map_err(std::io::Error::other)?;
             let chrome_app = app.handle().clone();
@@ -78,6 +79,8 @@ pub fn run() {
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
                 use tauri::Manager;
+                app.state::<connection::authorization_browser::AuthorizationBrowser>()
+                    .stop();
                 let _ = stop_gateway_sidecar(app.state::<GatewayDesktopState>());
             }
         });
