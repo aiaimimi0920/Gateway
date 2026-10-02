@@ -32,10 +32,14 @@ test.describe("Gateway web console provider pool", () => {
     await expect(flipButton.locator(".lucide-gallery-horizontal-end")).toBeVisible();
     await expect(front.locator("[data-provider-icon]")).toBeVisible();
     await expect(card.getByRole("img", { name: /可用 .*待恢复 .*失效 .*剩余/ })).toBeVisible();
-    await expect(card.getByRole("img", { name: /最近窗口的调用成功率/ })).toBeVisible();
+    // This fixture has no historical windows; the front must not invent a chart.
+    await expect(card.getByRole("img", { name: /最近窗口的调用成功率/ })).toHaveCount(0);
     await expect(card.getByRole("switch", { name: /调度开关/ })).toBeVisible();
 
     await flipButton.click();
+    if (process.env.GATEWAY_E2E_CAPTURE_CARDS === "1") {
+      await card.screenshot({ path: `output/playwright/provider-card-back-${testInfo.project.name}.png` });
+    }
 
     await expect(card).toHaveAttribute("data-provider-card-side", "back");
     await expect(front).toHaveAttribute("aria-hidden", "true");
