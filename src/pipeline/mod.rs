@@ -338,7 +338,9 @@ pub async fn run_pipeline(
     }
 
     // Stage 5 — upstream dispatch
-    let output = match stage_send::run(&mut ctx, state).await {
+    // Keep the large dispatch future out of its enclosing async state machines.
+    // Await it in this task so cancellation still drops the same dispatch owners.
+    let output = match Box::pin(stage_send::run(&mut ctx, state)).await {
         Ok(output) => output,
         Err(error) => {
             stage_finalize::run_failure(&error, &ctx, state).await;

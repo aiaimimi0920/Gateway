@@ -9,6 +9,7 @@ on:
     paths:
       - .github/workflows/diagnose-local-storage-stack.yml
       - tests/local_storage_pipeline_contract.rs
+      - src/pipeline/mod.rs
 
 permissions:
   contents: read
