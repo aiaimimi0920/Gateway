@@ -2,7 +2,10 @@ use super::*;
 
 #[tokio::test]
 async fn provider_capacity_lock_excludes_other_instances_and_releases_on_drop() {
-    let root = std::env::temp_dir().join(format!("pool-admission-{}", uuid::Uuid::new_v4()));
+    let root = std::env::temp_dir().join(format!(
+        "gateway-local-pool-admission-{}",
+        uuid::Uuid::new_v4()
+    ));
     let first = LocalRuntime::open(&root).await.unwrap();
     let second = LocalRuntime::open(&root).await.unwrap();
     let guard = first
@@ -30,7 +33,10 @@ async fn provider_capacity_lock_excludes_other_instances_and_releases_on_drop() 
 
 #[tokio::test]
 async fn cancelling_the_lock_owner_releases_provider_admission() {
-    let root = std::env::temp_dir().join(format!("pool-admission-cancel-{}", uuid::Uuid::new_v4()));
+    let root = std::env::temp_dir().join(format!(
+        "gateway-local-pool-admission-cancel-{}",
+        uuid::Uuid::new_v4()
+    ));
     let local = LocalRuntime::open(&root).await.unwrap();
     let guard = local
         .try_pool_capacity_lock("provider")

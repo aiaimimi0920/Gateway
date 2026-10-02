@@ -88,7 +88,10 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn health_matches_active_model_with_no_credential_wide_failure() {
-        let root = std::env::temp_dir().join(format!("pool-health-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!(
+            "gateway-local-pool-health-{}",
+            uuid::Uuid::new_v4()
+        ));
         let local = crate::local_runtime::LocalRuntime::open(&root)
             .await
             .unwrap();

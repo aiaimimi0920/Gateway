@@ -142,13 +142,13 @@ fn sensitive_url_state() -> Arc<AppState> {
         r#"
 providers:
   - id: sensitive-provider
-adapter: openai_compatible
-base_url: "https://provider-user:provider-password@example.com/v1?api_key=provider-query-secret&safe=provider#provider-fragment"
-api_key: provider-api-secret
-credentials:
-  - id: sensitive-credential
-    base_url: "https://credential-user:credential-password@example.com/v1?token=credential-query-secret&safe=credential#credential-fragment"
-    api_key: credential-api-secret
+    adapter: openai_compatible
+    base_url: "https://provider-user:provider-password@example.com/v1?api_key=provider-query-secret&safe=provider#provider-fragment"
+    api_key: provider-api-secret
+    credentials:
+      - id: sensitive-credential
+        base_url: "https://credential-user:credential-password@example.com/v1?token=credential-query-secret&safe=credential#credential-fragment"
+        api_key: credential-api-secret
 model_routes: []
 aliases: {}
 "#,
@@ -191,7 +191,7 @@ async fn account_group_summary_redacts_sensitive_url_components() {
         "credential-query-secret",
         "credential-fragment",
     ] {
-        assert!(!serialized.contains(secret), "summary leaked {secret}");
+        assert!(!serialized.contains(secret), "summary leaked a secret");
     }
 
     let provider_url = payload["summary"]["providers"][0]["baseUrl"]
@@ -222,8 +222,8 @@ async fn account_group_summary_accepts_bootstrapped_console_management_token() {
         r#"
 providers:
   - id: bootstrapped-provider
-base_url: https://example.com/v1
-api_key: provider-secret
+    base_url: https://example.com/v1
+    api_key: provider-secret
 model_routes: []
 aliases: {}
 "#,

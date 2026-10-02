@@ -232,11 +232,11 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("<ProviderLifecycleBack", ledger_text)
         self.assertIn("onRequestProviderRefill={onRequestProviderRefill}", ledger_text)
         self.assertIn("<ProviderStorageEndpoints", lifecycle_text)
-        self.assertIn("refill={refill}", lifecycle_text)
-        self.assertIn("refill?.notificationApi", endpoints_text)
-        self.assertIn("refill?.inquiryApi", endpoints_text)
+        self.assertIn("value={refill?.notificationApi}", lifecycle_text)
+        self.assertIn("value={refill?.inquiryApi}", lifecycle_text)
+        self.assertIn("navigator.clipboard.writeText(value)", endpoints_text)
         self.assertIn("!refill?.userRequestEnabled", lifecycle_text)
-        self.assertIn("onRequestProviderRefill(section.providerId)", lifecycle_text)
+        self.assertIn("onRequestProviderRefill(providerId)", lifecycle_text)
 
         stream_event = re.search(
             r"redis\.call\('XADD'.*?return \{1, ARGV\[2\]\}",
