@@ -45,6 +45,17 @@ test("standalone and caller security runs cannot share a cancellation group", ()
   assert.ok(security.includes("group: gateway-security-${{ github.workflow }}-"));
 });
 
+test("Docker builder and metadata actions remain pinned to immutable commits", () => {
+  const workflow = readWorkflow("docker.yml");
+  for (const action of ["setup-buildx-action", "metadata-action"]) {
+    const uses = [...workflow.matchAll(new RegExp(`uses: docker/${action}@([^\\s]+)`, "g"))];
+    assert.ok(uses.length > 0, `Missing Docker action: ${action}`);
+    for (const [, ref] of uses) {
+      assert.match(ref, /^[a-f0-9]{40}$/, `Docker action ${action} must use a full commit SHA`);
+    }
+  }
+});
+
 for (const [filename, publisher] of callers) {
   test(`${filename} waits for Security and builds exactly its checked commit`, () => {
     const workflow = readWorkflow(filename);
