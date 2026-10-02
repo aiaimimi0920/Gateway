@@ -24,7 +24,7 @@ fn runtime_shutdown_releases_worker_waiting_on_in_memory_future() {
             .build()
             .unwrap();
         executor.block_on(async {
-            let (entered_tx, entered) = oneshot::channel();
+            let (entered_tx, entered) = mpsc::channel();
             let mut request = Box::pin(run_owned(&owned_runtime, || async move {
                 entered_tx.send(()).unwrap();
                 let _ = wait.await;
@@ -32,7 +32,9 @@ fn runtime_shutdown_releases_worker_waiting_on_in_memory_future() {
                 Ok(())
             }));
             assert!(matches!(futures::poll!(request.as_mut()), Poll::Pending));
-            entered.await.unwrap();
+            // Do not yield this current-thread executor: shutdown must also own a
+            // monitor that was spawned but has never been polled.
+            entered.recv_timeout(Duration::from_secs(3)).unwrap();
             drop(request);
         });
         ready_tx.send(()).unwrap();
@@ -66,7 +68,7 @@ fn runtime_shutdown_retains_permit_until_native_call_finishes() {
             .build()
             .unwrap();
         executor.block_on(async {
-            let (entered_tx, entered) = oneshot::channel();
+            let (entered_tx, entered) = mpsc::channel();
             let mut request = Box::pin(run_owned(&owned_runtime, || async move {
                 entered_tx.send(()).unwrap();
                 wait.recv_timeout(Duration::from_secs(5)).unwrap();
@@ -74,7 +76,9 @@ fn runtime_shutdown_retains_permit_until_native_call_finishes() {
                 Ok(())
             }));
             assert!(matches!(futures::poll!(request.as_mut()), Poll::Pending));
-            entered.await.unwrap();
+            // Keep the monitor unpolled while the independent worker enters its
+            // bounded native call; shutdown must still wait for that worker.
+            entered.recv_timeout(Duration::from_secs(3)).unwrap();
             drop(request);
         });
         ready_tx.send(()).unwrap();

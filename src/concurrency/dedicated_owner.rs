@@ -47,11 +47,14 @@ where
             let _ = done_tx.send(());
         })
         .map_err(|_| task_failed())?;
+    // Capture the owner before spawning: runtime shutdown can drop this future
+    // before its first poll, and must still cancel and join the native worker.
+    let guard = WorkerGuard {
+        cancel: Some(cancel),
+        worker: Some(worker),
+    };
     let monitor = tokio::spawn(async move {
-        let _guard = WorkerGuard {
-            cancel: Some(cancel),
-            worker: Some(worker),
-        };
+        let _guard = guard;
         let _ = done.await;
     });
     let result = result_rx.await;
