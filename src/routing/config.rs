@@ -48,6 +48,7 @@ mod refresh_state;
 mod schema;
 mod snapshot;
 mod snapshot_publication;
+mod storage_connection;
 mod store;
 mod substitution;
 
@@ -62,6 +63,7 @@ pub use schema::{
     RouteAccountGroupInventory, RouteAccountGroupSelectionError, RouteAccountGroupView,
     RouteAccountProviderView, RouteAccountView, RouteConfigYaml,
 };
+pub use storage_connection::CredentialStorageConnection;
 pub use store::RouteConfigReplaceError;
 pub(crate) use substitution::subst_env;
 

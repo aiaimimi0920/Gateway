@@ -1,3 +1,4 @@
+import type { StorageConnection, StorageSecretChanges, StorageTarget } from "./providerStorageConnection";
 import type { ReactNode } from "react";
 import type {
   ConsoleCredentialPoolAutomationProvider,
@@ -48,6 +49,8 @@ export type AccountsLedgerPilotSection = {
   poolMinSize?: number;
   credentialStoragePath?: string;
   credentialArchivePath?: string;
+  credentialStorageConnection?: StorageConnection;
+  credentialArchiveConnection?: StorageConnection;
   poolTargetSize: number;
   autoRefillEnabled: boolean;
   autoPruneEnabled: boolean;
@@ -101,6 +104,8 @@ export type AccountsLedgerWorkspaceProps = {
   onUpdatePoolTargetSize: (providerId: string, categoryId: string, nextTargetSize: number) => void;
   onToggleAutoRefill: (providerId: string, categoryId: string, nextEnabled: boolean) => void;
   onToggleAutoPrune: (providerId: string, categoryId: string, nextEnabled: boolean) => void;
+  storageSecretFields?: ReadonlyMap<string, readonly string[]>;
+  onUpdateProviderStorageConnection?: (providerId: string, target: StorageTarget, connection: StorageConnection, secrets: StorageSecretChanges) => boolean;
   onUpdateProviderPoolMinSize?: (providerId: string, nextMinSize: number) => void;
   onUpdateProviderStoragePath?: (providerId: string, path: string) => boolean;
   onUpdateProviderArchivePath?: (providerId: string, path: string) => boolean;

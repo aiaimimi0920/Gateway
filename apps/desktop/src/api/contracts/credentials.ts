@@ -174,7 +174,12 @@ export type ConsoleCredentialRefillDemand = {
   credentialStoragePath: string | null;
   storagePasswordConfigured: boolean;
   archiveStoragePath: string | null;
-  archivedCredentialCount: number;
+  archivedCredentialCount: number | null;
+  archiveStorageError?: string | null;
+  archivePurgeSupported?: boolean;
+  archivePurgeUnsupportedReason?: string | null;
+  storageAuthConfigured?: boolean;
+  archiveAuthConfigured?: boolean;
   permanentDeleteEnabled: boolean;
   revisionId: string;
 };

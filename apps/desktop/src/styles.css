@@ -6,6 +6,7 @@
 @import "./styles/provider-tree.css";
 @import "./styles/provider-card.css";
 @import "./styles/provider-lifecycle.css";
+@import "./styles/provider-storage-connection.css";
 @import "./styles/provider-card-faces.css";
 @import "./styles/provider-account-library.css";
 @import "./styles/provider-card-compact.css";

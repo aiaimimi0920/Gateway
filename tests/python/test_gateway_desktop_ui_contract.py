@@ -235,6 +235,7 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn("value={refill?.notificationApi}", lifecycle_text)
         self.assertIn("value={refill?.inquiryApi}", lifecycle_text)
         self.assertIn("navigator.clipboard.writeText(value)", endpoints_text)
+        self.assertNotIn("<a ", endpoints_text)
         self.assertIn("!refill?.userRequestEnabled", lifecycle_text)
         self.assertIn("onRequestProviderRefill(providerId)", lifecycle_text)
 

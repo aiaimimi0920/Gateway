@@ -402,6 +402,9 @@ export function buildCredentialSecretPatches({
   );
 
   for (const secret of activeSecrets) {
+    // Empty cloud auth has no identity to preserve. Keeping an absent optional
+    // session token would incorrectly block an intentional destination change.
+    if (!secret.configured && /\/credential_(storage|archive)_connection\//.test(secret.path)) continue;
     const activePatch = activePatchesByPath.get(secret.path);
     const credentialMatch = /^\/providers\/(\d+)\/credentials\/(\d+)(\/.*)$/.exec(secret.path);
     if (credentialMatch) {

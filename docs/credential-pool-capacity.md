@@ -45,8 +45,11 @@ business limit on configured capacity.
 this provider's refill JSON material. `credential_archive_path` is the provider's
 recoverable archive directory. Empty/missing fields retain the existing defaults
 under the global credential folder-sync root. Neither field implicitly migrates
-existing files when changed. URLs such as HTTP or S3 are rejected because Gateway
-has no corresponding credential storage protocol.
+existing files when changed. URLs in legacy path fields remain invalid. Explicit additive
+`credential_storage_connection` and `credential_archive_connection` objects select
+local, WebDAV, or S3/R2 storage independently. See
+[the cloud storage contract](provider-pool-cloud-storage.md) for connection fields,
+worker namespaces, secret editing, bounded I/O and archive failure semantics.
 
 Refill-task `folder_sync` now reads only the task provider's directory. Each
 `relativePaths` entry names one JSON file relative to that directory; each file
@@ -73,8 +76,8 @@ ID. Pruning still writes archive JSON before removing route credentials, unless 
 existing permanent-delete switch was explicitly enabled. Archives remain plaintext
 JSON written with restrictive file permissions on Unix. The existing
 `credential_storage_password` remains a redacted secret intended for an external
-worker; it does not encrypt archives and is not advertised as an implemented cloud
-storage or archive-password protocol.
+worker; it does not encrypt archives. New cloud-connection passwords and access keys
+authenticate to the selected storage service, also without at-rest encryption.
 
 ## Validation evidence
 

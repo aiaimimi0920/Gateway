@@ -128,3 +128,11 @@ it("blocks purge while the displayed archive path is an uncommitted draft", asyn
   expect(h.api.purgeCredentialArchive).not.toHaveBeenCalled();
   expect(pushAppToast).toHaveBeenCalledWith("warning", expect.stringContaining("Save the current route draft"));
 });
+
+it("refreshes after purge failure because the durable barrier may have committed", async () => {
+  const h = setup();
+  vi.mocked(h.api.purgeCredentialArchive).mockRejectedValueOnce(new Error("purge barrier remains committed"));
+  await act(() => h.result.current.handlePurgeCredentialArchive("provider"));
+  expect(h.options.refresh).toHaveBeenCalledOnce();
+  expect(h.options.setError).toHaveBeenLastCalledWith("purge barrier remains committed");
+});

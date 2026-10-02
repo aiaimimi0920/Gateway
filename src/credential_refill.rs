@@ -113,7 +113,12 @@ pub struct CredentialRefillDemandView {
     pub credential_storage_path: Option<String>,
     pub storage_password_configured: bool,
     pub archive_storage_path: Option<String>,
-    pub archived_credential_count: usize,
+    pub archived_credential_count: Option<usize>,
+    pub archive_storage_error: Option<String>,
+    pub archive_purge_supported: bool,
+    pub archive_purge_unsupported_reason: Option<String>,
+    pub storage_auth_configured: bool,
+    pub archive_auth_configured: bool,
     pub permanent_delete_enabled: bool,
     pub revision_id: String,
 }

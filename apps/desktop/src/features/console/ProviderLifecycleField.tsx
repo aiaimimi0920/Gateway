@@ -15,6 +15,7 @@ type Props = {
   discardDraft?: boolean;
   unavailableReason?: string;
   description?: string;
+  onEdit?: () => void;
   onSave?: (value: string) => boolean | void;
   t: TranslateFn;
 };
@@ -22,7 +23,7 @@ type Props = {
 /** Drafts are private to the open editor; cancel/explicit lock never retains a password. */
 export function ProviderLifecycleField({ providerLabel, label, value, secret = false,
   configured = false, numeric = false, minimum = 0, maximum = Number.MAX_SAFE_INTEGER,
-  disabled, discardDraft = false, unavailableReason, description, onSave, t,
+  disabled, discardDraft = false, unavailableReason, description, onSave, onEdit, t,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -92,7 +93,7 @@ export function ProviderLifecycleField({ providerLabel, label, value, secret = f
         <button ref={editButton} className="nt-icon-action" type="button"
           aria-label={t(`编辑 ${providerLabel} ${label}`, `Edit ${providerLabel} ${label}`)}
           title={unavailableReason || t("编辑并保存到路由草稿", "Edit in the route draft")}
-          disabled={disabled || !onSave} onClick={() => { setDraft(secret ? "" : value); setError(""); setEditing(true); }}>
+          disabled={disabled || (!onSave && !onEdit)} onClick={() => { if (onEdit) { onEdit(); return; } setDraft(secret ? "" : value); setError(""); setEditing(true); }}>
           <Pencil size={14} />
         </button>
       </>}

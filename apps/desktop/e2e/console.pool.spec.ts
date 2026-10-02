@@ -88,10 +88,33 @@ test.describe("Gateway web console provider pool", () => {
     await expect(maximum).toHaveCount(0);
     await expect(card.getByRole("button", { name: "编辑 NVIDIA 最大可用池" })).toBeFocused();
     await card.getByRole("button", { name: "编辑 NVIDIA 存储路径" }).click();
-    await card.getByRole("textbox", { name: "NVIDIA 存储路径" }).fill("https://example.invalid/pool");
-    await card.getByRole("button", { name: "保存 NVIDIA 存储路径" }).click();
-    await expect(page.getByText(/HTTP\/HTTPS 云存储尚未配置/)).toBeVisible();
-    await card.getByRole("button", { name: "取消编辑 NVIDIA 存储路径" }).click();
+    const connectionDialog = page.getByRole("dialog", { name: "NVIDIA 存储连接" });
+    await connectionDialog.getByLabel("存储协议").selectOption("webdav");
+    await connectionDialog.getByLabel("服务地址").fill("http://localhost:9999/dav");
+    await connectionDialog.getByRole("button", { name: "保存连接" }).click();
+    await expect(connectionDialog.getByRole("alert")).toContainText("HTTP 会明文");
+    await connectionDialog.getByLabel("服务地址").fill("https://storage.example.invalid/dav");
+    await connectionDialog.getByLabel("相对目录").fill("gateway");
+    await connectionDialog.getByLabel("WebDAV 用户名").fill("fixture-user");
+    await connectionDialog.getByLabel("WebDAV 密码").fill("synthetic-fixture-secret");
+    if (process.env.GATEWAY_E2E_CAPTURE_CARDS === "1") {
+      await connectionDialog.screenshot({ animations: "disabled", path: `output/playwright/provider-cloud-webdav-${testInfo.project.name}.png` });
+    }
+    await connectionDialog.getByRole("button", { name: "取消", exact: true }).click();
+    await expect(connectionDialog).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "编辑 NVIDIA 存储路径" })).toBeFocused();
+    await card.getByRole("button", { name: "编辑 NVIDIA 归档路径" }).click();
+    const archiveDialog = page.getByRole("dialog", { name: "NVIDIA 归档连接" });
+    await archiveDialog.getByLabel("存储协议").selectOption("s3");
+    await archiveDialog.getByLabel("服务地址").fill("https://storage.example.invalid");
+    await archiveDialog.getByLabel("Bucket", { exact: true }).fill("fixture-bucket");
+    await archiveDialog.getByLabel("Access Key ID", { exact: true }).fill("synthetic-id");
+    await archiveDialog.getByLabel("Secret Access Key", { exact: true }).fill("synthetic-secret");
+    if (process.env.GATEWAY_E2E_CAPTURE_CARDS === "1") {
+      await archiveDialog.screenshot({ animations: "disabled", path: `output/playwright/provider-cloud-s3-${testInfo.project.name}.png` });
+    }
+    await archiveDialog.getByRole("button", { name: "取消", exact: true }).click();
+    await expect(archiveDialog).toHaveCount(0);
     await expect.poll(() => backBody.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
     await card.getByRole("button", { name: /翻回.*卡牌正面/ }).focus();
 

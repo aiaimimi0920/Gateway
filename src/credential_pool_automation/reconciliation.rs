@@ -1,4 +1,3 @@
-use super::archive::archive_pruned_credentials;
 use super::capacity::pool_max_size;
 use super::driver::execute_driver;
 use super::inventory::{active_credential_count, effective_credential_id, prune_credentials};
@@ -7,6 +6,7 @@ use super::{
     CredentialAutomationDriver, CredentialPoolAutomationAction, DriverCredentialContext,
     DriverProviderContext, DriverRequest, ReconcileOutcome,
 };
+use crate::credential_pool_storage::archive::preserve as archive_pruned_credentials;
 use crate::routing::config::ProviderConfigYaml;
 use crate::state::AppState;
 use std::collections::HashSet;
@@ -144,7 +144,16 @@ pub(super) async fn reconcile_provider_with_driver(
         observed_snapshot.revision().id(),
         snapshot.revision().id(),
     );
-    let archived_count = archive_pruned_credentials(&state.config, target_provider, &prune_ids)?;
+    let archived_count = archive_pruned_credentials(
+        &state.config,
+        target_provider,
+        &prune_ids,
+        snapshot.revision().id(),
+    )
+    .await?;
+    if state.route_config.snapshot().revision().id() != snapshot.revision().id() {
+        anyhow::bail!("Route revision changed during archival; source credentials were retained");
+    }
     let pruned_count = prune_credentials(target_provider, &prune_ids);
     if !target_provider.credential_permanent_delete_enabled && archived_count != pruned_count {
         anyhow::bail!("credential archive count did not match the prune set");

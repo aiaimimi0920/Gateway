@@ -1,0 +1,9 @@
+/* The connection editor expands outside the compact card, never inside its grid. */
+.nt-storage-connection { width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; }
+.nt-storage-connection__fields,
+.nt-storage-connection__secrets { display: grid; gap: 12px; min-width: 0; border: 0; margin: 12px 0; padding: 0; }
+.nt-storage-connection label { display: grid; gap: 5px; font-size: .85rem; }
+.nt-storage-connection legend { font-weight: 700; }
+.nt-storage-connection__warning { color: var(--nt-warning); font-size: .8rem; overflow-wrap: anywhere; }
+.nt-storage-connection label.nt-storage-connection__warning { display: flex; align-items: flex-start; gap: 8px; }
+.nt-storage-connection .nt-input { width: 100%; min-width: 0; }

@@ -237,6 +237,8 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   const renderProviderLifecycleBack = (options: ProviderLifecycleBackOptions) => (
     <ProviderLifecycleBack
       options={options}
+      storageSecretFields={props.storageSecretFields}
+      onUpdateProviderStorageConnection={props.onUpdateProviderStorageConnection}
       lifecycleActionsLocked={props.lifecycleActionsLocked}
       editorLocked={editorLocked}
       pruneBusyProviderId={pruneBusyProviderId}

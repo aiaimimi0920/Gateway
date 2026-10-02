@@ -258,6 +258,11 @@ pub struct ProviderConfigYaml {
     /// Provider-local directory for recoverable plaintext JSON archives.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub credential_archive_path: Option<String>,
+    /// Explicit connections override legacy local paths without migrating data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_storage_connection: Option<CredentialStorageConnection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_archive_connection: Option<CredentialStorageConnection>,
     #[serde(default)]
     pub headers: HashMap<String, String>,
     #[serde(default)]

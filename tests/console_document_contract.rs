@@ -53,3 +53,6 @@ fn diagnostic_codes(error: &neuro_gateway::console::document::RouteConfigDiagnos
         .map(|diagnostic| diagnostic.code.as_str())
         .collect()
 }
+
+#[path = "console_document_contract/storage_connections.rs"]
+mod storage_connections;

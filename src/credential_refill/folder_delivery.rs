@@ -28,6 +28,34 @@ pub(super) async fn collect(
         .iter()
         .find(|p| p.id == task.provider_id)
         .ok_or_else(|| GatewayError::not_found("Refill provider does not exist"))?;
+    if let Some(connection) = &provider.credential_storage_connection {
+        crate::credential_pool_storage::validate_connection(connection)
+            .map_err(GatewayError::bad_request)?;
+    }
+    if let Some(connection) = provider
+        .credential_storage_connection
+        .as_ref()
+        .filter(|c| c.is_remote())
+    {
+        let result = crate::credential_pool_storage::refill::collect(
+            connection,
+            &provider.id,
+            &relative_paths,
+            task.requested_count.min(MAX_REQUESTED_COUNT),
+        )
+        .await
+        .map_err(|error| {
+            GatewayError::bad_request(error.to_string())
+                .with_code("credential_refill_storage_failed")
+        })?;
+        if state.route_config.snapshot().revision().id() != snapshot.revision().id() {
+            return Err(GatewayError::conflict(
+                "Route revision changed during storage read; retry delivery",
+            )
+            .with_code("credential_refill_route_revision_conflict"));
+        }
+        return Ok(result);
+    }
     if let Some(path) = &provider.credential_storage_path {
         validate_storage_path(path).map_err(GatewayError::bad_request)?;
     }

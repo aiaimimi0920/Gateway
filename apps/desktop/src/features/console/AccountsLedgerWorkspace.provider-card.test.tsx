@@ -286,6 +286,36 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     expect(onPurgeProviderArchive).toHaveBeenCalledWith("managed-provider");
   });
 
+  it("shows unsupported cloud purge as restricted without opening a delete dialog", async () => {
+    const user = userEvent.setup();
+    const onPurgeProviderArchive = vi.fn();
+    renderWorkspace(workspaceProps({ onPurgeProviderArchive, refillByProvider: new Map([["managed-provider", {
+      ...refillDemand(), archivePurgeSupported: false, archivePurgeUnsupportedReason: "Conditional delete is unverified",
+    }]]) }));
+    await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
+    const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
+    expect(trigger).toBeDisabled();
+    expect(trigger).toHaveTextContent("受限");
+    expect(trigger).toHaveAttribute("title", "Conditional delete is unverified");
+    await user.click(trigger);
+    expect(onPurgeProviderArchive).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("preserves unavailable counts and read errors when cloud purge is also restricted", async () => {
+    const user = userEvent.setup();
+    renderWorkspace(workspaceProps({ refillByProvider: new Map([["managed-provider", {
+      ...refillDemand(), archivedCredentialCount: null, archiveStorageError: "Storage authentication failed",
+      archivePurgeSupported: false, archivePurgeUnsupportedReason: "Conditional delete is unverified",
+    }]]) }));
+    await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
+    const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
+    expect(trigger).toBeDisabled();
+    expect(trigger).toHaveTextContent("清空（不可用）");
+    expect(trigger).not.toHaveTextContent("0");
+    expect(trigger).toHaveAttribute("title", "Storage authentication failed; Conditional delete is unverified");
+  });
+
   it("cannot open purge confirmation against an uncommitted archive path", async () => {
     const user = userEvent.setup();
     renderWorkspace(workspaceProps({ lifecycleActionsLocked: true }));

@@ -24,6 +24,9 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
       - run: npm ci --prefix apps/desktop --no-audit --no-fund
+      - name: Typecheck and build the real frontend
+        working-directory: apps/desktop
+        run: npm run typecheck && npm run build:web
       - name: Install Chromium
         working-directory: apps/desktop
         run: npx playwright install --with-deps chromium
@@ -38,7 +41,9 @@ jobs:
         with:
           name: provider-pool-card-ui
           path: |
-            apps/desktop/output/playwright/provider-card-back-*.png
+            apps/desktop/output/playwright/provider-card-back-desktop-chromium.png
+            apps/desktop/output/playwright/provider-card-back-mobile-chromium.png
+            apps/desktop/output/playwright/provider-cloud-*.png
             apps/desktop/test-results/
           if-no-files-found: error
           retention-days: 14

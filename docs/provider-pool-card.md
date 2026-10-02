@@ -36,18 +36,22 @@ retain the configured shared root/provider and root/_archive/provider defaults.
 These are paths on the Gateway server, not on the browser's machine. Filesystem
 access failures are errors; the UI does not claim a successful move or import.
 
-HTTP/HTTPS URLs do not define storage operations, authentication, or conflict
-semantics by themselves. This repository currently has no provider-pool cloud
-storage protocol, so such addresses are rejected with a specific explanation.
-Use a local or already-mounted filesystem directory until a protocol is agreed.
+The path pencils open a connection editor with explicit Local, WebDAV, and S3/R2
+choices. A URL alone never selects a protocol. WebDAV has an endpoint, relative
+directory and separate username/password; S3/R2 has an endpoint, bucket, region,
+prefix and separate access key/secret key (plus optional session token). Remote
+paths use a provider-specific namespace beneath that prefix. TLS is verified and
+HTTPS is the default; HTTP needs an explicit warning acknowledgement. Changing a
+connection identity cannot silently reuse saved authentication.
 
 The existing `credential_storage_password` is a protected secret for external
 storage/refill workers. It **does not encrypt local files**. Saved passwords are
 not returned to the card; edits use the existing secret-patch authorization flow.
 Local recovery archives remain plaintext JSON with existing restrictive file
-permissions. The archive-password edit is unavailable until a supported storage
-or encryption protocol exists; the UI does not save an inert password or imply
-that files are encrypted.
+permissions. The archive-password pencil opens the selected cloud connection's authentication
+fields. These credentials authorize storage operations; they do not encrypt file
+contents. Saved authentication is masked, and changes go through the existing
+secret-grant/secret-patch flow. There is no inert local archive encryption password.
 
 ## Deletion
 
@@ -61,5 +65,9 @@ records, with a separate irreversible-deletion confirmation.
 
 All UI tests use mock APIs and fake credentials. The `Provider pool card UI`
 workflow captures the actual React interface in desktop and mobile Chromium and
-checks card flipping, focus, overflow, cancelled edits, and unsupported cloud-path
-validation. It does not operate a live account pool or deploy a service.
+checks card flipping, focus, overflow, cancelled edits, and explicit cloud protocol editing, HTTP warnings, and cancelled cloud credentials. It does not operate a live account pool or deploy a service.
+
+Cloud archive purge freezes its candidates and commits a durable route-revision
+barrier before deletion. New concurrent archives remain for a later explicit purge;
+partial failures retain the barrier and trigger a console refresh. See the cloud
+storage contract for supported service capabilities and v2 writer compatibility.
