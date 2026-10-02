@@ -12,7 +12,6 @@ use crate::error::GatewayError;
 use crate::routing::candidate::ProviderAccountPayload;
 use crate::state::AppState;
 use crate::upstream::headers::build_upstream_headers;
-use rquest::Client;
 use serde_json::Value;
 use std::time::Duration;
 
@@ -140,7 +139,7 @@ async fn fetch_provider_models_from_upstream(
         return Ok(Vec::new());
     };
 
-    let client = Client::builder()
+    let client = crate::http_client::builder()
         .timeout(Duration::from_secs(state.config.upstream_timeout_secs))
         .build()
         .map_err(|error| {

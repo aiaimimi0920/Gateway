@@ -23,7 +23,10 @@ pub use response_builders::{
     build_legacy_completions_success,
 };
 pub use response_unpack::unpack_openai_response;
-pub use stream_translate::translate_openai_chat_sse_to_legacy_completions;
+pub use stream_translate::{
+    translate_openai_chat_sse_to_legacy_completions,
+    translate_openai_chat_sse_to_legacy_completions_with_error,
+};
 
 use response_unpack::map_openai_finish_reason;
 

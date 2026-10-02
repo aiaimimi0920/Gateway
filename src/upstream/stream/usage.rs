@@ -11,8 +11,8 @@ use crate::protocol::canonical::TokenUsage;
 
 use super::observation::{BoundaryRule, ObservationLine, ObservationLines};
 
-struct UsageTappedStream {
-    inner: Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+struct UsageTappedStream<E> {
+    inner: Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
     capture: SseUsageCapture,
 }
 
@@ -34,6 +34,16 @@ pub fn tap_sse_usage(
     impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     Arc<Mutex<Option<TokenUsage>>>,
 ) {
+    tap_sse_usage_with_error(inner)
+}
+
+/// usage 观察仅处理成功字节，保留传输或协议错误的原始类型和对象。
+pub fn tap_sse_usage_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+) -> (
+    impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    Arc<Mutex<Option<TokenUsage>>>,
+) {
     let latest_usage = Arc::new(Mutex::new(None));
     let capture = SseUsageCapture::new(Arc::clone(&latest_usage));
     (
@@ -49,13 +59,11 @@ pub fn snapshot_tapped_usage(latest_usage: &Arc<Mutex<Option<TokenUsage>>>) -> O
     latest_usage.lock().ok().and_then(|usage| (*usage).clone())
 }
 
-impl Stream for UsageTappedStream {
-    type Item = Result<Bytes, rquest::Error>;
+impl<E> Stream for UsageTappedStream<E> {
+    type Item = Result<Bytes, E>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let inner = unsafe { self.as_mut().map_unchecked_mut(|stream| &mut stream.inner) };
-
-        match inner.poll_next(cx) {
+        match self.inner.as_mut().poll_next(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(Ok(bytes))) => {
                 self.capture.feed(&bytes);

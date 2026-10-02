@@ -89,7 +89,9 @@ pub async fn handle_converse_stream(
     match run_pipeline(ctx, &state).await? {
         PipelineOutput::Sse(stream) => {
             let translated =
-                bedrock_converse::translate_openai_sse_to_bedrock_eventstream(stream, model);
+                bedrock_converse::translate_openai_sse_to_bedrock_eventstream_with_error(
+                    stream, model,
+                );
             let mapped = translated.map(|item| {
                 item.map_err(|error| Box::new(error) as Box<dyn std::error::Error + Send + Sync>)
             });

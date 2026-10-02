@@ -1,3 +1,6 @@
+// Match the library's limit for nested SDK futures in folder-sync regressions.
+#![recursion_limit = "256"]
+
 #[path = "pipeline_send_runtime/config.rs"]
 mod config;
 #[path = "provider_credential_folder_sync_runtime/enable.rs"]

@@ -21,7 +21,7 @@ RUN printf '%s\n' "${GATEWAY_AUDIT_NONCE}" >/dev/null \
 COPY apps/desktop ./apps/desktop
 RUN GATEWAY_WEB_PRUNE_LIVE=1 npm run build:web --prefix apps/desktop
 
-FROM rust:1.91.1-bookworm AS builder
+FROM rust:1.98.0-bookworm AS builder
 
 WORKDIR /app
 

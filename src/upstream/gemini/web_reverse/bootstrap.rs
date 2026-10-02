@@ -28,7 +28,7 @@ pub async fn bootstrap_app(
         .send()
         .await
         .map_err(|error| classify_network_error(&error, Some(PROVIDER)))?;
-    let final_url = response.url().to_string();
+    let final_url = response.uri().to_string();
     let status = response.status().as_u16();
     let content_type = response
         .headers()

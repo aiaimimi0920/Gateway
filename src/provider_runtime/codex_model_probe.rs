@@ -1,6 +1,7 @@
 //! Credential-scoped Codex generation proof; HTTP success alone is insufficient.
 use std::time::{Duration, Instant};
 
+use futures::StreamExt;
 use serde_json::{json, Value};
 
 use super::console_model_probe::ModelProbeResult;
@@ -68,7 +69,7 @@ async fn generate(
         ))
         .header("Accept", "text/event-stream")
         .json(&body);
-    let mut response = match request.send().await {
+    let response = match request.send().await {
         Ok(response) => response,
         Err(_) => return failed(None, "Cannot reach the ChatGPT model endpoint."),
     };
@@ -79,15 +80,17 @@ async fn generate(
             &format!("HTTP {status}: upstream rejected the model request."),
         );
     }
+    let stream = response.bytes_stream();
+    futures::pin_mut!(stream);
     let mut bytes = Vec::new();
     loop {
-        match response.chunk().await {
-            Ok(Some(chunk)) if bytes.len() + chunk.len() <= 262_144 => {
+        match stream.next().await {
+            Some(Ok(chunk)) if bytes.len() + chunk.len() <= 262_144 => {
                 bytes.extend_from_slice(&chunk)
             }
-            Ok(Some(_)) => return failed(Some(status), "Model response exceeded 256 KiB."),
-            Ok(None) => break,
-            Err(_) => return failed(Some(status), "Model response was interrupted."),
+            Some(Ok(_)) => return failed(Some(status), "Model response exceeded 256 KiB."),
+            None => break,
+            Some(Err(_)) => return failed(Some(status), "Model response was interrupted."),
         }
     }
     let Some((mut reply, usage)) = completed_reply(&bytes) else {

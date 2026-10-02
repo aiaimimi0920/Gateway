@@ -36,12 +36,12 @@ pub use parser::{
     parse_tool_calls_from_text, parse_tool_calls_from_text_with_context, ToolCallParseResult,
 };
 pub use prompt::build_tool_injection_prompt;
-pub use streaming::wrap_streaming_tool_detection;
 #[cfg(test)]
 use streaming::{
     build_tool_calls_sse_chunk, extract_sse_content, has_tool_call_opening,
     wrap_streaming_tool_detection_with_limits,
 };
+pub use streaming::{wrap_streaming_tool_detection, wrap_streaming_tool_detection_with_error};
 
 // ---------------------------------------------------------------------------
 // Part 2: Inject tools into request

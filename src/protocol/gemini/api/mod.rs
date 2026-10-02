@@ -26,5 +26,8 @@ pub(crate) use response::{
     build_generate_content_success, map_gemini_finish_reason,
     map_gemini_finish_reason_to_canonical, parse_gemini_tool_call,
 };
-pub use stream::{accumulate_gemini_stream, translate_openai_sse_to_gemini_stream};
+pub use stream::{
+    accumulate_gemini_stream, translate_openai_sse_to_gemini_stream,
+    translate_openai_sse_to_gemini_stream_with_error,
+};
 pub use transport::{default_path, default_query};

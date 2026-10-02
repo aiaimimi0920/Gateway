@@ -209,10 +209,17 @@ fn classify_upstream_sanitizes_before_truncating_a_long_jwt() {
 
 #[test]
 fn classify_network_error_redacts_secrets_embedded_in_url() {
-    let invalid_header = rquest::header::HeaderValue::from_bytes(b"\n")
+    // 使用真实 request builder 的本地验证路径，不构造客户端私有错误或发送请求。
+    let error = rquest::Client::builder()
+        .no_proxy()
+        .build()
+        .unwrap()
+        .get("https://provider.invalid/models")
+        .header("x-fixture", "\n")
+        .build()
         .expect_err("newline must be rejected as a header value");
-    let error = rquest::Error::from(invalid_header).with_url(
-        rquest::Url::parse("https://provider.invalid/models?token=network-secret-value")
+    let error = error.with_uri(
+        rquest::Uri::try_from("https://provider.invalid/models?token=network-secret-value")
             .expect("test URL must parse"),
     );
 

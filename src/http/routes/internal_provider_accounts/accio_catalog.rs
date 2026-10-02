@@ -11,7 +11,6 @@ use crate::implementation_lines;
 use crate::routing::candidate::ProviderAccountPayload;
 use crate::state::AppState;
 use rquest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE};
-use rquest::Client;
 use serde_json::Value;
 use std::time::Duration;
 
@@ -89,7 +88,7 @@ async fn fetch_accio_models_from_upstream(
         .filter(|value| !value.is_empty())
         .unwrap_or("/api/llm/config");
 
-    let client = Client::builder()
+    let client = crate::http_client::builder()
         .timeout(Duration::from_secs(state.config.upstream_timeout_secs))
         .build()
         .map_err(|error| {

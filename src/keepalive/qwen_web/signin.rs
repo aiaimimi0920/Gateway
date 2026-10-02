@@ -7,7 +7,6 @@ use super::super::{
 use super::types::QwenWebRefreshedRuntime;
 use crate::error::GatewayError;
 use crate::routing::candidate::ProviderAccountPayload;
-use rquest::Client;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -196,7 +195,7 @@ pub(super) async fn execute_qwen_web_http_signin_refresh(
     let base_url = payload.base_url.trim_end_matches('/').to_string();
     let signin_url = format!("{base_url}/api/v1/auths/signin");
     let auths_url = format!("{base_url}/api/v1/auths/");
-    let client = Client::new();
+    let client = crate::http_client::client();
     let signin_headers = qwen_web_signin_headers(payload);
     let password_attempts = qwen_web_signin_password_attempts(&seed);
     if password_attempts.is_empty() {

@@ -313,7 +313,7 @@ pub use crate::upstream::browser_worker_types::{
     BrowserExecutorServiceInvocationRequest, BrowserExecutorServiceInvocationResponse,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 // ---------------------------------------------------------------------------
 // UpstreamClient
 // ---------------------------------------------------------------------------

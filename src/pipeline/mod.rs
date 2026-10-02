@@ -289,7 +289,7 @@ pub enum PipelineOutput {
     /// A complete JSON response body (non-streaming requests).
     Json(serde_json::Value),
     /// A live byte stream wrapping the upstream SSE response.
-    Sse(TrackedStream),
+    Sse(TrackedStream<crate::protocol::stream_error::StreamError<rquest::Error>>),
     /// A non-JSON binary passthrough response.
     Binary(BinaryPipelineResponse),
 }

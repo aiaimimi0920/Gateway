@@ -71,6 +71,13 @@ pub fn translate_anthropic_like_stream_to_openai(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
 ) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+    translate_anthropic_like_stream_to_openai_with_error(inner, model)
+}
+
+pub fn translate_anthropic_like_stream_to_openai_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
     let state = TranslatorState {
         buffer: Vec::new(),
         model,
@@ -88,8 +95,7 @@ pub fn translate_anthropic_like_stream_to_openai(
 
     futures::stream::unfold(
         (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             state,
             false,
         ),

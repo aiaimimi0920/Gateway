@@ -12,23 +12,52 @@ use crate::protocol::sse_parse::{format_sse_event, SseFrame};
 use crate::protocol::stream_decode::{
     BoundedSseDecoder, DecodeStep, MAX_TRANSLATED_SSE_FRAME_BYTES,
 };
+use crate::protocol::stream_error::{ProtocolStreamError, StreamError};
+use crate::protocol::stream_error_legacy::with_transport_error;
 
 pub fn translate_openai_chat_sse_to_legacy_completions(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
-    translate_openai_chat_sse_to_legacy_completions_with_limit(
+) -> impl Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static {
+    translate_openai_chat_sse_to_legacy_completions_with_error(with_transport_error(inner), model)
+}
+
+/// 保留调用者错误类型，不让本地 SSE 解码错误依赖 HTTP 客户端构造器。
+pub fn translate_openai_chat_sse_to_legacy_completions_with_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
+    translate_openai_chat_sse_to_legacy_completions_with_limit_and_error(
         inner,
         model,
         MAX_TRANSLATED_SSE_FRAME_BYTES,
     )
 }
 
+#[cfg(test)]
 pub(super) fn translate_openai_chat_sse_to_legacy_completions_with_limit(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
     max_frame_bytes: usize,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+) -> impl Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static {
+    translate_openai_chat_sse_to_legacy_completions_with_limit_and_error(
+        with_transport_error(inner),
+        model,
+        max_frame_bytes,
+    )
+}
+
+fn translate_openai_chat_sse_to_legacy_completions_with_limit_and_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+    max_frame_bytes: usize,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
     let state = OpenAiChatToLegacyCompletionsState {
         decoder: BoundedSseDecoder::new(max_frame_bytes),
         response_id: format!("cmpl_{}", uuid::Uuid::new_v4().as_simple()),
@@ -46,8 +75,7 @@ pub(super) fn translate_openai_chat_sse_to_legacy_completions_with_limit(
 
     futures::stream::unfold(
         (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             state,
             false,
         ),
@@ -70,7 +98,7 @@ pub(super) fn translate_openai_chat_sse_to_legacy_completions_with_limit(
                     }
                     DecodeStep::Error(error) => {
                         st.abort();
-                        return Some((Err(error), (stream, st, true)));
+                        return Some((Err(error.into()), (stream, st, true)));
                     }
                     DecodeStep::NeedInput => {}
                 }
@@ -262,3 +290,7 @@ fn extract_stream_usage(chunk: &Value) -> Option<TokenUsage> {
             .and_then(|value| value.as_u64()),
     })
 }
+
+#[cfg(test)]
+#[path = "stream_translate_error_tests.rs"]
+mod error_tests;

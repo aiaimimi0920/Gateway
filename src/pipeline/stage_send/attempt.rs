@@ -1,8 +1,7 @@
 //! Values already prepared and admitted for exactly one candidate attempt.
 use super::*;
 
-pub(super) type ByteStream =
-    std::pin::Pin<Box<dyn futures::Stream<Item = Result<Bytes, rquest::Error>> + Send>>;
+pub(super) type ByteStream = super::tool_stream::ByteStream<StreamError<rquest::Error>>;
 pub(super) type UsageHandle = Arc<std::sync::Mutex<Option<crate::protocol::canonical::TokenUsage>>>;
 
 // Preserve the outer loop's error precedence without repeating feedback or admission.

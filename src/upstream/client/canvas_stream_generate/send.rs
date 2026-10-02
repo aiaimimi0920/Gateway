@@ -90,7 +90,7 @@ impl UpstreamClient {
                     .await
                     .map_err(|error| classify_network_error(&error, Some(provider)))?;
                 let status = response.status().as_u16();
-                let final_url = response.url().to_string();
+                let final_url = response.uri().to_string();
                 let location = response
                     .headers()
                     .get(rquest::header::LOCATION)
@@ -375,7 +375,7 @@ impl UpstreamClient {
                 .send()
                 .await
                 .map_err(|error| classify_network_error(&error, Some(provider)))?;
-            let final_url = response.url().to_string();
+            let final_url = response.uri().to_string();
             let status = response.status().as_u16();
             let location = response
                 .headers()

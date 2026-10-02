@@ -12,20 +12,31 @@ use crate::protocol::sse_parse::{format_sse_event, SseFrame};
 use crate::protocol::stream_decode::{
     BoundedSseDecoder, DecodeStep, MAX_TRANSLATED_SSE_FRAME_BYTES,
 };
+use crate::protocol::stream_error::ProtocolStreamError;
 use crate::protocol::tool_inject;
 
-pub fn translate_responses_sse_to_openai_chat(
-    inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+pub fn translate_responses_sse_to_openai_chat_with_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     model: String,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
-    translate_responses_sse_to_openai_chat_with_limit(inner, model, MAX_TRANSLATED_SSE_FRAME_BYTES)
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
+    translate_responses_sse_to_openai_chat_with_limit_and_error(
+        inner,
+        model,
+        MAX_TRANSLATED_SSE_FRAME_BYTES,
+    )
 }
 
-pub(super) fn translate_responses_sse_to_openai_chat_with_limit(
-    inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+pub(super) fn translate_responses_sse_to_openai_chat_with_limit_and_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     model: String,
     max_frame_bytes: usize,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
     let state = ResponsesToOpenAiChatState {
         decoder: BoundedSseDecoder::new(max_frame_bytes),
         response_id: format!("chatcmpl_{}", uuid::Uuid::new_v4().as_simple()),
@@ -47,8 +58,7 @@ pub(super) fn translate_responses_sse_to_openai_chat_with_limit(
 
     futures::stream::unfold(
         (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             state,
             false,
         ),
@@ -70,7 +80,7 @@ pub(super) fn translate_responses_sse_to_openai_chat_with_limit(
                         continue;
                     }
                     DecodeStep::Error(error) => {
-                        return Some((Err(error), (stream, st, true)));
+                        return Some((Err(error.into()), (stream, st, true)));
                     }
                     DecodeStep::NeedInput => {}
                 }
@@ -508,3 +518,7 @@ fn build_openai_chat_stop_chunk(
 
     chunk
 }
+
+#[cfg(test)]
+#[path = "to_openai_chat_error_tests.rs"]
+mod error_tests;

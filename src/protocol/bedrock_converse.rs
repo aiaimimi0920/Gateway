@@ -11,7 +11,10 @@ pub use packing::pack_bedrock_converse;
 
 pub use normalization::normalize_converse;
 
-pub use eventstream::translate_openai_sse_to_bedrock_eventstream;
+pub use eventstream::{
+    translate_openai_sse_to_bedrock_eventstream,
+    translate_openai_sse_to_bedrock_eventstream_with_error,
+};
 
 use crate::protocol::canonical::CanonicalToolCall;
 use crate::protocol::canonical::TokenUsage;

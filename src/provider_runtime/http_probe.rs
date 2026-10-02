@@ -8,7 +8,7 @@ use crate::state::AppState;
 use crate::upstream::headers::build_upstream_headers;
 
 pub(super) fn build_probe_http_client(state: &AppState) -> Result<rquest::Client, GatewayError> {
-    rquest::Client::builder()
+    crate::http_client::builder()
         .timeout(Duration::from_secs(state.config.upstream_timeout_secs))
         .build()
         .map_err(|error| GatewayError::server_error(format!("build probe http client: {error}")))

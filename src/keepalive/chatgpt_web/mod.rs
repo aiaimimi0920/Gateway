@@ -46,7 +46,7 @@ pub(super) async fn ensure_chatgpt_web_payload_ready(
     force_refresh: bool,
 ) -> Result<ProviderAccountPayload, GatewayError> {
     if chatgpt_web_should_oauth_refresh(payload, force_refresh) {
-        match execute_chatgpt_web_oauth_refresh(&Client::new(), payload).await {
+        match execute_chatgpt_web_oauth_refresh(&crate::http_client::client(), payload).await {
             Ok(refreshed) => {
                 persist_chatgpt_web_runtime_refresh(redis_pool, pg_pool, payload, &refreshed).await;
                 return Ok(apply_chatgpt_web_runtime_refresh(payload, &refreshed));

@@ -3,6 +3,9 @@ use futures::StreamExt;
 use serde_json::json;
 
 use super::to_anthropic::translate_openai_sse_to_anthropic_with_limit;
+use crate::protocol::stream_error_test_support::{
+    http_body_error as stream_error, source_messages,
+};
 
 fn text_frame(text: &str, line_ending: &str) -> String {
     let payload = json!({
@@ -35,11 +38,6 @@ fn tool_frame(index: usize, arguments: &str) -> String {
     format!("data: {payload}\n\n")
 }
 
-fn stream_error(message: &str) -> rquest::Error {
-    let source = std::io::Error::new(std::io::ErrorKind::Other, message);
-    rquest::Error::from(serde_json::Error::io(source))
-}
-
 async fn collect_translation(
     chunks: Vec<Result<Bytes, rquest::Error>>,
     max_frame_bytes: usize,
@@ -55,7 +53,7 @@ async fn collect_translation(
         match item {
             Ok(bytes) => outputs.push(String::from_utf8(bytes.to_vec()).expect("UTF-8 event")),
             Err(source) => {
-                error = Some(source.to_string());
+                error = Some(source_messages(&source));
                 assert!(
                     translated.next().await.is_none(),
                     "error must terminate stream"
@@ -119,7 +117,7 @@ async fn preserves_chunked_utf8_crlf_and_multiline_data() {
 async fn propagates_upstream_error_without_synthetic_terminal_events() {
     let chunks = vec![
         Ok(Bytes::from(text_frame("Hi", "\n"))),
-        Err(stream_error("upstream disconnected")),
+        Err(stream_error("upstream disconnected").await),
     ];
     let (outputs, error) = collect_translation(chunks, 4096).await;
     let output = outputs.join("");

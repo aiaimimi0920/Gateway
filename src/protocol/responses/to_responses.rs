@@ -19,6 +19,8 @@ use crate::protocol::sse_parse::{format_sse_event, SseFrame};
 use crate::protocol::stream_decode::{
     BoundedSseDecoder, DecodeStep, MAX_TRANSLATED_SSE_FRAME_BYTES,
 };
+use crate::protocol::stream_error::{ProtocolStreamError, StreamError};
+use crate::protocol::stream_error_legacy::with_transport_error;
 
 mod tool_calls;
 
@@ -32,15 +34,47 @@ use tool_calls::PendingResponseToolCall;
 pub fn translate_openai_sse_to_responses(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
-    translate_openai_sse_to_responses_with_limit(inner, model, MAX_TRANSLATED_SSE_FRAME_BYTES)
+) -> impl Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static {
+    translate_openai_sse_to_responses_with_error(with_transport_error(inner), model)
 }
 
+/// Preserve the caller's transport error while emitting local decode failures
+/// through its chosen domain error, rather than a synthetic HTTP error.
+pub fn translate_openai_sse_to_responses_with_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
+    translate_openai_sse_to_responses_with_limit_and_error(
+        inner,
+        model,
+        MAX_TRANSLATED_SSE_FRAME_BYTES,
+    )
+}
+
+#[cfg(test)]
 pub(super) fn translate_openai_sse_to_responses_with_limit(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
     max_frame_bytes: usize,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+) -> impl Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static {
+    translate_openai_sse_to_responses_with_limit_and_error(
+        with_transport_error(inner),
+        model,
+        max_frame_bytes,
+    )
+}
+
+fn translate_openai_sse_to_responses_with_limit_and_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+    max_frame_bytes: usize,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
     let state = OpenAiToResponsesState {
         decoder: BoundedSseDecoder::new(max_frame_bytes),
         response_id: format!("resp_{}", uuid::Uuid::new_v4().as_simple()),
@@ -63,8 +97,7 @@ pub(super) fn translate_openai_sse_to_responses_with_limit(
 
     futures::stream::unfold(
         (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             state,
             false,
         ),
@@ -86,7 +119,7 @@ pub(super) fn translate_openai_sse_to_responses_with_limit(
                         continue;
                     }
                     DecodeStep::Error(error) => {
-                        return Some((Err(error), (stream, st, true)));
+                        return Some((Err(error.into()), (stream, st, true)));
                     }
                     DecodeStep::NeedInput => {}
                 }
@@ -449,3 +482,7 @@ fn frame_is_native_responses(frame: &SseFrame) -> bool {
         .map(|value| value.starts_with("response.") || value == "error")
         .unwrap_or(false)
 }
+
+#[cfg(test)]
+#[path = "to_responses_error_tests.rs"]
+mod error_tests;

@@ -119,6 +119,7 @@ run_watch_mode() {
     --watch Cargo.toml \
     --watch Cargo.lock \
     --watch src \
+    --watch crates/gateway-sqlx \
     --watch apps/desktop/dist/.gateway-web-ready \
     --ignore target \
     -x 'run --locked --bin gateway' &

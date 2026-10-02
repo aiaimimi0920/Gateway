@@ -10,13 +10,25 @@ permissions:
   contents: read
 
 jobs:
+  security:
+    uses: ./.github/workflows/security.yml
+    with:
+      ref: ${{ github.sha }}
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      security-events: write
+
   build:
     name: Build and verify Windows candidate
+    needs: security
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          ref: ${{ needs.security.outputs.source_sha }}
           # Worker tests validate the effective-line baseline's historical commit.
           fetch-depth: 0
 
@@ -47,7 +59,7 @@ jobs:
             apps/desktop/package-lock.json
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.1
+        uses: dtolnay/rust-toolchain@1.98.0
 
       - name: Cache Rust builds
         uses: Swatinem/rust-cache@v2

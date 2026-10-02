@@ -69,10 +69,16 @@ pub fn translate_openai_sse_to_cohere_stream(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
 ) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+    translate_openai_sse_to_cohere_stream_with_error(inner, model)
+}
+
+pub fn translate_openai_sse_to_cohere_stream_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
     futures::stream::unfold(
         (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             CohereStreamState::new(model),
         ),
         |(mut inner, mut state)| async move {

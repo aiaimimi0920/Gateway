@@ -160,16 +160,24 @@ pub fn translate_openai_sse_to_gemini_stream(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
 ) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+    translate_openai_sse_to_gemini_stream_with_error(inner, model)
+}
+
+/// 只投影 wire，不构造本地协议错误；保留上游错误类型和对象。
+pub fn translate_openai_sse_to_gemini_stream_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
     futures::stream::unfold(
-        (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+        Some((
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             GeminiStreamState::new(model),
-        ),
-        |(mut inner, mut state)| async move {
+        )),
+        |state| async move {
+            let (mut inner, mut state) = state?;
             loop {
                 if let Some(output) = state.outputs.pop_front() {
-                    return Some((Ok(Bytes::from(output)), (inner, state)));
+                    return Some((Ok(Bytes::from(output)), Some((inner, state))));
                 }
 
                 let next_chunk = inner.next().await;
@@ -178,13 +186,19 @@ pub fn translate_openai_sse_to_gemini_stream(
                         state.buffer.extend_from_slice(&bytes);
                         state.process_buffer();
                     }
-                    Some(Err(error)) => return Some((Err(error), (inner, state))),
+                    // 错误是终态；交付错误前释放上游和缓冲，后续不可恢复或伪造完成。
+                    Some(Err(error)) => return Some((Err(error), None)),
                     None => return None,
                 }
             }
         },
     )
+    .fuse()
 }
+
+#[cfg(test)]
+#[path = "stream_error_tests.rs"]
+mod stream_error_tests;
 
 struct PendingGeminiToolCall {
     id: String,

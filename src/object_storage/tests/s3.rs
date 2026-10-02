@@ -87,8 +87,11 @@ async fn serve_object(State(state): State<Arc<ObjectState>>, request: Request) -
     let method = request.method().clone();
     let path = request.uri().path().to_string();
     let query = request.uri().query().unwrap_or_default();
-    let is_slow = path.ends_with("/slow") || query.contains("slow");
+    // HEAD bucket paths include a trailing slash, unlike object-key paths.
+    let match_path = path.trim_end_matches('/');
+    let is_slow = match_path.ends_with("/slow") || query.contains("slow");
     let is_slow_body = path.ends_with("/slow-body");
+    let denied_bucket = match_path == "/denied-bucket";
     state
         .requests
         .lock()
@@ -100,6 +103,7 @@ async fn serve_object(State(state): State<Arc<ObjectState>>, request: Request) -
     }
 
     match method {
+        Method::HEAD if denied_bucket => StatusCode::FORBIDDEN.into_response(),
         Method::PUT => {
             let body = to_bytes(request.into_body(), 8 * 1024 * 1024)
                 .await
@@ -222,4 +226,51 @@ async fn s3_list_network_deadline_bounds_a_stalled_response() {
         error.code.as_deref(),
         Some("object_storage_network_timeout")
     );
+}
+
+#[tokio::test]
+async fn s3_readiness_uses_head_bucket_without_reading_objects() {
+    let fixture = fixture().await;
+    let outcome = fixture
+        .storage
+        .probe_readiness(Duration::from_secs(1))
+        .await;
+    assert!(outcome.ready);
+    assert!(!outcome.timed_out);
+    assert_eq!(
+        *fixture
+            .state
+            .requests
+            .lock()
+            .expect("object request ledger"),
+        vec![(Method::HEAD, "/fixture-bucket/".to_string())]
+    );
+}
+
+#[tokio::test]
+async fn s3_readiness_rejects_a_denied_bucket() {
+    let mut fixture = fixture().await;
+    if let ObjectStorageDriver::S3Compatible { bucket, .. } = &mut fixture.storage.driver {
+        *bucket = "denied-bucket".to_string();
+    }
+    let outcome = fixture
+        .storage
+        .probe_readiness(Duration::from_secs(1))
+        .await;
+    assert!(!outcome.ready);
+    assert!(!outcome.timed_out);
+}
+
+#[tokio::test]
+async fn s3_readiness_deadline_bounds_a_stalled_head_response() {
+    let mut fixture = fixture().await;
+    if let ObjectStorageDriver::S3Compatible { bucket, .. } = &mut fixture.storage.driver {
+        *bucket = "slow".to_string();
+    }
+    let outcome = fixture
+        .storage
+        .probe_readiness(Duration::from_millis(100))
+        .await;
+    assert!(!outcome.ready);
+    assert!(outcome.timed_out);
 }

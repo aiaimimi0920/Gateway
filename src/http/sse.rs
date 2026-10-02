@@ -26,10 +26,15 @@ const SSE_KEEPALIVE_FRAME: &[u8] = b": keepalive\n\n";
 /// The upstream byte stream is forwarded verbatim as `text/event-stream`.
 /// This is correct because the upstream providers already emit fully-formed
 /// SSE frames; we act as a transparent proxy for the byte stream.
-pub fn into_sse_response(stream: TrackedStream, _endpoint_kind: EndpointKind) -> impl IntoResponse {
+pub fn into_sse_response<E>(
+    stream: TrackedStream<E>,
+    _endpoint_kind: EndpointKind,
+) -> impl IntoResponse
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
     let stream = wrap_with_keepalive(stream, SSE_KEEPALIVE_INTERVAL);
-    // Map the reqwest Error to a Box<dyn std::error::Error + Send + Sync>
-    // so it can be used as axum's Body source.
+    // 只在 HTTP Body 边界装箱，保留领域错误及其原始 source 链。
     let mapped =
         stream.map(|r| r.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>));
 
@@ -45,18 +50,18 @@ pub fn into_sse_response(stream: TrackedStream, _endpoint_kind: EndpointKind) ->
         .expect("valid SSE response builder")
 }
 
-fn wrap_with_keepalive(stream: TrackedStream, interval: Duration) -> KeepAliveStream {
+fn wrap_with_keepalive<E>(stream: TrackedStream<E>, interval: Duration) -> KeepAliveStream<E> {
     KeepAliveStream::new(stream, interval)
 }
 
-struct KeepAliveStream {
-    inner: TrackedStream,
+struct KeepAliveStream<E> {
+    inner: TrackedStream<E>,
     interval: Duration,
     next_ping: Pin<Box<Sleep>>,
 }
 
-impl KeepAliveStream {
-    fn new(inner: TrackedStream, interval: Duration) -> Self {
+impl<E> KeepAliveStream<E> {
+    fn new(inner: TrackedStream<E>, interval: Duration) -> Self {
         Self {
             inner,
             interval,
@@ -71,8 +76,8 @@ impl KeepAliveStream {
     }
 }
 
-impl futures::Stream for KeepAliveStream {
-    type Item = Result<Bytes, rquest::Error>;
+impl<E> futures::Stream for KeepAliveStream<E> {
+    type Item = Result<Bytes, E>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::new(&mut self.inner).poll_next(cx) {
@@ -96,6 +101,10 @@ impl futures::Stream for KeepAliveStream {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+#[cfg(test)]
+#[path = "sse_error_tests.rs"]
+mod error_tests;
 
 #[cfg(test)]
 mod tests {

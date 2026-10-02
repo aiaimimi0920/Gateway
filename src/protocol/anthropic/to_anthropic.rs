@@ -1,3 +1,5 @@
+use crate::protocol::stream_error::{ProtocolStreamError, StreamError};
+use crate::protocol::stream_error_legacy::with_transport_error;
 use bytes::Bytes;
 use futures::Stream;
 use serde_json::{json, Value};
@@ -140,15 +142,46 @@ fn build_anthropic_message_stop_event() -> String {
 pub fn translate_openai_sse_to_anthropic(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
-    translate_openai_sse_to_anthropic_with_limit(inner, model, MAX_TRANSLATED_SSE_FRAME_BYTES)
+) -> impl Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static {
+    translate_openai_sse_to_anthropic_with_error(with_transport_error(inner), model)
 }
 
+/// 只把本地解码/状态错误转换为 E，上游错误原样传递。
+pub fn translate_openai_sse_to_anthropic_with_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
+    translate_openai_sse_to_anthropic_with_limit_and_error(
+        inner,
+        model,
+        MAX_TRANSLATED_SSE_FRAME_BYTES,
+    )
+}
+
+#[cfg(test)]
 pub(super) fn translate_openai_sse_to_anthropic_with_limit(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
     max_frame_bytes: usize,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+) -> impl Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static {
+    translate_openai_sse_to_anthropic_with_limit_and_error(
+        with_transport_error(inner),
+        model,
+        max_frame_bytes,
+    )
+}
+
+fn translate_openai_sse_to_anthropic_with_limit_and_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+    max_frame_bytes: usize,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
     let response_id = format!("msg_{}", uuid::Uuid::new_v4().as_simple());
 
     let state = OpenAiToAnthropicState {
@@ -167,8 +200,7 @@ pub(super) fn translate_openai_sse_to_anthropic_with_limit(
 
     futures::stream::unfold(
         (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             state,
             false,
         ),
@@ -188,13 +220,13 @@ pub(super) fn translate_openai_sse_to_anthropic_with_limit(
                     DecodeStep::Frame(frame) => {
                         if let Err(error) = st.handle_frame(frame) {
                             st.abort();
-                            return Some((Err(error), (stream, st, true)));
+                            return Some((Err(error.into()), (stream, st, true)));
                         }
                         continue;
                     }
                     DecodeStep::Error(error) => {
                         st.abort();
-                        return Some((Err(error), (stream, st, true)));
+                        return Some((Err(error.into()), (stream, st, true)));
                     }
                     DecodeStep::NeedInput => {}
                 }
@@ -211,7 +243,7 @@ pub(super) fn translate_openai_sse_to_anthropic_with_limit(
                         if let Some(frame) = st.decoder.flush_pending_frame() {
                             if let Err(error) = st.handle_frame(frame) {
                                 st.abort();
-                                return Some((Err(error), (stream, st, true)));
+                                return Some((Err(error.into()), (stream, st, true)));
                             }
                         }
                         st.emit_final_if_needed(None);
@@ -247,7 +279,7 @@ struct PendingAnthropicToolBlock {
 }
 
 impl OpenAiToAnthropicState {
-    fn handle_frame(&mut self, frame: SseFrame) -> Result<(), rquest::Error> {
+    fn handle_frame(&mut self, frame: SseFrame) -> Result<(), ProtocolStreamError> {
         if frame.data.is_empty() {
             return Ok(());
         }
@@ -278,7 +310,7 @@ impl OpenAiToAnthropicState {
         Ok(())
     }
 
-    fn handle_choice(&mut self, choice: &Value) -> Result<(), rquest::Error> {
+    fn handle_choice(&mut self, choice: &Value) -> Result<(), ProtocolStreamError> {
         let delta = choice.get("delta");
         let finish_reason = choice
             .get("finish_reason")
@@ -322,7 +354,7 @@ impl OpenAiToAnthropicState {
         &mut self,
         tool_call: &Value,
         fallback_index: usize,
-    ) -> Result<(), rquest::Error> {
+    ) -> Result<(), ProtocolStreamError> {
         let openai_index = tool_call
             .get("index")
             .and_then(|value| value.as_u64())
@@ -381,7 +413,7 @@ impl OpenAiToAnthropicState {
         );
     }
 
-    fn open_or_create_text_block(&mut self) -> Result<usize, rquest::Error> {
+    fn open_or_create_text_block(&mut self) -> Result<usize, ProtocolStreamError> {
         if let Some(index) = self.open_text_index {
             return Ok(index);
         }
@@ -406,7 +438,7 @@ impl OpenAiToAnthropicState {
         }
     }
 
-    fn allocate_block_index(&mut self) -> Result<usize, rquest::Error> {
+    fn allocate_block_index(&mut self) -> Result<usize, ProtocolStreamError> {
         if self.next_block_index >= MAX_TRANSLATED_CONTENT_BLOCKS {
             return Err(translation_error(format!(
                 "translated Anthropic stream exceeded the {MAX_TRANSLATED_CONTENT_BLOCKS}-content-block limit"
@@ -447,9 +479,8 @@ impl OpenAiToAnthropicState {
     }
 }
 
-fn translation_error(message: String) -> rquest::Error {
-    let source = std::io::Error::new(std::io::ErrorKind::InvalidData, message);
-    rquest::Error::from(serde_json::Error::io(source))
+fn translation_error(message: String) -> ProtocolStreamError {
+    ProtocolStreamError::invalid_data(message)
 }
 
 fn extract_openai_stream_usage(chunk: &Value) -> Option<TokenUsage> {
@@ -508,3 +539,7 @@ fn map_openai_finish_reason(value: &str) -> Option<String> {
         .to_string(),
     )
 }
+
+#[cfg(test)]
+#[path = "to_anthropic_error_tests.rs"]
+mod error_tests;

@@ -54,6 +54,12 @@ pub mod search_api;
 pub mod search_api;
 pub mod sse_parse;
 pub(crate) mod stream_decode;
+pub mod stream_error;
+mod stream_error_legacy;
+#[cfg(test)]
+pub(crate) mod stream_error_test_support;
+#[cfg(test)]
+mod stream_transport_tests;
 #[cfg(feature = "line-suno-web-reverse-api")]
 pub mod suno;
 #[cfg(not(feature = "line-suno-web-reverse-api"))]

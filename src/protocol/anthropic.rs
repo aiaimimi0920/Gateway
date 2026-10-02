@@ -23,7 +23,9 @@ pub use request::{
 pub use response::{
     build_messages_delta, build_messages_stop, build_messages_success, unpack_anthropic_response,
 };
-pub use to_anthropic::translate_openai_sse_to_anthropic;
+pub use to_anthropic::{
+    translate_openai_sse_to_anthropic, translate_openai_sse_to_anthropic_with_error,
+};
 pub use upstream_accumulator::accumulate_anthropic_stream;
 
 // ---------------------------------------------------------------------------

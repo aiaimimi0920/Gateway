@@ -44,7 +44,7 @@ mod accumulator_limits_tests;
 mod request_messages_tests;
 
 use event_stream::{EventStreamParser, KiroEvent};
-use event_stream_translate::translate_kiro_stream;
+use event_stream_translate::translate_kiro_stream_with_error;
 use request_messages::{
     build_history_messages, build_short_tool_name_map, build_tool_name_map, build_user_message,
     ensure_history_tools_declared, pack_tool, resolve_conversation_id, validate_tool_pairing,
@@ -355,7 +355,15 @@ pub fn translate_kiro_event_stream_to_openai_sse(
     model: String,
     req: CanonicalRelayRequest,
 ) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
-    translate_kiro_stream(inner, build_translator_state(model, req), false)
+    translate_kiro_event_stream_to_openai_sse_with_error(inner, model, req)
+}
+
+pub fn translate_kiro_event_stream_to_openai_sse_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+    req: CanonicalRelayRequest,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
+    translate_kiro_stream_with_error(inner, build_translator_state(model, req), false)
 }
 
 pub fn translate_kiro_event_stream_to_anthropic_sse(
@@ -363,7 +371,25 @@ pub fn translate_kiro_event_stream_to_anthropic_sse(
     model: String,
     req: CanonicalRelayRequest,
 ) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
-    translate_kiro_stream(inner, build_translator_state(model, req), true)
+    translate_kiro_event_stream_to_anthropic_sse_with_error(inner, model, req)
+}
+
+pub fn translate_kiro_event_stream_to_anthropic_sse_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+    req: CanonicalRelayRequest,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
+    translate_kiro_stream_with_error(inner, build_translator_state(model, req), true)
+}
+
+// 保留旧状态注入测试入口的类型推断，生产入口使用同一泛型状态机。
+#[cfg(test)]
+fn translate_kiro_stream(
+    inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+    state: TranslatorState,
+    anthropic: bool,
+) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+    translate_kiro_stream_with_error(inner, state, anthropic)
 }
 
 fn push_kiro_stream_error(state: &mut TranslatorState, error: GatewayError, anthropic: bool) {

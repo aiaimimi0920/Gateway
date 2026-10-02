@@ -105,7 +105,7 @@ async fn execute_http_driver(
     request: &DriverRequest,
     timeout: Duration,
 ) -> anyhow::Result<Vec<u8>> {
-    let client = rquest::Client::builder().timeout(timeout).build()?;
+    let client = crate::http_client::builder().timeout(timeout).build()?;
     let mut builder = client.request(Method::POST, endpoint).json(request);
     if let Some(secret_env) = secret_env {
         let token = std::env::var(secret_env)

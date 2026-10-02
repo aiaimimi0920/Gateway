@@ -24,12 +24,25 @@ env:
   PUBLISH_IMAGE: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/V')) }}
 
 jobs:
+  security:
+    uses: ./.github/workflows/security.yml
+    with:
+      ref: ${{ github.sha }}
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      security-events: write
+
   docker:
     name: Build and optionally publish Gateway image
+    needs: security
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.security.outputs.source_sha }}
 
       - name: Validate release tag
         if: startsWith(github.ref, 'refs/tags/')

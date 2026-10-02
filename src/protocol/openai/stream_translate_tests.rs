@@ -4,13 +4,14 @@ use serde_json::{json, Value};
 
 use super::stream_translate::translate_openai_chat_sse_to_legacy_completions_with_limit;
 use super::translate_openai_chat_sse_to_legacy_completions;
+use crate::protocol::stream_error::StreamError;
+use crate::protocol::stream_error_test_support::{
+    http_body_error as synthetic_stream_error, source_messages,
+};
 
-fn synthetic_stream_error(message: &str) -> rquest::Error {
-    let source = std::io::Error::new(std::io::ErrorKind::Other, message);
-    rquest::Error::from(serde_json::Error::io(source))
-}
-
-async fn translate(chunks: Vec<Result<Bytes, rquest::Error>>) -> Vec<Result<Bytes, rquest::Error>> {
+async fn translate(
+    chunks: Vec<Result<Bytes, rquest::Error>>,
+) -> Vec<Result<Bytes, StreamError<rquest::Error>>> {
     translate_openai_chat_sse_to_legacy_completions(
         futures::stream::iter(chunks),
         "requested-model".to_string(),
@@ -22,7 +23,7 @@ async fn translate(chunks: Vec<Result<Bytes, rquest::Error>>) -> Vec<Result<Byte
 async fn translate_with_limit(
     chunks: Vec<Result<Bytes, rquest::Error>>,
     max_frame_bytes: usize,
-) -> Vec<Result<Bytes, rquest::Error>> {
+) -> Vec<Result<Bytes, StreamError<rquest::Error>>> {
     translate_openai_chat_sse_to_legacy_completions_with_limit(
         futures::stream::iter(chunks),
         "requested-model".to_string(),
@@ -172,7 +173,7 @@ async fn malformed_frame_is_ignored_without_reordering_later_content() {
 async fn upstream_error_is_forwarded_without_synthetic_terminal_event() {
     let output = translate(vec![
         Ok(Bytes::from(chat_text_frame("before-error", "\n"))),
-        Err(synthetic_stream_error("upstream failed")),
+        Err(synthetic_stream_error("upstream failed").await),
     ])
     .await;
 
@@ -182,7 +183,8 @@ async fn upstream_error_is_forwarded_without_synthetic_terminal_event() {
         "before-error"
     );
     let error = output[1].as_ref().expect_err("error must be forwarded");
-    assert!(error.to_string().contains("upstream failed"));
+    assert!(matches!(error, StreamError::Transport(_)));
+    assert!(source_messages(error).contains("upstream failed"));
 }
 
 #[tokio::test]

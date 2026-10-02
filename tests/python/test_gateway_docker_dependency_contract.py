@@ -192,7 +192,7 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
     def test_development_dockerfile_preinstalls_rustfmt_for_the_pinned_toolchain(self):
         dockerfile = self._read("Dockerfile.dev")
 
-        self.assertIn("default-toolchain 1.91.1", dockerfile)
+        self.assertIn("default-toolchain 1.98.0", dockerfile)
         self.assertIn("rustup component add rustfmt", dockerfile)
         self.assertIn("/root/.cargo/bin/rustfmt --version", dockerfile)
 

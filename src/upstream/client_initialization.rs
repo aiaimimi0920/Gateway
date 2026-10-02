@@ -1,12 +1,13 @@
-use super::{
-    Client, Duration, Emulation, PgPool, RedisPool, RequestTimeBrowserPolicy, UpstreamClient,
-};
+#[path = "client_debug.rs"]
+mod debug;
+
+use super::{Duration, Emulation, PgPool, RedisPool, RequestTimeBrowserPolicy, UpstreamClient};
 
 impl UpstreamClient {
     /// Create a new client with the given request timeout.
     ///
-    /// Uses a recent Chrome TLS fingerprint via rquest's BoringSSL backend so that
-    /// providers that check JA3/JA4 (e.g. Grok) accept the connection.
+    /// Uses the configured Chrome TLS profile through wreq's BoringSSL backend.
+    /// This alone does not establish complete JA3/JA4 identity or provider acceptance.
     pub fn new(timeout_secs: u64) -> Self {
         Self::new_with_runtime(timeout_secs, None, None)
     }
@@ -16,12 +17,12 @@ impl UpstreamClient {
         redis_pool: Option<RedisPool>,
         pg_pool: Option<PgPool>,
     ) -> Self {
-        let http = Client::builder()
+        let http = crate::http_client::builder()
             .emulation(Emulation::Chrome136)
             .timeout(Duration::from_secs(timeout_secs))
             .build()
             .expect("failed to build rquest client");
-        let plain_http = Client::builder()
+        let plain_http = crate::http_client::builder()
             .timeout(Duration::from_secs(timeout_secs))
             .build()
             .expect("failed to build plain rquest client");

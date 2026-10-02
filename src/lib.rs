@@ -21,6 +21,7 @@ pub mod error;
 pub mod filter;
 pub mod gateway_api_key;
 pub mod http;
+pub mod http_client;
 pub mod implementation_lines;
 pub mod keepalive;
 pub mod local_runtime;

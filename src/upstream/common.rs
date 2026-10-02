@@ -69,6 +69,7 @@ pub(crate) fn build_request_builder_from_plan(
 mod tests {
     use super::*;
     use base64::Engine;
+    use http_body_util::BodyExt;
 
     fn make_client() -> Client {
         Client::new()
@@ -90,14 +91,14 @@ mod tests {
             HeaderValue::from_static("demo"),
         );
 
-        let request =
+        let mut request =
             build_request_builder_from_plan(&client, Duration::from_secs(5), &plan, headers)
                 .build()
                 .expect("request should build");
 
         assert_eq!(request.method(), Method::POST);
         assert_eq!(
-            request.url().as_str(),
+            request.uri().to_string(),
             "https://example.com/v1/test?alpha=1"
         );
         assert_eq!(
@@ -114,10 +115,11 @@ mod tests {
                 .and_then(|value| value.to_str().ok()),
             Some("application/json")
         );
-        assert_eq!(
-            request.body().and_then(|body| body.as_bytes()),
-            Some(br#"{"hello":"world"}"#.as_slice())
-        );
+        let body = request.body_mut().take().expect("request body");
+        let bytes = futures::executor::block_on(body.collect())
+            .unwrap()
+            .to_bytes();
+        assert_eq!(bytes.as_ref(), br#"{"hello":"world"}"#);
     }
 
     #[test]
@@ -134,7 +136,7 @@ mod tests {
             response_kind: EndpointKind::ChatCompletions,
         };
 
-        let request = build_request_builder_from_plan(
+        let mut request = build_request_builder_from_plan(
             &client,
             Duration::from_secs(5),
             &plan,
@@ -144,7 +146,7 @@ mod tests {
         .expect("request should build");
 
         assert_eq!(request.method(), Method::POST);
-        assert_eq!(request.url().as_str(), "https://example.com/v1/raw");
+        assert_eq!(request.uri().to_string(), "https://example.com/v1/raw");
         assert_eq!(
             request
                 .headers()
@@ -152,9 +154,10 @@ mod tests {
                 .and_then(|value| value.to_str().ok()),
             Some("application/x.custom")
         );
-        assert_eq!(
-            request.body().and_then(|body| body.as_bytes()),
-            Some(b"raw-body".as_slice())
-        );
+        let body = request.body_mut().take().expect("request body");
+        let bytes = futures::executor::block_on(body.collect())
+            .unwrap()
+            .to_bytes();
+        assert_eq!(bytes.as_ref(), b"raw-body");
     }
 }

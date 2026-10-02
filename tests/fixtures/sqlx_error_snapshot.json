@@ -1,0 +1,35 @@
+{
+  "first_error": {
+    "display": "error occurred while decoding column \"first\": mismatched types; Rust type `i64` (as SQL type `INTEGER`) is not compatible with SQL type `TEXT`",
+    "index": "\"first\"",
+    "kind": "ColumnDecode",
+    "source": "mismatched types; Rust type `i64` (as SQL type `INTEGER`) is not compatible with SQL type `TEXT`"
+  },
+  "invalid_json": {
+    "display": "error occurred while decoding column \"value\": key must be a string at line 1 column 2",
+    "index": "\"value\"",
+    "kind": "ColumnDecode",
+    "source": "key must be a string at line 1 column 2"
+  },
+  "invalid_time": {
+    "display": "error occurred while decoding column \"value\": invalid offset datetime: not-a-time",
+    "index": "\"value\"",
+    "kind": "ColumnDecode",
+    "source": "invalid offset datetime: not-a-time"
+  },
+  "missing_optional": {
+    "column": "value",
+    "display": "no column found for name: value",
+    "kind": "ColumnNotFound"
+  },
+  "null_required": {
+    "kind": "Ok",
+    "value": ""
+  },
+  "type_mismatch": {
+    "display": "error occurred while decoding column \"value\": mismatched types; Rust type `i64` (as SQL type `INTEGER`) is not compatible with SQL type `TEXT`",
+    "index": "\"value\"",
+    "kind": "ColumnDecode",
+    "source": "mismatched types; Rust type `i64` (as SQL type `INTEGER`) is not compatible with SQL type `TEXT`"
+  }
+}

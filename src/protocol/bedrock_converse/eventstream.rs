@@ -5,6 +5,8 @@ use crate::protocol::canonical::TokenUsage;
 use crate::protocol::stream_decode::{
     BoundedSseDecoder, DecodeStep, MAX_TRANSLATED_SSE_FRAME_BYTES,
 };
+use crate::protocol::stream_error::{ProtocolStreamError, StreamError};
+use crate::protocol::stream_error_legacy::with_transport_error;
 use bytes::Bytes;
 use crc::{Crc, CRC_32_ISO_HDLC};
 use futures::Stream;
@@ -22,11 +24,20 @@ const MAX_OUTPUT_EVENTS: usize = 2 * MAX_TOOL_CALLS + 4;
 pub fn translate_openai_sse_to_bedrock_eventstream(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+) -> impl Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static {
+    translate_openai_sse_to_bedrock_eventstream_with_error(with_transport_error(inner), model)
+}
+
+pub fn translate_openai_sse_to_bedrock_eventstream_with_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
     futures::stream::unfold(
         Some((
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             BedrockStreamState::new(model),
         )),
         |state| async move {
@@ -40,11 +51,11 @@ pub fn translate_openai_sse_to_bedrock_eventstream(
                 match state.decoder.decode_next() {
                     DecodeStep::Frame(frame) => {
                         if let Err(error) = state.handle_frame(frame) {
-                            return Some((Err(error), None));
+                            return Some((Err(error.into()), None));
                         }
                         continue;
                     }
-                    DecodeStep::Error(error) => return Some((Err(error), None)),
+                    DecodeStep::Error(error) => return Some((Err(error.into()), None)),
                     DecodeStep::NeedInput => {}
                 }
 
@@ -103,7 +114,7 @@ impl BedrockStreamState {
     fn handle_frame(
         &mut self,
         frame: crate::protocol::sse_parse::SseFrame,
-    ) -> Result<(), rquest::Error> {
+    ) -> Result<(), ProtocolStreamError> {
         if frame.data == "[DONE]" {
             return Ok(());
         }
@@ -189,7 +200,7 @@ impl BedrockStreamState {
         &mut self,
         tool_call: &Value,
         fallback_index: usize,
-    ) -> Result<(), rquest::Error> {
+    ) -> Result<(), ProtocolStreamError> {
         let index = tool_call
             .get("index")
             .and_then(|value| value.as_u64())
@@ -280,7 +291,7 @@ impl BedrockStreamState {
         index: usize,
         id: Option<&str>,
         name: Option<&str>,
-    ) -> Result<(), rquest::Error> {
+    ) -> Result<(), ProtocolStreamError> {
         let existing = self.pending_tools.get(&index);
         if existing.is_none() && self.pending_tools.len() >= MAX_TOOL_CALLS {
             return Err(stream_error("Bedrock tool call limit exceeded"));
@@ -303,7 +314,7 @@ impl BedrockStreamState {
         Ok(())
     }
 
-    fn ensure_message_started(&mut self) -> Result<(), rquest::Error> {
+    fn ensure_message_started(&mut self) -> Result<(), ProtocolStreamError> {
         if self.started {
             return Ok(());
         }
@@ -315,7 +326,7 @@ impl BedrockStreamState {
         }))
     }
 
-    fn emit_event(&mut self, payload: Value) -> Result<(), rquest::Error> {
+    fn emit_event(&mut self, payload: Value) -> Result<(), ProtocolStreamError> {
         if self.outputs.len() >= MAX_OUTPUT_EVENTS {
             return Err(stream_error("Bedrock output event limit exceeded"));
         }
@@ -330,10 +341,10 @@ impl BedrockStreamState {
     }
 }
 
-fn encode_aws_eventstream_json(payload: &Value) -> Result<Bytes, rquest::Error> {
+fn encode_aws_eventstream_json(payload: &Value) -> Result<Bytes, ProtocolStreamError> {
     static CRC32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISO_HDLC);
 
-    let payload = serde_json::to_vec(payload).map_err(rquest::Error::from)?;
+    let payload = serde_json::to_vec(payload).map_err(ProtocolStreamError::from)?;
     let headers_len = 0u32;
     let total_len = payload
         .len()
@@ -358,7 +369,6 @@ fn encode_aws_eventstream_json(payload: &Value) -> Result<Bytes, rquest::Error> 
     Ok(Bytes::from(frame))
 }
 
-fn stream_error(message: &'static str) -> rquest::Error {
-    let source = std::io::Error::new(std::io::ErrorKind::InvalidData, message);
-    rquest::Error::from(serde_json::Error::io(source))
+fn stream_error(message: &'static str) -> ProtocolStreamError {
+    ProtocolStreamError::invalid_data(message)
 }

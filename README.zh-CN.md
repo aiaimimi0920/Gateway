@@ -47,7 +47,7 @@ Platform、Loom 和 Hook 的实现代码不会复制进本仓库。模块职责�
 ## 环境要求
 
 - Windows 10/11 或当前受支持的 Linux 发行版。
-- Rust `1.91.1`，或 `rust-toolchain.toml` 固定的版本。
+- Rust `1.95.0`，或 `rust-toolchain.toml` 固定的版本。
 - Node.js `>=22.22.0` 与 npm。
 - Python `3.11+`。
 - Windows 打包需要 PowerShell 5.1+。

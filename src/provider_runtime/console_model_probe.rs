@@ -1,6 +1,7 @@
 //! Explicit NVIDIA console tests require a generated answer from the selected credential.
 use std::time::{Duration, Instant};
 
+use futures::StreamExt;
 use serde_json::{json, Value};
 
 use super::{ProviderPayloadProbeReport, ProviderPayloadProbeStatus};
@@ -160,7 +161,7 @@ async fn generate(
         plan,
         crate::upstream::headers::build_upstream_headers(&target.payload),
     );
-    let mut response = match request.send().await {
+    let response = match request.send().await {
         Ok(response) => response,
         Err(_) => return failed(None, "Cannot reach the NVIDIA model endpoint."),
     };
@@ -176,15 +177,17 @@ async fn generate(
         return failed(Some(status), &format!("HTTP {status}: {reason}."));
     }
     // Bound the complete response, not just the preview; never log upstream bodies or keys.
+    let stream = response.bytes_stream();
+    futures::pin_mut!(stream);
     let mut bytes = Vec::new();
     loop {
-        match response.chunk().await {
-            Ok(Some(chunk)) if bytes.len() + chunk.len() <= 65_536 => {
+        match stream.next().await {
+            Some(Ok(chunk)) if bytes.len() + chunk.len() <= 65_536 => {
                 bytes.extend_from_slice(&chunk)
             }
-            Ok(Some(_)) => return failed(Some(status), "Model response exceeded 64 KiB."),
-            Ok(None) => break,
-            Err(_) => return failed(Some(status), "Model response was interrupted."),
+            Some(Ok(_)) => return failed(Some(status), "Model response exceeded 64 KiB."),
+            None => break,
+            Some(Err(_)) => return failed(Some(status), "Model response was interrupted."),
         }
     }
     let Ok(body) = serde_json::from_slice::<Value>(&bytes) else {

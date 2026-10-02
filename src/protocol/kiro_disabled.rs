@@ -57,10 +57,26 @@ pub fn translate_kiro_event_stream_to_openai_sse(
     stream::empty()
 }
 
+pub fn translate_kiro_event_stream_to_openai_sse_with_error<E: Send + 'static>(
+    _inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    _model: String,
+    _req: CanonicalRelayRequest,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
+    stream::empty()
+}
+
 pub fn translate_kiro_event_stream_to_anthropic_sse(
     _inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     _model: String,
     _req: CanonicalRelayRequest,
 ) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+    stream::empty()
+}
+
+pub fn translate_kiro_event_stream_to_anthropic_sse_with_error<E: Send + 'static>(
+    _inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    _model: String,
+    _req: CanonicalRelayRequest,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
     stream::empty()
 }

@@ -11,8 +11,8 @@ use crate::protocol::sse_parse::{parse_sse_line, SseParseState};
 
 use super::observation::{BoundaryRule, ObservationLine, ObservationLines};
 
-struct CompletionSemanticsTappedStream {
-    inner: Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+struct CompletionSemanticsTappedStream<E> {
+    inner: Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
     capture: SseCompletionSemanticsCapture,
 }
 
@@ -27,6 +27,16 @@ pub fn tap_sse_completion_semantics(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
 ) -> (
     impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+    Arc<Mutex<Option<String>>>,
+) {
+    tap_sse_completion_semantics_with_error(inner)
+}
+
+/// 完成语义快照与错误类型解耦，错误不会被解释成正常完成事件。
+pub fn tap_sse_completion_semantics_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+) -> (
+    impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     Arc<Mutex<Option<String>>>,
 ) {
     let latest_completion_semantics = Arc::new(Mutex::new(None));
@@ -49,13 +59,11 @@ pub fn snapshot_tapped_completion_semantics(
         .and_then(|value| (*value).clone())
 }
 
-impl Stream for CompletionSemanticsTappedStream {
-    type Item = Result<Bytes, rquest::Error>;
+impl<E> Stream for CompletionSemanticsTappedStream<E> {
+    type Item = Result<Bytes, E>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let inner = unsafe { self.as_mut().map_unchecked_mut(|stream| &mut stream.inner) };
-
-        match inner.poll_next(cx) {
+        match self.inner.as_mut().poll_next(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(Ok(bytes))) => {
                 self.capture.feed(&bytes);

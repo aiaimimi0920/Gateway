@@ -92,12 +92,14 @@ fn build_generate_content_response(value: serde_json::Value) -> Result<Response,
 }
 
 fn build_stream_generate_content_response(
-    stream: TrackedStream,
+    stream: TrackedStream<crate::protocol::stream_error::StreamError<rquest::Error>>,
     model: &str,
 ) -> Result<Response, GatewayError> {
-    let translated =
-        gemini_api::translate_openai_sse_to_gemini_stream(stream, model_for_stream_header(model));
-    let wrapped = TrackedStream::new(translated, |_, _| {});
+    let translated = gemini_api::translate_openai_sse_to_gemini_stream_with_error(
+        stream,
+        model_for_stream_header(model),
+    );
+    let wrapped = TrackedStream::new_with_error(translated, |_, _| {});
     Ok(into_sse_response(
         wrapped,
         crate::protocol::canonical::EndpointKind::ChatCompletions,
@@ -108,6 +110,10 @@ fn build_stream_generate_content_response(
 fn model_for_stream_header(model: &str) -> String {
     model.to_string()
 }
+
+#[cfg(test)]
+#[path = "gemini_stream_error_tests.rs"]
+mod stream_error_tests;
 
 fn parse_model_action(action: &str) -> Result<(String, bool), GatewayError> {
     let normalized = action.trim_start_matches('/');

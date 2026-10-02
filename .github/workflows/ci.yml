@@ -62,7 +62,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.1
+        uses: dtolnay/rust-toolchain@1.98.0
         with:
           components: rustfmt
 
@@ -177,7 +177,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.1
+        uses: dtolnay/rust-toolchain@1.98.0
         with:
           components: rustfmt
 

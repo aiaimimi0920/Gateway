@@ -37,7 +37,7 @@ pub(super) async fn fetch_accio_quota_endpoint(
         .filter(|value| !value.is_empty())
         .unwrap_or("0.5.6");
 
-    let client = rquest::Client::builder()
+    let client = crate::http_client::builder()
         .timeout(Duration::from_secs(timeout_secs.max(1)))
         .build()
         .map_err(|error| {
@@ -57,13 +57,13 @@ pub(super) async fn fetch_accio_quota_endpoint(
         .send()
         .await
         .map_err(|error| {
-            let error = error.without_url();
+            let error = error.without_uri();
             GatewayError::service_unavailable(format!("Accio quota request failed: {error}"))
                 .with_code("provider_quota_request_failed")
         })?;
     let status = response.status();
     let body = response.bytes().await.map_err(|error| {
-        let error = error.without_url();
+        let error = error.without_uri();
         GatewayError::service_unavailable(format!("read Accio quota response: {error}"))
     })?;
     if !status.is_success() {

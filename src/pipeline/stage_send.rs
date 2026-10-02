@@ -45,6 +45,7 @@ use crate::protocol::registry::{
     UDIO_IMAGES_FAMILY, UDIO_MUSIC_FAMILY, UDIO_VIDEOS_FAMILY,
 };
 use crate::protocol::responses;
+use crate::protocol::stream_error::StreamError;
 use crate::protocol::tool_choice::{self, CanonicalToolChoice};
 use crate::protocol::tool_inject;
 use crate::provider_failure::classify_provider_failure;
@@ -57,7 +58,8 @@ use crate::state::AppState;
 use crate::upstream::response_types::UpstreamStreamingResponse;
 use crate::upstream::stream::{
     snapshot_tapped_archive, snapshot_tapped_completion_semantics, snapshot_tapped_usage,
-    tap_sse_completion_semantics, tap_sse_usage, tap_stream_archive, TrackedStream,
+    tap_sse_completion_semantics_with_error, tap_sse_usage_with_error,
+    tap_stream_archive_with_error, TrackedStream,
 };
 use crate::upstream::upstream_model_helpers;
 
@@ -75,6 +77,7 @@ mod feedback;
 mod pack;
 mod qwen_recovery;
 mod responses_bridge;
+mod responses_bridge_stream;
 mod selection;
 mod stream_preflight;
 mod stream_translation;

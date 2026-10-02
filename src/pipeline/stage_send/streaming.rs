@@ -90,17 +90,8 @@ pub(super) async fn send(
                 ..
             } = attempt;
             let (byte_stream, stream_usage_handle) = if candidate.adapter == "kiro_compatible" {
-                let (tapped_stream, usage_handle) = tap_sse_usage(byte_stream);
-                (
-                    Box::pin(tapped_stream)
-                        as std::pin::Pin<
-                            Box<
-                                dyn futures::Stream<Item = Result<bytes::Bytes, rquest::Error>>
-                                    + Send,
-                            >,
-                        >,
-                    Some(usage_handle),
-                )
+                let (tapped_stream, usage_handle) = tap_sse_usage_with_error(byte_stream);
+                (Box::pin(tapped_stream) as ByteStream, Some(usage_handle))
             } else {
                 (byte_stream, stream_usage_handle)
             };
@@ -108,15 +99,9 @@ pub(super) async fn send(
             let (byte_stream, stream_completion_semantics_handle) =
                 if is_conversation_endpoint(ctx.canonical_req.endpoint_kind) {
                     let (tapped_stream, completion_semantics_handle) =
-                        tap_sse_completion_semantics(byte_stream);
+                        tap_sse_completion_semantics_with_error(byte_stream);
                     (
-                        Box::pin(tapped_stream)
-                            as std::pin::Pin<
-                                Box<
-                                    dyn futures::Stream<Item = Result<bytes::Bytes, rquest::Error>>
-                                        + Send,
-                                >,
-                            >,
+                        Box::pin(tapped_stream) as ByteStream,
                         Some(completion_semantics_handle),
                     )
                 } else {
@@ -125,20 +110,11 @@ pub(super) async fn send(
 
             let (byte_stream, stream_archive_handle) =
                 if is_conversation_endpoint(ctx.canonical_req.endpoint_kind) {
-                    let (tapped_stream, archive_handle) = tap_stream_archive(
+                    let (tapped_stream, archive_handle) = tap_stream_archive_with_error(
                         byte_stream,
                         crate::conversation_archive::CONVERSATION_ARCHIVE_MAX_RESPONSE_BYTES,
                     );
-                    (
-                        Box::pin(tapped_stream)
-                            as std::pin::Pin<
-                                Box<
-                                    dyn futures::Stream<Item = Result<bytes::Bytes, rquest::Error>>
-                                        + Send,
-                                >,
-                            >,
-                        Some(archive_handle),
-                    )
+                    (Box::pin(tapped_stream) as ByteStream, Some(archive_handle))
                 } else {
                     (byte_stream, None)
                 };
@@ -193,7 +169,7 @@ pub(super) async fn send(
                 };
 
             let provider_credential_id_for_cb = candidate.provider_credential_id.clone();
-            let tracked = TrackedStream::new_with_started_at(
+            let tracked = TrackedStream::new_with_started_at_and_error(
                 byte_stream,
                 stream_started_at,
                 move |metrics, success| {

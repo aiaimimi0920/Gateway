@@ -1,11 +1,17 @@
 use super::*;
+use crate::protocol::stream_error::StreamError;
+use crate::protocol::stream_error_test_support::{
+    http_body_error as synthetic_stream_error, source_messages,
+};
 
 fn wrap_with_test_limits(
     chunks: Vec<Result<Bytes, rquest::Error>>,
     max_original_bytes: usize,
     max_accumulated_text_bytes: usize,
     max_chunks: usize,
-) -> std::pin::Pin<Box<dyn futures::Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static>> {
+) -> std::pin::Pin<
+    Box<dyn futures::Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static>,
+> {
     wrap_streaming_tool_detection_with_limits(
         futures::stream::iter(chunks),
         "deepseek-chat".to_string(),
@@ -17,11 +23,6 @@ fn wrap_with_test_limits(
         max_accumulated_text_bytes,
         max_chunks,
     )
-}
-
-fn synthetic_stream_error(message: &str) -> rquest::Error {
-    let source = std::io::Error::new(std::io::ErrorKind::InvalidData, message);
-    rquest::Error::from(serde_json::Error::io(source))
 }
 
 // ── Streaming tool call detection ──────────────────────────────────
@@ -327,7 +328,7 @@ async fn streaming_detection_forwards_upstream_error_once_without_replay() {
 
     let chunks = vec![
         Ok(Bytes::from_static(b"buffered")),
-        Err(synthetic_stream_error("upstream_test_error")),
+        Err(synthetic_stream_error("upstream_test_error").await),
         Ok(Bytes::from_static(b"unreachable")),
     ];
     let mut wrapped = wrap_with_test_limits(chunks, 64, 64, 3);
@@ -337,7 +338,8 @@ async fn streaming_detection_forwards_upstream_error_once_without_replay() {
         .await
         .expect("upstream error should be forwarded")
         .expect_err("buffered chunks must not be replayed after an upstream error");
-    assert!(error.to_string().contains("upstream_test_error"));
+    assert!(matches!(error, StreamError::Transport(_)));
+    assert!(source_messages(&error).contains("upstream_test_error"));
     assert!(wrapped.next().await.is_none());
 }
 

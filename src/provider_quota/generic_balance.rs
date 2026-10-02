@@ -19,7 +19,7 @@ pub(super) async fn fetch_generic_balance_snapshot(
         .balance_path
         .as_deref()
         .ok_or_else(|| GatewayError::bad_request("当前 provider 未配置 balancePath"))?;
-    let client = rquest::Client::builder()
+    let client = crate::http_client::builder()
         .timeout(Duration::from_secs(timeout_secs.max(1)))
         .build()
         .map_err(|error| {
@@ -34,13 +34,13 @@ pub(super) async fn fetch_generic_balance_snapshot(
         .send()
         .await
         .map_err(|error| {
-            let error = error.without_url();
+            let error = error.without_uri();
             GatewayError::service_unavailable(format!("provider balance request failed: {error}"))
                 .with_code("provider_quota_request_failed")
         })?;
     let status = response.status();
     let body = response.bytes().await.map_err(|error| {
-        let error = error.without_url();
+        let error = error.without_uri();
         GatewayError::service_unavailable(format!("read provider balance response: {error}"))
     })?;
     if !status.is_success() {

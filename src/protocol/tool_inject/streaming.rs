@@ -3,6 +3,8 @@ use futures::Stream;
 use serde_json::{json, Value};
 
 use crate::protocol::canonical::{CanonicalTool, CanonicalToolCall};
+use crate::protocol::stream_error::{ProtocolStreamError, StreamError};
+use crate::protocol::stream_error_legacy::with_transport_error;
 
 use super::parser::parse_tool_calls_from_text_with_context;
 
@@ -118,8 +120,30 @@ pub fn wrap_streaming_tool_detection(
     tools: Vec<CanonicalTool>,
     tool_choice: Option<Value>,
     conversation_hint: Option<String>,
-) -> std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static>> {
-    wrap_streaming_tool_detection_with_limits(
+) -> std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static>>
+{
+    wrap_streaming_tool_detection_with_error(
+        with_transport_error(inner),
+        model,
+        response_id,
+        tools,
+        tool_choice,
+        conversation_hint,
+    )
+}
+
+pub fn wrap_streaming_tool_detection_with_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+    response_id: String,
+    tools: Vec<CanonicalTool>,
+    tool_choice: Option<Value>,
+    conversation_hint: Option<String>,
+) -> std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send + 'static>>
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
+    wrap_streaming_tool_detection_with_limits_and_error(
         inner,
         model,
         response_id,
@@ -133,6 +157,7 @@ pub fn wrap_streaming_tool_detection(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(super) fn wrap_streaming_tool_detection_with_limits(
     inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     model: String,
@@ -143,7 +168,36 @@ pub(super) fn wrap_streaming_tool_detection_with_limits(
     max_original_bytes: usize,
     max_accumulated_text_bytes: usize,
     max_chunks: usize,
-) -> std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static>> {
+) -> std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, StreamError<rquest::Error>>> + Send + 'static>>
+{
+    wrap_streaming_tool_detection_with_limits_and_error(
+        with_transport_error(inner),
+        model,
+        response_id,
+        tools,
+        tool_choice,
+        conversation_hint,
+        max_original_bytes,
+        max_accumulated_text_bytes,
+        max_chunks,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn wrap_streaming_tool_detection_with_limits_and_error<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+    response_id: String,
+    tools: Vec<CanonicalTool>,
+    tool_choice: Option<Value>,
+    conversation_hint: Option<String>,
+    max_original_bytes: usize,
+    max_accumulated_text_bytes: usize,
+    max_chunks: usize,
+) -> std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send + 'static>>
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
     let state = ToolDetectorState {
         model,
         response_id,
@@ -165,8 +219,7 @@ pub(super) fn wrap_streaming_tool_detection_with_limits(
 
     Box::pin(futures::stream::unfold(
         (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             state,
         ),
         |(mut stream, mut st)| async move {
@@ -202,7 +255,7 @@ pub(super) fn wrap_streaming_tool_detection_with_limits(
                         Some(Ok(chunk)) => {
                             if let Err(error) = st.capture_chunk(chunk) {
                                 st.fail_and_release();
-                                return Some((Err(error), (stream, st)));
+                                return Some((Err(error.into()), (stream, st)));
                             }
                         }
                         Some(Err(e)) => {
@@ -215,7 +268,7 @@ pub(super) fn wrap_streaming_tool_detection_with_limits(
                             st.done = true;
                             if let Err(error) = st.flush_pending_sse_line() {
                                 st.fail_and_release();
-                                return Some((Err(error), (stream, st)));
+                                return Some((Err(error.into()), (stream, st)));
                             }
                             break;
                         }
@@ -293,7 +346,7 @@ struct ToolDetectorState {
 }
 
 impl ToolDetectorState {
-    fn capture_chunk(&mut self, chunk: Bytes) -> Result<(), rquest::Error> {
+    fn capture_chunk(&mut self, chunk: Bytes) -> Result<(), ProtocolStreamError> {
         if self.original_chunks.len() >= self.max_chunks {
             return Err(tool_detection_stream_error(
                 "tool_injection_stream_too_large",
@@ -330,7 +383,7 @@ impl ToolDetectorState {
         Ok(())
     }
 
-    fn capture_sse_content(&mut self, chunk: &[u8]) -> Result<(), rquest::Error> {
+    fn capture_sse_content(&mut self, chunk: &[u8]) -> Result<(), ProtocolStreamError> {
         let mut start = 0;
         while let Some(relative_end) = chunk[start..].iter().position(|byte| *byte == b'\n') {
             let end = start + relative_end;
@@ -348,7 +401,7 @@ impl ToolDetectorState {
         Ok(())
     }
 
-    fn append_pending_sse_line(&mut self, segment: &[u8]) -> Result<(), rquest::Error> {
+    fn append_pending_sse_line(&mut self, segment: &[u8]) -> Result<(), ProtocolStreamError> {
         self.pending_sse_line
             .len()
             .checked_add(segment.len())
@@ -374,7 +427,7 @@ impl ToolDetectorState {
         Ok(())
     }
 
-    fn flush_pending_sse_line(&mut self) -> Result<(), rquest::Error> {
+    fn flush_pending_sse_line(&mut self) -> Result<(), ProtocolStreamError> {
         if self.pending_sse_line.is_empty() {
             return Ok(());
         }
@@ -387,7 +440,7 @@ impl ToolDetectorState {
         result
     }
 
-    fn capture_sse_line(&mut self, line: &[u8]) -> Result<(), rquest::Error> {
+    fn capture_sse_line(&mut self, line: &[u8]) -> Result<(), ProtocolStreamError> {
         let Ok(line) = std::str::from_utf8(line) else {
             return Ok(());
         };
@@ -401,7 +454,7 @@ impl ToolDetectorState {
         Ok(())
     }
 
-    fn append_content(&mut self, content: &str) -> Result<(), rquest::Error> {
+    fn append_content(&mut self, content: &str) -> Result<(), ProtocolStreamError> {
         self.accumulated_text
             .len()
             .checked_add(content.len())
@@ -443,10 +496,10 @@ impl ToolDetectorState {
     }
 }
 
-fn tool_detection_stream_error(code: &str, message: String) -> rquest::Error {
-    let source = std::io::Error::new(
-        std::io::ErrorKind::InvalidData,
-        format!("{code}: {message}"),
-    );
-    rquest::Error::from(serde_json::Error::io(source))
+fn tool_detection_stream_error(code: &str, message: String) -> ProtocolStreamError {
+    ProtocolStreamError::invalid_data(format!("{code}: {message}"))
 }
+
+#[cfg(test)]
+#[path = "streaming_error_tests.rs"]
+mod error_tests;

@@ -8,7 +8,6 @@ use axum::middleware;
 use axum::routing::{any, get, post};
 use axum::Router;
 use parking_lot::RwLock;
-use rquest::Client;
 use rquest_util::Emulation;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -17,14 +16,14 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 impl SplitterManager {
     pub fn new(config: Config) -> anyhow::Result<Self> {
-        let ready_client = Client::builder()
+        let ready_client = crate::http_client::builder()
             .emulation(Emulation::Chrome131)
             .timeout(Duration::from_secs(
                 config.splitter_ready_timeout_secs.max(10),
             ))
             .build()
             .context("failed to build splitter readiness HTTP client")?;
-        let proxy_client = Client::builder()
+        let proxy_client = crate::http_client::builder()
             .emulation(Emulation::Chrome131)
             .build()
             .context("failed to build splitter proxy HTTP client")?;

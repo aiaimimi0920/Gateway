@@ -19,10 +19,14 @@ mod observation;
 mod usage;
 
 pub use archive::{
-    snapshot_tapped_archive, tap_stream_archive, StreamArchiveHandle, StreamArchiveSnapshot,
+    snapshot_tapped_archive, tap_stream_archive, tap_stream_archive_with_error,
+    StreamArchiveHandle, StreamArchiveSnapshot,
 };
-pub use completion::{snapshot_tapped_completion_semantics, tap_sse_completion_semantics};
-pub use usage::{snapshot_tapped_usage, tap_sse_usage};
+pub use completion::{
+    snapshot_tapped_completion_semantics, tap_sse_completion_semantics,
+    tap_sse_completion_semantics_with_error,
+};
+pub use usage::{snapshot_tapped_usage, tap_sse_usage, tap_sse_usage_with_error};
 
 // ---------------------------------------------------------------------------
 // StreamMetrics
@@ -53,8 +57,8 @@ pub struct StreamMetrics {
 /// - The accumulated [`StreamMetrics`].
 /// - A `bool` indicating whether the stream completed without error (`true`)
 ///   or was terminated by an error or a `Drop` before completion (`false`).
-pub struct TrackedStream {
-    inner: Option<Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>>,
+pub struct TrackedStream<E = rquest::Error> {
+    inner: Option<Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>>,
     started_at: Instant,
     first_token_seen: bool,
     first_token_latency_ms: Option<u64>,
@@ -83,6 +87,24 @@ impl TrackedStream {
     /// upstream attempt began, which may precede construction of this wrapper.
     pub fn new_with_started_at(
         inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+        started_at: Instant,
+        on_complete: impl FnOnce(StreamMetrics, bool) + Send + 'static,
+    ) -> Self {
+        Self::new_with_started_at_and_error(inner, started_at, on_complete)
+    }
+}
+
+impl<E> TrackedStream<E> {
+    /// 保留调用者的错误对象；旧构造入口仍固定客户端类型，避免破坏空流的类型推断。
+    pub fn new_with_error(
+        inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+        on_complete: impl FnOnce(StreamMetrics, bool) + Send + 'static,
+    ) -> Self {
+        Self::new_with_started_at_and_error(inner, Instant::now(), on_complete)
+    }
+
+    pub fn new_with_started_at_and_error(
+        inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
         started_at: Instant,
         on_complete: impl FnOnce(StreamMetrics, bool) + Send + 'static,
     ) -> Self {
@@ -127,8 +149,8 @@ impl TrackedStream {
 // Stream impl
 // ---------------------------------------------------------------------------
 
-impl Stream for TrackedStream {
-    type Item = Result<Bytes, rquest::Error>;
+impl<E> Stream for TrackedStream<E> {
+    type Item = Result<Bytes, E>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let Some(inner) = self.inner.as_mut() else {
@@ -173,7 +195,7 @@ impl Stream for TrackedStream {
 // Drop
 // ---------------------------------------------------------------------------
 
-impl Drop for TrackedStream {
+impl<E> Drop for TrackedStream<E> {
     fn drop(&mut self) {
         // Ensure callback fires even if the stream is dropped before exhaustion
         // (e.g., the client disconnected).
@@ -187,3 +209,6 @@ impl Drop for TrackedStream {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod typed_error_tests;

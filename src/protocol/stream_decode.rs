@@ -1,6 +1,7 @@
 use bytes::Bytes;
 
 use crate::protocol::sse_parse::SseFrame;
+use crate::protocol::stream_error::ProtocolStreamError;
 
 pub(super) const MAX_TRANSLATED_SSE_FRAME_BYTES: usize = 64 * 1024 * 1024;
 const MAX_RETAINED_LINE_CAPACITY_BYTES: usize = 64 * 1024;
@@ -9,7 +10,7 @@ const MIN_BUFFER_GROWTH_BYTES: usize = 1024;
 pub(super) enum DecodeStep {
     Frame(SseFrame),
     NeedInput,
-    Error(rquest::Error),
+    Error(ProtocolStreamError),
 }
 
 pub(super) struct BoundedSseDecoder {
@@ -77,7 +78,7 @@ impl BoundedSseDecoder {
         self.finish_frame()
     }
 
-    fn append_segment(&mut self, segment: &[u8]) -> Result<(), rquest::Error> {
+    fn append_segment(&mut self, segment: &[u8]) -> Result<(), ProtocolStreamError> {
         let next_len = self
             .pending_frame_bytes
             .checked_add(segment.len())
@@ -111,7 +112,7 @@ impl BoundedSseDecoder {
         Ok(())
     }
 
-    fn finish_line(&mut self) -> Result<Option<SseFrame>, rquest::Error> {
+    fn finish_line(&mut self) -> Result<Option<SseFrame>, ProtocolStreamError> {
         let mut line = std::mem::take(&mut self.line);
         line.pop();
         if line.last() == Some(&b'\r') {
@@ -132,7 +133,7 @@ impl BoundedSseDecoder {
         result
     }
 
-    fn parse_line(&mut self, line: &str) -> Result<Option<SseFrame>, rquest::Error> {
+    fn parse_line(&mut self, line: &str) -> Result<Option<SseFrame>, ProtocolStreamError> {
         if line.is_empty() {
             return Ok(self.finish_frame());
         }
@@ -231,9 +232,8 @@ fn bounded_growth_capacity(
         .min(max_capacity)
 }
 
-fn stream_decode_error(message: String) -> rquest::Error {
-    let source = std::io::Error::new(std::io::ErrorKind::InvalidData, message);
-    rquest::Error::from(serde_json::Error::io(source))
+fn stream_decode_error(message: String) -> ProtocolStreamError {
+    ProtocolStreamError::invalid_data(message)
 }
 
 #[cfg(test)]

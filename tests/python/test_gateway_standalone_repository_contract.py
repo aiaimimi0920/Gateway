@@ -57,8 +57,8 @@ class GatewayStandaloneRepositoryContractTests(GatewayRepositoryTextFixture, uni
         self.assertIn('license = "MIT"', cargo)
         self.assertIn('repository = "https://github.com/aiaimimi0920/Gateway"', cargo)
         self.assertIn('readme = "README.md"', cargo)
-        self.assertIn('rust-version = "1.91.1"', cargo)
-        self.assertIn('channel = "1.91.1"', toolchain)
+        self.assertIn('rust-version = "1.98.0"', cargo)
+        self.assertIn('channel = "1.98.0"', toolchain)
 
 
 

@@ -49,11 +49,11 @@ pub async fn handle_chat_v2(
             .into_response())
         }
         PipelineOutput::Sse(stream) => {
-            let translated = cohere::translate_openai_sse_to_cohere_stream(
+            let translated = cohere::translate_openai_sse_to_cohere_stream_with_error(
                 stream,
                 canonical.requested_model.unwrap_or_default(),
             );
-            let wrapped = TrackedStream::new(translated, |_, _| {});
+            let wrapped = TrackedStream::new_with_error(translated, |_, _| {});
             Ok(into_sse_response(
                 wrapped,
                 crate::protocol::canonical::EndpointKind::ChatCompletions,

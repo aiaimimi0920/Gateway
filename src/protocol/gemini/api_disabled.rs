@@ -80,6 +80,13 @@ pub fn translate_openai_sse_to_gemini_stream(
     inner: impl Stream<Item = Result<bytes::Bytes, rquest::Error>> + Send + 'static,
     _model: String,
 ) -> impl Stream<Item = Result<bytes::Bytes, rquest::Error>> + Send + 'static {
+    translate_openai_sse_to_gemini_stream_with_error(inner, _model)
+}
+
+pub fn translate_openai_sse_to_gemini_stream_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<bytes::Bytes, E>> + Send + 'static,
+    _model: String,
+) -> impl Stream<Item = Result<bytes::Bytes, E>> + Send + 'static {
     inner
 }
 

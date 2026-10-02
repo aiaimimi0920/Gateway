@@ -30,7 +30,14 @@ pub async fn accumulate_responses_sse_stream(
     stream: std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
     fallback_model: &str,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
-    accumulate_responses_sse_stream_with_limit(
+    accumulate_responses_sse_stream_with_error(stream, fallback_model).await
+}
+
+pub async fn accumulate_responses_sse_stream_with_error<E: std::fmt::Display + Send + 'static>(
+    stream: std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
+    fallback_model: &str,
+) -> Result<CanonicalRelayResponse, GatewayError> {
+    accumulate_responses_sse_stream_with_limit_and_error(
         stream,
         fallback_model,
         MAX_RESPONSES_SSE_ACCUMULATION_BYTES,
@@ -38,8 +45,19 @@ pub async fn accumulate_responses_sse_stream(
     .await
 }
 
+#[cfg(test)]
 pub(super) async fn accumulate_responses_sse_stream_with_limit(
-    mut stream: std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+    stream: std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+    fallback_model: &str,
+    max_bytes: usize,
+) -> Result<CanonicalRelayResponse, GatewayError> {
+    accumulate_responses_sse_stream_with_limit_and_error(stream, fallback_model, max_bytes).await
+}
+
+async fn accumulate_responses_sse_stream_with_limit_and_error<
+    E: std::fmt::Display + Send + 'static,
+>(
+    mut stream: std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
     fallback_model: &str,
     max_bytes: usize,
 ) -> Result<CanonicalRelayResponse, GatewayError> {

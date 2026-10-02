@@ -19,6 +19,7 @@ pub(crate) use stream_decode::{parse_sse_line, ParsedEvent};
 pub use stream_translate::{
     translate_accio_sse_to_openai, translate_accio_stream,
     translate_anthropic_like_stream_to_openai,
+    translate_anthropic_like_stream_to_openai_with_error,
 };
 
 pub fn unpack_accio_response(body: &Value) -> Result<CanonicalRelayResponse, GatewayError> {

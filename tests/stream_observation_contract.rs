@@ -189,10 +189,13 @@ async fn tracked_clean_end_releases_upstream_once_and_stops_polling() {
 
 #[tokio::test]
 async fn tracked_error_releases_upstream_once_and_prevents_later_items() {
-    let error = rquest::Error::from(serde_json::Error::io(std::io::Error::new(
+    let body = futures::stream::iter([Err::<Bytes, _>(std::io::Error::new(
         std::io::ErrorKind::UnexpectedEof,
         "synthetic upstream failure",
-    )));
+    ))]);
+    let response =
+        rquest::Response::from(axum::http::Response::new(rquest::Body::wrap_stream(body)));
+    let error = response.bytes_stream().next().await.unwrap().unwrap_err();
     let (mut stream, state) = tracked_probe(vec![Err(error), Ok(Bytes::from_static(b"late"))]);
     assert!(stream.next().await.unwrap().is_err());
     assert_completion(&state, false, 0, 0);

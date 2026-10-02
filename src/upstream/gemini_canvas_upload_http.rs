@@ -112,7 +112,7 @@ pub(crate) async fn upload_gemini_canvas_image_edit_inputs_with_http(
             .and_then(|value| value.to_str().ok())
             .map(str::to_string);
         let upload_url = extract_gemini_canvas_image_edit_upload_url(start_response.headers());
-        let start_final_url = start_response.url().to_string();
+        let start_final_url = start_response.uri().to_string();
         let start_body_text = collect_bounded_upstream_charset_text_with_provider(
             start_response,
             "Gemini Canvas upload start response",
@@ -212,7 +212,7 @@ pub(crate) async fn upload_gemini_canvas_image_edit_inputs_with_http(
             .get(rquest::header::CONTENT_TYPE)
             .and_then(|value| value.to_str().ok())
             .map(str::to_string);
-        let finalize_final_url = finalize_response.url().to_string();
+        let finalize_final_url = finalize_response.uri().to_string();
         let finalize_body_text = collect_bounded_upstream_charset_text_with_provider(
             finalize_response,
             "Gemini Canvas upload finalize response",

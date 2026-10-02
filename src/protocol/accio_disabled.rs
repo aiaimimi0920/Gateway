@@ -69,6 +69,13 @@ pub fn translate_anthropic_like_stream_to_openai(
     futures::stream::empty()
 }
 
+pub fn translate_anthropic_like_stream_to_openai_with_error<E: Send + 'static>(
+    _inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    _model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
+    futures::stream::empty()
+}
+
 pub fn translate_accio_stream(
     _inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     _model: String,

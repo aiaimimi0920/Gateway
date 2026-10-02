@@ -20,6 +20,19 @@ test("OSV covers every committed first-party lockfile and fails on findings", ()
   assert.doesNotMatch(security, /continue-on-error: true|allow-no-lockfiles|--offline/);
 });
 
+test("Cargo locks do not restore withdrawn spin 0.9 patch releases", () => {
+  const locks = ["Cargo.lock", "apps/desktop/src-tauri/Cargo.lock", "crates/gateway-local-data/Cargo.lock"];
+  for (const lock of locks) {
+    for (const entry of read(lock).split(/^\[\[package\]\]$/m)) {
+      if (!/^name = "spin"$/m.test(entry)) continue;
+      const version = entry.match(/^version = "([^"]+)"$/m)?.[1];
+      assert.ok(version, `Missing spin version in ${lock}`);
+      // 撤回状态不等同于漏洞公告；单独防止回退，不替代 OSV 的完整扫描。
+      assert.doesNotMatch(version, /^0\.9\.[0-8]($|[-+])/, `${lock}: use spin 0.9.9 or a reviewed newer release`);
+    }
+  }
+});
+
 test("security actions use immutable pins and every normal trigger", () => {
   for (const source of [security, codeql]) {
     const references = [...source.matchAll(/uses: ([^\s#]+)/g)].map((match) => match[1]);
@@ -67,7 +80,7 @@ test("Dependabot covers all build roots with bounded update batches", () => {
   for (const ecosystem of ["cargo", "npm", "github-actions"]) {
     assert.ok(dependabot.includes(`package-ecosystem: ${ecosystem}`));
   }
-  for (const directory of ["/", "/apps/desktop/src-tauri", "/crates/gateway-local-data", "/apps/desktop", "/scripts"]) {
+  for (const directory of ["/", "/apps/desktop/src-tauri", "/crates/gateway-local-data", "/crates/gateway-sqlx", "/apps/desktop", "/scripts"]) {
     assert.ok(dependabot.includes(`"${directory}"`), `Missing ${directory}`);
   }
   assert.equal((dependabot.match(/open-pull-requests-limit: [1-4]\b/g) ?? []).length, 3);

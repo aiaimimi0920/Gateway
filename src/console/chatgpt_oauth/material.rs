@@ -55,7 +55,7 @@ where
             // Connect errors precede HTTP delivery. Never replay a code after a response
             // or a read/write failure, where the authorization code may be consumed.
             Err(error) if error.is_connect() => {
-                tracing::warn!(error = ?error.without_url(), "Retrying ChatGPT OAuth connection once");
+                tracing::warn!(error = ?error.without_uri(), "Retrying ChatGPT OAuth connection once");
                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;
                 send().await
             }
@@ -65,7 +65,7 @@ where
     match result {
         Ok(Ok(response)) => Ok(response),
         Ok(Err(error)) => {
-            tracing::warn!(error = ?error.without_url(), "ChatGPT OAuth transport failed");
+            tracing::warn!(error = ?error.without_uri(), "ChatGPT OAuth transport failed");
             Err(GatewayError::service_unavailable(
                 "ChatGPT OAuth token exchange could not connect; check the network and retry login",
             )

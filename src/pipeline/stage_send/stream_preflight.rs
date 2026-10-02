@@ -1,5 +1,6 @@
 //! Normalize upstream bytes while preserving first-event failure and permit handling.
 use super::*;
+use futures::TryStreamExt;
 
 pub(super) async fn normalize(
     ctx: &PipelineContext,
@@ -15,10 +16,10 @@ pub(super) async fn normalize(
         ref model,
         ..
     } = attempt;
-    let byte_stream: std::pin::Pin<
-        Box<dyn futures::Stream<Item = Result<bytes::Bytes, rquest::Error>> + Send>,
-    > = match stream_response {
-        UpstreamStreamingResponse::Bytes(stream) => stream,
+    let byte_stream: ByteStream = match stream_response {
+        UpstreamStreamingResponse::Bytes(stream) => {
+            Box::pin(stream.map_err(StreamError::Transport))
+        }
         UpstreamStreamingResponse::Http(response)
             if matches!(
                 candidate.adapter.as_str(),
@@ -144,18 +145,21 @@ pub(super) async fn normalize(
                 )
                 .chain(upstream);
 
-            Box::pin(accio::translate_anthropic_like_stream_to_openai(
-                replay,
+            // 首包仍按原始 HTTP 错误分类；进入协议转换后才建立领域错误边界。
+            Box::pin(accio::translate_anthropic_like_stream_to_openai_with_error(
+                replay.map_err(StreamError::Transport),
                 model.clone(),
             ))
         }
         UpstreamStreamingResponse::Http(response) if candidate.adapter == "grok_compatible" => {
-            Box::pin(grok::translate_grok_stream(
-                response.bytes_stream(),
-                model.clone(),
-            ))
+            Box::pin(
+                grok::translate_grok_stream(response.bytes_stream(), model.clone())
+                    .map_err(StreamError::Transport),
+            )
         }
-        UpstreamStreamingResponse::Http(response) => Box::pin(response.bytes_stream()),
+        UpstreamStreamingResponse::Http(response) => {
+            Box::pin(response.bytes_stream().map_err(StreamError::Transport))
+        }
     };
     Ok((byte_stream, attempt))
 }

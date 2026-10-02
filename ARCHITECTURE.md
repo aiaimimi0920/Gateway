@@ -74,11 +74,14 @@ Platform Clients / Operator UI         Neuro Gateway (Rust)                     
 | Language | Rust | Zero GC, predictable latency, memory safety |
 | HTTP Server | axum 0.7 + tower | Tokio-native, zero-copy extractors, middleware composable |
 | Async Runtime | tokio | Industry standard, mature, full-featured |
-| HTTP Client | rquest 5 | Reqwest-compatible API with Chrome TLS impersonation for browser-gated providers |
+| HTTP Client | wreq 0.16.1 | URI-based API, Chrome TLS profiles and Gateway-owned environment/Windows proxy compatibility policy |
 | PostgreSQL | sqlx | Gateway truth store for access keys, audits, policies, operator reads |
 | Redis / Valkey | deadpool-redis | Runtime cache, sticky affinity, pre-deduct state, warm indexes |
 | Object Storage | S3-compatible abstraction | Browser state bundles, artifacts, large runtime material |
 | Concurrency | dashmap + parking_lot | Lock-free maps, non-poisoning mutexes |
+
+Default HTTP construction and proxy compatibility are documented in
+[HTTP client proxy policy](docs/http-client-proxy-policy.md).
 
 ## 5-Stage Pipeline
 

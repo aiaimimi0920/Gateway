@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
-use rquest::{Client, Method};
+use rquest::Method;
 use serde_json::{json, Value};
 use tokio::process::Command;
 use tracing::debug;
@@ -252,7 +252,7 @@ pub(super) async fn run_remote_gemini_auth_capture_worker(
 ) -> Result<Value, String> {
     let base_url = gemini_auth_remote_executor_base_url()
         .ok_or_else(|| "Gemini host browser executor is not configured.".to_string())?;
-    let client = Client::builder()
+    let client = crate::http_client::builder()
         .timeout(Duration::from_secs(GEMINI_AUTH_REMOTE_HELPER_TIMEOUT_SECS))
         .build()
         .map_err(|error| {

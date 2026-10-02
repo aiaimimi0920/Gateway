@@ -5,6 +5,7 @@ updates:
       - "/"
       - "/apps/desktop/src-tauri"
       - "/crates/gateway-local-data"
+      - "/crates/gateway-sqlx"
     schedule:
       interval: weekly
       day: monday

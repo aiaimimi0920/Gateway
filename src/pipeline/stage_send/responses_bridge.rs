@@ -65,29 +65,16 @@ pub(super) async fn send(
                 }
             }
 
-            let anthropic_stream = Box::pin(response.bytes_stream())
-                as std::pin::Pin<
-                    Box<dyn futures::Stream<Item = Result<bytes::Bytes, rquest::Error>> + Send>,
-                >;
-            let openai_stream = Box::pin(accio::translate_anthropic_like_stream_to_openai(
-                anthropic_stream,
-                reply_model.clone(),
-            ));
-            let openai_stream = wrap_injected_openai_stream(
-                openai_stream,
-                true,
+            match responses_bridge_stream::accumulate(
+                response.bytes_stream(),
                 &ctx.req_id,
                 &reply_model,
                 original_tools.clone(),
                 original_tool_choice.clone(),
                 Some(original_messages_text.clone()),
-            );
-            let responses_stream = Box::pin(responses::translate_openai_sse_to_responses(
-                openai_stream,
-                reply_model.clone(),
-            ));
-
-            match responses::accumulate_responses_sse_stream(responses_stream, &reply_model).await {
+            )
+            .await
+            {
                 Ok(canonical_resp) => {
                     controller.on_success();
                     observe_provider_success_metric(

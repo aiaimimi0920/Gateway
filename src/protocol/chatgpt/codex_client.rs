@@ -1,5 +1,6 @@
 //! Shared Codex client identity: the upstream model catalog filters by this version.
 use crate::error::GatewayError;
+use futures::StreamExt;
 use serde_json::Value;
 
 pub const VERSION: &str = "0.154.0";
@@ -7,13 +8,12 @@ pub const USER_AGENT: &str = "codex_cli_rs/0.154.0 (Mac OS 26.3.1; arm64) iTerm.
 pub const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 pub const BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 
-pub async fn read_json(mut response: rquest::Response) -> Result<Value, GatewayError> {
+pub async fn read_json(response: rquest::Response) -> Result<Value, GatewayError> {
+    let stream = response.bytes_stream();
+    futures::pin_mut!(stream);
     let mut bytes = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|_| GatewayError::bad_request("ChatGPT response interrupted"))?
-    {
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|_| GatewayError::bad_request("ChatGPT response interrupted"))?;
         if bytes.len() + chunk.len() > 2 * 1024 * 1024 {
             return Err(GatewayError::bad_request("ChatGPT response too large"));
         }

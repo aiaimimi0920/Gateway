@@ -10,15 +10,14 @@ use super::{
     push_openai_finish, EventStreamParser, TranslatorState,
 };
 
-pub(super) fn translate_kiro_stream(
-    inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+pub(super) fn translate_kiro_stream_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     state: TranslatorState,
     anthropic: bool,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
     futures::stream::unfold(
         (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             EventStreamParser::default(),
             state,
             anthropic,

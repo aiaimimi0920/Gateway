@@ -6,8 +6,8 @@ use std::task::{Context, Poll};
 use bytes::Bytes;
 use futures::Stream;
 
-struct ArchiveTappedStream {
-    inner: Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
+struct ArchiveTappedStream<E> {
+    inner: Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
     capture: StreamArchiveCapture,
 }
 
@@ -41,6 +41,17 @@ pub fn tap_stream_archive(
     impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
     StreamArchiveHandle,
 ) {
+    tap_stream_archive_with_error(inner, max_bytes)
+}
+
+/// 归档只观察成功字节，不重新包装或复制流错误。
+pub fn tap_stream_archive_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    max_bytes: usize,
+) -> (
+    impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    StreamArchiveHandle,
+) {
     let state = Arc::new(Mutex::new(StreamArchiveCaptureState {
         bytes: Vec::new(),
         truncated: false,
@@ -70,13 +81,11 @@ pub fn snapshot_tapped_archive(handle: &StreamArchiveHandle) -> StreamArchiveSna
     }
 }
 
-impl Stream for ArchiveTappedStream {
-    type Item = Result<Bytes, rquest::Error>;
+impl<E> Stream for ArchiveTappedStream<E> {
+    type Item = Result<Bytes, E>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let inner = unsafe { self.as_mut().map_unchecked_mut(|stream| &mut stream.inner) };
-
-        match inner.poll_next(cx) {
+        match self.inner.as_mut().poll_next(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(Ok(bytes))) => {
                 self.capture.feed(&bytes);

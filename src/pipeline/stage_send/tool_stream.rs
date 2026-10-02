@@ -6,9 +6,11 @@ use serde_json::Value;
 use tracing::debug;
 
 use crate::protocol::canonical::{CanonicalTool, EndpointKind};
+use crate::protocol::stream_error::ProtocolStreamError;
 use crate::protocol::tool_inject;
 
-pub(super) type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>;
+pub(super) type ByteStream<E = rquest::Error> =
+    Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ToolDetectionPlacement {
@@ -51,15 +53,18 @@ pub(super) fn tool_detection_placement(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn wrap_injected_openai_stream(
-    byte_stream: ByteStream,
+pub(super) fn wrap_injected_openai_stream<E>(
+    byte_stream: ByteStream<E>,
     detect_tools: bool,
     req_id: &uuid::Uuid,
     model: &str,
     original_tools: Vec<CanonicalTool>,
     original_tool_choice: Option<Value>,
     original_messages_text: Option<String>,
-) -> ByteStream {
+) -> ByteStream<E>
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
     if !detect_tools {
         return byte_stream;
     }
@@ -69,7 +74,7 @@ pub(super) fn wrap_injected_openai_stream(
         req_id = %req_id,
         "wrapping normalized OpenAI stream with XML tool call detector"
     );
-    tool_inject::wrap_streaming_tool_detection(
+    tool_inject::wrap_streaming_tool_detection_with_error(
         byte_stream,
         model.to_string(),
         resp_id,

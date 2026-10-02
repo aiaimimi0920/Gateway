@@ -7,9 +7,25 @@ on:
   schedule:
     - cron: "30 18 * * 0"
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Optional branch, tag, or commit to scan
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to resolve before scanning
+        required: false
+        type: string
+        default: ""
+    outputs:
+      source_sha:
+        description: Immutable commit checked by every security job
+        value: ${{ jobs.policy.outputs.source_sha }}
 
 concurrency:
-  group: gateway-security-${{ github.event.pull_request.number || github.ref }}
+  group: gateway-security-${{ github.workflow }}-${{ github.event.pull_request.number || inputs.ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -22,20 +38,30 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+    outputs:
+      source_sha: ${{ steps.revision.outputs.source_sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Resolve immutable source revision
+        id: revision
+        shell: bash
+        run: |
+          source_sha="$(git rev-parse --verify HEAD)"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22.22.0"
-      - run: node --test scripts/tests/security-ci-policy.test.mjs
+      - run: node --test scripts/tests/security-ci-policy.test.mjs scripts/tests/security-release-gates.test.mjs
 
   dependencies:
     name: Scan all committed dependency locks
+    needs: policy
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@ffa0a5f39214d80778c9b494822d94d0d9668458
     with:
-      ref: ${{ github.ref }}
+      ref: ${{ needs.policy.outputs.source_sha }}
       scan-args: |-
         --lockfile=./Cargo.lock
         --lockfile=./apps/desktop/src-tauri/Cargo.lock
@@ -51,6 +77,7 @@ jobs:
 
   secrets:
     name: Scan repository secrets
+    needs: policy
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -61,6 +88,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ needs.policy.outputs.source_sha }}
       # This pinned action invokes Gitleaks with --redact.
       - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:

@@ -9,7 +9,7 @@ async fn main() -> anyhow::Result<()> {
     let clip_id = std::env::var("PRODUCER_CLIP_ID")
         .unwrap_or_else(|_| "698c44ed-d021-4231-89e0-9a005cca3c58".to_string());
 
-    let client = rquest::Client::builder()
+    let client = neuro_gateway::http_client::builder()
         .emulation(Emulation::Chrome131)
         .build()?;
 

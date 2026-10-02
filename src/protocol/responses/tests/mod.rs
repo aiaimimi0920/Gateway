@@ -18,8 +18,8 @@ fn make_bytes_stream(
     futures::stream::iter(chunks)
 }
 
-async fn collect_sse_frames(
-    stream: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+async fn collect_sse_frames<E: std::fmt::Debug + Send + 'static>(
+    stream: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
 ) -> Vec<SseFrame> {
     let chunks = stream.collect::<Vec<_>>().await;
     let mut state = SseParseState::new();
@@ -42,8 +42,8 @@ async fn collect_sse_frames(
     frames
 }
 
-async fn collect_stream_output(
-    stream: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+async fn collect_stream_output<E: std::fmt::Display + Send + 'static>(
+    stream: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
 ) -> (String, Vec<String>) {
     let mut output = String::new();
     let mut errors = Vec::new();

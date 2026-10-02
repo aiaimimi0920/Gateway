@@ -80,7 +80,7 @@ impl UpstreamClient {
                 .send()
                 .await
                 .map_err(|error| classify_network_error(&error, Some(provider)))?;
-            let bootstrap_final_url = bootstrap_response.url().to_string();
+            let bootstrap_final_url = bootstrap_response.uri().to_string();
             let bootstrap_status = bootstrap_response.status().as_u16();
             let bootstrap_location = bootstrap_response
                 .headers()

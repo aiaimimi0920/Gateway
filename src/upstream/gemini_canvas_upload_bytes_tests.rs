@@ -1,4 +1,5 @@
 use super::select_upload_bytes;
+use http_body_util::BodyExt;
 
 #[test]
 fn encoded_upload_storage_is_reused_by_the_request_body() {
@@ -11,12 +12,13 @@ fn encoded_upload_storage_is_reused_by_the_request_body() {
         assert_eq!(selected.as_ref(), &[0, 128, 255, 3]);
         assert_eq!(selected.as_ptr(), original_ptr);
         let request_body = rquest::Body::from(selected.clone());
-        let request_bytes = request_body.as_bytes().expect("reusable upload body");
-        assert_eq!(request_bytes.as_ptr(), original_ptr);
-        assert_eq!(request_bytes, selected.as_ref());
-
+        // 新客户端公开 HttpBody，而非借用 accessor；释放外部 owner 后验证真实发送字节和原分配。
         drop(selected);
-        assert_eq!(request_body.as_bytes(), Some([0, 128, 255, 3].as_slice()));
+        let request_bytes = futures::executor::block_on(request_body.collect())
+            .unwrap()
+            .to_bytes();
+        assert_eq!(request_bytes.as_ptr(), original_ptr);
+        assert_eq!(request_bytes.as_ref(), &[0, 128, 255, 3]);
     }
 }
 
@@ -30,16 +32,13 @@ fn fallback_is_owned_without_a_second_request_payload_copy() {
 
     let selected_ptr = selected.as_ptr();
     let request_body = rquest::Body::from(selected.clone());
-    assert_eq!(
-        request_body
-            .as_bytes()
-            .expect("reusable upload body")
-            .as_ptr(),
-        selected_ptr
-    );
     fallback.fill(9);
     drop(selected);
-    assert_eq!(request_body.as_bytes(), Some([1, 128, 255, 0].as_slice()));
+    let request_bytes = futures::executor::block_on(request_body.collect())
+        .unwrap()
+        .to_bytes();
+    assert_eq!(request_bytes.as_ptr(), selected_ptr);
+    assert_eq!(request_bytes.as_ref(), &[1, 128, 255, 0]);
 }
 
 #[test]
@@ -50,6 +49,9 @@ fn empty_encoded_output_does_not_select_nonempty_fallback() {
     assert!(fallback.is_empty());
     for bytes in [encoded, fallback] {
         let request_body = rquest::Body::from(bytes);
-        assert_eq!(request_body.as_bytes(), Some([].as_slice()));
+        let request_bytes = futures::executor::block_on(request_body.collect())
+            .unwrap()
+            .to_bytes();
+        assert!(request_bytes.is_empty());
     }
 }

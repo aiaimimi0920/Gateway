@@ -49,6 +49,13 @@ pub fn translate_openai_sse_to_gemini_stream(
     modular::translate_openai_sse_to_gemini_stream(inner, model)
 }
 
+pub fn translate_openai_sse_to_gemini_stream_with_error<E: Send + 'static>(
+    inner: impl futures::Stream<Item = Result<bytes::Bytes, E>> + Send + 'static,
+    model: String,
+) -> impl futures::Stream<Item = Result<bytes::Bytes, E>> + Send + 'static {
+    modular::translate_openai_sse_to_gemini_stream_with_error(inner, model)
+}
+
 pub fn default_path(model: &str, stream: bool) -> String {
     modular::default_path(model, stream)
 }

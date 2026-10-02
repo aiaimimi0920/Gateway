@@ -18,7 +18,7 @@ pub(super) async fn fetch_codex_quota_snapshot(
     provider_credential_id: Option<&str>,
     payload: &ProviderAccountPayload,
 ) -> Result<GatewayProviderQuotaView, GatewayError> {
-    let client = rquest::Client::builder()
+    let client = crate::http_client::builder()
         .timeout(Duration::from_secs(timeout_secs.max(1)))
         .build()
         .map_err(|error| {
@@ -30,13 +30,13 @@ pub(super) async fn fetch_codex_quota_snapshot(
         .send()
         .await
         .map_err(|error| {
-            let error = error.without_url();
+            let error = error.without_uri();
             GatewayError::service_unavailable(format!("Codex quota request failed: {error}"))
                 .with_code("provider_quota_request_failed")
         })?;
     let status = response.status();
     let body = response.bytes().await.map_err(|error| {
-        let error = error.without_url();
+        let error = error.without_uri();
         GatewayError::service_unavailable(format!("read Codex quota response: {error}"))
     })?;
     if !status.is_success() {

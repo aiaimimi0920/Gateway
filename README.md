@@ -52,7 +52,7 @@ this repository. The ownership and integration rules are documented in
 ## Requirements
 
 - Windows 10/11 or a current Linux distribution.
-- Rust `1.91.1` or the version pinned in `rust-toolchain.toml`.
+- Rust `1.98.0` or the version pinned in `rust-toolchain.toml`.
 - Node.js `>=22.22.0` and npm for browser workers and the desktop frontend.
 - Python `3.11+` for repository validators and contract tests.
 - PowerShell 5.1+ for the Windows build and smoke scripts.
@@ -398,6 +398,10 @@ or preinstalled `node_modules` on the host.
 
 ## GitHub Automation
 
+- Windows candidates, Docker images, and tagged releases depend on the reusable
+  Security workflow. Dependency and secret scans resolve one immutable commit;
+  the publishing job checks out that same commit only after all security jobs
+  succeed. See [security release gates](docs/security-release-gates.md).
 - `ci.yml` validates Windows and Linux builds, Python contracts, Node workers,
   Rust targets, the desktop frontend, and the Tauri wrapper.
 - `docker.yml` locally verifies the official Compose deployment stack before any

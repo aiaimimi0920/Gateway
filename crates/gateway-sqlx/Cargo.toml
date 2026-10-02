@@ -1,0 +1,13 @@
+[package]
+name = "gateway-sqlx"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95.0"
+license = "MIT"
+publish = false
+
+[dependencies]
+sqlx-core = { version = "=0.8.6", default-features = false, features = ["_rt-tokio", "_tls-rustls-ring-webpki", "json", "time"] }
+sqlx-postgres = { version = "=0.8.6", default-features = false, features = ["json", "time"] }
+sqlx-sqlite = { version = "=0.8.6", default-features = false, features = ["bundled", "json", "time"] }
+sqlx-macros = { version = "=0.8.6", default-features = false, features = ["derive"] }
