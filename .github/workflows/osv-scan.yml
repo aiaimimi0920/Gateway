@@ -57,6 +57,10 @@ jobs:
         with:
           sarif_file: ${{ runner.temp }}/gateway-osv/results.sarif
           wait-for-processing: true
+      - name: Record processed analysis identity
+        run: |
+          test -n "$CODEQL_ACTION_ANALYSIS_KEY"
+          printf 'Processed analysis key: %s\n' "$CODEQL_ACTION_ANALYSIS_KEY"
       - name: Enforce findings for release callers
         if: inputs.enforce_findings && steps.scan.outputs.findings_free != 'true'
         run: |

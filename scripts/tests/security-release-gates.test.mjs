@@ -15,6 +15,8 @@ const windowsBuildGuard = "${{ needs.security.result == 'success' && " +
   "needs.security.outputs.findings_free == 'true' && " +
   "((github.event_name == 'push' && github.ref == 'refs/heads/main') || " +
   "(github.event_name == 'workflow_dispatch' && toJSON(inputs.scan_only) == 'false')) }}";
+const dockerBuildGuard = "${{ needs.security.result == 'success' && " +
+  "(github.event_name == 'pull_request' || needs.security.outputs.findings_free == 'true') }}";
 
 function job(source, name) {
   const marker = `  ${name}:\n`;
@@ -80,7 +82,10 @@ for (const [filename, publisher] of callers) {
     assert.match(build, /^    needs: security$/m);
     assert.ok(build.includes("ref: ${{ needs.security.outputs.source_sha }}"));
     if (filename === "build-windows.yml") assertWindowsBuildGuard(build);
-    else {
+    else if (filename === "docker.yml") {
+      assert.ok(gate.includes("enforce_findings: ${{ github.event_name != 'pull_request' }}"));
+      assert.equal(build.match(/^    if: (.+)$/m)?.[1], dockerBuildGuard);
+    } else {
       assert.ok(gate.includes("enforce_findings: true"));
       assert.match(build, /^    if: \$\{\{ needs\.security\.result == 'success' && needs\.security\.outputs\.findings_free == 'true' \}\}$/m);
     }
@@ -148,12 +153,51 @@ test("manual tag releases resolve the requested tag while other callers use even
   }
 });
 
-test("Docker main publication remains explicit and never enabled for pull requests", () => {
-  const workflow = readWorkflow("docker.yml");
+function assertDockerPolicy(workflow) {
   assert.ok(workflow.includes("PUBLISH_IMAGE: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/V')) }}"));
   assert.equal((workflow.match(/if: env.PUBLISH_IMAGE == 'true'/g) ?? []).length, 2);
   assert.equal((workflow.match(/push: true/g) ?? []).length, 1);
-  assert.ok(job(workflow, "security").includes("enforce_findings: true"));
+  assert.ok(job(workflow, "security").includes("enforce_findings: ${{ github.event_name != 'pull_request' }}"));
+  assert.ok(workflow.includes("NPM_AUDIT_MODE: ${{ github.event_name == 'pull_request' && 'advisory' || 'strict' }}"));
+  assert.ok(workflow.includes("GATEWAY_AUDIT_MODE=${{ env.NPM_AUDIT_MODE }}"));
+  assert.equal(job(workflow, "docker").match(/^    if: (.+)$/m)?.[1], dockerBuildGuard);
+  for (const root of ["scripts", "apps/desktop"]) {
+    assert.ok(workflow.includes(`run: node scripts/npm-audit.mjs "$NPM_AUDIT_MODE" ${root} `));
+  }
+  const publishing = workflow.split("      - name: Build and optionally publish Gateway image")[1];
+  assert.match(publishing, /GATEWAY_AUDIT_MODE=strict/);
+  assert.doesNotMatch(publishing, /GATEWAY_AUDIT_MODE=\$|advisory/);
+}
+
+test("Docker main publication remains explicit and never enabled for pull requests", () => {
+  assertDockerPolicy(readWorkflow("docker.yml"));
+});
+
+test("Docker contract rejects missing audits, release bypasses and advisory publishing", () => {
+  const workflow = readWorkflow("docker.yml");
+  for (const changed of [
+    workflow.replace('run: node scripts/npm-audit.mjs "$NPM_AUDIT_MODE" scripts ', "run: echo "),
+    workflow.replace('run: node scripts/npm-audit.mjs "$NPM_AUDIT_MODE" apps/desktop ', "run: echo "),
+    workflow.replace("GATEWAY_AUDIT_MODE=strict", "GATEWAY_AUDIT_MODE=advisory"),
+    workflow.replace("needs.security.result == 'success' && ", ""),
+    workflow.replace(" || needs.security.outputs.findings_free == 'true'", " || true"),
+    workflow.replace("enforce_findings: ${{ github.event_name != 'pull_request' }}", "enforce_findings: false"),
+    workflow.replace("if: env.PUBLISH_IMAGE == 'true'", "if: always()"),
+  ]) assert.throws(() => assertDockerPolicy(changed));
+});
+
+test("Docker findings permit PR verification only; publishing events require a clean result", () => {
+  const actual = job(readWorkflow("docker.yml"), "docker").match(/^    if: (.+)$/m)[1];
+  assert.equal(actual, dockerBuildGuard);
+  const evaluate = new Function("needs", "github", `return (${actual.slice(3, -2).replace(/==/g, "===")});`);
+  for (const result of ["success", "failure", "cancelled", "skipped", ""]) {
+    for (const event_name of ["pull_request", "pull_request_target", "push", "workflow_dispatch", "schedule"]) {
+      for (const findings_free of ["true", "false", "", null, undefined]) {
+        assert.equal(evaluate({ security: { result, outputs: { findings_free } } }, { event_name }),
+          result === "success" && (event_name === "pull_request" || findings_free === "true"));
+      }
+    }
+  }
 });
 
 test("the reusable policy job runs both coverage and publication contracts", () => {

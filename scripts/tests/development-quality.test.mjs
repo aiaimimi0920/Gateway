@@ -16,12 +16,13 @@ test("product validation is independent of advisory checks and preserves functio
   }
   assert.match(workflow, /check: \[npm-scripts, npm-desktop, format, lines\]/);
   assert.match(workflow, /fail-fast: false/);
+  assert.match(workflow.split("name: Setup formatter")[1], /uses: dtolnay\/rust-toolchain@[a-f0-9]{40}/);
   assert.match(workflow, /if-no-files-found: error/);
   assert.doesNotMatch(workflow, /continue-on-error/);
 });
 
 test("release paths keep npm audits and formatting gates strict", () => {
-  for (const file of ["build-windows.yml", "release-tag.yml", "docker.yml"]) {
+  for (const file of ["build-windows.yml", "release-tag.yml"]) {
     const workflow = read(`.github/workflows/${file}`);
     assert.match(workflow, /run: npm run audit:prod --prefix scripts/);
     assert.match(workflow, /run: npm run audit:prod --prefix apps\/desktop/);
@@ -30,7 +31,9 @@ test("release paths keep npm audits and formatting gates strict", () => {
   const release = read(".github/workflows/release-tag.yml");
   assert.match(release, /cargo fmt --all -- --check/);
   assert.match(release, /cargo fmt --manifest-path apps\/desktop\/src-tauri\/Cargo.toml -- --check/);
-  assert.equal((read("Dockerfile").match(/npm run audit:prod/g) ?? []).length, 2);
+  const docker = read("Dockerfile");
+  assert.equal((docker.match(/ARG GATEWAY_AUDIT_MODE="strict"/g) ?? []).length, 2);
+  assert.equal((docker.match(/node \/tmp\/gateway-audit\/npm-audit.mjs "\$GATEWAY_AUDIT_MODE"/g) ?? []).length, 2);
 });
 
 test("format differences require successful formatters and a valid diff; parse errors stay failures", () => {
@@ -74,5 +77,6 @@ test("advisory scanners upload evidence before evaluating strict release finding
   const osv = read(".github/workflows/osv-scan.yml");
   assert.ok(osv.indexOf("uses: github/codeql-action/upload-sarif@") < osv.indexOf("name: Enforce findings"));
   assert.match(osv, /wait-for-processing: true/);
+  assert.match(osv, /test -n "\$CODEQL_ACTION_ANALYSIS_KEY"/);
   for (const match of osv.matchAll(/uses: (\S+)/g)) assert.match(match[1], /@[a-f0-9]{40}$/);
 });

@@ -5,7 +5,8 @@ import { pathToFileURL } from "node:url";
 import { evaluateRows, scanRepository, summarizeRows, validateBaseline,
   validateExceptions } from "./effective-code-lines.mjs";
 import { runCommand } from "./security-scan.mjs";
-import { validateExit, validateNpm } from "./security-report.mjs";
+import { validateExit } from "./security-report.mjs";
+import { auditNpm } from "./npm-audit.mjs";
 
 export function formattingReport(invoke, root) {
   for (const args of [["fmt", "--all"], ["fmt", "--manifest-path", "apps/desktop/src-tauri/Cargo.toml"]]) {
@@ -54,10 +55,7 @@ export function quality(kind, root = process.cwd(), invoke, sourceScan = scanRep
   let count;
   if (kind.startsWith("npm-")) {
     const cwd = path.join(root, kind === "npm-scripts" ? "scripts" : "apps/desktop");
-    const result = runCommand("npm", ["audit", "--omit=dev", "--audit-level=high", "--json"], cwd, invoke);
-    assert.doesNotMatch(result.stderr ?? "", /^npm (?:ERR!|error)\b/m, "npm reported an execution error");
-    report = JSON.parse(result.stdout);
-    count = validateNpm(report, result.status);
+    ({ report, count } = auditNpm("advisory", cwd, reportPath, invoke));
   } else if (kind === "format") {
     report = { files: formattingReport(invoke, root) };
     count = report.files.length;

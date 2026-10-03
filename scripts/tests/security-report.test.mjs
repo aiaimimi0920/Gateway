@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 import { validateExit, validateGitleaks, validateNpm, validateOsv } from "../security-report.mjs";
 import { lockfiles, runCommand, scan } from "../security-scan.mjs";
+import { auditNpm } from "../npm-audit.mjs";
 
 const root = process.cwd();
 const source = path.resolve(root, lockfiles[0]);
@@ -127,4 +128,22 @@ test("npm distinguishes high-severity audit exit from low-severity findings and 
     { ...npmReport(), vulnerabilities: {} }]) assert.throws(() => validateNpm(report, 1));
   assert.throws(() => validateExit(1, 0));
   assert.throws(() => runCommand("missing", [], root, () => ({ status: null, error: new Error("ENOENT") })));
+});
+
+test("Docker npm audit preserves strict default semantics and validates advisory findings", () => {
+  const temporary = mkdtempSync(path.join(tmpdir(), "gateway-npm-audit-test-"));
+  try {
+    const file = path.join(temporary, "report.json");
+    const invoke = () => ({ status: 1, stdout: JSON.stringify(npmReport()), stderr: "" });
+    assert.equal(auditNpm("strict", root, file, invoke).exitCode, 1);
+    assert.equal(auditNpm("advisory", root, file, invoke).exitCode, 0);
+    assert.equal(JSON.parse(readFileSync(file)).metadata.vulnerabilities.high, 1);
+    for (const mode of ["strict", "advisory"]) {
+      assert.throws(() => auditNpm(mode, root, file, () => ({ status: 1, stdout: "{}", stderr: "" })));
+      assert.throws(() => auditNpm(mode, root, file, () => ({ ...invoke(), stderr: "npm error network failure" })));
+      assert.throws(() => auditNpm(mode, root, file, () => ({ ...invoke(), stderr: "npm ERR! request failed" })));
+      assert.throws(() => auditNpm(mode, root, file, () => ({ ...invoke(), status: 2 })));
+    }
+    assert.throws(() => auditNpm("", root, file, invoke));
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });

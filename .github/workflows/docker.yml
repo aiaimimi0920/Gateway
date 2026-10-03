@@ -22,13 +22,14 @@ env:
   # Pull requests always build without publishing. Main/tag pushes, including
   # an explicitly dispatched run on those refs, may publish to GHCR.
   PUBLISH_IMAGE: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/V')) }}
+  NPM_AUDIT_MODE: ${{ github.event_name == 'pull_request' && 'advisory' || 'strict' }}
 
 jobs:
   security:
     uses: ./.github/workflows/security.yml
     with:
       ref: ${{ github.sha }}
-      enforce_findings: true
+      enforce_findings: ${{ github.event_name != 'pull_request' }}
     permissions:
       actions: read
       contents: read
@@ -38,7 +39,7 @@ jobs:
   docker:
     name: Build and optionally publish Gateway image
     needs: security
-    if: ${{ needs.security.result == 'success' && needs.security.outputs.findings_free == 'true' }}
+    if: ${{ needs.security.result == 'success' && (github.event_name == 'pull_request' || needs.security.outputs.findings_free == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -69,13 +70,21 @@ jobs:
         run: npm ci --prefix scripts --no-audit --no-fund
 
       - name: Audit browser worker production dependencies
-        run: npm run audit:prod --prefix scripts
+        run: node scripts/npm-audit.mjs "$NPM_AUDIT_MODE" scripts artifacts/npm-audit-scripts.json
 
       - name: Install desktop dependencies
         run: npm ci --prefix apps/desktop --no-audit --no-fund
 
       - name: Audit desktop production dependencies
-        run: npm run audit:prod --prefix apps/desktop
+        run: node scripts/npm-audit.mjs "$NPM_AUDIT_MODE" apps/desktop artifacts/npm-audit-desktop.json
+
+      - name: Preserve production dependency reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docker-npm-audits
+          path: artifacts/npm-audit-*.json
+          if-no-files-found: error
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -113,6 +122,7 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:${{ steps.verify_tag.outputs.tag }}
           build-args: |
             GATEWAY_AUDIT_NONCE=${{ github.run_id }}-${{ github.run_attempt }}
+            GATEWAY_AUDIT_MODE=${{ env.NPM_AUDIT_MODE }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -134,5 +144,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             GATEWAY_AUDIT_NONCE=${{ github.run_id }}-${{ github.run_attempt }}
+            GATEWAY_AUDIT_MODE=strict
           cache-from: type=gha
           cache-to: type=gha,mode=max

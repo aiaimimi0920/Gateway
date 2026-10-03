@@ -222,7 +222,7 @@ jobs:
           node-version: "22.22.0"
       - name: Setup formatter
         if: matrix.check == 'format'
-        uses: dtolnay/rust-toolchain@1.98.0
+        uses: dtolnay/rust-toolchain@4dfd137a5aecc12897f37a01818006f58cf58347 # Rust 1.98.0
         with:
           components: rustfmt
       - name: Generate validated advisory report

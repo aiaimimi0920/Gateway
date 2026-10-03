@@ -66,12 +66,19 @@ release rejection. No blanket `continue-on-error` or fallback empty report is us
 
 The reusable Security workflow defaults to strict mode for workflow callers.
 Standalone development Security scans are advisory; Build Windows explicitly selects
-advisory for PRs and manual `scan_only: true` runs. Docker and Release Tag explicitly
-remain strict, including their npm audits and existing formatting/build checks.
-The Dockerfile's audit commands are unchanged. Thus Docker release validation may
-still be red for known findings while independent product CI completes.
+advisory for PRs and manual `scan_only: true` runs. Docker PRs also use advisory
+scans and npm audits, including the two Dockerfile stages; valid findings permit
+image/stack verification. Every other Docker event and Release Tag remain strict.
+Dockerfile audits default to strict; only the PR verification build explicitly passes
+advisory mode. The publishing build explicitly passes strict mode. Both modes run
+the audit and validate complete JSON; neither suppresses tool/report failures. Host
+reports are uploaded as artifacts, and each image stage retains its own audit JSON.
+Strict host audits retain any completed report on failure; as before, a strict
+failure stops later build steps. PR advisory findings allow both audits to finish.
 
-All three publisher jobs require Security success **and** `findings_free == 'true'`.
+Windows and tag publisher jobs require Security success **and** `findings_free == 'true'`.
+Docker requires the same except for ordinary PR verification, which cannot log in or
+push an image.
 The output is true only when dependency and secret reports are both validated clean.
 Missing outputs cannot authorize publication. They build the immutable commit
 resolved by Security, not a mutable branch ref.
@@ -103,6 +110,8 @@ negative tests; this is not a GitHub Actions emulator.
 For remote acceptance record head, merge SHA, run/job links, resolved scan checkout,
 actual `.github/workflows/build-windows.yml:osv-scan` analysis key and completed SARIF
 processing. Verify development findings succeed with reports, Windows build stays
-skipped, and strict Docker findings fail with publication skipped. Check independent
-quality reports and real product CI separately. Never substitute an old-head run or
+skipped, and Docker publishing steps stay skipped. Check independent
+quality reports and real product CI separately. Docker PR verification must run
+without registry login/push; main/tag/manual strict paths must reject findings.
+Never substitute an old-head run or
 a generic native banner for those details.
