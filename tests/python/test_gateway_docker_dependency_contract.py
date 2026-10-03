@@ -286,12 +286,13 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
         audit_runs = [
             instruction
             for instruction in self._docker_instructions(dockerfile)
-            if instruction.startswith("RUN ") and "npm run audit:prod" in instruction
+            if instruction.startswith("RUN ") and "node /tmp/gateway-audit/npm-audit.mjs" in instruction
         ]
 
         self.assertEqual(len(audit_runs), 2)
         for stage in node_stages:
             self.assertIn('ARG GATEWAY_AUDIT_NONCE=""', stage)
+            self.assertIn('ARG GATEWAY_AUDIT_MODE="strict"', stage)
         for instruction in audit_runs:
             with self.subTest(instruction=instruction):
                 self.assertIn("${GATEWAY_AUDIT_NONCE}", instruction)
@@ -354,7 +355,7 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
             runtime_stage,
             "COPY scripts/package.json scripts/package-lock.json ./scripts/",
             "cd /app/scripts",
-            "npm run audit:prod --prefix /app/scripts",
+            'node /tmp/gateway-audit/npm-audit.mjs "$GATEWAY_AUDIT_MODE" /app/scripts',
             "COPY routes.example.yaml ./routes.yaml",
             "COPY routes.example.yaml ./routes.example.yaml",
             "COPY manifests ./manifests",
@@ -385,8 +386,8 @@ class GatewayDockerDependencyContractTests(unittest.TestCase):
         self.assertEqual(workflow.count("uses: docker/build-push-action@v6"), 2)
         self.assertEqual(workflow.count("build-args:"), 2)
         self.assertEqual(workflow.count(nonce_argument), 2)
-        self.assertIn("npm run audit:prod --prefix scripts", workflow)
-        self.assertIn("npm run audit:prod --prefix apps/desktop", workflow)
+        self.assertIn('node scripts/npm-audit.mjs "$NPM_AUDIT_MODE" scripts', workflow)
+        self.assertIn('node scripts/npm-audit.mjs "$NPM_AUDIT_MODE" apps/desktop', workflow)
 
     def test_docker_verifier_builds_with_a_unique_nonce_without_host_node(self):
         verifier = self._read("tools/verify-gateway-docker-stack.ps1")

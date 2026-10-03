@@ -19,6 +19,7 @@ jobs:
     uses: ./.github/workflows/security.yml
     with:
       ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.sha }}
+      enforce_findings: true
     permissions:
       actions: read
       contents: read
@@ -28,6 +29,7 @@ jobs:
   release:
     name: Validate, build, and publish Gateway release
     needs: security
+    if: ${{ needs.security.result == 'success' && needs.security.outputs.findings_free == 'true' }}
     runs-on: windows-latest
     steps:
       - name: Checkout release ref

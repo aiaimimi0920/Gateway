@@ -57,7 +57,12 @@ class GatewayHttpClientCutoverContractTests(unittest.TestCase):
         self.assertEqual(toolchain["toolchain"]["components"], ["rustfmt"])
         for file in ["ci.yml", "build-windows.yml", "release-tag.yml"]:
             text = (ROOT / ".github/workflows" / file).read_text(encoding="utf-8")
-            self.assertEqual(set(re.findall(r"dtolnay/rust-toolchain@([^\s]+)", text)), {version})
+            expected_refs = {version}
+            if file == "ci.yml":
+                formatter = "4dfd137a5aecc12897f37a01818006f58cf58347"
+                expected_refs.add(formatter)
+                self.assertIn(f"@{formatter} # Rust {version}", text)
+            self.assertEqual(set(re.findall(r"dtolnay/rust-toolchain@([^\s]+)", text)), expected_refs)
         self.assertIn(f"FROM rust:{version}-bookworm AS builder", (ROOT / "Dockerfile").read_text(encoding="utf-8"))
         development = (ROOT / "Dockerfile.dev").read_text(encoding="utf-8")
         self.assertIn(f"--default-toolchain {version}", development)
