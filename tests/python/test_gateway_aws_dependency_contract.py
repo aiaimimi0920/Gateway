@@ -27,7 +27,7 @@ class GatewayAwsDependencyContractTests(unittest.TestCase):
 
     def test_build_entrypoints_share_the_pinned_compiler(self):
         channel = tomllib.loads(read("rust-toolchain.toml"))["toolchain"]["channel"]
-        for name, count in (("ci.yml", 2), ("build-windows.yml", 1), ("release-tag.yml", 1)):
+        for name, count in (("ci.yml", 3), ("build-windows.yml", 1), ("release-tag.yml", 1)):
             with self.subTest(workflow=name):
                 refs = re.findall(r"uses: dtolnay/rust-toolchain@([^\s]+)",
                                   read(f".github/workflows/{name}"))
