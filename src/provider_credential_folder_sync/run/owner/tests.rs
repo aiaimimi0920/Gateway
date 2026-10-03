@@ -1,7 +1,8 @@
-//! Runtime shutdown must wake async waits, but cannot preempt a native call.
+//! Shutdown must join workers even when their monitor has never been polled.
+use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc};
-use std::task::Poll;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 use tokio::sync::oneshot;
@@ -23,18 +24,21 @@ fn runtime_shutdown_releases_worker_waiting_on_in_memory_future() {
             .enable_all()
             .build()
             .unwrap();
-        executor.block_on(async {
-            let (entered_tx, entered) = oneshot::channel();
+        {
+            let _context = executor.enter();
+            let (entered_tx, entered) = mpsc::channel();
             let mut request = Box::pin(run_owned(&owned_runtime, || async move {
                 entered_tx.send(()).unwrap();
                 let _ = wait.await;
                 owned_effects.fetch_add(1, Ordering::SeqCst);
                 Ok(())
             }));
-            assert!(matches!(futures::poll!(request.as_mut()), Poll::Pending));
-            entered.await.unwrap();
+            // Poll the request, but never drive the current-thread monitor scheduler.
+            let mut context = Context::from_waker(futures::task::noop_waker_ref());
+            assert!(matches!(request.as_mut().poll(&mut context), Poll::Pending));
+            entered.recv_timeout(Duration::from_secs(3)).unwrap();
             drop(request);
-        });
+        }
         ready_tx.send(()).unwrap();
         drop(executor);
         exited_tx.send(()).unwrap();
@@ -65,18 +69,20 @@ fn runtime_shutdown_retains_permit_until_native_call_finishes() {
             .enable_all()
             .build()
             .unwrap();
-        executor.block_on(async {
-            let (entered_tx, entered) = oneshot::channel();
+        {
+            let _context = executor.enter();
+            let (entered_tx, entered) = mpsc::channel();
             let mut request = Box::pin(run_owned(&owned_runtime, || async move {
                 entered_tx.send(()).unwrap();
                 wait.recv_timeout(Duration::from_secs(5)).unwrap();
                 owned_effects.fetch_add(1, Ordering::SeqCst);
                 Ok(())
             }));
-            assert!(matches!(futures::poll!(request.as_mut()), Poll::Pending));
-            entered.await.unwrap();
+            let mut context = Context::from_waker(futures::task::noop_waker_ref());
+            assert!(matches!(request.as_mut().poll(&mut context), Poll::Pending));
+            entered.recv_timeout(Duration::from_secs(3)).unwrap();
             drop(request);
-        });
+        }
         ready_tx.send(()).unwrap();
         drop(executor);
         exited_tx.send(()).unwrap();
