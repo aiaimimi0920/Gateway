@@ -31,7 +31,7 @@ jobs:
         working-directory: apps/desktop
         env:
           GATEWAY_E2E_CAPTURE_CARDS: '1'
-        run: npx playwright test e2e/console.pool.spec.ts --grep 'flips a provider pool card' --workers=1
+        run: npx playwright test e2e/console.pool.spec.ts e2e/console.pool-inline.spec.ts --grep 'flips a provider pool card|keeps inline editors' --workers=1
       - name: Preserve real browser screenshots and failure traces
         if: always()
         uses: actions/upload-artifact@v6

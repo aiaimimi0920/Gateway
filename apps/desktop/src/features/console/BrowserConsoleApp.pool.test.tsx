@@ -225,7 +225,7 @@ describe("BrowserConsoleApp", () => {
       screen.queryByText(
         "/v1/internal/gateway/credential-pool-refill/providers/managed-provider/tasks/claim",
       ),
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Managed OpenAI 手动补号/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Managed OpenAI 手动删除失效号/ })).toBeDisabled();
 
