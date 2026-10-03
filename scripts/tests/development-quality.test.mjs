@@ -7,7 +7,12 @@ import { evaluateRows, summarizeRows } from "../effective-code-lines.mjs";
 const read = (name) => readFileSync(new URL(`../../${name}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 test("product validation is independent of advisory checks and preserves functional failures", () => {
   const workflow = read(".github/workflows/ci.yml");
-  const products = workflow.split("\n  quality:\n")[0];
+  // Coverage aggregation has functional dependencies; product jobs must not depend on advisory jobs.
+  const products = ["windows", "linux"].map((job) => {
+    const suffix = workflow.split(`\n  ${job}:\n`)[1];
+    assert.ok(suffix, `missing product job: ${job}`);
+    return suffix.split(/\n  [\w-]+:\n/)[0];
+  }).join("\n");
   assert.doesNotMatch(products, /needs:|continue-on-error|cargo fmt|run audit:prod|run check:effective-lines/);
   for (const command of ["cargo check --locked --all-targets", "cargo test --locked",
     "npm run typecheck", "npm run build", "npm test -- --run", "node --test scripts/tests/*.test.mjs",

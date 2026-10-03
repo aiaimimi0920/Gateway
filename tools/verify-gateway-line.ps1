@@ -5,7 +5,9 @@ param(
   [switch]$AsJson,
   [switch]$SkipCargo,
   [switch]$LibOnly,
-  [string]$SharedCargoTargetDir
+  [string]$SharedCargoTargetDir,
+  [ValidateRange(0, 63)][int]$ShardIndex = 0,
+  [ValidateRange(1, 64)][int]$ShardCount = 1
 )
 
 Set-StrictMode -Version Latest
@@ -182,6 +184,20 @@ function Invoke-GatewayLineVerification {
 
 $lines = @(Get-GatewayLineManifests)
 
+if ($ShardIndex -ge $ShardCount) {
+  throw "ShardIndex must be less than ShardCount."
+}
+if ($ShardCount -gt 1 -or $ShardIndex -ne 0) {
+  if (-not ($All -or $ListOnly) -or -not [string]::IsNullOrWhiteSpace($LineId)) {
+    throw "Sharding requires All or ListOnly, without LineId."
+  }
+  # Stable manifest order partitions every line exactly once, including new lines.
+  $lines = @(for ($index = 0; $index -lt $lines.Count; $index++) {
+    if (($index % $ShardCount) -eq $ShardIndex) { $lines[$index] }
+  })
+  if ($lines.Count -eq 0) { throw "The selected shard contains no gateway lines." }
+}
+
 if ($ListOnly) {
   Write-ListOnlyOutput -Lines $lines
   exit 0
@@ -210,6 +226,8 @@ if ($AsJson) {
     lineId = if ($All) { $null } else { $results[0].lineId }
     manifestPath = if ($All) { $null } else { $results[0].manifestPath }
     lineCount = $results.Count
+    shardIndex = $ShardIndex
+    shardCount = $ShardCount
     cargoSkipped = [bool]$SkipCargo
     libOnly = [bool]$LibOnly
     sharedCargoTargetDir = if ([string]::IsNullOrWhiteSpace($SharedCargoTargetDir)) { $null } else { $SharedCargoTargetDir }

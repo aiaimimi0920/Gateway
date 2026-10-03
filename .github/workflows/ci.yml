@@ -6,14 +6,113 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 0"
+
+concurrency:
+  group: gateway-ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  windows:
-    name: Windows product validation
+  line-plan:
+    name: Plan feature-line coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_matrix: ${{ steps.plan.outputs.run_matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - id: plan
+        run: python tools/plan-gateway-line-matrix.py
+
+  line-matrix:
+    name: Windows feature lines (${{ matrix.shard }}/6)
+    needs: line-plan
+    if: needs.line-plan.outputs.run_matrix == 'true'
     runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      # Feature-coverage binaries are not release/debug artifacts; keep caches and links small.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --disable-pip-version-check -r tests/python/requirements.txt
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.22.0"
+          cache: npm
+          cache-dependency-path: |
+            scripts/package-lock.json
+            apps/desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@1.98.0
+      - name: Cache feature-line build outputs
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target/line-matrix
+          # Keep feature variants separate; do not cache only the default target.
+          key: lines-v1-${{ matrix.shard }}-${{ hashFiles('src/**/*.rs', 'crates/**/*.rs', 'build.rs', 'build_support/**', 'manifests/**') }}
+          cache-workspace-crates: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: npm ci --prefix scripts --no-audit --no-fund
+      - run: npm ci --prefix apps/desktop --no-audit --no-fund
+      - name: Run gateway-line-matrix shard
+        shell: powershell
+        env:
+          LINE_SHARD: ${{ matrix.shard }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $sharedTarget = Join-Path $env:GITHUB_WORKSPACE "target/line-matrix"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\verify-gateway-line.ps1 `
+            -All -LibOnly -SharedCargoTargetDir $sharedTarget -ShardIndex $env:LINE_SHARD -ShardCount 6
+
+  line-coverage:
+    # Preserve the existing required-check name while product tests and features run in parallel.
+    name: Windows product validation
+    needs: [line-plan, line-matrix, windows]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reject failed, cancelled or unexpectedly skipped coverage
+        env:
+          PLAN_RESULT: ${{ needs.line-plan.result }}
+          PRODUCT_RESULT: ${{ needs.windows.result }}
+          RUN_MATRIX: ${{ needs.line-plan.outputs.run_matrix }}
+          MATRIX_RESULT: ${{ needs.line-matrix.result }}
+        run: |
+          test "$PLAN_RESULT" = success
+          test "$PRODUCT_RESULT" = success
+          if [ "$RUN_MATRIX" = true ]; then
+            test "$MATRIX_RESULT" = success
+          else
+            test "$RUN_MATRIX" = false
+            test "$MATRIX_RESULT" = skipped
+          fi
+
+  windows:
+    name: Windows product tests
+    runs-on: windows-latest
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -78,14 +177,6 @@ jobs:
       - name: Run python-tests
         run: python -m unittest discover -s tests/python -p "test_*.py" -v
 
-      - name: Run gateway-line-matrix
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          $sharedTarget = Join-Path $env:RUNNER_TEMP "gateway-line-targets"
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\verify-gateway-line.ps1 `
-            -All -LibOnly -SharedCargoTargetDir $sharedTarget
-
       - name: Run live provider canary preflight
         shell: powershell
         run: |
@@ -115,6 +206,7 @@ jobs:
   linux:
     name: Linux product validation
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v5
