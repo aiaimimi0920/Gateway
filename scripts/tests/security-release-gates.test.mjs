@@ -91,7 +91,8 @@ test("Windows scans every main PR with the existing caller and no path filters",
   assert.match(triggers, /scan_only:\n        description: [^\n]+\n        type: boolean\n        required: false\n        default: true/);
   assert.deepEqual([...workflow.matchAll(/^  ([\w-]+):\n/gm)]
     .map((match) => match[1]), ["push", "pull_request", "workflow_dispatch", "security", "build"]);
-  assert.doesNotMatch(job(workflow, "security"), /^    if:|continue-on-error|secrets:/m);
+  assert.doesNotMatch(job(workflow, "security"), /^    if:/m);
+  assert.doesNotMatch(job(workflow, "security"), /continue-on-error|secrets:/);
 });
 
 test("Windows guard rejects bypasses and weakened input checks", () => {
