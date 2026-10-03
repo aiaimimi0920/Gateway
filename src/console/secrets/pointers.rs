@@ -101,6 +101,12 @@ pub(super) fn validate_secret_target(
         .ok_or_else(|| outside_schema(pointer))?;
 
     match segments[2].as_str() {
+        field
+            if segments.len() == 4
+                && super::storage_connections::secret_exists(provider, field, &segments[3]) =>
+        {
+            Ok(SecretTarget::OptionalString)
+        }
         "api_key" if segments.len() == 3 => Ok(SecretTarget::ProviderApiKey),
         "auth_token" if segments.len() == 3 => Ok(SecretTarget::OptionalString),
         "credential_storage_password" if segments.len() == 3 => Ok(SecretTarget::OptionalString),

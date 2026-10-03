@@ -4,6 +4,11 @@ use crate::config::{Config, GatewayRuntimeRole, GatewayStorageMode};
 use crate::console::{ConsoleConfig, ConsoleConfigValues, RouteConfigRuntime};
 use axum::{routing::post, Json, Router};
 
+#[path = "reconciliation_cloud_archive_tests.rs"]
+mod cloud_archive;
+#[path = "purge_race_tests.rs"]
+mod purge_races;
+
 #[tokio::test]
 async fn empty_delivery_persists_cycle_when_health_recovers_above_minimum() {
     let root = std::env::temp_dir().join(format!("gateway-local-reconcile-{}", Uuid::new_v4()));

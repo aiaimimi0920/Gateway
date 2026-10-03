@@ -1,3 +1,4 @@
+import { readStorageConnection } from "./providerStorageConnection";
 import type {
   ConsoleGeminiAuthFamily,
   ConsoleProviderCredentialInventoryItem, ConsoleRouteDocument,
@@ -431,6 +432,8 @@ export function buildAccountLedgerSections(
           poolMinSize: providerPolicy.poolMinSize,
           credentialStoragePath: optionalString(provider, "credential_storage_path") ?? undefined,
           credentialArchivePath: optionalString(provider, "credential_archive_path") ?? undefined,
+          credentialStorageConnection: readStorageConnection(provider.credential_storage_connection),
+          credentialArchiveConnection: readStorageConnection(provider.credential_archive_connection),
           autoRefillEnabled: providerPolicy.autoRefillEnabled,
           autoPruneEnabled: providerPolicy.autoPruneEnabled,
           permanentDeleteEnabled: providerPolicy.permanentDeleteEnabled,

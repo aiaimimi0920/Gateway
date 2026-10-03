@@ -55,6 +55,7 @@ pub(super) fn ensure_document_is_redacted(
 ) -> Result<(), SecretPatchError> {
     for (provider_index, provider) in document.providers.iter().enumerate() {
         let provider_path = format!("/providers/{provider_index}");
+        super::storage_connections::ensure_redacted(provider, &provider_path)?;
         ensure_url_redacted(&provider.base_url, &format!("{provider_path}/base_url"))?;
         ensure_absent_string(&provider.api_key, &format!("{provider_path}/api_key"))?;
         ensure_absent_option(
@@ -130,7 +131,10 @@ fn ensure_absent_string(value: &str, path: &str) -> Result<(), SecretPatchError>
     ))
 }
 
-fn ensure_absent_option(value: Option<&str>, path: &str) -> Result<(), SecretPatchError> {
+pub(super) fn ensure_absent_option(
+    value: Option<&str>,
+    path: &str,
+) -> Result<(), SecretPatchError> {
     match value {
         None => Ok(()),
         Some(value) => Err(embedded_secret_error(

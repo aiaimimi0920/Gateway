@@ -1,3 +1,4 @@
+import { configuredStorageSecrets } from "./providerStorageConnection";
 import { useConsoleController } from "./useConsoleController";
 
 import { buildConsoleRouteFeedback } from "./consoleRouteFeedback";
@@ -193,6 +194,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
     updatePilotProviderPolicy,
     updateProviderAutomationToggle,
     updateProviderStoragePassword,
+    updateProviderStorageConnection,
     updateProviderStoragePath,
   } = controller;
   const { workspaceItems, utilityItems, activeWorkspaceLabel } =
@@ -290,6 +292,8 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
           nextEnabled,
         )
       }
+      onUpdateProviderStorageConnection={updateProviderStorageConnection}
+      storageSecretFields={configuredStorageSecrets(routeConfig)}
       discardLifecycleDrafts={!mutationSupported}
       lifecycleActionsLocked={draftDirty}
       onUpdateProviderPoolMinSize={(providerId, poolMinSize) => updatePilotProviderPolicy(providerId, { poolMinSize })}

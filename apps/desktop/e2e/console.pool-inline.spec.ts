@@ -66,7 +66,7 @@ for (const width of [undefined, 320, 1024]) {
     await expect(card).toHaveAttribute("data-provider-card-side", "back");
     await expect(card.getByRole("button", { name: /翻回.*卡牌正面/ })).toBeFocused();
     await card.screenshot({ animations: "disabled", path: testInfo.outputPath("before-edit.png") });
-    const evidence: { label: string; before: Awaited<ReturnType<typeof geometry>>; during: Awaited<ReturnType<typeof geometry>>; after: Awaited<ReturnType<typeof geometry>>; alignment: number[] }[] = [];
+    const evidence: { label: string; before: Awaited<ReturnType<typeof geometry>>; during: Awaited<ReturnType<typeof geometry>>; after: Awaited<ReturnType<typeof geometry>>; alignment?: number[] }[] = [];
     for (const [label, draft] of [
       ["最小可用池", "0"], ["最大可用池", "99"], ["存储路径", storagePath],
       ["归档路径", archivePath], ["存储密码", "synthetic-password"],
@@ -75,6 +75,23 @@ for (const width of [undefined, 320, 1024]) {
       const before = await geometry(card, neighbor);
       const edit = card.getByRole("button", { name: `编辑 NVIDIA ${label}` });
       await edit.click();
+      // Storage paths now use the protocol dialog; retain full-path, cancellation,
+      // focus and card-geometry coverage rather than treating it as an inline input.
+      if (label === "存储路径" || label === "归档路径") {
+        const dialog = page.getByRole("dialog", { name: label === "存储路径" ? "NVIDIA 存储连接" : "NVIDIA 归档连接" });
+        await expect(dialog.getByLabel("存储协议")).toBeFocused();
+        const pathInput = dialog.getByLabel("目录路径", { exact: true });
+        await expect(pathInput).toHaveValue(draft);
+        await pathInput.fill(`${draft}-cancelled`);
+        const during = await geometry(card, neighbor);
+        await dialog.screenshot({ animations: "disabled", path: testInfo.outputPath(`editing-${label}.png`) });
+        await pathInput.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(edit).toBeFocused();
+        await expect(card).not.toContainText(`${draft}-cancelled`);
+        evidence.push({ label, before, during, after: await geometry(card, neighbor) });
+        continue;
+      }
       const input = card.getByLabel(`NVIDIA ${label}`, { exact: true });
       await expect(input).toBeFocused();
       expect((await input.boundingBox())?.width).toBeGreaterThanOrEqual(label.includes("可用池") ? 48 : 40);
@@ -119,7 +136,7 @@ for (const width of [undefined, 320, 1024]) {
     for (const item of evidence) {
       expect(item.during, item.label).toEqual(item.before);
       expect(item.after, item.label).toEqual(item.before);
-      expect(Math.max(...item.alignment) - Math.min(...item.alignment), item.label).toBeLessThanOrEqual(1);
+      if (item.alignment) expect(Math.max(...item.alignment) - Math.min(...item.alignment), item.label).toBeLessThanOrEqual(1);
     }
     for (const [label, value] of [["补号通知", notification], ["信息查询", inquiry]]) {
       const endpoint = card.locator(".nt-provider-lifecycle__endpoint").filter({ hasText: label });
@@ -151,8 +168,10 @@ for (const width of [undefined, 320, 1024]) {
     await minimum.press("Enter");
     await expect(minimumEdit).toBeFocused();
     await card.getByRole("button", { name: "编辑 NVIDIA 存储路径" }).click();
-    await card.getByLabel("NVIDIA 存储路径", { exact: true }).fill(`${storagePath}-saved`);
-    await card.getByRole("button", { name: "保存 NVIDIA 存储路径" }).click();
+    const storageDialog = page.getByRole("dialog", { name: "NVIDIA 存储连接" });
+    await storageDialog.getByLabel("目录路径", { exact: true }).fill(`${storagePath}-saved`);
+    await storageDialog.getByRole("button", { name: "保存连接" }).click();
+    await expect(storageDialog).toHaveCount(0);
     await expect(card.locator(".nt-provider-lifecycle__field-value").filter({ hasText: `${storagePath}-saved` })).toHaveCount(1);
     await expect(card.getByRole("button", { name: "编辑 NVIDIA 存储路径" })).toBeFocused();
   });

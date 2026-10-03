@@ -6,8 +6,7 @@ use axum::Json;
 use serde_json::Value;
 
 use crate::credential_pool_automation::{
-    purge_provider_credential_archive, run_provider_credential_pool_automation,
-    run_provider_credential_pool_prune,
+    run_provider_credential_pool_automation, run_provider_credential_pool_prune,
 };
 use crate::error::GatewayError;
 use crate::http::extractors::OptionalBearerToken;
@@ -75,20 +74,8 @@ pub async fn purge_credential_pool_archive_for_provider(
     Path(provider_id): Path<String>,
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    let snapshot = state.route_config.snapshot();
-    let provider = snapshot
-        .document()
-        .providers
-        .iter()
-        .find(|provider| provider.id == provider_id)
-        .ok_or_else(|| {
-            GatewayError::not_found(format!("Provider '{provider_id}' 不存在"))
-                .with_code("credential_pool_archive_provider_not_found")
-        })?;
     let purged_count =
-        purge_provider_credential_archive(&state.config, provider).map_err(|error| {
-            GatewayError::server_error(error.to_string())
-                .with_code("credential_pool_archive_purge_failed")
-        })?;
+        crate::credential_pool_automation::archive_purge::purge_for_provider(&state, &provider_id)
+            .await?;
     Ok(Json(serde_json::json!({ "purgedCount": purged_count })))
 }

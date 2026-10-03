@@ -181,6 +181,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     parseDraft,
     replaceEditorDocument,
     updateProviderStoragePassword,
+    updateProviderStorageConnection,
   } = useConsoleRouteDraft({
     routeConfig,
     hasSecretAccess,
@@ -424,7 +425,8 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
 
   const activeRouteDiagnostics = routeConfig?.routeConfig.diagnostics?.diagnostics ?? [];
   const mutationSupported = routeConfig?.routeConfig.mutationSupported ?? false;
-  const editorLocked = busy || actionBusy !== null || !mutationSupported;
+  const editorLocked = busy || actionBusy !== null ||
+    credentialPoolActions.credentialArchivePurgeBusy !== null || !mutationSupported;
   const { autosavePending } = useConsoleDraftPersistence({
     managementToken,
     editorLocked,
@@ -520,5 +522,6 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     t,
     telemetryError,
     updateProviderStoragePassword,
+    updateProviderStorageConnection,
   };
 }

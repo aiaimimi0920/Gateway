@@ -1,3 +1,4 @@
+import { buildStorageConnectionPatches, readStorageConnection, storageConnectionField, storageConnectionIdentity, storageConnectionEditError, validateStorageConnection, type StorageConnection, type StorageConnectionEdit, type StorageSecretChanges, type StorageTarget } from "./providerStorageConnection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ConsoleRouteConfigResponse, ConsoleRouteDocument, ConsoleRouteConfigCommitRequest, ConsoleSecretPatch } from "../../api/contracts";
 import { pushAppToast } from "../../components/AppToast";
@@ -42,6 +43,7 @@ export function useConsoleRouteDraft({
 
   const [secretDrafts, setSecretDrafts] = useState<Record<string, SecretPatchDraft>>({});
 
+  const [storageConnectionEdits, setStorageConnectionEdits] = useState<StorageConnectionEdit[]>([]);
   const [credentialSecretEdits, setCredentialSecretEdits] = useState<CredentialSecretEdit[]>([]);
 
 
@@ -73,14 +75,14 @@ export function useConsoleRouteDraft({
     if (!routeConfig || !secretPatchDraftDocument) {
       return activeSecretPatches;
     }
-    return buildCredentialSecretPatches({
+    return buildStorageConnectionPatches(secretPatchDraftDocument, buildCredentialSecretPatches({
       activeDocument: routeConfig.routeConfig.document,
       draftDocument: secretPatchDraftDocument,
       activeSecrets: routeConfig.routeConfig.secrets,
       activeSecretPatches,
       credentialSecretEdits,
-    });
-  }, [activeSecretPatches, credentialSecretEdits, routeConfig, secretPatchDraftDocument]);
+    }), storageConnectionEdits);
+  }, [activeSecretPatches, credentialSecretEdits, storageConnectionEdits, routeConfig, secretPatchDraftDocument]);
 
   const draftDocumentState = useMemo(() => {
     if (editorText.trim().length === 0) {
@@ -143,6 +145,8 @@ export function useConsoleRouteDraft({
       if (!routeConfig) {
         throw new Error("Route configuration is not loaded yet.");
       }
+      const connectionError = storageConnectionEditError(document, storageConnectionEdits);
+      if (connectionError) throw new Error(connectionError);
       const message = messageOverride?.trim() || commitMessage.trim();
       const commitSecretPatches = secretPatchOverride ?? secretPatches;
       for (const patch of commitSecretPatches) {
@@ -170,7 +174,7 @@ export function useConsoleRouteDraft({
         ...(message ? { message } : {}),
       };
     },
-    [commitMessage, hasSecretAccess, routeConfig, secretPatches, t],
+    [commitMessage, hasSecretAccess, routeConfig, secretPatches, storageConnectionEdits, t],
   );
 
   const parseDraft = useCallback((): ConsoleRouteConfigCommitRequest => {
@@ -261,6 +265,38 @@ export function useConsoleRouteDraft({
     [hasSecretAccess, routeConfig, setError, setSecretDialogOpen, t],
   );
 
+  const updateProviderStorageConnection = useCallback((providerId: string, target: StorageTarget,
+    connection: StorageConnection, secrets: StorageSecretChanges): boolean => {
+    const clean = readStorageConnection(connection);
+    const invalid = clean ? validateStorageConnection(clean) : "Invalid storage connection";
+    if (!clean || invalid) { setError(invalid); return false; }
+    try {
+      const document = parseRouteDocument(editorText);
+      const provider = document.providers.find((entry) => isRecord(entry) && entry.id === providerId);
+      if (!isRecord(provider)) return false;
+      const field = storageConnectionField(target);
+      const changedIdentity = storageConnectionIdentity(readStorageConnection(provider[field])) !== storageConnectionIdentity(clean);
+      const activeIndex = routeConfig?.routeConfig.document.providers.findIndex((entry) => isRecord(entry) && entry.id === providerId);
+      const configured = routeConfig?.routeConfig.secrets.some((entry) => entry.configured && entry.path.startsWith(`/providers/${activeIndex}/${field}/`));
+      const prior = storageConnectionEdits.find((entry) => entry.providerId === providerId && entry.target === target);
+      if (!hasSecretAccess && (Object.keys(secrets).length > 0 || (changedIdentity && (configured || prior)))) {
+        setSecretDialogOpen(true);
+        pushAppToast("info", t("修改云存储认证前需要先确认敏感信息访问权限。", "Confirm secret access before changing cloud authentication."));
+        return false;
+      }
+      provider[field] = clean;
+      setStorageConnectionEdits((current) => [...current.filter((entry) => entry.providerId !== providerId || entry.target !== target),
+        { providerId, target, connectionIdentity: storageConnectionIdentity(clean),
+          secrets: { ...(prior?.connectionIdentity === storageConnectionIdentity(clean) ? prior.secrets : {}), ...secrets } }]);
+      replaceEditorDocument(document, true);
+      setError(null);
+      return true;
+    } catch {
+      setError(t("当前路由草稿不可解析。", "The current route draft is invalid."));
+      return false;
+    }
+  }, [editorText, hasSecretAccess, routeConfig, storageConnectionEdits, replaceEditorDocument, setError, setSecretDialogOpen, t]);
+
   useEffect(() => {
     if (!routeConfig) {
       return;
@@ -269,6 +305,7 @@ export function useConsoleRouteDraft({
     setCommitMessage(routeConfig.routeConfig.revision.message ?? "");
     setSecretDrafts(createSecretPatchDrafts(routeConfig));
     setCredentialSecretEdits([]);
+    setStorageConnectionEdits([]);
     // Preserve dependent UI/probe resets between draft-value and row hydration.
     onRouteConfigHydrated();
     setModelRouteDraftRows(modelRouteDraftRowsFromDocument(routeConfig.routeConfig.document));
@@ -301,5 +338,6 @@ export function useConsoleRouteDraft({
     parseDraft,
     replaceEditorDocument,
     updateProviderStoragePassword,
+    updateProviderStorageConnection,
   };
 }

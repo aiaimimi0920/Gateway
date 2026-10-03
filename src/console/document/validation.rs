@@ -119,6 +119,28 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
                 }
             }
         }
+        for (field, connection) in [
+            (
+                "credential_storage_connection",
+                &provider.credential_storage_connection,
+            ),
+            (
+                "credential_archive_connection",
+                &provider.credential_archive_connection,
+            ),
+        ] {
+            if let Some(connection) = connection {
+                if let Err(message) =
+                    crate::credential_pool_storage::validate_connection(connection)
+                {
+                    diagnostics.push_error(
+                        "provider_credential_storage_connection_invalid",
+                        format!("{provider_path}/{field}"),
+                        message,
+                    );
+                }
+            }
+        }
         let websocket_transport = provider_uses_websocket_transport(provider);
         validate_provider_url(
             &provider.base_url,

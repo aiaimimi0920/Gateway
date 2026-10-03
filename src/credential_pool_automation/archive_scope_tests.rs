@@ -59,3 +59,37 @@ fn shared_archive_purge_preserves_other_providers_and_material_json() {
     assert!(root.exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn unreadable_archive_files_and_directories_are_errors_not_zero_counts() {
+    use super::archive::checked_archive_count_in_directory;
+    use std::os::unix::fs::PermissionsExt;
+    let root = std::env::temp_dir().join(format!("archive-permissions-{}", uuid::Uuid::new_v4()));
+    fs::create_dir(&root).unwrap();
+    let file = root.join("record.json");
+    fs::write(&file, b"{}").unwrap();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o000)).unwrap();
+    let open_failed = fs::File::open(&file).is_err();
+    let count_failed = checked_archive_count_in_directory(&root, "provider-a").is_err();
+    let purge_failed = purge_credential_archive_directory(&root, "provider-a").is_err();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o000)).unwrap();
+    let directory_failed = checked_archive_count_in_directory(&root, "provider-a").is_err();
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+    fs::remove_dir_all(&root).unwrap();
+    if open_failed {
+        assert!(count_failed && purge_failed && directory_failed);
+    } else {
+        // Privileged runners can bypass Unix mode bits. Exercise the same real
+        // reader error path explicitly rather than claiming a permission denial.
+        struct DeniedReader;
+        impl std::io::Read for DeniedReader {
+            fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+            }
+        }
+        assert!(super::archive::checked_archive_reader(DeniedReader, "provider-a").is_err());
+        eprintln!("Privileged runner: used injected PermissionDenied reader, not filesystem mode-bit denial");
+    }
+}

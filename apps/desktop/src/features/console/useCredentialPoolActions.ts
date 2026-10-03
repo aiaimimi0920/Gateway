@@ -166,6 +166,9 @@ export function useCredentialPoolActions({
       } catch (cause) {
         if (!isCurrent()) return;
         const message = cause instanceof Error ? cause.message : String(cause);
+        // A failed/uncertain deletion can follow a committed durable purge barrier.
+        try { await refresh(); } catch { /* Preserve the original purge error. */ }
+        if (!isCurrent()) return;
         setError(message);
         pushAppToast("error", message);
       } finally {

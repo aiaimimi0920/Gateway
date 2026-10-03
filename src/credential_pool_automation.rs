@@ -7,9 +7,11 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 mod actions;
 pub(crate) mod admission;
-mod archive;
+pub(crate) mod archive;
+pub(crate) mod archive_purge;
 #[cfg(test)]
 mod archive_scope_tests;
+pub(crate) mod archive_snapshot;
 pub(crate) mod availability;
 pub mod capacity;
 pub(crate) mod cycle;
@@ -29,6 +31,8 @@ pub use actions::{
     start_credential_pool_automation_task, sweep_credential_pool_automation_once,
 };
 #[cfg(test)]
+pub use archive::purge_provider_credential_archive;
+#[cfg(test)]
 use archive::{
     archive_pruned_credentials_in_directory, archived_credential_count_in_directory,
     purge_credential_archive_directory, safe_archive_path_segment,
@@ -36,7 +40,6 @@ use archive::{
 pub use archive::{
     archived_provider_credential_count, provider_credential_archive_path,
     provider_credential_storage_path, provider_credential_storage_root_path,
-    purge_provider_credential_archive,
 };
 #[cfg(test)]
 use driver::execute_driver;

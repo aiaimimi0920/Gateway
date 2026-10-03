@@ -82,6 +82,10 @@ export function ProviderLifecycleActionDialog({
           <div className="nt-validation-list nt-validation-list--warning">
             <strong>{t("请再次确认", "Please confirm")}</strong>
             <ul>
+              {pendingProviderLifecycleAction?.kind === "purge-archive" ? <li>{t(
+                "仅移除当前归档条目；云服务的历史版本和保留策略不在本次清空范围内。",
+                "Only current archive entries are removed; cloud historical versions and retention policies are outside this purge.",
+              )}</li> : null}
               <li>
                 {pendingProviderLifecycleAction?.kind === "prune" &&
                 !pendingProviderLifecycleAction.permanentDeleteEnabled

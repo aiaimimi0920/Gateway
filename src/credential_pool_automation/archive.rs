@@ -56,6 +56,38 @@ pub fn archived_provider_credential_count(config: &Config, provider: &ProviderCo
     archived_credential_count_in_directory(&directory, &provider.id)
 }
 
+pub(crate) fn checked_local_archive_count(
+    config: &Config,
+    provider: &ProviderConfigYaml,
+) -> anyhow::Result<usize> {
+    let Some(directory) = provider_credential_archive_path(config, provider) else {
+        return Ok(0);
+    };
+    checked_archive_count_in_directory(&directory, &provider.id)
+}
+
+pub(super) fn checked_archive_count_in_directory(
+    directory: &Path,
+    provider_id: &str,
+) -> anyhow::Result<usize> {
+    reject_linked_components(&directory)?;
+    let entries = match fs::read_dir(&directory) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(error.into()),
+    };
+    let mut count = 0;
+    for (scanned, entry) in entries.enumerate() {
+        if scanned >= 1024 {
+            anyhow::bail!("Archive directory scan limit exceeded");
+        }
+        if checked_provider_archive(&entry?.path(), provider_id)? {
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
 pub(super) fn archived_credential_count_in_directory(directory: &Path, provider_id: &str) -> usize {
     let Ok(entries) = fs::read_dir(directory) else {
         return 0;
@@ -66,21 +98,41 @@ pub(super) fn archived_credential_count_in_directory(directory: &Path, provider_
         .count()
 }
 
+#[cfg(test)]
 pub fn purge_provider_credential_archive(
     config: &Config,
     provider: &ProviderConfigYaml,
+) -> anyhow::Result<usize> {
+    purge_archive_with_guard(config, provider, &|| true)
+}
+
+#[cfg(test)]
+pub(crate) fn purge_archive_with_guard(
+    config: &Config,
+    provider: &ProviderConfigYaml,
+    current_revision: &(dyn Fn() -> bool + Send + Sync),
 ) -> anyhow::Result<usize> {
     if let Some(path) = &provider.credential_archive_path {
         super::storage_paths::validate_storage_path(path).map_err(anyhow::Error::msg)?;
     }
     let directory = provider_credential_archive_path(config, provider)
         .ok_or_else(|| anyhow::anyhow!("credential storage path is unavailable"))?;
-    purge_credential_archive_directory(&directory, &provider.id)
+    purge_directory_with_guard(&directory, &provider.id, current_revision)
 }
 
+#[cfg(test)]
 pub(super) fn purge_credential_archive_directory(
     directory: &Path,
     provider_id: &str,
+) -> anyhow::Result<usize> {
+    purge_directory_with_guard(directory, provider_id, &|| true)
+}
+
+#[cfg(test)]
+fn purge_directory_with_guard(
+    directory: &Path,
+    provider_id: &str,
+    current_revision: &(dyn Fn() -> bool + Send + Sync),
 ) -> anyhow::Result<usize> {
     reject_linked_components(directory)?;
     let metadata = match fs::symlink_metadata(&directory) {
@@ -93,10 +145,20 @@ pub(super) fn purge_credential_archive_directory(
     }
 
     let mut purged_count = 0usize;
-    for entry in fs::read_dir(&directory)? {
+    for (scanned, entry) in fs::read_dir(&directory)?.enumerate() {
+        if scanned >= 1024 {
+            anyhow::bail!(
+                "Archive purge scan limit exceeded; completed deletions are not rolled back"
+            );
+        }
         let entry = entry?;
-        if !is_provider_archive(&entry.path(), provider_id) {
+        if !checked_provider_archive(&entry.path(), provider_id)? {
             continue;
+        }
+        if !current_revision() {
+            anyhow::bail!(
+                "Route revision changed during purge; completed deletions are not rolled back"
+            );
         }
         fs::remove_file(entry.path())?;
         purged_count += 1;
@@ -117,33 +179,36 @@ struct ArchiveIdentity {
 }
 
 fn is_provider_archive(path: &Path, provider_id: &str) -> bool {
+    checked_provider_archive(path, provider_id).unwrap_or(false)
+}
+
+fn checked_provider_archive(path: &Path, provider_id: &str) -> anyhow::Result<bool> {
     const MAX_RECORD_BYTES: u64 = 4 * 1024 * 1024;
     if path.extension().and_then(|value| value.to_str()) != Some("json") {
-        return false;
+        return Ok(false);
     }
-    let Ok(metadata) = fs::symlink_metadata(path) else {
-        return false;
-    };
-    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > MAX_RECORD_BYTES
-    {
-        return false;
+    let metadata = fs::symlink_metadata(path)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Ok(false);
     }
-    let Ok(file) = fs::File::open(path) else {
-        return false;
-    };
+    if metadata.len() > MAX_RECORD_BYTES {
+        anyhow::bail!("Archive record exceeds the read limit");
+    }
+    let file = fs::File::open(path)?;
+    checked_archive_reader(file, provider_id)
+}
+
+pub(super) fn checked_archive_reader(file: impl Read, provider_id: &str) -> anyhow::Result<bool> {
+    const MAX_RECORD_BYTES: u64 = 4 * 1024 * 1024;
     let mut bytes = Vec::new();
-    if file
-        .take(MAX_RECORD_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .is_err()
-        || bytes.len() as u64 > MAX_RECORD_BYTES
-    {
-        return false;
+    file.take(MAX_RECORD_BYTES + 1).read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > MAX_RECORD_BYTES {
+        anyhow::bail!("Archive record exceeds the read limit");
     }
     let Ok(record) = serde_json::from_slice::<ArchiveIdentity>(&bytes) else {
-        return false;
+        return Ok(false);
     };
-    record.schema_version == 1
+    Ok(record.schema_version == 1
         && record.provider_id == provider_id
         && !record.credential_id.trim().is_empty()
         && time::OffsetDateTime::parse(
@@ -156,7 +221,7 @@ fn is_provider_archive(path: &Path, provider_id: &str) -> bool {
             .credential
             .id
             .as_deref()
-            .is_none_or(|id| id == record.credential_id)
+            .is_none_or(|id| id == record.credential_id))
 }
 
 pub(super) fn safe_archive_path_segment(value: &str) -> String {
@@ -177,7 +242,7 @@ pub(super) fn safe_archive_path_segment(value: &str) -> String {
     }
 }
 
-pub(super) fn archive_pruned_credentials(
+pub(crate) fn archive_pruned_credentials(
     config: &Config,
     provider: &ProviderConfigYaml,
     prune_ids: &HashSet<String>,

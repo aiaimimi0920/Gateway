@@ -1,32 +1,63 @@
 use crate::credential_pool_automation::capacity::{pool_max_size, pool_min_size};
 use crate::credential_pool_automation::{
-    archived_provider_credential_count, provider_credential_archive_path,
-    provider_credential_storage_path,
+    provider_credential_archive_path, provider_credential_storage_path,
 };
 use crate::error::GatewayError;
 use crate::routing::config::ProviderConfigYaml;
 use crate::state::AppState;
+use futures::{stream::FuturesUnordered, StreamExt};
+use std::time::Duration;
 
 use super::*;
 
 pub async fn list_credential_refill_demands(
     state: &AppState,
 ) -> Result<Vec<CredentialRefillDemandView>, GatewayError> {
-    let snapshot = state.route_config.snapshot();
-    let mut demands = Vec::with_capacity(snapshot.document().providers.len());
-    for provider in &snapshot.document().providers {
-        let outstanding = load_outstanding_task(state, &provider.id).await?;
-        demands.push(
-            build_demand_view(
+    tokio::time::timeout(Duration::from_secs(30), async {
+        let snapshot = state.route_config.snapshot();
+        // Keep at most four concrete futures, without an async mapping closure over
+        // borrowed providers (which breaks the complete Axum handler's Send bound).
+        let mut providers = snapshot.document().providers.iter().enumerate();
+        let mut tasks = FuturesUnordered::new();
+        for (index, provider) in providers.by_ref().take(4) {
+            tasks.push(indexed_demand_view(
                 state,
                 provider,
                 snapshot.revision().id(),
-                outstanding.as_ref(),
-            )
-            .await?,
-        );
-    }
-    Ok(demands)
+                index,
+            ));
+        }
+        let mut results = Vec::with_capacity(snapshot.document().providers.len());
+        while let Some(result) = tasks.next().await {
+            results.push(result?);
+            if let Some((index, provider)) = providers.next() {
+                tasks.push(indexed_demand_view(
+                    state,
+                    provider,
+                    snapshot.revision().id(),
+                    index,
+                ));
+            }
+        }
+        results.sort_by_key(|(index, _)| *index);
+        Ok(results.into_iter().map(|(_, view)| view).collect())
+    })
+    .await
+    .map_err(|_| {
+        GatewayError::service_unavailable("Credential refill status deadline exceeded")
+            .with_code("credential_refill_status_timeout")
+    })?
+}
+
+async fn indexed_demand_view(
+    state: &AppState,
+    provider: &ProviderConfigYaml,
+    revision_id: &str,
+    index: usize,
+) -> Result<(usize, CredentialRefillDemandView), GatewayError> {
+    let outstanding = load_outstanding_task(state, &provider.id).await?;
+    let view = build_demand_view(state, provider, revision_id, outstanding.as_ref()).await?;
+    Ok((index, view))
 }
 
 async fn build_demand_view(
@@ -48,6 +79,16 @@ async fn build_demand_view(
         .credential_pool_automation
         .has_driver_for_provider(provider);
     let queue_enabled = state.credential_pool_automation.refill_queue_enabled();
+    let archive_count = tokio::time::timeout(
+        Duration::from_secs(5),
+        crate::credential_pool_storage::archive::count(&state.config, provider),
+    )
+    .await
+    .unwrap_or_else(|_| Err(anyhow::anyhow!("Archive count timed out")));
+    let (archive_purge_supported, archive_purge_unsupported_reason) =
+        crate::credential_pool_storage::archive_purge_support(
+            provider.credential_archive_connection.as_ref(),
+        );
     Ok(CredentialRefillDemandView {
         provider_id: provider.id.clone(),
         provider_label: provider
@@ -79,14 +120,25 @@ async fn build_demand_view(
             provider_path_segment(&provider.id)
         ),
         credential_storage_path: provider_credential_storage_path(&state.config, provider)
-            .map(|path| path.to_string_lossy().into_owned()),
+            .map(|path| path.to_string_lossy().into_owned())
+            .or_else(|| remote_location(provider, false)),
         storage_password_configured: provider
             .credential_storage_password
             .as_deref()
             .is_some_and(|value| !value.trim().is_empty()),
         archive_storage_path: provider_credential_archive_path(&state.config, provider)
-            .map(|path| path.to_string_lossy().into_owned()),
-        archived_credential_count: archived_provider_credential_count(&state.config, provider),
+            .map(|path| path.to_string_lossy().into_owned())
+            .or_else(|| remote_location(provider, true)),
+        archived_credential_count: archive_count.as_ref().ok().copied(),
+        archive_storage_error: archive_count.err().map(|error| error.to_string()),
+        archive_purge_supported,
+        archive_purge_unsupported_reason: archive_purge_unsupported_reason.map(str::to_owned),
+        storage_auth_configured: crate::credential_pool_storage::authentication_configured(
+            provider.credential_storage_connection.as_ref(),
+        ),
+        archive_auth_configured: crate::credential_pool_storage::authentication_configured(
+            provider.credential_archive_connection.as_ref(),
+        ),
         permanent_delete_enabled: provider.credential_permanent_delete_enabled,
         revision_id: revision_id.to_string(),
     })
@@ -122,3 +174,25 @@ pub(super) fn provider_path_segment(provider_id: &str) -> String {
 }
 
 pub(super) use crate::credential_pool_automation::capacity::active_credential_count;
+
+fn remote_location(provider: &ProviderConfigYaml, archive: bool) -> Option<String> {
+    use crate::routing::config::CredentialStorageConnection;
+    let connection = if archive {
+        provider.credential_archive_connection.as_ref()
+    } else {
+        provider.credential_storage_connection.as_ref()
+    }?;
+    let namespace = crate::credential_pool_storage::namespace(connection, &provider.id, archive);
+    match connection {
+        CredentialStorageConnection::Webdav { endpoint, .. } => {
+            Some(format!("{}/{namespace}/", endpoint.trim_end_matches('/')))
+        }
+        CredentialStorageConnection::S3 {
+            endpoint, bucket, ..
+        } => Some(format!(
+            "{}/{bucket}/{namespace}/",
+            endpoint.trim_end_matches('/')
+        )),
+        _ => None,
+    }
+}

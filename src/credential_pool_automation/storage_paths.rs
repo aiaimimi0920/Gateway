@@ -1,5 +1,8 @@
 //! Provider-local filesystem locations; remote object-storage URLs need a real protocol.
-use crate::{config::Config, routing::config::ProviderConfigYaml};
+use crate::{
+    config::Config,
+    routing::config::{CredentialStorageConnection, ProviderConfigYaml},
+};
 use std::path::{Component, Path, PathBuf};
 
 pub fn validate_storage_path(value: &str) -> Result<(), &'static str> {
@@ -23,6 +26,15 @@ pub fn validate_storage_path(value: &str) -> Result<(), &'static str> {
 }
 
 pub fn provider_storage_path(config: &Config, provider: &ProviderConfigYaml) -> Option<PathBuf> {
+    if let Some(connection) = &provider.credential_storage_connection {
+        match connection {
+            CredentialStorageConnection::Local { path: Some(path) } if !path.trim().is_empty() => {
+                return configured_path(Some(path))
+            }
+            CredentialStorageConnection::Local { .. } => {}
+            _ => return None,
+        }
+    }
     configured_path(provider.credential_storage_path.as_deref()).or_else(|| {
         super::archive::provider_credential_storage_root_path(config)
             .map(|root| root.join(super::archive::safe_archive_path_segment(&provider.id)))
@@ -30,6 +42,15 @@ pub fn provider_storage_path(config: &Config, provider: &ProviderConfigYaml) -> 
 }
 
 pub fn provider_archive_path(config: &Config, provider: &ProviderConfigYaml) -> Option<PathBuf> {
+    if let Some(connection) = &provider.credential_archive_connection {
+        match connection {
+            CredentialStorageConnection::Local { path: Some(path) } if !path.trim().is_empty() => {
+                return configured_path(Some(path))
+            }
+            CredentialStorageConnection::Local { .. } => {}
+            _ => return None,
+        }
+    }
     configured_path(provider.credential_archive_path.as_deref()).or_else(|| {
         super::archive::provider_credential_storage_root_path(config).map(|root| {
             root.join("_archive")
