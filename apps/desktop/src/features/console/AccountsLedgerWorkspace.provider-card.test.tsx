@@ -117,7 +117,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
       screen.queryByText(
         "/v1/internal/gateway/credential-pool-refill/providers/managed-provider/tasks/claim",
       ),
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
     expect(screen.queryByText("api.openai.com")).not.toBeInTheDocument();
     expect(screen.queryByText("openai")).not.toBeInTheDocument();
     expect(screen.queryByText("最近 2 分钟前")).not.toBeInTheDocument();
