@@ -4,7 +4,17 @@ on:
   push:
     branches:
       - main
+  # Keep the same OSV caller identity on main and its pull requests.
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
+    inputs:
+      scan_only:
+        description: Run security scans without building a Windows candidate
+        type: boolean
+        required: false
+        default: true
 
 permissions:
   contents: read
@@ -23,6 +33,11 @@ jobs:
   build:
     name: Build and verify Windows candidate
     needs: security
+    # toJSON distinguishes boolean false from missing, null or string inputs.
+    if: >-
+      ${{ needs.security.result == 'success' &&
+          ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+           (github.event_name == 'workflow_dispatch' && toJSON(inputs.scan_only) == 'false')) }}
     runs-on: windows-latest
     steps:
       - name: Checkout
