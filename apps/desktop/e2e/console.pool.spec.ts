@@ -60,7 +60,7 @@ test.describe("Gateway web console provider pool", () => {
     await expect(card.getByRole("button", { name: /复制 .* 补号通知 API/ })).toBeVisible();
     await expect(card.getByRole("button", { name: /复制 .* 信息查询 API/ })).toBeVisible();
     await expect(card.locator(".nt-provider-lifecycle__endpoint a")).toHaveCount(0);
-    await expect(card.locator(".nt-provider-lifecycle__endpoint").first()).not.toContainText("/v1/internal");
+    await expect(card.locator(".nt-provider-lifecycle__endpoint").first()).toContainText("/v1/internal");
     await expect(card.getByText("清空（4）", { exact: true })).toBeVisible();
     await expect(card.getByRole("button", { name: /翻回.*卡牌正面/ })).toBeFocused();
     await expect

@@ -247,9 +247,8 @@ Write-Output 'preflight failure skipped Compose cleanup and preserved deploy/.en
                     expected_audit,
                 )
 
-    def test_ci_and_release_workflows_install_then_audit_both_node_trees(self):
+    def test_release_workflows_install_then_audit_both_node_trees(self):
         workflow_jobs = {
-            ".github/workflows/ci.yml": ("windows", "linux"),
             ".github/workflows/build-windows.yml": ("build",),
             ".github/workflows/release-tag.yml": ("release",),
         }
@@ -284,6 +283,21 @@ Write-Output 'preflight failure skipped Compose cleanup and preserved deploy/.en
                         "run: cargo",
                     )
 
+    def test_development_audits_are_independent_of_product_validation(self):
+        workflow = (GATEWAY_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        quality = self._workflow_job_block(workflow, "quality")
+        self.assertIn("check: [npm-scripts, npm-desktop, format, lines]", quality)
+        self.assertIn("node scripts/development-quality.mjs", quality)
+        self.assertIn("if-no-files-found: error", quality)
+        for name in ("windows", "linux"):
+            job = self._workflow_job_block(workflow, name)
+            self.assertNotIn("needs:", job)
+            self.assertNotIn("audit:prod", job)
+            self.assertNotIn("cargo fmt", job)
+            self.assertIn("npm ci --prefix scripts --no-audit --no-fund", job)
+            self.assertIn("npm ci --prefix apps/desktop --no-audit --no-fund", job)
+            self.assertIn("cargo test --locked -- --test-threads=1", job)
+
     def test_docker_workflow_audits_both_node_trees_outside_buildkit_cache(self):
         workflow = (GATEWAY_ROOT / ".github/workflows/docker.yml").read_text(
             encoding="utf-8"
@@ -296,14 +310,14 @@ Write-Output 'preflight failure skipped Compose cleanup and preserved deploy/.en
             job,
             "uses: actions/setup-node@v6",
             "npm ci --prefix scripts --no-audit --no-fund",
-            "npm run audit:prod --prefix scripts",
+            'node scripts/npm-audit.mjs "$NPM_AUDIT_MODE" scripts',
             first_docker_build,
         )
         self._assert_markers_in_order(
             job,
             "uses: actions/setup-node@v6",
             "npm ci --prefix apps/desktop --no-audit --no-fund",
-            "npm run audit:prod --prefix apps/desktop",
+            'node scripts/npm-audit.mjs "$NPM_AUDIT_MODE" apps/desktop',
             first_docker_build,
         )
 
@@ -311,13 +325,13 @@ Write-Output 'preflight failure skipped Compose cleanup and preserved deploy/.en
         self._assert_markers_in_order(
             dockerfile,
             "npm ci --prefix apps/desktop --no-audit --no-fund",
-            "npm run audit:prod --prefix apps/desktop",
+            'node /tmp/gateway-audit/npm-audit.mjs "$GATEWAY_AUDIT_MODE" /app/apps/desktop',
             "npm run build:web --prefix apps/desktop",
         )
         self._assert_markers_in_order(
             dockerfile,
             "npm ci --omit=dev --no-audit --no-fund",
-            "npm run audit:prod --prefix /app/scripts",
+            'node /tmp/gateway-audit/npm-audit.mjs "$GATEWAY_AUDIT_MODE" /app/scripts',
             "npm cache clean --force",
         )
 

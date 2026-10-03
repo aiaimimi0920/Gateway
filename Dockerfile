@@ -16,8 +16,10 @@ RUN --mount=type=cache,target=/root/.npm \
     sleep "$attempts"; \
   done
 ARG GATEWAY_AUDIT_NONCE=""
+ARG GATEWAY_AUDIT_MODE="strict"
+COPY scripts/npm-audit.mjs scripts/security-report.mjs /tmp/gateway-audit/
 RUN printf '%s\n' "${GATEWAY_AUDIT_NONCE}" >/dev/null \
-  && npm run audit:prod --prefix apps/desktop
+  && node /tmp/gateway-audit/npm-audit.mjs "$GATEWAY_AUDIT_MODE" /app/apps/desktop /tmp/gateway-desktop-audit.json
 COPY apps/desktop ./apps/desktop
 RUN GATEWAY_WEB_PRUNE_LIVE=1 npm run build:web --prefix apps/desktop
 
@@ -80,8 +82,10 @@ RUN --mount=type=cache,target=/root/.npm \
   done
 
 ARG GATEWAY_AUDIT_NONCE=""
+ARG GATEWAY_AUDIT_MODE="strict"
+COPY scripts/npm-audit.mjs scripts/security-report.mjs /tmp/gateway-audit/
 RUN printf '%s\n' "${GATEWAY_AUDIT_NONCE}" >/dev/null \
-  && npm run audit:prod --prefix /app/scripts \
+  && node /tmp/gateway-audit/npm-audit.mjs "$GATEWAY_AUDIT_MODE" /app/scripts /tmp/gateway-scripts-audit.json \
   && npm cache clean --force \
   && chmod +x /usr/local/bin/gateway-entrypoint \
   && mkdir -p /data/state

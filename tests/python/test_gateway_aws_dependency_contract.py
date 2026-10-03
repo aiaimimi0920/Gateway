@@ -31,7 +31,13 @@ class GatewayAwsDependencyContractTests(unittest.TestCase):
             with self.subTest(workflow=name):
                 refs = re.findall(r"uses: dtolnay/rust-toolchain@([^\s]+)",
                                   read(f".github/workflows/{name}"))
-                self.assertEqual(refs, [channel] * count)
+                expected = [channel] * count
+                if name == "ci.yml":
+                    # The independent formatter pins the action for the same compiler.
+                    formatter = "4dfd137a5aecc12897f37a01818006f58cf58347"
+                    expected.append(formatter)
+                    self.assertIn(f"@{formatter} # Rust {channel}", read(".github/workflows/ci.yml"))
+                self.assertEqual(refs, expected)
         self.assertIn(f"FROM rust:{channel}-bookworm AS builder", read("Dockerfile"))
         self.assertIn(f"--default-toolchain {channel}", read("Dockerfile.dev"))
         self.assertIn(f"--toolchain {channel}-x86_64-unknown-linux-gnu", read("Dockerfile.dev"))

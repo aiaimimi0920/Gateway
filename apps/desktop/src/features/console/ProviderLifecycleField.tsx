@@ -70,7 +70,7 @@ export function ProviderLifecycleField({ providerLabel, label, value, secret = f
   const display = secret ? (configured || savedSecret ? "••••" : "—") : value || "—";
   return (
     <div className={`nt-provider-lifecycle__field${editing ? " nt-provider-lifecycle__field--editing" : ""}`}>
-      <span className="nt-provider-lifecycle__label" title={description}>{label}</span>
+      <span className="nt-provider-lifecycle__label" title={description ? `${label}: ${description}` : label}>{label}</span>
       {editing ? <>
         <input autoFocus className="nt-input nt-provider-lifecycle__field-input"
           type={secret ? "password" : numeric ? "number" : "text"}
