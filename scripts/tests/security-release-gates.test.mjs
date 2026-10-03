@@ -12,6 +12,7 @@ const callers = [
   ["docker.yml", "docker"],
 ];
 const windowsBuildGuard = "${{ needs.security.result == 'success' && " +
+  "needs.security.outputs.findings_free == 'true' && " +
   "((github.event_name == 'push' && github.ref == 'refs/heads/main') || " +
   "(github.event_name == 'workflow_dispatch' && toJSON(inputs.scan_only) == 'false')) }}";
 
@@ -48,7 +49,7 @@ test("dependency and secret scans use the resolved commit, not a mutable ref", (
     assert.ok(block.includes("ref: ${{ needs.policy.outputs.source_sha }}"));
     assert.ok(!block.includes("ref: ${{ github.ref }}"));
   }
-  assert.match(job(security, "dependencies"), /fail-on-vuln: true/);
+  assert.ok(job(security, "dependencies").includes("enforce_findings: ${{ toJSON(inputs.enforce_findings) == 'true' }}"));
 });
 
 test("standalone and caller security runs cannot share a cancellation group", () => {
@@ -79,7 +80,10 @@ for (const [filename, publisher] of callers) {
     assert.match(build, /^    needs: security$/m);
     assert.ok(build.includes("ref: ${{ needs.security.outputs.source_sha }}"));
     if (filename === "build-windows.yml") assertWindowsBuildGuard(build);
-    else assert.doesNotMatch(build, /^    if:/m, "Do not bypass failed or cancelled scan dependencies");
+    else {
+      assert.ok(gate.includes("enforce_findings: true"));
+      assert.match(build, /^    if: \$\{\{ needs\.security\.result == 'success' && needs\.security\.outputs\.findings_free == 'true' \}\}$/m);
+    }
   });
 }
 
@@ -100,6 +104,7 @@ test("Windows guard rejects bypasses and weakened input checks", () => {
   for (const unsafe of [
     build.replace("needs.security.result == 'success' &&", "always() &&"),
     build.replace("needs.security.result == 'success' &&", ""),
+    build.replace("needs.security.outputs.findings_free == 'true' &&", ""),
     build.replace("github.event_name == 'push'", "github.event_name == 'pull_request'"),
     build.replace(" && github.ref == 'refs/heads/main'", ""),
     build.replace("toJSON(inputs.scan_only) == 'false'", "inputs.scan_only == false"),
@@ -116,16 +121,18 @@ test("Windows build guard permits only successful main pushes or explicit build 
     .trim().slice(3, -2).trim().replace(/==/g, "===");
   const evaluate = new Function("needs", "github", "inputs", "toJSON", `return (${expression});`);
   for (const result of ["success", "failure", "cancelled", "skipped", ""]) {
-    for (const event_name of ["pull_request", "pull_request_target", "push", "workflow_dispatch", "schedule"]) {
-      for (const ref of ["refs/heads/main", "refs/heads/topic", "refs/tags/V1.2.3", "refs/pull/19/merge"]) {
-        for (const scan_only of [true, false, undefined, null, "false", "true", "", 0, 1]) {
-          const expected = result === "success" &&
-            ((event_name === "push" && ref === "refs/heads/main") ||
-             (event_name === "workflow_dispatch" && scan_only === false));
-          const inputs = scan_only === undefined ? {} : { scan_only };
-          assert.equal(evaluate({ security: { result } }, { event_name, ref }, inputs,
-            (value) => JSON.stringify(value === undefined ? "" : value)), expected,
-          JSON.stringify({ result, event_name, ref, inputs }));
+    for (const findings_free of ["true", "false", "", null, undefined]) {
+      for (const event_name of ["pull_request", "pull_request_target", "push", "workflow_dispatch", "schedule"]) {
+        for (const ref of ["refs/heads/main", "refs/heads/topic", "refs/tags/V1.2.3", "refs/pull/19/merge"]) {
+          for (const scan_only of [true, false, undefined, null, "false", "true", "", 0, 1]) {
+            const expected = result === "success" && findings_free === "true" &&
+              ((event_name === "push" && ref === "refs/heads/main") ||
+               (event_name === "workflow_dispatch" && scan_only === false));
+            const inputs = scan_only === undefined ? {} : { scan_only };
+            assert.equal(evaluate({ security: { result, outputs: { findings_free } } }, { event_name, ref }, inputs,
+              (value) => JSON.stringify(value === undefined ? "" : value)), expected,
+            JSON.stringify({ result, event_name, ref, inputs }));
+          }
         }
       }
     }
@@ -139,6 +146,14 @@ test("manual tag releases resolve the requested tag while other callers use even
   for (const filename of ["build-windows.yml", "docker.yml"]) {
     assert.ok(job(readWorkflow(filename), "security").includes("ref: ${{ github.sha }}"));
   }
+});
+
+test("Docker main publication remains explicit and never enabled for pull requests", () => {
+  const workflow = readWorkflow("docker.yml");
+  assert.ok(workflow.includes("PUBLISH_IMAGE: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/V')) }}"));
+  assert.equal((workflow.match(/if: env.PUBLISH_IMAGE == 'true'/g) ?? []).length, 2);
+  assert.equal((workflow.match(/push: true/g) ?? []).length, 1);
+  assert.ok(job(workflow, "security").includes("enforce_findings: true"));
 });
 
 test("the reusable policy job runs both coverage and publication contracts", () => {

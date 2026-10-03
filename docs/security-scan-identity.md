@@ -1,63 +1,108 @@
-# OSV scan identity and scan-only validation
+# Development reports and strict release gates
 
-GitHub reported `configuration not found: .github/workflows/build-windows.yml:osv-scan`
-on [the PR #17 code-scanning check](https://github.com/aiaimimi0920/Gateway/runs/111045791858).
-Main invoked OSV through Build Windows, while PRs lacked that caller. Running the
-same scanner directly through Security does not supply the missing caller identity.
+GitHub previously reported `configuration not found: .github/workflows/build-windows.yml:osv-scan`
+on [PR #17's code-scanning check](https://github.com/aiaimimi0920/Gateway/runs/111045791858).
+Main invoked OSV through Build Windows, while PRs lacked that caller. Build Windows
+now scans every main PR without path filters, retaining job keys `security`,
+`dependencies`, and terminal `osv-scan`. The last job now belongs to a local reusable
+workflow; upload-sarif supplies its native identity without an invented category input.
+Acceptance requires the actual analysis key and completed upload on the exact merge SHA.
 
-Build Windows now scans every PR targeting main, without path filters, through
-the unchanged `build-windows.yml` -> `security.yml` -> pinned OSV reusable workflow
-chain. Job keys remain `security`, `dependencies`, and upstream `osv-scan`.
-The wrapper has no category input; no invented input or replacement upload is used.
-GitHub's actual analysis key/category and upload processing must be checked on the
-exact PR merge SHA, rather than inferred from matching YAML or a generic banner.
+## Development policy
 
-## Build boundary
+Valid findings are reports for follow-up work, not failures of functional development.
+Tool execution, parsing, incomplete reports and upload failures remain failures in
+independent jobs. Product CI has no dependency on the reporting jobs.
 
-The security caller still receives `github.sha`, resolves it once, and scans that
-immutable revision. The build checks out `needs.security.outputs.source_sha`.
-It requires Security success plus either a push to `refs/heads/main`, or an
-explicit manual dispatch with boolean `scan_only: false`. Manual dispatch defaults
-to `scan_only: true`; PRs never enter the Windows build job. `toJSON` preserves the
-input type so missing, null, numeric and string values cannot opt into a build.
-See [GitHub's expression semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/expressions).
+| Check | Development behavior | Execution errors |
+| --- | --- | --- |
+| OSV | Complete JSON and SARIF, native alerts and summary; findings advisory | Failed job |
+| Gitleaks | Full checked-commit history, redacted SARIF artifact and count summary | Failed job |
+| npm production audit (both roots) | Complete audit JSON artifact and count summary | Failed job |
+| Rust/Tauri formatting | Successful formatter followed by complete changed-file/count report | Failed job, including syntax errors |
+| Effective code lines | Existing ratchet, complete JSON independently checked against a fresh source scan | Failed job, including baseline/integrity/coverage errors |
+| CodeQL | Existing extended analysis and full native alerts | Analyze/upload failures remain red |
+| Compile, typecheck, unit/runtime tests | Existing required product validation behavior | Failed product job |
 
-The three-file change does not alter products, dependencies, suppressions,
-scanner pins, permissions, or Docker/tag-release gates. PR validation requests no
-release, signing or deployment. Existing Docker PR runs remain subject to their
-Security dependency and cannot publish an image on a PR event.
+CodeQL's native code-scanning check can still report new findings under repository
+rules. This patch does not change protection settings, severity, query coverage or
+alert visibility. A native finding-only result and an execution failure must be
+assessed separately; changing repository-required checks needs separate authorization.
 
-**Do not auto-merge this repair.** A merge pushes main: after Security succeeds,
-Build Windows may package/upload candidates, and the existing Docker workflow may
-publish to GHCR. Tag publication has its own existing trigger and is unchanged.
-Review those main-push side effects before any later merge decision.
+Reports use job summaries, artifacts and existing alerts instead of duplicate issues
+on each run. No issue/comment write permission or new token is introduced. Reported
+findings remain available for separate fixes. Logs and summaries never print raw
+secret findings; Gitleaks artifacts retain rule, commit and source location while
+removing snippets and commit-message/person metadata.
 
-## Findings and coverage limits
+## Strict result classification
 
-The five-lock scan and `fail-on-vuln: true` stay intact. Existing desktop findings
+The old OSV 2.5.1 reusable wrapper continued after scanner errors; its reporter could
+accept missing JSON. Gateway bypasses that wrapper with the same official scanner
+version, downloaded with a committed SHA256 checksum. This is Gateway-local hardening,
+not a claim that the upstream wrapper or another owner's project has been repaired.
+
+OSV runs at error-only verbosity with all five locks, all packages and all findings.
+Both JSON and SARIF runs must finish, have no error diagnostics, and return 0 for clean
+results or 1 for findings. Missing/invalid JSON, incomplete lock coverage, missing
+vulnerability groups, SARIF omissions, mismatched package/version/location and all
+other exits fail. Both runs must agree; database drift between them fails validation
+rather than silently dropping a finding. Upstream emits one SARIF occurrence per
+advisory, including aliases; the validator preserves this multiplicity.
+
+Gitleaks 8.24.3 is also checksum-verified. It uses its explicit `--exit-code=2` for
+findings so ordinary error exit 1 cannot be mistaken for a finding. SARIF must be
+valid, redacted, consistent with the exit status, and have no execution diagnostics.
+The npm audit validator checks schema, severity counts and complete records; exit 1
+is accepted only with validated high/critical findings. Low findings can accompany
+exit 0 at the existing high audit threshold. Formatters must return 0 before a Git
+diff is accepted; an exit 1 is never interpreted as a formatting finding.
+
+Each report upload is an ordinary required step. OSV waits for SARIF processing.
+Strict finding enforcement occurs after evidence uploads so real findings survive
+release rejection. No blanket `continue-on-error` or fallback empty report is used.
+
+## Publication boundary
+
+The reusable Security workflow defaults to strict mode for workflow callers.
+Standalone development Security scans are advisory; Build Windows explicitly selects
+advisory for PRs and manual `scan_only: true` runs. Docker and Release Tag explicitly
+remain strict, including their npm audits and existing formatting/build checks.
+The Dockerfile's audit commands are unchanged. Thus Docker release validation may
+still be red for known findings while independent product CI completes.
+
+All three publisher jobs require Security success **and** `findings_free == 'true'`.
+The output is true only when dependency and secret reports are both validated clean.
+Missing outputs cannot authorize publication. They build the immutable commit
+resolved by Security, not a mutable branch ref.
+
+Windows candidate builds additionally require a main push or manual dispatch with
+boolean `scan_only: false`. The default is true; missing, null, numeric and string
+values cannot opt into building. PRs never enter this build job.
+
+Merging still triggers main workflows: if strict scans are genuinely clean,
+Build Windows can package/upload candidates and Docker can publish to GHCR under its
+existing main/tag/manual conditions. The current real findings keep those strict
+paths blocked. This development policy does not authorize tags, signing, deployment,
+protection changes, suppression of findings or dependency/product edits.
+
+## Existing findings and validation
+
 `glib 0.18.5` (`RUSTSEC-2024-0429` / `GHSA-wrw7-89jp-8q8g`) and
-`proc-macro-error 1.0.4` (`RUSTSEC-2024-0370`) are not ignored or downgraded.
-Fixing configuration identity is not fixing either advisory.
-Dependabot's `security_update_not_possible` for glib (resolvable 0.18.5 versus
-minimum safe 0.20.0) is a dependency-resolution limitation, not this configuration
-error. A dependency migration needs its own review; this change does not force it.
+`proc-macro-error 1.0.4` (`RUSTSEC-2024-0370`) remain in complete reports. Repairing
+configuration or making development reporting advisory does not fix either issue.
+No ignores, baselines or severity overrides are added. Dependency migration is separate.
 
-The pinned v2.5.1 wrapper tolerates the scanner step's error before its reporter
-runs. Scanner-error/missing-JSON reporter handling is a separate known hardening
-task owned elsewhere; this repair does not claim to close it. A green wrapper
-alone is insufficient evidence that a scan completed. Check actual scan output,
-findings, SARIF upload and GitHub processing; fail-on-finding only protects findings
-the wrapper successfully reports. This limitation matters before any publication.
+Focused tests cover clean and vulnerable reports, alias occurrences, multi-version
+advisories, incomplete/malformed output, error diagnostics, unknown exits, unavailable
+tools, redaction, npm thresholds, formatter parse failures, complete line-audit
+reconciliation, and upload-before-enforcement ordering. The exact Windows guard is
+evaluated across 4,500 event/ref/result/input/clean-output combinations with mutation
+negative tests; this is not a GitHub Actions emulator.
 
-## Verification
-
-Local contracts pin the exact build guard and retain every other caller's gate.
-Negative mutations reject failed-scan bypasses, PR builds, non-main pushes and
-loose input comparisons. The actual allowlisted expression is evaluated across
-900 event/ref/result/input combinations; this is not a GitHub Actions emulator.
-
-For remote acceptance, record the PR head and merge SHA, Build Windows run URL,
-resolved checkout SHA, OSV analysis key/category and completed SARIF processing.
-Confirm Windows build is `skipped`, scan/reporter output contains the real
-advisories and the finding check remains red. Report any pending/unavailable
-analysis evidence explicitly. No native repository security settings need changing.
+For remote acceptance record head, merge SHA, run/job links, resolved scan checkout,
+actual `.github/workflows/build-windows.yml:osv-scan` analysis key and completed SARIF
+processing. Verify development findings succeed with reports, Windows build stays
+skipped, and strict Docker findings fail with publication skipped. Check independent
+quality reports and real product CI separately. Never substitute an old-head run or
+a generic native banner for those details.

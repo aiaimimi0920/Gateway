@@ -24,6 +24,7 @@ jobs:
     uses: ./.github/workflows/security.yml
     with:
       ref: ${{ github.sha }}
+      enforce_findings: ${{ github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && toJSON(inputs.scan_only) == 'true') }}
     permissions:
       actions: read
       contents: read
@@ -36,6 +37,7 @@ jobs:
     # toJSON distinguishes boolean false from missing, null or string inputs.
     if: >-
       ${{ needs.security.result == 'success' &&
+          needs.security.outputs.findings_free == 'true' &&
           ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
            (github.event_name == 'workflow_dispatch' && toJSON(inputs.scan_only) == 'false')) }}
     runs-on: windows-latest

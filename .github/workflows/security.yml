@@ -19,10 +19,17 @@ on:
         required: false
         type: string
         default: ""
+      enforce_findings:
+        description: Strict release gate; development callers explicitly opt out
+        type: boolean
+        default: true
     outputs:
       source_sha:
         description: Immutable commit checked by every security job
         value: ${{ jobs.policy.outputs.source_sha }}
+      findings_free:
+        description: True only when both validated scanners found no issues
+        value: ${{ jobs.dependencies.outputs.findings_free == 'true' && jobs.secrets.outputs.findings_free == 'true' }}
 
 concurrency:
   group: gateway-security-${{ github.workflow }}-${{ github.event.pull_request.number || inputs.ref || github.ref }}
@@ -54,22 +61,15 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22.22.0"
-      - run: node --test scripts/tests/security-ci-policy.test.mjs scripts/tests/security-release-gates.test.mjs
+      - run: node --test scripts/tests/security-ci-policy.test.mjs scripts/tests/security-release-gates.test.mjs scripts/tests/security-report.test.mjs scripts/tests/development-quality.test.mjs
 
   dependencies:
     name: Scan all committed dependency locks
     needs: policy
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@ffa0a5f39214d80778c9b494822d94d0d9668458
+    uses: ./.github/workflows/osv-scan.yml
     with:
       ref: ${{ needs.policy.outputs.source_sha }}
-      scan-args: |-
-        --lockfile=./Cargo.lock
-        --lockfile=./apps/desktop/src-tauri/Cargo.lock
-        --lockfile=./crates/gateway-local-data/Cargo.lock
-        --lockfile=./apps/desktop/package-lock.json
-        --lockfile=./scripts/package-lock.json
-      upload-sarif: true
-      fail-on-vuln: true
+      enforce_findings: ${{ toJSON(inputs.enforce_findings) == 'true' }}
     permissions:
       actions: read
       contents: read
@@ -83,15 +83,36 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    outputs:
+      findings_free: ${{ steps.scan.outputs.findings_free }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ needs.policy.outputs.source_sha }}
-      # This pinned action invokes Gitleaks with --redact.
-      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_VERSION: "8.24.3"
-          GITLEAKS_ENABLE_COMMENTS: "false"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22.22.0"
+      - name: Install verified Gitleaks 8.24.3
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error --retry 3 \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz \
+            --output "$RUNNER_TEMP/gitleaks.tar.gz"
+          echo "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+      - name: Scan immutable commit history and validate redacted SARIF
+        id: scan
+        run: node scripts/security-scan.mjs gitleaks "$RUNNER_TEMP/gitleaks" "$RUNNER_TEMP/gateway-gitleaks"
+      - name: Preserve validated redacted findings
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gitleaks-${{ github.workflow }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/gateway-gitleaks
+          if-no-files-found: error
+      - name: Enforce findings for release callers
+        if: inputs.enforce_findings && steps.scan.outputs.findings_free != 'true'
+        run: |
+          echo "Release blocked by validated secret findings; see redacted report."
+          exit 1

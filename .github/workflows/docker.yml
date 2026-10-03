@@ -28,6 +28,7 @@ jobs:
     uses: ./.github/workflows/security.yml
     with:
       ref: ${{ github.sha }}
+      enforce_findings: true
     permissions:
       actions: read
       contents: read
@@ -37,6 +38,7 @@ jobs:
   docker:
     name: Build and optionally publish Gateway image
     needs: security
+    if: ${{ needs.security.result == 'success' && needs.security.outputs.findings_free == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

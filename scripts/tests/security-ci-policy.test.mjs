@@ -7,16 +7,21 @@ import { test } from "node:test";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const read = (name) => readFileSync(new URL(`../../${name}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const security = read(".github/workflows/security.yml");
+const osv = read(".github/workflows/osv-scan.yml");
+const runner = read("scripts/security-scan.mjs");
 const codeql = read(".github/workflows/codeql.yml");
 const dependabot = read(".github/dependabot.yml");
 
-test("OSV covers every committed first-party lockfile and fails on findings", () => {
+test("OSV covers every committed first-party lockfile with validated reports", () => {
   const tracked = execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" }).split("\n")
     .filter((name) => /(^|\/)(Cargo\.lock|package-lock\.json)$/.test(name) && !name.includes("node_modules/"));
-  const covered = [...security.matchAll(/--lockfile=\.\/([^\s]+)/g)].map((match) => match[1]);
+  const covered = [...runner.matchAll(/"([^"\n]*(?:Cargo\.lock|package-lock\.json))"/g)].map((match) => match[1]);
   assert.deepEqual(covered.sort(), tracked.sort());
   assert.equal(covered.length, 5);
-  assert.match(security, /fail-on-vuln: true/);
+  assert.ok(security.includes("uses: ./.github/workflows/osv-scan.yml"));
+  assert.match(osv, /if: inputs.enforce_findings && steps.scan.outputs.findings_free != 'true'/);
+  assert.match(osv, /wait-for-processing: true/);
+  assert.doesNotMatch(osv, /continue-on-error|if: always|if:.*cancelled/);
   assert.doesNotMatch(security, /continue-on-error: true|allow-no-lockfiles|--offline/);
 });
 
@@ -46,7 +51,10 @@ test("security actions use immutable pins and every normal trigger", () => {
   for (const source of [security, codeql]) {
     const references = [...source.matchAll(/uses: ([^\s#]+)/g)].map((match) => match[1]);
     assert.ok(references.length > 0);
-    for (const reference of references) assert.match(reference, /@[a-f0-9]{40}$/);
+    for (const reference of references) {
+      if (reference === "./.github/workflows/osv-scan.yml") continue;
+      assert.match(reference, /@[a-f0-9]{40}$/);
+    }
     for (const event of ["pull_request:", "push:", "schedule:", "workflow_dispatch:"]) {
       assert.ok(source.includes(event), `Missing ${event}`);
     }
@@ -81,8 +89,10 @@ test("secret scanning remains redacted and read-only", () => {
   assert.match(secrets, /pull-requests: read/);
   assert.doesNotMatch(secrets, /: write/);
   assert.match(secrets, /fetch-depth: 0/);
-  assert.match(secrets, /GITLEAKS_VERSION: "8\.24\.3"/);
-  assert.match(secrets, /GITLEAKS_ENABLE_COMMENTS: "false"/);
+  assert.match(secrets, /gitleaks_8\.24\.3_linux_x64\.tar\.gz/);
+  assert.match(secrets, /sha256sum --check --strict/);
+  assert.match(runner, /"--redact=100"/);
+  assert.doesNotMatch(secrets, /GITHUB_TOKEN|ENABLE_COMMENTS/);
 });
 
 test("Dependabot covers all build roots with bounded update batches", () => {

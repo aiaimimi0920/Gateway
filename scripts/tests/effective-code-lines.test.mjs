@@ -255,7 +255,7 @@ test("summary uses the exact Gateway tiers", () => {
   );
 });
 
-test("Gateway documentation and both CI jobs invoke the ratchet", () => {
+test("Gateway documentation retains the ratchet and CI reports it independently", () => {
   const agents = fs.readFileSync(path.join(repoRoot, "AGENTS.md"), "utf8");
   const readme = fs.readFileSync(path.join(repoRoot, "README.md"), "utf8");
   const readmeZh = fs.readFileSync(path.join(repoRoot, "README.zh-CN.md"), "utf8");
@@ -264,6 +264,10 @@ test("Gateway documentation and both CI jobs invoke the ratchet", () => {
   assert.match(agents, /effective-code-lines-policy\.json/);
   assert.ok(readme.includes(command));
   assert.ok(readmeZh.includes(command));
-  assert.equal(workflow.split(command).length - 1, 2);
+  assert.equal(workflow.split(command).length - 1, 0);
+  assert.match(workflow, /check: \[npm-scripts, npm-desktop, format, lines\]/);
+  assert.match(workflow, /node scripts\/development-quality\.mjs/);
+  const reporter = fs.readFileSync(path.join(repoRoot, "scripts", "development-quality.mjs"), "utf8");
+  assert.ok(reporter.includes('"--mode", "ratchet"'));
   assert.equal(workflow.split("npm run test:effective-lines --prefix scripts").length - 1, 2);
 });
