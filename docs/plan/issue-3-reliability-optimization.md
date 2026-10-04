@@ -91,6 +91,12 @@ S3 已实现共享 attempt/deadline owner、执行起点计数、SSE handoff 后
 自动跨账户 fallback 的兼容性收紧、前置阶段/内部 HTTP/计费和未验证范围见
 [请求预算合同](../request-budget.md)，不能将其描述为通用金额硬额度或整链硬超时。
 
+S3 首次提交 `be721c7` 后，完整 HTTP/SQLite CI 合同暴露 stack overflow，Windows
+本地也复现；该提交的 fresh 构建虽通过但未交付。补充修复统一 Pipeline 的装箱
+入口，保持同任务取消/Drop；新增 caller-frame 回归及完整 HTTP 合同后 44 项通过。
+Windows fixture 清理仅对自身目录的共享/锁冲突做有界重试。修复单独正常提交，
+必须从新 SHA fresh 构建，不将旧包或旧扫描结论套用于修复版本。
+
 工具状态：此前独立代理因 `503 Service Unavailable` 不可用；本次续接完成了
 独立只读审查和修复复核，不将其冒充正式发布批准。FastCtx 连接关闭，本次按
 精确路径使用 PowerShell 读取。在线五锁扫描仍有两条既有 GTK canonical 公告

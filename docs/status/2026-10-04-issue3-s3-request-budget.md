@@ -65,6 +65,30 @@ fixture 拼错 `::default` ID，被 strict validation 拒绝；修正后 r4 全�
 
 ## 独立只读复核与逐文件安全审查
 
+### 完整 HTTP 链的 CI 回归修复
+
+首次源码提交 `be721c706e54eeabc3fac31940fe657cc691dbd8` 的 fresh 官方本地构建
+exit 0 / 1785.38 秒，但未交付：Linux CI job `111416379819` 在
+`local_storage_pipeline_contract` 的完整 HTTP/SQLite 流发生 stack overflow。
+同提交 Windows 默认测试栈也复现 `STATUS_STACK_OVERFLOW`，说明直接 send-stage
+合同通过不等于完整 HTTP 链通过。失败日志及后续修复回执均保留在上述证据目录。
+
+统一 `run_pipeline` 入口改为普通函数，立即返回装箱的 private async 流水线；
+所有既有 handler 仍在原任务 await，不 spawn，不改变阶段顺序、鉴权、计费或
+Drop 所有权。新增 caller-frame 回归在旧入口测得 28,560 字节并失败，修复后
+只持有一个指针大小的 future。该尺寸断言不证明 inner poll 最大栈，完整 HTTP
+fixture 是独立必要验证。只读复核核对了 18 个既有调用点，未发现兼容/生命周期
+阻断项；它没有代替运行测试。
+
+`http-stack-green-r2` 实际 44 passed：原 40 项、新 caller-frame 回归和 3 项完整
+HTTP/SQLite 合同。第一次 green 尝试的 HTTP 3/3 通过，但 rate-limit fixture 清理
+遇到 Windows error 32；现在只在本 fixture 自建目录对 error 32/33 有界重试，
+最多 39 次 25 ms 等待，非 Windows 或其它错误立即失败，不掩盖资源泄漏。
+修复后 locked/offline all-target check exit 0 / 226.31 秒、fmt --check、diff --check
+和 ratchet 通过；三个改动 Rust 文件有效行数分别为 365、57、324，均无例外。
+修复提交后的 CI/新包结果另记最新 Issue 回执；
+旧 `be721c7` 构建不会冒充修复后的包，先前 137 unit 回执不冒充新提交全套测试。
+
 两路独立只读复核先发现错误 code 被改写、非发送错误归属污染和 SSE budget stop
 仍处罚 provider。均已修复并复核；新增 YAML/local-key/access-projection provenance
 再单独核验，未发现候选自授权或覆盖适用限制的源码阻断项。复核不运行 Cargo，

@@ -316,7 +316,16 @@ pub struct BinaryPipelineResponse {
 ///
 /// The first five stages can return errors that abort the pipeline. Stage 6
 /// (finalize) is best-effort and never aborts.
-pub async fn run_pipeline(
+pub fn run_pipeline(
+    ctx: PipelineContext,
+    state: &Arc<AppState>,
+) -> impl std::future::Future<Output = Result<PipelineOutput, GatewayError>> + Send + '_ {
+    // All HTTP callers retain only a pointer-sized future, not the full pipeline.
+    // Poll in the same task: cancellation still drops the original stage owners.
+    Box::pin(run_pipeline_inner(ctx, state))
+}
+
+async fn run_pipeline_inner(
     mut ctx: PipelineContext,
     state: &Arc<AppState>,
 ) -> Result<PipelineOutput, GatewayError> {

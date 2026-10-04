@@ -8,6 +8,20 @@ use super::fixture::{
 };
 
 #[tokio::test]
+async fn http_callers_hold_only_a_boxed_pipeline_future() {
+    let fixture = TestState::new();
+    let future = neuro_gateway::pipeline::run_pipeline(context(false, Vec::new()), &fixture.state);
+    let caller_frame = std::mem::size_of_val(&future);
+    // HTTP handlers must not inline the pipeline's large dispatch state machine.
+    assert!(
+        caller_frame <= std::mem::size_of::<usize>(),
+        "pipeline caller frame is {caller_frame} bytes instead of a boxed future"
+    );
+    drop(future);
+    fixture.finish().await;
+}
+
+#[tokio::test]
 async fn logical_request_default_budget_prevents_candidate_multiplication() {
     let body = r#"{"error":{"message":"fixture unavailable"}}"#;
     let first = Upstream::start(StatusCode::SERVICE_UNAVAILABLE, false, body).await;
