@@ -226,18 +226,13 @@ impl UpstreamClient {
             .await
             .map_err(|e| classify_network_error(&e, Some(provider.as_str())))?;
 
-        let status = response.status().as_u16();
-
         if !response.status().is_success() {
-            let body_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| String::from("<unreadable body>"));
-            return Err(classify_upstream_error(
-                status,
-                &body_text,
-                Some(provider.as_str()),
-            ));
+            return Err(crate::upstream::response_error::classify_response_error(
+                response,
+                provider.as_str(),
+                "upstream HTTP error body",
+            )
+            .await);
         }
 
         Ok(UpstreamStreamingResponse::Http(response))

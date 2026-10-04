@@ -222,18 +222,5 @@ fn extract_code_from_body(body: &str) -> Option<String> {
 ///
 /// Handles `{ "retry_after": 5 }` and `{ "error": { "retry_after": 5 } }`.
 fn parse_retry_after_from_body(body: &str) -> Option<u64> {
-    let v: serde_json::Value = serde_json::from_str(body).ok()?;
-
-    let candidate = v
-        .get("retry_after")
-        .or_else(|| v.get("retryAfter"))
-        .or_else(|| v.get("error").and_then(|e| e.get("retry_after")))
-        .or_else(|| v.get("error").and_then(|e| e.get("retryAfter")))?;
-
-    let secs = candidate.as_f64()?;
-    if secs >= 0.0 {
-        Some((secs * 1_000.0).floor() as u64)
-    } else {
-        None
-    }
+    super::retry_after::parse_body(body)
 }

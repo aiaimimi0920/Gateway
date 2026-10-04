@@ -13,6 +13,9 @@ use tracing::warn;
 
 use crate::error::GatewayError;
 
+mod wait_budget;
+use wait_budget::WaitBudget;
+
 // ---------------------------------------------------------------------------
 // RetryPolicy
 // ---------------------------------------------------------------------------
@@ -26,6 +29,8 @@ pub struct RetryPolicy {
     pub initial_delay: Duration,
     /// Hard cap on the computed delay (before jitter). Default: 5 s.
     pub max_delay: Duration,
+    /// Cumulative sleep budget for one retry invocation. Default: 15 s.
+    pub max_total_wait: Duration,
     /// Exponential growth factor per attempt. Default: 2.0.
     pub backoff_multiplier: f64,
     /// HTTP status codes that qualify for a retry. Default: [429, 500, 502, 503, 504].
@@ -38,6 +43,7 @@ impl Default for RetryPolicy {
             max_retries: 2,
             initial_delay: Duration::from_millis(500),
             max_delay: Duration::from_secs(5),
+            max_total_wait: Duration::from_secs(15),
             backoff_multiplier: 2.0,
             retryable_statuses: vec![429, 500, 502, 503, 504],
         }
@@ -104,8 +110,8 @@ pub fn should_retry(error: &GatewayError, policy: &RetryPolicy) -> bool {
 /// `policy`.
 ///
 /// - The closure is called up to `policy.max_retries + 1` times total.
-/// - Between each failed attempt that qualifies for a retry, the task sleeps
-///   for `compute_delay(attempt, policy)`.
+/// - Retry hints take precedence over local backoff. Sleeps require admission
+///   against `max_total_wait`; excessive hints are never truncated.
 /// - If all attempts fail, the **last** error is returned.
 ///
 /// # Example
@@ -117,42 +123,12 @@ pub fn should_retry(error: &GatewayError, policy: &RetryPolicy) -> bool {
 /// )
 /// .await?;
 /// ```
-pub async fn execute_with_retry<T, F, Fut>(
-    mut f: F,
-    policy: &RetryPolicy,
-) -> Result<T, GatewayError>
+pub async fn execute_with_retry<T, F, Fut>(f: F, policy: &RetryPolicy) -> Result<T, GatewayError>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Result<T, GatewayError>>,
 {
-    let mut last_error: Option<GatewayError> = None;
-
-    for attempt in 0..=policy.max_retries {
-        match f().await {
-            Ok(result) => return Ok(result),
-            Err(e) => {
-                if attempt < policy.max_retries && should_retry(&e, policy) {
-                    let delay = compute_delay(attempt, policy);
-                    warn!(
-                        attempt,
-                        delay_ms = delay.as_millis() as u64,
-                        kind = ?e.kind,
-                        provider = ?e.provider_name,
-                        "upstream call failed; retrying"
-                    );
-                    sleep(delay).await;
-                    last_error = Some(e);
-                } else {
-                    return Err(e);
-                }
-            }
-        }
-    }
-
-    // Unreachable in practice: the loop above always returns on the last
-    // attempt (either Ok or the non-retryable Err branch), but the compiler
-    // cannot prove that without this fallback.
-    Err(last_error.expect("retry loop exited without a result"))
+    execute_with_retry_after_admission_observed(f, || async { Ok(()) }, |_| {}, policy).await
 }
 
 /// Execute an upstream closure whose first transport attempt was already
@@ -196,6 +172,7 @@ where
     O: for<'a> FnMut(RetryAttemptObservation<'a>),
 {
     let mut last_error: Option<GatewayError> = None;
+    let mut wait_budget = WaitBudget::new(policy.max_total_wait);
 
     for attempt in 0..=policy.max_retries {
         if attempt > 0 {
@@ -212,12 +189,14 @@ where
             Ok(result) => return Ok(result),
             Err(error) => {
                 if attempt < policy.max_retries && should_retry(&error, policy) {
-                    let delay = compute_delay(attempt, policy);
+                    let Some(delay) = wait_budget.next_delay(&error, attempt, policy) else {
+                        warn!(attempt, kind = ?error.kind, "upstream retry wait budget exhausted");
+                        return Err(error);
+                    };
                     warn!(
                         attempt,
                         delay_ms = delay.as_millis() as u64,
                         kind = ?error.kind,
-                        provider = ?error.provider_name,
                         "upstream call failed; retrying"
                     );
                     last_error = Some(error);
@@ -620,6 +599,7 @@ mod tests {
         assert_eq!(p.max_retries, 2);
         assert_eq!(p.initial_delay, Duration::from_millis(500));
         assert_eq!(p.max_delay, Duration::from_secs(5));
+        assert_eq!(p.max_total_wait, Duration::from_secs(15));
         assert!((p.backoff_multiplier - 2.0).abs() < f64::EPSILON);
         assert_eq!(p.retryable_statuses, vec![429, 500, 502, 503, 504]);
     }

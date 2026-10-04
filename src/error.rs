@@ -6,9 +6,11 @@
 
 mod classification;
 mod diagnostics;
+mod retry_after;
 
 pub use classification::{classify_network_error, classify_upstream_error};
 pub use diagnostics::{sanitize_provider_error_message, PROVIDER_ERROR_MESSAGE_MAX_CHARS};
+pub(crate) use retry_after::retry_after_from_headers;
 
 use axum::http::{header::RETRY_AFTER, HeaderValue, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -219,6 +221,17 @@ impl GatewayError {
     /// Attach an error code (builder style).
     pub fn with_code(mut self, code: impl Into<String>) -> Self {
         self.code = Some(code.into());
+        self
+    }
+
+    /// A transport hint changes timing only, never retry eligibility or error identity.
+    pub(crate) fn with_retry_after_ms(mut self, delay_ms: Option<u64>) -> Self {
+        if let Some(delay_ms) = delay_ms.filter(|_| self.retryable) {
+            self.fallback_hint = FallbackHint::Retry {
+                delay_ms,
+                reason: "Upstream requested a delay before retrying.".to_string(),
+            };
+        }
         self
     }
 }

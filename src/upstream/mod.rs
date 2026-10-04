@@ -109,6 +109,7 @@ mod producer_media_helpers;
 mod producer_session_helpers;
 pub mod qwen;
 pub(crate) mod request_time_browser_policy;
+mod response_error;
 mod response_preview_helpers;
 pub(crate) mod response_types;
 #[cfg(feature = "family-search-api-compatible-official-api")]

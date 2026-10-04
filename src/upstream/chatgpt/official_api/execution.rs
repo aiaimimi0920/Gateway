@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use rquest::header::HeaderMap;
 use rquest::RequestBuilder;
 
-use crate::error::{classify_network_error, classify_upstream_error, GatewayError};
+use crate::error::{classify_network_error, GatewayError};
 use crate::protocol::canonical::{CanonicalRelayRequest, CanonicalRelayResponse, EndpointKind};
 use crate::protocol::chatgpt::official_api as surface;
 use crate::protocol::responses;
@@ -13,6 +13,7 @@ use crate::routing::candidate::ProviderAccountPayload;
 use crate::upstream::client::UpstreamClient;
 use crate::upstream::common::RequestPlan;
 use crate::upstream::headers::build_upstream_headers_with;
+use crate::upstream::response_error::classify_response_error;
 use crate::upstream::response_types::UpstreamStreamingResponse;
 
 use super::request_plan::{build_request_plan, owns_payload};
@@ -42,14 +43,10 @@ pub async fn execute_forced_streaming_accumulate(
         .await
         .map_err(|error| classify_network_error(&error, Some(provider)))?;
 
-    let status = response.status();
-    if !status.is_success() {
-        let body_text = body::read_error(response, provider).await?;
-        return Err(classify_upstream_error(
-            status.into(),
-            &body_text,
-            Some(provider),
-        ));
+    if !response.status().is_success() {
+        return Err(
+            classify_response_error(response, provider, "ChatGPT official API error body").await,
+        );
     }
 
     responses::accumulate_responses_stream(response, model).await
@@ -118,14 +115,13 @@ impl UpstreamClient {
             .await
             .map_err(|error| classify_network_error(&error, Some(context.provider)))?;
 
-        let status = response.status().as_u16();
         if !response.status().is_success() {
-            let body_text = body::read_error(response, context.provider).await?;
-            return Err(classify_upstream_error(
-                status,
-                &body_text,
-                Some(context.provider),
-            ));
+            return Err(classify_response_error(
+                response,
+                context.provider,
+                "ChatGPT official API error body",
+            )
+            .await);
         }
 
         let body = body::read_json(response, context.provider).await?;
@@ -147,14 +143,13 @@ impl UpstreamClient {
             .await
             .map_err(|error| classify_network_error(&error, Some(context.provider)))?;
 
-        let status = response.status().as_u16();
         if !response.status().is_success() {
-            let body_text = body::read_error(response, context.provider).await?;
-            return Err(classify_upstream_error(
-                status,
-                &body_text,
-                Some(context.provider),
-            ));
+            return Err(classify_response_error(
+                response,
+                context.provider,
+                "ChatGPT official API error body",
+            )
+            .await);
         }
 
         Ok(UpstreamStreamingResponse::Http(response))
