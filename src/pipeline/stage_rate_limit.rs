@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 use tracing::warn;
@@ -15,6 +15,7 @@ use crate::rate_limit::{
 use crate::state::AppState;
 
 use super::PipelineContext;
+mod attempt_budget;
 
 #[derive(Clone)]
 pub struct ProviderAttemptGate {
@@ -25,26 +26,19 @@ pub struct ProviderAttemptGate {
     outbound_attempt_count: Arc<AtomicU32>,
     attempted_provider_ids: Arc<parking_lot::Mutex<Vec<String>>>,
     provider_account_id: String,
+    request_budget: super::request_budget::RequestBudget,
 }
 
 impl ProviderAttemptGate {
     pub async fn admit(&self) -> Result<(), GatewayError> {
+        self.request_budget.check()?;
         enforce(
             self.req_id,
             &self.redis_pool,
             self.local_limits.as_deref(),
             &self.rules,
         )
-        .await?;
-        self.outbound_attempt_count.fetch_add(1, Ordering::Relaxed);
-        let mut attempted = self.attempted_provider_ids.lock();
-        if !attempted
-            .iter()
-            .any(|value| value == &self.provider_account_id)
-        {
-            attempted.push(self.provider_account_id.clone());
-        }
-        Ok(())
+        .await
     }
 }
 
@@ -72,7 +66,10 @@ pub fn provider_attempt_gate(
     state: &Arc<AppState>,
     provider_account_id: &str,
 ) -> Result<ProviderAttemptGate, GatewayError> {
-    let rules = if let Some(config) = ctx.route_policy_config.as_ref() {
+    let rules = if let Some(config) = ctx.route_policy_config.as_ref().filter(|config| {
+        config.rate_limit_enforcement_version.as_deref() == Some("v1")
+            && config.provider_attempt_rate_limit.is_some()
+    }) {
         let dimensions = request_dimensions(ctx, Some(provider_account_id))?;
         build_provider_attempt_rate_limit_rule(config, &dimensions)?
             .into_iter()
@@ -91,6 +88,7 @@ pub fn provider_attempt_gate(
         outbound_attempt_count: Arc::clone(&ctx.route_attempt_count),
         attempted_provider_ids: Arc::clone(&ctx.attempted_provider_ids),
         provider_account_id: provider_account_id.to_string(),
+        request_budget: ctx.request_budget.clone(),
     })
 }
 

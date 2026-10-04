@@ -2,6 +2,13 @@
 
 use super::*;
 
+/// Candidate ordering and explicit route provenance from the same immutable snapshot.
+pub struct CandidateResolution {
+    pub candidates: Vec<RouteCandidate>,
+    /// None means automatic discovery; Some(empty) means only disabled rules matched.
+    pub explicit_provider_ids: Option<Vec<String>>,
+}
+
 pub(super) fn resolve_candidates_inner(
     guard: &RouteConfigInner,
     model: Option<&str>,
@@ -14,6 +21,15 @@ pub(super) fn resolve_candidates_inner_with_account_filter(
     model: Option<&str>,
     allowed_account_ids: Option<&HashSet<String>>,
 ) -> Vec<RouteCandidate> {
+    resolve_candidates_with_authorization(guard, model, allowed_account_ids).candidates
+}
+
+pub(super) fn resolve_candidates_with_authorization(
+    guard: &RouteConfigInner,
+    model: Option<&str>,
+    allowed_account_ids: Option<&HashSet<String>>,
+) -> CandidateResolution {
+    let mut explicit_provider_ids = None;
     let provider_map: HashMap<&str, &CompiledProvider> = guard
         .providers
         .iter()
@@ -100,12 +116,18 @@ pub(super) fn resolve_candidates_inner_with_account_filter(
                         }
                     }
                 }
+                explicit_provider_ids = Some(
+                    result
+                        .iter()
+                        .map(|provider| provider.id.to_string())
+                        .collect(),
+                );
                 result
             }
         }
     };
 
-    matched
+    let candidates = matched
         .into_iter()
         .filter_map(|matched| {
             provider_map.get(matched.id).and_then(|provider| {
@@ -118,7 +140,11 @@ pub(super) fn resolve_candidates_inner_with_account_filter(
                 )
             })
         })
-        .collect()
+        .collect();
+    CandidateResolution {
+        candidates,
+        explicit_provider_ids,
+    }
 }
 
 /// Select a credential's payload from the pool using model-aware round-robin.

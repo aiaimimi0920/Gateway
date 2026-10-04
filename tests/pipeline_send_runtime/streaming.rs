@@ -5,7 +5,9 @@ use futures::StreamExt;
 use neuro_gateway::pipeline::{stage_send, PipelineOutput};
 use tokio::time::timeout;
 
-use super::fixture::{candidate, context, TestState, Upstream, DEADLINE, SSE_REPLY};
+use super::fixture::{
+    authorize_candidates, candidate, context, TestState, Upstream, DEADLINE, SSE_REPLY,
+};
 
 #[tokio::test]
 async fn clean_stream_defers_success_until_eof_and_reports_once() {
@@ -53,7 +55,7 @@ async fn clean_stream_defers_success_until_eof_and_reports_once() {
 }
 
 #[tokio::test]
-async fn dropping_stream_reports_failure_without_early_success_or_held_permit() {
+async fn dropping_stream_finalizes_without_provider_penalty_or_held_permit() {
     let upstream = Upstream::start(StatusCode::OK, true, SSE_REPLY).await;
     let fixture = TestState::new();
     let selected = candidate(&upstream, "drop");
@@ -72,7 +74,7 @@ async fn dropping_stream_reports_failure_without_early_success_or_held_permit() 
     assert_eq!(controller.snapshot().active_count, 0);
     assert_eq!(controller.snapshot().consecutive_successes, 0);
     drop(stream);
-    assert_eq!(controller.snapshot().current_limit, 7);
+    assert_eq!(controller.snapshot().current_limit, 10);
     assert_eq!(controller.snapshot().consecutive_successes, 0);
     assert_eq!(controller.snapshot().active_count, 0);
     upstream.finish().await;
@@ -96,6 +98,7 @@ async fn stream_start_failure_falls_back_before_returning_any_sse() {
         .concurrency_registry
         .get_or_create(&first.provider_account_id);
     let mut ctx = context(true, vec![first.clone(), second.clone()]);
+    authorize_candidates(&mut ctx);
     let output = timeout(DEADLINE, stage_send::run(&mut ctx, &fixture.state))
         .await
         .unwrap()

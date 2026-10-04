@@ -53,9 +53,7 @@ use crate::protocol::tool_inject;
 use crate::provider_failure::classify_provider_failure;
 use crate::provider_runtime;
 use crate::rate_limit::ProviderRateLimitRejections;
-use crate::retry::{
-    execute_with_retry_after_admission_observed, RetryAttemptObservation, RetryPolicy,
-};
+use crate::retry::{RetryAttemptObservation, RetryPolicy};
 use crate::state::AppState;
 use crate::upstream::response_types::UpstreamStreamingResponse;
 use crate::upstream::stream::{
@@ -125,6 +123,21 @@ pub async fn run(
     ctx: &mut PipelineContext,
     state: &Arc<AppState>,
 ) -> Result<PipelineOutput, GatewayError> {
+    let budget = ctx.request_budget.clone();
+    budget.configure(
+        &ctx.canonical_req,
+        ctx.route_policy_config
+            .as_ref()
+            .and_then(|policy| policy.total_request_timeout_seconds),
+    )?;
+    // Keep the large dispatch state out of the budget wrapper's stack frame.
+    budget.run(Box::pin(run_candidates(ctx, state))).await
+}
+
+async fn run_candidates(
+    ctx: &mut PipelineContext,
+    state: &Arc<AppState>,
+) -> Result<PipelineOutput, GatewayError> {
     if matches!(
         ctx.canonical_req.endpoint_kind,
         EndpointKind::Embeddings
@@ -154,12 +167,39 @@ pub async fn run(
     }
 
     let mut last_error: Option<GatewayError> = None;
+    let mut rejected_fallback = false;
+    let mut rejected_by_policy = false;
     let mut provider_rate_limit_rejections = ProviderRateLimitRejections::default();
 
     // Clone candidates so we can iterate without holding a mutable ref.
     let candidates = ctx.candidates.clone();
 
     for (candidate_index, candidate) in candidates.iter().enumerate() {
+        ctx.request_budget.check()?;
+        if !super::stage_route::provider_allowed_by_policy(
+            &candidate.provider_account_id,
+            ctx.route_policy_config.as_ref(),
+        ) {
+            rejected_by_policy = true;
+            continue;
+        }
+        if ctx
+            .attempted_provider_ids
+            .lock()
+            .iter()
+            .any(|id| id != &candidate.provider_account_id)
+            && !super::stage_route::provider_explicitly_allowed_by_policy(
+                &candidate.provider_account_id,
+                ctx.route_policy_config.as_ref(),
+            )
+            && !ctx
+                .explicit_fallback_provider_ids
+                .iter()
+                .any(|id| id == &candidate.provider_account_id)
+        {
+            rejected_fallback = true;
+            continue;
+        }
         let route_policy_config = ctx.route_policy_config.clone();
         let provider_attempt_gate = super::stage_rate_limit::provider_attempt_gate(
             ctx,
@@ -380,11 +420,26 @@ pub async fn run(
                 last_error = Some(error);
                 continue;
             }
-            Err(AttemptError::Stop(error)) => return Err(error),
+            Err(AttemptError::Stop(error)) => {
+                return Err(error);
+            }
         }
     }
 
     // All candidates exhausted.
+    if rejected_fallback {
+        return Err(GatewayError::service_unavailable(
+            "cross-provider fallback requires an explicit provider-account allowlist",
+        )
+        .with_code("provider_fallback_not_authorized"));
+    }
+    if rejected_by_policy && ctx.route_attempt_count() == 0 {
+        let mut error =
+            GatewayError::bad_request("no provider candidate is authorized by route policy")
+                .with_code("provider_not_authorized");
+        error.http_status = Some(403);
+        return Err(error);
+    }
     Err(provider_rate_limit_rejections
         .resolve_terminal_error(last_error)
         .unwrap_or_else(|| GatewayError::server_error("all provider candidates exhausted")))

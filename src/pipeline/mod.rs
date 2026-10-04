@@ -25,6 +25,7 @@ use crate::routing::candidate::RouteCandidate;
 use crate::state::AppState;
 use crate::upstream::stream::TrackedStream;
 
+pub mod request_budget;
 mod route_health_cache;
 mod runtime_storage;
 pub mod stage_auth;
@@ -70,6 +71,10 @@ pub struct PipelineContext {
     pub stream: bool,
     /// Wall-clock timestamp when the pipeline started.
     pub started_at: Instant,
+    /// Single send/deadline owner shared by all candidates and recoveries.
+    pub request_budget: request_budget::RequestBudget,
+    /// Exact IDs explicitly named by trusted route/key/projection owners, not auto discovery.
+    pub explicit_fallback_provider_ids: Vec<String>,
     /// Bearer token extracted from the HTTP Authorization header, if present.
     pub bearer_token: Option<String>,
 
@@ -194,11 +199,14 @@ impl PipelineContext {
     /// Create a new context for a request.
     pub fn new(canonical_req: CanonicalRelayRequest, bearer_token: Option<String>) -> Self {
         let stream = canonical_req.stream;
+        let request_budget = request_budget::RequestBudget::for_request(&canonical_req);
         Self {
             req_id: Uuid::new_v4(),
             canonical_req,
             stream,
             started_at: Instant::now(),
+            request_budget,
+            explicit_fallback_provider_ids: Vec::new(),
             bearer_token,
             session: None,
             candidates: vec![],

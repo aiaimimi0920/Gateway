@@ -5,7 +5,9 @@ use axum::http::StatusCode;
 use neuro_gateway::pipeline::{stage_send, PipelineOutput};
 use tokio::time::timeout;
 
-use super::fixture::{candidate, context, TestState, Upstream, DEADLINE, JSON_REPLY};
+use super::fixture::{
+    authorize_candidates, candidate, context, TestState, Upstream, DEADLINE, JSON_REPLY,
+};
 
 #[tokio::test]
 async fn buffered_success_preserves_wire_model_usage_and_releases_permit() {
@@ -68,6 +70,7 @@ async fn transient_failure_retries_then_falls_back_to_next_provider() {
         .concurrency_registry
         .get_or_create(&second.provider_account_id);
     let mut ctx = context(false, vec![first.clone(), second.clone()]);
+    authorize_candidates(&mut ctx);
     let output = timeout(DEADLINE, stage_send::run(&mut ctx, &fixture.state))
         .await
         .unwrap()

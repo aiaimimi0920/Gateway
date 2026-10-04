@@ -40,6 +40,7 @@ pub(super) async fn normalize(
                 Some(Err(err)) => {
                     let error =
                         crate::error::classify_network_error(&err, Some(&candidate.adapter));
+                    ctx.request_budget.observe_error(&error);
                     let failure_kind = classify_failure_kind(&error);
                     controller.on_failure(failure_kind);
                     observe_provider_failure_metric(
@@ -75,6 +76,7 @@ pub(super) async fn normalize(
                         "Streaming adapter ended before any events were received",
                     )
                     .with_provider(candidate.adapter.as_str());
+                    ctx.request_budget.observe_error(&error);
                     let failure_kind = classify_failure_kind(&error);
                     controller.on_failure(failure_kind);
                     observe_provider_failure_metric(
@@ -108,6 +110,7 @@ pub(super) async fn normalize(
             };
 
             if let Some(error) = accio::detect_accio_provider_error(first_chunk.as_ref()) {
+                ctx.request_budget.observe_error(&error);
                 let failure_kind = classify_failure_kind(&error);
                 controller.on_failure(failure_kind);
                 observe_provider_failure_metric(

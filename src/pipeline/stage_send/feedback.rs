@@ -24,7 +24,11 @@ pub(super) fn should_try_next_candidate(e: &GatewayError) -> bool {
 }
 
 pub(super) fn should_record_provider_failure(error: &GatewayError) -> bool {
-    error.code.as_deref() != Some("rate_limit_admission_indeterminate")
+    error.request_budget_stop_reason().is_none()
+        && !matches!(
+            error.code.as_deref(),
+            Some("rate_limit_admission_indeterminate")
+        )
 }
 
 fn is_gemini_canvas_video_quota_passthrough_adapter(adapter: &str) -> bool {
@@ -41,6 +45,9 @@ pub(super) fn retry_policy_for_request(
     payload: &crate::routing::candidate::ProviderAccountPayload,
 ) -> RetryPolicy {
     let mut policy = RetryPolicy::default();
+    if !super::super::request_budget::replay_safe(req) {
+        policy.max_retries = 0;
+    }
     if payload.adapter == "gemini_canvas_program_web_reverse_compatible"
         && matches!(req.endpoint_kind, EndpointKind::ChatCompletions)
     {

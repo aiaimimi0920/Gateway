@@ -39,37 +39,37 @@ pub(super) async fn send(
     if expects_binary_passthrough(&ctx.canonical_req) {
         let metric_provider = candidate.provider_account_id.clone();
         let metric_model = model.clone();
-        let result = execute_with_retry_after_admission_observed(
-            || {
-                let payload = Arc::clone(&payload);
-                let canonical_req = Arc::clone(&canonical_req);
-                let model = model.clone();
-                let extra_hdrs = Arc::clone(&extra_hdrs);
-                let provider_account_id = provider_account_id.clone();
-                async move {
-                    client
-                        .execute_binary_passthrough_with_provider_account_id(
-                            &provider_account_id,
-                            payload.as_ref(),
-                            canonical_req.as_ref(),
-                            &model,
-                            Some(extra_hdrs.as_ref()),
-                        )
-                        .await
-                }
-            },
-            || provider_attempt_gate.admit(),
-            move |observation| {
-                observe_provider_attempt_metric(
-                    global_gateway_metrics().as_ref(),
-                    &metric_provider,
-                    &metric_model,
-                    observation,
-                );
-            },
-            &retry_policy,
-        )
-        .await;
+        let result = provider_attempt_gate
+            .execute_observed(
+                || {
+                    let payload = Arc::clone(&payload);
+                    let canonical_req = Arc::clone(&canonical_req);
+                    let model = model.clone();
+                    let extra_hdrs = Arc::clone(&extra_hdrs);
+                    let provider_account_id = provider_account_id.clone();
+                    async move {
+                        client
+                            .execute_binary_passthrough_with_provider_account_id(
+                                &provider_account_id,
+                                payload.as_ref(),
+                                canonical_req.as_ref(),
+                                &model,
+                                Some(extra_hdrs.as_ref()),
+                            )
+                            .await
+                    }
+                },
+                move |observation| {
+                    observe_provider_attempt_metric(
+                        global_gateway_metrics().as_ref(),
+                        &metric_provider,
+                        &metric_model,
+                        observation,
+                    );
+                },
+                &retry_policy,
+            )
+            .await;
 
         match result {
             Ok(binary_resp) => {
@@ -131,37 +131,37 @@ pub(super) async fn send(
     if expects_json_passthrough(&ctx.canonical_req) {
         let metric_provider = candidate.provider_account_id.clone();
         let metric_model = model.clone();
-        let result = execute_with_retry_after_admission_observed(
-            || {
-                let payload = Arc::clone(&payload);
-                let canonical_req = Arc::clone(&canonical_req);
-                let model = model.clone();
-                let extra_hdrs = Arc::clone(&extra_hdrs);
-                async move {
-                    client
-                        .execute_json_passthrough(
-                            &candidate.provider_account_id,
-                            candidate.resolved_execution_mode,
-                            payload.as_ref(),
-                            canonical_req.as_ref(),
-                            &model,
-                            Some(extra_hdrs.as_ref()),
-                        )
-                        .await
-                }
-            },
-            || provider_attempt_gate.admit(),
-            move |observation| {
-                observe_provider_attempt_metric(
-                    global_gateway_metrics().as_ref(),
-                    &metric_provider,
-                    &metric_model,
-                    observation,
-                );
-            },
-            &retry_policy,
-        )
-        .await;
+        let result = provider_attempt_gate
+            .execute_observed(
+                || {
+                    let payload = Arc::clone(&payload);
+                    let canonical_req = Arc::clone(&canonical_req);
+                    let model = model.clone();
+                    let extra_hdrs = Arc::clone(&extra_hdrs);
+                    async move {
+                        client
+                            .execute_json_passthrough(
+                                &candidate.provider_account_id,
+                                candidate.resolved_execution_mode,
+                                payload.as_ref(),
+                                canonical_req.as_ref(),
+                                &model,
+                                Some(extra_hdrs.as_ref()),
+                            )
+                            .await
+                    }
+                },
+                move |observation| {
+                    observe_provider_attempt_metric(
+                        global_gateway_metrics().as_ref(),
+                        &metric_provider,
+                        &metric_model,
+                        observation,
+                    );
+                },
+                &retry_policy,
+            )
+            .await;
 
         match result {
             Ok(json_resp) => {
@@ -243,49 +243,49 @@ pub(super) async fn send(
     } else {
         let metric_provider = candidate.provider_account_id.clone();
         let metric_model = model.clone();
-        execute_with_retry_after_admission_observed(
-            || {
-                let payload = Arc::clone(&payload);
-                let canonical_req = Arc::clone(&canonical_req);
-                let model = model.clone();
-                let extra_hdrs = Arc::clone(&extra_hdrs);
-                let provider_account_id = provider_account_id.clone();
-                async move {
-                    if candidate.adapter == "freebuff_compatible" {
-                        freebuff::execute(
-                            &client.freebuff,
-                            client.client(),
-                            payload.as_ref(),
-                            canonical_req.as_ref(),
-                            &model,
-                            Some(extra_hdrs.as_ref()),
-                        )
-                        .await
-                    } else {
-                        client
-                            .execute_with_provider_account_id(
-                                &provider_account_id,
+        provider_attempt_gate
+            .execute_observed(
+                || {
+                    let payload = Arc::clone(&payload);
+                    let canonical_req = Arc::clone(&canonical_req);
+                    let model = model.clone();
+                    let extra_hdrs = Arc::clone(&extra_hdrs);
+                    let provider_account_id = provider_account_id.clone();
+                    async move {
+                        if candidate.adapter == "freebuff_compatible" {
+                            freebuff::execute(
+                                &client.freebuff,
+                                client.client(),
                                 payload.as_ref(),
                                 canonical_req.as_ref(),
                                 &model,
                                 Some(extra_hdrs.as_ref()),
                             )
                             .await
+                        } else {
+                            client
+                                .execute_with_provider_account_id(
+                                    &provider_account_id,
+                                    payload.as_ref(),
+                                    canonical_req.as_ref(),
+                                    &model,
+                                    Some(extra_hdrs.as_ref()),
+                                )
+                                .await
+                        }
                     }
-                }
-            },
-            || provider_attempt_gate.admit(),
-            move |observation| {
-                observe_provider_attempt_metric(
-                    global_gateway_metrics().as_ref(),
-                    &metric_provider,
-                    &metric_model,
-                    observation,
-                );
-            },
-            &retry_policy,
-        )
-        .await
+                },
+                move |observation| {
+                    observe_provider_attempt_metric(
+                        global_gateway_metrics().as_ref(),
+                        &metric_provider,
+                        &metric_model,
+                        observation,
+                    );
+                },
+                &retry_policy,
+            )
+            .await
     };
 
     match result {

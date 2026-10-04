@@ -196,9 +196,15 @@ model_routes: []
     assert_eq!(models[0].id, "nvidia-test");
     let mut candidates = routes.resolve_candidates(Some("nvidia-test"));
     assert_eq!(candidates.len(), 2);
-    db.authorize_local_candidates(&key.id, Some("nvidia-test"), &mut candidates)
+    let authorization = db
+        .authorize_local_candidates_with_fallback_authorization(
+            &key.id,
+            Some("nvidia-test"),
+            &mut candidates,
+        )
         .await
         .unwrap();
+    assert_eq!(authorization, Some(vec!["nvidia-allowed".to_string()]));
     assert_eq!(candidates.len(), 1);
     assert_eq!(candidates[0].provider_account_id, "nvidia-allowed");
     db.revoke_access_key(&key.id, None).await.unwrap();

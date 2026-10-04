@@ -10,6 +10,7 @@ pub(super) async fn send(
 ) -> Result<PipelineOutput, AttemptError> {
     let PreparedAttempt {
         effective_payload,
+        provider_attempt_gate,
         model,
         reply_model,
         original_tools,
@@ -21,6 +22,9 @@ pub(super) async fn send(
         tools_were_injected,
         ..
     } = attempt;
+    provider_attempt_gate
+        .begin_attempt()
+        .map_err(AttemptError::Stop)?;
     let bridge_attempt_started_at = Instant::now();
     let cancellation = ProviderAttemptCancellation::new(
         global_gateway_metrics(),
@@ -46,6 +50,7 @@ pub(super) async fn send(
                     "upstream streaming bridge failed",
                     Some(&candidate.adapter),
                 );
+                provider_attempt_gate.observe_error(&failure);
                 let failure_kind = classify_failure_kind(&failure);
                 controller.on_failure(failure_kind);
                 cancellation.disarm();
@@ -118,6 +123,7 @@ pub(super) async fn send(
                     return Ok(PipelineOutput::Json(json_resp));
                 }
                 Err(error) => {
+                    provider_attempt_gate.observe_error(&error);
                     cancellation.disarm();
                     let failure_kind = classify_failure_kind(&error);
                     controller.on_failure(failure_kind);
@@ -152,6 +158,7 @@ pub(super) async fn send(
             )
             .with_code("unexpected_non_http_stream_bridge")
             .with_provider(candidate.adapter.as_str());
+            provider_attempt_gate.observe_error(&error);
             let failure_kind = classify_failure_kind(&error);
             controller.on_failure(failure_kind);
             observe_provider_failure_metric(
@@ -177,6 +184,7 @@ pub(super) async fn send(
             }
         }
         Err(error) => {
+            provider_attempt_gate.observe_error(&error);
             cancellation.disarm();
             let failure_kind = classify_failure_kind(&error);
             controller.on_failure(failure_kind);

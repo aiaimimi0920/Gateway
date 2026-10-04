@@ -10,6 +10,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
     model: &str,
     extra_headers: &std::collections::HashMap<String, String>,
 ) -> Result<(UpstreamStreamingResponse, Instant), GatewayError> {
+    provider_attempt_gate.begin_attempt()?;
     let first_attempt_started_at = Instant::now();
     let cancellation = ProviderAttemptCancellation::new(
         global_gateway_metrics(),
@@ -28,6 +29,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
         )
         .await;
     cancellation.disarm();
+    provider_attempt_gate.observe_result(&first_attempt);
     if first_attempt.is_err() {
         observe_provider_result_metric(
             global_gateway_metrics().as_ref(),
@@ -55,6 +57,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
                 code = ?error.code,
                 "ChatGPT Web reverse stream start failed; forcing browser-session refresh before retry"
             );
+            provider_attempt_gate.check_remaining()?;
             let refreshed_payload = keepalive::refresh_chatgpt_web_payload_after_challenge(
                 &state.redis_pool,
                 state.pg_pool.as_ref(),
@@ -64,6 +67,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
             provider_attempt_gate.admit().await?;
             global_gateway_metrics()
                 .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
+            provider_attempt_gate.begin_attempt()?;
             let refreshed_attempt_started_at = Instant::now();
             let cancellation = ProviderAttemptCancellation::new(
                 global_gateway_metrics(),
@@ -82,6 +86,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
                 )
                 .await;
             cancellation.disarm();
+            provider_attempt_gate.observe_result(&refreshed_attempt);
             if refreshed_attempt.is_err() {
                 observe_provider_result_metric(
                     global_gateway_metrics().as_ref(),
@@ -115,6 +120,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
                     provider_attempt_gate.admit().await?;
                     global_gateway_metrics()
                         .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
+                    provider_attempt_gate.begin_attempt()?;
                     let relay_started_at = Instant::now();
                     let cancellation = ProviderAttemptCancellation::new(
                         global_gateway_metrics(),
@@ -132,6 +138,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
                     )
                     .await;
                     cancellation.disarm();
+                    provider_attempt_gate.observe_result(&relay_result);
                     if relay_result.is_err() {
                         observe_provider_result_metric(
                             global_gateway_metrics().as_ref(),
@@ -169,6 +176,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
                     provider_attempt_gate.admit().await?;
                     global_gateway_metrics()
                         .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
+                    provider_attempt_gate.begin_attempt()?;
                     let relay_started_at = Instant::now();
                     let cancellation = ProviderAttemptCancellation::new(
                         global_gateway_metrics(),
@@ -186,6 +194,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
                     )
                     .await;
                     cancellation.disarm();
+                    provider_attempt_gate.observe_result(&relay_result);
                     if relay_result.is_err() {
                         observe_provider_result_metric(
                             global_gateway_metrics().as_ref(),
@@ -223,6 +232,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
             provider_attempt_gate.admit().await?;
             global_gateway_metrics()
                 .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
+            provider_attempt_gate.begin_attempt()?;
             let relay_started_at = Instant::now();
             let cancellation = ProviderAttemptCancellation::new(
                 global_gateway_metrics(),
@@ -240,6 +250,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
             )
             .await;
             cancellation.disarm();
+            provider_attempt_gate.observe_result(&relay_result);
             if relay_result.is_err() {
                 observe_provider_result_metric(
                     global_gateway_metrics().as_ref(),

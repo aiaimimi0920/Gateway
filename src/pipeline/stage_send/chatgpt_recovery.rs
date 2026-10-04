@@ -14,38 +14,38 @@ pub(super) async fn execute_chatgpt_web_nonstream_with_recovery(
     let provider_account_id = candidate.provider_account_id.clone();
     let first_metric_provider = provider_account_id.clone();
     let first_metric_model = model.to_string();
-    let first_attempt = execute_with_retry_after_admission_observed(
-        || {
-            let payload = payload.clone();
-            let req = req.clone();
-            let model = model.to_string();
-            let extra_headers = extra_headers.clone();
-            let provider_account_id = provider_account_id.clone();
-            async move {
-                state
-                    .upstream_client
-                    .execute_with_provider_account_id(
-                        &provider_account_id,
-                        &payload,
-                        &req,
-                        &model,
-                        Some(&extra_headers),
-                    )
-                    .await
-            }
-        },
-        || provider_attempt_gate.admit(),
-        move |observation| {
-            observe_provider_attempt_metric(
-                global_gateway_metrics().as_ref(),
-                &first_metric_provider,
-                &first_metric_model,
-                observation,
-            );
-        },
-        retry_policy,
-    )
-    .await;
+    let first_attempt = provider_attempt_gate
+        .execute_observed(
+            || {
+                let payload = payload.clone();
+                let req = req.clone();
+                let model = model.to_string();
+                let extra_headers = extra_headers.clone();
+                let provider_account_id = provider_account_id.clone();
+                async move {
+                    state
+                        .upstream_client
+                        .execute_with_provider_account_id(
+                            &provider_account_id,
+                            &payload,
+                            &req,
+                            &model,
+                            Some(&extra_headers),
+                        )
+                        .await
+                }
+            },
+            move |observation| {
+                observe_provider_attempt_metric(
+                    global_gateway_metrics().as_ref(),
+                    &first_metric_provider,
+                    &first_metric_model,
+                    observation,
+                );
+            },
+            retry_policy,
+        )
+        .await;
 
     match first_attempt {
         Ok(response) => Ok(response),
@@ -65,6 +65,7 @@ pub(super) async fn execute_chatgpt_web_nonstream_with_recovery(
                 code = ?error.code,
                 "ChatGPT Web reverse direct replay failed; forcing browser-session refresh before retry"
             );
+            provider_attempt_gate.check_remaining()?;
             let refreshed_payload = keepalive::refresh_chatgpt_web_payload_after_challenge(
                 &state.redis_pool,
                 state.pg_pool.as_ref(),
@@ -76,38 +77,38 @@ pub(super) async fn execute_chatgpt_web_nonstream_with_recovery(
                 .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
             let refreshed_metric_provider = provider_account_id.clone();
             let refreshed_metric_model = model.to_string();
-            match execute_with_retry_after_admission_observed(
-                || {
-                    let payload = refreshed_payload.clone();
-                    let req = req.clone();
-                    let model = model.to_string();
-                    let extra_headers = extra_headers.clone();
-                    let provider_account_id = provider_account_id.clone();
-                    async move {
-                        state
-                            .upstream_client
-                            .execute_with_provider_account_id(
-                                &provider_account_id,
-                                &payload,
-                                &req,
-                                &model,
-                                Some(&extra_headers),
-                            )
-                            .await
-                    }
-                },
-                || provider_attempt_gate.admit(),
-                move |observation| {
-                    observe_provider_attempt_metric(
-                        global_gateway_metrics().as_ref(),
-                        &refreshed_metric_provider,
-                        &refreshed_metric_model,
-                        observation,
-                    );
-                },
-                retry_policy,
-            )
-            .await
+            match provider_attempt_gate
+                .execute_observed(
+                    || {
+                        let payload = refreshed_payload.clone();
+                        let req = req.clone();
+                        let model = model.to_string();
+                        let extra_headers = extra_headers.clone();
+                        let provider_account_id = provider_account_id.clone();
+                        async move {
+                            state
+                                .upstream_client
+                                .execute_with_provider_account_id(
+                                    &provider_account_id,
+                                    &payload,
+                                    &req,
+                                    &model,
+                                    Some(&extra_headers),
+                                )
+                                .await
+                        }
+                    },
+                    move |observation| {
+                        observe_provider_attempt_metric(
+                            global_gateway_metrics().as_ref(),
+                            &refreshed_metric_provider,
+                            &refreshed_metric_model,
+                            observation,
+                        );
+                    },
+                    retry_policy,
+                )
+                .await
             {
                 Ok(response) => Ok(response),
                 Err(error)
@@ -132,6 +133,7 @@ pub(super) async fn execute_chatgpt_web_nonstream_with_recovery(
                     provider_attempt_gate.admit().await?;
                     global_gateway_metrics()
                         .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
+                    provider_attempt_gate.begin_attempt()?;
                     let relay_started_at = Instant::now();
                     let cancellation = ProviderAttemptCancellation::new(
                         global_gateway_metrics(),
@@ -154,6 +156,7 @@ pub(super) async fn execute_chatgpt_web_nonstream_with_recovery(
                     }
                     .await;
                     cancellation.disarm();
+                    provider_attempt_gate.observe_result(&relay_result);
                     observe_provider_result_metric(
                         global_gateway_metrics().as_ref(),
                         &provider_account_id,
@@ -180,6 +183,7 @@ pub(super) async fn execute_chatgpt_web_nonstream_with_recovery(
                     provider_attempt_gate.admit().await?;
                     global_gateway_metrics()
                         .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
+                    provider_attempt_gate.begin_attempt()?;
                     let relay_started_at = Instant::now();
                     let cancellation = ProviderAttemptCancellation::new(
                         global_gateway_metrics(),
@@ -202,6 +206,7 @@ pub(super) async fn execute_chatgpt_web_nonstream_with_recovery(
                     }
                     .await;
                     cancellation.disarm();
+                    provider_attempt_gate.observe_result(&relay_result);
                     observe_provider_result_metric(
                         global_gateway_metrics().as_ref(),
                         &provider_account_id,
@@ -228,6 +233,7 @@ pub(super) async fn execute_chatgpt_web_nonstream_with_recovery(
             provider_attempt_gate.admit().await?;
             global_gateway_metrics()
                 .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
+            provider_attempt_gate.begin_attempt()?;
             let relay_started_at = Instant::now();
             let cancellation = ProviderAttemptCancellation::new(
                 global_gateway_metrics(),
@@ -250,6 +256,7 @@ pub(super) async fn execute_chatgpt_web_nonstream_with_recovery(
             }
             .await;
             cancellation.disarm();
+            provider_attempt_gate.observe_result(&relay_result);
             observe_provider_result_metric(
                 global_gateway_metrics().as_ref(),
                 &provider_account_id,

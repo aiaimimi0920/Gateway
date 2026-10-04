@@ -30,6 +30,9 @@ use super::{CredentialSource, PipelineContext};
 
 mod account_group;
 mod candidate_policy;
+pub(crate) use candidate_policy::{
+    provider_allowed_by_policy, provider_explicitly_allowed_by_policy,
+};
 
 use account_group::{
     account_group_candidates_unavailable_error, filter_candidate_pairs_by_account_group,
@@ -47,6 +50,7 @@ use candidate_policy::{
 /// - `UserOwned` / `AccountCredential`: only matched to their owner
 /// - `PlatformUnlimited` / `PlatformLimited`: shared across all project users
 pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(), GatewayError> {
+    ctx.explicit_fallback_provider_ids.clear();
     let model = ctx.canonical_req.requested_model.as_deref();
     let requested_account_group_id = ctx.account_group_id.clone();
     let account_group_constraint = state
@@ -106,6 +110,12 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             ctx.quota_credential_id.as_deref(),
         )
         .await?;
+        // These rows come from the authenticated key's validated access projection.
+        ctx.explicit_fallback_provider_ids = route_context
+            .candidates
+            .iter()
+            .map(|row| row.provider_account_id.clone())
+            .collect();
         let (route_candidates, projected_candidates) = filter_candidate_pairs_by_account_group(
             &account_group_constraint,
             route_context.route_candidates,
@@ -353,9 +363,16 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         if !database_resolved_candidates {
             match state
                 .route_config
-                .resolve_candidates_for_account_group(model, requested_account_group_id.as_deref())
-            {
-                Ok(yaml_candidates) => all_candidates.extend(yaml_candidates),
+                .snapshot()
+                .resolve_candidates_with_authorization_for_account_group(
+                    model,
+                    requested_account_group_id.as_deref(),
+                ) {
+                Ok(resolution) => {
+                    ctx.explicit_fallback_provider_ids =
+                        resolution.explicit_provider_ids.unwrap_or_default();
+                    all_candidates.extend(resolution.candidates);
+                }
                 // With a database present the requested account group can be a
                 // database-owned group the route document cannot know about, so
                 // the database result stands and the usual "no provider
@@ -378,9 +395,16 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     all_candidates = account_group_constraint.filter_candidates(all_candidates);
     if let Some(id) = local_access_key_id {
         if let Some(local) = &state.local_runtime {
-            local
-                .authorize_local_candidates(id, model, &mut all_candidates)
-                .await?;
+            if let Some(ids) = local
+                .authorize_local_candidates_with_fallback_authorization(
+                    id,
+                    model,
+                    &mut all_candidates,
+                )
+                .await?
+            {
+                ctx.explicit_fallback_provider_ids.extend(ids);
+            }
         }
     }
 

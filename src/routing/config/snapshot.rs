@@ -81,6 +81,19 @@ impl RouteConfigSnapshot {
         ))
     }
 
+    pub fn resolve_candidates_with_authorization_for_account_group(
+        &self,
+        model: Option<&str>,
+        account_group_id: Option<&str>,
+    ) -> Result<CandidateResolution, RouteAccountGroupSelectionError> {
+        let constraint = self.account_group_constraint(account_group_id)?;
+        Ok(candidates::resolve_candidates_with_authorization(
+            self.compiled(),
+            model,
+            constraint.allowed_account_ids.as_ref(),
+        ))
+    }
+
     pub fn account_group_constraint(
         &self,
         account_group_id: Option<&str>,

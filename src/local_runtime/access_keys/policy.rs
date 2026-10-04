@@ -179,6 +179,18 @@ impl LocalRuntime {
         model: Option<&str>,
         candidates: &mut Vec<RouteCandidate>,
     ) -> Result<(), GatewayError> {
+        self.authorize_local_candidates_with_fallback_authorization(id, model, candidates)
+            .await
+            .map(|_| ())
+    }
+
+    /// Return explicit IDs from the same validated key transaction, never from auto candidates.
+    pub async fn authorize_local_candidates_with_fallback_authorization(
+        &self,
+        id: &str,
+        model: Option<&str>,
+        candidates: &mut Vec<RouteCandidate>,
+    ) -> Result<Option<Vec<String>>, GatewayError> {
         let mut tx = self.pool.begin().await.map_err(storage_error)?;
         let key = read(&mut tx, id).await?;
         ensure_active(&key)?;
@@ -188,7 +200,7 @@ impl LocalRuntime {
                 return Err(denied("Access key does not allow this model"));
             }
         }
-        if let Some(providers) = policy.provider_ids {
+        if let Some(providers) = policy.provider_ids.as_ref() {
             candidates.retain(|candidate| providers.contains(&candidate.provider_account_id));
             if candidates.is_empty() {
                 return Err(denied(
@@ -197,7 +209,7 @@ impl LocalRuntime {
             }
         }
         tx.commit().await.map_err(storage_error)?;
-        Ok(())
+        Ok(policy.provider_ids)
     }
 }
 

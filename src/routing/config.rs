@@ -53,6 +53,7 @@ mod store;
 mod substitution;
 
 pub(crate) use aliases::normalized_alias_conflicts;
+pub use candidates::CandidateResolution;
 pub(crate) use document_compilation::{
     compile_route_document, effective_credential_id, provider_default_account_id,
 };

@@ -50,18 +50,42 @@ pub(super) fn filter_candidates_by_route_policy_family(
     candidates: Vec<RouteCandidate>,
     route_policy: Option<&crate::db::GatewayRoutePolicyConfig>,
 ) -> Vec<RouteCandidate> {
-    let allowed_protocol_families = route_policy
-        .and_then(|policy| policy.allowed_protocol_families.as_ref())
-        .cloned();
-    let Some(allowed_protocol_families) = allowed_protocol_families else {
-        return candidates;
-    };
+    let allowed_protocol_families =
+        route_policy.and_then(|policy| policy.allowed_protocol_families.as_ref());
     candidates
         .into_iter()
         .filter(|candidate| {
-            allowed_protocol_families.iter().any(|allowed| {
-                route_policy_family_matches_candidate(allowed, &candidate.protocol_family)
-            })
+            provider_allowed_by_policy(&candidate.provider_account_id, route_policy)
+                && allowed_protocol_families.is_none_or(|families| {
+                    families.iter().any(|allowed| {
+                        route_policy_family_matches_candidate(allowed, &candidate.protocol_family)
+                    })
+                })
         })
         .collect()
+}
+
+/// Revalidate the merged Redis/YAML/DB queue using exact account IDs, not brands,
+/// models, adapter names or guessed paid status. Empty lists retain DB semantics.
+pub(crate) fn provider_allowed_by_policy(
+    provider_id: &str,
+    policy: Option<&crate::db::GatewayRoutePolicyConfig>,
+) -> bool {
+    let Some(ids) = policy.and_then(|policy| policy.allowed_provider_account_ids.as_ref()) else {
+        return true;
+    };
+    ids.iter().all(|id| id.trim().is_empty()) || ids.iter().any(|id| id.trim() == provider_id)
+}
+
+/// Unconstrained initial selection is not authorization to replay on another account.
+pub(crate) fn provider_explicitly_allowed_by_policy(
+    provider_id: &str,
+    policy: Option<&crate::db::GatewayRoutePolicyConfig>,
+) -> bool {
+    policy
+        .and_then(|policy| policy.allowed_provider_account_ids.as_ref())
+        .is_some_and(|ids| {
+            ids.iter()
+                .any(|id| !id.trim().is_empty() && id.trim() == provider_id)
+        })
 }

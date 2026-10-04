@@ -14,6 +14,14 @@ pub(super) async fn send(
         ref provider_attempt_gate,
         ..
     } = attempt;
+    if !matches!(
+        candidate.adapter.as_str(),
+        "qwen_web_compatible" | "chatgpt_web_reverse_compatible"
+    ) {
+        provider_attempt_gate
+            .begin_attempt()
+            .map_err(AttemptError::Stop)?;
+    }
     let stream_attempt_started_at = Instant::now();
     // Recovery owns its individual sends; a guard here must not count their errors twice.
     let cancellation = (!matches!(
@@ -81,6 +89,10 @@ pub(super) async fn send(
             .await
             .map(|response| (response, None, stream_attempt_started_at))
     };
+    if cancellation.is_some() {
+        // Recovery helpers already record actual sends, not their later admission errors.
+        provider_attempt_gate.observe_result(&stream_result);
+    }
     match stream_result {
         Ok((stream_response, freebuff_lease_handle, stream_started_at)) => {
             let cancellation = cancellation.unwrap_or_else(|| {
@@ -192,8 +204,9 @@ pub(super) async fn send(
                 };
 
             let provider_credential_id_for_cb = candidate.provider_credential_id.clone();
+            let budget_for_cb = ctx.request_budget.clone();
             let tracked = TrackedStream::new_with_started_at_and_error(
-                byte_stream,
+                ctx.request_budget.constrain_stream(byte_stream),
                 stream_started_at,
                 move |metrics, success| {
                     observe_provider_stream_metric(
@@ -251,14 +264,18 @@ pub(super) async fn send(
                             .await;
                         });
                     } else {
-                        ctrl_for_cb.on_failure(FailureKind::General);
-                        spawn_record_provider_failure(
-                            Arc::clone(&state_for_cb),
-                            provider_id.clone(),
-                            provider_credential_id_for_cb.clone(),
-                            route_policy_for_cb.clone(),
-                            "stream terminated before completion".to_string(),
-                        );
+                        // A local deadline or caller cancellation still finalizes/refunds,
+                        // but must not poison provider health or reduce its capacity.
+                        if budget_for_cb.stopped_reason().is_none() {
+                            ctrl_for_cb.on_failure(FailureKind::General);
+                            spawn_record_provider_failure(
+                                Arc::clone(&state_for_cb),
+                                provider_id.clone(),
+                                provider_credential_id_for_cb.clone(),
+                                route_policy_for_cb.clone(),
+                                "stream terminated before completion".to_string(),
+                            );
+                        }
                         let state_for_finalize = Arc::clone(&state_for_cb);
                         let finalizer = state_for_finalize
                             .local_runtime

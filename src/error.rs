@@ -64,7 +64,7 @@ pub enum FallbackHint {
 // GatewayError
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 #[error("[{kind:?}] {message}")]
 pub struct GatewayError {
     pub kind: ErrorKind,
@@ -208,6 +208,20 @@ impl GatewayError {
         self.retryable
     }
 
+    /// Only fixed Gateway reasons are eligible for the public budget marker.
+    pub fn request_budget_stop_reason(&self) -> Option<&'static str> {
+        let FallbackHint::Abort { reason } = &self.fallback_hint else {
+            return None;
+        };
+        match reason.as_str() {
+            "budget_exhausted:attempt_limit" => Some("attempt_limit"),
+            "budget_exhausted:deadline" => Some("deadline"),
+            "budget_exhausted:cancelled" => Some("cancelled"),
+            "budget_exhausted:response_handed_off" => Some("response_handed_off"),
+            _ => None,
+        }
+    }
+
     pub fn should_fallback(&self) -> bool {
         matches!(self.fallback_hint, FallbackHint::FallbackProvider { .. })
     }
@@ -261,6 +275,7 @@ impl axum::response::IntoResponse for GatewayError {
             }
             _ => None,
         };
+        let budget_stop_reason = self.request_budget_stop_reason();
         let body = serde_json::json!({
             "error": {
                 "message": self.message,
@@ -270,6 +285,15 @@ impl axum::response::IntoResponse for GatewayError {
         });
 
         let mut response = (status, axum::Json(body)).into_response();
+        if let Some(reason) = budget_stop_reason {
+            response.headers_mut().insert(
+                "x-gateway-error-code",
+                HeaderValue::from_static("budget_exhausted"),
+            );
+            response
+                .headers_mut()
+                .insert("x-gateway-stop-reason", HeaderValue::from_static(reason));
+        }
         if let Some(retry_after_seconds) = retry_after_seconds {
             if let Ok(value) = HeaderValue::from_str(&retry_after_seconds.max(1).to_string()) {
                 response.headers_mut().insert(RETRY_AFTER, value);

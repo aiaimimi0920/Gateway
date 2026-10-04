@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use axum::extract::State;
 use axum::http::{header, HeaderMap, StatusCode, Uri};
+use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
 use neuro_gateway::console::{ConsoleConfig, ConsoleConfigValues};
@@ -41,6 +42,8 @@ struct Exchange {
     content_type: &'static str,
     body: &'static str,
     release_response: Option<tokio::sync::watch::Receiver<bool>>,
+    hold_stream: bool,
+    break_stream: bool,
 }
 
 async fn respond(
@@ -48,11 +51,7 @@ async fn respond(
     uri: Uri,
     headers: HeaderMap,
     Json(body): Json<Value>,
-) -> (
-    StatusCode,
-    [(header::HeaderName, &'static str); 2],
-    &'static str,
-) {
+) -> Response {
     {
         let mut seen = exchange.seen.lock().unwrap();
         assert!(seen.len() < 8, "unexpected unbounded provider attempts");
@@ -64,6 +63,25 @@ async fn respond(
                 == Some("Bearer send-test-token"),
             body,
         });
+    }
+    if exchange.hold_stream {
+        let mut release = exchange.release_response.unwrap();
+        let chunks = futures::stream::once(async move {
+            Ok::<_, std::io::Error>(bytes::Bytes::from_static(exchange.body.as_bytes()))
+        });
+        let tail = futures::stream::once(async move {
+            let _ = release.wait_for(|released| *released).await;
+            if exchange.break_stream {
+                return Err(std::io::Error::other("fixture transport interrupted"));
+            }
+            Ok::<_, std::io::Error>(bytes::Bytes::new())
+        });
+        return (
+            exchange.status,
+            [(header::CONTENT_TYPE, exchange.content_type)],
+            axum::body::Body::from_stream(futures::StreamExt::chain(chunks, tail)),
+        )
+            .into_response();
     }
     if let Some(mut release) = exchange.release_response {
         // The fixture owns and releases pending responses before shutdown; no orphan handler.
@@ -77,6 +95,7 @@ async fn respond(
         ],
         exchange.body,
     )
+        .into_response()
 }
 
 pub struct Upstream {
@@ -89,11 +108,23 @@ pub struct Upstream {
 
 impl Upstream {
     pub async fn start(status: StatusCode, streaming: bool, body: &'static str) -> Self {
-        Self::start_with_pending(status, streaming, body, false).await
+        Self::start_with_pending(status, streaming, body, false, false, false).await
     }
 
     pub async fn start_pending(streaming: bool) -> Self {
-        Self::start_with_pending(StatusCode::OK, streaming, "", true).await
+        Self::start_with_pending(StatusCode::OK, streaming, "", true, false, false).await
+    }
+
+    pub async fn start_held_stream(body: &'static str) -> Self {
+        Self::start_with_pending(StatusCode::OK, true, body, true, true, false).await
+    }
+
+    pub async fn start_broken_stream(body: &'static str) -> Self {
+        Self::start_with_pending(StatusCode::OK, true, body, true, true, true).await
+    }
+
+    pub fn release_stream(&self) {
+        self.release_response.send(true).unwrap();
     }
 
     async fn start_with_pending(
@@ -101,6 +132,8 @@ impl Upstream {
         streaming: bool,
         body: &'static str,
         pending: bool,
+        hold_stream: bool,
+        break_stream: bool,
     ) -> Self {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base_url = format!("http://{}", listener.local_addr().unwrap());
@@ -116,9 +149,12 @@ impl Upstream {
             },
             body,
             release_response: pending.then_some(receiver),
+            hold_stream,
+            break_stream,
         };
         let router = Router::new()
             .route("/v1/chat/completions", post(respond))
+            .route("/v1/images/generations", post(respond))
             .with_state(exchange);
         let (shutdown, receiver) = oneshot::channel();
         let task = tokio::spawn(async move {
@@ -216,6 +252,18 @@ impl TestState {
         })
         .await
         .expect("detached finalization tasks did not settle");
+        if let Some(local) = &self.state.local_runtime {
+            local.close().await;
+        }
+    }
+
+    pub async fn with_local_limits() -> Self {
+        let mut fixture = Self::new();
+        let local = neuro_gateway::local_runtime::LocalRuntime::open(&fixture._directory.0)
+            .await
+            .unwrap();
+        Arc::get_mut(&mut fixture.state).unwrap().local_runtime = Some(local);
+        fixture
     }
 }
 
@@ -276,4 +324,16 @@ pub fn context(stream: bool, candidates: Vec<RouteCandidate>) -> PipelineContext
     let mut ctx = PipelineContext::new(request, None);
     ctx.candidates = candidates;
     ctx
+}
+
+pub fn authorize_candidates(ctx: &mut PipelineContext) {
+    ctx.route_policy_config = Some(neuro_gateway::db::GatewayRoutePolicyConfig {
+        allowed_provider_account_ids: Some(
+            ctx.candidates
+                .iter()
+                .map(|candidate| candidate.provider_account_id.clone())
+                .collect(),
+        ),
+        ..Default::default()
+    });
 }
