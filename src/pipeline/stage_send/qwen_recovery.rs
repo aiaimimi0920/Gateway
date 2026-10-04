@@ -74,6 +74,8 @@ pub(super) async fn execute_qwen_web_nonstream_with_recovery(
             )
             .await?;
             provider_attempt_gate.admit().await?;
+            global_gateway_metrics()
+                .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
             let refreshed_metric_provider = provider_account_id.clone();
             let refreshed_metric_model = model.to_string();
             execute_with_retry_after_admission_observed(
@@ -123,6 +125,12 @@ pub(super) async fn execute_qwen_web_stream_with_recovery(
     extra_headers: &std::collections::HashMap<String, String>,
 ) -> Result<(UpstreamStreamingResponse, Instant), GatewayError> {
     let first_attempt_started_at = Instant::now();
+    let cancellation = ProviderAttemptCancellation::new(
+        global_gateway_metrics(),
+        &candidate.provider_account_id,
+        model,
+        first_attempt_started_at,
+    );
     let first_attempt = state
         .upstream_client
         .execute_stream_with_provider_account_id(
@@ -133,6 +141,7 @@ pub(super) async fn execute_qwen_web_stream_with_recovery(
             Some(extra_headers),
         )
         .await;
+    cancellation.disarm();
     if first_attempt.is_err() {
         observe_provider_result_metric(
             global_gateway_metrics().as_ref(),
@@ -159,7 +168,15 @@ pub(super) async fn execute_qwen_web_stream_with_recovery(
             )
             .await?;
             provider_attempt_gate.admit().await?;
+            global_gateway_metrics()
+                .observe_reliability_event(ReliabilityEvent::Retry, Some("recovery"));
             let refreshed_attempt_started_at = Instant::now();
+            let cancellation = ProviderAttemptCancellation::new(
+                global_gateway_metrics(),
+                &candidate.provider_account_id,
+                model,
+                refreshed_attempt_started_at,
+            );
             let refreshed_attempt = state
                 .upstream_client
                 .execute_stream_with_provider_account_id(
@@ -170,6 +187,7 @@ pub(super) async fn execute_qwen_web_stream_with_recovery(
                     Some(extra_headers),
                 )
                 .await;
+            cancellation.disarm();
             if refreshed_attempt.is_err() {
                 observe_provider_result_metric(
                     global_gateway_metrics().as_ref(),

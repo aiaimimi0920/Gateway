@@ -20,8 +20,8 @@
 | 执行编号 | 对应 Issue | 目标 | 状态 | 提交与证据 |
 | --- | --- | --- | --- | --- |
 | S0 | 执行准备 | 冻结起点、记录 owner / 验收 / 提交与交接方式 | 已提交并推送 | `527dfa8f1cbd01876fdeabf6d1b85b8dfc87f541` |
-| S1 | 第1项 P1 | HTTP 等待提示与累计等待预算 | 源码、独立复核与本地门禁完成；提交 / 手测交付接续 | [S1 源码检查点](../status/2026-10-04-issue3-s1-retry-wait.md) |
-| S2 | 第3项 P2 | 请求 / attempt / TTFT 固定桶直方图 | 待实现 | 待补 |
+| S1 | 第1项 P1 | HTTP 等待提示与累计等待预算 | 已提交、推送和交付本地手测候选；同提交 CI / CodeQL 成功；公开发布仍阻止 | `43ee081d669cc2da915b17e3552a517e9b71fdad`；[S1 源码检查点](../status/2026-10-04-issue3-s1-retry-wait.md) |
+| S2 | 第3项 P2 | 请求 / attempt / TTFT 固定桶直方图 | 源码、独立复核与本地门禁完成；提交 / 新包接续 | [S2 源码检查点](../status/2026-10-04-issue3-s2-latency-metrics.md)；72 unit / 40 integration；不混入 S3 |
 | S3 | 第2项 P1 | 跨候选和恢复共享尝试 / deadline 预算 | 待实现 | 待补 |
 
 ### S1：等待提示和有界重试
@@ -67,8 +67,21 @@ S1 已实现等待提示解析、共用 HTTP 错误接线和单次 retry 调用�
 全目标编译、formatter、31 项 checker 自测及 ratchet 均通过；新包另行验证。
 等待策略和未覆盖的内部 HTTP 范围见 [等待契约](../retry-wait-policy.md)。
 
-完成剩余本地门禁后，单独提交、推送并核对远端 SHA，再从该提交重新构建不可变
-本地手测包。S2/S3 尚未开始；不得把 S1 的 15 秒累计睡眠额度称作请求级 deadline。
+S1 已正常推送到 main 并核对远端 SHA；本地候选
+`gateway-product-20261004-main-43ee081-s1-r1` 的官方构建、7/7 包门禁、原生窗口、
+SQLite 和复制后完整性均通过。CI run `37179216751` 的 Linux / Windows product
+与六个 feature shard 成功；CodeQL 同提交成功。严格 Build Windows / Docker 因
+依赖和历史 Gitleaks findings 阻止，不能把本地包称作公开正式 release。
+
+S2 已只读核实：middleware 原计时止于响应头，发送中的取消没有完成 observer；
+TrackedStream 的 TTFT 是实际 attempt 起点到首个转换后非空 chunk，并非语义 token。
+本项已复用这些 owner，给 request body 和 attempt await 增加 exactly-once 终结，
+固定桶用同锁快照保持 buckets / sum / count 一致；原因使用枚举 / 固定白名单。
+最终 72 unit / 40 integration、locked/offline all-target check、formatter、31 项
+checker 自测、ratchet、23 项安全发布契约均通过。独立复核的 HEAD/empty 源释放
+顺序问题已修复并回归；提交与新包按 [S2 检查点](../status/2026-10-04-issue3-s2-latency-metrics.md)接续。
+不新增 SaaS、配置框架、滑窗接线、真实模型压测或请求级预算；S3 尚未开始。
+不得把 S1 的 15 秒累计睡眠额度称作请求级 deadline。
 
 工具状态：此前独立代理因 `503 Service Unavailable` 不可用；本次续接完成了
 独立只读审查和修复复核，不将其冒充正式发布批准。FastCtx 连接关闭，本次按

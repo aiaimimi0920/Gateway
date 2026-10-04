@@ -25,6 +25,8 @@ use crate::concurrency::aimd::FailureKind;
 use crate::db;
 use crate::error::{classify_upstream_error, FallbackHint, GatewayError};
 use crate::keepalive;
+use crate::metrics::attempt::ProviderAttemptCancellation;
+use crate::metrics::diagnostics::ReliabilityEvent;
 use crate::metrics::request::{global_gateway_metrics, GatewayMetrics, ProviderMetricOutcome};
 use crate::protocol::accio;
 use crate::protocol::anthropic;
@@ -72,6 +74,7 @@ mod attempt;
 mod buffered;
 mod chatgpt_policy;
 mod chatgpt_recovery;
+mod chatgpt_stream_recovery;
 mod endpoint_policy;
 mod feedback;
 mod pack;
@@ -88,16 +91,16 @@ use chatgpt_policy::{
     chatgpt_web_request_time_browser_path_needed, should_escalate_chatgpt_web_to_browser_relay,
     should_refresh_chatgpt_web_after_failure,
 };
-use chatgpt_recovery::{
-    execute_chatgpt_web_nonstream_with_recovery, execute_chatgpt_web_stream_with_recovery,
-};
+use chatgpt_recovery::execute_chatgpt_web_nonstream_with_recovery;
+use chatgpt_stream_recovery::execute_chatgpt_web_stream_with_recovery;
 use endpoint_policy::{
     expects_binary_passthrough, expects_json_passthrough, is_conversation_endpoint,
     observe_provider_rate_limit_rejection,
 };
 use feedback::{
-    classify_failure_kind, observe_provider_attempt_metric, observe_provider_failure_metric,
-    observe_provider_result_metric, observe_provider_success_metric, retry_policy_for_request,
+    classify_failure_kind, observe_fallback_metric, observe_provider_attempt_metric,
+    observe_provider_failure_metric, observe_provider_result_metric,
+    observe_provider_stream_metric, observe_provider_success_metric, retry_policy_for_request,
     should_record_provider_failure, should_try_next_candidate, spawn_record_provider_failure,
     spawn_record_provider_success,
 };
@@ -363,6 +366,9 @@ pub async fn run(
             controller,
             permit,
         };
+        if let Some(error) = last_error.as_ref() {
+            observe_fallback_metric(global_gateway_metrics(), error);
+        }
         let result = if ctx.canonical_req.stream {
             streaming::send(ctx, state, candidate, candidate_index, attempt).await
         } else {

@@ -22,6 +22,12 @@ pub(super) async fn send(
         ..
     } = attempt;
     let bridge_attempt_started_at = Instant::now();
+    let cancellation = ProviderAttemptCancellation::new(
+        global_gateway_metrics(),
+        &candidate.provider_account_id,
+        &model,
+        bridge_attempt_started_at,
+    );
     match state
         .upstream_client
         .execute_stream(
@@ -42,6 +48,7 @@ pub(super) async fn send(
                 );
                 let failure_kind = classify_failure_kind(&failure);
                 controller.on_failure(failure_kind);
+                cancellation.disarm();
                 observe_provider_failure_metric(
                     global_gateway_metrics().as_ref(),
                     &candidate.provider_account_id,
@@ -76,6 +83,7 @@ pub(super) async fn send(
             .await
             {
                 Ok(canonical_resp) => {
+                    cancellation.disarm();
                     controller.on_success();
                     observe_provider_success_metric(
                         global_gateway_metrics().as_ref(),
@@ -110,6 +118,7 @@ pub(super) async fn send(
                     return Ok(PipelineOutput::Json(json_resp));
                 }
                 Err(error) => {
+                    cancellation.disarm();
                     let failure_kind = classify_failure_kind(&error);
                     controller.on_failure(failure_kind);
                     observe_provider_failure_metric(
@@ -137,6 +146,7 @@ pub(super) async fn send(
             }
         }
         Ok(UpstreamStreamingResponse::Bytes(_)) => {
+            cancellation.disarm();
             let error = GatewayError::server_error(
                 "unexpected byte-stream upstream for anthropic responses bridge",
             )
@@ -167,6 +177,7 @@ pub(super) async fn send(
             }
         }
         Err(error) => {
+            cancellation.disarm();
             let failure_kind = classify_failure_kind(&error);
             controller.on_failure(failure_kind);
             observe_provider_failure_metric(

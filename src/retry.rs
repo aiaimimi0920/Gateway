@@ -5,7 +5,9 @@
 // Provides exponential back-off with ±10 % jitter for upstream calls.
 // ---------------------------------------------------------------------------
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(test)]
+use std::time::Instant;
 
 use rand::Rng;
 use tokio::time::sleep;
@@ -13,7 +15,9 @@ use tracing::warn;
 
 use crate::error::GatewayError;
 
+mod observation;
 mod wait_budget;
+use observation::AttemptObservation;
 use wait_budget::WaitBudget;
 
 // ---------------------------------------------------------------------------
@@ -153,10 +157,12 @@ pub struct RetryAttemptObservation<'a> {
     pub succeeded: bool,
     pub latency_ms: u64,
     pub error: Option<&'a GatewayError>,
+    /// True only for a real send after the first send within this retry invocation.
+    pub is_retry: bool,
 }
 
 /// Execute a pre-admitted upstream closure and report each real transport
-/// attempt after it completes. Retry admission failures do not produce an
+/// attempt after it completes or is cancelled. Retry admission failures do not produce an
 /// observation because no upstream future was executed.
 pub async fn execute_with_retry_after_admission_observed<T, F, Fut, A, AFut, O>(
     mut f: F,
@@ -178,13 +184,9 @@ where
         if attempt > 0 {
             admit_retry().await?;
         }
-        let attempt_started_at = Instant::now();
+        let observation = AttemptObservation::new(&mut observe_attempt, attempt > 0);
         let result = f().await;
-        observe_attempt(RetryAttemptObservation {
-            succeeded: result.is_ok(),
-            latency_ms: u64::try_from(attempt_started_at.elapsed().as_millis()).unwrap_or(u64::MAX),
-            error: result.as_ref().err(),
-        });
+        observation.complete(&result);
         match result {
             Ok(result) => return Ok(result),
             Err(error) => {

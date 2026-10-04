@@ -470,13 +470,15 @@ The legacy TypeScript gateway has been removed from the repository; browser-exec
 Client ← SSE ← Gateway ← SSE ← Upstream Provider
          ↑
     TrackedStream wrapper:
-    - Records TTFT on first chunk
+    - Records TTFT on first non-empty translated chunk (not a semantic token)
     - Counts chunks + bytes
-    - Releases AIMD permit on stream end/error/drop
-    - Feeds SlidingWindowMetrics
+    - Reports AIMD success/failure at stream end/error/drop
+    - Reports bounded provider latency / TTFT histograms at terminal completion
 ```
 
-`TrackedStream` implements `Drop` to guarantee permit release even if the client disconnects mid-stream.
+`TrackedStream` implements `Drop` to report terminal failure if the client disconnects mid-stream.
+The sending-stage AIMD permit is released after stream preflight, before returning the stream;
+HTTP lifecycle in-flight accounting separately follows body completion/error/drop.
 
 ## Platform-Injected Credential Routing
 
@@ -555,7 +557,8 @@ This still applies to bearer-style browser-gated providers such as the `Qwen Web
 
 ## Metrics
 
-- **SlidingWindowMetrics**: Per-provider in-memory ring buffer (200 entries). Tracks latency, success rate, TTFT, p50/p95/p99.
+- **GatewayMetrics**: Bounded process-local request / real attempt / first-chunk TTFT histograms. HTTP request ownership follows response-body EOF/error/drop, including cancellation. See [metric semantics and PromQL](docs/latency-metrics.md).
+- **SlidingWindowMetrics**: Fixed-capacity in-memory ring-buffer utility for latency, success rate, TTFT and p50/p95/p99; not currently wired to the production pipeline.
 - **Multi-Key Rotation**: Per-key failure tracking with automatic disable/cooldown/re-enable.
 - **Balance shouldDeprioritize**: Provider-specific threshold signal fed into routing weight.
 

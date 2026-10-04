@@ -20,6 +20,7 @@ use std::time::Instant;
 use tower_http::limit::RequestBodyLimitLayer;
 use uuid::Uuid;
 
+use super::request_observation::RequestObservation;
 use crate::http::route_proof;
 use crate::metrics::request::global_gateway_metrics;
 use crate::state::AppState;
@@ -33,8 +34,8 @@ use crate::state::AppState;
 /// 2. Rejects new work while the process is draining for rolling deployment,
 ///    while still allowing health/metrics endpoints.
 /// 3. Tracks in-flight requests for shutdown observability.
-/// 4. Logs every completed request with request_id, method, path, status,
-///    and latency_ms.
+/// 4. Logs response establishment with request_id, method, path, status,
+///    and latency_ms; terminal request accounting follows the response body.
 /// 5. Sanitises bearer tokens / API keys found in headers before logging.
 pub async fn request_logging(
     State(state): State<Arc<AppState>>,
@@ -55,16 +56,17 @@ pub async fn request_logging(
 
     let start = Instant::now();
     let metrics = global_gateway_metrics();
+    let drain_rejected = state.lifecycle.is_draining() && !is_drain_exempt_path(path.as_str());
+    let observation =
+        RequestObservation::new(Arc::clone(&state), Arc::clone(metrics), drain_rejected);
 
     let capture_route_proof = route_proof::should_capture_route_proof(
         route_proof::server_route_proof_enabled(),
         request.headers(),
     );
-    let ((mut response, drain_rejected), captured_route_proof) = route_proof::capture_route_proof(
+    let (mut response, captured_route_proof) = route_proof::capture_route_proof(
         capture_route_proof,
         async {
-            let draining = state.lifecycle.is_draining();
-            let drain_rejected = draining && !is_drain_exempt_path(path.as_str());
             let response = if drain_rejected {
                 (
                     StatusCode::SERVICE_UNAVAILABLE,
@@ -77,20 +79,15 @@ pub async fn request_logging(
                 )
                     .into_response()
             } else {
-                state.lifecycle.begin_request();
-                metrics.begin_request();
                 let response = next.run(request).await;
-                metrics.end_request();
-                state.lifecycle.end_request();
                 response
             };
-            (response, drain_rejected)
+            response
         },
     )
     .await;
     let latency = start.elapsed().as_millis();
     let status = response.status().as_u16();
-    metrics.observe_request(status, latency as u64, drain_rejected);
 
     // Inject X-Request-Id into response headers.
     if let Ok(header_value) = request_id.parse() {
@@ -116,7 +113,7 @@ pub async fn request_logging(
         path = %path,
         status = status,
         latency_ms = latency as u64,
-        "request completed"
+        "response established"
     );
 
     // Log sanitised auth headers at debug level (only when RUST_LOG includes
@@ -132,7 +129,11 @@ pub async fn request_logging(
         }
     }
 
-    response
+    let (parts, body) = response.into_parts();
+    Response::from_parts(
+        parts,
+        observation.wrap(status, body, method == axum::http::Method::HEAD),
+    )
 }
 
 fn sanitised_auth_headers(headers: &HeaderMap) -> Vec<(String, String)> {

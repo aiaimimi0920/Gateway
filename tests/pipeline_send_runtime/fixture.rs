@@ -40,6 +40,7 @@ struct Exchange {
     status: StatusCode,
     content_type: &'static str,
     body: &'static str,
+    release_response: Option<tokio::sync::watch::Receiver<bool>>,
 }
 
 async fn respond(
@@ -52,16 +53,22 @@ async fn respond(
     [(header::HeaderName, &'static str); 2],
     &'static str,
 ) {
-    let mut seen = exchange.seen.lock().unwrap();
-    assert!(seen.len() < 8, "unexpected unbounded provider attempts");
-    seen.push(ObservedRequest {
-        path: uri.path().to_string(),
-        fixture_auth: headers
-            .get(header::AUTHORIZATION)
-            .and_then(|v| v.to_str().ok())
-            == Some("Bearer send-test-token"),
-        body,
-    });
+    {
+        let mut seen = exchange.seen.lock().unwrap();
+        assert!(seen.len() < 8, "unexpected unbounded provider attempts");
+        seen.push(ObservedRequest {
+            path: uri.path().to_string(),
+            fixture_auth: headers
+                .get(header::AUTHORIZATION)
+                .and_then(|v| v.to_str().ok())
+                == Some("Bearer send-test-token"),
+            body,
+        });
+    }
+    if let Some(mut release) = exchange.release_response {
+        // The fixture owns and releases pending responses before shutdown; no orphan handler.
+        release.wait_for(|released| *released).await.unwrap();
+    }
     (
         exchange.status,
         [
@@ -77,13 +84,28 @@ pub struct Upstream {
     seen: Arc<Mutex<Vec<ObservedRequest>>>,
     shutdown: Option<oneshot::Sender<()>>,
     task: JoinHandle<()>,
+    release_response: tokio::sync::watch::Sender<bool>,
 }
 
 impl Upstream {
     pub async fn start(status: StatusCode, streaming: bool, body: &'static str) -> Self {
+        Self::start_with_pending(status, streaming, body, false).await
+    }
+
+    pub async fn start_pending(streaming: bool) -> Self {
+        Self::start_with_pending(StatusCode::OK, streaming, "", true).await
+    }
+
+    async fn start_with_pending(
+        status: StatusCode,
+        streaming: bool,
+        body: &'static str,
+        pending: bool,
+    ) -> Self {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base_url = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Vec::new()));
+        let (release_response, receiver) = tokio::sync::watch::channel(false);
         let exchange = Exchange {
             seen: Arc::clone(&seen),
             status,
@@ -93,6 +115,7 @@ impl Upstream {
                 "application/json"
             },
             body,
+            release_response: pending.then_some(receiver),
         };
         let router = Router::new()
             .route("/v1/chat/completions", post(respond))
@@ -111,6 +134,7 @@ impl Upstream {
             seen,
             shutdown: Some(shutdown),
             task,
+            release_response,
         }
     }
 
@@ -119,6 +143,7 @@ impl Upstream {
     }
 
     pub async fn finish(mut self) {
+        let _ = self.release_response.send(true);
         self.shutdown.take().unwrap().send(()).unwrap();
         timeout(Duration::from_secs(2), &mut self.task)
             .await
@@ -129,6 +154,7 @@ impl Upstream {
 
 impl Drop for Upstream {
     fn drop(&mut self) {
+        let _ = self.release_response.send(true);
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }

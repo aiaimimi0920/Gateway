@@ -127,12 +127,18 @@ pub(super) fn observe_provider_attempt_metric(
     model: &str,
     observation: RetryAttemptObservation<'_>,
 ) {
+    if observation.is_retry {
+        metrics.observe_reliability_event(ReliabilityEvent::Retry, Some("same_candidate"));
+    }
     let (success, failure_class) = if observation.succeeded {
         (true, None)
     } else {
         let failure_class = observation
             .error
             .map(|error| {
+                if error.code.as_deref() == Some("attempt_cancelled") {
+                    return "cancelled";
+                }
                 classify_provider_failure(
                     error.http_status,
                     error.code.as_deref(),
@@ -167,7 +173,43 @@ pub(super) fn observe_provider_result_metric<T>(
             succeeded: result.is_ok(),
             latency_ms,
             error: result.as_ref().err(),
+            is_retry: false,
         },
+    );
+}
+
+pub(super) fn observe_fallback_metric(metrics: &GatewayMetrics, error: &GatewayError) {
+    let reason = classify_provider_failure(
+        error.http_status,
+        error.code.as_deref(),
+        Some(&error.message),
+    );
+    metrics.observe_reliability_event(ReliabilityEvent::Fallback, Some(reason.class_name()));
+}
+
+pub(super) fn observe_provider_stream_metric(
+    metrics: &GatewayMetrics,
+    provider: &str,
+    model: &str,
+    stream: &crate::upstream::stream::StreamMetrics,
+    success: bool,
+) {
+    use crate::upstream::stream::StreamTermination;
+    let failure_class = match stream.termination {
+        Some(StreamTermination::Cancelled) => Some("cancelled"),
+        Some(StreamTermination::Interrupted) => Some("stream_interrupted"),
+        _ if !success => Some("unknown"),
+        _ => None,
+    };
+    metrics.observe_provider_outcome_with_ttft(
+        ProviderMetricOutcome {
+            provider,
+            model: Some(model),
+            success,
+            latency_ms: stream.total_duration_ms,
+            failure_class,
+        },
+        stream.first_token_latency_ms,
     );
 }
 

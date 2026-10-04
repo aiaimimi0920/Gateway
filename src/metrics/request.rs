@@ -3,6 +3,9 @@ use std::fmt::Write as _;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
+use super::diagnostics::{bounded_reason, ReliabilityEvent, RequestTermination};
+use super::histogram::LatencyHistogram;
+
 const MAX_PROVIDER_SERIES: usize = 256;
 
 /// A bounded, process-local metric registry for request and provider signals.
@@ -12,16 +15,21 @@ const MAX_PROVIDER_SERIES: usize = 256;
 /// adapters without adding another runtime dependency or changing `AppState`.
 #[derive(Debug, Default)]
 pub struct GatewayMetrics {
-    requests_total: AtomicU64,
-    request_errors_total: AtomicU64,
-    request_drain_rejections_total: AtomicU64,
+    request: Mutex<RequestMetricCounters>,
     request_in_flight: AtomicU64,
-    request_duration_ms_count: AtomicU64,
-    request_duration_ms_sum: AtomicU64,
     rate_limit_checks_total: AtomicU64,
     rate_limit_rejections_total: AtomicU64,
     rate_limit_store_failures_total: AtomicU64,
     provider: Mutex<BTreeMap<ProviderMetricKey, ProviderMetricCounters>>,
+    diagnostics: Mutex<BTreeMap<(&'static str, &'static str), u64>>,
+}
+
+#[derive(Debug, Default, Clone)]
+struct RequestMetricCounters {
+    errors: u64,
+    drain_rejections: u64,
+    duration: LatencyHistogram,
+    terminations: [u64; 3],
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -34,9 +42,9 @@ struct ProviderMetricKey {
 struct ProviderMetricCounters {
     requests: u64,
     errors: u64,
-    latency_ms_sum: u64,
-    latency_ms_count: u64,
-    failures: BTreeMap<String, u64>,
+    latency: LatencyHistogram,
+    ttft: LatencyHistogram,
+    failures: BTreeMap<&'static str, u64>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -79,21 +87,44 @@ impl GatewayMetrics {
     }
 
     pub fn observe_request(&self, status: u16, latency_ms: u64, drain_rejected: bool) {
-        self.requests_total.fetch_add(1, Ordering::Relaxed);
-        self.request_duration_ms_count
-            .fetch_add(1, Ordering::Relaxed);
-        self.request_duration_ms_sum
-            .fetch_add(latency_ms, Ordering::Relaxed);
-        if status >= 400 {
-            self.request_errors_total.fetch_add(1, Ordering::Relaxed);
+        self.observe_request_terminal(
+            status,
+            latency_ms,
+            drain_rejected,
+            RequestTermination::Completed,
+        );
+    }
+
+    pub fn observe_request_terminal(
+        &self,
+        status: u16,
+        latency_ms: u64,
+        drain_rejected: bool,
+        terminal: RequestTermination,
+    ) {
+        let mut counters = self.request.lock().expect("gateway metrics mutex poisoned");
+        counters.duration.observe(latency_ms);
+        if status >= 400 || !matches!(terminal, RequestTermination::Completed) {
+            counters.errors = counters.errors.saturating_add(1);
         }
         if drain_rejected {
-            self.request_drain_rejections_total
-                .fetch_add(1, Ordering::Relaxed);
+            counters.drain_rejections = counters.drain_rejections.saturating_add(1);
         }
+        let count = &mut counters.terminations[terminal.index()];
+        *count = count.saturating_add(1);
     }
 
     pub fn observe_provider_outcome(&self, outcome: ProviderMetricOutcome<'_>) {
+        self.observe_provider_outcome_with_ttft(outcome, None);
+    }
+
+    /// TTFT is the first non-empty translated chunk, not a semantic text token.
+    /// Missing TTFT (empty/error/cancelled before a chunk) contributes no sample.
+    pub fn observe_provider_outcome_with_ttft(
+        &self,
+        outcome: ProviderMetricOutcome<'_>,
+        ttft_ms: Option<u64>,
+    ) {
         let provider = bounded_label(outcome.provider, "unknown_provider");
         let model = bounded_label(outcome.model.unwrap_or("unknown_model"), "unknown_model");
         let requested_key = ProviderMetricKey { provider, model };
@@ -111,15 +142,30 @@ impl GatewayMetrics {
         };
         let counters = guard.entry(key).or_default();
         counters.requests = counters.requests.saturating_add(1);
-        counters.latency_ms_sum = counters.latency_ms_sum.saturating_add(outcome.latency_ms);
-        counters.latency_ms_count = counters.latency_ms_count.saturating_add(1);
+        counters.latency.observe(outcome.latency_ms);
+        if let Some(ttft_ms) = ttft_ms {
+            counters.ttft.observe(ttft_ms);
+        }
         if !outcome.success {
             counters.errors = counters.errors.saturating_add(1);
-            let failure_class =
-                bounded_label(outcome.failure_class.unwrap_or("unknown"), "unknown");
+            let failure_class = match bounded_reason(outcome.failure_class) {
+                "same_candidate" | "recovery" => "unknown",
+                reason => reason,
+            };
             let entry = counters.failures.entry(failure_class).or_default();
             *entry = entry.saturating_add(1);
         }
+    }
+
+    pub fn observe_reliability_event(&self, event: ReliabilityEvent, reason: Option<&str>) {
+        let mut guard = self
+            .diagnostics
+            .lock()
+            .expect("gateway metrics mutex poisoned");
+        let count = guard
+            .entry((event.as_str(), bounded_reason(reason)))
+            .or_default();
+        *count = count.saturating_add(1);
     }
 
     pub fn observe_rate_limit_admission(&self, rejected: bool, store_failure: bool) {
@@ -135,15 +181,18 @@ impl GatewayMetrics {
     }
 
     pub fn snapshot(&self) -> GatewayMetricsSnapshot {
+        let request = self.request.lock().expect("gateway metrics mutex poisoned");
+        self.snapshot_with_request(&request)
+    }
+
+    fn snapshot_with_request(&self, request: &RequestMetricCounters) -> GatewayMetricsSnapshot {
         GatewayMetricsSnapshot {
-            requests_total: self.requests_total.load(Ordering::Relaxed),
-            request_errors_total: self.request_errors_total.load(Ordering::Relaxed),
-            request_drain_rejections_total: self
-                .request_drain_rejections_total
-                .load(Ordering::Relaxed),
+            requests_total: request.duration.count,
+            request_errors_total: request.errors,
+            request_drain_rejections_total: request.drain_rejections,
             request_in_flight: self.request_in_flight.load(Ordering::Relaxed),
-            request_duration_ms_count: self.request_duration_ms_count.load(Ordering::Relaxed),
-            request_duration_ms_sum: self.request_duration_ms_sum.load(Ordering::Relaxed),
+            request_duration_ms_count: request.duration.count,
+            request_duration_ms_sum: request.duration.sum,
             rate_limit_checks_total: self.rate_limit_checks_total.load(Ordering::Relaxed),
             rate_limit_rejections_total: self.rate_limit_rejections_total.load(Ordering::Relaxed),
             rate_limit_store_failures_total: self
@@ -153,7 +202,14 @@ impl GatewayMetrics {
     }
 
     pub fn render_prometheus(&self) -> String {
-        let snapshot = self.snapshot();
+        // Copy under the owner lock, then format outside it: scrapes cannot mix
+        // bucket/count/sum generations or block hot-path writers while formatting.
+        let request = self
+            .request
+            .lock()
+            .expect("gateway metrics mutex poisoned")
+            .clone();
+        let snapshot = self.snapshot_with_request(&request);
         let mut output = String::new();
         let _ = writeln!(output, "gateway_requests_total {}", snapshot.requests_total);
         let _ = writeln!(
@@ -171,16 +227,22 @@ impl GatewayMetrics {
             "gateway_request_in_flight {}",
             snapshot.request_in_flight
         );
-        let _ = writeln!(
-            output,
-            "gateway_request_duration_ms_count {}",
-            snapshot.request_duration_ms_count
-        );
-        let _ = writeln!(
-            output,
-            "gateway_request_duration_ms_sum {}",
-            snapshot.request_duration_ms_sum
-        );
+        let _ = writeln!(output, "# TYPE gateway_request_duration_ms histogram");
+        request
+            .duration
+            .render(&mut output, "gateway_request_duration_ms", "");
+        for terminal in [
+            RequestTermination::Completed,
+            RequestTermination::Cancelled,
+            RequestTermination::Interrupted,
+        ] {
+            let _ = writeln!(
+                output,
+                "gateway_request_terminations_total{{reason=\"{}\"}} {}",
+                terminal.as_str(),
+                request.terminations[terminal.index()]
+            );
+        }
         let _ = writeln!(
             output,
             "gateway_rate_limit_checks_total {}",
@@ -200,7 +262,10 @@ impl GatewayMetrics {
         let guard = self
             .provider
             .lock()
-            .expect("gateway metrics mutex poisoned");
+            .expect("gateway metrics mutex poisoned")
+            .clone();
+        let _ = writeln!(output, "# TYPE gateway_provider_latency_ms histogram");
+        let _ = writeln!(output, "# TYPE gateway_provider_ttft_ms histogram");
         for (key, counters) in guard.iter() {
             let _ = writeln!(
                 output,
@@ -212,16 +277,13 @@ impl GatewayMetrics {
                 "gateway_provider_errors_total{{provider=\"{}\",model=\"{}\"}} {}",
                 key.provider, key.model, counters.errors
             );
-            let _ = writeln!(
-                output,
-                "gateway_provider_latency_ms_sum{{provider=\"{}\",model=\"{}\"}} {}",
-                key.provider, key.model, counters.latency_ms_sum
-            );
-            let _ = writeln!(
-                output,
-                "gateway_provider_latency_ms_count{{provider=\"{}\",model=\"{}\"}} {}",
-                key.provider, key.model, counters.latency_ms_count
-            );
+            let labels = format!("provider=\"{}\",model=\"{}\"", key.provider, key.model);
+            counters
+                .latency
+                .render(&mut output, "gateway_provider_latency_ms", &labels);
+            counters
+                .ttft
+                .render(&mut output, "gateway_provider_ttft_ms", &labels);
             for (failure_class, count) in &counters.failures {
                 let _ = writeln!(
                     output,
@@ -231,11 +293,23 @@ impl GatewayMetrics {
             }
         }
 
+        let diagnostics = self
+            .diagnostics
+            .lock()
+            .expect("gateway metrics mutex poisoned")
+            .clone();
+        for ((event, reason), count) in diagnostics {
+            let _ = writeln!(
+                output,
+                "gateway_reliability_events_total{{event=\"{event}\",reason=\"{reason}\"}} {count}"
+            );
+        }
+
         output
     }
 }
 
-fn bounded_label(value: &str, fallback: &str) -> String {
+pub(super) fn bounded_label(value: &str, fallback: &str) -> String {
     let mut label = String::with_capacity(value.len().min(64));
     for ch in value.trim().chars() {
         if label.len() >= 64 {

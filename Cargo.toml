@@ -131,6 +131,7 @@ axum-extra = { version = "0.9", features = ["typed-header"] }
 tower = { version = "0.4", features = ["full"] }
 tower-http = { version = "0.5", features = ["cors", "trace", "timeout", "limit"] }
 httpdate = "1.0.3"
+http-body = "1"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

@@ -15,6 +15,19 @@ pub(super) async fn send(
         ..
     } = attempt;
     let stream_attempt_started_at = Instant::now();
+    // Recovery owns its individual sends; a guard here must not count their errors twice.
+    let cancellation = (!matches!(
+        candidate.adapter.as_str(),
+        "qwen_web_compatible" | "chatgpt_web_reverse_compatible"
+    ))
+    .then(|| {
+        ProviderAttemptCancellation::new(
+            global_gateway_metrics(),
+            &candidate.provider_account_id,
+            model,
+            stream_attempt_started_at,
+        )
+    });
     let stream_result = if candidate.adapter == "freebuff_compatible" {
         freebuff::execute_stream(
             &state.upstream_client.freebuff,
@@ -70,7 +83,15 @@ pub(super) async fn send(
     };
     match stream_result {
         Ok((stream_response, freebuff_lease_handle, stream_started_at)) => {
-            let (byte_stream, attempt) = stream_preflight::normalize(
+            let cancellation = cancellation.unwrap_or_else(|| {
+                ProviderAttemptCancellation::new(
+                    global_gateway_metrics(),
+                    &candidate.provider_account_id,
+                    model,
+                    stream_started_at,
+                )
+            });
+            let normalized = stream_preflight::normalize(
                 ctx,
                 state,
                 candidate,
@@ -78,7 +99,9 @@ pub(super) async fn send(
                 stream_started_at,
                 attempt,
             )
-            .await?;
+            .await;
+            cancellation.disarm();
+            let (byte_stream, attempt) = normalized?;
             let (byte_stream, stream_usage_handle) =
                 stream_translation::translate(ctx, candidate, &attempt, byte_stream);
             let PreparedAttempt {
@@ -173,6 +196,13 @@ pub(super) async fn send(
                 byte_stream,
                 stream_started_at,
                 move |metrics, success| {
+                    observe_provider_stream_metric(
+                        global_gateway_metrics(),
+                        &provider_id,
+                        &resolved_model_for_cb,
+                        &metrics,
+                        success,
+                    );
                     if let Some(lease_handle) = freebuff_lease_handle {
                         tokio::spawn(async move {
                             if success {
@@ -186,12 +216,6 @@ pub(super) async fn send(
                     }
                     if success {
                         ctrl_for_cb.on_success();
-                        observe_provider_success_metric(
-                            global_gateway_metrics().as_ref(),
-                            &provider_id,
-                            &resolved_model_for_cb,
-                            metrics.total_duration_ms,
-                        );
                         spawn_record_provider_success(
                             Arc::clone(&state_for_cb),
                             provider_id.clone(),
@@ -228,13 +252,6 @@ pub(super) async fn send(
                         });
                     } else {
                         ctrl_for_cb.on_failure(FailureKind::General);
-                        observe_provider_failure_metric(
-                            global_gateway_metrics().as_ref(),
-                            &provider_id,
-                            &resolved_model_for_cb,
-                            metrics.total_duration_ms,
-                            "stream terminated before completion",
-                        );
                         spawn_record_provider_failure(
                             Arc::clone(&state_for_cb),
                             provider_id.clone(),
@@ -270,6 +287,9 @@ pub(super) async fn send(
             return Ok(PipelineOutput::Sse(tracked));
         }
         Err(e) => {
+            if let Some(cancellation) = cancellation {
+                cancellation.disarm();
+            }
             let PreparedAttempt {
                 route_policy_config,
                 model,

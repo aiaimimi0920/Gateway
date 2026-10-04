@@ -1460,6 +1460,7 @@ dependencies = [
  "gateway-sqlx",
  "hex",
  "hmac 0.12.1",
+ "http-body 1.0.1",
  "http-body-util",
  "httpdate",
  "image",

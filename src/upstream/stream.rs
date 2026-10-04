@@ -44,6 +44,15 @@ pub struct StreamMetrics {
     pub total_bytes: u64,
     /// Milliseconds between stream construction and stream termination.
     pub total_duration_ms: u64,
+    /// Set only at EOF/error/drop; preserves the distinction discarded by `success`.
+    pub termination: Option<StreamTermination>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StreamTermination {
+    Completed,
+    Interrupted,
+    Cancelled,
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +77,7 @@ pub struct TrackedStream<E = rquest::Error> {
     on_complete: Option<Box<dyn FnOnce(StreamMetrics, bool) + Send>>,
     /// Set to `true` after `on_complete` has been called, preventing double-fire.
     completed: bool,
+    termination: Option<StreamTermination>,
 }
 
 impl TrackedStream {
@@ -117,6 +127,7 @@ impl<E> TrackedStream<E> {
             total_bytes: 0,
             on_complete: Some(Box::new(on_complete)),
             completed: false,
+            termination: None,
         }
     }
 
@@ -127,20 +138,22 @@ impl<E> TrackedStream<E> {
             chunk_count: self.chunk_count,
             total_bytes: self.total_bytes,
             total_duration_ms: self.started_at.elapsed().as_millis() as u64,
+            termination: self.termination,
         }
     }
 
     /// Fire the callback (if not already fired) with the current metrics and
     /// the given success flag.
-    fn fire_callback(&mut self, success: bool) {
+    fn fire_callback(&mut self, termination: StreamTermination) {
         if self.completed {
             return;
         }
         self.completed = true;
+        self.termination = Some(termination);
         // Release transport and captured state before reporting terminal completion.
         self.inner = None;
         if let Some(cb) = self.on_complete.take() {
-            cb(self.metrics(), success);
+            cb(self.metrics(), termination == StreamTermination::Completed);
         }
     }
 }
@@ -162,7 +175,7 @@ impl<E> Stream for TrackedStream<E> {
 
             Poll::Ready(None) => {
                 // Stream ended cleanly.
-                self.fire_callback(true);
+                self.fire_callback(StreamTermination::Completed);
                 Poll::Ready(None)
             }
 
@@ -184,7 +197,7 @@ impl<E> Stream for TrackedStream<E> {
 
             Poll::Ready(Some(Err(e))) => {
                 // Error terminates the stream.
-                self.fire_callback(false);
+                self.fire_callback(StreamTermination::Interrupted);
                 Poll::Ready(Some(Err(e)))
             }
         }
@@ -199,7 +212,7 @@ impl<E> Drop for TrackedStream<E> {
     fn drop(&mut self) {
         // Ensure callback fires even if the stream is dropped before exhaustion
         // (e.g., the client disconnected).
-        self.fire_callback(false);
+        self.fire_callback(StreamTermination::Cancelled);
     }
 }
 
