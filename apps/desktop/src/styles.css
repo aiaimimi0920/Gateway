@@ -9,6 +9,7 @@
 @import "./styles/provider-storage-connection.css";
 @import "./styles/provider-card-faces.css";
 @import "./styles/provider-account-library.css";
+@import "./styles/account-routing-pool-select.css";
 @import "./styles/provider-card-compact.css";
 @import "./styles/provider-pool-policy.css";
 @import "./styles/provider-account-ledger.css";

@@ -1,0 +1,91 @@
+/* Keep the trigger and portalled popup on the same theme-owned control palette. */
+.nt-provider-account-card__group-select {
+  display: flex;
+  width: 112px;
+  min-width: 0;
+  min-height: 26px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-color: var(--nt-border);
+  padding: 3px 6px;
+  background: var(--nt-color-control);
+  color: var(--nt-text);
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.nt-provider-account-card__group-select > span:first-child,
+.nt-account-routing-pool-select__item > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-provider-account-card__group-select > span:last-child {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.nt-provider-account-card__group-select:focus-visible,
+.nt-provider-account-card__group-select[data-state="open"] {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: 1px;
+}
+
+.nt-provider-account-card__group-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nt-account-routing-pool-select__popup {
+  z-index: 100;
+  width: max(168px, var(--radix-select-trigger-width));
+  max-width: calc(100vw - 16px);
+  max-height: min(240px, var(--radix-select-content-available-height));
+  overflow: hidden;
+  border: 1px solid var(--nt-border-strong);
+  border-radius: var(--nt-radius-sm);
+  background: var(--nt-color-control);
+  color: var(--nt-text);
+  box-shadow: var(--nt-shadow-overlay);
+  font-size: 0.75rem;
+}
+
+.nt-account-routing-pool-select__viewport {
+  padding: 4px;
+}
+
+.nt-account-routing-pool-select__item {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 2px;
+  padding: 5px 8px;
+  outline: none;
+  color: var(--nt-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.nt-account-routing-pool-select__item[data-highlighted] {
+  outline: 1px solid var(--nt-border-strong);
+  outline-offset: -1px;
+  background: var(--nt-color-control-hover);
+}
+
+.nt-account-routing-pool-select__item[data-state="checked"] {
+  background: var(--nt-signal-soft);
+  color: var(--nt-signal);
+}
+
+.nt-account-routing-pool-select__scroll {
+  display: flex;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  color: var(--nt-text-muted);
+}

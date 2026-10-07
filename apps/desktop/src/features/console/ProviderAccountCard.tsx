@@ -14,6 +14,7 @@ import {
 
 import { ActionTooltip } from "../../components/ActionTooltip";
 import { CardModelList } from "./CardModelList";
+import { AccountRoutingPoolSelect } from "./AccountRoutingPoolSelect";
 import { ProviderQuotaPanel, quotaWindowRemainingRatio } from "./accountCardQuota";
 import type {
   AccountCardGroupOption,
@@ -246,30 +247,22 @@ export function ProviderAccountCard(props: {
         <CardModelList models={account.supportedModels ?? []} label={account.displayName} traffic={account.modelTraffic} t={t} />
 
         <div className="nt-provider-account-card__meta">
-          <label className="nt-provider-account-card__groups">
+          <div className="nt-provider-account-card__groups">
             <span className="nt-provider-account-card__group-label">
               {t("分组池", "Routing pool")}
             </span>
-            <select
-              className="nt-input nt-provider-account-card__group-select"
-              value={account.logicalGroupIds?.[0] ?? ""}
+            <AccountRoutingPoolSelect
+              groupId={account.logicalGroupIds?.[0] ?? ""}
+              options={groupOptions}
+              ungroupedLabel={t("未分组", "Ungrouped")}
               disabled={editorLocked || account.previewOnly}
-              aria-label={t(
+              label={t(
                 `调整 ${account.displayName} 分组池`,
                 `Change routing pool for ${account.displayName}`,
               )}
-              onChange={(event) => handlers.onSetAccountGroup(account.accountId, event.target.value)}
-            >
-              <option value="">{t("未分组", "Ungrouped")}</option>
-              {groupOptions
-                .filter((option) => option.value !== "all")
-                .map((option) => (
-                  <option value={option.value} key={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-            </select>
-          </label>
+              onValueChange={(groupId) => handlers.onSetAccountGroup(account.accountId, groupId)}
+            />
+          </div>
           <span className="nt-provider-account-card__recent" title={account.recentUseLabel}>
             <CalendarClock size={13} aria-hidden="true" />
             <span>{account.recentUseLabel}</span>

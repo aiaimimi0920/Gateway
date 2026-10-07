@@ -1,5 +1,5 @@
 import { Database, UserPlus } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { AccountLibraryPager } from "./AccountLibraryPager";
 import { CHATGPT_POOL_CATEGORIES, isChatgptPool } from "./chatgptPool";
@@ -43,6 +43,9 @@ export function ProviderAccountLibrary({
         accounts: section.identityCategories.find((entry) => entry.id === category.id)?.accounts ?? [],
       }))
     : groupAccountsByLibrary(providerAccounts);
+  const [selectedLibrary, setSelectedLibrary] = useState<string | null>(null);
+  const activeLibrary = libraries.find((library) => library.name === selectedLibrary) ?? libraries[0];
+  const maxAccountCount = libraries.reduce((maximum, library) => Math.max(maximum, library.accounts.length), 0);
   const accountLibraryId = `provider-account-library-${section.providerId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
   return (
     <section
@@ -87,29 +90,39 @@ export function ProviderAccountLibrary({
       </header>
       {libraries.length > 0 ? (
         <div className="nt-provider-account-library__groups">
-          {libraries.map((library) => (
-            <section
-              className="nt-provider-account-library__group"
-              aria-label={t(`${library.name} 账号库`, `${library.name} account library`)}
-              key={library.name}
-            >
-              <header className="nt-provider-account-library__group-head">
-                <strong>{library.name}</strong>
-                <span>{t(`${library.accounts.length} 个账号`, `${library.accounts.length} accounts`)}</span>
-              </header>
-              <AccountLibraryPager
-                t={t}
-                libraryKey={`${section.providerId}:${library.name}`}
-                accounts={library.accounts}
-                renderAccount={renderAccount}
-              />
+          <div className="nt-provider-account-library__tabs" role="tablist" aria-label={t("账号子分组", "Account subgroups")}>
+            {libraries.map((library, index) => (
+              <button key={library.name} id={`${accountLibraryId}-tab-${index}`} type="button" role="tab"
+                aria-selected={library.name === activeLibrary?.name}
+                aria-controls={`${accountLibraryId}-panel`}
+                tabIndex={library.name === activeLibrary?.name ? 0 : -1}
+                onClick={() => setSelectedLibrary(library.name)}
+                onKeyDown={(event) => {
+                  let next = index;
+                  if (event.key === "ArrowRight") next = (index + 1) % libraries.length;
+                  else if (event.key === "ArrowLeft") next = (index + libraries.length - 1) % libraries.length;
+                  else if (event.key === "Home") next = 0;
+                  else if (event.key === "End") next = libraries.length - 1;
+                  else return;
+                  event.preventDefault();
+                  setSelectedLibrary(libraries[next].name);
+                  document.getElementById(`${accountLibraryId}-tab-${next}`)?.focus();
+                }}>
+                {library.name} <span>{library.accounts.length}</span>
+              </button>
+            ))}
+          </div>
+          {activeLibrary ? (
+            <section id={`${accountLibraryId}-panel`} role="tabpanel"
+              aria-labelledby={`${accountLibraryId}-tab-${libraries.indexOf(activeLibrary)}`}>
+              <AccountLibraryPager t={t} libraryKey={`${section.providerId}:${activeLibrary.name}`}
+                accounts={activeLibrary.accounts} maxAccountCount={maxAccountCount} renderAccount={renderAccount} />
             </section>
-          ))}
+          ) : null}
         </div>
       ) : (
-        <div className="nt-provider-account-library__empty">
-          <span>{t("当前账号库为空", "Account library is empty")}</span>
-        </div>
+        <AccountLibraryPager t={t} libraryKey={section.providerId}
+          accounts={[]} maxAccountCount={0} renderAccount={renderAccount} />
       )}
     </section>
   );

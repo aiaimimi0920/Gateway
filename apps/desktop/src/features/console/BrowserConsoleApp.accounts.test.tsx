@@ -100,10 +100,10 @@ describe("BrowserConsoleApp", () => {
     const summaryAccount = providerPanel.querySelector('[data-account-card="acc-prod-1"]');
     expect(summaryAccount).not.toBeNull();
     expect(within(summaryAccount as HTMLElement).getByText("生产账号 A")).toBeInTheDocument();
-    expect(within(summaryAccount as HTMLElement).getByText("暂停")).toBeInTheDocument();
+    expect(within(summaryAccount as HTMLElement).getByRole("switch")).toHaveAttribute("aria-checked", "false");
     expect(
       within(summaryAccount as HTMLElement).getByRole("combobox", { name: /调整 生产账号 A 分组池/i }),
-    ).toHaveValue("group-vip");
+    ).toHaveAttribute("data-group-id", "group-vip");
     expect(screen.queryByText("分组数量")).not.toBeInTheDocument();
   });
 

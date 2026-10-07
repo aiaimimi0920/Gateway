@@ -147,6 +147,8 @@
   font-size: 0.68rem;
 }
 
+/* Empty tabs reserve exactly the same geometry as accounts with model lists. */
+.nt-provider-account-library__pager,
 .nt-provider-account-card:has(.nt-card-models) {
   --nt-provider-account-card-height: 352px;
 }

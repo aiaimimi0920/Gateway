@@ -107,50 +107,31 @@ describe("AccountsLedgerWorkspace account library", () => {
       }),
     );
 
-    const freeLibrary = screen.getByRole("region", { name: "free 账号库" });
-    const plusLibrary = screen.getByRole("region", { name: "plus 账号库" });
+    const freeLibrary = screen.getByRole("tabpanel");
     expect(within(freeLibrary).getByText("free@example.com")).toBeInTheDocument();
+    expect(screen.queryByText("plus@example.com")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "plus 1" }));
+    const plusLibrary = screen.getByRole("tabpanel");
     expect(within(plusLibrary).getByText("plus@example.com")).toBeInTheDocument();
-    expect(within(plusLibrary).getByText("分组池")).toBeInTheDocument();
-    expect(
-      within(plusLibrary).getByRole("option", { name: "青铜级别服务", selected: true }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("free@example.com")).not.toBeInTheDocument();
+    expect(within(plusLibrary).getByRole("combobox", { name: "调整 plus@example.com 分组池" })).toHaveTextContent("青铜级别服务");
+    await user.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("tab", { name: "free 1" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("limits each account library page to two rows and supports next and direct page jumps", async () => {
+  it("renders all accounts in a two-row scroll viewport without pagination", async () => {
     const user = userEvent.setup();
-    const accounts = Array.from({ length: 18 }, (_, index) =>
-      pilotAccount({
-        accountId: `acct-${index + 1}`,
-        displayName: `account-${index + 1}@example.com`,
-        libraryName: "free",
-      }),
-    );
-    renderWorkspace(
-      workspaceProps({ pilotSections: [pilotSection({ directAccounts: accounts })] }),
-    );
-
-    await user.click(
-      within(card("managed-provider")).getByRole("button", {
-        name: "显示 Managed OpenAI 账号库",
-      }),
-    );
-    const library = screen.getByRole("region", { name: "free 账号库" });
-    const pageGrid = library.querySelector("[data-account-library-page]");
-    expect(pageGrid).toHaveAttribute("data-account-library-rows", "2");
-    expect(pageGrid).toHaveAttribute("data-account-library-page-size", "8");
-    expect(pageGrid?.querySelectorAll("[data-account-card]")).toHaveLength(8);
-
-    await user.click(within(library).getByRole("button", { name: "下一页" }));
-    expect(pageGrid).toHaveAttribute("data-account-library-page", "2");
-    expect(within(library).getByText("account-9@example.com")).toBeInTheDocument();
-
-    const pageInput = within(library).getByRole("spinbutton", { name: "跳转页数" });
-    await user.clear(pageInput);
-    await user.type(pageInput, "3{Enter}");
-    expect(pageGrid).toHaveAttribute("data-account-library-page", "3");
-    expect(within(library).getByText("account-17@example.com")).toBeInTheDocument();
-    expect(pageGrid?.querySelectorAll("[data-account-card]")).toHaveLength(2);
+    const accounts = Array.from({ length: 18 }, (_, index) => pilotAccount({
+      accountId: `acct-${index + 1}`, displayName: `account-${index + 1}@example.com`, libraryName: "free",
+    }));
+    renderWorkspace(workspaceProps({ pilotSections: [pilotSection({ directAccounts: accounts })] }));
+    await user.click(within(card("managed-provider")).getByRole("button", { name: "显示 Managed OpenAI 账号库" }));
+    const library = screen.getByRole("tabpanel");
+    const grid = library.querySelector("[data-account-library-rows]");
+    expect(grid).toHaveAttribute("data-account-library-rows", "2");
+    expect(grid?.querySelectorAll("[data-account-card]")).toHaveLength(18);
+    expect(within(library).getByRole("region", { name: "账号库滚动区域" })).toHaveAttribute("tabindex", "0");
+    expect(screen.queryByRole("button", { name: "下一页" })).not.toBeInTheDocument();
   });
 
   it("shows account quota, provider aggregate quota, and hides the strip when quota is missing", async () => {
@@ -328,10 +309,8 @@ describe("AccountsLedgerWorkspace account library", () => {
 
     await user.click(within(library).getByRole("button", { name: "查看 Account 1 统计" }));
     expect(onOpenStats).toHaveBeenCalledWith("managed-provider", expect.objectContaining({ accountId: "acct-1" }));
-    await user.selectOptions(
-      within(library).getByRole("combobox", { name: "调整 Account 1 分组池" }),
-      "bronze",
-    );
+    await user.click(within(library).getByRole("combobox", { name: "调整 Account 1 分组池" }));
+    await user.click(screen.getByRole("option", { name: "青铜级别服务" }));
     expect(onSetAccountGroup).toHaveBeenCalledWith("acct-1", "bronze");
 
     await user.click(within(library).getByRole("button", { name: "更多操作 acct-1" }));

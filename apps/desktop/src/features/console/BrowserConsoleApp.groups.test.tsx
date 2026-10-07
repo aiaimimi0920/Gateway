@@ -137,10 +137,8 @@ describe("BrowserConsoleApp", () => {
     await user.click(screen.getByRole("button", { name: /显示 Managed OpenAI 账号库/i }));
     const accountLibrary = screen.getByRole("region", { name: /^Managed OpenAI 账号库$/i });
     const commitCallCount = vi.mocked(consoleApi.commitRouteConfig).mock.calls.length;
-    await user.selectOptions(
-      within(accountLibrary).getByRole("combobox", { name: /调整 生产账号 A 分组池/i }),
-      "group-b",
-    );
+    await user.click(within(accountLibrary).getByRole("combobox", { name: /调整 生产账号 A 分组池/i }));
+    await user.click(screen.getByRole("option", { name: "白银级别服务" }));
 
     const draft = await waitForCommittedRouteDraft(consoleApi, commitCallCount);
     const groups = draft.account_groups as Array<{

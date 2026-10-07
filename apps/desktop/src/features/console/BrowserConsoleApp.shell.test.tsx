@@ -218,11 +218,11 @@ describe("BrowserConsoleApp", () => {
     expect(within(firstCard as HTMLElement).getByText("生产账号 A")).toBeInTheDocument();
     expect(
       within(firstCard as HTMLElement).getByRole("combobox", { name: /调整 生产账号 A 分组池/i }),
-    ).toHaveValue("group-vip");
+    ).toHaveAttribute("data-group-id", "group-vip");
     expect(within(firstCard as HTMLElement).getByRole("switch", { name: /调度 acc-prod-1/i })).toHaveAttribute("aria-checked", "true");
     expect(
       within(secondCard as HTMLElement).getByRole("combobox", { name: /调整 生产账号 B 分组池/i }),
-    ).toHaveValue("");
+    ).toHaveAttribute("data-group-id", "");
     expect(within(secondCard as HTMLElement).getByRole("switch", { name: /调度 acc-prod-2/i })).toHaveAttribute("aria-checked", "true");
     expect(within(providerLibrary).queryByRole("table")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /Managed OpenAI 账号明细/i })).not.toBeInTheDocument();

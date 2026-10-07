@@ -114,13 +114,13 @@ describe("BrowserConsoleApp", () => {
     expect(within(providerRow as HTMLElement).queryByText("32 req")).not.toBeInTheDocument();
 
     const accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-    const freeLibrary = within(accountLibrary).getByRole("region", { name: /^free 账号库$/i });
+    const freeLibrary = within(accountLibrary).getByRole("tabpanel");
     const freeCard = freeLibrary.querySelector('[data-account-card="codex-free-1"]');
     expect(freeCard).not.toBeNull();
     expect(within(freeCard as HTMLElement).getByText("Codex Free 1")).toBeInTheDocument();
     expect(
       within(freeCard as HTMLElement).getByRole("combobox", { name: /调整 Codex Free 1 分组池/i }),
-    ).toHaveValue("vip-users");
+    ).toHaveAttribute("data-group-id", "vip-users");
     expect(within(freeCard as HTMLElement).queryByText("容量")).not.toBeInTheDocument();
     expect(within(freeCard as HTMLElement).queryByText("2 分钟前")).not.toBeInTheDocument();
     expect(

@@ -3,8 +3,12 @@
   display: grid;
   min-width: 0;
   gap: 8px;
-  border-top: 1px solid var(--nt-border);
-  padding-top: 8px;
+  border: 1px solid color-mix(in srgb, var(--nt-info) 48%, var(--nt-border));
+  border-left: 3px solid var(--nt-info);
+  border-radius: var(--nt-radius-sm);
+  padding: 10px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--nt-info) 3%, var(--nt-color-panel));
 }
 
 .nt-provider-account-library--attached {
@@ -52,9 +56,19 @@
 }
 
 .nt-provider-account-library__pager {
-  display: grid;
   min-width: 0;
-  gap: 8px;
+  height: calc(var(--nt-provider-account-card-height, 216px) * var(--nt-account-library-visible-rows, 1)
+    + 8px * (var(--nt-account-library-visible-rows, 1) - 1));
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  overscroll-behavior-y: contain;
+}
+
+.nt-provider-account-library__pager > .nt-provider-account-library__empty {
+  height: 100%;
+  box-sizing: border-box;
+  justify-content: center;
 }
 
 .nt-provider-account-library__head {
@@ -95,11 +109,10 @@
   text-align: right;
 }
 
-/* The column count is measured from the container width in JS, so the tracks
-   always fit; no horizontal scroll track is needed (or wanted) here. */
+/* JS reads the actual tracks to reserve the same one or two rows across all tabs. */
 .nt-provider-account-card-grid {
   display: grid;
-  grid-template-columns: repeat(4, 292px);
+  grid-template-columns: repeat(auto-fill, minmax(min(292px, 100%), 292px));
   justify-content: start;
   min-width: 0;
   gap: 8px;
@@ -422,15 +435,6 @@
   overflow: hidden;
   align-items: center;
   gap: 4px;
-}
-
-.nt-provider-account-card__group-select {
-  width: 112px;
-  min-width: 0;
-  min-height: 26px;
-  padding: 3px 22px 3px 6px;
-  font-size: 0.62rem;
-  text-overflow: ellipsis;
 }
 
 .nt-provider-account-card__groups .nt-chip {

@@ -1,53 +1,30 @@
 import { act, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  AccountLibraryPager,
-  type AccountsLedgerPilotAccount,
-} from "./ProviderAccountCard";
+import { AccountLibraryPager } from "./AccountLibraryPager";
+import { pilotAccount } from "./AccountsLedgerWorkspace.fixtures";
+import type { AccountsLedgerPilotAccount } from "./accountCardTypes";
 
 const t = (zh: string, _en: string) => zh;
+const accounts = Array.from({ length: 18 }, (_, index) => pilotAccount({ accountId: `acct-${index}` }));
+const renderAccount = (account: AccountsLedgerPilotAccount) => (
+  <article key={account.accountId} data-account-card={account.accountId}>{account.displayName}</article>
+);
+let width = 1_200;
 let resizeCallback: ResizeObserverCallback | null = null;
 const disconnect = vi.fn();
 
-function account(index: number): AccountsLedgerPilotAccount {
-  return {
-    accountId: `account-${index}`,
-    providerId: "provider",
-    displayName: `Account ${index}`,
-    mode: "credential",
-    enabled: true,
-    logicalLabels: [],
-    capacityLabel: "1 / 1",
-    statusLabel: "正常",
-    dispatchEnabled: true,
-    dispatchEditable: true,
-    previewOnly: false,
-    usageWindowBadges: [],
-    recentUseLabel: "从未使用",
-    verificationStatus: "not-tested",
-    verificationFamilies: [],
-    verificationCheckedAt: null,
-    verificationEvidenceRef: null,
-    verificationNote: "",
-  };
-}
+const pager = () => screen.getByRole("region", { name: "账号库滚动区域" });
+const rows = () => pager().querySelector("[data-account-library-rows]");
+const notifyResize = () => act(() => resizeCallback?.([], {} as ResizeObserver));
 
 beforeEach(() => {
+  width = 1_200;
   resizeCallback = null;
   disconnect.mockClear();
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-    width: 1_200,
-    height: 0,
-    top: 0,
-    right: 1_200,
-    bottom: 0,
-    left: 0,
-    x: 0,
-    y: 0,
-    toJSON: () => ({}),
-  });
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(() => ({
+    width, height: 0, top: 0, right: width, bottom: 0, left: 0, x: 0, y: 0, toJSON: () => ({}),
+  }));
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -68,73 +45,79 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("AccountLibraryPager", () => {
-  it("resets the page when the library changes and responds to container width", async () => {
-    const user = userEvent.setup();
-    const accounts = Array.from({ length: 10 }, (_, index) => account(index + 1));
-    const renderAccount = (entry: AccountsLedgerPilotAccount) => (
-      <article data-account-card={entry.accountId} key={entry.accountId}>
-        {entry.displayName}
-      </article>
-    );
-    const view = render(
-      <AccountLibraryPager
-        t={t}
-        libraryKey="alpha"
-        accounts={accounts}
-        renderAccount={renderAccount}
-      />,
-    );
-    const grid = document.querySelector("[data-account-library-page]");
+describe("AccountLibraryPager stable viewport", () => {
+  it("reserves one row for an entirely empty library", () => {
+    render(<AccountLibraryPager t={t} libraryKey="empty" accounts={[]} maxAccountCount={0} renderAccount={renderAccount} />);
+    expect(rows()).toHaveAttribute("data-account-library-rows", "1");
+    expect(pager()).toHaveStyle({ "--nt-account-library-visible-rows": "1" });
+    expect(screen.getByText("当前账号库为空")).toBeInTheDocument();
+    expect(pager()).toHaveAttribute("tabindex", "0");
+  });
 
-    expect(grid).toHaveAttribute("data-account-library-page-size", "8");
-    await user.click(screen.getByRole("button", { name: "下一页" }));
-    expect(grid).toHaveAttribute("data-account-library-page", "2");
-    expect(screen.getByText("Account 9")).toBeInTheDocument();
+  it("keeps one row when switching from a populated to an empty tab", () => {
+    const view = render(<AccountLibraryPager t={t} libraryKey="free" accounts={accounts.slice(0, 2)}
+      maxAccountCount={2} renderAccount={renderAccount} />);
+    expect(rows()).toHaveAttribute("data-account-library-rows", "1");
+    view.rerender(<AccountLibraryPager t={t} libraryKey="plus" accounts={[]}
+      maxAccountCount={2} renderAccount={renderAccount} />);
+    expect(rows()).toHaveAttribute("data-account-library-rows", "1");
+    expect(disconnect).not.toHaveBeenCalled();
+  });
 
-    view.rerender(
-      <AccountLibraryPager
-        t={t}
-        libraryKey="beta"
-        accounts={accounts}
-        renderAccount={renderAccount}
-      />,
-    );
-    expect(grid).toHaveAttribute("data-account-library-page", "1");
-    expect(screen.getByText("Account 1")).toBeInTheDocument();
+  it("caps the viewport at two rows but keeps every account in the scroll region", () => {
+    const view = render(<AccountLibraryPager t={t} libraryKey="many" accounts={accounts}
+      maxAccountCount={18} renderAccount={renderAccount} />);
+    expect(rows()).toHaveAttribute("data-account-library-rows", "2");
+    expect(pager().querySelectorAll("[data-account-card]")).toHaveLength(18);
+    expect(screen.queryByRole("button", { name: "下一页" })).not.toBeInTheDocument();
+    view.rerender(<AccountLibraryPager t={t} libraryKey="empty" accounts={[]}
+      maxAccountCount={18} renderAccount={renderAccount} />);
+    expect(rows()).toHaveAttribute("data-account-library-rows", "2");
+  });
 
-    act(() => {
-      resizeCallback?.(
-        [{ contentRect: { width: 600 } } as unknown as ResizeObserverEntry],
-        {} as ResizeObserver,
-      );
-    });
-    expect(grid).toHaveAttribute("data-account-library-page-size", "4");
-
+  it("updates the reserved rows when width changes, including on an empty tab", () => {
+    const view = render(<AccountLibraryPager t={t} libraryKey="empty" accounts={[]}
+      maxAccountCount={2} renderAccount={renderAccount} />);
+    width = 300;
+    notifyResize();
+    expect(rows()).toHaveAttribute("data-account-library-rows", "2");
+    width = 1_200;
+    notifyResize();
+    expect(rows()).toHaveAttribute("data-account-library-rows", "1");
     view.unmount();
     expect(disconnect).toHaveBeenCalledOnce();
   });
 
-  it("clamps direct page entry to the valid range", async () => {
-    const user = userEvent.setup();
-    const accounts = Array.from({ length: 18 }, (_, index) => account(index + 1));
-    render(
-      <AccountLibraryPager
-        t={t}
-        libraryKey="alpha"
-        accounts={accounts}
-        renderAccount={(entry) => <span key={entry.accountId}>{entry.displayName}</span>}
-      />,
-    );
-    const grid = document.querySelector("[data-account-library-page]");
-    const input = screen.getByRole("spinbutton", { name: "跳转页数" });
+  it("uses actual CSS tracks rather than overestimating columns before the scrollbar gutter", () => {
+    const original = window.getComputedStyle;
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element, pseudo) => {
+      const style = original(element, pseudo);
+      if (element.classList.contains("nt-provider-account-card-grid")) {
+        Object.defineProperty(style, "gridTemplateColumns", { value: "292px 292px 292px" });
+      }
+      return style;
+    });
+    render(<AccountLibraryPager t={t} libraryKey="empty" accounts={[]}
+      maxAccountCount={4} renderAccount={renderAccount} />);
+    expect(rows()).toHaveAttribute("data-account-library-rows", "2");
+  });
 
-    await user.clear(input);
-    await user.type(input, "99{Enter}");
-    expect(grid).toHaveAttribute("data-account-library-page", "3");
+  it("resets internal scroll on tab changes without recreating the observer", () => {
+    const view = render(<AccountLibraryPager t={t} libraryKey="many" accounts={accounts} renderAccount={renderAccount} />);
+    pager().scrollTop = 400;
+    view.rerender(<AccountLibraryPager t={t} libraryKey="other" accounts={accounts} renderAccount={renderAccount} />);
+    expect(pager().scrollTop).toBe(0);
+    expect(disconnect).not.toHaveBeenCalled();
+    view.unmount();
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
 
-    await user.clear(input);
-    await user.type(input, "0{Enter}");
-    expect(grid).toHaveAttribute("data-account-library-page", "1");
+  it("recalculates when the largest tab count changes", () => {
+    const view = render(<AccountLibraryPager t={t} libraryKey="empty" accounts={[]}
+      maxAccountCount={10} renderAccount={renderAccount} />);
+    expect(rows()).toHaveAttribute("data-account-library-rows", "2");
+    view.rerender(<AccountLibraryPager t={t} libraryKey="empty" accounts={[]}
+      maxAccountCount={1} renderAccount={renderAccount} />);
+    expect(rows()).toHaveAttribute("data-account-library-rows", "1");
   });
 });
