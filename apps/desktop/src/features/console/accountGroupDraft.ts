@@ -13,6 +13,22 @@ export type AccountGroupDraftRow = {
   providerCredentialIds: string[];
 };
 
+export type AccountGroupCreateValue = Omit<AccountGroupDraftRow, "id" | "providerCredentialIds"> & {
+  providerCredentialIds?: string[];
+};
+
+export function accountGroupCreateValidation(
+  value: AccountGroupCreateValue,
+  existingGroupIds: readonly string[],
+): "groupId" | "duplicate" | "billingMultiplier" | null {
+  const groupId = value.groupId.trim();
+  if (!groupId) return "groupId";
+  if (existingGroupIds.some((id) => id.trim() === groupId)) return "duplicate";
+  return parseAccountGroupBillingMultiplier(value.billingMultiplier) === null
+    ? "billingMultiplier"
+    : null;
+}
+
 export function createAccountGroupDraftRow(
   overrides: Partial<Omit<AccountGroupDraftRow, "id">> = {},
 ): AccountGroupDraftRow {

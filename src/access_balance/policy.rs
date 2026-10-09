@@ -21,6 +21,7 @@ pub(crate) fn unlimited(id: &str) -> GatewayAccessKeyBalanceView {
         remaining_tokens: None,
         total_messages: None,
         remaining_messages: None,
+        cash: None,
         updated_at: timestamp(),
     }
 }
@@ -36,7 +37,7 @@ fn parse(value: Option<&str>) -> Result<Option<OffsetDateTime>, GatewayError> {
         .transpose()
 }
 
-pub(super) fn evaluate(
+pub(crate) fn evaluate(
     balance: &GatewayAccessKeyBalanceView,
     estimate: u64,
 ) -> AccessBalanceDecision {
@@ -64,6 +65,8 @@ pub(super) fn evaluate(
             }
             Ok(_) => match balance.balance_mode.as_str() {
                 "unlimited" => None,
+                // Cash admission is atomic after route/tariff resolution, before dispatch.
+                "cash_prepaid" => None,
                 "time_pass" => match parse(balance.unlimited_until.as_deref()) {
                     Ok(Some(expiry)) if expiry > now => None,
                     _ => Some("time_pass_inactive"),

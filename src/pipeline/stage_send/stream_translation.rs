@@ -16,6 +16,23 @@ pub(super) fn translate(
         ..
     } = attempt;
     let tools_were_injected = *tools_were_injected;
+    let byte_stream: ByteStream =
+        if matches!(
+            candidate.adapter.as_str(),
+            "dashscope_compatible" | "dashscope_multimodal_compatible"
+        ) && !candidate.payload.is_discovered_native(&ctx.canonical_req)
+        {
+            Box::pin(crate::protocol::dashscope::stream::translate(
+                byte_stream,
+                reply_model.clone(),
+                false,
+                false,
+                true,
+                true,
+            ))
+        } else {
+            byte_stream
+        };
     let (byte_stream, stream_usage_handle) = if candidate.adapter == "kiro_compatible" {
         (byte_stream, None)
     } else {
@@ -23,6 +40,9 @@ pub(super) fn translate(
         (Box::pin(tapped_stream) as ByteStream, Some(usage_handle))
     };
 
+    if !tools_were_injected && candidate.payload.is_discovered_native(&ctx.canonical_req) {
+        return (byte_stream, stream_usage_handle);
+    }
     let uses_openai_responses_bridge = candidate
         .payload
         .bridges_openai_text_endpoint_to_responses(ctx.canonical_req.endpoint_kind);

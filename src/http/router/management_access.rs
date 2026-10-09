@@ -172,12 +172,24 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
             post(internal_access::rotate_access_key),
         )
         .route(
+            "/v1/internal/gateway/access/keys/:access_key_id/secret",
+            post(internal_access::copy_access_key),
+        )
+        .route(
+            "/v1/internal/gateway/access/keys/:access_key_id/enabled",
+            post(internal_access::set_access_key_enabled),
+        )
+        .route(
             "/v1/internal/gateway/access/keys/:access_key_id/revoke",
             post(internal_access::revoke_access_key),
         )
         .route(
             "/v1/internal/gateway/access/keys/:access_key_id/balance",
             get(internal_access::get_access_key_balance),
+        )
+        .route(
+            "/v1/internal/gateway/access/keys/:access_key_id/cash-ledger",
+            get(internal_access::get_cash_ledger),
         )
         .route(
             "/v1/internal/gateway/access/keys/:access_key_id/balances/adjust",

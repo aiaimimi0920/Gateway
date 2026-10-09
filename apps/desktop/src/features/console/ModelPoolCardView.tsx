@@ -1,6 +1,5 @@
-import { Database, GalleryHorizontalEnd, Layers } from "lucide-react";
+import { Database, GalleryHorizontalEnd, Layers, RotateCcw } from "lucide-react";
 
-import type { useAccountCardMenu } from "./ProviderAccountCard";
 import type { ModelPoolCard as ModelPoolCardData } from "./modelPoolViewModel";
 import { ModelPoolCardActions } from "./ModelPoolCardActions";
 import { ModelPoolCardMetrics } from "./ModelPoolCardMetrics";
@@ -16,7 +15,6 @@ export type ModelPoolCardViewProps = {
   flipped: boolean;
   editorLocked: boolean;
   accountPanelId: string;
-  menu: ReturnType<typeof useAccountCardMenu>;
   deselectedProviderIds: readonly string[];
   registerFlipButton: (side: FlipSide, node: HTMLButtonElement | null) => void;
   onToggleCard: () => void;
@@ -37,7 +35,6 @@ export function ModelPoolCardView({
   flipped,
   editorLocked,
   accountPanelId,
-  menu,
   deselectedProviderIds,
   registerFlipButton,
   onToggleCard,
@@ -127,16 +124,10 @@ export function ModelPoolCardView({
           <ModelPoolCardActions
             t={t}
             card={card}
-            expanded={expanded}
             editorLocked={editorLocked}
-            accountPanelId={accountPanelId}
-            menu={menu}
             onToggleEnabled={onToggleEnabled}
             onEditModel={onEditModel}
             onDeleteModel={onDeleteModel}
-            onResetChain={onResetChain}
-            toggleModelFlip={(_, side) => onFlip(side)}
-            toggleModelCard={onToggleCard}
           />
         </div>
 
@@ -150,6 +141,16 @@ export function ModelPoolCardView({
               <strong>{card.model}</strong>
             </div>
             <div className="nt-entitlement-group-card__head-actions">
+              <button
+                className="nt-icon-action"
+                type="button"
+                aria-label={t("重置优先级", "Reset chain")}
+                title={card.pinned ? t("重置优先级", "Reset chain") : t("当前已是默认顺序", "Already the inherited order")}
+                disabled={editorLocked || !card.pinned}
+                onClick={() => onResetChain(card.model)}
+              >
+                <RotateCcw size={15} aria-hidden="true" />
+              </button>
               <button
                 className="nt-icon-action nt-entitlement-group-card__library-toggle"
                 type="button"

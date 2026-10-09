@@ -165,6 +165,7 @@ export function workspaceProps(
     onSetAccountGroup: vi.fn(),
     onOpenProbe: vi.fn(),
     onOpenProviderProbe: vi.fn(),
+    onRemoveProvider: vi.fn(),
     onOpenProviderSchedule: vi.fn(),
     modelMappingCountByProvider: new Map<string, number>(),
     onOpenModelMapping: vi.fn(),
@@ -179,4 +180,3 @@ export function card(providerId: string) {
   expect(element).not.toBeNull();
   return element as HTMLElement;
 }
-

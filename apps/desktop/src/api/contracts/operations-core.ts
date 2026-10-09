@@ -42,6 +42,7 @@ export type ConsoleGatewayReadiness = {
     draining: boolean;
   };
   dependencies: {
+    sqlite?: ConsoleDependencyReadiness | null;
     redis: ConsoleDependencyReadiness;
     postgresql: ConsoleDependencyReadiness;
     objectStorage: ConsoleDependencyReadiness;
@@ -80,6 +81,7 @@ export type ConsoleOperatorSummary = {
   readiness: {
     ok: boolean;
     dependencies: {
+      sqlite?: ConsoleDependencyReadiness | null;
       redis: ConsoleDependencyReadiness;
       postgresql: ConsoleDependencyReadiness;
       objectStorage: ConsoleDependencyReadiness;

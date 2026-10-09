@@ -71,6 +71,15 @@ pub(super) fn candidate_account_group_member_id(candidate: &RouteCandidate) -> S
 }
 
 impl RouteAccountGroupConstraint {
+    pub fn intersect(&mut self, other: &Self) {
+        if let Some(allowed) = &other.allowed_account_ids {
+            match &mut self.allowed_account_ids {
+                Some(current) => current.retain(|id| allowed.contains(id)),
+                None => self.allowed_account_ids = Some(allowed.clone()),
+            }
+        }
+    }
+
     pub fn requested_group_id(&self) -> Option<&str> {
         self.requested_group_id.as_deref()
     }
@@ -86,5 +95,27 @@ impl RouteAccountGroupConstraint {
             .into_iter()
             .filter(|candidate| self.allows_candidate(candidate))
             .collect()
+    }
+}
+
+impl RouteConfigSnapshot {
+    pub fn access_key_group_constraint(&self, group_ids: &[String]) -> RouteAccountGroupConstraint {
+        let selected: HashSet<&str> = group_ids.iter().map(String::as_str).collect();
+        let allowed_account_ids = self
+            .document()
+            .account_groups
+            .iter()
+            .filter(|group| group.enabled.unwrap_or(true) && selected.contains(group.id.as_str()))
+            .flat_map(|group| {
+                group
+                    .provider_credential_ids
+                    .iter()
+                    .map(|id| id.trim().to_owned())
+            })
+            .collect();
+        RouteAccountGroupConstraint {
+            requested_group_id: None,
+            allowed_account_ids: Some(allowed_account_ids),
+        }
     }
 }

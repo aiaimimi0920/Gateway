@@ -1,4 +1,12 @@
 // Account inventory, credential-pool, refill, and probe wire contracts.
+export type ConsoleProviderProbeRequest = {
+  planId?: string;
+  prompt?: string;
+  model?: string;
+  credentialIds?: string[];
+  testPlan?: import("./credentialTests").CredentialTestPolicy;
+  scope?: import("./credentialTests").CredentialTestRequestScope;
+};
 
 export type ConsoleAccountGroupSummaryGroup = {
   id: string;
@@ -233,6 +241,7 @@ export type ConsoleCredentialProbeResult = {
   status: ConsoleCredentialProbeStatus;
   message: string;
   checkedAt: string;
+  assessment?: import("./credentialTests").CredentialTestAssessment;
 };
 
 export type ConsoleCredentialProbeResponse = {
@@ -240,6 +249,7 @@ export type ConsoleCredentialProbeResponse = {
 };
 
 export type ConsoleProviderProbeResult = {
+  truncated?: boolean;
   providerId: string;
   status: ConsoleCredentialProbeStatus;
   message: string;

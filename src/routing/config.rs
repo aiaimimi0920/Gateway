@@ -42,6 +42,7 @@ mod aliases;
 mod candidates;
 mod document_compilation;
 mod model_catalog;
+mod model_mapping;
 mod payload;
 mod provider_compilation;
 mod refresh_state;
@@ -51,12 +52,15 @@ mod snapshot_publication;
 mod storage_connection;
 mod store;
 mod substitution;
+mod test_plans;
+mod test_policy;
 
 pub(crate) use aliases::normalized_alias_conflicts;
 pub use candidates::CandidateResolution;
 pub(crate) use document_compilation::{
     compile_route_document, effective_credential_id, provider_default_account_id,
 };
+pub(crate) use model_mapping::model_for_probe;
 pub(crate) use refresh_state::effective_refresh_lifetime_secs;
 pub use refresh_state::{future_rfc3339_after_secs, system_time_to_rfc3339_millis};
 pub use schema::{
@@ -101,6 +105,7 @@ pub struct CompiledProvider {
     /// Key = canonical model name, Value = what this provider actually calls it.
     /// E.g., `{"claude-opus-4-6": "opus4.6"}` if this provider uses a different name.
     pub model_map: HashMap<String, String>,
+    pub model_map_targets: HashMap<String, Vec<String>>,
     pub scheduled_probe_enabled: bool,
     pub scheduled_probe_interval_minutes: u64,
     /// Credential pool for this provider.
@@ -117,6 +122,7 @@ pub struct CompiledProvider {
 /// merged in — ready to use with no per-request merging needed.
 #[derive(Debug, Clone)]
 pub struct CompiledCredential {
+    pub discovery: Option<crate::provider_discovery::CredentialDiscovery>,
     pub id: String,
     pub payload: ProviderAccountPayload,
     /// Whether this credential participates in runtime routing. Disabled
@@ -222,6 +228,7 @@ pub(crate) struct CredentialProbeTarget {
 pub(crate) struct ScheduledCredentialProbeTarget {
     pub target: CredentialProbeTarget,
     pub interval_minutes: u64,
+    pub plan_id: Option<String>,
 }
 
 /// Thread-safe route config store.  Wrap in [`Arc`] and share across threads.

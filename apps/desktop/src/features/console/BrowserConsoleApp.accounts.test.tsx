@@ -271,8 +271,8 @@ describe("BrowserConsoleApp", () => {
 
     const dialog = screen.getByRole("dialog", { name: /新增账号/i });
     expect(
-      within(dialog).getByRole("checkbox", { name: /账号启用状态/i }),
-    ).toBeChecked();
+      within(dialog).queryByRole("checkbox", { name: /账号启用状态/i }),
+    ).not.toBeInTheDocument();
     await user.selectOptions(within(dialog).getByLabelText(/^Provider$/i), "managed-provider");
     await user.type(within(dialog).getByLabelText(/账号 ID/i), "acc-prod-1");
     await user.type(within(dialog).getByLabelText(/账号名称/i), "生产账号 A");
@@ -282,7 +282,7 @@ describe("BrowserConsoleApp", () => {
     );
     await user.type(within(dialog).getByLabelText(/支持模型/i), "gpt-5.4\ngpt-5.4-mini");
     await user.type(within(dialog).getByLabelText(/^API Key$/i), "sk-new-account");
-    await user.click(within(dialog).getByRole("button", { name: /保存到草稿/i }));
+    await user.click(within(dialog).getByRole("button", { name: /保存/i }));
 
     expect(screen.queryByRole("dialog", { name: /新增账号/i })).not.toBeInTheDocument();
 
@@ -343,7 +343,7 @@ describe("BrowserConsoleApp", () => {
                 {
                   id: "acc-prod-1",
                   account_name: "生产账号 A",
-                  enabled: true,
+                  enabled: false,
                   supported_models: ["gpt-5.4"],
                 },
               ],
@@ -378,23 +378,20 @@ describe("BrowserConsoleApp", () => {
 
     const dialog = screen.getByRole("dialog", { name: /编辑账号/i });
     expect(within(dialog).getByLabelText(/账号 ID/i)).toBeDisabled();
-    const enabledToggle = within(dialog).getByRole("checkbox", {
+    expect(within(dialog).queryByRole("checkbox", {
       name: /账号启用状态/i,
-    });
-    expect(enabledToggle).toBeChecked();
-    await user.click(enabledToggle);
+    })).not.toBeInTheDocument();
     const nameInput = within(dialog).getByLabelText(/账号名称/i);
     await user.clear(nameInput);
     await user.type(nameInput, "生产账号 A2");
-    await user.selectOptions(within(dialog).getByLabelText(/API Key 操作/i), "replace");
     await user.type(within(dialog).getByLabelText(/^API Key$/i), "sk-replaced-account");
-    await user.click(within(dialog).getByRole("button", { name: /保存到草稿/i }));
+    await user.click(within(dialog).getByRole("button", { name: /保存/i }));
 
     const editedAccount = screen
       .getByRole("region", { name: /^Managed OpenAI 账号库$/i })
       .querySelector('[data-account-card="acc-prod-1"]');
     expect(editedAccount).not.toBeNull();
-    expect(within(editedAccount as HTMLElement).getByText("暂停")).toBeInTheDocument();
+    expect(within(editedAccount as HTMLElement).getByRole("switch")).toHaveAttribute("aria-checked", "false");
     expect(
       within(editedAccount as HTMLElement).getByRole("button", {
         name: /编辑账号 生产账号 A2/i,

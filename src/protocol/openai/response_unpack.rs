@@ -56,24 +56,22 @@ pub fn unpack_openai_response(body: &Value) -> Result<CanonicalRelayResponse, Ga
         }
     }
 
-    let usage = body.get("usage").map(|u| {
+    let usage = body.get("usage").and_then(|u| {
         let prompt_tokens = u
             .get("prompt_tokens")
             .or_else(|| u.get("input_tokens"))
-            .and_then(|t| t.as_u64())
-            .unwrap_or(0);
+            .and_then(|t| t.as_u64())?;
         let completion_tokens = u
             .get("completion_tokens")
             .or_else(|| u.get("output_tokens"))
-            .and_then(|t| t.as_u64())
-            .unwrap_or(0);
-        TokenUsage {
+            .and_then(|t| t.as_u64())?;
+        Some(TokenUsage {
             prompt_tokens,
             completion_tokens,
             total_tokens: u
                 .get("total_tokens")
                 .and_then(|t| t.as_u64())
-                .unwrap_or(prompt_tokens + completion_tokens),
+                .or_else(|| prompt_tokens.checked_add(completion_tokens))?,
             cache_creation_input_tokens: None,
             cache_read_input_tokens: u
                 .get("prompt_tokens_details")
@@ -84,7 +82,7 @@ pub fn unpack_openai_response(body: &Value) -> Result<CanonicalRelayResponse, Ga
                         .and_then(|details| details.get("cached_tokens"))
                         .and_then(|tokens| tokens.as_u64())
                 }),
-        }
+        })
     });
 
     let upstream_status = body

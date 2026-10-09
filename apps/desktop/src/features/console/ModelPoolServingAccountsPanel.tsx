@@ -49,15 +49,15 @@ export function ModelPoolServingAccountsPanel({
 
   return (
     <section
-      className="nt-entitlement-group-card__accounts nt-entitlement-group-card__accounts--attached"
+      className="nt-provider-account-library nt-provider-account-library--attached"
       id={accountPanelId}
       role="region"
       aria-label={t(`${model} 可用账号`, `${model} serving accounts`)}
     >
-      <header className="nt-entitlement-group-card__accounts-head">
+      <header className="nt-provider-account-library__head">
         <span>
           <Database size={14} aria-hidden="true" />
-          <strong>{t("可用账号", "Serving accounts")}</strong>
+          <strong>{t(`${model} 账号库`, `${model} account library`)}</strong>
           {chainNarrowed ? (
             <span className="nt-entitlement-group-card__accounts-scope">
               {t(
@@ -67,7 +67,7 @@ export function ModelPoolServingAccountsPanel({
             </span>
           ) : null}
         </span>
-        <span className="nt-entitlement-group-card__accounts-count">
+        <span className="nt-provider-account-library__count">
           {scopedAccountIds.length}
         </span>
       </header>
@@ -98,14 +98,16 @@ export function ModelPoolServingAccountsPanel({
           )}
         />
       ) : (
-        <p className="nt-empty">
-          {chainNarrowed
-            ? t(
-                "所选服务商范围内没有账号。",
-                "No accounts fall inside the selected provider scope.",
-              )
-            : t("这个模型还没有可用账号。", "No account serves this model yet.")}
-        </p>
+        <div className="nt-provider-account-library__pager">
+          <div className="nt-provider-account-library__empty">
+            {chainNarrowed
+              ? t(
+                  "所选服务商范围内没有账号。",
+                  "No accounts fall inside the selected provider scope.",
+                )
+              : t("这个模型还没有可用账号。", "No account serves this model yet.")}
+          </div>
+        </div>
       )}
     </section>
   );

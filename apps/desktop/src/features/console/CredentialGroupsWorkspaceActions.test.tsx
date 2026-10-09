@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -89,15 +89,14 @@ function workspaceProps(
   };
 }
 
-function renderExpanded(props: CredentialGroupsWorkspaceProps) {
+function renderWorkspace(props: CredentialGroupsWorkspaceProps) {
   const view = render(
     <NeuroTooltipProvider>
       <CredentialGroupsWorkspace {...props} />
     </NeuroTooltipProvider>,
   );
   const card = document.querySelector('[data-entitlement-group-card="premium"]') as HTMLElement;
-  fireEvent.click(within(card).getByRole("button", { name: "Premium" }));
-  return { ...view, card, detail: screen.getByRole("region", { name: "Group detail" }) };
+  return { ...view, card };
 }
 
 describe("CredentialGroupsWorkspace actions", () => {
@@ -106,11 +105,12 @@ describe("CredentialGroupsWorkspace actions", () => {
       selectedGroupIdInvalid: true,
       selectedGroupBillingInvalid: true,
     });
-    const { card, detail } = renderExpanded(props);
+    const { card } = renderWorkspace(props);
 
     fireEvent.click(within(card).getByRole("switch", { name: "Premium enabled state" }));
-    fireEvent.click(within(card).getByRole("button", { name: "Edit" }));
     fireEvent.click(within(card).getByRole("button", { name: "Delete" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Edit" }));
+    const detail = screen.getByRole("dialog", { name: "Edit entitlement group" });
     expect(props.onToggleEnabled).toHaveBeenCalledWith("row-premium", false);
     expect(props.onSelectGroup).toHaveBeenLastCalledWith("row-premium");
     expect(props.onRemoveGroup).toHaveBeenCalledWith("row-premium");
@@ -147,7 +147,9 @@ describe("CredentialGroupsWorkspace actions", () => {
   it("preserves member filtering and add/remove callback identities", async () => {
     const user = userEvent.setup();
     const props = workspaceProps();
-    const { detail } = renderExpanded(props);
+    const { card } = renderWorkspace(props);
+    fireEvent.click(within(card).getByRole("button", { name: "Edit" }));
+    const detail = screen.getByRole("dialog", { name: "Edit entitlement group" });
 
     fireEvent.change(within(detail).getByLabelText("Filter candidate accounts"), {
       target: { value: "managed" },
@@ -163,12 +165,18 @@ describe("CredentialGroupsWorkspace actions", () => {
   });
 
   it("locks every mutating card, editor, and membership control", () => {
-    const props = workspaceProps({ editorLocked: true });
-    const { card, detail } = renderExpanded(props);
+    const props = workspaceProps();
+    const { card, rerender } = renderWorkspace(props);
+    const toggle = within(card).getByRole("switch", { name: "Premium enabled state" });
+    const edit = within(card).getByRole("button", { name: "Edit" });
+    const remove = within(card).getByRole("button", { name: "Delete" });
+    fireEvent.click(edit);
+    rerender(<NeuroTooltipProvider><CredentialGroupsWorkspace {...props} editorLocked /></NeuroTooltipProvider>);
+    const detail = screen.getByRole("dialog", { name: "Edit entitlement group" });
 
-    expect(within(card).getByRole("switch", { name: "Premium enabled state" })).toBeDisabled();
-    expect(within(card).getByRole("button", { name: "Edit" })).toBeDisabled();
-    expect(within(card).getByRole("button", { name: "Delete" })).toBeDisabled();
+    expect(toggle).toBeDisabled();
+    expect(edit).toBeDisabled();
+    expect(remove).toBeDisabled();
     expect(within(detail).getByRole("checkbox", { name: "Premium enabled state" })).toBeDisabled();
     expect(within(detail).getByRole("button", { name: "Remove group" })).toBeDisabled();
     expect(within(detail).getByLabelText("Group ID")).toBeDisabled();
@@ -180,5 +188,41 @@ describe("CredentialGroupsWorkspace actions", () => {
     expect(within(detail).getByRole("button", { name: "Add Account Two" })).toBeDisabled();
     expect(within(detail).getByLabelText("Filter candidate accounts")).toBeEnabled();
     expect(within(detail).getByLabelText("Candidate scope")).toBeEnabled();
+  });
+
+  it("keeps the dialog and focus across autosave row replacement", async () => {
+    const user = userEvent.setup();
+    const props = workspaceProps();
+    const { card, rerender } = renderWorkspace(props);
+    await user.click(within(card).getByRole("button", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    const name = within(dialog).getByLabelText("Group name");
+    const replacement = {
+      ...props,
+      groups: [{ ...props.groups[0], rowId: "reloaded-row", name: "Saved Premium" }],
+      selectedGroupRowId: "reloaded-row",
+      selectedGroup: { ...props.selectedGroup!, id: "reloaded-row", name: "Saved Premium" },
+    };
+    rerender(<NeuroTooltipProvider><CredentialGroupsWorkspace {...replacement} /></NeuroTooltipProvider>);
+
+    expect(screen.getByRole("dialog")).toBe(dialog);
+    expect(name).toHaveFocus();
+    expect(name).toHaveValue("Saved Premium");
+    fireEvent.change(name, { target: { value: "Next edit" } });
+    expect(props.onUpdateField).toHaveBeenLastCalledWith("reloaded-row", "name", "Next edit");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toHaveFocus());
+  });
+
+  it("closes when the edited group is removed instead of editing another group", async () => {
+    const user = userEvent.setup();
+    const props = workspaceProps();
+    const { card, rerender } = renderWorkspace(props);
+    await user.click(within(card).getByRole("button", { name: "Edit" }));
+    rerender(<NeuroTooltipProvider><CredentialGroupsWorkspace {...props}
+      groups={[]} selectedGroup={null} selectedGroupRowId={null} /></NeuroTooltipProvider>);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(document.body).not.toHaveAttribute("data-scroll-locked"));
+    expect(screen.getByRole("button", { name: "Create first group" })).toBeInTheDocument();
   });
 });

@@ -112,6 +112,8 @@ pub fn deserialize_provider_payload(
 /// request; the remaining fields are adapter-specific.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderAccountPayload {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub discovered_protocols: Vec<crate::provider_discovery::ProtocolCapability>,
     /// Adapter identifier.  One of:
     /// - `"openai_compatible"` — OpenAI-style `/v1/chat/completions` endpoint
     /// - `"anthropic_compatible"` — Anthropic `/v1/messages` endpoint
@@ -414,6 +416,7 @@ mod tests {
 
     fn make_payload(adapter: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
             base_url: "https://api.example.com".to_string(),
             api_key: "sk-test-1234".to_string(),

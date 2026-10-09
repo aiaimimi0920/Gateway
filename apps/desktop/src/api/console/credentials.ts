@@ -33,6 +33,7 @@ type ConsoleCredentialsApi = Pick<
   | "getGeminiAuthSession"
   | "probeCredential"
   | "probeProvider"
+  | "readProviderProbeResults"
   | "getCredentialUsage"
   | "listUsageAggregates"
   | "getRuntimePressure"
@@ -113,12 +114,16 @@ export function createConsoleCredentialsApi(client: GatewayApiClient): ConsoleCr
         consoleCredentialProbeResponseSchema,
         { method: "POST", managementToken, secretGrant },
       ),
-    probeProvider: (managementToken, secretGrant, providerId) =>
+    probeProvider: (managementToken, secretGrant, providerId, request, options) =>
       client.request(
         `/v1/internal/gateway/console/providers/${encodeURIComponent(providerId)}/probe`,
         consoleProviderProbeResponseSchema,
-        { method: "POST", managementToken, secretGrant },
+        { method: "POST", managementToken, secretGrant, body: request, ...options },
       ),
+    readProviderProbeResults: (managementToken, secretGrant, providerId, options, scope, query) => client.request(
+      `/v1/internal/gateway/console/providers/${encodeURIComponent(providerId)}/probe/results`,
+      consoleProviderProbeResponseSchema, { method: "POST", body: { scope, ...query }, managementToken, secretGrant, ...options },
+    ),
     getCredentialUsage: (managementToken, credentialId, createdFrom) => {
       const query = new URLSearchParams({
         providerCredentialRef: credentialId,
@@ -159,7 +164,7 @@ export function createConsoleCredentialsApi(client: GatewayApiClient): ConsoleCr
       );
     },
     getRequestAuditSummary: (managementToken, params) => {
-      const query = new URLSearchParams({ limit: String(params?.limit ?? 1000) });
+      const query = new URLSearchParams({ limit: String(params?.limit ?? 1000), includeModelTotals: "true" });
       if (params?.createdFrom) {
         query.set("createdFrom", params.createdFrom);
       }

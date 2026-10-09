@@ -3,7 +3,9 @@
    a flipped face carrying the aggregated detail and pool policy controls. */
 .nt-provider-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 380px));
+  /* Match account cards: wider workspaces add columns, not card width. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 292px), 292px));
+  justify-content: start;
   gap: 12px;
   /* Stretch, not start: cards in a row share the tallest card's height, so a
      neighbour never has to scroll to keep the row tidy. */
@@ -27,8 +29,11 @@
   /* Both faces share the taller face's intrinsic size. Inline validation may
      grow the card; content must never disappear behind a fixed-height crop. */
   --nt-provider-card-height: 500px;
+  /* Preserve the front's 38px icon, 22px padding and 1px divider on both faces. */
+  --nt-provider-card-head-height: 61px;
   display: block;
   min-width: 0;
+  max-width: 292px;
   perspective: 1200px;
   transform-style: preserve-3d;
   transition: transform 180ms ease;
@@ -36,6 +41,8 @@
 
 .nt-provider-card__inner {
   display: grid;
+  /* Names may shrink inside the card; their intrinsic width must not size it. */
+  grid-template-columns: minmax(0, 1fr);
   min-height: var(--nt-provider-card-height);
   height: 100%;
   min-width: 0;
@@ -87,7 +94,7 @@
 }
 
 .nt-provider-card__back {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: var(--nt-provider-card-head-height) minmax(0, 1fr);
   transform: rotateY(180deg);
 }
 
@@ -253,22 +260,10 @@
   display: inline;
 }
 
-.nt-provider-card__back-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 10px;
-}
-
 .nt-provider-card__back-title {
   display: grid;
   gap: 4px;
   min-width: 0;
-}
-
-.nt-provider-card__back-title strong {
-  font-size: 0.9rem;
 }
 
 .nt-provider-card__back-body {

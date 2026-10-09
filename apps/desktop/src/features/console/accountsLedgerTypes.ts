@@ -99,6 +99,7 @@ export type AccountsLedgerWorkspaceProps = {
   ) => void;
   onEdit: (providerId: string, accountId: string) => void;
   onRemove: (providerId: string, accountId: string, displayName: string) => void;
+  onRemoveProvider: (providerId: string) => void;
   onAddExplicit: (providerId: string) => void;
   onToggleDispatch: (providerId: string, accountId: string, nextEnabled: boolean) => void;
   onUpdatePoolTargetSize: (providerId: string, categoryId: string, nextTargetSize: number) => void;
@@ -126,4 +127,5 @@ export type AccountsLedgerWorkspaceProps = {
   onOpenModelMapping: (section: AccountsLedgerPilotSection) => void;
   onOpenStats: (providerId: string, account: AccountsLedgerPilotAccount) => void;
   onDuplicate: (providerId: string, account: AccountsLedgerPilotAccount) => void;
+  onRefreshDiscovery?: (providerId: string, credentialId: string) => void;
 };

@@ -6,6 +6,8 @@ import type { CredentialDialogMode, CredentialDialogValue } from "./CredentialDi
 import { addExplicitCredential, deleteExplicitCredential, updateExplicitCredential, type CredentialSecretEdit } from "./credentialDocument";
 import { emptyCredentialDialogValue, credentialDialogValueFromDocument, duplicateCredentialDialogValue, parseSupportedModelsText } from "./providerCredentialDraft";
 import { parseRouteDocument } from "./routeDocument";
+import { removeProviderDocument } from "./providerRemovalDocument";
+import { applyAccountDiscovery } from "./accountDiscovery";
 
 type CredentialDialogEditorOptions = {
   editorText: string;
@@ -117,6 +119,7 @@ export function useCredentialDialogEditor({
         enabled: value.enabled,
         base_url: value.baseUrl || undefined,
         supported_models: supportedModels.length > 0 ? supportedModels : undefined,
+        ...(value.discovery ? { discovery: value.discovery } : value.apiKeyOperation !== "keep" ? { discovery: undefined } : {}),
       };
       try {
         const nextDocument =
@@ -137,13 +140,15 @@ export function useCredentialDialogEditor({
                 },
               });
         updateCredentialSecretEdit(value);
-        replaceEditorDocument(nextDocument, true);
+        replaceEditorDocument(value.discovery
+          ? applyAccountDiscovery(nextDocument, value.providerId, value.credentialId, value.discovery)
+          : nextDocument, true);
         setError(null);
         pushAppToast(
           "info",
           t(
-            `账号 ${value.accountName || value.credentialId} 已写入草稿，保存路由配置后生效。`,
-            `Account ${value.accountName || value.credentialId} was added to the draft and will take effect after saving the route config.`,
+            `账号 ${value.accountName || value.credentialId} 正在保存。`,
+            `Saving account ${value.accountName || value.credentialId}.`,
           ),
         );
       } catch (cause) {
@@ -265,7 +270,20 @@ export function useCredentialDialogEditor({
     [editorText, replaceEditorDocument, t],
   );
 
+  const removeProvider = useCallback((providerId: string) => {
+    try {
+      const next = removeProviderDocument(parseRouteDocument(editorText), providerId);
+      setCredentialSecretEdits((edits) => edits.filter((edit) => edit.providerId !== providerId));
+      replaceEditorDocument(next, true);
+      setError(null);
+      pushAppToast("info", t("凭据池已从草稿移除，正在自动保存。", "The pool was removed from the draft and is being saved automatically."));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }, [editorText, replaceEditorDocument, setCredentialSecretEdits, setError, t]);
+
   return {
+    removeProvider,
     openAddCredentialDialog,
     openEditCredentialDialog,
     updateCredentialSecretEdit,

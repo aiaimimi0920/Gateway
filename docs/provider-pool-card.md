@@ -1,5 +1,40 @@
 # Provider pool lifecycle controls
 
+## Front actions
+
+Pool cards keep four fixed slots: dispatch switch, Test, Model mapping, Delete pool.
+Account editing remains in the account library, not in a disabled pool-level edit button.
+Test opens one keyboard-accessible modal with Automatic tests and Manual tests tabs.
+Schedules retain their non-generative health-probe policy and save through the existing
+automatic route draft/revision flow. Manual tests choose a prompt preset or user text,
+optionally choose or enter an exact model name, and select up to 128 enabled accounts. They send
+one explicit prompt per selected account through OpenAI-compatible chat or official
+Codex, with exact credential attribution, secret-grant authorization and no pool fallback.
+Other adapters report unsupported rather than claiming that a model-list response
+proved generation. Prompts are capped at 8192 UTF-8 bytes; each account waits at most
+60 seconds and response previews remain bounded and secret-redacted. A manual batch stops
+admitting new calls after five minutes, finishing and auditing any in-flight call. Remaining
+accounts report not executed. Closing the dialog aborts the client request and invalidates
+late UI updates, but cannot retract an upstream call already sent.
+
+The mapping modal separates requested model identities (left) from this pool's configured
+upstream capabilities (right). Requested models sort by observed local calls, falling
+back to the release-reviewed catalogue order, not a claimed live global popularity rank.
+Users can enter exact custom identities on either side. Unlinked names pass through;
+single links keep the legacy `model_map` string format. Multiple links use additive
+`model_map_targets: { requested: [upstream-a, upstream-b] }`, with at most 512 sources
+and 32 distinct targets each. They take precedence over a same-key legacy entry.
+Routing selects uniformly among eligible targets, excluding disabled and unauthorized
+credentials, then fixes the upstream model on the candidate before I/O. This is not
+an automatic fallback between mapped models on each send attempt.
+
+Delete pool requires in-app confirmation and removes the provider and every configured
+credential in one document mutation. Its model-route and account-group references are
+removed atomically; other pools and their secrets are retained by the existing revision
+and secret-patch owner. Configuration saves automatically. Files, archives and historical
+request records are not deleted. Save failures remain visible in the console error state;
+a draft removal is not proof that the active revision was committed.
+
 The provider card back is split into three compact groups. Changes to thresholds,
 automatic switches, local paths, and the storage password use the existing route
 draft/commit flow. Requesting refill, deleting invalid credentials, or purging

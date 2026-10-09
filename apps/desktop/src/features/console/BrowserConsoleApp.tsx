@@ -162,6 +162,8 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
     refresh,
     removeAccountGroupRow,
     removeCredential,
+    removeProvider,
+    closePilotActionDialog,
     reorderModelPoolChain,
     resetModelPoolChain,
     routeConfig,
@@ -319,12 +321,14 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
       onPurgeProviderArchive={(providerId) => void handlePurgeCredentialArchive(providerId)}
       onSetAccountGroup={setAccountRoutingGroup}
       onOpenProbe={openPilotProbeDialog}
-      onOpenProviderProbe={openProviderProbeDialog}
-      onOpenProviderSchedule={openProviderScheduleDialog}
+          onOpenProviderProbe={openProviderProbeDialog}
+          onRemoveProvider={removeProvider}
+          onOpenProviderSchedule={(section) => { closePilotActionDialog(); openProviderScheduleDialog(section); }}
       modelMappingCountByProvider={modelMappingCountByProvider}
       onOpenModelMapping={(section) => setProviderModelMappingProviderId(section.providerId)}
       onOpenStats={openPilotStatsDialog}
       onDuplicate={openDuplicateCredentialDialog}
+      onRefreshDiscovery={controller.refreshAccountDiscovery}
     />
   );
   // Shared by the entitlement and model pool pages: both mount the credential
@@ -348,6 +352,14 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
     ) => {
       if (action === "probe") {
         openPilotProbeDialog(providerId, account);
+        return;
+      }
+      if (action === "discover") {
+        void controller.refreshAccountDiscovery(providerId, account.accountId);
+        return;
+      }
+      if (action === "model-mapping") {
+        setProviderModelMappingProviderId(providerId);
         return;
       }
       openDuplicateCredentialDialog(providerId, account);
@@ -377,6 +389,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
     <>
       <CredentialGroupsWorkspace
         t={t}
+        error={error}
         notice={draftStructureNotice}
         editorLocked={editorLocked}
         groups={groupDirectory}

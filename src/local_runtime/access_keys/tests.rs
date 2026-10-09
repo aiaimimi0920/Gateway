@@ -1,7 +1,7 @@
 use super::*;
 use crate::auth::adapter::AuthRequest;
 
-fn input() -> UpsertAccessKeyInput {
+pub(super) fn input() -> UpsertAccessKeyInput {
     UpsertAccessKeyInput {
         owner_type: "user".into(),
         owner_id: "owner".into(),
@@ -18,7 +18,7 @@ fn input() -> UpsertAccessKeyInput {
     }
 }
 
-fn request(key: &GatewayAccessKeyView) -> AuthRequest {
+pub(super) fn request(key: &GatewayAccessKeyView) -> AuthRequest {
     AuthRequest {
         authorization: Some(format!("Bearer {}", key.token.as_deref().unwrap())),
         api_key: None,
@@ -27,7 +27,7 @@ fn request(key: &GatewayAccessKeyView) -> AuthRequest {
     }
 }
 
-async fn setup() -> (std::path::PathBuf, LocalRuntime) {
+pub(super) async fn setup() -> (std::path::PathBuf, LocalRuntime) {
     let root = std::env::temp_dir().join(format!("gateway-local-keys-{}", uuid::Uuid::new_v4()));
     let runtime = LocalRuntime::open(&root).await.unwrap();
     (root, runtime)

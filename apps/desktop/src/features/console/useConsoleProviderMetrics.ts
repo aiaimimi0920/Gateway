@@ -6,6 +6,7 @@ import type { ConsoleTelemetrySnapshot } from "./telemetry";
 import { resolveBillingMultiplier } from "./telemetryPresentation";
 import { rollupHasData, rollupProviderAccountModelTelemetry, rollupProviderAccountTelemetry, type ConsoleTelemetryRollup } from "./telemetryRollups";
 import { isRecord } from "./routeDocument";
+import { readProviderModelMappings } from "./providerModelMappingDocument";
 
 type ConsoleProviderMetricsOptions = {
   providerDraftRows: ProviderDraftRow[];
@@ -26,16 +27,7 @@ export function useConsoleProviderMetrics({
       if (providerId.length === 0) {
         return;
       }
-      const entries: ProviderModelMappingEntry[] = [];
-      const rawMap = row.provider.model_map;
-      if (isRecord(rawMap)) {
-        for (const [model, upstreamModel] of Object.entries(rawMap)) {
-          if (typeof upstreamModel === "string") {
-            entries.push({ model, upstreamModel });
-          }
-        }
-        entries.sort((left, right) => left.model.localeCompare(right.model));
-      }
+      const entries = readProviderModelMappings(row.provider);
       byProvider.set(providerId, entries);
     });
     return byProvider;
@@ -43,9 +35,10 @@ export function useConsoleProviderMetrics({
 
   // Provider rollups avoid counting the same traffic once per pooled credential.
   const providerMetricsResolver = useMemo<ProviderMetricsResolver>(() => {
-    const upstreamModelFor = (providerAccountId: string, model: string): string =>
-      providerModelMapEntries.get(providerAccountId)?.find((entry) => entry.model === model)
-        ?.upstreamModel ?? model;
+    const upstreamModelsFor = (providerAccountId: string, model: string): string[] => {
+      const mapped = providerModelMapEntries.get(providerAccountId)?.filter((entry) => entry.model === model).map((entry) => entry.upstreamModel) ?? [];
+      return mapped.length ? [...new Set(mapped)] : [model];
+    };
     // A card that bills at one known rate passes it; a card spanning several
     // groups passes its credentials and takes the ceiling rate they imply.
     const multiplierFor = (options: ProviderMetricsResolveOptions | undefined): number =>
@@ -79,9 +72,8 @@ export function useConsoleProviderMetrics({
         ),
       providerAccountModel: (providerAccountId, model, options) =>
         toAccountLike(
-          rollupProviderAccountModelTelemetry(consoleTelemetry, [
-            { providerAccountId, model: upstreamModelFor(providerAccountId, model) },
-          ]),
+          rollupProviderAccountModelTelemetry(consoleTelemetry,
+            upstreamModelsFor(providerAccountId, model).map((model) => ({ providerAccountId, model }))),
           options,
         ),
     };

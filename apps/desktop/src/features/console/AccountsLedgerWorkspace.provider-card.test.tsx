@@ -388,58 +388,44 @@ describe("AccountsLedgerWorkspace provider cards", () => {
 
   });
 
-  it("runs provider actions and confirms deletion inside the app", async () => {
+  it("keeps dispatch and confirms whole-pool deletion without account editing", async () => {
     const user = userEvent.setup();
     const onToggleDispatch = vi.fn();
-    const onEdit = vi.fn();
+    const onRemoveProvider = vi.fn();
     const onRemove = vi.fn();
-    renderWorkspace(workspaceProps({ onToggleDispatch, onEdit, onRemove }));
-
+    renderWorkspace(workspaceProps({ onToggleDispatch, onRemoveProvider, onRemove }));
     await user.click(screen.getByRole("switch", { name: /Managed OpenAI 调度开关/ }));
     expect(onToggleDispatch).toHaveBeenCalledWith("managed-provider", "acct-1", false);
-
-    await user.click(screen.getByRole("button", { name: "编辑" }));
-    expect(onEdit).toHaveBeenCalledWith("managed-provider", "acct-1");
-
-    await user.click(screen.getByRole("button", { name: "删除" }));
-    expect(screen.getByRole("dialog", { name: "确认删除账号" })).toBeInTheDocument();
-    expect(onRemove).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "编辑" })).not.toBeInTheDocument();
+    const remove = screen.getByRole("button", { name: "删除凭据池" });
+    await user.click(remove);
+    expect(screen.getByRole("dialog", { name: "确认删除凭据池" })).toBeInTheDocument();
+    expect(onRemoveProvider).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "取消" }));
+    expect(onRemoveProvider).not.toHaveBeenCalled();
+    await user.click(remove);
+    await user.keyboard("{Escape}");
+    expect(onRemoveProvider).not.toHaveBeenCalled();
+    await user.click(remove);
+    await user.click(screen.getByRole("button", { name: "确认删除凭据池" }));
+    expect(onRemoveProvider).toHaveBeenCalledExactlyOnceWith("managed-provider");
     expect(onRemove).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole("button", { name: "删除" }));
-    await user.click(screen.getByRole("button", { name: "确认删除" }));
-    expect(onRemove).toHaveBeenCalledWith("managed-provider", "acct-1", "Account 1");
   });
 
-  it("offers provider tests for multi-account providers without account-only actions", async () => {
+  it("provides the same four actions for multi-account pools", async () => {
     const user = userEvent.setup();
-    const section = pilotSection({
-      directAccounts: [
-        pilotAccount({ accountId: "acct-1" }),
-        pilotAccount({ accountId: "acct-2", displayName: "Account 2" }),
-      ],
-    });
-    const onOpenProviderProbe = vi.fn();
+    const section = pilotSection({ directAccounts: [pilotAccount({ accountId: "acct-1" }), pilotAccount({ accountId: "acct-2" })] });
     const onOpenProviderSchedule = vi.fn();
-    renderWorkspace(
-      workspaceProps({
-        pilotSections: [section],
-        onOpenProviderProbe,
-        onOpenProviderSchedule,
-      }),
-    );
-
-    expect(screen.getByRole("button", { name: "编辑" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "删除" })).toBeDisabled();
-    const moreButton = screen.getByRole("button", { name: /Managed OpenAI 更多操作/ });
-    await user.click(moreButton);
-    await user.click(screen.getByRole("menuitem", { name: "服务商测试" }));
-    expect(onOpenProviderProbe).toHaveBeenCalledWith(section);
-    await user.click(moreButton);
-    await user.click(screen.getByRole("menuitem", { name: "自动定时测试" }));
+    const onOpenModelMapping = vi.fn();
+    renderWorkspace(workspaceProps({ pilotSections: [section], onOpenProviderSchedule, onOpenModelMapping }));
+    const footer = screen.getByRole("button", { name: "测试" }).closest("footer")!;
+    expect(Array.from(footer.querySelectorAll("button")).map((button) => button.getAttribute("aria-label")))
+      .toEqual(["Managed OpenAI 调度开关", "测试", "模型映射", "删除凭据池"]);
+    await user.click(screen.getByRole("button", { name: "测试" }));
     expect(onOpenProviderSchedule).toHaveBeenCalledWith(section);
-    expect(screen.queryByRole("menuitem", { name: "查看账号明细" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "复制账号" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "模型映射" }));
+    expect(onOpenModelMapping).toHaveBeenCalledWith(section);
+    expect(screen.getByRole("button", { name: "删除凭据池" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /Managed OpenAI 更多操作/ })).not.toBeInTheDocument();
   });
 });

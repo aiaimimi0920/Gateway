@@ -1,0 +1,165 @@
+.nt-operations-live {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.nt-operations-live > :last-child {
+  grid-column: 1 / -1;
+}
+
+.nt-operations .nt-settings-section__body {
+  gap: 12px;
+  min-width: 0;
+}
+
+.nt-operations .nt-pilot-metric-card {
+  min-width: 0;
+  padding: 16px;
+}
+
+.nt-operations .nt-pilot-stats-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.nt-operations .nt-pilot-stat-card {
+  min-width: 0;
+  padding: 12px;
+  gap: 6px;
+}
+
+.nt-operations .nt-pilot-stat-card strong {
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+
+.nt-operations-detail {
+  min-width: 0;
+  border-top: 1px solid var(--nt-border);
+  margin-top: 12px;
+}
+
+.nt-operations-detail > summary {
+  padding: 12px 0;
+  color: var(--nt-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.nt-operations-detail > summary:hover,
+.nt-operations-detail[open] > summary {
+  color: var(--nt-text);
+}
+
+.nt-operations-detail > summary:focus-visible {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: 3px;
+}
+
+.nt-operations-detail > summary .nt-badge,
+.nt-operations-detail > summary .nt-copy {
+  margin-left: 12px;
+}
+
+.nt-operations-detail.nt-pilot-metric-card {
+  display: block;
+  margin-top: 0;
+  padding: 0 16px;
+}
+
+.nt-operations-detail__body {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+
+.nt-operations .nt-pilot-metric-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  column-gap: 24px;
+}
+
+.nt-operations .nt-pilot-metric-list > div {
+  min-width: 0;
+  gap: 12px;
+}
+
+.nt-operations .nt-pilot-metric-list dd {
+  overflow-wrap: anywhere;
+}
+
+.nt-operations .nt-table {
+  max-height: 440px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.nt-operations .nt-table__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--nt-slab);
+}
+
+/* Preserve column alignment instead of the console's two-column mobile fallback. */
+.nt-operations .nt-table--pressure {
+  --operations-columns: minmax(160px, 1.6fr) minmax(120px, 1fr) 100px 80px;
+  --operations-table-width: 560px;
+}
+
+.nt-operations .nt-table--pressure-projects {
+  --operations-columns: minmax(160px, 1.6fr) 100px 80px;
+  --operations-table-width: 400px;
+}
+
+.nt-operations .nt-table--readiness {
+  --operations-columns: 120px 100px minmax(100px, 1fr);
+  --operations-table-width: 380px;
+}
+
+.nt-operations .nt-table--requests {
+  --operations-columns: 158px minmax(180px, 1.2fr) 118px 92px 92px 84px;
+  --operations-table-width: 850px;
+}
+
+.nt-operations .nt-table--incidents {
+  --operations-columns: minmax(150px, 1.2fr) 90px 110px 158px 184px;
+  --operations-table-width: 800px;
+}
+
+.nt-operations .nt-table--policies,
+.nt-operations .nt-table--alert-queue,
+.nt-operations .nt-table--remediation-queue,
+.nt-operations .nt-table--remediation-runs,
+.nt-operations .nt-table--exports {
+  --operations-columns: minmax(160px, 1.4fr) minmax(110px, 1fr)
+    minmax(120px, 1fr) minmax(158px, 1fr);
+  --operations-table-width: 650px;
+}
+
+.nt-operations.nt-console-table-page .nt-table[class] .nt-table__head,
+.nt-operations.nt-console-table-page .nt-table[class] .nt-table__row {
+  grid-template-columns: var(--operations-columns);
+  min-width: var(--operations-table-width);
+}
+
+.nt-operations .nt-console-field-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .nt-operations-live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nt-operations .nt-console-field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nt-operations .nt-pilot-metric-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

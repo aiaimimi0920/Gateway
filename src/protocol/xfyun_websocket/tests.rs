@@ -12,6 +12,7 @@ use std::collections::HashMap;
 
 fn make_payload() -> ProviderAccountPayload {
     ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "xfyun_websocket_compatible".to_string(),
         base_url: "wss://maas-api.cn-huabei-1.xf-yun.com".to_string(),
         api_key: "api-key-123".to_string(),

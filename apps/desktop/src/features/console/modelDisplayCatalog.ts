@@ -1,6 +1,6 @@
 /** Release-reviewed editorial order, not a live popularity measurement.
  * Update with docs/model-display-catalog-release.md before each release.
- * Exact model aliases only: a known namespace does not classify unknown models.
+ * Exact aliases rank first; explicit GPT/Grok/GLM family rules classify unlisted variants.
  */
 export const MODEL_DISPLAY_CATALOG_REVIEWED_AT = "2026-09-27";
 
@@ -68,7 +68,7 @@ export const MODEL_COMPANY_RULES: readonly ModelCompanyRule[] = [
     "kimi-k2.5", "kimi-k2-thinking", "kimi-k2-instruct-0905", "kimi-k2-instruct",
   ] },
   { id: "minimax", label: "MiniMax", namespaces: ["minimaxai"], models: ["minimax-m2.7", "minimax-m2.5"] },
-  { id: "zai", label: "Z.ai", namespaces: ["z-ai"], models: ["glm-5.1", "glm5", "glm4.7"] },
+  { id: "zai", label: "Z.ai", namespaces: ["z-ai", "z.ai", "zai"], models: ["glm-5.1", "glm5", "glm4.7"] },
   { id: "microsoft", label: "Microsoft", namespaces: ["microsoft"], models: [
     "phi-4-multimodal-instruct", "phi-4-mini-instruct", "phi-3.5-moe-instruct", "phi-3-vision-128k-instruct", "kosmos-2",
   ] },
@@ -77,7 +77,7 @@ export const MODEL_COMPANY_RULES: readonly ModelCompanyRule[] = [
   ] },
 ];
 
-export type CardModelGroup = { id: string; label: string | null; models: string[] };
+export type CardModelGroup = { id: string; label: string; models: string[] };
 
 const rankedModels = new Map<string, { company: ModelCompanyRule; rank: number }>();
 for (const company of MODEL_COMPANY_RULES) {
@@ -88,12 +88,34 @@ for (const company of MODEL_COMPANY_RULES) {
   });
 }
 
-/** Intersect the release catalogue with configured capabilities; never add models. */
+/** Display-only family fallback. An unrelated or conflicting namespace remains unknown. */
+function modelDisplayRule(model: string) {
+  const normalized = model.toLowerCase();
+  const exact = rankedModels.get(normalized);
+  if (exact) return exact;
+  const parts = normalized.split("/");
+  if (parts.length > 2) return undefined;
+  const name = parts.at(-1)!;
+  const companyId = /^gpt-[a-z0-9][a-z0-9._:-]*$/.test(name) ? "openai"
+    : /^grok-[a-z0-9][a-z0-9._:-]*$/.test(name) ? "xai"
+      : name.startsWith("glm") ? "zai" : undefined;
+  const company = MODEL_COMPANY_RULES.find((entry) => entry.id === companyId);
+  if (!company || (parts.length === 2 && !company.namespaces.includes(parts[0]))) return undefined;
+  return { company, rank: Number.MAX_SAFE_INTEGER };
+}
+
+/** Hide the organization namespace for display without inferring company ownership. */
+export function cardModelDisplayName(model: string): string {
+  const separator = model.indexOf("/");
+  return separator > 0 && separator < model.length - 1 ? model.slice(separator + 1) : model;
+}
+
+/** Group only configured capabilities; display classification never adds models. */
 export function groupCardModels(models: readonly string[]): CardModelGroup[] {
   const groups = new Map<string, CardModelGroup>();
-  const unknown: CardModelGroup = { id: "unclassified", label: null, models: [] };
+  const unknown: CardModelGroup = { id: "other", label: "other", models: [] };
   for (const model of new Set(models.map((value) => value.trim()).filter(Boolean))) {
-    const rule = rankedModels.get(model.toLowerCase());
+    const rule = modelDisplayRule(model);
     if (!rule) {
       unknown.models.push(model);
       continue;
@@ -105,8 +127,8 @@ export function groupCardModels(models: readonly string[]): CardModelGroup[] {
   const ordered = MODEL_COMPANY_RULES.flatMap((company) => {
     const group = groups.get(company.id);
     if (!group) return [];
-    // Stable ties retain the capability list's order, including unknown models.
-    group.models.sort((a, b) => rankedModels.get(a.toLowerCase())!.rank - rankedModels.get(b.toLowerCase())!.rank);
+    // Exact catalogue ranks precede family fallbacks; stable ties retain input order.
+    group.models.sort((a, b) => modelDisplayRule(a)!.rank - modelDisplayRule(b)!.rank);
     return [group];
   });
   return unknown.models.length ? [...ordered, unknown] : ordered;

@@ -180,6 +180,13 @@ pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
         )
         .await;
     });
+    let state_for_credential_probe_scheduler = Arc::clone(app_state);
+    tokio::spawn(async move {
+        crate::provider_credential_probe_scheduler::start_provider_credential_probe_scheduler(
+            state_for_credential_probe_scheduler,
+        )
+        .await;
+    });
     if app_state.local_runtime.is_some() {
         return;
     }
@@ -212,14 +219,6 @@ pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
     tokio::spawn(async move {
         crate::provider_credential_refresh::start_provider_credential_refresh_task(
             state_for_credential_refresh,
-        )
-        .await;
-    });
-
-    let state_for_credential_probe_scheduler = Arc::clone(app_state);
-    tokio::spawn(async move {
-        crate::provider_credential_probe_scheduler::start_provider_credential_probe_scheduler(
-            state_for_credential_probe_scheduler,
         )
         .await;
     });

@@ -11,6 +11,7 @@ struct Restrictions {
     scopes: Option<Vec<String>>,
     models: Option<Vec<String>>,
     provider_ids: Option<Vec<String>>,
+    account_group_ids: Option<Vec<String>>,
 }
 
 fn restrictions(key: Option<&serde_json::Value>) -> Result<Restrictions, GatewayError> {
@@ -18,7 +19,7 @@ fn restrictions(key: Option<&serde_json::Value>) -> Result<Restrictions, Gateway
         None | Some(serde_json::Value::Null) => Restrictions::default(),
         Some(value) => serde_json::from_value(value.clone()).map_err(|_| {
             GatewayError::bad_request(
-                "Local key metadata supports scope/scopes, models and providerIds string arrays",
+                "Local key metadata supports scope/scopes, models, providerIds and accountGroupIds string arrays",
             )
         })?,
     };
@@ -30,6 +31,7 @@ fn restrictions(key: Option<&serde_json::Value>) -> Result<Restrictions, Gateway
         &parsed.scopes,
         &parsed.models,
         &parsed.provider_ids,
+        &parsed.account_group_ids,
     ]
     .into_iter()
     .flatten()
@@ -83,6 +85,7 @@ pub(super) fn validate_input(input: &UpsertAccessKeyInput) -> Result<(), Gateway
             .map_err(|_| GatewayError::bad_request("expiresAt must be an RFC3339 timestamp"))?;
     }
     restrictions(input.metadata.as_ref())?;
+    crate::access_key_groups::group_ids(input.metadata.as_ref())?;
     Ok(())
 }
 
@@ -115,18 +118,24 @@ impl LocalRuntime {
         let policy = restrictions(key.metadata.as_ref())?;
         tx.commit().await.map_err(storage_error)?;
         let snapshot = routes.snapshot();
+        let groups = crate::access_key_groups::group_ids(key.metadata.as_ref())?
+            .map(|ids| snapshot.access_key_group_constraint(&ids));
         let mut models = snapshot.list_models();
         models.retain(|model| {
             policy
                 .models
                 .as_ref()
                 .is_none_or(|allowed| allowed.contains(&model.id))
-                && policy.provider_ids.as_ref().is_none_or(|allowed| {
-                    snapshot
-                        .resolve_candidates(Some(&model.id))
+                && (groups.is_none() && policy.provider_ids.is_none()
+                    || snapshot
+                        .resolve_candidates_with_constraint(Some(&model.id), groups.as_ref())
+                        .candidates
                         .iter()
-                        .any(|candidate| allowed.contains(&candidate.provider_account_id))
-                })
+                        .any(|candidate| {
+                            policy.provider_ids.as_ref().is_none_or(|allowed| {
+                                allowed.contains(&candidate.provider_account_id)
+                            })
+                        }))
         });
         Ok(models)
     }
@@ -138,13 +147,13 @@ impl LocalRuntime {
         let Some(token) = request.credential().filter(|value| value.len() <= 512) else {
             return Ok(None);
         };
-        let payload: Option<String> =
-            sqlx::query_scalar("SELECT payload FROM local_access_keys WHERE token_hash = ?")
+        let payload: Option<(String, bool)> =
+            sqlx::query_as("SELECT payload,EXISTS(SELECT 1 FROM local_access_key_secrets s WHERE s.key_id=k.id) FROM local_access_keys k WHERE token_hash = ?")
                 .bind(digest(token))
                 .fetch_optional(&self.pool)
                 .await
                 .map_err(storage_error)?;
-        let Some(payload) = payload else {
+        let Some((payload, has_secret)) = payload else {
             return Ok(None);
         };
         let key = decode(&payload)?;
@@ -156,6 +165,13 @@ impl LocalRuntime {
             .any(|scope| scope == "relay" || scope == &endpoint)
         {
             return Err(denied("Access key does not allow this endpoint"));
+        }
+        // Hash-only legacy keys become copyable after a verified use, without rotation.
+        // Failure must not break authentication of an otherwise valid existing key.
+        if !has_secret {
+            if let Err(error) = self.capture_access_key_secret(&key.id, token).await {
+                tracing::warn!(code = ?error.code, "Could not retain a managed copy of the legacy access key");
+            }
         }
         // A JSON field update cannot overwrite a concurrent revocation/rotation.
         sqlx::query("UPDATE local_access_keys SET payload = json_set(payload, '$.lastUsedAt', ?) WHERE id = ?")

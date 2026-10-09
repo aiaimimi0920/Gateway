@@ -1,11 +1,8 @@
 import {
   Activity,
   ArrowLeftRight,
-  CalendarClock,
   Database,
-  Ellipsis,
   GalleryHorizontalEnd,
-  Pencil,
   Trash2,
 } from "lucide-react";
 import type { ReactNode, RefObject } from "react";
@@ -16,7 +13,6 @@ import { NvidiaBrandIcon } from "./NvidiaBrandIcon";
 
 import { providerCardVisual } from "./providerCardVisual";
 import type { ProviderCardSnapshot } from "./providerCardSnapshot";
-import type { useAccountCardMenu } from "./useAccountCardMenu";
 
 type ProviderLedgerCardProps = {
   section: AccountsLedgerPilotSection;
@@ -29,11 +25,11 @@ type ProviderLedgerCardProps = {
   toggleProviderAccountLibrary: (section: AccountsLedgerPilotSection) => void;
   toggleProviderFlip: (section: AccountsLedgerPilotSection, side: "front" | "back") => void;
   providerFlipButtonRefs: RefObject<Map<string, HTMLButtonElement>>;
-  menu: ReturnType<typeof useAccountCardMenu>;
+
   handlers: Pick<AccountsLedgerWorkspaceProps,
-    "onToggleDispatch" | "onEdit" | "onOpenProviderProbe" |
+    "onToggleDispatch" |
     "onOpenProviderSchedule" | "onOpenModelMapping"
-  > & { requestCredentialRemoval: AccountsLedgerWorkspaceProps["onRemove"] };
+  > & { onRequestProviderRemoval: (section: AccountsLedgerPilotSection) => void };
   children: ReactNode;
 };
 
@@ -49,22 +45,14 @@ export function ProviderLedgerCard({
   toggleProviderAccountLibrary,
   toggleProviderFlip,
   providerFlipButtonRefs,
-  menu,
   handlers,
   children,
 }: ProviderLedgerCardProps) {
   const {
-    activeMenuKey: activePilotActionMenuKey,
-    setActiveMenuKey: setActivePilotActionMenuKey,
-    menuTriggerRefs: pilotMenuTriggerRefs,
-  } = menu;
-  const {
     onToggleDispatch,
-    onEdit,
-    onOpenProviderProbe,
     onOpenProviderSchedule,
     onOpenModelMapping,
-    requestCredentialRemoval,
+    onRequestProviderRemoval,
   } = handlers;
   const poolSegments = snapshot.poolSegments;
   const providerConcurrency = snapshot.concurrency;
@@ -78,12 +66,9 @@ export function ProviderLedgerCard({
   const providerQuotaRemainingUsd = snapshot.quotaRemainingUsd;
   const actionableAccounts = snapshot.actionableAccounts;
   const hasProbeTargets = snapshot.hasProbeTargets;
-  const singleActionableAccount =
-    actionableAccounts.length === 1 ? actionableAccounts[0] : null;
   const providerDispatchEnabled =
     actionableAccounts.length > 0 &&
     actionableAccounts.every((account) => account.enabled);
-  const providerMenuKey = `provider:${section.providerId}`;
   const visual = providerCardVisual({
     providerId: section.providerId,
     providerLabel: section.providerLabel,
@@ -232,135 +217,22 @@ export function ProviderLedgerCard({
               <span className="nt-switch__thumb" />
             </span>
           </button>
-          <button
-            className="nt-provider-card__action nt-provider-card__action--icon"
-            type="button"
-            disabled={editorLocked || !singleActionableAccount}
-            aria-label={t("编辑", "Edit")}
-            title={
-              singleActionableAccount
-                ? t("编辑账号", "Edit account")
-                : t("多账号请在明细中编辑", "Edit multiple accounts in details")
-            }
-            onClick={() =>
-              singleActionableAccount &&
-              onEdit(singleActionableAccount.providerId, singleActionableAccount.accountId)
-            }
-          >
-            <Pencil size={14} aria-hidden="true" />
+          <button className="nt-provider-card__action nt-provider-card__action--icon" type="button"
+            disabled={!hasProbeTargets} aria-label={t("测试", "Test")} title={t("测试", "Test")}
+            onClick={() => onOpenProviderSchedule(section)}>
+            <Activity size={14} aria-hidden="true" />
           </button>
-          <button
-            className="nt-provider-card__action nt-provider-card__action--icon nt-provider-card__action--danger"
-            type="button"
-            disabled={editorLocked || !singleActionableAccount}
-            aria-label={t("删除", "Delete")}
-            title={
-              singleActionableAccount
-                ? t("删除账号", "Delete account")
-                : t("多账号请在明细中删除", "Delete multiple accounts in details")
-            }
-            onClick={() =>
-              singleActionableAccount &&
-              requestCredentialRemoval(
-                singleActionableAccount.providerId,
-                singleActionableAccount.accountId,
-                singleActionableAccount.displayName,
-              )
-            }
-          >
+          <button className="nt-provider-card__action nt-provider-card__action--icon" type="button"
+            disabled={editorLocked} aria-label={t("模型映射", "Model mapping")}
+            title={t(`模型映射 · ${providerModelMappingCount}`, `Model mapping · ${providerModelMappingCount}`)}
+            onClick={() => onOpenModelMapping(section)}>
+            <ArrowLeftRight size={14} aria-hidden="true" />
+          </button>
+          <button className="nt-provider-card__action nt-provider-card__action--icon nt-provider-card__action--danger" type="button"
+            disabled={editorLocked} aria-label={t("删除凭据池", "Delete pool")} title={t("删除凭据池", "Delete pool")}
+            onClick={() => onRequestProviderRemoval(section)}>
             <Trash2 size={14} aria-hidden="true" />
           </button>
-          {/* Always the fourth slot, even with nothing probeable in
-              the section: every card in the console carries the same
-              four actions in the same place, so the menu greys its
-              items out rather than disappearing. */}
-          <div className="nt-pilot-menu" data-pilot-menu-key={providerMenuKey}>
-            <button
-              className="nt-provider-card__action nt-provider-card__action--icon"
-              type="button"
-              ref={(node) => {
-                if (node) {
-                  pilotMenuTriggerRefs.current.set(providerMenuKey, node);
-                } else {
-                  pilotMenuTriggerRefs.current.delete(providerMenuKey);
-                }
-              }}
-              aria-haspopup="menu"
-              aria-expanded={activePilotActionMenuKey === providerMenuKey}
-              aria-label={t(
-                `${section.providerLabel} 更多操作`,
-                `${section.providerLabel} more actions`,
-              )}
-              title={t("更多", "More")}
-              onClick={() =>
-                setActivePilotActionMenuKey((current) =>
-                  current === providerMenuKey ? null : providerMenuKey,
-                )
-              }
-            >
-              <Ellipsis size={14} aria-hidden="true" />
-            </button>
-            {activePilotActionMenuKey === providerMenuKey ? (
-              <div className="nt-pilot-menu__panel" role="menu">
-                <button
-                  className="nt-pilot-menu__item"
-                  role="menuitem"
-                  type="button"
-                  disabled={!hasProbeTargets}
-                  title={
-                    hasProbeTargets
-                      ? undefined
-                      : t("没有可测试的账号", "No testable account in this section")
-                  }
-                  onClick={() => {
-                    setActivePilotActionMenuKey(null);
-                    onOpenProviderProbe(section);
-                  }}
-                >
-                  <Activity size={15} aria-hidden="true" />
-                  <span>{t("服务商测试", "Test provider")}</span>
-                </button>
-                <button
-                  className="nt-pilot-menu__item"
-                  role="menuitem"
-                  type="button"
-                  disabled={editorLocked || !hasProbeTargets}
-                  title={
-                    hasProbeTargets
-                      ? undefined
-                      : t("没有可测试的账号", "No testable account in this section")
-                  }
-                  onClick={() => {
-                    setActivePilotActionMenuKey(null);
-                    onOpenProviderSchedule(section);
-                  }}
-                >
-                  <CalendarClock size={15} aria-hidden="true" />
-                  <span>{t("自动定时测试", "Automatic scheduled tests")}</span>
-                </button>
-                <button
-                  className="nt-pilot-menu__item"
-                  role="menuitem"
-                  type="button"
-                  disabled={editorLocked}
-                  onClick={() => {
-                    setActivePilotActionMenuKey(null);
-                    onOpenModelMapping(section);
-                  }}
-                >
-                  <ArrowLeftRight size={15} aria-hidden="true" />
-                  <span>
-                    {providerModelMappingCount > 0
-                      ? t(
-                          `模型映射 · ${providerModelMappingCount}`,
-                          `Model mapping · ${providerModelMappingCount}`,
-                        )
-                      : t("模型映射", "Model mapping")}
-                  </span>
-                </button>
-              </div>
-            ) : null}
-          </div>
         </footer>
         </div>
       <div

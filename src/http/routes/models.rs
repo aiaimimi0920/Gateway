@@ -40,7 +40,7 @@ pub async fn handle_models(
     .await?;
 
     let local_id = crate::local_runtime::access_keys::local_key_id(&state, Some(&session));
-    let models = if let (Some(local), Some(id)) = (&state.local_runtime, local_id) {
+    let mut models = if let (Some(local), Some(id)) = (&state.local_runtime, local_id) {
         local.local_access_models(id, &state.route_config).await?
     } else if let Some(pg_pool) = &state.pg_pool {
         provider_runtime::sweep_cooling_provider_accounts_best_effort(&state, 10).await;
@@ -52,6 +52,20 @@ pub async fn handle_models(
     } else {
         state.route_config.list_models()
     };
+    if local_id.is_none() {
+        let snapshot = state.route_config.snapshot();
+        if let Some(groups) =
+            crate::access_key_groups::session_constraint(&state, Some(&session), &snapshot).await?
+        {
+            // Group restrictions narrow server entitlements; they never grant a missing bundle right.
+            models.retain(|model| {
+                !snapshot
+                    .resolve_candidates_with_constraint(Some(&model.id), Some(&groups))
+                    .candidates
+                    .is_empty()
+            });
+        }
+    }
     Ok::<_, crate::error::GatewayError>(Json(serde_json::json!({
         "object": "list",
         "data": models,

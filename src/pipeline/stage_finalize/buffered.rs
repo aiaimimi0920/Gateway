@@ -51,6 +51,7 @@ async fn finalize_json(body: &Value, ctx: &PipelineContext, state: &Arc<AppState
         .observed_usage
         .clone()
         .or_else(|| extract_usage(body, &ctx.selected_adapter));
+    crate::cash_billing::finalization::success(ctx, usage.clone(), state).await;
     let prompt_tokens = usage.as_ref().map(|value| value.prompt_tokens).unwrap_or(0);
     let completion_tokens = usage
         .as_ref()

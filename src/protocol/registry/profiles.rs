@@ -134,6 +134,7 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
 
 pub fn default_protocol_profile_for_adapter(adapter: &str) -> &'static str {
     match adapter.trim() {
+        "dashscope_compatible" | "dashscope_multimodal_compatible" => "dashscope_native",
         "accio_compatible" => "accio",
         "anthropic_compatible" => "anthropic",
         "gemini_api_compatible" => "aistudio_official_api",
@@ -173,6 +174,8 @@ pub fn default_protocol_family_for_adapter(adapter: &str) -> &'static str {
         "gemini_api_modular_compatible" => GEMINI_GENERATE_CONTENT_FAMILY,
         "bedrock_converse_compatible" => BEDROCK_CONVERSE_FAMILY,
         "cohere_compatible" => COHERE_CHAT_FAMILY,
+        "dashscope_compatible" => "dashscope_text",
+        "dashscope_multimodal_compatible" => "dashscope_multimodal",
         "kiro_compatible" => "kiro",
         "freebuff_compatible" => "freebuff",
         "producer_compatible" => PRODUCER_MUSIC_FAMILY,

@@ -53,10 +53,17 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     ctx.explicit_fallback_provider_ids.clear();
     let model = ctx.canonical_req.requested_model.as_deref();
     let requested_account_group_id = ctx.account_group_id.clone();
-    let account_group_constraint = state
-        .route_config
+    let route_snapshot = state.route_config.snapshot();
+    ctx.cash_route_snapshot = Some(route_snapshot.clone());
+    let mut account_group_constraint = route_snapshot
         .account_group_constraint(requested_account_group_id.as_deref())
         .map_err(map_account_group_selection_error)?;
+    let key_groups =
+        crate::access_key_groups::session_constraint(state, ctx.session.as_ref(), &route_snapshot)
+            .await?;
+    if let Some(groups) = &key_groups {
+        account_group_constraint.intersect(groups);
+    }
     let credential_ref = ctx
         .credential_ref
         .clone()
@@ -122,6 +129,9 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             route_context.candidates,
         );
         if route_candidates.is_empty() {
+            if key_groups.is_some() {
+                return Err(crate::access_key_groups::denied());
+            }
             if let Some(error) = account_group_candidates_unavailable_error(
                 &account_group_constraint,
                 Some(requested_model),
@@ -162,10 +172,17 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             &ctx.canonical_req,
             route_candidates,
             Some(projected_candidates),
+            ctx.forced_upstream_protocol.as_deref(),
         );
         ctx.projected_access_candidates = finalized.1.unwrap_or_default();
         ctx.candidates = finalized.0;
         if ctx.candidates.is_empty() {
+            if ctx.forced_upstream_protocol.is_some() {
+                return Err(GatewayError::bad_request(
+                    "No eligible account supports the forced upstream protocol for this request.",
+                )
+                .with_code("debug_upstream_protocol_unavailable"));
+            }
             let projected_candidate_debug = ctx
                 .projected_access_candidates
                 .iter()
@@ -361,31 +378,12 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         // document therefore stays the fallback whenever the database resolved
         // no candidate of its own.
         if !database_resolved_candidates {
-            match state
-                .route_config
-                .snapshot()
-                .resolve_candidates_with_authorization_for_account_group(
-                    model,
-                    requested_account_group_id.as_deref(),
-                ) {
-                Ok(resolution) => {
-                    ctx.explicit_fallback_provider_ids =
-                        resolution.explicit_provider_ids.unwrap_or_default();
-                    all_candidates.extend(resolution.candidates);
-                }
-                // With a database present the requested account group can be a
-                // database-owned group the route document cannot know about, so
-                // the database result stands and the usual "no provider
-                // account" error is reported downstream.
-                Err(error) if state.pg_pool.is_some() => {
-                    debug!(
-                        req_id = %ctx.req_id,
-                        error = %error,
-                        "route document account group unavailable; keeping database routing result"
-                    );
-                }
-                Err(error) => return Err(map_account_group_selection_error(error)),
-            }
+            // Use the same snapshot and intersected membership before credential round-robin.
+            let resolution = route_snapshot
+                .resolve_candidates_with_constraint(model, Some(&account_group_constraint));
+            ctx.explicit_fallback_provider_ids =
+                resolution.explicit_provider_ids.unwrap_or_default();
+            all_candidates.extend(resolution.candidates);
         }
     }
 
@@ -393,6 +391,9 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     // the same validated group constraint used by access-catalog and YAML
     // routing before affinity or queue ordering can select an outside account.
     all_candidates = account_group_constraint.filter_candidates(all_candidates);
+    if key_groups.is_some() && all_candidates.is_empty() {
+        return Err(crate::access_key_groups::denied());
+    }
     if let Some(id) = local_access_key_id {
         if let Some(local) = &state.local_runtime {
             if let Some(ids) = local
@@ -467,8 +468,15 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         &ctx.canonical_req,
         all_candidates,
         None::<Vec<crate::db::ProjectedPlatformAccessRow>>,
+        ctx.forced_upstream_protocol.as_deref(),
     )
     .0;
+    if all_candidates.is_empty() && ctx.forced_upstream_protocol.is_some() {
+        return Err(GatewayError::bad_request(
+            "No eligible account supports the forced upstream protocol for this request.",
+        )
+        .with_code("debug_upstream_protocol_unavailable"));
+    }
     all_candidates =
         filter_candidates_by_route_policy_family(all_candidates, ctx.route_policy_config.as_ref());
     let model_health = if let Some(local) = &state.local_runtime {

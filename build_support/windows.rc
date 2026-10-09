@@ -1,0 +1,2 @@
+// Share the desktop ICO rather than maintaining a second headless brand asset.
+1 ICON "apps/desktop/src-tauri/icons/icon.ico"

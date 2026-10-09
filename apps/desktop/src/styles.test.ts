@@ -123,4 +123,46 @@ describe("Gateway Neuro theme contract", () => {
     );
   });
 
+  it("keeps both provider-pool headers at the front's fixed height and surface", () => {
+    expect(styles).toContain("--nt-provider-card-head-height: 61px;");
+    for (const face of ["front", "back"]) {
+      expect(styles).toMatch(new RegExp(
+        `\\.nt-provider-card__${face}\\s*\\{[^}]*grid-template-rows: var\\(--nt-provider-card-head-height\\) minmax\\(0, 1fr\\)`,
+      ));
+    }
+    expect(styles).toMatch(
+      /\.nt-provider-card__front-head,\s*\.nt-provider-card__back-head\s*\{[^}]*min-height: 0;[^}]*border-bottom: 1px solid var\(--nt-border\);[^}]*padding: 11px 12px;[^}]*background: var\(--nt-color-surface\);/,
+    );
+    expect(styles.match(/\.nt-provider-card__back-head\b/g)).toHaveLength(1);
+    expect(styles).toMatch(
+      /\.nt-provider-card__back-body \.nt-provider-lifecycle__group:first-child\s*\{[^}]*border-top: 0;/,
+    );
+  });
+
+  it("truncates long provider titles on both faces without growing the header", () => {
+    expect(/\.nt-provider-card__inner\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/.test(styles)).toBe(true);
+    expect(/\.nt-provider-card__front-head \.nt-provider-tree-item__main\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/.test(styles)).toBe(true);
+    expect(/\.nt-provider-card__front-head \.nt-provider-card__title,\s*\.nt-provider-card__back-title\s*\{[^}]*min-width: 0;[^}]*max-width: 100%;/.test(styles)).toBe(true);
+    expect(styles).toMatch(
+      /\.nt-provider-card__front-head \.nt-provider-card__title strong,\s*\.nt-provider-card__back-title strong\s*\{[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/,
+    );
+  });
+
+  it("starts the progress section directly below the fixed front header", () => {
+    expect(styles).toMatch(/\.nt-provider-card__front\s*\{[^}]*gap: 0;/);
+    expect(styles).toMatch(/\.nt-provider-card__front-body\s*\{[^}]*padding: 0 12px 12px;/);
+  });
+
+  it("owns routing-pool popup, hover and selected colors instead of native option highlighting", () => {
+    expect(styles).toMatch(/\.nt-provider-account-card__group-select\s*\{[^}]*background: var\(--nt-color-control\);[^}]*color: var\(--nt-text\);/);
+    expect(styles).toMatch(/\.nt-account-routing-pool-select__popup\s*\{[^}]*background: var\(--nt-color-control\);[^}]*color: var\(--nt-text\);/);
+    expect(styles).toMatch(/\.nt-account-routing-pool-select__item\[data-highlighted\]\s*\{[^}]*background: var\(--nt-color-control-hover\);/);
+    expect(styles).toMatch(/\.nt-account-routing-pool-select__item\[data-state="checked"\]\s*\{[^}]*background: var\(--nt-signal-soft\);[^}]*color: var\(--nt-signal\);/);
+  });
+
+  it("keeps provider pools as narrow as account cards instead of widening with the window", () => {
+    expect(styles).toMatch(/\.nt-provider-card-grid\s*\{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 292px\), 292px\)\);[^}]*justify-content: start;/);
+    expect(styles).toMatch(/\.nt-provider-card\s*\{[^}]*max-width: 292px;/);
+    expect(styles).toMatch(/\.nt-provider-account-card\s*\{[^}]*width: 292px;/);
+  });
 });

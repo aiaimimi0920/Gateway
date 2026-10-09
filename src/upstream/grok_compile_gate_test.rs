@@ -7,6 +7,7 @@ mod tests {
 
     fn make_payload() -> ProviderAccountPayload {
         ProviderAccountPayload {
+            discovered_protocols: Vec::new(),
             adapter: "grok_compatible".to_string(),
             base_url: "https://grok.com".to_string(),
             api_key: "sk-test".to_string(),

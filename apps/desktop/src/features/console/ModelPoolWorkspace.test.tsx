@@ -61,16 +61,10 @@ it("renders aggregate metrics and preserves the missing-data and empty states", 
   expect(screen.queryByRole("region", { name: "Model cards" })).not.toBeInTheDocument();
 });
 
-it("restores menu and flip focus while keeping inactive faces inaccessible", async () => {
+it("removes the model overflow menu and preserves flip focus and inaccessible inactive faces", async () => {
   const { user, container } = renderWorkspace();
-  const menuTrigger = screen.getByRole("button", { name: /more actions/ });
-  await user.click(menuTrigger);
-  expect(screen.getByRole("menu")).toBeVisible();
-  await user.keyboard("{Escape}");
-  expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-  expect(menuTrigger).toHaveFocus();
-  await user.click(menuTrigger);
-  await user.click(screen.getByRole("menuitem", { name: "Reorder chain" }));
+  expect(screen.queryByRole("button", { name: /more actions/ })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /to reorder its chain/ }));
   const backFlip = screen.getByRole("button", { name: /back to the front/ });
   expect(backFlip).toHaveFocus();
   expect(container.querySelector(".nt-entitlement-group-card__front")).toHaveAttribute("inert");
@@ -82,7 +76,7 @@ it("restores menu and flip focus while keeping inactive faces inaccessible", asy
   expect(screen.getByRole("status")).toHaveTextContent("card flipped to the front");
 });
 
-it("dispatches exact model actions and closes the menu before resetting priority", async () => {
+it("dispatches exact model actions and resets priority directly from the back", async () => {
   const { user, props } = renderWorkspace();
   const model = props.models[0].model;
   await user.click(screen.getByRole("switch"));
@@ -91,8 +85,8 @@ it("dispatches exact model actions and closes the menu before resetting priority
   expect(props.onToggleEnabled).toHaveBeenCalledExactlyOnceWith(model, false);
   expect(props.onEditModel).toHaveBeenCalledExactlyOnceWith(model);
   expect(props.onDeleteModel).toHaveBeenCalledExactlyOnceWith(model);
-  await user.click(screen.getByRole("button", { name: /more actions/ }));
-  await user.click(screen.getByRole("menuitem", { name: "Reset chain" }));
+  await user.click(screen.getByRole("button", { name: /to reorder its chain/ }));
+  await user.click(screen.getByRole("button", { name: "Reset chain" }));
   expect(props.onResetChain).toHaveBeenCalledExactlyOnceWith(model);
   expect(screen.queryByRole("menu")).not.toBeInTheDocument();
 });
@@ -102,14 +96,13 @@ it("honors editor locks and the inherited-chain reset guard", async () => {
   expect(screen.getByRole("switch")).toBeDisabled();
   expect(screen.getByRole("button", { name: "Edit" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
-  await user.click(screen.getByRole("button", { name: /more actions/ }));
-  expect(screen.getByRole("menuitem", { name: "Reset chain" })).toBeDisabled();
-  await user.click(screen.getByRole("menuitem", { name: "Reorder chain" }));
+  await user.click(screen.getByRole("button", { name: /to reorder its chain/ }));
+  expect(screen.getByRole("button", { name: "Reset chain" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Move First provider down one slot" })).toBeDisabled();
   await user.click(screen.getByRole("button", { name: /back to the front/ }));
   rerender(<ModelPoolWorkspace {...props} editorLocked={false} models={[{ ...modelCard(), pinned: false }]} />);
-  await user.click(screen.getByRole("button", { name: /more actions/ }));
-  expect(screen.getByRole("menuitem", { name: "Reset chain" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: /to reorder its chain/ }));
+  expect(screen.getByRole("button", { name: "Reset chain" })).toBeDisabled();
   expect(props.onResetChain).not.toHaveBeenCalled();
 });
 
@@ -119,7 +112,9 @@ it("shares provider selection with the attached account panel and forwards chain
   await user.click(screen.getByRole("button", { name: `Show ${model} serving accounts` }));
   const panel = screen.getByRole("region", { name: `${model} serving accounts` });
   expect(panel).toHaveAttribute("id", "model-pool-accounts-gemini-2-5-pro-free");
-  const count = () => panel.querySelector(".nt-entitlement-group-card__accounts-count");
+  expect(panel).toHaveClass("nt-provider-account-library", "nt-provider-account-library--attached");
+  expect(within(panel).getByText(`${model} account library`)).toBeVisible();
+  const count = () => panel.querySelector(".nt-provider-account-library__count");
   expect(count()).toHaveTextContent("3");
   await user.click(screen.getByRole("button", { name: /to reorder its chain/ }));
   await user.click(screen.getByRole("button", { name: "Move First provider down one slot" }));
@@ -132,17 +127,16 @@ it("shares provider selection with the attached account panel and forwards chain
   expect(within(panel).getByText("No accounts fall inside the selected provider scope.")).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Select all" }));
   expect(count()).toHaveTextContent("3");
-  expect(container.querySelectorAll(".nt-entitlement-group-card__accounts")).toHaveLength(1);
+  expect(container.querySelectorAll(".nt-provider-account-library--attached")).toHaveLength(1);
+  expect(panel.querySelector(".nt-provider-account-library__pager")).toBeInTheDocument();
 });
 
-it("expands one model at a time and closes an overflow menu on outside interaction", async () => {
+it("expands one framed model library at a time without an overflow menu", async () => {
   const { user } = renderWorkspace({ models: [modelCard("alpha"), modelCard("beta")] });
   await user.click(screen.getByRole("button", { name: "Show alpha serving accounts" }));
-  await user.click(screen.getByRole("button", { name: "beta more actions" }));
-  await user.click(screen.getByRole("menuitem", { name: "Show serving accounts" }));
+  await user.click(screen.getByRole("button", { name: "Show beta serving accounts" }));
   expect(screen.queryByRole("region", { name: "alpha serving accounts" })).not.toBeInTheDocument();
   expect(screen.getByRole("region", { name: "beta serving accounts" })).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "alpha more actions" }));
   await user.click(screen.getByRole("button", { name: "beta" }));
   expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "beta serving accounts" })).not.toBeInTheDocument();

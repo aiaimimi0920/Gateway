@@ -3,6 +3,7 @@ import type {
   ConsoleProviderCredentialInventoryItem,
   ConsoleProviderCredentialModelState,
   ConsoleRequestAuditSummary,
+  ConsoleRequestModelTotals,
   ConsoleRequestAuditProviderStats,
   ConsoleRuntimePressure,
 } from "../../api/contracts";
@@ -68,6 +69,7 @@ export type ConsoleTelemetryProviderAccount = {
 };
 
 export type ConsoleTelemetrySnapshot = {
+  retainedModelTotals?: readonly ConsoleRequestModelTotals[];
   credentialAuditStats?: ReadonlyMap<string, ConsoleRequestAuditProviderStats>;
   credentials: ReadonlyMap<string, ConsoleTelemetryCredential>;
   providerAccounts: ReadonlyMap<string, ConsoleTelemetryProviderAccount>;
@@ -315,7 +317,7 @@ export function buildConsoleTelemetrySnapshot(
       modelEntry.lastRequestAt = laterTimestamp(modelEntry.lastRequestAt, modelStats.lastRequestAt);
       modelEntry.successWindows = modelStats.windows
         .map((window) => ({
-          label: window.label,
+          label: window.bucketStart,
           success: Math.max(0, Math.floor(window.successCount)),
           requests: Math.max(0, Math.floor(window.totalRequests)),
         }))
@@ -423,6 +425,7 @@ export function buildConsoleTelemetrySnapshot(
 
   return {
     credentials,
+    retainedModelTotals: input.requestAuditSummary?.retainedModelTotals,
     credentialAuditStats: input.requestAuditSummary?.credentials === undefined ? undefined : new Map(
       input.requestAuditSummary.credentials.map((stats) => [
         JSON.stringify([stats.providerAccountId, stats.credentialRef]), stats,

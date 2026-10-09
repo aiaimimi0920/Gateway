@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { settleOperations as settle, settleDatabaseOperations } from "./operationsAvailability";
 
 import type { ConsoleApi, ConsoleRequestFilters } from "../../api/console";
 import type {
@@ -113,21 +114,6 @@ function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
-/**
- * Resolves one panel without ever rejecting: a 503 (`PostgreSQL 尚未配置`) turns
- * into the panel's own error string so the rest of the page still renders.
- */
-async function settle<T>(run: (() => Promise<T>) | null): Promise<OperationsPanelState<T>> {
-  if (!run) {
-    return { data: null, error: null, loading: false };
-  }
-  try {
-    return { data: await run(), error: null, loading: false };
-  } catch (cause) {
-    return { data: null, error: errorMessage(cause), loading: false };
-  }
-}
-
 /** Blank strings mean "no filter", so they are dropped before they hit the query. */
 function toRequestFilters(draft: OperationsRequestFilterDraft): ConsoleRequestFilters {
   const parsedLimit = Number.parseInt(draft.limit, 10);
@@ -182,7 +168,8 @@ export function useOperationsData({
   const filters = useMemo(() => toRequestFilters(appliedFilters), [appliedFilters]);
 
   const loadRequestPanels = useCallback(
-    async (generation: number, activeFilters: ConsoleRequestFilters) => {
+    async (generation: number, activeFilters: ConsoleRequestFilters,
+      summary: Promise<OperationsPanelState<ConsoleOperatorSummary>>) => {
       const [requests, requestSummary, usageSummary, promptCache, hotspots] = await Promise.all([
         settle(
           managementToken && typeof api.listRequestAudits === "function"
@@ -200,7 +187,7 @@ export function useOperationsData({
                 )
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.getUsageAggregateSummary === "function"
             ? () =>
                 api.getUsageAggregateSummary!(managementToken, {
@@ -208,7 +195,7 @@ export function useOperationsData({
                 }).then((response) => response.summary)
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.getPromptCacheSummary === "function"
             ? () =>
                 api.getPromptCacheSummary!(managementToken, activeFilters).then(
@@ -216,7 +203,7 @@ export function useOperationsData({
                 )
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.getRateLimitHotspots === "function"
             ? () =>
                 api.getRateLimitHotspots!(managementToken, activeFilters).then(
@@ -243,7 +230,12 @@ export function useOperationsData({
   const loadAll = useCallback(
     async (generation: number, activeFilters: ConsoleRequestFilters) => {
       setRefreshing(true);
-      const requestPanelsPromise = loadRequestPanels(generation, activeFilters);
+      const summary = settle(
+        managementToken && typeof api.getOperatorSummary === "function"
+          ? () => api.getOperatorSummary!(managementToken).then(response => response.summary)
+          : null,
+      );
+      const requestPanelsPromise = loadRequestPanels(generation, activeFilters, summary);
       const [
         pressure,
         readiness,
@@ -268,12 +260,8 @@ export function useOperationsData({
             ? () => api.getGatewayReadiness!(managementToken).then((response) => response.readiness)
             : null,
         ),
-        settle(
-          managementToken && typeof api.getOperatorSummary === "function"
-            ? () => api.getOperatorSummary!(managementToken).then((response) => response.summary)
-            : null,
-        ),
-        settle(
+        summary,
+        settleDatabaseOperations(summary,
           managementToken && typeof api.listAnomalyIncidents === "function"
             ? () =>
                 api.listAnomalyIncidents!(managementToken, { limit: 50 }).then(
@@ -281,18 +269,18 @@ export function useOperationsData({
                 )
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.getAnomalyIncidentSummary === "function"
             ? () =>
                 api.getAnomalyIncidentSummary!(managementToken).then((response) => response.summary)
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.getAnomalyAlertQueue === "function"
             ? () => api.getAnomalyAlertQueue!(managementToken).then((response) => response.queue)
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.listAnomalyPolicies === "function"
             ? () =>
                 api.listAnomalyPolicies!(managementToken, { limit: 50 }).then(
@@ -300,12 +288,12 @@ export function useOperationsData({
                 )
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.listRemediationQueue === "function"
             ? () => api.listRemediationQueue!(managementToken).then((response) => response.queue)
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.listRemediationRuns === "function"
             ? () =>
                 api.listRemediationRuns!(managementToken, { limit: 50 }).then(
@@ -313,7 +301,7 @@ export function useOperationsData({
                 )
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.getRemediationEffectiveness === "function"
             ? () =>
                 api.getRemediationEffectiveness!(managementToken).then(
@@ -321,7 +309,7 @@ export function useOperationsData({
                 )
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.listPersistedAnalysisExports === "function"
             ? () =>
                 api.listPersistedAnalysisExports!(managementToken, { limit: 50 }).then(
@@ -329,7 +317,7 @@ export function useOperationsData({
                 )
             : null,
         ),
-        settle(
+        settleDatabaseOperations(summary,
           managementToken && typeof api.getAnalysisExportInventorySummary === "function"
             ? () =>
                 api.getAnalysisExportInventorySummary!(managementToken).then(

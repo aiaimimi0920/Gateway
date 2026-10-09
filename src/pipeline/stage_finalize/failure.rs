@@ -7,6 +7,12 @@ pub async fn run_failure(
     ctx: &PipelineContext,
     state: &Arc<AppState>,
 ) {
+    crate::cash_billing::finalization::failure(
+        ctx.cash_charge.as_ref(),
+        ctx.route_attempt_count(),
+        state,
+    )
+    .await;
     refund_pre_deducted_quota(ctx, state).await;
     finalize_request_audit_failure(ctx, error, state).await;
 
@@ -61,6 +67,12 @@ pub async fn run_failure(
 }
 
 pub async fn run_stream_failure(snapshot: FailureFinalizeSnapshot, state: &Arc<AppState>) {
+    crate::cash_billing::finalization::failure(
+        snapshot.request_audit.cash_charge.as_ref(),
+        snapshot.request_audit.route_attempt_count,
+        state,
+    )
+    .await;
     refund_pre_deducted_quota_snapshot(&snapshot, state).await;
     finalize_request_audit_failure_snapshot(
         &snapshot,

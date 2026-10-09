@@ -1,11 +1,17 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
+import type { AccountDiscovery, DiscoverAccount } from "./accountDiscovery";
+import { useDiscoverySubmission } from "./useDiscoverySubmission";
+import { CredentialSecretField } from "./CredentialSecretField";
+import { CredentialProtocolList } from "./CredentialProtocolList";
+import "./CredentialDialog.css";
 
 export type CredentialDialogMode = "add" | "edit";
 export type CredentialApiKeyOperation = "keep" | "replace" | "clear";
 
 export type CredentialDialogValue = {
+  discovery?: AccountDiscovery;
   providerId: string;
   credentialId: string;
   accountName: string;
@@ -33,6 +39,9 @@ export type CredentialDialogProps = {
   onRequestSecretAccess(): void;
   onSubmit(value: CredentialDialogValue): void;
   renderAuthentication?: (providerId: string) => ReactNode;
+  discoveryProvider?: (providerId: string) => { baseUrl: string } | null;
+  onDiscover?: DiscoverAccount;
+  onRevealKey?: (signal: AbortSignal) => Promise<string>;
 };
 
 function emptyValue(providerId = ""): CredentialDialogValue {
@@ -60,7 +69,11 @@ export function CredentialDialog({
   onRequestSecretAccess,
   onSubmit,
   renderAuthentication,
+  discoveryProvider,
+  onDiscover,
+  onRevealKey,
 }: CredentialDialogProps) {
+  const discovery = useDiscoverySubmission(open, onDiscover);
   const { t } = useUiLocale();
   const [value, setValue] = useState<CredentialDialogValue>(() =>
     initialValue ?? emptyValue(providerOptions[0]?.id ?? ""),
@@ -69,6 +82,7 @@ export function CredentialDialog({
 
   useEffect(() => {
     if (!open) {
+      setValue(emptyValue());
       return;
     }
     setValue(
@@ -76,10 +90,17 @@ export function CredentialDialog({
         emptyValue(providerOptions.length === 1 ? (providerOptions[0]?.id ?? "") : ""),
     );
     setValidationError(null);
-  }, [initialValue, open, providerOptions]);
+  }, [initialValue, open, providerOptions, onRevealKey]);
+
+  useEffect(() => {
+    if (!hasSecretAccess) setValue((current) => ({ ...current, apiKeyValue: "",
+      apiKeyOperation: mode === "edit" ? "keep" : "replace" }));
+  }, [hasSecretAccess, mode]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (locked || discovery.busy) return;
+    if (value.apiKeyOperation !== "keep" && !hasSecretAccess) { onRequestSecretAccess(); return; }
     const providerId = value.providerId.trim();
     const credentialId = value.credentialId.trim();
     if (!providerId) {
@@ -109,18 +130,49 @@ export function CredentialDialog({
       return;
     }
 
-    onSubmit({
+    const submission = {
       ...value,
       providerId,
       credentialId,
       accountName: value.accountName.trim(),
       baseUrl: value.baseUrl.trim(),
       apiKeyValue: value.apiKeyValue.trim(),
-    });
+    };
+    const target = discoveryProvider?.(providerId);
+    if (target && onDiscover && value.apiKeyOperation !== "clear") {
+      const addressChanged = value.baseUrl.trim() !== (initialValue?.baseUrl ?? "").trim();
+      if (value.apiKeyOperation === "replace" && !value.discovery) {
+        setValidationError(null);
+        void discovery.run({ baseUrl: submission.baseUrl || target.baseUrl, apiKey: submission.apiKeyValue }, (result) => {
+          onSubmit({ ...submission, discovery: result, supportedModelsText: result.models.join("\n") });
+          onOpenChange(false);
+        });
+        return;
+      }
+      if (!value.discovery && (mode === "add" || addressChanged)) {
+        setValidationError("新增账号或更改地址时，请填写 API Key 以重新识别。");
+        return;
+      }
+    }
+    onSubmit(submission);
     onOpenChange(false);
   };
 
   const secretMutationRequested = value.apiKeyOperation !== "keep";
+  const refreshProtocols = () => {
+    if (!hasSecretAccess) { onRequestSecretAccess(); return; }
+    const target = discoveryProvider?.(value.providerId);
+    if (!target || locked || discovery.busy) return;
+    const addressChanged = value.baseUrl.trim() !== (initialValue?.baseUrl ?? "").trim();
+    const input = value.apiKeyValue.trim()
+      ? { baseUrl: value.baseUrl.trim() || target.baseUrl, apiKey: value.apiKeyValue.trim() }
+      : mode === "edit" && value.apiKeyOperation === "keep" && !addressChanged
+        ? { credentialId: value.credentialId } : null;
+    if (!input) { setValidationError(t("请填写 API Key。", "Enter an API key.")); return; }
+    setValidationError(null);
+    void discovery.run(input, (result) => setValue((current) => ({ ...current,
+      discovery: result, supportedModelsText: result.models.join("\n") })));
+  };
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -128,22 +180,16 @@ export function CredentialDialog({
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
           className="dialog-content nt-credential-dialog"
-          aria-describedby="credential-dialog-description"
+          aria-describedby={undefined}
         >
           <Dialog.Title>
             {mode === "add" ? t("新增账号", "Add account") : t("编辑账号", "Edit account")}
           </Dialog.Title>
-          <Dialog.Description id="credential-dialog-description">
-            {t(
-              "账号会作为 route-config 中的显式 credential 写入草稿，最终通过修订事务统一保存。",
-              "The account is written to the route-config draft as an explicit credential and saved through the revision transaction.",
-            )}
-          </Dialog.Description>
 
           {mode === "add" ? renderAuthentication?.(value.providerId) : null}
           <form className="nt-stack" onSubmit={submit}>
-            <div className="nt-grid nt-grid--2">
-              <label className="nt-field">
+            <fieldset className="nt-credential-fields" disabled={locked || discovery.busy}>
+              <label className="nt-credential-row">
                 <span>Provider</span>
                 <select
                   className="nt-select"
@@ -154,6 +200,7 @@ export function CredentialDialog({
                     setValue((current) => ({
                       ...current,
                       providerId,
+                      discovery: undefined,
                     }));
                   }}
                 >
@@ -166,7 +213,7 @@ export function CredentialDialog({
                 </select>
               </label>
 
-              <label className="nt-field">
+              <label className="nt-credential-row">
                 <span>{t("账号 ID", "Account ID")}</span>
                 <input
                   className="nt-input"
@@ -182,7 +229,7 @@ export function CredentialDialog({
                 />
               </label>
 
-              <label className="nt-field">
+              <label className="nt-credential-row">
                 <span>{t("账号名称", "Account name")}</span>
                 <input
                   className="nt-input"
@@ -198,42 +245,27 @@ export function CredentialDialog({
                 />
               </label>
 
-              <label className="nt-chip nt-field--toggle">
-                <input
-                  checked={value.enabled}
-                  disabled={locked}
-                  aria-label={t("账号启用状态", "Account enabled state")}
-                  type="checkbox"
-                  onChange={(event) => {
-                    const enabled = event.currentTarget.checked;
-                    setValue((current) => ({
-                      ...current,
-                      enabled,
-                    }));
-                  }}
-                />
-                <span>{value.enabled ? t("账号已启用", "Account enabled") : t("账号已停用", "Account disabled")}</span>
-              </label>
 
-              <label className="nt-field">
+              <label className="nt-credential-row">
                 <span>{t("账号覆盖地址", "Account base URL override")}</span>
                 <input
                   className="nt-input"
                   type="url"
                   value={value.baseUrl}
                   disabled={locked}
-                  placeholder="https://api.example.com/v1"
+                  placeholder="https://api.example.com"
                   onChange={(event) => {
                     const baseUrl = event.currentTarget.value;
                     setValue((current) => ({
                       ...current,
                       baseUrl,
+                      discovery: undefined,
                     }));
                   }}
                 />
               </label>
 
-              <label className="nt-field nt-field--wide">
+              {!discoveryProvider?.(value.providerId) && <label className="nt-credential-row">
                 <span>{t("支持模型", "Supported models")}</span>
                 <textarea
                   className="nt-textarea"
@@ -249,85 +281,46 @@ export function CredentialDialog({
                     }));
                   }}
                 />
-              </label>
+              </label>}
 
-              <label className="nt-field">
-                <span>{t("API Key 操作", "API key operation")}</span>
-                <select
-                  className="nt-select"
-                  value={value.apiKeyOperation}
-                  disabled={locked}
-                  onChange={(event) => {
-                    const apiKeyOperation = event.currentTarget.value as CredentialApiKeyOperation;
-                    setValue((current) => ({
-                      ...current,
-                      apiKeyOperation,
-                      apiKeyValue: apiKeyOperation === "replace" ? current.apiKeyValue : "",
-                    }));
-                  }}
-                >
-                  <option value="keep">
-                    {mode === "add"
-                      ? t("继承 Provider 密钥 / 不单独设置", "Inherit provider key / leave unset")
-                      : t("保留当前 API Key", "Keep current API key")}
-                  </option>
-                  <option value="replace">{t("替换 API Key", "Replace API key")}</option>
-                  {mode === "edit" ? (
-                    <option value="clear">{t("清空 API Key", "Clear API key")}</option>
-                  ) : null}
-                </select>
-              </label>
+              {open && <CredentialSecretField key={`${value.providerId}:${value.credentialId}`}
+                value={value.apiKeyValue} existing={mode === "edit" && value.apiKeyOperation === "keep"}
+                disabled={locked || discovery.busy} hasSecretAccess={hasSecretAccess}
+                onRequestSecretAccess={onRequestSecretAccess} onReveal={onRevealKey}
+                onLoaded={(apiKeyValue) => setValue((current) => ({ ...current, apiKeyValue }))}
+                onChange={(apiKeyValue) => setValue((current) => ({ ...current, apiKeyValue,
+                  apiKeyOperation: apiKeyValue ? "replace" : mode === "edit" ? "clear" : "keep", discovery: undefined }))} />}
 
-              <label className="nt-field">
-                <span>API Key</span>
-                <input
-                  className="nt-input"
-                  type="password"
-                  autoComplete="new-password"
-                  value={value.apiKeyValue}
-                  disabled={locked || value.apiKeyOperation !== "replace"}
-                  onChange={(event) => {
-                    const apiKeyValue = event.currentTarget.value;
-                    setValue((current) => ({
-                      ...current,
-                      apiKeyValue,
-                    }));
-                  }}
-                />
-              </label>
-            </div>
-
+            </fieldset>
             {secretMutationRequested && !hasSecretAccess ? (
               <div className="nt-validation-list nt-validation-list--warning">
                 <strong>{t("需要敏感信息访问权限", "Secret access is required")}</strong>
-                <ul>
-                  <li>
-                    {t(
-                      "替换或清空 API Key 前，请先确认管理员敏感信息访问权限。",
-                      "Confirm administrator secret access before replacing or clearing an API key.",
-                    )}
-                  </li>
-                </ul>
                 <button className="nt-btn nt-btn--outline" type="button" onClick={onRequestSecretAccess}>
                   {t("确认敏感信息访问权限", "Confirm secret access")}
                 </button>
               </div>
             ) : null}
 
-            {validationError ? (
+            {discoveryProvider?.(value.providerId) && onDiscover && <div className="nt-credential-protocols">
+              <button className="nt-btn nt-btn--outline" type="button" disabled={locked || discovery.busy}
+                onClick={refreshProtocols}>{discovery.busy ? t("刷新中…", "Refreshing…") : t("刷新协议", "Refresh protocols")}</button>
+              <CredentialProtocolList discovery={value.discovery} />
+            </div>}
+
+            {validationError || discovery.error ? (
               <div className="nt-validation-list" role="alert">
-                <strong>{validationError}</strong>
+                <strong>{validationError ?? discovery.error}</strong>
               </div>
             ) : null}
 
             <div className="dialog-actions">
               <Dialog.Close asChild>
-                <button className="nt-btn nt-btn--outline" type="button" disabled={locked}>
+                <button className="nt-btn nt-btn--outline" type="button">
                   {t("取消", "Cancel")}
                 </button>
               </Dialog.Close>
-              <button className="nt-btn nt-btn--primary" type="submit" disabled={locked}>
-                {t("保存到草稿", "Save to draft")}
+              <button className="nt-btn nt-btn--primary" type="submit" disabled={locked || discovery.busy}>
+                {discovery.busy ? t("正在识别…", "Discovering…") : t("保存", "Save")}
               </button>
             </div>
           </form>

@@ -51,20 +51,20 @@ pub fn unpack_anthropic_response(body: &Value) -> Result<CanonicalRelayResponse,
     let finish_reason =
         map_anthropic_finish_reason(body.get("stop_reason").and_then(|v| v.as_str()));
 
-    let usage = body.get("usage").map(|u| {
-        let prompt = u.get("input_tokens").and_then(|t| t.as_u64()).unwrap_or(0);
-        let completion = u.get("output_tokens").and_then(|t| t.as_u64()).unwrap_or(0);
-        TokenUsage {
+    let usage = body.get("usage").and_then(|u| {
+        let prompt = u.get("input_tokens").and_then(|t| t.as_u64())?;
+        let completion = u.get("output_tokens").and_then(|t| t.as_u64())?;
+        Some(TokenUsage {
             prompt_tokens: prompt,
             completion_tokens: completion,
-            total_tokens: prompt + completion,
+            total_tokens: prompt.checked_add(completion)?,
             cache_creation_input_tokens: u
                 .get("cache_creation_input_tokens")
                 .and_then(|value| value.as_u64()),
             cache_read_input_tokens: u
                 .get("cache_read_input_tokens")
                 .and_then(|value| value.as_u64()),
-        }
+        })
     });
 
     let upstream_status = body

@@ -1,5 +1,5 @@
-import { Gauge, ListOrdered, RefreshCw, ShieldAlert } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Gauge, ListOrdered, ShieldAlert } from "lucide-react";
+import { useState } from "react";
 import {
   type OperationsWorkspaceProps,
   type OperationsSectionId,
@@ -8,9 +8,8 @@ import {
 import { Section } from "./OperationsPrimitives";
 import { OperationsLivePanels } from "./OperationsLivePanels";
 import { OperationsRequestPanels } from "./OperationsRequestPanels";
-import { OperationsIncidentPanels } from "./OperationsIncidentPanels";
-import { OperationsRemediationPanels } from "./OperationsRemediationPanels";
-import { OperationsExportPanels } from "./OperationsExportPanels";
+import { OperationsAnomalyPanels } from "./OperationsAnomalyPanels";
+import "./OperationsWorkspace.css";
 
 export { OPERATIONS_DEFAULT_REQUEST_FILTERS } from "./operations-contracts";
 export type {
@@ -29,8 +28,6 @@ export function OperationsWorkspace({
   t,
   notice,
   editorLocked,
-  refreshing,
-  onRefresh,
   pressure,
   readiness,
   operatorSummary,
@@ -55,11 +52,15 @@ export function OperationsWorkspace({
   onAcknowledgeIncident,
   onResolveIncident,
 }: OperationsWorkspaceProps) {
-  const [openSections, setOpenSections] = useState<OperationsSectionId[]>(["live"]);
+  const [openSections, setOpenSections] = useState<OperationsSectionId[]>([
+    "live",
+  ]);
 
   const toggleSection = (id: OperationsSectionId) => {
     setOpenSections((current) =>
-      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+      current.includes(id)
+        ? current.filter((entry) => entry !== id)
+        : [...current, id],
     );
   };
 
@@ -67,42 +68,9 @@ export function OperationsWorkspace({
     onRequestFiltersChange({ ...requestFilters, ...patch });
   };
 
-  /** Incidents still needing a human decision float to the top of the table. */
-  const sortedIncidents = useMemo(() => {
-    const rows = incidents.data ?? [];
-    const weight = (status: string | null | undefined) => {
-      const normalized = (status ?? "").toLowerCase();
-      if (normalized === "open") {
-        return 0;
-      }
-      return normalized === "acknowledged" ? 1 : 2;
-    };
-    return [...rows].sort((left, right) => {
-      const byStatus = weight(left.status) - weight(right.status);
-      return byStatus !== 0 ? byStatus : right.lastSeenAt.localeCompare(left.lastSeenAt);
-    });
-  }, [incidents.data]);
-
   return (
-    <div className="nt-settings-page nt-console-page nt-console-table-page">
+    <div className="nt-settings-page nt-console-page nt-console-table-page nt-operations">
       {notice}
-      <div className="nt-console-toolbar">
-        <p className="nt-copy">
-          {t(
-            "运维数据直接来自网关内部接口；未配置 PostgreSQL 的面板会说明原因并保留占位符。",
-            "Operations data comes straight from the gateway internal endpoints; panels without PostgreSQL state the reason and keep placeholders.",
-          )}
-        </p>
-        <button
-          className="nt-btn nt-btn--outline"
-          disabled={refreshing}
-          onClick={onRefresh}
-          type="button"
-        >
-          <RefreshCw size={15} aria-hidden="true" />
-          {refreshing ? t("刷新中…", "Refreshing…") : t("刷新", "Refresh")}
-        </button>
-      </div>
 
       <div className="nt-settings-accordion">
         <Section
@@ -110,7 +78,7 @@ export function OperationsWorkspace({
           id="live"
           onToggle={toggleSection}
           open={openSections.includes("live")}
-          title={t("实时", "Live")}
+          title={t("运行状态", "Live")}
         >
           <OperationsLivePanels
             t={t}
@@ -129,6 +97,7 @@ export function OperationsWorkspace({
         >
           <OperationsRequestPanels
             t={t}
+            operatorSummary={operatorSummary}
             editorLocked={editorLocked}
             requests={requests}
             requestSummary={requestSummary}
@@ -147,9 +116,28 @@ export function OperationsWorkspace({
           onToggle={toggleSection}
           open={openSections.includes("anomalies")}
           title={t("异常与处置", "Anomalies & remediation")}
+          status={
+            incidentSummary.data && incidentSummary.data.openIncidents > 0 ? (
+              <span className="nt-badge nt-badge--danger">
+                {t(
+                  `${incidentSummary.data.openIncidents} 未处理`,
+                  `${incidentSummary.data.openIncidents} open`,
+                )}
+              </span>
+            ) : incidentSummary.error ? (
+              <span className="nt-badge nt-badge--warning">
+                {t("读取失败", "Read failed")}
+              </span>
+            ) : null
+          }
         >
-          <OperationsIncidentPanels
+          <OperationsAnomalyPanels
             t={t}
+            pressure={pressure}
+            readiness={readiness}
+            requests={requests}
+            operatorSummary={operatorSummary}
+            onOpenRequests={() => setOpenSections(["requests"])}
             incidentSummary={incidentSummary}
             alertQueue={alertQueue}
             incidents={incidents}
@@ -158,18 +146,9 @@ export function OperationsWorkspace({
             incidentBusyId={incidentBusyId}
             onAcknowledgeIncident={onAcknowledgeIncident}
             onResolveIncident={onResolveIncident}
-            sortedIncidents={sortedIncidents}
-          />
-
-          <OperationsRemediationPanels
-            t={t}
             remediationEffectiveness={remediationEffectiveness}
             remediationQueue={remediationQueue}
             remediationRuns={remediationRuns}
-          />
-
-          <OperationsExportPanels
-            t={t}
             hotspots={hotspots}
             exportInventory={exportInventory}
             exports={exports}

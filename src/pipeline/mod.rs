@@ -63,10 +63,15 @@ impl Default for CredentialSource {
 
 /// Mutable state threaded through all pipeline stages for a single request.
 pub struct PipelineContext {
+    pub cash_route_snapshot: Option<Arc<crate::routing::config::RouteConfigSnapshot>>,
+    pub cash_charge: Option<Arc<crate::cash_billing::finalization::CashGuard>>,
+    pub admitted_access_balance_mode: Option<String>,
     /// Unique identifier for this request (used in logs and reports).
     pub req_id: Uuid,
     /// The parsed, normalized canonical request.
     pub canonical_req: CanonicalRelayRequest,
+    /// Dev-only route constraint; never serialized into an upstream request.
+    pub forced_upstream_protocol: Option<String>,
     /// Convenience copy of `canonical_req.stream`.
     pub stream: bool,
     /// Wall-clock timestamp when the pipeline started.
@@ -201,8 +206,12 @@ impl PipelineContext {
         let stream = canonical_req.stream;
         let request_budget = request_budget::RequestBudget::for_request(&canonical_req);
         Self {
+            cash_route_snapshot: None,
+            cash_charge: None,
+            admitted_access_balance_mode: None,
             req_id: Uuid::new_v4(),
             canonical_req,
+            forced_upstream_protocol: None,
             stream,
             started_at: Instant::now(),
             request_budget,
@@ -350,6 +359,12 @@ async fn run_pipeline_inner(
 
     // Stage 4 — route-policy request admission
     if let Err(error) = stage_rate_limit::run(&mut ctx, state).await {
+        stage_finalize::run_failure(&error, &ctx, state).await;
+        return Err(error);
+    }
+
+    // Keep cash SQL/packing state out of the enclosing HTTP future, including non-cash requests.
+    if let Err(error) = Box::pin(crate::cash_billing::admission::prepare(&mut ctx, state)).await {
         stage_finalize::run_failure(&error, &ctx, state).await;
         return Err(error);
     }

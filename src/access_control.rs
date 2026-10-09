@@ -147,6 +147,16 @@ fn required_identifier(value: &str, label: &str) -> Result<String, GatewayError>
     })
 }
 
+pub(crate) fn management_request_token<'a>(
+    bearer: Option<&'a str>,
+    headers: &'a HeaderMap,
+) -> Option<&'a str> {
+    header_value(headers, "x-management-token")
+        .or_else(|| header_value(headers, "x-internal-api-key"))
+        .or_else(|| normalized(bearer))
+        .or_else(|| bearer_from_authorization(headers))
+}
+
 fn header_value<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
     headers
         .get(name)

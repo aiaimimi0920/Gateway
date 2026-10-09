@@ -119,6 +119,7 @@ fn infer_canonical_conversation_semantics(
         ProtocolFamily::Anthropic | ProtocolFamily::BedrockConverse => Some("messages_blocks"),
         ProtocolFamily::GeminiGenerateContent => Some("parts_turns"),
         ProtocolFamily::CohereChat => Some("messages_turns"),
+        ProtocolFamily::DashScope | ProtocolFamily::DashScopeMultimodal => Some("messages_turns"),
         ProtocolFamily::SearchApi => None,
     }
 }

@@ -1,4 +1,6 @@
+mod key_ring;
 mod types;
+pub use key_ring::ManagementKeyView;
 
 use types::{AdminRecord, SecretGrantRecord};
 pub use types::{
@@ -36,6 +38,7 @@ pub struct ConsoleAuthRuntime {
     remote_access_enabled: bool,
     secret_grant_ttl_secs: u64,
     secret_grants: Arc<Mutex<HashMap<String, SecretGrantRecord>>>,
+    key_verifications: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl ConsoleAuthRuntime {
@@ -51,6 +54,7 @@ impl ConsoleAuthRuntime {
             remote_access_enabled: console.remote_access_enabled,
             secret_grant_ttl_secs: console.secret_grant_ttl_secs,
             secret_grants: Arc::new(Mutex::new(HashMap::new())),
+            key_verifications: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -62,8 +66,9 @@ impl ConsoleAuthRuntime {
         &self,
         request: &ConsoleRequestContext,
     ) -> Result<ConsoleBootstrapStatus, GatewayError> {
-        let environment_override = self.env_management_token.is_some();
-        let admin_present = self.load_admin_record()?.is_some();
+        let key_ring_present = self.load_key_ring()?.is_some();
+        let environment_override = !key_ring_present && self.env_management_token.is_some();
+        let admin_present = key_ring_present || self.load_admin_record()?.is_some();
         let needs_bootstrap = !environment_override && !admin_present;
         if needs_bootstrap && !request.is_loopback() {
             return Err(forbidden_error(
@@ -90,7 +95,10 @@ impl ConsoleAuthRuntime {
             ));
         }
         let token = normalize_token(token)?;
-        if self.env_management_token.is_some() || self.load_admin_record()?.is_some() {
+        if self.load_key_ring()?.is_some()
+            || self.env_management_token.is_some()
+            || self.load_admin_record()?.is_some()
+        {
             return Err(GatewayError::conflict(
                 "Gateway console administrator is already configured",
             )
@@ -107,6 +115,10 @@ impl ConsoleAuthRuntime {
             .persistence
             .try_writer_lock()
             .map_err(persistence_to_gateway_error)?;
+        if self.load_key_ring()?.is_some() || self.load_admin_record()?.is_some() {
+            return Err(GatewayError::conflict("Administrator already configured")
+                .with_code("console_bootstrap_not_needed"));
+        }
         self.persistence
             .atomic_write_json_locked(&guard, &self.admin_path(), &record)
             .map_err(persistence_to_gateway_error)?;
@@ -194,6 +206,16 @@ impl ConsoleAuthRuntime {
         current_token: &str,
         new_token: &str,
     ) -> Result<(), GatewayError> {
+        let guard = self
+            .persistence
+            .try_writer_lock()
+            .map_err(persistence_to_gateway_error)?;
+        if self.load_key_ring()?.is_some() {
+            return Err(GatewayError::conflict(
+                "Use management key add/revoke instead of legacy rotation",
+            )
+            .with_code("console_keyring_rotation_required"));
+        }
         if self.env_management_token.is_some() {
             return Err(GatewayError::bad_request(
                 "Gateway console environment override token cannot be rotated from the UI",
@@ -214,10 +236,6 @@ impl ConsoleAuthRuntime {
             created_at: existing.created_at,
             updated_at: OffsetDateTime::now_utc(),
         };
-        let guard = self
-            .persistence
-            .try_writer_lock()
-            .map_err(persistence_to_gateway_error)?;
         self.persistence
             .atomic_write_json_locked(&guard, &self.admin_path(), &updated)
             .map_err(persistence_to_gateway_error)?;
@@ -266,6 +284,9 @@ impl ConsoleAuthRuntime {
     }
 
     fn verify_plaintext_token(&self, token: &str) -> Result<(), GatewayError> {
+        if let Some(ring) = self.load_key_ring()? {
+            return ring.verify(self, token).map(|_| ());
+        }
         if let Some(expected) = self.env_management_token.as_deref() {
             if expected.as_bytes().ct_eq(token.as_bytes()).into() {
                 return Ok(());

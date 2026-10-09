@@ -36,6 +36,8 @@ pub struct RequestAuditQuery {
     pub created_from: Option<String>,
     pub created_to: Option<String>,
     pub limit: Option<usize>,
+    /// Opt-in global retained totals, independent of the recent summary filters.
+    pub include_model_totals: Option<bool>,
     pub profile_key: Option<String>,
     pub routing_score_warning_threshold: Option<f64>,
     pub routing_score_critical_threshold: Option<f64>,
@@ -81,14 +83,25 @@ pub async fn summarize_request_audits(
     Query(query): Query<RequestAuditQuery>,
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
+    let include_totals = query.include_model_totals.unwrap_or(false);
     let filters = into_filters(query);
     let summary = if let Some(local) = &state.local_runtime {
         db::request_audits::summarize_request_audit_rows(&local.list_audits(&filters).await?)
     } else {
         db::summarize_request_audits(required_pg_pool(state.as_ref())?, &filters).await?
     };
+    let retained_model_totals = if include_totals {
+        Some(if let Some(local) = &state.local_runtime {
+            db::request_model_totals::load_local_retained_model_totals(local).await?
+        } else {
+            db::request_model_totals::load_retained_model_totals(required_pg_pool(state.as_ref())?)
+                .await?
+        })
+    } else {
+        None
+    };
     Ok(Json(serde_json::json!({
-        "summary": summary,
+        "summary": db::request_model_totals::SummaryWithModelTotals { summary, retained_model_totals },
     })))
 }
 

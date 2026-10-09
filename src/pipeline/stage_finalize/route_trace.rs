@@ -18,6 +18,7 @@ pub(super) fn build_route_trace_from_ctx(
 
     json!({
         "requestedProtocolFamily": protocol_family_name(ctx),
+        "debugForcedUpstreamProtocolFamily": ctx.forced_upstream_protocol,
         "endpointKind": endpoint_kind_name(ctx),
         "routeAttemptCount": ctx.route_attempt_count(),
         "candidateCount": ctx.candidates.len(),
@@ -331,6 +332,8 @@ pub(super) fn protocol_family_name(ctx: &PipelineContext) -> String {
         crate::protocol::canonical::ProtocolFamily::GeminiLive => "gemini_live",
         crate::protocol::canonical::ProtocolFamily::BedrockConverse => "bedrock_converse",
         crate::protocol::canonical::ProtocolFamily::CohereChat => "cohere_chat",
+        crate::protocol::canonical::ProtocolFamily::DashScope => "dashscope_text",
+        crate::protocol::canonical::ProtocolFamily::DashScopeMultimodal => "dashscope_multimodal",
         crate::protocol::canonical::ProtocolFamily::SearchApi => SEARCH_API_FAMILY,
     }
     .to_string()

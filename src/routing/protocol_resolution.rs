@@ -25,6 +25,17 @@ pub fn finalize_candidate_protocol_family(
     candidate: &mut RouteCandidate,
     req: &CanonicalRelayRequest,
 ) -> Option<bool> {
+    finalize_candidate_protocol_family_with_override(candidate, req, None)
+}
+
+pub fn finalize_candidate_protocol_family_with_override(
+    candidate: &mut RouteCandidate,
+    req: &CanonicalRelayRequest,
+    forced: Option<&str>,
+) -> Option<bool> {
+    if !candidate.payload.discovered_protocols.is_empty() {
+        return crate::provider_discovery::select_protocol_with_override(candidate, req, forced);
+    }
     let supported = if candidate.supported_protocol_families.is_empty() {
         surface_supported_wire_protocol_families(&candidate.adapter, &candidate.protocol_family)
     } else {
@@ -49,11 +60,17 @@ pub fn finalize_candidate_protocol_family(
 
     let requested = requested_wire_protocol_family(req);
     let default_family = canonicalize_wire_protocol_family_key(&candidate.protocol_family);
-    let same_family = requested
-        .as_ref()
-        .is_some_and(|family| compatible.iter().any(|value| value == family));
+    let same_family = requested.as_ref().is_some_and(|family| {
+        compatible.iter().any(|value| value == family)
+            && forced.is_none_or(|target| target == family)
+    });
 
-    let selected = if let Some(requested) = requested {
+    let selected = if let Some(target) = forced {
+        if !compatible.iter().any(|family| family == target) {
+            return None;
+        }
+        target.to_owned()
+    } else if let Some(requested) = requested {
         if compatible.iter().any(|value| value == &requested) {
             requested
         } else if compatible.iter().any(|value| value == &default_family) {

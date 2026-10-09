@@ -12,6 +12,7 @@ fn direct_http_google_api_key_prefers_payload_extra_body() {
         Value::Array(vec![Value::String("AIzaArrayKey456".to_string())]),
     );
     let payload = ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "gemini_canvas_compatible".to_string(),
         base_url: "https://gemini.google.com".to_string(),
         api_key: "AIzaPayloadKeyZero".to_string(),
@@ -75,6 +76,7 @@ fn direct_http_google_api_key_prefers_payload_extra_body() {
 #[test]
 fn direct_http_google_api_key_reads_storage_state_metadata() {
     let payload = ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "gemini_canvas_compatible".to_string(),
         base_url: "https://gemini.google.com".to_string(),
         api_key: "AIzaPayloadKeyZero".to_string(),
@@ -142,6 +144,7 @@ fn direct_http_google_api_keys_dedupes_all_known_sources() {
         ]),
     );
     let payload = ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "gemini_canvas_compatible".to_string(),
         base_url: "https://gemini.google.com".to_string(),
         api_key: "AIzaPayloadKeyZero".to_string(),

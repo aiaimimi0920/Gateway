@@ -2,7 +2,10 @@ use super::ConnectionState;
 use std::io::Read;
 use std::time::{Duration, Instant};
 use tauri::menu::{Menu, MenuItem};
-use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder};
+use tauri::{
+    webview::PageLoadEvent, window::Color, AppHandle, Manager, Url, WebviewUrl,
+    WebviewWindowBuilder,
+};
 
 pub fn wait_for_console(url: &Url, local: bool) -> Result<(), String> {
     let client = reqwest::blocking::Client::builder()
@@ -53,9 +56,8 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
         window
             .set_menu(native_menu(app)?)
             .map_err(|error| error.to_string())?;
+        window.hide().map_err(|error| error.to_string())?;
         window.navigate(url).map_err(|error| error.to_string())?;
-        window.show().map_err(|error| error.to_string())?;
-        window.set_focus().map_err(|error| error.to_string())?;
     } else {
         let menu = native_menu(app)?;
         let navigation_app = app.clone();
@@ -65,9 +67,40 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
         WebviewWindowBuilder::new(app, "gateway-console", WebviewUrl::External(url))
             .data_directory(crate::paths::gateway_app_dir()?.join("webview"))
             .title("Gateway")
+            .visible(false)
+            .background_color(Color(6, 8, 13, 255))
             .inner_size(1280.0, 850.0)
             .min_inner_size(900.0, 600.0)
             .initialization_script(super::chrome::INITIALIZATION_SCRIPT)
+            .on_page_load(|window, payload| {
+                // Do not expose WebView2's empty document or the intermediate connection form.
+                if !matches!(payload.event(), PageLoadEvent::Finished) {
+                    return;
+                }
+                let app = window.app_handle();
+                let allowed = app
+                    .state::<ConnectionState>()
+                    .origin
+                    .lock()
+                    .map(|origin| {
+                        origin.as_ref() == Some(&payload.url().origin().ascii_serialization())
+                    })
+                    .unwrap_or(false);
+                if !allowed {
+                    show_settings(app);
+                    return;
+                }
+                if !window.is_visible().unwrap_or(false) {
+                    if window.show().is_ok() {
+                        let _ = window.set_focus();
+                        if let Some(settings) = app.get_webview_window("main") {
+                            let _ = settings.hide();
+                        }
+                    } else {
+                        show_settings(app);
+                    }
+                }
+            })
             .menu(menu)
             .on_new_window(move |url, _| {
                 browser_app
@@ -94,9 +127,6 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
             })
             .build()
             .map_err(|error| error.to_string())?;
-    }
-    if let Some(window) = app.get_webview_window("main") {
-        window.hide().map_err(|error| error.to_string())?;
     }
     Ok(())
 }

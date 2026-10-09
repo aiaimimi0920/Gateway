@@ -21,6 +21,7 @@ pub fn apply_public_request_headers(
     console_auth: &ConsoleAuthRuntime,
     extra_headers: &[&str],
 ) -> Result<(), GatewayError> {
+    ctx.forced_upstream_protocol = super::debug_protocol::requested_target(headers)?;
     if let Some(api_key) = extract_inbound_api_key(headers, config) {
         ctx.request_headers.insert("x-api-key".to_string(), api_key);
     }
@@ -121,9 +122,10 @@ fn trusted_account_group_value(headers: &HeaderMap) -> Option<String> {
 }
 
 pub(crate) fn is_internal_gateway_header(name: &str) -> bool {
-    INTERNAL_GATEWAY_HEADER_DENYLIST
-        .iter()
-        .any(|candidate| candidate.eq_ignore_ascii_case(name))
+    name.eq_ignore_ascii_case(super::debug_protocol::HEADER)
+        || INTERNAL_GATEWAY_HEADER_DENYLIST
+            .iter()
+            .any(|candidate| candidate.eq_ignore_ascii_case(name))
 }
 
 #[cfg(test)]

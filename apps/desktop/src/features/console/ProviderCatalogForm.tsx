@@ -7,12 +7,12 @@ type TranslateFn = (zh: string, en: string) => string;
 export type ProviderCatalogFormProps = {
   t: TranslateFn;
   selectedTemplate: ProviderCatalogTemplate;
-  providerAlreadyExists: boolean;
   draft: ProviderCatalogDraft;
   setDraft: Dispatch<SetStateAction<ProviderCatalogDraft>>;
   supportedModelsText: string;
   setSupportedModelsText: Dispatch<SetStateAction<string>>;
   locked: boolean;
+  autoDiscovery?: boolean;
   hasSecretAccess: boolean;
   validationError: string | null;
   onRequestSecretAccess(): void;
@@ -22,12 +22,12 @@ export type ProviderCatalogFormProps = {
 export function ProviderCatalogForm({
   t,
   selectedTemplate,
-  providerAlreadyExists,
   draft,
   setDraft,
   supportedModelsText,
   setSupportedModelsText,
   locked,
+  autoDiscovery,
   hasSecretAccess,
   validationError,
   onRequestSecretAccess,
@@ -41,7 +41,7 @@ export function ProviderCatalogForm({
                   <p>{t(selectedTemplate.descriptionZh, selectedTemplate.descriptionEn)}</p>
                 </div>
                 <span className="nt-badge nt-badge--info">
-                  {selectedTemplate.compatibility === "openai"
+                  {autoDiscovery ? t("自动识别", "Automatic") : selectedTemplate.compatibility === "openai"
                     ? "OpenAI-compatible"
                     : selectedTemplate.compatibility === "anthropic"
                       ? "Anthropic Messages"
@@ -51,20 +51,6 @@ export function ProviderCatalogForm({
                 </span>
               </div>
 
-              {providerAlreadyExists ? (
-                <div className="nt-validation-list nt-validation-list--info" role="status">
-                  <strong>{t("该 Provider 已存在", "This provider already exists")}</strong>
-                  <ul>
-                    <li>
-                      {t(
-                        "不会重复创建 Provider；继续后将打开账号对话框，为现有服务商添加另一个账号。",
-                        "Gateway will not create a duplicate provider. Continue to open the account dialog and add another account.",
-                      )}
-                    </li>
-                  </ul>
-                </div>
-              ) : (
-                <>
                   <div className="nt-grid nt-grid--2">
                     <label className="nt-field">
                       <span>Provider ID</span>
@@ -128,14 +114,14 @@ export function ProviderCatalogForm({
                         type="url"
                         value={draft.baseUrl}
                         disabled={locked}
-                        placeholder="https://api.example.com/v1"
+                        placeholder="https://api.example.com"
                         onChange={(event) => {
                           const baseUrl = event.currentTarget.value;
                           setDraft((current) => ({ ...current, baseUrl }));
                         }}
                       />
                     </label>
-                    <label className="nt-field nt-field--wide">
+                    {!autoDiscovery && <label className="nt-field nt-field--wide">
                       <span>{t("支持模型与聚合路由", "Supported models and aggregation routes")}</span>
                       <textarea
                         className="nt-textarea nt-provider-catalog__models"
@@ -145,7 +131,7 @@ export function ProviderCatalogForm({
                         placeholder={t("每行一个模型", "One model per line")}
                         onChange={(event) => setSupportedModelsText(event.currentTarget.value)}
                       />
-                    </label>
+                    </label>}
                     <label className="nt-field">
                       <span>{t("首个账号 ID", "First account ID")}</span>
                       <input
@@ -202,8 +188,6 @@ export function ProviderCatalogForm({
                       </button>
                     </div>
                   ) : null}
-                </>
-              )}
 
               {validationError ? (
                 <div className="nt-validation-list" role="alert">
@@ -213,14 +197,12 @@ export function ProviderCatalogForm({
 
               <div className="dialog-actions">
                 <Dialog.Close asChild>
-                  <button className="nt-btn nt-btn--outline" type="button" disabled={locked}>
+                  <button className="nt-btn nt-btn--outline" type="button">
                     {t("取消", "Cancel")}
                   </button>
                 </Dialog.Close>
                 <button className="nt-btn nt-btn--primary" type="submit" disabled={locked}>
-                  {providerAlreadyExists
-                    ? t("为现有服务商添加账号", "Add account to existing provider")
-                    : t("创建服务商与首个账号", "Create provider and first account")}
+                  {t("创建服务商与首个账号", "Create provider and first account")}
                 </button>
               </div>
             </section>

@@ -58,8 +58,6 @@ export function ModelPoolWorkspace({
     setActiveMenuKey: setActiveAccountMenuKey,
     registerMenuTrigger,
   } = useAccountCardMenu();
-  // The card's own overflow menu is separate from account menus.
-  const cardMenuState = useAccountCardMenu();
   const [flippedModels, setFlippedModels] = useState<string[]>([]);
   const [flipAnnouncement, setFlipAnnouncement] = useState("");
   const flipButtonRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -140,7 +138,6 @@ export function ModelPoolWorkspace({
                     flipped={flipped}
                     editorLocked={editorLocked}
                     accountPanelId={accountPanelId}
-                    menu={cardMenuState}
                     deselectedProviderIds={deselectedProviderIds}
                     registerFlipButton={(side, node) => {
                       const refKey = `${card.model}:${side}`;

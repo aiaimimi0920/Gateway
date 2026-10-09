@@ -1,4 +1,3 @@
-import { CalendarClock } from "lucide-react";
 import type { AccountsLedgerPilotSection } from "./accountsLedgerTypes";
 
 type PilotProviderSchedulePanelProps = {
@@ -15,7 +14,6 @@ type PilotProviderSchedulePanelProps = {
 
 export function PilotProviderSchedulePanel({
   t,
-  section,
   closePilotActionDialog,
   editorLocked,
   pilotScheduleEnabled,
@@ -24,27 +22,11 @@ export function PilotProviderSchedulePanel({
   setPilotScheduleIntervalMinutes,
   applyProviderProbeSchedule,
 }: PilotProviderSchedulePanelProps) {
+  const interval = Number(pilotScheduleIntervalMinutes);
+  const valid = Number.isInteger(interval) && interval >= 1 && interval <= 10_080;
   return (
     <div className="nt-stack">
-      <article className="nt-pilot-dialog__hero">
-        <div className="nt-pilot-dialog__hero-icon">
-          <CalendarClock size={20} aria-hidden="true" />
-        </div>
-        <div className="nt-pilot-dialog__hero-copy">
-          <strong>{section.providerLabel}</strong>
-          <span>
-            {t(
-              "该计划覆盖此服务商的全部账号。Gateway 使用分布式时间槽去重，并顺序执行非生成单点测试。",
-              "This schedule covers every provider account. Gateway deduplicates distributed time slots and runs non-generative single-point tests sequentially.",
-            )}
-          </span>
-        </div>
-      </article>
-      <article className="nt-pilot-schedule-panel">
-        <div className="nt-pilot-schedule-panel__head">
-          <CalendarClock size={18} aria-hidden="true" />
-          <h3>{t("服务商级自动测试", "Provider-wide automatic tests")}</h3>
-        </div>
+      <div className="nt-pool-test-schedule">
         <label className="nt-pilot-schedule-toggle">
           <input
             type="checkbox"
@@ -52,7 +34,7 @@ export function PilotProviderSchedulePanel({
             disabled={editorLocked}
             onChange={(event) => setPilotScheduleEnabled(event.currentTarget.checked)}
           />
-          <span>{t("启用全部账号的自动单点测试", "Enable automatic tests for all accounts")}</span>
+          <span>{t("启用自动测试", "Enable automatic tests")}</span>
         </label>
         <label className="nt-field">
           <span>{t("执行间隔（分钟）", "Interval (minutes)")}</span>
@@ -62,6 +44,8 @@ export function PilotProviderSchedulePanel({
             min={1}
             max={10_080}
             step={1}
+            aria-invalid={!valid}
+            aria-describedby={!valid ? "pool-test-interval-error" : undefined}
             value={pilotScheduleIntervalMinutes}
             disabled={editorLocked}
             onChange={(event) =>
@@ -69,13 +53,10 @@ export function PilotProviderSchedulePanel({
             }
           />
         </label>
-      </article>
-      <p className="nt-copy">
-        {t(
-          "更新只写入当前路由草稿；保存路由配置后，后台调度器才会读取新计划。",
-          "Updating writes only to the current route draft; the background scheduler reads it after the route config is saved.",
-        )}
-      </p>
+      </div>
+      {!valid ? <p id="pool-test-interval-error" role="status" className="nt-copy">
+        {t("请输入 1–10080 的整数。", "Enter an integer from 1 to 10080.")}
+      </p> : null}
       <div className="dialog-actions">
         <button
           className="nt-btn nt-btn--secondary"
@@ -87,10 +68,10 @@ export function PilotProviderSchedulePanel({
         <button
           className="nt-btn nt-btn--primary"
           type="button"
-          disabled={editorLocked}
+          disabled={editorLocked || !valid}
           onClick={applyProviderProbeSchedule}
         >
-          {t("更新自动测试计划", "Update automatic test schedule")}
+          {t("保存", "Save")}
         </button>
       </div>
     </div>

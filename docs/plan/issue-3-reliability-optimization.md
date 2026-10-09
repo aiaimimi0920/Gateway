@@ -22,7 +22,7 @@
 | S0 | 执行准备 | 冻结起点、记录 owner / 验收 / 提交与交接方式 | 已提交并推送 | `527dfa8f1cbd01876fdeabf6d1b85b8dfc87f541` |
 | S1 | 第1项 P1 | HTTP 等待提示与累计等待预算 | 已提交、推送和交付本地手测候选；同提交 CI / CodeQL 成功；公开发布仍阻止 | `43ee081d669cc2da915b17e3552a517e9b71fdad`；[S1 源码检查点](../status/2026-10-04-issue3-s1-retry-wait.md) |
 | S2 | 第3项 P2 | 请求 / attempt / TTFT 固定桶直方图 | 已独立提交、推送、交付本地新包；同提交 CI / CodeQL success，严格公开发布仍阻止 | `4cd118efe93ad5c58ff0fc24867baef3935486d7`；包 `gateway-product-20261004-main-4cd118e-s2-r1`；[S2 回执](https://github.com/aiaimimi0920/Gateway/issues/3#issuecomment-5977968325) |
-| S3 | 第2项 P1 | 跨候选和恢复共享尝试 / deadline 预算 | 源码验证完成；本记录为提交前检查点，提交和新包回执另见 Issue | [S3 检查点](../status/2026-10-04-issue3-s3-request-budget.md)；40 聚焦 / 47 邻近 integration / 137 unit 与 all-target check 已通过 |
+| S3 | 第2项 P1 | 跨候选和恢复共享尝试 / deadline 预算 | 源码、本地候选及同提交 CI 已闭环；严格公开发布仍阻止 | `7431ebbae206fdfe81dd1bf75740c0fc928eb97d`；[S3 最终回执](https://github.com/aiaimimi0920/Gateway/issues/3#issuecomment-5979715515)；[2026-10-05 安全审计](../status/2026-10-05-issue3-security-findings-audit.md) |
 
 ### S1：等待提示和有界重试
 
@@ -60,6 +60,28 @@
 7. 对运行时大项执行当前提交的正式构建与隔离启动验证；完成后更新包路径和接续点。构建失败则保留原记录，不将源码完成写成手测交付完成。
 
 ## 当前接续点
+
+2026-10-05 续接已联网核实远端 main 为 `7431ebb`，同提交 CI 最新 14/14 jobs success。
+下面的逐阶段文字保留实施历史，不再把 S3 的提交前检查点当成当前待开发项。
+本次安全审计验证五锁报告、两份 artifact digest 和当前提交源码扫描：历史 Gitleaks
+134 findings，当前已提交树仍有 117 findings；不能将全部历史记录视为已经消失。
+GTK3 已发布迁移版本，但稳定 Tauri/Wry/WebKitGTK 仍要求旧 `^0.18` 链。下一步是
+凭据与历史处置及依赖修复路线决策，不重复实现 S1/S2/S3、不放松门禁。证据和
+已批准与仍未批准的操作边界见 [安全 findings 审计](../status/2026-10-05-issue3-security-findings-audit.md)。
+
+用户已批准第一阶段私密保留、仓库秘密移除及生成缓存取消跟踪，并随后要求继续剩余
+任务。2026-10-05 已正常 drain 后端，再关闭正确的桌面控制台；两进程退出码均为 0，
+未强杀。停止后的新完整快照核验 11837 个文件、1172 个目录，WebView 无不可读文件，
+SQLite integrity 为 ok；原部分备份与源数据全部保留，完整备份仅排除既有 backups。
+仓库 routes 只替换 11 个 scalar：9 个受支持的环境引用和 2 个不支持环境替换的
+extra_body 字段置空；原结构、账户槽位、模型及路由保持。该精确配置的 Gitleaks
+finding 从 7 降至 0，不代表整个工作树、HEAD 或 Git 历史无 finding。
+544 个 Graphify cache paths 仍仅在 index 取消跟踪，源文件全部保留，本轮 index
+字节不变。已重开同一手测版本；私密 owner、活动修订及 32/192/45/31 的配置计数
+保持，11009 个凭据/对象/桌面配置文件字节相同，readiness 为 200，未调用模型。
+完整备份还记录了 14 个备份前已缺失的对象引用，源与副本一致；本轮未扩张为账户
+有效性修复。第一阶段已完成，详见安全审计新回执；严格发布仍未完成。不轮换凭据、
+不重写历史、不加例外、不提交推送或部署，后续这些决策须单独批准。
 
 S1 已实现等待提示解析、共用 HTTP 错误接线和单次 retry 调用的累计等待预算。
 独立审查发现正文浮点解析可能提前重试，已用借用 RawValue 和精确十进制取整

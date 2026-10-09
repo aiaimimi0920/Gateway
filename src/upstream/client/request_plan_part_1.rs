@@ -30,7 +30,13 @@ impl UpstreamClient {
         model: &str,
         stream: bool,
     ) -> Result<RequestPlan, GatewayError> {
+        if !payload.adapter.starts_with("dashscope_") {
+            crate::protocol::dashscope::validate_bridge(req)?;
+        }
         let mut plan = match payload.canonical_adapter() {
+            "dashscope_compatible" | "dashscope_multimodal_compatible" => {
+                crate::upstream::dashscope::build_request_plan(payload, req, model, stream)
+            }
             "anthropic_compatible" => {
                 if qwen_official_api_modular::owns_payload(payload) {
                     qwen_official_api_modular::build_request_plan(payload, req, model, stream)

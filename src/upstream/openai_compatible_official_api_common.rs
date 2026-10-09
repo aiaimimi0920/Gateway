@@ -26,78 +26,99 @@ pub fn build_request_plan(
         && !use_responses_bridge
         && payload.completions_path.is_none();
 
+    // API bases commonly already end in /v1. Adjust only inferred defaults;
+    // explicit endpoint paths retain their existing base-relative semantics.
+    let default_path = |path: &'static str| {
+        if payload.base_url.trim_end_matches('/').ends_with("/v1") {
+            path.strip_prefix("/v1").unwrap_or(path)
+        } else {
+            path
+        }
+    };
     let path = match req.endpoint_kind {
         EndpointKind::ChatCompletions | EndpointKind::Messages | EndpointKind::Completions
             if use_responses_bridge =>
         {
-            payload.responses_path.as_deref().unwrap_or("/v1/responses")
+            payload
+                .responses_path
+                .as_deref()
+                .unwrap_or(default_path("/v1/responses"))
         }
         EndpointKind::Messages if use_chat_bridge_for_messages => payload
             .chat_completions_path
             .as_deref()
-            .unwrap_or("/v1/chat/completions"),
+            .unwrap_or(default_path("/v1/chat/completions")),
         EndpointKind::Completions if use_chat_bridge_for_completions => payload
             .chat_completions_path
             .as_deref()
-            .unwrap_or("/v1/chat/completions"),
+            .unwrap_or(default_path("/v1/chat/completions")),
         EndpointKind::Responses if use_chat_bridge_for_responses => payload
             .chat_completions_path
             .as_deref()
-            .unwrap_or("/v1/chat/completions"),
-        EndpointKind::Responses => payload.responses_path.as_deref().unwrap_or("/v1/responses"),
+            .unwrap_or(default_path("/v1/chat/completions")),
+        EndpointKind::Responses => payload
+            .responses_path
+            .as_deref()
+            .unwrap_or(default_path("/v1/responses")),
         EndpointKind::Completions => payload
             .completions_path
             .as_deref()
-            .unwrap_or("/v1/completions"),
+            .unwrap_or(default_path("/v1/completions")),
         EndpointKind::Embeddings => payload
             .embeddings_path
             .as_deref()
-            .unwrap_or("/v1/embeddings"),
+            .unwrap_or(default_path("/v1/embeddings")),
         EndpointKind::AudioTranscriptions => payload
             .audio_transcriptions_path
             .as_deref()
-            .unwrap_or("/v1/audio/transcriptions"),
+            .unwrap_or(default_path("/v1/audio/transcriptions")),
         EndpointKind::AudioSpeech => payload
             .audio_speech_path
             .as_deref()
-            .unwrap_or("/v1/audio/speech"),
+            .unwrap_or(default_path("/v1/audio/speech")),
         _ => payload
             .chat_completions_path
             .as_deref()
-            .unwrap_or("/v1/chat/completions"),
+            .unwrap_or(default_path("/v1/chat/completions")),
     };
 
-    let body = match req.endpoint_kind {
-        EndpointKind::ChatCompletions | EndpointKind::Messages | EndpointKind::Completions
-            if use_responses_bridge =>
-        {
-            responses::pack_responses_bridge(req, model, stream)
+    let body = if payload.is_discovered_native(req) {
+        merge_model_and_stream_into_body(req.raw_body.clone(), model, Some(stream))
+    } else {
+        match req.endpoint_kind {
+            EndpointKind::ChatCompletions | EndpointKind::Messages | EndpointKind::Completions
+                if use_responses_bridge =>
+            {
+                responses::pack_responses_bridge(req, model, stream)
+            }
+            EndpointKind::Messages if use_chat_bridge_for_messages => {
+                openai::pack_openai(req, model, stream)
+            }
+            EndpointKind::Completions if use_chat_bridge_for_completions => {
+                openai::pack_openai(req, model, stream)
+            }
+            EndpointKind::Responses if use_chat_bridge_for_responses => {
+                openai::pack_openai(req, model, stream)
+            }
+            EndpointKind::Responses
+                if use_responses_minimal_pack || responses_request_was_tool_injected =>
+            {
+                responses::pack_responses(req, model, stream)
+            }
+            EndpointKind::Responses => {
+                merge_model_and_stream_into_body(req.raw_body.clone(), model, Some(stream))
+            }
+            EndpointKind::Completions => {
+                merge_model_and_stream_into_body(req.raw_body.clone(), model, Some(stream))
+            }
+            EndpointKind::Embeddings | EndpointKind::AudioSpeech => {
+                merge_model_and_stream_into_body(req.raw_body.clone(), model, None)
+            }
+            EndpointKind::AudioTranscriptions => {
+                build_audio_transcription_request_body(req, model)?
+            }
+            _ => openai::pack_openai(req, model, stream),
         }
-        EndpointKind::Messages if use_chat_bridge_for_messages => {
-            openai::pack_openai(req, model, stream)
-        }
-        EndpointKind::Completions if use_chat_bridge_for_completions => {
-            openai::pack_openai(req, model, stream)
-        }
-        EndpointKind::Responses if use_chat_bridge_for_responses => {
-            openai::pack_openai(req, model, stream)
-        }
-        EndpointKind::Responses
-            if use_responses_minimal_pack || responses_request_was_tool_injected =>
-        {
-            responses::pack_responses(req, model, stream)
-        }
-        EndpointKind::Responses => {
-            merge_model_and_stream_into_body(req.raw_body.clone(), model, Some(stream))
-        }
-        EndpointKind::Completions => {
-            merge_model_and_stream_into_body(req.raw_body.clone(), model, Some(stream))
-        }
-        EndpointKind::Embeddings | EndpointKind::AudioSpeech => {
-            merge_model_and_stream_into_body(req.raw_body.clone(), model, None)
-        }
-        EndpointKind::AudioTranscriptions => build_audio_transcription_request_body(req, model)?,
-        _ => openai::pack_openai(req, model, stream),
     };
 
     Ok(RequestPlan {
@@ -119,6 +140,7 @@ mod tests {
 
     fn make_payload(base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            discovered_protocols: Vec::new(),
             adapter: "openai_compatible".to_string(),
             base_url: base_url.to_string(),
             api_key: "tok".to_string(),
@@ -236,6 +258,95 @@ mod tests {
         let req = make_request(ProtocolFamily::OpenAi, EndpointKind::ChatCompletions);
         let plan = build_request_plan(&payload, &req, "gpt-4o", false).unwrap();
         assert!(!plan.url.contains("//v1"));
+    }
+
+    #[test]
+    fn plan_default_endpoints_accept_versioned_api_bases() {
+        let endpoints = [
+            (EndpointKind::ChatCompletions, "/chat/completions"),
+            (EndpointKind::Messages, "/chat/completions"),
+            (EndpointKind::Completions, "/chat/completions"),
+            (EndpointKind::Responses, "/responses"),
+            (EndpointKind::Embeddings, "/embeddings"),
+            (EndpointKind::AudioSpeech, "/audio/speech"),
+            (EndpointKind::AudioTranscriptions, "/audio/transcriptions"),
+        ];
+        for base in [
+            "https://partner.example/v1",
+            "https://partner.example/v1/",
+            "https://partner.example/proxy/v1/",
+        ] {
+            for (endpoint, suffix) in endpoints {
+                let payload = make_payload(base);
+                let mut req = make_request(ProtocolFamily::OpenAi, endpoint);
+                req.raw_body = serde_json::json!({"file": {"base64": "aGk="}});
+                let plan = build_request_plan(&payload, &req, "partner-chat", false).unwrap();
+                assert_eq!(plan.url, format!("{}{suffix}", base.trim_end_matches('/')));
+            }
+        }
+    }
+
+    #[test]
+    fn plan_default_version_prefix_requires_exact_final_segment() {
+        for base in [
+            "https://partner.example",
+            "https://partner.example/proxy",
+            "https://partner.example/v10",
+            "https://partner.example/my-v1",
+            "https://partner.example/v1/proxy",
+        ] {
+            let payload = make_payload(base);
+            let req = make_request(ProtocolFamily::OpenAi, EndpointKind::ChatCompletions);
+            let plan = build_request_plan(&payload, &req, "partner-chat", false).unwrap();
+            assert_eq!(plan.url, format!("{base}/v1/chat/completions"));
+        }
+    }
+
+    #[test]
+    fn plan_explicit_endpoint_paths_remain_relative_to_configured_base() {
+        for path in [
+            "/chat/completions",
+            "/v2/chat/completions",
+            "/v1/chat/completions",
+        ] {
+            let mut payload = make_payload("https://partner.example/proxy/v1/");
+            payload.chat_completions_path = Some(path.to_string());
+            for endpoint in [
+                EndpointKind::ChatCompletions,
+                EndpointKind::Messages,
+                EndpointKind::Completions,
+                EndpointKind::Responses,
+            ] {
+                let req = make_request(ProtocolFamily::OpenAi, endpoint);
+                let plan = build_request_plan(&payload, &req, "partner-chat", false).unwrap();
+                assert_eq!(plan.url, format!("https://partner.example/proxy/v1{path}"));
+            }
+        }
+    }
+
+    #[test]
+    fn plan_explicit_non_chat_paths_are_not_normalized() {
+        let mut payload = make_payload("https://partner.example/v1/");
+        payload.responses_path = Some("/v2/responses".to_string());
+        payload.completions_path = Some("/v2/completions".to_string());
+        payload.embeddings_path = Some("/v2/embeddings".to_string());
+        payload.audio_speech_path = Some("/v2/audio/speech".to_string());
+        payload.audio_transcriptions_path = Some("/v2/audio/transcriptions".to_string());
+        for (endpoint, suffix) in [
+            (EndpointKind::Responses, "/v2/responses"),
+            (EndpointKind::Completions, "/v2/completions"),
+            (EndpointKind::Embeddings, "/v2/embeddings"),
+            (EndpointKind::AudioSpeech, "/v2/audio/speech"),
+            (
+                EndpointKind::AudioTranscriptions,
+                "/v2/audio/transcriptions",
+            ),
+        ] {
+            let mut req = make_request(ProtocolFamily::OpenAi, endpoint);
+            req.raw_body = serde_json::json!({"file": {"base64": "aGk="}});
+            let plan = build_request_plan(&payload, &req, "partner-chat", false).unwrap();
+            assert_eq!(plan.url, format!("https://partner.example/v1{suffix}"));
+        }
     }
 
     #[test]

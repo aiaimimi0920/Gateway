@@ -155,6 +155,7 @@ fn build_raw_payload(
 ) -> ProviderAccountPayload {
     let eb = cred.extra_body_fields();
     ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: adapter_for_provider(&cred.provider),
         base_url: base_url.to_string(),
         api_key: api_key.to_string(),

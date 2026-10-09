@@ -3,17 +3,26 @@ mod account_probe;
 mod codex_model_probe;
 mod console_model_probe;
 mod console_probe;
+mod console_probe_request;
 mod http_probe;
 mod management;
 mod model_probe_recording;
 mod probe_lock;
 mod recording;
+pub(crate) mod test_execution;
+pub mod test_measurement;
+pub mod test_quota;
+pub mod test_results;
+pub(crate) mod test_store;
 #[cfg(test)]
 mod tests;
 
 pub use account_probe::probe_provider_account_payload;
 pub(crate) use console_model_probe::probe_console_target;
+pub(crate) use console_model_probe::probe_console_target_with_request;
 pub use console_probe::{probe_provider_payload_for_console, provider_payload_probe_point};
+pub(crate) use console_probe_request::ConsoleProbeRequest;
+pub(crate) use console_probe_request::ConsoleTestScope;
 pub use management::{
     probe_provider_account_for_management, sweep_cooling_provider_accounts,
     sweep_cooling_provider_accounts_best_effort,
@@ -25,7 +34,7 @@ pub use recording::{
 };
 
 use rquest::Method;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::db;
 use crate::error::{sanitize_provider_error_message, GatewayError};
@@ -45,7 +54,7 @@ pub struct ProviderProbeOutcome {
     pub provider_quota: Option<GatewayProviderQuotaView>,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ProviderPayloadProbeStatus {
     Passed,
@@ -57,6 +66,8 @@ pub enum ProviderPayloadProbeStatus {
 pub struct ProviderPayloadProbeReport {
     pub status: ProviderPayloadProbeStatus,
     pub message: String,
+    /// Redacted generated text for deterministic assessment; health probes have none.
+    pub answer: Option<String>,
 }
 
 fn provider_error_message_for_persistence(message: &str) -> String {

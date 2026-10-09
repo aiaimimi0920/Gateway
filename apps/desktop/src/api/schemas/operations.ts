@@ -20,6 +20,7 @@ const consoleDependencyReadinessSchema = z.object({
 });
 
 const consoleReadinessDependenciesSchema = z.object({
+  sqlite: consoleDependencyReadinessSchema.nullish(),
   redis: consoleDependencyReadinessSchema,
   postgresql: consoleDependencyReadinessSchema,
   objectStorage: consoleDependencyReadinessSchema,

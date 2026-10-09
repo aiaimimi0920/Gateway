@@ -3,8 +3,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { CredentialGroupAccountsPanel } from "./CredentialGroupAccountsPanel";
 import { CredentialGroupCard } from "./CredentialGroupCard";
-import { CredentialGroupEditor } from "./CredentialGroupEditor";
-import { CredentialGroupMembersPanel } from "./CredentialGroupMembersPanel";
+import { CredentialGroupEditDialog } from "./CredentialGroupEditDialog";
 import {
   buildCredentialGroupCardSnapshot,
   type CredentialGroupCardSnapshot,
@@ -22,6 +21,7 @@ type FlipSide = "front" | "back";
 export function CredentialGroupsWorkspace({
   t,
   notice,
+  error,
   editorLocked,
   groups,
   selectedGroupRowId,
@@ -43,6 +43,14 @@ export function CredentialGroupsWorkspace({
   onToggleMember,
 }: CredentialGroupsWorkspaceProps) {
   const [expandedGroupRowId, setExpandedGroupRowId] = useState<string | null>(null);
+  const [editedGroupRowId, setEditedGroupRowId] = useState<string | null>(null);
+  const editReturnFocusRef = useRef<HTMLElement | null>(null);
+  const editGroupIdRef = useRef<string | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const editingGroup = editedGroupRowId
+    ? groups.find((group) => group.rowId === editedGroupRowId) ??
+      groups.find((group) => group.groupId === editGroupIdRef.current)
+    : null;
   const [scopeDeselectionByGroup, setScopeDeselectionByGroup] = useState<
     Record<string, string[]>
   >({});
@@ -50,11 +58,6 @@ export function CredentialGroupsWorkspace({
     activeMenuKey: activeAccountMenuKey,
     setActiveMenuKey: setActiveAccountMenuKey,
     registerMenuTrigger,
-  } = useAccountCardMenu();
-  const {
-    activeMenuKey: activeCardMenuKey,
-    setActiveMenuKey: setActiveCardMenuKey,
-    registerMenuTrigger: registerCardMenuTrigger,
   } = useAccountCardMenu();
   const [flippedGroupRowIds, setFlippedGroupRowIds] = useState<string[]>([]);
   const [groupFlipAnnouncement, setGroupFlipAnnouncement] = useState("");
@@ -83,6 +86,33 @@ export function CredentialGroupsWorkspace({
     }
     onSelectGroup(rowId);
     setExpandedGroupRowId(rowId);
+  };
+
+  const editGroup = (rowId: string) => {
+    if (editorLocked) return;
+    editReturnFocusRef.current = document.activeElement as HTMLElement;
+    editGroupIdRef.current = groups.find((group) => group.rowId === rowId)?.groupId ?? null;
+    onSelectGroup(rowId);
+    setEditedGroupRowId(rowId);
+  };
+
+  useEffect(() => {
+    if (!editedGroupRowId) return;
+    if (!editingGroup) { setEditedGroupRowId(null); return; }
+    // Autosave reloads the document with fresh draft row IDs; retain the open group.
+    editGroupIdRef.current = editingGroup.groupId;
+    if (editingGroup.rowId !== editedGroupRowId) setEditedGroupRowId(editingGroup.rowId);
+    if (selectedGroupRowId !== editingGroup.rowId) onSelectGroup(editingGroup.rowId);
+  }, [editedGroupRowId, editingGroup, onSelectGroup, selectedGroupRowId]);
+
+  const restoreEditFocus = () => {
+    const card = Array.from(workspaceRef.current?.querySelectorAll<HTMLElement>("[data-entitlement-group-card]") ?? [])
+      .find((node) => node.dataset.entitlementGroupCard === editGroupIdRef.current);
+    const edit = Array.from(card?.querySelectorAll<HTMLButtonElement>("button") ?? [])
+      .find((button) => button.title === t("编辑权益组", "Edit entitlement group"));
+    const target = editReturnFocusRef.current?.isConnected ? editReturnFocusRef.current : edit;
+    if (target && !target.matches(":disabled")) target.focus();
+    else workspaceRef.current?.focus();
   };
 
   const toggleGroupFlip = (rowId: string, label: string, side: FlipSide) => {
@@ -141,14 +171,11 @@ export function CredentialGroupsWorkspace({
           expanded={expanded}
           flipped={flipped}
           editorLocked={editorLocked}
-          activeMenuKey={activeCardMenuKey}
-          onActiveMenuKeyChange={setActiveCardMenuKey}
-          registerMenuTrigger={registerCardMenuTrigger}
           registerFlipButton={registerFlipButton}
           onToggleCard={toggleGroupCard}
           onFlip={toggleGroupFlip}
           onDeselectedProviderIdsChange={updateProviderScope}
-          onSelectGroup={onSelectGroup}
+          onEditGroup={editGroup}
           onToggleEnabled={onToggleEnabled}
           onRemoveGroup={onRemoveGroup}
         />
@@ -170,7 +197,7 @@ export function CredentialGroupsWorkspace({
   };
 
   return (
-    <div className="nt-stack nt-groups-workspace">
+    <div className="nt-stack nt-groups-workspace" ref={workspaceRef} tabIndex={-1}>
       {notice}
       <p className="nt-visually-hidden" role="status" aria-live="polite" aria-atomic="true">
         {groupFlipAnnouncement}
@@ -210,35 +237,32 @@ export function CredentialGroupsWorkspace({
             {groupCardSnapshots.map(renderGroup)}
           </div>
 
-          <section className="nt-group-admin__detail" aria-label={t("分组详情", "Group detail")}>
-            {selectedGroup && selectedGroupRowId === expandedGroupRowId ? (
-              <>
-                <CredentialGroupEditor
-                  t={t}
-                  group={selectedGroup}
-                  editorLocked={editorLocked}
-                  selectedGroupIdInvalid={selectedGroupIdInvalid}
-                  selectedGroupBillingInvalid={selectedGroupBillingInvalid}
-                  onUpdateField={onUpdateField}
-                  onToggleEnabled={onToggleEnabled}
-                  onRemoveGroup={onRemoveGroup}
-                />
-                <CredentialGroupMembersPanel
-                  t={t}
-                  group={selectedGroup}
-                  editorLocked={editorLocked}
-                  candidates={memberCandidates}
-                  query={memberQuery}
-                  mode={memberMode}
-                  onQueryChange={onMemberQueryChange}
-                  onModeChange={onMemberModeChange}
-                  onToggleMember={onToggleMember}
-                />
-              </>
-            ) : null}
-          </section>
         </section>
       )}
+      {editingGroup ? (
+        <CredentialGroupEditDialog
+          t={t}
+          notice={notice}
+          error={error}
+          group={selectedGroup?.id === editingGroup.rowId ? selectedGroup : {
+            ...editingGroup, id: editingGroup.rowId, providerCredentialIds: [],
+          }}
+          editorLocked={editorLocked}
+          selectedGroupIdInvalid={selectedGroupIdInvalid}
+          selectedGroupBillingInvalid={selectedGroupBillingInvalid}
+          memberCandidates={selectedGroupRowId === editingGroup.rowId ? memberCandidates : []}
+          memberQuery={memberQuery}
+          memberMode={memberMode}
+          onUpdateField={onUpdateField}
+          onToggleEnabled={onToggleEnabled}
+          onRemoveGroup={onRemoveGroup}
+          onMemberQueryChange={onMemberQueryChange}
+          onMemberModeChange={onMemberModeChange}
+          onToggleMember={onToggleMember}
+          onRestoreFocus={restoreEditFocus}
+          onClose={() => setEditedGroupRowId(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -270,6 +270,10 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
     let route_config = RouteConfigStore::from_document(RouteConfigYaml {
         providers: vec![
             crate::routing::config::ProviderConfigYaml {
+                test_plans: Vec::new(),
+                test_policy: None,
+                subpool_test_policies: Default::default(),
+                default_account_test_policy: None,
                 id: "openai-default".to_string(),
                 label: Some("OpenAI".to_string()),
                 vendor_key: None,
@@ -311,6 +315,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 search_query_field: None,
                 fetch_urls_field: None,
                 model_map: Default::default(),
+                model_map_targets: Default::default(),
                 pool_target_size: None,
                 pool_min_size: None,
                 pool_refill_in_progress: false,
@@ -324,6 +329,10 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 credentials: vec![],
             },
             crate::routing::config::ProviderConfigYaml {
+                test_plans: Vec::new(),
+                test_policy: None,
+                subpool_test_policies: Default::default(),
+                default_account_test_policy: None,
                 id: "codex-main".to_string(),
                 label: Some("Codex".to_string()),
                 vendor_key: None,
@@ -365,6 +374,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 search_query_field: None,
                 fetch_urls_field: None,
                 model_map: Default::default(),
+                model_map_targets: Default::default(),
                 pool_target_size: None,
                 pool_min_size: None,
                 pool_refill_in_progress: false,
@@ -376,6 +386,8 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 credential_automation_driver_id: None,
                 credential_identity_categories: vec![],
                 credentials: vec![crate::routing::config::ProviderCredentialYaml {
+                    discovery: None,
+                    test_policy: None,
                     id: Some("codex-live".to_string()),
                     base_url: None,
                     api_key: Some("sk-codex".to_string()),

@@ -1,5 +1,6 @@
 //! Document identity, cross-reference and alias diagnostics retain their stable order.
 
+mod test_policies;
 mod urls;
 
 use super::{encode_pointer_segment, RouteConfigDiagnostics};
@@ -64,6 +65,7 @@ fn register_account_identity(
 
 pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteConfigDiagnostics {
     let mut diagnostics = RouteConfigDiagnostics::default();
+    test_policies::validate(document, &mut diagnostics);
     let mut provider_ids = HashMap::<&str, usize>::new();
     let mut credential_ids = HashMap::<String, (usize, usize)>::new();
     let mut account_ids = HashMap::<String, AccountIdentityOrigin>::new();

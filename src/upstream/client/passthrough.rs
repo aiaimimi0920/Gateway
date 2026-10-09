@@ -174,10 +174,17 @@ impl UpstreamClient {
             .await);
         }
 
-        response
+        let body: Value = response
             .json()
             .await
-            .map_err(|e| classify_network_error(&e, Some(provider)))
+            .map_err(|e| classify_network_error(&e, Some(provider)))?;
+        if matches!(
+            payload.adapter.as_str(),
+            "dashscope_compatible" | "dashscope_multimodal_compatible"
+        ) {
+            crate::protocol::dashscope::response::observe_native(&body, model)?;
+        }
+        Ok(body)
     }
 
     pub async fn execute_binary_passthrough(

@@ -13,6 +13,15 @@ pub(super) async fn probe(
     target: &CredentialProbeTarget,
 ) -> (String, ProviderPayloadProbeReport) {
     let model = target.payload.default_model.as_deref().unwrap_or("gpt-5.4");
+    probe_with_prompt(state, target, model, "Reply with only OK.").await
+}
+
+pub(super) async fn probe_with_prompt(
+    state: &AppState,
+    target: &CredentialProbeTarget,
+    model: &str,
+    prompt: &str,
+) -> (String, ProviderPayloadProbeReport) {
     let url = format!(
         "{}/responses",
         target.payload.base_url.trim_end_matches('/')
@@ -25,7 +34,7 @@ pub(super) async fn probe(
     let started = Instant::now();
     let result = tokio::time::timeout(
         Duration::from_secs(60),
-        generate(state, target, &url, model),
+        generate(state, target, &url, model, prompt),
     )
     .await
     .unwrap_or_else(|_| failed(None, "Model call timed out after 60 seconds."));
@@ -38,17 +47,28 @@ pub(super) async fn probe(
         &result,
     )
     .await;
+    let answer = result.reply.as_ref().ok().cloned();
     let (status, message) = match result.reply {
         Ok(reply) => (
             ProviderPayloadProbeStatus::Passed,
-            format!("Model call passed. Model: {model}. Reply: {reply}"),
+            format!(
+                "Model call passed. Model: {model}. Reply: {}",
+                reply.chars().take(320).collect::<String>()
+            ),
         ),
         Err(error) => (
             ProviderPayloadProbeStatus::Failed,
             format!("Model call failed. Model: {model}. {error}"),
         ),
     };
-    (point, ProviderPayloadProbeReport { status, message })
+    (
+        point,
+        ProviderPayloadProbeReport {
+            status,
+            message,
+            answer,
+        },
+    )
 }
 
 async fn generate(
@@ -56,10 +76,11 @@ async fn generate(
     target: &CredentialProbeTarget,
     url: &str,
     model: &str,
+    prompt: &str,
 ) -> ModelProbeResult {
     let body = json!({"model": model, "stream": true, "store": false,
         "instructions": "Reply briefly.",
-        "input": [{"role": "user", "content": [{"type": "input_text", "text": "Reply with only OK."}]}]});
+        "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}]});
     let request = state
         .upstream_client
         .client()
@@ -111,7 +132,7 @@ async fn generate(
         usage,
         reply: Ok(crate::error::sanitize_provider_error_message(&reply)
             .chars()
-            .take(320)
+            .take(8192)
             .collect()),
     }
 }

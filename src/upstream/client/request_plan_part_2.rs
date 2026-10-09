@@ -431,6 +431,9 @@ impl UpstreamClient {
             .map_err(|e| classify_network_error(&e, Some(provider.as_str())))?;
 
         let canonical = match payload.adapter.as_str() {
+            "dashscope_compatible" | "dashscope_multimodal_compatible" => {
+                crate::protocol::dashscope::response::unpack(&body, model)
+            }
             "anthropic_compatible" if anthropic_messages_upstream::owns_payload(payload) => {
                 anthropic_messages_upstream::unpack_response(&body)
                     .or_else(|_| accio::unpack_accio_response(&body))

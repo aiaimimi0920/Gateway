@@ -1,11 +1,19 @@
 //! Console wire types, shared request/response boundaries and Gemini session route wiring.
 
 mod chatgpt_oauth;
+mod credential_secret;
+mod discovery;
+pub use credential_secret::reveal_credential_key;
 mod probes;
+pub use discovery::discover_account;
+mod test_results;
 pub use chatgpt_oauth::{act_chatgpt_oauth, create_chatgpt_oauth, get_chatgpt_oauth};
+pub use test_results::{read_provider_test_results, read_provider_test_results_post};
+mod management_keys;
 mod revisions;
 mod route_config;
 mod sessions;
+pub use management_keys::{list_management_keys, mutate_management_key};
 
 pub use probes::{probe_console_credential, probe_console_provider};
 pub use revisions::{get_route_config_revision, list_route_config_revisions};
@@ -86,16 +94,7 @@ pub struct CreateGeminiAuthSessionRequest {
     pub account_label: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CredentialProbeResponse {
-    pub credential_id: String,
-    pub provider_id: String,
-    pub probe_point: String,
-    pub status: ProviderPayloadProbeStatus,
-    pub message: String,
-    pub checked_at: String,
-}
+pub type CredentialProbeResponse = crate::provider_runtime::test_results::TestRunResult;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

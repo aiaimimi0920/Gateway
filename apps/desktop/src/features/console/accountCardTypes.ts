@@ -21,6 +21,7 @@ export type AccountsLedgerPilotAccount = {
   enabled: boolean;
   logicalLabels: string[];
   supportedModels?: readonly string[];
+  discoverySupported?: boolean;
   modelTraffic?: CardModelTraffic;
   logicalGroupIds?: string[];
   libraryName?: string;
@@ -56,7 +57,7 @@ export type QuotaDisplayWindow = {
   accountCount?: number;
 };
 
-export type AccountCardMenuActionId = "probe" | "duplicate";
+export type AccountCardMenuActionId = "probe" | "duplicate" | "model-mapping" | "discover";
 
 export type AccountCardMenuItem = {
   id: AccountCardMenuActionId;

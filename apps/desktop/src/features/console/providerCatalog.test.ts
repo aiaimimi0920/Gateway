@@ -26,7 +26,7 @@ describe("provider catalog", () => {
         "xai-openai",
         "openrouter-openai",
         "muyuan-openai",
-        "custom-openai-compatible",
+        "custom-api-provider",
       ]),
     );
   });
@@ -51,11 +51,11 @@ describe("provider catalog", () => {
 
   it("builds a custom compatible provider with the generic protocol profile instead of the official OpenAI preset", () => {
     const template = PROVIDER_CATALOG_TEMPLATES.find(
-      (candidate) => candidate.id === "custom-openai-compatible",
+      (candidate) => candidate.id === "custom-api-provider",
     );
     expect(template).toBeDefined();
     const provider = providerDefinitionFromCatalogDraft(template!, {
-      templateId: "custom-openai-compatible",
+      templateId: "custom-api-provider",
       providerId: "partner-gateway",
       providerLabel: "Partner Gateway",
       vendorKey: "partner",
@@ -87,7 +87,7 @@ describe("provider catalog", () => {
       ),
     ).toEqual({
       category: "third-party-compatible",
-      compatibility: "openai",
+      compatibility: "auto",
     });
   });
 });

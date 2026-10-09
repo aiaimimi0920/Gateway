@@ -1,8 +1,8 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { pushAppToast } from "../../components/AppToast";
 import { parseRouteDocument } from "./routeDocument";
-import { type AccountGroupDraftRow, createAccountGroupDraftRow, accountGroupDraftHasInput, accountGroupDraftNeedsId, parseAccountGroupBillingMultiplier } from "./accountGroupDraft";
+import { type AccountGroupDraftRow, type AccountGroupCreateValue, accountGroupCreateValidation, createAccountGroupDraftRow, accountGroupDraftHasInput, accountGroupDraftNeedsId, parseAccountGroupBillingMultiplier } from "./accountGroupDraft";
 import { ACCOUNT_GROUP_ID_REQUIRED_ERROR_ZH, ACCOUNT_GROUP_ID_REQUIRED_ERROR_EN, ACCOUNT_GROUP_BILLING_MULTIPLIER_ERROR_ZH, ACCOUNT_GROUP_BILLING_MULTIPLIER_ERROR_EN } from "./useConsoleRouteDraft";
 
 const ACCOUNT_GROUP_EDITOR_JSON_ERROR =
@@ -31,6 +31,7 @@ export function useAccountGroupEditor({
   setGroupMemberMode,
   t,
 }: AccountGroupEditorOptions) {
+  const [accountGroupDialogOpen, setAccountGroupDialogOpen] = useState(false);
   const applyAccountGroupDraftRows = useCallback(
     (nextRows: AccountGroupDraftRow[]) => {
       let document: ConsoleRouteDocument;
@@ -38,7 +39,7 @@ export function useAccountGroupEditor({
         document = parseRouteDocument(editorText);
       } catch {
         setError(ACCOUNT_GROUP_EDITOR_JSON_ERROR);
-        return;
+        return false;
       }
       setError((current) =>
         current === ACCOUNT_GROUP_EDITOR_JSON_ERROR ||
@@ -58,7 +59,7 @@ export function useAccountGroupEditor({
         if (accountGroupDraftNeedsId(row)) {
           setAccountGroupDraftRows(nextRows);
           setError(t(ACCOUNT_GROUP_ID_REQUIRED_ERROR_ZH, ACCOUNT_GROUP_ID_REQUIRED_ERROR_EN));
-          return;
+          return false;
         }
         const billingMultiplier = parseAccountGroupBillingMultiplier(row.billingMultiplier);
         if (billingMultiplier === null) {
@@ -69,7 +70,7 @@ export function useAccountGroupEditor({
               ACCOUNT_GROUP_BILLING_MULTIPLIER_ERROR_EN,
             ),
           );
-          return;
+          return false;
         }
 
         nextGroups.push({
@@ -90,16 +91,24 @@ export function useAccountGroupEditor({
       }
       setAccountGroupDraftRows(nextRows);
       replaceEditorDocument(document);
+      return true;
     },
     [editorText, replaceEditorDocument, t],
   );
 
-  const addAccountGroupRow = useCallback(() => {
-    const nextRow = createAccountGroupDraftRow();
-    applyAccountGroupDraftRows([...accountGroupDraftRows, nextRow]);
+  const addAccountGroupRow = useCallback(() => setAccountGroupDialogOpen(true), []);
+
+  // A cancelled form never enters the route document or starts autosave.
+  const submitAccountGroup = useCallback((value: AccountGroupCreateValue) => {
+    if (accountGroupCreateValidation(value, accountGroupDraftRows.map((row) => row.groupId))) {
+      return false;
+    }
+    const nextRow = createAccountGroupDraftRow(value);
+    if (!applyAccountGroupDraftRows([...accountGroupDraftRows, nextRow])) return false;
     setSelectedAccountGroupRowId(nextRow.id);
     setGroupMemberQuery("");
     setGroupMemberMode("all");
+    return true;
   }, [accountGroupDraftRows, applyAccountGroupDraftRows]);
 
   const updateAccountGroupRow = useCallback(
@@ -191,5 +200,5 @@ export function useAccountGroupEditor({
     [accountGroupDraftRows, applyAccountGroupDraftRows],
   );
 
-  return { addAccountGroupRow, updateAccountGroupRow, updateAccountGroupEnabled, toggleAccountGroupMember, setAccountRoutingGroup, removeAccountGroupRow };
+  return { accountGroupDialogOpen, setAccountGroupDialogOpen, submitAccountGroup, addAccountGroupRow, updateAccountGroupRow, updateAccountGroupEnabled, toggleAccountGroupMember, setAccountRoutingGroup, removeAccountGroupRow };
 }

@@ -1,7 +1,14 @@
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
-import type { ConsoleDependencyReadiness, ConsoleSummaryBucket } from "../../api/contracts";
-import type { OperationsPanelState, OperationsSectionId, TranslateFn } from "./operations-contracts";
+import type {
+  ConsoleDependencyReadiness,
+  ConsoleSummaryBucket,
+} from "../../api/contracts";
+import type {
+  OperationsPanelState,
+  OperationsSectionId,
+  TranslateFn,
+} from "./operations-contracts";
 
 export const PLACEHOLDER = "—";
 
@@ -59,12 +66,22 @@ export function averageDurationMs(sum: number, count: number): number | null {
   return count > 0 ? sum / count : null;
 }
 
-export function severityBadgeClass(severity: string | null | undefined): string {
+export function severityBadgeClass(
+  severity: string | null | undefined,
+): string {
   const normalized = (severity ?? "").toLowerCase();
-  if (normalized === "critical" || normalized === "fatal" || normalized === "high") {
+  if (
+    normalized === "critical" ||
+    normalized === "fatal" ||
+    normalized === "high"
+  ) {
     return "nt-badge nt-badge--danger";
   }
-  if (normalized === "warning" || normalized === "medium" || normalized === "warn") {
+  if (
+    normalized === "warning" ||
+    normalized === "medium" ||
+    normalized === "warn"
+  ) {
     return "nt-badge nt-badge--warning";
   }
   return "nt-badge";
@@ -81,7 +98,11 @@ export function statusBadgeClass(status: string | null | undefined): string {
   ) {
     return "nt-badge nt-badge--success";
   }
-  if (normalized === "failed" || normalized === "error" || normalized === "open") {
+  if (
+    normalized === "failed" ||
+    normalized === "error" ||
+    normalized === "open"
+  ) {
     return "nt-badge nt-badge--danger";
   }
   if (
@@ -128,17 +149,18 @@ export function Panel<T>({
   title,
   state,
   emptyLabel,
+  collapsed = false,
   children,
 }: {
   t: TranslateFn;
   title: string;
   state: OperationsPanelState<T>;
   emptyLabel?: string;
+  collapsed?: boolean;
   children: (data: T) => ReactNode;
 }) {
-  return (
-    <article className="nt-pilot-metric-card">
-      <h3>{title}</h3>
+  const body = (
+    <>
       {state.error ? (
         <div className="nt-alert nt-alert--warning" role="status">
           {state.error}
@@ -148,13 +170,34 @@ export function Panel<T>({
         <div className="nt-pilot-stats-state" role="status">
           {t("正在读取…", "Loading…")}
         </div>
-      ) : state.data === null ? (
+      ) : state.data === null && !state.error ? (
         <div className="nt-pilot-stats-state" role="status">
           {emptyLabel ?? t("暂无数据", "No data yet")}
         </div>
-      ) : (
+      ) : state.data !== null ? (
         children(state.data)
-      )}
+      ) : null}
+    </>
+  );
+  return collapsed ? (
+    <details className="nt-pilot-metric-card nt-operations-detail">
+      <summary>
+        <span>{title}</span>
+        {state.error ? (
+          <span className="nt-badge nt-badge--danger">
+            {t("读取失败", "Read failed")}
+          </span>
+        ) : null}
+        {state.loading ? (
+          <span className="nt-copy">{t("读取中…", "Loading…")}</span>
+        ) : null}
+      </summary>
+      <div className="nt-operations-detail__body">{body}</div>
+    </details>
+  ) : (
+    <article className="nt-pilot-metric-card">
+      <h3>{title}</h3>
+      {body}
     </article>
   );
 }
@@ -185,7 +228,10 @@ export function BucketList({
       </dl>
       {buckets.length > 8 ? (
         <p className="nt-pilot-stats-note">
-          {t(`另有 ${buckets.length - 8} 项未显示`, `${buckets.length - 8} more not shown`)}
+          {t(
+            `另有 ${buckets.length - 8} 项未显示`,
+            `${buckets.length - 8} more not shown`,
+          )}
         </p>
       ) : null}
     </div>
@@ -227,7 +273,9 @@ export function DependencyRow({
       <span>
         <span className={stateClass}>{stateLabel}</span>
       </span>
-      <span className="nt-copy">{notes.length > 0 ? notes.join(" · ") : PLACEHOLDER}</span>
+      <span className="nt-copy">
+        {notes.length > 0 ? notes.join(" · ") : PLACEHOLDER}
+      </span>
     </div>
   );
 }
@@ -236,6 +284,7 @@ export function Section({
   id,
   title,
   icon,
+  status,
   open,
   onToggle,
   children,
@@ -243,6 +292,7 @@ export function Section({
   id: OperationsSectionId;
   title: string;
   icon: ReactNode;
+  status?: ReactNode;
   open: boolean;
   onToggle: (id: OperationsSectionId) => void;
   children: ReactNode;
@@ -265,6 +315,7 @@ export function Section({
             {icon}
           </span>
           <span>{title}</span>
+          {status}
           <span className="nt-settings-section__chevron" aria-hidden="true">
             <ChevronDown size={18} />
           </span>

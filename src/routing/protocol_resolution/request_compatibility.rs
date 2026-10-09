@@ -39,6 +39,18 @@ pub(super) fn request_compatible_wire_protocol_families(
     fallback_protocol_family: &str,
 ) -> Vec<String> {
     match payload.canonical_adapter() {
+        "dashscope_compatible" | "dashscope_multimodal_compatible" => match endpoint_kind {
+            EndpointKind::ChatCompletions
+            | EndpointKind::Completions
+            | EndpointKind::Messages
+            | EndpointKind::Responses => vec![if payload.adapter == "dashscope_compatible" {
+                "dashscope_text"
+            } else {
+                "dashscope_multimodal"
+            }
+            .into()],
+            _ => Vec::new(),
+        },
         "openai_compatible" => {
             if payload.bridges_openai_text_endpoint_to_responses(endpoint_kind) {
                 vec![OPENAI_RESPONSES_FAMILY.to_string()]

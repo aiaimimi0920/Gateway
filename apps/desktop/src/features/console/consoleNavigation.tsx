@@ -46,7 +46,7 @@ export function buildConsoleNavigation(
     },
     {
       id: "access",
-      label: t("访问密钥", "Access keys"),
+      label: t("密钥", "Keys"),
       icon: <ShieldCheck size={17} aria-hidden="true" />,
     },
   ];

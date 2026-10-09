@@ -173,6 +173,7 @@ mod tests {
 
     fn make_payload() -> ProviderAccountPayload {
         ProviderAccountPayload {
+            discovered_protocols: Vec::new(),
             adapter: surface::AISTUDIO_WEB_REVERSE_ADAPTER.to_string(),
             base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),
             api_key: "AIzaSyFixtureCloudApiKey000000000000000000".to_string(),

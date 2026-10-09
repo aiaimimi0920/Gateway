@@ -75,18 +75,18 @@ export function rewriteModelReferences(
       continue;
     }
     rewriteSupportedModels(provider);
-    const modelMap = provider.model_map;
-    if (isRecord(modelMap) && Object.prototype.hasOwnProperty.call(modelMap, model)) {
-      const mapped = modelMap[model];
-      delete modelMap[model];
-      if (nextModel) {
-        // Model IDs are data keys, including names such as __proto__.
-        Object.defineProperty(modelMap, nextModel, {
-          value: mapped, enumerable: true, writable: true, configurable: true,
-        });
-      }
-      if (Object.keys(modelMap).length === 0) {
-        delete provider.model_map;
+    for (const field of ["model_map", "model_map_targets"]) {
+      const modelMap = provider[field];
+      if (isRecord(modelMap) && Object.prototype.hasOwnProperty.call(modelMap, model)) {
+        const mapped = modelMap[model];
+        delete modelMap[model];
+        if (nextModel) {
+          // Model IDs are data keys, including names such as __proto__.
+          Object.defineProperty(modelMap, nextModel, {
+            value: mapped, enumerable: true, writable: true, configurable: true,
+          });
+        }
+        if (Object.keys(modelMap).length === 0) delete provider[field];
       }
     }
     if (Array.isArray(provider.credentials)) {

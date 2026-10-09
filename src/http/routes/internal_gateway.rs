@@ -39,6 +39,11 @@ pub(crate) fn assert_management_access(
     bearer_token: Option<&str>,
     headers: &HeaderMap,
 ) -> Result<(), GatewayError> {
+    if state.console_auth.managed_keys_active()? {
+        let token = crate::access_control::management_request_token(bearer_token, headers)
+            .ok_or_else(|| GatewayError::unauthorized("Management token is required"))?;
+        return state.console_auth.verify_management_token(token);
+    }
     assert_management_access_with_expected(
         state.config.gateway_management_token.as_deref(),
         unauthenticated_internal_routes_allowed(),

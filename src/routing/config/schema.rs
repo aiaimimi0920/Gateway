@@ -156,6 +156,10 @@ pub enum RouteAccountGroupSelectionError {
 /// - **Multi-endpoint**: different base_urls with same or different keys (e.g. 3 AI Hub mirrors)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderCredentialYaml {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discovery: Option<crate::provider_discovery::CredentialDiscovery>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_policy: Option<crate::credential_test_policy::CredentialTestPolicy>,
     /// Optional credential ID (auto-generated as `{provider_id}-cred-{index}` if absent).
     #[serde(default)]
     pub id: Option<String>,
@@ -228,6 +232,14 @@ pub struct ProviderCredentialYaml {
 /// Per-provider configuration block in the YAML file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfigYaml {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub test_plans: Vec<crate::credential_test_plan::CredentialTestPlan>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_policy: Option<crate::credential_test_policy::CredentialTestPolicy>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub subpool_test_policies: HashMap<String, crate::credential_test_policy::CredentialTestPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_account_test_policy: Option<crate::credential_test_policy::CredentialTestPolicy>,
     pub id: String,
     pub label: Option<String>,
     /// Optional stable service/vendor identifier used by the management UI.
@@ -323,6 +335,13 @@ pub struct ProviderConfigYaml {
     /// E.g., `{"claude-opus-4-6": "opus4.6"}`.
     #[serde(default)]
     pub model_map: HashMap<String, String>,
+    /// Optional random upstream alternatives; takes precedence over model_map for the same key.
+    #[serde(
+        default,
+        skip_serializing_if = "HashMap::is_empty",
+        deserialize_with = "super::model_mapping::deserialize_targets"
+    )]
+    pub model_map_targets: HashMap<String, Vec<String>>,
     /// Maximum available credentials (unobserved refill credentials reserve capacity). The legacy name remains compatible; defaults to 100.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pool_target_size: Option<usize>,

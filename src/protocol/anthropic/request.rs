@@ -54,6 +54,9 @@ pub fn pack_anthropic_with_telemetry(
 }
 
 fn build_anthropic_request_body(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Value {
+    let translated =
+        crate::protocol::generation_parameters::for_target(req, ProtocolFamily::Anthropic);
+    let req = translated.as_ref();
     // Separate system message from conversation history.
     let canonical_system = req.messages.iter().find(|m| m.role == MessageRole::System);
 

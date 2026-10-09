@@ -239,6 +239,10 @@ async fn run_candidates(
                             estimated,
                         )
                         .await?;
+                        if decision.balance_mode.as_deref() == Some("cash_prepaid") {
+                            return Err(GatewayError::bad_request("Cash-limited source keys cannot be dispatched through an aggregate key")
+                                .with_code("cash_aggregate_unsupported"));
+                        }
                         if !decision.allowed {
                             last_error = Some(
                                 GatewayError::quota_exceeded("当前自动路由 key 的候选额度不足")
@@ -343,8 +347,9 @@ async fn run_candidates(
         let original_messages_text = ctx.canonical_req.messages_text();
 
         // ── XML tool injection for models without native tool support ────
-        let text_only_tool_bridge = tool_inject::needs_tool_injection(&model, &candidate.adapter)
-            || should_force_bridge_tool_injection(&ctx.canonical_req, &candidate.adapter);
+        let text_only_tool_bridge = !effective_payload.is_discovered_native(&ctx.canonical_req)
+            && (tool_inject::needs_tool_injection(&model, &candidate.adapter)
+                || should_force_bridge_tool_injection(&ctx.canonical_req, &candidate.adapter));
         let has_tool_history = ctx
             .canonical_req
             .messages

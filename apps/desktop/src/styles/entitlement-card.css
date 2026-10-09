@@ -151,6 +151,17 @@
   white-space: nowrap;
 }
 
+.nt-entitlement-group-card__id {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--nt-text-muted);
+  font-family: var(--nt-font-mono);
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Four fixed slots, same row as .nt-provider-card__actions: state toggle, edit,
    delete, overflow menu. Pinned to the bottom of the face so the controls do
    not move between cards. */
@@ -161,6 +172,11 @@
   border-top: 1px solid var(--nt-border);
   padding: 8px;
   background: var(--nt-color-surface);
+}
+
+/* Entitlement groups have three direct actions; model cards keep four slots. */
+.nt-entitlement-group-card__actions--group {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 /* The menu wrapper is a grid slot itself, so it has to stretch like the three
@@ -197,6 +213,13 @@
 
 .nt-entitlement-group-card__action--icon {
   padding-inline: 5px;
+}
+
+.nt-entitlement-group-card__state {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nt-entitlement-group-card__action:hover:not(:disabled),
@@ -312,11 +335,64 @@
   white-space: nowrap;
 }
 
+.nt-entitlement-group-card__summary > div {
+  flex-direction: column;
+  padding: 9px 4px;
+}
+
+.nt-entitlement-group-card__summary dt,
+.nt-entitlement-group-card__usage--labeled dt {
+  gap: 4px;
+  font-size: 0.66rem;
+}
+
+.nt-entitlement-group-card__summary dd {
+  max-width: 100%;
+  font-size: 1.12rem;
+  text-align: center;
+}
+
+.nt-entitlement-group-card__summary dd small {
+  margin-left: 3px;
+  color: var(--nt-text-muted);
+  font-size: 0.7rem;
+}
+
+.nt-entitlement-group-card__description {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--nt-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 /* The usage strip carries one more cell than the structural strip above it.
    Both keep their own hairlines: the 12px body gap separates them, so dropping
    one rule would read as a missing divider rather than a shared one. */
 .nt-entitlement-group-card__usage {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.nt-entitlement-group-card__usage--labeled {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nt-entitlement-group-card__usage--labeled > div {
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 7px 10px;
+}
+
+.nt-entitlement-group-card__usage--labeled > div:nth-child(3) {
+  border-left: 0;
+}
+
+.nt-entitlement-group-card__usage--labeled > div:nth-child(n + 3) {
+  border-top: 1px solid var(--nt-border);
 }
 
 .nt-entitlement-group-card__usage dt svg,
@@ -331,6 +407,50 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.nt-entitlement-group-card__success-label {
+  flex: 0 0 auto;
+  color: var(--nt-text-muted);
+  font-size: 0.66rem;
+}
+
+.dialog-content.nt-account-group-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.nt-account-group-dialog__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.nt-account-group-dialog .nt-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nt-account-group-dialog .nt-account-group-dialog__enabled {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: end;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.nt-account-group-dialog__enabled input {
+  width: auto;
+  accent-color: var(--nt-signal);
+}
+
+.nt-account-group-dialog .nt-textarea {
+  min-height: 72px;
+}
+
+@media (max-width: 480px) {
+  .nt-account-group-dialog .nt-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* The strip stays even with no dispatches, so the empty state fills the space

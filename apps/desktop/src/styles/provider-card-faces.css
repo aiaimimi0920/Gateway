@@ -100,17 +100,37 @@
    Rows are head / scrollable body / action row, so the action row sits at the
    same y offset on every card in the grid. */
 .nt-provider-card__front {
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: var(--nt-provider-card-head-height) minmax(0, 1fr) auto;
+  gap: 0;
 }
 
-.nt-provider-card__front-head {
+.nt-provider-card__front-head,
+.nt-provider-card__back-head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+  min-width: 0;
+  min-height: 0;
   border-bottom: 1px solid var(--nt-border);
   padding: 11px 12px;
   background: var(--nt-color-surface);
+}
+
+/* The shared header owns the first divider; do not add an inset second one. */
+.nt-provider-card__back-body .nt-provider-lifecycle__group:first-child {
+  border-top: 0;
+}
+
+.nt-provider-card__front-head .nt-provider-card__title strong,
+.nt-provider-card__back-title strong {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
 }
 
 .nt-provider-card__icon {
@@ -174,12 +194,16 @@
   color: var(--nt-color-focus-ink);
 }
 
-.nt-provider-card__front-head .nt-provider-card__title {
+.nt-provider-card__front-head .nt-provider-card__title,
+.nt-provider-card__back-title {
   min-width: 0;
+  max-width: 100%;
 }
 
 .nt-provider-card__front-head .nt-provider-tree-item__main {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 2px;
 }
 
@@ -215,7 +239,7 @@
   align-content: start;
   min-height: 0;
   min-width: 0;
-  padding: 12px;
+  padding: 0 12px 12px;
 }
 
 .nt-provider-card__pool-value {

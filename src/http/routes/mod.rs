@@ -4,6 +4,8 @@ pub mod browser_executor;
 pub mod cohere;
 pub mod completions;
 pub mod credentials;
+pub mod dashscope;
+mod dashscope_error;
 pub mod embeddings;
 pub mod gemini;
 pub mod gemini_live;

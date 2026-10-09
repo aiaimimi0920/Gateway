@@ -6,6 +6,7 @@ import type { PilotActionDialogState } from "./PilotActionDialog";
 import { updateCredentialProbeSchedule, updateProviderProbeSchedule } from "./credentialDocument";
 import { optionalBoolean } from "./pilotPoolPolicy";
 import { parseRouteDocument, isRecord } from "./routeDocument";
+import { useTestPolicyEditor } from "./useTestPolicyEditor";
 
 type ProbeScheduleEditorOptions = {
   editorText: string;
@@ -32,6 +33,7 @@ export function useProbeScheduleEditor({
   replaceEditorDocument,
   t,
 }: ProbeScheduleEditorOptions) {
+  const testPolicyEditor = useTestPolicyEditor(editorText, replaceEditorDocument, setError, t);
   const openProviderScheduleDialog = useCallback(
     (section: AccountsLedgerPilotSection) => {
       let document: ConsoleRouteDocument;
@@ -200,6 +202,5 @@ export function useProbeScheduleEditor({
     t,
   ]);
 
-  return { openProviderScheduleDialog, openPilotStatsDialog, applyPilotProbeSchedule, applyProviderProbeSchedule };
+  return { ...testPolicyEditor, openProviderScheduleDialog, openPilotStatsDialog, applyPilotProbeSchedule, applyProviderProbeSchedule };
 }
-

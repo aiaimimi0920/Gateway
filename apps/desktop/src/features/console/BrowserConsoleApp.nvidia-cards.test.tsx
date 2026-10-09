@@ -61,18 +61,19 @@ describe("NVIDIA card dispatch and models", () => {
     const { user } = await setup();
     const front = providerCard(/^NVIDIA$/).querySelector(".nt-provider-card__front") as HTMLElement;
     for (const summary of front.querySelectorAll(".nt-card-models summary")) await user.click(summary);
-    expect(within(front).getByText(model)).toBeVisible();
-    expect(within(front).getByText("deepseek-ai/deepseek-v3.2")).toBeVisible();
+    expect(within(front).getByLabelText(model)).toHaveTextContent("nemotron-3-super-120b-a12b");
+    expect(within(front).getByLabelText(model)).toBeVisible();
+    expect(within(front).getByText("deepseek-v3.2")).toBeVisible();
     await user.click(screen.getByRole("button", { name: /^显示 NVIDIA 账号库$/ }));
     const a = screen.getByRole("article", { name: "NVIDIA A 账号" });
     const b = screen.getByRole("article", { name: "NVIDIA B 账号" });
     for (const card of [a, b]) {
       for (const summary of card.querySelectorAll(".nt-card-models summary")) await user.click(summary);
     }
-    expect(within(a).getByText(model)).toBeVisible();
-    expect(within(a).queryByText("deepseek-ai/deepseek-v3.2")).not.toBeInTheDocument();
-    expect(within(b).getByText(model)).toBeVisible();
-    expect(within(b).getByText("deepseek-ai/deepseek-v3.2")).toBeVisible();
+    expect(within(a).getByLabelText(model)).toBeVisible();
+    expect(within(a).queryByText("deepseek-v3.2")).not.toBeInTheDocument();
+    expect(within(b).getByLabelText(model)).toBeVisible();
+    expect(within(b).getByText("deepseek-v3.2")).toBeVisible();
   });
 
   it("renders observed pool metrics once and never turns estimated costs into income", async () => {

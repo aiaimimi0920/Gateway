@@ -8,6 +8,48 @@ use super::{
 use crate::protocol::canonical::EndpointKind;
 
 impl ProviderAccountPayload {
+    /// Passthrough only for a discovered, selected native wire with untouched tools.
+    pub fn is_discovered_native(
+        &self,
+        req: &crate::protocol::canonical::CanonicalRelayRequest,
+    ) -> bool {
+        if matches!(
+            (req.protocol_family, self.adapter.as_str()),
+            (
+                crate::protocol::canonical::ProtocolFamily::DashScope,
+                "dashscope_compatible"
+            ) | (
+                crate::protocol::canonical::ProtocolFamily::DashScopeMultimodal,
+                "dashscope_multimodal_compatible"
+            )
+        ) {
+            return true;
+        }
+        if self.discovered_protocols.is_empty() {
+            return false;
+        }
+        let requested = crate::routing::protocol_resolution::requested_wire_protocol_family(req);
+        self.discovered_protocols.iter().any(|c| {
+            requested.as_deref() == Some(c.protocol.family())
+                && self.base_url == c.api_base
+                && match c.protocol {
+                    crate::provider_discovery::DiscoveredProtocol::ChatCompletions => {
+                        self.adapter == "openai_compatible"
+                            && self.chat_completions_path.is_some()
+                            && self.responses_path.is_none()
+                    }
+                    crate::provider_discovery::DiscoveredProtocol::Responses => {
+                        self.adapter == "openai_compatible"
+                            && self.responses_path.is_some()
+                            && self.chat_completions_path.is_none()
+                    }
+                    crate::provider_discovery::DiscoveredProtocol::Messages => {
+                        self.adapter == "anthropic_compatible"
+                    }
+                    _ => false,
+                }
+        })
+    }
     pub fn canonical_adapter(&self) -> &str {
         if is_search_api_adapter_name(&self.adapter) {
             SEARCH_API_COMPATIBLE_ADAPTER
@@ -45,6 +87,9 @@ impl ProviderAccountPayload {
     }
 
     pub fn prefers_forced_streaming_responses(&self, endpoint_kind: EndpointKind) -> bool {
+        if !self.discovered_protocols.is_empty() && endpoint_kind == EndpointKind::Responses {
+            return false;
+        }
         if self.canonical_adapter() != "openai_compatible" {
             return false;
         }

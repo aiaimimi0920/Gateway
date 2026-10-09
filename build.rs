@@ -106,6 +106,19 @@ where
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=build_support/windows.rc");
+    println!("cargo:rerun-if-changed=apps/desktop/src-tauri/icons/icon.ico");
+    // Only the headless EXE owns this resource; library consumers keep their own icons.
+    // Tests include this build script but do not compile or link Windows resources.
+    #[cfg(not(test))]
+    embed_resource::compile_for(
+        "build_support/windows.rc",
+        ["gateway"],
+        embed_resource::NONE,
+    )
+    .manifest_required()
+    .expect("failed to embed the shared Gateway Windows icon");
+
     println!("cargo:rerun-if-env-changed={PREBUILT_WEB_UI_ENV}");
     for path in [
         "apps/desktop/package.json",

@@ -47,6 +47,7 @@ fn music_generation_request(
 
 fn make_payload(base_url: &str) -> ProviderAccountPayload {
     ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "udio_compatible".to_string(),
         base_url: base_url.to_string(),
         api_key: "sk-test".to_string(),

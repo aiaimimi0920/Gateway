@@ -6,13 +6,14 @@ pub(super) fn finalize_candidate_pairs_for_request<T: Clone>(
     req: &crate::protocol::canonical::CanonicalRelayRequest,
     candidates: Vec<RouteCandidate>,
     projected_rows: Option<Vec<T>>,
+    forced: Option<&str>,
 ) -> (Vec<RouteCandidate>, Option<Vec<T>>) {
     let mut same_family = Vec::new();
     let mut others = Vec::new();
     match projected_rows {
         Some(rows) => {
             for (mut candidate, row) in candidates.into_iter().zip(rows.into_iter()) {
-                let Some(is_same_family) = finalize_candidate_protocol_family(&mut candidate, req)
+                let Some(is_same_family) = crate::routing::protocol_resolution::finalize_candidate_protocol_family_with_override(&mut candidate, req, forced)
                 else {
                     continue;
                 };
@@ -30,7 +31,7 @@ pub(super) fn finalize_candidate_pairs_for_request<T: Clone>(
             let mut same_only = Vec::new();
             let mut other_only = Vec::new();
             for mut candidate in candidates {
-                let Some(is_same_family) = finalize_candidate_protocol_family(&mut candidate, req)
+                let Some(is_same_family) = crate::routing::protocol_resolution::finalize_candidate_protocol_family_with_override(&mut candidate, req, forced)
                 else {
                     continue;
                 };

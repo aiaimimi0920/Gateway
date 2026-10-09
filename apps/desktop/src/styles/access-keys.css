@@ -1,0 +1,352 @@
+/* Key management owns its compact list and modal, using the shared Neuro palette. */
+.nt-key-group-picker {
+  min-width: 0;
+  padding: 0;
+  margin: 12px 0;
+  border: 0;
+}
+.nt-key-group-picker legend {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.nt-key-group-picker legend span,
+.nt-key-group-picker small,
+.nt-key-group-picker p {
+  color: var(--nt-text-muted);
+  font-size: 0.78rem;
+}
+.nt-key-group-picker > .nt-input {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.nt-key-group-picker__list {
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-md);
+}
+.nt-key-group-picker__list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--nt-border);
+}
+.nt-key-group-picker__list label:last-child {
+  border-bottom: 0;
+}
+.nt-key-group-picker__list label[data-selected="true"] {
+  background: var(--nt-hover);
+}
+.nt-key-group-picker__list label > span {
+  flex: 1;
+  min-width: 0;
+}
+.nt-key-group-picker__list label strong,
+.nt-key-group-picker__list label span small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.nt-key-group-picker__list label > small {
+  flex-shrink: 0;
+}
+.nt-key-group-picker__list input {
+  flex-shrink: 0;
+  accent-color: var(--nt-primary);
+}
+.nt-key-group-label {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nt-key-manager {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.nt-key-manager__actions,
+.nt-key-actions,
+.nt-key-summary,
+.nt-key-connection,
+.nt-key-filters,
+.nt-key-pagination,
+.nt-key-dialog__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nt-key-manager__actions,
+.nt-key-dialog__head {
+  justify-content: space-between;
+}
+.nt-key-summary {
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.nt-key-summary > strong {
+  font-size: 1rem;
+}
+.nt-key-summary > span {
+  color: var(--nt-text-muted);
+  font-size: 0.78rem;
+}
+.nt-key-summary b {
+  color: var(--nt-text);
+  margin-left: 4px;
+}
+.nt-key-connection {
+  min-width: 0;
+  padding: 10px 0;
+  border-block: 1px solid var(--nt-border);
+  color: var(--nt-text-muted);
+  font-size: 0.78rem;
+}
+.nt-key-connection > code {
+  color: var(--nt-text);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.nt-key-connection > .nt-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.nt-key-search {
+  position: relative;
+  flex: 1 1 260px;
+  max-width: 460px;
+}
+.nt-key-search > svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--nt-text-muted);
+}
+.nt-key-search .nt-input {
+  padding-left: 32px;
+  width: 100%;
+}
+.nt-key-filters > select {
+  width: auto;
+  min-width: 120px;
+}
+.nt-key-empty {
+  padding: 56px 16px;
+  text-align: center;
+  color: var(--nt-text-muted);
+  border-block: 1px solid var(--nt-border);
+}
+
+.nt-key-quota-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.nt-key-quota-fields .nt-field small {
+  color: var(--nt-text-muted);
+  font-weight: 400;
+}
+@media (max-width: 520px) {
+  .nt-key-quota-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The table scrolls internally instead of stretching the shell on narrow screens. */
+.nt-key-ledger-scroll {
+  overflow: auto;
+  max-height: min(62vh, 720px);
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-md);
+}
+.nt-key-ledger {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.8rem;
+}
+.nt-key-ledger th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--nt-text-muted);
+  background: var(--nt-slab-soft);
+  font-weight: 500;
+}
+.nt-key-ledger th,
+.nt-key-ledger td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--nt-border);
+  white-space: nowrap;
+}
+.nt-key-ledger tr:last-child td {
+  border-bottom: 0;
+}
+.nt-key-ledger tbody tr:hover {
+  background: var(--nt-hover);
+}
+.nt-key-ledger td:first-child {
+  max-width: 230px;
+}
+.nt-key-ledger td > strong,
+.nt-key-ledger td > code,
+.nt-key-ledger td > small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nt-key-ledger td > code {
+  color: var(--nt-text-muted);
+  margin-top: 5px;
+  font-size: 0.72rem;
+}
+.nt-key-ledger td > small {
+  color: var(--nt-text-muted);
+  margin-top: 3px;
+  font-size: 0.68rem;
+}
+.nt-key-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.nt-key-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.nt-key-status--active {
+  color: var(--nt-success);
+}
+.nt-key-status--expired {
+  color: var(--nt-warning);
+}
+.nt-key-status--revoked,
+.nt-key-status--inactive {
+  color: var(--nt-text-muted);
+}
+.nt-key-row-actions {
+  display: flex;
+  gap: 6px;
+}
+.nt-key-row-actions .nt-btn {
+  padding: 5px 8px;
+  font-size: 0.72rem;
+}
+.nt-key-pagination {
+  justify-content: flex-end;
+  color: var(--nt-text-muted);
+  font-size: 0.78rem;
+}
+
+.nt-key-advanced {
+  margin-top: 12px;
+  border-top: 1px solid var(--nt-border);
+  padding-top: 14px;
+}
+.nt-key-advanced > summary,
+.nt-key-advanced-fields > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--nt-text-muted);
+  padding: 6px 0;
+}
+.nt-key-advanced[open] > summary {
+  margin-bottom: 12px;
+}
+.dialog-content.nt-key-dialog {
+  width: min(540px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+.nt-key-dialog__head h2 {
+  margin: 0;
+}
+.nt-key-form {
+  border: 0;
+  padding: 0;
+  margin: 18px 0 0;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.nt-key-form .nt-field {
+  min-width: 0;
+}
+.nt-key-form .nt-input {
+  width: 100%;
+}
+.nt-key-advanced-fields {
+  border-top: 1px solid var(--nt-border);
+  padding-top: 6px;
+}
+.nt-key-bundle-options {
+  border: 0;
+  padding: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.nt-key-bundle-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nt-key-secret-notice {
+  color: var(--nt-warning);
+  font-size: 0.82rem;
+}
+.nt-key-secret-result {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.nt-key-secret-result > .nt-btn {
+  justify-self: start;
+}
+.nt-key-secret-value {
+  width: 100%;
+  font-family: var(--nt-font-mono);
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+.nt-key-secret-result .nt-input {
+  width: 100%;
+}
+.nt-key-manager :focus-visible,
+.nt-key-dialog :focus-visible {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .nt-key-manager__actions {
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .nt-key-actions {
+    margin-left: auto;
+  }
+  .nt-key-connection {
+    flex-wrap: wrap;
+  }
+  .nt-key-connection > code {
+    flex: 1 1 180px;
+  }
+  .nt-key-filters {
+    flex-wrap: wrap;
+  }
+  .nt-key-search {
+    max-width: none;
+  }
+  .nt-key-dialog .nt-console-field-grid {
+    grid-template-columns: 1fr;
+  }
+}

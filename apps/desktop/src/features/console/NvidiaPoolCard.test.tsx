@@ -3,6 +3,22 @@ import { describe, expect, it } from "vitest";
 import { card, pilotAccount, pilotSection, renderWorkspace, workspaceProps } from "./AccountsLedgerWorkspace.fixtures";
 
 describe("NVIDIA pool card", () => {
+  it.each([
+    { kind: "Chinese", label: "很长的凭据池名称".repeat(30) },
+    { kind: "unbroken Latin", label: "NVIDIA_Credential_Pool_".repeat(30) },
+    { kind: "spaced Latin", label: "NVIDIA credential pool ".repeat(30).trim() },
+  ])("preserves the full $kind name on both faces for visual-only truncation", ({ label }) => {
+    renderWorkspace(workspaceProps({ pilotSections: [pilotSection({
+      providerId: "nvidia", providerIds: ["nvidia"], providerPreset: "nvidia",
+      providerLabel: label,
+    })] }));
+    for (const side of ["front", "back"]) {
+      const heading = card("nvidia").querySelector(`.nt-provider-card__${side}-head strong`);
+      expect(heading?.textContent).toBe(label);
+    }
+    expect(within(card("nvidia")).getByRole("button", { name: label })).toBeInTheDocument();
+  });
+
   it("shows the brand and two configured credentials before their first call", () => {
     renderWorkspace(workspaceProps({ pilotSections: [pilotSection({
       providerId: "nvidia", providerIds: ["nvidia"], providerPreset: "nvidia",

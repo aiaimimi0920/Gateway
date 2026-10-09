@@ -5,6 +5,7 @@ use tokio::net::TcpListener;
 
 fn chatgpt_web_payload_for_oauth_refresh(token_endpoint: &str) -> ProviderAccountPayload {
     ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "chatgpt_web_reverse_compatible".to_string(),
         base_url: "https://chatgpt.com".to_string(),
         api_key: "expired-access-token".to_string(),

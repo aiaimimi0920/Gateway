@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
+import { keyQuotaInput } from "./accessKeyQuota";
 
 import type {
   ConsoleAccessBundleInput,
   ConsoleAccessCatalog,
   ConsoleAccessKeyInput,
+  ConsoleAccessKey,
   ConsoleAccessStickyAffinity,
   ConsoleApiAccessRotation,
   ConsoleIssuedUserCredential,
@@ -32,6 +34,14 @@ export type AccessKeyDraft = {
   displayName: string;
   expiresAt: string;
   bundleIds: string[];
+  accountGroupIds: string[];
+  quotaMode:
+    | "unlimited"
+    | "message_prepaid"
+    | "token_prepaid"
+    | "cash_prepaid"
+    | "unchanged";
+  quotaLimit: string;
 };
 
 export type AccessBundleDraft = {
@@ -86,6 +96,9 @@ export const ACCESS_DEFAULT_KEY_DRAFT: AccessKeyDraft = {
   displayName: "",
   expiresAt: "",
   bundleIds: [],
+  accountGroupIds: [],
+  quotaMode: "unlimited",
+  quotaLimit: "",
 };
 
 export const ACCESS_DEFAULT_BUNDLE_DRAFT: AccessBundleDraft = {
@@ -130,7 +143,9 @@ export function parseScopeList(raw: string): string[] {
     .filter((entry) => entry.length > 0);
 }
 
-export function buildAccessKeyInput(draft: AccessKeyDraft): ConsoleAccessKeyInput {
+export function buildAccessKeyInput(
+  draft: AccessKeyDraft,
+): ConsoleAccessKeyInput {
   return {
     ownerType: draft.ownerType.trim(),
     ownerId: draft.ownerId.trim(),
@@ -139,12 +154,17 @@ export function buildAccessKeyInput(draft: AccessKeyDraft): ConsoleAccessKeyInpu
     keyKind: draft.keyKind.trim(),
     publicKeyPrefix: draft.publicKeyPrefix.trim(),
     displayName: draft.displayName.trim(),
-    expiresAt: draft.expiresAt.trim().length > 0 ? draft.expiresAt.trim() : null,
+    expiresAt:
+      draft.expiresAt.trim().length > 0 ? draft.expiresAt.trim() : null,
     bundleIds: draft.bundleIds,
+    metadata: { accountGroupIds: draft.accountGroupIds },
+    quota: keyQuotaInput(draft),
   };
 }
 
-export function buildAccessBundleInput(draft: AccessBundleDraft): ConsoleAccessBundleInput {
+export function buildAccessBundleInput(
+  draft: AccessBundleDraft,
+): ConsoleAccessBundleInput {
   const projectId = draft.projectId.trim();
   const billingMode = draft.billingMode.trim();
   const description = draft.description.trim();
@@ -167,7 +187,8 @@ export function buildUserCredentialInput(
     userId: draft.userId.trim(),
     projectId: projectId.length > 0 ? projectId : null,
     credentialType: draft.credentialType.trim(),
-    durationDays: Number.isFinite(parsedDays) && parsedDays > 0 ? parsedDays : 30,
+    durationDays:
+      Number.isFinite(parsedDays) && parsedDays > 0 ? parsedDays : 30,
     scope: parseScopeList(draft.scope),
   };
 }
@@ -183,11 +204,19 @@ export type AccessKeysWorkspaceProps = {
   onDismissSecret: () => void;
   keyDraft: AccessKeyDraft;
   onKeyDraftChange: (next: AccessKeyDraft) => void;
-  onCreateKey: () => void;
+  onCreateKey: () => Promise<boolean>;
   creatingKey: boolean;
   keyBusyId: string | null;
-  onRotateKey: (accessKeyId: string) => void;
-  onRevokeKey: (accessKeyId: string) => void;
+  onRotateKey: (accessKeyId: string) => Promise<boolean>;
+  onKeyLifecycle: (
+    accessKeyId: string,
+    action: "enable" | "disable" | "delete",
+  ) => Promise<boolean>;
+  onCopyKey: (accessKeyId: string) => Promise<boolean>;
+  onUpdateKey: (
+    key: ConsoleAccessKey,
+    draft: AccessKeyDraft,
+  ) => Promise<boolean>;
   bundleDraft: AccessBundleDraft;
   onBundleDraftChange: (next: AccessBundleDraft) => void;
   onCreateBundle: () => void;

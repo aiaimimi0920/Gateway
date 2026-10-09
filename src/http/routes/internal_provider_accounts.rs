@@ -33,7 +33,8 @@ pub use source_profile::{
 pub use source_profiles::{backfill_provider_source_profiles, patch_provider_source_profile};
 
 pub use model_pricing::{
-    patch_provider_model_pricing, ProviderModelPricingEntryBody, ProviderModelPricingPatchBody,
+    get_provider_model_pricing, patch_provider_model_pricing, ProviderModelPricingEntryBody,
+    ProviderModelPricingPatchBody,
 };
 
 pub use model_tiering::{

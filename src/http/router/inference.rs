@@ -13,6 +13,20 @@ use axum::{
 use std::sync::Arc;
 
 pub(super) fn mount(router: Router<Arc<AppState>>, state: &AppState) -> Router<Arc<AppState>> {
+    let router = router.merge(
+        Router::new()
+            .route(
+                "/api/v1/services/aigc/text-generation/generation",
+                post(crate::http::routes::dashscope::text),
+            )
+            .route(
+                "/api/v1/services/aigc/multimodal-generation/generation",
+                post(crate::http::routes::dashscope::multimodal),
+            )
+            .layer(body_limit_layer(
+                state.config.max_body_chat_completions_bytes,
+            )),
+    );
     let chat_routes = Router::new()
         .route(
             "/v1/chat/completions",

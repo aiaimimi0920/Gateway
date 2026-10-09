@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { credentialTestAssessmentSchema } from "./credentialTests";
 
 import type {
   ConsoleCredentialArchivePurgeResponse,
@@ -182,6 +183,7 @@ export const consoleCredentialRefillRequestResponseSchema: z.ZodType<ConsoleCred
   });
 
 const consoleCredentialProbeResultSchema = z.object({
+  assessment: credentialTestAssessmentSchema.optional(),
   credentialId: z.string().min(1),
   providerId: z.string().min(1),
   probePoint: z.string().min(1),
@@ -196,6 +198,7 @@ export const consoleCredentialProbeResponseSchema: z.ZodType<ConsoleCredentialPr
 export const consoleProviderProbeResponseSchema: z.ZodType<ConsoleProviderProbeResponse> =
   z.object({
     result: z.object({
+      truncated: z.boolean().optional(),
       providerId: z.string().min(1),
       status: z.enum(["passed", "failed", "unsupported"]),
       message: z.string().min(1),

@@ -50,6 +50,42 @@ where
     .await
     .map_err(map_db_error)?;
     let (balance, result, _) = change(current.map(views::to_access_key_balance_view))?;
+    write(&mut tx, id, &balance).await?;
+    tx.commit().await.map_err(map_db_error)?;
+    Ok(result)
+}
+
+pub(super) async fn set_key_quota(
+    tx: &mut Transaction<'_, Postgres>,
+    id: &str,
+    quota: &crate::access_balance::quota::KeyQuotaInput,
+) -> Result<(), GatewayError> {
+    let current = sqlx::query_as::<_, AccessKeyBalanceRow>(
+        "SELECT * FROM gateway_access_key_balances WHERE access_key_id=$1 FOR UPDATE",
+    )
+    .bind(id)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(map_db_error)?;
+    let current = current.map(views::to_access_key_balance_view);
+    quota.validate_server_mode(current.as_ref())?;
+    let balance = quota.apply(id, current)?;
+    if quota.mode == "cash_prepaid" {
+        crate::cash_billing::store::set_limit(
+            &mut crate::cash_billing::sql::CashConnection::Postgres(tx),
+            id,
+            quota.limit.expect("validated cash limit"),
+        )
+        .await?;
+    }
+    write(tx, id, &balance).await
+}
+
+async fn write(
+    tx: &mut Transaction<'_, Postgres>,
+    id: &str,
+    balance: &GatewayAccessKeyBalanceView,
+) -> Result<(), GatewayError> {
     sqlx::query("INSERT INTO gateway_access_key_balances (
         access_key_id, balance_mode, status, unlimited_until, period_starts_at, period_ends_at,
         total_tokens, remaining_tokens, total_messages, remaining_messages, updated_at
@@ -67,7 +103,6 @@ where
         .bind(balance.total_tokens).bind(balance.remaining_tokens)
         .bind(balance.total_messages).bind(balance.remaining_messages)
         .bind(parse_optional_timestamp(Some(&balance.updated_at)).unwrap_or_else(now_utc))
-        .execute(&mut *tx).await.map_err(map_db_error)?;
-    tx.commit().await.map_err(map_db_error)?;
-    Ok(result)
+        .execute(&mut **tx).await.map_err(map_db_error)?;
+    Ok(())
 }

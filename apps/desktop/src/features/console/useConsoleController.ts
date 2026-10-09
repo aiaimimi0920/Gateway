@@ -1,4 +1,5 @@
 import { useConsoleCredentialSelectors } from "./useConsoleCredentialSelectors";
+import { useAccountDiscovery } from "./useAccountDiscovery";
 import { useCredentialProbeState } from "./useCredentialProbeState";
 import { type ConsoleWorkspaceId } from "./consoleNavigation";
 import { useConsoleDraftPersistence } from "./useConsoleDraftPersistence";
@@ -11,7 +12,7 @@ import { useConsoleAccountSelectors } from "./useConsoleAccountSelectors";
 import { useConsoleModelSelectors } from "./useConsoleModelSelectors";
 import { useCredentialPoolActions } from "./useCredentialPoolActions";
 import { useConsoleProbeActions } from "./useConsoleProbeActions";
-import { usePilotDialogSession } from "./usePilotDialogSession";
+import { usePilotDialogSession, usePilotProbeActions } from "./usePilotDialogSession";
 import { useProbeScheduleEditor } from "./useProbeScheduleEditor";
 import { useCredentialDialogEditor } from "./useCredentialDialogEditor";
 import { usePilotPolicyEditor } from "./usePilotPolicyEditor";
@@ -90,6 +91,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
   >(null);
   const {
     providerProbeGenerationRef,
+    providerProbeAbortRef,
     setPilotActionDialog,
     setProviderProbeResponse,
     setProviderProbeBusy,
@@ -271,6 +273,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     modelMappingCountByProvider,
     providerModelMappingTarget,
   } = useConsoleModelSelectors({
+    consoleTelemetry,
     displayedAccountCatalog,
     accountCardMetricsById,
     providerMetricsResolver,
@@ -368,6 +371,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     draftMatchesActiveRevision,
     credentialProbeGenerationRef,
     providerProbeGenerationRef,
+    providerProbeAbortRef,
     currentApiRef,
     currentManagementTokenRef,
     currentSecretGrantEpochRef,
@@ -383,19 +387,9 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     t,
   });
 
-  const startPilotProbe = useCallback(async () => {
-    if (pilotActionDialog?.kind !== "probe" || !activePilotManagedAccount) {
-      return;
-    }
-    await handleCredentialProbe(activePilotManagedAccount);
-  }, [activePilotManagedAccount, handleCredentialProbe, pilotActionDialog]);
-
-  const startProviderProbe = useCallback(async () => {
-    if (pilotActionDialog?.kind !== "provider-probe") {
-      return;
-    }
-    await handleProviderProbe(pilotActionDialog.section);
-  }, [handleProviderProbe, pilotActionDialog]);
+  const { startPilotProbe, startProviderProbe, loadProviderProbeResults } = usePilotProbeActions(
+    pilotActionDialog, activePilotManagedAccount, { handleCredentialProbe, handleProviderProbe },
+  );
 
   const modelPoolEditor = useModelPoolEditor({
     editorText,
@@ -423,10 +417,13 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     t,
   });
 
-  const activeRouteDiagnostics = routeConfig?.routeConfig.diagnostics?.diagnostics ?? [];
-  const mutationSupported = routeConfig?.routeConfig.mutationSupported ?? false;
-  const editorLocked = busy || actionBusy !== null ||
-    credentialPoolActions.credentialArchivePurgeBusy !== null || !mutationSupported;
+  const accountDiscovery = useAccountDiscovery({
+    client, managementToken, secretGrant: session.secretGrant?.grant ?? null,
+    editorText, revision: routeConfig?.routeConfig.revision.id, draftDirty,
+    replaceEditorDocument, requestSecretAccess: () => setSecretDialogOpen(true), setError,
+  });
+  const editorLocked = busy || actionBusy !== null || accountDiscovery.discoveryBusy ||
+    credentialPoolActions.credentialArchivePurgeBusy !== null || !routeConfig?.routeConfig.mutationSupported;
   const { autosavePending } = useConsoleDraftPersistence({
     managementToken,
     editorLocked,
@@ -452,6 +449,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
   });
 
   return {
+    ...accountDiscovery,
     client,
     ...accountGroupEditor,
     ...credentialDialogEditor,
@@ -471,7 +469,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     activePilotManagedAccount,
     activePilotProbeResult,
     activePilotStatsView,
-    activeRouteDiagnostics,
+    activeRouteDiagnostics: routeConfig?.routeConfig.diagnostics?.diagnostics ?? [],
     activeWorkspace,
     applyProviderCatalogDraft,
     autosavePending,
@@ -494,7 +492,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     modelPoolDialogProviderOptions,
     modelPoolDirectory,
     modelPoolModelNames,
-    mutationSupported,
+    mutationSupported: routeConfig?.routeConfig.mutationSupported ?? false,
     operations,
     pendingGroupAccountRemoval,
     pendingModelPoolRemoval,
@@ -519,6 +517,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     setSecretDialogOpen,
     startPilotProbe,
     startProviderProbe,
+    loadProviderProbeResults,
     t,
     telemetryError,
     updateProviderStoragePassword,

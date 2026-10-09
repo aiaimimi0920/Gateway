@@ -100,6 +100,7 @@ function buildPilotSectionAccount(
     categoryId?: string;
     logicalLabels?: string[];
     previewOnly?: boolean;
+    discoverySupported?: boolean;
     inventory?: ConsoleProviderCredentialInventoryItem | null;
     scheduleSource?: Record<string, unknown> | null;
   } = {},
@@ -126,6 +127,7 @@ function buildPilotSectionAccount(
 
   return {
     accountId: row.accountId,
+    discoverySupported: options.discoverySupported,
     providerId: row.providerId,
     displayName: credentialRegisteredEmail(credential, inventory) ?? row.displayName,
     mode: row.mode,
@@ -392,6 +394,7 @@ export function buildAccountLedgerSections(
             "preview_logical_labels",
           );
           return buildPilotSectionAccount(account, telemetryContextFor(account), {
+            discoverySupported: !provider.preset && ["openai_compatible", "anthropic_compatible"].includes(String(provider.adapter)),
             credential,
             categoryId: definition.id,
             inventory: credentialInventoryById.get(account.accountId) ?? null,
@@ -443,6 +446,7 @@ export function buildAccountLedgerSections(
             ? []
             : visibleRows.map((row) =>
                 buildPilotSectionAccount(row, telemetryContextFor(row), {
+                  discoverySupported: !provider.preset && ["openai_compatible", "anthropic_compatible"].includes(String(provider.adapter)),
                   credential:
                     row.mode === "credential"
                       ? credentialRecordById.get(row.accountId) ?? null

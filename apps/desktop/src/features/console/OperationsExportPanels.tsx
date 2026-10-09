@@ -9,11 +9,9 @@ import {
   BucketList,
 } from "./OperationsPrimitives";
 
-type Props = Pick<OperationsWorkspaceProps,
-  | "t"
-  | "hotspots"
-  | "exportInventory"
-  | "exports"
+type Props = Pick<
+  OperationsWorkspaceProps,
+  "t" | "hotspots" | "exportInventory" | "exports"
 >;
 
 export function OperationsExportPanels({
@@ -24,7 +22,12 @@ export function OperationsExportPanels({
 }: Props) {
   return (
     <>
-      <Panel state={hotspots} t={t} title={t("限流热点", "Rate-limit hotspots")}>
+      <Panel
+        collapsed={!hotspots.data?.totalRateLimitedRequests}
+        state={hotspots}
+        t={t}
+        title={t("限流热点", "Rate-limit hotspots")}
+      >
         {(data) => (
           <>
             <div className="nt-pilot-stats-overview-grid">
@@ -48,8 +51,16 @@ export function OperationsExportPanels({
               />
             </div>
             <div className="nt-console-bucket-grid">
-              <BucketList buckets={data.byCode} t={t} title={t("按错误码", "By code")} />
-              <BucketList buckets={data.byProject} t={t} title={t("按项目", "By project")} />
+              <BucketList
+                buckets={data.byCode}
+                t={t}
+                title={t("按错误码", "By code")}
+              />
+              <BucketList
+                buckets={data.byProject}
+                t={t}
+                title={t("按项目", "By project")}
+              />
               <BucketList
                 buckets={data.byResolvedModel}
                 t={t}
@@ -65,7 +76,12 @@ export function OperationsExportPanels({
         )}
       </Panel>
 
-      <Panel state={exportInventory} t={t} title={t("导出台账", "Export inventory")}>
+      <Panel
+        collapsed
+        state={exportInventory}
+        t={t}
+        title={t("导出台账", "Export inventory")}
+      >
         {(data) => (
           <>
             <div className="nt-pilot-stats-overview-grid">
@@ -116,6 +132,7 @@ export function OperationsExportPanels({
       </Panel>
 
       <Panel
+        collapsed
         emptyLabel={t("暂无导出记录", "No exports yet")}
         state={exports}
         t={t}

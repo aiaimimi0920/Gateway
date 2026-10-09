@@ -76,6 +76,13 @@ export const consoleRequestAuditSummaryResponseSchema: z.ZodType<ConsoleRequestA
       credentials: z.array(consoleRequestAuditProviderStatsSchema.extend({
         credentialRef: z.string().min(1),
       })).optional(),
+      retainedModelTotals: z.array(z.object({
+        providerAccountId: z.string().min(1),
+        credentialRef: z.string().min(1).nullable(),
+        model: z.string().min(1),
+        requestCount: z.number().int().nonnegative(),
+        successCount: z.number().int().nonnegative(),
+      }).refine((row) => row.successCount <= row.requestCount)).optional(),
     }),
   });
 

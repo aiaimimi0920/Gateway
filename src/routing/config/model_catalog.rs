@@ -7,6 +7,8 @@ pub(super) fn list_models_inner(guard: &RouteConfigInner) -> Vec<ModelInfo> {
 
     // Provider supported_models lists.
     for p in &guard.providers {
+        model_ids.extend(p.model_map.keys().cloned());
+        model_ids.extend(p.model_map_targets.keys().cloned());
         for m in &p.supported_models {
             model_ids.insert(m.clone());
         }
@@ -67,6 +69,14 @@ fn model_has_available_candidate(
 ) -> bool {
     let resolved_alias = resolve_alias_inner(guard, requested_model);
     let resolved_model = resolved_alias.as_deref().unwrap_or(requested_model);
+    let available = |id: &str| {
+        available_provider_ids.contains(id)
+            && guard
+                .providers
+                .iter()
+                .find(|provider| provider.id == id)
+                .is_some_and(|provider| model_mapping::mapping_available(provider, resolved_model))
+    };
 
     let mut matched_route = false;
     for route in guard
@@ -83,7 +93,7 @@ fn model_has_available_candidate(
         if route
             .provider_ids
             .iter()
-            .any(|provider_id| available_provider_ids.contains(provider_id.as_str()))
+            .any(|provider_id| available(provider_id))
         {
             return true;
         }
@@ -94,20 +104,16 @@ fn model_has_available_candidate(
 
     let mut explicitly_supported = false;
     for provider in &guard.providers {
-        let upstream_model = provider.model_map.get(resolved_model).map(String::as_str);
-        let supports_model = !provider.supported_models.is_empty()
-            && provider.supported_models.iter().any(|supported| {
-                supported == resolved_model || upstream_model == Some(supported.as_str())
-            });
+        let supports_model = model_mapping::provider_supports_model(provider, resolved_model);
         if supports_model {
             explicitly_supported = true;
-            if available_provider_ids.contains(provider.id.as_str()) {
+            if available(&provider.id) {
                 return true;
             }
         }
     }
 
-    !explicitly_supported && !available_provider_ids.is_empty()
+    !explicitly_supported && available_provider_ids.iter().any(|id| available(id))
 }
 
 /// A fixed "created" timestamp (2026-01-01T00:00:00Z as UNIX seconds).

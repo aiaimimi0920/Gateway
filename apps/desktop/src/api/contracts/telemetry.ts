@@ -179,6 +179,15 @@ export type ConsoleRequestAuditProviderStats = {
   models: ConsoleRequestAuditProviderModelStats[];
 };
 
+/** All retained audits, without the recent summary's row/time limit. */
+export type ConsoleRequestModelTotals = {
+  providerAccountId: string;
+  credentialRef: string | null;
+  model: string;
+  requestCount: number;
+  successCount: number;
+};
+
 export type ConsoleRequestAuditSummary = {
   totalRequests: number;
   completedCount: number;
@@ -187,6 +196,7 @@ export type ConsoleRequestAuditSummary = {
   runningCount: number;
   providerAccounts: ConsoleRequestAuditProviderStats[];
   credentials?: (ConsoleRequestAuditProviderStats & { credentialRef: string })[];
+  retainedModelTotals?: ConsoleRequestModelTotals[];
 };
 
 export type ConsoleRequestAuditSummaryResponse = {

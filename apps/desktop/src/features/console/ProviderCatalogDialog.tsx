@@ -9,6 +9,9 @@ import {
 } from "./providerCatalog";
 import { ProviderCatalogDirectory, type CatalogCategoryFilter } from "./ProviderCatalogDirectory";
 import { ProviderCatalogForm } from "./ProviderCatalogForm";
+import type { DiscoverAccount } from "./accountDiscovery";
+import { useDiscoverySubmission } from "./useDiscoverySubmission";
+import { availableCatalogId } from "./providerCatalogIdentity";
 
 export type ProviderCatalogDialogProps = {
   open: boolean;
@@ -18,8 +21,8 @@ export type ProviderCatalogDialogProps = {
   hasSecretAccess: boolean;
   onOpenChange(open: boolean): void;
   onRequestSecretAccess(): void;
-  onAddAccount(providerId: string): void;
   onSubmit(value: ProviderCatalogDraft): void;
+  onDiscover?: DiscoverAccount;
 };
 
 function suggestedCredentialId(providerId: string): string {
@@ -34,16 +37,19 @@ function suggestedCredentialId(providerId: string): string {
 function draftFromTemplate(
   template: ProviderCatalogTemplate,
   label: string,
+  providerIds: readonly string[],
+  credentialIds: readonly string[],
 ): ProviderCatalogDraft {
+  const providerId = availableCatalogId(template.providerId, providerIds);
   return {
     templateId: template.id,
-    providerId: template.providerId,
-    providerLabel: label,
+    providerId,
+    providerLabel: providerId === template.providerId ? label : `${label} (${providerId.slice(template.providerId.length + 1)})`,
     vendorKey: template.vendorKey,
     vendorName: template.vendorName,
     baseUrl: template.baseUrl,
     supportedModels: [...template.supportedModels],
-    credentialId: suggestedCredentialId(template.providerId),
+    credentialId: availableCatalogId(suggestedCredentialId(providerId), credentialIds),
     accountName: `${template.vendorName} Account 1`,
     apiKey: "",
   };
@@ -77,17 +83,19 @@ export function ProviderCatalogDialog({
   hasSecretAccess,
   onOpenChange,
   onRequestSecretAccess,
-  onAddAccount,
   onSubmit,
+  onDiscover,
 }: ProviderCatalogDialogProps) {
+  const discovery = useDiscoverySubmission(open, onDiscover);
   const { t } = useUiLocale();
   const openerRef = useRef<HTMLElement | null>(null);
+  const wasOpen = useRef(false);
   const firstTemplate: ProviderCatalogTemplate = PROVIDER_CATALOG_TEMPLATES[0];
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CatalogCategoryFilter>("all");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(firstTemplate.id);
   const [draft, setDraft] = useState<ProviderCatalogDraft>(() =>
-    draftFromTemplate(firstTemplate, t(firstTemplate.labelZh, firstTemplate.labelEn)),
+    draftFromTemplate(firstTemplate, t(firstTemplate.labelZh, firstTemplate.labelEn), existingProviderIds, existingCredentialIds),
   );
   const [supportedModelsText, setSupportedModelsText] = useState(
     firstTemplate.supportedModels.join("\n"),
@@ -105,21 +113,24 @@ export function ProviderCatalogDialog({
     () => new Set(existingCredentialIds.map((id) => id.trim())),
     [existingCredentialIds],
   );
-  const providerAlreadyExists = existingProviderIdSet.has(draft.providerId.trim());
 
   useEffect(() => {
     if (!open) {
+      wasOpen.current = false;
       return;
     }
+    // A background inventory refresh must not erase a partially completed form.
+    if (wasOpen.current) return;
+    wasOpen.current = true;
     const initial = PROVIDER_CATALOG_TEMPLATES[0];
-    const nextDraft = draftFromTemplate(initial, t(initial.labelZh, initial.labelEn));
+    const nextDraft = draftFromTemplate(initial, t(initial.labelZh, initial.labelEn), existingProviderIds, existingCredentialIds);
     setQuery("");
     setCategory("all");
     setSelectedTemplateId(initial.id);
     setDraft(nextDraft);
     setSupportedModelsText(nextDraft.supportedModels.join("\n"));
     setValidationError(null);
-  }, [open, t]);
+  }, [open, t, existingProviderIds, existingCredentialIds]);
 
   const filteredTemplates = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -141,7 +152,8 @@ export function ProviderCatalogDialog({
   }, [category, query]);
 
   const selectTemplate = (template: ProviderCatalogTemplate) => {
-    const nextDraft = draftFromTemplate(template, t(template.labelZh, template.labelEn));
+    if (discovery.busy) return;
+    const nextDraft = draftFromTemplate(template, t(template.labelZh, template.labelEn), existingProviderIds, existingCredentialIds);
     setSelectedTemplateId(template.id);
     setDraft(nextDraft);
     setSupportedModelsText(nextDraft.supportedModels.join("\n"));
@@ -150,6 +162,7 @@ export function ProviderCatalogDialog({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (locked || discovery.busy) return;
     const providerId = draft.providerId.trim();
     const providerLabel = draft.providerLabel.trim();
     const vendorKey = draft.vendorKey.trim();
@@ -160,9 +173,8 @@ export function ProviderCatalogDialog({
     const apiKey = draft.apiKey.trim();
     const supportedModels = parseSupportedModels(supportedModelsText);
 
-    if (providerAlreadyExists) {
-      onAddAccount(providerId);
-      onOpenChange(false);
+    if (existingProviderIdSet.has(providerId)) {
+      setValidationError(t(`Provider ID ${providerId} 已存在，请使用其他 ID。`, `Provider ID ${providerId} already exists; use a different ID.`));
       return;
     }
     if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(providerId)) {
@@ -204,7 +216,7 @@ export function ProviderCatalogDialog({
       );
       return;
     }
-    if (supportedModels.length === 0) {
+    if (supportedModels.length === 0 && !(selectedTemplate.custom && onDiscover)) {
       setValidationError(
         t(
           "至少填写一个模型，Gateway 才能创建对应模型路由并参与聚合。",
@@ -218,7 +230,7 @@ export function ProviderCatalogDialog({
       return;
     }
 
-    onSubmit({
+    const submission: ProviderCatalogDraft = {
       ...draft,
       providerId,
       providerLabel,
@@ -229,7 +241,16 @@ export function ProviderCatalogDialog({
       credentialId,
       accountName,
       apiKey,
-    });
+    };
+    if (selectedTemplate.custom && onDiscover) {
+      setValidationError(null);
+      void discovery.run({ baseUrl, apiKey }, (result) => {
+        onSubmit({ ...submission, discovery: result, supportedModels: result.models });
+        onOpenChange(false);
+      });
+      return;
+    }
+    onSubmit(submission);
     onOpenChange(false);
   };
 
@@ -263,8 +284,8 @@ export function ProviderCatalogDialog({
           </div>
           <Dialog.Description id="provider-catalog-description">
             {t(
-              "选择 Gateway 已内建的主流 API 模板，或手动添加第三方 OpenAI-compatible 服务。创建后可继续在同一 Provider 下添加多个账号。",
-              "Choose a mainstream API template built into Gateway, or add a third-party OpenAI-compatible service. You can add more accounts under the same provider afterward.",
+              "选择服务商",
+              "Select a provider",
             )}
           </Dialog.Description>
 
@@ -275,7 +296,6 @@ export function ProviderCatalogDialog({
               category={category}
               filteredTemplates={filteredTemplates}
               selectedTemplateId={selectedTemplateId}
-              existingProviderIdSet={existingProviderIdSet}
               setQuery={setQuery}
               setCategory={setCategory}
               selectTemplate={selectTemplate}
@@ -284,14 +304,14 @@ export function ProviderCatalogDialog({
             <ProviderCatalogForm
               t={t}
               selectedTemplate={selectedTemplate}
-              providerAlreadyExists={providerAlreadyExists}
               draft={draft}
               setDraft={setDraft}
               supportedModelsText={supportedModelsText}
               setSupportedModelsText={setSupportedModelsText}
-              locked={locked}
+              locked={locked || discovery.busy}
+              autoDiscovery={!!selectedTemplate.custom && !!onDiscover}
               hasSecretAccess={hasSecretAccess}
-              validationError={validationError}
+              validationError={validationError ?? discovery.error}
               onRequestSecretAccess={onRequestSecretAccess}
               suggestedCredentialId={suggestedCredentialId}
             />

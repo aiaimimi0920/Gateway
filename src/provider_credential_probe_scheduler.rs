@@ -8,6 +8,7 @@ use crate::error::GatewayError;
 use crate::state::AppState;
 
 const SCHEDULER_TICK_SECS: u64 = 60;
+mod order;
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,25 +47,33 @@ pub async fn start_provider_credential_probe_scheduler(state: Arc<AppState>) {
 pub async fn sweep_scheduled_provider_credentials_once(
     state: &AppState,
 ) -> Result<ProviderCredentialProbeSweepSummary, GatewayError> {
-    let targets = state
-        .route_config
-        .snapshot()
-        .scheduled_credential_probe_targets();
+    let snapshot = state.route_config.snapshot();
+    let mut targets = snapshot.scheduled_credential_probe_targets();
+    let mut order = order::SweepOrder::new(state, targets.len());
+    targets.rotate_left(order.offset());
     let mut summary = ProviderCredentialProbeSweepSummary {
         scheduled_count: targets.len(),
         ..ProviderCredentialProbeSweepSummary::default()
     };
+    let mut budget =
+        crate::provider_runtime::test_execution::RoundBudget::new(snapshot.revision().id());
 
     for scheduled in targets {
+        // Never consume another account's interval after the shared round is exhausted or stale.
+        if !budget.available() || !budget.matches(state) || summary.due_count >= 128 {
+            break;
+        }
+        order.advance();
         if !scheduled.target.enabled {
             summary.skipped_count += 1;
             continue;
         }
-        if !claim_schedule_slot(
-            &state.redis_pool,
+        if !crate::provider_runtime::test_store::claim(
+            state,
             &scheduled.target.provider_id,
             &scheduled.target.credential_id,
             scheduled.interval_minutes,
+            scheduled.plan_id.as_deref(),
         )
         .await?
         {
@@ -72,6 +81,43 @@ pub async fn sweep_scheduled_provider_credentials_once(
             continue;
         }
         summary.due_count += 1;
+        let policy = if let Some(id) = scheduled.plan_id.as_deref() {
+            snapshot
+                .named_test_plan(&scheduled.target.provider_id, id)
+                .map(|plan| (plan.policy.clone(), format!("plan:{id}")))
+        } else {
+            snapshot.credential_test_policy(&scheduled.target)
+        };
+        if let Some((plan, source)) = policy {
+            let mut result = crate::provider_runtime::test_execution::run(
+                state,
+                &scheduled.target,
+                &plan,
+                &source,
+                "automatic",
+                &mut budget,
+            )
+            .await;
+            if let Some(assessment) = result.assessment.as_mut() {
+                assessment.plan_id = scheduled.plan_id;
+            }
+            crate::provider_runtime::test_store::save(state, &result).await?;
+            match result.status {
+                crate::provider_runtime::ProviderPayloadProbeStatus::Passed => {
+                    summary.passed_count += 1
+                }
+                crate::provider_runtime::ProviderPayloadProbeStatus::Failed => {
+                    summary.failed_count += 1
+                }
+                crate::provider_runtime::ProviderPayloadProbeStatus::Unsupported => {
+                    summary.unsupported_count += 1
+                }
+            }
+            continue;
+        }
+        if !budget.matches(state) || !budget.admit() {
+            break;
+        }
         let report = crate::provider_runtime::probe_provider_payload_for_console(
             state.upstream_client.client(),
             &scheduled.target.payload,
@@ -100,40 +146,9 @@ pub async fn sweep_scheduled_provider_credentials_once(
     Ok(summary)
 }
 
-async fn claim_schedule_slot(
-    redis_pool: &deadpool_redis::Pool,
-    provider_id: &str,
-    credential_id: &str,
-    interval_minutes: u64,
-) -> Result<bool, GatewayError> {
-    let mut connection = redis_pool
-        .get()
-        .await
-        .map_err(|error| GatewayError::server_error(format!("get redis connection: {error}")))?;
-    let key = schedule_slot_key(provider_id, credential_id);
-    let ttl_secs = interval_minutes.clamp(1, 10_080).saturating_mul(60);
-    let acquired: Option<String> = redis::cmd("SET")
-        .arg(key)
-        .arg("1")
-        .arg("NX")
-        .arg("EX")
-        .arg(ttl_secs)
-        .query_async(&mut connection)
-        .await
-        .map_err(|error| {
-            GatewayError::server_error(format!(
-                "claim scheduled provider credential probe slot: {error}"
-            ))
-        })?;
-    Ok(acquired.is_some())
-}
-
+#[cfg(test)]
 fn schedule_slot_key(provider_id: &str, credential_id: &str) -> String {
-    format!(
-        "gw:scheduled-credential-probe:{}:{provider_id}:{}:{credential_id}",
-        provider_id.len(),
-        credential_id.len()
-    )
+    crate::provider_runtime::test_store::identity("default", provider_id, credential_id)
 }
 
 #[cfg(test)]

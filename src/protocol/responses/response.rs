@@ -119,28 +119,24 @@ pub fn unpack_responses_response(body: &Value) -> Result<CanonicalRelayResponse,
         }
     }
 
-    let usage = body.get("usage").map(|usage| {
-        let prompt_tokens = usage
-            .get("input_tokens")
-            .and_then(|value| value.as_u64())
-            .unwrap_or(0);
+    let usage = body.get("usage").and_then(|usage| {
+        let prompt_tokens = usage.get("input_tokens").and_then(|value| value.as_u64())?;
         let completion_tokens = usage
             .get("output_tokens")
-            .and_then(|value| value.as_u64())
-            .unwrap_or(0);
-        TokenUsage {
+            .and_then(|value| value.as_u64())?;
+        Some(TokenUsage {
             prompt_tokens,
             completion_tokens,
             total_tokens: usage
                 .get("total_tokens")
                 .and_then(|value| value.as_u64())
-                .unwrap_or(prompt_tokens + completion_tokens),
+                .or_else(|| prompt_tokens.checked_add(completion_tokens))?,
             cache_creation_input_tokens: None,
             cache_read_input_tokens: usage
                 .get("input_tokens_details")
                 .and_then(|details| details.get("cached_tokens"))
                 .and_then(|value| value.as_u64()),
-        }
+        })
     });
 
     let has_tool_calls = !tool_calls.is_empty();

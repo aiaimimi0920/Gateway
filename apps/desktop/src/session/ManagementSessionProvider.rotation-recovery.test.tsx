@@ -23,8 +23,9 @@ describe("management token rotation recovery", () => {
     expect(api.rotateSession).toHaveBeenCalledExactlyOnceWith("old-token", "new-token");
     expect(api.verifySession).toHaveBeenLastCalledWith("new-token", expect.objectContaining({ notifyAuthenticationFailure: false }));
     expect(result.current.managementToken).toBe("new-token");
-    expect(result.current.session).toEqual(authenticatedSession);
-    expect(result.current.secretGrant).toBeNull();
+    expect(result.current.session).toEqual({ ...authenticatedSession, secretAccessGranted: true });
+    expect(api.confirmSecretAccess).toHaveBeenLastCalledWith("new-token", "new-token");
+    expect(result.current.secretGrant?.grant).toBe("short-lived-grant");
     expect(readManagementSessionToken()).toBe("new-token");
     expect(window.localStorage.length).toBe(0);
   });

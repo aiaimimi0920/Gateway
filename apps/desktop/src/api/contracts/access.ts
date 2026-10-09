@@ -95,6 +95,13 @@ export type ConsoleAccessKeyBalance = {
   remainingTokens: number | null;
   totalMessages: number | null;
   remainingMessages: number | null;
+  cash?: {
+    currency: "USD";
+    totalMicros: number;
+    spentMicros: number;
+    reservedMicros: number;
+    pendingRequests: number;
+  };
   updatedAt: string;
 };
 
@@ -106,7 +113,18 @@ export type ConsoleAccessKeyAggregateMembership = {
 };
 
 /** `/access/catalog` answers this view directly, with no envelope. */
+export type ConsoleAccessKeyGroup = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  memberCount: number;
+};
+
 export type ConsoleAccessCatalog = {
+  /** Absent on older gateways; never infer local rights from the browser URL. */
+  storageMode?: "local" | "server";
+  cashQuotaSupported?: boolean;
+  accountGroups?: ConsoleAccessKeyGroup[];
   providerCapabilities: ConsoleProviderCapability[];
   platformAccessRows: ConsolePlatformAccess[];
   bundles: ConsoleAccessBundle[];
@@ -133,6 +151,11 @@ export type ConsoleAccessAffinityResponse = {
 };
 
 export type ConsoleAccessKeyInput = {
+  quota?: {
+    mode: "unlimited" | "message_prepaid" | "token_prepaid" | "cash_prepaid";
+    limit?: number | null;
+    currency?: "USD";
+  };
   ownerType: string;
   ownerId: string;
   resolvedProjectId: string;

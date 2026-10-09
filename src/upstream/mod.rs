@@ -44,6 +44,7 @@ pub mod cohere_chat_official_api_common;
 pub mod cohere_chat_official_api_common;
 pub mod common;
 pub mod custom_http_request_plan;
+pub mod dashscope;
 pub mod gemini;
 mod gemini_business_helpers;
 mod gemini_canvas_asset_helpers;

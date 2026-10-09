@@ -24,6 +24,7 @@ mod tests;
 pub struct LocalRuntime {
     pub(crate) pool: SqlitePool,
     pub(crate) owner: String,
+    key_secrets: access_keys::secrets::KeySecretStore,
     lock_directory: std::path::PathBuf,
     finalizers: std::sync::Arc<finalizers::Finalizers>,
     affinity: std::sync::Arc<affinity::AffinityCache>,
@@ -77,15 +78,30 @@ impl LocalRuntime {
         }
         // Additive initialization also runs for already released schema-1 databases.
         sqlx::raw_sql(access_keys::SCHEMA).execute(&mut *tx).await?;
+        sqlx::raw_sql(crate::cash_billing::SCHEMA)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::raw_sql(crate::provider_runtime::test_store::LOCAL_SCHEMA)
+            .execute(&mut *tx)
+            .await?;
         access_balances::initialize(&mut tx)
             .await
             .map_err(|error| anyhow::anyhow!(error.message))?;
+        let sealed: i64 = sqlx::query_scalar("SELECT count(*) FROM local_access_key_secrets")
+            .fetch_one(&mut *tx)
+            .await?;
+        let secret_directory = directory.to_owned();
+        let key_secrets = tokio::task::spawn_blocking(move || {
+            access_keys::secrets::KeySecretStore::open(&secret_directory, sealed > 0)
+        })
+        .await?;
         tx.commit().await?;
         let lock_directory = directory.join("refill-locks");
         tokio::fs::create_dir_all(&lock_directory).await?;
         let runtime = Self {
             pool,
             owner: uuid::Uuid::new_v4().to_string(),
+            key_secrets,
             lock_directory,
             finalizers: Default::default(),
             affinity: Default::default(),

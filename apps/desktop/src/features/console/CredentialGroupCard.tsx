@@ -2,7 +2,6 @@ import {
   Activity,
   CircleDollarSign,
   Database,
-  Ellipsis,
   GalleryHorizontalEnd,
   Gauge,
   Pencil,
@@ -11,8 +10,6 @@ import {
   TrendingUp,
   UsersRound,
 } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
-
 import type { CredentialGroupsWorkspaceProps, TranslateFn } from "./credentialGroupsWorkspaceTypes";
 import type { CredentialGroupCardSnapshot } from "./credentialGroupCardSnapshot";
 import { EntitlementGroupScopeBoard } from "./EntitlementGroupScopeBoard";
@@ -20,15 +17,13 @@ import { formatAggregateMoney, formatAggregateRate } from "./providerCardMetrics
 
 type CredentialGroupCardProps = Pick<
   CredentialGroupsWorkspaceProps,
-  "editorLocked" | "onSelectGroup" | "onToggleEnabled" | "onRemoveGroup"
+  "editorLocked" | "onToggleEnabled" | "onRemoveGroup"
 > & {
   t: TranslateFn;
   snapshot: CredentialGroupCardSnapshot;
   expanded: boolean;
   flipped: boolean;
-  activeMenuKey: string | null;
-  onActiveMenuKeyChange: Dispatch<SetStateAction<string | null>>;
-  registerMenuTrigger: (key: string, node: HTMLButtonElement | null) => void;
+  onEditGroup: (rowId: string) => void;
   registerFlipButton: (
     rowId: string,
     side: "front" | "back",
@@ -45,14 +40,11 @@ export function CredentialGroupCard({
   expanded,
   flipped,
   editorLocked,
-  activeMenuKey,
-  onActiveMenuKeyChange,
-  registerMenuTrigger,
   registerFlipButton,
   onToggleCard,
   onFlip,
   onDeselectedProviderIdsChange,
-  onSelectGroup,
+  onEditGroup,
   onToggleEnabled,
   onRemoveGroup,
 }: CredentialGroupCardProps) {
@@ -60,7 +52,6 @@ export function CredentialGroupCard({
     group,
     label,
     accountPanelId,
-    cardMenuKey,
     deselectedProviderIds,
     successWindows,
     availabilityCells,
@@ -92,7 +83,8 @@ export function CredentialGroupCard({
               aria-controls={accountPanelId}
               onClick={() => onToggleCard(group.rowId)}
             >
-              <strong>{label}</strong>
+              <strong title={label}>{label}</strong>
+              {group.groupId ? <span className="nt-entitlement-group-card__id" title={group.groupId}>{group.groupId}</span> : null}
             </button>
             <div className="nt-entitlement-group-card__head-actions">
               <button
@@ -129,7 +121,7 @@ export function CredentialGroupCard({
           </header>
 
           <div className="nt-entitlement-group-card__front-body">
-            <dl className="nt-entitlement-group-card__metrics">
+            <dl className="nt-entitlement-group-card__metrics nt-entitlement-group-card__summary">
               <div>
                 <dt>{t("服务商", "Providers")}</dt>
                 <dd>{group.providerLabels.length}</dd>
@@ -140,14 +132,19 @@ export function CredentialGroupCard({
               </div>
               <div>
                 <dt>{t("计费倍率", "Billing")}</dt>
-                <dd>{group.billingMultiplier.trim() || "1.0"}</dd>
+                <dd>{group.billingMultiplier.trim() || "1.0"}<small>×</small></dd>
               </div>
             </dl>
 
-            <dl className="nt-entitlement-group-card__metrics nt-entitlement-group-card__usage">
+            {group.description.trim() ? (
+              <p className="nt-entitlement-group-card__description" title={group.description}>{group.description}</p>
+            ) : null}
+
+            <dl className="nt-entitlement-group-card__metrics nt-entitlement-group-card__usage nt-entitlement-group-card__usage--labeled">
               <div title={t(`${label} 聚合并发`, `${label} aggregated concurrency`)}>
                 <dt aria-label={t("并发", "Concurrency")}>
                   <Gauge size={15} aria-hidden="true" />
+                  <span>{t("并发", "Concurrency")}</span>
                 </dt>
                 <dd data-entitlement-group-metric="concurrency">
                   {metrics?.concurrency
@@ -158,6 +155,7 @@ export function CredentialGroupCard({
               <div title={t(`${label} 聚合上游费用`, `${label} aggregated upstream cost`)}>
                 <dt aria-label={t("上游费用", "Upstream cost")}>
                   <CircleDollarSign size={15} aria-hidden="true" />
+                  <span>{t("上游费用", "Upstream cost")}</span>
                 </dt>
                 <dd data-entitlement-group-metric="upstream-cost">
                   {metrics?.upstreamCost == null
@@ -168,6 +166,7 @@ export function CredentialGroupCard({
               <div title={t(`${label} 聚合收费`, `${label} aggregated revenue`)}>
                 <dt aria-label={t("收费", "Revenue")}>
                   <TrendingUp size={15} aria-hidden="true" />
+                  <span>{t("收费", "Revenue")}</span>
                 </dt>
                 <dd data-entitlement-group-metric="platform-revenue">
                   {metrics?.platformRevenue == null
@@ -183,6 +182,7 @@ export function CredentialGroupCard({
               >
                 <dt aria-label={t("请求数", "Requests")}>
                   <Send size={15} aria-hidden="true" />
+                  <span>{t("请求数", "Requests")}</span>
                 </dt>
                 <dd data-entitlement-group-metric="requests">
                   {metrics?.requests == null ? "—" : metrics.requests.toLocaleString("en-US")}
@@ -204,6 +204,7 @@ export function CredentialGroupCard({
               )}
             >
               <Activity size={15} aria-hidden="true" />
+              <span className="nt-entitlement-group-card__success-label" aria-hidden="true">{t("成功率", "Success rate")}</span>
               {successWindows.length > 0 ? (
                 <div className="nt-provider-card__availability-windows" aria-hidden="true">
                   {successWindows.map((window, windowIndex) => (
@@ -237,7 +238,7 @@ export function CredentialGroupCard({
             </section>
           </div>
 
-          <footer className="nt-entitlement-group-card__actions">
+          <footer className="nt-entitlement-group-card__actions nt-entitlement-group-card__actions--group">
             <button
               className={
                 group.enabled
@@ -249,12 +250,13 @@ export function CredentialGroupCard({
               aria-checked={group.enabled}
               disabled={editorLocked}
               aria-label={t(`${label} 启用状态`, `${label} enabled state`)}
-              title={t("启用", "Enabled")}
+              title={group.enabled ? t("停用分组", "Disable group") : t("启用分组", "Enable group")}
               onClick={() => onToggleEnabled(group.rowId, !group.enabled)}
             >
               <span className="nt-switch__track" aria-hidden="true">
                 <span className="nt-switch__thumb" />
               </span>
+              <span className="nt-entitlement-group-card__state">{group.enabled ? t("启用", "Enabled") : t("停用", "Disabled")}</span>
             </button>
             <button
               className="nt-entitlement-group-card__action nt-entitlement-group-card__action--icon"
@@ -262,7 +264,7 @@ export function CredentialGroupCard({
               disabled={editorLocked}
               aria-label={t("编辑", "Edit")}
               title={t("编辑权益组", "Edit entitlement group")}
-              onClick={() => onSelectGroup(group.rowId)}
+              onClick={() => onEditGroup(group.rowId)}
             >
               <Pencil size={14} aria-hidden="true" />
             </button>
@@ -276,56 +278,6 @@ export function CredentialGroupCard({
             >
               <Trash2 size={14} aria-hidden="true" />
             </button>
-            <div className="nt-pilot-menu" data-pilot-menu-key={cardMenuKey}>
-              <button
-                className="nt-entitlement-group-card__action nt-entitlement-group-card__action--icon"
-                type="button"
-                ref={(node) => registerMenuTrigger(cardMenuKey, node)}
-                aria-haspopup="menu"
-                aria-expanded={activeMenuKey === cardMenuKey}
-                aria-label={t(`${label} 更多操作`, `${label} more actions`)}
-                title={t("更多", "More")}
-                onClick={() =>
-                  onActiveMenuKeyChange((current) => (current === cardMenuKey ? null : cardMenuKey))
-                }
-              >
-                <Ellipsis size={14} aria-hidden="true" />
-              </button>
-              {activeMenuKey === cardMenuKey ? (
-                <div className="nt-pilot-menu__panel" role="menu">
-                  <button
-                    className="nt-pilot-menu__item"
-                    role="menuitem"
-                    type="button"
-                    aria-expanded={expanded}
-                    aria-controls={accountPanelId}
-                    onClick={() => {
-                      onActiveMenuKeyChange(null);
-                      onToggleCard(group.rowId);
-                    }}
-                  >
-                    <Database size={15} aria-hidden="true" />
-                    <span>
-                      {expanded
-                        ? t("收起组内账号", "Hide member accounts")
-                        : t("显示组内账号", "Show member accounts")}
-                    </span>
-                  </button>
-                  <button
-                    className="nt-pilot-menu__item"
-                    role="menuitem"
-                    type="button"
-                    onClick={() => {
-                      onActiveMenuKeyChange(null);
-                      onFlip(group.rowId, label, "back");
-                    }}
-                  >
-                    <GalleryHorizontalEnd size={15} aria-hidden="true" />
-                    <span>{t("服务商与模型范围", "Provider and model scope")}</span>
-                  </button>
-                </div>
-              ) : null}
-            </div>
           </footer>
         </div>
 

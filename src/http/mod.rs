@@ -1,3 +1,4 @@
+pub mod debug_protocol;
 pub mod extractors;
 pub mod middleware;
 pub mod request_headers;

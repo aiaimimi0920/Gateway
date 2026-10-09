@@ -144,6 +144,7 @@ mod tests {
 
     fn make_payload(adapter: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
             base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),
             api_key: "sk-test".to_string(),

@@ -102,6 +102,13 @@ function handlers(
 }
 
 describe("ProviderAccountCard", () => {
+  it("keeps discovery inside the account editor rather than the card", () => {
+    const onMenuAction = vi.fn();
+    const view = render(<CardHarness account={account({ discoverySupported: true })} handlers={handlers()} onMenuAction={onMenuAction} />);
+    expect(screen.queryByRole("button", { name: "刷新模型和协议 Account 1" })).not.toBeInTheDocument();
+    view.rerender(<CardHarness account={account({ discoverySupported: false })} handlers={handlers()} />);
+    expect(screen.queryByRole("button", { name: "刷新模型和协议 Account 1" })).not.toBeInTheDocument();
+  });
   it("shows only account creation actions for a provider-default account", async () => {
     const user = userEvent.setup();
     const onAddExplicit = vi.fn();
@@ -120,22 +127,20 @@ describe("ProviderAccountCard", () => {
     expect(screen.queryByRole("button", { name: "更多操作 account-1" })).not.toBeInTheDocument();
   });
 
-  it("keeps the menu open for inside interaction and restores trigger focus on Escape", async () => {
+  it("exposes four direct actions and an independent header edit button", async () => {
     const user = userEvent.setup();
-    render(<CardHarness account={account()} handlers={handlers()} />);
-    const moreButton = screen.getByRole("button", { name: "更多操作 account-1" });
-
-    await user.click(moreButton);
-    expect(screen.getByRole("menuitem", { name: "账号测试" })).toBeInTheDocument();
-    await user.click(screen.getByRole("menu"));
-    expect(screen.getByRole("menuitem", { name: "账号测试" })).toBeInTheDocument();
-
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("menuitem", { name: "账号测试" })).not.toBeInTheDocument();
-    expect(moreButton).toHaveFocus();
-
-    await user.click(moreButton);
-    await user.click(screen.getByText("Account 1"));
-    expect(screen.queryByRole("menuitem", { name: "账号测试" })).not.toBeInTheDocument();
+    const onMenuAction = vi.fn();
+    const onEdit = vi.fn();
+    render(<CardHarness account={account()} handlers={handlers({ onEdit })} onMenuAction={onMenuAction} />);
+    const footer = screen.getByRole("switch").closest("footer")!;
+    expect(footer.querySelectorAll("button")).toHaveLength(4);
+    expect(screen.queryByRole("button", { name: "更多操作 account-1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "查看 Account 1 统计" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "测试账号 Account 1" }));
+    expect(onMenuAction).toHaveBeenCalledWith("probe", "provider-1", expect.objectContaining({ accountId: "account-1" }));
+    await user.click(screen.getByRole("button", { name: "模型映射 Account 1" }));
+    expect(onMenuAction).toHaveBeenCalledWith("model-mapping", "provider-1", expect.objectContaining({ accountId: "account-1" }));
+    await user.click(screen.getByRole("button", { name: "编辑账号 Account 1" }));
+    expect(onEdit).toHaveBeenCalledWith("provider-1", "account-1");
   });
 });

@@ -216,7 +216,7 @@ describe("BrowserConsoleApp", () => {
     expect(within(duplicateDialog).getByLabelText(/账号 ID/i)).toHaveValue("codex-free-1-copy");
     expect(within(duplicateDialog).getByLabelText(/账号名称/i)).toHaveValue("Codex Free 1 Copy");
     await user.type(within(duplicateDialog).getByLabelText(/^API Key$/i), "copy-secret");
-    await user.click(within(duplicateDialog).getByRole("button", { name: /保存到草稿/i }));
+    await user.click(within(duplicateDialog).getByRole("button", { name: /保存/i }));
 
     const duplicateDocument = await waitForCommittedRouteDraft(consoleApi, savedCount);
     const duplicateDraft = JSON.stringify(duplicateDocument);

@@ -1,7 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import type { TranslateFn } from "./accountCardTypes";
 import type { CardModelTraffic, CardModelTrafficEntry } from "./cardModelTraffic";
-import { groupCardModels } from "./modelDisplayCatalog";
+import { aggregateCardModelTraffic } from "./cardModelTraffic";
+import { cardModelDisplayName, groupCardModels } from "./modelDisplayCatalog";
 import { aggregateSuccessWindows, buildProviderAvailabilityCells, formatAggregateRate } from "./providerCardMetrics";
 import "./CardModelList.css";
 
@@ -18,7 +19,7 @@ export function CardModelList({ models, label, traffic, t }: {
     <ul>
       {groupModels.map((model) => <ModelRow key={model} model={model}
         stats={traffic?.models.get(model)} emptyCount={traffic?.emptyRequestCount ?? null}
-        countScope={traffic?.countScope ?? "retained"} t={t} />)}
+        t={t} />)}
     </ul>
   );
   return (
@@ -28,24 +29,26 @@ export function CardModelList({ models, label, traffic, t }: {
         "Models from route configuration; availability depends on actual model calls.",
       )}>
         <span>{t("可调用模型", "Callable models")} <b>{count}</b></span>
-        <span>{t("调用", "Calls")}</span>
+        <span>{t("调用数", "Calls")}</span>
+        <span>{t("热度图", "Heatmap")}</span>
         <span>{t("成功率", "Success")}</span>
       </div>
       {count ? (
         <div className="nt-card-models__scroll" tabIndex={0} aria-label={label + t(" 模型列表", " model list")}>
-          {groups.map((group) => group.label ? (
+          {groups.map((group) => (
             <details key={group.id} data-model-company={group.id}>
-              <summary>
-                <ChevronRight size={12} aria-hidden="true" />
-                <span>{group.label}</span><span className="nt-card-models__count">{group.models.length}</span>
+              <summary className="nt-card-models__row">
+                <span className="nt-card-models__company-name" title={`${group.label}(${group.models.length})`}>
+                  <ChevronRight size={12} aria-hidden="true" />
+                  <span className="nt-card-models__company-label">
+                    <span className="nt-card-models__company-text">{group.label}</span>
+                    <span className="nt-card-models__count">({group.models.length})</span>
+                  </span>
+                </span>
+                <ModelMetrics label={group.label} stats={aggregateCardModelTraffic(group.models, traffic)} t={t} />
               </summary>
               {renderRows(group.models)}
             </details>
-          ) : (
-            <div key={group.id} data-model-company="unclassified">
-              <div className="nt-card-models__unclassified">{t("未归类", "Unclassified")}</div>
-              {renderRows(group.models)}
-            </div>
           ))}
         </div>
       ) : <span className="nt-card-models__empty">{t("未声明模型", "No models declared")}</span>}
@@ -53,36 +56,53 @@ export function CardModelList({ models, label, traffic, t }: {
   );
 }
 
-function ModelRow({ model, stats, emptyCount, countScope, t }: {
+function ModelRow({ model, stats, emptyCount, t }: {
   model: string;
   stats?: CardModelTrafficEntry;
   emptyCount: number | null;
-  countScope: CardModelTraffic["countScope"];
+  t: TranslateFn;
+}) {
+  return (
+    <li className="nt-card-models__row" data-card-model={model} title={model}>
+      <span className="nt-card-models__name" tabIndex={0} title={model} aria-label={model}>
+        {cardModelDisplayName(model)}
+      </span>
+      <ModelMetrics label={model} stats={stats} emptyCount={emptyCount} t={t} />
+    </li>
+  );
+}
+
+function ModelMetrics({ label, stats, emptyCount = null, t }: {
+  label: string;
+  stats?: CardModelTrafficEntry;
+  emptyCount?: number | null;
   t: TranslateFn;
 }) {
   const windows = aggregateSuccessWindows([{ successWindows: stats ? [...stats.successWindows] : [] }]).slice(-4);
-  const total = windows.reduce((value, window) => value + window.requests, 0);
-  const success = windows.reduce((value, window) => value + window.success, 0);
-  const rate = formatAggregateRate(total > 0 ? success / total : null);
   const count = stats ? stats.requestCount : emptyCount;
+  const success = stats?.successCount ?? null;
+  const rate = formatAggregateRate(count !== null && count > 0 && success !== null ? success / count : null);
   const countLabel = count === null ? "—" : count.toLocaleString("en-US");
-  const countHint = countScope === "retained"
-    ? t("保留调用总数", "Retained calls")
-    : t("近期采样调用数（当前审计样本）", "Recent calls in the current audit sample");
-  const rateHint = t(`近期窗口成功率 ${success}/${total}；运行中与失败请求均计入分母，未调用不视为成功。`,
-    `Recent window success ${success}/${total}; running and failed calls count in the denominator. No calls do not imply success.`);
+  const countHint = t("调用总次数（保留历史）", "Total calls (retained history)");
+  const rateHint = t(`总成功率 ${success ?? "—"}/${countLabel}；按保留历史统计，运行中、取消和失败请求均计入分母。`,
+    `Total success ${success ?? "—"}/${countLabel}; all retained calls including running, cancelled and failed calls count in the denominator.`);
+  const heatHint = windows.length
+    ? t("服务质量热度图：近期采样小时窗口，从左到右由旧到新。", "Service quality heatmap: recent sampled hourly windows, oldest to newest.") + " " +
+      windows.map((window) => `${window.label}: ${window.success}/${window.requests}`).join("; ")
+    : t("服务质量热度图：暂无近期调用数据。", "Service quality heatmap: no recent call data.");
+  const heatLegend = t("绿色：成功；黄色：混合；红色：未成功（含运行中、取消和失败）；灰色：无数据。", "Green: success; yellow: mixed; red: not completed successfully (including running, cancelled and failed); grey: no data.");
   const cells = buildProviderAvailabilityCells(windows, 3);
   return (
-    <li className="nt-card-models__row" data-card-model={model} title={`${model}\n${countHint}: ${countLabel}\n${rateHint}`}>
-      <span className="nt-card-models__name" tabIndex={0} title={model}>{model}</span>
-      <span data-model-metric="requests" aria-label={`${countHint}: ${countLabel}`}>{countLabel}</span>
-      <span className="nt-card-models__success" role="img" aria-label={`${model}: ${rateHint} ${rate}`}>
+    <>
+      <span data-model-metric="requests" title={`${countHint}: ${countLabel}`} aria-label={`${countHint}: ${countLabel}`}>{countLabel}</span>
+      <span data-model-metric="quality" role="img" title={`${heatHint} ${heatLegend}`} aria-label={`${label}: ${heatHint} ${heatLegend}`}>
         <span className="nt-card-models__cells" aria-hidden="true">
           {cells.map((cell) => <span key={`${cell.windowIndex}:${cell.position}`}
             className={`nt-provider-card__availability-cell nt-provider-card__availability-cell--${cell.state}`} />)}
+          {!cells.length && <span className="nt-provider-card__availability-cell nt-provider-card__availability-cell--empty" />}
         </span>
-        <span data-model-metric="success-rate">{rate}</span>
       </span>
-    </li>
+      <span data-model-metric="success-rate" title={rateHint} aria-label={`${label}: ${rateHint}`}>{rate}</span>
+    </>
   );
 }

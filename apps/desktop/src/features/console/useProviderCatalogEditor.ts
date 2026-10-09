@@ -59,6 +59,7 @@ export function useProviderCatalogEditor({
             account_name: value.accountName || undefined,
             enabled: true,
             supported_models: [...value.supportedModels],
+            discovery: value.discovery,
           },
           routePatterns: value.supportedModels,
         });

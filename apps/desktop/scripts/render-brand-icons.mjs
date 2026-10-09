@@ -12,11 +12,13 @@ const icoPath = resolve(root, "src-tauri/icons/icon.ico");
 // The favicon is the single source of truth for the mark's geometry.
 const svg = readFileSync(svgPath, "utf8");
 
-const icoSizes = [16, 24, 32, 48, 64, 128, 256];
+// Tauri's Windows context decodes the first ICO frame. Keep the largest first
+// so window/taskbar icons never upscale 16px; retain native Windows DPI sizes.
+const icoSizes = [256, 128, 96, 64, 48, 40, 32, 24, 20, 16];
 const pngSize = 512;
 
 const browser = await chromium.launch();
-const page = await browser.newPage();
+let page;
 
 async function render(size) {
   // Scale the 24-unit artwork up by clamping the SVG element to `size` and
@@ -57,12 +59,16 @@ function buildIco(entries) {
 }
 
 const icoEntries = [];
-for (const size of icoSizes) {
-  icoEntries.push({ size, data: await render(size) });
+let large;
+try {
+  page = await browser.newPage();
+  for (const size of icoSizes) {
+    icoEntries.push({ size, data: await render(size) });
+  }
+  large = await render(pngSize);
+} finally {
+  await browser.close();
 }
-const large = await render(pngSize);
-
-await browser.close();
 
 mkdirSync(dirname(pngPath), { recursive: true });
 writeFileSync(pngPath, large);

@@ -8,12 +8,19 @@ type RecordedRequest = {
   options: GatewayApiRequestOptions | undefined;
 };
 
-function createRecordingClient(): { client: GatewayApiClient; requests: RecordedRequest[] } {
+function createRecordingClient(): {
+  client: GatewayApiClient;
+  requests: RecordedRequest[];
+} {
   const requests: RecordedRequest[] = [];
   return {
     requests,
     client: {
-      async request<T>(path: string, _schema: unknown, options?: GatewayApiRequestOptions) {
+      async request<T>(
+        path: string,
+        _schema: unknown,
+        options?: GatewayApiRequestOptions,
+      ) {
         requests.push({ path, options });
         return undefined as T;
       },
@@ -46,6 +53,7 @@ describe("console API sections", () => {
       "getGeminiAuthSession",
       "probeCredential",
       "probeProvider",
+      "readProviderProbeResults",
       "getCredentialUsage",
       "listUsageAggregates",
       "getRuntimePressure",
@@ -81,7 +89,11 @@ describe("console API sections", () => {
       "getAccessCatalog",
       "createAccessKey",
       "rotateAccessKey",
+      "updateAccessKey",
+      "copyAccessKey",
       "revokeAccessKey",
+      "setAccessKeyEnabled",
+      "deleteAccessKey",
       "getAccessKeyBalance",
       "createAccessBundle",
       "inspectAccessAffinity",
@@ -90,6 +102,30 @@ describe("console API sections", () => {
       "issueUserCredential",
       "verifyUserCredential",
       "revokeUserCredential",
+    ]);
+  });
+
+  it("uses management-only encoded paths for reversible state and deletion", async () => {
+    const { client, requests } = createRecordingClient();
+    const api = createConsoleApi(client);
+    await api.setAccessKeyEnabled!("management-token", "key/one", false);
+    await api.deleteAccessKey!("management-token", "key/one");
+    expect(requests).toEqual([
+      {
+        path: "/v1/internal/gateway/access/keys/key%2Fone/enabled",
+        options: {
+          method: "POST",
+          managementToken: "management-token",
+          body: { enabled: false },
+        },
+      },
+      {
+        path: "/v1/internal/gateway/access/keys/key%2Fone",
+        options: {
+          method: "DELETE",
+          managementToken: "management-token",
+        },
+      },
     ]);
   });
 
@@ -113,8 +149,7 @@ describe("console API sections", () => {
         options: { managementToken: "management-token" },
       },
       {
-        path:
-          "/v1/internal/gateway/analysis/samples?limit=100&createdFrom=2026-09-04T00%3A00%3A00Z",
+        path: "/v1/internal/gateway/analysis/samples?limit=100&createdFrom=2026-09-04T00%3A00%3A00Z",
         options: { managementToken: "management-token" },
       },
     ]);

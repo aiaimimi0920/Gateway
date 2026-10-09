@@ -124,6 +124,20 @@ pub async fn save_access_key(
     api_key_secret: Option<&str>,
     input: UpsertAccessKeyInput,
 ) -> Result<GatewayAccessKeyView, GatewayError> {
+    save_access_key_with_quota(pool, redis_pool, access_key_id, api_key_secret, input, None).await
+}
+
+pub async fn save_access_key_with_quota(
+    pool: &PgPool,
+    redis_pool: &RedisPool,
+    access_key_id: Option<&str>,
+    api_key_secret: Option<&str>,
+    input: UpsertAccessKeyInput,
+    quota: Option<&crate::access_balance::quota::KeyQuotaInput>,
+) -> Result<GatewayAccessKeyView, GatewayError> {
+    if let Some(quota) = quota {
+        quota.validate()?;
+    }
     let boundary = AccessBoundary::new(&input.resolved_tenant_id, &input.resolved_project_id)?;
     let mut tx = pool.begin().await.map_err(map_db_error)?;
     ensure_project_tenant_boundary(&mut tx, &boundary).await?;
@@ -227,10 +241,33 @@ pub async fn save_access_key(
         }
     }
 
+    if let Some(quota) = quota {
+        super::balance_store::set_key_quota(&mut tx, &access_key_id, quota).await?;
+    }
     tx.commit().await.map_err(map_db_error)?;
     clear_access_projection_cache(redis_pool).await?;
     let row = list_access_key_rows(pool, &access_key_id).await?;
     to_access_key_view(row, api_key_secret)
+}
+
+pub async fn read_access_key_secret(
+    pool: &PgPool,
+    id: &str,
+    api_key_secret: Option<&str>,
+) -> Result<String, GatewayError> {
+    let row = list_access_key_rows(pool, id).await?;
+    if row.status != "active"
+        || row.revoked_at.is_some()
+        || row.expires_at.is_some_and(|expiry| expiry <= now_utc())
+    {
+        return Err(GatewayError::unauthorized(
+            "Access key is inactive or expired",
+        ));
+    }
+    build_access_key_token(&row, api_key_secret)?.ok_or_else(|| {
+        GatewayError::conflict("Key plaintext is unavailable")
+            .with_code("access_key_secret_not_saved")
+    })
 }
 
 pub async fn delete_access_key(
@@ -267,6 +304,28 @@ pub async fn delete_access_key(
         access_key_id: key_row.get::<String, _>("id"),
         display_name: key_row.get::<String, _>("display_name"),
     })
+}
+
+pub async fn set_access_key_enabled(
+    pool: &PgPool,
+    redis_pool: &RedisPool,
+    access_key_id: &str,
+    enabled: bool,
+) -> Result<(), GatewayError> {
+    let mut tx = pool.begin().await.map_err(map_db_error)?;
+    // Conditional update serializes against revocation/rotation without reviving terminal keys.
+    let result = sqlx::query("update gateway_access_keys set status = $2, updated_at = $3 where id = $1 and status in ('active', 'disabled') and revoked_at is null")
+        .bind(access_key_id).bind(if enabled { "active" } else { "disabled" })
+        .bind(now_utc()).execute(&mut *tx).await.map_err(map_db_error)?;
+    if result.rows_affected() == 0 {
+        return Err(GatewayError::conflict(
+            "Key is missing or cannot be toggled",
+        ));
+    }
+    bump_all_access_projection_versions(&mut tx, now_utc()).await?;
+    tx.commit().await.map_err(map_db_error)?;
+    clear_access_projection_cache(redis_pool).await?;
+    Ok(())
 }
 
 pub async fn revoke_access_key(

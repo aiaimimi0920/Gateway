@@ -11,7 +11,8 @@ import {
   BucketList,
 } from "./OperationsPrimitives";
 
-type Props = Pick<OperationsWorkspaceProps,
+type Props = Pick<
+  OperationsWorkspaceProps,
   | "t"
   | "incidentSummary"
   | "alertQueue"
@@ -39,7 +40,11 @@ export function OperationsIncidentPanels({
 }: Props) {
   return (
     <>
-      <Panel state={incidentSummary} t={t} title={t("异常概况", "Incident summary")}>
+      <Panel
+        state={incidentSummary}
+        t={t}
+        title={t("异常概况", "Incident summary")}
+      >
         {(data) => (
           <>
             <div className="nt-pilot-stats-overview-grid">
@@ -68,13 +73,26 @@ export function OperationsIncidentPanels({
                 <dd>{formatCount(data.escalatedIncidents)}</dd>
               </div>
             </dl>
-            <BucketList buckets={data.bySeverity} t={t} title={t("按等级", "By severity")} />
-            <BucketList buckets={data.byCode} t={t} title={t("按代码", "By code")} />
+            <BucketList
+              buckets={data.bySeverity}
+              t={t}
+              title={t("按等级", "By severity")}
+            />
+            <BucketList
+              buckets={data.byCode}
+              t={t}
+              title={t("按代码", "By code")}
+            />
           </>
         )}
       </Panel>
 
-      <Panel state={alertQueue} t={t} title={t("待告警队列", "Alert queue")}>
+      <Panel
+        collapsed={!alertQueue.data?.incidentCount}
+        state={alertQueue}
+        t={t}
+        title={t("待告警队列", "Alert queue")}
+      >
         {(data) => (
           <>
             <div className="nt-pilot-stats-overview-grid">
@@ -110,9 +128,13 @@ export function OperationsIncidentPanels({
                 </div>
                 {data.items.map((item) => (
                   <div className="nt-table__row" key={item.incident.id}>
-                    <span title={item.incident.summary}>{formatText(item.incident.code)}</span>
+                    <span title={item.incident.summary}>
+                      {formatText(item.incident.code)}
+                    </span>
                     <span>
-                      <span className={severityBadgeClass(item.webhookSeverity)}>
+                      <span
+                        className={severityBadgeClass(item.webhookSeverity)}
+                      >
                         {formatText(item.webhookSeverity)}
                       </span>
                       {item.alertDue ? (
@@ -161,7 +183,9 @@ export function OperationsIncidentPanels({
                 const resolved = normalized === "resolved";
                 return (
                   <div className="nt-table__row" key={incident.id}>
-                    <span title={incident.summary}>{formatText(incident.code)}</span>
+                    <span title={incident.summary}>
+                      {formatText(incident.code)}
+                    </span>
                     <span>
                       <span className={severityBadgeClass(incident.severity)}>
                         {formatText(incident.severity)}
@@ -205,6 +229,7 @@ export function OperationsIncidentPanels({
       </Panel>
 
       <Panel
+        collapsed
         emptyLabel={t("暂无异常策略", "No policies yet")}
         state={policies}
         t={t}
@@ -233,16 +258,24 @@ export function OperationsIncidentPanels({
                   </span>
                   <span className="nt-console-chip-row">
                     {policy.autoSyncEnabled ? (
-                      <span className="nt-chip nt-chip--muted">{t("同步", "Sync")}</span>
+                      <span className="nt-chip nt-chip--muted">
+                        {t("同步", "Sync")}
+                      </span>
                     ) : null}
                     {policy.alertingEnabled ? (
-                      <span className="nt-chip nt-chip--muted">{t("告警", "Alerts")}</span>
+                      <span className="nt-chip nt-chip--muted">
+                        {t("告警", "Alerts")}
+                      </span>
                     ) : null}
                     {policy.autoEscalateEnabled ? (
-                      <span className="nt-chip nt-chip--muted">{t("升级", "Escalate")}</span>
+                      <span className="nt-chip nt-chip--muted">
+                        {t("升级", "Escalate")}
+                      </span>
                     ) : null}
                     {policy.autoRemediationEnabled ? (
-                      <span className="nt-chip nt-chip--muted">{t("处置", "Remediate")}</span>
+                      <span className="nt-chip nt-chip--muted">
+                        {t("处置", "Remediate")}
+                      </span>
                     ) : null}
                     {!policy.autoSyncEnabled &&
                     !policy.alertingEnabled &&
@@ -254,7 +287,9 @@ export function OperationsIncidentPanels({
                   <span>
                     {formatTimestamp(policy.nextSyncDueAt)}
                     {policy.syncDue ? (
-                      <span className="nt-badge nt-badge--warning">{t("到期", "Due")}</span>
+                      <span className="nt-badge nt-badge--warning">
+                        {t("到期", "Due")}
+                      </span>
                     ) : null}
                   </span>
                 </div>

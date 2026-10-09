@@ -23,7 +23,12 @@ pub fn is_anthropic_messages_base_url(base_url: &str) -> bool {
 
 pub fn owns_payload(payload: &ProviderAccountPayload) -> bool {
     payload.adapter.trim() == "anthropic_compatible"
-        && is_anthropic_messages_base_url(&payload.base_url)
+        && url::Url::parse(&payload.base_url).is_ok_and(|url| {
+            matches!(url.scheme(), "http" | "https")
+                && url.host_str().is_some()
+                && url.username().is_empty()
+                && url.password().is_none()
+        })
 }
 
 pub fn provider_line_name(_payload: &ProviderAccountPayload) -> &'static str {
@@ -48,6 +53,7 @@ mod tests {
 
     fn make_payload(base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            discovered_protocols: Vec::new(),
             adapter: "anthropic_compatible".to_string(),
             base_url: base_url.to_string(),
             api_key: "tok".to_string(),
@@ -90,5 +96,15 @@ mod tests {
         assert!(is_anthropic_messages_base_url("https://api.anthropic.com"));
         assert!(is_anthropic_messages_base_url("http://127.0.0.1:42335"));
         assert!(owns_payload(&make_payload("https://api.anthropic.com")));
+        assert!(owns_payload(&make_payload(
+            "https://ai.hybgzs.com/claude/v1"
+        )));
+        assert!(!owns_payload(&make_payload("file:///api.anthropic.com")));
+        assert!(!owns_payload(&make_payload(
+            "https://user:secret@example.test"
+        )));
+        let mut wrong = make_payload("https://ai.hybgzs.com");
+        wrong.adapter = "openai_compatible".into();
+        assert!(!owns_payload(&wrong));
     }
 }

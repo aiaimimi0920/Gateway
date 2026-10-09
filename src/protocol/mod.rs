@@ -10,6 +10,8 @@ pub mod anthropic_messages;
 pub mod azure_openai;
 pub mod bedrock_converse;
 pub mod canonical;
+#[cfg(test)]
+mod canonical_wire_tests;
 #[cfg(feature = "line-chataibot-web-reverse")]
 #[path = "chataibot/mod.rs"]
 pub mod chataibot;
@@ -18,6 +20,7 @@ pub mod chataibot;
 pub mod chataibot;
 pub mod chatgpt;
 pub mod cohere;
+pub mod dashscope;
 pub mod freebuff;
 pub mod gemini;
 pub mod gemini_api;
@@ -78,3 +81,4 @@ pub mod xfyun_websocket;
 // Legacy compatibility alias for older imports. New code should use
 // `crate::protocol::search_api`.
 pub use search_api as linkup;
+mod generation_parameters;

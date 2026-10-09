@@ -14,6 +14,7 @@ import type { BootstrapStatus, ManagementSession, SecretGrant } from "../api/con
 import { isAuthenticationError } from "../api/errors";
 import { useGatewayHost } from "../platform/HostProvider";
 import { rotateManagementToken } from "./managementTokenRotation";
+import { useAutomaticSecretAccess } from "./useAutomaticSecretAccess";
 import {
   clearManagementSession,
   getManagementSessionStorage,
@@ -343,11 +344,13 @@ export function ManagementSessionProvider({
         throw new Error("No authenticated management session is available.");
       }
       const confirmationToken = normalizeToken(confirmationTokenValue);
+      const intent = credentialIntent.current;
+      const isCurrentConfirmation = () => isCurrentHost() && credentialIntent.current === intent && currentToken.current === managementToken;
       setBusy(true);
       setError(null);
       try {
         const grant = await api.confirmSecretAccess(managementToken, confirmationToken);
-        if (!isCurrentHost()) {
+        if (!isCurrentConfirmation()) {
           return;
         }
         setSecretGrant(grant);
@@ -355,6 +358,7 @@ export function ManagementSessionProvider({
           current ? { ...current, secretAccessGranted: true } : current,
         );
       } catch (cause) {
+        if (!isCurrentConfirmation()) return;
         if (isAuthenticationError(cause)) {
           clearLocalSession();
         }
@@ -363,7 +367,7 @@ export function ManagementSessionProvider({
         }
         throw cause;
       } finally {
-        if (isCurrentHost()) {
+        if (isCurrentConfirmation()) {
           setBusy(false);
         }
       }
@@ -371,32 +375,12 @@ export function ManagementSessionProvider({
     [api, clearLocalSession, isCurrentHost, managementToken],
   );
 
-  useEffect(() => {
-    if (!secretGrant) {
-      return;
-    }
-    const expiresAt = Date.parse(secretGrant.expiresAt);
-    if (!Number.isFinite(expiresAt)) {
-      clearSecretAccess();
-      return;
-    }
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const schedule = () => {
-      const remaining = expiresAt - Date.now();
-      if (remaining <= 0) {
-        clearSecretAccess();
-        return;
-      }
-      timer = setTimeout(schedule, Math.min(remaining, 2_147_483_647));
-    };
-    schedule();
-    return () => {
-      if (timer !== undefined) {
-        clearTimeout(timer);
-      }
-    };
-  }, [clearSecretAccess, secretGrant]);
+  const acceptSecretGrant = useCallback((grant: SecretGrant | null) => {
+    setSecretGrant(grant);
+    setSession((current) => current ? { ...current, secretAccessGranted: !!grant } : current);
+  }, []);
+  const secretBusy = useAutomaticSecretAccess({ api, token: managementToken, enabled: phase === "authenticated",
+    grant: secretGrant, onGrant: acceptSecretGrant, onError: setError, onAuthenticationFailure: clearLocalSession });
 
   const value = useMemo<ManagementSessionContextValue>(
     () => ({
@@ -405,7 +389,7 @@ export function ManagementSessionProvider({
       session,
       managementToken,
       secretGrant,
-      busy,
+      busy: busy || secretBusy,
       error,
       bootstrap: (token) => authenticateWith(token, true),
       login: (token) => authenticateWith(token, false),
@@ -427,6 +411,7 @@ export function ManagementSessionProvider({
       phase,
       rotate,
       secretGrant,
+      secretBusy,
       session,
       initialize,
     ],

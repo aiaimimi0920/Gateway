@@ -71,13 +71,7 @@ pub(super) fn resolve_candidates_with_authorization(
                 let explicitly_supported: Vec<MatchedProvider> = guard
                     .providers
                     .iter()
-                    .filter(|provider| {
-                        let upstream_model = provider.model_map.get(model).map(String::as_str);
-                        !provider.supported_models.is_empty()
-                            && provider.supported_models.iter().any(|supported| {
-                                supported == model || upstream_model == Some(supported.as_str())
-                            })
-                    })
+                    .filter(|provider| model_mapping::provider_supports_model(provider, model))
                     .map(|provider| MatchedProvider {
                         id: provider.id.as_str(),
                         priority: 10,
@@ -199,6 +193,14 @@ pub(super) fn select_credential(
         .copied()
         .filter(|index| {
             let cred = &provider.credential_pool[*index];
+            // A discovered catalogue names upstream models, not arbitrary local aliases.
+            if cred.discovery.is_some() {
+                return translated_model.or(original_model).is_none_or(|model| {
+                    cred.supported_models
+                        .iter()
+                        .any(|supported| supported == model)
+                });
+            }
             if cred.supported_models.is_empty() {
                 true // no restriction = supports all provider models
             } else if original_model.is_none() && translated_model.is_none() {
@@ -216,13 +218,24 @@ pub(super) fn select_credential(
         })
         .collect();
 
-    // Preserve the existing compatibility fallback when no credential declares
-    // the model, but only inside the already-authorized available subset.
+    // Explicit group membership must not expose another account's model through
+    // compatibility fallback when none of the authorized accounts supports it.
+    if model_eligible.is_empty() && allowed_account_ids.is_some() {
+        return None;
+    }
+    // Unrestricted legacy routing retains its model compatibility fallback.
+    let legacy: Vec<usize> = available
+        .into_iter()
+        .filter(|index| provider.credential_pool[*index].discovery.is_none())
+        .collect();
     let eligible = if model_eligible.is_empty() {
-        &available
+        &legacy
     } else {
         &model_eligible
     };
+    if eligible.is_empty() {
+        return None;
+    }
 
     // Round-robin among eligible credentials
     let counter = provider.credential_counter.fetch_add(1, Ordering::Relaxed);
@@ -262,6 +275,15 @@ fn provider_to_candidate(
     priority: i32,
     allowed_account_ids: Option<&HashSet<String>>,
 ) -> Option<RouteCandidate> {
+    // A group-scoped default account must not inherit compatibility fallback
+    // for models outside its declared catalogue. Aliases are already resolved.
+    if allowed_account_ids.is_some()
+        && p.credential_pool.is_empty()
+        && !p.supported_models.is_empty()
+        && model.is_some_and(|model| !model_mapping::provider_supports_model(p, model))
+    {
+        return None;
+    }
     // Select the payload — either base or a pooled credential.
     // Model-aware: only picks credentials authorized for the requested model.
     //
@@ -271,28 +293,51 @@ fn provider_to_candidate(
     //
     // Example 1 — xfyun-maas: user requests "hunyuan-mt-7b", model_map → "xophunyuan7bmt",
     //   credential lists "xophunyuan7bmt" → matches via translated name.
-    let translated_model = model.and_then(|m| p.model_map.get(m).map(|s| s.as_str()));
-    let selected_payload = select_credential(p, model, translated_model, allowed_account_ids)?;
-
-    // Apply per-provider model name translation.
-    // If the provider has a model_map entry for this canonical model name,
-    // use the provider-specific name for the upstream call.
-    let upstream_model =
-        model.map(|m| p.model_map.get(m).cloned().unwrap_or_else(|| m.to_string()));
+    let (upstream_model, selected_payload) =
+        if let Some(model) = model.filter(|m| p.model_map_targets.contains_key(*m)) {
+            let (mapped, payload) =
+                model_mapping::select_mapped_payload(p, model, allowed_account_ids)?;
+            (Some(mapped), payload)
+        } else {
+            let translated = model.and_then(|m| p.model_map.get(m).map(String::as_str));
+            (
+                model.map(|m| translated.unwrap_or(m).to_string()),
+                select_credential(p, model, translated, allowed_account_ids)?,
+            )
+        };
     let resolved_execution_mode = selected_payload
         .resolve_execution_mode(crate::protocol::canonical::EndpointKind::ChatCompletions);
+    let discovery = p
+        .credential_pool
+        .iter()
+        .find(|c| Some(c.id.as_str()) == selected_payload.credential_id.as_deref())
+        .and_then(|c| c.discovery.as_ref());
+    let family = discovery.map(|d| d.family()).unwrap_or(&p.protocol_family);
 
     Some(RouteCandidate {
         provider_account_id: p.id.clone(),
         provider_credential_id: None,
         label: p.label.clone(),
         adapter: selected_payload.adapter.clone(),
-        protocol_family: p.protocol_family.clone(),
-        protocol_profile: p.protocol_profile.clone(),
-        supported_protocol_families: surface_supported_wire_protocol_families(
-            &selected_payload.adapter,
-            &p.protocol_family,
-        ),
+        protocol_family: family.to_owned(),
+        protocol_profile: discovery
+            .map(|d| {
+                match d.protocol {
+                    crate::provider_discovery::DiscoveredProtocol::Messages => "anthropic_messages",
+                    _ => "openai_compatible_generic",
+                }
+                .to_owned()
+            })
+            .unwrap_or_else(|| p.protocol_profile.clone()),
+        supported_protocol_families: if discovery.is_some() {
+            selected_payload
+                .discovered_protocols
+                .iter()
+                .map(|c| c.protocol.family().to_owned())
+                .collect()
+        } else {
+            surface_supported_wire_protocol_families(&selected_payload.adapter, family)
+        },
         payload: selected_payload,
         model_alias: alias.map(|s| s.to_string()),
         upstream_model,

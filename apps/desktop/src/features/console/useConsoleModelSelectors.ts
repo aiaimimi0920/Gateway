@@ -4,6 +4,9 @@ import { parseSupportedModelsText, type ProviderDraftRow } from "./providerCrede
 import type { ModelRouteDraftRow } from "./modelRouteDraft";
 import type { ProviderModelMappingEntry } from "./ProviderModelMappingDialog";
 import type { AccountsLedgerPilotSection } from "./AccountsLedgerWorkspace";
+import { buildProviderCardSnapshot } from "./providerCardSnapshot";
+import { rankedMappingModels } from "./providerModelMappingDocument";
+import type { ConsoleTelemetrySnapshot } from "./telemetry";
 
 type ConsoleModelSelectorsOptions = {
   displayedAccountCatalog: Parameters<typeof buildModelPoolDirectory>[0];
@@ -14,6 +17,7 @@ type ConsoleModelSelectorsOptions = {
   providerModelMapEntries: ReadonlyMap<string, ProviderModelMappingEntry[]>;
   accountPilotSections: AccountsLedgerPilotSection[];
   providerModelMappingProviderId: string | null;
+  consoleTelemetry: ConsoleTelemetrySnapshot;
 };
 
 export function useConsoleModelSelectors({
@@ -25,6 +29,7 @@ export function useConsoleModelSelectors({
   providerModelMapEntries,
   accountPilotSections,
   providerModelMappingProviderId,
+  consoleTelemetry,
 }: ConsoleModelSelectorsOptions) {
   const modelPoolChains = useMemo(
     () => modelRouteChainsFromRows(modelRouteDraftRows),
@@ -80,7 +85,7 @@ export function useConsoleModelSelectors({
   const modelMappingCountByProvider = useMemo(() => {
     const counts = new Map<string, number>();
     for (const [providerId, entries] of providerModelMapEntries) {
-      counts.set(providerId, entries.length);
+      counts.set(providerId, new Set(entries.map((entry) => entry.model)).size);
     }
     return counts;
   }, [providerModelMapEntries]);
@@ -103,13 +108,14 @@ export function useConsoleModelSelectors({
     // Suggest what this provider declares first, then everything the pool holds,
     // because a provider can serve a pool model without declaring it.
     const declared = row ? parseSupportedModelsText(row.supportedModelsText) : [];
-    const modelOptions = [...new Set([...declared, ...modelPoolModelNames])].sort((left, right) =>
-      left.localeCompare(right),
-    );
+    const section = accountPilotSections.find((section) => section.providerId === providerModelMappingProviderId);
+    const upstreamModelOptions = [...new Set([...declared, ...(section ? buildProviderCardSnapshot(section).supportedModels : [])])];
+    const modelOptions = rankedMappingModels([...upstreamModelOptions, ...modelPoolModelNames], consoleTelemetry);
     return {
       providerId: providerModelMappingProviderId,
       providerLabel,
       modelOptions,
+      upstreamModelOptions,
       entries: providerModelMapEntries.get(providerModelMappingProviderId) ?? [],
     };
   }, [
@@ -119,6 +125,7 @@ export function useConsoleModelSelectors({
     providerDraftRows,
     providerModelMapEntries,
     providerModelMappingProviderId,
+    consoleTelemetry,
   ]);
 
   return { modelPoolChains, modelPoolProviderOrder, modelPoolDirectory, modelPoolDialogProviderOptions, modelPoolModelNames, modelMappingCountByProvider, providerModelMappingTarget };

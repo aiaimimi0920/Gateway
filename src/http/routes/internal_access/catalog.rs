@@ -9,7 +9,7 @@ use crate::state::AppState;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use axum::Json;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
@@ -48,15 +48,58 @@ pub struct AccessPath {
     pub access_id: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccessCatalogResponse {
+    #[serde(flatten)]
+    catalog: db::GatewayAccessCatalogView,
+    // Match AccessStore's authority; a loopback URL does not imply local storage.
+    storage_mode: &'static str,
+    cash_quota_supported: bool,
+    account_groups: Vec<AccessKeyGroupOption>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AccessKeyGroupOption {
+    id: String,
+    name: String,
+    enabled: bool,
+    member_count: usize,
+}
+
 pub async fn get_access_catalog(
     State(state): State<Arc<AppState>>,
     OptionalBearerToken(token): OptionalBearerToken,
     headers: HeaderMap,
     Query(_query): Query<CatalogQuery>,
-) -> Result<Json<db::GatewayAccessCatalogView>, GatewayError> {
+) -> Result<Json<AccessCatalogResponse>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     let catalog = crate::access_store::AccessStore(&state).catalog().await?;
-    Ok(Json(catalog))
+    Ok(Json(AccessCatalogResponse {
+        cash_quota_supported: crate::access_balance::AccessBalanceStore::from_state(&state)?
+            .cash_supported()
+            .await?,
+        catalog,
+        account_groups: state
+            .route_config
+            .snapshot()
+            .account_group_inventory()
+            .account_groups
+            .into_iter()
+            .map(|group| AccessKeyGroupOption {
+                id: group.id,
+                name: group.name,
+                enabled: group.enabled,
+                member_count: group.member_count,
+            })
+            .collect(),
+        storage_mode: if state.local_runtime.is_some() {
+            "local"
+        } else {
+            "server"
+        },
+    }))
 }
 
 pub async fn create_provider_capability(

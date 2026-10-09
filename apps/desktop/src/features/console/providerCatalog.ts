@@ -6,7 +6,7 @@ export type ProviderCatalogCategory =
   | "search"
   | "third-party-compatible";
 
-export type ProviderCompatibility = "native" | "openai" | "anthropic" | "search";
+export type ProviderCompatibility = "auto" | "native" | "openai" | "anthropic" | "search";
 
 export type ProviderCatalogTemplate = {
   id: string;
@@ -28,6 +28,7 @@ export type ProviderCatalogTemplate = {
 };
 
 export type ProviderCatalogDraft = {
+  discovery?: import("./accountDiscovery").AccountDiscovery;
   templateId: string;
   providerId: string;
   providerLabel: string;
@@ -418,19 +419,19 @@ export const PROVIDER_CATALOG_TEMPLATES = [
     supportedModels: ["gpt-5.4"],
   },
   {
-    id: "custom-openai-compatible",
-    providerId: "custom-openai-compatible",
-    labelZh: "自定义 OpenAI-compatible",
-    labelEn: "Custom OpenAI-compatible",
-    descriptionZh: "手动填写第三方名称、Base URL、模型与账号，不伪装成官方 OpenAI 渠道。",
-    descriptionEn: "Enter a third-party name, base URL, models, and account without presenting it as an official OpenAI channel.",
+    id: "custom-api-provider",
+    providerId: "custom-api-provider",
+    labelZh: "自定义 API 服务商",
+    labelEn: "Custom API provider",
+    descriptionZh: "自动识别模型与调用协议。",
+    descriptionEn: "Discover models and API protocol automatically.",
     category: "third-party-compatible",
-    compatibility: "openai",
+    compatibility: "auto",
     preset: null,
     adapter: "openai_compatible",
     protocolProfile: "openai_compatible_generic",
     vendorKey: "third-party",
-    vendorName: "Third-party OpenAI-compatible",
+    vendorName: "Custom API provider",
     baseUrl: "",
     supportedModels: [],
     custom: true,
@@ -458,7 +459,7 @@ export function providerCatalogClassification(
   ) {
     return {
       category: "third-party-compatible",
-      compatibility: "openai",
+      compatibility: "auto",
     };
   }
   return null;

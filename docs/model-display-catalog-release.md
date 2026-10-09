@@ -8,13 +8,27 @@ defines editorial company prominence, then model prominence within each company.
 It is a release-time product decision, not a measured popularity score or a
 runtime network service. Changing request volume never changes this order.
 
-Only exact reviewed model names and their declared namespace aliases match.
-Never classify an unknown model merely because its prefix looks like a known
-company. Unmatched models appear in the final Unclassified block, in input order.
+Exact reviewed model names and their declared namespace aliases take precedence.
+The user-requested display policy additionally classifies `gpt-*` as OpenAI and
+`grok-*` as xAI, and all `glm`-prefixed names as Z.ai, including unlisted version/variant suffixes. Matching is case-insensitive. Z.ai namespaces include `z-ai`, `z.ai`, and `zai`. This fallback accepts
+bare IDs or the matching declared company namespace only, not arbitrary proxies,
+conflicting namespaces or unrelated names under a known namespace. Family matches
+follow exact catalogue ranks and retain input order. This is a naming convention,
+not verification of an upstream alias's actual manufacturer or availability.
+Unmatched models appear in the final `other` group, in input order,
+with the same expand/collapse behavior as the company groups.
 Known aliases with the same rank retain input order. Empty companies are omitted.
 The table intersects current credential capabilities; it never grants access,
-adds a callable model, rewrites routes or merges different models' statistics.
-Full upstream names remain in accessible text and hover titles when visually truncated.
+adds a callable model, rewrites routes or replaces individual model statistics.
+Company rows show `Company(n)` and the same three metrics as model rows, even
+while collapsed. They sum only the configured models in that group: requests and
+successful requests are summed before dividing, never averaged percentages.
+Quality windows are combined by their full UTC bucket keys. Incomplete totals
+remain unavailable rather than being presented as a complete company subtotal.
+Indented model rows omit the organization/company namespace from the visible name,
+including models in `other`; shortening does not infer company ownership.
+Model-family names remain intact. Full upstream IDs remain in accessible labels,
+hover titles and telemetry keys; display shortening never rewrites capabilities.
 
 ## Mandatory checklist before each release
 
@@ -34,7 +48,8 @@ for both Windows and Docker releases:
 3. Generate a candidate company/model array from those reviewed facts. Keep explicit
    aliases, put flagship/popular families first and retain supported legacy models
    below them. Never synthesize version suffixes or silently match whole namespaces.
-   Unknown identifiers remain unclassified until reviewed. Do not infer that a
+   Apart from the explicit GPT/Grok/GLM family display rules, unknown identifiers
+   remain in `other` until reviewed. Do not infer that a
    model is callable just because it exists in the display table.
 4. Review the candidate diff, update the static table and its
    `MODEL_DISPLAY_CATALOG_REVIEWED_AT` date, and record the decision. If no ordering
@@ -69,11 +84,20 @@ The 2026-09-27 initial ordering is editorial. NVIDIA entries were seeded from th
 online popularity survey; the initial OpenAI example also includes the user's
 `gpt-6-astra` identifier. Catalogue membership alone makes no availability claim.
 
-Pool model call counts come from the retained cost-overview usage aggregation.
-Credential model call counts come only from that provider/credential pair in the
-recent audit sample (currently up to 1000 recent records across the gateway).
-Success strips use the same recent hourly-window semantics as the whole card;
-running/failed calls are in the denominator. Tooltips distinguish retained counts
-from recent sampled counts. Missing telemetry displays unavailable; an available
-sample with no matching model displays zero calls and unavailable success rate.
+Model rows show three separate metrics: total calls, a service-quality heatmap,
+and total success rate. The console opts into `includeModelTotals=true` on the
+request-summary endpoint. Its optional `retainedModelTotals` is an unsampled SQL
+aggregation over all currently retained audits, independent of the recent summary's
+row/time filters, with identical SQLite/PostgreSQL provider/credential/model keys.
+Pool rows sum all credential buckets (including unattributed historical rows);
+credential rows include only the exact provider and explicit `realCredentialRef`.
+Missing attribution is never guessed. Total success is completed calls divided by
+all retained calls, including running, cancelled and failed calls. These totals
+are not permanent lifetime counters: local audit maintenance retains 90 days.
+The heatmap still uses the last four observed hourly windows from the recent audit
+sample (up to 1000 gateway records), oldest to newest; it is not the total rate.
+Missing totals display unavailable. Available totals with no matching model show
+zero calls and unavailable rate, never 100%. Older backends may still supply pool
+call counts through cost overview, but cannot supply a total success rate; recent
+credential samples are never relabelled as total calls. No new polling is added.
 Refresh updates statistics without changing the release's static display order.

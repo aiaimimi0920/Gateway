@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readManagementSessionToken, writeManagementSessionToken } from "./storage";
-import { createApi, Providers, SessionHarness } from "./managementSessionTestFixtures";
+import { createApi, deferred, Providers, SessionHarness } from "./managementSessionTestFixtures";
 
 describe("ManagementSessionProvider", () => {
   beforeEach(() => {
@@ -30,7 +30,7 @@ describe("ManagementSessionProvider", () => {
     expect(window.localStorage.length).toBe(0);
   });
 
-  it("clears both the in-memory grant and the session access flag", async () => {
+  it("clears in-memory access and restores it automatically without persisting the grant", async () => {
     writeManagementSessionToken("stored-token");
     const api = createApi();
     const user = userEvent.setup();
@@ -45,10 +45,16 @@ describe("ManagementSessionProvider", () => {
     await user.click(screen.getByRole("button", { name: /confirm secret/i }));
     expect(await screen.findByTestId("secret-access")).toHaveTextContent("true");
 
+    const recovery = deferred<import("../api/contracts").SecretGrant>();
+    vi.mocked(api.confirmSecretAccess).mockReturnValueOnce(recovery.promise);
     await user.click(screen.getByRole("button", { name: /clear secret/i }));
 
     expect(screen.getByTestId("grant")).toHaveTextContent("none");
     expect(screen.getByTestId("secret-access")).toHaveTextContent("false");
+    await waitFor(() => expect(api.confirmSecretAccess).toHaveBeenLastCalledWith("stored-token", "stored-token"), { timeout: 2_000 });
+    await act(async () => { recovery.resolve({ grant: "recovered-grant", expiresAt: "2099-01-01T00:00:00Z" }); });
+    expect(screen.getByTestId("secret-access")).toHaveTextContent("true");
+    expect(JSON.stringify(window.sessionStorage)).not.toContain("recovered-grant");
   });
 
   it("updates storage only after token rotation succeeds", async () => {

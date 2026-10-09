@@ -128,7 +128,8 @@ pub(super) async fn send(
         }
     }
 
-    if expects_json_passthrough(&ctx.canonical_req) {
+    let native_text = !tools_were_injected && payload.is_discovered_native(&canonical_req);
+    if expects_json_passthrough(&ctx.canonical_req) || native_text {
         let metric_provider = candidate.provider_account_id.clone();
         let metric_model = model.clone();
         let result = provider_attempt_gate
@@ -165,6 +166,27 @@ pub(super) async fn send(
 
         match result {
             Ok(json_resp) => {
+                if native_text {
+                    let observed = if crate::protocol::dashscope::is_dashscope(&ctx.canonical_req) {
+                        crate::protocol::dashscope::response::observe_native(&json_resp, &model)
+                    } else {
+                        match ctx.canonical_req.endpoint_kind {
+                            EndpointKind::Messages => {
+                                crate::protocol::anthropic::unpack_anthropic_response(&json_resp)
+                            }
+                            EndpointKind::Responses => {
+                                crate::protocol::responses::unpack_responses_response(&json_resp)
+                            }
+                            _ => crate::protocol::openai::unpack_openai_response(&json_resp),
+                        }
+                    };
+                    if let Ok(observed) = observed {
+                        ctx.observed_usage = observed.usage.clone();
+                        ctx.canonical_completion_semantics =
+                            infer_canonical_completion_semantics(&ctx.canonical_req, &observed)
+                                .map(str::to_string);
+                    }
+                }
                 controller.on_success();
                 spawn_record_provider_success(
                     Arc::clone(state),

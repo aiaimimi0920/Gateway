@@ -356,40 +356,52 @@ The response includes:
 - `accounts[]`: reverse mapping from account ID to provider and group IDs;
 - `providers[]`: provider-to-account inventory summary.
 
-The `Test` action in the Accounts workspace uses a credential-scoped probe:
+The Accounts workspace now uses one stable test dialog for pool, subpool and
+account policies. Automatic and manual tabs share the same model/case selection
+and temporary prompts; manual runs one explicit round, while automatic runs the
+saved, active policy in the backend (including local SQLite mode). Policy saves
+update the route draft; the existing console autosave commits settled changes
+after 1.2 seconds, and the backend uses the policy only after that commit succeeds.
+See [credential test policies](docs/credential-test-policies.md) for the UI,
+three-level inheritance, scoring and compatibility boundaries.
 
 ```text
 POST /v1/internal/gateway/console/credentials/{credential_id}/probe
+POST /v1/internal/gateway/console/providers/{provider_id}/probe
+GET  /v1/internal/gateway/console/providers/{provider_id}/probe
+POST /v1/internal/gateway/console/providers/{provider_id}/probe/results
 ```
 
-The endpoint requires an authenticated management session and the exact active
-Secret Grant returned by the confirmation endpoint. Clients must send that
-value in the `x-secret-grant` header; a missing, expired, unknown, or
-context-mismatched grant is rejected with HTTP `403` and
-`console_secret_access_required`. Grants are bound to the management-token
-fingerprint, request origin, and client IP. The probe uses the compiled
-credential from the active route snapshot, so it does not require PostgreSQL;
-disabled credentials never make a network request. The only response statuses
-are:
+All endpoints require management authentication and the exact active Secret Grant
+in `x-secret-grant`. Missing, expired, unknown or context-mismatched grants return
+HTTP `403` with `console_secret_access_required`. GET only reads recent results;
+opening the dialog or switching tabs never calls a model. The browser uses the
+read-only POST `/probe/results` endpoint to keep the confirmation Origin and
+exact Secret Grant context consistent; GET remains available for compatible
+clients. Reads support pool/subpool/account scope before the 128-result bound.
 
-- `passed`: NVIDIA returned a non-empty model reply; other adapters completed their supported HTTP probe;
-- `failed`: the upstream request failed and the returned message was sanitized;
-- `unsupported`: the adapter is fixed-model, browser-backed, stateful, or
-  otherwise has no safe side-effect-free probe.
+A new `testPlan` request selects all configured or explicit models and selected
+cases, with optional expected answers and difficulty 1–3. Account overrides win
+over pool-local identity subpools, which win over pool policies. Parent manual
+rounds honor lower overrides; an explicit account-scope temporary plan tests only
+that account. Empty-body probes use saved policies when present; without them,
+legacy connectivity probes and `scheduled_probe_*` retain their existing behavior.
+The old `prompt/model/credentialIds` request remains supported.
 
-For NVIDIA (`nvidia-openai`), manual single-account and provider-wide tests send
-one non-streaming chat-completion request per enabled credential. They use a
-configured default or supported model and its model mapping, request only `OK`,
-cap output at 256 tokens, wait at most 60 seconds, and reject malformed, empty,
-or token-truncated replies even when HTTP succeeds. They never switch credentials
-or fall back to another provider. Missing model configuration is `unsupported`.
-The model test records request attribution and model health in the configured
-runtime store. Scheduled health probes retain their existing non-generative policy.
+Generated tests currently support OpenAI-compatible chat endpoints and official
+Codex accounts. They require non-empty complete replies and exact credential
+attribution, never fallback to another account, and reject malformed, empty or
+token-truncated replies. Unsupported adapters are explicit, not treated as passed.
+Wrong answers affect the independent assessment, not credential/model health.
+Grades represent the selected test set only, using trimmed case-insensitive exact
+matching; unscored prompts are unrated, not an inferred intelligence ranking.
 
-The response shape is `{ "result": { "credentialId", "providerId", "probePoint",
-"status", "message", "checkedAt" } }`. NVIDIA's message includes the tested model
-and a sanitized reply preview (up to 320 characters). API keys, cookies, tokens,
-and full upstream bodies are never returned.
+The original `passed/failed/unsupported` statuses and account response fields are
+preserved, with optional `assessment` containing per-model callability/quality and
+per-case sanitized answer previews. Each round admits at most 128 calls within
+300 seconds, each call has a 60-second timeout, and route-revision changes stop
+new admissions. Latest results are durable for 30 days in SQLite or Redis. Keys,
+cookies, tokens and full upstream bodies are never returned.
 
 To run an end-to-end local Docker verification against a locally built image:
 

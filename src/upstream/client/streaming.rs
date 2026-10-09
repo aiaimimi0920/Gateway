@@ -220,6 +220,17 @@ impl UpstreamClient {
 
         debug!(url = %plan.url, model, "sending upstream streaming request");
 
+        let mut headers = headers;
+        if matches!(
+            payload.adapter.as_str(),
+            "dashscope_compatible" | "dashscope_multimodal_compatible"
+        ) {
+            headers.insert(
+                "x-dashscope-sse",
+                rquest::header::HeaderValue::from_static("enable"),
+            );
+        }
+
         let response = self
             .send_plan(&plan, headers)
             .send()

@@ -21,6 +21,7 @@ type ConsoleProbeActionsOptions = {
   draftMatchesActiveRevision: boolean;
   credentialProbeGenerationRef: MutableRefObject<number>;
   providerProbeGenerationRef: MutableRefObject<number>;
+  providerProbeAbortRef?: MutableRefObject<AbortController | null>;
   currentApiRef: MutableRefObject<ConsoleApi>;
   currentManagementTokenRef: MutableRefObject<string | null>;
   currentSecretGrantEpochRef: MutableRefObject<number>;
@@ -44,6 +45,7 @@ export function useConsoleProbeActions({
   draftMatchesActiveRevision,
   credentialProbeGenerationRef,
   providerProbeGenerationRef,
+  providerProbeAbortRef,
   currentApiRef,
   currentManagementTokenRef,
   currentSecretGrantEpochRef,
@@ -59,6 +61,7 @@ export function useConsoleProbeActions({
   t,
 }: ConsoleProbeActionsOptions) {
   const mounted = useRef(false);
+  const readOnlyProbe = useRef(false);
   useLayoutEffect(() => {
     mounted.current = true;
     setCredentialProbeBusy(null);
@@ -71,6 +74,7 @@ export function useConsoleProbeActions({
       // Invalidate requests before a late rejection can reopen secret access.
       credentialProbeGenerationRef.current += 1;
       providerProbeGenerationRef.current += 1;
+      providerProbeAbortRef?.current?.abort();
     };
   }, [api, managementToken, credentialProbeGenerationRef, providerProbeGenerationRef]);
 
@@ -181,7 +185,12 @@ export function useConsoleProbeActions({
   );
 
   const handleProviderProbe = useCallback(
-    async (section: Pick<AccountsLedgerPilotSection, "providerId">) => {
+      async (section: Pick<AccountsLedgerPilotSection, "providerId">, options?: import("../../api/contracts").ConsoleProviderProbeRequest & { includePlans?: boolean }, readOnly = false) => {
+      if (readOnly && !api.readProviderProbeResults) return;
+      if (providerProbeAbortRef?.current && !providerProbeAbortRef.current.signal.aborted) {
+        if (!readOnlyProbe.current) return;
+        providerProbeAbortRef.current.abort();
+      }
       if (!mounted.current || api !== currentApiRef.current ||
           managementToken !== currentManagementTokenRef.current) return;
       if (!managementToken) {
@@ -200,7 +209,7 @@ export function useConsoleProbeActions({
         setSecretDialogOpen(true);
         return;
       }
-      if (draftDirty || !draftMatchesActiveRevision) {
+      if (!readOnly && (draftDirty || !draftMatchesActiveRevision)) {
         setProviderProbeError(
           t(
             "请先保存当前路由草稿，再测试已生效的服务商账号。",
@@ -236,19 +245,26 @@ export function useConsoleProbeActions({
         );
       };
 
-      setProviderProbeBusy(true);
+      setProviderProbeBusy(!readOnly);
       setProviderProbeError(null);
       setProviderProbeResponse(null);
+      const abort = new AbortController();
+      readOnlyProbe.current = readOnly;
+      providerProbeAbortRef?.current?.abort();
+      if (providerProbeAbortRef) providerProbeAbortRef.current = abort;
       try {
-        const response = await probeApi.probeProvider(
+        const response = readOnly ? await probeApi.readProviderProbeResults!(probeManagementToken, probeSecretGrant, section.providerId, { signal: abort.signal }, options?.scope, { planId: options?.planId, includePlans: options?.includePlans }) : await probeApi.probeProvider(
           probeManagementToken,
           probeSecretGrant,
           section.providerId,
+          options,
+          { signal: abort.signal },
         );
         if (!isCurrentProbe()) {
           return;
         }
         setProviderProbeResponse(response);
+        return response;
       } catch (cause) {
         if (!mounted.current || !isCurrentProbeIdentity()) return;
         const secretRecovery = handleSecretAccessRequiredError(cause, isCurrentProbeRecovery);
@@ -257,6 +273,7 @@ export function useConsoleProbeActions({
         }
         setProviderProbeError(cause instanceof Error ? cause.message : String(cause));
       } finally {
+        if (providerProbeAbortRef?.current === abort) providerProbeAbortRef.current = null;
         if (probeGeneration === providerProbeGenerationRef.current) {
           setProviderProbeBusy(false);
         }

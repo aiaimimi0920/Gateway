@@ -10,11 +10,9 @@ import {
   BucketList,
 } from "./OperationsPrimitives";
 
-type Props = Pick<OperationsWorkspaceProps,
-  | "t"
-  | "remediationEffectiveness"
-  | "remediationQueue"
-  | "remediationRuns"
+type Props = Pick<
+  OperationsWorkspaceProps,
+  "t" | "remediationEffectiveness" | "remediationQueue" | "remediationRuns"
 >;
 
 export function OperationsRemediationPanels({
@@ -26,6 +24,7 @@ export function OperationsRemediationPanels({
   return (
     <>
       <Panel
+        collapsed
         state={remediationEffectiveness}
         t={t}
         title={t("处置成效", "Remediation impact")}
@@ -33,7 +32,10 @@ export function OperationsRemediationPanels({
         {(data) => (
           <>
             <div className="nt-pilot-stats-overview-grid">
-              <StatCard label={t("执行次数", "Runs")} value={formatCount(data.totalRuns)} />
+              <StatCard
+                label={t("执行次数", "Runs")}
+                value={formatCount(data.totalRuns)}
+              />
               <StatCard
                 label={t("已评估", "Measured")}
                 tone="blue"
@@ -68,13 +70,26 @@ export function OperationsRemediationPanels({
                 <dd>{formatCount(data.firstTokenLatencyMsAvg.improvedRuns)}</dd>
               </div>
             </dl>
-            <BucketList buckets={data.byActionKey} t={t} title={t("按动作", "By action")} />
-            <BucketList buckets={data.byStatus} t={t} title={t("按状态", "By status")} />
+            <BucketList
+              buckets={data.byActionKey}
+              t={t}
+              title={t("按动作", "By action")}
+            />
+            <BucketList
+              buckets={data.byStatus}
+              t={t}
+              title={t("按状态", "By status")}
+            />
           </>
         )}
       </Panel>
 
-      <Panel state={remediationQueue} t={t} title={t("处置队列", "Remediation queue")}>
+      <Panel
+        collapsed={!remediationQueue.data?.itemCount}
+        state={remediationQueue}
+        t={t}
+        title={t("处置队列", "Remediation queue")}
+      >
         {(data) => (
           <>
             <div className="nt-pilot-stats-overview-grid">
@@ -116,14 +131,20 @@ export function OperationsRemediationPanels({
                     <span title={item.action.description}>
                       {formatText(item.action.title || item.action.actionKey)}
                     </span>
-                    <span title={item.incident.id}>{formatText(item.incident.code)}</span>
+                    <span title={item.incident.id}>
+                      {formatText(item.incident.code)}
+                    </span>
                     <span>
                       {formatTimestamp(item.nextRunDueAt)}
                       {item.remediationDue ? (
-                        <span className="nt-badge nt-badge--warning">{t("到期", "Due")}</span>
+                        <span className="nt-badge nt-badge--warning">
+                          {t("到期", "Due")}
+                        </span>
                       ) : null}
                     </span>
-                    <span className="nt-copy">{formatText(item.blockedReason)}</span>
+                    <span className="nt-copy">
+                      {formatText(item.blockedReason)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -133,6 +154,7 @@ export function OperationsRemediationPanels({
       </Panel>
 
       <Panel
+        collapsed
         emptyLabel={t("暂无处置记录", "No remediation runs yet")}
         state={remediationRuns}
         t={t}
@@ -153,13 +175,17 @@ export function OperationsRemediationPanels({
               </div>
               {rows.map((run) => (
                 <div className="nt-table__row" key={run.id}>
-                  <span title={run.actionKey}>{formatText(run.title || run.actionKey)}</span>
+                  <span title={run.actionKey}>
+                    {formatText(run.title || run.actionKey)}
+                  </span>
                   <span>
                     <span className={statusBadgeClass(run.status)}>
                       {formatText(run.status)}
                     </span>
                     {run.dryRun ? (
-                      <span className="nt-chip nt-chip--muted">{t("演练", "Dry run")}</span>
+                      <span className="nt-chip nt-chip--muted">
+                        {t("演练", "Dry run")}
+                      </span>
                     ) : null}
                   </span>
                   <span title={run.incidentId}>{shortId(run.incidentId)}</span>

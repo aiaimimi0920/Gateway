@@ -1,4 +1,4 @@
-//! Local operator-issued keys. Secrets are returned once and only SHA-256 is stored.
+//! Local operator-issued keys. Authentication uses hashes; managed copies use sealed secrets.
 use super::{storage_error, LocalRuntime};
 use crate::db::{
     DeleteAccessKeyResult, GatewayAccessCatalogView, GatewayAccessKeyView, UpsertAccessKeyInput,
@@ -8,13 +8,19 @@ use sha2::{Digest, Sha256};
 use sqlx::{Sqlite, Transaction};
 
 pub(super) mod policy;
+pub(super) mod secrets;
 pub use policy::local_key_id;
+#[cfg(test)]
+mod editing_tests;
+#[cfg(test)]
+mod lifecycle_tests;
 #[cfg(test)]
 mod tests;
 
 pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS local_access_keys (
     id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, payload TEXT NOT NULL);
-    CREATE INDEX IF NOT EXISTS local_access_keys_order ON local_access_keys(id);";
+    CREATE INDEX IF NOT EXISTS local_access_keys_order ON local_access_keys(id);
+    CREATE TABLE IF NOT EXISTS local_access_key_secrets (key_id TEXT PRIMARY KEY REFERENCES local_access_keys(id) ON DELETE CASCADE, sealed TEXT NOT NULL);";
 pub const ID_PREFIX: &str = "local-ak-";
 const MAX_KEYS: i64 = 10_000;
 
@@ -73,6 +79,7 @@ async fn write(
 async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
     key: &mut GatewayAccessKeyView,
+    sealer: &secrets::KeySecretStore,
 ) -> Result<(), GatewayError> {
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM local_access_keys")
         .fetch_one(&mut **tx)
@@ -84,7 +91,7 @@ async fn insert(
         ));
     }
     key.id = format!("{ID_PREFIX}{}", uuid::Uuid::new_v4());
-    // Two independent UUIDs provide 244 random bits. No recoverable secret is persisted.
+    // Two independent UUIDs provide 244 random bits, independent of the display encryption key.
     let token = format!(
         "{}-local-{}{}",
         key.public_key_prefix,
@@ -98,12 +105,24 @@ async fn insert(
         .await
         .map_err(storage_error)?;
     write(tx, key).await?;
+    secrets::store(tx, sealer, &key.id, &token).await?;
     super::access_balances::create(tx, &key.id, key.rotated_from_access_key_id.as_deref()).await?;
     key.token = Some(token);
     Ok(())
 }
 
 impl LocalRuntime {
+    pub async fn access_key_metadata(
+        &self,
+        id: &str,
+    ) -> Result<Option<serde_json::Value>, GatewayError> {
+        let mut tx = self.pool.begin().await.map_err(storage_error)?;
+        let key = read(&mut tx, id).await?;
+        policy::ensure_active(&key)?;
+        tx.commit().await.map_err(storage_error)?;
+        Ok(key.metadata)
+    }
+
     pub async fn access_catalog(&self) -> Result<GatewayAccessCatalogView, GatewayError> {
         let rows: Vec<String> =
             sqlx::query_scalar("SELECT payload FROM local_access_keys ORDER BY id LIMIT 10000")
@@ -130,7 +149,19 @@ impl LocalRuntime {
         id: Option<&str>,
         input: UpsertAccessKeyInput,
     ) -> Result<GatewayAccessKeyView, GatewayError> {
+        self.save_access_key_with_quota(id, input, None).await
+    }
+
+    pub async fn save_access_key_with_quota(
+        &self,
+        id: Option<&str>,
+        input: UpsertAccessKeyInput,
+        quota: Option<&crate::access_balance::quota::KeyQuotaInput>,
+    ) -> Result<GatewayAccessKeyView, GatewayError> {
         policy::validate_input(&input)?;
+        if let Some(quota) = quota {
+            quota.validate()?;
+        }
         let mut tx = self
             .pool
             .begin_with("BEGIN IMMEDIATE")
@@ -181,9 +212,12 @@ impl LocalRuntime {
         key.metadata = input.metadata;
         key.updated_at = timestamp;
         if id.is_none() {
-            insert(&mut tx, &mut key).await?;
+            insert(&mut tx, &mut key, &self.key_secrets).await?;
         } else {
             write(&mut tx, &key).await?;
+        }
+        if let Some(quota) = quota {
+            super::access_balances::set_key_quota(&mut tx, &key.id, quota).await?;
         }
         tx.commit().await.map_err(storage_error)?;
         Ok(key)
@@ -207,7 +241,7 @@ impl LocalRuntime {
         old.revoke_reason = Some("rotated".into());
         old.updated_at = now();
         write(&mut tx, &old).await?;
-        insert(&mut tx, &mut replacement).await?;
+        insert(&mut tx, &mut replacement, &self.key_secrets).await?;
         tx.commit().await.map_err(storage_error)?;
         Ok(replacement)
     }
@@ -233,6 +267,30 @@ impl LocalRuntime {
             key.updated_at = now();
             write(&mut tx, &key).await?;
         }
+        tx.commit().await.map_err(storage_error)?;
+        Ok(())
+    }
+
+    pub async fn set_access_key_enabled(
+        &self,
+        id: &str,
+        enabled: bool,
+    ) -> Result<(), GatewayError> {
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(storage_error)?;
+        let mut key = read(&mut tx, id).await?;
+        // Revocation (including rotation) is terminal; toggling must not resurrect old tokens.
+        if key.revoked_at.is_some() || !matches!(key.status.as_str(), "active" | "disabled") {
+            return Err(GatewayError::conflict(
+                "Only active or disabled keys can be toggled",
+            ));
+        }
+        key.status = if enabled { "active" } else { "disabled" }.into();
+        key.updated_at = now();
+        write(&mut tx, &key).await?;
         tx.commit().await.map_err(storage_error)?;
         Ok(())
     }

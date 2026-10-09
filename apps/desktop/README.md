@@ -8,6 +8,8 @@
 - `gateway-ui.exe` 自动运行本地核心，或连接指定的已有 Gateway。
 - 管理窗口直接加载所选服务器的 `/ui/`，与浏览器使用完全相同的页面。
 - 服务器页面没有 Tauri 原生权限；本地连接设置窗口单独持有原生权限。
+- 自动启动时连接设置窗口保持隐藏；管理页面完成加载后才显示窗口。两个 WebView
+  均使用深色原生底色，避免空文档白屏。配置读取或连接失败时显示连接设置供重试。
 - 桌面窗口沿用 Loom 的无系统标题栏布局；窗口按钮与连接入口合并到应用顶栏。
   窗口操作使用仅含固定动作的本地导航桥，不能读取文件、修改连接配置或调用进程命令。
   旧服务器页面未确认支持应用内窗口按钮时，保留系统标题栏与菜单。
@@ -84,6 +86,31 @@ npm run tauri -- dev
 - `/v1/chat/completions`（最小 API 测试）
 
 ## Release artifacts
+
+### Windows 图标
+
+`public/favicon.svg` 是 Gateway 标志的唯一矢量来源，背景保持透明，不添加黑色底板。
+修改后在 `apps/desktop` 运行以下命令，再重新构建 EXE：
+
+```powershell
+node scripts/render-brand-icons.mjs
+node --test scripts/render-brand-icons.test.mjs
+```
+
+生成物包括 512px PNG 和覆盖 16–256px 的多尺寸 ICO。ICO 必须把 256px 图层放在
+第一项：当前 Tauri 的 Windows context 只解码 ICO 第一项作为默认窗口图标；
+把 16px 放在首位会导致窗口与任务栏图标放大模糊。其余图层供 Windows 按 DPI 选择。
+回归测试验证首帧尺寸、透明度、品牌线条及 PNG 与矢量来源的一致性。
+
+`gateway.exe` 也通过根 `build.rs` 和 `build_support/windows.rc` 嵌入同一份 ICO，
+不维护第二份图标。Windows 资源编译失败会阻止构建；非 Windows 目标不嵌入该资源。
+发布后同时检查两个 EXE 的全部图层：
+
+```powershell
+python tools/verify-gateway-windows-icons.py --release-dir <release-directory> --icon apps/desktop/src-tauri/icons/icon.ico
+```
+
+### Portable package
 
 `Gateway` release 构建会同时输出：
 

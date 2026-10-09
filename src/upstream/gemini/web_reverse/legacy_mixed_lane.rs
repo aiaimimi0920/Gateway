@@ -171,6 +171,7 @@ mod tests {
 
     fn make_payload(adapter: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
             base_url: "https://gemini.google.com".to_string(),
             api_key: "psid-test".to_string(),

@@ -30,6 +30,9 @@ describe("access key input contracts", () => {
       displayName: " Primary ",
       expiresAt: " ",
       bundleIds: ["bundle-1"],
+      accountGroupIds: ["group-a", "group-b"],
+      quotaMode: "unlimited",
+      quotaLimit: "",
     };
     expect(buildAccessKeyInput(draft)).toEqual({
       ownerType: "user",
@@ -41,6 +44,8 @@ describe("access key input contracts", () => {
       displayName: "Primary",
       expiresAt: null,
       bundleIds: ["bundle-1"],
+      metadata: { accountGroupIds: ["group-a", "group-b"] },
+      quota: { mode: "unlimited", limit: null },
     });
   });
 

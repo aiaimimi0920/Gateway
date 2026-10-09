@@ -48,7 +48,7 @@ fn recursive_redaction_masks_credentials_without_erasing_transport_metadata() {
 fn model_pricing_patch_preserves_other_models_and_supports_explicit_removal() {
     let entries = serde_json::from_value(json!([
         {"model": " remove-me "},
-        {"model": " update-me ", "promptMicrosPer1kTokens": -1, "completionMicrosPer1kTokens": 12},
+        {"model": " update-me ", "promptMicrosPer1kTokens": 0, "completionMicrosPer1kTokens": 12},
         {"model": "   ", "promptMicrosPer1kTokens": 99}
     ]))
     .unwrap();
@@ -75,6 +75,16 @@ fn model_pricing_patch_preserves_other_models_and_supports_explicit_removal() {
             "transport": {"timeoutSeconds": 17}
         })
     );
+}
+
+#[test]
+fn negative_or_unsafe_model_prices_are_rejected_instead_of_becoming_free() {
+    for value in [-1, crate::cash_billing::MAX_MICROS + 1] {
+        let entries = serde_json::from_value(json!([
+            {"model":"paid-model", "promptMicrosPer1kTokens":value, "completionMicrosPer1kTokens":12}
+        ])).unwrap();
+        assert!(merge_provider_model_pricing(json!({}), entries).is_err());
+    }
 }
 
 #[test]

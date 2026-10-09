@@ -2,17 +2,17 @@ import {
   Activity,
   CalendarClock,
   CircleDollarSign,
-  Ellipsis,
+  ArrowLeftRight,
   Gauge,
   Pencil,
   Plus,
-  Search,
   Send,
   Trash2,
   TrendingUp,
 } from "lucide-react";
 
 import { ActionTooltip } from "../../components/ActionTooltip";
+import { AccountBillingAction } from "./AccountBillingAction";
 import { CardModelList } from "./CardModelList";
 import { AccountRoutingPoolSelect } from "./AccountRoutingPoolSelect";
 import { ProviderQuotaPanel, quotaWindowRemainingRatio } from "./accountCardQuota";
@@ -74,7 +74,6 @@ export function ProviderAccountCard(props: {
   menu: ProviderAccountCardMenu;
 }) {
   const { t, account, editorLocked, groupOptions, handlers, menu } = props;
-  const accountMenuKey = `${menu.keyPrefix}:${account.providerId}:${account.accountId}`;
   const accountPoolState = classifyAccountPoolState(account);
   const accountConcurrency = aggregateProviderConcurrency([account]);
   const accountCosts = aggregateProviderCosts([account]);
@@ -92,14 +91,6 @@ export function ProviderAccountCard(props: {
     accountSuccessTotals.requests > 0
       ? accountSuccessTotals.success / accountSuccessTotals.requests
       : null;
-  const verificationLabel =
-    account.verificationStatus === "verified"
-      ? t("已验证", "Verified")
-      : account.verificationStatus === "failed"
-        ? t("验证失败", "Verification failed")
-        : account.verificationStatus === "blocked"
-          ? t("验证阻塞", "Verification blocked")
-          : t("未测试", "Not tested");
   const accountQuotaWindows: QuotaDisplayWindow[] = (account.quota?.windows ?? [])
     .slice(0, 2)
     .map((window) => ({
@@ -120,36 +111,16 @@ export function ProviderAccountCard(props: {
         <div className="nt-provider-account-card__identity">
           <strong title={account.displayName}>{account.displayName}</strong>
         </div>
-        <div className="nt-provider-account-card__state">
-          <span
-            className={
-              accountPoolState === "available"
-                ? "nt-badge nt-badge--success"
-                : accountPoolState === "invalid"
-                  ? "nt-badge nt-badge--danger"
-                  : accountPoolState === "rate-limited"
-                    ? "nt-badge nt-badge--warning"
-                    : "nt-badge nt-badge--muted"
-            }
-            title={account.statusLabel}
-          >
-            {account.statusLabel}
-          </span>
-          <ActionTooltip label={t(`查看 ${account.displayName} 统计`, `View stats for ${account.displayName}`)}>
-            <button
-              className="nt-provider-account-card__stats"
-              type="button"
-              aria-label={t(
-                `查看 ${account.displayName} 统计`,
-                `View stats for ${account.displayName}`,
-              )}
-              title={`${verificationLabel}${account.verificationNote ? ` · ${account.verificationNote}` : ""}`}
-              onClick={() => handlers.onOpenStats(account.providerId, account)}
-            >
-              <Search size={13} aria-hidden="true" />
-            </button>
-          </ActionTooltip>
-        </div>
+        {account.mode !== "provider-default" ? <ActionTooltip label={t(`编辑账号 ${account.displayName}`, `Edit account ${account.displayName}`)}>
+          <button className="nt-icon-action" type="button"
+            disabled={editorLocked || account.previewOnly}
+            aria-label={t(`编辑账号 ${account.displayName}`, `Edit account ${account.displayName}`)}
+            onClick={() => handlers.onEdit(account.providerId, account.accountId)}>
+            <Pencil size={14} aria-hidden="true" />
+          </button>
+        </ActionTooltip> : null}
+        <AccountBillingAction providerId={account.providerId} accountId={account.accountId}
+          name={account.displayName} locked={editorLocked || Boolean(account.previewOnly)} t={t} />
       </header>
 
       <div className="nt-provider-account-card__body">
@@ -270,7 +241,7 @@ export function ProviderAccountCard(props: {
         </div>
       </div>
 
-      <footer className="nt-provider-account-card__actions">
+      <footer className="nt-provider-account-card__actions nt-provider-card__actions">
         {account.mode === "provider-default" ? (
           <button
             className="nt-btn nt-btn--secondary nt-btn--compact"
@@ -283,110 +254,32 @@ export function ProviderAccountCard(props: {
           </button>
         ) : (
           <>
-            <ActionTooltip
-              label={t(`调度账号 ${account.accountId}`, `Dispatch account ${account.accountId}`)}
-            >
-              <button
-className={account.enabled ? "nt-switch nt-switch--on" : "nt-switch"}
-                type="button"
-                role="switch"
-aria-checked={account.enabled}
-                aria-label={t(`调度 ${account.accountId}`, `Dispatch ${account.accountId}`)}
-                disabled={editorLocked || !account.dispatchEditable || account.previewOnly}
-                onClick={() =>
-                  handlers.onToggleDispatch(
-                    account.providerId,
-                    account.accountId,
-                    !account.enabled,
-                  )
-                }
-              >
-                <span className="nt-switch__track" aria-hidden="true">
-                  <span className="nt-switch__thumb" />
-                </span>
-              </button>
-            </ActionTooltip>
-            <ActionTooltip
-              label={t(`编辑账号 ${account.displayName}`, `Edit account ${account.displayName}`)}
-            >
-              <button
-                className="nt-icon-action"
-                type="button"
-                disabled={editorLocked || account.previewOnly}
-                aria-label={t(
-                  `编辑账号 ${account.displayName}`,
-                  `Edit account ${account.displayName}`,
-                )}
-                onClick={() => handlers.onEdit(account.providerId, account.accountId)}
-              >
-                <Pencil size={14} aria-hidden="true" />
-              </button>
-            </ActionTooltip>
-            <ActionTooltip
-              label={t(`删除账号 ${account.displayName}`, `Delete account ${account.displayName}`)}
-            >
-              <button
-                className="nt-icon-action nt-icon-action--danger"
-                type="button"
-                disabled={editorLocked || account.previewOnly}
-                aria-label={t(
-                  `删除账号 ${account.displayName}`,
-                  `Delete account ${account.displayName}`,
-                )}
-                onClick={() =>
-                  handlers.onRequestRemoval(
-                    account.providerId,
-                    account.accountId,
-                    account.displayName,
-                  )
-                }
-              >
-                <Trash2 size={14} aria-hidden="true" />
-              </button>
-            </ActionTooltip>
-            <div className="nt-pilot-menu" data-pilot-menu-key={accountMenuKey}>
-              <ActionTooltip
-                label={t(`更多操作 ${account.accountId}`, `More actions ${account.accountId}`)}
-              >
-                <button
-                  className="nt-icon-action"
-                  type="button"
-                  ref={(node) => menu.registerTrigger(accountMenuKey, node)}
-                  aria-haspopup="menu"
-                  aria-expanded={menu.activeKey === accountMenuKey}
-                  aria-label={t(
-                    `更多操作 ${account.accountId}`,
-                    `More actions ${account.accountId}`,
-                  )}
-                  onClick={() =>
-                    menu.onActiveKeyChange((current) =>
-                      current === accountMenuKey ? null : accountMenuKey,
-                    )
-                  }
-                >
-                  <Ellipsis size={14} aria-hidden="true" />
-                </button>
-              </ActionTooltip>
-              {menu.activeKey === accountMenuKey ? (
-                <div className="nt-pilot-menu__panel" role="menu">
-                  {menu.items.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        className="nt-pilot-menu__item"
-                        key={item.id}
-                        role="menuitem"
-                        type="button"
-                        onClick={() => menu.onAction(item.id, account.providerId, account)}
-                      >
-                        <Icon size={15} aria-hidden="true" />
-                        <span>{t(item.label[0], item.label[1])}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
+            <button className={`nt-provider-card__action${account.enabled ? " nt-provider-card__action--active" : ""}`}
+              type="button" role="switch" aria-checked={account.enabled}
+              aria-label={t(`调度 ${account.accountId}`, `Dispatch ${account.accountId}`)}
+              disabled={editorLocked || !account.dispatchEditable || account.previewOnly}
+              onClick={() => handlers.onToggleDispatch(account.providerId, account.accountId, !account.enabled)}>
+              <span className="nt-switch__track" aria-hidden="true"><span className="nt-switch__thumb" /></span>
+            </button>
+            <button className="nt-provider-card__action nt-provider-card__action--icon" type="button"
+              disabled={editorLocked || account.previewOnly}
+              aria-label={t(`测试账号 ${account.displayName}`, `Test account ${account.displayName}`)}
+              onClick={() => menu.onAction("probe", account.providerId, account)}>
+              <Activity size={14} aria-hidden="true" />
+            </button>
+            <button className="nt-provider-card__action nt-provider-card__action--icon" type="button"
+              disabled={editorLocked || account.previewOnly}
+              aria-label={t(`模型映射 ${account.displayName}`, `Model mapping ${account.displayName}`)}
+              title={t("编辑所属凭据池的模型映射", "Edit model mapping for this credential pool")}
+              onClick={() => menu.onAction("model-mapping", account.providerId, account)}>
+              <ArrowLeftRight size={14} aria-hidden="true" />
+            </button>
+            <button className="nt-provider-card__action nt-provider-card__action--icon nt-provider-card__action--danger" type="button"
+              disabled={editorLocked || account.previewOnly}
+              aria-label={t(`删除账号 ${account.displayName}`, `Delete account ${account.displayName}`)}
+              onClick={() => handlers.onRequestRemoval(account.providerId, account.accountId, account.displayName)}>
+              <Trash2 size={14} aria-hidden="true" />
+            </button>
           </>
         )}
       </footer>

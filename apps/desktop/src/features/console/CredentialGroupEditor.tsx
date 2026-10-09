@@ -1,3 +1,5 @@
+import type { Ref } from "react";
+
 import type { AccountGroupDraftLike } from "./accountManagementViewModel";
 import type { CredentialGroupsWorkspaceProps, TranslateFn } from "./credentialGroupsWorkspaceTypes";
 
@@ -12,6 +14,10 @@ type CredentialGroupEditorProps = Pick<
 > & {
   t: TranslateFn;
   group: AccountGroupDraftLike;
+  nameInputRef?: Ref<HTMLInputElement>;
+  groupIdInputRef?: Ref<HTMLInputElement>;
+  creating?: boolean;
+  groupIdError?: string;
 };
 
 function groupTitle(t: TranslateFn, group: AccountGroupDraftLike): string {
@@ -21,6 +27,10 @@ function groupTitle(t: TranslateFn, group: AccountGroupDraftLike): string {
 export function CredentialGroupEditor({
   t,
   group,
+  nameInputRef,
+  groupIdInputRef,
+  creating = false,
+  groupIdError,
   editorLocked,
   selectedGroupIdInvalid,
   selectedGroupBillingInvalid,
@@ -49,21 +59,23 @@ export function CredentialGroupEditor({
             />
             <span>{group.enabled ? t("启用", "Enabled") : t("停用", "Disabled")}</span>
           </label>
-          <button
+          {!creating && <button
             className="nt-btn nt-btn--outline"
             type="button"
             disabled={editorLocked}
             onClick={() => onRemoveGroup(group.id)}
           >
             {t("移除分组", "Remove group")}
-          </button>
+          </button>}
         </div>
       </div>
 
       <div className="nt-form-grid">
         <label className="nt-field">
-          <span>{t("分组 ID", "Group ID")}</span>
+          <span id={`${group.id}-group-id-label`}>{t("分组 ID", "Group ID")}</span>
           <input
+            ref={groupIdInputRef}
+            aria-labelledby={`${group.id}-group-id-label`}
             className="nt-input"
             value={group.groupId}
             disabled={editorLocked}
@@ -72,12 +84,13 @@ export function CredentialGroupEditor({
             onChange={(event) => onUpdateField(group.id, "groupId", event.currentTarget.value)}
           />
           {selectedGroupIdInvalid ? (
-            <small id={groupIdErrorId}>{t("分组 ID 必须填写。", "Group ID is required.")}</small>
+            <small id={groupIdErrorId}>{groupIdError ?? t("分组 ID 必须填写。", "Group ID is required.")}</small>
           ) : null}
         </label>
         <label className="nt-field">
           <span>{t("分组名称", "Group name")}</span>
           <input
+            ref={nameInputRef}
             className="nt-input"
             value={group.name}
             disabled={editorLocked}
@@ -85,10 +98,11 @@ export function CredentialGroupEditor({
           />
         </label>
         <label className="nt-field">
-          <span>{t("计费倍率", "Billing multiplier")}</span>
+          <span id={`${group.id}-billing-label`}>{t("计费倍率", "Billing multiplier")}</span>
           <input
             className="nt-input"
             inputMode="decimal"
+            aria-labelledby={`${group.id}-billing-label`}
             value={group.billingMultiplier}
             disabled={editorLocked}
             aria-invalid={selectedGroupBillingInvalid}

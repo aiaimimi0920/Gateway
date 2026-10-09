@@ -148,6 +148,7 @@ pub(super) fn build_base_payload(
         };
 
         Ok(ProviderAccountPayload {
+            discovered_protocols: Vec::new(),
             adapter,
             base_url: base_url_override.unwrap_or(&cfg.base_url).to_string(),
             api_key,

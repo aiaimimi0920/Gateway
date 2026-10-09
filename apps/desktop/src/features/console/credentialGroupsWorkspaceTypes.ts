@@ -30,6 +30,7 @@ export type EntitlementAccountCardBridge = {
 export type CredentialGroupsWorkspaceProps = {
   t: TranslateFn;
   notice?: ReactNode;
+  error?: string | null;
   editorLocked: boolean;
   groups: CredentialGroupDirectoryItem[];
   selectedGroupRowId: string | null;

@@ -17,7 +17,6 @@ function renderDialog(
     hasSecretAccess: true,
     onOpenChange: vi.fn(),
     onRequestSecretAccess: vi.fn(),
-    onAddAccount: vi.fn(),
     onSubmit: vi.fn(),
     ...overrides,
   };
@@ -43,7 +42,7 @@ describe("ProviderCatalogDialog", () => {
         <button onClick={() => setOpen(true)}>Add provider</button>
         <ProviderCatalogDialog open={open} onOpenChange={setOpen}
           existingProviderIds={[]} existingCredentialIds={[]} locked={false}
-          hasSecretAccess onRequestSecretAccess={vi.fn()} onAddAccount={vi.fn()}
+          hasSecretAccess onRequestSecretAccess={vi.fn()}
           onSubmit={onSubmit} />
       </UiLocaleProvider>;
     }
@@ -61,7 +60,7 @@ describe("ProviderCatalogDialog", () => {
     const user = userEvent.setup();
     const props = renderDialog();
 
-    await user.click(screen.getByRole("button", { name: /自定义 OpenAI-compatible/i }));
+    await user.click(screen.getByRole("button", { name: /自定义 API 服务商/i }));
     await user.clear(screen.getByLabelText("Provider ID"));
     await user.type(screen.getByLabelText("Provider ID"), "partner-openai");
     await user.clear(screen.getByLabelText("显示名称"));
@@ -80,7 +79,7 @@ describe("ProviderCatalogDialog", () => {
     await user.click(screen.getByRole("button", { name: "创建服务商与首个账号" }));
 
     expect(props.onSubmit).toHaveBeenCalledWith({
-      templateId: "custom-openai-compatible",
+      templateId: "custom-api-provider",
       providerId: "partner-openai",
       providerLabel: "Partner OpenAI",
       vendorKey: "partner",
@@ -93,15 +92,39 @@ describe("ProviderCatalogDialog", () => {
     });
   }, 15_000);
 
-  it("routes an existing catalog provider into the normal add-account flow", async () => {
+  it.each([
+    ["muyuan-openai", /Muyuan · 第三方 OpenAI 兼容/i],
+    ["openai", /OpenAI 官方 API/i],
+    ["custom-api-provider", /自定义 API 服务商/i],
+  ])("creates another independent %s provider with unoccupied identities", async (id, name) => {
     const user = userEvent.setup();
-    const props = renderDialog({ existingProviderIds: ["muyuan-openai"] });
+    const props = renderDialog({ existingProviderIds: [id, `${id}-2`], existingCredentialIds: [`${id}-3-account-1`] });
+    await user.click(screen.getByRole("button", { name }));
+    expect(screen.getByLabelText("Provider ID")).toHaveValue(`${id}-3`);
+    expect(screen.getByLabelText("首个账号 ID")).toHaveValue(`${id}-3-account-1-2`);
+    if (id === "custom-api-provider") {
+      await user.type(screen.getByLabelText("Base URL"), "https://second.example.test");
+      await user.type(screen.getByLabelText("支持模型与聚合路由"), "fixture-model");
+    }
+    await user.type(screen.getByLabelText("API Key"), "fixture-key");
+    await user.click(screen.getByRole("button", { name: "创建服务商与首个账号" }));
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ providerId: `${id}-3`, credentialId: `${id}-3-account-1-2` }));
+  });
 
-    await user.click(screen.getByRole("button", { name: /Muyuan · 第三方 OpenAI 兼容/i }));
-    expect(screen.getByText("该 Provider 已存在")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "为现有服务商添加账号" }));
-
-    expect(props.onAddAccount).toHaveBeenCalledWith("muyuan-openai");
+  it("keeps a colliding ID editable and rejects it without redirecting or overwriting", async () => {
+    const user = userEvent.setup();
+    const props = renderDialog({ existingProviderIds: ["openai"] });
+    await user.click(screen.getByRole("button", { name: /OpenAI 官方 API/i }));
+    await user.clear(screen.getByLabelText("Provider ID"));
+    await user.type(screen.getByLabelText("Provider ID"), "openai");
+    await user.type(screen.getByLabelText("API Key"), "fixture-key");
+    await user.click(screen.getByRole("button", { name: "创建服务商与首个账号" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Provider ID openai 已存在");
     expect(props.onSubmit).not.toHaveBeenCalled();
+    expect(props.onOpenChange).not.toHaveBeenCalled();
+    await user.clear(screen.getByLabelText("Provider ID"));
+    await user.type(screen.getByLabelText("Provider ID"), "openai-second");
+    await user.click(screen.getByRole("button", { name: "创建服务商与首个账号" }));
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ providerId: "openai-second" }));
   });
 });

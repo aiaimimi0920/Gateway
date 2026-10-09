@@ -62,7 +62,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
             .map(|(idx, cred)| {
                 let cred_id = effective_credential_id(&cfg.id, idx, cred).into_owned();
 
-                let cred_payload = build_base_payload(
+                let mut cred_payload = build_base_payload(
                     &cfg,
                     cred.base_url.as_deref(),
                     cred.api_key.as_deref(),
@@ -86,6 +86,10 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                     cred.endpoint_execution_modes.as_ref(),
                     Some(&cred_id),
                 )?;
+
+                if let Some(discovery) = &cred.discovery {
+                    discovery.apply(&mut cred_payload)?;
+                }
 
                 // Build OAuth refresh config if refresh_token is provided.
                 let refresh_config = match (&cred.refresh_token, &cred.refresh_endpoint) {
@@ -126,10 +130,15 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                 };
 
                 Ok(CompiledCredential {
+                    discovery: cred.discovery.clone(),
                     id: cred_id,
                     payload: cred_payload,
                     enabled: cred.enabled.unwrap_or(true),
-                    supported_models: cred.supported_models.clone(),
+                    supported_models: cred
+                        .discovery
+                        .as_ref()
+                        .map(|d| d.models.clone())
+                        .unwrap_or_else(|| cred.supported_models.clone()),
                     scheduled_probe_enabled: cred.scheduled_probe_enabled,
                     scheduled_probe_interval_minutes: cred
                         .scheduled_probe_interval_minutes
@@ -149,6 +158,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
         protocol_profile,
         supported_models: cfg.supported_models,
         model_map: cfg.model_map,
+        model_map_targets: cfg.model_map_targets,
         scheduled_probe_enabled: cfg.scheduled_probe_enabled,
         scheduled_probe_interval_minutes: cfg
             .scheduled_probe_interval_minutes

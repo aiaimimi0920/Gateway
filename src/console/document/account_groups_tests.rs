@@ -12,6 +12,10 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
     let document = RouteConfigYaml {
         providers: vec![
             ProviderConfigYaml {
+                test_plans: Vec::new(),
+                test_policy: None,
+                subpool_test_policies: Default::default(),
+                default_account_test_policy: None,
                 id: "managed-provider".to_string(),
                 label: Some("Managed OpenAI".to_string()),
                 vendor_key: None,
@@ -53,6 +57,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 search_query_field: None,
                 fetch_urls_field: None,
                 model_map: HashMap::new(),
+                model_map_targets: Default::default(),
                 pool_target_size: None,
                 pool_min_size: None,
                 pool_refill_in_progress: false,
@@ -64,6 +69,8 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 credential_automation_driver_id: None,
                 credential_identity_categories: vec![],
                 credentials: vec![ProviderCredentialYaml {
+                    discovery: None,
+                    test_policy: None,
                     id: Some("acc-prod-1".to_string()),
                     base_url: None,
                     api_key: Some("sk-prod-a".to_string()),
@@ -89,6 +96,10 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 }],
             },
             ProviderConfigYaml {
+                test_plans: Vec::new(),
+                test_policy: None,
+                subpool_test_policies: Default::default(),
+                default_account_test_policy: None,
                 id: "fallback-provider".to_string(),
                 label: Some("Fallback".to_string()),
                 vendor_key: None,
@@ -130,6 +141,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 search_query_field: None,
                 fetch_urls_field: None,
                 model_map: HashMap::new(),
+                model_map_targets: Default::default(),
                 pool_target_size: None,
                 pool_min_size: None,
                 pool_refill_in_progress: false,
@@ -178,6 +190,10 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
 fn account_groups_reject_unknown_account_members() {
     let document = RouteConfigYaml {
         providers: vec![ProviderConfigYaml {
+            test_plans: Vec::new(),
+            test_policy: None,
+            subpool_test_policies: Default::default(),
+            default_account_test_policy: None,
             id: "managed-provider".to_string(),
             label: Some("Managed OpenAI".to_string()),
             vendor_key: None,
@@ -219,6 +235,7 @@ fn account_groups_reject_unknown_account_members() {
             search_query_field: None,
             fetch_urls_field: None,
             model_map: HashMap::new(),
+            model_map_targets: Default::default(),
             pool_target_size: None,
             pool_min_size: None,
             pool_refill_in_progress: false,
@@ -230,6 +247,8 @@ fn account_groups_reject_unknown_account_members() {
             credential_automation_driver_id: None,
             credential_identity_categories: vec![],
             credentials: vec![ProviderCredentialYaml {
+                discovery: None,
+                test_policy: None,
                 id: Some("acc-prod-1".to_string()),
                 base_url: None,
                 api_key: Some("sk-prod-a".to_string()),

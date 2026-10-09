@@ -1,84 +1,101 @@
-import { ShieldCheck } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Plus, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import { useGatewayHost } from "../../platform/HostProvider";
 import { useManagementSession } from "../../session/useManagementSession";
-import { isUsableManagementToken } from "../../session/managementTokenRotation";
 import { SettingsSection } from "./SettingsSection";
+import { ManagementKeyEditor } from "./ManagementKeyEditor";
+import { ManagementKeyRow } from "./ManagementKeyRow";
+import { ManagementKeyDeleteDialog } from "./ManagementKeyDeleteDialog";
+import { managementKeysApi, type ManagementKey } from "./managementKeysApi";
 import "./ManagementSecuritySettings.css";
 
 export function ManagementSecuritySettings() {
   const { t } = useUiLocale();
   const host = useGatewayHost();
   const session = useManagementSession();
-  const [newToken, setNewToken] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-  const [acknowledged, setAcknowledged] = useState(false);
+  const api = useMemo(() => managementKeysApi(host), [host]);
+  const [keys, setKeys] = useState<ManagementKey[]>([]);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [notice, setNotice] = useState<"success" | "failed" | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
   const generation = useRef(0);
   const inFlight = useRef(false);
-  const environmentOverride = session.bootstrapStatus?.environmentOverride === true;
-  const available = session.phase === "authenticated" && session.bootstrapStatus !== null && !environmentOverride;
-  const locked = !available || pending || session.busy;
-  const token = newToken.trim();
-  const mismatch = confirmation.length > 0 && token !== confirmation.trim();
-  const unchanged = token.length > 0 && token === session.managementToken;
-  const invalidToken = token.length > 0 && !isUsableManagementToken(token);
-  const canSubmit = !locked && isUsableManagementToken(token) && !unchanged && token === confirmation.trim() && acknowledged;
+  const addButton = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+  const current = session.managementToken;
+  const available = session.phase === "authenticated" && !!current;
+  const locked = !available || !loaded || pending || session.busy;
 
   useEffect(() => {
-    generation.current += 1;
-    inFlight.current = false;
-    setNewToken(""); setConfirmation(""); setAcknowledged(false); setPending(false); setNotice(null);
-    return () => { generation.current += 1; };
-  }, [host.apiOrigin]);
+    if (editing === null && !locked && restoreFocus.current) {
+      restoreFocus.current = false; addButton.current?.focus();
+    }
+  }, [editing, locked]);
 
-  const submit = async () => {
-    if (!canSubmit || inFlight.current) return;
-    const current = generation.current;
-    inFlight.current = true;
-    setPending(true); setNotice(null);
+  useEffect(() => {
+    const version = ++generation.current;
+    const controller = new AbortController();
+    inFlight.current = false;
+    setKeys([]); setLoaded(false); setEditing(null); setDeleting(null);
+    setPending(false); setError("");
+    if (available && current) void api.list(current, controller.signal).then(result => {
+      if (generation.current === version) { setKeys(result.keys); setLoaded(true); }
+    }).catch(() => {
+      if (generation.current === version && !controller.signal.aborted) setError(t("无法加载管理密钥，请重新打开设置。", "Could not load management keys. Reopen settings."));
+    });
+    return () => { generation.current++; controller.abort(); };
+  }, [api, current, available, t]);
+
+  const mutate = async (action: "save" | "delete", key?: ManagementKey, name = "", token = "") => {
+    if (!current || locked || inFlight.current) return;
+    const version = generation.current;
+    inFlight.current = true; setPending(true); setError("");
     try {
-      await session.rotate(token);
-      if (generation.current !== current) return;
-      setNewToken(""); setConfirmation(""); setAcknowledged(false); setNotice("success");
+      if (action === "delete" && key) await api.revoke(current, key.id);
+      else if (key) await api.edit(current, key.id, name, token || undefined);
+      else await api.add(current, name, token);
+      if (generation.current !== version) return;
+      if (key?.current && (action === "delete" || (token && token !== current))) {
+        await session.logout(); return;
+      }
+      const result = await api.list(current);
+      if (generation.current !== version) return;
+      setKeys(result.keys); setEditing(null); setDeleting(null);
+      restoreFocus.current = true;
     } catch {
-      if (generation.current === current) setNotice("failed");
+      if (generation.current === version) setError(t("未能确认操作结果。请保留密钥并重新打开设置后确认。", "Could not confirm the result. Keep the token and reopen settings to verify."));
     } finally {
-      if (generation.current === current) { inFlight.current = false; setPending(false); }
+      if (generation.current === version) { inFlight.current = false; setPending(false); }
     }
   };
 
+  const cancelEdit = () => { restoreFocus.current = true; setEditing(null); };
   return <SettingsSection label={t("管理安全", "Management security")} icon={<ShieldCheck size={18} />}>
-    <form className="nt-stack" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-      <p>{t("更新登录管理后台的密钥，不影响项目 API 访问密钥。旧管理密钥会立即失效，其他客户端需要重新登录。", "Change the console sign-in token, not project API access keys. The old management token stops working immediately; other clients must sign in again.")}</p>
-      {environmentOverride
-        ? <p role="status">{t("管理密钥由环境变量托管，不能在界面修改。请在部署配置中更新。", "The management token is controlled by an environment variable. Update the deployment configuration instead.")}</p>
-        : <>
-          <div className="nt-grid nt-grid--2">
-            <label className="nt-field"><span>{t("新管理密钥", "New management token")}</span>
-              <input className="nt-input" type="password" autoComplete="new-password" maxLength={4096} required
-                value={newToken} disabled={locked} onChange={(event) => { setNewToken(event.target.value); setNotice(null); }} />
-            </label>
-            <label className="nt-field"><span>{t("再次输入新密钥", "Confirm new token")}</span>
-              <input className="nt-input" type="password" autoComplete="new-password" maxLength={4096} required
-                value={confirmation} disabled={locked} onChange={(event) => { setConfirmation(event.target.value); setNotice(null); }} />
-            </label>
-          </div>
-          {mismatch && <p role="alert">{t("两次输入的密钥不一致。", "The tokens do not match.")}</p>}
-          {invalidToken && <p role="alert">{t("请使用不含空格的 ASCII 字母、数字或符号，最多 4096 个字符。", "Use ASCII letters, digits or symbols without spaces, up to 4096 characters.")}</p>}
-          {unchanged && <p role="alert">{t("新密钥必须与当前密钥不同。", "The new token must differ from the current token.")}</p>}
-          <label className="nt-management-security__ack">
-            <input type="checkbox" checked={acknowledged} disabled={locked} onChange={(event) => setAcknowledged(event.target.checked)} />
-            <span>{t("我已保存新密钥，并了解旧密钥将立即失效。", "I have saved the new token and understand that the old token will stop working immediately.")}</span>
-          </label>
-          <div className="nt-actions"><button className="nt-btn nt-btn--danger" type="submit" disabled={!canSubmit}>
-            {pending ? t("正在更新…", "Updating…") : t("更新管理密钥", "Update management token")}
-          </button></div>
-        </>}
-      {notice === "success" && <p className="nt-alert nt-alert--success" role="status">{t("管理密钥已更新，当前会话已切换到新密钥。", "Management token updated. This session now uses the new token.")}</p>}
-      {notice === "failed" && <p className="nt-alert nt-alert--danger" role="alert">{t("未能确认密钥更新结果。请保留新旧密钥，检查连接与部署配置后再登录确认。", "The token update could not be confirmed. Keep both tokens and check the connection and deployment configuration before signing in again.")}</p>}
-    </form>
+    <div className="nt-management-keys">
+      <div className="nt-management-keys__toolbar">
+        <button ref={addButton} type="button" className="nt-btn nt-btn--primary" disabled={locked || editing !== null || keys.length >= 16}
+          onClick={() => { setEditing("new"); setDeleting(null); setError(""); }}><Plus size={16} />{t("添加", "Add")}</button>
+      </div>
+      {!loaded && !error && <p role="status">{t("加载中…", "Loading…")}</p>}
+      <ul className="nt-management-keys__list" aria-label={t("管理密钥列表", "Management keys")}>
+        {keys.map(key => <li key={`${generation.current}:${key.id}`} className="nt-management-keys__item">
+          {editing === key.id ? <ManagementKeyEditor entry={key} locked={locked} onCancel={cancelEdit}
+            onSave={(name, token) => void mutate("save", key, name, token)} /> :
+            <ManagementKeyRow entry={key} api={api} managementToken={current ?? ""} locked={locked} last={keys.length <= 1}
+              onEdit={() => { setEditing(key.id); setDeleting(null); setError(""); }}
+              onDelete={() => { setDeleting(key.id); setEditing(null); setError(""); }} />}
+        </li>)}
+        {editing === "new" && <li className="nt-management-keys__item"><ManagementKeyEditor locked={locked}
+          onCancel={cancelEdit} onSave={(name, token) => void mutate("save", undefined, name, token)} /></li>}
+      </ul>
+      <ManagementKeyDeleteDialog entry={keys.find(key => key.id === deleting) ?? null}
+        pending={pending} locked={locked || keys.length <= 1} error={error}
+        onCancel={() => { setDeleting(null); setError(""); }}
+        onConfirm={key => void mutate("delete", key)} />
+      {error && !deleting && <p className="nt-management-keys__message" role="alert">{error}</p>}
+    </div>
   </SettingsSection>;
 }

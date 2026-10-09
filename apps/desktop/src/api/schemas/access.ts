@@ -44,32 +44,43 @@ export const consoleAccessKeySchema: z.ZodType<ConsoleAccessKey> = z.object({
   updatedAt: z.string().min(1),
 });
 
-export const consoleAccessBundleSchema: z.ZodType<ConsoleAccessBundle> = z.object({
-  id: z.string().min(1),
-  projectId: consoleNullableStringSchema,
-  slug: z.string(),
-  displayName: z.string(),
-  billingMode: z.string(),
-  status: z.string(),
-  description: consoleNullableStringSchema,
-  metadata: consoleNullableJsonObjectSchema,
-  createdAt: z.string().min(1),
-  updatedAt: z.string().min(1),
-});
+export const consoleAccessBundleSchema: z.ZodType<ConsoleAccessBundle> =
+  z.object({
+    id: z.string().min(1),
+    projectId: consoleNullableStringSchema,
+    slug: z.string(),
+    displayName: z.string(),
+    billingMode: z.string(),
+    status: z.string(),
+    description: consoleNullableStringSchema,
+    metadata: consoleNullableJsonObjectSchema,
+    createdAt: z.string().min(1),
+    updatedAt: z.string().min(1),
+  });
 
-export const consoleAccessKeyBalanceSchema: z.ZodType<ConsoleAccessKeyBalance> = z.object({
-  accessKeyId: z.string().min(1),
-  balanceMode: z.string(),
-  status: z.string(),
-  unlimitedUntil: consoleNullableTimestampSchema,
-  periodStartsAt: consoleNullableTimestampSchema,
-  periodEndsAt: consoleNullableTimestampSchema,
-  totalTokens: consoleNullableNumberSchema,
-  remainingTokens: consoleNullableNumberSchema,
-  totalMessages: consoleNullableNumberSchema,
-  remainingMessages: consoleNullableNumberSchema,
-  updatedAt: z.string().min(1),
-});
+export const consoleAccessKeyBalanceSchema: z.ZodType<ConsoleAccessKeyBalance> =
+  z.object({
+    accessKeyId: z.string().min(1),
+    balanceMode: z.string(),
+    status: z.string(),
+    unlimitedUntil: consoleNullableTimestampSchema,
+    periodStartsAt: consoleNullableTimestampSchema,
+    periodEndsAt: consoleNullableTimestampSchema,
+    totalTokens: consoleNullableNumberSchema,
+    remainingTokens: consoleNullableNumberSchema,
+    totalMessages: consoleNullableNumberSchema,
+    remainingMessages: consoleNullableNumberSchema,
+    cash: z
+      .object({
+        currency: z.literal("USD"),
+        totalMicros: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+        spentMicros: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+        reservedMicros: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+        pendingRequests: z.number().int().min(0).max(1024),
+      })
+      .optional(),
+    updatedAt: z.string().min(1),
+  });
 
 /** `/access/keys/:id/balance` answers `null` when no balance row exists yet. */
 export const consoleNullableAccessKeyBalanceSchema: z.ZodType<ConsoleAccessKeyBalance | null> =
@@ -90,77 +101,90 @@ export const consoleAccessKeyAggregateMembershipsSchema: z.ZodType<
   .transform((value) => value ?? []);
 
 /** `/access/catalog` answers the view directly — no envelope. */
-export const consoleAccessCatalogSchema: z.ZodType<ConsoleAccessCatalog> = z.object({
-  providerCapabilities: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        providerAccountId: z.string(),
-        modelCode: z.string(),
-        endpointKind: z.string(),
-        upstreamModel: consoleNullableStringSchema,
-        enabled: z.boolean(),
-        createdAt: z.string().min(1),
-        updatedAt: z.string().min(1),
-      }),
-    )
-    .nullish()
-    .transform((value) => value ?? []),
-  platformAccessRows: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        providerCapabilityId: z.string(),
-        providerAccountId: z.string(),
-        modelCode: z.string(),
-        endpointKind: z.string(),
-        upstreamModel: consoleNullableStringSchema,
-        platformTier: z.string(),
-        status: z.string(),
-        operatorWeight: z.number().int(),
-        routingPriority: z.number().int(),
-        enabledForSale: z.boolean(),
-        notes: consoleNullableStringSchema,
-        createdAt: z.string().min(1),
-        updatedAt: z.string().min(1),
-      }),
-    )
-    .nullish()
-    .transform((value) => value ?? []),
-  bundles: z
-    .array(consoleAccessBundleSchema)
-    .nullish()
-    .transform((value) => value ?? []),
-  bundleItems: z
-    .array(
-      z.object({
-        bundleId: z.string().min(1),
-        platformAccessId: z.string().min(1),
-        createdAt: z.string().min(1),
-      }),
-    )
-    .nullish()
-    .transform((value) => value ?? []),
-  accessKeys: z
-    .array(consoleAccessKeySchema)
-    .nullish()
-    .transform((value) => value ?? []),
-  keyBundleBindings: z
-    .array(
-      z.object({
-        accessKeyId: z.string().min(1),
-        bundleId: z.string().min(1),
-        createdAt: z.string().min(1),
-      }),
-    )
-    .nullish()
-    .transform((value) => value ?? []),
-  balances: z
-    .array(consoleAccessKeyBalanceSchema)
-    .nullish()
-    .transform((value) => value ?? []),
-  aggregateMemberships: consoleAccessKeyAggregateMembershipsSchema,
-});
+export const consoleAccessCatalogSchema: z.ZodType<ConsoleAccessCatalog> =
+  z.object({
+    storageMode: z.enum(["local", "server"]).optional(),
+    cashQuotaSupported: z.boolean().optional(),
+    accountGroups: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          name: z.string(),
+          enabled: z.boolean(),
+          memberCount: z.number().int().nonnegative(),
+        }),
+      )
+      .optional(),
+    providerCapabilities: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          providerAccountId: z.string(),
+          modelCode: z.string(),
+          endpointKind: z.string(),
+          upstreamModel: consoleNullableStringSchema,
+          enabled: z.boolean(),
+          createdAt: z.string().min(1),
+          updatedAt: z.string().min(1),
+        }),
+      )
+      .nullish()
+      .transform((value) => value ?? []),
+    platformAccessRows: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          providerCapabilityId: z.string(),
+          providerAccountId: z.string(),
+          modelCode: z.string(),
+          endpointKind: z.string(),
+          upstreamModel: consoleNullableStringSchema,
+          platformTier: z.string(),
+          status: z.string(),
+          operatorWeight: z.number().int(),
+          routingPriority: z.number().int(),
+          enabledForSale: z.boolean(),
+          notes: consoleNullableStringSchema,
+          createdAt: z.string().min(1),
+          updatedAt: z.string().min(1),
+        }),
+      )
+      .nullish()
+      .transform((value) => value ?? []),
+    bundles: z
+      .array(consoleAccessBundleSchema)
+      .nullish()
+      .transform((value) => value ?? []),
+    bundleItems: z
+      .array(
+        z.object({
+          bundleId: z.string().min(1),
+          platformAccessId: z.string().min(1),
+          createdAt: z.string().min(1),
+        }),
+      )
+      .nullish()
+      .transform((value) => value ?? []),
+    accessKeys: z
+      .array(consoleAccessKeySchema)
+      .nullish()
+      .transform((value) => value ?? []),
+    keyBundleBindings: z
+      .array(
+        z.object({
+          accessKeyId: z.string().min(1),
+          bundleId: z.string().min(1),
+          createdAt: z.string().min(1),
+        }),
+      )
+      .nullish()
+      .transform((value) => value ?? []),
+    balances: z
+      .array(consoleAccessKeyBalanceSchema)
+      .nullish()
+      .transform((value) => value ?? []),
+    aggregateMemberships: consoleAccessKeyAggregateMembershipsSchema,
+  });
 
 export const consoleAccessAffinityResponseSchema: z.ZodType<ConsoleAccessAffinityResponse> =
   z.object({
@@ -214,11 +238,12 @@ export const consoleVerifiedUserCredentialSchema: z.ZodType<ConsoleVerifiedUserC
     reason: z.string(),
   });
 
-export const consoleApiAccessRotationSchema: z.ZodType<ConsoleApiAccessRotation> = z.object({
-  projectId: z.string().min(1),
-  tenantId: z.string().min(1),
-  project: consoleJsonObjectSchema,
-  tenant: consoleJsonObjectSchema,
-  apiKey: consoleJsonObjectSchema,
-  token: z.string().min(1),
-});
+export const consoleApiAccessRotationSchema: z.ZodType<ConsoleApiAccessRotation> =
+  z.object({
+    projectId: z.string().min(1),
+    tenantId: z.string().min(1),
+    project: consoleJsonObjectSchema,
+    tenant: consoleJsonObjectSchema,
+    apiKey: consoleJsonObjectSchema,
+    token: z.string().min(1),
+  });

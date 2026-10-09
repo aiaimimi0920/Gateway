@@ -128,6 +128,20 @@ pub fn normalize_legacy_completions(body: Value) -> Result<CanonicalRelayRequest
         .get("prompt")
         .ok_or_else(|| GatewayError::bad_request("missing `prompt` field"))?;
     let messages = parse_prompt_messages(prompt);
+    // Legacy-only controls stay in raw_body; common generation limits must
+    // survive conversion to chat and other conversational protocols.
+    let extra = [
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "stop",
+        "presence_penalty",
+        "frequency_penalty",
+        "seed",
+    ]
+    .into_iter()
+    .filter_map(|key| body.get(key).map(|value| (key.to_owned(), value.clone())))
+    .collect();
     let explicit_session_key = body
         .get("user")
         .and_then(|v| v.as_str())
@@ -146,7 +160,7 @@ pub fn normalize_legacy_completions(body: Value) -> Result<CanonicalRelayRequest
         raw_body: body,
         previous_response_id: None,
         explicit_session_key,
-        extra: std::collections::HashMap::new(),
+        extra,
     })
 }
 

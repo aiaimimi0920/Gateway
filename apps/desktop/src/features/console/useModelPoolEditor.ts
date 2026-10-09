@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import type { ModelPoolModelDialogMode, ModelPoolModelDialogValue } from "./ModelPoolModelDialog";
 import type { ProviderModelMappingEntry } from "./ProviderModelMappingDialog";
+import { writeProviderModelMappings } from "./providerModelMappingDocument";
 import { parseRouteDocument, isRecord } from "./routeDocument";
 import { type ModelRouteDraftRow, createModelRouteDraftRow, rewriteModelReferences, declareModelOnProviders, findModelRoute, highestModelRoutePriority } from "./modelRouteDraft";
 import { type buildModelPoolDirectory, modelRoutePriority, moveChainProvider } from "./modelPoolViewModel";
@@ -297,15 +298,8 @@ export function useModelPoolEditor({
         if (!isRecord(provider)) {
           return;
         }
-        if (entries.length === 0) {
-          delete provider.model_map;
-          return;
-        }
-        provider.model_map = Object.fromEntries(
-          entries.map((entry) => [entry.model, entry.upstreamModel]),
-        );
+        writeProviderModelMappings(provider, entries);
       });
-      setProviderModelMappingProviderId(null);
     },
     [mutateDraftDocument, providerModelMappingProviderId],
   );

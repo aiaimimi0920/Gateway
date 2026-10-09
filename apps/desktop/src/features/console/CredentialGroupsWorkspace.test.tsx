@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -130,13 +130,57 @@ describe("CredentialGroupsWorkspace", () => {
     expect(
       within(front).queryByRole("button", { name: "Show Premium group accounts" }),
     ).toBe(toggle);
-    // The footer keeps the provider card's stable four actions only.
-    expect(front.querySelectorAll(".nt-entitlement-group-card__action--icon")).toHaveLength(4);
+    expect(front.querySelectorAll(".nt-entitlement-group-card__action--icon")).toHaveLength(3);
+    expect(within(front).queryByRole("button", { name: "Premium more actions" })).not.toBeInTheDocument();
 
     await user.click(toggle);
 
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("region", { name: "Premium group accounts" })).toBeInTheDocument();
+    expect(toggle).toHaveFocus();
+  });
+
+  it("opens a modal editor without expanding the card and restores focus on close", async () => {
+    const user = userEvent.setup();
+    const onSelectGroup = vi.fn();
+    renderWorkspace(populatedWorkspaceProps({ onSelectGroup }));
+
+    const card = screen.getByRole("article", { name: "Premium entitlement group card" });
+    expect(screen.queryByRole("textbox", { name: "Group name" })).not.toBeInTheDocument();
+    const edit = within(card).getByRole("button", { name: "Edit" });
+    const toggle = within(card).getByRole("button", { name: "Premium" });
+    await user.click(edit);
+
+    expect(onSelectGroup).toHaveBeenCalledWith("row-premium");
+    const dialog = screen.getByRole("dialog", { name: "Edit entitlement group" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(document.querySelector(".nt-group-admin__detail")).toBeNull();
+    expect(within(dialog).getByRole("textbox", { name: "Group ID" })).toHaveValue("premium");
+    expect(screen.getByRole("textbox", { name: "Group name" })).toHaveFocus();
+    expect(within(dialog).getByRole("region", { name: "Member management" })).toBeInTheDocument();
+    expect(document.body).toHaveAttribute("data-scroll-locked");
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(edit).toHaveFocus());
+    await user.click(edit);
+    expect(screen.getByRole("textbox", { name: "Group name" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(edit).toHaveFocus());
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("does not open the editor from a locked card", async () => {
+    const user = userEvent.setup();
+    const onSelectGroup = vi.fn();
+    renderWorkspace(populatedWorkspaceProps({ editorLocked: true, onSelectGroup }));
+
+    const card = screen.getByRole("article", { name: "Premium entitlement group card" });
+    const edit = within(card).getByRole("button", { name: "Edit" });
+    expect(edit).toBeDisabled();
+    await user.click(edit);
+    expect(onSelectGroup).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "Group name" })).not.toBeInTheDocument();
   });
 
   it("reuses the credential pool account cards for resolved members", async () => {
@@ -203,7 +247,7 @@ describe("CredentialGroupsWorkspace", () => {
     expect(within(front).getByText("No dispatch data yet")).toBeInTheDocument();
   });
 
-  it("keeps the front to the three structural counters and drops the rest", () => {
+  it("labels group configuration and usage without requiring icon tooltips", () => {
     renderWorkspace(populatedWorkspaceProps());
 
     const front = document.querySelector(
@@ -215,13 +259,15 @@ describe("CredentialGroupsWorkspace", () => {
     expect(within(front).getByText("Billing")).toBeInTheDocument();
     expect(front.querySelector('[data-entitlement-group-metric="accounts"]')?.textContent).toBe("1");
     expect(within(front).queryByText("Models")).not.toBeInTheDocument();
-    // The status badge, the member summary, and the description all repeated
-    // information the footer switch, the counter, and the editor already carry.
-    expect(within(front).queryByText("Enabled")).not.toBeInTheDocument();
+    expect(within(front).getByText("premium")).toBeInTheDocument();
+    expect(within(front).getByRole("switch")).toHaveTextContent("Enabled");
+    for (const label of ["Concurrency", "Upstream cost", "Revenue", "Requests", "Success rate"]) {
+      expect(within(front).getByText(label)).toBeInTheDocument();
+    }
     expect(within(front).queryByText("1 accounts")).not.toBeInTheDocument();
     expect(
-      within(front).queryByText("High-priority routing entitlements"),
-    ).not.toBeInTheDocument();
+      within(front).getByText("High-priority routing entitlements"),
+    ).toBeInTheDocument();
     // Providers live on the back, in full, as selectable tabs.
     expect(within(front).queryByText("Managed OpenAI")).not.toBeInTheDocument();
   });

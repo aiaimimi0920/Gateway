@@ -1,0 +1,64 @@
+.nt-operations-anomalies,
+.nt-operations-issues,
+.nt-operations-server-panels {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.nt-operations-issue-list,
+.nt-operations-failure-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 400px;
+  overflow: auto;
+}
+
+.nt-operations-issue-list li,
+.nt-operations-failure-list li {
+  min-width: 0;
+  border: 1px solid var(--nt-border);
+  border-left: 3px solid var(--nt-danger);
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+.nt-operations-issue-list span,
+.nt-operations-failure-list span,
+.nt-operations-failure-list p {
+  color: var(--nt-text-muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.nt-operations-failure-list li > div,
+.nt-operations-issues__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.nt-operations-view-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nt-operations-capability {
+  margin: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--nt-border);
+}
+
+@media (max-width: 540px) {
+  .nt-operations-view-switch {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

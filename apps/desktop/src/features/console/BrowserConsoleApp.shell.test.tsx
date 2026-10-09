@@ -226,7 +226,7 @@ describe("BrowserConsoleApp", () => {
     expect(within(secondCard as HTMLElement).getByRole("switch", { name: /调度 acc-prod-2/i })).toHaveAttribute("aria-checked", "true");
     expect(within(providerLibrary).queryByRole("table")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /Managed OpenAI 账号明细/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /测试账号 生产账号 A|Test account 生产账号 A/i })).not.toBeInTheDocument();
+    expect(within(firstCard as HTMLElement).getByRole("button", { name: /测试账号 生产账号 A|Test account 生产账号 A/i })).toBeInTheDocument();
     expect(within(firstCard as HTMLElement).getByRole("button", { name: /删除账号 生产账号 A|Delete account 生产账号 A/i })).toBeInTheDocument();
   });
 

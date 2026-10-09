@@ -27,20 +27,16 @@ export function ConsoleWorkspaceHeaderActions({
   openAddModelDialog,
   t,
 }: ConsoleWorkspaceHeaderActionsProps) {
-  // Structured edits on the entitlement and model pool pages stage into the same
-  // draft the raw route editor holds, and autosave commits them, so those pages
-  // report the autosave state instead of carrying a commit button.
-  const draftAutosaveStatus = (
+  // Keep actionable save states visible without a permanent success label.
+  const draftAutosaveStatus = actionBusy === "save" || autosavePending || draftDirty ? (
     <span className="nt-console-autosave" role="status">
       {actionBusy === "save"
         ? t("自动保存中...", "Autosaving...")
         : autosavePending
           ? t("待自动保存", "Autosave pending")
-          : draftDirty
-            ? t("草稿待处理", "Draft pending")
-            : t("已自动保存", "Autosaved")}
+          : t("更改未应用", "Changes not applied")}
     </span>
-  );
+  ) : null;
   // Workspace actions live in the shell board header so no workspace needs a
   // third command bar of its own.
   const workspaceHeaderActions =
@@ -73,7 +69,6 @@ export function ConsoleWorkspaceHeaderActions({
         >
           {t("添加分组", "Add group")}
         </button>
-        {draftAutosaveStatus}
       </>
     ) : activeWorkspace === "models" ? (
       <>

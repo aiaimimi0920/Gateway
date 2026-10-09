@@ -18,6 +18,14 @@ pub(crate) async fn probe_console_target(
     state: &AppState,
     target: &CredentialProbeTarget,
 ) -> (String, ProviderPayloadProbeReport) {
+    probe_console_target_with_request(state, target, None).await
+}
+
+pub(crate) async fn probe_console_target_with_request(
+    state: &AppState,
+    target: &CredentialProbeTarget,
+    options: Option<&super::ConsoleProbeRequest>,
+) -> (String, ProviderPayloadProbeReport) {
     let snapshot = state.route_config.snapshot();
     let nvidia = snapshot.document().providers.iter().any(|provider| {
         provider.id == target.provider_id && provider.preset.as_deref() == Some("nvidia-openai")
@@ -36,10 +44,10 @@ pub(crate) async fn probe_console_target(
         provider.id == target.provider_id
             && provider.preset.as_deref() == Some("chatgpt-codex-oauth-official-api")
     });
-    if codex {
+    if codex && options.is_none() {
         return super::codex_model_probe::probe(state, target).await;
     }
-    if !nvidia {
+    if !nvidia && !codex && options.is_none() {
         return (
             point,
             super::probe_provider_payload_for_console(
@@ -48,6 +56,16 @@ pub(crate) async fn probe_console_target(
             )
             .await,
         );
+    }
+    if options.is_some()
+        && !codex
+        && (target.payload.canonical_adapter() != "openai_compatible"
+            || target.payload.bridges_openai_text_endpoint_to_responses(
+                crate::protocol::canonical::EndpointKind::ChatCompletions,
+            ))
+    {
+        return (point, report(ProviderPayloadProbeStatus::Unsupported,
+            "Prompt tests require an OpenAI-compatible chat endpoint or official Codex account; this adapter is not supported."));
     }
     let provider = snapshot
         .get_providers()
@@ -68,33 +86,50 @@ pub(crate) async fn probe_console_target(
         .find(|credential| credential.id == target.credential_id)
         .map(|credential| credential.supported_models.as_slice())
         .unwrap_or_default();
-    let model = target
+    let configured: Vec<_> = target
         .payload
         .default_model
         .as_deref()
         .into_iter()
         .chain(provider.supported_models.iter().map(String::as_str))
         .chain(credential_models.iter().map(String::as_str))
+        .collect();
+    let requested = options.and_then(|options| options.model.as_deref());
+    let models = requested.map_or(configured, |model| vec![model]);
+    let model = models
+        .into_iter()
         .map(str::trim)
         .find(|model| {
             !model.is_empty()
                 && !model.contains(['*', '?'])
                 && (credential_models.is_empty()
-                    || credential_models.iter().any(|allowed| allowed == model))
+                    || credential_models.iter().any(|allowed| allowed == model)
+                    || provider
+                        .model_map
+                        .get(*model)
+                        .is_some_and(|mapped| credential_models.contains(mapped))
+                    || provider
+                        .model_map_targets
+                        .get(*model)
+                        .is_some_and(|targets| {
+                            targets
+                                .iter()
+                                .any(|mapped| credential_models.contains(mapped))
+                        }))
         })
-        .map(|model| {
-            provider
-                .model_map
-                .get(model)
-                .map(String::as_str)
-                .unwrap_or(model)
+        .and_then(|model| {
+            crate::routing::config::model_for_probe(&provider, &target.credential_id, model)
         });
     let Some(model) = model else {
-        return ("NVIDIA model call".into(), report(ProviderPayloadProbeStatus::Unsupported,
-            "Configure a concrete default_model or supported_models entry before testing NVIDIA."));
+        return ("Model call".into(), report(ProviderPayloadProbeStatus::Unsupported,
+            "No configured model is callable by this credential; choose a supported model or configure default_model."));
     };
+    let prompt = options.map_or("Reply with only OK.", |options| options.prompt.as_str());
+    if codex {
+        return super::codex_model_probe::probe_with_prompt(state, target, &model, prompt).await;
+    }
     let mut body = json!({"model": model, "stream": false, "max_tokens": 256,
-        "messages": [{"role": "user", "content": "Reply with only OK."}]});
+        "messages": [{"role": "user", "content": prompt}]});
     if model.starts_with("nvidia/nemotron") {
         body["chat_template_kwargs"] = json!({"enable_thinking": false});
     }
@@ -102,7 +137,7 @@ pub(crate) async fn probe_console_target(
         crate::upstream::openai_compatible_request_plan::build_request_plan(
             &target.payload,
             &request,
-            model,
+            &model,
             false,
         )
     });
@@ -119,7 +154,7 @@ pub(crate) async fn probe_console_target(
         "POST {} (model: {model})",
         crate::console::secrets::redact_url_value(&plan.url)
     );
-    let audit = super::model_probe_recording::begin(state, target, model, false).await;
+    let audit = super::model_probe_recording::begin(state, target, &model, false).await;
     let started = Instant::now();
     let result = tokio::time::timeout(Duration::from_secs(60), generate(state, target, &plan))
         .await
@@ -131,23 +166,34 @@ pub(crate) async fn probe_console_target(
     super::model_probe_recording::finish(
         state,
         target,
-        model,
+        &model,
         audit.as_deref(),
         started.elapsed(),
         &result,
     )
     .await;
+    let answer = result.reply.as_ref().ok().cloned();
     let (status, message) = match result.reply {
         Ok(reply) => (
             ProviderPayloadProbeStatus::Passed,
-            format!("Model call passed. Model: {model}. Reply: {reply}"),
+            format!(
+                "Model call passed. Model: {model}. Reply: {}",
+                reply.chars().take(320).collect::<String>()
+            ),
         ),
         Err(error) => (
             ProviderPayloadProbeStatus::Failed,
             format!("Model call failed. Model: {model}. {error}"),
         ),
     };
-    (point, ProviderPayloadProbeReport { status, message })
+    (
+        point,
+        ProviderPayloadProbeReport {
+            status,
+            message,
+            answer,
+        },
+    )
 }
 
 async fn generate(
@@ -224,7 +270,7 @@ async fn generate(
     }
     let reply = crate::error::sanitize_provider_error_message(&reply)
         .chars()
-        .take(320)
+        .take(8192)
         .collect();
     ModelProbeResult {
         status: Some(status),
@@ -243,6 +289,7 @@ fn failed(status: Option<u16>, message: &str) -> ModelProbeResult {
 
 fn report(status: ProviderPayloadProbeStatus, message: &str) -> ProviderPayloadProbeReport {
     ProviderPayloadProbeReport {
+        answer: None,
         status,
         message: message.into(),
     }

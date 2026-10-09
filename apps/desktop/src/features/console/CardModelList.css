@@ -1,5 +1,5 @@
 .nt-card-models {
-  --nt-model-columns: minmax(0, 1fr) minmax(3ch, auto) 84px;
+  --nt-model-columns: minmax(0, 1fr) 44px 54px 44px;
   min-width: 0;
   min-height: 0;
   flex: 1 1 0;
@@ -12,14 +12,23 @@
 .nt-card-models__heading {
   display: grid;
   grid-template-columns: var(--nt-model-columns);
-  gap: 6px;
+  gap: 4px;
+  align-items: center;
   padding-right: 12px;
   color: var(--nt-text-muted);
   font-size: 0.7rem;
+  line-height: 1.4;
 }
 
 .nt-card-models__heading > span:not(:first-child) {
-  text-align: right;
+  text-align: center;
+}
+
+.nt-card-models__heading > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nt-card-models__heading b {
@@ -50,15 +59,17 @@
 }
 
 .nt-card-models summary {
-  display: flex;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: var(--nt-model-columns);
+  gap: 4px;
   align-items: center;
   min-height: 28px;
-  padding: 4px 6px;
+  padding: 4px 4px 4px 0;
   cursor: pointer;
   list-style: none;
   border-bottom: 1px solid var(--nt-border);
-  border-left: 2px solid transparent;
+  border-left: 0;
+  background: var(--nt-color-control);
   font-weight: 600;
 }
 
@@ -66,15 +77,10 @@
   background: var(--nt-color-control-hover);
 }
 
-/* An expanded company is a small reading focus, not a new primary action. */
+/* Surface depth and indentation distinguish hierarchy without a white slab. */
 .nt-card-models details[open] > summary {
-  border-left-color: var(--nt-signal);
-  background: var(--nt-color-focus-surface);
-  color: var(--nt-color-focus-ink);
-}
-
-.nt-card-models details[open] > summary .nt-card-models__count {
-  color: var(--nt-color-focus-muted);
+  background: var(--nt-color-control-hover);
+  color: var(--nt-text);
 }
 
 .nt-card-models summary::-webkit-details-marker {
@@ -85,15 +91,39 @@
   transform: rotate(90deg);
 }
 
+.nt-card-models__company-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 8px;
+}
+
+.nt-card-models__company-name svg {
+  flex-shrink: 0;
+  color: var(--nt-text-muted);
+}
+
+.nt-card-models__company-label {
+  display: flex;
+  min-width: 0;
+}
+
+.nt-card-models__company-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nt-card-models__count {
-  margin-left: auto;
+  flex-shrink: 0;
   color: var(--nt-text-muted);
 }
 
 .nt-card-models__row {
   display: grid;
   grid-template-columns: var(--nt-model-columns);
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   min-height: 26px;
   font-variant-numeric: tabular-nums;
@@ -106,22 +136,24 @@
 }
 
 .nt-card-models__name {
-  padding-left: 6px;
+  padding-left: 40px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.nt-card-models__row > [data-model-metric="requests"] {
+.nt-card-models__row > [data-model-metric] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-align: right;
+  font-family: var(--nt-font-mono);
 }
 
-.nt-card-models__success {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 5ch;
-  align-items: center;
-  gap: 4px;
-  text-align: right;
+.nt-card-models__row > [data-model-metric="requests"],
+.nt-card-models__row > [data-model-metric="success-rate"] {
+  padding-right: 3px;
 }
 
 .nt-card-models__cells {
@@ -141,8 +173,7 @@
   outline-offset: 2px;
 }
 
-.nt-card-models__empty,
-.nt-card-models__unclassified {
+.nt-card-models__empty {
   color: var(--nt-text-muted);
   font-size: 0.68rem;
 }

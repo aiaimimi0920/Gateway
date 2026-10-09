@@ -133,7 +133,7 @@
    inside its panel so a provider with many renames cannot push the footer off
    screen. */
 .nt-model-map-dialog {
-  width: min(680px, calc(100vw - 32px));
+  width: min(780px, calc(100vw - 32px));
 }
 
 .nt-model-map__panel {

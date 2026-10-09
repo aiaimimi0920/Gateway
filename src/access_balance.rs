@@ -5,6 +5,7 @@ use crate::local_runtime::LocalRuntime;
 use crate::state::AppState;
 
 pub(crate) mod policy;
+pub mod quota;
 
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Mutation {
@@ -33,10 +34,14 @@ impl<'a> AccessBalanceStore<'a> {
     }
 
     pub async fn get(&self, id: &str) -> Result<Option<GatewayAccessKeyBalanceView>, GatewayError> {
-        match self {
+        let mut balance = match self {
             Self::Sqlite(local) => local.access_balance(id).await,
             Self::Postgres(pool) => crate::db::access::balance_store::load(pool, id).await,
+        }?;
+        if let Some(balance) = &mut balance {
+            balance.cash = self.cash_balance(id).await?;
         }
+        Ok(balance)
     }
 
     pub async fn evaluate(

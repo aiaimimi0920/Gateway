@@ -19,6 +19,7 @@ function setup(strict = false) {
     session: { secretGrant: { grant: "grant", expiresAt: "2099-01-01T00:00:00Z" } },
     draftDirty: false, draftMatchesActiveRevision: true,
     credentialProbeGenerationRef: { current: 0 }, providerProbeGenerationRef: { current: 0 },
+    providerProbeAbortRef: { current: null },
     currentApiRef: { current: api }, currentManagementTokenRef: { current: "token" },
     currentSecretGrantEpochRef: { current: 0 }, currentSecretGrantRef: { current: "grant" },
     handleSecretAccessRequiredError: vi.fn(() => "not-required" as const),
@@ -41,6 +42,24 @@ function setup(strict = false) {
   }
   return { api, options, ...hook };
 }
+
+it("aborts an old provider read and ignores late results after switching provider", async () => {
+  const h = setup();
+  const response = await h.api.probeProvider("token", "grant", "provider");
+  let resolve!: (value: typeof response) => void;
+  h.api.readProviderProbeResults = vi.fn().mockReturnValueOnce(new Promise(yes => { resolve = yes; }))
+    .mockResolvedValueOnce({ ...response, result: { ...response.result, providerId: "new" } });
+  let old!: ReturnType<typeof h.result.current.handleProviderProbe>;
+  act(() => { old = h.result.current.handleProviderProbe({ providerId: "provider" }, undefined, true); });
+  const signal = vi.mocked(h.api.readProviderProbeResults).mock.calls[0][3]?.signal;
+  await act(() => h.result.current.handleProviderProbe({ providerId: "new" }, undefined, true));
+  expect(signal?.aborted).toBe(true);
+  expect(h.api.readProviderProbeResults).toHaveBeenCalledTimes(2);
+  vi.mocked(h.options.setProviderProbeResponse).mockClear();
+  await act(async () => { resolve(response); await old; });
+  expect(h.options.setProviderProbeResponse).not.toHaveBeenCalled();
+  expect(h.api.probeProvider).toHaveBeenCalledTimes(1);
+});
 
 it("does not recover secret access or publish errors after unmount", async () => {
   const h = setup();
@@ -85,7 +104,7 @@ it.each(["success", "error"] as const)("ignores provider %s after unmount", asyn
   let resolve!: (value: typeof response) => void;
   let reject!: (cause: Error) => void;
   vi.mocked(h.api.probeProvider).mockReturnValueOnce(new Promise((yes, no) => { resolve = yes; reject = no; }));
-  let request!: Promise<void>;
+  let request!: ReturnType<typeof h.result.current.handleProviderProbe>;
   act(() => { request = h.result.current.handleProviderProbe({ providerId: "provider" }); });
   h.unmount();
   vi.mocked(h.options.setProviderProbeResponse).mockClear();
@@ -110,6 +129,25 @@ it("does not start a provider request from a retained callback after unmount", a
   expect(h.options.setProviderProbeBusy).not.toHaveBeenCalled();
 });
 
+it("admits one manual batch and aborts the client request on unmount", async () => {
+  const h = setup();
+  let reject!: (cause: Error) => void;
+  vi.mocked(h.api.probeProvider).mockReturnValueOnce(new Promise<never>((_yes, no) => { reject = no; }));
+  const input = { prompt: "Reply OK", model: "a", credentialIds: ["account"] };
+  let request!: ReturnType<typeof h.result.current.handleProviderProbe>;
+  act(() => { request = h.result.current.handleProviderProbe({ providerId: "provider" }, input); });
+  await act(() => h.result.current.handleProviderProbe({ providerId: "provider" }, input));
+  expect(h.api.probeProvider).toHaveBeenCalledOnce();
+  const signal = vi.mocked(h.api.probeProvider).mock.calls[0][4]?.signal;
+  expect(signal?.aborted).toBe(false);
+  expect(h.api.probeProvider).toHaveBeenCalledWith("token", "grant", "provider", input, { signal });
+  h.unmount();
+  expect(signal?.aborted).toBe(true);
+  await act(async () => { reject(new Error("Aborted")); await request; });
+  expect(h.options.handleSecretAccessRequiredError).not.toHaveBeenCalled();
+  expect(h.options.setProviderProbeError).not.toHaveBeenCalledWith("Aborted");
+});
+
 it("allows both probes after StrictMode effect replay", async () => {
   const h = setup(true);
   await act(() => h.result.current.handleCredentialProbe(account));
@@ -125,7 +163,7 @@ it.each(["token", "api"] as const)("does not revive a provider result after %s r
   const response = await h.api.probeProvider("token", "grant", "provider");
   let resolve!: (value: typeof response) => void;
   vi.mocked(h.api.probeProvider).mockReturnValueOnce(new Promise(yes => { resolve = yes; }));
-  let request!: Promise<void>;
+  let request!: ReturnType<typeof h.result.current.handleProviderProbe>;
   act(() => { request = h.result.current.handleProviderProbe({ providerId: "provider" }); });
   h.rerender({ ...h.options, ...(change === "token" ? { managementToken: "new" } : { api: createConsoleApi() }) });
   h.rerender(h.options);

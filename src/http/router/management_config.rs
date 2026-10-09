@@ -72,7 +72,8 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
         )
         .route(
             "/v1/internal/gateway/provider-accounts/:provider_account_id/model-pricing",
-            post(internal_provider_accounts::patch_provider_model_pricing),
+            get(internal_provider_accounts::get_provider_model_pricing)
+                .post(internal_provider_accounts::patch_provider_model_pricing),
         )
         .route(
             "/v1/internal/gateway/provider-accounts/source-profile/backfill",
@@ -149,6 +150,11 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
             post(internal_console::verify_console_session),
         )
         .route(
+            "/v1/internal/gateway/console/management-keys",
+            get(internal_console::list_management_keys)
+                .post(internal_console::mutate_management_key),
+        )
+        .route(
             "/v1/internal/gateway/console/session/confirm-secret-access",
             post(internal_console::confirm_console_secret_access),
         )
@@ -161,12 +167,25 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
             post(internal_console::logout_console_session),
         )
         .route(
+            "/v1/internal/gateway/console/account-discovery",
+            post(internal_console::discover_account),
+        )
+        .route(
+            "/v1/internal/gateway/console/credential-api-key",
+            post(internal_console::reveal_credential_key),
+        )
+        .route(
             "/v1/internal/gateway/console/credentials/:credential_id/probe",
             post(internal_console::probe_console_credential),
         )
         .route(
             "/v1/internal/gateway/console/providers/:provider_id/probe",
-            post(internal_console::probe_console_provider),
+            post(internal_console::probe_console_provider)
+                .get(internal_console::read_provider_test_results),
+        )
+        .route(
+            "/v1/internal/gateway/console/providers/:provider_id/probe/results",
+            post(internal_console::read_provider_test_results_post),
         )
         .route(
             "/v1/internal/gateway/console/gemini-auth-sessions",

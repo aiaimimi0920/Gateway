@@ -1,263 +1,173 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowRight, Trash2 } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
-
+import { useEffect, useRef, useState } from "react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
-
-export type ProviderModelMappingEntry = {
-  /** The model name the caller sends, which is also the pool-wide model name. */
-  model: string;
-  /** The name this provider expects upstream, e.g. `deepseek-mass` for `deepseek`. */
-  upstreamModel: string;
-};
-
-type MappingRow = ProviderModelMappingEntry & { rowId: string };
+import type { ProviderModelMappingEntry } from "./providerModelMappingDocument";
+export type { ProviderModelMappingEntry } from "./providerModelMappingDocument";
 
 export type ProviderModelMappingDialogProps = {
   open: boolean;
   providerLabel: string;
   providerId: string;
-  /** Models worth suggesting: what the provider declares plus what the pool holds. */
   modelOptions: string[];
+  upstreamModelOptions: string[];
   initialEntries: ProviderModelMappingEntry[];
   locked: boolean;
+  savePending?: boolean;
+  saveError?: string | null;
   onOpenChange(open: boolean): void;
   onSubmit(entries: ProviderModelMappingEntry[]): void;
 };
 
-/**
- * Edits one provider's `model_map`. The gateway keeps the requested model name
- * as the pool-wide identity and rewrites it to the upstream name only while
- * calling this provider, so the same `deepseek` card can reach a provider that
- * publishes the model as `deepseek-mass`.
- */
-export function ProviderModelMappingDialog({
-  open,
-  providerLabel,
-  providerId,
-  modelOptions,
-  initialEntries,
-  locked,
-  onOpenChange,
-  onSubmit,
-}: ProviderModelMappingDialogProps) {
+/** The left selection owns its links; toggling right-hand targets only changes that source. */
+export function ProviderModelMappingDialog({ open, providerId, providerLabel, modelOptions, upstreamModelOptions,
+  initialEntries, locked, savePending = false, saveError = null, onOpenChange, onSubmit }: ProviderModelMappingDialogProps) {
   const { t } = useUiLocale();
-  const rowIdCounter = useRef(0);
-  const nextRowId = () => {
-    rowIdCounter.current += 1;
-    return `map-${rowIdCounter.current}`;
-  };
-  const [rows, setRows] = useState<MappingRow[]>([]);
-  const [validationError, setValidationError] = useState<string | null>(null);
-
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const [entries, setEntries] = useState<ProviderModelMappingEntry[]>([]);
+  const entriesRef = useRef<ProviderModelMappingEntry[]>([]);
+  const [source, setSource] = useState("");
+  const [query, setQuery] = useState("");
+  const [targetQuery, setTargetQuery] = useState("");
+  const [mappedOnly, setMappedOnly] = useState(false);
+  const [customSource, setCustomSource] = useState("");
+  const [customTarget, setCustomTarget] = useState("");
+  const [extraSources, setExtraSources] = useState<string[]>([]);
+  const [extraTargets, setExtraTargets] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setRows(initialEntries.map((entry) => ({ ...entry, rowId: nextRowId() })));
-    setValidationError(null);
-    // The row ids are generated per open, so the counter itself is not a dep.
+    if (!open) return;
+    entriesRef.current = initialEntries.map((entry) => ({ ...entry }));
+    setEntries(entriesRef.current);
+    setSource(initialEntries[0]?.model ?? modelOptions[0] ?? "");
+    setQuery(""); setTargetQuery(""); setMappedOnly(false); setError(null); setExtraSources([]); setExtraTargets([]);
+    setCustomSource(""); setCustomTarget("");
+    // Only reopening resets the editor; telemetry refresh must not overwrite local edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialEntries, open]);
-
-  const datalistId = `provider-model-map-options:${providerId}`;
-
-  const updateRow = (rowId: string, field: "model" | "upstreamModel", value: string) => {
-    setRows((current) =>
-      current.map((row) => (row.rowId === rowId ? { ...row, [field]: value } : row)),
-    );
-  };
-
-  const removeRow = (rowId: string) => {
-    setRows((current) => current.filter((row) => row.rowId !== rowId));
-  };
-
-  const addRow = (model = "", upstreamModel = "") => {
-    setRows((current) => [...current, { rowId: nextRowId(), model, upstreamModel }]);
-  };
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const entries: ProviderModelMappingEntry[] = [];
-    const seen = new Set<string>();
-    for (const row of rows) {
-      const model = row.model.trim();
-      const upstreamModel = row.upstreamModel.trim();
-      if (model.length === 0 && upstreamModel.length === 0) {
-        continue;
+  }, [open, providerId]);
+  const sources = [...new Set([...modelOptions, ...entries.map((entry) => entry.model), ...extraSources])];
+  const targets = [...new Set([...upstreamModelOptions, ...entries.map((entry) => entry.upstreamModel), ...extraTargets])];
+  const selected = entries.filter((entry) => entry.model === source).map((entry) => entry.upstreamModel);
+  const visibleSources = sources.filter((model) => model.toLowerCase().includes(query.toLowerCase())
+    && (!mappedOnly || entries.some((entry) => entry.model === model)));
+  const visibleTargets = targets.filter((target) => target.toLowerCase().includes(targetQuery.toLowerCase()));
+  const validName = (name: string) => name.length > 0 && new TextEncoder().encode(name).length <= 256
+    && !/[\x00-\x1f\x7f*?]/.test(name);
+  const changeEntries = (next: ProviderModelMappingEntry[]) => {
+    if (locked) return false;
+    const mappings = new Map<string, number>();
+    for (const entry of next) {
+      if (!validName(entry.model) || !validName(entry.upstreamModel)) {
+        setError(t("映射包含无效模型名。", "A mapping contains an invalid model name.")); return false;
       }
-      if (model.length === 0) {
-        setValidationError(
-          t(
-            `请填写 ${upstreamModel} 对应的用户模型名。`,
-            `Fill in the requested model name that maps to ${upstreamModel}.`,
-          ),
-        );
-        return;
-      }
-      if (upstreamModel.length === 0) {
-        setValidationError(
-          t(
-            `请填写 ${model} 在该服务商的实际模型名。`,
-            `Fill in the upstream model name this provider uses for ${model}.`,
-          ),
-        );
-        return;
-      }
-      if (model.includes("*") || upstreamModel.includes("*")) {
-        setValidationError(
-          t("模型名不能包含 *，映射只支持精确名称。", "Model names cannot contain *; the mapping is exact-name only."),
-        );
-        return;
-      }
-      if (seen.has(model)) {
-        setValidationError(t(`用户模型 ${model} 重复。`, `Requested model ${model} is listed twice.`));
-        return;
-      }
-      seen.add(model);
-      entries.push({ model, upstreamModel });
+      mappings.set(entry.model, (mappings.get(entry.model) ?? 0) + 1);
     }
-    onSubmit(entries);
-    onOpenChange(false);
+    if (mappings.size > 512 || [...mappings.values()].some((count) => count > 32)) {
+      setError(t("每个模型最多关联 32 个目标，此池最多保存 512 个映射。", "Link at most 32 targets per model and 512 mappings per pool.")); return false;
+    }
+    setError(null);
+    if (JSON.stringify(next) === JSON.stringify(entriesRef.current)) return true;
+    // Commit only explicit edits, never mount/refresh; the controller owns debounced persistence.
+    entriesRef.current = next;
+    setEntries(next);
+    onSubmit(next);
+    return true;
   };
-
-  const mapped = new Set(rows.map((row) => row.model.trim()).filter((model) => model.length > 0));
-  const unmapped = modelOptions.filter((model) => !mapped.has(model));
-
+  const toggleTarget = (target: string, checked: boolean) => {
+    if (!source || locked) return false;
+    const next = entriesRef.current.filter((entry) => entry.model !== source || entry.upstreamModel !== target);
+    return changeEntries(checked ? [...next, { model: source, upstreamModel: target }] : next);
+  };
+  const addName = (kind: "source" | "target") => {
+    if (locked || (kind === "target" && !source)) return;
+    const name = (kind === "source" ? customSource : customTarget).trim();
+    if (!validName(name)) { setError(t("请输入不含通配符的模型名（最多 256 字节）。", "Enter an exact model name of at most 256 bytes, without wildcards.")); return; }
+    if (kind === "source") {
+      setError(null); setExtraSources((names) => [...new Set([...names, name])]);
+      setSource(name); setQuery(""); setMappedOnly(false); setCustomSource("");
+    } else if (toggleTarget(name, true)) {
+      setExtraTargets((names) => [...new Set([...names, name])]); setTargetQuery(""); setCustomTarget("");
+    }
+  };
+  const deleteSource = () => {
+    if (!source || !changeEntries(entriesRef.current.filter((entry) => entry.model !== source))) return;
+    setExtraSources((names) => names.filter((name) => name !== source));
+    setSource(sources.find((name) => name !== source) ?? "");
+  };
+  const deleteTargets = () => {
+    if (!source) return;
+    const removed = customTarget.trim() ? [customTarget.trim()] : selected;
+    const next = entriesRef.current.filter((entry) => entry.model !== source || !removed.includes(entry.upstreamModel));
+    if (!changeEntries(next)) return;
+    // Remove editor-only candidates, not provider capability declarations or another source's links.
+    setExtraTargets((names) => names.filter((name) => !removed.includes(name) || next.some((entry) => entry.upstreamModel === name)));
+    setCustomTarget("");
+  };
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content
-          className="dialog-content nt-model-map-dialog"
-          aria-describedby="provider-model-map-description"
-        >
-          <Dialog.Title>
-            {t(`模型映射 · ${providerLabel}`, `Model mapping · ${providerLabel}`)}
-          </Dialog.Title>
-          <Dialog.Description id="provider-model-map-description">
-            {t(
-              "用户发送的模型名保持不变，网关调用该服务商时替换成右侧的实际模型名。没有列出的模型按原名直接发送。",
-              "The model name the caller sends stays unchanged; the gateway swaps in the upstream name on the right when it calls this provider. Models that are not listed are sent as-is.",
-            )}
-          </Dialog.Description>
-
-          <form className="nt-stack" onSubmit={submit}>
-            <datalist id={datalistId}>
-              {modelOptions.map((model) => (
-                <option value={model} key={`option:${model}`} />
-              ))}
-            </datalist>
-
-            <section className="nt-card nt-card--panel nt-model-map__panel">
-              <header className="nt-model-map__head">
-                <strong>{t("映射关系", "Mappings")}</strong>
-                <span className="nt-model-map__count">{rows.length}</span>
-              </header>
-
-              {rows.length > 0 ? (
-                <div className="nt-model-map__list">
-                  <div className="nt-model-map__row nt-model-map__row--head">
-                    <span>{t("用户模型", "Requested model")}</span>
-                    <span aria-hidden="true" />
-                    <span>{t("服务商模型", "Upstream model")}</span>
-                    <span aria-hidden="true" />
-                  </div>
-                  {rows.map((row) => (
-                    <div className="nt-model-map__row" key={row.rowId}>
-                      <input
-                        className="nt-input"
-                        value={row.model}
-                        disabled={locked}
-                        list={datalistId}
-                        placeholder="deepseek"
-                        aria-label={t("用户模型", "Requested model")}
-                        onChange={(event) =>
-                          updateRow(row.rowId, "model", event.currentTarget.value)
-                        }
-                      />
-                      <ArrowRight
-                        className="nt-model-map__arrow"
-                        size={14}
-                        aria-hidden="true"
-                      />
-                      <input
-                        className="nt-input"
-                        value={row.upstreamModel}
-                        disabled={locked}
-                        placeholder="deepseek-mass"
-                        aria-label={t("服务商模型", "Upstream model")}
-                        onChange={(event) =>
-                          updateRow(row.rowId, "upstreamModel", event.currentTarget.value)
-                        }
-                      />
-                      <button
-                        className="nt-icon-action"
-                        type="button"
-                        disabled={locked}
-                        aria-label={t(
-                          `删除 ${row.model || t("空", "empty")} 的映射`,
-                          `Remove the mapping for ${row.model || "the empty row"}`,
-                        )}
-                        title={t("删除映射", "Remove mapping")}
-                        onClick={() => removeRow(row.rowId)}
-                      >
-                        <Trash2 size={13} aria-hidden="true" />
-                      </button>
-                    </div>
-                  ))}
+        <Dialog.Content className="dialog-content nt-model-map-dialog" aria-describedby={undefined}
+          onOpenAutoFocus={() => {
+            returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const trigger = returnFocus.current;
+            if (trigger?.isConnected && !trigger.closest("[inert]")) trigger.focus();
+          }}>
+          <div className="nt-model-map-header">
+            <Dialog.Title>{t(`模型映射 · ${providerLabel}`, `Model mapping · ${providerLabel}`)}</Dialog.Title>
+            <Dialog.Close asChild><button className="nt-btn nt-btn--outline" type="button" aria-label={t("关闭", "Close")}>×</button></Dialog.Close>
+          </div>
+          <div className="nt-model-map-columns">
+            <section className="nt-model-map-column" aria-label={t("用户模型", "Requested models")}>
+              <div className="nt-model-map-toolbar"><h3>{t("用户模型", "Requested models")}</h3>
+                <label><input type="checkbox" checked={mappedOnly} onChange={(event) => setMappedOnly(event.target.checked)} />{t("已映射", "Mapped")}</label>
+              </div>
+              <input className="nt-input" value={query} placeholder={t("搜索模型", "Search models")} aria-label={t("搜索用户模型", "Search requested models")} onChange={(event) => setQuery(event.target.value)} />
+              <div className="nt-model-map-options">
+                {visibleSources.map((model) => {
+                  const linked = entries.filter((entry) => entry.model === model).map((entry) => entry.upstreamModel);
+                  return <button className="nt-model-map-source" type="button" key={model} aria-pressed={source === model}
+                    title={linked.length ? `${model} → ${linked.join(" / ")}` : model} aria-label={model} onClick={() => setSource(model)}>
+                    <span><strong>{model}</strong><small>{linked.length ? `→ ${linked.join(" / ")}` : t("原名直传", "Pass through")}</small></span>
+                  </button>;
+                })}
+                {!visibleSources.length ? <p className="nt-copy">{t("无匹配模型", "No matching models")}</p> : null}
+              </div>
+              <div className="nt-model-map-custom">
+                <span>{t("自定义用户模型", "Custom requested model")}</span>
+                <div className="nt-model-map-inline">
+                  <input className="nt-input" aria-label={t("自定义用户模型", "Custom requested model")} value={customSource} maxLength={256} disabled={locked}
+                    onChange={(event) => setCustomSource(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addName("source"); } }} />
+                  <button className="nt-btn nt-btn--outline" type="button" aria-label={t("添加用户模型", "Add requested model")} disabled={locked || !customSource.trim()} onClick={() => addName("source")}>{t("添加", "Add")}</button>
+                  <button className="nt-btn nt-btn--outline" type="button" aria-label={t("删除用户模型", "Delete requested model")} disabled={locked || !source || (!selected.length && !extraSources.includes(source))} onClick={deleteSource}>{t("删除", "Delete")}</button>
                 </div>
-              ) : (
-                <p className="nt-copy">
-                  {t(
-                    "还没有映射，该服务商按原模型名调用。",
-                    "No mapping yet, so this provider is called with the original model name.",
-                  )}
-                </p>
-              )}
-
-              <div className="nt-model-map__tools">
-                <button
-                  className="nt-btn nt-btn--outline nt-btn--compact"
-                  type="button"
-                  disabled={locked}
-                  onClick={() => addRow()}
-                >
-                  {t("添加映射", "Add mapping")}
-                </button>
-                {unmapped.map((model) => (
-                  <button
-                    className="nt-btn nt-btn--outline nt-btn--compact"
-                    type="button"
-                    key={`unmapped:${model}`}
-                    disabled={locked}
-                    title={t(`为 ${model} 添加映射`, `Add a mapping for ${model}`)}
-                    onClick={() => addRow(model, model)}
-                  >
-                    + {model}
-                  </button>
-                ))}
               </div>
             </section>
-
-            {validationError ? (
-              <div className="nt-validation-list nt-validation-list--warning">
-                <strong>{t("请检查输入", "Check the input")}</strong>
-                <ul>
-                  <li>{validationError}</li>
-                </ul>
+            <section className="nt-model-map-column" aria-label={t("凭据池模型", "Pool models")}>
+              <div className="nt-model-map-toolbar"><h3>{t("凭据池模型", "Pool models")}</h3><small>{t(`已选 ${selected.length}`, `${selected.length} selected`)}</small></div>
+              <input className="nt-input" value={targetQuery} placeholder={t("搜索模型", "Search models")} aria-label={t("搜索凭据池模型", "Search pool models")} onChange={(event) => setTargetQuery(event.target.value)} />
+              <div className="nt-model-map-options">
+                {visibleTargets.map((target) => <label className="nt-model-map-target" key={target} title={target}>
+                  <input type="checkbox" checked={selected.includes(target)} disabled={locked || !source}
+                    onChange={(event) => toggleTarget(target, event.target.checked)} /><span>{target}</span>
+                </label>)}
+                {!visibleTargets.length ? <p className="nt-copy">{targets.length ? t("无匹配模型", "No matching models") : t("暂无配置模型", "No configured models")}</p> : null}
               </div>
-            ) : null}
-
-            <div className="dialog-actions">
-              <Dialog.Close asChild>
-                <button type="button">{t("取消", "Cancel")}</button>
-              </Dialog.Close>
-              <button className="nt-btn nt-btn--primary" type="submit" disabled={locked}>
-                {t("保存映射", "Save mapping")}
-              </button>
-            </div>
-          </form>
+              <div className="nt-model-map-custom">
+                <span>{t("自定义映射模型", "Custom mapped model")}</span>
+                <div className="nt-model-map-inline">
+                  <input className="nt-input" aria-label={t("自定义映射模型", "Custom mapped model")} value={customTarget} maxLength={256} disabled={locked || !source}
+                    onChange={(event) => setCustomTarget(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addName("target"); } }} />
+                  <button className="nt-btn nt-btn--outline" type="button" aria-label={t("添加映射模型", "Add mapped model")} disabled={locked || !source || !customTarget.trim()} onClick={() => addName("target")}>{t("添加", "Add")}</button>
+                  <button className="nt-btn nt-btn--outline" type="button" aria-label={t("删除映射模型", "Delete mapped models")} disabled={locked || !source || (!selected.length && !extraTargets.includes(customTarget.trim()))} onClick={deleteTargets}>{t("删除", "Delete")}</button>
+                </div>
+              </div>
+            </section>
+          </div>
+          {error || saveError ? <p className="nt-banner nt-banner--danger" role="alert">{error || saveError}</p> : null}
+          {savePending ? <span className="nt-copy" role="status">{t("保存中…", "Saving…")}</span> : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

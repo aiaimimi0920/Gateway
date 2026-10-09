@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ConsoleApi } from "../../api/console";
 import type {
   ConsoleAccessCatalog,
+  ConsoleAccessKey,
   ConsoleAccessStickyAffinity,
   ConsoleApiAccessRotation,
   ConsoleIssuedUserCredential,
@@ -12,11 +13,9 @@ import {
   ACCESS_DEFAULT_AFFINITY_DRAFT,
   ACCESS_DEFAULT_BUNDLE_DRAFT,
   ACCESS_DEFAULT_CREDENTIAL_DRAFT,
-  ACCESS_DEFAULT_KEY_DRAFT,
   ACCESS_DEFAULT_ROTATION_DRAFT,
   ACCESS_DEFAULT_VERIFY_DRAFT,
   buildAccessBundleInput,
-  buildAccessKeyInput,
   buildUserCredentialInput,
   parseScopeList,
   type AccessAffinityDraft,
@@ -28,6 +27,7 @@ import {
   type UserCredentialDraft,
   type UserCredentialVerifyDraft,
 } from "./accessKeysTypes";
+import { useAccessKeyActions } from "./useAccessKeyActions";
 
 type TranslateFn = (zh: string, en: string) => string;
 
@@ -63,11 +63,16 @@ export type UseAccessDataResult = {
 
   keyDraft: AccessKeyDraft;
   setKeyDraft: (next: AccessKeyDraft) => void;
-  createKey: () => void;
+  createKey: () => Promise<boolean>;
   creatingKey: boolean;
   keyBusyId: string | null;
-  rotateKey: (accessKeyId: string) => void;
-  revokeKey: (accessKeyId: string) => void;
+  rotateKey: (accessKeyId: string) => Promise<boolean>;
+  keyLifecycle: (
+    accessKeyId: string,
+    action: "enable" | "disable" | "delete",
+  ) => Promise<boolean>;
+  copyKey: (accessKeyId: string) => Promise<boolean>;
+  updateKey: (key: ConsoleAccessKey, draft: AccessKeyDraft) => Promise<boolean>;
 
   bundleDraft: AccessBundleDraft;
   setBundleDraft: (next: AccessBundleDraft) => void;
@@ -108,14 +113,12 @@ export function useAccessData({
   active,
   t,
 }: UseAccessDataOptions): UseAccessDataResult {
-  const [catalog, setCatalog] = useState<AccessPanelState<ConsoleAccessCatalog>>(idlePanel);
+  const [catalog, setCatalog] =
+    useState<AccessPanelState<ConsoleAccessCatalog>>(idlePanel);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [revealedSecret, setRevealedSecret] = useState<AccessRevealedSecret | null>(null);
-
-  const [keyDraft, setKeyDraft] = useState<AccessKeyDraft>({ ...ACCESS_DEFAULT_KEY_DRAFT });
-  const [creatingKey, setCreatingKey] = useState(false);
-  const [keyBusyId, setKeyBusyId] = useState<string | null>(null);
+  const [revealedSecret, setRevealedSecret] =
+    useState<AccessRevealedSecret | null>(null);
 
   const [bundleDraft, setBundleDraft] = useState<AccessBundleDraft>({
     ...ACCESS_DEFAULT_BUNDLE_DRAFT,
@@ -133,7 +136,8 @@ export function useAccessData({
     ...ACCESS_DEFAULT_ROTATION_DRAFT,
   });
   const [rotatingApiAccess, setRotatingApiAccess] = useState(false);
-  const [lastRotation, setLastRotation] = useState<ConsoleApiAccessRotation | null>(null);
+  const [lastRotation, setLastRotation] =
+    useState<ConsoleApiAccessRotation | null>(null);
 
   const [credentialDraft, setCredentialDraft] = useState<UserCredentialDraft>({
     ...ACCESS_DEFAULT_CREDENTIAL_DRAFT,
@@ -146,7 +150,8 @@ export function useAccessData({
     ...ACCESS_DEFAULT_VERIFY_DRAFT,
   });
   const [credentialBusy, setCredentialBusy] = useState(false);
-  const [verification, setVerification] = useState<AccessPanelState<VerificationView>>(idlePanel);
+  const [verification, setVerification] =
+    useState<AccessPanelState<VerificationView>>(idlePanel);
   const [credentialNotice, setCredentialNotice] = useState<string | null>(null);
 
   // A later load always wins, so a slow first response cannot overwrite it.
@@ -191,86 +196,16 @@ export function useAccessData({
 
   const dismissSecret = useCallback(() => setRevealedSecret(null), []);
 
-  const createKey = useCallback(() => {
-    if (!managementToken || typeof api.createAccessKey !== "function") {
-      return;
-    }
-    const run = api.createAccessKey;
-    setCreatingKey(true);
-    void (async () => {
-      try {
-        const created = await run(managementToken, buildAccessKeyInput(keyDraft));
-        if (created.token) {
-          setRevealedSecret({
-            kind: "access-key",
-            label: t(
-              `访问密钥明文 · ${created.displayName}`,
-              `Access key plaintext · ${created.displayName}`,
-            ),
-            secret: created.token,
-          });
-        }
-        setKeyDraft({ ...ACCESS_DEFAULT_KEY_DRAFT });
-        await loadCatalog();
-      } catch (cause) {
-        setCatalog((current) => ({ ...current, error: errorMessage(cause) }));
-      } finally {
-        setCreatingKey(false);
-      }
-    })();
-  }, [api, keyDraft, loadCatalog, managementToken, t]);
-
-  const rotateKey = useCallback(
-    (accessKeyId: string) => {
-      if (!managementToken || typeof api.rotateAccessKey !== "function") {
-        return;
-      }
-      const run = api.rotateAccessKey;
-      setKeyBusyId(accessKeyId);
-      void (async () => {
-        try {
-          const rotated = await run(managementToken, accessKeyId);
-          if (rotated.token) {
-            setRevealedSecret({
-              kind: "access-key",
-              label: t(
-                `轮换后的明文 · ${rotated.displayName}`,
-                `Rotated plaintext · ${rotated.displayName}`,
-              ),
-              secret: rotated.token,
-            });
-          }
-          await loadCatalog();
-        } catch (cause) {
-          setCatalog((current) => ({ ...current, error: errorMessage(cause) }));
-        } finally {
-          setKeyBusyId((busy) => (busy === accessKeyId ? null : busy));
-        }
-      })();
-    },
-    [api, loadCatalog, managementToken, t],
-  );
-
-  const revokeKey = useCallback(
-    (accessKeyId: string) => {
-      if (!managementToken || typeof api.revokeAccessKey !== "function") {
-        return;
-      }
-      const run = api.revokeAccessKey;
-      setKeyBusyId(accessKeyId);
-      void (async () => {
-        try {
-          await run(managementToken, accessKeyId, "revoked from console");
-          await loadCatalog();
-        } catch (cause) {
-          setCatalog((current) => ({ ...current, error: errorMessage(cause) }));
-        } finally {
-          setKeyBusyId((busy) => (busy === accessKeyId ? null : busy));
-        }
-      })();
-    },
-    [api, loadCatalog, managementToken],
-  );
+  const keyActions = useAccessKeyActions({
+    api,
+    managementToken,
+    active,
+    t,
+    catalog,
+    setCatalog,
+    loadCatalog,
+    setRevealedSecret,
+  });
 
   const createBundle = useCallback(() => {
     if (!managementToken || typeof api.createAccessBundle !== "function") {
@@ -297,7 +232,8 @@ export function useAccessData({
     return {
       accessKeyId: affinityDraft.accessKeyId.trim(),
       model: affinityDraft.model.trim(),
-      explicitSessionKey: explicitSessionKey.length > 0 ? explicitSessionKey : undefined,
+      explicitSessionKey:
+        explicitSessionKey.length > 0 ? explicitSessionKey : undefined,
     };
   }, [affinityDraft]);
 
@@ -330,10 +266,15 @@ export function useAccessData({
         // Reset clears the binding, so the panel drops its stale row too.
         setAffinity({ data: null, error: null, loading: false });
         setAffinityNotice(
-          response.message ?? t("粘性绑定已清除。", "Sticky affinity has been cleared."),
+          response.message ??
+            t("粘性绑定已清除。", "Sticky affinity has been cleared."),
         );
       } catch (cause) {
-        setAffinity((current) => ({ ...current, error: errorMessage(cause), loading: false }));
+        setAffinity((current) => ({
+          ...current,
+          error: errorMessage(cause),
+          loading: false,
+        }));
       }
     })();
   }, [affinityParams, api, managementToken, t]);
@@ -379,7 +320,10 @@ export function useAccessData({
     setCredentialNotice(null);
     void (async () => {
       try {
-        const response = await run(managementToken, buildUserCredentialInput(credentialDraft));
+        const response = await run(
+          managementToken,
+          buildUserCredentialInput(credentialDraft),
+        );
         setLastIssuedCredential(response.credential);
         setRevealedSecret({
           kind: "user-credential",
@@ -390,7 +334,10 @@ export function useAccessData({
           secret: response.credential.credentialKey,
         });
       } catch (cause) {
-        setVerification((current) => ({ ...current, error: errorMessage(cause) }));
+        setVerification((current) => ({
+          ...current,
+          error: errorMessage(cause),
+        }));
       } finally {
         setIssuingCredential(false);
       }
@@ -409,10 +356,18 @@ export function useAccessData({
     setVerification((current) => ({ ...current, loading: true }));
     void (async () => {
       try {
-        const result = await run(managementToken, verifyDraft.credentialKey.trim(), scope);
+        const result = await run(
+          managementToken,
+          verifyDraft.credentialKey.trim(),
+          scope,
+        );
         setVerification({ data: result, error: null, loading: false });
       } catch (cause) {
-        setVerification({ data: null, error: errorMessage(cause), loading: false });
+        setVerification({
+          data: null,
+          error: errorMessage(cause),
+          loading: false,
+        });
       } finally {
         setCredentialBusy(false);
       }
@@ -434,9 +389,14 @@ export function useAccessData({
         );
         // The cache entry is gone, so the stale verification result goes with it.
         setVerification(idlePanel());
-        setCredentialNotice(response.message ?? t("凭据已吊销。", "Credential has been revoked."));
+        setCredentialNotice(
+          response.message ?? t("凭据已吊销。", "Credential has been revoked."),
+        );
       } catch (cause) {
-        setVerification((current) => ({ ...current, error: errorMessage(cause) }));
+        setVerification((current) => ({
+          ...current,
+          error: errorMessage(cause),
+        }));
       } finally {
         setCredentialBusy(false);
       }
@@ -449,13 +409,7 @@ export function useAccessData({
     refresh,
     revealedSecret,
     dismissSecret,
-    keyDraft,
-    setKeyDraft,
-    createKey,
-    creatingKey,
-    keyBusyId,
-    rotateKey,
-    revokeKey,
+    ...keyActions,
     bundleDraft,
     setBundleDraft,
     createBundle,

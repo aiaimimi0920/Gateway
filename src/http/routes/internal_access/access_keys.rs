@@ -1,5 +1,6 @@
 //! Management access-key lifecycle, balances and aggregate membership.
 
+use super::super::internal_console::{console_request_context, required_console_management_token};
 use super::super::internal_gateway::assert_management_access;
 use super::required_pg_pool;
 use crate::access_balance::AccessBalanceStore;
@@ -8,7 +9,7 @@ use crate::db;
 use crate::error::GatewayError;
 use crate::http::extractors::OptionalBearerToken;
 use crate::state::AppState;
-use axum::extract::{Path, State};
+use axum::extract::{ConnectInfo, Path, State};
 use axum::http::HeaderMap;
 use axum::Json;
 use serde::Deserialize;
@@ -26,6 +27,7 @@ pub struct AccessKeyBody {
     pub display_name: String,
     pub expires_at: Option<String>,
     pub metadata: Option<serde_json::Value>,
+    pub quota: Option<crate::access_balance::quota::KeyQuotaInput>,
     #[serde(default)]
     pub bundle_ids: Vec<String>,
 }
@@ -91,10 +93,15 @@ pub async fn create_access_key(
     State(state): State<Arc<AppState>>,
     OptionalBearerToken(token): OptionalBearerToken,
     headers: HeaderMap,
-    Json(body): Json<AccessKeyBody>,
+    Json(mut body): Json<AccessKeyBody>,
 ) -> Result<Json<db::GatewayAccessKeyView>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    Ok(Json(AccessStore(&state).save(None, body.into()).await?))
+    let quota = body.quota.take();
+    Ok(Json(
+        AccessStore(&state)
+            .save_with_quota(None, body.into(), quota.as_ref())
+            .await?,
+    ))
 }
 
 pub async fn update_access_key(
@@ -102,14 +109,59 @@ pub async fn update_access_key(
     OptionalBearerToken(token): OptionalBearerToken,
     headers: HeaderMap,
     Path(path): Path<AccessKeyPath>,
-    Json(body): Json<AccessKeyBody>,
+    Json(mut body): Json<AccessKeyBody>,
 ) -> Result<Json<db::GatewayAccessKeyView>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
-    Ok(Json(
-        AccessStore(&state)
-            .save(Some(&path.access_key_id), body.into())
-            .await?,
+    let quota = body.quota.take();
+    let mut key = AccessStore(&state)
+        .save_with_quota(Some(&path.access_key_id), body.into(), quota.as_ref())
+        .await?;
+    key.token = None;
+    key.external_key = None;
+    Ok(Json(key))
+}
+
+pub async fn copy_access_key(
+    State(state): State<Arc<AppState>>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Path(path): Path<AccessKeyPath>,
+) -> Result<impl axum::response::IntoResponse, GatewayError> {
+    let request = console_request_context(&headers, connect_info.as_ref());
+    // Disclosure follows the console login/remote-access policy, never development auth bypass.
+    state.console_auth.authenticate_management_token(
+        &request,
+        required_console_management_token(token.as_deref(), &headers)?,
+    )?;
+    let secret = AccessStore(&state).secret(&path.access_key_id).await?;
+    Ok((
+        [
+            (axum::http::header::CACHE_CONTROL, "no-store"),
+            (axum::http::header::PRAGMA, "no-cache"),
+        ],
+        Json(serde_json::json!({"token":secret})),
     ))
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AccessKeyEnabledBody {
+    enabled: bool,
+}
+
+pub async fn set_access_key_enabled(
+    State(state): State<Arc<AppState>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Path(path): Path<AccessKeyPath>,
+    Json(body): Json<AccessKeyEnabledBody>,
+) -> Result<Json<serde_json::Value>, GatewayError> {
+    assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
+    AccessStore(&state)
+        .set_enabled(&path.access_key_id, body.enabled)
+        .await?;
+    Ok(Json(serde_json::json!({ "success": true })))
 }
 
 pub async fn delete_access_key(

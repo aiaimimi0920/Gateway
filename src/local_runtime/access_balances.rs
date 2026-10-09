@@ -64,6 +64,14 @@ pub(super) async fn create(
         .execute(&mut **tx)
         .await
         .map_err(storage_error)?;
+    if let Some(old) = rotated_from {
+        crate::cash_billing::store::rotate(
+            &mut crate::cash_billing::sql::CashConnection::Sqlite(tx),
+            old,
+            id,
+        )
+        .await?;
+    }
     Ok(())
 }
 
@@ -93,6 +101,57 @@ fn decode(id: &str, payload: &str) -> Result<GatewayAccessKeyBalanceView, Gatewa
         .map_err(|_| GatewayError::server_error("Invalid local access balance"))?;
     balance.access_key_id = id.into();
     Ok(balance)
+}
+
+async fn ensure_mode_change(
+    tx: &mut Transaction<'_, Sqlite>,
+    account: &str,
+    old: &str,
+    new: &str,
+) -> Result<(), GatewayError> {
+    if old != new {
+        let pending: i64 = sqlx::query_scalar(
+            "SELECT coalesce(sum(pending),0) FROM local_balance_inflight WHERE account_id = ?",
+        )
+        .bind(account)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(storage_error)?;
+        if pending > 0 {
+            return Err(GatewayError::conflict(
+                "Cannot change balance mode while requests are in flight",
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(super) async fn set_key_quota(
+    tx: &mut Transaction<'_, Sqlite>,
+    id: &str,
+    quota: &crate::access_balance::quota::KeyQuotaInput,
+) -> Result<(), GatewayError> {
+    let (account, payload): (String, String) = sqlx::query_as("SELECT a.id,a.payload FROM local_balance_accounts a JOIN local_balance_keys k ON k.account_id = a.id WHERE k.key_id = ?")
+        .bind(id).fetch_one(&mut **tx).await.map_err(storage_error)?;
+    let current = decode(id, &payload)?;
+    let mode = current.balance_mode.clone();
+    let balance = quota.apply(id, Some(current))?;
+    ensure_mode_change(tx, &account, &mode, &balance.balance_mode).await?;
+    if quota.mode == "cash_prepaid" {
+        crate::cash_billing::store::set_limit(
+            &mut crate::cash_billing::sql::CashConnection::Sqlite(tx),
+            id,
+            quota.limit.expect("validated cash limit"),
+        )
+        .await?;
+    }
+    sqlx::query("UPDATE local_balance_accounts SET payload = ? WHERE id = ?")
+        .bind(encode(&balance)?)
+        .bind(account)
+        .execute(&mut **tx)
+        .await
+        .map_err(storage_error)?;
+    Ok(())
 }
 
 impl LocalRuntime {
@@ -154,20 +213,7 @@ impl LocalRuntime {
         let current = decode(id, &payload)?;
         let mode = current.balance_mode.clone();
         let (balance, result, pending_delta) = change(Some(current))?;
-        if mode != balance.balance_mode {
-            let pending: i64 = sqlx::query_scalar(
-                "SELECT coalesce(sum(pending),0) FROM local_balance_inflight WHERE account_id = ?",
-            )
-            .bind(&account)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(storage_error)?;
-            if pending > 0 {
-                return Err(GatewayError::conflict(
-                    "Cannot change balance mode while requests are in flight",
-                ));
-            }
-        }
+        ensure_mode_change(&mut tx, &account, &mode, &balance.balance_mode).await?;
         if pending_delta != 0 {
             sqlx::query(
                 "INSERT INTO local_balance_inflight(account_id,owner,pending) VALUES (?,?,max(0,?))

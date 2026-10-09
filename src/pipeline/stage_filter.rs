@@ -95,6 +95,7 @@ async fn enforce_quota(
         }
         ctx.quota_credential_id = Some(access_key_id.to_string());
         ctx.quota_pre_deducted_tokens = decision.pre_deduct_amount;
+        ctx.admitted_access_balance_mode = decision.balance_mode;
         return Ok(());
     }
     let Some(credential_id) = session

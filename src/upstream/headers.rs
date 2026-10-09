@@ -118,7 +118,10 @@ pub fn build_upstream_headers_with(
             }
         }
 
-        "bedrock_converse_compatible" | "cohere_compatible" => {
+        "bedrock_converse_compatible"
+        | "cohere_compatible"
+        | "dashscope_compatible"
+        | "dashscope_multimodal_compatible" => {
             if let Some(header_name) = payload.auth_header_name.as_deref() {
                 let token = payload.auth_token.as_deref().unwrap_or(&payload.api_key);
                 insert_header(&mut map, header_name, token);

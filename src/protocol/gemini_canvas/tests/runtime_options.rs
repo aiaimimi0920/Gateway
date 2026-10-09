@@ -3,6 +3,7 @@ use super::*;
 #[test]
 fn runtime_reads_state_key_and_default_share_id() {
     let payload = ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "gemini_canvas_compatible".to_string(),
         base_url: "https://gemini.google.com".to_string(),
         api_key: "AIzaPayloadKeyZero".to_string(),

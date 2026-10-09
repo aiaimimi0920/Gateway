@@ -12,6 +12,7 @@ type PilotProviderProbePanelProps = {
   draftDirty: boolean;
   draftMatchesActiveRevision: boolean;
   startProviderProbe: () => Promise<void>;
+  manualTest?: boolean;
 };
 
 export function PilotProviderProbePanel({
@@ -24,11 +25,12 @@ export function PilotProviderProbePanel({
   draftDirty,
   draftMatchesActiveRevision,
   startProviderProbe,
+  manualTest,
 }: PilotProviderProbePanelProps) {
   const modelTest = section.providerId === "nvidia" || section.providerPreset === "nvidia-openai";
   return (
     <div className="nt-stack">
-      <article className="nt-pilot-dialog__hero">
+      {!manualTest ? <article className="nt-pilot-dialog__hero">
         <div className="nt-pilot-dialog__hero-icon">
           <Play size={20} aria-hidden="true" />
         </div>
@@ -44,7 +46,7 @@ export function PilotProviderProbePanel({
             )}
           </span>
         </div>
-      </article>
+      </article> : null}
 
       {providerProbeBusy ? (
         <div className="nt-pilot-stats-state" role="status">
@@ -116,7 +118,7 @@ export function PilotProviderProbePanel({
         >
           {providerProbeBusy
             ? t("测试中...", "Testing...")
-            : t("测试全部账号", "Test all accounts")}
+            : manualTest ? t("测试所选账号", "Test selected accounts") : t("测试全部账号", "Test all accounts")}
         </button>
       </div>
     </div>

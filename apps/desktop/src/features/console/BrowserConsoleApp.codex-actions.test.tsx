@@ -8,7 +8,7 @@ import {
   vi,
 } from "vitest";
 import { BrowserConsoleApp } from "./BrowserConsoleApp";
-import { createConsoleApi } from "./BrowserConsoleApp.api-fixture";
+import { createConsoleApi, preserveCommittedRouteDocument } from "./BrowserConsoleApp.api-fixture";
 import {
   renderWithProviders,
   waitForConsoleReady,
@@ -16,6 +16,14 @@ import {
   waitForCommittedRouteDraft,
   providerCard,
 } from "./BrowserConsoleApp.render-fixture";
+
+async function useCodexProbeResult(api: ReturnType<typeof createConsoleApi>) {
+  const response = await createConsoleApi().probeProvider("fixture", "fixture", "codex");
+  response.result.providerId = "codex";
+  response.result.results[0].providerId = "codex";
+  response.result.results[0].credentialId = "codex-free-1";
+  vi.mocked(api.probeProvider).mockResolvedValue(response);
+}
 
 describe("BrowserConsoleApp", () => {
   beforeEach(() => {
@@ -181,14 +189,14 @@ describe("BrowserConsoleApp", () => {
     await user.click(dispatchSwitch);
     expect(dispatchSwitch).toHaveAttribute("aria-checked", "false");
 
-    expect(within(freeCard as HTMLElement).getByText("暂停")).toBeInTheDocument();
+    expect(within(freeCard as HTMLElement).queryByText("暂停")).not.toBeInTheDocument();
 
     const draft = JSON.stringify(await waitForCommittedRouteDraft(consoleApi));
     expect(draft).toContain('"id":"codex-free-1"');
     expect(draft).toContain('"enabled":false');
   });
 
-  it("opens the codex more menu and runs a real account single-point test", async () => {
+  it("opens the direct codex test action and runs an account single-point test", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
     const initialResponse = await consoleApi.getRouteConfig("management-secret");
@@ -231,43 +239,31 @@ describe("BrowserConsoleApp", () => {
     await user.click(screen.getByRole("button", { name: /显示 codex 账号库/i }));
 
     const accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-    const moreButton = within(accountLibrary).getByRole("button", {
-      name: /更多操作 codex-free-1|More actions codex-free-1/i,
-    });
+    const moreButton = within(accountLibrary).getByRole("button", { name: /测试账号 Codex Free 1/i });
+    expect(within(accountLibrary).queryByRole("button", { name: /更多操作/ })).not.toBeInTheDocument();
     await user.click(moreButton);
 
-    expect(screen.getByRole("menuitem", { name: /账号测试|Test account/i })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: /复制账号|Duplicate account/i })).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: /查看统计|View stats/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: /定时测试|Scheduled tests/i })).not.toBeInTheDocument();
-
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("menuitem", { name: /账号测试|Test account/i })).not.toBeInTheDocument();
-    expect(moreButton).toHaveFocus();
-
-    await user.click(moreButton);
-    await user.click(within(accountLibrary).getByText("Codex Free 1"));
-    expect(screen.queryByRole("menuitem", { name: /账号测试|Test account/i })).not.toBeInTheDocument();
-
-    await user.click(moreButton);
-    await user.click(screen.getByRole("menuitem", { name: /账号测试|Test account/i }));
-
-    const probeDialog = screen.getByRole("dialog", { name: /账号单点测试|Account single-point test/i });
-    expect(within(probeDialog).getByText("Codex Free 1")).toBeInTheDocument();
-    expect(within(probeDialog).queryByLabelText(/选择测试模型|Select test model/i)).not.toBeInTheDocument();
-    await user.click(within(probeDialog).getByRole("button", { name: /开始测试|Start test/i }));
+    const probeDialog = screen.getByRole("dialog", { name: /测试 · codex|Test · codex/i });
+    expect(within(probeDialog).getByLabelText(/固定账户|Fixed account/i)).toHaveTextContent("Codex Free 1");
+    expect(within(probeDialog).queryByRole("radio")).not.toBeInTheDocument();
+    expect(within(probeDialog).queryByLabelText(/选择账户|Select account/i)).not.toBeInTheDocument();
+    await useCodexProbeResult(consoleApi);
+    await user.click(within(probeDialog).getByRole("button", { name: /运行测试|Run tests/i }));
 
     await waitFor(() =>
-      expect(consoleApi.probeCredential).toHaveBeenCalledWith(
+      expect(consoleApi.probeProvider).toHaveBeenCalledWith(
         "management-secret",
         "grant-1",
-        "codex-free-1",
+        "codex",
+        expect.objectContaining({ scope: { kind: "account", id: "codex-free-1" }, credentialIds: ["codex-free-1"] }),
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
       ),
     );
-    expect(await within(probeDialog).findByText(/Credential connectivity probe passed\./i)).toBeInTheDocument();
-    expect(
-      within(probeDialog).getByText("GET https://managed.example/v1/models"),
-    ).toBeInTheDocument();
+    expect(consoleApi.probeCredential).not.toHaveBeenCalled();
+    expect(within(probeDialog).queryByText("GET https://managed.example/v1/models")).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(moreButton).toHaveFocus());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("runs a provider-wide test and writes its automatic schedule into the route draft", async () => {
@@ -310,6 +306,7 @@ describe("BrowserConsoleApp", () => {
       },
     });
 
+    await preserveCommittedRouteDocument(consoleApi);
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
       session: { secretAccessGranted: true },
       secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
@@ -319,75 +316,45 @@ describe("BrowserConsoleApp", () => {
     await openWorkspace(user, /凭据池/i);
     const provider = providerCard(/^codex$/i);
     const moreButton = within(provider).getByRole("button", {
-      name: /codex 更多操作|codex more actions/i,
+      name: /^测试$|^Test$/i,
     });
 
     await user.click(moreButton);
-    await user.click(screen.getByRole("menuitem", { name: /服务商测试|Test provider/i }));
-    const providerProbeDialog = screen.getByRole("dialog", {
-      name: /服务商测试|Provider test/i,
-    });
-    await user.click(
-      within(providerProbeDialog).getByRole("button", {
-        name: /测试全部账号|Test all accounts/i,
-      }),
-    );
-    await waitFor(() =>
-      expect(consoleApi.probeProvider).toHaveBeenCalledWith(
-        "management-secret",
-        "grant-1",
-        "codex",
-      ),
-    );
-    const passedCard = within(providerProbeDialog)
-      .getByText("通过", { selector: "span" })
-      .closest("article");
-    expect(passedCard).not.toBeNull();
-    expect(within(passedCard as HTMLElement).getByText("1")).toBeInTheDocument();
-    expect(
-      within(providerProbeDialog).getByText("GET https://managed.example/v1/models"),
-    ).toBeInTheDocument();
-    await user.click(within(providerProbeDialog).getByText("关闭", { selector: "button" }));
 
-    await user.click(moreButton);
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: /自动定时测试|Automatic scheduled tests/i,
-      }),
-    );
-    const scheduleDialog = screen.getByRole("dialog", {
-      name: /自动定时测试|Automatic scheduled tests/i,
-    });
-    await user.click(
-      within(scheduleDialog).getByRole("checkbox", {
-        name: /启用全部账号的自动单点测试|Enable automatic tests for all accounts/i,
-      }),
-    );
-    const interval = within(scheduleDialog).getByRole("spinbutton", {
-      name: /执行间隔|Interval/i,
-    });
-    await user.clear(interval);
-    await user.type(interval, "15");
-    await user.click(
-      within(scheduleDialog).getByRole("button", {
-        name: /更新自动测试计划|Update automatic test schedule/i,
-      }),
-    );
-
-    const draft = (await waitForCommittedRouteDraft(consoleApi)) as {
-      providers: Array<{ credentials: Array<Record<string, unknown>> }>;
-    };
+    const providerProbeDialog = screen.getByRole("dialog", { name: /^codex$/i });
+    expect(within(providerProbeDialog).queryByRole("tab", { name: /自动测试|手动测试/ })).not.toBeInTheDocument();
+    await user.click(within(providerProbeDialog).getByRole("button", { name: "添加" }));
+    await user.type(within(providerProbeDialog).getByRole("textbox", { name: "计划名称" }), "全池连接测试");
+    await user.click(within(providerProbeDialog).getByRole("checkbox", { name: "启用自动测试" }));
+    const interval = within(providerProbeDialog).getByRole("spinbutton", { name: /执行间隔/ });
+    await user.clear(interval); await user.type(interval, "15");
+    expect(within(providerProbeDialog).queryByRole("button", { name: "运行测试" })).not.toBeInTheDocument();
+    await user.click(within(providerProbeDialog).getByRole("button", { name: "保存计划" }));
+    const draft = await waitForCommittedRouteDraft(consoleApi) as { providers: Array<{
+      test_plans: import("../../api/contracts").CredentialTestPlan[]; credentials: Array<Record<string, unknown>>;
+    }> };
+    const saved = draft.providers[0].test_plans[0];
+    expect(saved).toMatchObject({ name: "全池连接测试", scopes: [{ kind: "pool" }],
+      policy: { automaticEnabled: true, intervalMinutes: 15, modelSelection: "all" } });
+    expect(draft.providers[0]).not.toHaveProperty("test_policy");
+    await useCodexProbeResult(consoleApi);
+    const run = within(providerProbeDialog).getByRole("button", { name: "手动测试" });
+    await waitFor(() => expect(run).toBeEnabled());
+    await user.click(run);
+    await waitFor(() => expect(consoleApi.probeProvider).toHaveBeenCalledWith(
+      "management-secret", "grant-1", "codex",
+      { planId: saved.id, credentialIds: ["codex-free-1", "codex-plus-1"] },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    ));
+    expect(within(providerProbeDialog).getByRole("button", { name: "展开测试结果 · 全池连接测试" })).toBeInTheDocument();
     expect(draft.providers[0]?.credentials).toEqual([
       expect.objectContaining({
         id: "codex-free-1",
-        scheduled_probe_enabled: true,
-        scheduled_probe_interval_minutes: 15,
       }),
       expect.objectContaining({
         id: "codex-plus-1",
-        scheduled_probe_enabled: true,
-        scheduled_probe_interval_minutes: 15,
       }),
     ]);
+    expect(draft.providers[0]?.credentials.every((account) => account.test_policy === undefined && account.scheduled_probe_enabled === undefined)).toBe(true);
   });
 });

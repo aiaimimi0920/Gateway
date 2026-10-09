@@ -30,6 +30,10 @@ describe("credential audit to ledger", () => {
     const { summary } = consoleRequestAuditSummaryResponseSchema.parse({ summary: {
       ...stats(7), providerAccounts: [stats(7)],
       credentials: [{ ...stats(2), credentialRef: "one" }, { ...stats(5), credentialRef: "two" }],
+      retainedModelTotals: [{ credentialRef: "one", requestCount: 20, successCount: 18 },
+        { credentialRef: "two", requestCount: 50, successCount: 40 }].map((row) => ({
+          ...row, providerAccountId: "nvidia", model: "nvidia/nemotron-3-super-120b-a12b",
+        })),
     } });
     const snapshot = buildConsoleTelemetrySnapshot({ pressure: null, costOverview: null,
       credentialModelStates: [], credentialInventory: null, requestAuditSummary: summary,
@@ -43,7 +47,7 @@ describe("credential audit to ledger", () => {
       .toEqual([{ accountId: "one", requestCount: 2 }, { accountId: "two", requestCount: 5 }]);
     expect(accounts.map((account) => account.successWindows?.[0].requests)).toEqual([2, 5]);
     expect(accounts.map((account) => account.modelTraffic?.models.get("nvidia/nemotron-3-super-120b-a12b")?.requestCount))
-      .toEqual([2, 5]);
+      .toEqual([20, 50]);
     expect(sections[0].modelTraffic?.models.get("nvidia/nemotron-3-super-120b-a12b")?.successWindows[0].requests).toBe(7);
     expect(accounts.every((account) => account.upstreamCost === null)).toBe(true);
     expect(accounts.every((account) => account.statusLabel === "待观测")).toBe(true);

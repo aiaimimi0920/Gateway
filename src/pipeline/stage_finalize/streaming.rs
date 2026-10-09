@@ -11,6 +11,7 @@ pub async fn run_stream_success(
     state: &Arc<AppState>,
 ) {
     apply_stream_completion_semantics(&mut snapshot, canonical_completion_semantics);
+    crate::cash_billing::finalization::stream_success(&snapshot, usage.clone(), state).await;
 
     if let Some(project_id) = snapshot.project_id.clone() {
         let usage_ref = usage.as_ref();

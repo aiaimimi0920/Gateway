@@ -155,6 +155,12 @@ pub async fn rotate_access_key(
     .await
     .map_err(map_db_error)?;
 
+    crate::cash_billing::store::rotate(
+        &mut crate::cash_billing::sql::CashConnection::Postgres(&mut tx),
+        access_key_id,
+        &next_id,
+    )
+    .await?;
     bump_all_access_projection_versions(&mut tx, now).await?;
     tx.commit().await.map_err(map_db_error)?;
 

@@ -68,6 +68,18 @@ impl RouteConfigSnapshot {
         resolve_candidates_inner(self.compiled(), model)
     }
 
+    pub fn resolve_candidates_with_constraint(
+        &self,
+        model: Option<&str>,
+        constraint: Option<&RouteAccountGroupConstraint>,
+    ) -> CandidateResolution {
+        candidates::resolve_candidates_with_authorization(
+            self.compiled(),
+            model,
+            constraint.and_then(|value| value.allowed_account_ids.as_ref()),
+        )
+    }
+
     pub fn resolve_candidates_for_account_group(
         &self,
         model: Option<&str>,
@@ -210,6 +222,7 @@ impl RouteConfigSnapshot {
             if provider.credential_pool.is_empty() {
                 if provider.scheduled_probe_enabled {
                     targets.push(ScheduledCredentialProbeTarget {
+                        plan_id: None,
                         target: CredentialProbeTarget {
                             credential_id: provider_default_account_id(&provider.id),
                             provider_id: provider.id.clone(),
@@ -230,6 +243,7 @@ impl RouteConfigSnapshot {
                     let mut payload = apply_token_override(credential);
                     payload.credential_id = Some(credential_id.clone());
                     ScheduledCredentialProbeTarget {
+                        plan_id: None,
                         target: CredentialProbeTarget {
                             credential_id,
                             provider_id: provider.id.clone(),
@@ -243,6 +257,6 @@ impl RouteConfigSnapshot {
                 })
             }));
         }
-        targets
+        self.apply_test_policy_schedules(targets)
     }
 }

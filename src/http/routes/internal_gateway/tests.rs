@@ -8,6 +8,29 @@ fn header_map(name: &'static str, value: &'static str) -> HeaderMap {
 }
 
 #[test]
+fn managed_key_headers_preserve_legacy_priority() {
+    use crate::access_control::management_request_token;
+    let mut headers = header_map("authorization", "Bearer auth");
+    assert_eq!(management_request_token(None, &headers), Some("auth"));
+    assert_eq!(
+        management_request_token(Some(" bearer "), &headers),
+        Some("bearer")
+    );
+    headers.insert("x-internal-api-key", "internal".parse().unwrap());
+    assert_eq!(
+        management_request_token(Some("bearer"), &headers),
+        Some("internal")
+    );
+    headers.insert("x-management-token", "management".parse().unwrap());
+    assert_eq!(
+        management_request_token(Some("bearer"), &headers),
+        Some("management")
+    );
+    headers.insert("x-management-token", " ".parse().unwrap());
+    assert_eq!(management_request_token(None, &headers), Some("internal"));
+}
+
+#[test]
 fn management_access_rejects_missing_config_by_default() {
     let err = assert_management_access_with_expected(None, false, None, &HeaderMap::new())
         .expect_err("missing management token must fail closed");

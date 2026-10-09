@@ -9,14 +9,13 @@ type ProviderCatalogDirectoryProps = {
   category: CatalogCategoryFilter;
   filteredTemplates: readonly ProviderCatalogTemplate[];
   selectedTemplateId: string;
-  existingProviderIdSet: ReadonlySet<string>;
   setQuery(value: string): void;
   setCategory(value: CatalogCategoryFilter): void;
   selectTemplate(template: ProviderCatalogTemplate): void;
 };
 
 export function ProviderCatalogDirectory({
-  t, query, category, filteredTemplates, selectedTemplateId, existingProviderIdSet,
+  t, query, category, filteredTemplates, selectedTemplateId,
   setQuery, setCategory, selectTemplate,
 }: ProviderCatalogDirectoryProps) {
   return (
@@ -52,7 +51,6 @@ export function ProviderCatalogDirectory({
       <div className="nt-provider-catalog__list">
         {filteredTemplates.map((template) => {
           const selected = template.id === selectedTemplateId;
-          const alreadyAdded = existingProviderIdSet.has(template.providerId);
           return (
             <button
               className={
@@ -69,11 +67,7 @@ export function ProviderCatalogDirectory({
                 <strong>{t(template.labelZh, template.labelEn)}</strong>
                 <small>{template.providerId}</small>
               </span>
-              {alreadyAdded ? (
-                <span className="nt-badge nt-badge--success">
-                  {t("已添加", "Added")}
-                </span>
-              ) : template.category === "third-party-compatible" ? (
+              {template.category === "third-party-compatible" ? (
                 <span className="nt-badge nt-badge--info">
                   {t("第三方兼容", "Third-party")}
                 </span>

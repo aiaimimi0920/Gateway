@@ -82,6 +82,7 @@ mod tests {
         extra_body: Option<HashMap<String, serde_json::Value>>,
     ) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            discovered_protocols: Vec::new(),
             adapter: "chatgpt_web_reverse_compatible".to_string(),
             base_url: base_url.to_string(),
             api_key: "session-token".to_string(),

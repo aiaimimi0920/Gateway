@@ -72,12 +72,26 @@ import type {
 export type ConsoleApi = {
   getBootstrapStatus(): Promise<BootstrapStatus>;
   bootstrap(token: string): Promise<OperationSuccess>;
-  verifySession(token: string, options?: Pick<GatewayApiRequestOptions, "signal" | "notifyAuthenticationFailure">): Promise<ManagementSession>;
-  confirmSecretAccess(managementToken: string, confirmationToken: string): Promise<SecretGrant>;
-  rotateSession(currentToken: string, newToken: string): Promise<OperationSuccess>;
+  verifySession(
+    token: string,
+    options?: Pick<
+      GatewayApiRequestOptions,
+      "signal" | "notifyAuthenticationFailure"
+    >,
+  ): Promise<ManagementSession>;
+  confirmSecretAccess(
+    managementToken: string,
+    confirmationToken: string,
+  ): Promise<SecretGrant>;
+  rotateSession(
+    currentToken: string,
+    newToken: string,
+  ): Promise<OperationSuccess>;
   logout(token: string): Promise<OperationSuccess>;
   getRouteConfig(managementToken: string): Promise<ConsoleRouteConfigResponse>;
-  getAccountGroupSummary(managementToken: string): Promise<ConsoleAccountGroupSummaryResponse>;
+  getAccountGroupSummary(
+    managementToken: string,
+  ): Promise<ConsoleAccountGroupSummaryResponse>;
   getProviderCredentialInventory?(
     managementToken: string,
   ): Promise<ConsoleProviderCredentialInventoryResponse>;
@@ -96,7 +110,9 @@ export type ConsoleApi = {
     managementToken: string,
     providerId: string,
   ): Promise<ConsoleCredentialArchivePurgeResponse>;
-  getCredentialRefill(managementToken: string): Promise<ConsoleCredentialRefillResponse>;
+  getCredentialRefill(
+    managementToken: string,
+  ): Promise<ConsoleCredentialRefillResponse>;
   requestCredentialRefill(
     managementToken: string,
     providerId: string,
@@ -123,6 +139,16 @@ export type ConsoleApi = {
     managementToken: string,
     secretGrant: string,
     providerId: string,
+    request?: import("../contracts").ConsoleProviderProbeRequest,
+    options?: Pick<GatewayApiRequestOptions, "signal">,
+  ): Promise<ConsoleProviderProbeResponse>;
+  readProviderProbeResults?(
+    managementToken: string,
+    secretGrant: string,
+    providerId: string,
+    options?: Pick<GatewayApiRequestOptions, "signal">,
+    scope?: import("../contracts").ConsoleProviderProbeRequest["scope"],
+    query?: import("../contracts").CredentialTestResultQuery,
   ): Promise<ConsoleProviderProbeResponse>;
   getCredentialUsage?(
     managementToken: string,
@@ -135,9 +161,13 @@ export type ConsoleApi = {
     params?: { createdFrom?: string; limit?: number },
   ): Promise<ConsoleUsageAggregateResponse>;
   /** Live concurrency and breaker state per provider account. */
-  getRuntimePressure?(managementToken: string): Promise<ConsoleRuntimePressureResponse>;
+  getRuntimePressure?(
+    managementToken: string,
+  ): Promise<ConsoleRuntimePressureResponse>;
   /** Token spend plus the price rates needed to turn tokens into money. */
-  getCostOverview?(managementToken: string): Promise<ConsoleCostOverviewResponse>;
+  getCostOverview?(
+    managementToken: string,
+  ): Promise<ConsoleCostOverviewResponse>;
   /** Per-credential, per-model health recorded by the routing pipeline. */
   listProviderCredentialModelStates?(
     managementToken: string,
@@ -149,9 +179,13 @@ export type ConsoleApi = {
     params?: { createdFrom?: string; limit?: number },
   ): Promise<ConsoleRequestAuditSummaryResponse>;
   /** Dependency wiring plus drain state - answers even without Postgres. */
-  getGatewayReadiness?(managementToken: string): Promise<ConsoleGatewayReadinessResponse>;
+  getGatewayReadiness?(
+    managementToken: string,
+  ): Promise<ConsoleGatewayReadinessResponse>;
   /** Build, lifecycle, routing and request counters in one payload. */
-  getOperatorSummary?(managementToken: string): Promise<ConsoleOperatorSummaryResponse>;
+  getOperatorSummary?(
+    managementToken: string,
+  ): Promise<ConsoleOperatorSummaryResponse>;
   /** Raw request-audit rows for the detail table. */
   listRequestAudits?(
     managementToken: string,
@@ -247,13 +281,34 @@ export type ConsoleApi = {
     managementToken: string,
     input: ConsoleAccessKeyInput,
   ): Promise<ConsoleAccessKey>;
-  rotateAccessKey?(managementToken: string, accessKeyId: string): Promise<ConsoleAccessKey>;
+  rotateAccessKey?(
+    managementToken: string,
+    accessKeyId: string,
+  ): Promise<ConsoleAccessKey>;
+  updateAccessKey?(
+    managementToken: string,
+    accessKeyId: string,
+    input: ConsoleAccessKeyInput,
+  ): Promise<ConsoleAccessKey>;
   revokeAccessKey?(
     managementToken: string,
     accessKeyId: string,
     reason?: string,
   ): Promise<OperationSuccess>;
+  setAccessKeyEnabled?(
+    managementToken: string,
+    accessKeyId: string,
+    enabled: boolean,
+  ): Promise<OperationSuccess>;
+  deleteAccessKey?(
+    managementToken: string,
+    accessKeyId: string,
+  ): Promise<{ accessKeyId: string; displayName: string }>;
   /** `null` until a balance row is provisioned for the key. */
+  copyAccessKey?(
+    managementToken: string,
+    accessKeyId: string,
+  ): Promise<{ token: string }>;
   getAccessKeyBalance?(
     managementToken: string,
     accessKeyId: string,
@@ -301,7 +356,9 @@ export type ConsoleApi = {
     draft: ConsoleRouteConfigCommitRequest,
     secretGrant?: string,
   ): Promise<ConsoleRouteConfigCommitResponse>;
-  listRouteConfigRevisions(managementToken: string): Promise<ConsoleRouteRevisionListResponse>;
+  listRouteConfigRevisions(
+    managementToken: string,
+  ): Promise<ConsoleRouteRevisionListResponse>;
   getRouteConfigRevision(
     managementToken: string,
     revisionId: string,

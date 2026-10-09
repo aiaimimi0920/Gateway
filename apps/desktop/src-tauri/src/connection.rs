@@ -27,7 +27,11 @@ fn require_settings_window(window: &WebviewWindow) -> Result<(), String> {
 #[tauri::command]
 pub fn load_gateway_connection(window: WebviewWindow) -> Result<ConnectionSettings, String> {
     require_settings_window(&window)?;
-    settings::load(&gateway_app_dir()?.join("connection.json"))
+    let result = gateway_app_dir().and_then(|dir| settings::load(&dir.join("connection.json")));
+    if result.is_err() {
+        window::show_settings(window.app_handle());
+    }
+    result
 }
 
 #[tauri::command]
@@ -37,9 +41,16 @@ pub async fn connect_gateway(
     settings: ConnectionSettings,
 ) -> Result<String, String> {
     require_settings_window(&window)?;
-    tauri::async_runtime::spawn_blocking(move || connect(&app, settings))
+    let fallback = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || connect(&app, settings))
         .await
-        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())
+        .and_then(|result| result);
+    // The settings window stays hidden during automatic startup, but failures must remain actionable.
+    if result.is_err() {
+        window::show_settings(&fallback);
+    }
+    result
 }
 
 fn connect(app: &AppHandle, settings: ConnectionSettings) -> Result<String, String> {
@@ -77,7 +88,7 @@ pub fn handle_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
             && window
                 .app_handle()
                 .get_webview_window("gateway-console")
-                .is_some()
+                .is_some_and(|console| console.is_visible().unwrap_or(false))
         {
             api.prevent_close();
             let _ = window.hide();

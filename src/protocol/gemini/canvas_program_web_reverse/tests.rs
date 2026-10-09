@@ -7,6 +7,7 @@ use crate::routing::candidate::ProviderAccountPayload;
 
 fn make_payload() -> ProviderAccountPayload {
     ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: GEMINI_CANVAS_PROGRAM_WEB_REVERSE_MODULAR_ADAPTER.to_string(),
         base_url: "https://gemini.google.com".to_string(),
         api_key: "unused".to_string(),

@@ -1,12 +1,16 @@
 import { X } from "lucide-react";
-import type { ConsoleCredentialProbeResult, ConsoleProviderProbeResponse } from "../../api/contracts";
+import type { ConsoleCredentialProbeResult, ConsoleProviderProbeResponse, ConsoleRouteDocument, CredentialTestPolicy, CredentialTestScope } from "../../api/contracts";
 import type { AccountsLedgerPilotAccount, AccountsLedgerPilotSection } from "./AccountsLedgerWorkspace";
 import type { RouteManagedAccount } from "./routeAccountCatalog";
 import type { buildPilotStatsView } from "./pilotStatsView";
 import { PilotAccountProbePanel } from "./PilotAccountProbePanel";
 import { PilotAccountStatsPanel } from "./PilotAccountStatsPanel";
-import { PilotProviderProbePanel } from "./PilotProviderProbePanel";
-import { PilotProviderSchedulePanel } from "./PilotProviderSchedulePanel";
+
+
+import { ProviderTestDialog } from "./ProviderTestDialog";
+import { CredentialTestManager } from "./CredentialTestManager";
+import type { TestPlanChange } from "./credentialTestPlansDocument";
+import type { TestProbeAction, TestResultLoader } from "./useCredentialTestRuns";
 
 export type PilotActionDialogState =
   | {
@@ -57,7 +61,12 @@ type PilotActionDialogProps = {
   providerProbeBusy: boolean;
   providerProbeError: string | null;
   providerProbeResponse: ConsoleProviderProbeResponse | null;
-  startProviderProbe: () => Promise<void>;
+  startProviderProbe: TestProbeAction;
+  testPolicyDocument?: ConsoleRouteDocument | null;
+  accountPilotSections?: AccountsLedgerPilotSection[];
+  applyTestPolicy?: (scope: CredentialTestScope | CredentialTestScope[], policy: CredentialTestPolicy | null) => boolean;
+  loadProviderProbeResults?: TestResultLoader;
+  applyTestPlanChanges?: (changes: TestPlanChange[]) => boolean;
   editorLocked: boolean;
   pilotScheduleEnabled: boolean;
   setPilotScheduleEnabled: (value: boolean) => void;
@@ -84,6 +93,11 @@ export function PilotActionDialog({
   providerProbeError,
   providerProbeResponse,
   startProviderProbe,
+  testPolicyDocument,
+  accountPilotSections,
+  applyTestPolicy,
+  loadProviderProbeResults,
+  applyTestPlanChanges,
   editorLocked,
   pilotScheduleEnabled,
   setPilotScheduleEnabled,
@@ -94,6 +108,24 @@ export function PilotActionDialog({
   activePilotStatsView,
   applyPilotProbeSchedule,
 }: PilotActionDialogProps) {
+  const testSection = pilotActionDialog?.kind === "probe"
+    ? accountPilotSections?.find((section) => section.providerIds.includes(pilotActionDialog.providerId))
+    : pilotActionDialog?.kind === "provider-probe" || pilotActionDialog?.kind === "provider-schedule" ? pilotActionDialog.section : null;
+  if (testSection && pilotActionDialog) {
+    const TestDialog = pilotActionDialog.kind === "probe" ? ProviderTestDialog : CredentialTestManager;
+    return <TestDialog key={pilotActionDialog.kind === "probe" ? JSON.stringify([pilotActionDialog.providerId, pilotActionDialog.account.accountId]) : testSection.providerId}
+      onPlanChange={applyTestPlanChanges}
+      initialTab={pilotActionDialog.kind === "provider-schedule" ? "auto" : "manual"}
+      initialScope={pilotActionDialog.kind === "probe" ? { kind: "account", providerId: pilotActionDialog.providerId, id: pilotActionDialog.account.accountId } : undefined}
+      scopeLocked={pilotActionDialog.kind === "probe"}
+      document={testPolicyDocument ?? null} onSave={applyTestPolicy} onLoadResults={loadProviderProbeResults}
+      onProbe={startProviderProbe}
+      probe={{ t, section: testSection, closePilotActionDialog, providerProbeBusy,
+        providerProbeError, providerProbeResponse, draftDirty, draftMatchesActiveRevision }}
+      schedule={{ t, section: testSection, closePilotActionDialog, editorLocked,
+        pilotScheduleEnabled, setPilotScheduleEnabled, pilotScheduleIntervalMinutes,
+        setPilotScheduleIntervalMinutes, applyProviderProbeSchedule }} />;
+  }
   return (pilotActionDialog ? (
         <>
           <div className="dialog-overlay" onClick={closePilotActionDialog} />
@@ -126,34 +158,6 @@ export function PilotActionDialog({
                 draftDirty={draftDirty}
                 draftMatchesActiveRevision={draftMatchesActiveRevision}
                 startPilotProbe={startPilotProbe}
-              />
-            ) : null}
-
-            {pilotActionDialog.kind === "provider-probe" ? (
-              <PilotProviderProbePanel
-                t={t}
-                section={pilotActionDialog.section}
-                closePilotActionDialog={closePilotActionDialog}
-                providerProbeBusy={providerProbeBusy}
-                providerProbeError={providerProbeError}
-                providerProbeResponse={providerProbeResponse}
-                draftDirty={draftDirty}
-                draftMatchesActiveRevision={draftMatchesActiveRevision}
-                startProviderProbe={startProviderProbe}
-              />
-            ) : null}
-
-            {pilotActionDialog.kind === "provider-schedule" ? (
-              <PilotProviderSchedulePanel
-                t={t}
-                section={pilotActionDialog.section}
-                closePilotActionDialog={closePilotActionDialog}
-                editorLocked={editorLocked}
-                pilotScheduleEnabled={pilotScheduleEnabled}
-                setPilotScheduleEnabled={setPilotScheduleEnabled}
-                pilotScheduleIntervalMinutes={pilotScheduleIntervalMinutes}
-                setPilotScheduleIntervalMinutes={setPilotScheduleIntervalMinutes}
-                applyProviderProbeSchedule={applyProviderProbeSchedule}
               />
             ) : null}
 

@@ -5,6 +5,13 @@ use super::pricing::{
 };
 use super::*;
 
+pub(crate) fn cash_model_rate(payload: &Value, model: &str) -> GatewayPriceRateView {
+    // Market-display defaults are estimates, not an operator-approved customer tariff.
+    read_model_static_pricing_map(payload)
+        .remove(model)
+        .unwrap_or_else(|| build_gateway_price_rate(payload, PriceMode::Static))
+}
+
 pub(super) fn build_provider_pricing_editor_rows(
     provider_account: &CostProviderRef<'_>,
     supported_models: &[String],

@@ -24,6 +24,8 @@ struct SseUsageCapture {
     pending_data_lines: Vec<String>,
     prompt_tokens: Option<u64>,
     completion_tokens: Option<u64>,
+    prompt_reported: bool,
+    completion_reported: bool,
     cache_creation_input_tokens: Option<u64>,
     cache_read_input_tokens: Option<u64>,
 }
@@ -83,6 +85,8 @@ impl SseUsageCapture {
             pending_data_lines: Vec::new(),
             prompt_tokens: None,
             completion_tokens: None,
+            prompt_reported: false,
+            completion_reported: false,
             cache_creation_input_tokens: None,
             cache_read_input_tokens: None,
         }
@@ -134,26 +138,43 @@ impl SseUsageCapture {
         };
 
         if event.as_deref() == Some("message_start") {
-            if let Some(usage) = value
+            if let Some(raw) = value
                 .get("message")
                 .and_then(|message| message.get("usage"))
-                .and_then(parse_usage_value)
             {
-                self.merge_usage(usage);
+                self.observe_usage(raw, true);
             }
             return;
         }
 
-        if let Some(usage) = value.get("usage").and_then(parse_usage_value) {
-            self.merge_usage(usage);
+        if let Some(raw) = value.get("usage") {
+            self.observe_usage(raw, false);
         }
-        if let Some(usage) = value
+        if let Some(raw) = value
             .get("response")
             .and_then(|response| response.get("usage"))
-            .and_then(parse_usage_value)
         {
-            self.merge_usage(usage);
+            self.observe_usage(raw, false);
         }
+    }
+
+    fn observe_usage(&mut self, raw: &Value, message_start: bool) {
+        let Some(usage) = parse_usage_value(raw) else {
+            return;
+        };
+        self.prompt_reported |= raw
+            .get("prompt_tokens")
+            .or_else(|| raw.get("input_tokens"))
+            .and_then(Value::as_u64)
+            .is_some();
+        // Anthropic's message_start output=0 is provisional, not a completed bill.
+        self.completion_reported |= !message_start
+            && raw
+                .get("completion_tokens")
+                .or_else(|| raw.get("output_tokens"))
+                .and_then(Value::as_u64)
+                .is_some();
+        self.merge_usage(usage);
     }
 
     fn merge_usage(&mut self, usage: TokenUsage) {
@@ -182,7 +203,7 @@ impl SseUsageCapture {
         };
 
         if let Ok(mut latest_usage) = self.latest_usage.lock() {
-            *latest_usage = Some(merged);
+            *latest_usage = (self.prompt_reported && self.completion_reported).then_some(merged);
         }
     }
 }

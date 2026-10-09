@@ -4,6 +4,12 @@ use std::path::PathBuf;
 
 use uuid::Uuid;
 
+#[path = "key_ring_tests.rs"]
+mod key_ring_tests;
+
+#[path = "key_ring_edit_tests.rs"]
+mod key_ring_edit_tests;
+
 use super::{AuthenticatedConsoleActor, ConsoleAuthRuntime, ConsoleRequestContext};
 use crate::console::{ConsoleConfig, ConsoleConfigValues};
 use crate::error::GatewayError;

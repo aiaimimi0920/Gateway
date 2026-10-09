@@ -151,6 +151,9 @@ fn infer_responses_instructions(req: &CanonicalRelayRequest) -> Option<String> {
 
 /// Pack a [`CanonicalRelayRequest`] into an OpenAI Responses API request body.
 pub fn pack_responses(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Value {
+    let translated =
+        crate::protocol::generation_parameters::for_target(req, ProtocolFamily::OpenAi);
+    let req = translated.as_ref();
     let mut body = serde_json::Map::new();
     body.insert("model".to_string(), Value::String(model.to_string()));
     body.insert("stream".to_string(), Value::Bool(stream));

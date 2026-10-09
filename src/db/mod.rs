@@ -12,6 +12,7 @@ pub mod provider_credentials;
 pub mod rate_limit_hotspots;
 pub mod remediation;
 pub mod request_audits;
+pub mod request_model_totals;
 pub mod routing;
 pub mod sessions;
 pub mod usage_aggregates;

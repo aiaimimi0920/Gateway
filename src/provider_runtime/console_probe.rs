@@ -32,6 +32,7 @@ pub async fn probe_provider_payload_for_console(
 
     match probe_known_http_payload(client, payload, ProbePolicy::Strict).await {
         Some(Ok(())) => ProviderPayloadProbeReport {
+            answer: None,
             status: ProviderPayloadProbeStatus::Passed,
             message: "Credential connectivity probe passed.".to_string(),
         },
@@ -95,6 +96,7 @@ pub fn provider_payload_probe_point(payload: &ProviderAccountPayload) -> String 
 fn failed_probe_report(message: &str) -> ProviderPayloadProbeReport {
     let message = sanitize_provider_error_message(message);
     ProviderPayloadProbeReport {
+        answer: None,
         status: ProviderPayloadProbeStatus::Failed,
         message: if message.is_empty() {
             "Credential connectivity probe failed.".to_string()
@@ -106,6 +108,7 @@ fn failed_probe_report(message: &str) -> ProviderPayloadProbeReport {
 
 fn unsupported_probe_report(message: impl Into<String>) -> ProviderPayloadProbeReport {
     ProviderPayloadProbeReport {
+        answer: None,
         status: ProviderPayloadProbeStatus::Unsupported,
         message: message.into(),
     }

@@ -282,7 +282,7 @@ describe("AccountsLedgerWorkspace account library", () => {
     const onRemove = vi.fn();
     const onOpenStats = vi.fn();
     const onOpenProbe = vi.fn();
-    const onDuplicate = vi.fn();
+    const onOpenModelMapping = vi.fn();
     const onSetAccountGroup = vi.fn();
     renderWorkspace(
       workspaceProps({
@@ -291,7 +291,7 @@ describe("AccountsLedgerWorkspace account library", () => {
         onRemove,
         onOpenStats,
         onOpenProbe,
-        onDuplicate,
+        onOpenModelMapping,
         onSetAccountGroup,
         groupOptions: [
           { value: "all", label: "全部分组" },
@@ -307,20 +307,14 @@ describe("AccountsLedgerWorkspace account library", () => {
     );
     const library = screen.getByRole("region", { name: "Managed OpenAI 账号库" });
 
-    await user.click(within(library).getByRole("button", { name: "查看 Account 1 统计" }));
-    expect(onOpenStats).toHaveBeenCalledWith("managed-provider", expect.objectContaining({ accountId: "acct-1" }));
     await user.click(within(library).getByRole("combobox", { name: "调整 Account 1 分组池" }));
     await user.click(screen.getByRole("option", { name: "青铜级别服务" }));
     expect(onSetAccountGroup).toHaveBeenCalledWith("acct-1", "bronze");
 
-    await user.click(within(library).getByRole("button", { name: "更多操作 acct-1" }));
-    expect(within(library).queryByRole("menuitem", { name: "查看统计" })).not.toBeInTheDocument();
-    expect(within(library).queryByRole("menuitem", { name: "定时测试" })).not.toBeInTheDocument();
-    await user.click(within(library).getByRole("menuitem", { name: "账号测试" }));
+    await user.click(within(library).getByRole("button", { name: "测试账号 Account 1" }));
     expect(onOpenProbe).toHaveBeenCalledWith("managed-provider", expect.objectContaining({ accountId: "acct-1" }));
-    await user.click(within(library).getByRole("button", { name: "更多操作 acct-1" }));
-    await user.click(within(library).getByRole("menuitem", { name: "复制账号" }));
-    expect(onDuplicate).toHaveBeenCalledWith("managed-provider", expect.objectContaining({ accountId: "acct-1" }));
+    await user.click(within(library).getByRole("button", { name: "模型映射 Account 1" }));
+    expect(onOpenModelMapping).toHaveBeenCalledWith(expect.objectContaining({ providerId: "managed-provider" }));
 
     await user.click(within(library).getByRole("switch", { name: "调度 acct-1" }));
     expect(onToggleDispatch).toHaveBeenCalledWith("managed-provider", "acct-1", false);

@@ -3,6 +3,7 @@ import type { AccountsLedgerPilotAccount } from "./AccountsLedgerWorkspace";
 import type { CredentialDialogValue } from "./CredentialDialog";
 import { optionalString, readStringArray } from "./routeAccountCatalog";
 import { isRecord } from "./routeDocument";
+import { accountDiscoverySchema } from "./accountDiscovery";
 
 export type ProviderDraftRow = {
   id: string;
@@ -86,6 +87,7 @@ export function credentialDialogValueFromDocument(
   return {
     providerId,
     credentialId,
+    discovery: accountDiscoverySchema.safeParse(credential.discovery).data,
     accountName: optionalString(credential, "account_name") ?? "",
     enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
     baseUrl: optionalString(credential, "base_url") ?? "",

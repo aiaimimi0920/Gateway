@@ -5,6 +5,7 @@ use crate::protocol::canonical::{
 
 pub(super) fn make_payload() -> ProviderAccountPayload {
     ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "freebuff_compatible".to_string(),
         base_url: "https://codebuff.com".to_string(),
         api_key: "fb-token".to_string(),

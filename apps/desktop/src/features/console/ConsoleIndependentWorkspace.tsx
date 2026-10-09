@@ -74,7 +74,9 @@ export function ConsoleIndependentWorkspace({
       creatingKey={access.creatingKey}
       keyBusyId={access.keyBusyId}
       onRotateKey={access.rotateKey}
-      onRevokeKey={access.revokeKey}
+      onKeyLifecycle={access.keyLifecycle}
+      onUpdateKey={access.updateKey}
+      onCopyKey={access.copyKey}
       bundleDraft={access.bundleDraft}
       onBundleDraftChange={access.setBundleDraft}
       onCreateBundle={access.createBundle}
@@ -107,5 +109,7 @@ export function ConsoleIndependentWorkspace({
 
   return activeWorkspace === "operations"
     ? operationsWorkspace
-    : activeWorkspace === "access" ? accessWorkspace : settingsWorkspace;
+    : activeWorkspace === "access"
+      ? accessWorkspace
+      : settingsWorkspace;
 }

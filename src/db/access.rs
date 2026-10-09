@@ -65,7 +65,10 @@ pub use candidates::{preview_access_candidates, preview_route_decision};
 pub use catalog::list_access_catalog;
 pub use catalog_write::{save_platform_access, save_provider_capability};
 pub use key_rotation::rotate_access_key;
-pub use keys::{delete_access_key, revoke_access_key, save_access_key};
+pub use keys::{
+    delete_access_key, read_access_key_secret, revoke_access_key, save_access_key,
+    save_access_key_with_quota, set_access_key_enabled,
+};
 pub use memberships::replace_access_key_aggregate_memberships;
 pub use models::{
     AccessBalanceDecision, AccessKeyAuthRecord, AccessKeyBalanceAdjustInput,

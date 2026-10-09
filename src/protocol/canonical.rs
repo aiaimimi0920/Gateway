@@ -19,6 +19,10 @@ pub enum ProtocolFamily {
     BedrockConverse,
     #[serde(rename = "cohere_chat", alias = "cohere_chat_v2")]
     CohereChat,
+    #[serde(rename = "dashscope_text")]
+    DashScope,
+    #[serde(rename = "dashscope_multimodal")]
+    DashScopeMultimodal,
     #[serde(rename = "search", alias = "search_api", alias = "linkup")]
     SearchApi,
 }
@@ -303,37 +307,6 @@ mod tests {
     // ------------------------------------------------------------------
     // Serialisation round-trip
     // ------------------------------------------------------------------
-
-    #[test]
-    fn roundtrip_protocol_family() {
-        let cases = [
-            (ProtocolFamily::OpenAi, r#""open_ai""#),
-            (ProtocolFamily::OpenAiRealtime, r#""open_ai_realtime""#),
-            (ProtocolFamily::Anthropic, r#""anthropic""#),
-            (
-                ProtocolFamily::GeminiGenerateContent,
-                r#""gemini_generate_content""#,
-            ),
-            (ProtocolFamily::GeminiLive, r#""gemini_live""#),
-            (ProtocolFamily::BedrockConverse, r#""bedrock_converse""#),
-            (ProtocolFamily::CohereChat, r#""cohere_chat""#),
-            (ProtocolFamily::SearchApi, r#""search""#),
-        ];
-        for (family, expected_json) in cases {
-            let json = serde_json::to_string(&family).unwrap();
-            assert_eq!(json, expected_json);
-            let decoded: ProtocolFamily = serde_json::from_str(&json).unwrap();
-            assert_eq!(decoded, family);
-        }
-    }
-
-    #[test]
-    fn legacy_protocol_family_alias_deserializes_to_search() {
-        let decoded: ProtocolFamily = serde_json::from_str(r#""linkup""#).unwrap();
-        assert_eq!(decoded, ProtocolFamily::SearchApi);
-        let decoded: ProtocolFamily = serde_json::from_str(r#""search_api""#).unwrap();
-        assert_eq!(decoded, ProtocolFamily::SearchApi);
-    }
 
     #[test]
     fn roundtrip_endpoint_kind() {

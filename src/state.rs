@@ -22,6 +22,8 @@ use sqlx::PgPool;
 
 #[derive(Debug, Default)]
 pub struct GatewayLifecycleState {
+    /// Per-runtime admission cursor; released with this runtime, never reused by another instance.
+    pub(crate) credential_probe_cursor: AtomicUsize,
     draining: AtomicBool,
     active_requests: AtomicUsize,
     drain_started_at: RwLock<Option<String>>,

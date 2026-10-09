@@ -21,6 +21,8 @@
 @import "./styles/entitlement-members.css";
 @import "./styles/workspace-controls.css";
 @import "./styles/dialogs.css";
+@import "./styles/provider-pool-dialogs.css";
+@import "./styles/credential-test-manager.css";
 @import "./styles/provider-catalog.css";
 @import "./styles/diagnostics.css";
 @import "./styles/notifications.css";

@@ -2,8 +2,11 @@
 
 mod access_keys;
 mod bundles;
+mod cash_ledger;
 mod catalog;
 mod routing_diagnostics;
+
+pub use cash_ledger::get_cash_ledger;
 
 #[cfg(test)]
 mod tests;
@@ -21,10 +24,11 @@ pub use bundles::{
 };
 
 pub use access_keys::{
-    adjust_access_key_balance, create_access_key, delete_access_key, get_access_key_balance,
-    replace_aggregate_memberships, revoke_access_key, rotate_access_key, update_access_key,
-    AccessKeyBody, AccessKeyPath, AggregateMembershipBody, BalanceAdjustBody,
-    ReplaceAggregateMembershipsBody, RevokeAccessKeyBody,
+    adjust_access_key_balance, copy_access_key, create_access_key, delete_access_key,
+    get_access_key_balance, replace_aggregate_memberships, revoke_access_key, rotate_access_key,
+    set_access_key_enabled, update_access_key, AccessKeyBody, AccessKeyPath,
+    AggregateMembershipBody, BalanceAdjustBody, ReplaceAggregateMembershipsBody,
+    RevokeAccessKeyBody,
 };
 
 pub use routing_diagnostics::{

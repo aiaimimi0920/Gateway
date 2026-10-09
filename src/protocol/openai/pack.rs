@@ -7,6 +7,9 @@ use crate::protocol::canonical::{
 
 /// Pack a [`CanonicalRelayRequest`] into an OpenAI chat/completions JSON body.
 pub fn pack_openai(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Value {
+    let translated =
+        crate::protocol::generation_parameters::for_target(req, ProtocolFamily::OpenAi);
+    let req = translated.as_ref();
     let is_reasoning = model.starts_with("o1") || model.starts_with("o3");
 
     // Build messages array — extract system into first element if present.

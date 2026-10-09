@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { ProviderAccountLibrary } from "./ProviderAccountLibrary";
 import { ProviderLedgerCard } from "./ProviderLedgerCard";
+import { ProviderRemoveDialog } from "./ProviderRemoveDialog";
 import {
   ProviderLifecycleActionDialog,
   type PendingProviderLifecycleAction,
@@ -68,6 +69,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     onOpenModelMapping,
     onOpenStats,
     onDuplicate,
+    onRefreshDiscovery,
   } = props;
   const providerCardSnapshots = useMemo(
     () => pilotSections.map((section) => buildProviderCardSnapshot(section)),
@@ -93,6 +95,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   const [providerFlipAnnouncement, setProviderFlipAnnouncement] = useState("");
   const [pendingCredentialRemoval, setPendingCredentialRemoval] =
     useState<PendingCredentialRemoval | null>(null);
+  const [pendingProviderRemoval, setPendingProviderRemoval] = useState<AccountsLedgerPilotSection | null>(null);
   const [pendingProviderLifecycleAction, setPendingProviderLifecycleAction] =
     useState<PendingProviderLifecycleAction | null>(null);
 
@@ -187,11 +190,21 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     providerId: string,
     account: AccountsLedgerPilotAccount,
   ) => {
+    // The menu item unmounts; the dialog must capture the surviving card trigger.
+    if (action === "probe") pilotMenu.menuTriggerRefs.current.get(activePilotActionMenuKey ?? "")?.focus();
     setActivePilotActionMenuKey(null);
     switch (action) {
+      case "discover":
+        onRefreshDiscovery?.(providerId, account.accountId);
+        break;
       case "probe":
         onOpenProbe(providerId, account);
         break;
+      case "model-mapping": {
+        const section = pilotSections.find((entry) => entry.providerId === providerId);
+        if (section) onOpenModelMapping(section);
+        break;
+      }
       case "duplicate":
         onDuplicate(providerId, account);
         break;
@@ -330,14 +343,11 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
                 toggleProviderAccountLibrary={toggleProviderAccountLibrary}
                 toggleProviderFlip={toggleProviderFlip}
                 providerFlipButtonRefs={providerFlipButtonRefs}
-                menu={pilotMenu}
                 handlers={{
                   onToggleDispatch,
-                  onEdit,
-                  onOpenProviderProbe,
                   onOpenProviderSchedule,
                   onOpenModelMapping,
-                  requestCredentialRemoval,
+                  onRequestProviderRemoval: setPendingProviderRemoval,
                 }}
               >
                 {renderProviderLifecycleBack({
@@ -397,6 +407,12 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
         onCancel={() => setPendingCredentialRemoval(null)}
         onConfirm={confirmCredentialRemoval}
       />
+      <ProviderRemoveDialog pending={pendingProviderRemoval} locked={editorLocked}
+        onCancel={() => setPendingProviderRemoval(null)}
+        onConfirm={() => {
+          if (pendingProviderRemoval && !editorLocked) props.onRemoveProvider(pendingProviderRemoval.providerId);
+          setPendingProviderRemoval(null);
+        }} t={t} />
 
       <ProviderLifecycleActionDialog
         pending={pendingProviderLifecycleAction}

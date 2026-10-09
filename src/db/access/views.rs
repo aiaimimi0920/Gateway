@@ -110,6 +110,7 @@ pub(super) fn to_access_key_balance_view(row: AccessKeyBalanceRow) -> GatewayAcc
         remaining_tokens: row.remaining_tokens,
         total_messages: row.total_messages,
         remaining_messages: row.remaining_messages,
+        cash: None,
         updated_at: format_timestamp(row.updated_at),
     }
 }

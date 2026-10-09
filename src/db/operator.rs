@@ -192,6 +192,8 @@ enum PriceMode {
     Quote,
 }
 
+pub(crate) use pricing_editor::cash_model_rate;
+
 fn summary_buckets(buckets: BTreeMap<String, usize>) -> Vec<GatewaySummaryBucketView> {
     buckets
         .into_iter()

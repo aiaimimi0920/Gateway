@@ -22,7 +22,9 @@ pub fn build_request_plan(
                 method: Method::POST,
                 url: format!("{}{}", payload.base_url.trim_end_matches('/'), path),
                 query: Vec::new(),
-                body: Some(anthropic::pack_anthropic(req, model, stream)),
+                body: Some(if payload.is_discovered_native(req) {
+                    crate::upstream::common::merge_model_and_stream_into_body(req.raw_body.clone(), model, Some(stream))
+                } else { anthropic::pack_anthropic(req, model, stream) }),
                 response_kind: EndpointKind::Messages,
             })
         }

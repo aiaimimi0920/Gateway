@@ -3,6 +3,7 @@ use super::*;
 #[test]
 fn runtime_reads_realm_id_from_payload_extra_body() {
     let payload = ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "lumalabs_compatible".to_string(),
         base_url: "https://app.lumalabs.ai".to_string(),
         api_key: "wos-session".to_string(),
@@ -51,6 +52,7 @@ fn runtime_reads_realm_id_from_payload_extra_body() {
 #[test]
 fn runtime_reads_optional_video_and_audio_contract_fields() {
     let payload = ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: "lumalabs_compatible".to_string(),
         base_url: "https://app.lumalabs.ai".to_string(),
         api_key: "wos-session".to_string(),

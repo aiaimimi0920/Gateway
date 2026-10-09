@@ -62,6 +62,8 @@ pub fn requested_wire_protocol_family(req: &CanonicalRelayRequest) -> Option<Str
         ProtocolFamily::GeminiLive => Some(GEMINI_LIVE_FAMILY),
         ProtocolFamily::BedrockConverse => Some(BEDROCK_CONVERSE_FAMILY),
         ProtocolFamily::CohereChat => Some(COHERE_CHAT_FAMILY),
+        ProtocolFamily::DashScope => Some("dashscope_text"),
+        ProtocolFamily::DashScopeMultimodal => Some("dashscope_multimodal"),
         ProtocolFamily::SearchApi => Some(SEARCH_API_FAMILY),
     }
     .map(str::to_string)
@@ -97,6 +99,8 @@ pub fn surface_supported_wire_protocol_families(
         ],
         "bedrock_converse_compatible" => vec![BEDROCK_CONVERSE_FAMILY.to_string()],
         "cohere_compatible" => vec![COHERE_CHAT_FAMILY.to_string()],
+        "dashscope_compatible" => vec!["dashscope_text".into()],
+        "dashscope_multimodal_compatible" => vec!["dashscope_multimodal".into()],
         "gemini_business_compatible" => vec![GEMINI_BUSINESS_IMAGES_FAMILY.to_string()],
         "chataibot_compatible" => vec![CHATAIBOT_IMAGES_FAMILY.to_string()],
         "lumalabs_compatible" => vec![

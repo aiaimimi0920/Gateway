@@ -134,6 +134,8 @@ pub fn needs_tool_injection(model: &str, adapter: &str) -> bool {
             | "gemini_canvas_web_reverse_compatible"
             | "bedrock_converse_compatible"
             | "cohere_compatible"
+            | "dashscope_compatible"
+            | "dashscope_multimodal_compatible"
     ) {
         return false;
     }

@@ -45,28 +45,31 @@ async fn upstream(
         "usage":{"prompt_tokens":2,"completion_tokens":3,"total_tokens":5}})).into_response()
 }
 
-async fn request(
-    state: &Arc<AppState>,
-    path: &str,
-    key: &str,
+fn request<'a>(
+    state: &'a Arc<AppState>,
+    path: &'a str,
+    key: &'a str,
     body: Value,
-) -> (StatusCode, String) {
-    let request = Request::post(path)
-        .header("content-type", "application/json")
-        .header("authorization", format!("Bearer {key}"))
-        .header("x-management-token", key)
-        .body(Body::from(body.to_string()))
+) -> std::pin::Pin<Box<impl std::future::Future<Output = (StatusCode, String)> + 'a>> {
+    // Keep debug Router futures off the small default Windows test thread stack.
+    Box::pin(async move {
+        let request = Request::post(path)
+            .header("content-type", "application/json")
+            .header("authorization", format!("Bearer {key}"))
+            .header("x-management-token", key)
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            build_router(state.clone()).oneshot(request),
+        )
+        .await
+        .unwrap()
         .unwrap();
-    let response = tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        build_router(state.clone()).oneshot(request),
-    )
-    .await
-    .unwrap()
-    .unwrap();
-    let status = response.status();
-    let bytes = response.into_body().collect().await.unwrap().to_bytes();
-    (status, String::from_utf8(bytes.to_vec()).unwrap())
+        let status = response.status();
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        (status, String::from_utf8(bytes.to_vec()).unwrap())
+    })
 }
 
 async fn remaining(state: &Arc<AppState>, id: &str) -> i64 {
@@ -80,8 +83,32 @@ async fn remaining(state: &Arc<AppState>, id: &str) -> i64 {
         .unwrap()
 }
 
+async fn model_status(state: &Arc<AppState>, header: &str, value: &str) -> StatusCode {
+    build_router(state.clone())
+        .oneshot(
+            Request::get("/v1/models")
+                .header(header, value)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+        .status()
+}
+
 #[tokio::test]
 async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
+    let flow = local_mode_flow();
+    assert!(std::mem::size_of_val(&flow) <= 32);
+    flow.await;
+}
+
+fn local_mode_flow() -> std::pin::Pin<Box<impl std::future::Future<Output = ()>>> {
+    // Construct the full fixture before polling it, avoiding large debug copies in the runtime frame.
+    Box::pin(run_local_mode_flow())
+}
+
+async fn run_local_mode_flow() {
     let root = std::env::temp_dir().join(format!("gateway-local-flow-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&root).unwrap();
     let calls = Arc::new(AtomicUsize::new(0));
@@ -100,12 +127,33 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     config.console.state_dir = root.join("state");
     config.console.routes_file = root.join("routes.yaml");
     std::fs::write(&config.console.routes_file, format!("providers:\n  - id: nvidia-fixture\n    base_url: http://{address}\n    api_key: fixture-only\n    supported_models: [nvidia-test]\nmodel_routes: []\n")).unwrap();
-    let state = neuro_gateway::runtime::build_app_state(config.clone())
+    let state = Box::pin(neuro_gateway::runtime::build_app_state(config.clone()))
         .await
         .unwrap();
     assert!(state.pg_pool.is_none());
     assert!(state.redis_pool.is_closed());
     assert!(state.auth_adapters.is_empty());
+    let catalog_response = build_router(state.clone())
+        .oneshot(
+            Request::get("/v1/internal/gateway/access/catalog")
+                .header("x-management-token", support::MANAGEMENT_TOKEN)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(catalog_response.status(), StatusCode::OK);
+    let catalog: Value = serde_json::from_slice(
+        &catalog_response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(catalog["storageMode"], "local");
+    assert!(catalog["accessKeys"].as_array().unwrap().is_empty());
     let (status, created) = request(&state, "/v1/internal/gateway/access/keys", support::MANAGEMENT_TOKEN,
         json!({"ownerType":"user","ownerId":"fixture","resolvedProjectId":"local","resolvedTenantId":"local",
             "keyKind":"normal","publicKeyPrefix":"sk-gw","displayName":"flow","metadata":{"models":["nvidia-test"]}})).await;
@@ -113,6 +161,17 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     let created: Value = serde_json::from_str(&created).unwrap();
     let id = created["id"].as_str().unwrap();
     let token = created["token"].as_str().unwrap();
+    assert_eq!(
+        model_status(&state, "authorization", &format!("Bearer {token}")).await,
+        StatusCode::OK
+    );
+    assert_eq!(
+        model_status(&state, "x-api-key", token).await,
+        StatusCode::OK
+    );
+    assert!(!model_status(&state, "x-api-key", "invalid-fixture-key")
+        .await
+        .is_success());
     let adjust_path = format!("/v1/internal/gateway/access/keys/{id}/balances/adjust");
     let (status, adjusted) = request(
         &state,
@@ -171,7 +230,7 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
     let local = state.local_runtime.as_ref().unwrap();
     local.close().await;
     drop(state);
-    let state = neuro_gateway::runtime::build_app_state(config)
+    let state = Box::pin(neuro_gateway::runtime::build_app_state(config))
         .await
         .unwrap();
     assert_eq!(remaining(&state, id).await, 0);
@@ -199,6 +258,21 @@ async fn local_mode_ignores_external_databases_and_enforces_http_balances() {
         .unwrap()
         .unwrap();
     assert_eq!(balance.total_messages, Some(3));
+    let revoke_path = format!("/v1/internal/gateway/access/keys/{id}/revoke");
+    let (status, _) = request(
+        &state,
+        &revoke_path,
+        support::MANAGEMENT_TOKEN,
+        json!({"reason":"fixture cleanup"}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        !model_status(&state, "authorization", &format!("Bearer {token}"))
+            .await
+            .is_success()
+    );
+    assert!(!model_status(&state, "x-api-key", token).await.is_success());
     state.local_runtime.as_ref().unwrap().close().await;
     drop(state);
     upstream_task.abort();
@@ -271,7 +345,7 @@ async fn local_readiness_checks_sqlite_before_any_provider_is_configured() {
         "providers: []\nmodel_routes: []\n",
     )
     .unwrap();
-    let state = neuro_gateway::runtime::build_app_state(config)
+    let state = Box::pin(neuro_gateway::runtime::build_app_state(config))
         .await
         .unwrap();
     let response = build_router(state.clone())

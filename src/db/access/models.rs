@@ -117,6 +117,8 @@ pub struct GatewayAccessKeyBalanceView {
     pub remaining_tokens: Option<i64>,
     pub total_messages: Option<i64>,
     pub remaining_messages: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cash: Option<crate::cash_billing::CashBalance>,
     pub updated_at: String,
 }
 

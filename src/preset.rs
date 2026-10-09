@@ -239,6 +239,7 @@ pub fn compile_provider_account(
     }
 
     ProviderAccountPayload {
+        discovered_protocols: Vec::new(),
         adapter: preset.adapter.clone(),
         base_url: account.base_url.clone(),
         api_key: account.api_key.clone(),

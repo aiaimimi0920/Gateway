@@ -87,6 +87,8 @@ use timestamps::{format_instant_as_iso, format_now_as_iso};
 
 #[derive(Debug, Clone)]
 pub struct RequestAuditFinalizeSnapshot {
+    pub cash_credential_id: Option<String>,
+    pub cash_charge: Option<Arc<crate::cash_billing::finalization::CashGuard>>,
     pub request_id: String,
     pub request_audit_id: Option<String>,
     pub project_id: Option<String>,

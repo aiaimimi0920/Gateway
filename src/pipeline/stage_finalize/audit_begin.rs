@@ -63,6 +63,11 @@ pub async fn begin_request_audit(ctx: &mut PipelineContext, state: &Arc<AppState
 
 pub fn snapshot_request_audit(ctx: &PipelineContext) -> RequestAuditFinalizeSnapshot {
     RequestAuditFinalizeSnapshot {
+        cash_credential_id: ctx
+            .selected_provider_credential_id
+            .clone()
+            .or_else(|| ctx.selected_real_credential_ref.clone()),
+        cash_charge: ctx.cash_charge.clone(),
         request_id: ctx.req_id.to_string(),
         request_audit_id: ctx.request_audit_id.clone(),
         project_id: ctx

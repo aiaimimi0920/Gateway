@@ -40,14 +40,14 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /权益组/i);
     await user.click(screen.getByRole("button", { name: /添加分组/i }));
-    await user.click(screen.getByRole("button", { name: /^新分组$/i, expanded: false }));
     await user.type(screen.getByLabelText(/分组 ID/i), "temporary-group");
-    expect(screen.getByLabelText(/分组 ID/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^创建分组$/i }));
+    expect(screen.getByRole("button", { name: /^temporary-group$/i, expanded: false })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^刷新$/i }));
 
     await waitFor(() => {
-      expect(screen.queryByLabelText(/分组 ID/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^temporary-group$/i })).not.toBeInTheDocument();
     });
     expect(consoleApi.getRouteConfig).toHaveBeenCalledTimes(2);
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1300)); });
@@ -67,8 +67,10 @@ describe("BrowserConsoleApp", () => {
 
     await openWorkspace(user, /权益组/i);
     await user.click(screen.getByRole("button", { name: /添加分组/i }));
-    await user.click(screen.getByRole("button", { name: /^新分组$/i, expanded: false }));
     await user.type(screen.getByLabelText(/分组 ID/i), "temporary-group");
+    const formEvent = new Event("beforeunload", { cancelable: true });
+    expect(window.dispatchEvent(formEvent)).toBe(true);
+    await user.click(screen.getByRole("button", { name: /^创建分组$/i }));
 
     const dirtyEvent = new Event("beforeunload", { cancelable: true });
     expect(window.dispatchEvent(dirtyEvent)).toBe(false);
@@ -267,14 +269,15 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /权益组/i);
-    await user.click(screen.getByRole("button", { name: /^VIP 分组$/i, expanded: false }));
+    await user.click(screen.getByRole("button", { name: /^编辑$/i }));
     const multiplier = screen.getByLabelText(/计费倍率/i);
+    const dialog = within(screen.getByRole("dialog", { name: "编辑权益组" }));
 
     fireEvent.change(multiplier, { target: { value: "1abc" } });
     expect(multiplier).toHaveValue("1abc");
     expect(multiplier).toHaveAttribute("aria-invalid", "true");
     expect(multiplier).toHaveAttribute("aria-describedby");
-    expect(screen.getByRole("alert")).toHaveTextContent(/计费倍率必须是大于等于 0 的数字/i);
+    expect(dialog.getByRole("alert")).toHaveTextContent(/计费倍率必须是大于等于 0 的数字/i);
 
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1300)); });
     expect(consoleApi.commitRouteConfig).not.toHaveBeenCalled();
@@ -282,10 +285,10 @@ describe("BrowserConsoleApp", () => {
 
     fireEvent.change(multiplier, { target: { value: "-1" } });
     expect(multiplier).toHaveValue("-1");
-    expect(screen.getByRole("alert")).toHaveTextContent(/计费倍率必须是大于等于 0 的数字/i);
+    expect(dialog.getByRole("alert")).toHaveTextContent(/计费倍率必须是大于等于 0 的数字/i);
 
     fireEvent.change(multiplier, { target: { value: "1e-2" } });
-    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    await waitFor(() => expect(dialog.queryByRole("alert")).not.toBeInTheDocument());
     expect(multiplier).toHaveAttribute("aria-invalid", "false");
 
     const draft = await waitForCommittedRouteDraft(consoleApi);

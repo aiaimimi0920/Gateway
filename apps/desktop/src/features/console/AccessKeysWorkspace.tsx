@@ -52,7 +52,9 @@ export function AccessKeysWorkspace({
   creatingKey,
   keyBusyId,
   onRotateKey,
-  onRevokeKey,
+  onKeyLifecycle,
+  onUpdateKey,
+  onCopyKey,
   bundleDraft,
   onBundleDraftChange,
   onCreateBundle,
@@ -81,23 +83,21 @@ export function AccessKeysWorkspace({
   verification,
   credentialNotice,
 }: AccessKeysWorkspaceProps) {
-  const [openSections, setOpenSections] = useState<AccessSectionId[]>(["keys"]);
+  const [openSections, setOpenSections] = useState<AccessSectionId[]>([]);
   const toggleSection = (id: AccessSectionId) => {
     setOpenSections((current) =>
-      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+      current.includes(id)
+        ? current.filter((entry) => entry !== id)
+        : [...current, id],
     );
   };
 
   const {
     affinityFormIncomplete,
-    activeKeyCount,
     bundleFormIncomplete,
     bundles,
-    bundlesByKey,
     catalogEmpty,
     itemCountByBundle,
-    keyFormIncomplete,
-    sortedKeys,
   } = useAccessKeysViewModel(catalog, keyDraft, bundleDraft, affinityDraft);
 
   return (
@@ -105,88 +105,90 @@ export function AccessKeysWorkspace({
       <AccessWorkspaceHeader
         notice={notice}
         onDismissSecret={onDismissSecret}
-        onRefresh={onRefresh}
-        refreshing={refreshing}
-        revealedSecret={revealedSecret}
+        revealedSecret={
+          revealedSecret?.kind === "access-key" ? null : revealedSecret
+        }
         t={t}
       />
 
-      <div className="nt-settings-accordion">
-        <AccessKeysSection
-          activeKeyCount={activeKeyCount}
-          bundles={bundles}
-          bundlesByKey={bundlesByKey}
-          catalog={catalog}
-          catalogEmpty={catalogEmpty}
-          creatingKey={creatingKey}
-          editorLocked={editorLocked}
-          keyBusyId={keyBusyId}
-          keyDraft={keyDraft}
-          keyFormIncomplete={keyFormIncomplete}
-          onCreateKey={onCreateKey}
-          onKeyDraftChange={onKeyDraftChange}
-          onRevokeKey={onRevokeKey}
-          onRotateKey={onRotateKey}
-          onToggle={toggleSection}
-          open={openSections.includes("keys")}
-          sortedKeys={sortedKeys}
-          t={t}
-        />
+      <AccessKeysSection
+        catalog={catalog}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        revealedSecret={revealedSecret}
+        onDismissSecret={onDismissSecret}
+        creatingKey={creatingKey}
+        editorLocked={editorLocked}
+        keyBusyId={keyBusyId}
+        keyDraft={keyDraft}
+        onCreateKey={onCreateKey}
+        onKeyDraftChange={onKeyDraftChange}
+        onKeyLifecycle={onKeyLifecycle}
+        onRotateKey={onRotateKey}
+        onUpdateKey={onUpdateKey}
+        onCopyKey={onCopyKey}
+        t={t}
+      />
+      {catalog.data?.storageMode !== "local" ? (
+        <details className="nt-key-advanced">
+          <summary>{t("高级管理", "Advanced management")}</summary>
+          <div className="nt-settings-accordion">
+            <AccessBundlesSection
+              bundleDraft={bundleDraft}
+              bundleFormIncomplete={bundleFormIncomplete}
+              bundles={bundles}
+              catalog={catalog}
+              catalogEmpty={catalogEmpty}
+              creatingBundle={creatingBundle}
+              editorLocked={editorLocked}
+              itemCountByBundle={itemCountByBundle}
+              onBundleDraftChange={onBundleDraftChange}
+              onCreateBundle={onCreateBundle}
+              onToggle={toggleSection}
+              open={openSections.includes("bundles")}
+              t={t}
+            />
 
-        <AccessBundlesSection
-          bundleDraft={bundleDraft}
-          bundleFormIncomplete={bundleFormIncomplete}
-          bundles={bundles}
-          catalog={catalog}
-          catalogEmpty={catalogEmpty}
-          creatingBundle={creatingBundle}
-          editorLocked={editorLocked}
-          itemCountByBundle={itemCountByBundle}
-          onBundleDraftChange={onBundleDraftChange}
-          onCreateBundle={onCreateBundle}
-          onToggle={toggleSection}
-          open={openSections.includes("bundles")}
-          t={t}
-        />
+            <AccessAffinitySection
+              affinity={affinity}
+              affinityDraft={affinityDraft}
+              affinityFormIncomplete={affinityFormIncomplete}
+              affinityNotice={affinityNotice}
+              editorLocked={editorLocked}
+              lastRotation={lastRotation}
+              onAffinityDraftChange={onAffinityDraftChange}
+              onInspectAffinity={onInspectAffinity}
+              onResetAffinity={onResetAffinity}
+              onRotateApiAccess={onRotateApiAccess}
+              onRotationDraftChange={onRotationDraftChange}
+              onToggle={toggleSection}
+              open={openSections.includes("affinity")}
+              rotationDraft={rotationDraft}
+              rotatingApiAccess={rotatingApiAccess}
+              t={t}
+            />
 
-        <AccessAffinitySection
-          affinity={affinity}
-          affinityDraft={affinityDraft}
-          affinityFormIncomplete={affinityFormIncomplete}
-          affinityNotice={affinityNotice}
-          editorLocked={editorLocked}
-          lastRotation={lastRotation}
-          onAffinityDraftChange={onAffinityDraftChange}
-          onInspectAffinity={onInspectAffinity}
-          onResetAffinity={onResetAffinity}
-          onRotateApiAccess={onRotateApiAccess}
-          onRotationDraftChange={onRotationDraftChange}
-          onToggle={toggleSection}
-          open={openSections.includes("affinity")}
-          rotationDraft={rotationDraft}
-          rotatingApiAccess={rotatingApiAccess}
-          t={t}
-        />
-
-        <AccessCredentialsSection
-          credentialBusy={credentialBusy}
-          credentialDraft={credentialDraft}
-          credentialNotice={credentialNotice}
-          editorLocked={editorLocked}
-          issuingCredential={issuingCredential}
-          lastIssuedCredential={lastIssuedCredential}
-          onCredentialDraftChange={onCredentialDraftChange}
-          onIssueCredential={onIssueCredential}
-          onRevokeCredential={onRevokeCredential}
-          onToggle={() => toggleSection("credentials")}
-          onVerifyCredential={onVerifyCredential}
-          onVerifyDraftChange={onVerifyDraftChange}
-          open={openSections.includes("credentials")}
-          t={t}
-          verification={verification}
-          verifyDraft={verifyDraft}
-        />
-      </div>
+            <AccessCredentialsSection
+              credentialBusy={credentialBusy}
+              credentialDraft={credentialDraft}
+              credentialNotice={credentialNotice}
+              editorLocked={editorLocked}
+              issuingCredential={issuingCredential}
+              lastIssuedCredential={lastIssuedCredential}
+              onCredentialDraftChange={onCredentialDraftChange}
+              onIssueCredential={onIssueCredential}
+              onRevokeCredential={onRevokeCredential}
+              onToggle={() => toggleSection("credentials")}
+              onVerifyCredential={onVerifyCredential}
+              onVerifyDraftChange={onVerifyDraftChange}
+              open={openSections.includes("credentials")}
+              t={t}
+              verification={verification}
+              verifyDraft={verifyDraft}
+            />
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }
