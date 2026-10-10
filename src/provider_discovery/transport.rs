@@ -5,7 +5,6 @@ use super::{
 };
 use futures::{stream, StreamExt};
 use serde_json::Value;
-use std::time::Duration;
 
 pub(super) fn checked_url(value: &str) -> anyhow::Result<url::Url> {
     let url = url::Url::parse(value).map_err(|_| anyhow::anyhow!("Invalid service URL."))?;
@@ -29,7 +28,7 @@ pub(super) async fn read_json(response: rquest::Response) -> anyhow::Result<Valu
     let mut stream = response.bytes_stream();
     let mut bytes = Vec::new();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|_| anyhow::anyhow!("Discovery response interrupted."))?;
+        let chunk = chunk?;
         anyhow::ensure!(
             bytes.len() + chunk.len() <= 1_048_576,
             "Discovery response exceeds 1 MiB."
@@ -43,7 +42,7 @@ pub(super) async fn discover(url: &str, key: &str) -> anyhow::Result<CredentialD
     checked_url(url)?;
     let client = crate::http_client::builder()
         .redirect(rquest::redirect::Policy::none())
-        .timeout(Duration::from_secs(100))
+        .timeout(super::REQUEST_TIMEOUT)
         .build()?;
     let models = catalogue::load(&client, url, key).await?;
     let mut results = stream::iter(registry::ALL.into_iter().enumerate().map(
@@ -100,18 +99,7 @@ async fn probe_protocol(
         status: "unconfirmed".into(),
         attempts: Vec::new(),
     };
-    let mut ordered = models.iter().collect::<Vec<_>>();
-    // Names prioritize samples, but never serve as evidence of protocol support.
-    ordered.sort_by_key(|m| match protocol {
-        DiscoveredProtocol::GeminiGenerateContent | DiscoveredProtocol::GeminiInteractions => {
-            !m.starts_with("gemini")
-        }
-        DiscoveredProtocol::Messages => !m.starts_with("claude"),
-        DiscoveredProtocol::CohereChat => !m.starts_with("command"),
-        DiscoveredProtocol::DashscopeText => !m.starts_with("qwen"),
-        DiscoveredProtocol::DashscopeMultimodal => !(m.starts_with("qwen") && m.contains("vl")),
-        _ => false,
-    });
+    let ordered = super::sampling::models(models, protocol);
     let operation = async {
         for base in registry::bases(url, protocol).unwrap_or_default() {
             for model in ordered.iter().take(3) {
@@ -139,8 +127,8 @@ async fn probe_protocol(
                         }
                         .into();
                         if (200..300).contains(&status) {
-                            if let Ok(body) = read_json(response).await {
-                                if registry::has_reply(protocol, &body) {
+                            match read_json(response).await {
+                                Ok(body) if registry::has_reply(protocol, &body) => {
                                     attempt.status = "supported".into();
                                     *report.attempts.last_mut().unwrap() = attempt;
                                     report.status = "supported".into();
@@ -151,10 +139,20 @@ async fn probe_protocol(
                                         failed_models: Vec::new(),
                                     });
                                 }
+                                Err(error)
+                                    if error
+                                        .downcast_ref::<rquest::Error>()
+                                        .is_some_and(|e| e.is_timeout()) =>
+                                {
+                                    attempt.status = "timeout".into();
+                                }
+                                _ => {}
                             }
                         }
                         *report.attempts.last_mut().unwrap() = attempt;
-                        if matches!(status, 401 | 403 | 405 | 429) {
+                        // Aggregators can return 401/403 for a model's upstream channel,
+                        // even though the same account works with another catalogue model.
+                        if matches!(status, 405 | 429) {
                             break;
                         }
                     }
@@ -171,15 +169,9 @@ async fn probe_protocol(
         }
         None
     };
-    let capability = match tokio::time::timeout(Duration::from_secs(200), operation).await {
-        Ok(capability) => capability,
-        Err(_) => {
-            report.status = "timeout".into();
-            if let Some(attempt) = report.attempts.last_mut().filter(|a| a.status == "pending") {
-                attempt.status = "timeout".into();
-            }
-            None
-        }
-    };
+    let capability = operation.await;
+    if capability.is_none() && report.attempts.iter().any(|a| a.status == "timeout") {
+        report.status = "timeout".into();
+    }
     (capability, report)
 }

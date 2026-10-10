@@ -72,10 +72,22 @@ pub async fn commit_route_config(
     let active = state.route_config.snapshot();
     let candidate = resolve_secret_patches(active.document(), body.document, &body.secret_patches)
         .map_err(secret_patch_to_gateway_error)?;
+    crate::provider_discovery::job::validate(&candidate)
+        .map_err(|error| GatewayError::bad_request(error.to_string()))?;
+    if crate::provider_discovery::job::new_request(active.document(), &candidate) {
+        let grant = headers
+            .get("x-secret-grant")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default();
+        state
+            .console_auth
+            .verify_secret_grant(&request, &actor, grant)?;
+    }
     let snapshot = runtime
         .commit_document(&body.expected_revision, candidate, body.message)
         .await
         .map_err(runtime_error_to_gateway_error)?;
+    crate::provider_discovery::background::schedule(&state);
     Ok(json_with_no_store(serde_json::json!({
         "routeConfig": route_config_payload(state.as_ref(), &snapshot)?,
         "committed": true

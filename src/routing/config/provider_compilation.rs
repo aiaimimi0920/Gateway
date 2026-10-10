@@ -130,6 +130,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                 };
 
                 Ok(CompiledCredential {
+                    discovery_required: cred.discovery_job.is_some() && cred.discovery.is_none(),
                     discovery: cred.discovery.clone(),
                     id: cred_id,
                     payload: cred_payload,

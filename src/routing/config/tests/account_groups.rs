@@ -90,16 +90,17 @@ model_routes: []
     let store = make_store_from_yaml(yaml);
     let inventory = store.account_group_inventory();
 
-    assert_eq!(inventory.account_groups.len(), 1);
-    assert_eq!(inventory.account_groups[0].id, "premium");
-    assert_eq!(inventory.account_groups[0].billing_multiplier, 1.25);
+    assert_eq!(inventory.account_groups.len(), 2);
+    let premium = inventory
+        .account_groups
+        .iter()
+        .find(|g| g.id == "premium")
+        .unwrap();
+    assert_eq!(premium.billing_multiplier, 1.25);
+    assert_eq!(premium.configured_billing_multiplier, Some(1.25));
+    assert_eq!(premium.member_count, 2);
     assert_eq!(
-        inventory.account_groups[0].configured_billing_multiplier,
-        Some(1.25)
-    );
-    assert_eq!(inventory.account_groups[0].member_count, 2);
-    assert_eq!(
-        inventory.account_groups[0].providers,
+        premium.providers,
         vec!["codex-main".to_string(), "openai-default".to_string()]
     );
 

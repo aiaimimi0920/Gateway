@@ -5,6 +5,7 @@ use super::*;
 pub(super) fn build_route_account_group_inventory(
     document: &RouteConfigYaml,
     compiled: &RouteConfigInner,
+    effective_groups: &[AccountGroupYaml],
 ) -> RouteAccountGroupInventory {
     let provider_config_by_id = document
         .providers
@@ -12,7 +13,7 @@ pub(super) fn build_route_account_group_inventory(
         .map(|provider| (provider.id.as_str(), provider))
         .collect::<HashMap<_, _>>();
     let mut memberships: HashMap<&str, Vec<&AccountGroupYaml>> = HashMap::new();
-    for group in &document.account_groups {
+    for group in effective_groups {
         for account_id in &group.provider_credential_ids {
             let trimmed = account_id.trim();
             if !trimmed.is_empty() {
@@ -123,8 +124,7 @@ pub(super) fn build_route_account_group_inventory(
         });
     }
 
-    let mut account_groups = document
-        .account_groups
+    let mut account_groups = effective_groups
         .iter()
         .map(|group| {
             let mut provider_ids = BTreeSet::new();

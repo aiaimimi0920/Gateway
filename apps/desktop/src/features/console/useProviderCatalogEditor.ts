@@ -60,6 +60,9 @@ export function useProviderCatalogEditor({
             enabled: true,
             supported_models: [...value.supportedModels],
             discovery: value.discovery,
+            ...("custom" in template && template.custom && !value.discovery ? {
+              discovery_job: { id: crypto.randomUUID(), status: "pending" },
+            } : {}),
           },
           routePatterns: value.supportedModels,
         });
@@ -79,8 +82,8 @@ export function useProviderCatalogEditor({
         pushAppToast(
           "info",
           t(
-            `服务商 ${value.providerLabel}、首个账号和 ${value.supportedModels.length} 条模型聚合路由已写入草稿。保存路由配置后生效。`,
-            `Provider ${value.providerLabel}, its first account, and ${value.supportedModels.length} model aggregation routes were added to the draft. Save the route config to apply them.`,
+            `正在保存服务商 ${value.providerLabel} 和首个账号。模型与协议将在后台识别。`,
+            `Saving provider ${value.providerLabel} and its first account. Model and protocol discovery runs in the background.`,
           ),
         );
       } catch (cause) {

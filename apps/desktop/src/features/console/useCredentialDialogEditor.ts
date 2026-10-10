@@ -7,7 +7,7 @@ import { addExplicitCredential, deleteExplicitCredential, updateExplicitCredenti
 import { emptyCredentialDialogValue, credentialDialogValueFromDocument, duplicateCredentialDialogValue, parseSupportedModelsText } from "./providerCredentialDraft";
 import { parseRouteDocument } from "./routeDocument";
 import { removeProviderDocument } from "./providerRemovalDocument";
-import { applyAccountDiscovery } from "./accountDiscovery";
+import { applyAccountDiscovery, supportsAccountDiscovery } from "./accountDiscovery";
 
 type CredentialDialogEditorOptions = {
   editorText: string;
@@ -114,12 +114,18 @@ export function useCredentialDialogEditor({
       }
 
       const supportedModels = parseSupportedModelsText(value.supportedModelsText);
+      const provider = document.providers.find((p) => p && typeof p === "object" &&
+        (p as Record<string, unknown>).id === value.providerId) as Record<string, unknown> | undefined;
+      const discoverLater = !value.discovery && value.apiKeyOperation === "replace" &&
+        provider && supportsAccountDiscovery(provider);
       const fields: Record<string, unknown> = {
         account_name: value.accountName || undefined,
         enabled: value.enabled,
         base_url: value.baseUrl || undefined,
         supported_models: supportedModels.length > 0 ? supportedModels : undefined,
         ...(value.discovery ? { discovery: value.discovery } : value.apiKeyOperation !== "keep" ? { discovery: undefined } : {}),
+        ...(discoverLater ? { discovery_job: { id: crypto.randomUUID(), status: "pending" } }
+          : value.discovery || value.apiKeyOperation === "clear" ? { discovery_job: undefined } : {}),
       };
       try {
         const nextDocument =

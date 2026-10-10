@@ -25,6 +25,7 @@ impl RouteConfigSnapshot {
         provider_fingerprints: HashMap<String, String>,
     ) -> Self {
         Self {
+            effective_account_groups: super::default_group::effective_groups(&document),
             revision,
             source,
             document,
@@ -50,6 +51,10 @@ impl RouteConfigSnapshot {
     #[allow(dead_code)] // Consumed by the transaction runtime added in Task 5.
     pub(crate) fn document(&self) -> &RouteConfigYaml {
         &self.document
+    }
+
+    pub(crate) fn effective_account_groups(&self) -> &[AccountGroupYaml] {
+        &self.effective_account_groups
     }
 
     pub(crate) fn compiled(&self) -> &RouteConfigInner {
@@ -110,7 +115,7 @@ impl RouteConfigSnapshot {
         &self,
         account_group_id: Option<&str>,
     ) -> Result<RouteAccountGroupConstraint, RouteAccountGroupSelectionError> {
-        build_account_group_constraint(self.document(), account_group_id)
+        build_account_group_constraint(self.effective_account_groups(), account_group_id)
     }
 
     pub fn list_models(&self) -> Vec<ModelInfo> {
@@ -131,7 +136,13 @@ impl RouteConfigSnapshot {
 
     pub fn account_group_inventory(&self) -> RouteAccountGroupInventory {
         self.account_group_inventory_cache
-            .get_or_init(|| build_route_account_group_inventory(self.document(), self.compiled()))
+            .get_or_init(|| {
+                build_route_account_group_inventory(
+                    self.document(),
+                    self.compiled(),
+                    self.effective_account_groups(),
+                )
+            })
             .clone()
     }
 

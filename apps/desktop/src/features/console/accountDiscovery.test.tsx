@@ -54,23 +54,23 @@ function catalog(onDiscover = vi.fn().mockResolvedValue(discovery)) {
   return { onSubmit, onOpenChange, onDiscover };
 }
 
-it("creates routes from discovery using only root URL and key", async () => {
+it("submits the provider immediately using only root URL and key", async () => {
   const props = catalog();
   expect(screen.queryByLabelText("支持模型与聚合路由")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "创建服务商与首个账号" }));
   await waitFor(() => expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-    baseUrl: discovery.source_url, supportedModels: discovery.models, discovery,
+    baseUrl: discovery.source_url, supportedModels: [], apiKey: "fixture-key",
   })));
-  expect(props.onDiscover).toHaveBeenCalledWith({ baseUrl: discovery.source_url, apiKey: "fixture-key" }, expect.any(AbortSignal));
+  expect(props.onDiscover).not.toHaveBeenCalled();
+  expect(props.onOpenChange).toHaveBeenCalledWith(false);
 });
 
-it("keeps the dialog and key on discovery failure without creating an account", async () => {
-  const props = catalog(vi.fn().mockRejectedValue(new Error("识别失败")));
+it("does not wait for a slow discovery request before closing creation", () => {
+  const props = catalog(vi.fn(() => new Promise(() => {})));
   fireEvent.click(screen.getByRole("button", { name: "创建服务商与首个账号" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("识别失败");
-  expect(props.onSubmit).not.toHaveBeenCalled();
-  expect(props.onOpenChange).not.toHaveBeenCalled();
-  expect(screen.getByLabelText("API Key")).toHaveValue("fixture-key");
+  expect(props.onSubmit).toHaveBeenCalledTimes(1);
+  expect(props.onOpenChange).toHaveBeenCalledWith(false);
+  expect(props.onDiscover).not.toHaveBeenCalled();
 });
 
 it("cancels a closed dialog and discards a late discovery result", async () => {
@@ -94,13 +94,13 @@ it("adds a key to an existing generic pool using the provider root", async () =>
   fireEvent.change(screen.getByLabelText("账号 ID"), { target: { value: "account-a" } });
   fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-key" } });
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
-  await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ discovery, supportedModelsText: "model-a\nmodel-b" })));
-  expect(onDiscover).toHaveBeenCalledWith({ baseUrl: discovery.source_url, apiKey: "fixture-key" }, expect.any(AbortSignal));
+  await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ apiKeyValue: "fixture-key", credentialId: "account-a" })));
+  expect(onDiscover).not.toHaveBeenCalled();
 });
 
 it("refreshes one account without dropping inherited models or route policies", () => {
   const original = parseRouteDocument(JSON.stringify({ providers: [{ id: "p", supported_models: ["manual"],
-    credentials: [{ id: "a", supported_models: ["old"] }, { id: "inherited" }] }],
+    credentials: [{ id: "a", supported_models: ["old"], discovery_job: { id: "old-job", status: "pending" } }, { id: "inherited" }] }],
     model_routes: [{ pattern: "model-a", provider_ids: ["other"], enabled: false, priority: 99 }], aliases: {} }));
   const next = applyAccountDiscovery(original, "p", "a", discovery);
   const provider = next.providers[0] as Record<string, unknown>;
@@ -108,4 +108,5 @@ it("refreshes one account without dropping inherited models or route policies", 
   expect(next.model_routes[0]).toMatchObject({ enabled: false, priority: 99 });
   expect(JSON.stringify(original)).not.toContain("fixture-binding");
   expect(JSON.stringify(next)).not.toContain("fixture-key");
+  expect((provider.credentials as Record<string, unknown>[])[0].discovery_job).toBeUndefined();
 });

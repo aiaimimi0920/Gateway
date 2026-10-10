@@ -75,7 +75,7 @@ describe("BrowserConsoleApp", () => {
     expect(within(library).queryByRole("navigation", { name: /账号库分页/i })).not.toBeInTheDocument();
   });
 
-  it("creates a custom compatible provider, first account, secret patch, and aggregate model routes", async () => {
+  it("creates a custom provider card and saves its first account before background discovery", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
 
@@ -91,7 +91,7 @@ describe("BrowserConsoleApp", () => {
     await openWorkspace(user, /凭据池/i);
     await user.click(screen.getByRole("button", { name: /添加服务商/i }));
     const dialog = screen.getByRole("dialog", { name: /添加服务商与账号/i });
-    await user.click(within(dialog).getByRole("button", { name: /自定义 OpenAI-compatible/i }));
+    await user.click(within(dialog).getByRole("button", { name: /自定义 API 服务商/i }));
     await user.clear(within(dialog).getByLabelText("Provider ID"));
     await user.type(within(dialog).getByLabelText("Provider ID"), "partner-openai");
     await user.clear(within(dialog).getByLabelText("显示名称"));
@@ -101,13 +101,14 @@ describe("BrowserConsoleApp", () => {
     await user.clear(within(dialog).getByLabelText("服务商名称"));
     await user.type(within(dialog).getByLabelText("服务商名称"), "Partner");
     await user.type(within(dialog).getByLabelText("Base URL"), "https://partner.example.test/v1");
-    await user.type(within(dialog).getByLabelText("支持模型与聚合路由"), "shared-model\npartner-model");
+    expect(within(dialog).queryByLabelText("支持模型与聚合路由")).not.toBeInTheDocument();
     await user.clear(within(dialog).getByLabelText("首个账号 ID"));
     await user.type(within(dialog).getByLabelText("首个账号 ID"), "partner-account-1");
     await user.type(within(dialog).getByLabelText("API Key"), "test-provider-api-key");
     await user.click(within(dialog).getByRole("button", { name: /创建服务商与首个账号/i }));
 
-    expect(await screen.findByText(/服务商 Partner OpenAI、首个账号和 2 条模型聚合路由已写入草稿/i)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /添加服务商与账号/i })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Partner OpenAI").length).toBeGreaterThan(0);
     await waitFor(() => expect(consoleApi.commitRouteConfig).toHaveBeenCalled(), { timeout: 3000 });
 
     await waitFor(() => expect(consoleApi.commitRouteConfig).toHaveBeenCalledTimes(1));
@@ -119,17 +120,13 @@ describe("BrowserConsoleApp", () => {
           adapter: "openai_compatible",
           protocol_profile: "openai_compatible_generic",
           credentials: [
-            expect.objectContaining({ id: "partner-account-1", enabled: true }),
+            expect.objectContaining({ id: "partner-account-1", enabled: true,
+              discovery_job: { id: expect.any(String), status: "pending" } }),
           ],
         }),
       ]),
     );
-    expect(commitRequest?.document.model_routes).toEqual(
-      expect.arrayContaining([
-        { pattern: "shared-model", provider_ids: ["partner-openai"] },
-        { pattern: "partner-model", provider_ids: ["partner-openai"] },
-      ]),
-    );
+    expect(JSON.stringify(commitRequest?.document)).not.toContain("test-provider-api-key");
     expect(commitRequest?.secretPatches).toEqual(
       expect.arrayContaining([
         {

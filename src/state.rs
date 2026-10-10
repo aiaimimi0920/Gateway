@@ -22,6 +22,7 @@ use sqlx::PgPool;
 
 #[derive(Debug, Default)]
 pub struct GatewayLifecycleState {
+    pub(crate) discovery: crate::provider_discovery::background::DiscoveryWorker,
     /// Per-runtime admission cursor; released with this runtime, never reused by another instance.
     pub(crate) credential_probe_cursor: AtomicUsize,
     draining: AtomicBool,

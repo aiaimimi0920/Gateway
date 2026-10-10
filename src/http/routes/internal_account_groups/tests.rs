@@ -386,6 +386,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 credential_automation_driver_id: None,
                 credential_identity_categories: vec![],
                 credentials: vec![crate::routing::config::ProviderCredentialYaml {
+                    discovery_job: None,
                     discovery: None,
                     test_policy: None,
                     id: Some("codex-live".to_string()),
@@ -450,19 +451,17 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
         .get("accountGroups")
         .and_then(Value::as_array)
         .expect("group list");
-    assert_eq!(groups.len(), 1);
+    assert_eq!(groups.len(), 2);
+    let premium = groups.iter().find(|g| g["id"] == "premium").unwrap();
     assert_eq!(
-        groups[0]
+        premium
             .get("billingMultiplier")
             .and_then(Value::as_f64)
             .unwrap(),
         1.25
     );
     assert_eq!(
-        groups[0]
-            .get("memberCount")
-            .and_then(Value::as_u64)
-            .unwrap(),
+        premium.get("memberCount").and_then(Value::as_u64).unwrap(),
         2
     );
 

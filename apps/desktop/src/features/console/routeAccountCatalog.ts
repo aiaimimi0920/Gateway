@@ -1,6 +1,7 @@
 import type { ConsoleRouteDocument, ConsoleAccountGroupSummaryResponse } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
 import { indexAccountsByProvider } from "./accountCatalogIndex";
+import { withDefaultAccountGroup } from "./defaultAccountGroup";
 
 export type RouteAccountGroup = {
   id: string;
@@ -120,11 +121,7 @@ export function readStringArray(value: unknown): string[] {
 
 export function routeAccountGroupsFromDocument(document: ConsoleRouteDocument): RouteAccountGroup[] {
   const groupsValue = (document as Record<string, unknown>).account_groups;
-  if (!Array.isArray(groupsValue)) {
-    return [];
-  }
-
-  return groupsValue
+  return withDefaultAccountGroup(document, (Array.isArray(groupsValue) ? groupsValue : [])
     .map((entry) => {
       if (!isRecord(entry)) {
         return null;
@@ -153,7 +150,7 @@ export function routeAccountGroupsFromDocument(document: ConsoleRouteDocument): 
         providerCredentialIds: readStringArray(entry.provider_credential_ids),
       } satisfies RouteAccountGroup;
     })
-    .filter((entry): entry is RouteAccountGroup => entry !== null);
+    .filter((entry): entry is RouteAccountGroup => entry !== null));
 }
 
 export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteAccountCatalog {

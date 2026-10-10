@@ -297,6 +297,8 @@ pub async fn parse_json(response: axum::response::Response) -> serde_json::Value
 pub struct ConsoleStateFixture {
     _temp: TestDirectory,
     pub state: Arc<AppState>,
+    pub fail_next_activation: Arc<std::sync::atomic::AtomicBool>,
+    pub activation_failure_seen: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl ConsoleStateFixture {
@@ -311,6 +313,7 @@ impl ConsoleStateFixture {
         )
         .unwrap();
         let store = Arc::new(RouteConfigStore::from_document(active).unwrap());
+        let backend = Arc::new(FakeRedisBackend::default());
         let runtime = with_runtime.then(|| {
             let persistence =
                 neuro_gateway::console::RouteConfigPersistence::for_test(temp.path(), &routes)
@@ -318,13 +321,15 @@ impl ConsoleStateFixture {
             Arc::new(RouteConfigRuntime::with_backend(
                 Arc::clone(&store),
                 persistence,
-                Arc::new(FakeRedisBackend::default()),
+                backend.clone(),
                 true,
             ))
         });
         Self {
             state: build_state(Arc::clone(&store), runtime),
             _temp: temp,
+            fail_next_activation: backend.fail_next_activation.clone(),
+            activation_failure_seen: backend.activation_failure_seen.clone(),
         }
     }
 
@@ -407,6 +412,8 @@ pub fn test_console_auth_runtime(env_management_token: Option<String>) -> Arc<Co
 #[derive(Clone, Debug, Default)]
 struct FakeRedisBackend {
     state: Arc<Mutex<FakeRedisState>>,
+    fail_next_activation: Arc<std::sync::atomic::AtomicBool>,
+    activation_failure_seen: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[async_trait]
@@ -437,6 +444,14 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
         _prepared_record: &neuro_gateway::console::TransactionRecord,
         _activated_record: &neuro_gateway::console::TransactionRecord,
     ) -> Result<RouteConfigRedisActivationOutcome, RouteConfigRedisStoreError> {
+        if self
+            .fail_next_activation
+            .swap(false, std::sync::atomic::Ordering::SeqCst)
+        {
+            self.activation_failure_seen
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            return Ok(RouteConfigRedisActivationOutcome::Unavailable);
+        }
         self.state.lock().unwrap().active_revision = Some(revision.clone());
         Ok(RouteConfigRedisActivationOutcome::Activated)
     }

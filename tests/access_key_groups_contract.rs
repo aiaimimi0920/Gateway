@@ -189,7 +189,9 @@ model_routes: []
         None,
     )
     .await;
-    assert_eq!(catalog["accountGroups"].as_array().unwrap().len(), 3);
+    let groups = catalog["accountGroups"].as_array().unwrap();
+    assert_eq!(groups.len(), 4);
+    assert!(groups.iter().any(|group| group["id"] == "default"));
     assert!(!catalog["accountGroups"].to_string().contains("fixture-a"));
     for groups in [json!(["missing"]), json!(["group-disabled"]), json!([1])] {
         assert_eq!(

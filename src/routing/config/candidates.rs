@@ -176,7 +176,7 @@ pub(super) fn select_credential(
         .credential_pool
         .iter()
         .enumerate()
-        .filter(|(_, credential)| credential.enabled)
+        .filter(|(_, credential)| credential.enabled && !credential.discovery_required)
         .filter(|(_, credential)| {
             allowed_account_ids.is_none_or(|allowed| allowed.contains(&credential.id))
         })

@@ -88,6 +88,7 @@ export function credentialDialogValueFromDocument(
     providerId,
     credentialId,
     discovery: accountDiscoverySchema.safeParse(credential.discovery).data,
+    discoveryStatus: isRecord(credential.discovery_job) ? optionalString(credential.discovery_job, "status") ?? undefined : undefined,
     accountName: optionalString(credential, "account_name") ?? "",
     enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
     baseUrl: optionalString(credential, "base_url") ?? "",

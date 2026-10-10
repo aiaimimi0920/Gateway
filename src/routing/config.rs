@@ -40,6 +40,7 @@ mod account_constraints;
 mod account_inventory;
 mod aliases;
 mod candidates;
+mod default_group;
 mod document_compilation;
 mod model_catalog;
 mod model_mapping;
@@ -122,6 +123,7 @@ pub struct CompiledProvider {
 /// merged in — ready to use with no per-request merging needed.
 #[derive(Debug, Clone)]
 pub struct CompiledCredential {
+    pub discovery_required: bool,
     pub discovery: Option<crate::provider_discovery::CredentialDiscovery>,
     pub id: String,
     pub payload: ProviderAccountPayload,
@@ -210,6 +212,7 @@ pub struct RouteConfigSnapshot {
     source: ActiveConfigSource,
     #[allow(dead_code)] // Consumed by the transaction runtime added in Task 5.
     document: RouteConfigYaml,
+    effective_account_groups: Vec<AccountGroupYaml>,
     diagnostics: RouteConfigDiagnostics,
     compiled: Arc<RouteConfigInner>,
     provider_fingerprints: HashMap<String, String>,

@@ -69,6 +69,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 credential_automation_driver_id: None,
                 credential_identity_categories: vec![],
                 credentials: vec![ProviderCredentialYaml {
+                    discovery_job: None,
                     discovery: None,
                     test_policy: None,
                     id: Some("acc-prod-1".to_string()),
@@ -247,6 +248,7 @@ fn account_groups_reject_unknown_account_members() {
             credential_automation_driver_id: None,
             credential_identity_categories: vec![],
             credentials: vec![ProviderCredentialYaml {
+                discovery_job: None,
                 discovery: None,
                 test_policy: None,
                 id: Some("acc-prod-1".to_string()),

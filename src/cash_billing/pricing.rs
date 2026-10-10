@@ -92,7 +92,7 @@ fn group_multiplier(
         return Ok((None, 1_000_000));
     }
     let mut choices = Vec::new();
-    for group in &snapshot.document().account_groups {
+    for group in snapshot.effective_account_groups() {
         if group.enabled.unwrap_or(true)
             && allowed.is_none_or(|ids| ids.iter().any(|id| id == &group.id))
             && requested.is_none_or(|id| id == group.id)

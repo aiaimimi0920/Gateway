@@ -157,6 +157,8 @@ pub enum RouteAccountGroupSelectionError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderCredentialYaml {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discovery_job: Option<crate::provider_discovery::job::DiscoveryJob>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discovery: Option<crate::provider_discovery::CredentialDiscovery>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub test_policy: Option<crate::credential_test_policy::CredentialTestPolicy>,

@@ -33,6 +33,7 @@ export function applyAccountDiscovery(document: ConsoleRouteDocument, providerId
   const credentials = provider?.credentials as Record<string, unknown>[] | undefined;
   const credential = credentials?.find((c) => c.id === credentialId);
   if (!provider || !credential) throw new Error("账号已不存在，请刷新后重试。");
+  delete credential.discovery_job;
   credential.discovery = discovery;
   credential.supported_models = [...discovery.models];
   const inherited = credentials!.some((c) => c !== credential && !c.discovery && !Array.isArray(c.supported_models));

@@ -10,7 +10,7 @@ use axum::{
 use serde::Deserialize;
 use std::{net::SocketAddr, sync::Arc};
 
-static DISCOVERY_SLOTS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
+use crate::provider_discovery::background::SLOTS as DISCOVERY_SLOTS;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

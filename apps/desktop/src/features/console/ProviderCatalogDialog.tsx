@@ -10,7 +10,6 @@ import {
 import { ProviderCatalogDirectory, type CatalogCategoryFilter } from "./ProviderCatalogDirectory";
 import { ProviderCatalogForm } from "./ProviderCatalogForm";
 import type { DiscoverAccount } from "./accountDiscovery";
-import { useDiscoverySubmission } from "./useDiscoverySubmission";
 import { availableCatalogId } from "./providerCatalogIdentity";
 
 export type ProviderCatalogDialogProps = {
@@ -86,7 +85,6 @@ export function ProviderCatalogDialog({
   onSubmit,
   onDiscover,
 }: ProviderCatalogDialogProps) {
-  const discovery = useDiscoverySubmission(open, onDiscover);
   const { t } = useUiLocale();
   const openerRef = useRef<HTMLElement | null>(null);
   const wasOpen = useRef(false);
@@ -152,7 +150,6 @@ export function ProviderCatalogDialog({
   }, [category, query]);
 
   const selectTemplate = (template: ProviderCatalogTemplate) => {
-    if (discovery.busy) return;
     const nextDraft = draftFromTemplate(template, t(template.labelZh, template.labelEn), existingProviderIds, existingCredentialIds);
     setSelectedTemplateId(template.id);
     setDraft(nextDraft);
@@ -162,7 +159,7 @@ export function ProviderCatalogDialog({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (locked || discovery.busy) return;
+    if (locked) return;
     const providerId = draft.providerId.trim();
     const providerLabel = draft.providerLabel.trim();
     const vendorKey = draft.vendorKey.trim();
@@ -242,14 +239,6 @@ export function ProviderCatalogDialog({
       accountName,
       apiKey,
     };
-    if (selectedTemplate.custom && onDiscover) {
-      setValidationError(null);
-      void discovery.run({ baseUrl, apiKey }, (result) => {
-        onSubmit({ ...submission, discovery: result, supportedModels: result.models });
-        onOpenChange(false);
-      });
-      return;
-    }
     onSubmit(submission);
     onOpenChange(false);
   };
@@ -308,10 +297,10 @@ export function ProviderCatalogDialog({
               setDraft={setDraft}
               supportedModelsText={supportedModelsText}
               setSupportedModelsText={setSupportedModelsText}
-              locked={locked || discovery.busy}
+              locked={locked}
               autoDiscovery={!!selectedTemplate.custom && !!onDiscover}
               hasSecretAccess={hasSecretAccess}
-              validationError={validationError ?? discovery.error}
+              validationError={validationError}
               onRequestSecretAccess={onRequestSecretAccess}
               suggestedCredentialId={suggestedCredentialId}
             />

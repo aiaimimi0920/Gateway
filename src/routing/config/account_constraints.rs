@@ -3,7 +3,7 @@
 use super::*;
 
 fn account_group_allowed_accounts(
-    document: &RouteConfigYaml,
+    groups: &[AccountGroupYaml],
     account_group_id: Option<&str>,
 ) -> Result<Option<HashSet<String>>, RouteAccountGroupSelectionError> {
     let Some(requested_group_id) = account_group_id
@@ -13,8 +13,7 @@ fn account_group_allowed_accounts(
         return Ok(None);
     };
 
-    let Some(group) = document
-        .account_groups
+    let Some(group) = groups
         .iter()
         .find(|group| group.id.trim() == requested_group_id)
     else {
@@ -40,14 +39,14 @@ fn account_group_allowed_accounts(
 }
 
 pub(super) fn build_account_group_constraint(
-    document: &RouteConfigYaml,
+    groups: &[AccountGroupYaml],
     account_group_id: Option<&str>,
 ) -> Result<RouteAccountGroupConstraint, RouteAccountGroupSelectionError> {
     let requested_group_id = account_group_id
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string);
-    let allowed_account_ids = account_group_allowed_accounts(document, account_group_id)?;
+    let allowed_account_ids = account_group_allowed_accounts(groups, account_group_id)?;
     Ok(RouteAccountGroupConstraint {
         requested_group_id,
         allowed_account_ids,
@@ -102,8 +101,7 @@ impl RouteConfigSnapshot {
     pub fn access_key_group_constraint(&self, group_ids: &[String]) -> RouteAccountGroupConstraint {
         let selected: HashSet<&str> = group_ids.iter().map(String::as_str).collect();
         let allowed_account_ids = self
-            .document()
-            .account_groups
+            .effective_account_groups()
             .iter()
             .filter(|group| group.enabled.unwrap_or(true) && selected.contains(group.id.as_str()))
             .flat_map(|group| {

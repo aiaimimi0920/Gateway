@@ -417,13 +417,13 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     t,
   });
 
-  const accountDiscovery = useAccountDiscovery({
+  const { editorLocked, ...accountDiscovery } = useAccountDiscovery({
     client, managementToken, secretGrant: session.secretGrant?.grant ?? null,
     editorText, revision: routeConfig?.routeConfig.revision.id, draftDirty,
     replaceEditorDocument, requestSecretAccess: () => setSecretDialogOpen(true), setError,
+    editorBusy: busy || actionBusy !== null || credentialPoolActions.credentialArchivePurgeBusy !== null || !routeConfig?.routeConfig.mutationSupported,
+    background: { api, routeConfig, setRouteConfig, blocked: draftDirty || !!credentialDialogState || providerCatalogDialogOpen },
   });
-  const editorLocked = busy || actionBusy !== null || accountDiscovery.discoveryBusy ||
-    credentialPoolActions.credentialArchivePurgeBusy !== null || !routeConfig?.routeConfig.mutationSupported;
   const { autosavePending } = useConsoleDraftPersistence({
     managementToken,
     editorLocked,

@@ -1,4 +1,6 @@
 //! Real management/routing/SQLite contracts; every upstream is a disposable loopback fixture.
+#[path = "cash_billing_contract/default_group.rs"]
+mod default_group;
 #[path = "cash_billing_contract/fixture.rs"]
 mod fixture;
 #[path = "cash_billing_contract/key_status.rs"]

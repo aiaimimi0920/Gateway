@@ -48,8 +48,7 @@ pub(super) async fn load(
     let mut union = Vec::new();
     let mut visited = std::collections::HashSet::new();
     let mut succeeded = std::collections::HashSet::new();
-    // Alias expansion must not multiply the overall directory time budget.
-    let result = tokio::time::timeout(std::time::Duration::from_secs(60), async {
+    {
         for (protocol, path) in specs {
             let bases = if protocol == P::DashscopeText {
                 let root = source.trim_end_matches('/');
@@ -72,9 +71,7 @@ pub(super) async fn load(
                 let mut found = false;
                 let mut page: Option<String> = None;
                 for _ in 0..4 {
-                    let mut request = client
-                        .get(&endpoint)
-                        .timeout(std::time::Duration::from_secs(10));
+                    let mut request = client.get(&endpoint).timeout(super::REQUEST_TIMEOUT);
                     if let Some(token) = page.as_deref() {
                         request = request.query(&[(
                             if protocol == P::GeminiGenerateContent {
@@ -114,11 +111,6 @@ pub(super) async fn load(
                 }
             }
         }
-        Ok::<(), anyhow::Error>(())
-    })
-    .await;
-    if let Ok(result) = result {
-        result?;
     }
     anyhow::ensure!(!union.is_empty(), "No model catalogue found.");
     Ok(union)

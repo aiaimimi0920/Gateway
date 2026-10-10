@@ -11,6 +11,7 @@ export type CredentialDialogMode = "add" | "edit";
 export type CredentialApiKeyOperation = "keep" | "replace" | "clear";
 
 export type CredentialDialogValue = {
+  discoveryStatus?: string;
   discovery?: AccountDiscovery;
   providerId: string;
   credentialId: string;
@@ -141,15 +142,7 @@ export function CredentialDialog({
     const target = discoveryProvider?.(providerId);
     if (target && onDiscover && value.apiKeyOperation !== "clear") {
       const addressChanged = value.baseUrl.trim() !== (initialValue?.baseUrl ?? "").trim();
-      if (value.apiKeyOperation === "replace" && !value.discovery) {
-        setValidationError(null);
-        void discovery.run({ baseUrl: submission.baseUrl || target.baseUrl, apiKey: submission.apiKeyValue }, (result) => {
-          onSubmit({ ...submission, discovery: result, supportedModelsText: result.models.join("\n") });
-          onOpenChange(false);
-        });
-        return;
-      }
-      if (!value.discovery && (mode === "add" || addressChanged)) {
+      if (value.apiKeyOperation !== "replace" && !value.discovery && (mode === "add" || addressChanged)) {
         setValidationError("新增账号或更改地址时，请填写 API Key 以重新识别。");
         return;
       }
@@ -171,7 +164,7 @@ export function CredentialDialog({
     if (!input) { setValidationError(t("请填写 API Key。", "Enter an API key.")); return; }
     setValidationError(null);
     void discovery.run(input, (result) => setValue((current) => ({ ...current,
-      discovery: result, supportedModelsText: result.models.join("\n") })));
+      discovery: result, discoveryStatus: undefined, supportedModelsText: result.models.join("\n") })));
   };
 
   return (
@@ -302,6 +295,8 @@ export function CredentialDialog({
             ) : null}
 
             {discoveryProvider?.(value.providerId) && onDiscover && <div className="nt-credential-protocols">
+              {value.discoveryStatus === "pending" && <span role="status">{t("后台识别中", "Discovering in background")}</span>}
+              {value.discoveryStatus === "unconfirmed" && <span role="status">{t("尚未确认可用协议，可重新刷新", "Protocols unconfirmed; refresh to retry")}</span>}
               <button className="nt-btn nt-btn--outline" type="button" disabled={locked || discovery.busy}
                 onClick={refreshProtocols}>{discovery.busy ? t("刷新中…", "Refreshing…") : t("刷新协议", "Refresh protocols")}</button>
               <CredentialProtocolList discovery={value.discovery} />

@@ -1,7 +1,10 @@
 //! Explicit account onboarding/refresh only; inference never performs discovery I/O.
+pub(crate) mod background;
 mod catalogue;
 mod endpoint_candidates;
+pub mod job;
 mod registry;
+mod sampling;
 mod selection;
 #[cfg(test)]
 mod tests;
@@ -12,6 +15,9 @@ pub use selection::{select_protocol, select_protocol_with_override, ProtocolCapa
 use crate::routing::candidate::ProviderAccountPayload;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+
+/// Each upstream request gets its own budget, including response-body reads.
+pub const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
@@ -182,10 +188,7 @@ pub async fn discover(url: &str, key: &str) -> anyhow::Result<CredentialDiscover
         !key.trim().is_empty() && key.len() <= 16_384 && !key.contains(['\r', '\n']),
         "A valid API key is required."
     );
-    tokio::time::timeout(
-        std::time::Duration::from_secs(720),
-        transport::discover(url, key),
-    )
-    .await
-    .map_err(|_| anyhow::anyhow!("Discovery timed out; previous settings were not changed."))?
+    // Candidate/page/sample counts bound the job. A whole-job timeout would steal
+    // a later request's budget while earlier aliases or protocols were running.
+    transport::discover(url, key).await
 }

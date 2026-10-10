@@ -4,8 +4,11 @@ import { pushAppToast } from "../../components/AppToast";
 import { applyAccountDiscovery, discoveryResponseSchema, supportsAccountDiscovery, type DiscoveryInput } from "./accountDiscovery";
 import { parseRouteDocument } from "./routeDocument";
 import type { ConsoleRouteDocument } from "../../api/contracts";
+import { useBackgroundDiscoverySync } from "./useBackgroundDiscoverySync";
 
 type Options = {
+  editorBusy?: boolean;
+  background?: Omit<NonNullable<Parameters<typeof useBackgroundDiscoverySync>[0]>, "editorText" | "managementToken">;
   client: GatewayApiClient; managementToken: string | null; secretGrant: string | null;
   editorText: string; revision?: string; draftDirty: boolean;
   replaceEditorDocument(document: ConsoleRouteDocument, sync?: boolean): void;
@@ -16,6 +19,10 @@ export function useAccountDiscovery(options: Options) {
   const current = useRef(options); current.current = options;
   const pending = useRef<AbortController | null>(null);
   const [discoveryBusy, setBusy] = useState(false);
+  const editorLocked = !!options.editorBusy || discoveryBusy;
+  useBackgroundDiscoverySync(options.background ? { ...options.background,
+    editorText: options.editorText, managementToken: options.managementToken,
+    blocked: editorLocked || options.background.blocked } : null);
   useEffect(() => () => { pending.current?.abort(); pending.current = null; setBusy(false); },
     [options.client, options.managementToken, options.secretGrant]);
 
@@ -58,5 +65,5 @@ export function useAccountDiscovery(options: Options) {
       current.current.setError(null);
     } catch (error) { current.current.setError(error instanceof Error ? error.message : String(error)); }
   };
-  return { discoverAccount, refreshAccountDiscovery, discoveryBusy };
+  return { discoverAccount, refreshAccountDiscovery, discoveryBusy, editorLocked };
 }
