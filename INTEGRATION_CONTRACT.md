@@ -15,7 +15,7 @@ Loom can also connect to Gateway in local AI-brain/orchestration scenarios. In
 that mode, Loom may manage Gateway state through Gateway APIs and hide Gateway's
 own UI, while Gateway still owns the provider relay runtime.
 
-Platform, Loom, Hook, account-service pages, and other host implementations
+Platform, Loom, Otter, account-service pages, and other host implementations
 should live outside this project. They integrate with Gateway through the HTTP
 APIs, management APIs, route configuration, provider manifests, runtime
 environment variables, optional Gateway UI surface, and packaged worker assets
@@ -41,7 +41,7 @@ Gateway does not own:
 - Platform website pages or Platform-specific React/Next.js components.
 - Platform account, quota, billing, entitlement, or public access policy.
 - Loom AI-brain orchestration internals.
-- Hook screenshot, voice, or foreground interaction internals.
+- Otter screenshot, voice, or foreground interaction internals.
 - Host-project routing, navigation, session state, or visual design.
 - Deployment environments that are specific to a separate website application.
 
@@ -184,7 +184,7 @@ Gateway packages:
 - Gateway-owned management UI assets, when such assets are present in this
   project.
 
-Gateway does not package Platform/Loom/Hook host-project assets.
+Gateway does not package Platform/Loom/Otter host-project assets.
 
 ## Validation contract
 

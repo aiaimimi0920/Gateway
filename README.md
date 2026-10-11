@@ -17,7 +17,7 @@ Repository: <https://github.com/aiaimimi0920/Gateway>
 Gateway can run by itself on a developer workstation or be managed by Neuro
 Platform and Loom through its API boundary. Platform remains responsible for
 accounts, permissions, quota, billing, and public web policy. Loom remains
-responsible for orchestration and local AI-brain workflows. Hook remains the
+responsible for orchestration and local AI-brain workflows. Otter remains the
 foreground capture and integration client.
 
 ## What Gateway Owns
@@ -30,7 +30,7 @@ foreground capture and integration client.
   (`gateway-ui`).
 - Release packaging, integrity manifests, and operational evidence tools.
 
-Platform, Loom, and Hook implementation code is intentionally not copied into
+Platform, Loom, and Otter implementation code is intentionally not copied into
 this repository. The ownership and integration rules are documented in
 [`INTEGRATION_CONTRACT.md`](INTEGRATION_CONTRACT.md).
 

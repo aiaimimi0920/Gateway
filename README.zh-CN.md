@@ -15,7 +15,7 @@ Worker，并同时交付无界面的核心服务与 Windows 桌面启动器。
 
 Gateway 可以作为个人电脑上的本地产品独立运行，也可以由 Neuro Platform 或
 Loom 通过 API 管理。Platform 负责账号、权限、配额、计费与公开网站策略；
-Loom 负责编排和本地 AI 大脑工作流；Hook 负责前台采集与集成入口。
+Loom 负责编排和本地 AI 大脑工作流；Otter 负责前台采集与集成入口。
 
 ## 项目职责
 
@@ -26,7 +26,7 @@ Loom 负责编排和本地 AI 大脑工作流；Hook 负责前台采集与集成
 - Gateway 管理 API 和本地桌面外壳：`gateway-ui`。
 - Windows 发布包、完整性清单、校验和与运行证据工具。
 
-Platform、Loom 和 Hook 的实现代码不会复制进本仓库。模块职责和集成边界见
+Platform、Loom 和 Otter 的实现代码不会复制进本仓库。模块职责和集成边界见
 [`INTEGRATION_CONTRACT.md`](INTEGRATION_CONTRACT.md)。
 
 ## 目录结构
