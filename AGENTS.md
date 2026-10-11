@@ -14,7 +14,7 @@ Shared build/release operations remain coordinator-owned and serialized.
 
 Gateway owns provider routing, protocols, credentials, management APIs, runtime
 workers, desktop console, and Gateway packaging. Do not move Platform, Loom,
-Hook, Talk, or Tea implementation into this repository merely to avoid a proper
+Otter, Talk, or Tea implementation into this repository merely to avoid a proper
 cross-project contract.
 
 Before development, read the repository README and the owning architecture,
