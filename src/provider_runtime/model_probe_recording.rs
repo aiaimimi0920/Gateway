@@ -124,6 +124,7 @@ pub(super) async fn finish(
                 protocol_profile: None,
                 model: model.into(),
                 upstream_status: result.status,
+                upstream_retry_after_ms: None,
                 classification: crate::provider_failure::classify_provider_failure(
                     result.status,
                     None,

@@ -74,6 +74,9 @@ pub struct GatewayError {
     pub retryable: bool,
     pub fallback_hint: FallbackHint,
     pub provider_name: Option<String>,
+    /// Explicit upstream timing evidence, independent of local retry defaults.
+    /// Internal only: never serialized into the public error response.
+    pub upstream_retry_after_ms: Option<u64>,
 }
 
 impl GatewayError {
@@ -89,6 +92,7 @@ impl GatewayError {
             retryable: is_kind_retryable(kind),
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 
@@ -102,6 +106,7 @@ impl GatewayError {
             retryable: is_kind_retryable(kind),
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 
@@ -115,6 +120,7 @@ impl GatewayError {
             retryable: is_kind_retryable(kind),
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 
@@ -131,6 +137,7 @@ impl GatewayError {
                     .to_string(),
             },
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 
@@ -147,6 +154,7 @@ impl GatewayError {
                 reason: "Rate limit hit; back-off before retrying.".to_string(),
             },
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 
@@ -160,6 +168,7 @@ impl GatewayError {
             retryable: is_kind_retryable(kind),
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 
@@ -173,6 +182,7 @@ impl GatewayError {
             retryable: is_kind_retryable(kind),
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 
@@ -186,6 +196,7 @@ impl GatewayError {
             retryable: is_kind_retryable(kind),
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 
@@ -199,6 +210,7 @@ impl GatewayError {
             retryable: is_kind_retryable(kind),
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 
@@ -241,6 +253,7 @@ impl GatewayError {
     /// A transport hint changes timing only, never retry eligibility or error identity.
     pub(crate) fn with_retry_after_ms(mut self, delay_ms: Option<u64>) -> Self {
         if let Some(delay_ms) = delay_ms.filter(|_| self.retryable) {
+            self.upstream_retry_after_ms = Some(delay_ms);
             self.fallback_hint = FallbackHint::Retry {
                 delay_ms,
                 reason: "Upstream requested a delay before retrying.".to_string(),

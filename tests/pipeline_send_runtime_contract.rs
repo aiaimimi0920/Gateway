@@ -10,6 +10,8 @@ mod config;
 mod deadline;
 #[path = "pipeline_send_runtime/fixture.rs"]
 mod fixture;
+#[path = "pipeline_send_runtime/responses_completeness.rs"]
+mod responses_completeness;
 #[path = "pipeline_send_runtime/safety.rs"]
 mod safety;
 #[path = "pipeline_send_runtime/stream_budget.rs"]

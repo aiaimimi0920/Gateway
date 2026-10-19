@@ -22,7 +22,11 @@ impl LocalRuntime {
             let id = provider_credential_model_state_id(
                 &candidate.provider_account_id,
                 candidate.provider_credential_id.as_deref(),
-                candidate.provider_credential_id.as_deref(),
+                candidate
+                    .payload
+                    .credential_id
+                    .as_deref()
+                    .or(candidate.provider_credential_id.as_deref()),
                 Some(candidate.protocol_profile.as_str()),
                 model,
             );

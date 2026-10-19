@@ -93,9 +93,10 @@ pub(super) async fn import_folder_credentials(
 
         match existing {
             Some(existing) => {
-                db::update_provider_credential(
+                let result = db::provider_credentials::update_provider_credential_from_snapshot(
                     pg_pool,
                     &existing.id,
+                    &existing.snapshot_version,
                     db::UpsertProviderCredentialInput {
                         provider_account_id: provider_account_id.clone(),
                         label: existing.label.clone(),
@@ -109,8 +110,18 @@ pub(super) async fn import_folder_credentials(
                         sync_error: None,
                     },
                 )
-                .await?;
-                counters.updated_count += 1;
+                .await;
+                match result {
+                    Ok(_) => counters.updated_count += 1,
+                    // Do not retry the same delayed payload against a newer row version.
+                    Err(error)
+                        if error.code.as_deref()
+                            == Some("provider_credential_snapshot_conflict") =>
+                    {
+                        counters.skipped_count += 1;
+                    }
+                    Err(error) => return Err(error),
+                }
             }
             None => {
                 db::create_provider_credential(

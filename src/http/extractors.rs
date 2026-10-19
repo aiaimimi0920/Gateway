@@ -114,6 +114,7 @@ where
                             reason: "Reduce request body size.".to_string(),
                         },
                         provider_name: None,
+                        upstream_retry_after_ms: None,
                     })
                 } else {
                     Err(GatewayError::bad_request(format!(

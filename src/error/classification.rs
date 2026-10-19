@@ -105,8 +105,11 @@ pub fn classify_upstream_error(
     };
 
     // For rate-limit responses, try to parse a retry-after value from the body.
+    let upstream_retry_after_ms = (kind == ErrorKind::RateLimit)
+        .then(|| parse_retry_after_from_body(body))
+        .flatten();
     let fallback_hint = if kind == ErrorKind::RateLimit {
-        let delay_ms = parse_retry_after_from_body(body).unwrap_or(5_000);
+        let delay_ms = upstream_retry_after_ms.unwrap_or(5_000);
         FallbackHint::Retry {
             delay_ms,
             reason: "Rate limit hit; back-off before retrying.".to_string(),
@@ -127,6 +130,7 @@ pub fn classify_upstream_error(
         retryable: is_kind_retryable(kind),
         fallback_hint,
         provider_name: provider_name.map(str::to_string),
+        upstream_retry_after_ms,
     }
 }
 
@@ -152,6 +156,7 @@ pub fn classify_network_error(err: &rquest::Error, provider_name: Option<&str>) 
         retryable: is_kind_retryable(kind),
         fallback_hint: build_fallback_hint(kind),
         provider_name: provider_name.map(str::to_string),
+        upstream_retry_after_ms: None,
     }
 }
 

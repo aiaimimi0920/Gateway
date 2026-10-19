@@ -122,6 +122,7 @@ mod tests {
     fn credential(id: &str, path: Option<&str>) -> db::ProviderCredentialImportMetadata {
         db::ProviderCredentialImportMetadata {
             id: id.to_string(),
+            snapshot_version: "synthetic-version".to_string(),
             label: id.to_string(),
             status: "active".to_string(),
             source_kind: "folder_sync_import".to_string(),

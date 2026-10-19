@@ -35,6 +35,7 @@ pub fn build_test_app_state(
         local_runtime: None,
         upstream_client: UpstreamClient::new(upstream_timeout_secs),
         concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
+        routing_latency: Default::default(),
         auth_adapters: Vec::new(),
         filter_config: None,
         route_config: Arc::new(route_config),

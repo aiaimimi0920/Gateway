@@ -118,6 +118,7 @@ fn make_state_with_console_auth(
         local_runtime: None,
         upstream_client: UpstreamClient::new(30),
         concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
+        routing_latency: Default::default(),
         auth_adapters: vec![],
         filter_config: None,
         route_config: Arc::new(route_config),

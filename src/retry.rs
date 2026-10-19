@@ -211,6 +211,7 @@ mod tests {
                 reason: "test".to_string(),
             },
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     }
 

@@ -364,6 +364,7 @@ fn detect_accio_html_challenge(body: &[u8]) -> Option<GatewayError> {
                 .to_string(),
         },
         provider_name: Some("accio_compatible".to_string()),
+        upstream_retry_after_ms: None,
     })
 }
 
@@ -380,6 +381,7 @@ fn classify_accio_provider_error(code: &str, message: &str) -> GatewayError {
                 reason: "Accio account is not activated; try another provider account.".to_string(),
             },
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     } else {
         GatewayError::server_error(format!("Accio upstream error: {}", message.trim()))

@@ -66,6 +66,29 @@ pub fn build_candidate_queue<'a>(
     health_snapshots: &HashMap<String, HealthSnapshot>,
     concurrency_limit: Option<usize>,
 ) -> Vec<RouteCandidate> {
+    build_candidate_queue_with_latency(
+        candidates,
+        selection_strategy,
+        sticky_provider_id,
+        health_snapshots,
+        concurrency_limit,
+        None,
+    )
+}
+
+/// Latency only breaks eligible equal-weight/equal-priority ties in the default
+/// strategy. It cannot override health, quota, explicit strategy or stickiness.
+pub fn build_candidate_queue_with_latency(
+    candidates: &[RouteCandidate],
+    selection_strategy: &str,
+    sticky_provider_id: Option<&str>,
+    health_snapshots: &HashMap<String, HealthSnapshot>,
+    concurrency_limit: Option<usize>,
+    latency: Option<(
+        &super::latency::RoutingLatency,
+        &crate::protocol::canonical::CanonicalRelayRequest,
+    )>,
+) -> Vec<RouteCandidate> {
     if candidates.is_empty() {
         return Vec::new();
     }
@@ -77,6 +100,7 @@ pub fn build_candidate_queue<'a>(
         effective_weight: f64,
         blocked: bool,  // circuit breaker open OR in cooldown
         excluded: bool, // hard-filtered (e.g. provider quota exhausted)
+        latency_ms: f64,
     }
 
     let now = chrono_now_rfc3339();
@@ -125,6 +149,7 @@ pub fn build_candidate_queue<'a>(
                     effective_weight: 0.0,
                     blocked: false,
                     excluded: true,
+                    latency_ms: super::latency::NEUTRAL_LATENCY_MS,
                 };
             };
 
@@ -149,6 +174,16 @@ pub fn build_candidate_queue<'a>(
                 effective_weight,
                 blocked,
                 excluded: false,
+                latency_ms: if blocked || matches!(selection_strategy, "random" | "round_robin") {
+                    super::latency::NEUTRAL_LATENCY_MS
+                } else {
+                    latency
+                        .and_then(|(samples, req)| {
+                            super::latency::LatencyKey::for_request(c, req)
+                                .and_then(|key| samples.estimate_ms(&key))
+                        })
+                        .unwrap_or(super::latency::NEUTRAL_LATENCY_MS)
+                },
             }
         })
         .collect();
@@ -190,23 +225,29 @@ pub fn build_candidate_queue<'a>(
                     .effective_weight
                     .partial_cmp(&a.effective_weight)
                     .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| b.candidate.priority.cmp(&a.candidate.priority)),
+                    .then_with(|| b.candidate.priority.cmp(&a.candidate.priority))
+                    .then_with(|| {
+                        if a.blocked || b.blocked {
+                            std::cmp::Ordering::Equal
+                        } else {
+                            a.latency_ms.total_cmp(&b.latency_ms)
+                        }
+                    }),
             });
         }
     }
 
     // ── Sticky provider promotion ─────────────────────────────────────────
 
-    let mut queue: Vec<RouteCandidate> = scored
+    let mut queue: Vec<Scored> = scored
         .into_iter()
         .filter(|scored| !scored.excluded)
-        .map(|s| s.candidate)
         .collect();
 
     if let Some(sticky_id) = sticky_provider_id {
         if let Some(pos) = queue
             .iter()
-            .position(|c| c.provider_account_id == sticky_id)
+            .position(|entry| !entry.blocked && entry.candidate.provider_account_id == sticky_id)
         {
             // Only promote if the sticky candidate is not in a blocked position
             // (blocked candidates are already at the end; leaving them there is
@@ -218,7 +259,7 @@ pub fn build_candidate_queue<'a>(
         }
     }
 
-    queue
+    queue.into_iter().map(|entry| entry.candidate).collect()
 }
 
 // ---------------------------------------------------------------------------

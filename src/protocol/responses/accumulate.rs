@@ -4,6 +4,7 @@ use bytes::Bytes;
 use futures::Stream;
 use serde_json::Value;
 
+use super::terminal::{Completion, CompletionError};
 use super::unpack_responses_response;
 use crate::error::GatewayError;
 use crate::protocol::canonical::{CanonicalRelayResponse, CanonicalToolCall};
@@ -102,16 +103,15 @@ pub(super) fn accumulate_responses_sse_bytes(
     let mut collected_text = String::new();
     let mut completed_response: Option<Value> = None;
     let mut streamed_tool_calls = BTreeMap::<usize, PendingAccumulatedToolCall>::new();
+    let mut completion = Completion::default();
 
     let mut handle_frame = |frame: SseFrame| -> Result<(), GatewayError> {
-        if frame.data.is_empty() || frame.data == "[DONE]" {
+        let Some(payload) = completion
+            .observe(&frame)
+            .map_err(CompletionError::gateway)?
+        else {
             return Ok(());
-        }
-
-        let payload: Value = serde_json::from_str(&frame.data).map_err(|error| {
-            GatewayError::server_error(format!("failed to parse responses SSE frame: {error}"))
-                .with_code("responses_stream_parse_failed")
-        })?;
+        };
         let event_type = frame
             .event_name
             .as_deref()
@@ -119,12 +119,6 @@ pub(super) fn accumulate_responses_sse_bytes(
             .unwrap_or_default();
 
         match event_type {
-            "error" | "response.failed" | "response.cancelled" => {
-                return Err(GatewayError::server_error(
-                    "Responses upstream stream failed before completion.",
-                )
-                .with_code("responses_stream_upstream_error"));
-            }
             "response.output_text.delta" => {
                 if let Some(delta) = payload.get("delta").and_then(|value| value.as_str()) {
                     collected_text.push_str(delta);
@@ -221,6 +215,7 @@ pub(super) fn accumulate_responses_sse_bytes(
     if let Some(frame) = parse_sse_frame_line("", &mut parser) {
         handle_frame(frame)?;
     }
+    completion.finish().map_err(CompletionError::gateway)?;
 
     if let Some(response_body) = completed_response {
         let mut canonical = unpack_responses_response(&response_body)?;
@@ -250,35 +245,7 @@ pub(super) fn accumulate_responses_sse_bytes(
         return Ok(canonical);
     }
 
-    if !collected_text.is_empty() || !streamed_tool_calls.is_empty() {
-        let has_text = !collected_text.is_empty();
-        return Ok(CanonicalRelayResponse {
-            model: fallback_model.to_string(),
-            text: collected_text,
-            usage: None,
-            tool_calls: streamed_tool_calls
-                .into_values()
-                .map(|call| CanonicalToolCall {
-                    id: Some(call.call_id),
-                    call_type: "function".to_string(),
-                    name: call.name,
-                    arguments: Some(crate::protocol::accio::normalize_tool_args(&call.arguments)),
-                    raw: std::collections::HashMap::new(),
-                })
-                .collect(),
-            upstream_status: Some(200),
-            finish_reason: Some(if has_text {
-                "stop".to_string()
-            } else {
-                "tool_calls".to_string()
-            }),
-        });
-    }
-
-    Err(GatewayError::server_error(
-        "Responses stream ended without a completed frame or text payload.",
-    )
-    .with_code("responses_stream_incomplete"))
+    Err(CompletionError::Incomplete.gateway())
 }
 
 #[derive(Debug, Clone)]

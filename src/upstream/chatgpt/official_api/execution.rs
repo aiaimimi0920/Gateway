@@ -337,7 +337,7 @@ mod tests {
                     concat!(
                         "data: {\"type\":\"response.output_text.delta\",\"delta\":\"Hello\"}\n\n",
                         "data: {\"type\":\"response.output_text.delta\",\"delta\":\" there\"}\n\n",
-                        "data: {\"type\":\"response.completed\"}\n\n",
+                        "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[]}}\n\n",
                         "data: [DONE]\n\n"
                     ),
                 )

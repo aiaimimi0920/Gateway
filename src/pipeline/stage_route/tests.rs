@@ -12,6 +12,7 @@ use crate::upstream::client::UpstreamClient;
 use std::collections::HashMap;
 
 mod account_groups;
+mod latency;
 mod resolution;
 
 // Local validation can select a disposable Redis without touching a host service.
@@ -108,6 +109,7 @@ fn make_state_with_route_store(route_config: RouteConfigStore) -> Arc<AppState> 
         local_runtime: None,
         upstream_client: UpstreamClient::new(30),
         concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
+        routing_latency: Default::default(),
         auth_adapters: vec![],
         filter_config: None,
         route_config: Arc::new(route_config),

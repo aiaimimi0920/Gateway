@@ -22,7 +22,7 @@ use crate::routing::credential_routing::credential_to_candidate;
 use crate::routing::protocol_resolution::{
     finalize_candidate_protocol_family, route_policy_family_matches_candidate,
 };
-use crate::routing::queue::build_candidate_queue;
+use crate::routing::queue::build_candidate_queue_with_latency;
 use crate::state::AppState;
 
 use super::stage_route_health::collect_candidate_health_snapshots;
@@ -409,52 +409,21 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         }
     }
 
-    // ── Credential Affinity: boost sticky credential to front ────────────
-    //
-    // Upstream providers (especially Anthropic) cache prompt tokens per API
-    // key. Switching credentials mid-conversation loses the cache benefit.
-    // We use a two-level affinity scope:
-    //   1. Session-level: explicit_session_key (conversation stickiness)
-    //   2. User-level: user_id + model (fallback stickiness)
-    //
-    // If an affinity credential is found in the candidate list, promote it
-    // to position 0. After the request succeeds (in stage_finalize), the
-    // winning credential is recorded as the new affinity.
-    if let Some(m) = model {
-        if all_candidates.len() > 1 {
-            let affinity_scope = ctx
-                .canonical_req
-                .explicit_session_key
-                .as_deref()
-                .map(|sk| format!("session:{}", sk))
-                .or_else(|| user_id.map(|uid| format!("user:{}", uid)));
-
-            if let Some(ref scope) = affinity_scope {
-                match super::runtime_storage::get_affinity(state, scope, m).await {
-                    Some(affinity_id) => {
-                        // Find the affinity credential in the candidate list
-                        if let Some(pos) = all_candidates
-                            .iter()
-                            .position(|c| c.provider_account_id == affinity_id)
-                        {
-                            if pos > 0 {
-                                let sticky = all_candidates.remove(pos);
-                                all_candidates.insert(0, sticky);
-                                debug!(
-                                    req_id = %ctx.req_id,
-                                    affinity_id = %affinity_id,
-                                    "credential affinity: boosted to front"
-                                );
-                            }
-                        }
-                        // If the affinity credential isn't in the list (maybe
-                        // disabled/expired), we just proceed with normal ordering.
-                    }
-                    _ => {} // No affinity or Redis error — proceed normally
-                }
-            }
+    // Session affinity precedes user affinity. Defer promotion until after all
+    // filters/health checks, so it neither bypasses eligibility nor loses to
+    // advisory latency sorting. The queue owns the existing sticky contract.
+    let affinity_scope = ctx
+        .canonical_req
+        .explicit_session_key
+        .as_deref()
+        .map(|sk| format!("session:{sk}"))
+        .or_else(|| user_id.map(|uid| format!("user:{uid}")));
+    let sticky_provider_id = match (model, affinity_scope) {
+        (Some(model), Some(scope)) if all_candidates.len() > 1 => {
+            super::runtime_storage::get_affinity(state, &scope, model).await
         }
-    }
+        _ => None,
+    };
 
     debug!(
         req_id = %ctx.req_id,
@@ -524,15 +493,16 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         concurrency_snapshots,
     )
     .await;
-    let mut queue = build_candidate_queue(
+    let mut queue = build_candidate_queue_with_latency(
         &all_candidates,
         &selection_strategy,
-        None,
+        sticky_provider_id.as_deref(),
         &health_snapshots,
         ctx.route_policy_config
             .as_ref()
             .and_then(|config| config.provider_max_concurrent_requests)
             .map(|value| value.max(0) as usize),
+        Some((&state.routing_latency, &ctx.canonical_req)),
     );
 
     for candidate in &mut queue {

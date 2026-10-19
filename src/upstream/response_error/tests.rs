@@ -38,6 +38,7 @@ async fn generic_and_official_http_errors_preserve_header_precedence() {
         let error = target.invoke(&client, &server.url).await.unwrap_err();
         assert_eq!(server.calls().len(), 1, "{target:?}: {error:?}");
         assert_eq!(error.kind, ErrorKind::RateLimit, "{target:?}");
+        assert_eq!(error.upstream_retry_after_ms, Some(25), "{target:?}");
         assert_eq!(error.code.as_deref(), Some("fixture_code"));
         assert!(
             matches!(
@@ -76,6 +77,7 @@ async fn server_failure_honors_headers_without_promoting_permanent_errors() {
             retryable
         );
         assert_eq!(error.http_status, Some(status));
+        assert_eq!(error.upstream_retry_after_ms, retryable.then_some(2_000));
         assert_eq!(error.code.as_deref(), Some("fixture_code"));
         if retryable {
             assert!(matches!(
@@ -110,6 +112,7 @@ async fn invalid_headers_fall_back_to_body_without_losing_error_identity() {
         }
     ));
     assert_eq!(error.message, "fixture error");
+    assert_eq!(error.upstream_retry_after_ms, Some(9_000));
     assert_eq!(error.code.as_deref(), Some("fixture_code"));
     server.finish().await;
 }

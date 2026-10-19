@@ -5,6 +5,10 @@ use futures::Stream;
 use serde_json::{json, Value};
 
 use super::stream_support::merge_stream_usage;
+use super::terminal::{Completion, CompletionError};
+use super::to_openai_chat_tools::{
+    build_openai_chat_tool_call_arguments_chunk, build_openai_chat_tool_call_start_chunk,
+};
 use super::unpack_responses_response;
 use crate::protocol::canonical::TokenUsage;
 use crate::protocol::openai;
@@ -54,6 +58,8 @@ where
         announced_tool_calls: BTreeSet::new(),
         next_tool_call_index: 0,
         final_emitted: false,
+        completion: Completion::default(),
+        failure: None,
     };
 
     futures::stream::unfold(
@@ -70,6 +76,9 @@ where
             }
 
             loop {
+                if let Some(error) = st.failure.take() {
+                    return Some((Err(error.into()), (stream, st, true)));
+                }
                 if let Some(output) = st.outputs.pop_front() {
                     done = st.final_emitted && st.outputs.is_empty();
                     return Some((Ok(Bytes::from(output)), (stream, st, done)));
@@ -94,7 +103,15 @@ where
                         if let Some(frame) = st.decoder.flush_pending_frame() {
                             st.handle_frame(frame);
                         }
-                        st.emit_final_if_needed(None);
+                        if let Some(error) = st.failure.take() {
+                            return Some((Err(error.into()), (stream, st, true)));
+                        }
+                        if !st.passthrough_openai && !st.final_emitted {
+                            return Some((
+                                Err(CompletionError::Incomplete.protocol().into()),
+                                (stream, st, true),
+                            ));
+                        }
                         if let Some(output) = st.outputs.pop_front() {
                             done = st.final_emitted && st.outputs.is_empty();
                             return Some((Ok(Bytes::from(output)), (stream, st, done)));
@@ -121,6 +138,8 @@ struct ResponsesToOpenAiChatState {
     announced_tool_calls: BTreeSet<String>,
     next_tool_call_index: usize,
     final_emitted: bool,
+    completion: Completion,
+    failure: Option<ProtocolStreamError>,
 }
 
 impl ResponsesToOpenAiChatState {
@@ -139,13 +158,13 @@ impl ResponsesToOpenAiChatState {
             return;
         }
 
-        if frame.data == "[DONE]" {
-            self.emit_final_if_needed(None);
-            return;
-        }
-
-        let Ok(payload) = serde_json::from_str::<Value>(&frame.data) else {
-            return;
+        let payload = match self.completion.observe(&frame) {
+            Ok(Some(payload)) => payload,
+            Ok(None) => return,
+            Err(error) => {
+                self.failure = Some(error.protocol());
+                return;
+            }
         };
         let event_type = frame
             .event_name
@@ -154,16 +173,6 @@ impl ResponsesToOpenAiChatState {
             .unwrap_or_default();
 
         match event_type {
-            "error" | "response.failed" | "response.cancelled" => {
-                // Never turn an explicit upstream failure into a successful stop at EOF.
-                let error = json!({"error": {
-                    "message": "Responses upstream stream failed before completion.",
-                    "type": "upstream_error", "code": "responses_stream_upstream_error"
-                }});
-                self.outputs
-                    .push_back(format_sse_event(Some("error"), &error.to_string()).into_bytes());
-                self.final_emitted = true;
-            }
             "response.created" | "response.in_progress" => {
                 if let Some(response) = payload.get("response") {
                     if let Some(id) = response.get("id").and_then(|value| value.as_str()) {
@@ -425,64 +434,6 @@ fn frame_is_openai_chat(data: &str) -> bool {
                 })
         })
         .unwrap_or(false)
-}
-
-fn build_openai_chat_tool_call_start_chunk(
-    response_id: &str,
-    created_at: i64,
-    model: &str,
-    index: usize,
-    call_id: &str,
-    name: &str,
-) -> Value {
-    json!({
-        "id": response_id,
-        "object": "chat.completion.chunk",
-        "created": created_at,
-        "model": model,
-        "choices": [{
-            "index": 0,
-            "delta": {
-                "tool_calls": [{
-                    "index": index,
-                    "id": call_id,
-                    "type": "function",
-                    "function": {
-                        "name": name,
-                        "arguments": "",
-                    }
-                }]
-            },
-            "finish_reason": null,
-        }],
-    })
-}
-
-fn build_openai_chat_tool_call_arguments_chunk(
-    response_id: &str,
-    created_at: i64,
-    model: &str,
-    index: usize,
-    arguments_delta: &str,
-) -> Value {
-    json!({
-        "id": response_id,
-        "object": "chat.completion.chunk",
-        "created": created_at,
-        "model": model,
-        "choices": [{
-            "index": 0,
-            "delta": {
-                "tool_calls": [{
-                    "index": index,
-                    "function": {
-                        "arguments": arguments_delta,
-                    }
-                }]
-            },
-            "finish_reason": null,
-        }],
-    })
 }
 
 fn build_openai_chat_stop_chunk(

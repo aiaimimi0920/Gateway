@@ -205,10 +205,23 @@ pub(super) async fn send(
 
             let provider_credential_id_for_cb = candidate.provider_credential_id.clone();
             let budget_for_cb = ctx.request_budget.clone();
+            let latency_key =
+                crate::routing::latency::LatencyKey::for_request(candidate, &ctx.canonical_req);
             let tracked = TrackedStream::new_with_started_at_and_error(
                 ctx.request_budget.constrain_stream(byte_stream),
                 stream_started_at,
                 move |metrics, success| {
+                    if success
+                        && metrics.termination
+                            == Some(crate::upstream::stream::StreamTermination::Completed)
+                    {
+                        if let (Some(key), Some(ms)) = (latency_key, metrics.first_token_latency_ms)
+                        {
+                            state_for_cb
+                                .routing_latency
+                                .record(key, std::time::Duration::from_millis(ms));
+                        }
+                    }
                     observe_provider_stream_metric(
                         global_gateway_metrics(),
                         &provider_id,

@@ -117,7 +117,7 @@ fn accumulate_responses_sse_bytes_restores_tool_calls_from_item_events() {
 
 #[tokio::test]
 async fn accumulate_responses_sse_stream_accepts_payload_at_byte_limit() {
-    let sse = format_sse_event(
+    let mut sse = format_sse_event(
         Some("response.output_text.delta"),
         &json!({
             "type": "response.output_text.delta",
@@ -125,6 +125,13 @@ async fn accumulate_responses_sse_stream_accepts_payload_at_byte_limit() {
         })
         .to_string(),
     );
+    sse.push_str(&format_sse_event(
+        Some("response.completed"),
+        &json!({
+            "type":"response.completed", "response":{"status":"completed", "output":[]}
+        })
+        .to_string(),
+    ));
     let split_at = sse.len() / 2;
     let chunks = vec![
         Ok(Bytes::copy_from_slice(&sse.as_bytes()[..split_at])),

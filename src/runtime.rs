@@ -156,6 +156,7 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         local_runtime,
         upstream_client,
         concurrency_registry,
+        routing_latency: Default::default(),
         auth_adapters,
         filter_config: None,
         route_config,

@@ -103,6 +103,7 @@ pub(super) async fn record_credential_model_failure(
         protocol_profile: ctx.selected_protocol_profile.clone(),
         model,
         upstream_status,
+        upstream_retry_after_ms: error.upstream_retry_after_ms,
         error_message: Some(error.message.clone()),
         classification,
     };
@@ -143,6 +144,7 @@ pub(super) async fn record_credential_model_failure_from_snapshot(
         protocol_profile: snapshot.selected_protocol_profile.clone(),
         model,
         upstream_status: None,
+        upstream_retry_after_ms: None,
         error_message: error_summary.map(str::to_string),
         classification,
     };

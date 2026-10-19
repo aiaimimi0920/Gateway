@@ -161,7 +161,18 @@ pub(super) async fn normalize(
             )
         }
         UpstreamStreamingResponse::Http(response) => {
-            Box::pin(response.bytes_stream().map_err(StreamError::Transport))
+            let stream = response.bytes_stream().map_err(StreamError::Transport);
+            // Validate the actual outgoing wire, not a Responses request bridged to Chat.
+            if attempt.effective_payload.canonical_adapter() == "openai_compatible"
+                && ctx.canonical_req.endpoint_kind == EndpointKind::Responses
+                && !attempt
+                    .effective_payload
+                    .bridges_openai_responses_to_chat_completions(ctx.canonical_req.endpoint_kind)
+            {
+                Box::pin(responses::require_responses_completion(stream))
+            } else {
+                Box::pin(stream)
+            }
         }
     };
     Ok((byte_stream, attempt))

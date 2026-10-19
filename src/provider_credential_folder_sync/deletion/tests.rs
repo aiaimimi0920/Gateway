@@ -10,6 +10,7 @@ fn build_test_credential(
 ) -> db::ProviderCredentialImportMetadata {
     db::ProviderCredentialImportMetadata {
         id: id.to_string(),
+        snapshot_version: "synthetic-version".to_string(),
         label: format!("Credential {id}"),
         status: status.to_string(),
         source_kind: "folder_sync_import".to_string(),

@@ -20,5 +20,6 @@ pub(super) async fn read_chat_response(response: rquest::Response) -> Result<Val
             reason: "Unclassified error; try an alternative provider.".to_string(),
         },
         provider_name: Some("freebuff_compatible".to_string()),
+        upstream_retry_after_ms: None,
     })
 }

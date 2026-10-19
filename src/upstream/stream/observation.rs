@@ -26,6 +26,7 @@ pub(super) struct ObservationLines {
     discarding: bool,
     max_bytes: usize,
     max_lines: usize,
+    first_line: bool,
 }
 
 impl Default for ObservationLines {
@@ -45,6 +46,7 @@ impl ObservationLines {
             discarding: false,
             max_bytes,
             max_lines,
+            first_line: true,
         }
     }
 
@@ -81,17 +83,28 @@ impl ObservationLines {
             if !terminated {
                 continue;
             }
-            let boundary = self.carriage_returns_only
+            let mut boundary = self.carriage_returns_only
                 && (matches!(boundary_rule, BoundaryRule::TrimCarriageReturns)
                     || self.line_length <= 1);
             if !self.discarding {
                 if self.line.last() == Some(&b'\r') {
                     self.line.pop();
                 }
-                if let Ok(line) = std::str::from_utf8(&self.line) {
+                // Observe the initial UTF-8 signature without changing forwarded Bytes.
+                // Admission still includes all BOM bytes, including fragmented arrivals.
+                let content = if self.first_line {
+                    self.line
+                        .strip_prefix(&[0xef, 0xbb, 0xbf])
+                        .unwrap_or(&self.line)
+                } else {
+                    &self.line
+                };
+                boundary |= content.is_empty();
+                if let Ok(line) = std::str::from_utf8(content) {
                     observe(ObservationLine::Text(line));
                 }
             }
+            self.first_line = false;
             self.line.clear();
             if self.line.capacity() > MAX_RETAINED_LINE_BYTES {
                 self.line = Vec::new();

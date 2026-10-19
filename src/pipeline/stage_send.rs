@@ -75,6 +75,7 @@ mod chatgpt_recovery;
 mod chatgpt_stream_recovery;
 mod endpoint_policy;
 mod feedback;
+mod model_health;
 mod pack;
 mod qwen_recovery;
 mod responses_bridge;
@@ -397,6 +398,9 @@ async fn run_candidates(
 
         capture_prompt_cache_telemetry(ctx, &candidate.adapter, &model);
 
+        let model_for_feedback = model.clone();
+        let latency_key =
+            crate::routing::latency::LatencyKey::for_request(candidate, &ctx.canonical_req);
         let attempt = PreparedAttempt {
             route_policy_config,
             provider_attempt_gate,
@@ -414,18 +418,51 @@ async fn run_candidates(
         if let Some(error) = last_error.as_ref() {
             observe_fallback_metric(global_gateway_metrics(), error);
         }
+        let attempts_before = ctx.route_attempt_count();
+        let candidate_started_at = Instant::now();
         let result = if ctx.canonical_req.stream {
             streaming::send(ctx, state, candidate, candidate_index, attempt).await
         } else {
             buffered::send(ctx, state, candidate, candidate_index, attempt).await
         };
         match result {
-            Ok(output) => return Ok(output),
+            Ok(output) => {
+                if !ctx.canonical_req.stream {
+                    if let Some(key) = latency_key {
+                        state
+                            .routing_latency
+                            .record(key, candidate_started_at.elapsed());
+                    }
+                }
+                return Ok(output);
+            }
             Err(AttemptError::Next(error)) => {
+                if ctx.route_attempt_count() > attempts_before {
+                    model_health::record_rate_limit(
+                        ctx,
+                        state,
+                        candidate,
+                        candidate_index,
+                        &model_for_feedback,
+                        &error,
+                    )
+                    .await;
+                }
                 last_error = Some(error);
                 continue;
             }
             Err(AttemptError::Stop(error)) => {
+                if ctx.route_attempt_count() > attempts_before {
+                    model_health::record_rate_limit(
+                        ctx,
+                        state,
+                        candidate,
+                        candidate_index,
+                        &model_for_feedback,
+                        &error,
+                    )
+                    .await;
+                }
                 return Err(error);
             }
         }

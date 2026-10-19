@@ -21,6 +21,7 @@ pub(super) struct BoundedSseDecoder {
     has_data: bool,
     pending_frame_bytes: usize,
     max_frame_bytes: usize,
+    first_line: bool,
 }
 
 impl BoundedSseDecoder {
@@ -33,6 +34,7 @@ impl BoundedSseDecoder {
             has_data: false,
             pending_frame_bytes: 0,
             max_frame_bytes,
+            first_line: true,
         }
     }
 
@@ -118,8 +120,15 @@ impl BoundedSseDecoder {
         if line.last() == Some(&b'\r') {
             line.pop();
         }
-        let frame_boundary = line.is_empty();
-        let result = match std::str::from_utf8(&line) {
+        // Only the stream-leading BOM is an encoding signature. Keep its raw bytes charged
+        // to admission, and never strip U+FEFF from a later field or from user content.
+        let content = if std::mem::replace(&mut self.first_line, false) {
+            line.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&line)
+        } else {
+            &line
+        };
+        let frame_boundary = content.is_empty();
+        let result = match std::str::from_utf8(content) {
             Ok(line) => self.parse_line(line),
             Err(_) => Ok(None),
         };
@@ -345,5 +354,37 @@ mod tests {
         assert_eq!(bounded_growth_capacity(1024, 1025, 4096), 2048);
         assert_eq!(bounded_growth_capacity(2048, 4095, 4096), 4096);
         assert_eq!(bounded_growth_capacity(4096, 4096, 4096), 4096);
+    }
+
+    #[test]
+    fn stream_bom_consumes_the_existing_raw_frame_budget() {
+        let wire = b"\xef\xbb\xbfdata:x\n\n";
+        let mut exact = BoundedSseDecoder::new(wire.len());
+        exact.push_chunk(Bytes::from_static(wire));
+        assert_eq!(expect_frame(exact.decode_next()).data, "x");
+        let mut too_small = BoundedSseDecoder::new(wire.len() - 1);
+        too_small.push_chunk(Bytes::from_static(wire));
+        assert!(matches!(too_small.decode_next(), DecodeStep::Error(_)));
+    }
+
+    #[test]
+    fn bom_only_first_line_is_a_frame_boundary_without_refunding_raw_bytes() {
+        let mut decoder = BoundedSseDecoder::new(8);
+        decoder.push_chunk(Bytes::from_static(b"\xef\xbb\xbf\r\ndata:x\n\n"));
+        assert_eq!(expect_frame(decoder.decode_next()).data, "x");
+        let mut too_small = BoundedSseDecoder::new(4);
+        too_small.push_chunk(Bytes::from_static(b"\xef\xbb\xbf\r\n"));
+        assert!(matches!(too_small.decode_next(), DecodeStep::Error(_)));
+    }
+
+    #[test]
+    fn later_bom_is_not_an_encoding_signature_but_data_bom_is_preserved() {
+        let mut decoder = BoundedSseDecoder::new(128);
+        decoder.push_chunk(Bytes::from_static(
+            b"\xef\xbb\xbfdata:\xef\xbb\xbfx\n\n\xef\xbb\xbfdata:ignored\n\ndata:y\n\n",
+        ));
+        assert_eq!(expect_frame(decoder.decode_next()).data, "\u{feff}x");
+        assert_eq!(expect_frame(decoder.decode_next()).data, "y");
+        assert!(matches!(decoder.decode_next(), DecodeStep::NeedInput));
     }
 }

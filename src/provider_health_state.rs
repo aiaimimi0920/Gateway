@@ -45,8 +45,16 @@ pub struct CredentialModelHealthTransition {
 impl CredentialModelHealthTransition {
     pub fn cooldown_until(&self, now: OffsetDateTime) -> Option<OffsetDateTime> {
         self.cooldown_seconds
-            .filter(|seconds| *seconds > 0)
-            .map(|seconds| now + Duration::seconds(seconds))
+            .filter(|seconds| *seconds >= 0)
+            .map(|seconds| {
+                // Keep persisted RFC3339 dates comparable and representable in
+                // both SQLite payloads and PostgreSQL, even for overflow hints.
+                let latest = OffsetDateTime::from_unix_timestamp(253_402_300_799)
+                    .expect("year 9999 is representable");
+                now.checked_add(Duration::seconds(seconds))
+                    .unwrap_or(latest)
+                    .min(latest)
+            })
     }
 }
 
@@ -114,4 +122,20 @@ pub fn candidate_penalty_status(status: &str, cooldown_until: Option<&str>) -> O
         "degraded" => Some("credential_model_degraded".to_string()),
         _ => None,
     }
+}
+
+/// Only explicit rate-limit hints override the established health policy.
+/// A zero hint is valid; missing hints retain the original five-minute default.
+pub fn transition_for_failure_with_retry_after(
+    classification: &ProviderFailureClassification,
+    upstream_retry_after_ms: Option<u64>,
+) -> CredentialModelHealthTransition {
+    let mut transition = transition_for_failure(classification);
+    if classification.class == ProviderFailureClass::RateLimited {
+        if let Some(ms) = upstream_retry_after_ms {
+            let seconds = ms / 1_000 + u64::from(ms % 1_000 != 0);
+            transition.cooldown_seconds = Some(i64::try_from(seconds).unwrap_or(i64::MAX));
+        }
+    }
+    transition
 }

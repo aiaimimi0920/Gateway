@@ -132,9 +132,9 @@ async fn usage_after_finish_is_retained_until_done() {
 }
 
 #[tokio::test]
-async fn eof_without_done_emits_one_final_chunk_and_done() {
+async fn eof_after_finish_without_done_emits_one_final_chunk_and_done() {
     let input = concat!(
-        "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"},\"finish_reason\":null}]}\n\n"
+        "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"},\"finish_reason\":\"stop\"}]}\n\n"
     );
 
     let output = translate(vec![Ok(Bytes::from_static(input.as_bytes()))]).await;
@@ -223,7 +223,8 @@ async fn bounded_decoder_preserves_split_utf8_crlf_and_multiline_data() {
         "event: update\r\n",
         "data: {\"choices\":[\r\n",
         "data: {\"delta\":{\"content\":\"你好\"},\"finish_reason\":null}\r\n",
-        "data: ]}\r\n\r\n"
+        "data: ]}\r\n\r\n",
+        "data: [DONE]\n\n"
     );
     let split = frame.find('你').expect("fixture must contain UTF-8 text") + 1;
     let bytes = frame.as_bytes();

@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use bytes::Bytes;
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use serde_json::Value;
 
 use super::{
@@ -75,13 +75,14 @@ where
 
     futures::stream::unfold(
         (
-            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
+            Some(Box::pin(inner)
+                as std::pin::Pin<
+                    Box<dyn Stream<Item = Result<Bytes, E>> + Send>,
+                >),
             state,
             false,
         ),
         |(mut stream, mut st, mut done)| async move {
-            use futures::StreamExt;
-
             if done {
                 return None;
             }
@@ -89,8 +90,21 @@ where
             loop {
                 if let Some(output) = st.outputs.pop_front() {
                     done = st.final_emitted && st.outputs.is_empty();
+                    if done {
+                        stream = None;
+                    }
                     return Some((Ok(Bytes::from(output)), (stream, st, done)));
                 }
+                // A clean transport EOF proves neither a completed choice nor a successful reply.
+                // Drain any already-parsed delta before reporting one sanitized protocol error.
+                let Some(source) = stream.as_mut() else {
+                    if st.final_emitted || st.pending_finish_reason.is_some() {
+                        return None;
+                    }
+                    st.abort();
+                    let error = ProtocolStreamError::invalid_data("openai_chat_stream_incomplete");
+                    return Some((Err(error.into()), (stream, st, true)));
+                };
                 match st.decoder.decode_next() {
                     DecodeStep::Frame(frame) => {
                         st.handle_frame(frame);
@@ -98,34 +112,36 @@ where
                     }
                     DecodeStep::Error(error) => {
                         st.abort();
+                        stream = None;
                         return Some((Err(error.into()), (stream, st, true)));
                     }
                     DecodeStep::NeedInput => {}
                 }
 
-                match stream.next().await {
+                match source.next().await {
                     Some(Ok(chunk)) => {
                         st.decoder.push_chunk(chunk);
                     }
                     Some(Err(error)) => {
                         st.abort();
+                        stream = None;
                         return Some((Err(error), (stream, st, true)));
                     }
                     None => {
+                        // Release the transport before terminal output/failure reaches callbacks.
+                        stream = None;
                         if let Some(frame) = st.decoder.flush_pending_frame() {
                             st.handle_frame(frame);
                         }
-                        st.emit_final_if_needed(None);
-                        if let Some(output) = st.outputs.pop_front() {
-                            done = st.final_emitted && st.outputs.is_empty();
-                            return Some((Ok(Bytes::from(output)), (stream, st, done)));
+                        if st.pending_finish_reason.is_some() {
+                            st.emit_final_if_needed(None);
                         }
-                        return None;
                     }
                 }
             }
         },
     )
+    .fuse()
 }
 
 struct OpenAiChatToLegacyCompletionsState {
@@ -146,7 +162,24 @@ impl OpenAiChatToLegacyCompletionsState {
             return;
         }
 
-        if self.native_passthrough || frame_is_native_legacy_completions(&frame) {
+        let chunk = serde_json::from_str::<Value>(&frame.data).ok();
+        let finish_reason = chunk.as_ref().and_then(|chunk| {
+            chunk
+                .get("choices")?
+                .as_array()?
+                .first()?
+                .get("finish_reason")?
+                .as_str()
+                .and_then(|reason| map_openai_finish_reason(Some(reason)))
+        });
+        if let Some(reason) = &finish_reason {
+            self.pending_finish_reason = Some(reason.clone());
+        }
+        if self.native_passthrough
+            || chunk
+                .as_ref()
+                .is_some_and(chunk_is_native_legacy_completions)
+        {
             self.native_passthrough = true;
             self.outputs
                 .push_back(format_sse_event(frame.event_name.as_deref(), &frame.data).into_bytes());
@@ -161,7 +194,7 @@ impl OpenAiChatToLegacyCompletionsState {
             return;
         }
 
-        let Ok(chunk) = serde_json::from_str::<Value>(&frame.data) else {
+        let Some(chunk) = chunk else {
             return;
         };
 
@@ -198,15 +231,8 @@ impl OpenAiChatToLegacyCompletionsState {
                 }
             }
 
-            if let Some(reason) = choice
-                .get("finish_reason")
-                .and_then(|value| value.as_str())
-                .and_then(|value| map_openai_finish_reason(Some(value)))
-            {
-                self.pending_finish_reason = Some(reason);
-                if self.latest_usage.is_some() {
-                    self.emit_final_if_needed(None);
-                }
+            if finish_reason.is_some() && self.latest_usage.is_some() {
+                self.emit_final_if_needed(None);
             }
         }
     }
@@ -241,27 +267,18 @@ impl OpenAiChatToLegacyCompletionsState {
     }
 }
 
-fn frame_is_native_legacy_completions(frame: &SseFrame) -> bool {
-    serde_json::from_str::<Value>(&frame.data)
-        .ok()
-        .and_then(|value| {
-            value
-                .get("choices")
-                .and_then(|choices| choices.as_array())
-                .and_then(|choices| {
-                    choices.first().and_then(|choice| {
-                        if choice.get("text").is_some() {
-                            Some(true)
-                        } else {
-                            value
-                                .get("object")
-                                .and_then(|object| object.as_str())
-                                .map(|object| object.starts_with("text_completion"))
-                        }
-                    })
-                })
+fn chunk_is_native_legacy_completions(value: &Value) -> bool {
+    value
+        .get("choices")
+        .and_then(Value::as_array)
+        .and_then(|choices| choices.first())
+        .is_some_and(|choice| {
+            choice.get("text").is_some()
+                || value
+                    .get("object")
+                    .and_then(Value::as_str)
+                    .is_some_and(|object| object.starts_with("text_completion"))
         })
-        .unwrap_or(false)
 }
 
 fn extract_stream_usage(chunk: &Value) -> Option<TokenUsage> {

@@ -219,6 +219,7 @@ fn classify_accio_provider_error(code: &str, message: &str) -> GatewayError {
                 reason: "Accio account is not activated; try another provider account.".to_string(),
             },
             provider_name: None,
+            upstream_retry_after_ms: None,
         }
     } else {
         GatewayError::server_error(format!("Accio upstream error: {}", message.trim()))

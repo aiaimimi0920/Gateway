@@ -154,6 +154,7 @@ impl Upstream {
         };
         let router = Router::new()
             .route("/v1/chat/completions", post(respond))
+            .route("/v1/responses", post(respond))
             .route("/v1/images/generations", post(respond))
             .with_state(exchange);
         let (shutdown, receiver) = oneshot::channel();

@@ -13,6 +13,8 @@ struct ProviderCredentialImportBounds {
 #[derive(Debug, FromRow)]
 pub(crate) struct ProviderCredentialImportMetadata {
     pub id: String,
+    // Equality only, retained for one sync run; never persisted as a business revision.
+    pub snapshot_version: String,
     pub label: String,
     pub status: String,
     pub source_kind: String,
@@ -62,7 +64,7 @@ pub(crate) async fn list_provider_credential_import_metadata(
 
     let rows = sqlx::query_as::<_, ProviderCredentialImportMetadata>(
         r#"
-        select id, label, status, source_kind, source_path, source_hash,
+        select id, xmin::text as snapshot_version, label, status, source_kind, source_path, source_hash,
                sync_mode, sync_state, archived_at
         from gateway_provider_credentials
         order by created_at asc

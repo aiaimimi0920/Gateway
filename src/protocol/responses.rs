@@ -5,11 +5,14 @@
 // ---------------------------------------------------------------------------
 
 mod accumulate;
+mod completeness;
 mod normalize;
 mod pack;
 mod response;
 mod stream_support;
+mod terminal;
 mod to_openai_chat;
+mod to_openai_chat_tools;
 mod to_responses;
 mod to_responses_events;
 use crate::protocol::stream_error::StreamError;
@@ -19,6 +22,7 @@ pub use accumulate::{
     accumulate_responses_sse_stream, accumulate_responses_sse_stream_with_error,
     accumulate_responses_stream,
 };
+pub use completeness::require_responses_completion;
 pub use normalize::normalize_responses;
 pub use pack::{pack_responses, pack_responses_bridge};
 use response::normalize_arguments_value;

@@ -206,3 +206,74 @@ fn empty_chunks_do_not_advance_or_flush_state() {
     );
     assert_eq!((lines.frame_bytes, lines.frame_lines), (0, 0));
 }
+
+#[test]
+fn bom_is_charged_to_admission_and_not_reaccepted_after_overflow() {
+    let mut exact = ObservationLines::new(11, 8);
+    assert_eq!(
+        collect(
+            &mut exact,
+            &[b"\xef", b"\xbb\xbfdata:x\n\n"],
+            BoundaryRule::Empty
+        ),
+        texts(&["data:x", ""])
+    );
+    let mut too_small = ObservationLines::new(10, 8);
+    assert_eq!(
+        collect(
+            &mut too_small,
+            &[b"\xef\xbb\xbfdata:x\n\n"],
+            BoundaryRule::Empty
+        ),
+        vec![Some("data:x".into()), None]
+    );
+    assert_eq!(
+        collect(&mut too_small, &[b"\xef\xbb\xbfx\n\n"], BoundaryRule::Empty),
+        texts(&["\u{feff}x", ""])
+    );
+}
+
+#[test]
+fn bom_only_first_line_resets_frame_budget_and_preserves_content_bom() {
+    let mut lines = ObservationLines::new(11, 8);
+    assert_eq!(
+        collect(
+            &mut lines,
+            &[b"\xef\xbb\xbf\r\n", b"data:\xef\xbb\xbfx\n\n"],
+            BoundaryRule::Empty
+        ),
+        texts(&["", "data:\u{feff}x", ""])
+    );
+    assert_eq!((lines.frame_bytes, lines.frame_lines), (0, 0));
+}
+
+#[test]
+fn discarded_first_line_does_not_restart_bom_detection() {
+    let mut lines = ObservationLines::new(10, 8);
+    assert_eq!(
+        collect(&mut lines, &[b"\xef\xbb\xbf-too-long"], BoundaryRule::Empty),
+        vec![None]
+    );
+    assert_eq!(
+        collect(&mut lines, &[b"\n\n\xef\xbb\xbfx\n\n"], BoundaryRule::Empty),
+        texts(&["\u{feff}x", ""])
+    );
+}
+
+#[test]
+fn bom_does_not_bypass_the_line_budget() {
+    let mut lines = ObservationLines::new(64, 1);
+    assert_eq!(
+        collect(
+            &mut lines,
+            &[b"\xef\xbb\xbfdata:x\n\n"],
+            BoundaryRule::Empty
+        ),
+        vec![Some("data:x".into()), None]
+    );
+    let mut boundary = ObservationLines::new(64, 1);
+    assert_eq!(
+        collect(&mut boundary, &[b"\xef\xbb\xbf\n"], BoundaryRule::Empty),
+        texts(&[""])
+    );
+}

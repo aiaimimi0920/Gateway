@@ -270,6 +270,7 @@ mod tests {
             local_runtime: None,
             upstream_client: UpstreamClient::new(30),
             concurrency_registry: ConcurrencyRegistry::new(AimdConfig::default()),
+            routing_latency: Default::default(),
             auth_adapters: vec![],
             filter_config,
             route_config: Arc::new(crate::routing::config::RouteConfigStore::new()),

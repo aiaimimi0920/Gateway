@@ -271,6 +271,7 @@ async fn local_model_health_persists_failure_and_success() {
         protocol_profile: input.protocol_profile.clone(),
         model: input.model.clone(),
         upstream_status: Some(429),
+        upstream_retry_after_ms: None,
         error_message: Some("rate limit; token=private-test-token".into()),
         classification: crate::provider_failure::classify_provider_failure(
             Some(429),

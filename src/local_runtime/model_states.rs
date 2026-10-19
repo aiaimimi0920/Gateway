@@ -4,7 +4,8 @@ use crate::db::provider_credential_model_states::{
     durable_model_error_message, provider_credential_model_state_id,
 };
 use crate::{
-    db::*, error::GatewayError, provider_health_state::transition_for_failure, state::AppState,
+    db::*, error::GatewayError, provider_health_state::transition_for_failure_with_retry_after,
+    state::AppState,
 };
 use sqlx::{QueryBuilder, Sqlite};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
@@ -21,7 +22,12 @@ impl LocalRuntime {
         &self,
         input: RecordCredentialModelFailureInput,
     ) -> Result<Option<GatewayProviderCredentialModelStateView>, GatewayError> {
-        if !transition_for_failure(&input.classification).penalizes_candidate {
+        if !transition_for_failure_with_retry_after(
+            &input.classification,
+            input.upstream_retry_after_ms,
+        )
+        .penalizes_candidate
+        {
             return Ok(None);
         }
         let identity = RecordCredentialModelSuccessInput {
@@ -84,7 +90,10 @@ impl LocalRuntime {
         };
         row.updated_at = time.clone();
         if let Some(failure) = failure {
-            let transition = transition_for_failure(&failure.classification);
+            let transition = transition_for_failure_with_retry_after(
+                &failure.classification,
+                failure.upstream_retry_after_ms,
+            );
             row.status = transition.status.as_str().into();
             row.failure_class = transition.failure_class.clone();
             row.failure_scope = transition.failure_scope.clone();

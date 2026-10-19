@@ -5,7 +5,9 @@ use time::OffsetDateTime;
 
 use crate::error::{sanitize_provider_error_message, GatewayError};
 use crate::provider_failure::ProviderFailureClassification;
-use crate::provider_health_state::{candidate_penalty_status, transition_for_failure};
+use crate::provider_health_state::{
+    candidate_penalty_status, transition_for_failure_with_retry_after,
+};
 use crate::routing::candidate::RouteCandidate;
 
 use super::{format_timestamp, map_db_error};
@@ -18,6 +20,7 @@ pub struct RecordCredentialModelFailureInput {
     pub protocol_profile: Option<String>,
     pub model: String,
     pub upstream_status: Option<u16>,
+    pub upstream_retry_after_ms: Option<u64>,
     pub error_message: Option<String>,
     pub classification: ProviderFailureClassification,
 }
@@ -90,7 +93,10 @@ pub async fn record_provider_credential_model_failure(
     pool: &PgPool,
     input: RecordCredentialModelFailureInput,
 ) -> Result<Option<GatewayProviderCredentialModelStateView>, GatewayError> {
-    let transition = transition_for_failure(&input.classification);
+    let transition = transition_for_failure_with_retry_after(
+        &input.classification,
+        input.upstream_retry_after_ms,
+    );
     if !transition.penalizes_candidate {
         return Ok(None);
     }
@@ -280,7 +286,11 @@ pub async fn apply_provider_credential_model_states_to_candidates(
         let id = provider_credential_model_state_id(
             &candidate.provider_account_id,
             candidate.provider_credential_id.as_deref(),
-            candidate.provider_credential_id.as_deref(),
+            candidate
+                .payload
+                .credential_id
+                .as_deref()
+                .or(candidate.provider_credential_id.as_deref()),
             Some(candidate.protocol_profile.as_str()),
             model,
         );

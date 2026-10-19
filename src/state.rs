@@ -202,6 +202,8 @@ pub struct AppState {
     pub local_runtime: Option<crate::local_runtime::LocalRuntime>,
     pub upstream_client: UpstreamClient,
     pub concurrency_registry: ConcurrencyRegistry,
+    /// Advisory samples are local to this runtime, including in Server mode.
+    pub routing_latency: crate::routing::latency::RoutingLatency,
     /// Ordered chain of auth adapters tried in sequence for each request.
     pub auth_adapters: Vec<Box<dyn AuthAdapter>>,
     /// Optional content filter configuration.  `None` means filtering is

@@ -16,23 +16,17 @@ async fn translate_responses_failure_never_emits_successful_stop() {
                 .to_string(),
             ))),
         ];
-        let frames = collect_sse_frames(translate_responses_sse_to_openai_chat(
+        let (output, errors) = collect_stream_output(translate_responses_sse_to_openai_chat(
             make_bytes_stream(chunks),
             "gpt-test".into(),
         ))
         .await;
-        assert!(frames.iter().any(|frame| frame.data.contains("partial")));
-        let error = frames
-            .iter()
-            .find(|frame| frame.event_name.as_deref() == Some("error"))
-            .expect("terminal upstream error");
-        let payload: Value = serde_json::from_str(&error.data).unwrap();
-        assert_eq!(payload["error"]["code"], "responses_stream_upstream_error");
-        assert!(!error.data.contains("private-upstream-detail"));
-        assert!(!frames
-            .iter()
-            .any(|frame| frame.data.contains(r#""finish_reason":"stop""#)));
-        assert!(!frames.iter().any(|frame| frame.data == "[DONE]"));
+        assert!(output.contains("partial"));
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("responses_stream_upstream_error"));
+        assert!(!errors[0].contains("private-upstream-detail"));
+        assert!(!output.contains(r#""finish_reason":"stop""#));
+        assert!(!output.contains("[DONE]"));
     }
 }
 
