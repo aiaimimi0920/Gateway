@@ -409,7 +409,7 @@ fn parse_openai_tools(raw: Option<&Value>) -> Vec<CanonicalTool> {
 
     arr.iter()
         .map(|t| {
-            let fn_obj = t.get("function");
+            let fn_obj = t.get("function").or_else(|| t.get("custom"));
             CanonicalTool {
                 tool_type: t
                     .get("type")

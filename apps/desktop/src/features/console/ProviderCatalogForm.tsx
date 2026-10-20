@@ -172,6 +172,13 @@ export function ProviderCatalogForm({
                     </label>
                   </div>
 
+                  <label><input type="checkbox" checked={draft.siteHealthEnabled ?? false} disabled={locked}
+                    onChange={(event) => setDraft((current) => ({ ...current, siteHealthEnabled: event.target.checked }))} />
+                    {t("自动识别站点健康接口", "Discover site health interfaces automatically")}</label>
+                  {selectedTemplate.id === "chatgpt" && <label><input type="checkbox" checked={draft.codexBasispointsEnabled ?? false} disabled={locked}
+                    onChange={(event) => setDraft((current) => ({ ...current, codexBasispointsEnabled: event.target.checked }))} />
+                    {t("使用 Basispoints 通道", "Use Basispoints channel")}</label>}
+
                   {!hasSecretAccess ? (
                     <div className="nt-validation-list nt-validation-list--warning">
                       <strong>{t("保存密钥需要敏感信息权限", "Secret access is required to save the key")}</strong>

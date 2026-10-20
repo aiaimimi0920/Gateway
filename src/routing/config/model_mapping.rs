@@ -47,6 +47,9 @@ fn eligible_credentials(
     allowed: Option<&HashSet<String>>,
 ) -> Option<Vec<usize>> {
     if provider.credential_pool.is_empty() {
+        if !provider.credential_pool_auth_policy.is_any() {
+            return None;
+        }
         return (allowed
             .is_none_or(|ids| ids.contains(&provider_default_account_id(&provider.id)))
             && (provider.supported_models.is_empty()
@@ -60,7 +63,10 @@ fn eligible_credentials(
         .credential_pool
         .iter()
         .enumerate()
-        .filter(|(_, credential)| credential_eligible(credential, original, target, allowed))
+        .filter(|(_, credential)| {
+            credential_eligible(credential, original, target, allowed)
+                && provider.credential_pool_auth_policy.allows(credential)
+        })
         .map(|(index, _)| index)
         .collect();
     (!eligible.is_empty()).then_some(eligible)
@@ -90,18 +96,24 @@ fn target_is_available(
     if provider.credential_pool.is_empty() {
         return eligible_credentials(provider, original, target, allowed).is_some();
     }
-    provider
-        .credential_pool
-        .iter()
-        .any(|credential| credential_eligible(credential, original, target, allowed))
+    provider.credential_pool.iter().any(|credential| {
+        credential_eligible(credential, original, target, allowed)
+            && provider.credential_pool_auth_policy.allows(credential)
+    })
 }
 
 pub(super) fn mapping_available(provider: &CompiledProvider, model: &str) -> bool {
-    provider.model_map_targets.get(model).is_none_or(|targets| {
-        targets
-            .iter()
-            .any(|target| target_is_available(provider, model, target, None))
-    })
+    provider.model_map_targets.get(model).map_or_else(
+        || {
+            provider.credential_pool_auth_policy.is_any()
+                || candidates::has_model_eligible_oauth_credential(provider, model)
+        },
+        |targets| {
+            targets
+                .iter()
+                .any(|target| target_is_available(provider, model, target, None))
+        },
+    )
 }
 
 pub(super) fn select_mapped_payload(
@@ -141,7 +153,18 @@ pub(crate) fn model_for_probe(
             .model_map_targets
             .get(model)?
             .iter()
-            .filter(|target| target_is_available(provider, model, target, Some(&allowed)))
+            // This is an explicit management probe, not a business pool selection.
+            .filter(|target| {
+                provider.credential_pool.iter().any(|credential| {
+                    credential_eligible(credential, model, target, Some(&allowed))
+                }) || (provider.credential_pool.is_empty()
+                    && allowed.contains(&provider_default_account_id(&provider.id))
+                    && (provider.supported_models.is_empty()
+                        || provider
+                            .supported_models
+                            .iter()
+                            .any(|supported| supported == model || supported == *target)))
+            })
             .collect();
         targets
             .choose(&mut rand::thread_rng())

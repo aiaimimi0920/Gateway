@@ -56,6 +56,7 @@ pub fn build_generate_content_success(
 
 pub fn parse_response(body: &Value, model: &str) -> Result<CanonicalRelayResponse, GatewayError> {
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: model.to_string(),
         text: body
             .get("text")

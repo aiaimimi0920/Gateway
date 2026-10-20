@@ -70,6 +70,7 @@ pub async fn probe_console_credential(
     .await;
 
     let result = serde_json::to_value(CredentialProbeResponse {
+        health_recovery: report.health_recovery,
         credential_id: target.credential_id,
         provider_id: target.provider_id,
         probe_point,
@@ -187,6 +188,7 @@ pub async fn probe_console_provider(
         if named_plan.is_none() && (!budget.available() || !budget.matches(&state)) {
             unsupported_count += 1;
             results.push(CredentialProbeResponse {
+                health_recovery: None,
                 credential_id: target.credential_id,
                 provider_id: target.provider_id,
                 probe_point: "Not executed".to_string(),
@@ -251,6 +253,7 @@ pub async fn probe_console_provider(
             ProviderPayloadProbeStatus::Unsupported => unsupported_count += 1,
         }
         results.push(CredentialProbeResponse {
+            health_recovery: report.health_recovery,
             credential_id: target.credential_id,
             provider_id: target.provider_id,
             probe_point,

@@ -38,11 +38,11 @@ pub(super) async fn probe_with_prompt(
     )
     .await
     .unwrap_or_else(|_| failed(None, "Model call timed out after 60 seconds."));
-    super::model_probe_recording::finish(
+    let health_recovery = super::model_probe_recording::finish(
         state,
         target,
         model,
-        audit.as_deref(),
+        audit,
         started.elapsed(),
         &result,
     )
@@ -64,6 +64,7 @@ pub(super) async fn probe_with_prompt(
     (
         point,
         ProviderPayloadProbeReport {
+            health_recovery: Some(health_recovery),
             status,
             message,
             answer,

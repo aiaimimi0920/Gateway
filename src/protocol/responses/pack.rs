@@ -169,13 +169,20 @@ pub fn pack_responses(req: &CanonicalRelayRequest, model: &str, stream: bool) ->
     }
 
     let mut input_items = Vec::new();
+    let output_kinds = crate::protocol::openai_tool_wire::output_kinds(req);
     for message in &req.messages {
         if message.role == MessageRole::System {
             continue;
         }
         if message.role == MessageRole::Tool {
+            let custom = message
+                .tool_call_id
+                .as_deref()
+                .and_then(|id| output_kinds.get(id))
+                .copied()
+                .unwrap_or(false);
             input_items.push(json!({
-                "type": "function_call_output",
+                "type": if custom {"custom_tool_call_output"} else {"function_call_output"},
                 "call_id": message.tool_call_id.clone().unwrap_or_default(),
                 "output": pack_responses_tool_output(&message.content),
             }));
@@ -190,12 +197,7 @@ pub fn pack_responses(req: &CanonicalRelayRequest, model: &str, stream: bool) ->
             }));
         }
         for tool_call in &message.tool_calls {
-            input_items.push(json!({
-                "type": "function_call",
-                "call_id": tool_call.id.clone().unwrap_or_else(|| "call_auto".to_string()),
-                "name": tool_call.name.clone().unwrap_or_else(|| "tool".to_string()),
-                "arguments": tool_call.arguments.clone().unwrap_or_else(|| "{}".to_string()),
-            }));
+            input_items.push(crate::protocol::openai_tool_wire::responses_call(tool_call));
         }
     }
 
@@ -216,26 +218,7 @@ pub fn pack_responses(req: &CanonicalRelayRequest, model: &str, stream: bool) ->
             Value::Array(
                 req.tools
                     .iter()
-                    .map(|tool| {
-                        let mut item = serde_json::Map::new();
-                        item.insert("type".to_string(), Value::String(tool.tool_type.clone()));
-                        if let Some(name) = &tool.name {
-                            item.insert("name".to_string(), Value::String(name.clone()));
-                        }
-                        if let Some(description) = &tool.description {
-                            item.insert(
-                                "description".to_string(),
-                                Value::String(description.clone()),
-                            );
-                        }
-                        if let Some(input_schema) = &tool.input_schema {
-                            item.insert("parameters".to_string(), input_schema.clone());
-                        }
-                        for (key, value) in &tool.raw {
-                            item.entry(key.clone()).or_insert_with(|| value.clone());
-                        }
-                        Value::Object(item)
-                    })
+                    .map(crate::protocol::openai_tool_wire::responses_tool)
                     .collect(),
             ),
         );
@@ -266,6 +249,13 @@ pub fn pack_responses(req: &CanonicalRelayRequest, model: &str, stream: bool) ->
         body.insert(key.clone(), value.clone());
     }
 
+    crate::protocol::output_format::apply_responses(req, &mut body);
+    if let Some(reasoning) = &req.reasoning {
+        body.insert("reasoning".into(), reasoning.clone());
+    }
+    if let Some(metadata) = &req.metadata {
+        body.insert("metadata".into(), json!(metadata));
+    }
     Value::Object(body)
 }
 
@@ -283,6 +273,8 @@ pub fn pack_responses_bridge(req: &CanonicalRelayRequest, model: &str, stream: b
                     | "tools"
                     | "tool_choice"
                     | "store"
+                    | "text"
+                    | "reasoning"
             )
         });
     }
@@ -294,6 +286,9 @@ fn pack_responses_tool_choice(
     tool_choice: Option<&Value>,
 ) -> Option<Value> {
     let tool_choice = tool_choice?;
+    if let Some(choice) = crate::protocol::openai_tool_wire::responses_choice(tool_choice) {
+        return Some(choice);
+    }
     let canonical = tool_choice::parse_tool_choice(Some(tool_choice));
     match canonical {
         Some(CanonicalToolChoice::Auto) => Some(Value::String("auto".to_string())),

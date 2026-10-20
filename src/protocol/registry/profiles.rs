@@ -85,7 +85,6 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "groq-openai" => "groq",
         "together-openai" => "together",
         "openrouter-openai" => "openrouter",
-        "muyuan-openai" => "muyuan",
         "poe-openai" => "poe",
         "longcat-openai" => "longcat",
         "deepseek-openai" => "deepseek",

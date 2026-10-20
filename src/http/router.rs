@@ -27,6 +27,7 @@ mod request_audits;
 ///      `X-Request-Id`.
 ///   3. Request body size limit — reject oversized payloads before handlers.
 pub fn build_router(state: Arc<AppState>) -> Router {
+    crate::site_health::runtime::schedule(&state);
     if crate::provider_discovery::job::requested(state.route_config.snapshot().document()) {
         crate::provider_discovery::background::schedule(&state);
     }

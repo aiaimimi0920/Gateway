@@ -1,4 +1,5 @@
 import type { GatewayApiClient } from "../client";
+import { credentialPrunePreviewSchema, credentialPruneReceiptSchema } from "../schemas/credential-prune";
 import {
   consoleCostOverviewResponseSchema,
   consoleCredentialArchivePurgeResponseSchema,
@@ -25,6 +26,8 @@ type ConsoleCredentialsApi = Pick<
   | "getCredentialPoolAutomation"
   | "runCredentialPoolAutomation"
   | "pruneCredentialPool"
+  | "previewCredentialPrune"
+  | "applyCredentialPrune"
   | "purgeCredentialArchive"
   | "getCredentialRefill"
   | "requestCredentialRefill"
@@ -68,6 +71,14 @@ export function createConsoleCredentialsApi(client: GatewayApiClient): ConsoleCr
         consoleCredentialPoolAutomationRunResponseSchema,
         { method: "POST", managementToken },
       ),
+    previewCredentialPrune: (managementToken, providerId) => client.request(
+      `/v1/internal/gateway/credential-pool-automation/providers/${encodeURIComponent(providerId)}/prune/preview`,
+      credentialPrunePreviewSchema, { method: "POST", managementToken },
+    ),
+    applyCredentialPrune: (managementToken, providerId, selection) => client.request(
+      `/v1/internal/gateway/credential-pool-automation/providers/${encodeURIComponent(providerId)}/prune/apply`,
+      credentialPruneReceiptSchema, { method: "POST", managementToken, body: selection },
+    ),
     purgeCredentialArchive: (managementToken, providerId) =>
       client.request(
         `/v1/internal/gateway/credential-pool-automation/providers/${encodeURIComponent(providerId)}/archive`,

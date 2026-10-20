@@ -61,8 +61,8 @@ export function ProviderLifecycleActionDialog({
           <Dialog.Description id="provider-lifecycle-action-description">
             {pendingProviderLifecycleAction?.kind === "enable-permanent-delete"
               ? t(
-                  `开启后，${pendingProviderLifecycleAction.providerLabel} 的自动和手动失效号删除将跳过归档。保存当前草稿后生效。`,
-                  `Once enabled, automatic and manual invalid credential deletion for ${pendingProviderLifecycleAction.providerLabel} will skip archival. Save the current draft to apply it.`,
+                  `开启后，${pendingProviderLifecycleAction.providerLabel} 的自动清理和旧版直接清理接口将跳过归档；预览清理始终要求归档。保存当前草稿后生效。`,
+                  `Automatic and legacy direct cleanup for ${pendingProviderLifecycleAction.providerLabel} will skip archival; reviewed cleanup always requires archival. Save the current draft to apply it.`,
                 )
               : pendingProviderLifecycleAction?.kind === "purge-archive"
                 ? t(

@@ -271,10 +271,13 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
     let route_config = RouteConfigStore::from_document(RouteConfigYaml {
         providers: vec![
             crate::routing::config::ProviderConfigYaml {
+                codex_basispoints_enabled: false,
+                site_health: None,
                 test_plans: Vec::new(),
                 test_policy: None,
                 subpool_test_policies: Default::default(),
                 default_account_test_policy: None,
+                credential_pool_auth_policy: Default::default(),
                 id: "openai-default".to_string(),
                 label: Some("OpenAI".to_string()),
                 vendor_key: None,
@@ -330,10 +333,13 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 credentials: vec![],
             },
             crate::routing::config::ProviderConfigYaml {
+                codex_basispoints_enabled: false,
+                site_health: None,
                 test_plans: Vec::new(),
                 test_policy: None,
                 subpool_test_policies: Default::default(),
                 default_account_test_policy: None,
+                credential_pool_auth_policy: Default::default(),
                 id: "codex-main".to_string(),
                 label: Some("Codex".to_string()),
                 vendor_key: None,
@@ -387,6 +393,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 credential_automation_driver_id: None,
                 credential_identity_categories: vec![],
                 credentials: vec![crate::routing::config::ProviderCredentialYaml {
+                    codex_basispoints_enabled: None,
                     discovery_job: None,
                     discovery: None,
                     test_policy: None,

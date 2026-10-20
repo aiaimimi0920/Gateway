@@ -18,11 +18,14 @@ export type TestModelMeasurement = {
   testSetId: string; elapsedMs: number | null;
   quota: { status: string; unit: string | null; consumed: number | null; before: number | null; after: number | null; source: string | null };
 };
+export type ModelHealthRecovery = "applied" | "stale_health" | "stale_configuration" | "configuration_changed_after_write"
+  | "storage_failed" | "unavailable" | "protected" | "failure_recorded" | "failure_not_penalized";
+
 export type CredentialTestAssessment = {
   planId?: string;
   policySource: string; mode: string;
   models: { model: string; callable: boolean; completedCount: number; gradedCount: number; correctCount: number;
     score: number | null; capabilityLevel: string; measurement?: TestModelMeasurement }[];
   cases: { caseId: string; name: string; model: string; difficulty: number; status: string;
-    answer: string | null; expectedAnswer: string | null; correct: boolean | null; message: string; elapsedMs?: number }[];
+    answer: string | null; expectedAnswer: string | null; correct: boolean | null; message: string; elapsedMs?: number; healthRecovery?: ModelHealthRecovery }[];
 };

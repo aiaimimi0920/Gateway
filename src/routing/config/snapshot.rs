@@ -53,6 +53,13 @@ impl RouteConfigSnapshot {
         &self.document
     }
 
+    pub(crate) fn site_health_providers(&self) -> impl Iterator<Item = &CompiledProvider> {
+        self.compiled
+            .providers
+            .iter()
+            .filter(|p| p.site_health.is_some())
+    }
+
     pub(crate) fn effective_account_groups(&self) -> &[AccountGroupYaml] {
         &self.effective_account_groups
     }

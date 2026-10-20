@@ -365,6 +365,14 @@ after 1.2 seconds, and the backend uses the policy only after that commit succee
 See [credential test policies](docs/credential-test-policies.md) for the UI,
 three-level inheritance, scoring and compatibility boundaries.
 
+### 可选 Codex 通道与独立站点健康
+
+Codex 凭据可选择原生或 Basispoints 通道，沿用原账号与 OAuth 刷新链。
+独立站点健康支持自动识别五类监控接口、advisory 提示和显式启用的模型路由限制，
+不复用账号测试或账号密钥。新建自定义站点默认开启健康接口识别。
+配置、界面入口、安全约束及当前不支持的内容见
+[Basispoints 与站点健康](docs/basispoints-and-site-health.md)。
+
 ```text
 POST /v1/internal/gateway/console/credentials/{credential_id}/probe
 POST /v1/internal/gateway/console/providers/{provider_id}/probe

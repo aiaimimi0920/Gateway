@@ -30,6 +30,18 @@ impl UpstreamClient {
         model: &str,
         stream: bool,
     ) -> Result<RequestPlan, GatewayError> {
+        if payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER {
+            let source = crate::protocol::chatgpt::basispoints::request::source(req, model)?;
+            return Ok(RequestPlan {
+                method: rquest::Method::POST,
+                url: crate::protocol::chatgpt::basispoints::URL.into(),
+                query: Vec::new(),
+                body: Some(crate::protocol::chatgpt::basispoints::request::prepare(
+                    &source, model, stream,
+                )?),
+                response_kind: EndpointKind::Responses,
+            });
+        }
         if !payload.adapter.starts_with("dashscope_") {
             crate::protocol::dashscope::validate_bridge(req)?;
         }

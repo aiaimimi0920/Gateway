@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState, type Dispatch, type Set
 import type { ConsoleApi } from "../../api/console";
 import type { ConsoleCredentialPoolAutomationProvider, ConsoleCredentialPoolAutomationResponse, ConsoleCredentialRefillDemand } from "../../api/contracts";
 import { pushAppToast } from "../../components/AppToast";
+import { useCredentialPruneReview } from "./useCredentialPruneReview";
 
 type CredentialPoolActionsOptions = {
   api: ConsoleApi;
@@ -21,14 +22,13 @@ export function useCredentialPoolActions({
   draftDirty,
   credentialPoolAutomationByProvider,
   credentialRefillByProvider,
-  setCredentialPoolAutomation,
   refresh,
   setError,
   t,
 }: CredentialPoolActionsOptions) {
   const draftDirtyRef = useRef(draftDirty);
   draftDirtyRef.current = draftDirty;
-  const [credentialPoolPruneBusy, setCredentialPoolPruneBusy] = useState<string | null>(null);
+  const pruneReview = useCredentialPruneReview({ api, managementToken, draftDirty, refresh, t });
 
   const [credentialArchivePurgeBusy, setCredentialArchivePurgeBusy] =
     useState<string | null>(null);
@@ -38,7 +38,6 @@ export function useCredentialPoolActions({
   const scope = useRef({ active: false, epoch: 0, api, managementToken, prune: 0, purge: 0, refill: 0 });
   useLayoutEffect(() => {
     Object.assign(scope.current, { active: true, api, managementToken });
-    setCredentialPoolPruneBusy(null);
     setCredentialArchivePurgeBusy(null);
     setCredentialRefillBusy(null);
     return () => {
@@ -92,42 +91,9 @@ export function useCredentialPoolActions({
         return;
       }
       setError(null);
-      const isCurrent = beginRequest("prune");
-      setCredentialPoolPruneBusy(providerId);
-      try {
-        const result = await api.pruneCredentialPool(managementToken, providerId);
-        if (!isCurrent()) return;
-        setCredentialPoolAutomation((current) =>
-          current
-            ? {
-                automation: {
-                  ...current.automation,
-                  providers: current.automation.providers.map((provider) =>
-                    provider.providerId === providerId ? result.provider : provider,
-                  ),
-                },
-              }
-            : current,
-        );
-        pushAppToast(
-          "success",
-          result.provider.message ??
-            t(
-              `渠道 ${providerId} 的失效号检查已完成。`,
-              `Invalid credential cleanup completed for ${providerId}.`,
-            ),
-        );
-        await refresh();
-      } catch (cause) {
-        if (!isCurrent()) return;
-        const message = cause instanceof Error ? cause.message : String(cause);
-        setError(message);
-        pushAppToast("error", message);
-      } finally {
-        if (isCurrent()) setCredentialPoolPruneBusy(null);
-      }
+      await pruneReview.handlePruneCredentialPool(providerId);
     },
-    [api, beginRequest, credentialPoolAutomationByProvider, draftDirty, isActiveIdentity, managementToken, refresh, t],
+    [credentialPoolAutomationByProvider, isActiveIdentity, managementToken, pruneReview.handlePruneCredentialPool, setError, t],
   );
 
   const handlePurgeCredentialArchive = useCallback(
@@ -239,5 +205,5 @@ export function useCredentialPoolActions({
     [api, beginRequest, credentialRefillByProvider, draftDirty, isActiveIdentity, managementToken, refresh, t],
   );
 
-  return { credentialPoolPruneBusy, credentialArchivePurgeBusy, credentialRefillBusy, handlePruneCredentialPool, handlePurgeCredentialArchive, handleRequestCredentialRefill };
+  return { ...pruneReview, credentialArchivePurgeBusy, credentialRefillBusy, handlePruneCredentialPool, handlePurgeCredentialArchive, handleRequestCredentialRefill };
 }

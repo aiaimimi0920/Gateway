@@ -165,6 +165,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     action: PendingProviderLifecycleAction,
   ) => {
     if (props.lifecycleActionsLocked && action.kind !== "enable-permanent-delete") return;
+    if (action.kind === "prune") { onPruneProviderCredentials(action.providerId); return; }
     setPendingProviderLifecycleAction(action);
   };
 

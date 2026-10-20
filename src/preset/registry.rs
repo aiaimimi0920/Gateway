@@ -106,10 +106,6 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     {
         presets.push(openrouter_openai_preset());
     }
-    #[cfg(feature = "line-muyuan-openai-aggregator-api")]
-    {
-        presets.push(muyuan_openai_preset());
-    }
     #[cfg(feature = "line-poe-openai-aggregator-api")]
     {
         presets.push(poe_openai_preset());

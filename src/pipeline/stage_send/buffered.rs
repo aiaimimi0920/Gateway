@@ -128,7 +128,11 @@ pub(super) async fn send(
         }
     }
 
-    let native_text = !tools_were_injected && payload.is_discovered_native(&canonical_req);
+    // Keep product reasoning and custom-tool fields intact for native Responses clients.
+    let native_text = !tools_were_injected
+        && (payload.is_discovered_native(&canonical_req)
+            || (payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER
+                && canonical_req.endpoint_kind == EndpointKind::Responses));
     if expects_json_passthrough(&ctx.canonical_req) || native_text {
         let metric_provider = candidate.provider_account_id.clone();
         let metric_model = model.clone();
@@ -166,6 +170,9 @@ pub(super) async fn send(
 
         match result {
             Ok(json_resp) => {
+                let declaration =
+                    crate::protocol::model_declaration::ModelDeclaration::from_body(&json_resp);
+                model_observation::buffered(ctx, candidate, &model, declaration.as_ref());
                 if native_text {
                     let observed = if crate::protocol::dashscope::is_dashscope(&ctx.canonical_req) {
                         crate::protocol::dashscope::response::observe_native(&json_resp, &model)
@@ -273,7 +280,10 @@ pub(super) async fn send(
                     let model = model.clone();
                     let extra_hdrs = Arc::clone(&extra_hdrs);
                     let provider_account_id = provider_account_id.clone();
-                    async move {
+                    // Keep the legacy multi-provider future out of every enclosing
+                    // retry/gate frame. Same-task polling preserves cancellation
+                    // and the admission lease; no extra task or send is created.
+                    Box::pin(async move {
                         if candidate.adapter == "freebuff_compatible" {
                             freebuff::execute(
                                 &client.freebuff,
@@ -295,7 +305,7 @@ pub(super) async fn send(
                                 )
                                 .await
                         }
-                    }
+                    })
                 },
                 move |observation| {
                     observe_provider_attempt_metric(
@@ -312,6 +322,12 @@ pub(super) async fn send(
 
     match result {
         Ok(mut canonical_resp) => {
+            model_observation::buffered(
+                ctx,
+                candidate,
+                &model,
+                canonical_resp.model_declaration.as_ref(),
+            );
             controller.on_success();
             spawn_record_provider_success(
                 Arc::clone(state),

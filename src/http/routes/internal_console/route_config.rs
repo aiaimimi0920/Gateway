@@ -88,6 +88,7 @@ pub async fn commit_route_config(
         .await
         .map_err(runtime_error_to_gateway_error)?;
     crate::provider_discovery::background::schedule(&state);
+    crate::site_health::runtime::schedule(&state);
     Ok(json_with_no_store(serde_json::json!({
         "routeConfig": route_config_payload(state.as_ref(), &snapshot)?,
         "committed": true

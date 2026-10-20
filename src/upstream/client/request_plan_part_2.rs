@@ -9,6 +9,16 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<CanonicalRelayResponse, GatewayError> {
+        if payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER {
+            return crate::upstream::basispoints::execute(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
         if payload.canonical_adapter() == "xfyun_websocket_compatible" {
             let _ = extra_headers;
             debug!(

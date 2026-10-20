@@ -25,6 +25,9 @@ const CHAT: &str = "/v1/chat/completions";
 const RESPONSES: &str = "/v1/responses";
 const MESSAGES: &str = "/messages";
 const SSE: &str = ": vendor comment\nid: fixture-event\nevent: vendor.extension\ndata: {\"vendor_extra\":true}\n\ndata: [DONE]\n\n";
+// Responses requires a response-level terminal before [DONE]; passthrough must
+// retain the vendor envelope as well as this valid terminal without re-encoding.
+const RESPONSES_SSE: &str = ": vendor comment\nid: fixture-event\nevent: vendor.extension\ndata: {\"vendor_extra\":true}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp-fixture\",\"status\":\"completed\",\"output\":[]}}\n\ndata: [DONE]\n\n";
 
 struct Mock {
     root: String,
@@ -58,7 +61,10 @@ impl Mock {
                 let captured = captured.clone();
                 async move {
                     captured.lock().unwrap().push((path.into(), body.clone()));
-                    if body["stream"] == true { return ([("content-type", "text/event-stream")], SSE).into_response(); }
+                    if body["stream"] == true {
+                        let wire = if path == RESPONSES { RESPONSES_SSE } else { SSE };
+                        return ([("content-type", "text/event-stream")], wire).into_response();
+                    }
                     let mut reply = match path {
                         CHAT => json!({"id":"chat-fixture","object":"chat.completion","created":1,"model":"actual",
                             "choices":[{"index":0,"message":{"role":"assistant","content":"OK"},"finish_reason":"stop"}],
@@ -147,7 +153,12 @@ async fn discovers_all_wires_and_preserves_native_json_and_sse_after_reload() {
             if stream {
                 assert_eq!(
                     bytes.as_ref(),
-                    SSE.as_bytes(),
+                    if path == RESPONSES {
+                        RESPONSES_SSE
+                    } else {
+                        SSE
+                    }
+                    .as_bytes(),
                     "Native SSE must not be re-encoded"
                 );
             } else {

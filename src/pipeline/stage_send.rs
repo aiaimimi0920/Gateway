@@ -76,6 +76,7 @@ mod chatgpt_stream_recovery;
 mod endpoint_policy;
 mod feedback;
 mod model_health;
+mod model_observation;
 mod pack;
 mod qwen_recovery;
 mod responses_bridge;
@@ -177,6 +178,23 @@ async fn run_candidates(
 
     for (candidate_index, candidate) in candidates.iter().enumerate() {
         ctx.request_budget.check()?;
+        let model = candidate
+            .upstream_model
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| {
+                upstream_model_helpers::resolve_model(&candidate.payload, &ctx.canonical_req)
+            })
+            .to_string();
+        if !crate::site_health::runtime::candidate_allowed(state, candidate, &model) {
+            last_error = Some(
+                GatewayError::service_unavailable(
+                    "Site health policy restricted this upstream model",
+                )
+                .with_code("site_health_route_restricted"),
+            );
+            continue;
+        }
         if !super::stage_route::provider_allowed_by_policy(
             &candidate.provider_account_id,
             ctx.route_policy_config.as_ref(),
@@ -268,16 +286,6 @@ async fn run_candidates(
             "trying candidate"
         );
 
-        // Resolve model name.
-        // Priority: candidate.upstream_model (alias-resolved) > req.requested_model > payload.default_model
-        let model = candidate
-            .upstream_model
-            .as_deref()
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| {
-                upstream_model_helpers::resolve_model(&candidate.payload, &ctx.canonical_req)
-            })
-            .to_string();
         let reply_model = caller_visible_reply_model(&ctx.canonical_req, &model);
         if let (Some(local), Some(audit_id)) = (&state.local_runtime, &ctx.request_audit_id) {
             if let Err(error) = local

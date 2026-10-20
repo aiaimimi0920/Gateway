@@ -12,6 +12,8 @@ use crate::routing::candidate::RouteCandidate;
 
 use super::{format_timestamp, map_db_error};
 
+pub mod recovery;
+
 #[derive(Debug, Clone)]
 pub struct RecordCredentialModelFailureInput {
     pub provider_account_id: String,
@@ -93,6 +95,14 @@ pub async fn record_provider_credential_model_failure(
     pool: &PgPool,
     input: RecordCredentialModelFailureInput,
 ) -> Result<Option<GatewayProviderCredentialModelStateView>, GatewayError> {
+    write_failure(pool, input, true).await
+}
+
+async fn write_failure<'e>(
+    executor: impl sqlx::Executor<'e, Database = Postgres>,
+    input: RecordCredentialModelFailureInput,
+    overwrite: bool,
+) -> Result<Option<GatewayProviderCredentialModelStateView>, GatewayError> {
     let transition = transition_for_failure_with_retry_after(
         &input.classification,
         input.upstream_retry_after_ms,
@@ -147,6 +157,7 @@ pub async fn record_provider_credential_model_failure(
           cooldown_until = excluded.cooldown_until,
           last_failure_at = excluded.last_failure_at,
           updated_at = excluded.updated_at
+        where $14
         returning *
         "#,
     )
@@ -163,17 +174,28 @@ pub async fn record_provider_credential_model_failure(
     .bind(input.upstream_status.map(i32::from))
     .bind(cooldown_until)
     .bind(now)
-    .fetch_one(pool)
+    .bind(overwrite)
+    .fetch_optional(executor)
     .await
     .map_err(map_db_error)?;
 
-    Ok(Some(to_view(row)))
+    Ok(row.map(to_view))
 }
 
 pub async fn record_provider_credential_model_success(
     pool: &PgPool,
     input: RecordCredentialModelSuccessInput,
 ) -> Result<GatewayProviderCredentialModelStateView, GatewayError> {
+    write_success(pool, input, true)
+        .await?
+        .ok_or_else(|| GatewayError::server_error("Credential model success was not persisted"))
+}
+
+async fn write_success<'e>(
+    executor: impl sqlx::Executor<'e, Database = Postgres>,
+    input: RecordCredentialModelSuccessInput,
+    overwrite: bool,
+) -> Result<Option<GatewayProviderCredentialModelStateView>, GatewayError> {
     let now = OffsetDateTime::now_utc();
     let id = provider_credential_model_state_id(
         &input.provider_account_id,
@@ -211,6 +233,7 @@ pub async fn record_provider_credential_model_success(
           cooldown_until = null,
           last_success_at = excluded.last_success_at,
           updated_at = excluded.updated_at
+        where $8
         returning *
         "#,
     )
@@ -221,11 +244,12 @@ pub async fn record_provider_credential_model_success(
     .bind(input.protocol_profile)
     .bind(input.model)
     .bind(now)
-    .fetch_one(pool)
+    .bind(overwrite)
+    .fetch_optional(executor)
     .await
     .map_err(map_db_error)?;
 
-    Ok(to_view(row))
+    Ok(row.map(to_view))
 }
 
 pub async fn list_provider_credential_model_states(

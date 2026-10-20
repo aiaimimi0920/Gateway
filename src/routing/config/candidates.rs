@@ -163,6 +163,9 @@ pub(super) fn select_credential(
     allowed_account_ids: Option<&HashSet<String>>,
 ) -> Option<ProviderAccountPayload> {
     if provider.credential_pool.is_empty() {
+        if !provider.credential_pool_auth_policy.is_any() {
+            return None; // Base payloads have no typed refresh owner: unknown fails closed.
+        }
         let default_account_id = provider_default_account_id(&provider.id);
         if allowed_account_ids.is_some_and(|allowed| !allowed.contains(&default_account_id)) {
             return None;
@@ -193,34 +196,16 @@ pub(super) fn select_credential(
         .copied()
         .filter(|index| {
             let cred = &provider.credential_pool[*index];
-            // A discovered catalogue names upstream models, not arbitrary local aliases.
-            if cred.discovery.is_some() {
-                return translated_model.or(original_model).is_none_or(|model| {
-                    cred.supported_models
-                        .iter()
-                        .any(|supported| supported == model)
-                });
-            }
-            if cred.supported_models.is_empty() {
-                true // no restriction = supports all provider models
-            } else if original_model.is_none() && translated_model.is_none() {
-                true // no model specified = any credential
-            } else {
-                // Match if credential supports either the original or translated name
-                let matches_original = original_model
-                    .map(|m| cred.supported_models.iter().any(|sm| sm == m))
-                    .unwrap_or(false);
-                let matches_translated = translated_model
-                    .map(|m| cred.supported_models.iter().any(|sm| sm == m))
-                    .unwrap_or(false);
-                matches_original || matches_translated
-            }
+            credential_supports_model(cred, original_model, translated_model)
+                && provider.credential_pool_auth_policy.allows(cred)
         })
         .collect();
 
     // Explicit group membership must not expose another account's model through
     // compatibility fallback when none of the authorized accounts supports it.
-    if model_eligible.is_empty() && allowed_account_ids.is_some() {
+    if model_eligible.is_empty()
+        && (allowed_account_ids.is_some() || !provider.credential_pool_auth_policy.is_any())
+    {
         return None;
     }
     // Unrestricted legacy routing retains its model compatibility fallback.
@@ -241,6 +226,44 @@ pub(super) fn select_credential(
     let counter = provider.credential_counter.fetch_add(1, Ordering::Relaxed);
     let idx = eligible[counter % eligible.len()];
     Some(apply_token_override(&provider.credential_pool[idx]))
+}
+
+fn credential_supports_model(
+    credential: &CompiledCredential,
+    original: Option<&str>,
+    translated: Option<&str>,
+) -> bool {
+    // A discovered catalogue names upstream models, not arbitrary local aliases.
+    if credential.discovery.is_some() {
+        return translated.or(original).is_none_or(|model| {
+            credential
+                .supported_models
+                .iter()
+                .any(|supported| supported == model)
+        });
+    }
+    credential.supported_models.is_empty()
+        || (original.is_none() && translated.is_none())
+        || original.into_iter().chain(translated).any(|model| {
+            credential
+                .supported_models
+                .iter()
+                .any(|supported| supported == model)
+        })
+}
+
+/// Catalog check without consuming the round-robin counter or cloning secrets.
+pub(super) fn has_model_eligible_oauth_credential(
+    provider: &CompiledProvider,
+    model: &str,
+) -> bool {
+    let translated = provider.model_map.get(model).map(String::as_str);
+    provider.credential_pool.iter().any(|credential| {
+        credential.enabled
+            && !credential.discovery_required
+            && credential_supports_model(credential, Some(model), translated)
+            && provider.credential_pool_auth_policy.allows(credential)
+    })
 }
 
 /// Apply OAuth token override if a refreshed access_token is available.
@@ -320,15 +343,7 @@ fn provider_to_candidate(
         label: p.label.clone(),
         adapter: selected_payload.adapter.clone(),
         protocol_family: family.to_owned(),
-        protocol_profile: discovery
-            .map(|d| {
-                match d.protocol {
-                    crate::provider_discovery::DiscoveredProtocol::Messages => "anthropic_messages",
-                    _ => "openai_compatible_generic",
-                }
-                .to_owned()
-            })
-            .unwrap_or_else(|| p.protocol_profile.clone()),
+        protocol_profile: super::probe_identity::effective_protocol_profile(p, discovery),
         supported_protocol_families: if discovery.is_some() {
             selected_payload
                 .discovered_protocols

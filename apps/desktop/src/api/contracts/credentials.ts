@@ -235,6 +235,7 @@ export type ConsoleCredentialRefillRequestResponse = {
 export type ConsoleCredentialProbeStatus = "passed" | "failed" | "unsupported";
 
 export type ConsoleCredentialProbeResult = {
+  healthRecovery?: import("./credentialTests").ModelHealthRecovery;
   credentialId: string;
   providerId: string;
   probePoint: string;

@@ -42,8 +42,8 @@ pub use native_api::{
 pub use openai::{
     azure_openai_preset, chatgpt_codex_oauth_official_api_preset, codex_preset,
     deepseek_openai_preset, groq_openai_preset, longcat_openai_preset, mistral_openai_preset,
-    muyuan_openai_preset, nvidia_openai_preset, openai_preset, openrouter_openai_preset,
-    perplexity_preset, poe_openai_preset, together_openai_preset, xai_openai_preset, xfyun_preset,
+    nvidia_openai_preset, openai_preset, openrouter_openai_preset, perplexity_preset,
+    poe_openai_preset, together_openai_preset, xai_openai_preset, xfyun_preset,
 };
 pub use qwen::{
     qwen_coding_plan_anthropic_preset, qwen_coding_plan_openai_preset,

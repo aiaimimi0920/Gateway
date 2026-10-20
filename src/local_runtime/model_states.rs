@@ -1,5 +1,6 @@
 //! Durable credential/model health with the shared server classification rules.
 use super::{storage_error, LocalRuntime};
+use crate::db::provider_credential_model_states::recovery::ModelHealthSnapshot;
 use crate::db::provider_credential_model_states::{
     durable_model_error_message, provider_credential_model_state_id,
 };
@@ -9,13 +10,18 @@ use crate::{
 };
 use sqlx::{QueryBuilder, Sqlite};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+mod recovery;
+#[cfg(test)]
+mod recovery_tests;
 
 impl LocalRuntime {
     pub async fn model_success(
         &self,
         input: RecordCredentialModelSuccessInput,
     ) -> Result<GatewayProviderCredentialModelStateView, GatewayError> {
-        self.update_model(input, None).await
+        self.update_model(input, None, None)
+            .await?
+            .ok_or_else(|| GatewayError::server_error("Model state was not persisted"))
     }
 
     pub async fn model_failure(
@@ -37,16 +43,15 @@ impl LocalRuntime {
             protocol_profile: input.protocol_profile.clone(),
             model: input.model.clone(),
         };
-        self.update_model(identity, Some(input)).await.map(Some)
+        self.update_model(identity, Some(input), None).await
     }
 
     async fn update_model(
         &self,
         input: RecordCredentialModelSuccessInput,
         failure: Option<RecordCredentialModelFailureInput>,
-    ) -> Result<GatewayProviderCredentialModelStateView, GatewayError> {
-        let now = OffsetDateTime::now_utc();
-        let time = now.format(&Rfc3339).expect("timestamp");
+        expected: Option<&ModelHealthSnapshot>,
+    ) -> Result<Option<GatewayProviderCredentialModelStateView>, GatewayError> {
         let id = provider_credential_model_state_id(
             &input.provider_account_id,
             input.provider_credential_id.as_deref(),
@@ -65,8 +70,33 @@ impl LocalRuntime {
                 .fetch_optional(&mut *tx)
                 .await
                 .map_err(storage_error)?;
-        let mut row = if let Some(payload) = payload {
-            decode(&payload)?
+        if expected.is_some_and(|expected| expected.version != payload) {
+            return Ok(None);
+        }
+        // Advance even under clock rollback/equal timestamps; all owner writes change the CAS token.
+        let previous = payload.as_deref().map(decode).transpose()?;
+        let now = previous
+            .as_ref()
+            .map(|row| {
+                OffsetDateTime::parse(&row.updated_at, &Rfc3339)
+                    .map_err(|_| GatewayError::server_error("Local model timestamp is corrupt"))
+            })
+            .transpose()?
+            .map(|time| {
+                time.checked_add(time::Duration::nanoseconds(1))
+                    .ok_or_else(|| {
+                        GatewayError::server_error("Local model timestamp cannot advance")
+                    })
+            })
+            .transpose()?
+            .map_or_else(OffsetDateTime::now_utc, |previous| {
+                previous.max(OffsetDateTime::now_utc())
+            });
+        let time = now
+            .format(&Rfc3339)
+            .map_err(|_| GatewayError::server_error("Local model timestamp cannot be formatted"))?;
+        let mut row = if let Some(previous) = previous {
+            previous
         } else {
             GatewayProviderCredentialModelStateView {
                 id,
@@ -130,7 +160,7 @@ impl LocalRuntime {
         .await
         .map_err(storage_error)?;
         tx.commit().await.map_err(storage_error)?;
-        Ok(row)
+        Ok(Some(row))
     }
 
     pub async fn list_model_states(

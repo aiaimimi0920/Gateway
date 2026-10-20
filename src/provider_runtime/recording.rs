@@ -169,6 +169,11 @@ pub async fn record_provider_credential_probe_report(
     credential_id: &str,
     report: &ProviderPayloadProbeReport,
 ) {
+    // Generated model probes already use exact expected-row CAS; never follow it
+    // with an unconditional credential/account-wide success or failure update.
+    if report.health_recovery.is_some() {
+        return;
+    }
     let Some(pg_pool) = state.pg_pool.as_ref() else {
         return;
     };

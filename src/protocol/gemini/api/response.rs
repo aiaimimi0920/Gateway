@@ -111,6 +111,7 @@ pub fn parse_response(body: &Value, model: &str) -> Result<CanonicalRelayRespons
     });
 
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: reported_model,
         text,
         usage,

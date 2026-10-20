@@ -87,6 +87,7 @@ export function credentialDialogValueFromDocument(
   return {
     providerId,
     credentialId,
+    codexBasispointsEnabled: typeof credential.codex_basispoints_enabled === "boolean" ? credential.codex_basispoints_enabled : undefined,
     discovery: accountDiscoverySchema.safeParse(credential.discovery).data,
     discoveryStatus: isRecord(credential.discovery_job) ? optionalString(credential.discovery_job, "status") ?? undefined : undefined,
     accountName: optionalString(credential, "account_name") ?? "",
@@ -110,6 +111,7 @@ export function duplicateCredentialDialogValue(
     credentialId: `${account.accountId}-copy`,
     accountName: `${sourceName} Copy`,
     enabled: account.enabled,
+    codexBasispointsEnabled: copiedValue?.codexBasispointsEnabled,
     baseUrl: copiedValue?.baseUrl ?? "",
     supportedModelsText: copiedValue?.supportedModelsText ?? "",
     apiKeyOperation: "replace",

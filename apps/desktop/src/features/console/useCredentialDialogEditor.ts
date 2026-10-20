@@ -119,6 +119,7 @@ export function useCredentialDialogEditor({
       const discoverLater = !value.discovery && value.apiKeyOperation === "replace" &&
         provider && supportsAccountDiscovery(provider);
       const fields: Record<string, unknown> = {
+        codex_basispoints_enabled: value.codexBasispointsEnabled,
         account_name: value.accountName || undefined,
         enabled: value.enabled,
         base_url: value.baseUrl || undefined,

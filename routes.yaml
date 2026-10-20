@@ -1,10 +1,13 @@
+# 仓库配置只保留路由目录，不保存真实凭据；桌面账户仍由用户 .ng 管理。
+# api_key/auth_token/headers 可使用环境变量；未设置的引用不会自动报错。
+# extra_body.token/session 不支持环境替换，已置空；需要时只在私密配置中填写。
 providers:
   - id: codex
     vendor_key: openai
     vendor_name: "OpenAI"
     preset: codex
     base_url: "https://chatgpt.com/backend-api/codex"
-    api_key: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5MzQ0ZTY1LWJiYzktNDRkMS1hOWQwLWY5NTdiMDc5YmQwZSIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS92MSJdLCJjbGllbnRfaWQiOiJhcHBfRU1vYW1FRVo3M2YwQ2tYYVhwN2hyYW5uIiwiZXhwIjoxNzc2NDIyOTYwLCJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiMDZjZGFjNGEtNmM1YS00ZTVlLTliNmItOGQzY2RjMWVmZDhiIiwiY2hhdGdwdF9hY2NvdW50X3VzZXJfaWQiOiJ1c2VyLW9DZ054NldwbFRWTXJGZ3gxZWtIN3I3U19fMDZjZGFjNGEtNmM1YS00ZTVlLTliNmItOGQzY2RjMWVmZDhiIiwiY2hhdGdwdF9jb21wdXRlX3Jlc2lkZW5jeSI6Im5vX2NvbnN0cmFpbnQiLCJjaGF0Z3B0X3BsYW5fdHlwZSI6ImZyZWUiLCJjaGF0Z3B0X3VzZXJfaWQiOiJ1c2VyLW9DZ054NldwbFRWTXJGZ3gxZWtIN3I3UyIsImxvY2FsaG9zdCI6dHJ1ZSwidXNlcl9pZCI6InVzZXItb0NnTng2V3BsVFZNckZneDFla0g3cjdTIn0sImh0dHBzOi8vYXBpLm9wZW5haS5jb20vcHJvZmlsZSI6eyJlbWFpbCI6ImF6dXJlaG9sbG93NjJlODAwQG1haWwuYWlhaW1pbWkuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJpYXQiOjE3NzU1NTg5NTksImlzcyI6Imh0dHBzOi8vYXV0aC5vcGVuYWkuY29tIiwianRpIjoiMDNlMDlkZjctYzUxZi00MDI4LTkzYWQtMjFiYTcyYWQ5ZjI1IiwibmJmIjoxNzc1NTU4OTU5LCJwd2RfYXV0aF90aW1lIjoxNzc0NjY4NDQ1ODYzLCJzY3AiOlsib3BlbmlkIiwiZW1haWwiLCJwcm9maWxlIiwib2ZmbGluZV9hY2Nlc3MiXSwic2Vzc2lvbl9pZCI6ImF1dGhzZXNzXzZWTUgzOURiMlBZc2w4S2lCaDhEZnNFdyIsInNsIjp0cnVlLCJzdWIiOiJhdXRoMHxaSmlianBNNlFNbDA0NGJ0WHJRdldZVFEifQ.GCM-85gofPBL1YbV4Xd8oWmLsWPg7HeeAp0BBGqOCR04N6U2VCxtOTE7A4xafbws1jkS2mfdrAzwoZntP-_3CijLmD2Od0-0lSJlc6RKjXYyYLyZ-3hE-1kIz5g-9VBKxaJa9g0IRji02LuPaQ8_sSrnFhNlkuYrCFWpRUZAvkPdorpcP7KVMMGTtwv_-DKNFIeHwfX3V64ET7KzUe2BosdE7YzfdCQHoTg5q4VZ0u2MJ0B-j4xiuRFZ7j-01SXqxWlH6ktLn-jK6faoxYvg9IohgIA35VYg3VtGLMABp3CWWDrt46C9z-dgUhDZ9OZUybwPpmweNVQmb62xUXjDgFUvO9AHv9CtPp_ok91icPJt1OdUtGjRQ3axXeoD0BVBZxKDvwWOHKbiL4ASoS0_ST4qwrbh3v-l35VQdTSnRJjyjKHxJA6-miJxHtsnZtO6tO06KnauO0cQXRNCol1PKqCalwrkqBHbW0T7Z9B8xG8xI_NCsCW0BPrFTsoYWnYC1c3ULLFIsJvp30U-dsqUN5tMvqCbUUVeY9vYVH_UF2o7gYlfDC4pCZUTXBU-43rdBO_I88baGtY8kAYQVbHXfP0Di4vkEBhS8yQrEQwWDPNxbfS0Vvp1TK-DAYB-NGpmUSuWjJbOXPtSkavIZa_T8NewHfzTwKy4cR059meOfyU"
+    api_key: "${GATEWAY_CODEX_API_KEY}"
     headers:
       Chatgpt-Account-Id: "06cdac4a-6c5a-4e5e-9b6b-8d3cdc1efd8b"
     supported_models:
@@ -19,7 +22,7 @@ providers:
     vendor_name: "Muyuan"
     preset: muyuan-openai
     base_url: "https://muyuan.do/v1"
-    api_key: "sk-fI5P07x3Xn9K5Ne1EGNyy9DbVLHTizT4TiLfSMMbA2Vtru3F"
+    api_key: "${GATEWAY_MUYUAN_OPENAI_API_KEY}"
     chat_completions_path: "/chat/completions"
     supported_models: [gpt-5.4]
 
@@ -30,7 +33,7 @@ providers:
     base_url: "https://phoenix-gw.alibaba.com"
     supported_models: [claude-sonnet-4-6, claude-opus-4-6]
     credentials:
-      - extra_body: { token: "a6ea26f0f4adc6a49eac4341e02bdb7f", utdid: "utd-1775547724148-cdf1abd02b7b298c" }
+      - extra_body: { token: "", utdid: "utd-1775547724148-cdf1abd02b7b298c" }
         headers: { x-utdid: "utd-1775547724148-cdf1abd02b7b298c" }
 
   # 讯飞星辰 MaaS — v2 端点，标准 OpenAI 兼容
@@ -47,11 +50,11 @@ providers:
       qwen-2b: "xop35qwen2b"
       qwen3.5-35b: "xopqwen35v35b"
     credentials:
-      - api_key: "e2ce7ed1dd41d4b745de3247a9d0b570:ZDNkYTU0OWE5ZjllMDcxZWJhYmU0NjM0"
+      - api_key: "${GATEWAY_XFYUN_MAAS_CREDENTIAL_1_API_KEY}"
         supported_models: [xop35qwen2b]
-      - api_key: "c4b2ff34cfa43e5701a9482a1aca2c7a:MDZlM2Q1YzBjOGY3YTI5NDM2MjExNDM1"
+      - api_key: "${GATEWAY_XFYUN_MAAS_CREDENTIAL_2_API_KEY}"
         supported_models: [xop35qwen2b, xophunyuan7bmt, xophunyuanocr]
-      - api_key: "7f8d6d1fb9d5b27bbeda41c37c10f053:NmNjMGNiNzI2Yzc4NDUzOTRjMmVjYmI4"
+      - api_key: "${GATEWAY_XFYUN_MAAS_CREDENTIAL_3_API_KEY}"
         supported_models: [xopqwen35v35b]
 
   - id: nvidia
@@ -77,7 +80,7 @@ providers:
       - minimaxai/minimax-m2.5
       - mistralai/codestral-22b-instruct-v0.1
     credentials:
-      - api_key: "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"
+      - api_key: "${GATEWAY_NVIDIA_CREDENTIAL_1_API_KEY}"
 
   # Poe — OpenAI 兼容, Bearer 认证, 多凭证轮询
   - id: poe
@@ -87,7 +90,7 @@ providers:
     base_url: "https://api.poe.com"
     supported_models: [Gemma-4-31B, Claude-Sonnet-4.6]
     credentials:
-      - api_key: "sk-poe-D8db5ScAgBVKNhcQJZ_KA9_HyBVx8BkqRyHCMezsk7U"
+      - api_key: "${GATEWAY_POE_CREDENTIAL_1_API_KEY}"
 
   # OpenRouter — 统一 AI 模型聚合平台, OpenAI 兼容, 多凭证轮询
   # 注意: base_url 路径含 /api 前缀 (openrouter.ai/api/v1/...)
@@ -105,7 +108,7 @@ providers:
       HTTP-Referer: "https://neuroplatform.app"
       X-Title: "NeuroPlatform"
     credentials:
-      - api_key: "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"
+      - api_key: "${GATEWAY_OPENROUTER_CREDENTIAL_1_API_KEY}"
 
   # LongCat — 美团 AI, OpenAI 兼容, base_url 含 /openai 前缀
   - id: longcat
@@ -116,7 +119,7 @@ providers:
     supported_models:
       - LongCat-2.0
     credentials:
-      - api_key: "ak_2yc1cB04Z23m2FF44S8DM3Le06V31"
+      - api_key: "${GATEWAY_LONGCAT_CREDENTIAL_1_API_KEY}"
 
   # Qwen Platform — official API key lines + WebUI reverse surface
   - id: qwen-dashscope-openai
@@ -173,7 +176,7 @@ providers:
       - api_key: "${GEMINI_BUSINESS_JWT}"
         extra_body:
           configId: "${GEMINI_BUSINESS_CONFIG_ID}"
-          session: "${GEMINI_BUSINESS_SESSION}"
+          session: ""
 
   - id: linkup
     vendor_key: linkup

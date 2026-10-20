@@ -62,6 +62,8 @@ export function createConsoleApi(): ConsoleApi {
     getCredentialPoolAutomation: vi.fn().mockRejectedValue(new Error("automation unavailable")),
     runCredentialPoolAutomation: vi.fn(),
     pruneCredentialPool: vi.fn(),
+    previewCredentialPrune: vi.fn(),
+    applyCredentialPrune: vi.fn(),
     purgeCredentialArchive: vi.fn(),
     getCredentialRefill: vi.fn().mockRejectedValue(new Error("refill unavailable")),
     requestCredentialRefill: vi.fn(),

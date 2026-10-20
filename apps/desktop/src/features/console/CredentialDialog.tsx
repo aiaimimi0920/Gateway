@@ -11,6 +11,7 @@ export type CredentialDialogMode = "add" | "edit";
 export type CredentialApiKeyOperation = "keep" | "replace" | "clear";
 
 export type CredentialDialogValue = {
+  codexBasispointsEnabled?: boolean;
   discoveryStatus?: string;
   discovery?: AccountDiscovery;
   providerId: string;
@@ -29,6 +30,7 @@ export type CredentialDialogProviderOption = {
 };
 
 export type CredentialDialogProps = {
+  supportsBasispoints?: (providerId: string) => boolean;
   open: boolean;
   mode: CredentialDialogMode;
   providerOptions: CredentialDialogProviderOption[];
@@ -73,6 +75,7 @@ export function CredentialDialog({
   discoveryProvider,
   onDiscover,
   onRevealKey,
+  supportsBasispoints,
 }: CredentialDialogProps) {
   const discovery = useDiscoverySubmission(open, onDiscover);
   const { t } = useUiLocale();
@@ -205,6 +208,16 @@ export function CredentialDialog({
                   ))}
                 </select>
               </label>
+
+              {supportsBasispoints?.(value.providerId) && <label className="nt-credential-row">
+                <span>{t("Codex 调用通道", "Codex channel")}</span>
+                <select className="nt-select" value={value.codexBasispointsEnabled === undefined ? "inherit" : value.codexBasispointsEnabled ? "basispoints" : "native"}
+                  onChange={(e) => setValue((current) => ({ ...current, codexBasispointsEnabled: e.target.value === "inherit" ? undefined : e.target.value === "basispoints" }))}>
+                  <option value="inherit">{t("继承服务商设置", "Inherit provider setting")}</option>
+                  <option value="native">{t("原生 Codex", "Native Codex")}</option>
+                  <option value="basispoints">Basispoints</option>
+                </select>
+              </label>}
 
               <label className="nt-credential-row">
                 <span>{t("账号 ID", "Account ID")}</span>

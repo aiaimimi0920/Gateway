@@ -8,8 +8,9 @@ pub(super) fn build_openai_chat_tool_call_start_chunk(
     index: usize,
     call_id: &str,
     name: &str,
+    custom: bool,
 ) -> Value {
-    json!({
+    let mut chunk = json!({
         "id": response_id,
         "object": "chat.completion.chunk",
         "created": created_at,
@@ -26,7 +27,14 @@ pub(super) fn build_openai_chat_tool_call_start_chunk(
             },
             "finish_reason": null,
         }],
-    })
+    });
+    if custom {
+        let call = &mut chunk["choices"][0]["delta"]["tool_calls"][0];
+        call.as_object_mut().unwrap().remove("function");
+        call["type"] = json!("custom");
+        call["custom"] = json!({"name":name,"input":""});
+    }
+    chunk
 }
 
 pub(super) fn build_openai_chat_tool_call_arguments_chunk(
@@ -35,8 +43,9 @@ pub(super) fn build_openai_chat_tool_call_arguments_chunk(
     model: &str,
     index: usize,
     arguments_delta: &str,
+    custom: bool,
 ) -> Value {
-    json!({
+    let mut chunk = json!({
         "id": response_id,
         "object": "chat.completion.chunk",
         "created": created_at,
@@ -48,5 +57,11 @@ pub(super) fn build_openai_chat_tool_call_arguments_chunk(
             },
             "finish_reason": null,
         }],
-    })
+    });
+    if custom {
+        let call = &mut chunk["choices"][0]["delta"]["tool_calls"][0];
+        call.as_object_mut().unwrap().remove("function");
+        call["custom"] = json!({"input":arguments_delta});
+    }
+    chunk
 }

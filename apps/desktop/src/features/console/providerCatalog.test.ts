@@ -25,27 +25,17 @@ describe("provider catalog", () => {
         "qwen-dashscope-openai",
         "xai-openai",
         "openrouter-openai",
-        "muyuan-openai",
         "custom-api-provider",
       ]),
     );
   });
 
-  it("classifies Muyuan as a third-party OpenAI-compatible provider without changing its stable IDs", () => {
-    const template = PROVIDER_CATALOG_TEMPLATES.find(
-      (candidate) => candidate.id === "muyuan-openai",
-    );
-    expect(template).toMatchObject({
-      providerId: "muyuan-openai",
-      preset: "muyuan-openai",
-      vendorKey: "muyuan",
-      vendorName: "Muyuan",
+  it("removes the Muyuan preset while preserving custom providers with the same identity", () => {
+    expect(PROVIDER_CATALOG_TEMPLATES.map((candidate) => candidate.id)).not.toContain("muyuan-openai");
+    expect(providerCatalogClassification("muyuan-openai", "muyuan-openai")).toBeNull();
+    expect(providerCatalogClassification("muyuan-openai", null, "openai_compatible", "openai_compatible_generic")).toEqual({
       category: "third-party-compatible",
-      compatibility: "openai",
-    });
-    expect(providerCatalogClassification("muyuan-openai", "muyuan-openai")).toEqual({
-      category: "third-party-compatible",
-      compatibility: "openai",
+      compatibility: "auto",
     });
   });
 

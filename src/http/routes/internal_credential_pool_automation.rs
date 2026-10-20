@@ -14,6 +14,9 @@ use crate::state::AppState;
 
 use super::internal_gateway::assert_management_access;
 
+mod review;
+pub use review::{apply_credential_prune, preview_credential_prune};
+
 pub async fn list_credential_pool_automation_status(
     State(state): State<Arc<AppState>>,
     OptionalBearerToken(token): OptionalBearerToken,

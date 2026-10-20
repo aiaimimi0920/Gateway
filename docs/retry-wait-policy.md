@@ -47,7 +47,8 @@ ServiceUnavailable 为 2 秒，Timeout 为 1 秒。此次变更使循环真正�
   上游错误，保留 kind、status、code、provider 和 message。
 - 累计申请的睡眠时间不超过预算；它不包括网络、队列和调度延迟，不声称提供
   墙钟硬超时。跨候选 / recovery 的总 attempt 和 deadline 属于后续 S3。
-- 400、401、403、404 的硬拒绝重试不变，收到等待头也不改变错误可重试性。
+- 普通 400 及 401、403、404 仍硬拒绝重试；等待头本身不能改变错误可重试性。
+  唯一的 400 语义例外是下述经明确证据识别的 `ModelCapacity`，并仍受 policy 约束。
 - 第一次请求仍由调用方先准入；等待结束后、下一次真实发送前重新准入。
   准入拒绝直接返回准入错误，不产生 transport observation。
 - 没有为等待启动后台任务。丢弃 / 取消整个调用 future 会同时取消睡眠或
@@ -87,6 +88,20 @@ credential ref 的兼容凭据均使用一致的写入/读取身份键。
 
 这里沿用现有**软冷却**：路由将冷却候选后移，不承诺所有候选不可用时绝不发送，
 也不是跨进程恢复单探针或全局限流屏障。不要把本功能解释为新的硬拒绝策略。
+
+## 模型容量错误
+
+`ModelCapacity` 是独立的暂时性错误，不把所有 400 改成限流，也不覆盖原始 status/code。
+仅在 400、429、503 上识别明确的 `model_capacity_exhausted`、`model_at_capacity`、
+`model_is_at_capacity` code；无冲突 code 时也接受 `error.message` 或顶层 `message`
+中以供应商明确容量短语开头的消息。不扫描 prompt、其他 JSON 字段或任意位置的引文；
+认证、验证、额度等其他明确 code 不因容量文案获得此例外。
+
+容量 400 只有在 `RetryPolicy.retryable_statuses` 允许 503 时才能重试；429/503
+继续按其原 status 匹配 policy。正文等待提示及 HTTP 头沿用同一 owner；无明确提示
+默认等待 2 秒。原总 attempt、deadline、等待预算、准入和 replay-safe 限制不变。
+健康分类为非永久的 `ProviderTransient / CredentialModel`，不误判为凭据永久失效，
+也不触发仅限 `RateLimited` 的限流提示冷却覆盖。
 
 ## 验证入口
 

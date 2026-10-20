@@ -15,6 +15,7 @@ const MAX_PROVIDER_SERIES: usize = 256;
 /// adapters without adding another runtime dependency or changing `AppState`.
 #[derive(Debug, Default)]
 pub struct GatewayMetrics {
+    pub(super) model_observations: super::model_evidence::ModelObservationStore,
     request: Mutex<RequestMetricCounters>,
     request_in_flight: AtomicU64,
     rate_limit_checks_total: AtomicU64,

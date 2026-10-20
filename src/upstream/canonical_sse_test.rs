@@ -46,6 +46,7 @@ fn parse_json_payload(payload: &str) -> Value {
 fn canonical_sse_prefers_requested_model_and_emits_usage_and_done() {
     let req = minimal_request(Some("caller-model"));
     let response = CanonicalRelayResponse {
+        model_declaration: None,
         model: "upstream-model".to_string(),
         text: "hello".to_string(),
         usage: Some(TokenUsage {
@@ -81,6 +82,7 @@ fn canonical_sse_prefers_requested_model_and_emits_usage_and_done() {
 fn canonical_sse_streams_tool_call_start_arguments_and_tool_finish() {
     let req = minimal_request(None);
     let response = CanonicalRelayResponse {
+        model_declaration: None,
         model: "upstream-model".to_string(),
         text: String::new(),
         usage: None,

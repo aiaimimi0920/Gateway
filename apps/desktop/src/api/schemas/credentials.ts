@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { modelHealthRecoverySchema } from "./modelHealthRecovery";
 import { credentialTestAssessmentSchema } from "./credentialTests";
 
 import type {
@@ -183,6 +184,7 @@ export const consoleCredentialRefillRequestResponseSchema: z.ZodType<ConsoleCred
   });
 
 const consoleCredentialProbeResultSchema = z.object({
+  healthRecovery: modelHealthRecoverySchema.optional(),
   assessment: credentialTestAssessmentSchema.optional(),
   credentialId: z.string().min(1),
   providerId: z.string().min(1),

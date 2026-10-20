@@ -51,6 +51,7 @@ pub async fn execute_nonstream(
     }
 
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: model.to_string(),
         text,
         usage,

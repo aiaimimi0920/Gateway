@@ -69,7 +69,9 @@ describe("providerCardVisual", () => {
       providerCardVisual({
         providerId: "muyuan-openai",
         providerLabel: "Muyuan",
-        providerPreset: "muyuan-openai",
+        providerPreset: null,
+        adapter: "openai_compatible",
+        protocolProfile: "openai_compatible_generic",
       }).category,
     ).toBe("third-party-compatible");
     expect(

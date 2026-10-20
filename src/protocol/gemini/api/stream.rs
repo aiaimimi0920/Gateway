@@ -147,6 +147,7 @@ fn accumulate_gemini_stream_buffer(
     });
 
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: reported_model,
         text,
         usage,

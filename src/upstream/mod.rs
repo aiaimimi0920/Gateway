@@ -142,6 +142,7 @@ mod upstream_payload_helpers;
 
 #[cfg(test)]
 mod accio_compile_gate_test;
+pub(crate) mod basispoints;
 #[cfg(test)]
 mod canonical_sse_test;
 #[cfg(test)]

@@ -42,6 +42,7 @@ function draftFromTemplate(
   const providerId = availableCatalogId(template.providerId, providerIds);
   return {
     templateId: template.id,
+    ...(template.custom ? { siteHealthEnabled: true } : {}),
     providerId,
     providerLabel: providerId === template.providerId ? label : `${label} (${providerId.slice(template.providerId.length + 1)})`,
     vendorKey: template.vendorKey,

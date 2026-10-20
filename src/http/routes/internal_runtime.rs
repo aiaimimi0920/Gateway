@@ -159,6 +159,7 @@ pub async fn get_gateway_operator_summary(
     Ok(Json(serde_json::json!({
         "summary": {
             "schemaVersion": 1,
+            "modelObservations": global_gateway_metrics().model_observations(),
             "generatedAt": generated_at,
             "build": {
                 "name": env!("CARGO_PKG_NAME"),

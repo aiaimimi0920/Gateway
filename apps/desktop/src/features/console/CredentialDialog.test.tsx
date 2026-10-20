@@ -27,6 +27,15 @@ function setup(overrides: Partial<CredentialDialogProps> = {}) {
   return { props, view };
 }
 
+it.each(["basispoints", "native", "inherit"])("saves optional Codex channel %s without replacing secrets", (channel) => {
+  const { props } = setup({ supportsBasispoints: () => true });
+  fireEvent.change(screen.getByLabelText("Codex 调用通道"), { target: { value: channel } });
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+    apiKeyOperation:"keep", codexBasispointsEnabled: channel === "inherit" ? undefined : channel === "basispoints",
+  }));
+});
+
 it("uses compact fields and keeps enabled state without an extra toggle", () => {
   const { props } = setup();
   expect(screen.queryByLabelText("API Key 操作")).not.toBeInTheDocument();

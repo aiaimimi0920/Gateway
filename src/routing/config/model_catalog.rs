@@ -55,11 +55,10 @@ pub(super) fn list_models_inner(guard: &RouteConfigInner) -> Vec<ModelInfo> {
 }
 
 fn provider_has_available_account(provider: &CompiledProvider) -> bool {
-    provider.credential_pool.is_empty()
-        || provider
-            .credential_pool
-            .iter()
-            .any(|credential| credential.enabled)
+    (provider.credential_pool.is_empty() && provider.credential_pool_auth_policy.is_any())
+        || provider.credential_pool.iter().any(|credential| {
+            credential.enabled && provider.credential_pool_auth_policy.allows(credential)
+        })
 }
 
 fn model_has_available_candidate(

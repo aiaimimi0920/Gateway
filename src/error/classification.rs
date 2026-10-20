@@ -91,41 +91,58 @@ pub fn classify_upstream_error(
 ) -> GatewayError {
     let status_kind = kind_from_http_status(status);
     let body_kind = kind_from_body_keywords(body);
+    let code = extract_code_from_body(body);
+    let raw_message = extract_message_from_body(body);
 
     // Most status mappings are authoritative, but provider-specific 400s are
     // often overloaded. If the body carries a more specific semantic signal,
     // prefer it over the generic bad-request bucket.
-    let kind = match (status_kind, body_kind) {
-        (Some(ErrorKind::BadRequest), Some(body_kind)) if body_kind != ErrorKind::BadRequest => {
-            body_kind
+    let kind = if super::is_model_capacity(status, code.as_deref(), raw_message.as_deref()) {
+        ErrorKind::ModelCapacity
+    } else {
+        match (status_kind, body_kind) {
+            (Some(ErrorKind::BadRequest), Some(body_kind))
+                if body_kind != ErrorKind::BadRequest =>
+            {
+                body_kind
+            }
+            (Some(status_kind), _) => status_kind,
+            (None, Some(body_kind)) => body_kind,
+            (None, None) => ErrorKind::Unknown,
         }
-        (Some(status_kind), _) => status_kind,
-        (None, Some(body_kind)) => body_kind,
-        (None, None) => ErrorKind::Unknown,
     };
 
     // For rate-limit responses, try to parse a retry-after value from the body.
-    let upstream_retry_after_ms = (kind == ErrorKind::RateLimit)
+    let upstream_retry_after_ms = matches!(kind, ErrorKind::RateLimit | ErrorKind::ModelCapacity)
         .then(|| parse_retry_after_from_body(body))
         .flatten();
-    let fallback_hint = if kind == ErrorKind::RateLimit {
-        let delay_ms = upstream_retry_after_ms.unwrap_or(5_000);
+    let fallback_hint = if matches!(kind, ErrorKind::RateLimit | ErrorKind::ModelCapacity) {
+        let delay_ms = upstream_retry_after_ms.unwrap_or(if kind == ErrorKind::ModelCapacity {
+            2_000
+        } else {
+            5_000
+        });
         FallbackHint::Retry {
             delay_ms,
-            reason: "Rate limit hit; back-off before retrying.".to_string(),
+            reason: if kind == ErrorKind::ModelCapacity {
+                "Model capacity exhausted; back-off before retrying."
+            } else {
+                "Rate limit hit; back-off before retrying."
+            }
+            .to_string(),
         }
     } else {
         build_fallback_hint(kind)
     };
 
-    let message = extract_message_from_body(body)
+    let message = raw_message
         .map(|raw_message| sanitize_provider_error_message(&raw_message))
         .unwrap_or_else(|| truncate(&sanitize_provider_error_message(body), 200).to_string());
 
     GatewayError {
         kind,
         message,
-        code: extract_code_from_body(body),
+        code,
         http_status: Some(status),
         retryable: is_kind_retryable(kind),
         fallback_hint,

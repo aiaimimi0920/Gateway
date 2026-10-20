@@ -10,6 +10,16 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<Value, GatewayError> {
+        if payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER {
+            return crate::upstream::basispoints::exchange(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
         if payload.adapter == "gemini_business_compatible" {
             return self
                 .execute_gemini_business_images(payload, req, model, extra_headers)

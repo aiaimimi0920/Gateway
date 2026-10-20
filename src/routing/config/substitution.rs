@@ -85,6 +85,9 @@ fn subst_credential(mut c: ProviderCredentialYaml) -> ProviderCredentialYaml {
 /// Apply env substitution to every string field in a `ProviderConfigYaml`.
 pub(super) fn subst_provider(mut p: ProviderConfigYaml) -> ProviderConfigYaml {
     p.base_url = subst_env(&p.base_url);
+    if let Some(url) = p.site_health.as_mut().and_then(|c| c.site_url.as_mut()) {
+        *url = subst_env(url);
+    }
     p.api_key = subst_env(&p.api_key);
     if let Some(ref mut token) = p.auth_token {
         *token = subst_env(token);

@@ -6,9 +6,7 @@ use serde_json::{json, Value};
 
 use super::stream_support::merge_stream_usage;
 use super::terminal::{Completion, CompletionError};
-use super::to_openai_chat_tools::{
-    build_openai_chat_tool_call_arguments_chunk, build_openai_chat_tool_call_start_chunk,
-};
+mod tool_calls;
 use super::unpack_responses_response;
 use crate::protocol::canonical::TokenUsage;
 use crate::protocol::openai;
@@ -55,6 +53,7 @@ where
         pending_finish_reason: None,
         emitted_text: false,
         tool_call_indexes: BTreeMap::new(),
+        tool_inputs: tool_calls::ToolInputProgress::default(),
         announced_tool_calls: BTreeSet::new(),
         next_tool_call_index: 0,
         final_emitted: false,
@@ -135,6 +134,7 @@ struct ResponsesToOpenAiChatState {
     pending_finish_reason: Option<String>,
     emitted_text: bool,
     tool_call_indexes: BTreeMap<String, usize>,
+    tool_inputs: tool_calls::ToolInputProgress,
     announced_tool_calls: BTreeSet<String>,
     next_tool_call_index: usize,
     final_emitted: bool,
@@ -213,74 +213,17 @@ impl ResponsesToOpenAiChatState {
                 }
             }
             "response.output_item.added" => {
-                let Some(item) = payload.get("item") else {
-                    return;
-                };
-                if item.get("type").and_then(|value| value.as_str()) != Some("function_call") {
-                    return;
-                }
-                let item_id = item
-                    .get("id")
-                    .and_then(|value| value.as_str())
-                    .unwrap_or_default()
-                    .to_string();
-                let call_id = item
-                    .get("call_id")
-                    .and_then(|value| value.as_str())
-                    .unwrap_or(item_id.as_str())
-                    .to_string();
-                let name = item
-                    .get("name")
-                    .and_then(|value| value.as_str())
-                    .unwrap_or("tool")
-                    .to_string();
-                let index = self.tool_call_index_for(&item_id);
-                if self.announced_tool_calls.insert(item_id.clone()) {
-                    self.outputs.push_back(
-                        format_sse_event(
-                            None,
-                            &build_openai_chat_tool_call_start_chunk(
-                                &self.response_id,
-                                self.created_at,
-                                &self.model,
-                                index,
-                                &call_id,
-                                &name,
-                            )
-                            .to_string(),
-                        )
-                        .into_bytes(),
-                    );
+                if let Err(error) = self.handle_tool_added(&payload) {
+                    self.failure = Some(error);
                 }
             }
-            "response.function_call_arguments.delta" => {
-                let item_id = payload
-                    .get("item_id")
-                    .and_then(|value| value.as_str())
-                    .unwrap_or_default()
-                    .to_string();
-                let delta = payload
-                    .get("delta")
-                    .and_then(|value| value.as_str())
-                    .unwrap_or_default();
-                if item_id.is_empty() || delta.is_empty() {
-                    return;
+            "response.function_call_arguments.delta" | "response.custom_tool_call_input.delta" => {
+                if let Err(error) = self.handle_tool_delta(
+                    &payload,
+                    event_type == "response.custom_tool_call_input.delta",
+                ) {
+                    self.failure = Some(error);
                 }
-                let index = self.tool_call_index_for(&item_id);
-                self.outputs.push_back(
-                    format_sse_event(
-                        None,
-                        &build_openai_chat_tool_call_arguments_chunk(
-                            &self.response_id,
-                            self.created_at,
-                            &self.model,
-                            index,
-                            delta,
-                        )
-                        .to_string(),
-                    )
-                    .into_bytes(),
-                );
             }
             "response.completed" | "response.incomplete" => {
                 if let Some(response) = payload.get("response") {
@@ -330,47 +273,9 @@ impl ResponsesToOpenAiChatState {
                                 .into_bytes(),
                             );
                         }
-                        for tool_call in canonical.tool_calls {
-                            let item_id = tool_call
-                                .id
-                                .clone()
-                                .unwrap_or_else(|| format!("call_{}", self.next_tool_call_index));
-                            let index = self.tool_call_index_for(&item_id);
-                            if self.announced_tool_calls.insert(item_id.clone()) {
-                                self.outputs.push_back(
-                                    format_sse_event(
-                                        None,
-                                        &build_openai_chat_tool_call_start_chunk(
-                                            &self.response_id,
-                                            self.created_at,
-                                            &self.model,
-                                            index,
-                                            tool_call.id.as_deref().unwrap_or(item_id.as_str()),
-                                            tool_call.name.as_deref().unwrap_or("tool"),
-                                        )
-                                        .to_string(),
-                                    )
-                                    .into_bytes(),
-                                );
-                            }
-                            if let Some(arguments) = tool_call.arguments.as_deref() {
-                                if !arguments.is_empty() {
-                                    self.outputs.push_back(
-                                        format_sse_event(
-                                            None,
-                                            &build_openai_chat_tool_call_arguments_chunk(
-                                                &self.response_id,
-                                                self.created_at,
-                                                &self.model,
-                                                index,
-                                                arguments,
-                                            )
-                                            .to_string(),
-                                        )
-                                        .into_bytes(),
-                                    );
-                                }
-                            }
+                        if let Err(error) = self.handle_completed_tools(canonical.tool_calls) {
+                            self.failure = Some(error);
+                            return;
                         }
                     }
                 }
@@ -378,16 +283,6 @@ impl ResponsesToOpenAiChatState {
             }
             _ => {}
         }
-    }
-
-    fn tool_call_index_for(&mut self, item_id: &str) -> usize {
-        if let Some(index) = self.tool_call_indexes.get(item_id).copied() {
-            return index;
-        }
-        let index = self.next_tool_call_index;
-        self.next_tool_call_index += 1;
-        self.tool_call_indexes.insert(item_id.to_string(), index);
-        index
     }
 
     fn emit_final_if_needed(&mut self, fallback_finish_reason: Option<&str>) {

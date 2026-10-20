@@ -99,6 +99,7 @@ pub(super) async fn accumulate_with_limits(
     };
 
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: map_model(model),
         text,
         usage: Some(TokenUsage {

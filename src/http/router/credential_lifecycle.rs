@@ -14,6 +14,14 @@ use std::sync::Arc;
 pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
     router
         .route(
+            "/v1/internal/gateway/site-health",
+            get(crate::http::routes::internal_site_health::list),
+        )
+        .route(
+            "/v1/internal/gateway/site-health/:providerId/refresh",
+            post(crate::http::routes::internal_site_health::refresh),
+        )
+        .route(
             "/v1/internal/gateway/provider-credential-model-states",
             get(internal_gateway::list_provider_credential_model_states),
         )
@@ -41,6 +49,15 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
         .route(
             "/v1/internal/gateway/credential-pool-automation/providers/:providerId/prune",
             post(internal_credential_pool_automation::prune_credential_pool_for_provider),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-automation/providers/:providerId/prune/preview",
+            post(internal_credential_pool_automation::preview_credential_prune),
+        )
+        .route(
+            "/v1/internal/gateway/credential-pool-automation/providers/:providerId/prune/apply",
+            post(internal_credential_pool_automation::apply_credential_prune)
+                .layer(axum::extract::DefaultBodyLimit::max(64 * 1024)),
         )
         .route(
             "/v1/internal/gateway/credential-pool-automation/providers/:providerId/archive",

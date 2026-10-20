@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isCodexProvider } from "./siteHealth";
 import { supportsAccountDiscovery } from "./accountDiscovery";
 import { AccountGroupDialog } from "./AccountGroupDialog";
 import { CredentialDialog } from "./CredentialDialog";
@@ -8,12 +9,16 @@ import { GeminiManualAddDialog } from "./GeminiManualAddDialog";
 import { PilotActionDialog } from "./PilotActionDialog";
 import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
 import { ProviderModelMappingDialog } from "./ProviderModelMappingDialog";
+import { CredentialPruneDialog } from "./CredentialPruneDialog";
 import type { useConsoleController } from "./useConsoleController";
 
 type ConsoleGlobalDialogsProps = {
   controller: Pick<
     ReturnType<typeof useConsoleController>,
     | "activePilotManagedAccount"
+    | "credentialPruneReview"
+    | "closeCredentialPruneReview"
+    | "applyCredentialPruneReview"
     | "discoverAccount"
     | "accountGroupDialogOpen"
     | "displayedAccountCatalog"
@@ -126,6 +131,8 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
 
   return (
     <>
+      <CredentialPruneDialog review={controller.credentialPruneReview} locked={editorLocked || draftDirty}
+        onClose={controller.closeCredentialPruneReview} onApply={controller.applyCredentialPruneReview} />
       <AccountGroupDialog
         open={controller.accountGroupDialogOpen}
         locked={editorLocked}
@@ -169,6 +176,7 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
           open
           mode={credentialDialogState.mode}
           providerOptions={credentialProviderOptions}
+          supportsBasispoints={(id) => isCodexProvider(controller.draftDocumentState.document?.providers.find((p) => !!p && typeof p === "object" && (p as Record<string,unknown>).id === id))}
           existingCredentialIds={explicitCredentialIds}
           initialValue={credentialDialogState.initialValue}
           locked={editorLocked}

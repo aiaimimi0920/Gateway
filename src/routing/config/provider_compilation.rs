@@ -16,9 +16,17 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
     let label = cfg.label.clone().unwrap_or_else(|| cfg.id.clone());
 
     // Build the base payload (used as-is when no credential pool exists).
-    let payload = build_base_payload(
+    let mut payload = build_base_payload(
         &cfg, None, None, None, None, None, None, None, None, None, None, None, None, None,
     )?;
+    if let Some(health) = &cfg.site_health {
+        health.validate(&payload.base_url)?;
+    }
+    let site_health = cfg
+        .site_health
+        .as_ref()
+        .map(|c| (c.clone(), c.binding(&payload.base_url)));
+    crate::protocol::chatgpt::basispoints::configure(&mut payload, cfg.codex_basispoints_enabled)?;
 
     // Derive protocol_family from adapter name if not explicitly set.
     let protocol_family = infer_protocol_family(
@@ -90,6 +98,11 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                 if let Some(discovery) = &cred.discovery {
                     discovery.apply(&mut cred_payload)?;
                 }
+                crate::protocol::chatgpt::basispoints::configure(
+                    &mut cred_payload,
+                    cred.codex_basispoints_enabled
+                        .unwrap_or(cfg.codex_basispoints_enabled),
+                )?;
 
                 // Build OAuth refresh config if refresh_token is provided.
                 let refresh_config = match (&cred.refresh_token, &cred.refresh_endpoint) {
@@ -152,6 +165,8 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
     };
 
     Ok(CompiledProvider {
+        site_health,
+        credential_pool_auth_policy: cfg.credential_pool_auth_policy,
         id: cfg.id,
         label,
         payload,

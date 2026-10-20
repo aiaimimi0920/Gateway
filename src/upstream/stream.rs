@@ -15,6 +15,7 @@ use futures::Stream;
 
 mod archive;
 mod completion;
+mod model_declaration;
 mod observation;
 mod usage;
 
@@ -26,6 +27,7 @@ pub use completion::{
     snapshot_tapped_completion_semantics, tap_sse_completion_semantics,
     tap_sse_completion_semantics_with_error,
 };
+pub(crate) use model_declaration::tap_model_declaration;
 pub use usage::{snapshot_tapped_usage, tap_sse_usage, tap_sse_usage_with_error};
 
 // ---------------------------------------------------------------------------

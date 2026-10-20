@@ -29,6 +29,7 @@ pub(super) fn extract_generate_response(
         {
             let model = get_nested_value(&inner_payload, &[83]).and_then(Value::as_str);
             let result = CanonicalRelayResponse {
+                model_declaration: None,
                 model: model.unwrap_or(fallback_model).to_string(),
                 text: text.to_string(),
                 usage: None,
@@ -62,6 +63,7 @@ fn extract_direct_generate_response(
         .map(str::to_string)
     {
         return Some(CanonicalRelayResponse {
+            model_declaration: None,
             model: value
                 .get("model")
                 .and_then(Value::as_str)
@@ -150,6 +152,7 @@ fn extract_direct_generate_response(
         });
 
     Some(CanonicalRelayResponse {
+        model_declaration: None,
         model: value
             .get("modelVersion")
             .or_else(|| value.get("model"))

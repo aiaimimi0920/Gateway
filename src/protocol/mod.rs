@@ -44,7 +44,10 @@ pub mod lumalabs;
 #[cfg(not(feature = "line-lumalabs-web-reverse-api"))]
 #[path = "lumalabs_disabled.rs"]
 pub mod lumalabs;
+pub mod model_declaration;
 pub mod openai;
+mod openai_tool_wire;
+mod output_format;
 pub mod producer;
 pub mod qwen;
 pub mod qwen_web;

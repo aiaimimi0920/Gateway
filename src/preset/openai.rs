@@ -120,11 +120,6 @@ pub fn openrouter_openai_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("openrouter-openai")
 }
 
-/// Returns the built-in "muyuan-openai" preset for Muyuan's OpenAI-compatible API.
-pub fn muyuan_openai_preset() -> ProviderPreset {
-    generic_openai_compatible_profile_preset("muyuan-openai")
-}
-
 /// Returns the built-in "poe-openai" preset for Poe's OpenAI-compatible API.
 pub fn poe_openai_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("poe-openai")

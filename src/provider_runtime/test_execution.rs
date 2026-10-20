@@ -154,6 +154,7 @@ pub(crate) async fn run(
                     });
                 if let Some(reason) = reason {
                     cases.push(TestCaseResult {
+                        health_recovery: None,
                         case_id: case.id.clone(),
                         name: case.name.clone(),
                         model: model.clone(),
@@ -231,6 +232,7 @@ pub(crate) async fn run(
         )
     };
     TestRunResult {
+        health_recovery: None,
         credential_id: target.credential_id.clone(),
         provider_id: target.provider_id.clone(),
         probe_point: "Configured model/test matrix".into(),

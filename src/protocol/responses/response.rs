@@ -26,13 +26,11 @@ pub fn build_responses_success(
     }
 
     for tool_call in tool_calls {
-        output.push(json!({
-            "type": "function_call",
-            "id": tool_call.id,
-            "call_id": tool_call.id,
-            "name": tool_call.name,
-            "arguments": tool_call.arguments,
-        }));
+        let mut item = crate::protocol::openai_tool_wire::responses_call(tool_call);
+        if item.get("id").is_none() {
+            item["id"] = json!(tool_call.id);
+        }
+        output.push(item);
     }
 
     let mut response = json!({
@@ -106,13 +104,23 @@ pub fn unpack_responses_response(body: &Value) -> Result<CanonicalRelayResponse,
                         .and_then(|value| value.as_str())
                         .map(str::to_string),
                     arguments: item
-                        .get("arguments")
+                        .get(
+                            if item.get("type").and_then(Value::as_str) == Some("custom_tool_call")
+                            {
+                                "input"
+                            } else {
+                                "arguments"
+                            },
+                        )
                         .or_else(|| {
                             item.get("function")
                                 .and_then(|value| value.get("arguments"))
                         })
                         .map(normalize_arguments_value),
-                    raw: std::collections::HashMap::new(),
+                    raw: item
+                        .as_object()
+                        .map(|map| map.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                        .unwrap_or_default(),
                 });
             }
             _ => {}
@@ -142,6 +150,7 @@ pub fn unpack_responses_response(body: &Value) -> Result<CanonicalRelayResponse,
     let has_tool_calls = !tool_calls.is_empty();
 
     Ok(CanonicalRelayResponse {
+        model_declaration: crate::protocol::model_declaration::ModelDeclaration::from_body(body),
         model,
         text: text_parts.join(""),
         usage,

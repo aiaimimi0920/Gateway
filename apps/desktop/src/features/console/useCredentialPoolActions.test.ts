@@ -83,7 +83,7 @@ it.each(["prune", "refill"] as const)("ignores late %s errors after identity cha
   const h = setup();
   let reject!: (cause: Error) => void;
   const promise = new Promise<never>((_yes, no) => { reject = no; });
-  const method = kind === "prune" ? h.api.pruneCredentialPool : h.api.requestCredentialRefill;
+  const method = kind === "prune" ? h.api.previewCredentialPrune : h.api.requestCredentialRefill;
   vi.mocked(method).mockReturnValueOnce(promise);
   let request!: Promise<void>;
   act(() => { request = kind === "prune"

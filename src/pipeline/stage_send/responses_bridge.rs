@@ -78,7 +78,12 @@ pub(super) async fn send(
             }
 
             match responses_bridge_stream::accumulate(
-                response.bytes_stream(),
+                crate::upstream::stream::tap_model_declaration(
+                    response.bytes_stream(),
+                    model_observation::metadata(ctx, candidate, &model),
+                    Arc::clone(global_gateway_metrics()),
+                    true,
+                ),
                 &ctx.req_id,
                 &reply_model,
                 original_tools.clone(),

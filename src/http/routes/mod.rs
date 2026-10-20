@@ -25,6 +25,7 @@ pub mod internal_provider_credentials;
 pub mod internal_requests;
 pub mod internal_routing;
 pub mod internal_runtime;
+pub mod internal_site_health;
 pub mod keepalive;
 pub mod messages;
 pub mod metrics;

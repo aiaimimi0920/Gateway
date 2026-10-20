@@ -20,14 +20,7 @@ pub fn build_chat_completions_success(
     if !tool_calls.is_empty() {
         message["tool_calls"] = json!(tool_calls
             .iter()
-            .map(|tc| json!({
-                "id": tc.id,
-                "type": tc.call_type,
-                "function": {
-                    "name": tc.name,
-                    "arguments": tc.arguments,
-                }
-            }))
+            .map(crate::protocol::openai_tool_wire::chat_call)
             .collect::<Vec<_>>());
     }
 

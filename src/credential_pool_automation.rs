@@ -17,6 +17,7 @@ pub mod capacity;
 pub(crate) mod cycle;
 mod driver;
 mod inventory;
+pub(crate) mod maintenance;
 mod reconciliation;
 #[cfg(test)]
 mod reconciliation_tests;

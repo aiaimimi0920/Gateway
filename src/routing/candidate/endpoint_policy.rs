@@ -51,7 +51,9 @@ impl ProviderAccountPayload {
         })
     }
     pub fn canonical_adapter(&self) -> &str {
-        if is_search_api_adapter_name(&self.adapter) {
+        if self.adapter == crate::protocol::chatgpt::basispoints::ADAPTER {
+            "openai_compatible"
+        } else if is_search_api_adapter_name(&self.adapter) {
             SEARCH_API_COMPATIBLE_ADAPTER
         } else {
             self.adapter.as_str()

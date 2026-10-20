@@ -74,6 +74,7 @@ pub fn surface_supported_wire_protocol_families(
     fallback_protocol_family: &str,
 ) -> Vec<String> {
     match canonicalize_adapter_name(adapter).as_str() {
+        "basispoints_compatible" => vec![OPENAI_RESPONSES_FAMILY.to_string()],
         "openai_compatible" => vec![
             OPENAI_CHAT_FAMILY.to_string(),
             OPENAI_LEGACY_COMPLETIONS_FAMILY.to_string(),

@@ -214,6 +214,9 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
       notice={
         <>
           {draftStructureNotice}
+          <SiteHealthWorkspace document={draftDocumentState.document} client={controller.client}
+            managementToken={controller.session.managementToken} locked={editorLocked}
+            draftDirty={draftDirty} onSave={controller.applySiteHealth} t={t} />
           {providerCredentialInventoryError ? (
             <div className="nt-alert nt-alert--warning" role="status">
               <span>
@@ -533,3 +536,4 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
     </>
   );
 }
+import { SiteHealthWorkspace } from "./SiteHealthWorkspace";

@@ -65,6 +65,7 @@ pub fn accumulate_response(
         .with_code("chatgpt_web_missing_text"));
     }
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: model.to_string(),
         text: state.text.trim().to_string(),
         usage: None::<TokenUsage>,

@@ -9,6 +9,7 @@ import {
   type ProviderCatalogDraft,
 } from "./providerCatalog";
 import { parseRouteDocument } from "./routeDocument";
+import { useSiteHealthEditor } from "./useSiteHealthEditor";
 
 type ProviderCatalogEditorOptions = {
   editorText: string;
@@ -93,5 +94,6 @@ export function useProviderCatalogEditor({
     [editorText, replaceEditorDocument, setActiveWorkspace, setError, t, updateCredentialSecretEdit],
   );
 
-  return { applyProviderCatalogDraft };
+  const applySiteHealth = useSiteHealthEditor(editorText, replaceEditorDocument, setError);
+  return { applyProviderCatalogDraft, applySiteHealth };
 }

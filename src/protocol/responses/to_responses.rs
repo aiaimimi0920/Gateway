@@ -93,6 +93,7 @@ where
         next_output_index: 0,
         final_emitted: false,
         sequence_number: 0,
+        failure: None,
     };
 
     futures::stream::unfold(
@@ -109,6 +110,9 @@ where
             }
 
             loop {
+                if let Some(error) = st.failure.take() {
+                    return Some((Err(error.into()), (stream, st, true)));
+                }
                 if let Some(output) = st.outputs.pop_front() {
                     done = st.final_emitted && st.outputs.is_empty();
                     return Some((Ok(Bytes::from(output)), (stream, st, done)));
@@ -132,6 +136,9 @@ where
                     None => {
                         if let Some(frame) = st.decoder.flush_pending_frame() {
                             st.handle_frame(frame);
+                        }
+                        if let Some(error) = st.failure.take() {
+                            return Some((Err(error.into()), (stream, st, true)));
                         }
                         st.emit_final_if_needed(None);
                         if let Some(output) = st.outputs.pop_front() {
@@ -169,6 +176,7 @@ struct OpenAiToResponsesState {
     next_output_index: usize,
     final_emitted: bool,
     sequence_number: u64,
+    failure: Option<ProtocolStreamError>,
 }
 
 impl OpenAiToResponsesState {
@@ -243,7 +251,10 @@ impl OpenAiToResponsesState {
             .and_then(|entry| entry.as_array())
         {
             for (fallback_index, tool_call) in tool_calls.iter().enumerate() {
-                self.handle_tool_call_delta(tool_call, fallback_index);
+                if let Err(error) = self.handle_tool_call_delta(tool_call, fallback_index) {
+                    self.failure = Some(error);
+                    return;
+                }
             }
         }
 
@@ -421,17 +432,7 @@ impl OpenAiToResponsesState {
         }
 
         for tool_call in self.tool_calls.values() {
-            output.push((
-                tool_call.output_index,
-                json!({
-                    "id": tool_call.item_id,
-                    "type": "function_call",
-                    "status": "completed",
-                    "call_id": tool_call.call_id,
-                    "name": tool_call.name.clone().unwrap_or_default(),
-                    "arguments": crate::protocol::accio::normalize_tool_args(&tool_call.arguments),
-                }),
-            ));
+            output.push((tool_call.output_index, tool_call.item("completed")));
         }
 
         output.sort_by_key(|(output_index, _)| *output_index);

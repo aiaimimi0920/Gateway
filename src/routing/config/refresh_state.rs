@@ -51,6 +51,15 @@ pub fn future_rfc3339_after_secs(offset_secs: u64) -> String {
 const MAX_REFRESH_LIFETIME_SECS: u64 = 100 * 365 * 24 * 60 * 60;
 
 impl TokenRefreshState {
+    /// Check configured material without copying, rewriting, or logging the secret.
+    /// The lifecycle lock follows the same lock order as refresh/retirement.
+    pub(super) fn has_active_refresh_material(&self) -> bool {
+        let lifecycle = self.lifecycle.lock();
+        lifecycle.active
+            && !self.refresh_endpoint.trim().is_empty()
+            && !self.refresh_token.lock().trim().is_empty()
+    }
+
     pub(crate) fn refresh_snapshot(
         &self,
         refresh_margin: std::time::Duration,

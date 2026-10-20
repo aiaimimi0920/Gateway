@@ -40,7 +40,8 @@ fn parse_openai_tool_calls(raw: Option<&Value>) -> Vec<CanonicalToolCall> {
 
     arr.iter()
         .map(|tc| {
-            let fn_obj = tc.get("function");
+            let custom = tc.get("type").and_then(Value::as_str) == Some("custom");
+            let fn_obj = tc.get(if custom { "custom" } else { "function" });
             CanonicalToolCall {
                 id: tc.get("id").and_then(|v| v.as_str()).map(str::to_string),
                 call_type: tc
@@ -53,8 +54,17 @@ fn parse_openai_tool_calls(raw: Option<&Value>) -> Vec<CanonicalToolCall> {
                     .and_then(|v| v.as_str())
                     .map(str::to_string),
                 arguments: fn_obj
-                    .and_then(|f| f.get("arguments"))
-                    .map(normalize_tool_arguments),
+                    .and_then(|f| f.get(if custom { "input" } else { "arguments" }))
+                    .map(|value| {
+                        if custom {
+                            value
+                                .as_str()
+                                .map(str::to_string)
+                                .unwrap_or_else(|| value.to_string())
+                        } else {
+                            normalize_tool_arguments(value)
+                        }
+                    }),
                 raw: std::collections::HashMap::new(),
             }
         })

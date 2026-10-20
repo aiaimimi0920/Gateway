@@ -28,6 +28,8 @@ export type ProviderCatalogTemplate = {
 };
 
 export type ProviderCatalogDraft = {
+  siteHealthEnabled?: boolean;
+  codexBasispointsEnabled?: boolean;
   discovery?: import("./accountDiscovery").AccountDiscovery;
   templateId: string;
   providerId: string;
@@ -404,21 +406,6 @@ export const PROVIDER_CATALOG_TEMPLATES = [
     supportedModels: ["websearchapi-search"],
   },
   {
-    id: "muyuan-openai",
-    providerId: "muyuan-openai",
-    labelZh: "Muyuan · 第三方 OpenAI 兼容",
-    labelEn: "Muyuan · Third-party OpenAI-compatible",
-    descriptionZh: "预配置的第三方 OpenAI-compatible 服务；保留独立渠道 ID 与额度池。",
-    descriptionEn: "Preconfigured third-party OpenAI-compatible service with an independent channel ID and quota pool.",
-    category: "third-party-compatible",
-    compatibility: "openai",
-    preset: "muyuan-openai",
-    vendorKey: "muyuan",
-    vendorName: "Muyuan",
-    baseUrl: "https://muyuan.do/v1",
-    supportedModels: ["gpt-5.4"],
-  },
-  {
     id: "custom-api-provider",
     providerId: "custom-api-provider",
     labelZh: "自定义 API 服务商",
@@ -439,19 +426,12 @@ export const PROVIDER_CATALOG_TEMPLATES = [
 ] as const satisfies readonly ProviderCatalogTemplate[];
 
 export function providerCatalogClassification(
-  providerId: string,
+  _providerId: string,
   preset: string | null | undefined,
   adapter?: string | null,
   protocolProfile?: string | null,
 ): ProviderCatalogClassification | null {
-  const normalizedProviderId = providerId.trim().toLowerCase();
   const normalizedPreset = preset?.trim().toLowerCase() ?? "";
-  if (normalizedProviderId === "muyuan-openai" || normalizedPreset === "muyuan-openai") {
-    return {
-      category: "third-party-compatible",
-      compatibility: "openai",
-    };
-  }
   if (
     normalizedPreset.length === 0 &&
     adapter?.trim().toLowerCase() === "openai_compatible" &&
@@ -477,6 +457,8 @@ export function providerDefinitionFromCatalogDraft(
     base_url: draft.baseUrl,
     supported_models: [...draft.supportedModels],
   };
+  if (draft.siteHealthEnabled) provider.site_health = {};
+  if (draft.codexBasispointsEnabled && template.id === "chatgpt") provider.codex_basispoints_enabled = true;
   if (template.preset) {
     provider.preset = template.preset;
   } else {

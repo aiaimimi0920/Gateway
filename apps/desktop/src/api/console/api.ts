@@ -1,4 +1,5 @@
 import type { GatewayApiRequestOptions } from "../client";
+import type { CredentialPrunePreview, CredentialPruneReceipt, CredentialPruneSelection } from "../schemas/credential-prune";
 import type {
   BootstrapStatus,
   ConsoleAccessAffinityResponse,
@@ -106,6 +107,8 @@ export type ConsoleApi = {
     managementToken: string,
     providerId: string,
   ): Promise<ConsoleCredentialPoolAutomationRunResponse>;
+  previewCredentialPrune(managementToken: string, providerId: string): Promise<{ preview: CredentialPrunePreview }>;
+  applyCredentialPrune(managementToken: string, providerId: string, selection: CredentialPruneSelection): Promise<{ receipt: CredentialPruneReceipt }>;
   purgeCredentialArchive(
     managementToken: string,
     providerId: string,

@@ -18,7 +18,12 @@ pub(super) async fn normalize(
     } = attempt;
     let byte_stream: ByteStream = match stream_response {
         UpstreamStreamingResponse::Bytes(stream) => {
-            Box::pin(stream.map_err(StreamError::Transport))
+            Box::pin(crate::upstream::stream::tap_model_declaration(
+                stream.map_err(StreamError::Transport),
+                model_observation::metadata(ctx, candidate, model),
+                Arc::clone(global_gateway_metrics()),
+                false,
+            ))
         }
         UpstreamStreamingResponse::Http(response)
             if matches!(
@@ -147,6 +152,12 @@ pub(super) async fn normalize(
                     async move { Ok::<bytes::Bytes, rquest::Error>(first_chunk) },
                 )
                 .chain(upstream);
+            let replay = crate::upstream::stream::tap_model_declaration(
+                replay,
+                model_observation::metadata(ctx, candidate, model),
+                Arc::clone(global_gateway_metrics()),
+                true,
+            );
 
             // 首包仍按原始 HTTP 错误分类；进入协议转换后才建立领域错误边界。
             Box::pin(accio::translate_anthropic_like_stream_to_openai_with_error(
@@ -155,13 +166,23 @@ pub(super) async fn normalize(
             ))
         }
         UpstreamStreamingResponse::Http(response) if candidate.adapter == "grok_compatible" => {
+            let stream = crate::upstream::stream::tap_model_declaration(
+                response.bytes_stream(),
+                model_observation::metadata(ctx, candidate, model),
+                Arc::clone(global_gateway_metrics()),
+                true,
+            );
             Box::pin(
-                grok::translate_grok_stream(response.bytes_stream(), model.clone())
-                    .map_err(StreamError::Transport),
+                grok::translate_grok_stream(stream, model.clone()).map_err(StreamError::Transport),
             )
         }
         UpstreamStreamingResponse::Http(response) => {
-            let stream = response.bytes_stream().map_err(StreamError::Transport);
+            let stream = crate::upstream::stream::tap_model_declaration(
+                response.bytes_stream().map_err(StreamError::Transport),
+                model_observation::metadata(ctx, candidate, model),
+                Arc::clone(global_gateway_metrics()),
+                true,
+            );
             // Validate the actual outgoing wire, not a Responses request bridged to Chat.
             if attempt.effective_payload.canonical_adapter() == "openai_compatible"
                 && ctx.canonical_req.endpoint_kind == EndpointKind::Responses

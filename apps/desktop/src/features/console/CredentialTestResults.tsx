@@ -3,6 +3,7 @@ import type { TranslateFn } from "./accountsLedgerTypes";
 import type { TestSelectionAccount } from "./credentialTestSelection";
 import { testScopeKey } from "./credentialTestPolicyDocument";
 import { testCapabilityLevels as LEVELS } from "./credentialTestSummary";
+import { ModelHealthRecoveryNotice } from "./ModelHealthRecoveryNotice";
 
 export function CredentialTestResults({ response, responses, accounts, busy, error, t, planId }: {
   response: ConsoleProviderProbeResponse | null; responses: ConsoleProviderProbeResponse[]; accounts: TestSelectionAccount[]; busy: boolean; error: string | null; t: TranslateFn;
@@ -23,6 +24,7 @@ export function CredentialTestResults({ response, responses, accounts, busy, err
     {results.map(({ result, key }) => <article className="nt-test-result" key={JSON.stringify([key, result.assessment?.planId])}>
       <h4>{names.get(key)}</h4><small>{result.checkedAt} · {result.assessment?.mode === "automatic" ? t("自动", "Auto") : t("手动", "Manual")}</small>
       {result.status !== "passed" ? <p>{result.message}</p> : null}
+      <ModelHealthRecoveryNotice outcome={result.healthRecovery} t={t} />
       {result.assessment ? <>
         {result.assessment.models.map((model) => {
           const level = LEVELS[model.capabilityLevel] ?? LEVELS.unrated;
@@ -37,6 +39,7 @@ export function CredentialTestResults({ response, responses, accounts, busy, err
             <p>{t("调用：", "Call: ")}{item.status} · {item.correct === null ? t("未评分", "Not graded") : item.correct ? t("答案正确", "Correct answer") : t("答案不符合标准", "Answer differs from expected")}</p>
             <p>{t("实际回复：", "Answer: ")}{item.answer ?? "—"}</p><p>{t("标准答案：", "Expected: ")}{item.expectedAnswer ?? "—"}</p>
             {item.status !== "passed" ? <p>{item.message}</p> : null}
+            <ModelHealthRecoveryNotice outcome={item.healthRecovery} t={t} />
           </div>)}
         </details>
       </> : <p>{result.probePoint}</p>}

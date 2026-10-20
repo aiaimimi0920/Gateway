@@ -12,10 +12,13 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
     let document = RouteConfigYaml {
         providers: vec![
             ProviderConfigYaml {
+                codex_basispoints_enabled: false,
+                site_health: None,
                 test_plans: Vec::new(),
                 test_policy: None,
                 subpool_test_policies: Default::default(),
                 default_account_test_policy: None,
+                credential_pool_auth_policy: Default::default(),
                 id: "managed-provider".to_string(),
                 label: Some("Managed OpenAI".to_string()),
                 vendor_key: None,
@@ -69,6 +72,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 credential_automation_driver_id: None,
                 credential_identity_categories: vec![],
                 credentials: vec![ProviderCredentialYaml {
+                    codex_basispoints_enabled: None,
                     discovery_job: None,
                     discovery: None,
                     test_policy: None,
@@ -97,10 +101,13 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 }],
             },
             ProviderConfigYaml {
+                codex_basispoints_enabled: false,
+                site_health: None,
                 test_plans: Vec::new(),
                 test_policy: None,
                 subpool_test_policies: Default::default(),
                 default_account_test_policy: None,
+                credential_pool_auth_policy: Default::default(),
                 id: "fallback-provider".to_string(),
                 label: Some("Fallback".to_string()),
                 vendor_key: None,
@@ -191,10 +198,13 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
 fn account_groups_reject_unknown_account_members() {
     let document = RouteConfigYaml {
         providers: vec![ProviderConfigYaml {
+            codex_basispoints_enabled: false,
+            site_health: None,
             test_plans: Vec::new(),
             test_policy: None,
             subpool_test_policies: Default::default(),
             default_account_test_policy: None,
+            credential_pool_auth_policy: Default::default(),
             id: "managed-provider".to_string(),
             label: Some("Managed OpenAI".to_string()),
             vendor_key: None,
@@ -248,6 +258,7 @@ fn account_groups_reject_unknown_account_members() {
             credential_automation_driver_id: None,
             credential_identity_categories: vec![],
             credentials: vec![ProviderCredentialYaml {
+                codex_basispoints_enabled: None,
                 discovery_job: None,
                 discovery: None,
                 test_policy: None,

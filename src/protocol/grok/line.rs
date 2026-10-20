@@ -98,6 +98,7 @@ pub async fn accumulate_grok_stream(
     }
 
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: reported_model,
         text: content,
         usage: Some(TokenUsage {

@@ -79,6 +79,15 @@ pub fn classify_provider_failure(
     error_code: Option<&str>,
     error_message: Option<&str>,
 ) -> ProviderFailureClassification {
+    if upstream_status
+        .is_some_and(|status| crate::error::is_model_capacity(status, error_code, error_message))
+    {
+        return ProviderFailureClassification {
+            class: ProviderFailureClass::ProviderTransient,
+            scope: ProviderFailureScope::CredentialModel,
+            permanent: false,
+        };
+    }
     let haystack = normalize_failure_text(error_code, error_message);
 
     if contains_any(

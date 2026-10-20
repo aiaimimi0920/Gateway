@@ -125,7 +125,8 @@ pub fn needs_tool_injection(model: &str, adapter: &str) -> bool {
     // Native-tool adapters should never downgrade to XML tool injection.
     if matches!(
         adapter,
-        "anthropic_compatible"
+        "basispoints_compatible"
+            | "anthropic_compatible"
             | "kiro_compatible"
             | "gemini_api_compatible"
             | "gemini_api_modular_compatible"

@@ -89,14 +89,17 @@ pub fn compute_delay(attempt: usize, policy: &RetryPolicy) -> Duration {
 /// 2. Either the error has no HTTP status code, or the status code appears in
 ///    `policy.retryable_statuses`.
 ///
-/// Client errors (400, 401, 403, 404) are never retried even if the
-/// `GatewayError` `retryable` field happens to be set.
+/// Client errors are vetoed except a typed model-capacity 400; that exception
+/// still requires the policy to permit service-unavailable (503) retries.
 pub fn should_retry(error: &GatewayError, policy: &RetryPolicy) -> bool {
     if !error.retryable {
         return false;
     }
 
     if let Some(status) = error.http_status {
+        if status == 400 && error.kind == crate::error::ErrorKind::ModelCapacity {
+            return policy.retryable_statuses.contains(&503);
+        }
         // Hard-veto known permanent client errors regardless of policy.
         if matches!(status, 400 | 401 | 403 | 404) {
             return false;

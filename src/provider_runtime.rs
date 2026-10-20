@@ -6,6 +6,7 @@ mod console_probe;
 mod console_probe_request;
 mod http_probe;
 mod management;
+mod model_probe_health;
 mod model_probe_recording;
 mod probe_lock;
 mod recording;
@@ -64,6 +65,8 @@ pub enum ProviderPayloadProbeStatus {
 
 #[derive(Debug, Clone)]
 pub struct ProviderPayloadProbeReport {
+    pub health_recovery:
+        Option<crate::db::provider_credential_model_states::recovery::ModelHealthRecovery>,
     pub status: ProviderPayloadProbeStatus,
     pub message: String,
     /// Redacted generated text for deterministic assessment; health probes have none.

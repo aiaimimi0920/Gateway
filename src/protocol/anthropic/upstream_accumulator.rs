@@ -134,6 +134,7 @@ pub async fn accumulate_anthropic_stream(
     };
 
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: reported_model,
         text,
         usage,

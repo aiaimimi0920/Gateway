@@ -41,6 +41,7 @@ fn make_req(protocol: ProtocolFamily, endpoint: EndpointKind) -> CanonicalRelayR
 
 fn make_resp() -> CanonicalRelayResponse {
     CanonicalRelayResponse {
+        model_declaration: None,
         model: "gpt-4o".to_string(),
         text: "Hello!".to_string(),
         usage: Some(TokenUsage {

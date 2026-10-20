@@ -6,10 +6,12 @@
 
 mod classification;
 mod diagnostics;
+mod model_capacity;
 mod retry_after;
 
 pub use classification::{classify_network_error, classify_upstream_error};
 pub use diagnostics::{sanitize_provider_error_message, PROVIDER_ERROR_MESSAGE_MAX_CHARS};
+pub(crate) use model_capacity::is_model_capacity;
 pub(crate) use retry_after::retry_after_from_headers;
 
 use axum::http::{header::RETRY_AFTER, HeaderValue, StatusCode};
@@ -33,6 +35,7 @@ pub enum ErrorKind {
     BadRequest,
     InsufficientQuota,
     ServiceUnavailable,
+    ModelCapacity,
     Timeout,
     Unknown,
 }
@@ -327,6 +330,7 @@ fn is_kind_retryable(kind: ErrorKind) -> bool {
             | ErrorKind::ServerError
             | ErrorKind::Network
             | ErrorKind::ServiceUnavailable
+            | ErrorKind::ModelCapacity
             | ErrorKind::Timeout
     )
 }
@@ -367,7 +371,7 @@ fn build_fallback_hint(kind: ErrorKind) -> FallbackHint {
             reason: "Requested model does not exist on this provider; select an available model."
                 .to_string(),
         },
-        ErrorKind::ServiceUnavailable => FallbackHint::Retry {
+        ErrorKind::ServiceUnavailable | ErrorKind::ModelCapacity => FallbackHint::Retry {
             delay_ms: 2_000,
             reason: "Provider temporarily unavailable; retry after a brief delay.".to_string(),
         },

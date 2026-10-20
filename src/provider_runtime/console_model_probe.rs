@@ -163,11 +163,11 @@ pub(crate) async fn probe_console_target_with_request(
             usage: Value::Null,
             reply: Err("Model call timed out after 60 seconds.".into()),
         });
-    super::model_probe_recording::finish(
+    let health_recovery = super::model_probe_recording::finish(
         state,
         target,
         &model,
-        audit.as_deref(),
+        audit,
         started.elapsed(),
         &result,
     )
@@ -189,6 +189,7 @@ pub(crate) async fn probe_console_target_with_request(
     (
         point,
         ProviderPayloadProbeReport {
+            health_recovery: Some(health_recovery),
             status,
             message,
             answer,
@@ -289,6 +290,7 @@ fn failed(status: Option<u16>, message: &str) -> ModelProbeResult {
 
 fn report(status: ProviderPayloadProbeStatus, message: &str) -> ProviderPayloadProbeReport {
     ProviderPayloadProbeReport {
+        health_recovery: None,
         answer: None,
         status,
         message: message.into(),

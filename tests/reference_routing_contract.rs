@@ -8,6 +8,8 @@ mod cooldown;
 mod fixture;
 #[path = "reference_routing/health_policy.rs"]
 mod health_policy;
+#[path = "reference_routing/health_recovery.rs"]
+mod health_recovery;
 #[path = "reference_routing/health_store.rs"]
 mod health_store;
 #[path = "reference_routing/latency_queue.rs"]
@@ -18,4 +20,6 @@ mod latency_runtime;
 mod latency_sampling;
 #[path = "reference_routing/pg.rs"]
 mod pg;
+#[path = "reference_routing/pg_recovery.rs"]
+mod pg_recovery;
 mod support;

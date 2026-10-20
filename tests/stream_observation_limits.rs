@@ -161,7 +161,9 @@ fn observer_specific_whitespace_and_carriage_return_rules_are_preserved() {
             b"event:\tmessage_start \t\r\n\
               data: {\"message\":{\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}}\r\n\r\r\n",
         ),
-        Bytes::from_static(b"\n"),
+        // Start usage remains provisional until a later delta reports output.
+        // The prompt count still proves that the whitespace start event parsed.
+        Bytes::from_static(b"\nevent: message_delta\ndata: {\"usage\":{\"output_tokens\":2}}\n\n"),
         Bytes::from_static(
             b"event:\tmessage_delta\t\ndata: {\"delta\":{\"stop_reason\":\"tool_use\"}}\n\n",
         ),

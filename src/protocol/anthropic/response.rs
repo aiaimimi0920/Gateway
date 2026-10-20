@@ -73,6 +73,7 @@ pub fn unpack_anthropic_response(body: &Value) -> Result<CanonicalRelayResponse,
         .map(|s| s as u16);
 
     Ok(CanonicalRelayResponse {
+        model_declaration: crate::protocol::model_declaration::ModelDeclaration::from_body(body),
         model,
         text,
         usage,

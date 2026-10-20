@@ -6,6 +6,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestCaseResult {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub health_recovery:
+        Option<crate::db::provider_credential_model_states::recovery::ModelHealthRecovery>,
     pub case_id: String,
     pub name: String,
     pub model: String,
@@ -47,6 +50,9 @@ pub struct TestAssessment {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestRunResult {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub health_recovery:
+        Option<crate::db::provider_credential_model_states::recovery::ModelHealthRecovery>,
     pub credential_id: String,
     pub provider_id: String,
     pub probe_point: String,
@@ -79,6 +85,7 @@ pub(super) fn case_result(
             })
         });
     TestCaseResult {
+        health_recovery: report.health_recovery,
         case_id: case.id.clone(),
         name: case.name.clone(),
         model: model.into(),
@@ -155,6 +162,7 @@ mod tests {
             enabled: true,
         };
         let report = super::super::ProviderPayloadProbeReport {
+            health_recovery: None,
             status: ProviderPayloadProbeStatus::Passed,
             message: "completed".into(),
             answer: Some("3".into()),

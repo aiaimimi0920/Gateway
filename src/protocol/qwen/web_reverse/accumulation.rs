@@ -106,6 +106,7 @@ pub(super) fn accumulate_qwen_web_body(
     }
 
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: reported_model,
         text,
         usage,

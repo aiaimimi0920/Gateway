@@ -68,6 +68,7 @@ pub fn unpack_accio_response(body: &Value) -> Result<CanonicalRelayResponse, Gat
     });
 
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: body
             .get("modelVersion")
             .or_else(|| body.get("model"))
@@ -186,6 +187,7 @@ pub async fn accumulate_accio_stream(
     };
 
     Ok(CanonicalRelayResponse {
+        model_declaration: None,
         model: reported_model,
         text,
         usage,

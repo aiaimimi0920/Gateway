@@ -1,8 +1,7 @@
 use serde_json::{json, Value};
 
 use crate::protocol::canonical::{
-    CanonicalMessage, CanonicalRelayRequest, CanonicalTool, ContentPart, EndpointKind, MessageRole,
-    ProtocolFamily,
+    CanonicalMessage, CanonicalRelayRequest, ContentPart, EndpointKind, MessageRole, ProtocolFamily,
 };
 
 /// Pack a [`CanonicalRelayRequest`] into an OpenAI chat/completions JSON body.
@@ -40,7 +39,16 @@ pub fn pack_openai(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Va
     // ── tools ──────────────────────────────────────────────────────────────
 
     if !req.tools.is_empty() {
-        body["tools"] = json!(req.tools.iter().map(pack_openai_tool).collect::<Vec<_>>());
+        body["tools"] = json!(req
+            .tools
+            .iter()
+            .map(|tool| {
+                crate::protocol::openai_tool_wire::chat_tool(
+                    tool,
+                    req.protocol_family == ProtocolFamily::OpenAi,
+                )
+            })
+            .collect::<Vec<_>>());
     }
     if let Some(tc) = pack_openai_tool_choice(req) {
         body["tool_choice"] = tc;
@@ -89,11 +97,16 @@ pub fn pack_openai(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Va
         ensure_stream_usage_requested(&mut body);
     }
 
+    crate::protocol::output_format::apply_chat(req, &mut body);
+
     body
 }
 
 fn pack_openai_tool_choice(req: &CanonicalRelayRequest) -> Option<Value> {
     let tool_choice = req.tool_choice.as_ref()?;
+    if let Some(choice) = crate::protocol::openai_tool_wire::chat_choice(tool_choice) {
+        return Some(choice);
+    }
     if req.endpoint_kind == EndpointKind::Responses
         && tool_choice.get("type").and_then(Value::as_str) == Some("function")
     {
@@ -182,14 +195,7 @@ pub(super) fn pack_openai_message(msg: &CanonicalMessage) -> Value {
         obj["tool_calls"] = json!(msg
             .tool_calls
             .iter()
-            .map(|tc| json!({
-                "id": tc.id,
-                "type": tc.call_type,
-                "function": {
-                    "name": tc.name,
-                    "arguments": tc.arguments,
-                }
-            }))
+            .map(crate::protocol::openai_tool_wire::chat_call)
             .collect::<Vec<_>>());
     }
 
@@ -238,22 +244,4 @@ fn pack_content_parts_array(parts: &[ContentPart]) -> Value {
             })
             .collect(),
     )
-}
-
-fn pack_openai_tool(tool: &CanonicalTool) -> Value {
-    let mut fn_obj = json!({});
-    if let Some(name) = &tool.name {
-        fn_obj["name"] = json!(name);
-    }
-    if let Some(desc) = &tool.description {
-        fn_obj["description"] = json!(desc);
-    }
-    if let Some(schema) = &tool.input_schema {
-        fn_obj["parameters"] = schema.clone();
-    }
-
-    json!({
-        "type": tool.tool_type,
-        "function": fn_obj,
-    })
 }

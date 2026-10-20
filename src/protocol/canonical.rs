@@ -232,6 +232,9 @@ impl CanonicalRelayRequest {
 /// The canonical response produced after relaying to an upstream provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CanonicalRelayResponse {
+    /// Present only when a parser observed the original provider declaration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_declaration: Option<super::model_declaration::ModelDeclaration>,
     /// The model name reported by the upstream provider.
     pub model: String,
     /// Assembled text content of the response.

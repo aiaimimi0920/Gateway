@@ -156,6 +156,9 @@ pub enum RouteAccountGroupSelectionError {
 /// - **Multi-endpoint**: different base_urls with same or different keys (e.g. 3 AI Hub mirrors)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderCredentialYaml {
+    /// None inherits the provider channel; credentials and refresh ownership are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub codex_basispoints_enabled: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discovery_job: Option<crate::provider_discovery::job::DiscoveryJob>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -234,6 +237,14 @@ pub struct ProviderCredentialYaml {
 /// Per-provider configuration block in the YAML file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfigYaml {
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub codex_basispoints_enabled: bool,
+    /// Site-level observations, independent of credential tests and local breakers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub site_health: Option<crate::site_health::SiteHealthConfig>,
+    /// Hard eligibility within this route-config pool; not a cross-provider fallback policy.
+    #[serde(default, skip_serializing_if = "CredentialPoolAuthPolicy::is_any")]
+    pub credential_pool_auth_policy: CredentialPoolAuthPolicy,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub test_plans: Vec<crate::credential_test_plan::CredentialTestPlan>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

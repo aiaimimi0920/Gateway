@@ -76,7 +76,15 @@ pub fn normalize_responses(body: Value) -> Result<CanonicalRelayRequest, Gateway
     }
 
     let mut extra = std::collections::HashMap::new();
-    for key in &["temperature", "max_output_tokens", "top_p"] {
+    for key in &[
+        "temperature",
+        "max_output_tokens",
+        "top_p",
+        "text",
+        "store",
+        "parallel_tool_calls",
+        "include",
+    ] {
         if let Some(v) = body.get(*key) {
             extra.insert(key.to_string(), v.clone());
         }
@@ -95,8 +103,11 @@ pub fn normalize_responses(body: Value) -> Result<CanonicalRelayRequest, Gateway
         messages,
         tools: parse_responses_tools(body.get("tools")),
         tool_choice: body.get("tool_choice").cloned(),
-        reasoning: None,
-        metadata: None,
+        reasoning: body.get("reasoning").cloned(),
+        metadata: body
+            .get("metadata")
+            .and_then(Value::as_object)
+            .map(|map| map.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
         raw_body: body,
         previous_response_id,
         explicit_session_key,
@@ -136,8 +147,17 @@ fn normalize_responses_input_item(item: &Value) -> Result<Vec<CanonicalMessage>,
                     .get("name")
                     .and_then(|value| value.as_str())
                     .map(str::to_string),
-                arguments: item.get("arguments").map(normalize_arguments_value),
-                raw: std::collections::HashMap::new(),
+                arguments: item
+                    .get(if item_type == Some("custom_tool_call") {
+                        "input"
+                    } else {
+                        "arguments"
+                    })
+                    .map(normalize_arguments_value),
+                raw: item
+                    .as_object()
+                    .map(|map| map.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                    .unwrap_or_default(),
             }],
         }]),
         _ => {

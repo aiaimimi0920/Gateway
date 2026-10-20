@@ -45,6 +45,12 @@ mod document_compilation;
 mod model_catalog;
 mod model_mapping;
 mod payload;
+mod pool_auth;
+#[cfg(test)]
+mod pool_auth_tests;
+mod probe_identity;
+#[cfg(test)]
+mod probe_identity_tests;
 mod provider_compilation;
 mod refresh_state;
 mod schema;
@@ -62,6 +68,7 @@ pub(crate) use document_compilation::{
     compile_route_document, effective_credential_id, provider_default_account_id,
 };
 pub(crate) use model_mapping::model_for_probe;
+pub use pool_auth::CredentialPoolAuthPolicy;
 pub(crate) use refresh_state::effective_refresh_lifetime_secs;
 pub use refresh_state::{future_rfc3339_after_secs, system_time_to_rfc3339_millis};
 pub use schema::{
@@ -95,6 +102,8 @@ use substitution::subst_provider;
 /// A compiled provider ready for routing — all preset merging done at load time.
 #[derive(Debug, Clone)]
 pub struct CompiledProvider {
+    /// Configuration-bound, pre-hashed site policy; no JSON/hash allocation on the send path.
+    pub(crate) site_health: Option<(crate::site_health::SiteHealthConfig, String)>,
     pub id: String,
     pub label: String,
     pub payload: ProviderAccountPayload,
@@ -109,6 +118,7 @@ pub struct CompiledProvider {
     pub model_map_targets: HashMap<String, Vec<String>>,
     pub scheduled_probe_enabled: bool,
     pub scheduled_probe_interval_minutes: u64,
+    pub credential_pool_auth_policy: CredentialPoolAuthPolicy,
     /// Credential pool for this provider.
     /// Empty = single credential baked into `payload`.
     /// Non-empty = select one at request time (round-robin).

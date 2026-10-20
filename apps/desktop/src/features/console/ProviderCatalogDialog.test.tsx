@@ -60,6 +60,8 @@ describe("ProviderCatalogDialog", () => {
     const user = userEvent.setup();
     const props = renderDialog();
 
+    expect(screen.queryByRole("button", { name: /Muyuan/i })).not.toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: /自定义 API 服务商/i }));
     await user.clear(screen.getByLabelText("Provider ID"));
     await user.type(screen.getByLabelText("Provider ID"), "partner-openai");
@@ -80,6 +82,7 @@ describe("ProviderCatalogDialog", () => {
 
     expect(props.onSubmit).toHaveBeenCalledWith({
       templateId: "custom-api-provider",
+      siteHealthEnabled: true,
       providerId: "partner-openai",
       providerLabel: "Partner OpenAI",
       vendorKey: "partner",
@@ -93,7 +96,6 @@ describe("ProviderCatalogDialog", () => {
   }, 15_000);
 
   it.each([
-    ["muyuan-openai", /Muyuan · 第三方 OpenAI 兼容/i],
     ["openai", /OpenAI 官方 API/i],
     ["custom-api-provider", /自定义 API 服务商/i],
   ])("creates another independent %s provider with unoccupied identities", async (id, name) => {

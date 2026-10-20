@@ -341,7 +341,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     t,
   });
 
-  const { applyProviderCatalogDraft } = useProviderCatalogEditor({
+  const providerCatalogEditor = useProviderCatalogEditor({
     editorText,
     replaceEditorDocument,
     updateCredentialSecretEdit,
@@ -471,7 +471,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     activePilotStatsView,
     activeRouteDiagnostics: routeConfig?.routeConfig.diagnostics?.diagnostics ?? [],
     activeWorkspace,
-    applyProviderCatalogDraft,
+    ...providerCatalogEditor,
     autosavePending,
     busy,
     consoleRailCollapsed,

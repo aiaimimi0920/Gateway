@@ -62,6 +62,9 @@ async fn postgres_cooldown_writer_reader_and_candidate_contract() {
     .unwrap();
     let upstream = Upstream::start(axum::http::StatusCode::OK, false, "{}").await;
     contract(HealthStore::Pg(&pool), candidate(&upstream, "pg-model")).await;
+    super::health_recovery::contract(HealthStore::Pg(&pool), candidate(&upstream, "pg-recovery"))
+        .await;
+    super::pg_recovery::waiting_writer_contract(&pool, &mut admin).await;
     upstream.finish().await;
     pool.close().await;
     admin.close().await.unwrap();

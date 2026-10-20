@@ -268,9 +268,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     await user.click(screen.getByRole("switch", { name: /Managed OpenAI 自动删除失效号/ }));
     expect(onToggleProviderAutoPrune).toHaveBeenCalledWith("managed-provider", true);
     await user.click(screen.getByRole("button", { name: /Managed OpenAI 手动删除失效号/ }));
-    expect(screen.getByRole("dialog", { name: "确认归档失效号" })).toBeInTheDocument();
-    expect(onPruneProviderCredentials).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "归档失效号" }));
+    expect(screen.queryByRole("dialog", { name: "确认归档失效号" })).not.toBeInTheDocument();
     expect(onPruneProviderCredentials).toHaveBeenCalledWith("managed-provider");
 
     await user.click(screen.getByRole("switch", { name: /Managed OpenAI 彻底删除模式/ }));

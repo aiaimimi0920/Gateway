@@ -10,6 +10,15 @@ pub(super) fn compile_yaml(config: RouteConfigYaml) -> Result<RouteConfigInner, 
 pub(super) fn compile_yaml_with_fingerprints(
     config: RouteConfigYaml,
 ) -> Result<(RouteConfigInner, HashMap<String, String>), anyhow::Error> {
+    anyhow::ensure!(
+        config
+            .providers
+            .iter()
+            .filter(|p| p.site_health.is_some())
+            .count()
+            <= 64,
+        "At most 64 independent site health monitors may be configured."
+    );
     // The compiler has always assigned anonymous credentials by effective
     // `{provider_id}-cred-{index}` identity. Materialize that identity before
     // fingerprinting so a legacy raw document (`id: None`) and its first

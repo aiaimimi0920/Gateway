@@ -69,6 +69,8 @@ function createConsoleApi(): ConsoleApi {
     }),
     runCredentialPoolAutomation: vi.fn(),
     pruneCredentialPool: vi.fn(),
+    previewCredentialPrune: vi.fn(),
+    applyCredentialPrune: vi.fn(),
     purgeCredentialArchive: vi.fn(),
     getCredentialRefill: vi.fn().mockResolvedValue({
       refill: {

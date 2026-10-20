@@ -6,6 +6,8 @@ use axum::{routing::post, Json, Router};
 
 #[path = "reconciliation_cloud_archive_tests.rs"]
 mod cloud_archive;
+#[path = "maintenance_tests.rs"]
+mod maintenance;
 #[path = "purge_race_tests.rs"]
 mod purge_races;
 

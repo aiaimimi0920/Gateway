@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { modelHealthRecoverySchema } from "./modelHealthRecovery";
 
 const measurementSchema = z.object({
   testSetId: z.string().regex(/^[0-9a-f]{64}$/), elapsedMs: z.number().int().nonnegative().nullable(),
@@ -13,5 +14,5 @@ export const credentialTestAssessmentSchema = z.object({
     gradedCount: z.number().int().nonnegative(), correctCount: z.number().int().nonnegative(),
     score: z.number().int().min(0).max(100).nullable(), capabilityLevel: z.string(), measurement: measurementSchema.optional() })).max(128),
   cases: z.array(z.object({ caseId: z.string(), name: z.string(), model: z.string(), difficulty: z.number().int().min(1).max(3),
-    status: z.string(), answer: z.string().nullable(), expectedAnswer: z.string().nullable(), correct: z.boolean().nullable(), message: z.string(), elapsedMs: z.number().int().nonnegative().optional() })).max(128),
+    status: z.string(), answer: z.string().nullable(), expectedAnswer: z.string().nullable(), correct: z.boolean().nullable(), message: z.string(), elapsedMs: z.number().int().nonnegative().optional(), healthRecovery: modelHealthRecoverySchema.optional() })).max(128),
 });

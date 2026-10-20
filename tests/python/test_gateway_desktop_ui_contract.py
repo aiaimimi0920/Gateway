@@ -158,6 +158,8 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
                 "routeAccountCatalog.ts",
                 "useConsoleRouteData.ts",
                 "useCredentialPoolActions.ts",
+                "useCredentialPruneReview.ts",
+                "ConsoleGlobalDialogs.tsx",
             ]
         )
         view_model_text = (
@@ -173,7 +175,10 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         self.assertIn(orphan_filter, view_model_text)
         self.assertIn("getCredentialPoolAutomation", browser_console_text)
         self.assertIn("requestCredentialRefill", browser_console_text)
-        self.assertIn("pruneCredentialPool", browser_console_text)
+        self.assertIn("previewCredentialPrune", browser_console_text)
+        self.assertIn("applyCredentialPrune", browser_console_text)
+        self.assertIn("CredentialPruneDialog", browser_console_text)
+        self.assertNotIn("api.pruneCredentialPool(", browser_console_text)
         self.assertIn("purgeCredentialArchive", browser_console_text)
         self.assertIn("automation?.driverConfigured", browser_console_text)
         self.assertIn("updateIdentityCategoryAutomationToggle", browser_console_text)

@@ -48,6 +48,7 @@ pub mod redis;
 pub mod retry;
 pub mod routing;
 pub mod runtime;
+pub mod site_health;
 pub mod splitter;
 pub mod state;
 pub mod token_refresh;

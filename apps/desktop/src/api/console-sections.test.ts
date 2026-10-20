@@ -45,6 +45,8 @@ describe("console API sections", () => {
       "getCredentialPoolAutomation",
       "runCredentialPoolAutomation",
       "pruneCredentialPool",
+      "previewCredentialPrune",
+      "applyCredentialPrune",
       "purgeCredentialArchive",
       "getCredentialRefill",
       "requestCredentialRefill",

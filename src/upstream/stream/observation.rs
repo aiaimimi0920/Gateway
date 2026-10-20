@@ -36,7 +36,7 @@ impl Default for ObservationLines {
 }
 
 impl ObservationLines {
-    fn new(max_bytes: usize, max_lines: usize) -> Self {
+    pub(super) fn new(max_bytes: usize, max_lines: usize) -> Self {
         Self {
             line: Vec::new(),
             frame_bytes: 0,

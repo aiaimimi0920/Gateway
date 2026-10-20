@@ -65,7 +65,11 @@ pub fn to_openai(body: &Value, model: &str, delta: bool) -> Result<Value, Gatewa
 }
 
 pub fn unpack(body: &Value, model: &str) -> Result<CanonicalRelayResponse, GatewayError> {
-    openai::unpack_openai_response(&to_openai(body, model, false)?)
+    let mut canonical = openai::unpack_openai_response(&to_openai(body, model, false)?)?;
+    // The Chat envelope above injects the requested model; only the raw body is evidence.
+    canonical.model_declaration =
+        crate::protocol::model_declaration::ModelDeclaration::from_body(body);
+    Ok(canonical)
 }
 
 pub fn observe_native(body: &Value, model: &str) -> Result<CanonicalRelayResponse, GatewayError> {

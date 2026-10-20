@@ -402,16 +402,14 @@ describe("BrowserConsoleApp", () => {
         revisionId: "r1-deadbeefcafe",
       },
     });
-    vi.mocked(consoleApi.pruneCredentialPool).mockResolvedValue({
-      provider: {
-        ...automationProvider,
-        state: "succeeded",
-        lastRunAt: "2026-08-14T08:00:00Z",
-        lastAction: "prune",
-        prunedCount: 1,
-        message: "Invalid credential archived.",
-      },
-    });
+    vi.mocked(consoleApi.previewCredentialPrune).mockResolvedValue({ preview: {
+      providerId: "managed-provider", revision: "r1", digest: "digest", archiveRequired: true,
+      items: [{ credentialId: "managed-account", classification: "permanent_auth_failure" }],
+    } });
+    vi.mocked(consoleApi.applyCredentialPrune).mockResolvedValue({ receipt: {
+      providerId: "managed-provider", sourceRevision: "r1", revision: "r2", outcome: "completed",
+      removedCount: 1, items: [{ credentialId: "managed-account", status: "archived_and_removed" }],
+    } });
 
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
 
@@ -419,14 +417,19 @@ describe("BrowserConsoleApp", () => {
     await openWorkspace(user, /凭据池/i);
     await flipProviderCard(user, /^Managed OpenAI$/i);
     await user.click(screen.getByRole("button", { name: /Managed OpenAI 手动删除失效号|Manually delete invalid Managed OpenAI credentials/i }));
-    await user.click(screen.getByRole("button", { name: /归档失效号|Archive invalid/i }));
-
     await waitFor(() =>
-      expect(consoleApi.pruneCredentialPool).toHaveBeenCalledWith(
+      expect(consoleApi.previewCredentialPrune).toHaveBeenCalledWith(
         "management-secret",
         "managed-provider",
       ),
     );
-    expect(screen.getByRole("status", { name: /Invalid credential archived/i })).toBeInTheDocument();
+    expect(consoleApi.pruneCredentialPool).not.toHaveBeenCalled();
+    expect(consoleApi.applyCredentialPrune).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("checkbox", { name: "managed-account" }));
+    await user.click(screen.getByRole("button", { name: /归档并移除所选|Archive and remove selected/i }));
+    await waitFor(() => expect(consoleApi.applyCredentialPrune).toHaveBeenCalledWith(
+      "management-secret", "managed-provider", { expectedRevision: "r1", previewDigest: "digest", credentialIds: ["managed-account"] },
+    ));
+    expect(await screen.findByText(/已归档并移除|Archived and removed/)).toBeInTheDocument();
   });
 });
