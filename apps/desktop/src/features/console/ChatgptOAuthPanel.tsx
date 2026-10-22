@@ -8,7 +8,7 @@ import { ChatgptAuthorizationLink } from "./ChatgptAuthorizationLink";
 
 type Props = {
   client: GatewayApiClient; managementToken: string | null; secretGrant: string | null;
-  providerId: string; disabled: boolean; onRequestSecretAccess(): void; onSaved(): void;
+  providerId: string; disabled: boolean; onRequestSecretAccess(): void | Promise<void>; onSaved(): void;
 };
 
 export function ChatgptOAuthPanel({ client, managementToken, secretGrant, providerId, disabled, onRequestSecretAccess, onSaved }: Props) {
@@ -19,6 +19,8 @@ export function ChatgptOAuthPanel({ client, managementToken, secretGrant, provid
   const [callbackUrl, setCallbackUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingAccess, setPendingAccess] = useState<{ action: "create" | "import"; previous: string | null; generation: number } | null>(null);
+  const [saving, setSaving] = useState(false);
   const sessionRef = useRef<ChatgptAuthSession | null>(null);
   const generation = useRef(0);
   const update = (next: ChatgptAuthSession | null) => { sessionRef.current = next; setSession(next); };
@@ -26,7 +28,7 @@ export function ChatgptOAuthPanel({ client, managementToken, secretGrant, provid
     if (cause instanceof GatewayApiError && cause.code === "chatgpt_auth_session_unavailable") {
       // Discard only server-confirmed missing sessions, never retryable import material.
       generation.current += 1;
-      update(null); setCallbackUrl(""); setBusy(false);
+      update(null); setCallbackUrl(""); setBusy(false); setPendingAccess(null); setSaving(false);
       setError(t("登录会话已过期或不可用，请重新登录。", "Login session expired or unavailable. Sign in again."));
       return true;
     }
@@ -35,7 +37,7 @@ export function ChatgptOAuthPanel({ client, managementToken, secretGrant, provid
   };
   useEffect(() => {
     generation.current += 1;
-    update(null); setError(null); setCallbackUrl(""); setBusy(false);
+    update(null); setError(null); setCallbackUrl(""); setBusy(false); setPendingAccess(null); setSaving(false);
     return () => {
       generation.current += 1;
       const previous = sessionRef.current;
@@ -66,10 +68,19 @@ export function ChatgptOAuthPanel({ client, managementToken, secretGrant, provid
     return () => { abort.abort(); clearTimeout(timer); };
   }, [api, session?.id, session?.status, busy, t, onSaved]);
 
-  const run = async (action: "create" | "cancel" | "complete" | "import") => {
-    if ((action === "create" || action === "import") && !secretGrant) { onRequestSecretAccess(); return; }
+  const requestAccess = async (action: "create" | "import") => {
     const current = generation.current;
-    setBusy(true); setError(null);
+    setPendingAccess({ action, previous: secretGrant, generation: current }); setError(null);
+    try { await onRequestSecretAccess(); }
+    catch (cause) {
+      if (generation.current === current) { setPendingAccess(null); handleError(cause, t("保存权限恢复失败，请重试。", "Cannot restore save access; retry.")); }
+    }
+  };
+  const run = async (action: "create" | "cancel" | "complete" | "import", renewed = false) => {
+    if ((action === "create" || action === "import") && !secretGrant) { await requestAccess(action); return; }
+    setPendingAccess(null);
+    const current = generation.current;
+    setBusy(true); setSaving(action === "import"); setError(null);
     try {
       const result = action === "create"
         ? await api.create(providerId, group, secretGrant!)
@@ -78,23 +89,35 @@ export function ChatgptOAuthPanel({ client, managementToken, secretGrant, provid
       update(result.session); setCallbackUrl("");
       if (result.session.status === "succeeded") onSaved();
     } catch (cause) {
-      if (generation.current === current) handleError(cause, t("ChatGPT 登录失败", "ChatGPT login failed"));
-    } finally { if (generation.current === current) setBusy(false); }
+      if (generation.current === current) {
+        if (!renewed && (action === "create" || action === "import") && cause instanceof GatewayApiError && cause.code === "console_secret_access_required") await requestAccess(action);
+        else handleError(cause, t("ChatGPT 登录失败", "ChatGPT login failed"));
+      }
+    } finally { if (generation.current === current) { setBusy(false); setSaving(false); } }
   };
+  useEffect(() => {
+    // Resume only the explicit user action, within the same provider/session generation.
+    if (pendingAccess && pendingAccess.generation === generation.current && secretGrant && secretGrant !== pendingAccess.previous && !disabled && !busy) {
+      const action = pendingAccess.action;
+      setPendingAccess(null);
+      if (action === "create" || sessionRef.current?.status === "ready") void run(action, true);
+    }
+  }, [pendingAccess, secretGrant, disabled, busy]);
   const active = session && !["succeeded", "cancelled", "failed"].includes(session.status);
   return <section className="nt-stack" aria-label={t("ChatGPT OAuth 登录", "ChatGPT OAuth sign-in")}>
     <div className="nt-grid nt-grid--2">
       <label className="nt-field"><span>{t("订阅分组", "Subscription group")}</span>
-        <select className="nt-select" value={group} disabled={busy || Boolean(active)} onChange={(event) => setGroup(event.target.value)}>
+        <select className="nt-select" value={group} disabled={busy || Boolean(active) || Boolean(pendingAccess)} onChange={(event) => setGroup(event.target.value)}>
           {CHATGPT_POOL_CATEGORIES.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
         </select>
       </label>
-      <button type="button" className="nt-btn nt-btn--primary" disabled={disabled || busy || Boolean(active)} onClick={() => void run("create")}>
+      <button type="button" className="nt-btn nt-btn--primary" disabled={disabled || busy || Boolean(active) || Boolean(pendingAccess)} onClick={() => void run("create")}>
         {t("通过 ChatGPT 登录", "Sign in with ChatGPT")}
       </button>
     </div>
     {disabled && <p>{t("请等待当前配置保存完成后登录。", "Wait for the current configuration to finish saving.")}</p>}
-    {session && <p role="status">{session.message}</p>}
+    {pendingAccess && <p role="status">{t("正在恢复保存权限，恢复后会继续保存，无需重新登录。", "Restoring save access; saving will resume without another login.")}</p>}
+    {session && <p role="status">{saving ? t("正在保存到凭证池，请稍候…", "Saving to credential pool; please wait…") : session.message}</p>}
     {session?.status === "waiting_user" && <>
       <div className="nt-actions">
         <ChatgptAuthorizationLink key={session.id} value={session.authorizationUrl} busy={busy} />
@@ -107,7 +130,7 @@ export function ChatgptOAuthPanel({ client, managementToken, secretGrant, provid
         <button type="button" className="nt-btn nt-btn--secondary" disabled={busy || !callbackUrl} onClick={() => void run("complete")}>{t("完成授权", "Complete authorization")}</button>
       </details>
     </>}
-    {session?.status === "ready" && <button type="button" className="nt-btn nt-btn--primary" disabled={disabled || busy} onClick={() => void run("import")}>{t("保存到凭证池", "Save to credential pool")}</button>}
+    {session?.status === "ready" && <button type="button" className="nt-btn nt-btn--primary" disabled={disabled || busy || Boolean(pendingAccess)} onClick={() => void run("import")}>{saving ? t("正在保存…", "Saving…") : t("保存到凭证池", "Save to credential pool")}</button>}
     {active && <button type="button" className="nt-btn nt-btn--secondary" disabled={busy} onClick={() => void run("cancel")}>{t("取消登录", "Cancel login")}</button>}
     {error && <p role="alert">{error}</p>}
   </section>;

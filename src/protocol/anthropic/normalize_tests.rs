@@ -169,8 +169,8 @@ fn preserves_invalid_message_errors() {
             "message missing `role` field",
         ),
         (
-            json!({"messages": [{"role": "system", "content": "wrong location"}]}),
-            "unexpected Anthropic message role: system",
+            json!({"messages": [{"role": "developer", "content": "unsupported role"}]}),
+            "unexpected Anthropic message role: developer",
         ),
     ];
 

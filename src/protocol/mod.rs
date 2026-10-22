@@ -19,6 +19,8 @@ pub mod chataibot;
 #[path = "chataibot_disabled.rs"]
 pub mod chataibot;
 pub mod chatgpt;
+pub mod claude_wire;
+pub mod codex_wire;
 pub mod cohere;
 pub mod dashscope;
 pub mod freebuff;
@@ -52,6 +54,7 @@ pub mod producer;
 pub mod qwen;
 pub mod qwen_web;
 pub mod registry;
+pub mod request_profile;
 pub mod responses;
 #[cfg(feature = "family-search-api-compatible-official-api")]
 pub mod search_api;
@@ -79,6 +82,7 @@ pub mod udio;
 #[path = "udio_disabled.rs"]
 pub mod udio;
 pub(crate) mod upstream_body;
+pub mod workbuddy_wire;
 pub mod xfyun_websocket;
 
 // Legacy compatibility alias for older imports. New code should use

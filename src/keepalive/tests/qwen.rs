@@ -2,6 +2,7 @@ use super::super::*;
 
 fn qwen_payload(expires_at: Option<&str>) -> ProviderAccountPayload {
     ProviderAccountPayload {
+        request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "qwen_web_compatible".to_string(),
         base_url: "https://chat.qwen.ai".to_string(),

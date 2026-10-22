@@ -1,4 +1,6 @@
 use axum::http::HeaderMap;
+mod workbuddy;
+mod session_hints;
 
 use crate::auth::adapter::AuthRequest;
 use crate::config::Config;
@@ -70,7 +72,8 @@ pub fn apply_public_request_headers(
         }
     }
 
-    Ok(())
+    session_hints::capture(ctx, headers);
+    workbuddy::capture(ctx, headers)
 }
 
 pub fn build_public_auth_request(
@@ -123,9 +126,26 @@ fn trusted_account_group_value(headers: &HeaderMap) -> Option<String> {
 
 pub(crate) fn is_internal_gateway_header(name: &str) -> bool {
     name.eq_ignore_ascii_case(super::debug_protocol::HEADER)
+        || name
+            .get(..14)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("x-gateway-cpa-"))
         || INTERNAL_GATEWAY_HEADER_DENYLIST
             .iter()
             .any(|candidate| candidate.eq_ignore_ascii_case(name))
+}
+
+#[test]
+fn cpa_ipc_headers_are_private_not_account_group_aliases() {
+    for name in [
+        "X-Gateway-Cpa-Worker-Token",
+        "x-gateway-cpa-target",
+        "X-Gateway-Cpa-Host",
+    ] {
+        assert!(is_internal_gateway_header(name));
+        assert!(!INTERNAL_GATEWAY_HEADER_DENYLIST
+            .iter()
+            .any(|alias| alias.eq_ignore_ascii_case(name)));
+    }
 }
 
 #[cfg(test)]

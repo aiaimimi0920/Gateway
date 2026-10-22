@@ -366,6 +366,23 @@ async fn run_candidates(
             .any(|message| !message.tool_calls.is_empty() || message.role == MessageRole::Tool);
         let tools_were_injected = !ctx.canonical_req.tools.is_empty() && text_only_tool_bridge;
 
+        // Compact has no generation/tool-bridge equivalent. Reject incompatible
+        // candidates before admission rather than accidentally creating a response.
+        if ctx
+            .native_wire
+            .as_ref()
+            .is_some_and(|wire| wire.compact || wire.websocket.is_some())
+            && (!crate::upstream::client::UpstreamClient::uses_native_codex(
+                &effective_payload,
+                &ctx.canonical_req,
+                &model,
+            ) || (text_only_tool_bridge && (tools_were_injected || has_tool_history)))
+        {
+            return Err(GatewayError::bad_request(
+                "Compact/WebSocket requires a native Codex Responses route without tool conversion",
+            ));
+        }
+
         // Acquire concurrency before admission so a queued/cancelled request does
         // not consume a provider-attempt slot before it can be sent.
         let controller = state
@@ -428,10 +445,28 @@ async fn run_candidates(
         }
         let attempts_before = ctx.route_attempt_count();
         let candidate_started_at = Instant::now();
-        let result = if ctx.canonical_req.stream {
-            streaming::send(ctx, state, candidate, candidate_index, attempt).await
+        // Never cancel admission/reservation transactions: their result must first
+        // reach ctx so failure settlement can refund the exact source reservation.
+        let cancel = ctx.caller_cancel.clone();
+        let send = async {
+            if ctx.canonical_req.stream {
+                streaming::send(ctx, state, candidate, candidate_index, attempt).await
+            } else {
+                buffered::send(ctx, state, candidate, candidate_index, attempt).await
+            }
+        };
+        let result = if let Some(mut cancel) = cancel {
+            tokio::select! {
+                biased;
+                _ = async {
+                    while !*cancel.borrow_and_update() {
+                        if cancel.changed().await.is_err() { break; }
+                    }
+                } => Err(AttemptError::Stop(GatewayError::bad_request("Responses caller disconnected"))),
+                output = send => output,
+            }
         } else {
-            buffered::send(ctx, state, candidate, candidate_index, attempt).await
+            send.await
         };
         match result {
             Ok(output) => {
@@ -445,6 +480,7 @@ async fn run_candidates(
                 return Ok(output);
             }
             Err(AttemptError::Next(error)) => {
+                ctx.request_budget.allow_rejected_candidate_fallback(&error);
                 if ctx.route_attempt_count() > attempts_before {
                     model_health::record_rate_limit(
                         ctx,

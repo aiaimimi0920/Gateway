@@ -53,6 +53,7 @@ fn normalize_image_edits_requires_input_image() {
 #[test]
 fn runtime_from_payload_reads_required_runtime_fields() {
     let payload = ProviderAccountPayload {
+        request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "gemini_business_compatible".to_string(),
         base_url: "https://biz-discoveryengine.googleapis.com/v1alpha".to_string(),
@@ -179,6 +180,7 @@ fn build_stream_assist_plan_uses_stream_assist_endpoint() {
 #[test]
 fn runtime_from_payload_requires_extra_body_runtime_material() {
     let payload = ProviderAccountPayload {
+        request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "gemini_business_compatible".to_string(),
         base_url: "https://biz-discoveryengine.googleapis.com/v1alpha".to_string(),
@@ -230,6 +232,7 @@ fn runtime_from_payload_requires_extra_body_runtime_material() {
 #[test]
 fn runtime_from_payload_requires_config_id() {
     let payload = ProviderAccountPayload {
+        request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "gemini_business_compatible".to_string(),
         base_url: "https://biz-discoveryengine.googleapis.com/v1alpha".to_string(),

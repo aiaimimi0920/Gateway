@@ -271,6 +271,8 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
     let route_config = RouteConfigStore::from_document(RouteConfigYaml {
         providers: vec![
             crate::routing::config::ProviderConfigYaml {
+                auth_mode: None,
+                request_client_profile: None,
                 codex_basispoints_enabled: false,
                 site_health: None,
                 test_plans: Vec::new(),
@@ -333,6 +335,8 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 credentials: vec![],
             },
             crate::routing::config::ProviderConfigYaml {
+                auth_mode: None,
+                request_client_profile: None,
                 codex_basispoints_enabled: false,
                 site_health: None,
                 test_plans: Vec::new(),
@@ -393,6 +397,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 credential_automation_driver_id: None,
                 credential_identity_categories: vec![],
                 credentials: vec![crate::routing::config::ProviderCredentialYaml {
+                    request_client_profile: None,
                     codex_basispoints_enabled: None,
                     discovery_job: None,
                     discovery: None,

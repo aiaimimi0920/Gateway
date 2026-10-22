@@ -5,6 +5,7 @@ use crate::protocol::canonical::{
 
 pub(super) fn make_payload() -> ProviderAccountPayload {
     ProviderAccountPayload {
+        request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "freebuff_compatible".to_string(),
         base_url: "https://codebuff.com".to_string(),

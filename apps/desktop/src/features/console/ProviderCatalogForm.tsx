@@ -1,6 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import type { Dispatch, SetStateAction } from "react";
 import type { ProviderCatalogDraft, ProviderCatalogTemplate } from "./providerCatalog";
+import { RequestClientProfileSelect } from "./RequestClientProfileSelect";
 
 type TranslateFn = (zh: string, en: string) => string;
 
@@ -172,6 +173,8 @@ export function ProviderCatalogForm({
                     </label>
                   </div>
 
+                  <RequestClientProfileSelect value={draft.requestClientProfile} disabled={locked} t={t}
+                    onChange={(requestClientProfile) => setDraft((current) => ({ ...current, requestClientProfile }))} />
                   <label><input type="checkbox" checked={draft.siteHealthEnabled ?? false} disabled={locked}
                     onChange={(event) => setDraft((current) => ({ ...current, siteHealthEnabled: event.target.checked }))} />
                     {t("自动识别站点健康接口", "Discover site health interfaces automatically")}</label>

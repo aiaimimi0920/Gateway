@@ -12,7 +12,7 @@ use crate::protocol::responses;
 use crate::routing::candidate::ProviderAccountPayload;
 use crate::upstream::client::UpstreamClient;
 use crate::upstream::common::RequestPlan;
-use crate::upstream::headers::build_upstream_headers_with;
+use crate::upstream::headers::build_inference_headers;
 use crate::upstream::response_error::classify_response_error;
 use crate::upstream::response_types::UpstreamStreamingResponse;
 
@@ -59,10 +59,18 @@ pub fn prepare_execute_context<'a>(
     extra_headers: Option<&HashMap<String, String>>,
     stream: bool,
 ) -> Result<OfficialExecuteContext<'a>, GatewayError> {
+    let mut headers = build_inference_headers(payload, req, model, extra_headers);
+    crate::upstream::request_profile::apply_cpa_transport_headers(
+        &mut headers,
+        payload,
+        req,
+        model,
+        stream,
+    );
     Ok(OfficialExecuteContext {
         provider: surface::provider_line_name(payload),
         plan: build_request_plan(payload, req, model, stream)?,
-        headers: build_upstream_headers_with(payload, extra_headers),
+        headers,
     })
 }
 
@@ -172,6 +180,7 @@ mod tests {
 
     fn make_payload(base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "openai_compatible".to_string(),
             base_url: base_url.to_string(),

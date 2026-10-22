@@ -401,9 +401,31 @@ aliases:
             );
         }
         let revision = revision(&route_document);
-        let canonical = serde_json::to_string(&serde_json::to_value(&revision).unwrap()).unwrap();
+        let mut value = serde_json::to_value(&revision).unwrap();
+        value.sort_all_objects();
+        let canonical = serde_json::to_string(&value).unwrap();
 
         assert_eq!(revision.to_json().unwrap(), canonical);
+        for _ in 0..8 {
+            let restored = RouteConfigRedisRevision::from_json(&canonical).unwrap();
+            assert_eq!(restored.to_json().unwrap(), canonical);
+        }
+    }
+
+    #[test]
+    fn canonical_serializer_sorts_nested_objects_without_reordering_arrays() {
+        let left: serde_json::Value =
+            serde_json::from_str(r#"{"z":[{"b":2,"a":1},3],"a":0}"#).unwrap();
+        let right: serde_json::Value =
+            serde_json::from_str(r#"{"a":0,"z":[{"a":1,"b":2},3]}"#).unwrap();
+        assert_eq!(
+            serialize_json_canonically(&left, "test").unwrap(),
+            serialize_json_canonically(&right, "test").unwrap()
+        );
+        assert_eq!(
+            serialize_json_canonically(&left, "test").unwrap(),
+            r#"{"a":0,"z":[{"a":1,"b":2},3]}"#
+        );
     }
 
     #[test]

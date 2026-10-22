@@ -62,6 +62,67 @@ it("cancels an in-flight creation after the dialog unmounts", async () => {
 
 const expired = () => new GatewayApiError("Session unavailable", 400, "chatgpt_auth_session_unavailable");
 
+it("does not replay a pending authorization action after the provider changes", async () => {
+  const view = render(<ChatgptOAuthPanel {...props} secretGrant={null} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "通过 ChatGPT 登录" })); });
+  await act(async () => { view.rerender(<ChatgptOAuthPanel {...props} providerId="different" secretGrant="renewed" />); });
+  expect(api.create).not.toHaveBeenCalled();
+  expect(api.act).not.toHaveBeenCalled();
+});
+
+it("does not import after the user cancels while waiting for save access", async () => {
+  api.get.mockResolvedValue(session("ready"));
+  const view = render(<ChatgptOAuthPanel {...props} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "通过 ChatGPT 登录" })); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+  view.rerender(<ChatgptOAuthPanel {...props} secretGrant={null} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "保存到凭证池" })); });
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "取消登录" })); });
+  await act(async () => { view.rerender(<ChatgptOAuthPanel {...props} secretGrant="renewed" />); });
+  expect(api.act).toHaveBeenCalledTimes(1);
+  expect(api.act).toHaveBeenCalledWith("login", "cancel", undefined, undefined);
+});
+
+it("shows immediate progress while the authorized import is pending", async () => {
+  api.get.mockResolvedValue(session("ready"));
+  render(<ChatgptOAuthPanel {...props} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "通过 ChatGPT 登录" })); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+  let finish!: (value: ReturnType<typeof session>) => void;
+  api.act.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "保存到凭证池" })); });
+  expect(screen.getByRole("button", { name: "正在保存…" })).toBeDisabled();
+  expect(screen.getByRole("status")).toHaveTextContent("正在保存到凭证池，请稍候…");
+  await act(async () => { finish(session("succeeded")); });
+  expect(props.onSaved).toHaveBeenCalledOnce();
+});
+
+it("shows permission recovery failure inside the OAuth panel and retains the ready session", async () => {
+  api.get.mockResolvedValue(session("ready"));
+  const view = render(<ChatgptOAuthPanel {...props} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "通过 ChatGPT 登录" })); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+  view.rerender(<ChatgptOAuthPanel {...props} secretGrant={null} onRequestSecretAccess={async () => { throw new Error("Permission recovery failed"); }} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "保存到凭证池" })); });
+  expect(screen.getByRole("alert")).toHaveTextContent("Permission recovery failed");
+  expect(screen.getByRole("button", { name: "保存到凭证池" })).toBeEnabled();
+  expect(api.act).not.toHaveBeenCalled();
+});
+
+it("resumes an authorized import after secret access is renewed without asking for another login", async () => {
+  api.get.mockResolvedValue(session("ready"));
+  const view = render(<ChatgptOAuthPanel {...props} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "通过 ChatGPT 登录" })); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+  view.rerender(<ChatgptOAuthPanel {...props} secretGrant={null} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "保存到凭证池" })); });
+  expect(screen.getByText("正在恢复保存权限，恢复后会继续保存，无需重新登录。" )).toBeInTheDocument();
+  api.act.mockResolvedValue(session("succeeded"));
+  await act(async () => { view.rerender(<ChatgptOAuthPanel {...props} secretGrant="renewed" />); });
+  expect(api.act).toHaveBeenCalledWith("login", "import", "renewed", undefined);
+  expect(props.onSaved).toHaveBeenCalledOnce();
+});
+
 it("keeps checking ready sessions and allows a new login after expiry", async () => {
   api.get.mockResolvedValueOnce(session("ready")).mockRejectedValueOnce(expired());
   render(<ChatgptOAuthPanel {...props} />);

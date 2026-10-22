@@ -11,6 +11,8 @@ pub async fn run_stream_success(
     state: &Arc<AppState>,
 ) {
     apply_stream_completion_semantics(&mut snapshot, canonical_completion_semantics);
+    // Only the successful terminal callback reaches here; failed/cancelled streams cannot pin.
+    affinity::record_stream(&snapshot, state).await;
     crate::cash_billing::finalization::stream_success(&snapshot, usage.clone(), state).await;
 
     if let Some(project_id) = snapshot.project_id.clone() {

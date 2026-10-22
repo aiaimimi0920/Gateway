@@ -97,20 +97,23 @@ pub fn classify_upstream_error(
     // Most status mappings are authoritative, but provider-specific 400s are
     // often overloaded. If the body carries a more specific semantic signal,
     // prefer it over the generic bad-request bucket.
-    let kind = if super::is_model_capacity(status, code.as_deref(), raw_message.as_deref()) {
-        ErrorKind::ModelCapacity
-    } else {
-        match (status_kind, body_kind) {
-            (Some(ErrorKind::BadRequest), Some(body_kind))
-                if body_kind != ErrorKind::BadRequest =>
-            {
-                body_kind
+    let kind =
+        if super::is_account_balance_rejection(status, raw_message.as_deref().unwrap_or(body)) {
+            ErrorKind::InsufficientQuota
+        } else if super::is_model_capacity(status, code.as_deref(), raw_message.as_deref()) {
+            ErrorKind::ModelCapacity
+        } else {
+            match (status_kind, body_kind) {
+                (Some(ErrorKind::BadRequest), Some(body_kind))
+                    if body_kind != ErrorKind::BadRequest =>
+                {
+                    body_kind
+                }
+                (Some(status_kind), _) => status_kind,
+                (None, Some(body_kind)) => body_kind,
+                (None, None) => ErrorKind::Unknown,
             }
-            (Some(status_kind), _) => status_kind,
-            (None, Some(body_kind)) => body_kind,
-            (None, None) => ErrorKind::Unknown,
-        }
-    };
+        };
 
     // For rate-limit responses, try to parse a retry-after value from the body.
     let upstream_retry_after_ms = matches!(kind, ErrorKind::RateLimit | ErrorKind::ModelCapacity)
@@ -153,6 +156,14 @@ pub fn classify_upstream_error(
 
 /// Classify a [`rquest::Error`] (network / transport level) into a [`GatewayError`].
 pub fn classify_network_error(err: &rquest::Error, provider_name: Option<&str>) -> GatewayError {
+    #[cfg(feature = "cpa-rust-transport")]
+    if gateway_cpa_http_transport::is_body_limit_error(err) {
+        let mut error =
+            GatewayError::server_error("CPA upstream body exceeded the configured limit")
+                .with_code("upstream_body_too_large");
+        error.provider_name = provider_name.map(str::to_owned);
+        return error;
+    }
     let (kind, raw_message) = if err.is_timeout() {
         (ErrorKind::Timeout, format!("Request timed out: {err}"))
     } else if err.is_connect() {
@@ -173,6 +184,34 @@ pub fn classify_network_error(err: &rquest::Error, provider_name: Option<&str>) 
         retryable: is_kind_retryable(kind),
         fallback_hint: build_fallback_hint(kind),
         provider_name: provider_name.map(str::to_string),
+        upstream_retry_after_ms: None,
+    }
+}
+
+/// Keep native transport classification and strip URLs before diagnostics can expose query secrets.
+pub(crate) fn classify_native_network_error(err: reqwest::Error, provider: &str) -> GatewayError {
+    let kind = if err.is_timeout() {
+        ErrorKind::Timeout
+    } else if err.is_connect() {
+        ErrorKind::Network
+    } else {
+        ErrorKind::Unknown
+    };
+    let status = err
+        .status()
+        .map(|s| s.as_u16())
+        .or_else(|| err.is_timeout().then_some(504));
+    GatewayError {
+        kind,
+        message: sanitize_provider_error_message(&format!(
+            "Native transport error: {}",
+            err.without_url()
+        )),
+        code: None,
+        http_status: status,
+        retryable: is_kind_retryable(kind),
+        fallback_hint: build_fallback_hint(kind),
+        provider_name: Some(provider.to_owned()),
         upstream_retry_after_ms: None,
     }
 }
@@ -245,4 +284,27 @@ fn extract_code_from_body(body: &str) -> Option<String> {
 /// Handles `{ "retry_after": 5 }` and `{ "error": { "retry_after": 5 } }`.
 fn parse_retry_after_from_body(body: &str) -> Option<u64> {
     super::retry_after::parse_body(body)
+}
+/// Transport-owned static messages cannot accidentally include proxy or URL credentials.
+pub(crate) fn classify_native_transport_failure(timeout: bool, provider: &str) -> GatewayError {
+    let kind = if timeout {
+        ErrorKind::Timeout
+    } else {
+        ErrorKind::Network
+    };
+    GatewayError {
+        kind,
+        message: if timeout {
+            "Native WebSocket connection timed out"
+        } else {
+            "Native WebSocket connection failed"
+        }
+        .into(),
+        code: None,
+        http_status: timeout.then_some(504),
+        retryable: is_kind_retryable(kind),
+        fallback_hint: build_fallback_hint(kind),
+        provider_name: Some(provider.into()),
+        upstream_retry_after_ms: None,
+    }
 }

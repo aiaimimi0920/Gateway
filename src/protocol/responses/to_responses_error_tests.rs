@@ -8,6 +8,26 @@ use futures::StreamExt;
 type Error = StreamError<std::io::Error>;
 
 #[tokio::test]
+async fn cpa_completed_response_drains_transport_eof_for_connection_reuse() {
+    let (inner, state) = probe(vec![
+        Ok::<_, Error>(Bytes::from_static(b"data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1}}\n\n")),
+        Ok(Bytes::from_static(b"data: [DONE]\n\n")),
+        Ok(Bytes::from_static(b": trailing keepalive\n\n")),
+    ], false);
+    let output = translate_openai_sse_to_responses_with_error(inner, "test".into())
+        .collect::<Vec<_>>()
+        .await;
+    assert!(output.iter().all(Result::is_ok));
+    let text: String = output
+        .into_iter()
+        .map(|v| String::from_utf8(v.unwrap().to_vec()).unwrap())
+        .collect();
+    assert_eq!(text.matches("event: response.completed").count(), 1);
+    assert_eq!(state.polls.load(Ordering::SeqCst), 4);
+    assert_eq!(state.drops.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
 async fn typed_exact_frame_limit_and_fragmented_input_preserve_bytes() {
     let wire = b"event: response.created\ndata: {}\n\n";
     let inner = futures::stream::iter(vec![
@@ -96,5 +116,48 @@ async fn typed_cancellation_drops_pending_upstream() {
     assert!(futures::poll!(stream.next()).is_pending());
     drop(stream);
     assert_eq!(state.polls.load(Ordering::SeqCst), 1);
+    assert_eq!(state.drops.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn cpa_completed_pending_transport_remains_cancellable() {
+    let (inner, state) = probe::<Error>(
+        vec![Ok(Bytes::from_static(
+            b"event: response.completed\ndata: {}\n\ndata: [DONE]\n\n",
+        ))],
+        true,
+    );
+    let mut stream = Box::pin(translate_openai_sse_to_responses_with_error(
+        inner,
+        "test".into(),
+    ));
+    assert!(futures::poll!(stream.next()).is_ready());
+    assert!(futures::poll!(stream.next()).is_ready());
+    assert!(futures::poll!(stream.next()).is_pending());
+    drop(stream);
+    assert_eq!(state.drops.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn cpa_native_completion_still_reports_transport_failure() {
+    let (inner, state) = probe(
+        vec![
+            Ok(Bytes::from_static(
+                b"event: response.completed\ndata: {}\n\ndata: [DONE]\n\n",
+            )),
+            Err(Error::Transport(std::io::Error::new(
+                std::io::ErrorKind::ConnectionReset,
+                "tail reset",
+            ))),
+        ],
+        false,
+    );
+    let output = translate_openai_sse_to_responses_with_error(inner, "test".into())
+        .collect::<Vec<_>>()
+        .await;
+    assert_eq!(
+        output.last().unwrap().as_ref().unwrap_err().to_string(),
+        "tail reset"
+    );
     assert_eq!(state.drops.load(Ordering::SeqCst), 1);
 }

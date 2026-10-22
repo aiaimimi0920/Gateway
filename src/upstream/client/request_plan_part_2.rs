@@ -191,7 +191,7 @@ impl UpstreamClient {
 
         if force_streaming_responses_bridge {
             let plan = Self::build_request_plan(payload, req, model, true)?;
-            let headers = build_upstream_headers_with(payload, extra_headers);
+            let headers = build_inference_headers(payload, req, model, extra_headers);
             let provider = &payload.adapter;
 
             debug!(
@@ -202,10 +202,9 @@ impl UpstreamClient {
             );
 
             let response = self
-                .send_plan(&plan, headers)
+                .send_profiled_plan(payload, &plan, headers)?
                 .send()
-                .await
-                .map_err(|e| classify_network_error(&e, Some(provider)))?;
+                .await?;
 
             if !response.status().is_success() {
                 return Err(crate::upstream::response_error::classify_response_error(
@@ -238,7 +237,7 @@ impl UpstreamClient {
             );
 
             return gemini_api_modular::execute_forced_streaming_accumulate(
-                self.send_plan(&plan, headers),
+                self.send_profiled_plan(payload, &plan, headers)?.send(),
                 provider,
                 model,
             )
@@ -249,16 +248,15 @@ impl UpstreamClient {
         // nominally non-streaming requests, so force streaming and accumulate.
         if payload.adapter == "accio_compatible" {
             let plan = Self::build_request_plan(payload, req, model, true)?;
-            let headers = build_upstream_headers_with(payload, extra_headers);
+            let headers = build_inference_headers(payload, req, model, extra_headers);
             let provider = &payload.adapter;
 
             debug!(url = %plan.url, model, adapter = %payload.adapter, "sending upstream request (streaming adapter: forced streaming + accumulate)");
 
             let response = self
-                .send_plan(&plan, headers)
+                .send_profiled_plan(payload, &plan, headers)?
                 .send()
-                .await
-                .map_err(|e| classify_network_error(&e, Some(provider)))?;
+                .await?;
 
             if !response.status().is_success() {
                 return Err(crate::upstream::response_error::classify_response_error(
@@ -277,17 +275,16 @@ impl UpstreamClient {
             let headers = sign_bedrock_runtime_headers_if_needed(
                 payload,
                 &plan,
-                build_upstream_headers_with(payload, extra_headers),
+                build_inference_headers(payload, req, model, extra_headers),
             )?;
             let provider = &payload.adapter;
 
             debug!(url = %plan.url, model, adapter = %payload.adapter, "sending upstream request (bedrock converse: forced streaming + accumulate)");
 
             let response = self
-                .send_plan(&plan, headers)
+                .send_profiled_plan(payload, &plan, headers)?
                 .send()
-                .await
-                .map_err(|e| classify_network_error(&e, Some(provider)))?;
+                .await?;
 
             if !response.status().is_success() {
                 return Err(crate::upstream::response_error::classify_response_error(
@@ -303,16 +300,15 @@ impl UpstreamClient {
 
         if payload.adapter == "cohere_compatible" {
             let plan = Self::build_request_plan(payload, req, model, true)?;
-            let headers = build_upstream_headers_with(payload, extra_headers);
+            let headers = build_inference_headers(payload, req, model, extra_headers);
             let provider = &payload.adapter;
 
             debug!(url = %plan.url, model, adapter = %payload.adapter, "sending upstream request (cohere chat: forced streaming + accumulate)");
 
             let response = self
-                .send_plan(&plan, headers)
+                .send_profiled_plan(payload, &plan, headers)?
                 .send()
-                .await
-                .map_err(|e| classify_network_error(&e, Some(provider)))?;
+                .await?;
 
             if !response.status().is_success() {
                 return Err(crate::upstream::response_error::classify_response_error(
@@ -329,16 +325,15 @@ impl UpstreamClient {
         // Grok always returns NDJSON, so force streaming and accumulate.
         if payload.adapter == "grok_compatible" {
             let plan = Self::build_request_plan(payload, req, model, true)?;
-            let headers = build_upstream_headers_with(payload, extra_headers);
+            let headers = build_inference_headers(payload, req, model, extra_headers);
             let provider = &payload.adapter;
 
             debug!(url = %plan.url, model, "sending upstream request (grok: forced streaming + accumulate)");
 
             let response = self
-                .send_plan(&plan, headers)
+                .send_profiled_plan(payload, &plan, headers)?
                 .send()
-                .await
-                .map_err(|e| classify_network_error(&e, Some(provider)))?;
+                .await?;
 
             if !response.status().is_success() {
                 return Err(crate::upstream::response_error::classify_response_error(
@@ -354,16 +349,15 @@ impl UpstreamClient {
 
         if payload.adapter == "kiro_compatible" {
             let plan = Self::build_request_plan(payload, req, model, true)?;
-            let headers = build_upstream_headers_with(payload, extra_headers);
+            let headers = build_inference_headers(payload, req, model, extra_headers);
             let provider = &payload.adapter;
 
             debug!(url = %plan.url, model, "sending upstream request (kiro: forced streaming + accumulate)");
 
             let response = self
-                .send_plan(&plan, headers)
+                .send_profiled_plan(payload, &plan, headers)?
                 .send()
-                .await
-                .map_err(|e| classify_network_error(&e, Some(provider)))?;
+                .await?;
 
             if !response.status().is_success() {
                 return Err(crate::upstream::response_error::classify_response_error(
@@ -377,9 +371,10 @@ impl UpstreamClient {
             return kiro_upstream::accumulate_stream(response, model, req).await;
         }
 
-        if anthropic_messages_upstream::owns_payload(payload) {
+        if anthropic_messages_upstream::owns_payload(payload)
+            && payload.request_client_profile != Some(crate::protocol::request_profile::RequestClientProfile::CpaClaudeCode) {
             let plan = Self::build_request_plan(payload, req, model, true)?;
-            let headers = build_upstream_headers_with(payload, extra_headers);
+            let headers = build_inference_headers(payload, req, model, extra_headers);
             let provider = &payload.adapter;
 
             debug!(
@@ -389,10 +384,9 @@ impl UpstreamClient {
             );
 
             let response = self
-                .send_plan(&plan, headers)
+                .send_profiled_plan(payload, &plan, headers)?
                 .send()
-                .await
-                .map_err(|e| classify_network_error(&e, Some(provider)))?;
+                .await?;
 
             if !response.status().is_success() {
                 return Err(crate::upstream::response_error::classify_response_error(
@@ -414,17 +408,16 @@ impl UpstreamClient {
 
         let (plan, headers, provider) = (
             Self::build_request_plan(payload, req, model, false)?,
-            build_upstream_headers_with(payload, extra_headers),
+            build_inference_headers(payload, req, model, extra_headers),
             payload.adapter.clone(),
         );
 
         debug!(url = %plan.url, model, "sending upstream request");
 
         let response = self
-            .send_plan(&plan, headers)
+            .send_profiled_plan(payload, &plan, headers)?
             .send()
-            .await
-            .map_err(|e| classify_network_error(&e, Some(provider.as_str())))?;
+            .await?;
 
         if !response.status().is_success() {
             return Err(crate::upstream::response_error::classify_response_error(

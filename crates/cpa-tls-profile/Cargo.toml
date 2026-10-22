@@ -1,0 +1,12 @@
+[package]
+name = "gateway-cpa-tls-profile"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98.0"
+publish = false
+
+[dependencies]
+rama-boring = "=0.6.20"
+
+[patch.crates-io]
+rama-boring-sys = { path = "../cpa-bssl-sys" }

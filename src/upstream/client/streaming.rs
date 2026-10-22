@@ -8,6 +8,11 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<UpstreamStreamingResponse, GatewayError> {
+        if Self::uses_native_claude(payload, req, model) {
+            return self
+                .send_native_claude(payload, req, model, extra_headers, None)
+                .await;
+        }
         self.execute_stream_with_provider_account_id("", payload, req, model, extra_headers)
             .await
     }
@@ -224,13 +229,20 @@ impl UpstreamClient {
 
         let (plan, headers, provider) = (
             Self::build_request_plan(payload, req, model, true)?,
-            build_upstream_headers_with(payload, extra_headers),
+            build_inference_headers(payload, req, model, extra_headers),
             payload.adapter.clone(),
         );
 
         debug!(url = %plan.url, model, "sending upstream streaming request");
 
         let mut headers = headers;
+        crate::upstream::request_profile::apply_cpa_transport_headers(
+            &mut headers,
+            payload,
+            req,
+            model,
+            true,
+        );
         if matches!(
             payload.adapter.as_str(),
             "dashscope_compatible" | "dashscope_multimodal_compatible"
@@ -242,10 +254,9 @@ impl UpstreamClient {
         }
 
         let response = self
-            .send_plan(&plan, headers)
+            .send_profiled_plan(payload, &plan, headers)?
             .send()
-            .await
-            .map_err(|e| classify_network_error(&e, Some(provider.as_str())))?;
+            .await?;
 
         if !response.status().is_success() {
             return Err(crate::upstream::response_error::classify_response_error(
@@ -290,5 +301,21 @@ impl UpstreamClient {
         headers: rquest::header::HeaderMap,
     ) -> RequestBuilder {
         build_request_builder_from_plan(&self.http, self.timeout, plan, headers)
+    }
+
+    pub(crate) fn send_profiled_plan(
+        &self,
+        payload: &ProviderAccountPayload,
+        plan: &RequestPlan,
+        mut headers: rquest::header::HeaderMap,
+    ) -> Result<crate::upstream::profiled_request::Pending, GatewayError> {
+        crate::upstream::request_profile::finalize_cpa_full_headers(payload, plan, &mut headers)?;
+        let rust = crate::upstream::cpa_transport::rust_enabled(payload)?;
+        crate::upstream::profiled_request::Pending::new(
+            self.send_plan(plan, headers),
+            &payload.adapter,
+            rust,
+            self.timeout,
+        )
     }
 }

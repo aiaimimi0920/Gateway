@@ -2,16 +2,15 @@ use std::collections::HashMap;
 
 use futures::stream;
 use rquest::header::HeaderMap;
-use rquest::RequestBuilder;
 use serde_json::Value;
 
-use crate::error::{classify_network_error, classify_upstream_error, GatewayError};
+use crate::error::{classify_upstream_error, GatewayError};
 use crate::protocol::canonical::{CanonicalRelayRequest, CanonicalRelayResponse, EndpointKind};
 use crate::protocol::gemini_api as legacy_surface;
 use crate::routing::candidate::ProviderAccountPayload;
 use crate::upstream::canonical_sse::canonical_response_to_openai_sse_bytes;
 use crate::upstream::common::RequestPlan;
-use crate::upstream::headers::build_upstream_headers_with;
+use crate::upstream::headers::build_inference_headers;
 use crate::upstream::response_types::UpstreamStreamingResponse;
 
 pub const GEMINI_API_LEGACY_ADAPTER: &str = "gemini_api_compatible";
@@ -36,14 +35,11 @@ pub fn supports_forced_streaming_accumulate(adapter: &str) -> bool {
 }
 
 pub async fn execute_forced_streaming_accumulate(
-    request: RequestBuilder,
+    request: impl std::future::Future<Output = Result<rquest::Response, GatewayError>>,
     provider: &str,
     model: &str,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
-    let response = request
-        .send()
-        .await
-        .map_err(|error| classify_network_error(&error, Some(provider)))?;
+    let response = request.await?;
 
     let status = response.status();
     if !status.is_success() {
@@ -93,7 +89,7 @@ pub fn prepare_execute_context<'a>(
     Ok(OfficialExecuteContext {
         provider: payload.adapter.as_str(),
         plan: super::build_request_plan(payload, req, model, stream)?,
-        headers: build_upstream_headers_with(payload, extra_headers),
+        headers: build_inference_headers(payload, req, model, extra_headers),
     })
 }
 
@@ -144,6 +140,7 @@ mod tests {
 
     fn make_payload(adapter: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
             base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),

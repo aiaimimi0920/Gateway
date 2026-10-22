@@ -3,17 +3,17 @@ use bytes::Bytes;
 use crate::protocol::sse_parse::SseFrame;
 use crate::protocol::stream_error::ProtocolStreamError;
 
-pub(super) const MAX_TRANSLATED_SSE_FRAME_BYTES: usize = 64 * 1024 * 1024;
+pub(crate) const MAX_TRANSLATED_SSE_FRAME_BYTES: usize = 64 * 1024 * 1024;
 const MAX_RETAINED_LINE_CAPACITY_BYTES: usize = 64 * 1024;
 const MIN_BUFFER_GROWTH_BYTES: usize = 1024;
 
-pub(super) enum DecodeStep {
+pub(crate) enum DecodeStep {
     Frame(SseFrame),
     NeedInput,
     Error(ProtocolStreamError),
 }
 
-pub(super) struct BoundedSseDecoder {
+pub(crate) struct BoundedSseDecoder {
     input: Bytes,
     line: Vec<u8>,
     event_name: Option<String>,
@@ -25,7 +25,7 @@ pub(super) struct BoundedSseDecoder {
 }
 
 impl BoundedSseDecoder {
-    pub(super) fn new(max_frame_bytes: usize) -> Self {
+    pub(crate) fn new(max_frame_bytes: usize) -> Self {
         Self {
             input: Bytes::new(),
             line: Vec::new(),
@@ -38,12 +38,12 @@ impl BoundedSseDecoder {
         }
     }
 
-    pub(super) fn push_chunk(&mut self, chunk: Bytes) {
+    pub(crate) fn push_chunk(&mut self, chunk: Bytes) {
         debug_assert!(self.input.is_empty());
         self.input = chunk;
     }
 
-    pub(super) fn decode_next(&mut self) -> DecodeStep {
+    pub(crate) fn decode_next(&mut self) -> DecodeStep {
         while !self.input.is_empty() {
             let segment_len = self
                 .input
@@ -71,7 +71,7 @@ impl BoundedSseDecoder {
         DecodeStep::NeedInput
     }
 
-    pub(super) fn flush_pending_frame(&mut self) -> Option<SseFrame> {
+    pub(crate) fn flush_pending_frame(&mut self) -> Option<SseFrame> {
         // Preserve the translators' historical EOF behavior: a final line
         // without a newline is ignored, while already parsed fields are flushed.
         self.input = Bytes::new();
@@ -219,7 +219,7 @@ impl BoundedSseDecoder {
         })
     }
 
-    pub(super) fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.input = Bytes::new();
         self.line = Vec::new();
         self.event_name = None;

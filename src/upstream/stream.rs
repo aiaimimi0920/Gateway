@@ -80,6 +80,7 @@ pub struct TrackedStream<E = rquest::Error> {
     /// Set to `true` after `on_complete` has been called, preventing double-fire.
     completed: bool,
     termination: Option<StreamTermination>,
+    pub(crate) native_response_metadata: super::native_response_metadata::NativeResponseMetadata,
 }
 
 impl TrackedStream {
@@ -130,6 +131,7 @@ impl<E> TrackedStream<E> {
             on_complete: Some(Box::new(on_complete)),
             completed: false,
             termination: None,
+            native_response_metadata: Default::default(),
         }
     }
 

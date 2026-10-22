@@ -80,11 +80,12 @@ pub(super) async fn send(
     } else {
         state
             .upstream_client
-            .execute_stream(
+            .execute_stream_with_wire(
                 &effective_payload,
                 &ctx.canonical_req,
                 &model,
                 Some(&ctx.request_headers),
+                ctx.native_wire.as_deref(),
             )
             .await
             .map(|response| (response, None, stream_attempt_started_at))
@@ -95,6 +96,15 @@ pub(super) async fn send(
     }
     match stream_result {
         Ok((stream_response, freebuff_lease_handle, stream_started_at)) => {
+            // Candidate-local state is attached only after successful preflight.
+            let response_metadata = match &stream_response {
+                UpstreamStreamingResponse::Native(response) => {
+                    crate::upstream::native_response_metadata::NativeResponseMetadata::read(
+                        response.headers(),
+                    )
+                }
+                _ => Default::default(),
+            };
             let cancellation = cancellation.unwrap_or_else(|| {
                 ProviderAttemptCancellation::new(
                     global_gateway_metrics(),
@@ -207,7 +217,7 @@ pub(super) async fn send(
             let budget_for_cb = ctx.request_budget.clone();
             let latency_key =
                 crate::routing::latency::LatencyKey::for_request(candidate, &ctx.canonical_req);
-            let tracked = TrackedStream::new_with_started_at_and_error(
+            let mut tracked = TrackedStream::new_with_started_at_and_error(
                 ctx.request_budget.constrain_stream(byte_stream),
                 stream_started_at,
                 move |metrics, success| {
@@ -314,6 +324,7 @@ pub(super) async fn send(
                 },
             );
 
+            tracked.native_response_metadata = response_metadata;
             return Ok(PipelineOutput::Sse(tracked));
         }
         Err(e) => {

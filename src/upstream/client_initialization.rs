@@ -39,6 +39,11 @@ impl UpstreamClient {
         Self {
             http,
             plain_http,
+            native_claude_http: crate::http_client::native_claude_client(Duration::from_secs(
+                timeout_secs,
+            )),
+            native_http: crate::http_client::native_codex_client(Duration::from_secs(timeout_secs)),
+            native_sessions: Default::default(),
             freebuff: std::sync::Arc::new(crate::protocol::freebuff::RunRuntime::default()),
             timeout: Duration::from_secs(timeout_secs),
             browser_executor_base_url,

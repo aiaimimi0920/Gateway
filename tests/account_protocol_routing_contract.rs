@@ -177,6 +177,13 @@ async fn discovers_all_wires_and_preserves_native_json_and_sse_after_reload() {
             );
             let mut expected = body.clone();
             expected["model"] = json!("actual");
+            // Native caller fields stay intact; the default Codex identity adds only these defaults.
+            if path == RESPONSES {
+                expected["store"] = json!(false);
+                expected["include"] = json!(["reasoning.encrypted_content"]);
+                expected["parallel_tool_calls"] = json!(true);
+                expected["instructions"] = json!("");
+            }
             assert_eq!(
                 sent.1, expected,
                 "Native requests must retain extensions and tools"

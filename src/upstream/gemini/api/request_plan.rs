@@ -51,6 +51,7 @@ mod tests {
 
     fn make_payload() -> ProviderAccountPayload {
         ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: crate::protocol::gemini::shared::GEMINI_API_MODULAR_ADAPTER.to_string(),
             base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),

@@ -1,4 +1,5 @@
 import { CHATGPT_POOL_CATEGORIES } from "./chatgptPool";
+import { writeRequestClientProfile, type RequestClientProfile } from "./requestClientProfile";
 
 export type ProviderCatalogCategory =
   | "mainstream"
@@ -28,6 +29,7 @@ export type ProviderCatalogTemplate = {
 };
 
 export type ProviderCatalogDraft = {
+  requestClientProfile?: RequestClientProfile;
   siteHealthEnabled?: boolean;
   codexBasispointsEnabled?: boolean;
   discovery?: import("./accountDiscovery").AccountDiscovery;
@@ -457,6 +459,7 @@ export function providerDefinitionFromCatalogDraft(
     base_url: draft.baseUrl,
     supported_models: [...draft.supportedModels],
   };
+  writeRequestClientProfile(provider, draft.requestClientProfile ?? "auto");
   if (draft.siteHealthEnabled) provider.site_health = {};
   if (draft.codexBasispointsEnabled && template.id === "chatgpt") provider.codex_basispoints_enabled = true;
   if (template.preset) {

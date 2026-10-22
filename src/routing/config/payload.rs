@@ -1,5 +1,62 @@
 //! Provider and credential overrides merged with preset payloads.
 
+#[cfg(test)]
+mod native_identity_tests {
+    use super::super::*;
+
+    #[test]
+    fn auth_mode_roundtrips_and_reaches_each_credential_independent_of_style() {
+        for preset in [Some("anthropic"), None] {
+            let document: RouteConfigYaml = serde_json::from_value(serde_json::json!({
+                "providers":[{"id":"fixture", "preset":preset, "adapter":"anthropic_compatible",
+                    "base_url":"https://example.test", "auth_mode":"bearer",
+                    "request_client_profile":"cpa", "credentials":[{"id":"fixture","api_key":"synthetic"}]}],
+                "model_routes":[]
+            })).unwrap();
+            assert_eq!(
+                serde_json::to_value(&document).unwrap()["providers"][0]["auth_mode"],
+                "bearer"
+            );
+            let compiled = compile_yaml(document).unwrap();
+            assert_eq!(
+                compiled.providers[0].payload.auth_mode.as_deref(),
+                Some("bearer")
+            );
+            assert_eq!(
+                compiled.providers[0].credential_pool[0]
+                    .payload
+                    .auth_mode
+                    .as_deref(),
+                Some("bearer")
+            );
+        }
+    }
+
+    #[test]
+    fn native_codex_profile_distinguishes_preset_identity_from_explicit_override() {
+        for explicit in [false, true] {
+            let headers = if explicit {
+                serde_json::json!({"User-Agent":"operator-agent", "Originator":"operator"})
+            } else {
+                serde_json::json!({})
+            };
+            let document: RouteConfigYaml = serde_json::from_value(serde_json::json!({
+                "providers":[{"id":"oauth", "preset":"chatgpt-codex-oauth-official-api",
+                    "base_url":"https://chatgpt.com/backend-api/codex", "credentials":[{"id":"fixture","api_key":"fixture"}],
+                    "request_client_profile":"codex_cli", "headers":headers}], "model_routes":[]
+            }))
+            .unwrap();
+            let compiled = compile_yaml(document).unwrap();
+            let payload = &compiled.providers[0].credential_pool[0].payload;
+            assert_eq!(payload.headers.contains_key("User-Agent"), explicit);
+            assert_eq!(payload.headers.contains_key("Originator"), explicit);
+            if explicit {
+                assert_eq!(payload.headers["User-Agent"], "operator-agent");
+            }
+        }
+    }
+}
+
 use super::*;
 
 /// Build a `ProviderAccountPayload` from a `ProviderConfigYaml` (with preset
@@ -53,7 +110,7 @@ pub(super) fn build_base_payload(
             headers: merged_headers,
             extra_body: merged_extra_body,
             default_model: cfg.default_model.clone(),
-            auth_mode: None,
+            auth_mode: cfg.auth_mode.clone(),
             anthropic_version: None,
             beta_headers: None,
             auth_header_name: None,
@@ -86,6 +143,21 @@ pub(super) fn build_base_payload(
         };
 
         let mut compiled = compile_provider_account(&preset, &overrides);
+        // Preset fallback identity is not an operator override. An explicitly
+        // native Codex lane can retain the caller's software identity instead.
+        if cfg.request_client_profile
+            == Some(crate::protocol::request_profile::RequestClientProfile::CodexCli)
+        {
+            compiled.headers.retain(|name, _| {
+                !matches!(
+                    name.to_ascii_lowercase().as_str(),
+                    "user-agent" | "originator"
+                ) || overrides
+                    .headers
+                    .keys()
+                    .any(|key| key.eq_ignore_ascii_case(name))
+            });
+        }
         compiled.credential_id = credential_id.map(str::to_string);
 
         if let Some(adapter_override) = &cfg.adapter {
@@ -148,6 +220,7 @@ pub(super) fn build_base_payload(
         };
 
         Ok(ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter,
             base_url: base_url_override.unwrap_or(&cfg.base_url).to_string(),
@@ -168,7 +241,7 @@ pub(super) fn build_base_payload(
                 .or_else(|| cfg.endpoint_execution_modes.clone()),
             default_model: cfg.default_model.clone(),
             headers: merged_headers,
-            auth_mode: None,
+            auth_mode: cfg.auth_mode.clone(),
             anthropic_version: None,
             beta_headers: None,
             auth_header_name: None,

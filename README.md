@@ -373,6 +373,10 @@ Codex 凭据可选择原生或 Basispoints 通道，沿用原账号与 OAuth 刷
 配置、界面入口、安全约束及当前不支持的内容见
 [Basispoints 与站点健康](docs/basispoints-and-site-health.md)。
 
+通用文本 API 还可按服务商选择 Codex CLI、Claude CLI 或 CPA 兼容客户端参数，
+账号可单独覆盖；默认 Claude 模型采用 Claude CLI，其余采用 Codex CLI。
+设置入口、字段优先级及专用通道边界见[上游客户端参数配置](docs/request-client-profiles.md)。
+
 ```text
 POST /v1/internal/gateway/console/credentials/{credential_id}/probe
 POST /v1/internal/gateway/console/providers/{provider_id}/probe

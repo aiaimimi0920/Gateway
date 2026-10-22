@@ -80,12 +80,30 @@ fn build_anthropic_request_body(req: &CanonicalRelayRequest, model: &str, stream
         "max_tokens": max_tokens,
         "stream": stream,
     });
+    // Reuse native message blocks only while the canonical policy result is
+    // unchanged. This preserves in-sequence system/unknown block fields without
+    // bypassing filtering or tool transformations that actually changed messages.
+    let mut native_messages_preserved = false;
+    if req.protocol_family == ProtocolFamily::Anthropic {
+        if let Ok(original) = super::normalize::normalize_messages(req.raw_body.clone()) {
+            if serde_json::to_value(&original.messages).ok()
+                == serde_json::to_value(&req.messages).ok()
+            {
+                if let Some(messages) = req.raw_body.get("messages") {
+                    body["messages"] = messages.clone();
+                    native_messages_preserved = true;
+                }
+            }
+        }
+    }
 
     if req.protocol_family == ProtocolFamily::Anthropic {
         if let Some(raw_system) = req.raw_body.get("system") {
             body["system"] = raw_system.clone();
-        } else if let Some(system) = canonical_system {
-            body["system"] = pack_anthropic_system(system);
+        } else if !native_messages_preserved {
+            if let Some(system) = canonical_system {
+                body["system"] = pack_anthropic_system(system);
+            }
         }
     } else if let Some(system) = canonical_system {
         body["system"] = pack_anthropic_system(system);

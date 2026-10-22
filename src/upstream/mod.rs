@@ -43,6 +43,8 @@ pub mod cohere_chat_official_api_common;
 #[path = "cohere_chat_official_api_disabled.rs"]
 pub mod cohere_chat_official_api_common;
 pub mod common;
+mod cpa_transport;
+pub(crate) mod profiled_request;
 pub mod custom_http_request_plan;
 pub mod dashscope;
 pub mod gemini;
@@ -97,6 +99,8 @@ pub mod lumalabs;
 mod lumalabs_response_helpers;
 #[cfg(feature = "line-lumalabs-web-reverse-api")]
 mod lumalabs_runtime_helpers;
+mod native_response;
+pub(crate) mod native_response_metadata;
 pub mod openai_compatible_common;
 #[cfg(feature = "family-openai-compatible-official-api")]
 pub mod openai_compatible_official_api_common;
@@ -109,6 +113,8 @@ mod producer_browser_worker_tree;
 mod producer_media_helpers;
 mod producer_session_helpers;
 pub mod qwen;
+mod request_profile;
+pub(crate) use request_profile::context as request_identity_context;
 pub(crate) mod request_time_browser_policy;
 mod response_error;
 mod response_preview_helpers;

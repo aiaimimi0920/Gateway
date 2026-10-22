@@ -13,7 +13,8 @@ use axum::{
 };
 
 use crate::error::GatewayError;
-use crate::http::extractors::{JsonBody, OptionalBearerToken};
+use crate::http::extractors::OptionalBearerToken;
+use crate::http::native_json::NativeJson;
 use crate::http::request_headers::apply_public_request_headers;
 use crate::http::sse::into_sse_response;
 use crate::pipeline::{run_pipeline, PipelineContext, PipelineOutput};
@@ -33,10 +34,11 @@ pub async fn handle_messages(
     OptionalBearerToken(token): OptionalBearerToken,
     Query(query_params): Query<HashMap<String, String>>,
     headers: HeaderMap,
-    JsonBody(body): JsonBody,
+    NativeJson { value: body, wire }: NativeJson,
 ) -> Result<Response, GatewayError> {
     let canonical = normalize_messages(body)?;
     let mut ctx = PipelineContext::new(canonical, token);
+    ctx.native_wire = Some(Arc::new(wire));
 
     apply_public_request_headers(
         &mut ctx,
@@ -45,13 +47,48 @@ pub async fn handle_messages(
         state.console_auth.as_ref(),
         &["anthropic-version", "anthropic-beta"],
     )?;
+    for name in crate::protocol::claude_wire::HEADERS {
+        if let Some(value) = headers.get(*name).and_then(|v| v.to_str().ok()) {
+            if !crate::protocol::claude_wire::valid(value)
+                || headers.get_all(*name).iter().count() > 1
+            {
+                return Err(GatewayError::bad_request(
+                    "Invalid or repeated Claude protocol header",
+                ));
+            }
+            ctx.request_headers
+                .insert((*name).to_owned(), value.to_owned());
+        }
+    }
+    // DSH supplies a session label, not a Claude account/device identity.
+    for alias in ["session_id", "session-id"] {
+        if let Some(value) = headers.get(alias).and_then(|v| v.to_str().ok()) {
+            if !crate::protocol::codex_wire::valid_header("session-id", value)
+                || headers.get_all(alias).iter().count() > 1
+                || ctx
+                    .request_headers
+                    .get("x-claude-code-session-id")
+                    .is_some_and(|v| v != value)
+            {
+                return Err(GatewayError::bad_request(
+                    "Invalid or conflicting Claude session label",
+                ));
+            }
+            ctx.request_headers
+                .insert("x-claude-code-session-id".to_owned(), value.to_owned());
+        }
+    }
 
     // Forward ?beta=<value> as the `anthropic-beta` request header so that
     // the upstream header builder can pick it up.  If the header was already
     // set from the original request, the query param value is appended
     // (comma-separated) rather than replaced.
     ctx.query_params = query_params;
-    if let Some(beta_value) = ctx.query_params.get("beta") {
+    if let Some(beta_value) = ctx
+        .query_params
+        .get("beta")
+        .filter(|v| !matches!(v.as_str(), "true" | "false"))
+    {
         let existing = ctx.request_headers.get("anthropic-beta").cloned();
         let merged = match existing {
             Some(prev) if !prev.is_empty() => format!("{},{}", prev, beta_value),

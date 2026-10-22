@@ -1,0 +1,41 @@
+{
+  "model": "claude-opus-5",
+  "max_tokens": 32,
+  "stream": true,
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "<system-reminder>\nAs you answer the user's questions, you can use the following context:\n# currentDate\nToday's date is 2026-10-21.\n\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\n</system-reminder>\n\n"
+        },
+        {
+          "type": "text",
+          "text": "Reply CPA_OK only.",
+          "cache_control": {
+            "type": "ephemeral",
+            "ttl": "1h"
+          }
+        }
+      ]
+    }
+  ],
+  "system": [
+    {
+      "type": "text",
+      "text": "x-anthropic-billing-header: cc_version=2.1.280.b5a; cc_entrypoint=cli;"
+    },
+    {
+      "type": "text",
+      "text": "You are Claude Code, Anthropic's official CLI for Claude.",
+      "cache_control": {
+        "type": "ephemeral",
+        "ttl": "1h"
+      }
+    }
+  ],
+  "metadata": {
+    "user_id": "{\"device_id\":\"72dde53fd06c668ec5a22dba7cd254d55eeed1036102ed760faffd94dfec5b83\",\"account_uuid\":\"e0a74ac3-4a20-5bfe-9674-0c976a90b941\",\"session_id\":\"d9a788df-e036-5a9a-b3c5-8d594d6fecbf\"}"
+  }
+}

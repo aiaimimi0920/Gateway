@@ -102,6 +102,9 @@ async fn both_error_variants_survive_observers_without_late_poll_or_success() {
                 assert_eq!((marker as *const Marker) as usize, identity);
             }
             Error::Protocol(_) => assert_eq!(index, 1),
+            Error::NativeTransport(_) => {
+                panic!("fixture does not create native transport failures")
+            }
         }
         assert!(tracked.next().await.is_none());
         assert_eq!(snapshot_tapped_usage(&usage).unwrap().total_tokens, 5);

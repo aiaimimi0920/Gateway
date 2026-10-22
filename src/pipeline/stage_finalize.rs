@@ -40,6 +40,7 @@ use super::runtime_storage::{publish_usage, set_affinity};
 use super::PipelineContext;
 
 mod archive;
+mod affinity;
 mod audit_begin;
 mod audit_persistence;
 mod buffered;

@@ -83,6 +83,8 @@ export function CredentialDialog({
     initialValue ?? emptyValue(providerOptions[0]?.id ?? ""),
   );
   const [validationError, setValidationError] = useState<string | null>(null);
+  // OAuth owns credential creation; never submit its result through the API-key form.
+  const authentication = mode === "add" ? renderAuthentication?.(value.providerId) : null;
 
   useEffect(() => {
     if (!open) {
@@ -103,6 +105,7 @@ export function CredentialDialog({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (authentication) return;
     if (locked || discovery.busy) return;
     if (value.apiKeyOperation !== "keep" && !hasSecretAccess) { onRequestSecretAccess(); return; }
     const providerId = value.providerId.trim();
@@ -182,7 +185,7 @@ export function CredentialDialog({
             {mode === "add" ? t("新增账号", "Add account") : t("编辑账号", "Edit account")}
           </Dialog.Title>
 
-          {mode === "add" ? renderAuthentication?.(value.providerId) : null}
+          {authentication}
           <form className="nt-stack" onSubmit={submit}>
             <fieldset className="nt-credential-fields" disabled={locked || discovery.busy}>
               <label className="nt-credential-row">
@@ -209,6 +212,7 @@ export function CredentialDialog({
                 </select>
               </label>
 
+              {!authentication && <>
               {supportsBasispoints?.(value.providerId) && <label className="nt-credential-row">
                 <span>{t("Codex 调用通道", "Codex channel")}</span>
                 <select className="nt-select" value={value.codexBasispointsEnabled === undefined ? "inherit" : value.codexBasispointsEnabled ? "basispoints" : "native"}
@@ -297,8 +301,9 @@ export function CredentialDialog({
                 onChange={(apiKeyValue) => setValue((current) => ({ ...current, apiKeyValue,
                   apiKeyOperation: apiKeyValue ? "replace" : mode === "edit" ? "clear" : "keep", discovery: undefined }))} />}
 
+              </>}
             </fieldset>
-            {secretMutationRequested && !hasSecretAccess ? (
+            {!authentication && secretMutationRequested && !hasSecretAccess ? (
               <div className="nt-validation-list nt-validation-list--warning">
                 <strong>{t("需要敏感信息访问权限", "Secret access is required")}</strong>
                 <button className="nt-btn nt-btn--outline" type="button" onClick={onRequestSecretAccess}>
@@ -307,7 +312,7 @@ export function CredentialDialog({
               </div>
             ) : null}
 
-            {discoveryProvider?.(value.providerId) && onDiscover && <div className="nt-credential-protocols">
+            {!authentication && discoveryProvider?.(value.providerId) && onDiscover && <div className="nt-credential-protocols">
               {value.discoveryStatus === "pending" && <span role="status">{t("后台识别中", "Discovering in background")}</span>}
               {value.discoveryStatus === "unconfirmed" && <span role="status">{t("尚未确认可用协议，可重新刷新", "Protocols unconfirmed; refresh to retry")}</span>}
               <button className="nt-btn nt-btn--outline" type="button" disabled={locked || discovery.busy}
@@ -327,9 +332,9 @@ export function CredentialDialog({
                   {t("取消", "Cancel")}
                 </button>
               </Dialog.Close>
-              <button className="nt-btn nt-btn--primary" type="submit" disabled={locked || discovery.busy}>
+              {!authentication && <button className="nt-btn nt-btn--primary" type="submit" disabled={locked || discovery.busy}>
                 {discovery.busy ? t("正在识别…", "Discovering…") : t("保存", "Save")}
-              </button>
+              </button>}
             </div>
           </form>
         </Dialog.Content>

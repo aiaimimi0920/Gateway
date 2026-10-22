@@ -28,6 +28,7 @@ struct State {
     stop: Option<&'static str>,
     handed_off: bool,
     last_error: Option<GatewayError>,
+    rejected_conversation_fallback: bool,
 }
 
 /// Conservatively disallow replay for create operations or any tool-bearing request.
@@ -53,14 +54,19 @@ pub fn replay_safe(req: &CanonicalRelayRequest) -> bool {
 
 impl RequestBudget {
     pub fn for_request(req: &CanonicalRelayRequest) -> Self {
-        Self::new(
+        let budget = Self::new(
             if replay_safe(req) {
                 MAX_REQUEST_ATTEMPTS
             } else {
                 1
             },
             REQUEST_TIMEOUT,
-        )
+        );
+        budget.0.lock().rejected_conversation_fallback = matches!(
+            req.endpoint_kind,
+            EndpointKind::Responses | EndpointKind::ChatCompletions
+        );
+        budget
     }
 
     /// Trusted internal limits; inbound headers/body cannot reset this owner.
@@ -74,6 +80,7 @@ impl RequestBudget {
             stop: None,
             handed_off: false,
             last_error: None,
+            rejected_conversation_fallback: false,
         })))
     }
 
@@ -129,6 +136,26 @@ impl RequestBudget {
     pub fn observe_error(&self, error: &GatewayError) {
         if error.request_budget_stop_reason().is_none() {
             self.0.lock().last_error = Some(error.clone());
+        }
+    }
+
+    /// Only the outer candidate-switch boundary may grant this slot, not recovery.
+    pub fn allow_rejected_candidate_fallback(&self, error: &GatewayError) {
+        if error.request_budget_stop_reason().is_none() {
+            let mut state = self.0.lock();
+            // Explicit model/channel or account-balance admission refusal has not run tools.
+            // Grant only the next slot, never reset attempts/deadline or revive a stop.
+            // Other HTTP failures, uncertain delivery and post-handoff errors stay closed.
+            if state.rejected_conversation_fallback
+                && state.stop.is_none()
+                && !state.handed_off
+                && state.attempts > 0
+                && crate::error::is_explicit_admission_rejection(error)
+            {
+                state.max_attempts = state
+                    .max_attempts
+                    .max(state.attempts.saturating_add(1).min(MAX_REQUEST_ATTEMPTS));
+            }
         }
     }
 

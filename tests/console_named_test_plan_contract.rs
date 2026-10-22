@@ -170,9 +170,13 @@ async fn two_plans_in_one_scope_keep_separate_results_and_slots_across_restart_a
     assert!(old["result"]["results"][0]["assessment"]
         .get("planId")
         .is_none());
+    // Restart the owner, not a live Arc: router workers retain weak state references.
+    fixture.state.shutdown.request("Restart named-plan fixture");
     fixture.state.local_runtime.as_ref().unwrap().close().await;
+    fixture.state = build_state(Arc::clone(&fixture.state.route_config), None);
     Arc::get_mut(&mut fixture.state).unwrap().local_runtime =
         Some(LocalRuntime::open(&root).await.unwrap());
+    let grant = grant_console_secret_access(&fixture.state).await;
     assert_eq!(
         sweep_scheduled_provider_credentials_once(&fixture.state)
             .await

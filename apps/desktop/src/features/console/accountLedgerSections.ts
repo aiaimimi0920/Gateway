@@ -12,6 +12,7 @@ import { credentialStatusLabel, formatRelativeSince } from "./telemetryPresentat
 import { rollupProviderAccountTelemetry } from "./telemetryRollups";
 import { optionalString, hostLabelFromUrl } from "./routeAccountCatalog";
 import { optionalBoolean, readPilotProviderPolicy, readPilotIdentityCategories } from "./pilotPoolPolicy";
+import { readRequestClientProfile } from "./requestClientProfile";
 import { isRecord } from "./routeDocument";
 import { credentialCardModelTraffic, providerCardModelTraffic } from "./cardModelTraffic";
 
@@ -431,6 +432,7 @@ export function buildAccountLedgerSections(
           defaultAccountId: defaultAccount?.accountId ?? null,
           manualAddFamily,
           hasExplicitAccounts: explicitRows.length > 0,
+          requestClientProfile: readRequestClientProfile(provider.request_client_profile),
           poolTargetSize: providerPolicy.poolTargetSize,
           poolMinSize: providerPolicy.poolMinSize,
           credentialStoragePath: optionalString(provider, "credential_storage_path") ?? undefined,

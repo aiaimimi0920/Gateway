@@ -27,6 +27,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
         .as_ref()
         .map(|c| (c.clone(), c.binding(&payload.base_url)));
     crate::protocol::chatgpt::basispoints::configure(&mut payload, cfg.codex_basispoints_enabled)?;
+    payload.request_client_profile = cfg.request_client_profile;
 
     // Derive protocol_family from adapter name if not explicitly set.
     let protocol_family = infer_protocol_family(
@@ -98,6 +99,8 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                 if let Some(discovery) = &cred.discovery {
                     discovery.apply(&mut cred_payload)?;
                 }
+                cred_payload.request_client_profile =
+                    cred.request_client_profile.or(cfg.request_client_profile);
                 crate::protocol::chatgpt::basispoints::configure(
                     &mut cred_payload,
                     cred.codex_basispoints_enabled

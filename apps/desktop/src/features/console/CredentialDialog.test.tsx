@@ -27,6 +27,17 @@ function setup(overrides: Partial<CredentialDialogProps> = {}) {
   return { props, view };
 }
 
+it("uses only the OAuth save flow for OAuth account creation", () => {
+  const { props } = setup({ mode: "add", initialValue: null,
+    renderAuthentication: () => <button type="button">保存到凭证池</button> });
+  expect(screen.getByRole("button", { name: "保存到凭证池" })).toBeEnabled();
+  expect(screen.queryByRole("button", { name: /^保存$/ })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("账号 ID")).not.toBeInTheDocument();
+  fireEvent.submit(screen.getByLabelText("Provider").closest("form")!);
+  expect(props.onSubmit).not.toHaveBeenCalled();
+});
+
 it.each(["basispoints", "native", "inherit"])("saves optional Codex channel %s without replacing secrets", (channel) => {
   const { props } = setup({ supportsBasispoints: () => true });
   fireEvent.change(screen.getByLabelText("Codex 调用通道"), { target: { value: channel } });

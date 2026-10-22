@@ -9,6 +9,7 @@ use std::collections::HashMap;
 
 fn make_payload(adapter: &str) -> ProviderAccountPayload {
     ProviderAccountPayload {
+        request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: adapter.to_string(),
         base_url: "https://api.example.com".to_string(),

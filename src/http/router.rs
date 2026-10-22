@@ -41,6 +41,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/ui/", get(ui::serve_ui_index))
         .route("/ui/*path", get(ui::serve_ui_path));
     let router = inference::mount(router, &state);
+    let router = super::native_session::mount(router, &state);
     let router = management_access::mount(router);
     let router = management_config::mount(router);
     let router = request_audits::mount(router);

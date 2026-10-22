@@ -184,9 +184,12 @@ pub(super) fn serialize_json_canonically<T: Serialize>(
     value: &T,
     context: &str,
 ) -> Result<String, RouteConfigRedisStoreError> {
-    let value = serde_json::to_value(value).map_err(|error| {
+    let mut value = serde_json::to_value(value).map_err(|error| {
         RouteConfigRedisStoreError::invalid_state(format!("{context}: {error}"))
     })?;
+    // Feature unification can enable preserve_order; HashMap iteration must never
+    // change immutable revision bytes or the local/Redis activation comparisons.
+    value.sort_all_objects();
     serde_json::to_string(&value)
         .map_err(|error| RouteConfigRedisStoreError::invalid_state(format!("{context}: {error}")))
 }

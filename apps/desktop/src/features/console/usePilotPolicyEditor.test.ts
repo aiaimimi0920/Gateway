@@ -48,3 +48,20 @@ it("reports a missing provider without changing the storage-path draft", () => {
   expect(setError).toHaveBeenCalledWith("Provider missing could not be found.");
   expect(replace).not.toHaveBeenCalled();
 });
+
+it("changes an existing provider's client profile without rewriting pool state or credentials", () => {
+  const provider = { id: "relay", api_key: "fixture", credentials: [{ id: "one", refresh_token: "fixture-refresh" }],
+    site_health: {}, codex_basispoints_enabled: false };
+  const document: ConsoleRouteDocument = { providers: [provider], model_routes: [], aliases: {} };
+  const replace = vi.fn();
+  const { result, rerender } = renderHook(({ text }) => usePilotPolicyEditor({
+    editorText: text, setError: vi.fn(), replaceEditorDocument: replace,
+    credentialPoolAutomation: null, credentialPoolAutomationByProvider: new Map(), credentialRefill: null,
+    t: (_zh, en) => en,
+  }), { initialProps: { text: JSON.stringify(document) } });
+  act(() => result.current.updatePilotProviderPolicy("relay", { requestClientProfile: "claude_cli" }));
+  expect(replace).toHaveBeenCalledWith({ ...document, providers: [{ ...provider, request_client_profile: "claude_cli" }] }, true);
+  rerender({ text: JSON.stringify(replace.mock.calls[0][0]) });
+  act(() => result.current.updatePilotProviderPolicy("relay", { requestClientProfile: "auto" }));
+  expect(replace.mock.lastCall?.[0].providers[0]).toEqual(provider);
+});

@@ -218,9 +218,16 @@ async fn manual_and_automatic_share_overrides_quality_and_sqlite_results_without
         }
     }
     assert_eq!(calls.lock().unwrap().len(), calls_before_read);
+    // Restart the owner, not a live Arc: router workers retain weak state references.
+    fixture
+        .state
+        .shutdown
+        .request("Restart test-policy fixture");
     fixture.state.local_runtime.as_ref().unwrap().close().await;
+    fixture.state = build_state(Arc::clone(&fixture.state.route_config), None);
     Arc::get_mut(&mut fixture.state).unwrap().local_runtime =
         Some(LocalRuntime::open(&root).await.unwrap());
+    let grant = grant_console_secret_access(&fixture.state).await;
     assert_eq!(
         sweep_scheduled_provider_credentials_once(&fixture.state)
             .await

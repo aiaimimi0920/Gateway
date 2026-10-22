@@ -8,6 +8,7 @@ import type { AccountLedgerRow } from "./accountManagementViewModel";
 import type { AccountsLedgerPilotAccount } from "./accountCardTypes";
 import type { ProviderAggregateMetrics } from "./providerCardMetrics";
 import type { CardModelTraffic } from "./cardModelTraffic";
+import type { RequestClientProfile } from "./requestClientProfile";
 
 export type TranslateFn = (zh: string, en: string) => string;
 
@@ -30,6 +31,7 @@ export type AccountsLedgerPilotCategory = {
 };
 
 export type AccountsLedgerPilotSection = {
+  requestClientProfile?: RequestClientProfile;
   providerId: string;
   providerIds: string[];
   providerLabel: string;
@@ -108,6 +110,7 @@ export type AccountsLedgerWorkspaceProps = {
   storageSecretFields?: ReadonlyMap<string, readonly string[]>;
   onUpdateProviderStorageConnection?: (providerId: string, target: StorageTarget, connection: StorageConnection, secrets: StorageSecretChanges) => boolean;
   onUpdateProviderPoolMinSize?: (providerId: string, nextMinSize: number) => void;
+  onUpdateProviderRequestClientProfile?: (providerId: string, profile: RequestClientProfile) => void;
   onUpdateProviderStoragePath?: (providerId: string, path: string) => boolean;
   onUpdateProviderArchivePath?: (providerId: string, path: string) => boolean;
   onUpdateProviderPoolTargetSize: (providerId: string, nextTargetSize: number) => void;

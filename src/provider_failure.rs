@@ -152,6 +152,7 @@ pub fn classify_provider_failure(
         &haystack,
         &[
             "insufficientquota",
+            "insufficientaccountbalance",
             "quotaexceeded",
             "quotaexhausted",
             "billinghardlimit",

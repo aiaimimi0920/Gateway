@@ -25,6 +25,7 @@ use crate::routing::candidate::RouteCandidate;
 use crate::state::AppState;
 use crate::upstream::stream::TrackedStream;
 
+mod cpa_scope;
 pub mod request_budget;
 mod route_health_cache;
 mod runtime_storage;
@@ -63,6 +64,7 @@ impl Default for CredentialSource {
 
 /// Mutable state threaded through all pipeline stages for a single request.
 pub struct PipelineContext {
+    pub(crate) caller_cancel: Option<tokio::sync::watch::Receiver<bool>>,
     pub cash_route_snapshot: Option<Arc<crate::routing::config::RouteConfigSnapshot>>,
     pub cash_charge: Option<Arc<crate::cash_billing::finalization::CashGuard>>,
     pub admitted_access_balance_mode: Option<String>,
@@ -82,6 +84,8 @@ pub struct PipelineContext {
     pub explicit_fallback_provider_ids: Vec<String>,
     /// Bearer token extracted from the HTTP Authorization header, if present.
     pub bearer_token: Option<String>,
+    /// Caller correlation hints, never forwarded as upstream headers or treated as authentication.
+    pub(crate) client_session_hints: HashMap<String, String>,
 
     // ── Populated by stages ───────────────────────────────────────────────
     /// Authenticated session; populated by stage_auth.
@@ -198,6 +202,8 @@ pub struct PipelineContext {
     pub query_params: HashMap<String, String>,
     /// Selected request headers forwarded to the auth stage and upstream.
     pub request_headers: HashMap<String, String>,
+    /// Original bounded Responses bytes; never serialized as provider JSON metadata.
+    pub native_wire: Option<Arc<crate::protocol::codex_wire::NativeRequestWire>>,
 }
 
 impl PipelineContext {
@@ -206,6 +212,7 @@ impl PipelineContext {
         let stream = canonical_req.stream;
         let request_budget = request_budget::RequestBudget::for_request(&canonical_req);
         Self {
+            caller_cancel: None,
             cash_route_snapshot: None,
             cash_charge: None,
             admitted_access_balance_mode: None,
@@ -217,6 +224,7 @@ impl PipelineContext {
             request_budget,
             explicit_fallback_provider_ids: Vec::new(),
             bearer_token,
+            client_session_hints: HashMap::new(),
             session: None,
             candidates: vec![],
             projected_access_candidates: vec![],
@@ -263,6 +271,7 @@ impl PipelineContext {
             account_group_id: None,
             query_params: HashMap::new(),
             request_headers: HashMap::new(),
+            native_wire: None,
         }
     }
 
@@ -334,6 +343,17 @@ pub fn run_pipeline(
     Box::pin(run_pipeline_inner(ctx, state))
 }
 
+/// WS disconnect must be observed inside the pipeline so failure settlement
+/// retains its context. Admission transactions finish before cancellation.
+pub(crate) fn run_pipeline_cancellable(
+    mut ctx: PipelineContext,
+    state: &Arc<AppState>,
+    cancel: tokio::sync::watch::Receiver<bool>,
+) -> impl std::future::Future<Output = Result<PipelineOutput, GatewayError>> + Send + '_ {
+    ctx.caller_cancel = Some(cancel);
+    Box::pin(run_pipeline_inner(ctx, state))
+}
+
 async fn run_pipeline_inner(
     mut ctx: PipelineContext,
     state: &Arc<AppState>,
@@ -372,7 +392,7 @@ async fn run_pipeline_inner(
     // Stage 5 — upstream dispatch
     // Keep the large dispatch future out of its enclosing async state machines.
     // Await it in this task so cancellation still drops the same dispatch owners.
-    let output = match Box::pin(stage_send::run(&mut ctx, state)).await {
+    let output = match Box::pin(cpa_scope::send(&mut ctx, state)).await {
         Ok(output) => output,
         Err(error) => {
             stage_finalize::run_failure(&error, &ctx, state).await;

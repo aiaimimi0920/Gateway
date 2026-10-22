@@ -1,5 +1,6 @@
 //! Buffered binary, JSON and canonical dispatch with unchanged retry snapshots.
 use super::*;
+use crate::upstream::client::UpstreamClient;
 
 pub(super) async fn send(
     ctx: &mut PipelineContext,
@@ -33,6 +34,7 @@ pub(super) async fn send(
     let payload = Arc::new(effective_payload);
     let canonical_req = Arc::new(ctx.canonical_req.clone());
     let extra_hdrs = Arc::new(ctx.request_headers.clone());
+    let native_wire = ctx.native_wire.clone();
     let provider_account_id = candidate.provider_account_id.clone();
     let client = &state.upstream_client;
 
@@ -130,7 +132,8 @@ pub(super) async fn send(
 
     // Keep product reasoning and custom-tool fields intact for native Responses clients.
     let native_text = !tools_were_injected
-        && (payload.is_discovered_native(&canonical_req)
+        && (UpstreamClient::uses_native_codex(&payload, &canonical_req, &model)
+            || payload.is_discovered_native(&canonical_req)
             || (payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER
                 && canonical_req.endpoint_kind == EndpointKind::Responses));
     if expects_json_passthrough(&ctx.canonical_req) || native_text {
@@ -143,18 +146,22 @@ pub(super) async fn send(
                     let canonical_req = Arc::clone(&canonical_req);
                     let model = model.clone();
                     let extra_hdrs = Arc::clone(&extra_hdrs);
-                    async move {
+                    let native_wire = native_wire.clone();
+                    // Native and legacy dispatch must not inflate every enclosing
+                    // retry/gate frame. Same-task polling preserves cancellation.
+                    Box::pin(async move {
                         client
-                            .execute_json_passthrough(
+                            .execute_json_with_wire(
                                 &candidate.provider_account_id,
                                 candidate.resolved_execution_mode,
                                 payload.as_ref(),
                                 canonical_req.as_ref(),
                                 &model,
                                 Some(extra_hdrs.as_ref()),
+                                native_wire.as_deref(),
                             )
                             .await
-                    }
+                    })
                 },
                 move |observation| {
                     observe_provider_attempt_metric(

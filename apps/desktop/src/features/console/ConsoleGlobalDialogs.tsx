@@ -200,7 +200,10 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
             provider.id === providerId && provider.preset === "chatgpt-codex-oauth-official-api") ? (
               <ChatgptOAuthPanel client={controller.client} providerId={providerId}
                 managementToken={session.managementToken} secretGrant={session.secretGrant?.grant ?? null}
-                disabled={editorLocked || draftDirty} onRequestSecretAccess={() => setSecretDialogOpen(true)}
+                disabled={editorLocked || draftDirty} onRequestSecretAccess={async () => {
+                  if (!session.managementToken) throw new Error(t("管理会话不可用，请重新连接。", "Management session unavailable; reconnect."));
+                  await session.confirmSecretAccess(session.managementToken);
+                }}
                 onSaved={() => { setCredentialDialogState(null); void controller.refresh(); }} />
             ) : null}
         />

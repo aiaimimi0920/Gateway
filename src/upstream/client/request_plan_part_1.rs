@@ -164,6 +164,8 @@ impl UpstreamClient {
             }
         }
 
+        crate::upstream::request_profile::apply_cpa_plan(payload, req, model, &mut plan);
+        crate::upstream::request_profile::prepare_cpa_full(payload, req, &mut plan)?;
         tracing::debug!(url = %plan.url, "request plan built");
         Ok(plan)
     }

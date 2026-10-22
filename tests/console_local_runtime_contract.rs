@@ -25,6 +25,61 @@ fn config(harness: &RuntimeHarness) -> ConsoleConfig {
 }
 
 #[tokio::test]
+async fn local_oauth_credential_commit_preserves_nested_headers_after_restart() {
+    let harness = RuntimeHarness::new(
+        "local-oauth-order",
+        document("chatgpt", "gpt-test"),
+        FakeRedisMode::Activated,
+        true,
+    );
+    let runtime = RouteConfigRuntime::new_local(&config(&harness)).unwrap();
+    runtime.recover_startup().await.unwrap();
+    let previous = runtime.route_config().snapshot();
+    let mut candidate = document("chatgpt", "gpt-test");
+    let provider = &mut candidate.providers[0];
+    provider.preset = Some("chatgpt-codex-oauth-official-api".into());
+    for index in 0..32 {
+        provider
+            .headers
+            .insert(format!("x-fixture-{index}"), format!("value-{index}"));
+    }
+    provider.credentials.push(serde_json::from_value(serde_json::json!({
+        "id": "oauth-fixture", "api_key": "fixture-token", "refresh_token": "fixture-refresh",
+        "refresh_endpoint": "https://auth.openai.com/oauth/token", "refresh_client_id": "fixture-client",
+        "headers": {"Chatgpt-Account-Id": "fixture-account", "x-other": "fixture"},
+        "supported_models": ["gpt-test"], "credential_identity_category_id": "free"
+    })).unwrap());
+    let saved = runtime
+        .commit_document(
+            previous.revision().id(),
+            candidate,
+            Some("Import ChatGPT OAuth credential".into()),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        harness.journal.load_transactions().unwrap()[0].phase(),
+        TransactionPhase::Committed
+    );
+    let restarted = RouteConfigRuntime::new_local(&config(&harness)).unwrap();
+    restarted.recover_startup().await.unwrap();
+    let loaded = restarted.route_config().snapshot();
+    assert_eq!(loaded.revision().id(), saved.revision().id());
+    let archived = harness
+        .persistence
+        .load_revision(loaded.revision().id())
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        archived.document().providers[0].credentials[0]
+            .refresh_token
+            .as_deref(),
+        Some("fixture-refresh")
+    );
+    assert_eq!(archived.document().providers[0].headers.len(), 32);
+}
+
+#[tokio::test]
 async fn local_commit_restart_and_conflict_without_redis() {
     let harness = RuntimeHarness::new(
         "local-commit",

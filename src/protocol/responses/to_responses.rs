@@ -114,8 +114,16 @@ where
                     return Some((Err(error.into()), (stream, st, true)));
                 }
                 if let Some(output) = st.outputs.pop_front() {
-                    done = st.final_emitted && st.outputs.is_empty();
                     return Some((Ok(Bytes::from(output)), (stream, st, done)));
+                }
+                if st.final_emitted {
+                    // Protocol completion is not HTTP EOF. Drain in the request's own
+                    // lifetime so keep-alive remains reusable; cancellation still drops it.
+                    match stream.next().await {
+                        Some(Ok(_)) => continue,
+                        Some(Err(error)) => return Some((Err(error), (stream, st, true))),
+                        None => return None,
+                    }
                 }
                 match st.decoder.decode_next() {
                     DecodeStep::Frame(frame) => {

@@ -120,6 +120,36 @@ fn normalize_anthropic_message(raw_msg: &Value) -> Result<Vec<CanonicalMessage>,
         .ok_or_else(|| GatewayError::bad_request("message missing `role` field"))?;
 
     match role_str {
+        // New Claude Code emits in-sequence system blocks. Keep their position
+        // in raw Messages while exposing the role to filtering/policy stages.
+        "system" => {
+            if raw_msg
+                .get("content")
+                .and_then(Value::as_array)
+                .is_some_and(|parts| {
+                    parts.iter().any(|p| {
+                        matches!(
+                            p.get("type").and_then(Value::as_str),
+                            Some("tool_use" | "tool_result")
+                        )
+                    })
+                })
+            {
+                return Err(GatewayError::bad_request(
+                    "System message cannot contain tool blocks",
+                ));
+            }
+            let mut messages = normalize_anthropic_user_message(raw_msg.get("content"))?;
+            if messages.iter().any(|m| m.role != MessageRole::User) {
+                return Err(GatewayError::bad_request(
+                    "System message cannot contain tool results",
+                ));
+            }
+            for message in &mut messages {
+                message.role = MessageRole::System;
+            }
+            Ok(messages)
+        }
         "user" => normalize_anthropic_user_message(raw_msg.get("content")),
         "assistant" => {
             normalize_anthropic_assistant_message(raw_msg.get("content")).map(|m| vec![m])

@@ -1,0 +1,63 @@
+--- a/include/openssl/nid.h
++++ b/include/openssl/nid.h
+@@ -5520,6 +5520,12 @@
+ #define SN_X25519Kyber768Draft00Old "X25519Kyber768Draft00Old"
+ #define NID_X25519Kyber768Draft00Old 974
+ 
++#define SN_SecP256r1MLKEM768 "SecP256r1MLKEM768"
++#define NID_SecP256r1MLKEM768 975
++
++#define SN_SecP384r1MLKEM1024 "SecP384r1MLKEM1024"
++#define NID_SecP384r1MLKEM1024 976
++
+ 
+ #if defined(__cplusplus)
+ } /* extern C */
+--- a/crypto/obj/obj_dat.h
++++ b/crypto/obj/obj_dat.h
+@@ -16,7 +16,7 @@
+ 
+ 
+ BSSL_NAMESPACE_BEGIN
+-#define NUM_NID 975
++#define NUM_NID 977
+ 
+ static const uint8_t kObjectData[] = {
+     /* NID_rsadsi */
+@@ -8807,6 +8807,10 @@
+      NULL, 0},
+     {"X25519Kyber768Draft00Old", "X25519Kyber768Draft00Old",
+      NID_X25519Kyber768Draft00Old, 0, NULL, 0},
++    {"SecP256r1MLKEM768", "SecP256r1MLKEM768", NID_SecP256r1MLKEM768, 0, NULL,
++     0},
++    {"SecP384r1MLKEM1024", "SecP384r1MLKEM1024", NID_SecP384r1MLKEM1024, 0,
++     NULL, 0},
+ };
+ 
+ static const uint16_t kNIDsInShortNameOrder[] = {
+@@ -9003,6 +9007,8 @@
+     100 /* SN */,
+     16 /* ST */,
+     143 /* SXNetID */,
++    975 /* SecP256r1MLKEM768 */,
++    976 /* SecP384r1MLKEM1024 */,
+     458 /* UID */,
+     972 /* X-Wing */,
+     948 /* X25519 */,
+@@ -9881,6 +9887,8 @@
+     188 /* S/MIME */,
+     167 /* S/MIME Capabilities */,
+     387 /* SNMPv2 */,
++    975 /* SecP256r1MLKEM768 */,
++    976 /* SecP384r1MLKEM1024 */,
+     512 /* Secure Electronic Transactions */,
+     386 /* Security */,
+     394 /* Selected Attribute Types */,
+--- a/crypto/obj/obj_mac.num
++++ b/crypto/obj/obj_mac.num
+@@ -962,3 +962,5 @@
+ X_Wing		972
+ P256Kyber768Draft00		973
+ X25519Kyber768Draft00Old		974
++SecP256r1MLKEM768		975
++SecP384r1MLKEM1024		976

@@ -48,7 +48,11 @@ pub(super) fn mount(router: Router<Arc<AppState>>, state: &AppState) -> Router<A
         .layer(body_limit_layer(state.config.max_body_messages_bytes));
 
     let responses_routes = Router::new()
-        .route("/v1/responses", post(responses::handle_responses))
+        .route(
+            "/v1/responses",
+            post(responses::handle_responses).get(responses::handle_websocket),
+        )
+        .route("/v1/responses/compact", post(responses::handle_compact))
         .layer(body_limit_layer(state.config.max_body_responses_bytes));
 
     let gemini_generate_content_routes = Router::new()
@@ -157,7 +161,14 @@ pub(super) fn mount(router: Router<Arc<AppState>>, state: &AppState) -> Router<A
         .layer(body_limit_layer(state.config.max_body_messages_bytes));
 
     let new_api_responses_routes = Router::new()
-        .route("/v1/new-api/responses", post(responses::handle_responses))
+        .route(
+            "/v1/new-api/responses",
+            post(responses::handle_responses).get(responses::handle_websocket),
+        )
+        .route(
+            "/v1/new-api/responses/compact",
+            post(responses::handle_compact),
+        )
         .layer(body_limit_layer(state.config.max_body_responses_bytes));
 
     let new_api_image_routes = Router::new()

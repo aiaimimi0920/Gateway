@@ -112,6 +112,13 @@ pub fn deserialize_provider_payload(
 /// request; the remaining fields are adapter-specific.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderAccountPayload {
+    /// Optional software identity/defaults, never an authentication or protocol selector.
+    #[serde(
+        default,
+        alias = "requestClientProfile",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub request_client_profile: Option<crate::protocol::request_profile::RequestClientProfile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub discovered_protocols: Vec<crate::provider_discovery::ProtocolCapability>,
     /// Adapter identifier.  One of:
@@ -416,6 +423,7 @@ mod tests {
 
     fn make_payload(adapter: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
             base_url: "https://api.example.com".to_string(),

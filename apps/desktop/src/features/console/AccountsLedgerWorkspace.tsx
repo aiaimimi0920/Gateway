@@ -260,6 +260,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
       archivePurgeBusyProviderId={archivePurgeBusyProviderId}
       onUpdateProviderPoolTargetSize={onUpdateProviderPoolTargetSize}
       onUpdateProviderPoolMinSize={onUpdateProviderPoolMinSize}
+      onUpdateProviderRequestClientProfile={props.onUpdateProviderRequestClientProfile}
       onUpdateProviderStoragePath={onUpdateProviderStoragePath}
       onUpdateProviderArchivePath={onUpdateProviderArchivePath}
       onToggleProviderAutoRefill={onToggleProviderAutoRefill}

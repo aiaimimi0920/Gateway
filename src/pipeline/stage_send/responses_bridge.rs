@@ -156,7 +156,11 @@ pub(super) async fn send(
                 }
             }
         }
-        Ok(UpstreamStreamingResponse::Bytes(_)) => {
+        Ok(
+            UpstreamStreamingResponse::Bytes(_)
+            | UpstreamStreamingResponse::Native(_)
+            | UpstreamStreamingResponse::NativeEvents(_),
+        ) => {
             cancellation.disarm();
             let error = GatewayError::server_error(
                 "unexpected byte-stream upstream for anthropic responses bridge",

@@ -1,0 +1,11 @@
+[package]
+name = "rama-boring-sys"
+version = "0.6.20"
+edition = "2021"
+publish = false
+license = "MIT"
+links = "rama_boringssl"
+build = "build.rs"
+
+[build-dependencies]
+gateway-cpa-bssl-build = { path = "../cpa-bssl-build" }

@@ -61,6 +61,18 @@ pub fn build_upstream_headers(payload: &ProviderAccountPayload) -> HeaderMap {
     build_upstream_headers_with(payload, None)
 }
 
+/// Inference-only profile application: shared by buffered, SSE and realtime's HTTP bridge.
+pub fn build_inference_headers(
+    payload: &ProviderAccountPayload,
+    req: &crate::protocol::canonical::CanonicalRelayRequest,
+    model: &str,
+    extra_headers: Option<&std::collections::HashMap<String, String>>,
+) -> HeaderMap {
+    let mut headers = build_upstream_headers_with(payload, extra_headers);
+    crate::upstream::request_profile::apply_headers(&mut headers, payload, req, model);
+    headers
+}
+
 /// Like [`build_upstream_headers`] but accepts optional extra headers to merge.
 pub fn build_upstream_headers_with(
     payload: &ProviderAccountPayload,
@@ -97,7 +109,15 @@ pub fn build_upstream_headers_with(
         }
 
         "anthropic_compatible" => {
-            insert_header(&mut map, "x-api-key", &payload.api_key);
+            if payload.auth_mode.as_deref() == Some("bearer") {
+                insert_header(
+                    &mut map,
+                    "authorization",
+                    &format!("Bearer {}", payload.api_key),
+                );
+            } else {
+                insert_header(&mut map, "x-api-key", &payload.api_key);
+            }
 
             let version = payload.anthropic_version.as_deref().unwrap_or("2023-06-01");
             insert_header(&mut map, "anthropic-version", version);
@@ -283,6 +303,22 @@ pub fn build_upstream_headers_with(
     // Append client-forwarded extra headers (lower priority than provider config).
     if let Some(extra) = extra_headers {
         for (name, value) in extra {
+            // Native context is opt-in, never an implicit addition to another profile.
+            if crate::protocol::workbuddy_wire::CONTEXT_HEADERS
+                .iter()
+                .any(|key| key.eq_ignore_ascii_case(name))
+                && payload.request_client_profile
+                    != Some(crate::protocol::request_profile::RequestClientProfile::Workbuddy)
+            {
+                continue;
+            }
+            if payload
+                .auth_header_name
+                .as_deref()
+                .is_some_and(|auth| auth.eq_ignore_ascii_case(name))
+            {
+                continue;
+            }
             // Skip auth-related headers — those are handled by adapter logic above.
             match name.to_ascii_lowercase().as_str() {
                 "authorization" | "x-api-key" | "api-key" | "x-goog-api-key" | "content-type" => {}

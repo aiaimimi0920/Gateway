@@ -4,11 +4,16 @@
 // Rust port of packages/ai-gateway-domain/src/modules/gateway/standard-error.ts
 // ---------------------------------------------------------------------------
 
+mod admission_rejection;
 mod classification;
 mod diagnostics;
 mod model_capacity;
 mod retry_after;
 
+pub(crate) use admission_rejection::{
+    is_account_balance_rejection, is_explicit_admission_rejection,
+};
+pub(crate) use classification::{classify_native_network_error, classify_native_transport_failure};
 pub use classification::{classify_network_error, classify_upstream_error};
 pub use diagnostics::{sanitize_provider_error_message, PROVIDER_ERROR_MESSAGE_MAX_CHARS};
 pub(crate) use model_capacity::is_model_capacity;

@@ -1,0 +1,12 @@
+[package]
+name = "gateway-cpa-bssl-build"
+version = "0.1.0"
+edition = "2021"
+publish = false
+build = "build.rs"
+
+[dependencies]
+bindgen = { version = "0.72.0", default-features = false, features = ["runtime"] }
+cmake = "0.1.57"
+fs_extra = "1.3.0"
+fslock = "0.2"

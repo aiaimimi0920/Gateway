@@ -282,6 +282,7 @@ use crate::upstream::gemini_canvas_text_helpers::{
 use crate::upstream::gemini_canvas_upload_http::upload_gemini_canvas_image_edit_inputs_with_http;
 use crate::upstream::grok as grok_upstream;
 use crate::upstream::header_map_helpers::header_map_string;
+use crate::upstream::headers::build_inference_headers;
 use crate::upstream::headers::build_upstream_headers_with;
 use crate::upstream::kiro as kiro_upstream;
 use crate::upstream::openai_compatible_request_plan as openai_compatible_request_plan_modular;
@@ -324,6 +325,10 @@ pub struct UpstreamClient {
     pub(crate) freebuff: std::sync::Arc<crate::protocol::freebuff::RunRuntime>,
     pub(crate) http: Client,
     plain_http: Client,
+    native_claude_http: Client,
+    native_http: reqwest::Client,
+    pub(crate) native_sessions:
+        std::sync::Arc<crate::http_client::native_cookie_sessions::NativeCookieSessions>,
     pub(crate) timeout: Duration,
     browser_executor_base_url: Option<String>,
     browser_executor_bearer_token: Option<String>,
@@ -333,6 +338,8 @@ pub struct UpstreamClient {
 }
 
 const BROWSER_EXECUTOR_HTTP_GRACE: Duration = Duration::from_secs(20);
+
+pub(crate) mod native_session;
 
 fn browser_executor_remote_request_timeout(default_timeout: Duration, input: &Value) -> Duration {
     let worker_timeout = input
@@ -408,6 +415,10 @@ mod canvas_stream_generate;
 mod canvas_video_continuation;
 #[path = "client/gemini_business_execution.rs"]
 mod gemini_business_execution;
+#[path = "client/native_claude.rs"]
+mod native_claude;
+#[path = "client/native_codex.rs"]
+mod native_codex;
 #[path = "client/passthrough.rs"]
 mod passthrough;
 #[path = "client/request_plan_part_1.rs"]
@@ -435,3 +446,4 @@ pub(crate) use fallback_policy::{
 #[cfg(test)]
 #[path = "client/tests.rs"]
 mod tests;
+pub(crate) use native_codex::websocket::NativeResponsesSocket;

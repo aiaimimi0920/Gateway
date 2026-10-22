@@ -6,7 +6,9 @@
 
 mod accumulate;
 mod completeness;
+mod input_ids;
 mod normalize;
+pub(crate) use input_ids::sanitize_replayed_message_ids;
 mod pack;
 mod response;
 mod stream_support;

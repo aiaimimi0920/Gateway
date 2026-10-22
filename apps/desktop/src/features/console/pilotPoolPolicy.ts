@@ -1,5 +1,6 @@
 import { normalizeBucketKey, optionalString } from "./routeAccountCatalog";
 import { isRecord } from "./routeDocument";
+import type { RequestClientProfile } from "./requestClientProfile";
 
 export type PilotIdentityCategoryDefinition = {
   id: string;
@@ -10,6 +11,7 @@ export type PilotIdentityCategoryDefinition = {
 };
 
 export type PilotProviderPolicyDefinition = {
+  requestClientProfile?: RequestClientProfile;
   poolMinSize: number;
   poolTargetSize: number;
   autoRefillEnabled: boolean;

@@ -16,9 +16,14 @@ pub fn build_request_plan(
     let use_chat_bridge_for_responses =
         payload.bridges_openai_responses_to_chat_completions(req.endpoint_kind);
     let use_responses_minimal_pack = req.endpoint_kind == EndpointKind::Responses
-        && payload.prefers_forced_streaming_responses(req.endpoint_kind);
+        && payload.prefers_forced_streaming_responses(req.endpoint_kind)
+        && !crate::upstream::client::UpstreamClient::uses_native_codex(payload, req, model);
     let responses_request_was_tool_injected = req.endpoint_kind == EndpointKind::Responses
-        && req.raw_body.get("tools").is_some()
+        && req
+            .raw_body
+            .get("tools")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|tools| !tools.is_empty())
         && req.tools.is_empty();
     let use_chat_bridge_for_messages =
         req.endpoint_kind == EndpointKind::Messages && !use_responses_bridge;
@@ -82,7 +87,7 @@ pub fn build_request_plan(
             .unwrap_or(default_path("/v1/chat/completions")),
     };
 
-    let body = if payload.is_discovered_native(req) {
+    let mut body = if payload.is_discovered_native(req) {
         merge_model_and_stream_into_body(req.raw_body.clone(), model, Some(stream))
     } else {
         match req.endpoint_kind {
@@ -121,6 +126,12 @@ pub fn build_request_plan(
         }
     };
 
+    crate::upstream::request_profile::apply_body(payload, req, model, &mut body);
+    if (req.endpoint_kind == EndpointKind::Responses && !use_chat_bridge_for_responses)
+        || use_responses_bridge
+    {
+        responses::sanitize_replayed_message_ids(&mut body);
+    }
     Ok(RequestPlan {
         method: Method::POST,
         url: format!("{}{}", payload.base_url.trim_end_matches('/'), path),
@@ -140,6 +151,7 @@ mod tests {
 
     fn make_payload(base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "openai_compatible".to_string(),
             base_url: base_url.to_string(),

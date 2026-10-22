@@ -2,6 +2,10 @@ mod support;
 
 #[path = "pipeline_send_runtime/budget.rs"]
 mod budget;
+#[path = "pipeline_send_runtime/affinity.rs"]
+mod affinity;
+#[path = "pipeline_send_runtime/rejected_channel.rs"]
+mod rejected_channel;
 #[path = "pipeline_send_runtime/buffered.rs"]
 mod buffered;
 #[path = "pipeline_send_runtime/config.rs"]

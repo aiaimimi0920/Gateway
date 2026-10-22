@@ -36,10 +36,11 @@ impl Error for ProtocolStreamError {
 }
 
 /// The transport is generic so protocol owners also work with a client whose
-/// error type cannot be constructed locally. Neither variant implies a retry.
+/// error type cannot be constructed locally. No variant implies a retry.
 #[derive(Debug)]
 pub enum StreamError<Transport> {
     Transport(Transport),
+    NativeTransport(reqwest::Error),
     Protocol(ProtocolStreamError),
 }
 
@@ -53,6 +54,7 @@ impl<Transport: fmt::Display> fmt::Display for StreamError<Transport> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Transport(error) => error.fmt(formatter),
+            Self::NativeTransport(error) => error.fmt(formatter),
             Self::Protocol(error) => error.fmt(formatter),
         }
     }
@@ -62,6 +64,7 @@ impl<Transport: Error + 'static> Error for StreamError<Transport> {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Transport(error) => Some(error),
+            Self::NativeTransport(error) => Some(error),
             Self::Protocol(error) => Some(error),
         }
     }

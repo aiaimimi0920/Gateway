@@ -62,6 +62,7 @@ mod tests {
 
     fn make_payload() -> ProviderAccountPayload {
         ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "anthropic_compatible".to_string(),
             base_url: "https://api.anthropic.com".to_string(),

@@ -1,0 +1,49 @@
+[package]
+name = "http2"
+version = "0.5.20"
+edition = "2021"
+rust-version = "1.98.0"
+publish = false
+license = "MIT"
+build = "build.rs"
+description = "Pinned http2 0.5.20 with request-scoped Go HPACK compatibility"
+
+[features]
+parking_lot = ["dep:parking_lot"]
+stream = []
+tracing = ["dep:tracing"]
+unstable = []
+
+[dependencies]
+atomic-waker = "1"
+bytes = "1.11.1"
+fnv = "1"
+futures-core = { version = "0.3", default-features = false }
+futures-sink = { version = "0.3", default-features = false }
+http = "1.4.2"
+indexmap = { version = "2", features = ["std"] }
+parking_lot = { version = "0.12.4", optional = true }
+slab = "0.4.2"
+smallvec = "1.15"
+tokio = { version = "1", features = ["io-util"] }
+tokio-util = { version = "0.7", features = ["codec", "io"] }
+tracing = { version = "0.1", features = ["std"], optional = true, default-features = false }
+
+[build-dependencies]
+flate2 = "1"
+tar = "0.4"
+sha2 = "0.10"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros", "io-util", "time"] }
+env_logger = { version = "0.10", default-features = false }
+hex = "0.4"
+quickcheck = { version = "1", default-features = false }
+rand = "0.8"
+serde = "1"
+serde_json = "1"
+walkdir = "2"
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ["cfg(fuzzing)"]

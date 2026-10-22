@@ -248,12 +248,22 @@ pub async fn run_gateway_server(app_state: Arc<AppState>, port: u16) -> anyhow::
     tracing::info!(port, "Gateway worker listening");
 
     let shutdown_state = Arc::clone(&app_state);
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown_signal(shutdown_state))
-    .await?;
+    // Preserve SocketAddr extraction while giving native upstream pools the
+    // same lifetime as the accepted connection, rather than global state.
+    let make_service = tower::service_fn(move |stream: axum::serve::IncomingStream<'_>| {
+        let app = app
+            .clone()
+            .layer(axum::Extension(axum::extract::ConnectInfo(
+                stream.remote_addr(),
+            )))
+            .layer(axum::Extension(
+                crate::http_client::NativeCodexConnection::default(),
+            ));
+        async move { Ok::<_, std::convert::Infallible>(app) }
+    });
+    axum::serve(listener, make_service)
+        .with_graceful_shutdown(shutdown_signal(shutdown_state))
+        .await?;
 
     tracing::info!(port, "Gateway HTTP server stopped");
     if let Some(local) = &app_state.local_runtime {

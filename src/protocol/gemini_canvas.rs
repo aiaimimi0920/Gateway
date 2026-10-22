@@ -286,6 +286,7 @@ mod tests {
         }
 
         ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "gemini_canvas_compatible".to_string(),
             base_url: "https://gemini.google.com".to_string(),

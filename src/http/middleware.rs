@@ -43,6 +43,14 @@ pub async fn request_logging(
     next: Next,
 ) -> Response<Body> {
     let request_id = resolve_request_id(request.headers());
+    let client_request_id = request
+        .headers()
+        .get("x-request-id")
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.trim() == request_id);
+    request
+        .extensions_mut()
+        .insert(super::native_json::ClientRequestId(client_request_id));
     if let Ok(header_value) = request_id.parse() {
         request.headers_mut().insert("x-request-id", header_value);
     }

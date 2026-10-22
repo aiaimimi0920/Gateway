@@ -11,7 +11,9 @@ RUN apt-get update \
     cmake \
     curl \
     git \
+    libssl-dev \
     pkg-config \
+    python3 \
   && rm -rf /var/lib/apt/lists/*
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.98.0 \

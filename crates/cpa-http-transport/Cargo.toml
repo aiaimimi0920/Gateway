@@ -1,0 +1,31 @@
+[package]
+name = "gateway-cpa-http-transport"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98.0"
+publish = false
+
+[dependencies]
+gateway-cpa-tls-profile = { path = "../cpa-tls-profile" }
+rama-boring = "=0.6.20"
+rama-boring-tokio = "=0.6.20"
+wreq-proto = "=0.2.6"
+rquest = { package = "wreq", version = "=0.16.1", default-features = false, features = ["tokio-rt", "webpki-roots", "stream"] }
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
+http = "1"
+http2 = "=0.5.20"
+http-body-util = "0.1"
+http-body = "1"
+bytes = "1"
+futures = "0.3"
+async-compression = { version = "0.4", features = ["tokio", "gzip", "zlib", "brotli", "zstd"] }
+rustls-native-certs = "0.8"
+hyper-util = { version = "=0.1.20", features = ["client", "client-proxy", "client-proxy-system"] }
+
+[patch.crates-io]
+http2 = { path = "../http2-go-compat" }
+rama-boring-sys = { path = "../cpa-bssl-sys" }
+
+[dev-dependencies]
+flate2 = "1"

@@ -17,9 +17,11 @@ name = "gateway"
 path = "src/main.rs"
 
 [features]
+cpa-rust-transport = ["dep:gateway-cpa-http-transport"]
 # Never active in a release build, even when --all-features is supplied.
 dev-protocol-override = []
 default = [
+    "cpa-rust-transport",
     "family-openai-compatible-official-api",
     "family-anthropic-compatible-official-api",
     "family-bedrock-converse-official-api",
@@ -139,12 +141,23 @@ http-body = "1"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+# Version-bound Codex WS compression; unrelated protocol clients retain 0.24.
+tokio-tungstenite-native = { package = "tokio-tungstenite", git = "https://github.com/openai-oss-forks/tokio-tungstenite", rev = "0e5b2d73aa18dd9f0a50ee9ff199d5aef7594186", default-features = false, features = ["rustls-tls-native-roots", "proxy"] }
+tungstenite-native = { package = "tungstenite", git = "https://github.com/openai-oss-forks/tungstenite-rs", rev = "4fffad30fe373adbdcffab9545e9e9bf4f2fc19f", default-features = false, features = ["deflate", "handshake"] }
+hyper-util = { version = "=0.1.20", features = ["client-legacy", "client-proxy-system", "tokio"] }
+tokio-rustls = "0.26"
+tower-service = "0.3"
 rustls = "0.23"
 rustls-native-certs = "0.8"
 
 # HTTP client — wreq with Chrome TLS emulation; retain rquest consumer aliases.
+gateway-cpa-http-transport = { path = "crates/cpa-http-transport", optional = true }
+gateway-cpa-claude-profile = { path = "crates/cpa-claude-profile" }
 rquest = { package = "wreq", version = "=0.16.1", default-features = false, features = ["webpki-roots", "tokio-rt", "stream", "json", "form", "query", "charset", "system-proxy", "gzip", "brotli", "deflate", "zstd"] }
 rquest-util = { package = "wreq-util", version = "=0.2.0", default-features = false, features = ["emulation"] }
+# Codex uses reqwest/native-tls. Keep ALPN/compression emulation out of this lane.
+reqwest = { version = "=0.12.28", default-features = false, features = ["native-tls", "rustls-tls-native-roots", "http2", "stream", "json", "system-proxy"] }
+cookie_store = { version = "=0.22.0", default-features = false, features = ["preserve_order"] }
 
 # Redis
 deadpool-redis = { version = "0.18", features = ["rt_tokio_1"] }
@@ -224,3 +237,7 @@ tokio = { version = "1", features = ["test-util"] }
 lto = "thin"
 opt-level = 3
 codegen-units = 1
+
+[patch.crates-io]
+http2 = { path = "crates/http2-go-compat" }
+rama-boring-sys = { path = "crates/cpa-bssl-sys" }

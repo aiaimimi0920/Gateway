@@ -317,6 +317,7 @@ mod tests {
 
     fn make_payload() -> ProviderAccountPayload {
         ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "openai_compatible".to_string(),
             base_url: "https://api.example.com".to_string(),

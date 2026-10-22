@@ -30,7 +30,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
   apt-get -o Acquire::Retries=3 update \
-  && apt-get install -y --no-install-recommends cmake pkg-config clang lld
+  && apt-get install -y --no-install-recommends cmake pkg-config clang lld libssl-dev python3 git
 
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY build_support ./build_support
@@ -40,6 +40,7 @@ COPY --from=ui-builder /app/apps/desktop/dist/web ./apps/desktop/dist/web
 COPY --from=ui-builder /app/apps/desktop/dist/.gateway-web-ready ./apps/desktop/dist/.gateway-web-ready
 COPY src ./src
 COPY crates ./crates
+COPY tools/prepare-cpa-bssl.py ./tools/prepare-cpa-bssl.py
 
 ENV GATEWAY_PREBUILT_WEB_UI=1 \
   CARGO_TARGET_DIR=/cargo-target \
@@ -62,6 +63,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   apt-get -o Acquire::Retries=3 update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
+    libssl3 \
     chromium
 
 WORKDIR /app

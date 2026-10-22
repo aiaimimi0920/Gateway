@@ -43,10 +43,32 @@ pub(crate) fn build_request_builder_from_plan(
     plan: &RequestPlan,
     headers: HeaderMap,
 ) -> RequestBuilder {
+    // A software profile must not acquire unrelated Chrome identity from the pool.
+    // This only controls default HTTP headers, not TLS, credentials or routing.
+    let workbuddy = crate::upstream::request_profile::is_workbuddy_identity(&headers);
+    let cpa = crate::upstream::request_profile::is_cpa_identity(&headers);
+    let use_defaults = !workbuddy && !cpa;
+    let (headers, original) = if cpa {
+        let (headers, original) = crate::upstream::request_profile::order_cpa_headers(headers);
+        (headers, Some(original))
+    } else if !workbuddy {
+        (headers, None)
+    } else {
+        let (headers, original) =
+            crate::upstream::request_profile::order_workbuddy_headers(headers);
+        (headers, Some(original))
+    };
     let mut builder = http
         .request(plan.method.clone(), &plan.url)
+        .default_headers(use_defaults)
         .headers(headers)
         .timeout(timeout);
+    if let Some(original) = original {
+        if workbuddy {
+            builder = crate::upstream::request_profile::apply_workbuddy_transport(builder);
+        }
+        builder = builder.orig_headers(original);
+    }
 
     if !plan.query.is_empty() {
         builder = builder.query(&plan.query);

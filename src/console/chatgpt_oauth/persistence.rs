@@ -2,6 +2,9 @@
 use super::material;
 use crate::{error::GatewayError, protocol::chatgpt::codex_client, state::AppState};
 
+#[path = "model_routes.rs"]
+mod model_routes;
+
 pub(super) fn validate_provider(state: &AppState, id: &str) -> Result<(), GatewayError> {
     if !state
         .route_config
@@ -85,9 +88,9 @@ pub(super) async fn save(
     } else {
         target.credentials.push(credential.clone());
     }
-    for model in models {
+    for model in &models {
         if !target.supported_models.contains(&model) {
-            target.supported_models.push(model);
+            target.supported_models.push(model.clone());
         }
     }
     if target
@@ -100,6 +103,7 @@ pub(super) async fn save(
     target
         .headers
         .insert("User-Agent".into(), codex_client::USER_AGENT.into());
+    model_routes::register(&mut document, provider, &models);
     state
         .route_config_runtime
         .as_ref()
@@ -110,10 +114,16 @@ pub(super) async fn save(
             Some("Import ChatGPT OAuth credential".into()),
         )
         .await
-        .map_err(|_| {
+        .map_err(|error| {
+            // Keep the failure category observable without logging credentials/documents.
+            tracing::warn!(
+                code = error.code(),
+                "ChatGPT credential configuration commit failed"
+            );
             GatewayError::bad_request(
                 "Could not save ChatGPT credential; refresh configuration and retry import",
             )
+            .with_code(error.code())
         })?;
     Ok(credential.id.unwrap_or_default())
 }

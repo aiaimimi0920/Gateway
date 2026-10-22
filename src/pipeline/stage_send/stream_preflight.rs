@@ -17,6 +17,22 @@ pub(super) async fn normalize(
         ..
     } = attempt;
     let byte_stream: ByteStream = match stream_response {
+        UpstreamStreamingResponse::NativeEvents(stream) => {
+            // WS transport validates terminal events itself, after exposing the
+            // original failure event to the caller and before final settlement.
+            stream
+        }
+        UpstreamStreamingResponse::Native(response) => {
+            let stream = crate::upstream::stream::tap_model_declaration(
+                response
+                    .bytes_stream()
+                    .map_err(|e| StreamError::NativeTransport(e.without_url())),
+                model_observation::metadata(ctx, candidate, model),
+                Arc::clone(global_gateway_metrics()),
+                true,
+            );
+            Box::pin(responses::require_responses_completion(stream))
+        }
         UpstreamStreamingResponse::Bytes(stream) => {
             Box::pin(crate::upstream::stream::tap_model_declaration(
                 stream.map_err(StreamError::Transport),

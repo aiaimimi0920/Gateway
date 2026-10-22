@@ -138,6 +138,7 @@ fn provider_payload_from_keepalive_request(
     effective_expires_at: Option<String>,
 ) -> ProviderAccountPayload {
     ProviderAccountPayload {
+        request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: input.adapter.clone(),
         base_url: input.base_url.clone(),

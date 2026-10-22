@@ -12,6 +12,8 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
     let document = RouteConfigYaml {
         providers: vec![
             ProviderConfigYaml {
+                auth_mode: None,
+                request_client_profile: None,
                 codex_basispoints_enabled: false,
                 site_health: None,
                 test_plans: Vec::new(),
@@ -72,6 +74,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 credential_automation_driver_id: None,
                 credential_identity_categories: vec![],
                 credentials: vec![ProviderCredentialYaml {
+                    request_client_profile: None,
                     codex_basispoints_enabled: None,
                     discovery_job: None,
                     discovery: None,
@@ -101,6 +104,8 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 }],
             },
             ProviderConfigYaml {
+                auth_mode: None,
+                request_client_profile: None,
                 codex_basispoints_enabled: false,
                 site_health: None,
                 test_plans: Vec::new(),
@@ -198,6 +203,8 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
 fn account_groups_reject_unknown_account_members() {
     let document = RouteConfigYaml {
         providers: vec![ProviderConfigYaml {
+            auth_mode: None,
+            request_client_profile: None,
             codex_basispoints_enabled: false,
             site_health: None,
             test_plans: Vec::new(),
@@ -258,6 +265,7 @@ fn account_groups_reject_unknown_account_members() {
             credential_automation_driver_id: None,
             credential_identity_categories: vec![],
             credentials: vec![ProviderCredentialYaml {
+                request_client_profile: None,
                 codex_basispoints_enabled: None,
                 discovery_job: None,
                 discovery: None,

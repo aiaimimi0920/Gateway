@@ -156,6 +156,13 @@ pub enum RouteAccountGroupSelectionError {
 /// - **Multi-endpoint**: different base_urls with same or different keys (e.g. 3 AI Hub mirrors)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderCredentialYaml {
+    /// None inherits the provider; explicit auto restores model-based selection.
+    #[serde(
+        default,
+        alias = "requestClientProfile",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub request_client_profile: Option<crate::protocol::request_profile::RequestClientProfile>,
     /// None inherits the provider channel; credentials and refresh ownership are unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_basispoints_enabled: Option<bool>,
@@ -237,6 +244,15 @@ pub struct ProviderCredentialYaml {
 /// Per-provider configuration block in the YAML file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfigYaml {
+    /// Protocol authentication choice; independent from software identity profiles.
+    #[serde(default, alias = "authMode", skip_serializing_if = "Option::is_none")]
+    pub auth_mode: Option<String>,
+    #[serde(
+        default,
+        alias = "requestClientProfile",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub request_client_profile: Option<crate::protocol::request_profile::RequestClientProfile>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub codex_basispoints_enabled: bool,
     /// Site-level observations, independent of credential tests and local breakers.

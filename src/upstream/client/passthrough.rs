@@ -164,16 +164,15 @@ impl UpstreamClient {
         }
 
         let plan = Self::build_request_plan(payload, req, model, false)?;
-        let headers = build_upstream_headers_with(payload, extra_headers);
+        let headers = build_inference_headers(payload, req, model, extra_headers);
         let provider = &payload.adapter;
 
         debug!(url = %plan.url, model, "sending upstream passthrough request");
 
         let response = self
-            .send_plan(&plan, headers)
+            .send_profiled_plan(payload, &plan, headers)?
             .send()
-            .await
-            .map_err(|e| classify_network_error(&e, Some(provider)))?;
+            .await?;
 
         if !response.status().is_success() {
             return Err(crate::upstream::response_error::classify_response_error(
@@ -283,16 +282,15 @@ impl UpstreamClient {
         }
 
         let plan = Self::build_request_plan(payload, req, model, false)?;
-        let headers = build_upstream_headers_with(payload, extra_headers);
+        let headers = build_inference_headers(payload, req, model, extra_headers);
         let provider = &payload.adapter;
 
         debug!(url = %plan.url, model, "sending upstream binary passthrough request");
 
         let response = self
-            .send_plan(&plan, headers)
+            .send_profiled_plan(payload, &plan, headers)?
             .send()
-            .await
-            .map_err(|e| classify_network_error(&e, Some(provider)))?;
+            .await?;
 
         if !response.status().is_success() {
             return Err(crate::upstream::response_error::classify_response_error(

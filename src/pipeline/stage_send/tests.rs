@@ -63,6 +63,7 @@ fn make_candidate(adapter: &str) -> RouteCandidate {
         provider_credential_id: Some("cred-1".to_string()),
         label: "Provider".to_string(),
         payload: ProviderAccountPayload {
+            request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
             base_url: "https://api.example.com".to_string(),

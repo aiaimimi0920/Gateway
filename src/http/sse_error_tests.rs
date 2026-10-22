@@ -48,6 +48,9 @@ async fn http_body_preserves_both_domain_variants_and_terminal_cleanup() {
                 assert_eq!(index, 1);
                 assert_eq!(error.kind(), std::io::ErrorKind::BrokenPipe);
             }
+            Error::NativeTransport(_) => {
+                panic!("fixture does not create native transport failures")
+            }
         }
         assert!(body.next().await.is_none());
         drop(body);

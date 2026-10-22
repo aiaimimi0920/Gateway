@@ -126,45 +126,22 @@ async fn finalize_json(body: &Value, ctx: &PipelineContext, state: &Arc<AppState
         .unwrap_or(ctx.quota_pre_deducted_tokens);
     settle_pre_deducted_quota(ctx, state, actual_total_tokens).await;
 
-    // ── Record credential affinity ──────────────────────────────────────
-    // After a successful call, remember which credential was used so the
-    // next request in the same conversation/user scope reuses it (upstream
-    // prompt cache benefits).
-    if let Some(ref provider_id) = ctx.selected_provider_id {
-        let model = ctx.resolved_model.as_deref().unwrap_or("unknown");
-        if let (
-            Some(requesting_access_key_id),
-            Some(source_access_key_id),
-            Some(platform_access_id),
-        ) = (
-            ctx.requesting_access_key_id.as_deref(),
-            ctx.source_access_key_id.as_deref(),
-            ctx.selected_platform_access_id.as_deref(),
-        ) {
-            let _ = db::record_access_sticky_affinity(
-                &state.redis_pool,
-                requesting_access_key_id,
-                source_access_key_id,
-                platform_access_id,
-                provider_id,
-                ctx.selected_real_credential_ref.as_deref(),
-                model,
-                ctx.canonical_req.explicit_session_key.as_deref(),
-            )
-            .await;
-        } else {
-            // Session-level affinity (conversation stickiness)
-            if let Some(ref sk) = ctx.canonical_req.explicit_session_key {
-                let scope = format!("session:{}", sk);
-                set_affinity(state, &scope, model, provider_id).await;
-            }
-            // User-level affinity (fallback stickiness)
-            if let Some(ref uid) = session.user_id {
-                let scope = format!("user:{}", uid);
-                set_affinity(state, &scope, model, provider_id).await;
-            }
-        }
+    affinity::SuccessAffinity {
+        provider: ctx.selected_provider_id.as_deref(),
+        model: ctx
+            .canonical_req
+            .requested_model
+            .as_deref()
+            .or(ctx.resolved_model.as_deref()),
+        session: ctx.canonical_req.explicit_session_key.as_deref(),
+        user: ctx.neuro_user_id.as_deref().or(session.user_id.as_deref()),
+        access_key: ctx.requesting_access_key_id.as_deref(),
+        source_key: ctx.source_access_key_id.as_deref(),
+        platform: ctx.selected_platform_access_id.as_deref(),
+        credential: ctx.selected_real_credential_ref.as_deref(),
     }
+    .record(state)
+    .await;
 }
 
 /// Extract normalized upstream usage from a response body.

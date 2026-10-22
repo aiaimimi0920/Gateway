@@ -7,6 +7,7 @@ import type { AccountsLedgerPilotSection, AccountsLedgerWorkspaceProps } from ".
 import type { PendingProviderLifecycleAction } from "./ProviderLifecycleActionDialog";
 import { ProviderStorageEndpoints } from "./ProviderStorageEndpoints";
 import { ProviderLifecycleField } from "./ProviderLifecycleField";
+import { RequestClientProfileSelect } from "./RequestClientProfileSelect";
 
 export type ProviderLifecycleBackOptions = {
   section: AccountsLedgerPilotSection;
@@ -20,7 +21,7 @@ export type ProviderLifecycleBackOptions = {
 };
 type Props = Pick<AccountsLedgerWorkspaceProps, "editorLocked" | "lifecycleActionsLocked" | "pruneBusyProviderId" |
   "storageSecretFields" | "onUpdateProviderStorageConnection" | "refillBusyProviderId" | "archivePurgeBusyProviderId" | "onUpdateProviderPoolTargetSize" |
-  "onUpdateProviderPoolMinSize" | "onUpdateProviderStoragePath" | "onUpdateProviderArchivePath" |
+  "onUpdateProviderPoolMinSize" | "onUpdateProviderRequestClientProfile" | "onUpdateProviderStoragePath" | "onUpdateProviderArchivePath" |
   "onToggleProviderAutoRefill" | "onToggleProviderAutoPrune" | "onToggleProviderPermanentDelete" |
   "onRequestProviderRefill" | "onUpdateProviderStoragePassword" | "t"> & {
   options: ProviderLifecycleBackOptions;
@@ -28,7 +29,7 @@ type Props = Pick<AccountsLedgerWorkspaceProps, "editorLocked" | "lifecycleActio
 };
 
 export function ProviderLifecycleBack({ options, editorLocked, lifecycleActionsLocked, storageSecretFields, onUpdateProviderStorageConnection, onUpdateProviderPoolTargetSize,
-  onUpdateProviderPoolMinSize, onUpdateProviderStoragePath, onUpdateProviderArchivePath,
+  onUpdateProviderPoolMinSize, onUpdateProviderRequestClientProfile, onUpdateProviderStoragePath, onUpdateProviderArchivePath,
   onToggleProviderAutoRefill, onToggleProviderAutoPrune, pruneBusyProviderId, refillBusyProviderId,
   archivePurgeBusyProviderId, onToggleProviderPermanentDelete, onRequestProviderRefill,
   onUpdateProviderStoragePassword, requestProviderLifecycleAction, t,
@@ -72,6 +73,11 @@ export function ProviderLifecycleBack({ options, editorLocked, lifecycleActionsL
           onSave={(value) => onUpdateProviderPoolTargetSize(providerId, Number(value))} />
       </div>
     </section>
+    {onUpdateProviderRequestClientProfile && <section className="nt-provider-lifecycle__group">
+      <RequestClientProfileSelect t={t} value={section.requestClientProfile}
+        disabled={editorLocked || options.active === false}
+        onChange={(profile) => onUpdateProviderRequestClientProfile(providerId, profile)} />
+    </section>}
     <section className="nt-provider-lifecycle__group" aria-label={t("补号与存储", "Refill and storage")}>
       <div className="nt-provider-lifecycle__pair nt-provider-lifecycle__operations">
         <div className="nt-provider-lifecycle__column">

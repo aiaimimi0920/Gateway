@@ -172,6 +172,7 @@ export function usePilotPolicyEditor({
           PilotProviderPolicyDefinition,
           | "poolTargetSize"
           | "poolMinSize"
+          | "requestClientProfile"
           | "autoRefillEnabled"
           | "autoPruneEnabled"
           | "permanentDeleteEnabled"
@@ -199,6 +200,13 @@ export function usePilotPolicyEditor({
         return;
       }
 
+      if (updates.requestClientProfile !== undefined) {
+        if (updates.requestClientProfile === "auto") delete provider.request_client_profile;
+        else provider.request_client_profile = updates.requestClientProfile;
+        replaceEditorDocument(document, true);
+        setError(null);
+        return;
+      }
       const currentPolicy = readPilotProviderPolicy(provider);
       const maximum = updates.poolTargetSize ?? currentPolicy.poolTargetSize;
       const minimum = updates.poolMinSize ?? currentPolicy.poolMinSize;
