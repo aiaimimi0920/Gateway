@@ -45,6 +45,42 @@ async fn balance_rejection_is_quota_and_allows_only_next_candidate() {
     }
 }
 
+#[tokio::test]
+async fn preconsume_quota_rejection_allows_next_provider_without_replaying_unknown_403() {
+    use neuro_gateway::error::{ErrorKind, FallbackHint};
+    let message = "Not enough quota to pre-consume for this request: ＄13.406424 remaining, ＄18.228000 required (request id: fixture)";
+    for status in [402, 403] {
+        let error = classify_upstream_error(
+            status,
+            &json!({"error":{"message":message}}).to_string(),
+            Some("fixture"),
+        );
+        assert_eq!(error.kind, ErrorKind::InsufficientQuota);
+        assert!(matches!(
+            error.fallback_hint,
+            FallbackHint::FallbackProvider { .. }
+        ));
+        let budget = RequestBudget::for_request(&request());
+        budget.begin_attempt().unwrap();
+        budget.allow_rejected_candidate_fallback(&error);
+        budget.begin_attempt().unwrap();
+        assert!(budget.begin_attempt().is_err());
+    }
+    for (status, text) in [
+        (401, message),
+        (500, message),
+        (403, "Not enough quota"),
+        (403, "Permission denied"),
+    ] {
+        let error =
+            classify_upstream_error(status, &json!({"error":{"message":text}}).to_string(), None);
+        let budget = RequestBudget::for_request(&request());
+        budget.begin_attempt().unwrap();
+        budget.allow_rejected_candidate_fallback(&error);
+        assert!(budget.begin_attempt().is_err());
+    }
+}
+
 fn request() -> CanonicalRelayRequest {
     serde_json::from_value(json!({
         "protocol_family":"open_ai", "endpoint_kind":"responses",

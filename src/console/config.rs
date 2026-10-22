@@ -14,6 +14,7 @@ const MAX_REDIS_NAMESPACE_BYTES: usize = 64;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConsoleConfig {
+    pub management_ui_enabled: bool,
     pub state_dir: PathBuf,
     pub routes_file: PathBuf,
     pub redis_namespace: String,
@@ -59,7 +60,13 @@ impl ConsoleConfigValues {
 
 impl ConsoleConfig {
     pub fn from_env() -> Result<Self, ConsoleConfigError> {
-        Self::from_values(ConsoleConfigValues::from_env()?)
+        let mut config = Self::from_values(ConsoleConfigValues::from_env()?)?;
+        let startup = gateway_local_data::startup::StartupConfig::load().map_err(|error| {
+            ConsoleConfigError::new("gateway_startup_config_invalid", error.to_string())
+        })?;
+        config.management_ui_enabled =
+            startup.management_ui_enabled(cfg!(feature = "management-ui"));
+        Ok(config)
     }
 
     pub fn from_values(values: ConsoleConfigValues) -> Result<Self, ConsoleConfigError> {
@@ -97,6 +104,7 @@ impl ConsoleConfig {
         }
 
         Ok(Self {
+            management_ui_enabled: true,
             state_dir: state_paths.lexical,
             routes_file: routes_paths.lexical,
             redis_namespace,

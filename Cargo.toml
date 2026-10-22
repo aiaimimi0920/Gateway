@@ -17,10 +17,13 @@ name = "gateway"
 path = "src/main.rs"
 
 [features]
+management-ui = ["dep:rust-embed", "dep:mime_guess"]
 cpa-rust-transport = ["dep:gateway-cpa-http-transport"]
 # Never active in a release build, even when --all-features is supplied.
 dev-protocol-override = []
-default = [
+default = ["runtime-defaults", "management-ui"]
+# All existing provider/runtime capabilities, independent of the optional web UI.
+runtime-defaults = [
     "cpa-rust-transport",
     "family-openai-compatible-official-api",
     "family-anthropic-compatible-official-api",
@@ -202,8 +205,8 @@ arc-swap = "1"
 argon2 = "0.5"
 ring = "=0.17.14"
 subtle = "2.6"
-rust-embed = "8"
-mime_guess = "2"
+rust-embed = { version = "8", optional = true }
+mime_guess = { version = "2", optional = true }
 
 # Config
 dotenvy = "0.15"
@@ -237,6 +240,17 @@ tokio = { version = "1", features = ["test-util"] }
 lto = "thin"
 opt-level = 3
 codegen-units = 1
+
+# Daily functional validation; never relabel these artifacts as release builds.
+[profile.devtest]
+inherits = "dev"
+opt-level = 1
+debug = 0
+debug-assertions = false
+overflow-checks = true
+lto = false
+incremental = true
+codegen-units = 16
 
 [patch.crates-io]
 http2 = { path = "crates/http2-go-compat" }

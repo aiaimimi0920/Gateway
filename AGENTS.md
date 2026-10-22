@@ -2,6 +2,25 @@
 
 Scope: this independent Gateway repository and all of its subdirectories.
 
+## 日常手测与正式发布规则（2026-10-23）
+
+- 日常修复后的“编译、生成 EXE、出包、release 包”等普通请求，默认使用快速手测包。
+  只有用户明确要求“正式发布包、最终交付、正式 Release 流程”时，才执行正式发布流程。
+- 快速手测入口：`tools/package-gateway-devtest.ps1`；仅构建使用
+  `tools/build-gateway-devtest.ps1`。默认桌面版，`-Edition api|web|desktop` 可选。
+- 快速构建使用独立 `devtest` profile：优化等级 1、无 LTO、开启增量；默认最多 4 个
+  Cargo 并发任务，可通过 `-Jobs` 调整。不得无理由固定单任务，也不得未经资源评估占满核心。
+- 日常仅运行改动相关的定向检查和包完整性检查，不重复全量回归、付费上游测试或正式发布安全审计。
+  首次/改动启动流程时补隔离启动验证。编译失败、来源不匹配、哈希错误仍必须阻止交付。
+- 依赖保持锁定；不自动升级或删除重装。复用由 Cargo 指纹缓存判断，不凭时间戳拷贝旧 EXE。
+  不修改运行实例、凭证或数据库；不自动创建便携 `.ng`。保留旧包，禁止覆盖同版本目录。
+- 手测包目录必须以 `gateway-devtest-` 开头；manifest 和构建凭据必须标注 `buildKind=devtest`。
+  正式与手测产物目录独立，禁止把手测二进制改名或伪造凭据后当正式 Release 发布。
+- 正式发布仍使用 `build-gateway-release.ps1` 和 `package-gateway-release.ps1`，保留其严格检查。
+  本节是日常手测的专用流程规则，优先于旧技能中“每次变更都做完整发布验证”的笼统要求。
+- 交付必须明确：包类型、路径、实际通过的检查、未执行的验证。首次冷构建和热增量构建
+  分开统计，没有实测不得承诺提速倍数。具体命令见 `docs/devtest-build.md`。
+
 ## Active parallel refactor coordination
 
 For the user-authorized 2026-09-08 parallel refactor, read

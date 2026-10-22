@@ -12,6 +12,11 @@ impl ProviderAttemptGate {
 
     pub fn begin_attempt(&self) -> Result<(), GatewayError> {
         self.request_budget.begin_attempt()?;
+        self.smart_routing.begin(
+            self.sticky_scope.as_deref(),
+            &self.requested_model,
+            &self.provider_account_id,
+        );
         self.outbound_attempt_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let mut attempted = self.attempted_provider_ids.lock();
@@ -26,6 +31,18 @@ impl ProviderAttemptGate {
 
     pub fn observe_error(&self, error: &GatewayError) {
         self.request_budget.observe_error(error);
+        if error.request_budget_stop_reason().is_none()
+            && error.code.as_deref() != Some("attempt_cancelled")
+            && !matches!(
+                error.kind,
+                crate::error::ErrorKind::BadRequest
+                    | crate::error::ErrorKind::ContextLength
+                    | crate::error::ErrorKind::ContentFilter
+            )
+        {
+            self.smart_routing
+                .outcome(&self.provider_account_id, &self.requested_model, false);
+        }
     }
 
     pub fn observe_result<T>(&self, result: &Result<T, GatewayError>) {

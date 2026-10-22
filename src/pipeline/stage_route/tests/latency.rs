@@ -40,8 +40,28 @@ model_routes:
         LatencyKey::for_request(fast, &req).unwrap(),
         Duration::from_millis(10),
     );
-    local.set_credential_affinity("session:reference-sticky", "gpt-4o", "sticky");
+    let session = crate::auth::session::AuthenticatedSession {
+        project_id: "project".into(),
+        tenant_id: "tenant".into(),
+        user_id: None,
+        credential_ref: None,
+        scopes: vec![],
+        api_key_id: Some("key-a".into()),
+        user_credential_id: None,
+        access_key_id: None,
+        access_key_kind: None,
+    };
     let mut healthy = PipelineContext::new(req.clone(), None);
+    healthy.session = Some(session.clone());
+    let scope = super::super::smart::session_scope(&healthy);
+    let mut other_key = PipelineContext::new(req.clone(), None);
+    other_key.session = Some(session.clone());
+    other_key.session.as_mut().unwrap().api_key_id = Some("key-b".into());
+    assert_ne!(scope, super::super::smart::session_scope(&other_key));
+    state
+        .lifecycle
+        .smart_routing
+        .begin(scope.as_deref(), "gpt-4o", "sticky");
     run(&mut healthy, &state).await.unwrap();
     let healthy_first = healthy.candidates[0].provider_account_id.clone();
     local
@@ -63,6 +83,7 @@ model_routes:
         .await
         .unwrap();
     let mut cooling = PipelineContext::new(req, None);
+    cooling.session = Some(session);
     run(&mut cooling, &state).await.unwrap();
     let cooling_first = cooling.candidates[0].provider_account_id.clone();
     local.close().await;

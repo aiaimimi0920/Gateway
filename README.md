@@ -129,6 +129,11 @@ Windows EXE defaults and the stable `.ng` data directory are documented in
 [local access keys](docs/local-access-keys.md). Copy `.env.example` to a local `.env`
 for a server development run. Local environment files remain ignored.
 
+The optional shared startup file `.ng/gateway.json` contains
+`enable_management_ui`. Its value is ANDed with the compiled edition capability;
+see [`docs/release-editions.md`](docs/release-editions.md). An absolute
+`GATEWAY_CONFIG_FILE` can select a different file.
+
 The current development snapshot intentionally retains its versioned route
 configuration and other local development state. Do not replace `routes.yaml`
 with an empty file when testing the provider matrix.
@@ -150,10 +155,9 @@ Pop-Location
 ## Portable Windows Release
 
 Each version directory is immutable and is written to the repository-local
-`release/Gateway/<versionId>` directory by default. A package contains the two
-Windows executables, the selected route files, `.env.example`, build
-provenance, manifests, browser workers, documentation, the official `deploy/`
-directory, tools, `manifest.json`, and `checksums.sha256`.
+`release/Gateway/<versionId>` directory by default. Gateway publishes three
+edition shapes; see [`docs/release-editions.md`](docs/release-editions.md) for
+the capability matrix and configuration switch.
 
 Build and package a candidate from the repository root:
 
@@ -162,28 +166,36 @@ Refresh official model identities, review the fixed company/model prominence ord
 record sources and unknown-model fallback, then freeze the table before building.
 
 ```powershell
-$id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
-.\tools\build-gateway-release.ps1
-.\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild -UseExampleRoutes
+$id = "gateway-api-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+.\tools\build-gateway-release.ps1 -Edition api
+.\tools\package-gateway-release.ps1 -Edition api -VersionId $id -SkipBuild -UseExampleRoutes
 ```
+
+Use `-Edition web` for the browser management backend without the desktop
+launcher, or `-Edition desktop` for both the browser backend and
+`gateway-ui.exe`. `-Edition all` builds `api`, `web`, and `desktop` serially.
 
 `-UseExampleRoutes` packages `routes.example.yaml` under both route filenames.
 Automated candidates and tagged releases always use this mode. Without the
 switch, local packaging retains the developer's `routes.yaml`; use example
 mode before distributing a package. Neither mode modifies the source route files.
 
-`build-gateway-release.ps1` requires Node.js `>=22.22.0`, installs and audits
-both production Node dependency trees, then performs `npm run build:web`
-explicitly before the headless Cargo release build. It exports
+`build-gateway-release.ps1` requires Node.js `>=22.22.0`. API builds only audit
+the browser-worker dependency tree and compile with
+`--no-default-features --features runtime-defaults`; Web and Desktop builds
+also install and audit the desktop dependencies, typecheck, and perform
+`npm run build:web` before the Cargo release build. It exports
 `GATEWAY_PREBUILT_WEB_UI=1` for that Cargo step so the root `build.rs` reuses
 prebuilt web assets instead of launching another implicit browser-console
-build. The script enforces one Cargo job with incremental compilation disabled
-for both the headless and desktop builds.
+build. Desktop additionally builds the Tauri shell. The script enforces one
+Cargo job with incremental compilation disabled.
 
 The package command can build for you when `-SkipBuild` is omitted. A skipped
-build is accepted only when `target/release/gateway-build-provenance.json`
-matches both executables and the current source tree. Use a new version id for
-every package; an existing directory is never overwritten.
+build is accepted only when the edition-specific provenance matches the
+requested capabilities and current source tree. Use a new version id for every
+package; an existing directory is never overwritten. Release copying excludes
+test directories and generated test artifacts; source tests remain available in
+the repository.
 
 The Neuro workspace policy may keep release artifacts outside this checkout.
 Pass an explicit release root when that is required:

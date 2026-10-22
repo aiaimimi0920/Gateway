@@ -1,5 +1,6 @@
 pub(crate) mod authorization_browser;
 pub mod chrome;
+pub(crate) mod headless;
 mod local;
 mod settings;
 mod window;

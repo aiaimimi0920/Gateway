@@ -143,10 +143,13 @@ function Assert-BuildProvenance {
     param(
         [Parameter(Mandatory = $true)][string]$GatewayRoot,
         [Parameter(Mandatory = $true)][object]$SourceTreeState,
-        [Parameter(Mandatory = $true)][string[]]$ArtifactRelativePaths
+        [Parameter(Mandatory = $true)][string[]]$ArtifactRelativePaths,
+        [ValidateSet("api", "web", "desktop")][string]$Edition = "desktop",
+        [ValidateSet("release", "devtest")][string]$BuildKind = "release",
+        [string]$ProvenanceRelativePath = "target/release/gateway-build-provenance.json"
     )
 
-    $provenancePath = Join-Path $GatewayRoot "target\release\gateway-build-provenance.json"
+    $provenancePath = Join-Path $GatewayRoot $ProvenanceRelativePath
     if (-not (Test-Path -LiteralPath $provenancePath -PathType Leaf)) {
         throw "Build provenance is missing: $provenancePath. Run tools\build-gateway-release.ps1 before using -SkipBuild or -StageOnly."
     }
@@ -158,6 +161,21 @@ function Assert-BuildProvenance {
     }
     if ([int]$provenance.schemaVersion -ne 1) {
         throw "Unsupported Gateway build provenance schema: $($provenance.schemaVersion)"
+    }
+    $recordedKind = if ($provenance.PSObject.Properties.Name -contains "buildKind") { $provenance.buildKind } else { "release" }
+    if ($recordedKind -ne $BuildKind) {
+        throw "Gateway build kind mismatch: cannot package $recordedKind as $BuildKind."
+    }
+    # Older desktop receipts remain readable. A new edition must prove its exact
+    # compile capability, even when a stale binary has an identical source tree.
+    if ($provenance.PSObject.Properties.Name -contains "edition") {
+        if ($provenance.edition -ne $Edition -or
+            [bool]$provenance.capabilities.managementUi -ne ($Edition -ne "api") -or
+            [bool]$provenance.capabilities.desktopUi -ne ($Edition -eq "desktop")) {
+            throw "Gateway build provenance edition/capability mismatch. Rebuild the requested edition."
+        }
+    } elseif ($Edition -ne "desktop") {
+        throw "Gateway build provenance has no edition. Rebuild the requested edition."
     }
     if ($null -eq $provenance.sourceTree) {
         throw "Gateway build provenance is missing source tree metadata. Rebuild before packaging."

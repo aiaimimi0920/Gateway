@@ -1,3 +1,5 @@
+#![cfg(feature = "management-ui")]
+
 use std::sync::Arc;
 
 use axum::body::Body;

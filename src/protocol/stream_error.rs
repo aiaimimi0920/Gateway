@@ -9,6 +9,11 @@ pub struct ProtocolStreamError {
 }
 
 impl ProtocolStreamError {
+    pub(crate) fn is_upstream_failure(&self) -> bool {
+        self.source
+            .to_string()
+            .starts_with("responses_stream_upstream_error:")
+    }
     pub(crate) fn invalid_data(message: impl Into<String>) -> Self {
         Self::from(serde_json::Error::io(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -25,6 +30,9 @@ impl From<serde_json::Error> for ProtocolStreamError {
 
 impl fmt::Display for ProtocolStreamError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_upstream_failure() {
+            return write!(formatter, "upstream stream failed: {}", self.source);
+        }
         write!(formatter, "error decoding response body: {}", self.source)
     }
 }

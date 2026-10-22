@@ -330,7 +330,33 @@ $integrity = Assert-PackagedReleaseIntegrity -ReleaseRoot $resolvedReleaseDir
 $manifest = $integrity.manifest
 $checksumEntries = $integrity.checksumEntries
 $exeRecords = @($manifest.exes)
+$releaseEdition = "desktop"
 $expectedExeNames = @("gateway.exe", "gateway-ui.exe")
+if ($manifest.PSObject.Properties.Name -contains "edition") {
+  $releaseEdition = [string]$manifest.edition
+  $expectedCapabilities = switch ($manifest.edition) {
+    "api" { @{ managementUi = $false; desktopUi = $false } }
+    "web" { @{ managementUi = $true; desktopUi = $false } }
+    "desktop" { @{ managementUi = $true; desktopUi = $true } }
+    default { throw "Unknown Gateway release edition" }
+  }
+  if ([bool]$manifest.capabilities.managementUi -ne $expectedCapabilities.managementUi -or
+    [bool]$manifest.capabilities.desktopUi -ne $expectedCapabilities.desktopUi) {
+    throw "Gateway release edition/capability mismatch"
+  }
+  if ($releaseEdition -ne "desktop") {
+    $expectedExeNames = @("gateway.exe")
+    if ($LaunchUi) { throw "This release edition does not include a desktop UI executable" }
+    if (Test-Path -LiteralPath (Join-Path $resolvedReleaseDir "gateway-ui.exe")) {
+      throw "Non-desktop release contains a forbidden gateway-ui.exe"
+    }
+  }
+}
+
+$actualExeNames = @($exeRecords | ForEach-Object { [string]$_.name } | Sort-Object)
+if (($actualExeNames -join "|") -ne (@($expectedExeNames | Sort-Object) -join "|")) {
+  throw "manifest.json executable set does not match the release edition"
+}
 
 foreach ($expectedExeName in $expectedExeNames) {
   if (-not ($exeRecords | Where-Object { $_.name -eq $expectedExeName })) {
@@ -345,5 +371,9 @@ foreach ($record in $exeRecords) {
 if ($LaunchUi) {
   Invoke-OptionalUiLaunchSmoke -ReleaseRoot $resolvedReleaseDir -Seconds $LaunchSeconds
 } else {
-  Write-Smoke "artifact smoke passed; pass -LaunchUi to also launch gateway-ui.exe briefly"
+  if ($releaseEdition -eq "desktop") {
+    Write-Smoke "artifact smoke passed; pass -LaunchUi to also launch gateway-ui.exe briefly"
+  } else {
+    Write-Smoke "artifact smoke passed for edition=$releaseEdition"
+  }
 }

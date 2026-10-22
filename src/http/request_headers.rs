@@ -1,6 +1,6 @@
 use axum::http::HeaderMap;
-mod workbuddy;
 mod session_hints;
+mod workbuddy;
 
 use crate::auth::adapter::AuthRequest;
 use crate::config::Config;
@@ -12,8 +12,11 @@ const DEFAULT_INBOUND_API_KEY_HEADERS: &[&str] = &["x-api-key", "api-key", "x-go
 const DEFAULT_TRUSTED_FORWARDED_HEADERS: &[&str] =
     &["x-credential-ref", "x-neuro-user", "x-neuro-cred-source"];
 const DEFAULT_TRACE_HEADERS: &[&str] = &["x-request-id", "traceparent", "tracestate"];
-pub(crate) const INTERNAL_GATEWAY_HEADER_DENYLIST: &[&str] =
-    &["x-neuro-account-group", "x-account-group-id"];
+pub(crate) const INTERNAL_GATEWAY_HEADER_DENYLIST: &[&str] = &[
+    "x-neuro-account-group",
+    "x-account-group-id",
+    "x-gateway-routing-order",
+];
 const INTERNAL_API_KEY_HEADER: &str = "x-internal-api-key";
 
 pub fn apply_public_request_headers(
@@ -24,6 +27,23 @@ pub fn apply_public_request_headers(
     extra_headers: &[&str],
 ) -> Result<(), GatewayError> {
     ctx.forced_upstream_protocol = super::debug_protocol::requested_target(headers)?;
+    if let Some(value) = headers.get("x-gateway-routing-order") {
+        let value = value
+            .to_str()
+            .map_err(|_| GatewayError::bad_request("Invalid routing order header"))?;
+        if value.len() > 128 {
+            return Err(GatewayError::bad_request("Routing order header too long"));
+        }
+        let dimensions: Vec<_> = value.split(',').map(str::trim).collect();
+        let _: crate::routing::smart::Order = serde_json::from_value(serde_json::json!(dimensions))
+            .map_err(|_| {
+                GatewayError::bad_request(
+                    "Routing order requires availability,intelligence,price once each",
+                )
+            })?;
+        ctx.request_headers
+            .insert("x-gateway-routing-order".into(), value.into());
+    }
     if let Some(api_key) = extract_inbound_api_key(headers, config) {
         ctx.request_headers.insert("x-api-key".to_string(), api_key);
     }

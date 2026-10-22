@@ -66,7 +66,12 @@ pub async fn run_failure(
     }
 }
 
-pub async fn run_stream_failure(snapshot: FailureFinalizeSnapshot, state: &Arc<AppState>) {
+pub async fn run_stream_failure(
+    snapshot: FailureFinalizeSnapshot,
+    state: &Arc<AppState>,
+    reason: &str,
+    upstream_failed: bool,
+) {
     crate::cash_billing::finalization::failure(
         snapshot.request_audit.cash_charge.as_ref(),
         snapshot.request_audit.route_attempt_count,
@@ -74,12 +79,7 @@ pub async fn run_stream_failure(snapshot: FailureFinalizeSnapshot, state: &Arc<A
     )
     .await;
     refund_pre_deducted_quota_snapshot(&snapshot, state).await;
-    finalize_request_audit_failure_snapshot(
-        &snapshot,
-        state,
-        Some("stream terminated before completion"),
-    )
-    .await;
+    finalize_request_audit_failure_snapshot(&snapshot, state, Some(reason), upstream_failed).await;
 
     let Some(project_id) = snapshot.project_id else {
         return;

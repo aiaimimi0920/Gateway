@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-    [switch]$DryRun
+    [switch]$DryRun,
+    [ValidateSet("api", "web", "desktop", "all")][string]$Edition = "desktop",
+    [switch]$UseInstalledDependencies
 )
 
 Set-StrictMode -Version Latest
@@ -13,22 +15,22 @@ $defaultCargoBuildJobs = 1
 $scriptsRoot = Join-Path $repoRoot "scripts"
 $minimumNodeVersion = [version]"22.22.0"
 
-$commands = @(
-    'Node.js >= 22.22.0',
-    'npm ci --prefix scripts --no-audit --no-fund (retry up to 3 attempts on transient Windows file locks)',
-    'npm run audit:prod --prefix scripts',
-    'npm ci --prefix apps/desktop --no-audit --no-fund (retry up to 3 attempts on transient Windows file locks)',
-    'npm run audit:prod --prefix apps/desktop',
-    'npm run typecheck --prefix apps/desktop',
-    'npm run build:web --prefix apps/desktop',
-    'cargo build --locked --release --bin gateway',
-    'npm run tauri --prefix apps/desktop -- build --no-bundle'
-)
+. (Join-Path $PSScriptRoot "release-editions.ps1")
+. (Join-Path $PSScriptRoot "package-release/source-provenance.ps1")
+$editions = if ($Edition -eq "all") { @("api", "web", "desktop") } else { @($Edition) }
 
 if ($DryRun) {
-    $commands | ForEach-Object { Write-Output $_ }
+    foreach ($selectedEdition in $editions) { Get-GatewayEditionBuildPlan -Edition $selectedEdition }
     exit 0
 }
+if ($Edition -eq "all") {
+    # Shared Cargo/frontend output has one coordinator and is never built in parallel.
+    foreach ($selectedEdition in $editions) {
+        & $PSCommandPath -Edition $selectedEdition -UseInstalledDependencies:$UseInstalledDependencies
+    }
+    return
+}
+$layout = Get-GatewayEditionLayout -Root $repoRoot -Edition $Edition
 
 function Test-RetryableNpmCiFailure {
     param([string]$Output)
@@ -178,6 +180,13 @@ function Invoke-NpmCiWithRetry {
         [int]$MaxAttempts = $maxNpmCiAttempts
     )
 
+    if ($UseInstalledDependencies) {
+        $installed = Invoke-NativeCommandCapture -Command "npm" `
+            -Arguments @("ls", "--depth=0") -WorkingDirectory $WorkingDirectory
+        if ($installed.ExitCode -ne 0) { throw "Installed dependencies are invalid for $ComponentName" }
+        return
+    }
+
     for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
         Write-Output "[gateway-release] npm ci for $ComponentName attempt $attempt/$MaxAttempts"
 
@@ -281,97 +290,6 @@ function Get-RelativeUnixPath {
     return [System.Uri]::UnescapeDataString($baseUri.MakeRelativeUri($pathUri).ToString()).Replace("\", "/")
 }
 
-function Get-SourceTreeState {
-    param([Parameter(Mandatory = $true)][string]$Root)
-
-    $excludedDirectoryNames = @(".git", "target", "node_modules", ".runtime", "output")
-    $excludedRootDirectoryNames = @("release")
-    $gitRoot = $null
-    $cursor = Get-Item -LiteralPath $Root
-    while ($null -ne $cursor) {
-        if (Test-Path -LiteralPath (Join-Path $cursor.FullName ".git")) {
-            $gitRoot = $cursor.FullName
-            break
-        }
-        $cursor = $cursor.Parent
-    }
-    $gitCommand = Get-Command "git" -ErrorAction SilentlyContinue
-    $algorithm = "sha256-file-list-v1"
-    $files = @()
-    if ($null -ne $gitRoot) {
-        if ($null -eq $gitCommand) {
-            throw "Unable to enumerate Gateway source files with Git because git is unavailable."
-        }
-        $pathSpec = Get-RelativeUnixPath -BasePath $gitRoot -Path $Root
-        $gitPaths = @(& git -C $gitRoot -c core.quotepath=false ls-files --cached --others --exclude-standard -- $pathSpec 2>$null)
-        if ($LASTEXITCODE -ne 0) {
-            throw "Unable to enumerate Gateway source files with Git."
-        }
-        $files = @(
-            foreach ($gitPath in $gitPaths) {
-                if ([string]::IsNullOrWhiteSpace($gitPath)) {
-                    continue
-                }
-                $fullPath = Join-Path $gitRoot $gitPath
-                if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
-                    Get-Item -LiteralPath $fullPath -Force
-                }
-            }
-        )
-        $algorithm = "sha256-git-source-list-v2"
-    } else {
-        $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force)
-    }
-    $records = [System.Collections.Generic.List[string]]::new()
-    foreach ($file in $files) {
-        $relative = Get-RelativeUnixPath -BasePath $Root -Path $file.FullName
-        $skip = $false
-        $parts = @($relative -split "/")
-        for ($index = 0; $index -lt $parts.Count; $index++) {
-            $part = $parts[$index]
-            $lowerPart = $part.ToLowerInvariant()
-            if (($excludedDirectoryNames -contains $lowerPart) -or
-                (($index -eq 0) -and ($excludedRootDirectoryNames -contains $lowerPart)) -or
-                $part.StartsWith("tmp-", [System.StringComparison]::OrdinalIgnoreCase)) {
-                $skip = $true
-                break
-            }
-        }
-        if ($skip) {
-            continue
-        }
-        $digest = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-        $records.Add("$relative`t$($file.Length)`t$digest`n") | Out-Null
-    }
-
-    $sortedRecords = $records.ToArray()
-    [Array]::Sort($sortedRecords, [System.StringComparer]::Ordinal)
-    $sha256 = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        $fingerprintBytes = $sha256.ComputeHash(
-            [System.Text.Encoding]::UTF8.GetBytes([string]::Concat($sortedRecords))
-        )
-    } finally {
-        $sha256.Dispose()
-    }
-
-    $dirty = $null
-    if ($null -ne $gitRoot -and $null -ne $gitCommand) {
-        $pathSpec = Get-RelativeUnixPath -BasePath $gitRoot -Path $Root
-        $statusOutput = @(& git -C $gitRoot status --porcelain=v1 --untracked-files=all -- $pathSpec 2>$null)
-        if ($LASTEXITCODE -eq 0) {
-            $dirty = $statusOutput.Count -gt 0
-        }
-    }
-
-    return [pscustomobject]@{
-        algorithm = $algorithm
-        fingerprint = ([System.BitConverter]::ToString($fingerprintBytes)).Replace("-", "").ToLowerInvariant()
-        fileCount = $sortedRecords.Count
-        dirty = $dirty
-    }
-}
-
 function Write-BuildProvenance {
     param(
         [Parameter(Mandatory = $true)][string]$GatewayRoot,
@@ -395,6 +313,8 @@ function Write-BuildProvenance {
     $payload = [ordered]@{
         schemaVersion = 1
         app = "Gateway"
+        edition = $Edition
+        capabilities = [ordered]@{ managementUi = $layout.WebUi; desktopUi = $layout.DesktopUi }
         builtAt = [DateTimeOffset]::UtcNow.ToString("o")
         sourceTreeFingerprint = $SourceTreeState.fingerprint
         sourceTreeDirty = $SourceTreeState.dirty
@@ -406,7 +326,7 @@ function Write-BuildProvenance {
         }
         artifacts = @($records)
     }
-    $provenancePath = Join-Path $GatewayRoot "target\release\gateway-build-provenance.json"
+    $provenancePath = $layout.ProvenancePath
     $parent = Split-Path -Parent $provenancePath
     New-Item -ItemType Directory -Path $parent -Force | Out-Null
     [System.IO.File]::WriteAllText(
@@ -438,6 +358,7 @@ try {
             -ComponentName "Gateway browser workers"
     }
 
+    if ($layout.WebUi) {
     Push-Location -LiteralPath $desktopRoot
     try {
         Invoke-GatewayReleaseStep -Name "install desktop dependencies" -Action {
@@ -477,13 +398,21 @@ try {
             }
         }
 
+    } finally { Pop-Location }
+    }
+
         Invoke-GatewayReleaseStep -Name "build headless gateway" -Action {
             $previousPrebuiltWebUi = $env:GATEWAY_PREBUILT_WEB_UI
             try {
-                $env:GATEWAY_PREBUILT_WEB_UI = "1"
+                $env:GATEWAY_PREBUILT_WEB_UI = if ($layout.WebUi) { "1" } else { "0" }
+                # Keep the large backend's release link within the local memory budget.
+                $cargoArguments = @("build", "--locked", "--release", "--bin", "gateway", "--config", "profile.release.package.gateway.codegen-units=16")
+                if (-not $layout.WebUi) {
+                    $cargoArguments += @("--no-default-features", "--features", "runtime-defaults")
+                }
                 $cargoResult = Invoke-NativeCommandCapture `
                     -Command "cargo" `
-                    -Arguments @("build", "--locked", "--release", "--bin", "gateway") `
+                    -Arguments $cargoArguments `
                     -WorkingDirectory $repoRoot
                 $cargoOutput = @($cargoResult.Output)
                 $cargoExitCode = [int]$cargoResult.ExitCode
@@ -499,6 +428,7 @@ try {
             }
         }
 
+    if ($layout.DesktopUi) {
         Invoke-GatewayReleaseStep -Name "build desktop Tauri shell" -Action {
             $tauriResult = Invoke-NativeCommandCapture `
                 -Command "npm" `
@@ -510,8 +440,6 @@ try {
                 throw "tauri build failed for Gateway desktop UI"
             }
         }
-    } finally {
-        Pop-Location
     }
 
     $headlessExe = Join-Path $repoRoot "target\\release\\gateway.exe"
@@ -520,16 +448,20 @@ try {
     if (-not (Test-Path -LiteralPath $headlessExe -PathType Leaf)) {
         throw "Missing headless build artifact: $headlessExe"
     }
-    if (-not (Test-Path -LiteralPath $uiExe -PathType Leaf)) {
+    if ($layout.DesktopUi -and -not (Test-Path -LiteralPath $uiExe -PathType Leaf)) {
         throw "Missing UI build artifact: $uiExe"
     }
 
-    Write-ArtifactHashSummary -Paths @($headlessExe, $uiExe)
+    if (-not $layout.DesktopUi) {
+        New-Item -ItemType Directory -Path (Split-Path -Parent $layout.GatewayPath) -Force | Out-Null
+        Copy-Item -LiteralPath $headlessExe -Destination $layout.GatewayPath
+    }
+    Write-ArtifactHashSummary -Paths $layout.ArtifactPaths
     $sourceTreeState = Get-SourceTreeState -Root $repoRoot
     Write-BuildProvenance `
         -GatewayRoot $repoRoot `
         -SourceTreeState $sourceTreeState `
-        -ArtifactPaths @($headlessExe, $uiExe)
+        -ArtifactPaths $layout.ArtifactPaths
 } finally {
     Pop-Location
     if ($null -eq $previousCargoBuildJobs) {

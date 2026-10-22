@@ -1,4 +1,4 @@
-"""Verify both packaged EXEs contain every byte-identical shared Windows icon frame."""
+"""Verify packaged Gateway EXEs contain the shared Windows icon frames."""
 
 import argparse
 import ctypes
@@ -90,10 +90,44 @@ def read_exe_frames(executable):
         kernel.FreeLibrary(module)
 
 
+def read_manifest(release):
+    path = release / "manifest.json"
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"Invalid release manifest: {error}") from error
+
+
+def executable_names(manifest):
+    if manifest is None or "edition" not in manifest:
+        return ["gateway.exe", "gateway-ui.exe"]
+    edition = manifest["edition"]
+    expected = {
+        "api": {"managementUi": False, "desktopUi": False},
+        "web": {"managementUi": True, "desktopUi": False},
+        "desktop": {"managementUi": True, "desktopUi": True},
+    }
+    if edition not in expected:
+        raise ValueError(f"Unknown Gateway release edition: {edition}")
+    if manifest.get("capabilities") != expected[edition]:
+        raise ValueError(f"{edition} release capability mismatch")
+    names = ["gateway.exe"]
+    if edition == "desktop":
+        names.append("gateway-ui.exe")
+    elif manifest.get("layout", {}).get("executables") not in (None, ["gateway.exe"]):
+        raise ValueError(f"{edition} release executable layout mismatch")
+    return names
+
+
 def verify_release(release, icon):
     expected = ico_frames(icon.read_bytes())
     records = []
-    for name in ("gateway.exe", "gateway-ui.exe"):
+    names = executable_names(read_manifest(release))
+    if "gateway-ui.exe" not in names and (release / "gateway-ui.exe").exists():
+        raise ValueError("Non-desktop release contains a forbidden gateway-ui.exe")
+    for name in names:
         groups = read_exe_frames(release / name)
         if not groups or any(frames != expected for frames in groups):
             raise ValueError(f"{name}: embedded icon frames differ from the shared ICO")

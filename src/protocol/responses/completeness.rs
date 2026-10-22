@@ -21,6 +21,7 @@ where
         inner: Some(Box::pin(inner)),
         decoder: BoundedSseDecoder::new(MAX_TRANSLATED_SSE_FRAME_BYTES),
         completion: Completion::default(),
+        pending_error: None,
     }
 }
 
@@ -28,6 +29,7 @@ struct CompletionStream<E> {
     inner: Option<Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>>,
     decoder: BoundedSseDecoder,
     completion: Completion,
+    pending_error: Option<ProtocolStreamError>,
 }
 
 impl<E> CompletionStream<E> {
@@ -52,6 +54,9 @@ impl<E: From<ProtocolStreamError>> Stream for CompletionStream<E> {
     type Item = Result<Bytes, E>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if let Some(error) = self.pending_error.take() {
+            return Poll::Ready(Some(Err(error.into())));
+        }
         let Some(inner) = self.inner.as_mut() else {
             return Poll::Ready(None);
         };
@@ -68,6 +73,12 @@ impl<E: From<ProtocolStreamError>> Stream for CompletionStream<E> {
                     };
                     if let Some(error) = error {
                         self.clear();
+                        if error.is_upstream_failure() {
+                            // Preserve the upstream failure event on the wire before marking
+                            // accounting failed. Never synthesize a successful completion.
+                            self.pending_error = Some(error);
+                            return Poll::Ready(Some(Ok(bytes)));
+                        }
                         return Poll::Ready(Some(Err(error.into())));
                     }
                 }

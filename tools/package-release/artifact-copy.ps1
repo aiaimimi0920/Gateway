@@ -126,7 +126,11 @@ function Copy-FilteredTree {
     }
 
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    $excludedDirectories = @("node_modules", ".runtime", "output")
+    # Release payloads are not source/test distributions. Apply at every depth;
+    # generated hidden test modules otherwise bypass Git's ignore policy here.
+    $excludedDirectories = @("node_modules", ".runtime", "output", "tests", "test",
+        "__tests__", "__pycache__", ".pytest_cache", "test-results", "coverage",
+        "undefined", "artifacts")
     $excludedFileNamesLower = @($ExcludedFileNames | ForEach-Object { $_.ToLowerInvariant() })
     $items = @(Get-ChildItem -LiteralPath $Source -Force | Sort-Object Name)
     foreach ($item in $items) {
@@ -150,6 +154,7 @@ function Copy-FilteredTree {
         }
 
         if ($item.Name -like "*.pyc" -or
+            $item.Name -match '(?i)(\.(test|spec)\.[^.]+$|^\.gemini-canvas-browser-pool-testable-|\.(log|tmp|bak|swp)$)' -or
             $item.Name -eq ".DS_Store" -or
             $excludedFileNamesLower -contains $item.Name.ToLowerInvariant()) {
             continue

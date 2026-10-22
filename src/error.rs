@@ -7,6 +7,7 @@
 mod admission_rejection;
 mod classification;
 mod diagnostics;
+mod html_rejection;
 mod model_capacity;
 mod retry_after;
 

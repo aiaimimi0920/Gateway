@@ -135,6 +135,15 @@ pub async fn save_access_key_with_quota(
     input: UpsertAccessKeyInput,
     quota: Option<&crate::access_balance::quota::KeyQuotaInput>,
 ) -> Result<GatewayAccessKeyView, GatewayError> {
+    if let Some(order) = input
+        .metadata
+        .as_ref()
+        .and_then(|metadata| metadata.get("routingOrder"))
+        .filter(|v| !v.is_null())
+    {
+        serde_json::from_value::<crate::routing::smart::Order>(order.clone())
+            .map_err(|_| GatewayError::bad_request("Invalid access key routingOrder"))?;
+    }
     if let Some(quota) = quota {
         quota.validate()?;
     }

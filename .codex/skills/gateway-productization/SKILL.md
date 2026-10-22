@@ -22,6 +22,11 @@ description: Productize the Neuro Gateway across portable delivery, provider evi
 
 ## Test Discipline
 
+Daily functional work follows the devtest rules in repository `AGENTS.md` and
+`docs/devtest-build.md`: focused checks and package integrity, not a full release
+gate on every fix. The full validation steps below apply to explicitly requested
+formal releases. Never relabel devtest artifacts as release artifacts.
+
 For every production behavior change:
 
 1. Add one focused failing test.
@@ -45,4 +50,3 @@ Push-Location apps/desktop; npm run typecheck; Pop-Location
 ## Completion Standard
 
 Do not report a phase complete based on source inspection alone. Require code, focused tests, affected tests, full validation, package contents, and isolated runtime evidence recorded in `docs/progress/`.
-

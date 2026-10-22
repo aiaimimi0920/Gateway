@@ -119,6 +119,12 @@ fn main() {
     .manifest_required()
     .expect("failed to embed the shared Gateway Windows icon");
 
+    // API-only builds neither invoke Node/npm nor read stale frontend output.
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_MANAGEMENT_UI");
+    if env::var_os("CARGO_FEATURE_MANAGEMENT_UI").is_none() {
+        return;
+    }
+
     println!("cargo:rerun-if-env-changed={PREBUILT_WEB_UI_ENV}");
     for path in [
         "apps/desktop/package.json",

@@ -5,16 +5,17 @@ from pathlib import Path
 
 GATEWAY_ROOT = Path(__file__).resolve().parents[2]
 DESKTOP_ROOT = GATEWAY_ROOT / "apps" / "desktop"
+EDITION_SCRIPT = GATEWAY_ROOT / "tools" / "release-editions.ps1"
 
 
 class GatewayDesktopReleaseContractTests(unittest.TestCase):
     def test_release_plan_includes_headless_and_ui_gateway_exes(self):
-        release_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
-        script_text = release_script.read_text(encoding="utf-8")
+        script_text = EDITION_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("cargo build --locked --release --bin gateway", script_text)
-        self.assertIn('"target\\\\release\\\\gateway.exe"', script_text)
+        self.assertIn('target/release', script_text)
+        self.assertIn('$gateway = "$directory/gateway.exe"', script_text)
         self.assertIn(
-            '"apps\\\\desktop\\\\src-tauri\\\\target\\\\release\\\\gateway-ui.exe"',
+            'apps/desktop/src-tauri/target/release/gateway-ui.exe',
             script_text,
         )
 
@@ -22,18 +23,18 @@ class GatewayDesktopReleaseContractTests(unittest.TestCase):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"
         self.assertTrue(build_script.exists(), "Gateway-owned release builder must exist")
         script_text = build_script.read_text(encoding="utf-8")
-        self.assertIn("cargo build --locked --release --bin gateway", script_text)
+        edition_script = EDITION_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("cargo build --locked --release --bin gateway", edition_script)
+        self.assertIn("release-editions.ps1", script_text)
         self.assertIn("Push-Location -LiteralPath $desktopRoot", script_text)
         self.assertIn("npm ci", script_text)
-        self.assertIn("npm run typecheck", script_text)
-        self.assertIn(
-            "npm run tauri --prefix apps/desktop -- build --no-bundle", script_text
-        )
+        self.assertIn("npm run typecheck", edition_script)
+        self.assertIn("npm run tauri --prefix apps/desktop -- build --no-bundle", edition_script)
         self.assertIn(
             '-Arguments @("run", "tauri", "--", "build", "--no-bundle")',
             script_text,
         )
-        self.assertIn("gateway-ui.exe", script_text)
+        self.assertIn("gateway-ui.exe", edition_script)
 
     def test_gateway_owned_release_builder_installs_desktop_dependencies_before_headless_build(self):
         build_script = GATEWAY_ROOT / "tools" / "build-gateway-release.ps1"

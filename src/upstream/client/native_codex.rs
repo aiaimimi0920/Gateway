@@ -231,10 +231,16 @@ impl UpstreamClient {
                     })
             })
             .unwrap_or(&self.native_http);
-        let mut builder = http
-            .request(plan.method.clone(), url)
-            .headers(headers)
-            .timeout(self.timeout);
+        let mut builder = http.request(plan.method.clone(), url).headers(headers);
+        // reqwest total timeout includes body consumption; never apply it to SSE.
+        // Buffered/auxiliary requests retain their existing total deadline.
+        if !plan
+            .body
+            .as_ref()
+            .is_some_and(|body| body["stream"] == true)
+        {
+            builder = builder.timeout(self.timeout);
+        }
         if !plan.query.is_empty() {
             builder = builder.query(&plan.query);
         }

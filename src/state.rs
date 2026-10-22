@@ -22,6 +22,7 @@ use sqlx::PgPool;
 
 #[derive(Debug, Default)]
 pub struct GatewayLifecycleState {
+    pub(crate) smart_routing: Arc<crate::routing::smart::SmartRouting>,
     pub(crate) site_health: crate::site_health::runtime::SiteHealthRuntime,
     pub(crate) discovery: crate::provider_discovery::background::DiscoveryWorker,
     /// Per-runtime admission cursor; released with this runtime, never reused by another instance.

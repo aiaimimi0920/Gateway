@@ -1,6 +1,8 @@
 import importlib.util
+import json
 from pathlib import Path
 import struct
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -50,6 +52,29 @@ class GatewayWindowsIconContractTests(unittest.TestCase):
                 ICONS, "read_exe_frames", side_effect=[[expected], [broken]]
             ), self.assertRaisesRegex(ValueError, "gateway-ui.exe"):
                 ICONS.verify_release(Path("release"), ICON)
+
+    def test_verifier_uses_manifest_capabilities_for_each_edition(self):
+        expected = ICONS.ico_frames(ICON.read_bytes())
+        with tempfile.TemporaryDirectory() as directory:
+            release = Path(directory)
+            api = {"edition": "api", "capabilities": {"managementUi": False, "desktopUi": False}}
+            with patch.object(ICONS, "read_exe_frames", return_value=[expected]) as read, patch.object(
+                ICONS, "read_manifest", return_value=api
+            ):
+                result = ICONS.verify_release(release, ICON)
+            self.assertEqual([call.args[0].name for call in read.call_args_list], ["gateway.exe"])
+            self.assertEqual([item["executable"] for item in result["binaries"]], ["gateway.exe"])
+
+            bad = {"edition": "web", "capabilities": {"managementUi": True, "desktopUi": True}}
+            with patch.object(ICONS, "read_manifest", return_value=bad), self.assertRaisesRegex(
+                ValueError, "capability mismatch"
+            ):
+                ICONS.verify_release(release, ICON)
+            (release / "gateway-ui.exe").write_bytes(b"stale")
+            with patch.object(ICONS, "read_manifest", return_value=api), self.assertRaisesRegex(
+                ValueError, "forbidden gateway-ui.exe"
+            ):
+                ICONS.verify_release(release, ICON)
 
 
 if __name__ == "__main__":

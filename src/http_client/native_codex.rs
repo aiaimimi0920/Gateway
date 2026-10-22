@@ -5,6 +5,9 @@ use std::time::Duration;
 mod custom_ca;
 #[path = "native_codex_redirect.rs"]
 mod redirect;
+#[cfg(test)]
+#[path = "native_codex_timeout_tests.rs"]
+mod timeout_tests;
 
 /// A pool belongs to one accepted client connection, not the whole Gateway.
 /// Lazy initialization avoids creating native clients for unrelated routes.
@@ -61,14 +64,21 @@ fn build(timeout: Duration, websocket: bool, session: bool) -> reqwest::Client {
     };
     #[cfg(not(windows))]
     let _ = has_custom_ca;
-    builder
+    let builder = builder
         // Cookie sessions never replay manually attached cookies on a redirect.
         .redirect(if session {
             reqwest::redirect::Policy::none()
         } else {
             redirect::policy()
-        })
-        .timeout(timeout)
+        });
+    // A Responses stream may remain productive longer than the request budget.
+    // Bound connection/idle reads, not its total lifetime. WS keeps its dial limit.
+    let builder = if websocket {
+        builder.timeout(timeout)
+    } else {
+        builder.connect_timeout(timeout).read_timeout(timeout)
+    };
+    builder
         .build()
         .expect("failed to build native Codex client")
 }

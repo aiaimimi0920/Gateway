@@ -16,6 +16,7 @@ class GatewayNestedWorkerPackageContractTests(unittest.TestCase):
     def test_extracted_worker_and_inventory_modules_ship_with_verified_support_records(self):
         modules = (
             "tools/package-gateway-release.ps1",
+            "tools/release-editions.ps1",
             "tools/package-release/artifact-copy.ps1",
             "tools/package-release/source-provenance.ps1",
             "tools/run-gateway-console-live-e2e.ps1",

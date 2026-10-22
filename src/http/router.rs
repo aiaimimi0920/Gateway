@@ -4,7 +4,6 @@
 
 use super::middleware::{body_limit_layer, request_logging};
 use super::routes::{health, metrics};
-use super::ui;
 use crate::state::AppState;
 use axum::{middleware as axum_mw, routing::get, Router};
 use std::sync::Arc;
@@ -36,10 +35,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let router = Router::new()
-        .route("/ui", get(ui::redirect_ui_root))
-        .route("/ui/", get(ui::serve_ui_index))
-        .route("/ui/*path", get(ui::serve_ui_path));
+    let router =
+        super::management_ui::mount(Router::new(), state.config.console.management_ui_enabled);
     let router = inference::mount(router, &state);
     let router = super::native_session::mount(router, &state);
     let router = management_access::mount(router);

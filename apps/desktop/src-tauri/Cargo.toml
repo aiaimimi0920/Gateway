@@ -21,3 +21,13 @@ serde_json = "1"
 tauri = { version = "=2.11.2", features = [] }
 
 [workspace]
+
+[profile.devtest]
+inherits = "dev"
+opt-level = 1
+debug = 0
+debug-assertions = false
+overflow-checks = true
+lto = false
+incremental = true
+codegen-units = 16

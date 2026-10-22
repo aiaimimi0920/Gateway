@@ -30,6 +30,7 @@ use super::{CredentialSource, PipelineContext};
 
 mod account_group;
 mod candidate_policy;
+pub(crate) mod smart;
 pub(crate) use candidate_policy::{
     provider_allowed_by_policy, provider_explicitly_allowed_by_policy,
 };
@@ -209,7 +210,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
                 .with_code("access_candidates_exhausted"));
         }
         ctx.route_selection_strategy = Some("access_catalog".to_string());
-        return Ok(());
+        return smart::apply(ctx, state).await;
     }
 
     // ── Phase 1: Try Redis credential resolution ─────────────────────────
@@ -412,18 +413,10 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     // Session affinity precedes user affinity. Defer promotion until after all
     // filters/health checks, so it neither bypasses eligibility nor loses to
     // advisory latency sorting. The queue owns the existing sticky contract.
-    let affinity_scope = ctx
-        .canonical_req
-        .explicit_session_key
-        .as_deref()
-        .map(|sk| format!("session:{sk}"))
-        .or_else(|| user_id.map(|uid| format!("user:{uid}")));
-    let sticky_provider_id = match (model, affinity_scope) {
-        (Some(model), Some(scope)) if all_candidates.len() > 1 => {
-            super::runtime_storage::get_affinity(state, &scope, model).await
-        }
-        _ => None,
-    };
+    let sticky_provider_id = state.lifecycle.smart_routing.sticky(
+        smart::session_scope(ctx).as_deref(),
+        model.unwrap_or_default(),
+    );
 
     debug!(
         req_id = %ctx.req_id,
@@ -513,7 +506,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
 
     ctx.candidates = queue;
     ctx.route_selection_strategy = Some(selection_strategy);
-    Ok(())
+    smart::apply(ctx, state).await
 }
 
 #[cfg(test)]

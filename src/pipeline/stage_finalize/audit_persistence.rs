@@ -53,6 +53,7 @@ pub(super) async fn finalize_request_audit_failure_snapshot(
     snapshot: &FailureFinalizeSnapshot,
     state: &Arc<AppState>,
     error_summary: Option<&str>,
+    upstream_failed: bool,
 ) {
     finalize_request_audit_from_snapshot(
         &snapshot.request_audit,
@@ -76,8 +77,14 @@ pub(super) async fn finalize_request_audit_failure_snapshot(
         state,
     )
     .await;
-    record_credential_model_failure_from_snapshot(&snapshot.request_audit, error_summary, state)
+    if upstream_failed {
+        record_credential_model_failure_from_snapshot(
+            &snapshot.request_audit,
+            error_summary,
+            state,
+        )
         .await;
+    }
 }
 
 pub(super) async fn finalize_request_audit(

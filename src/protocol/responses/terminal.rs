@@ -5,34 +5,34 @@ use crate::error::GatewayError;
 use crate::protocol::sse_parse::SseFrame;
 use crate::protocol::stream_error::ProtocolStreamError;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(super) enum CompletionError {
     Incomplete,
     InvalidEvent,
-    Upstream,
+    Upstream(String),
 }
 
 impl CompletionError {
-    fn code(self) -> &'static str {
+    fn code(&self) -> &'static str {
         match self {
             Self::Incomplete => "responses_stream_incomplete",
             Self::InvalidEvent => "responses_stream_parse_failed",
-            Self::Upstream => "responses_stream_upstream_error",
+            Self::Upstream(_) => "responses_stream_upstream_error",
         }
     }
 
-    fn message(self) -> &'static str {
+    fn message(&self) -> &str {
         match self {
             Self::Incomplete => {
                 "Responses stream ended before response.completed or response.incomplete."
             }
             Self::InvalidEvent => "Responses stream contained an invalid or conflicting event.",
-            Self::Upstream => "Responses upstream stream failed before completion.",
+            Self::Upstream(message) => message,
         }
     }
 
     pub(super) fn protocol(self) -> ProtocolStreamError {
-        // Never include provider JSON, partial output, credentials or IDs in this error.
+        // Include only the bounded, sanitized error fields, never partial output or raw JSON.
         ProtocolStreamError::invalid_data(format!("{}: {}", self.code(), self.message()))
     }
 
@@ -68,7 +68,7 @@ impl Completion {
         }
         match event_type {
             "error" | "response.failed" | "response.cancelled" => {
-                return Err(CompletionError::Upstream)
+                return Err(upstream_failure(&payload))
             }
             "response.completed" | "response.incomplete" => {
                 let response = payload
@@ -105,7 +105,7 @@ impl Completion {
                 self.completed = true;
             }
             _ if payload.get("error").is_some_and(|error| !error.is_null()) => {
-                return Err(CompletionError::Upstream);
+                return Err(upstream_failure(&payload));
             }
             _ => {}
         }
@@ -119,4 +119,24 @@ impl Completion {
             Err(CompletionError::Incomplete)
         }
     }
+}
+
+fn upstream_failure(payload: &Value) -> CompletionError {
+    let error = payload
+        .get("error")
+        .or_else(|| payload.pointer("/response/error"));
+    let message = error
+        .and_then(|e| {
+            e.get("message")
+                .and_then(Value::as_str)
+                .or_else(|| e.as_str())
+        })
+        .unwrap_or("Responses upstream stream failed before completion.");
+    let code = error
+        .and_then(|e| e.get("code").or_else(|| e.get("type")))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    CompletionError::Upstream(crate::error::sanitize_provider_error_message(&format!(
+        "{code}: {message}"
+    )))
 }

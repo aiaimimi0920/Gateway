@@ -1,5 +1,7 @@
 //! Streaming dispatch, selected-state capture and terminal callback ownership.
 use super::*;
+#[path = "stream_diagnostics.rs"]
+mod diagnostics;
 
 pub(super) async fn send(
     ctx: &mut PipelineContext,
@@ -8,16 +10,24 @@ pub(super) async fn send(
     candidate_index: usize,
     attempt: PreparedAttempt,
 ) -> Result<PipelineOutput, AttemptError> {
+    let mut stream_retry_policy = attempt.retry_policy.clone();
+    let sticky = state.lifecycle.smart_routing.sticky(
+        super::super::stage_route::smart::session_scope(ctx).as_deref(),
+        ctx.canonical_req
+            .requested_model
+            .as_deref()
+            .unwrap_or_default(),
+    );
+    if sticky.as_deref() != Some(&candidate.provider_account_id) {
+        stream_retry_policy.max_retries = 0;
+    }
     let PreparedAttempt {
         ref effective_payload,
         ref model,
         ref provider_attempt_gate,
         ..
     } = attempt;
-    if !matches!(
-        candidate.adapter.as_str(),
-        "qwen_web_compatible" | "chatgpt_web_reverse_compatible"
-    ) {
+    if candidate.adapter == "freebuff_compatible" {
         provider_attempt_gate
             .begin_attempt()
             .map_err(AttemptError::Stop)?;
@@ -78,19 +88,24 @@ pub(super) async fn send(
         .await
         .map(|(response, started_at)| (response, None, started_at))
     } else {
-        state
-            .upstream_client
-            .execute_stream_with_wire(
-                &effective_payload,
-                &ctx.canonical_req,
-                &model,
-                Some(&ctx.request_headers),
-                ctx.native_wire.as_deref(),
+        provider_attempt_gate
+            .execute_observed(
+                || {
+                    state.upstream_client.execute_stream_with_wire(
+                        &effective_payload,
+                        &ctx.canonical_req,
+                        &model,
+                        Some(&ctx.request_headers),
+                        ctx.native_wire.as_deref(),
+                    )
+                },
+                |_| {},
+                &stream_retry_policy,
             )
             .await
             .map(|response| (response, None, stream_attempt_started_at))
     };
-    if cancellation.is_some() {
+    if candidate.adapter == "freebuff_compatible" {
         // Recovery helpers already record actual sends, not their later admission errors.
         provider_attempt_gate.observe_result(&stream_result);
     }
@@ -217,10 +232,14 @@ pub(super) async fn send(
             let budget_for_cb = ctx.request_budget.clone();
             let latency_key =
                 crate::routing::latency::LatencyKey::for_request(candidate, &ctx.canonical_req);
+            let (observed_stream, failure_evidence) =
+                diagnostics::observe(Box::pin(ctx.request_budget.constrain_stream(byte_stream)));
             let mut tracked = TrackedStream::new_with_started_at_and_error(
-                ctx.request_budget.constrain_stream(byte_stream),
+                observed_stream,
                 stream_started_at,
                 move |metrics, success| {
+                    let evidenced_failure = failure_evidence.lock().is_some();
+                    let success = success && !evidenced_failure;
                     if success
                         && metrics.termination
                             == Some(crate::upstream::stream::StreamTermination::Completed)
@@ -251,6 +270,14 @@ pub(super) async fn send(
                         });
                     }
                     if success {
+                        state_for_cb.lifecycle.smart_routing.outcome(
+                            &provider_id,
+                            audit_snapshot
+                                .requested_model
+                                .as_deref()
+                                .unwrap_or_default(),
+                            true,
+                        );
                         ctrl_for_cb.on_success();
                         spawn_record_provider_success(
                             Arc::clone(&state_for_cb),
@@ -287,19 +314,55 @@ pub(super) async fn send(
                             .await;
                         });
                     } else {
+                        let failure_message =
+                            failure_evidence.lock().clone().unwrap_or_else(|| {
+                                format!(
+                                    "stream terminated before completion ({:?})",
+                                    metrics.termination
+                                )
+                            });
+                        warn!(req_id = %failure_finalize_snapshot.request_id,
+                            provider = %provider_id, error = %failure_message,
+                            chunks = metrics.chunk_count, bytes = metrics.total_bytes,
+                            duration_ms = metrics.total_duration_ms, "stream failed after handoff");
                         // A local deadline or caller cancellation still finalizes/refunds,
                         // but must not poison provider health or reduce its capacity.
-                        if budget_for_cb.stopped_reason().is_none() {
+                        if budget_for_cb.stopped_reason().is_none()
+                            && (evidenced_failure
+                                || metrics.termination
+                                    == Some(
+                                        crate::upstream::stream::StreamTermination::Interrupted,
+                                    ))
+                        {
+                            if evidenced_failure
+                                || metrics.termination
+                                    == Some(crate::upstream::stream::StreamTermination::Interrupted)
+                            {
+                                state_for_cb.lifecycle.smart_routing.outcome(
+                                    &provider_id,
+                                    audit_snapshot
+                                        .requested_model
+                                        .as_deref()
+                                        .unwrap_or_default(),
+                                    false,
+                                );
+                            }
                             ctrl_for_cb.on_failure(FailureKind::General);
                             spawn_record_provider_failure(
                                 Arc::clone(&state_for_cb),
                                 provider_id.clone(),
                                 provider_credential_id_for_cb.clone(),
                                 route_policy_for_cb.clone(),
-                                "stream terminated before completion".to_string(),
+                                failure_message.clone(),
                             );
                         }
                         let state_for_finalize = Arc::clone(&state_for_cb);
+                        let upstream_failed = budget_for_cb.stopped_reason().is_none()
+                            && (evidenced_failure
+                                || metrics.termination
+                                    == Some(
+                                        crate::upstream::stream::StreamTermination::Interrupted,
+                                    ));
                         let finalizer = state_for_finalize
                             .local_runtime
                             .as_ref()
@@ -309,6 +372,8 @@ pub(super) async fn send(
                             crate::pipeline::stage_finalize::run_stream_failure(
                                 failure_finalize_snapshot,
                                 &state_for_finalize,
+                                &failure_message,
+                                upstream_failed,
                             )
                             .await;
                         });

@@ -12,6 +12,7 @@ struct Restrictions {
     models: Option<Vec<String>>,
     provider_ids: Option<Vec<String>>,
     account_group_ids: Option<Vec<String>>,
+    routing_order: Option<crate::routing::smart::Order>,
 }
 
 fn restrictions(key: Option<&serde_json::Value>) -> Result<Restrictions, GatewayError> {
@@ -107,6 +108,17 @@ pub(in crate::local_runtime) fn ensure_active(
 }
 
 impl LocalRuntime {
+    pub(crate) async fn routing_order(
+        &self,
+        id: &str,
+    ) -> Result<Option<crate::routing::smart::Order>, GatewayError> {
+        let mut tx = self.pool.begin().await.map_err(storage_error)?;
+        let key = read(&mut tx, id).await?;
+        ensure_active(&key)?;
+        let order = restrictions(key.metadata.as_ref())?.routing_order;
+        tx.commit().await.map_err(storage_error)?;
+        Ok(order)
+    }
     pub async fn local_access_models(
         &self,
         id: &str,

@@ -27,6 +27,9 @@ pub struct ProviderAttemptGate {
     attempted_provider_ids: Arc<parking_lot::Mutex<Vec<String>>>,
     provider_account_id: String,
     request_budget: super::request_budget::RequestBudget,
+    smart_routing: Arc<crate::routing::smart::SmartRouting>,
+    sticky_scope: Option<String>,
+    requested_model: String,
 }
 
 impl ProviderAttemptGate {
@@ -89,6 +92,13 @@ pub fn provider_attempt_gate(
         attempted_provider_ids: Arc::clone(&ctx.attempted_provider_ids),
         provider_account_id: provider_account_id.to_string(),
         request_budget: ctx.request_budget.clone(),
+        smart_routing: Arc::clone(&state.lifecycle.smart_routing),
+        sticky_scope: super::stage_route::smart::session_scope(ctx),
+        requested_model: ctx
+            .canonical_req
+            .requested_model
+            .clone()
+            .unwrap_or_default(),
     })
 }
 

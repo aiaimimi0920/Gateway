@@ -7,6 +7,8 @@ param(
     [switch]$SkipBuild,
     [switch]$UseExampleRoutes,
     [switch]$AllowCustomReleaseRoot,
+    [ValidateSet("api", "web", "desktop")][string]$Edition = "desktop",
+    [ValidateSet("release", "devtest")][string]$BuildKind = "release",
     [Alias("CleanStage", "CleanStaging")]
     [switch]$Clean
 )
@@ -15,6 +17,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "package-release/artifact-copy.ps1")
 . (Join-Path $PSScriptRoot "package-release/source-provenance.ps1")
+. (Join-Path $PSScriptRoot "release-editions.ps1")
 
 function Resolve-FullPath {
     param(
@@ -166,11 +169,15 @@ if ([string]::IsNullOrWhiteSpace($SourceRoot)) {
     $SourceRoot = Join-Path $PSScriptRoot ".."
 }
 if ([string]::IsNullOrWhiteSpace($VersionId)) {
-    $VersionId = Get-Date -Format "yyyyMMdd-HHmmss"
+    $VersionId = "gateway-$BuildKind-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+}
+if ($BuildKind -eq "devtest" -and $VersionId -notlike "gateway-devtest-*") {
+    throw "Fast manual-test package VersionId must start with gateway-devtest-."
 }
 
 Assert-VersionId -Value $VersionId
 $gatewayRoot = Resolve-GatewayRoot -Path $SourceRoot
+$layout = Get-GatewayEditionLayout -Root $gatewayRoot -Edition $Edition -BuildKind $BuildKind
 if ([string]::IsNullOrWhiteSpace($ReleaseRoot)) {
     $ReleaseRoot = Join-Path $gatewayRoot "release\Gateway"
 }
@@ -197,21 +204,22 @@ if (Test-Path -LiteralPath $evidenceProvenancePath) {
 $buildSkipped = $StageOnly -or $SkipBuild
 if (-not $buildSkipped) {
     $buildScript = Join-Path $gatewayRoot "tools\build-gateway-release.ps1"
+    if ($BuildKind -eq "devtest") { $buildScript = Join-Path $gatewayRoot "tools\build-gateway-devtest.ps1" }
     if (-not (Test-Path -LiteralPath $buildScript -PathType Leaf)) {
         throw "Gateway build script is missing: $buildScript. Use -StageOnly or -SkipBuild for existing artifacts."
     }
 
     $powershellExecutable = Resolve-PowerShellExecutable
     Write-Output "[gateway-package] building Gateway binaries"
-    & $powershellExecutable -NoProfile -ExecutionPolicy Bypass -File $buildScript
+    & $powershellExecutable -NoProfile -ExecutionPolicy Bypass -File $buildScript -Edition $Edition
     if ($LASTEXITCODE -ne 0) {
         throw "Gateway build failed with exit code $LASTEXITCODE"
     }
 }
 
-$headlessSource = Join-Path $gatewayRoot "target\release\gateway.exe"
-$uiSource = Join-Path $gatewayRoot "apps\desktop\src-tauri\target\release\gateway-ui.exe"
-foreach ($requiredBinary in @($headlessSource, $uiSource)) {
+$headlessSource = $layout.GatewayPath
+$uiSource = $layout.UiPath
+foreach ($requiredBinary in $layout.ArtifactPaths) {
     if (-not (Test-Path -LiteralPath $requiredBinary -PathType Leaf)) {
         throw "Required Gateway build artifact is missing: $requiredBinary"
     }
@@ -228,7 +236,7 @@ $environmentTemplateSource = Join-Path $gatewayRoot ".env.example"
 if (-not (Test-Path -LiteralPath $environmentTemplateSource -PathType Leaf)) {
     throw "Required Gateway environment template is missing: $environmentTemplateSource"
 }
-$buildProvenanceSource = Join-Path $gatewayRoot "target\release\gateway-build-provenance.json"
+$buildProvenanceSource = $layout.ProvenancePath
 
 $manifestsSource = Join-Path $gatewayRoot "manifests"
 $scriptsSource = Join-Path $gatewayRoot "scripts"
@@ -257,15 +265,13 @@ foreach ($requiredDirectory in @($manifestsSource, $scriptsSource, $docsSource, 
     }
 }
 
-$artifactRelativePaths = @(
-    "target/release/gateway.exe",
-    "apps/desktop/src-tauri/target/release/gateway-ui.exe"
-)
+$artifactRelativePaths = $layout.ArtifactRelativePaths
 $sourceTreeState = Get-SourceTreeState -Root $gatewayRoot
 Assert-BuildProvenance `
     -GatewayRoot $gatewayRoot `
     -SourceTreeState $sourceTreeState `
-    -ArtifactRelativePaths $artifactRelativePaths | Out-Null
+    -ArtifactRelativePaths $artifactRelativePaths `
+    -Edition $Edition -BuildKind $BuildKind -ProvenanceRelativePath $layout.ProvenanceRelativePath | Out-Null
 
 $routesExampleSource = Join-Path $gatewayRoot "routes.example.yaml"
 $routeSources = [System.Collections.Generic.List[object]]::new()
@@ -307,11 +313,20 @@ try {
         -DestinationRelativePath "gateway.exe"
     $exeRecords += New-ArtifactRecord -PackageRoot $staging -Path $headlessDestination -Kind "exe"
 
+    if ($layout.DesktopUi) {
     $uiDestination = Copy-PayloadFile `
         -Source $uiSource `
         -PackageRoot $staging `
         -DestinationRelativePath "gateway-ui.exe"
     $exeRecords += New-ArtifactRecord -PackageRoot $staging -Path $uiDestination -Kind "exe"
+    }
+
+    $startupExample = Join-Path $gatewayRoot "gateway.example.json"
+    if (Test-Path -LiteralPath $startupExample -PathType Leaf) {
+        $exampleDestination = Copy-PayloadFile -Source $startupExample -PackageRoot $staging `
+            -DestinationRelativePath "gateway.example.json"
+        $supportRecords += New-ArtifactRecord -PackageRoot $staging -Path $exampleDestination -Kind "startup-config-example"
+    }
 
     $environmentTemplateDestination = Copy-PayloadFile `
         -Source $environmentTemplateSource `
@@ -392,6 +407,9 @@ try {
     $manifest = [ordered]@{
         schemaVersion = 1
         app = "Gateway"
+        edition = $Edition
+        buildKind = $BuildKind
+        capabilities = [ordered]@{ managementUi = $layout.WebUi; desktopUi = $layout.DesktopUi }
         sourceProject = "Gateway"
         versionId = $VersionId
         sourceRevision = $sourceRevision
@@ -407,7 +425,7 @@ try {
         packagerVersion = "gateway-package/v3"
         target = "windows-x64"
         layout = [ordered]@{
-            executables = @("gateway.exe", "gateway-ui.exe")
+            executables = @($layout.ExecutableNames)
             environmentTemplate = ".env.example"
             buildProvenance = "gateway-build-provenance.json"
             routes = @($routePaths)
@@ -446,7 +464,8 @@ try {
     Assert-BuildProvenance `
         -GatewayRoot $gatewayRoot `
         -SourceTreeState $publishSourceTreeState `
-        -ArtifactRelativePaths $artifactRelativePaths | Out-Null
+        -ArtifactRelativePaths $artifactRelativePaths `
+        -Edition $Edition -BuildKind $BuildKind -ProvenanceRelativePath $layout.ProvenanceRelativePath | Out-Null
 
     # Directory.Move is a same-volume atomic publish. It fails when another
     # process won the destination race, preserving the prior release.

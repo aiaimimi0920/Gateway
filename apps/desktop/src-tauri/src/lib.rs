@@ -32,6 +32,14 @@ fn get_gateway_ui_runtime_info() -> GatewayUiRuntimeInfo {
 }
 
 pub fn run() {
+    match connection::headless::run_if_disabled() {
+        Ok(true) => return,
+        Ok(false) => {}
+        Err(error) => {
+            eprintln!("Gateway startup failed: {error}");
+            std::process::exit(1);
+        }
+    }
     tauri::Builder::default()
         .manage(GatewayDesktopState::default())
         .manage(connection::ConnectionState::default())

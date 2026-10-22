@@ -1,5 +1,6 @@
 //! Shared EXE data ownership. No backend or desktop framework dependency.
 pub mod schema;
+pub mod startup;
 
 use std::env;
 use std::fs;

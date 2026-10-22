@@ -89,6 +89,9 @@ pub fn classify_upstream_error(
     body: &str,
     provider_name: Option<&str>,
 ) -> GatewayError {
+    if let Some(error) = super::html_rejection::classify(status, body, provider_name) {
+        return error;
+    }
     let status_kind = kind_from_http_status(status);
     let body_kind = kind_from_body_keywords(body);
     let code = extract_code_from_body(body);
@@ -119,7 +122,13 @@ pub fn classify_upstream_error(
     let upstream_retry_after_ms = matches!(kind, ErrorKind::RateLimit | ErrorKind::ModelCapacity)
         .then(|| parse_retry_after_from_body(body))
         .flatten();
-    let fallback_hint = if matches!(kind, ErrorKind::RateLimit | ErrorKind::ModelCapacity) {
+    // An upstream 401 rejects this credential, not the caller's Gateway identity.
+    // Switch candidates without retrying the same rejected credential.
+    let fallback_hint = if status == 401 {
+        FallbackHint::FallbackProvider {
+            reason: "Upstream rejected authentication; try another candidate.".to_string(),
+        }
+    } else if matches!(kind, ErrorKind::RateLimit | ErrorKind::ModelCapacity) {
         let delay_ms = upstream_retry_after_ms.unwrap_or(if kind == ErrorKind::ModelCapacity {
             2_000
         } else {

@@ -11,7 +11,12 @@ use std::path::Path;
 use tauri::{AppHandle, Manager, Url};
 
 // The managed instance never edits the package's routes or an existing deployment.
-fn prepare_profile(root: &Path, package: &Path, port: u16) -> Result<GatewayProfile, String> {
+fn prepare_profile(
+    root: &Path,
+    package: &Path,
+    port: u16,
+    config_path: &Path,
+) -> Result<GatewayProfile, String> {
     std::fs::create_dir_all(root).map_err(|error| error.to_string())?;
     let routes = root.join("routes.yaml");
     match OpenOptions::new()
@@ -28,6 +33,10 @@ fn prepare_profile(root: &Path, package: &Path, port: u16) -> Result<GatewayProf
     let mut extra_env: Vec<GatewayEnvEntry> = [
         ("GATEWAY_DESKTOP_MANAGED", "1".to_string()),
         ("GATEWAY_BIND_HOST", "127.0.0.1".to_string()),
+        (
+            "GATEWAY_CONFIG_FILE",
+            config_path.to_string_lossy().into_owned(),
+        ),
         (
             "GATEWAY_RELEASE_PAYLOAD_ROOT",
             package.to_string_lossy().into_owned(),
@@ -70,6 +79,13 @@ fn prepare_profile(root: &Path, package: &Path, port: u16) -> Result<GatewayProf
     })
 }
 
+fn reserve_api_port(port: u16) -> Result<TcpListener, String> {
+    // External clients retain this address; never silently move their API to a random port.
+    TcpListener::bind(("127.0.0.1", port)).map_err(|error| {
+        format!("Cannot bind Gateway API at 127.0.0.1:{port}: {error}. Stop the existing listener and retry; the API port will not be changed automatically.")
+    })
+}
+
 pub fn start(app: &AppHandle) -> Result<Url, String> {
     let state = app.state::<GatewayDesktopState>();
     let existing = get_gateway_process_snapshot(state.clone())?;
@@ -80,9 +96,7 @@ pub fn start(app: &AppHandle) -> Result<Url, String> {
         ));
     }
     // A busy default port belongs to somebody else; never adopt or stop it.
-    let reservation = TcpListener::bind(("127.0.0.1", 4200))
-        .or_else(|_| TcpListener::bind(("127.0.0.1", 0)))
-        .map_err(|error| format!("Cannot allocate a local Gateway port: {error}"))?;
+    let reservation = reserve_api_port(4200)?;
     let port = reservation
         .local_addr()
         .map_err(|error| error.to_string())?
@@ -91,6 +105,8 @@ pub fn start(app: &AppHandle) -> Result<Url, String> {
         &gateway_app_dir()?.join("local"),
         &current_executable_directory()?,
         port,
+        &gateway_local_data::startup::StartupConfig::config_path()
+            .map_err(|error| error.to_string())?,
     )?;
     drop(reservation);
     let snapshot = start_profile(&state, profile)?;
@@ -107,6 +123,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn occupied_api_port_is_not_silently_replaced() {
+        let occupied = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = occupied.local_addr().unwrap().port();
+        let error = reserve_api_port(port).unwrap_err();
+        assert!(error.contains(&format!("127.0.0.1:{port}")));
+        drop(occupied);
+        assert_eq!(
+            reserve_api_port(port).unwrap().local_addr().unwrap().port(),
+            port
+        );
+    }
+
+    #[test]
     fn first_run_preserves_existing_routes_and_keeps_state_outside_package() {
         let root = std::env::temp_dir().join(format!(
             "gateway-local-{}-{}",
@@ -119,7 +148,8 @@ mod tests {
         let package = root.join("package");
         std::fs::create_dir_all(&package).unwrap();
         let local = root.join("user/local");
-        let profile = prepare_profile(&local, &package, 43210).unwrap();
+        let config_path = root.join("custom-startup.json");
+        let profile = prepare_profile(&local, &package, 43210, &config_path).unwrap();
         assert_eq!(profile.port, 43210);
         assert!(profile.gateway_database_url.is_none());
         assert!(profile.gateway_redis_url.is_empty());
@@ -130,7 +160,7 @@ mod tests {
             "providers: []\nmodel_routes: []\n"
         );
         std::fs::write(local.join("routes.yaml"), "preserve-user-routes").unwrap();
-        prepare_profile(&local, &package, 43211).unwrap();
+        prepare_profile(&local, &package, 43211, &config_path).unwrap();
         assert_eq!(
             std::fs::read_to_string(local.join("routes.yaml")).unwrap(),
             "preserve-user-routes"
@@ -140,6 +170,9 @@ mod tests {
             .extra_env
             .iter()
             .any(|entry| entry.key == "GATEWAY_BIND_HOST" && entry.value == "127.0.0.1"));
+        assert!(profile.extra_env.iter().any(|entry| {
+            entry.key == "GATEWAY_CONFIG_FILE" && entry.value == config_path.to_string_lossy()
+        }));
         std::fs::remove_dir_all(root).unwrap();
     }
 }

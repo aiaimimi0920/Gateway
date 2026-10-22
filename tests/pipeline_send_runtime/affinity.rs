@@ -1,13 +1,34 @@
-//! Two real streams prove success pins the next selection, not merely health metrics.
-use super::fixture::{authorize_candidates, context, TestState, Upstream, DEADLINE, SSE_REPLY};
+//! Actual sends pin the authenticated conversation even if the caller cancels.
+use super::fixture::{
+    authorize_candidates, context as base_context, TestState, Upstream, DEADLINE, SSE_REPLY,
+};
 use axum::http::StatusCode;
 use futures::StreamExt;
 use neuro_gateway::pipeline::{stage_route, stage_send, PipelineOutput};
 use serde_json::json;
 use tokio::time::timeout;
 
+fn context(
+    stream: bool,
+    candidates: Vec<neuro_gateway::routing::candidate::RouteCandidate>,
+) -> neuro_gateway::pipeline::PipelineContext {
+    let mut ctx = base_context(stream, candidates);
+    ctx.session = Some(neuro_gateway::auth::session::AuthenticatedSession {
+        project_id: "fixture-project".into(),
+        tenant_id: "fixture-tenant".into(),
+        user_id: None,
+        credential_ref: None,
+        scopes: vec![],
+        api_key_id: Some("fixture-key".into()),
+        user_credential_id: None,
+        access_key_id: None,
+        access_key_kind: None,
+    });
+    ctx
+}
+
 #[tokio::test]
-async fn completed_stream_pins_next_request_over_healthy_preferred_provider() {
+async fn actual_send_pins_same_session_over_healthy_preferred_provider() {
     let preferred = Upstream::start(StatusCode::OK, true, SSE_REPLY).await;
     let successful = Upstream::start(StatusCode::OK, true, SSE_REPLY).await;
     let fixture = TestState::with_local_limits().await;
@@ -35,7 +56,7 @@ async fn completed_stream_pins_next_request_over_healthy_preferred_provider() {
     let output = stage_send::run(&mut cancelled, &fixture.state)
         .await
         .unwrap();
-    drop(output); // Cancelling before stream consumption must not pin this provider.
+    drop(output); // Actual sends establish stickiness even when the caller cancels.
     timeout(DEADLINE, async {
         while std::sync::Arc::strong_count(&fixture.state) != 1 {
             tokio::task::yield_now().await;
@@ -49,7 +70,7 @@ async fn completed_stream_pins_next_request_over_healthy_preferred_provider() {
     stage_route::run(&mut after_cancel, &fixture.state)
         .await
         .unwrap();
-    assert_eq!(after_cancel.candidates[0].provider_account_id, "preferred");
+    assert_eq!(after_cancel.candidates[0].provider_account_id, "successful");
     // Start at the eventual successful candidate without cooling the preferred provider.
     // Otherwise health exclusion alone could make this test pass without affinity.
     let mut first = context(true, vec![winner]);

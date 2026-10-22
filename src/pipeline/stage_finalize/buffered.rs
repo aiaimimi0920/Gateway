@@ -119,6 +119,16 @@ async fn finalize_json(body: &Value, ctx: &PipelineContext, state: &Arc<AppState
     finalize_request_audit_success(ctx, body, usage.clone(), state).await;
     persist_conversation_archive_success(ctx, body, usage.clone(), state).await;
     record_credential_model_success(ctx, state).await;
+    if let Some(provider) = ctx.selected_provider_id.as_deref() {
+        state.lifecycle.smart_routing.outcome(
+            provider,
+            ctx.canonical_req
+                .requested_model
+                .as_deref()
+                .unwrap_or_default(),
+            true,
+        );
+    }
 
     let actual_total_tokens = usage
         .as_ref()

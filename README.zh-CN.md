@@ -114,6 +114,10 @@ cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 `GATEWAY_REDIS_URL`；`GATEWAY_DATABASE_URL` 或 `DATABASE_URL` 可选。
 本地开发可以从 `.env.example` 创建 `.env`，而 `.env` 和其他本地环境
 文件不会进入 Git。
+共享启动配置 `.ng/gateway.json` 可设置 `enable_management_ui`。该值与编译版本
+是否包含管理 UI 能力共同决定最终行为；也可用绝对路径环境变量
+`GATEWAY_CONFIG_FILE` 指定配置文件。详情见
+[`docs/release-editions.md`](docs/release-editions.md)。
 
 当前开发快照会继续保留已版本化的 `routes.yaml` 和其他开发状态。验证提供方
 线路矩阵时，不要把 `routes.yaml` 替换成空配置。
@@ -134,10 +138,9 @@ Pop-Location
 
 ## Windows 可移植发布包
 
-默认输出目录是当前独立仓内的 `release/Gateway/<versionId>`。每个版本目录
-不可覆盖，包含两个 Windows 可执行文件、线路配置、`.env.example`、精确构建
-来源、清单、浏览器 Worker、文档、官方 `deploy/` 目录、工具、`manifest.json` 和
-`checksums.sha256`。
+默认输出目录是当前独立仓内的 `release/Gateway/<versionId>`。Gateway 现在发布
+三种版本形态，能力矩阵和配置开关见
+[`docs/release-editions.md`](docs/release-editions.md)。每个版本目录不可覆盖。
 
 在仓库根目录构建和打包：
 
@@ -146,25 +149,30 @@ Pop-Location
 在构建冻结源码之前更新静态表。运行时不联网调整排名，也不据此增加凭据权限。
 
 ```powershell
-$id = "gateway-product-" + (Get-Date -Format "yyyyMMdd-HHmmss")
-.\tools\build-gateway-release.ps1
-.\tools\package-gateway-release.ps1 -VersionId $id -SkipBuild -UseExampleRoutes
+$id = "gateway-api-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+.\tools\build-gateway-release.ps1 -Edition api
+.\tools\package-gateway-release.ps1 -Edition api -VersionId $id -SkipBuild -UseExampleRoutes
 ```
+
+使用 `-Edition web` 可构建带浏览器管理后台但不带桌面启动器的版本；使用
+`-Edition desktop` 可同时得到浏览器管理后台和 `gateway-ui.exe`。使用
+`-Edition all` 会按 `api`、`web`、`desktop` 顺序串行构建三版。
 
 `-UseExampleRoutes` 将 `routes.example.yaml` 作为包内两份路由文件的来源。
 自动候选构建和标签发布始终使用此模式；不传该开关的本地打包仍保留开发者的
 `routes.yaml`，对外分发前应使用示例模式。两种模式都不会改写源路由文件。
 
-`build-gateway-release.ps1` 要求 Node.js `>=22.22.0`，会先安装并审计两棵
-Node 生产依赖树，再显式执行一次 `npm run build:web`，随后进行 headless
-Gateway 的 Cargo release 构建，并在该 Cargo 步骤里导出
+`build-gateway-release.ps1` 要求 Node.js `>=22.22.0`。API 版只审计浏览器
+Worker 依赖，并使用 `--no-default-features --features runtime-defaults` 编译；
+Web 和 Desktop 版还会安装、审计桌面依赖，执行 typecheck 和
+`npm run build:web`，随后进行 Gateway 的 Cargo release 构建，并在该 Cargo 步骤里导出
 `GATEWAY_PREBUILT_WEB_UI=1`，让根级 `build.rs` 直接复用已经生成好的 Web UI
-产物，而不是再隐式触发一轮浏览器控制台构建。headless Gateway 和桌面 UI 的
-Cargo 构建都会强制单 job，并关闭 incremental compilation。
+产物，而不是再隐式触发一轮浏览器控制台构建。Desktop 版还会构建 Tauri
+桌面壳。所有 release 构建都会强制单 job，并关闭 incremental compilation。
 
-使用 `-SkipBuild` 时，打包器会要求
-`target/release/gateway-build-provenance.json` 与当前源码树、两个可执行文件
-完全一致。省略 `-SkipBuild` 可以让打包器自行执行构建。
+使用 `-SkipBuild` 时，打包器会要求对应版本的 provenance、能力标记和当前
+源码树完全一致。省略 `-SkipBuild` 可以让打包器自行执行构建。正式包会排除
+测试目录和生成的测试产物，但不会删除仓库中的测试源码。
 
 当前 Neuro 大工程要求本对话的正式产物写到固定目录，可以显式传入该路径：
 
