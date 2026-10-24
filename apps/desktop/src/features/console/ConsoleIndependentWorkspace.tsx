@@ -1,13 +1,14 @@
-import { AppearanceSettings } from "../settings/AppearanceSettings";
-import { ManagementSecuritySettings } from "../settings/ManagementSecuritySettings";
+import { ConsoleSettingsWorkspace } from "../settings/ConsoleSettingsWorkspace";
 import { OperationsWorkspace } from "./OperationsWorkspace";
 import { AccessKeysWorkspace } from "./AccessKeysWorkspace";
 import type { useOperationsData } from "./useOperationsData";
 import type { useAccessData } from "./useAccessData";
+import type { OperationsListView } from "./operationsListView";
 
 type ConsoleIndependentWorkspaceProps = {
   activeWorkspace: "operations" | "access" | "settings";
   operations: ReturnType<typeof useOperationsData>;
+  operationsView?: OperationsListView;
   access: ReturnType<typeof useAccessData>;
   editorLocked: boolean;
   t: (zh: string, en: string) => string;
@@ -16,21 +17,16 @@ type ConsoleIndependentWorkspaceProps = {
 export function ConsoleIndependentWorkspace({
   activeWorkspace,
   operations,
+  operationsView,
   access,
   editorLocked,
   t,
 }: ConsoleIndependentWorkspaceProps) {
-  const settingsWorkspace = (
-    <div className="nt-settings-page">
-      <div className="nt-settings-accordion">
-        <AppearanceSettings />
-        <ManagementSecuritySettings />
-      </div>
-    </div>
-  );
+  const settingsWorkspace = <ConsoleSettingsWorkspace />;
   const operationsWorkspace = (
     <OperationsWorkspace
       t={t}
+      listView={operationsView}
       editorLocked={editorLocked}
       refreshing={operations.refreshing}
       onRefresh={operations.refresh}

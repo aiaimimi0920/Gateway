@@ -29,7 +29,7 @@ describe("API Key manager", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness api={api} />);
     await screen.findByText("暂无 API Key");
-    await user.click(screen.getByRole("button", { name: "新建 API Key" }));
+    await user.click(screen.getByRole("button", { name: "新建 Key" }));
     const dialog = screen.getByRole("dialog");
     await user.type(
       within(dialog).getByRole("textbox", { name: "名称" }),
@@ -37,11 +37,12 @@ describe("API Key manager", () => {
     );
     const create = within(dialog).getByRole("button", { name: "创建 API Key" });
     expect(create).toBeDisabled();
+    await user.click(within(dialog).getByRole("button", { name: "权益组" }));
     expect(
-      within(dialog).getByRole("checkbox", { name: /停用组/ }),
+      within(dialog).getByRole("menuitemcheckbox", { name: /停用组/ }),
     ).toBeDisabled();
-    await user.click(within(dialog).getByRole("checkbox", { name: /基础组/ }));
-    await user.click(within(dialog).getByRole("checkbox", { name: /高级组/ }));
+    await user.click(within(dialog).getByRole("menuitemcheckbox", { name: /基础组/ }));
+    await user.click(within(dialog).getByRole("menuitemcheckbox", { name: /高级组/ }));
     await user.click(create);
     await screen.findByRole("dialog", { name: "API Key 已生成" });
     expect(api.createAccessKey).toHaveBeenCalledWith(
@@ -65,7 +66,8 @@ describe("API Key manager", () => {
     await user.click(trigger);
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "保存" })).toBeDisabled();
-    await user.click(within(dialog).getByRole("checkbox", { name: /高级组/ }));
+    await user.click(within(dialog).getByRole("button", { name: "权益组" }));
+    await user.click(within(dialog).getByRole("menuitemcheckbox", { name: /高级组/ }));
     vi.mocked(api.updateAccessKey!).mockRejectedValueOnce(
       new Error("save rejected"),
     );
@@ -73,8 +75,9 @@ describe("API Key manager", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "save rejected",
     );
+    await user.click(within(dialog).getByRole("button", { name: "权益组" }));
     expect(
-      within(dialog).getByRole("checkbox", { name: /高级组/ }),
+      within(dialog).getByRole("menuitemcheckbox", { name: /高级组/ }),
     ).toBeChecked();
     await user.click(within(dialog).getByRole("button", { name: "保存" }));
     await waitFor(() =>
@@ -121,6 +124,7 @@ describe("API Key manager", () => {
         resolvedTenantId: "local",
         keyKind: "normal",
         expiresAt: null,
+        publicKeyPrefix: "sk-gw",
       }),
     );
     expect(
@@ -157,6 +161,8 @@ describe("API Key manager", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness api={api} />);
     const dialog = await openCreate(user);
+    expect(within(dialog).queryByRole("textbox", { name: "密钥前缀" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("归属与高级设置")).not.toBeInTheDocument();
     await user.type(
       within(dialog).getByRole("textbox", { name: "名称" }),
       "server-key",
@@ -188,10 +194,10 @@ describe("API Key manager", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("button", { name: "新建 API Key" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "新建 Key" })).toHaveFocus();
   });
 
-  it("filters real key states and requires confirmation before disabling", async () => {
+  it("keeps all key states visible and requires confirmation before disabling", async () => {
     const { api } = fixture([
       key("active-key"),
       key("expired-key", { expiresAt: "2000-01-01T00:00:00Z" }),
@@ -200,20 +206,14 @@ describe("API Key manager", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness api={api} />);
     await screen.findByText("active-key");
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "密钥状态" }),
-      "expired",
-    );
-    expect(screen.queryByText("active-key")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "轮换" })).toBeDisabled();
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "密钥状态" }),
-      "active",
-    );
-    await user.click(screen.getByRole("button", { name: "停用" }));
+    const activeRow = within(screen.getByText("active-key").closest("tr")!);
+    const expiredRow = within(screen.getByText("expired-key").closest("tr")!);
+    expect(expiredRow.getByRole("button", { name: "轮转" })).toBeDisabled();
+    expect(screen.getByText("revoked-key")).toBeVisible();
+    await user.click(activeRow.getByRole("button", { name: "停用" }));
     expect(api.setAccessKeyEnabled).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "取消" }));
-    await user.click(screen.getByRole("button", { name: "停用" }));
+    await user.click(activeRow.getByRole("button", { name: "停用" }));
     await user.click(screen.getByRole("button", { name: "确认停用" }));
     await waitFor(() =>
       expect(api.setAccessKeyEnabled).toHaveBeenCalledWith(
@@ -222,7 +222,8 @@ describe("API Key manager", () => {
         false,
       ),
     );
-    expect(await screen.findByText("没有匹配的密钥")).toBeInTheDocument();
+    expect(await activeRow.findByText("已停用")).toBeInTheDocument();
+    expect(activeRow.getByRole("button", { name: "启用" })).toBeEnabled();
   });
 
   it("paginates long lists and searches across all pages", async () => {
@@ -235,7 +236,7 @@ describe("API Key manager", () => {
     expect(screen.getAllByRole("row")).toHaveLength(21);
     await user.click(screen.getByRole("button", { name: "下一页" }));
     expect(screen.getAllByRole("row")).toHaveLength(6);
-    await user.type(screen.getByRole("textbox", { name: "搜索密钥" }), "key-0");
+    await user.type(screen.getByRole("searchbox", { name: "搜索密钥" }), "key-0");
     expect(screen.getByText("key-0")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "下一页" }),
@@ -269,7 +270,7 @@ describe("API Key manager", () => {
     const { api } = fixture();
     renderWithProviders(<Harness api={api} locked />);
     await screen.findByText("暂无 API Key");
-    expect(screen.getByRole("button", { name: "新建 API Key" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "新建 Key" })).toBeDisabled();
   });
 
   it("reveals a replacement only after confirmed rotation and preserves keyboard focus", async () => {
@@ -277,9 +278,9 @@ describe("API Key manager", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness api={api} />);
     await screen.findByText("rotate-me");
-    await user.click(screen.getByRole("button", { name: "轮换" }));
+    await user.click(screen.getByRole("button", { name: "轮转" }));
     expect(api.rotateAccessKey).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "确认轮换" }));
+    await user.click(screen.getByRole("button", { name: "确认轮转" }));
     const result = await screen.findByRole("dialog", {
       name: "API Key 已生成",
     });
@@ -296,7 +297,7 @@ describe("API Key manager", () => {
     await user.click(within(result).getByRole("button", { name: "完成" }));
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "新建 API Key" }),
+        screen.getByRole("button", { name: "新建 Key" }),
       ).toHaveFocus(),
     );
   });

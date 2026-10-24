@@ -77,6 +77,81 @@ pub(super) async fn receiver() -> (String, tokio::task::JoinHandle<Vec<u8>>) {
 }
 
 #[tokio::test]
+async fn native_transport_stringifies_replayed_arguments_in_create_and_compact() {
+    for (compact, stream) in [(false, false), (false, true), (true, false)] {
+        let (base, server) = receiver().await;
+        let payload: ProviderAccountPayload = serde_json::from_value(json!({
+            "adapter":"openai_compatible", "base_url":base, "api_key":"selected-secret",
+            "request_client_profile":"codex_cli"
+        }))
+        .unwrap();
+        let mut raw = json!({"model":"gpt-fixture", "input":[
+            {"type":"function_call", "call_id":"call_1", "name":"lookup", "arguments":{"city":"杭州"}}
+        ], "client_metadata":{"opaque":"retain"}});
+        if !compact {
+            raw["stream"] = json!(stream);
+        }
+        let req = responses::normalize_responses(raw.clone()).unwrap();
+        let wire = NativeRequestWire {
+            native_session: None,
+            compact,
+            websocket: None,
+            connection: None,
+            body: Bytes::from(serde_json::to_vec(&raw).unwrap()),
+            query: None,
+            client_request_id: false,
+            header_order: vec![],
+        };
+        let client = UpstreamClient::new(5);
+        if stream {
+            assert!(matches!(
+                client
+                    .execute_stream_with_wire(&payload, &req, "gpt-fixture", None, Some(&wire))
+                    .await
+                    .unwrap(),
+                UpstreamStreamingResponse::Native(_)
+            ));
+        } else {
+            let reply = client
+                .execute_json_with_wire(
+                    "fixture",
+                    ProviderExecutionMode::DirectHttp,
+                    &payload,
+                    &req,
+                    "gpt-fixture",
+                    None,
+                    Some(&wire),
+                )
+                .await
+                .unwrap();
+            assert_eq!(reply["future_reply"], true);
+        }
+        let captured = tokio::time::timeout(Duration::from_secs(5), server)
+            .await
+            .unwrap()
+            .unwrap();
+        let end = captured.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
+        let body: Value = serde_json::from_slice(&captured[end + 4..]).unwrap();
+        let mut expected = raw.clone();
+        expected["input"][0]["arguments"] = json!(raw["input"][0]["arguments"].to_string());
+        assert_eq!(
+            body, expected,
+            "native wire must not bypass argument normalization"
+        );
+        assert_eq!(req.raw_body, raw);
+        assert!(wire.unchanged_body(&body).is_none());
+        let path = if compact {
+            "/v1/responses/compact"
+        } else {
+            "/v1/responses"
+        };
+        let headers = std::str::from_utf8(&captured[..end]).unwrap();
+        assert!(headers.starts_with(&format!("POST {path} HTTP/1.1\r\n")));
+        assert!(headers.contains("authorization: Bearer selected-secret\r\n"));
+    }
+}
+
+#[tokio::test]
 async fn native_transport_retains_bytes_query_identity_and_header_order() {
     for stream in [false, true] {
         let (base, server) = receiver().await;
@@ -85,7 +160,8 @@ async fn native_transport_retains_bytes_query_identity_and_header_order() {
             "request_client_profile":"codex_cli", "headers":{"Chatgpt-Account-Id":"selected-account"}
         }))
         .unwrap();
-        let raw = format!("{{ \"input\": [{{\"role\":\"developer\",\"type\":\"message\",\"id\":\"native\",\"content\":\"unchanged\"}}], \"instructions\":\"native instructions\", \"tools\": [], \"model\":\"gpt-fixture\", \"stream\":{stream}, \"store\":false, \"include\":[\"reasoning.encrypted_content\"], \"parallel_tool_calls\":true, \"client_metadata\":{{\"opaque\":true}} }}\n");
+        // Raw-byte retention requires a valid message ID; foreign IDs are sanitized.
+        let raw = format!("{{ \"input\": [{{\"role\":\"developer\",\"type\":\"message\",\"id\":\"msg_native\",\"content\":\"unchanged\"}}], \"instructions\":\"native instructions\", \"tools\": [], \"model\":\"gpt-fixture\", \"stream\":{stream}, \"store\":false, \"include\":[\"reasoning.encrypted_content\"], \"parallel_tool_calls\":true, \"client_metadata\":{{\"opaque\":true}} }}\n");
         let req = responses::normalize_responses(serde_json::from_str(&raw).unwrap()).unwrap();
         let wire = NativeRequestWire {
             native_session: None,

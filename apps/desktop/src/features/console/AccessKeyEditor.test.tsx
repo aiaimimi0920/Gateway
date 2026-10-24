@@ -124,16 +124,19 @@ describe("API Key editing and copying", () => {
     await user.click(trigger);
     const dialog = screen.getByRole("dialog", { name: "编辑 API Key" });
     expect(within(dialog).getByRole("textbox", { name: "名称" })).toHaveFocus();
+    expect(within(dialog).queryByText("高级设置")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("textbox", { name: "密钥前缀" })).not.toBeInTheDocument();
     expect(within(dialog).getByText("已用 4 · 剩余 6")).toBeInTheDocument();
     expect(
-      within(dialog).getByRole("textbox", { name: "项目 ID" }),
-    ).toBeDisabled();
+      within(dialog).queryByRole("textbox", { name: "项目 ID" }),
+    ).not.toBeInTheDocument();
     await user.clear(within(dialog).getByRole("textbox", { name: "名称" }));
     await user.type(
       within(dialog).getByRole("textbox", { name: "名称" }),
       "renamed",
     );
-    await user.click(within(dialog).getByRole("checkbox", { name: /高级组/ }));
+    await user.click(within(dialog).getByRole("button", { name: "权益组" }));
+    await user.click(within(dialog).getByRole("menuitemcheckbox", { name: /高级组/ }));
     await user.selectOptions(
       within(dialog).getByRole("combobox", { name: "有效期" }),
       "7",

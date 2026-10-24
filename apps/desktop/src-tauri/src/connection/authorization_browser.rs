@@ -83,7 +83,7 @@ impl AuthorizationBrowser {
                 let target = app.clone();
                 // Never wait for the UI thread: exit joins this worker on that thread.
                 let _ = app.run_on_main_thread(move || {
-                    if let Some(window) = target.get_webview_window("gateway-console") {
+                    if let Some(window) = target.get_webview("gateway-console") {
                         if window.url().ok().map(|v| v.origin().ascii_serialization()) == origin {
                             notify_failure(&target);
                         }
@@ -107,7 +107,7 @@ impl AuthorizationBrowser {
 }
 
 fn notify_failure(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("gateway-console") {
+    if let Some(window) = app.get_webview("gateway-console") {
         let _ = window.eval("window.dispatchEvent(new Event('gateway:oauth-browser-failed'))");
     }
 }

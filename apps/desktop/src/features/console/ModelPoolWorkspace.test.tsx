@@ -7,6 +7,37 @@ import type { ModelPoolCard } from "./modelPoolViewModel";
 
 afterEach(cleanup);
 
+it("bounds mounted cards and searches the full catalog with page reset", async () => {
+  const models = Array.from({ length: 441 }, (_, index) => modelCard(`model-${index}`));
+  const { container, props, rerender, user } = renderWorkspace({ models });
+  const cards = () => container.querySelectorAll("[data-model-pool-card]");
+  const pager = () => within(screen.getByRole("navigation", { name: "Model cards pagination" }));
+  expect(cards()).toHaveLength(24);
+  expect(pager().getByText("1 / 19")).toBeVisible();
+  await user.click(pager().getByRole("button", { name: "Next page" }));
+  expect(cards()[0]).toHaveAttribute("data-model-pool-card", "model-24");
+  rerender(<ModelPoolWorkspace {...props} poolView={{ query: "model-440", sort: "default" }} />);
+  expect(cards()).toHaveLength(1);
+  expect(cards()[0]).toHaveAttribute("data-model-pool-card", "model-440");
+  rerender(<ModelPoolWorkspace {...props} poolView={{ query: "", sort: "default" }} />);
+  expect(pager().getByText("1 / 19")).toBeVisible();
+  await user.click(pager().getByRole("button", { name: "Next page" }));
+  rerender(<ModelPoolWorkspace {...props} poolView={{ query: "", sort: "name-desc" }} />);
+  expect(pager().getByText("1 / 19")).toBeVisible();
+  rerender(<ModelPoolWorkspace {...props} models={models.slice(0, 1)} />);
+  expect(cards()).toHaveLength(1);
+});
+
+it("mounts provider chains only after flipping and retains the mounted chain", async () => {
+  const { user } = renderWorkspace();
+  expect(screen.queryByText("Second provider")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /to reorder its chain/ }));
+  const provider = screen.getByText("Second provider");
+  expect(provider).toBeVisible();
+  await user.click(screen.getByRole("button", { name: /back to the front/ }));
+  expect(screen.getByText("Second provider")).toBe(provider);
+});
+
 function modelCard(model = "gemini-2.5-pro:free"): ModelPoolCard {
   return {
     rowId: model, model, accountCount: 3, enabledAccountCount: 3,

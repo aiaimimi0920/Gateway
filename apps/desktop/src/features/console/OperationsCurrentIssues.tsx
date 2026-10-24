@@ -1,4 +1,6 @@
 import type { OperationsWorkspaceProps } from "./operations-contracts";
+import { displayLabel } from "./displayLabel";
+import { DEFAULT_OPERATIONS_LIST_VIEW, requestRowMetadata, selectOperationsRows } from "./operationsListView";
 import {
   formatCount,
   formatMs,
@@ -9,7 +11,7 @@ import {
 
 type Props = Pick<
   OperationsWorkspaceProps,
-  "t" | "pressure" | "readiness" | "requests"
+  "t" | "pressure" | "readiness" | "requests" | "listView"
 > & {
   onOpenRequests: () => void;
 };
@@ -20,6 +22,7 @@ export function OperationsCurrentIssues({
   readiness,
   requests,
   onOpenRequests,
+  listView = DEFAULT_OPERATIONS_LIST_VIEW,
 }: Props) {
   const issues: { id: string; title: string; detail: string }[] = [];
   const ready = readiness.data;
@@ -42,9 +45,9 @@ export function OperationsCurrentIssues({
           detail: dependency.timedOut
             ? t("连接检查超时", "Connection check timed out")
             : t(
-                "检查服务连接与存储配置",
-                "Check the service connection and storage configuration",
-              ),
+              "检查服务连接与存储配置",
+              "Check the service connection and storage configuration",
+            ),
         });
       }
     }
@@ -73,7 +76,7 @@ export function OperationsCurrentIssues({
     if (provider.breakerOpen)
       issues.push({
         id: `provider-${provider.providerAccountId}`,
-        title: `${formatText(provider.label)} · ${t("熔断", "Breaker open")}`,
+        title: `${displayLabel(formatText(provider.label))} · ${t("熔断", "Breaker open")}`,
         detail: t(
           "检查凭据状态、上游错误和并发限制",
           "Check credential status, upstream errors and concurrency limits",
@@ -89,6 +92,7 @@ export function OperationsCurrentIssues({
     !pressure.loading,
   );
 
+  const visibleIssues = selectOperationsRows(issues, listView, (issue) => ({ name: issue.title, text: [issue.detail] }));
   return (
     <div className="nt-operations-issues">
       <article className="nt-pilot-metric-card">
@@ -104,9 +108,9 @@ export function OperationsCurrentIssues({
               {error}
             </div>
           ))}
-        {issues.length ? (
+        {visibleIssues.length ? (
           <ul className="nt-operations-issue-list">
-            {issues.map((issue) => (
+            {visibleIssues.map((issue) => (
               <li key={issue.id}>
                 <strong>{issue.title}</strong>
                 <span>{issue.detail}</span>
@@ -115,11 +119,13 @@ export function OperationsCurrentIssues({
           </ul>
         ) : (
           <p className="nt-copy" role="status">
-            {complete
-              ? t("未发现运行异常", "No runtime issues detected")
-              : readiness.loading || pressure.loading
-                ? t("正在检查运行状态…", "Checking runtime status…")
-                : t(
+            {issues.length
+              ? t(`没有匹配的运行异常（共 ${issues.length} 项）`, `No matching runtime issues (${issues.length} total)`)
+              : complete
+                ? t("未发现运行异常", "No runtime issues detected")
+                : readiness.loading || pressure.loading
+                  ? t("正在检查运行状态…", "Checking runtime status…")
+                  : t(
                     "运行状态不完整，暂时无法判断",
                     "Runtime status is incomplete",
                   )}
@@ -138,13 +144,14 @@ export function OperationsCurrentIssues({
           const failures = rows.filter(
             (row) => row.status.toLowerCase() === "failed",
           );
+          const visibleFailures = selectOperationsRows(failures, listView, requestRowMetadata);
           return (
             <>
               <div className="nt-operations-issues__heading">
                 <span className="nt-copy">
                   {t(
-                    `本次查询 ${rows.length} 条，失败 ${failures.length} 条`,
-                    `${failures.length} failed out of ${rows.length} queried`,
+                    `本次查询 ${rows.length} 条，失败 ${failures.length} 条${listView.query.trim() ? `，匹配 ${visibleFailures.length} 条` : ""}`,
+                    `${failures.length} failed out of ${rows.length} queried${listView.query.trim() ? `, ${visibleFailures.length} matching` : ""}`,
                   )}
                 </span>
                 <button
@@ -155,9 +162,9 @@ export function OperationsCurrentIssues({
                   {t("查看请求", "View requests")}
                 </button>
               </div>
-              {failures.length ? (
+              {visibleFailures.length ? (
                 <ul className="nt-operations-failure-list">
-                  {failures.slice(0, 10).map((row) => (
+                  {visibleFailures.slice(0, 10).map((row) => (
                     <li key={row.id}>
                       <div>
                         <strong>
@@ -171,9 +178,9 @@ export function OperationsCurrentIssues({
                       <p>
                         {formatText(
                           row.errorSummary ??
-                            (row.upstreamStatus === null
-                              ? null
-                              : `HTTP ${row.upstreamStatus}`),
+                          (row.upstreamStatus === null
+                            ? null
+                            : `HTTP ${row.upstreamStatus}`),
                         )}
                       </p>
                     </li>
@@ -182,16 +189,16 @@ export function OperationsCurrentIssues({
               ) : (
                 <p className="nt-copy">
                   {t(
-                    "本次查询没有失败请求",
-                    "No failed requests in this query",
+                    "没有匹配的失败请求",
+                    "No matching failed requests",
                   )}
                 </p>
               )}
-              {failures.length > 10 ? (
+              {visibleFailures.length > 10 ? (
                 <span className="nt-copy">
                   {t(
-                    "显示最近 10 条，完整记录见请求明细",
-                    "Showing the latest 10; see Request log for all results",
+                    "显示前 10 条，完整记录见请求明细",
+                    "Showing the first 10; see Request log for all results",
                   )}
                 </span>
               ) : null}

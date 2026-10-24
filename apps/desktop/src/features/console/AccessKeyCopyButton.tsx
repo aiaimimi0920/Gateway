@@ -28,9 +28,10 @@ export function AccessKeyCopyButton({
   }, [state]);
   return (
     <button
-      className="nt-btn nt-btn--outline nt-console-copy"
+      className={`nt-btn nt-btn--outline nt-console-copy${state === "copied" ? " nt-console-copy--ok" : state === "failed" ? " nt-console-copy--fail" : ""}`}
       type="button"
       aria-label={t("复制 Key", "Copy Key")}
+      title={state === "copied" ? t("已复制", "Copied") : t("复制 Key", "Copy Key")}
       disabled={disabled || state === "copying"}
       onClick={async () => {
         setState("copying");
@@ -49,11 +50,12 @@ export function AccessKeyCopyButton({
       )}
       {state === "copying"
         ? t("复制中…", "Copying…")
-        : state === "copied"
-          ? t("已复制", "Copied")
-          : state === "failed"
-            ? t("复制失败", "Copy failed")
-            : t("复制 Key", "Copy Key")}
+        : state === "failed"
+          ? t("复制失败", "Copy failed")
+          : t("复制", "Copy")}
+      <span className="nt-visually-hidden" aria-live="polite">
+        {state === "copied" ? t("已复制", "Copied") : ""}
+      </span>
     </button>
   );
 }

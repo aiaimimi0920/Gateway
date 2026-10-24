@@ -53,8 +53,21 @@ pub fn load(path: &Path) -> Result<ConnectionSettings, String> {
 }
 
 pub fn save(path: &Path, settings: &ConnectionSettings) -> Result<(), String> {
-    let bytes = serde_json::to_vec_pretty(settings).map_err(|error| error.to_string())?;
-    std::fs::write(path, bytes)
+    // Never persist an unused remote draft: it may contain credentials rejected by remote mode.
+    let normalized = ConnectionSettings {
+        mode: settings.mode.clone(),
+        server_url: if settings.mode == ConnectionMode::Local {
+            String::new()
+        } else {
+            console_url(&settings.server_url)?
+                .origin()
+                .ascii_serialization()
+        },
+    };
+    let bytes = serde_json::to_vec_pretty(&normalized).map_err(|error| error.to_string())?;
+    let pending = path.with_extension(format!("json.pending-{}", std::process::id()));
+    std::fs::write(&pending, bytes)
+        .and_then(|_| std::fs::rename(pending, path))
         .map_err(|error| format!("Cannot save Gateway connection settings: {error}"))
 }
 
@@ -81,5 +94,43 @@ mod tests {
         ] {
             assert!(console_url(value).is_err(), "{value}");
         }
+    }
+
+    #[test]
+    fn saved_connections_exclude_unused_drafts_and_normalize_remote_origins() {
+        let dir = std::env::temp_dir().join(format!(
+            "gateway-connection-save-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("connection.json");
+        save(
+            &path,
+            &ConnectionSettings {
+                mode: ConnectionMode::Local,
+                server_url: "https://user:secret@example.com/?token=private".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(load(&path).unwrap().server_url, "");
+        let remote = ConnectionSettings {
+            mode: ConnectionMode::Existing,
+            server_url: " https://example.com/ui/ ".into(),
+        };
+        save(&path, &remote).unwrap();
+        assert_eq!(load(&path).unwrap().server_url, "https://example.com");
+        assert!(save(
+            &path,
+            &ConnectionSettings {
+                server_url: "https://user:secret@example.com".into(),
+                ..remote
+            }
+        )
+        .is_err());
+        assert_eq!(load(&path).unwrap().server_url, "https://example.com");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

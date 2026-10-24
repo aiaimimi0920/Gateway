@@ -14,8 +14,9 @@ pub(super) fn compile_yaml_with_fingerprints(
         config
             .providers
             .iter()
-            .filter(|p| p.site_health.is_some())
-            .count()
+            .filter_map(|p| p.site_health.as_ref())
+            .map(crate::site_health::SiteHealthConfig::plan_count)
+            .sum::<usize>()
             <= 64,
         "At most 64 independent site health monitors may be configured."
     );
@@ -24,6 +25,19 @@ pub(super) fn compile_yaml_with_fingerprints(
     // fingerprinting so a legacy raw document (`id: None`) and its first
     // strict console save (`id: Some(generated)`) reuse the same runtime state.
     let config = materialize_credential_ids(config);
+    let groups = super::default_group::effective_groups(&config);
+    for health in config
+        .providers
+        .iter()
+        .filter_map(|p| p.site_health.as_ref())
+    {
+        for id in health.profiles.iter().flat_map(|p| &p.account_group_ids) {
+            anyhow::ensure!(
+                groups.iter().any(|g| g.id == *id),
+                "Site health plan references an unknown local credential group"
+            );
+        }
+    }
     let mut providers = Vec::with_capacity(config.providers.len());
     let mut fingerprints = HashMap::with_capacity(config.providers.len());
     for provider in config.providers {

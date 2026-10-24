@@ -143,7 +143,7 @@ impl RequestBudget {
     pub fn allow_rejected_candidate_fallback(&self, error: &GatewayError) {
         if error.request_budget_stop_reason().is_none() {
             let mut state = self.0.lock();
-            // Explicit model/channel or account-balance admission refusal has not run tools.
+            // Explicit admission refusals and recognized non-API diagnostic pages may advance.
             // Grant only the next slot, never reset attempts/deadline or revive a stop.
             // Other HTTP failures, uncertain delivery and post-handoff errors stay closed.
             if state.rejected_conversation_fallback

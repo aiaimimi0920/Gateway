@@ -1,4 +1,5 @@
 import { Database, GalleryHorizontalEnd, Layers, RotateCcw } from "lucide-react";
+import { useState } from "react";
 
 import type { ModelPoolCard as ModelPoolCardData } from "./modelPoolViewModel";
 import { ModelPoolCardActions } from "./ModelPoolCardActions";
@@ -46,6 +47,10 @@ export function ModelPoolCardView({
   onDeleteModel,
   onResetChain,
 }: ModelPoolCardViewProps) {
+  // Hidden faces still render in React. Mount the chain only on first use,
+  // then retain it so flipping back does not reset its provider page.
+  const [chainMounted, setChainMounted] = useState(flipped);
+  if (flipped && !chainMounted) setChainMounted(true);
   return (
     <article
       className={`nt-entitlement-group-card nt-model-pool-card${flipped ? " nt-entitlement-group-card--flipped" : ""}${expanded ? " nt-entitlement-group-card--expanded" : ""}`}
@@ -203,7 +208,7 @@ export function ModelPoolCardView({
               `${card.model} provider priority`,
             )}
           >
-            <ModelPoolChainBoard
+            {chainMounted && <ModelPoolChainBoard
               t={t}
               cardKey={card.rowId}
               model={card.model}
@@ -212,7 +217,7 @@ export function ModelPoolCardView({
               deselectedProviderIds={deselectedProviderIds}
               onDeselectedProviderIdsChange={onDeselectedProviderIdsChange}
               onMoveProvider={onMoveProvider}
-            />
+            />}
           </section>
         </div>
       </div>

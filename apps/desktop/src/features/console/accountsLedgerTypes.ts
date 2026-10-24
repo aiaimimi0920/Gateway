@@ -9,6 +9,7 @@ import type { AccountsLedgerPilotAccount } from "./accountCardTypes";
 import type { ProviderAggregateMetrics } from "./providerCardMetrics";
 import type { CardModelTraffic } from "./cardModelTraffic";
 import type { RequestClientProfile } from "./requestClientProfile";
+import type { ProviderPoolView } from "./providerPoolView";
 
 export type TranslateFn = (zh: string, en: string) => string;
 
@@ -75,6 +76,8 @@ export type AccountsLedgerPilotSection = {
 export type AccountsLedgerWorkspaceProps = {
   t: TranslateFn;
   notice?: ReactNode;
+  poolView?: ProviderPoolView;
+  renderProviderSettings?: (section: AccountsLedgerPilotSection) => ReactNode;
   editorLocked: boolean;
   discardLifecycleDrafts?: boolean;
   lifecycleActionsLocked?: boolean;

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ProviderPoolView } from "./providerPoolView";
 
 import type {
   AccountGroupDraftLike,
@@ -33,6 +34,7 @@ export type CredentialGroupsWorkspaceProps = {
   error?: string | null;
   editorLocked: boolean;
   groups: CredentialGroupDirectoryItem[];
+  poolView?: ProviderPoolView;
   selectedGroupRowId: string | null;
   selectedGroup: AccountGroupDraftLike | null;
   selectedGroupIdInvalid: boolean;

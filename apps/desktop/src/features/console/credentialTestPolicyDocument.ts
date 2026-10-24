@@ -1,6 +1,7 @@
 // Pure route-document ownership: parent saves never rewrite child overrides or credentials.
 import type { ConsoleRouteDocument, CredentialTestPolicy, CredentialTestScope } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
+import { displayLabel } from "./displayLabel";
 import { readPilotIdentityCategories } from "./pilotPoolPolicy";
 import { iqExtraCases } from "./credentialIqBank";
 
@@ -29,7 +30,7 @@ function policy(value: unknown): CredentialTestPolicy | null {
 export function testProviderContext(document: ConsoleRouteDocument | null, providerId: string) {
   const provider = document?.providers.find((entry) => isRecord(entry) && entry.id === providerId);
   if (!isRecord(provider)) return null;
-  const label = typeof provider.label === "string" ? provider.label : providerId;
+  const label = displayLabel(typeof provider.label === "string" ? provider.label : providerId);
   const credentials = Array.isArray(provider.credentials) ? provider.credentials.filter(isRecord) : [];
   const declared = stringModels(provider.supported_models);
   const poolModels = declared.length ? declared : stringModels([provider.default_model]);

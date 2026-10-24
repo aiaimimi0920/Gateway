@@ -130,6 +130,7 @@ pub fn build_request_plan(
     if (req.endpoint_kind == EndpointKind::Responses && !use_chat_bridge_for_responses)
         || use_responses_bridge
     {
+        responses::normalize_input_arguments(&mut body);
         responses::sanitize_replayed_message_ids(&mut body);
     }
     Ok(RequestPlan {

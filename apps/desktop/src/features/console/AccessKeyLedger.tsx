@@ -10,7 +10,7 @@ import {
 } from "./accessKeyPresentation";
 import type { PendingKeyAction } from "./AccessKeyDialogs";
 import { AccessKeyCopyButton } from "./AccessKeyCopyButton";
-import { formatTimestamp } from "./accessWorkspaceFormatting";
+import { formatTimestamp, formatRecentKeyUse } from "./accessWorkspaceFormatting";
 import { keyGroupIds } from "./accessKeyGroups";
 import type { TranslateFn } from "./accessKeysTypes";
 
@@ -65,13 +65,14 @@ export function AccessKeyLedger({
       <table className="nt-key-ledger">
         <thead>
           <tr>
-            <th>{t("名称 / API Key", "Name / API Key")}</th>
-            <th>{t("状态", "Status")}</th>
+            <th>{t("名称", "Name")}</th>
+            <th>API Key</th>
             <th>{t("权益组", "Entitlement groups")}</th>
             <th>{t("剩余额度", "Remaining quota")}</th>
             <th>{t("有效期", "Expires")}</th>
             <th>{t("最近使用", "Last used")}</th>
-            <th>{t("操作", "Actions")}</th>
+            <th>{t("状态", "Status")}</th>
+            <th>{t("编辑", "Edit")}</th>
           </tr>
         </thead>
         <tbody>
@@ -97,10 +98,6 @@ export function AccessKeyLedger({
               <tr key={key.id}>
                 <td>
                   <strong title={key.displayName}>{key.displayName}</strong>
-                  <code>{key.publicKeyPrefix}••••••</code>
-                  <small title={`${key.ownerId} · ${key.id}`}>
-                    {key.ownerId}
-                  </small>
                   {bundlesByKey.has(key.id) ? (
                     <small title={bundlesByKey.get(key.id)!.join(" · ")}>
                       {bundlesByKey.get(key.id)!.join(" · ")}
@@ -108,58 +105,45 @@ export function AccessKeyLedger({
                   ) : null}
                 </td>
                 <td>
-                  <span className={`nt-key-status nt-key-status--${status}`}>
-                    {accessKeyStatusLabel(status, t)}
-                  </span>
+                  <div className="nt-key-row-actions">
+                    <code>{key.publicKeyPrefix}••••••</code>
+                    <AccessKeyCopyButton t={t} disabled={locked || status !== "active"}
+                      onCopy={() => onCopy(key.id)} />
+                    <button className="nt-btn nt-btn--outline" type="button"
+                      disabled={locked || status !== "active"}
+                      onClick={() => onAction({ kind: "rotate", key })}>
+                      {t("轮转", "Rotate")}
+                    </button>
+                  </div>
                 </td>
                 <td className="nt-key-group-label" title={groupLabel}>
                   {groupLabel}
                 </td>
-                <td>{accessKeyBalanceLabel(balances.get(key.id), t)}</td>
+                <td>
+                  <div className="nt-key-row-actions">
+                    <span>{accessKeyBalanceLabel(balances.get(key.id), t)}</span>
+                    {catalog.cashQuotaSupported ? (
+                      <button className="nt-btn nt-btn--outline" type="button" onClick={() => onBills(key)}>
+                        {t("账单", "Bills")}
+                      </button>
+                    ) : null}
+                  </div>
+                </td>
                 <td>
                   {key.expiresAt
                     ? formatTimestamp(key.expiresAt)
                     : t("永不过期", "Never")}
                 </td>
-                <td>
+                <td title={key.lastUsedAt ? formatTimestamp(key.lastUsedAt) : undefined}>
                   {key.lastUsedAt
-                    ? formatTimestamp(key.lastUsedAt)
+                    ? formatRecentKeyUse(key.lastUsedAt)
                     : t("未使用", "Unused")}
                 </td>
                 <td>
                   <div className="nt-key-row-actions">
-                    {catalog.cashQuotaSupported ? (
-                      <button
-                        className="nt-btn nt-btn--outline"
-                        type="button"
-                        onClick={() => onBills(key)}
-                      >
-                        {t("账单", "Bills")}
-                      </button>
-                    ) : null}
-                    <button
-                      className="nt-btn nt-btn--outline"
-                      type="button"
-                      disabled={
-                        locked || status !== "active" || !catalog.accountGroups
-                      }
-                      onClick={() => onEdit(key)}
-                    >
-                      {t("编辑", "Edit")}
-                    </button>
-                    <AccessKeyCopyButton
-                      t={t}
-                      disabled={locked || status !== "active"}
-                      onCopy={() => onCopy(key.id)}
-                    />
-                    <button
-                      className="nt-btn nt-btn--outline"
-                      type="button"
-                      disabled={locked || status !== "active"}
-                      onClick={() => onAction({ kind: "rotate", key })}
-                    >
-                      {t("轮换", "Rotate")}
-                    </button>
+                    <span className={`nt-key-status nt-key-status--${status}`}>
+                      {accessKeyStatusLabel(status, t)}
+                    </span>
                     <button
                       className="nt-btn nt-btn--outline"
                       type="button"
@@ -188,6 +172,13 @@ export function AccessKeyLedger({
                       {t("删除", "Delete")}
                     </button>
                   </div>
+                </td>
+                <td>
+                  <button className="nt-btn nt-btn--outline" type="button"
+                    disabled={locked || status !== "active" || !catalog.accountGroups}
+                    onClick={() => onEdit(key)}>
+                    {t("编辑", "Edit")}
+                  </button>
                 </td>
               </tr>
             );

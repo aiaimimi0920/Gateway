@@ -57,3 +57,37 @@ fn failures_reduce_only_the_affected_provider_model_and_success_recovers_gradual
     router.outcome("a", "model", true);
     assert!(router.score("a", "model") < 81.0);
 }
+
+#[test]
+fn exhausted_request_releases_sticky_but_intermediate_failure_does_not() {
+    let router = SmartRouting::default();
+    let request = uuid::Uuid::new_v4();
+    router.begin_request(Some("session"), "model", "provider", request);
+    router.outcome("provider", "model", false);
+    assert_eq!(
+        router.sticky(Some("session"), "model").as_deref(),
+        Some("provider")
+    );
+    router.release_failed_request(Some("session"), "model", "provider", request);
+    assert!(router.sticky(Some("session"), "model").is_none());
+    assert!(router.score("provider", "model") < 86.0);
+}
+
+#[test]
+fn late_failure_does_not_clear_newer_attempt_to_same_provider() {
+    let router = SmartRouting::default();
+    let old = uuid::Uuid::new_v4();
+    let current = uuid::Uuid::new_v4();
+    router.begin_request(Some("session"), "model", "provider", old);
+    router.begin_request(Some("session"), "model", "provider", current);
+    router.release_failed_request(Some("session"), "model", "provider", old);
+    assert_eq!(
+        router.sticky(Some("session"), "model").as_deref(),
+        Some("provider")
+    );
+    router.release_failed_request(Some("other-session"), "model", "provider", current);
+    router.release_failed_request(Some("session"), "other-model", "provider", current);
+    assert!(router.sticky(Some("session"), "model").is_some());
+    router.release_failed_request(Some("session"), "model", "provider", current);
+    assert!(router.sticky(Some("session"), "model").is_none());
+}

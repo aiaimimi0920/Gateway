@@ -1,13 +1,14 @@
 import { useEffect } from "react";
 import { Cable, Minus, Square, X } from "lucide-react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
+import type { SettingsPanelLayout } from "../../platform/desktopSettings";
 import "./DesktopWindowChrome.css";
 
-type WindowAction = "ready" | "minimize" | "toggle-maximize" | "close" | "connection" | "drag";
+type WindowAction = "ready" | "minimize" | "toggle-maximize" | "close" | "quit" | "connection" | "drag" | "settings-desktop" | "settings-hide" | "console";
 
 declare global {
   interface Window {
-    __GATEWAY_WINDOW_CHROME__?: { send(action: WindowAction): void };
+    __GATEWAY_WINDOW_CHROME__?: { send(action: WindowAction): void; showSettings?(layout: SettingsPanelLayout): void };
   }
 }
 
@@ -20,7 +21,7 @@ export function DesktopWindowChrome() {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
       const action = key === "g" && event.shiftKey ? "connection"
-        : key === "q" && !event.shiftKey ? "close" : null;
+        : key === "q" && !event.shiftKey ? "quit" : null;
       if (!action) return;
       event.preventDefault();
       bridge.send(action);

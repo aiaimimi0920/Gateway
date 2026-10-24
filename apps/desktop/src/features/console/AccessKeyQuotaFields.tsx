@@ -2,6 +2,7 @@ import type { ConsoleAccessKeyBalance } from "../../api/contracts";
 import { useId } from "react";
 import type { AccessKeyDraft, TranslateFn } from "./accessKeysTypes";
 import { cashRemaining, formatCashMicros } from "./cashAmount";
+import { validKeyQuota } from "./accessKeyQuota";
 
 export function AccessKeyQuotaFields({
   draft,
@@ -29,9 +30,10 @@ export function AccessKeyQuotaFields({
     : balance?.remainingMessages;
   return (
     <div className="nt-key-quota-fields">
-      <label className="nt-field">
-        <span>{t("额度限制", "Quota")}</span>
+      <label htmlFor={`${id}-mode`}>{t("额度限制", "Quota")}</label>
+      <div className="nt-key-quota-controls">
         <select
+          id={`${id}-mode`}
           className="nt-input"
           value={draft.quotaMode}
           onChange={(event) =>
@@ -73,57 +75,53 @@ export function AccessKeyQuotaFields({
             </option>
           ) : null}
         </select>
-      </label>
-      {limited ? (
-        <label className="nt-field">
-          <span id={`${id}-label`}>
-            {cash
-              ? t("总花费（USD）", "Total spend (USD)")
-              : token
-                ? t("总 Token 额度", "Total token allowance")
-                : t("总请求次数", "Total request allowance")}
-          </span>
-          <input
-            className="nt-input"
-            aria-labelledby={`${id}-label`}
-            aria-describedby={
-              cash
-                ? balance?.cash
-                  ? `${id}-usage`
-                  : undefined
-                : total != null && remaining != null
-                  ? `${id}-usage`
-                  : undefined
-            }
-            type="number"
-            min="0"
-            max={
-              cash
-                ? Number.MAX_SAFE_INTEGER / 1_000_000
-                : Number.MAX_SAFE_INTEGER
-            }
-            step={cash ? "0.000001" : "1"}
-            required
-            value={draft.quotaLimit}
-            onChange={(event) => onChange({ quotaLimit: event.target.value })}
-          />
-          {cash && balance?.cash ? (
-            <small id={`${id}-usage`}>
-              {t(
-                `已结算 ${formatCashMicros(balance.cash.spentMicros)} · 预占 ${formatCashMicros(balance.cash.reservedMicros)} · 可用 ${formatCashMicros(cashRemaining(balance.cash))} USD`,
-                `Settled ${formatCashMicros(balance.cash.spentMicros)} · Reserved ${formatCashMicros(balance.cash.reservedMicros)} · Available ${formatCashMicros(cashRemaining(balance.cash))} USD`,
-              )}
-            </small>
-          ) : !cash && total != null && remaining != null ? (
-            <small id={`${id}-usage`}>
-              {t(
-                `已用 ${Math.max(0, total - remaining).toLocaleString()} · 剩余 ${remaining.toLocaleString()}`,
-                `Used ${Math.max(0, total - remaining).toLocaleString()} · Remaining ${remaining.toLocaleString()}`,
-              )}
-            </small>
-          ) : null}
-        </label>
-      ) : null}
+        <input
+          className="nt-input"
+          aria-label={cash
+            ? t("总花费（USD）", "Total spend (USD)")
+            : token
+              ? t("总 Token 额度", "Total token allowance")
+              : limited ? t("总请求次数", "Total request allowance") : t("额度上限", "Allowance limit")}
+          aria-describedby={
+            !limited ? undefined : cash
+              ? balance?.cash
+                ? `${id}-usage`
+                : undefined
+              : total != null && remaining != null
+                ? `${id}-usage`
+                : undefined
+          }
+          type="number"
+          disabled={!limited}
+          aria-invalid={limited && !validKeyQuota(draft)}
+          min="0"
+          max={
+            cash
+              ? Number.MAX_SAFE_INTEGER / 1_000_000
+              : Number.MAX_SAFE_INTEGER
+          }
+          step={cash ? "0.000001" : "1"}
+          required={limited}
+          placeholder={cash ? "USD" : ""}
+          value={limited ? draft.quotaLimit : ""}
+          onChange={(event) => onChange({ quotaLimit: event.target.value })}
+        />
+        {limited && cash && balance?.cash ? (
+          <small id={`${id}-usage`} className="nt-visually-hidden">
+            {t(
+              `已结算 ${formatCashMicros(balance.cash.spentMicros)} · 预占 ${formatCashMicros(balance.cash.reservedMicros)} · 可用 ${formatCashMicros(cashRemaining(balance.cash))} USD`,
+              `Settled ${formatCashMicros(balance.cash.spentMicros)} · Reserved ${formatCashMicros(balance.cash.reservedMicros)} · Available ${formatCashMicros(cashRemaining(balance.cash))} USD`,
+            )}
+          </small>
+        ) : limited && !cash && total != null && remaining != null ? (
+          <small id={`${id}-usage`} className="nt-visually-hidden">
+            {t(
+              `已用 ${Math.max(0, total - remaining).toLocaleString()} · 剩余 ${remaining.toLocaleString()}`,
+              `Used ${Math.max(0, total - remaining).toLocaleString()} · Remaining ${remaining.toLocaleString()}`,
+            )}
+          </small>
+        ) : null}
+      </div>
     </div>
   );
 }

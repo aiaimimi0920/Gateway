@@ -1,4 +1,5 @@
 import { readStorageConnection } from "./providerStorageConnection";
+import { displayLabel } from "./displayLabel";
 import type {
   ConsoleGeminiAuthFamily,
   ConsoleProviderCredentialInventoryItem, ConsoleRouteDocument,
@@ -340,7 +341,7 @@ export function buildAccountLedgerSections(
       if (!providerId) {
         return [];
       }
-      const providerLabel = optionalString(provider, "label") ?? providerId;
+      const providerLabel = displayLabel(optionalString(provider, "label") ?? providerId);
       const visibleRows = visibleRowsByProviderId.get(providerId) ?? [];
       if (visibleRows.length === 0) {
         return [];

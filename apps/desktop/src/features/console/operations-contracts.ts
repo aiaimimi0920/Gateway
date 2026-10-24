@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { OperationsListView } from "./operationsListView";
 import type {
   ConsoleAlertQueue,
   ConsoleAnalysisExportInventorySummary,
@@ -21,7 +22,7 @@ import type {
 
 export type TranslateFn = (zh: string, en: string) => string;
 
-/** Sections are collapsible so the page opens on 实时 instead of a wall of tables. */
+/** Task views keep diagnostics, request investigation and incident actions separate. */
 export type OperationsSectionId = "live" | "requests" | "anomalies";
 
 /**
@@ -44,7 +45,8 @@ export type OperationsRequestFilterDraft = {
   limit: string;
 };
 
-export const OPERATIONS_DEFAULT_REQUEST_FILTERS: OperationsRequestFilterDraft = {
+export const OPERATIONS_DEFAULT_REQUEST_FILTERS: OperationsRequestFilterDraft =
+{
   status: "",
   projectId: "",
   providerAccountId: "",
@@ -55,6 +57,7 @@ export const OPERATIONS_DEFAULT_REQUEST_FILTERS: OperationsRequestFilterDraft = 
 
 export type OperationsWorkspaceProps = {
   t: TranslateFn;
+  listView?: OperationsListView;
   notice?: ReactNode;
   /** Blocks the mutation buttons while a management-token refresh is in flight. */
   editorLocked: boolean;

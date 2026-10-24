@@ -40,17 +40,23 @@ pub(super) fn provider_supports_model(provider: &CompiledProvider, model: &str) 
     })
 }
 
-fn eligible_credentials(
+pub(super) fn eligible_credentials(
     provider: &CompiledProvider,
     original: &str,
     target: &str,
     allowed: Option<&HashSet<String>>,
+    admission: candidates::Admission<'_>,
 ) -> Option<Vec<usize>> {
     if provider.credential_pool.is_empty() {
         if !provider.credential_pool_auth_policy.is_any() {
             return None;
         }
-        return (allowed
+        return (candidates::admits(
+            admission,
+            &provider.id,
+            &provider_default_account_id(&provider.id),
+            Some(target),
+        ) && allowed
             .is_none_or(|ids| ids.contains(&provider_default_account_id(&provider.id)))
             && (provider.supported_models.is_empty()
                 || provider
@@ -66,6 +72,7 @@ fn eligible_credentials(
         .filter(|(_, credential)| {
             credential_eligible(credential, original, target, allowed)
                 && provider.credential_pool_auth_policy.allows(credential)
+                && candidates::admits(admission, &provider.id, &credential.id, Some(target))
         })
         .map(|(index, _)| index)
         .collect();
@@ -79,12 +86,9 @@ fn credential_eligible(
     allowed: Option<&HashSet<String>>,
 ) -> bool {
     credential.enabled
+        && !credential.discovery_required
         && allowed.is_none_or(|ids| ids.contains(&credential.id))
-        && (credential.supported_models.is_empty()
-            || credential
-                .supported_models
-                .iter()
-                .any(|m| m == original || m == target))
+        && candidates::credential_supports_model(credential, Some(original), Some(target))
 }
 
 fn target_is_available(
@@ -94,7 +98,7 @@ fn target_is_available(
     allowed: Option<&HashSet<String>>,
 ) -> bool {
     if provider.credential_pool.is_empty() {
-        return eligible_credentials(provider, original, target, allowed).is_some();
+        return eligible_credentials(provider, original, target, allowed, None).is_some();
     }
     provider.credential_pool.iter().any(|credential| {
         credential_eligible(credential, original, target, allowed)
@@ -116,24 +120,41 @@ pub(super) fn mapping_available(provider: &CompiledProvider, model: &str) -> boo
     )
 }
 
+#[cfg(test)]
 pub(super) fn select_mapped_payload(
     provider: &CompiledProvider,
     original: &str,
     allowed: Option<&HashSet<String>>,
 ) -> Option<(String, ProviderAccountPayload)> {
+    select_mapped_payload_filtered(provider, original, allowed, None, true)
+}
+
+pub(super) fn select_mapped_payload_filtered(
+    provider: &CompiledProvider,
+    original: &str,
+    allowed: Option<&HashSet<String>>,
+    admission: candidates::Admission<'_>,
+    rotate: bool,
+) -> Option<(String, ProviderAccountPayload)> {
     let viable: Vec<_> = provider
         .model_map_targets
         .get(original)?
         .iter()
-        .filter(|target| target_is_available(provider, original, target, allowed))
+        .filter(|target| {
+            eligible_credentials(provider, original, target, allowed, admission).is_some()
+        })
         .collect();
     let model = viable.choose(&mut rand::thread_rng())?;
-    // Allocate credential indices only for the chosen target, not all alternatives.
-    let credentials = eligible_credentials(provider, original, model, allowed)?;
+    // Recheck admission for the chosen target; runtime restrictions may change after viability checks.
+    let credentials = eligible_credentials(provider, original, model, allowed, admission)?;
     let payload = if credentials.is_empty() {
         provider.payload.clone()
     } else {
-        let counter = provider.credential_counter.fetch_add(1, Ordering::Relaxed);
+        let counter = if rotate {
+            provider.credential_counter.fetch_add(1, Ordering::Relaxed)
+        } else {
+            provider.credential_counter.load(Ordering::Relaxed)
+        };
         candidates::apply_token_override(
             &provider.credential_pool[credentials[counter % credentials.len()]],
         )

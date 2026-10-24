@@ -372,7 +372,9 @@ impl UpstreamClient {
         }
 
         if anthropic_messages_upstream::owns_payload(payload)
-            && payload.request_client_profile != Some(crate::protocol::request_profile::RequestClientProfile::CpaClaudeCode) {
+            && payload.request_client_profile
+                != Some(crate::protocol::request_profile::RequestClientProfile::CpaClaudeCode)
+        {
             let plan = Self::build_request_plan(payload, req, model, true)?;
             let headers = build_inference_headers(payload, req, model, extra_headers);
             let provider = &payload.adapter;

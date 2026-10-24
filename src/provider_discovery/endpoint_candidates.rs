@@ -4,6 +4,9 @@ use super::DiscoveredProtocol as P;
 pub const MAX_BASES: usize = 8;
 
 pub fn bases(source: &str, protocol: P) -> anyhow::Result<Vec<String>> {
+    if protocol == P::ChatCompletions && super::openrouter::matches(source) {
+        return Ok(vec![super::openrouter::API_BASE.to_owned()]);
+    }
     let url = super::transport::checked_url(source)?;
     let source = url.as_str().trim_end_matches('/');
     let root = [

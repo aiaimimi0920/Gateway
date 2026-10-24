@@ -18,7 +18,12 @@ pub(super) async fn record_rate_limit(
         error.code.as_deref(),
         Some(&error.message),
     );
-    if classification.class != crate::provider_failure::ProviderFailureClass::RateLimited {
+    if !matches!(
+        classification.class,
+        crate::provider_failure::ProviderFailureClass::RateLimited
+            | crate::provider_failure::ProviderFailureClass::CredentialInvalid
+            | crate::provider_failure::ProviderFailureClass::CredentialExpired
+    ) {
         return;
     }
     let input = crate::db::RecordCredentialModelFailureInput {
@@ -43,6 +48,6 @@ pub(super) async fn record_rate_limit(
     };
     if let Err(error) = crate::local_runtime::model_states::failure(state, input).await {
         tracing::warn!(req_id = %ctx.req_id, error = %error,
-            "failed to persist candidate model rate limit");
+            "failed to persist candidate credential/model failure");
     }
 }

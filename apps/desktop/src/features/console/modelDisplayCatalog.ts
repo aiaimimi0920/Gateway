@@ -1,7 +1,9 @@
 /** Release-reviewed editorial order, not a live popularity measurement.
  * Update with docs/model-display-catalog-release.md before each release.
- * Exact aliases rank first; explicit GPT/Grok/GLM family rules classify unlisted variants.
+ * OpenAI intelligence tiers precede catalogue ranks; family rules classify unlisted variants.
  */
+import { ADDITIONAL_MODEL_COMPANIES, modelFamilyCompany } from "./modelCompanyFamilies";
+
 export const MODEL_DISPLAY_CATALOG_REVIEWED_AT = "2026-09-27";
 
 export type ModelCompanyRule = {
@@ -14,9 +16,9 @@ export type ModelCompanyRule = {
 export const MODEL_COMPANY_RULES: readonly ModelCompanyRule[] = [
   { id: "openai", label: "OpenAI", namespaces: ["openai"], models: [
     "gpt-6-astra", "gpt-6-sol", "gpt-6-luna", "gpt-5.6", "gpt-5.4", "gpt-5",
-    "gpt-oss-120b", "gpt-oss-20b", "o3", "o4-mini", "gpt-4.1", "gpt-4o",
+    "gpt-oss-120b", "gpt-oss-20b", "o3", "o4-mini", "gpt-4.1", "gpt-4o", "codex-auto-review",
   ] },
-  { id: "anthropic", label: "Anthropic", namespaces: ["anthropic"], models: [
+  { id: "anthropic", label: "Claude", namespaces: ["anthropic", "claude"], models: [
     "claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5",
   ] },
   { id: "google", label: "Google", namespaces: ["google"], models: [
@@ -25,7 +27,7 @@ export const MODEL_COMPANY_RULES: readonly ModelCompanyRule[] = [
     "gemma-3n-e4b-it", "gemma-3n-e2b-it", "gemma-2-2b-it", "gemma-2b",
     "codegemma-7b", "codegemma-1.1-7b", "recurrentgemma-2b", "deplot",
   ] },
-  { id: "meta", label: "Meta", namespaces: ["meta"], models: [
+  { id: "meta", label: "Meta", namespaces: ["meta", "meta-llama"], models: [
     "llama-4-maverick-17b-128e-instruct", "llama-3.3-70b-instruct", "llama-3.1-405b-instruct",
     "llama-3.1-70b-instruct", "llama-3.1-8b-instruct", "llama-3.2-90b-vision-instruct",
     "llama-3.2-11b-vision-instruct", "llama-3.2-3b-instruct", "llama-3.2-1b-instruct",
@@ -34,11 +36,11 @@ export const MODEL_COMPANY_RULES: readonly ModelCompanyRule[] = [
   { id: "deepseek", label: "DeepSeek", namespaces: ["deepseek-ai", "deepseek"], models: [
     "deepseek-v3.2", "deepseek-v3.1-terminus", "deepseek-r1", "deepseek-v3", "deepseek-coder-6.7b-instruct",
   ] },
-  { id: "qwen", label: "Alibaba / Qwen", namespaces: ["qwen"], models: [
+  { id: "qwen", label: "Qwen", namespaces: ["qwen"], models: [
     "qwen3.5-397b-a17b", "qwen3.5-122b-a10b", "qwen3-coder-480b-a35b-instruct",
     "qwen3-next-80b-a3b-thinking", "qwen3-next-80b-a3b-instruct", "qwen2.5-coder-32b-instruct",
   ] },
-  { id: "xai", label: "xAI", namespaces: ["x-ai", "xai"], models: ["grok-4", "grok-3", "grok-3-mini"] },
+  { id: "xai", label: "Grok", namespaces: ["x-ai", "xai"], models: ["grok-4", "grok-3", "grok-3-mini"] },
   { id: "nvidia", label: "NVIDIA", namespaces: ["nvidia"], models: [
     "nemotron-3-super-120b-a12b", "nemotron-3-nano-30b-a3b", "nemotron-nano-3-30b-a3b",
     "llama-3.3-nemotron-super-49b-v1.5", "llama-3.3-nemotron-super-49b-v1",
@@ -64,20 +66,41 @@ export const MODEL_COMPANY_RULES: readonly ModelCompanyRule[] = [
     "mixtral-8x22b-instruct-v0.1", "mixtral-8x22b-v0.1", "mixtral-8x7b-instruct-v0.1",
     "mistral-7b-instruct-v0.3", "mistral-nemotron",
   ] },
-  { id: "moonshot", label: "Moonshot / Kimi", namespaces: ["moonshotai"], models: [
+  { id: "moonshot", label: "Kimi", namespaces: ["moonshotai", "moonshot", "kimi"], models: [
     "kimi-k2.5", "kimi-k2-thinking", "kimi-k2-instruct-0905", "kimi-k2-instruct",
   ] },
-  { id: "minimax", label: "MiniMax", namespaces: ["minimaxai"], models: ["minimax-m2.7", "minimax-m2.5"] },
-  { id: "zai", label: "Z.ai", namespaces: ["z-ai", "z.ai", "zai"], models: ["glm-5.1", "glm5", "glm4.7"] },
+  { id: "xiaomi", label: "Xiaomi", namespaces: ["xiaomi"], models: [] },
+  { id: "agnes", label: "Agnes", namespaces: ["agnes"], models: [] },
+  { id: "minimax", label: "MiniMax", namespaces: ["minimaxai", "minimax"], models: ["minimax-m2.7", "minimax-m2.5"] },
+  { id: "zai", label: "GLM", namespaces: ["z-ai", "z.ai", "zai", "thudm", "智谱"], models: ["glm-5.1", "glm5", "glm4.7"] },
   { id: "microsoft", label: "Microsoft", namespaces: ["microsoft"], models: [
     "phi-4-multimodal-instruct", "phi-4-mini-instruct", "phi-3.5-moe-instruct", "phi-3-vision-128k-instruct", "kosmos-2",
   ] },
-  { id: "ibm", label: "IBM", namespaces: ["ibm"], models: [
+  { id: "ibm", label: "Granite", namespaces: ["ibm", "ibm-granite"], models: [
     "granite-3.0-8b-instruct", "granite-3.0-3b-a800m-instruct", "granite-34b-code-instruct", "granite-8b-code-instruct",
   ] },
+  ...ADDITIONAL_MODEL_COMPANIES,
 ];
 
 export type CardModelGroup = { id: string; label: string; models: string[] };
+
+// User-defined display priority, not a benchmark score or a routing preference.
+const OPENAI_INTELLIGENCE_ORDER = ["astra", "sol", "terra", "luna"];
+function openaiIntelligence(model: string) {
+  const match = /^gpt-(\d+(?:\.\d+)*)-(astra|sol|terra|luna)(?:-[a-z0-9._:-]+)?$/i.exec(cardModelDisplayName(model));
+  return { tier: match ? OPENAI_INTELLIGENCE_ORDER.indexOf(match[2].toLowerCase()) : Infinity,
+    version: match ? match[1].split(".").map(Number) : [] };
+}
+
+function compareOpenaiIntelligence(a: string, b: string): number {
+  const left = openaiIntelligence(a), right = openaiIntelligence(b);
+  if (left.tier !== right.tier) return left.tier - right.tier;
+  for (let index = 0; index < Math.max(left.version.length, right.version.length); index++) {
+    const difference = (right.version[index] ?? 0) - (left.version[index] ?? 0);
+    if (difference) return difference;
+  }
+  return 0;
+}
 
 const rankedModels = new Map<string, { company: ModelCompanyRule; rank: number }>();
 for (const company of MODEL_COMPANY_RULES) {
@@ -91,16 +114,17 @@ for (const company of MODEL_COMPANY_RULES) {
 /** Display-only family fallback. An unrelated or conflicting namespace remains unknown. */
 function modelDisplayRule(model: string) {
   const normalized = model.toLowerCase();
-  const exact = rankedModels.get(normalized);
+  const exact = rankedModels.get(normalized)
+    ?? rankedModels.get(normalized.replace(/(?::(?:free|batch)|\[free\])$/, ""));
   if (exact) return exact;
   const parts = normalized.split("/");
   if (parts.length > 2) return undefined;
   const name = parts.at(-1)!;
-  const companyId = /^gpt-[a-z0-9][a-z0-9._:-]*$/.test(name) ? "openai"
-    : /^grok-[a-z0-9][a-z0-9._:-]*$/.test(name) ? "xai"
-      : name.startsWith("glm") ? "zai" : undefined;
+  const companyId = modelFamilyCompany(name);
   const company = MODEL_COMPANY_RULES.find((entry) => entry.id === companyId);
-  if (!company || (parts.length === 2 && !company.namespaces.includes(parts[0]))) return undefined;
+  // OpenRouter's dynamic DeepSeek aliases retain their original ID in routing.
+  const namespace = companyId === "deepseek" && parts[0] === "~deepseek" ? "deepseek" : parts[0];
+  if (!company || (parts.length === 2 && !company.namespaces.includes(namespace))) return undefined;
   return { company, rank: Number.MAX_SAFE_INTEGER };
 }
 
@@ -127,8 +151,9 @@ export function groupCardModels(models: readonly string[]): CardModelGroup[] {
   const ordered = MODEL_COMPANY_RULES.flatMap((company) => {
     const group = groups.get(company.id);
     if (!group) return [];
-    // Exact catalogue ranks precede family fallbacks; stable ties retain input order.
-    group.models.sort((a, b) => modelDisplayRule(a)!.rank - modelDisplayRule(b)!.rank);
+    // OpenAI tiers precede catalogue ranks; otherwise stable ties retain input order.
+    group.models.sort((a, b) => (company.id === "openai" ? compareOpenaiIntelligence(a, b) : 0)
+      || modelDisplayRule(a)!.rank - modelDisplayRule(b)!.rank);
     return [group];
   });
   return unknown.models.length ? [...ordered, unknown] : ordered;

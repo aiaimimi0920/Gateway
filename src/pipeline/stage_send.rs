@@ -68,6 +68,7 @@ use tool_stream::{tool_detection_placement, wrap_injected_openai_stream};
 
 use super::stage_rate_limit;
 use attempt::{AttemptError, ByteStream, PreparedAttempt, UsageHandle};
+mod admission;
 mod attempt;
 mod buffered;
 mod chatgpt_policy;
@@ -178,23 +179,24 @@ async fn run_candidates(
 
     for (candidate_index, candidate) in candidates.iter().enumerate() {
         ctx.request_budget.check()?;
-        let model = candidate
-            .upstream_model
-            .as_deref()
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| {
-                upstream_model_helpers::resolve_model(&candidate.payload, &ctx.canonical_req)
-            })
-            .to_string();
-        if !crate::site_health::runtime::candidate_allowed(state, candidate, &model) {
-            last_error = Some(
-                GatewayError::service_unavailable(
-                    "Site health policy restricted this upstream model",
-                )
-                .with_code("site_health_route_restricted"),
-            );
-            continue;
-        }
+        let (model, eligibility) =
+            match admission::prepare(state, candidate, &ctx.canonical_req).await {
+                Ok(prepared) => prepared,
+                Err(error)
+                    if matches!(
+                        error.code.as_deref(),
+                        Some(
+                            "upstream_credential_unavailable"
+                                | "site_health_route_restricted"
+                                | "model_circuit_open"
+                        )
+                    ) =>
+                {
+                    last_error = Some(error);
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
         if !super::stage_route::provider_allowed_by_policy(
             &candidate.provider_account_id,
             ctx.route_policy_config.as_ref(),
@@ -224,7 +226,9 @@ async fn run_candidates(
             ctx,
             state,
             &candidate.provider_account_id,
-        )?;
+        )?
+        .with_eligibility(eligibility)
+        .with_circuit(crate::routing::admission::attempt(state, candidate, &model));
         if ctx
             .session
             .as_ref()
@@ -391,6 +395,10 @@ async fn run_candidates(
         let permit = controller.acquire().await;
         if let Err(error) = provider_attempt_gate.admit().await {
             drop(permit);
+            if error.code.as_deref() == Some("upstream_credential_unavailable") {
+                last_error = Some(error);
+                continue;
+            }
             if observe_provider_rate_limit_rejection(&mut provider_rate_limit_rejections, &error) {
                 warn!(
                     req_id = %ctx.req_id,
@@ -426,6 +434,7 @@ async fn run_candidates(
         let model_for_feedback = model.clone();
         let latency_key =
             crate::routing::latency::LatencyKey::for_request(candidate, &ctx.canonical_req);
+        let terminal_gate = provider_attempt_gate.clone();
         let attempt = PreparedAttempt {
             route_policy_config,
             provider_attempt_gate,
@@ -468,9 +477,13 @@ async fn run_candidates(
         } else {
             send.await
         };
+        if let Err(AttemptError::Next(error) | AttemptError::Stop(error)) = &result {
+            terminal_gate.finish_error(error);
+        }
         match result {
             Ok(output) => {
                 if !ctx.canonical_req.stream {
+                    terminal_gate.finish_success();
                     if let Some(key) = latency_key {
                         state
                             .routing_latency

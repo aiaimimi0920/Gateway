@@ -13,6 +13,7 @@ pub(super) fn ensure_identity_shape(document: &RouteConfigYaml) -> Result<(), Se
     let mut providers = HashSet::<&str>::new();
     let mut credentials = HashSet::<String>::new();
     for (provider_index, provider) in document.providers.iter().enumerate() {
+        super::site_health::ensure_ids(provider, &format!("/providers/{provider_index}"))?;
         if provider.id.trim().is_empty() || !providers.insert(provider.id.as_str()) {
             return Err(SecretPatchError::new(
                 "secret_document_identity_invalid",
@@ -56,6 +57,7 @@ pub(super) fn ensure_document_is_redacted(
     for (provider_index, provider) in document.providers.iter().enumerate() {
         let provider_path = format!("/providers/{provider_index}");
         super::storage_connections::ensure_redacted(provider, &provider_path)?;
+        super::site_health::ensure_redacted(provider, &provider_path)?;
         ensure_url_redacted(&provider.base_url, &format!("{provider_path}/base_url"))?;
         ensure_absent_string(&provider.api_key, &format!("{provider_path}/api_key"))?;
         ensure_absent_option(

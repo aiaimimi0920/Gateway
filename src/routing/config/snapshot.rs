@@ -92,6 +92,22 @@ impl RouteConfigSnapshot {
         )
     }
 
+    pub(crate) fn resolve_candidates_admitted(
+        &self,
+        model: Option<&str>,
+        constraint: &RouteAccountGroupConstraint,
+        admission: &dyn Fn(&str, &str, &str) -> bool,
+        authorized_group_fallback: bool,
+    ) -> CandidateResolution {
+        candidates::resolve_candidates_filtered(
+            self.compiled(),
+            model,
+            constraint.allowed_account_ids.as_ref(),
+            Some(admission),
+            authorized_group_fallback,
+        )
+    }
+
     pub fn resolve_candidates_for_account_group(
         &self,
         model: Option<&str>,
@@ -139,6 +155,29 @@ impl RouteConfigSnapshot {
 
     pub(crate) fn get_providers(&self) -> Vec<CompiledProvider> {
         self.compiled.providers.clone()
+    }
+
+    /// None means this account is not owned by this route document.
+    pub(crate) fn credential_dispatch_allowed(
+        &self,
+        provider_id: &str,
+        credential_id: Option<&str>,
+    ) -> Option<bool> {
+        let provider = self
+            .compiled
+            .providers
+            .iter()
+            .find(|p| p.id == provider_id)?;
+        if provider.credential_pool.is_empty() {
+            return Some(
+                credential_id.is_none_or(|id| id == provider_default_account_id(provider_id)),
+            );
+        }
+        Some(credential_id.is_some_and(|id| {
+            provider.credential_pool.iter().any(|credential| {
+                credential.id == id && credential.enabled && !credential.discovery_required
+            })
+        }))
     }
 
     pub fn account_group_inventory(&self) -> RouteAccountGroupInventory {

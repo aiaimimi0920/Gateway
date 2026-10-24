@@ -1,6 +1,9 @@
 //! Ordered provider resolution and constrained credential round-robin.
 
 use super::*;
+mod fallback;
+#[cfg(test)]
+mod fallback_tests;
 
 /// Candidate ordering and explicit route provenance from the same immutable snapshot.
 pub struct CandidateResolution {
@@ -29,7 +32,19 @@ pub(super) fn resolve_candidates_with_authorization(
     model: Option<&str>,
     allowed_account_ids: Option<&HashSet<String>>,
 ) -> CandidateResolution {
-    let mut explicit_provider_ids = None;
+    resolve_candidates_filtered(guard, model, allowed_account_ids, None, false)
+}
+
+pub(super) type Admission<'a> = Option<&'a dyn Fn(&str, &str, &str) -> bool>;
+
+pub(super) fn resolve_candidates_filtered(
+    guard: &RouteConfigInner,
+    model: Option<&str>,
+    allowed_account_ids: Option<&HashSet<String>>,
+    admission: Admission<'_>,
+    authorized_group_fallback: bool,
+) -> CandidateResolution {
+    let mut explicit_provider_ids: Option<Vec<String>> = None;
     let provider_map: HashMap<&str, &CompiledProvider> = guard
         .providers
         .iter()
@@ -51,7 +66,7 @@ pub(super) fn resolve_candidates_with_authorization(
         priority: i32,
     }
 
-    let matched: Vec<MatchedProvider> = match resolved {
+    let mut matched: Vec<MatchedProvider> = match resolved {
         None => guard
             .providers
             .iter()
@@ -121,20 +136,59 @@ pub(super) fn resolve_candidates_with_authorization(
         }
     };
 
-    let candidates = matched
+    // Runtime group membership is an explicit account allow-list. Keep the configured
+    // providers preferred, but retain authorized alternatives when those are disabled
+    // or reject admission. A disabled model rule still disables the model entirely.
+    if authorized_group_fallback
+        && admission.is_some()
+        && allowed_account_ids.is_some()
+        && explicit_provider_ids
+            .as_ref()
+            .is_some_and(|ids| !ids.is_empty())
+    {
+        for provider in &guard.providers {
+            if !matched.iter().any(|entry| entry.id == provider.id)
+                && resolved
+                    .is_some_and(|model| model_mapping::provider_supports_model(provider, model))
+            {
+                matched.push(MatchedProvider {
+                    id: &provider.id,
+                    priority: 0,
+                });
+                explicit_provider_ids
+                    .as_mut()
+                    .unwrap()
+                    .push(provider.id.clone());
+            }
+        }
+    }
+    let candidates: Vec<RouteCandidate> = matched
         .into_iter()
-        .filter_map(|matched| {
-            provider_map.get(matched.id).and_then(|provider| {
-                provider_to_candidate(
-                    provider,
-                    resolved,
-                    alias_used,
-                    matched.priority,
-                    allowed_account_ids,
-                )
-            })
+        .flat_map(|matched| {
+            provider_map
+                .get(matched.id)
+                .map_or_else(Vec::new, |provider| {
+                    fallback::provider_candidates(
+                        provider,
+                        resolved,
+                        alias_used,
+                        matched.priority,
+                        allowed_account_ids,
+                        admission,
+                    )
+                })
         })
         .collect();
+    if authorized_group_fallback && admission.is_some() && allowed_account_ids.is_some() {
+        // Concrete membership, not automatic discovery, authorizes cross-provider fallback.
+        let mut ids = Vec::new();
+        for candidate in &candidates {
+            if !ids.contains(&candidate.provider_account_id) {
+                ids.push(candidate.provider_account_id.clone());
+            }
+        }
+        explicit_provider_ids = Some(ids);
+    }
     CandidateResolution {
         candidates,
         explicit_provider_ids,
@@ -156,11 +210,30 @@ pub(super) fn resolve_candidates_with_authorization(
 /// A credential matches if its `supported_models` contains EITHER name.
 /// This allows credentials to list either user-facing or translated upstream
 /// model names; both naming schemes work.
+#[cfg(test)]
 pub(super) fn select_credential(
     provider: &CompiledProvider,
     original_model: Option<&str>,
     translated_model: Option<&str>,
     allowed_account_ids: Option<&HashSet<String>>,
+) -> Option<ProviderAccountPayload> {
+    select_credential_filtered(
+        provider,
+        original_model,
+        translated_model,
+        allowed_account_ids,
+        None,
+        true,
+    )
+}
+
+fn select_credential_filtered(
+    provider: &CompiledProvider,
+    original_model: Option<&str>,
+    translated_model: Option<&str>,
+    allowed_account_ids: Option<&HashSet<String>>,
+    admission: Admission<'_>,
+    rotate: bool,
 ) -> Option<ProviderAccountPayload> {
     if provider.credential_pool.is_empty() {
         if !provider.credential_pool_auth_policy.is_any() {
@@ -168,6 +241,14 @@ pub(super) fn select_credential(
         }
         let default_account_id = provider_default_account_id(&provider.id);
         if allowed_account_ids.is_some_and(|allowed| !allowed.contains(&default_account_id)) {
+            return None;
+        }
+        if !admits(
+            admission,
+            &provider.id,
+            &default_account_id,
+            translated_model.or(original_model),
+        ) {
             return None;
         }
         return Some(provider.payload.clone());
@@ -213,22 +294,46 @@ pub(super) fn select_credential(
         .into_iter()
         .filter(|index| provider.credential_pool[*index].discovery.is_none())
         .collect();
-    let eligible = if model_eligible.is_empty() {
+    let eligible: Vec<_> = (if model_eligible.is_empty() {
         &legacy
     } else {
         &model_eligible
-    };
+    })
+    .iter()
+    .copied()
+    .filter(|index| {
+        admits(
+            admission,
+            &provider.id,
+            &provider.credential_pool[*index].id,
+            translated_model.or(original_model),
+        )
+    })
+    .collect();
     if eligible.is_empty() {
         return None;
     }
 
     // Round-robin among eligible credentials
-    let counter = provider.credential_counter.fetch_add(1, Ordering::Relaxed);
+    let counter = if rotate {
+        provider.credential_counter.fetch_add(1, Ordering::Relaxed)
+    } else {
+        provider.credential_counter.load(Ordering::Relaxed)
+    };
     let idx = eligible[counter % eligible.len()];
     Some(apply_token_override(&provider.credential_pool[idx]))
 }
 
-fn credential_supports_model(
+pub(super) fn admits(
+    admission: Admission<'_>,
+    provider: &str,
+    credential: &str,
+    model: Option<&str>,
+) -> bool {
+    admission.is_none_or(|allow| allow(provider, credential, model.unwrap_or_default()))
+}
+
+pub(super) fn credential_supports_model(
     credential: &CompiledCredential,
     original: Option<&str>,
     translated: Option<&str>,
@@ -297,6 +402,8 @@ fn provider_to_candidate(
     alias: Option<&str>,
     priority: i32,
     allowed_account_ids: Option<&HashSet<String>>,
+    admission: Admission<'_>,
+    rotate: bool,
 ) -> Option<RouteCandidate> {
     // A group-scoped default account must not inherit compatibility fallback
     // for models outside its declared catalogue. Aliases are already resolved.
@@ -318,14 +425,26 @@ fn provider_to_candidate(
     //   credential lists "xophunyuan7bmt" → matches via translated name.
     let (upstream_model, selected_payload) =
         if let Some(model) = model.filter(|m| p.model_map_targets.contains_key(*m)) {
-            let (mapped, payload) =
-                model_mapping::select_mapped_payload(p, model, allowed_account_ids)?;
+            let (mapped, payload) = model_mapping::select_mapped_payload_filtered(
+                p,
+                model,
+                allowed_account_ids,
+                admission,
+                rotate,
+            )?;
             (Some(mapped), payload)
         } else {
             let translated = model.and_then(|m| p.model_map.get(m).map(String::as_str));
             (
                 model.map(|m| translated.unwrap_or(m).to_string()),
-                select_credential(p, model, translated, allowed_account_ids)?,
+                select_credential_filtered(
+                    p,
+                    model,
+                    translated,
+                    allowed_account_ids,
+                    admission,
+                    rotate,
+                )?,
             )
         };
     let resolved_execution_mode = selected_payload

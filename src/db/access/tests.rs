@@ -1,4 +1,5 @@
 use super::*;
+mod catalog_admission;
 mod integration_fixtures;
 use integration_fixtures::{
     access_integration_pool, access_integration_redis_pool, reset_projection_integration_schema,

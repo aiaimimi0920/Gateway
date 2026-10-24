@@ -67,6 +67,14 @@ pub async fn resolve_route_candidates_allowing_empty(
         .map(|row| (row.id.as_str(), row))
         .collect::<HashMap<_, _>>();
     let mut credential_map = HashMap::<String, Vec<super::GatewayProviderCredentialView>>::new();
+    // An existing but fully disabled/archived pool is not a legacy account-only credential.
+    let pool_owners: Vec<String> = sqlx::query_scalar(
+        "SELECT DISTINCT provider_account_id FROM gateway_provider_credentials WHERE provider_account_id = ANY($1)")
+        .bind(eligible_provider_rows.iter().map(|row| row.id.clone()).collect::<Vec<_>>())
+        .fetch_all(pool).await.map_err(map_db_error)?;
+    for owner in pool_owners {
+        credential_map.insert(owner, Vec::new());
+    }
     for credential in provider_credentials {
         credential_map
             .entry(credential.provider_account_id.clone())

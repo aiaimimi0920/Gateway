@@ -3,6 +3,20 @@
 use super::*;
 
 pub(super) fn list_models_inner(guard: &RouteConfigInner) -> Vec<ModelInfo> {
+    let available = guard
+        .providers
+        .iter()
+        .filter(|p| provider_has_available_account(p))
+        .map(|p| p.id.as_str())
+        .collect();
+    list_model_inventory_inner(guard)
+        .into_iter()
+        .filter(|m| model_has_available_candidate(guard, &m.id, &available))
+        .collect()
+}
+
+// Internal inventory only. Callers MUST apply authorization and runtime admission before exposure.
+pub(super) fn list_model_inventory_inner(guard: &RouteConfigInner) -> Vec<ModelInfo> {
     let mut model_ids: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
 
     // Provider supported_models lists.
@@ -28,19 +42,6 @@ pub(super) fn list_models_inner(guard: &RouteConfigInner) -> Vec<ModelInfo> {
         model_ids.insert(alias.clone());
     }
 
-    // Discovery must describe models that can produce at least one concrete
-    // runtime candidate. A provider with a credential pool has no default
-    // account fallback, so an all-disabled pool cannot keep its models, exact
-    // routes, or aliases visible. Providers without `credentials` retain their
-    // legacy default-account behavior.
-    let available_provider_ids = guard
-        .providers
-        .iter()
-        .filter(|provider| provider_has_available_account(provider))
-        .map(|provider| provider.id.as_str())
-        .collect::<HashSet<_>>();
-    model_ids.retain(|model| model_has_available_candidate(guard, model, &available_provider_ids));
-
     let created = created_timestamp();
 
     model_ids
@@ -61,7 +62,7 @@ fn provider_has_available_account(provider: &CompiledProvider) -> bool {
         })
 }
 
-fn model_has_available_candidate(
+pub(super) fn model_has_available_candidate(
     guard: &RouteConfigInner,
     requested_model: &str,
     available_provider_ids: &HashSet<&str>,

@@ -11,6 +11,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { CredentialGroupsWorkspaceProps, TranslateFn } from "./credentialGroupsWorkspaceTypes";
+import { useState } from "react";
 import type { CredentialGroupCardSnapshot } from "./credentialGroupCardSnapshot";
 import { EntitlementGroupScopeBoard } from "./EntitlementGroupScopeBoard";
 import { formatAggregateMoney, formatAggregateRate } from "./providerCardMetrics";
@@ -48,6 +49,9 @@ export function CredentialGroupCard({
   onToggleEnabled,
   onRemoveGroup,
 }: CredentialGroupCardProps) {
+  // Retain an opened scope board across flips without rendering every hidden board.
+  const [scopeMounted, setScopeMounted] = useState(flipped);
+  if (flipped && !scopeMounted) setScopeMounted(true);
   const {
     group,
     label,
@@ -328,7 +332,7 @@ export function CredentialGroupCard({
             className="nt-entitlement-group-card__back-body"
             aria-label={t(`${label} 权益范围`, `${label} entitlement scope`)}
           >
-            <EntitlementGroupScopeBoard
+            {scopeMounted && <EntitlementGroupScopeBoard
               t={t}
               cardKey={group.rowId}
               label={label}
@@ -338,7 +342,7 @@ export function CredentialGroupCard({
               onDeselectedProviderIdsChange={(next) =>
                 onDeselectedProviderIdsChange(group.rowId, next)
               }
-            />
+            />}
           </section>
         </div>
       </div>

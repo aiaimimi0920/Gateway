@@ -1,0 +1,176 @@
+/* Key dialogs keep headers/actions fixed and scroll only their content. */
+.dialog-content.nt-key-dialog.nt-key-dialog--structured {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow: hidden;
+}
+.dialog-content.nt-key-dialog.nt-key-dialog--confirm {
+  width: min(440px, calc(100vw - 32px));
+}
+.nt-key-dialog--structured .nt-key-dialog__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--nt-border);
+}
+.nt-key-dialog__head h2 {
+  flex: 1;
+  font-size: 1.05rem;
+}
+.nt-key-dialog__icon {
+  flex-shrink: 0;
+  color: var(--nt-text-muted);
+}
+.nt-key-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.nt-key-dialog__body {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 18px 20px;
+}
+.nt-key-dialog--structured .nt-key-form {
+  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px 24px;
+}
+.nt-key-dialog--structured .nt-key-form .nt-field,
+.nt-key-form__group-field {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.nt-key-form .nt-field > span,
+.nt-key-form__group-field > span,
+.nt-key-quota-fields > label {
+  color: var(--nt-text-muted);
+  font-size: 0.8rem;
+}
+.nt-key-form .nt-field > small {
+  grid-column: 2;
+}
+/* Font fallback and selected values must not change any editor row's height. */
+.nt-key-dialog--structured .nt-key-form .nt-input {
+  box-sizing: border-box;
+  height: 40px;
+}
+.nt-key-dialog--structured .nt-key-quota-fields {
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.nt-key-quota-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+.nt-key-quota-controls > .nt-input {
+  min-width: 0;
+}
+.nt-key-dialog--structured .nt-key-bundle-options {
+  margin: 0;
+  padding: 0;
+}
+.nt-key-dialog__footer {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  border-top: 1px solid var(--nt-border);
+  background: var(--nt-slab);
+}
+.nt-key-dialog__footer .dialog-actions {
+  margin: 0;
+  justify-content: flex-end;
+}
+.nt-key-editor > .nt-key-dialog__footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.nt-key-editor > .nt-key-dialog__footer .dialog-actions {
+  grid-column: 2;
+  grid-row: 1;
+}
+.nt-key-editor .dialog-actions > [type="submit"] {
+  min-width: 120px;
+  justify-content: center;
+}
+.nt-key-editor > .nt-key-dialog__footer .nt-alert {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  padding: 0 8px;
+  max-height: 32px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.nt-key-confirm-target {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding-bottom: 14px;
+  overflow-wrap: anywhere;
+}
+.nt-key-confirm-target code {
+  color: var(--nt-text-muted);
+}
+.nt-key-dialog--confirm .nt-key-dialog__body > p {
+  margin: 0;
+  line-height: 1.7;
+  font-size: 0.85rem;
+}
+.nt-key-dialog--structured .nt-key-secret-result {
+  margin: 0;
+  gap: 16px;
+}
+.nt-key-result-status,
+.nt-key-result-field__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nt-key-result-status {
+  color: var(--nt-success);
+  overflow-wrap: anywhere;
+}
+.nt-key-result-field__head {
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+.nt-key-result-field .nt-input {
+  font-family: var(--nt-font-mono);
+}
+.nt-key-result-field .nt-btn {
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+@media (max-width: 700px) {
+  .nt-key-dialog--structured .nt-key-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 520px) {
+  .nt-key-dialog__body,
+  .nt-key-dialog--structured .nt-key-dialog__head,
+  .nt-key-dialog__footer {
+    padding: 14px;
+  }
+}

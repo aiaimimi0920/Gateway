@@ -53,11 +53,21 @@
 
 .nt-operations-capability {
   margin: 0;
-  padding: 8px 0;
-  border-top: 1px solid var(--nt-border);
+  padding: 20px;
+  border: 1px solid var(--nt-border);
+  border-left: 3px solid var(--nt-info);
+  background: var(--nt-slab-soft);
+  line-height: 1.8;
 }
 
-@media (max-width: 540px) {
+@container (min-width: 800px) {
+  .nt-operations-issues {
+    grid-template-columns: 0.85fr 1.15fr;
+    align-items: start;
+  }
+}
+
+@container (max-width: 540px) {
   .nt-operations-view-switch {
     grid-template-columns: minmax(0, 1fr);
   }

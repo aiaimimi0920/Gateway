@@ -1,4 +1,4 @@
-//! Same-origin pinned transport. No provider credentials, proxies, redirects or unbounded JSON.
+//! Same-origin pinned transport. Only explicit monitoring auth; no proxies or redirects.
 use futures::StreamExt;
 use std::{
     net::{IpAddr, SocketAddr},
@@ -91,6 +91,19 @@ pub(super) fn allowed_ip(ip: IpAddr, private: bool) -> bool {
 }
 
 pub(super) async fn client(origin: &url::Url, private: bool) -> anyhow::Result<rquest::Client> {
+    pinned_client(origin, private, Duration::from_secs(4)).await
+}
+
+/// Large public region HTML gets a separate deadline inside its finite 35-second discovery budget.
+pub(super) async fn regional_client(origin: &url::Url) -> anyhow::Result<rquest::Client> {
+    pinned_client(origin, false, Duration::from_secs(30)).await
+}
+
+async fn pinned_client(
+    origin: &url::Url,
+    private: bool,
+    timeout: Duration,
+) -> anyhow::Result<rquest::Client> {
     let host = origin
         .host_str()
         .ok_or_else(|| anyhow::anyhow!("Missing host"))?;
@@ -118,7 +131,7 @@ pub(super) async fn client(origin: &url::Url, private: bool) -> anyhow::Result<r
     Ok(rquest::Client::builder()
         .no_proxy()
         .redirect(rquest::redirect::Policy::none())
-        .timeout(Duration::from_secs(4))
+        .timeout(timeout)
         .resolve_to_addrs(host.to_owned(), addresses)
         .build()?)
 }
@@ -127,26 +140,74 @@ pub(super) async fn json(
     client: &rquest::Client,
     url: &str,
     body: Option<&serde_json::Value>,
+    auth: &super::MonitoringAuth,
 ) -> Result<serde_json::Value, (String, Option<u16>)> {
     let request = match body {
         Some(body) => client.post(url).json(body),
         None => client.get(url),
     };
-    let response = request
-        .header("Accept", "application/json")
-        .send()
+    let request = match auth.kind {
+        super::MonitoringAuthKind::None => request,
+        kind => {
+            let token = auth
+                .token
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| ("authentication_required".into(), None))?;
+            let value = if kind == super::MonitoringAuthKind::Bearer {
+                format!("Bearer {token}")
+            } else {
+                token.to_owned()
+            };
+            let mut value = rquest::header::HeaderValue::from_str(&value)
+                .map_err(|_| ("invalid_monitoring_credential".into(), None))?;
+            value.set_sensitive(true);
+            let header = if kind == super::MonitoringAuthKind::Bearer {
+                "authorization"
+            } else {
+                auth.header.as_deref().unwrap_or("x-api-key")
+            };
+            request.header(header, value)
+        }
+    };
+    let (status, bytes) =
+        bounded_response(request.header("Accept", "application/json"), 1_048_576).await?;
+    serde_json::from_slice(&bytes).map_err(|_| ("invalid_json".into(), Some(status)))
+}
+
+/// Shared bound for official HTML bootstrap and public JSON; no unbounded response.text().
+pub(super) async fn bounded_body(
+    request: rquest::RequestBuilder,
+) -> Result<Vec<u8>, (String, Option<u16>)> {
+    bounded_response(request, 1_048_576)
         .await
-        .map_err(|e| {
-            (
-                if e.is_timeout() {
-                    "timeout"
-                } else {
-                    "transport_error"
-                }
-                .into(),
-                None,
-            )
-        })?;
+        .map(|(_, bytes)| bytes)
+}
+
+/// Azure's published service/region matrix is about 7 MiB; only that fixed HTML reader uses this cap.
+pub(super) async fn regional_html(
+    request: rquest::RequestBuilder,
+) -> Result<Vec<u8>, (String, Option<u16>)> {
+    bounded_response(request, 8_388_608)
+        .await
+        .map(|(_, bytes)| bytes)
+}
+
+async fn bounded_response(
+    request: rquest::RequestBuilder,
+    max_bytes: usize,
+) -> Result<(u16, Vec<u8>), (String, Option<u16>)> {
+    let response = request.send().await.map_err(|e| {
+        (
+            if e.is_timeout() {
+                "timeout"
+            } else {
+                "transport_error"
+            }
+            .into(),
+            None,
+        )
+    })?;
     let status = response.status().as_u16();
     if !(200..300).contains(&status) {
         return Err((
@@ -164,10 +225,10 @@ pub(super) async fn json(
     let mut bytes = Vec::new();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|_| ("body_interrupted".into(), Some(status)))?;
-        if chunk.len() > 1_048_576 - bytes.len() {
+        if chunk.len() > max_bytes - bytes.len() {
             return Err(("response_too_large".into(), Some(status)));
         }
         bytes.extend_from_slice(&chunk);
     }
-    serde_json::from_slice(&bytes).map_err(|_| ("invalid_json".into(), Some(status)))
+    Ok((status, bytes))
 }

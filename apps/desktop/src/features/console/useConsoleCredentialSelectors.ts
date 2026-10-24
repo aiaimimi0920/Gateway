@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { ConsoleCredentialPoolAutomationProvider, ConsoleCredentialRefillDemand } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
 import { optionalString } from "./routeAccountCatalog";
+import { providerBrandLabel } from "./providerBrandLabel";
 import type { useConsoleRouteData } from "./useConsoleRouteData";
 import type { useConsoleRouteDraft } from "./useConsoleRouteDraft";
 import type { useConsoleAccountSelectors } from "./useConsoleAccountSelectors";
@@ -59,7 +60,12 @@ export function useConsoleCredentialSelectors({
         return [
           {
             id,
-            label: optionalString(provider, "label") ?? id,
+            label: providerBrandLabel({
+              providerId: id,
+              providerPreset: optionalString(provider, "preset"),
+              providerLabel: optionalString(provider, "label"),
+              vendorName: optionalString(provider, "vendor_name"),
+            }),
           },
         ];
       }),

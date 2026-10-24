@@ -19,7 +19,9 @@ import {
   type AccountsLedgerPilotAccount,
   type PendingCredentialRemoval,
 } from "./ProviderAccountCard";
-import { buildProviderCardSnapshot } from "./providerCardSnapshot";
+import { providerPoolEntries, providerPoolTableRows } from "./providerPoolView";
+import { usePoolPagination } from "./usePoolPagination";
+import { ScopePager } from "./EntitlementScopePager";
 
 export type {
   AccountsLedgerPilotAccount,
@@ -37,7 +39,6 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     notice,
     editorLocked,
     totalAccounts,
-    visibleCount,
     rows,
     pilotSections,
     automationByProvider,
@@ -71,14 +72,17 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     onDuplicate,
     onRefreshDiscovery,
   } = props;
-  const providerCardSnapshots = useMemo(
-    () => pilotSections.map((section) => buildProviderCardSnapshot(section)),
-    [pilotSections],
+  const poolView = props.poolView ?? { query: "", sort: "default" as const };
+  const providerEntries = useMemo(
+    () => providerPoolEntries(pilotSections, poolView),
+    [pilotSections, poolView.query, poolView.sort],
   );
   const hasAccounts = totalAccounts > 0;
   const pilotProviderIds = new Set(pilotSections.flatMap((section) => section.providerIds));
-  const tableRows = rows.filter((row) => !pilotProviderIds.has(row.providerId));
-  const hasVisibleLedgerContent = visibleCount > 0;
+  const tableRows = providerPoolTableRows(rows.filter((row) => !pilotProviderIds.has(row.providerId)), poolView);
+  const hasVisibleLedgerContent = providerEntries.length > 0 || tableRows.length > 0;
+  const providerPage = usePoolPagination(providerEntries, poolView);
+  const tablePage = usePoolPagination(tableRows, poolView);
   const [expandedAccountLibraryProviderId, setExpandedAccountLibraryProviderId] = useState<
     string | null
   >(null);
@@ -107,7 +111,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     pendingFlipFocusRef.current = null;
     providerFlipButtonRefs.current
       .get(`${pendingFocus.providerId}:${pendingFocus.side}`)
-      ?.focus();
+      ?.focus({ preventScroll: true });
   }, [flippedProviderIds]);
 
   const toggleProviderAccountLibrary = (section: AccountsLedgerPilotSection) => {
@@ -251,6 +255,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   const renderProviderLifecycleBack = (options: ProviderLifecycleBackOptions) => (
     <ProviderLifecycleBack
       options={options}
+      settings={props.renderProviderSettings?.(options.section)}
       storageSecretFields={props.storageSecretFields}
       onUpdateProviderStorageConnection={props.onUpdateProviderStorageConnection}
       lifecycleActionsLocked={props.lifecycleActionsLocked}
@@ -323,12 +328,13 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
       <p className="nt-visually-hidden" role="status" aria-live="polite" aria-atomic="true">
         {providerFlipAnnouncement}
       </p>
+      <ScopePager {...providerPage} t={t} navLabel={t("凭据池分页", "Credential pools pagination")}
+        onPage={(page) => { providerPage.onPage(page); setActivePilotActionMenuKey(null); }} />
       <div className="nt-provider-card-grid">
-        {pilotSections.map((section, sectionIndex) => {
+        {providerPage.items.map(({ section, snapshot }) => {
           const accountLibraryExpanded =
             expandedAccountLibraryProviderId === section.providerId;
           const flipped = flippedProviderIds.includes(section.providerId);
-          const snapshot = providerCardSnapshots[sectionIndex];
           const providerAccounts = snapshot.accounts;
           const providerAvailablePoolCount = snapshot.availablePoolCount;
           const poolSegments = snapshot.poolSegments;
@@ -352,7 +358,7 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
                   onRequestProviderRemoval: setPendingProviderRemoval,
                 }}
               >
-                {renderProviderLifecycleBack({
+                {() => renderProviderLifecycleBack({
                   section,
                   active: flipped,
                   discardEdits: props.discardLifecycleDrafts,
@@ -374,12 +380,13 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
       <AccountsLedgerTable
         t={t}
         editorLocked={editorLocked}
-        rows={tableRows}
+        rows={tablePage.items}
         onEdit={onEdit}
         onAddExplicit={onAddExplicit}
       />
+      <ScopePager {...tablePage} t={t} navLabel={t("其他凭据分页", "Other credentials pagination")} />
 
-      {!hasAccounts ? (
+      {!hasAccounts && !poolView.query.trim() ? (
         <article className="nt-card nt-card--panel nt-empty-state">
           <h2>{t("暂无账号", "No accounts yet")}</h2>
           <p className="nt-copy">
@@ -391,13 +398,13 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
         </article>
       ) : null}
 
-      {hasAccounts && !hasVisibleLedgerContent ? (
+      {(hasAccounts || poolView.query.trim()) && !hasVisibleLedgerContent ? (
         <article className="nt-card nt-card--panel nt-empty-state">
-          <h2>{t("没有匹配账号", "No matching accounts")}</h2>
+          <h2>{poolView.query.trim() ? t("没有匹配站点", "No matching sites") : t("没有匹配账号", "No matching accounts")}</h2>
           <p className="nt-copy">
             {t(
-              "当前筛选条件没有匹配任何账号，请调整关键词或账号状态。",
-              "No accounts match the current filters. Adjust the query or account status.",
+              "没有匹配当前搜索或筛选条件的站点。",
+              "No sites match the current search or filters.",
             )}
           </p>
         </article>

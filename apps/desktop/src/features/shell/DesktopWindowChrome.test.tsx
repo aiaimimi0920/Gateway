@@ -36,7 +36,7 @@ describe("desktop window chrome", () => {
     fireEvent.keyDown(document, { key: "G", ctrlKey: true, shiftKey: true });
     expect(send).toHaveBeenLastCalledWith("connection");
     fireEvent.keyDown(document, { key: "q", ctrlKey: true });
-    expect(send).toHaveBeenLastCalledWith("close");
+    expect(send).toHaveBeenLastCalledWith("quit");
     unmount();
     send.mockClear();
     expect(fireEvent.keyDown(document, { key: "g", ctrlKey: true, shiftKey: true })).toBe(true);

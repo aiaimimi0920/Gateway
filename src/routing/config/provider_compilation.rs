@@ -25,7 +25,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
     let site_health = cfg
         .site_health
         .as_ref()
-        .map(|c| (c.clone(), c.binding(&payload.base_url)));
+        .map(|c| c.compile(&payload.base_url));
     crate::protocol::chatgpt::basispoints::configure(&mut payload, cfg.codex_basispoints_enabled)?;
     payload.request_client_profile = cfg.request_client_profile;
 

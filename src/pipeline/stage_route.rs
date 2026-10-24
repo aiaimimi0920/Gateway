@@ -129,9 +129,28 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             route_context.route_candidates,
             route_context.candidates,
         );
+        let had_authorized_candidates = !route_candidates.is_empty();
+        let (route_candidates, projected_candidates): (Vec<_>, Vec<_>) = route_candidates
+            .into_iter()
+            .zip(projected_candidates)
+            .filter(|(c, _)| {
+                crate::routing::admission::candidate_allowed(
+                    state,
+                    c,
+                    c.upstream_model.as_deref().unwrap_or(requested_model),
+                )
+            })
+            .unzip();
         if route_candidates.is_empty() {
             if key_groups.is_some() {
-                return Err(crate::access_key_groups::denied());
+                return Err(if had_authorized_candidates {
+                    GatewayError::service_unavailable(
+                        "Authorized upstream accounts are temporarily unavailable",
+                    )
+                    .with_code("authorized_candidates_unavailable")
+                } else {
+                    crate::access_key_groups::denied()
+                });
             }
             if let Some(error) = account_group_candidates_unavailable_error(
                 &account_group_constraint,
@@ -380,8 +399,20 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         // no candidate of its own.
         if !database_resolved_candidates {
             // Use the same snapshot and intersected membership before credential round-robin.
-            let resolution = route_snapshot
-                .resolve_candidates_with_constraint(model, Some(&account_group_constraint));
+            let resolution = route_snapshot.resolve_candidates_admitted(
+                model,
+                &account_group_constraint,
+                &|p, c, m| {
+                    crate::routing::admission::subject_allowed(
+                        state,
+                        &route_snapshot,
+                        p,
+                        Some(c),
+                        m,
+                    )
+                },
+                key_groups.is_some(),
+            );
             ctx.explicit_fallback_provider_ids =
                 resolution.explicit_provider_ids.unwrap_or_default();
             all_candidates.extend(resolution.candidates);
@@ -392,8 +423,24 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     // the same validated group constraint used by access-catalog and YAML
     // routing before affinity or queue ordering can select an outside account.
     all_candidates = account_group_constraint.filter_candidates(all_candidates);
+    all_candidates.retain(|c| {
+        crate::routing::admission::candidate_allowed(
+            state,
+            c,
+            c.upstream_model.as_deref().unwrap_or_else(|| {
+                crate::upstream::upstream_model_helpers::resolve_model(
+                    &c.payload,
+                    &ctx.canonical_req,
+                )
+            }),
+        )
+    });
     if key_groups.is_some() && all_candidates.is_empty() {
-        return Err(crate::access_key_groups::denied());
+        return Err(account_group::key_group_candidates_error(
+            &route_snapshot,
+            &account_group_constraint,
+            model,
+        ));
     }
     if let Some(id) = local_access_key_id {
         if let Some(local) = &state.local_runtime {

@@ -5,15 +5,18 @@
 // ---------------------------------------------------------------------------
 
 mod admission_rejection;
+mod channel_unavailable;
 mod classification;
 mod diagnostics;
 mod html_rejection;
 mod model_capacity;
 mod retry_after;
+mod stream_initialization_rejection;
 
 pub(crate) use admission_rejection::{
     is_account_balance_rejection, is_explicit_admission_rejection,
 };
+pub(crate) use channel_unavailable::is_channel_unavailable;
 pub(crate) use classification::{classify_native_network_error, classify_native_transport_failure};
 pub use classification::{classify_network_error, classify_upstream_error};
 pub use diagnostics::{sanitize_provider_error_message, PROVIDER_ERROR_MESSAGE_MAX_CHARS};

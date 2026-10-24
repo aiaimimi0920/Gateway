@@ -22,6 +22,10 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
             post(crate::http::routes::internal_site_health::refresh),
         )
         .route(
+            "/v1/internal/gateway/site-health/:providerId/profiles/:profileId/refresh",
+            post(crate::http::routes::internal_site_health::refresh_plan),
+        )
+        .route(
             "/v1/internal/gateway/provider-credential-model-states",
             get(internal_gateway::list_provider_credential_model_states),
         )

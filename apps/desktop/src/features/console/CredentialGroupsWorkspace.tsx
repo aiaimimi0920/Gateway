@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { DEFAULT_POOL_CARD_VIEW, visibleEntitlementCards } from "./poolCardView";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { CredentialGroupAccountsPanel } from "./CredentialGroupAccountsPanel";
@@ -10,6 +11,8 @@ import {
 } from "./credentialGroupCardSnapshot";
 import type { CredentialGroupsWorkspaceProps } from "./credentialGroupsWorkspaceTypes";
 import { useAccountCardMenu } from "./ProviderAccountCard";
+import { usePoolPagination } from "./usePoolPagination";
+import { ScopePager } from "./EntitlementScopePager";
 
 export type {
   CredentialGroupsWorkspaceProps,
@@ -24,6 +27,7 @@ export function CredentialGroupsWorkspace({
   error,
   editorLocked,
   groups,
+  poolView = DEFAULT_POOL_CARD_VIEW,
   selectedGroupRowId,
   selectedGroup,
   selectedGroupIdInvalid,
@@ -78,6 +82,9 @@ export function CredentialGroupsWorkspace({
       ),
     [groups, scopeDeselectionByGroup, t],
   );
+  const visibleSnapshots = useMemo(() => visibleEntitlementCards(groupCardSnapshots, poolView),
+    [groupCardSnapshots, poolView]);
+  const groupPage = usePoolPagination(visibleSnapshots, poolView);
 
   const toggleGroupCard = (rowId: string) => {
     if (expandedGroupRowId === rowId) {
@@ -229,12 +236,16 @@ export function CredentialGroupsWorkspace({
           className="nt-group-admin"
           aria-label={t("凭证分组管理", "Credential group administration")}
         >
+          <ScopePager {...groupPage} t={t} navLabel={t("权益池分页", "Entitlement pools pagination")}
+            onPage={(page) => { groupPage.onPage(page); setActiveAccountMenuKey(null); }} />
           <div
             className="nt-entitlement-group-grid"
             role="region"
             aria-label={t("权益组卡牌", "Entitlement group cards")}
           >
-            {groupCardSnapshots.map(renderGroup)}
+            {visibleSnapshots.length === 0 ? <p className="nt-copy" role="status">
+              {t("没有匹配的权益池，请调整或清除搜索。", "No matching entitlement pools. Change or clear the search.")}
+            </p> : groupPage.items.map(renderGroup)}
           </div>
 
         </section>

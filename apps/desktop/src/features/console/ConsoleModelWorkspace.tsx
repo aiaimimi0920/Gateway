@@ -14,6 +14,7 @@ type ConsoleModelWorkspaceProps = {
   draftStructureNotice: ModelWorkspaceProps["notice"];
   editorLocked: boolean;
   modelPoolDirectory: ModelWorkspaceProps["models"];
+  poolView?: ModelWorkspaceProps["poolView"];
   entitlementAccountCardBridge: ModelWorkspaceProps["accountCards"];
   reorderModelPoolChain: ModelWorkspaceProps["onMoveProvider"];
   resetModelPoolChain: ModelWorkspaceProps["onResetChain"];
@@ -35,6 +36,7 @@ export function ConsoleModelWorkspace({
   draftStructureNotice,
   editorLocked,
   modelPoolDirectory,
+  poolView,
   entitlementAccountCardBridge,
   reorderModelPoolChain,
   resetModelPoolChain,
@@ -57,6 +59,7 @@ export function ConsoleModelWorkspace({
         notice={draftStructureNotice}
         editorLocked={editorLocked}
         models={modelPoolDirectory}
+        poolView={poolView}
         accountCards={entitlementAccountCardBridge}
         onMoveProvider={reorderModelPoolChain}
         onResetChain={resetModelPoolChain}

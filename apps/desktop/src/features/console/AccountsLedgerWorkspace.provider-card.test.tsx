@@ -98,6 +98,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     ).not.toBeInTheDocument();
 
     flipButton.focus();
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
     await user.keyboard("{Enter}");
 
     expect(providerCard).toHaveAttribute("data-provider-card-side", "back");
@@ -128,6 +129,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     expect(returnButton).toHaveAttribute("aria-pressed", "true");
     expect(returnButton.querySelector(".lucide-gallery-horizontal-end")).not.toBeNull();
     expect(returnButton).toHaveFocus();
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
     expect(screen.getByRole("status")).toHaveTextContent("Managed OpenAI 卡牌背面已显示");
 
     await user.keyboard(" ");
@@ -142,6 +144,8 @@ describe("AccountsLedgerWorkspace provider cards", () => {
       }),
     ).toHaveFocus();
     expect(screen.getByRole("status")).toHaveTextContent("Managed OpenAI 卡牌正面已显示");
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    focus.mockRestore();
   });
 
   it("flips each card independently", async () => {

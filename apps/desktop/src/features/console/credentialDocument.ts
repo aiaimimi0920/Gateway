@@ -3,6 +3,7 @@ import type {
   ConsoleSecretDescriptor,
   ConsoleSecretPatch,
 } from "../../api/contracts";
+import { remapSiteHealthSecretPath } from "./siteHealthSecretPath";
 
 export type AddExplicitCredentialInput = {
   providerId: string;
@@ -402,6 +403,11 @@ export function buildCredentialSecretPatches({
   );
 
   for (const secret of activeSecrets) {
+    if (/^\/providers\/\d+\/site_health\//.test(secret.path)) {
+      const path=remapSiteHealthSecretPath(activeDocument,draftDocument,secret.path);
+      if (path) patchesByPath.set(path,patchAtPath(activePatchesByPath.get(secret.path),path));
+      continue;
+    }
     // Empty cloud auth has no identity to preserve. Keeping an absent optional
     // session token would incorrectly block an intentional destination change.
     if (!secret.configured && /\/credential_(storage|archive)_connection\//.test(secret.path)) continue;

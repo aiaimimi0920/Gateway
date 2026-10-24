@@ -30,6 +30,7 @@ use super::{
 mod aliases;
 mod candidates;
 mod catalog;
+mod catalog_selection;
 mod model_filters;
 mod normalization;
 mod policies;
@@ -38,6 +39,7 @@ mod providers;
 pub use aliases::{delete_model_alias, list_model_aliases, save_model_alias};
 pub use candidates::{resolve_route_candidates, resolve_route_candidates_allowing_empty};
 pub use catalog::list_models_for_project;
+pub(crate) use catalog::list_models_for_project_admitted;
 pub use normalization::normalize_route_policy_config;
 pub use policies::{
     find_active_route_policy_for_rate_limits, list_route_policies, save_route_policy,
@@ -54,9 +56,6 @@ use providers::{
     build_route_candidates_for_provider, fetch_active_provider_rows, provider_payload_from_value,
     provider_payload_value_from_row,
 };
-
-#[cfg(test)]
-use catalog::collect_shadowed_upstream_models_for_catalog;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

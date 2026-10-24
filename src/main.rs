@@ -65,16 +65,15 @@ fn parse_tokio_worker_stack_bytes(raw: Option<&str>) -> Result<usize, String> {
 }
 
 async fn async_main(worker_stack_bytes: usize) -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
+    let mut config =
+        Config::from_env().map_err(|error| anyhow::anyhow!("Config error: {}", error))?;
+    neuro_gateway::console::diagnostics::logging::initialize(&mut config.console)
+        .map_err(anyhow::Error::msg)?;
 
     tracing::info!(
         worker_stack_bytes,
         "Tokio worker thread stack size configured"
     );
-
-    let config = Config::from_env().map_err(|error| anyhow::anyhow!("Config error: {}", error))?;
 
     match config.runtime_role {
         GatewayRuntimeRole::Splitter => {

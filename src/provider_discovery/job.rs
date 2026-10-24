@@ -18,6 +18,14 @@ pub enum DiscoveryJobStatus {
 }
 
 pub(crate) fn supported(provider: &ProviderConfigYaml) -> bool {
+    if provider.preset.as_deref() == Some("openai")
+        && matches!(
+            provider.adapter.as_deref(),
+            None | Some("openai_compatible")
+        )
+    {
+        return super::openrouter::matches(&provider.base_url);
+    }
     provider.preset.is_none()
         && matches!(
             provider.adapter.as_deref(),

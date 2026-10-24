@@ -1,5 +1,6 @@
 import type { ConsoleRouteDocument, ConsoleAccountGroupSummaryResponse } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
+import { displayLabel } from "./displayLabel";
 import { indexAccountsByProvider } from "./accountCatalogIndex";
 import { withDefaultAccountGroup } from "./defaultAccountGroup";
 
@@ -177,7 +178,7 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
     }
     const providerLabel =
       typeof provider.label === "string" && provider.label.trim().length > 0
-        ? provider.label.trim()
+        ? displayLabel(provider.label.trim())
         : providerId;
     const providerPreset =
       typeof provider.preset === "string" && provider.preset.trim().length > 0
@@ -361,7 +362,7 @@ export function buildRouteAccountCatalogFromSummary(
   for (const provider of summary.providers) {
     const providerAccounts = accountsByProviderId.get(provider.id) ?? [];
     const providerLabel =
-      provider.label || provider.preset || hostLabelFromUrl(provider.baseUrl ?? null) || provider.id;
+      displayLabel(provider.label || provider.preset || hostLabelFromUrl(provider.baseUrl ?? null) || provider.id);
     const vendor = providerVendorMetadata(
       provider as unknown as Record<string, unknown>,
       provider.id,
@@ -378,7 +379,7 @@ export function buildRouteAccountCatalogFromSummary(
     };
     bucket.providers.push({
       id: provider.id,
-      label: provider.label,
+      label: providerLabel,
       preset: provider.preset ?? null,
       baseUrl: provider.baseUrl ?? null,
       accounts: providerAccounts,

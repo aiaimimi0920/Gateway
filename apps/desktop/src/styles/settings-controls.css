@@ -156,6 +156,20 @@
   animation: nt-settings-section-enter 150ms ease-out;
 }
 
+/* Categorized settings keep editable content mounted instead of collapsing it. */
+.nt-settings-section--static > .nt-settings-section__heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 0 14px;
+  font-size: 15px;
+}
+
+.nt-settings-section--static > .nt-settings-section__body {
+  padding: 0 0 24px;
+  animation: none;
+}
+
 @keyframes nt-settings-section-enter {
   from {
     opacity: 0;

@@ -62,9 +62,16 @@ actual upstream consumption is unknown. The account and key limits are 10,000.
 The API requires nonempty owner/project/tenant IDs and a display name. The key
 manager uses the catalog's additive `storageMode` field to select the creation
 form. Confirmed local storage pre-fills `local` attribution namespaces, allowing
-creation with a name, at least one entitlement group and an optional validity period. Advanced fields remain
-editable. Server mode and older catalogs without this field still require explicit
+creation with a name, at least one entitlement group and an optional validity period.
+The shared create/edit form uses two columns with inline labels; token prefixes are not
+configurable in the UI. Creation keeps the default prefix and editing preserves the
+existing prefix. Server mode and older catalogs without this field still require explicit
 owner/project/tenant IDs; the browser origin is never used to infer local rights.
+Entitlement groups use a searchable multi-select dropdown in a top-layer popup; choosing
+groups does not expand the form. Quota mode and a persistent amount input share one row.
+Unlimited/unchanged modes disable the input; limited modes retain the existing validation.
+Fixed control heights and footer feedback prevent selections, validation or saving from
+moving the surrounding fields. Escape closes the group popup before the editor.
 The page generates tokens on the server, with a copyable API Base URL and a persistent
 Copy Key action. Create and Edit share a secondary dialog for name, validity, groups
 and quota. Rotation, state changes and deletion require confirmation. Local

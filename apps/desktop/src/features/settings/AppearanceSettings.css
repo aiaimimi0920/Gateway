@@ -1,0 +1,12 @@
+.nt-settings-fields { display: grid; min-width: 0; }
+/* Every row owns the full content width, including native child-view content. */
+.nt-setting-row { display: grid; grid-template-columns: clamp(100px, 16%, 180px) minmax(0, 1fr); align-items: center; gap: 24px; min-width: 0; min-height: 60px; padding-block: 12px; border-bottom: 1px solid var(--nt-border); font-size: 13px; }
+.nt-setting-row > label, .nt-setting-label { font-weight: 600; white-space: nowrap; }
+.nt-setting-row .nt-input { width: 100%; min-width: 0; height: 36px; padding-block: 0; font-size: 13px; font-weight: 400; }
+.nt-setting-row > .nt-btn { justify-self: end; min-width: 116px; height: 36px; }
+.nt-settings-feedback { display: flex; align-items: center; min-width: 0; height: 48px; margin: 0; color: var(--nt-text-muted); font-size: 12px; line-height: 1.5; }
+.nt-settings-feedback > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nt-settings-feedback[role="alert"] { color: var(--nt-danger); }
+@container settings (max-width: 480px) {
+  .nt-setting-row { grid-template-columns: 100px minmax(0, 1fr); gap: 12px; }
+}

@@ -22,6 +22,14 @@ export type DiscoverAccount = (input: DiscoveryInput, signal?: AbortSignal) => P
 export const discoveryResponseSchema = z.object({ discovery: accountDiscoverySchema, revision: z.string() });
 
 export function supportsAccountDiscovery(provider: Record<string, unknown>): boolean {
+  if (provider.preset === "openai" && (provider.adapter == null || provider.adapter === "openai_compatible")) {
+    try {
+      const url = new URL(String(provider.base_url));
+      return url.protocol === "https:" && url.hostname === "openrouter.ai" && !url.port
+        && !url.username && !url.password && !url.search && !url.hash
+        && ["/api", "/api/v1"].includes(url.pathname.replace(/\/+$/, ""));
+    } catch { return false; }
+  }
   return !provider.preset && ["openai_compatible", "anthropic_compatible", "dashscope_compatible", "dashscope_multimodal_compatible"].includes(String(provider.adapter));
 }
 

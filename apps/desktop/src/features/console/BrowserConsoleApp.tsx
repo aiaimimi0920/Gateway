@@ -1,5 +1,14 @@
 import { configuredStorageSecrets } from "./providerStorageConnection";
+import { configuredHealthSecrets } from "./siteHealthSecretDraft";
+import { useMemo, useState } from "react";
+import { ProviderPoolToolbar } from "./ProviderPoolToolbar";
+import { OperationsToolbar } from "./OperationsToolbar";
+import { DEFAULT_OPERATIONS_LIST_VIEW } from "./operationsListView";
+import { AccessKeyHeaderProvider, AccessKeyHeaderSlot } from "./AccessKeyHeader";
+import { ProviderSiteHealthSettings } from "./ProviderSiteHealthSettings";
+import type { ProviderPoolView } from "./providerPoolView";
 import { useConsoleController } from "./useConsoleController";
+import { SettingsHeaderSlot, SettingsNavigationProvider } from "../settings/SettingsNavigation";
 
 import { buildConsoleRouteFeedback } from "./consoleRouteFeedback";
 import {
@@ -96,13 +105,18 @@ export type BrowserConsoleAppProps = {
 export function BrowserConsoleApp(props: BrowserConsoleAppProps) {
   return (
     <NeuroTooltipProvider>
-      <BrowserConsoleContent {...props} />
+      <SettingsNavigationProvider><BrowserConsoleContent {...props} /></SettingsNavigationProvider>
     </NeuroTooltipProvider>
   );
 }
 
 function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
   const controller = useConsoleController(consoleApi);
+  const healthSecrets = useMemo(() => configuredHealthSecrets(controller.routeConfig), [controller.routeConfig]);
+  const [poolView, setPoolView] = useState<ProviderPoolView>({ query: "", sort: "default" });
+  const [operationsView, setOperationsView] = useState(DEFAULT_OPERATIONS_LIST_VIEW);
+  const [groupPoolView, setGroupPoolView] = useState<ProviderPoolView>({ query: "", sort: "default" });
+  const [modelPoolView, setModelPoolView] = useState<ProviderPoolView>({ query: "", sort: "default" });
   const {
     access,
     accountGroupSummaryError,
@@ -211,12 +225,20 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
   const accountsWorkspace = (
     <AccountsLedgerWorkspace
       t={t}
+      poolView={poolView}
+      renderProviderSettings={(section) => <ProviderSiteHealthSettings providerId={section.providerId}
+        providerLabel={section.providerLabel} document={draftDocumentState.document} client={controller.client}
+        managementToken={controller.session.managementToken} locked={editorLocked}
+        draftDirty={draftDirty} onSave={controller.applySiteHealth} t={t}
+        hasSecretAccess={controller.hasSecretAccess} secretAccess={{ busy: controller.session.busy, error: controller.session.error }}
+        requestSecretAccess={() => {
+          controller.setSecretDialogOpen(true);
+          if (controller.session.managementToken) void controller.session.confirmSecretAccess(controller.session.managementToken).catch(() => { });
+        }}
+        configuredSecrets={healthSecrets} pendingSecrets={controller.siteHealthSecretEdits} />}
       notice={
         <>
           {draftStructureNotice}
-          <SiteHealthWorkspace document={draftDocumentState.document} client={controller.client}
-            managementToken={controller.session.managementToken} locked={editorLocked}
-            draftDirty={draftDirty} onSave={controller.applySiteHealth} t={t} />
           {providerCredentialInventoryError ? (
             <div className="nt-alert nt-alert--warning" role="status">
               <span>
@@ -325,9 +347,9 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
       onPurgeProviderArchive={(providerId) => void handlePurgeCredentialArchive(providerId)}
       onSetAccountGroup={setAccountRoutingGroup}
       onOpenProbe={openPilotProbeDialog}
-          onOpenProviderProbe={openProviderProbeDialog}
-          onRemoveProvider={removeProvider}
-          onOpenProviderSchedule={(section) => { closePilotActionDialog(); openProviderScheduleDialog(section); }}
+      onOpenProviderProbe={openProviderProbeDialog}
+      onRemoveProvider={removeProvider}
+      onOpenProviderSchedule={(section) => { closePilotActionDialog(); openProviderScheduleDialog(section); }}
       modelMappingCountByProvider={modelMappingCountByProvider}
       onOpenModelMapping={(section) => setProviderModelMappingProviderId(section.providerId)}
       onOpenStats={openPilotStatsDialog}
@@ -397,6 +419,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
         notice={draftStructureNotice}
         editorLocked={editorLocked}
         groups={groupDirectory}
+        poolView={groupPoolView}
         selectedGroupRowId={effectiveSelectedAccountGroupRowId}
         selectedGroup={selectedAccountGroupDraft}
         selectedGroupIdInvalid={selectedGroupIdInvalid}
@@ -424,6 +447,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
       draftStructureNotice={draftStructureNotice}
       editorLocked={editorLocked}
       modelPoolDirectory={modelPoolDirectory}
+      poolView={modelPoolView}
       entitlementAccountCardBridge={entitlementAccountCardBridge}
       reorderModelPoolChain={reorderModelPoolChain}
       resetModelPoolChain={resetModelPoolChain}
@@ -449,12 +473,13 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
         : activeWorkspace === "models"
           ? modelsWorkspace
           : <ConsoleIndependentWorkspace
-              activeWorkspace={activeWorkspace}
-              operations={operations}
-              access={access}
-              editorLocked={editorLocked}
-              t={t}
-            />;
+            activeWorkspace={activeWorkspace}
+            operations={operations}
+            operationsView={operationsView}
+            access={access}
+            editorLocked={editorLocked}
+            t={t}
+          />;
   // These pages read from Postgres/Redis instead of the route draft, so they
   // must not sit behind the `routeConfig` gate below.
   const routeConfigIndependent = ROUTE_CONFIG_INDEPENDENT_WORKSPACES.includes(activeWorkspace);
@@ -474,10 +499,10 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
       openAddModelDialog={openAddModelDialog}
       t={t}
     />
-  ) : null;
+  ) : activeWorkspace === "access" ? <AccessKeyHeaderSlot slot="actions" /> : null;
 
   return (
-    <>
+    <AccessKeyHeaderProvider>
       <AppShell<ConsoleWorkspaceId>
         productName="Gateway"
         navLabel="Gateway console navigation"
@@ -488,6 +513,12 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
         railCollapsed={consoleRailCollapsed}
         onToggleRailCollapsed={() => setConsoleRailCollapsed((current) => !current)}
         title={activeWorkspaceLabel}
+        headerLeading={activeWorkspace === "accounts" ? <ProviderPoolToolbar value={poolView} onChange={setPoolView} t={t} />
+          : activeWorkspace === "groups" ? <ProviderPoolToolbar scope="groups" value={groupPoolView} onChange={setGroupPoolView} t={t} />
+            : activeWorkspace === "models" ? <ProviderPoolToolbar scope="models" value={modelPoolView} onChange={setModelPoolView} t={t} />
+              : activeWorkspace === "operations" ? <OperationsToolbar value={operationsView} onChange={setOperationsView} t={t} />
+                : activeWorkspace === "access" ? <AccessKeyHeaderSlot slot="leading" />
+                  : activeWorkspace === "settings" ? <SettingsHeaderSlot /> : undefined}
         headerActions={workspaceHeaderActions}
         onRefresh={() => void refresh()}
         refreshBusy={busy}
@@ -534,7 +565,6 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
         ) : null}
       </AppShell>
       <ConsoleGlobalDialogs controller={controller} />
-    </>
+    </AccessKeyHeaderProvider>
   );
 }
-import { SiteHealthWorkspace } from "./SiteHealthWorkspace";

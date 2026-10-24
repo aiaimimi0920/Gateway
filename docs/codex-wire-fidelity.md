@@ -23,6 +23,9 @@ Gateway 使用服务商配置指定的目标和凭证，绝不复制入口的 Ho
   上游解析器对重复 `model`、role 等字段作不同解释。
 - 独立保存原始字节，不把内部 marker 塞入可外发 JSON。只有最终 RequestPlan 的 JSON
   与原始 JSON 完全相等时才复用原字节；否则发送正常生成计划，不能绕过业务修改。
+- Responses 出站 `input` 中，只有 `function_call.arguments` 的已有非字符串值会被
+  序列化成 JSON 字符串，避免重放历史工具调用时被上游拒绝。已有字符串、缺失字段及
+  其他 opaque item 保持不变；create、原生 WebSocket 和 compact 复用同一字段规则。
 - 空 `tools: []` 不再被当作“已发生 XML 工具注入”，不会因此丢弃 developer、ID、type、
   client_metadata、prompt_cache_key 或未知字段。真实工具注入仍使用既有转换路径。
 - 保留原始 query 的重复键、顺序和转义形式，长度上限 8192 bytes。

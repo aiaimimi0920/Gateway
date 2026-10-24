@@ -27,7 +27,7 @@ pub(super) fn should_record_provider_failure(error: &GatewayError) -> bool {
     error.request_budget_stop_reason().is_none()
         && !matches!(
             error.code.as_deref(),
-            Some("rate_limit_admission_indeterminate")
+            Some("rate_limit_admission_indeterminate" | "upstream_credential_unavailable")
         )
 }
 

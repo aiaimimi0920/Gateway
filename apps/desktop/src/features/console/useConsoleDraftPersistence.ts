@@ -57,6 +57,17 @@ export function useConsoleDraftPersistence({
   /** The draft state autosave has already committed, so it commits it once. */
   const autosaveSignatureRef = useRef<string | null>(null);
 
+  // Persistence also owns the navigation guard until the same draft is saved.
+  useEffect(() => {
+    if (!draftDirty) return;
+    const preventAccidentalNavigation = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", preventAccidentalNavigation);
+    return () => window.removeEventListener("beforeunload", preventAccidentalNavigation);
+  }, [draftDirty]);
+
   const handleSave = useCallback(
     async (options?: { silent?: boolean }) => {
       if (!managementToken) {

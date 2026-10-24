@@ -1,0 +1,17 @@
+.nt-backend-summary { display: grid; min-width: 0; }
+.nt-backend-status { font-size: 13px; color: var(--nt-text-muted); }
+.nt-backend-current { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.nt-backend-current code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 13px var(--nt-font-mono); }
+.nt-backend-copy { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 80px; width: 80px; height: 36px; }
+.nt-backend-editor { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.nt-backend-editor .nt-input { flex: 1 1 220px; width: 0; font-family: var(--nt-font-mono); }
+.nt-backend-editor .nt-input[readonly] { color: var(--nt-text-muted); background: transparent; }
+.nt-backend-actions { display: flex; flex: 0 0 auto; gap: 12px; }
+.nt-backend-actions .nt-btn { flex: 0 0 116px; width: 116px; height: 36px; padding-inline: 6px; }
+.nt-backend-feedback { padding-left: calc(clamp(100px, 16%, 180px) + 24px); }
+@container settings (max-width: 600px) {
+  .nt-backend-editor { flex-wrap: wrap; }
+  .nt-backend-editor .nt-input { flex-basis: 100%; width: 100%; }
+  .nt-backend-actions { margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .nt-backend-feedback { padding-left: 0; }
+}

@@ -1,0 +1,3 @@
+.nt-desktop-settings-slot { min-width: 0; min-height: max(360px, calc(100dvh - 240px)); }
+.nt-embedded-settings { min-width: 0; padding: 0; overflow: auto; height: 100dvh; background: var(--nt-color-surface); }
+.nt-embedded-settings .nt-settings-fields { padding-top: 0; }

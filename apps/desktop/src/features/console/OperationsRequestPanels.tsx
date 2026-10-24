@@ -2,7 +2,7 @@ import type {
   OperationsWorkspaceProps,
   OperationsRequestFilterDraft,
 } from "./operations-contracts";
-import { OPERATIONS_DEFAULT_REQUEST_FILTERS } from "./operations-contracts";
+import { OperationsRequestFilters } from "./OperationsRequestFilters";
 import { databaseOperationsAvailability } from "./operationsAvailability";
 import {
   PLACEHOLDER,
@@ -48,92 +48,15 @@ export function OperationsRequestPanels({
 }: Props) {
   return (
     <>
-      <article className="nt-pilot-metric-card">
-        <h3>{t("筛选", "Filters")}</h3>
-        <div className="nt-console-field-grid">
-          <label className="nt-field">
-            <span>{t("状态", "Status")}</span>
-            <input
-              className="nt-input"
-              onChange={(event) => patchFilters({ status: event.target.value })}
-              placeholder="completed / failed"
-              value={requestFilters.status}
-            />
-          </label>
-          <label className="nt-field">
-            <span>{t("项目", "Project")}</span>
-            <input
-              className="nt-input"
-              onChange={(event) =>
-                patchFilters({ projectId: event.target.value })
-              }
-              value={requestFilters.projectId}
-            />
-          </label>
-          <label className="nt-field">
-            <span>{t("服务商账号", "Provider account")}</span>
-            <input
-              className="nt-input"
-              onChange={(event) =>
-                patchFilters({ providerAccountId: event.target.value })
-              }
-              value={requestFilters.providerAccountId}
-            />
-          </label>
-          <label className="nt-field">
-            <span>{t("端点类型", "Endpoint kind")}</span>
-            <input
-              className="nt-input"
-              onChange={(event) =>
-                patchFilters({ endpointKind: event.target.value })
-              }
-              placeholder="chat / embeddings"
-              value={requestFilters.endpointKind}
-            />
-          </label>
-          <label className="nt-field">
-            <span>{t("错误码", "Error code")}</span>
-            <input
-              className="nt-input"
-              onChange={(event) =>
-                patchFilters({ errorCode: event.target.value })
-              }
-              value={requestFilters.errorCode}
-            />
-          </label>
-          <label className="nt-field">
-            <span>{t("条数上限", "Limit")}</span>
-            <input
-              className="nt-input"
-              inputMode="numeric"
-              onChange={(event) => patchFilters({ limit: event.target.value })}
-              value={requestFilters.limit}
-            />
-          </label>
-        </div>
-        <div className="nt-console-form-actions">
-          <button
-            className="nt-btn nt-btn--primary"
-            disabled={editorLocked || requests.loading}
-            onClick={onApplyRequestFilters}
-            type="button"
-          >
-            {requests.loading
-              ? t("查询中…", "Querying…")
-              : t("应用筛选", "Apply filters")}
-          </button>
-          <button
-            className="nt-btn nt-btn--secondary"
-            disabled={editorLocked}
-            onClick={() =>
-              onRequestFiltersChange({ ...OPERATIONS_DEFAULT_REQUEST_FILTERS })
-            }
-            type="button"
-          >
-            {t("重置", "Reset")}
-          </button>
-        </div>
-      </article>
+      <OperationsRequestFilters
+        t={t}
+        editorLocked={editorLocked}
+        requests={requests}
+        requestFilters={requestFilters}
+        onRequestFiltersChange={onRequestFiltersChange}
+        onApplyRequestFilters={onApplyRequestFilters}
+        patchFilters={patchFilters}
+      />
 
       <Panel
         state={requestSummary}
@@ -168,33 +91,42 @@ export function OperationsRequestPanels({
                 value={formatCount(data.runningCount)}
               />
             </div>
-            <dl className="nt-pilot-metric-list">
-              <div>
-                <dt>{t("已取消", "Cancelled")}</dt>
-                <dd>{formatCount(data.cancelledCount)}</dd>
-              </div>
-              <div>
-                <dt>{t("可回退失败", "Fallback-eligible failures")}</dt>
-                <dd>{formatCount(data.fallbackEligibleFailures)}</dd>
-              </div>
-              <div>
-                <dt>{t("回退耗尽失败", "Fallback-exhausted failures")}</dt>
-                <dd>{formatCount(data.fallbackExhaustedFailures)}</dd>
-              </div>
-            </dl>
-            {data.byErrorCode.length > 0 ? (
-              <div className="nt-console-bucket-group">
-                <h4>{t("错误码分布", "By error code")}</h4>
+            <details className="nt-operations-detail">
+              <summary>
+                {t("回退与错误分布", "Fallback & error breakdown")}
+              </summary>
+              <div className="nt-operations-detail__body">
                 <dl className="nt-pilot-metric-list">
-                  {data.byErrorCode.slice(0, 8).map((bucket) => (
-                    <div key={bucket.value}>
-                      <dt title={bucket.value}>{formatText(bucket.value)}</dt>
-                      <dd>{formatCount(bucket.count)}</dd>
-                    </div>
-                  ))}
+                  <div>
+                    <dt>{t("已取消", "Cancelled")}</dt>
+                    <dd>{formatCount(data.cancelledCount)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("可回退失败", "Fallback-eligible failures")}</dt>
+                    <dd>{formatCount(data.fallbackEligibleFailures)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("回退耗尽失败", "Fallback-exhausted failures")}</dt>
+                    <dd>{formatCount(data.fallbackExhaustedFailures)}</dd>
+                  </div>
                 </dl>
+                {data.byErrorCode.length > 0 ? (
+                  <div className="nt-console-bucket-group">
+                    <h4>{t("错误码分布", "By error code")}</h4>
+                    <dl className="nt-pilot-metric-list">
+                      {data.byErrorCode.slice(0, 8).map((bucket) => (
+                        <div key={bucket.value}>
+                          <dt title={bucket.value}>
+                            {formatText(bucket.value)}
+                          </dt>
+                          <dd>{formatCount(bucket.count)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+            </details>
           </>
         )}
       </Panel>
@@ -223,8 +155,16 @@ export function OperationsRequestPanels({
               {rows.map((row) => (
                 <div className="nt-table__row" key={row.id}>
                   <span>{formatTimestamp(row.createdAt)}</span>
-                  <span title={formatText(row.requestedModel)}>
-                    {formatText(row.resolvedModel ?? row.requestedModel)}
+                  <span
+                    className="nt-operations-request-model"
+                    title={formatText(row.requestedModel)}
+                  >
+                    <span>
+                      {formatText(row.resolvedModel ?? row.requestedModel)}
+                    </span>
+                    {row.errorSummary ? (
+                      <small title={row.errorSummary}>{row.errorSummary}</small>
+                    ) : null}
                   </span>
                   <span>
                     <span className={statusBadgeClass(row.status)}>

@@ -26,8 +26,8 @@
 
 .nt-provider-card {
   --nt-provider-card-accent: var(--nt-text-muted);
-  /* Both faces share the taller face's intrinsic size. Inline validation may
-     grow the card; content must never disappear behind a fixed-height crop. */
+  /* Both mounted faces always size the same grid track, including back controls.
+     Flipping changes only the transform, never the layout or content height. */
   --nt-provider-card-height: 500px;
   /* Preserve the front's 38px icon, 22px padding and 1px divider on both faces. */
   --nt-provider-card-head-height: 61px;

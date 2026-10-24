@@ -1,4 +1,6 @@
 import type { OperationsWorkspaceProps } from "./operations-contracts";
+import { displayLabel } from "./displayLabel";
+import { DEFAULT_OPERATIONS_LIST_VIEW, selectOperationsRows } from "./operationsListView";
 import {
   formatCount,
   formatMs,
@@ -13,7 +15,7 @@ import {
 
 type Props = Pick<
   OperationsWorkspaceProps,
-  "t" | "pressure" | "readiness" | "operatorSummary"
+  "t" | "pressure" | "readiness" | "operatorSummary" | "listView"
 >;
 
 export function OperationsLivePanels({
@@ -21,7 +23,14 @@ export function OperationsLivePanels({
   pressure,
   readiness,
   operatorSummary,
+  listView = DEFAULT_OPERATIONS_LIST_VIEW,
 }: Props) {
+  const providers = selectOperationsRows(pressure.data?.providers ?? [], listView, (row) => ({
+    name: displayLabel(row.label), text: [row.providerAccountId, row.status],
+  }));
+  const projects = selectOperationsRows(pressure.data?.projects ?? [], listView, (row) => ({
+    name: row.displayName, text: [row.projectId],
+  }));
   return (
     <div className="nt-operations-live">
       <Panel state={pressure} t={t} title={t("实时压力", "Runtime pressure")}>
@@ -62,9 +71,9 @@ export function OperationsLivePanels({
                     <dd>{formatCount(data.totalProviderConcurrency)}</dd>
                   </div>
                 </dl>
-                {data.providers.length === 0 ? (
+                {providers.length === 0 ? (
                   <div className="nt-pilot-stats-state" role="status">
-                    {t("暂无活跃服务商账号", "No active provider accounts")}
+                    {data.providers.length ? t("没有匹配的服务商账号", "No matching provider accounts") : t("暂无活跃服务商账号", "No active provider accounts")}
                   </div>
                 ) : (
                   <div className="nt-table nt-table--pressure">
@@ -74,13 +83,13 @@ export function OperationsLivePanels({
                       <span>{t("并发", "Concurrency")}</span>
                       <span>{t("进行中", "Running")}</span>
                     </div>
-                    {data.providers.map((provider) => (
+                    {providers.map((provider) => (
                       <div
                         className="nt-table__row"
                         key={provider.providerAccountId}
                       >
                         <span title={provider.providerAccountId}>
-                          {formatText(provider.label)}
+                          {displayLabel(formatText(provider.label))}
                         </span>
                         <span>
                           <span className={statusBadgeClass(provider.status)}>
@@ -102,14 +111,14 @@ export function OperationsLivePanels({
                     ))}
                   </div>
                 )}
-                {data.projects.length > 0 ? (
+                {projects.length > 0 ? (
                   <div className="nt-table nt-table--pressure-projects">
                     <div className="nt-table__head">
                       <span>{t("项目", "Project")}</span>
                       <span>{t("并发", "Concurrency")}</span>
                       <span>{t("进行中", "Running")}</span>
                     </div>
-                    {data.projects.map((project) => (
+                    {projects.map((project) => (
                       <div className="nt-table__row" key={project.projectId}>
                         <span title={project.projectId}>
                           {formatText(project.displayName)}
@@ -168,7 +177,7 @@ export function OperationsLivePanels({
                     />
                   ) : null}
                   {data.dependencies.postgresql.configured ||
-                  data.dependencies.postgresql.required ? (
+                    data.dependencies.postgresql.required ? (
                     <DependencyRow
                       dependency={data.dependencies.postgresql}
                       name="PostgreSQL"
@@ -176,7 +185,7 @@ export function OperationsLivePanels({
                     />
                   ) : null}
                   {data.dependencies.redis.configured ||
-                  data.dependencies.redis.required ? (
+                    data.dependencies.redis.required ? (
                     <DependencyRow
                       dependency={data.dependencies.redis}
                       name="Redis"

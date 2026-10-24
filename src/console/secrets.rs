@@ -6,6 +6,7 @@ mod descriptors;
 mod identity;
 mod masks;
 mod pointers;
+mod site_health;
 mod storage_connections;
 mod urls;
 mod validation;
@@ -177,6 +178,7 @@ pub fn redact_route_document(
         );
         provider.credential_storage_password = None;
         storage_connections::redact(provider, &provider_path, &mut secrets);
+        site_health::redact(provider, &provider_path, &mut secrets);
 
         if let Some(keepalive) = provider.keepalive.as_mut() {
             keepalive.service_url = redact_url_value(&keepalive.service_url);

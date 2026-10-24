@@ -45,6 +45,7 @@ pub(super) fn plan(
             }
         }
     }
+    responses::normalize_input_arguments(&mut body);
     plan.body = Some(body);
     Ok(plan)
 }

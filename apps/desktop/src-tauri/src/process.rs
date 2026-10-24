@@ -91,26 +91,38 @@ pub(crate) fn start_profile(
     let log_dir = gateway_log_dir()?;
     let started_at = now_iso_string();
     let log_path = log_dir.join(format!(
-        "gateway-{}-{}.log",
+        "gateway-v2-{}-{}.log",
         profile.name.replace(' ', "_"),
         started_at
     ));
-    let stdout = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path)
-        .map_err(|error| {
-            format!(
-                "failed to create gateway log {}: {error}",
-                log_path.display()
-            )
-        })?;
+    let mut log_options = OpenOptions::new();
+    log_options.create(true).append(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        log_options.share_mode(3); // Read/write sharing, never delete an active log.
+    }
+    let stdout = log_options.open(&log_path).map_err(|error| {
+        format!(
+            "failed to create gateway log {}: {error}",
+            log_path.display()
+        )
+    })?;
+    #[cfg(unix)]
+    stdout
+        .try_lock()
+        .map_err(|_| "Cannot protect active Gateway log")?;
     let stderr = stdout
         .try_clone()
         .map_err(|error| format!("failed to clone gateway log handle: {error}"))?;
 
     let working_directory = profile_working_directory(&profile)?;
-    let child_environment = render_child_environment(&profile, &working_directory)?;
+    let mut child_environment = render_child_environment(&profile, &working_directory)?;
+    // The backend owns export and retention; the launcher only captures early startup output.
+    child_environment.insert(
+        "GATEWAY_CONSOLE_LOG_FILE".into(),
+        log_path.to_string_lossy().into_owned(),
+    );
     let mut command = Command::new(&binary_path);
     command
         .current_dir(&working_directory)

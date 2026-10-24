@@ -1,18 +1,23 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { DEFAULT_POOL_CARD_VIEW, visibleModelCards } from "./poolCardView";
+import type { ProviderPoolView } from "./providerPoolView";
 
 import type { EntitlementAccountCardBridge } from "./credentialGroupsWorkspaceTypes";
 import type { ModelPoolCard } from "./modelPoolViewModel";
 import { ModelPoolCardView } from "./ModelPoolCardView";
 import { ModelPoolServingAccountsPanel } from "./ModelPoolServingAccountsPanel";
+import { ScopePager } from "./EntitlementScopePager";
 import { useAccountCardMenu } from "./ProviderAccountCard";
 
 type TranslateFn = (zh: string, en: string) => string;
+const MODELS_PER_PAGE = 24;
 
 export type ModelPoolWorkspaceProps = {
   t: TranslateFn;
   notice?: ReactNode;
   editorLocked: boolean;
   models: ModelPoolCard[];
+  poolView?: ProviderPoolView;
   /** Supplied by the console shell so a model's accounts reuse the pool cards. */
   accountCards?: EntitlementAccountCardBridge;
   onMoveProvider: (model: string, providerId: string, direction: "up" | "down") => void;
@@ -37,6 +42,7 @@ export function ModelPoolWorkspace({
   notice,
   editorLocked,
   models,
+  poolView = DEFAULT_POOL_CARD_VIEW,
   accountCards,
   onMoveProvider,
   onResetChain,
@@ -45,6 +51,16 @@ export function ModelPoolWorkspace({
   onDeleteModel,
 }: ModelPoolWorkspaceProps) {
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
+  const visibleModels = useMemo(() => visibleModelCards(models, poolView), [models, poolView]);
+  // Bound DOM work, not the catalog: search and sort still cover every model.
+  const [pagination, setPagination] = useState({ ...poolView, page: 1 });
+  const totalPages = Math.max(1, Math.ceil(visibleModels.length / MODELS_PER_PAGE));
+  const page = pagination.query === poolView.query && pagination.sort === poolView.sort
+    ? Math.min(pagination.page, totalPages) : 1;
+  if (pagination.query !== poolView.query || pagination.sort !== poolView.sort || pagination.page !== page) {
+    setPagination({ ...poolView, page });
+  }
+  const pageModels = visibleModels.slice((page - 1) * MODELS_PER_PAGE, page * MODELS_PER_PAGE);
   /**
    * Chain selection per card, stored as the complement so an untouched card
    * means "every provider". It lives here because the expanded account panel
@@ -111,21 +127,34 @@ export function ModelPoolWorkspace({
         </article>
       ) : (
         <section className="nt-group-admin" aria-label={t("模型池管理", "Model pool administration")}>
+          <ScopePager
+            t={t}
+            page={page}
+            totalPages={totalPages}
+            navLabel={t("模型卡牌分页", "Model cards pagination")}
+            onPage={(next) => {
+              setPagination({ ...poolView, page: next });
+              setActiveAccountMenuKey(null);
+            }}
+          />
           <div
             className="nt-entitlement-group-grid"
             role="region"
             aria-label={t("模型卡牌", "Model cards")}
           >
-            {models.map((card) => {
+            {visibleModels.length === 0 && <p className="nt-copy" role="status">
+              {t("没有匹配的模型，请调整或清除搜索。", "No matching models. Change or clear the search.")}
+            </p>}
+            {pageModels.map((card) => {
               const expanded = expandedModel === card.model;
               const flipped = flippedModels.includes(card.model);
               const deselectedProviderIds = chainDeselectionByModel[card.model] ?? [];
               const chainNarrowed = deselectedProviderIds.length > 0;
-              const selectedLinks = card.chain.filter(
+              const selectedLinks = expanded ? card.chain.filter(
                 (link) => !deselectedProviderIds.includes(link.providerId),
-              );
+              ) : [];
               // The card's provider selection and its attached account panel are one scope.
-              const scopedAccountIds = (chainNarrowed ? selectedLinks : card.chain).flatMap(
+              const scopedAccountIds = (expanded ? (chainNarrowed ? selectedLinks : card.chain) : []).flatMap(
                 (link) => link.accountIds,
               );
               const accountPanelId = `model-pool-accounts-${domSafeKey(card.model)}`;

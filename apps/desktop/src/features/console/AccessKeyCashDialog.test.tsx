@@ -51,6 +51,22 @@ beforeEach(() => {
 });
 
 describe("Key cash bills", () => {
+  it("paginates recent bills and resets the page when filtering status", async () => {
+    state.api.ledger.mockResolvedValue(Array.from({ length: 25 }, (_, i) => ({
+      ...receipt, requestId: `request-${i}`, status: i === 24 ? "released" : "settled",
+    })));
+    const user = userEvent.setup();
+    render(<AccessKeyCashDialog {...props} />);
+    const table = within(await screen.findByRole("table"));
+    expect(table.getAllByRole("row")).toHaveLength(11);
+    const pager = within(screen.getByRole("navigation", { name: "账单分页" }));
+    await user.click(pager.getByRole("button", { name: "下一页" }));
+    expect(pager.getByText("2 / 3")).toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox", { name: "账单状态" }), "released");
+    expect(table.getAllByRole("row")).toHaveLength(2);
+    expect(table.getByText("已释放")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "账单分页" })).not.toBeInTheDocument();
+  });
   it("shows frozen actual amounts and old-key IDs without recomputing from the tariff", async () => {
     const user = userEvent.setup();
     render(<AccessKeyCashDialog {...props} />);
@@ -76,11 +92,11 @@ describe("Key cash bills", () => {
       { ...receipt, requestId: "r3", status: "reserved", amountMicros: null },
     ]);
     render(<AccessKeyCashDialog {...props} />);
-    const unknown = (await screen.findByText("待核对")).closest("tr")!;
+    const unknown = (await screen.findByText("待核对", { selector: "td span" })).closest("tr")!;
     expect(within(unknown).getAllByRole("cell")[3]).toHaveTextContent("—");
-    const released = screen.getByText("已释放").closest("tr")!;
+    const released = screen.getByText("已释放", { selector: "td span" }).closest("tr")!;
     expect(within(released).getAllByRole("cell")[3]).toHaveTextContent(/^0$/);
-    expect(screen.getByText("已预占")).toBeInTheDocument();
+    expect(screen.getByText("已预占", { selector: "td span" })).toBeInTheDocument();
   });
   it("distinguishes loading, failure and a successfully read empty ledger", async () => {
     const pending = deferred<CashReceipt[]>();

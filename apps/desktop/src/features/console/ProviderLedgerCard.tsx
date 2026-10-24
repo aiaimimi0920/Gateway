@@ -5,7 +5,7 @@ import {
   GalleryHorizontalEnd,
   Trash2,
 } from "lucide-react";
-import type { ReactNode, RefObject } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 
 import type { AccountsLedgerPilotSection, AccountsLedgerWorkspaceProps } from "./accountsLedgerTypes";
 import { ProviderCardFrontBody } from "./ProviderCardFrontBody";
@@ -30,10 +30,10 @@ type ProviderLedgerCardProps = {
     "onToggleDispatch" |
     "onOpenProviderSchedule" | "onOpenModelMapping"
   > & { onRequestProviderRemoval: (section: AccountsLedgerPilotSection) => void };
-  children: ReactNode;
+  children: () => ReactNode;
 };
 
-// Both faces remain mounted; the ledger owns shared menu and flip-focus state.
+// Keep face shells for flip focus; mount lifecycle/settings only on first use.
 export function ProviderLedgerCard({
   section,
   snapshot,
@@ -48,6 +48,8 @@ export function ProviderLedgerCard({
   handlers,
   children,
 }: ProviderLedgerCardProps) {
+  const [backMounted, setBackMounted] = useState(flipped);
+  if (flipped && !backMounted) setBackMounted(true);
   const {
     onToggleDispatch,
     onOpenProviderSchedule,
@@ -301,7 +303,7 @@ export function ProviderLedgerCard({
             `${section.providerLabel} credential lifecycle`,
           )}
         >
-          {children}
+          {backMounted ? children() : null}
         </section>
       </div>
       </div>

@@ -184,6 +184,8 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     replaceEditorDocument,
     updateProviderStoragePassword,
     updateProviderStorageConnection,
+    applySiteHealth,
+    siteHealthSecretEdits,
   } = useConsoleRouteDraft({
     routeConfig,
     hasSecretAccess,
@@ -232,18 +234,6 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     pilotActionDialog,
     t,
   });
-
-  useEffect(() => {
-    if (!draftDirty) {
-      return;
-    }
-    const preventAccidentalNavigation = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", preventAccidentalNavigation);
-    return () => window.removeEventListener("beforeunload", preventAccidentalNavigation);
-  }, [draftDirty]);
 
   const [pendingGroupAccountRemoval, setPendingGroupAccountRemoval] =
     useState<PendingCredentialRemoval | null>(null);
@@ -522,5 +512,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     telemetryError,
     updateProviderStoragePassword,
     updateProviderStorageConnection,
+    applySiteHealth,
+    siteHealthSecretEdits,
   };
 }

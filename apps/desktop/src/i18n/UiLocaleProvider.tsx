@@ -47,8 +47,8 @@ const defaultContextValue: UiLocaleContextValue = {
 
 const UiLocaleContext = createContext<UiLocaleContextValue>(defaultContextValue);
 
-export function UiLocaleProvider({ children }: PropsWithChildren) {
-  const [locale, setLocale] = useState<UiLocale>(() => detectInitialLocale());
+export function UiLocaleProvider({ children, initialLocale }: PropsWithChildren<{ initialLocale?: UiLocale }>) {
+  const [locale, setLocale] = useState<UiLocale>(() => initialLocale ?? detectInitialLocale());
 
   useEffect(() => {
     if (typeof window !== "undefined") {

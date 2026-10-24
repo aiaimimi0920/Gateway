@@ -1,9 +1,10 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { KeyRound, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { ConsoleAccessKey } from "../../api/contracts";
 import { AccessKeyCreateForm } from "./AccessKeyCreateForm";
-import { CopyButton } from "./AccessWorkspacePrimitives";
+import { AccessKeySecretResult } from "./AccessKeySecretResult";
+import "./accessKeyDialogs.css";
 import type { AccessKeysWorkspaceProps, TranslateFn } from "./accessKeysTypes";
 
 type KeyDialogProps = Pick<
@@ -41,7 +42,7 @@ export function AccessKeyDialog(props: KeyDialogProps) {
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
-          className="dialog-content nt-key-dialog"
+          className="dialog-content nt-key-dialog nt-key-dialog--structured"
           onOpenAutoFocus={(event) => {
             if (secret) {
               event.preventDefault();
@@ -60,10 +61,11 @@ export function AccessKeyDialog(props: KeyDialogProps) {
           }}
         >
           <div className="nt-key-dialog__head">
+            <KeyRound className="nt-key-dialog__icon" size={20} aria-hidden="true" />
             <Dialog.Title>
               {secret
                 ? t("API Key 已生成", "API Key generated")
-                : t("新建 API Key", "New API Key")}
+                : t("新建 Key", "New Key")}
             </Dialog.Title>
             {!secret ? (
               <button
@@ -86,43 +88,7 @@ export function AccessKeyDialog(props: KeyDialogProps) {
                 )}
           </Dialog.Description>
           {secret ? (
-            <div className="nt-key-secret-result">
-              <strong>{secret.label}</strong>
-              <label className="nt-field">
-                <span>API Key</span>
-                <textarea
-                  ref={secretInput}
-                  className="nt-input nt-key-secret-value"
-                  readOnly
-                  value={secret.secret}
-                  rows={3}
-                  spellCheck={false}
-                />
-              </label>
-              <CopyButton
-                t={t}
-                value={secret.secret}
-                label={t("复制 API Key", "Copy API Key")}
-              />
-              <label className="nt-field">
-                <span>API Base URL</span>
-                <input className="nt-input" readOnly value={apiBaseUrl} />
-              </label>
-              <CopyButton
-                t={t}
-                value={apiBaseUrl}
-                label={t("复制 API 地址", "Copy API URL")}
-              />
-              <div className="dialog-actions">
-                <button
-                  type="button"
-                  className="nt-btn nt-btn--primary"
-                  onClick={onClose}
-                >
-                  {t("完成", "Done")}
-                </button>
-              </div>
-            </div>
+            <AccessKeySecretResult secret={secret} apiBaseUrl={apiBaseUrl} inputRef={secretInput} onClose={onClose} t={t} />
           ) : (
             <AccessKeyCreateForm
               draft={props.keyDraft}
@@ -137,6 +103,7 @@ export function AccessKeyDialog(props: KeyDialogProps) {
               bundles={catalog.data?.bundles ?? []}
               groups={catalog.data?.accountGroups}
               error={catalog.error}
+              onCancel={onClose}
               t={t}
             />
           )}
@@ -171,7 +138,7 @@ export function AccessKeyConfirmDialog({
   const deleting = pending?.kind === "delete";
   const enabling = pending?.kind === "enable";
   const action = rotate
-    ? t("轮换", "Rotate")
+    ? t("轮转", "Rotate")
     : deleting
       ? t("删除", "Delete")
       : enabling
@@ -187,7 +154,7 @@ export function AccessKeyConfirmDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
-          className="dialog-content nt-key-dialog"
+          className="dialog-content nt-key-dialog nt-key-dialog--structured nt-key-dialog--confirm"
           onOpenAutoFocus={() => {
             returnFocus.current =
               document.activeElement instanceof HTMLElement
@@ -205,11 +172,18 @@ export function AccessKeyConfirmDialog({
             if (busy) event.preventDefault();
           }}
         >
-          <Dialog.Title>{action} API Key</Dialog.Title>
+          <div className="nt-key-dialog__head">
+            <KeyRound className="nt-key-dialog__icon" size={20} aria-hidden="true" />
+            <Dialog.Title>{action} API Key</Dialog.Title>
+          </div>
+          <div className="nt-key-dialog__body">
+          <div className="nt-key-confirm-target"><strong>{pending?.key.displayName}</strong>
+            <code>{pending?.key.publicKeyPrefix}••••••</code>
+          </div>
           <Dialog.Description>
             {rotate
               ? t(
-                  `轮换“${pending?.key.displayName ?? ""}”？旧密钥将立即失效。`,
+                  `轮转“${pending?.key.displayName ?? ""}”？旧密钥将立即失效，请同步更新客户端。`,
                   `Rotate “${pending?.key.displayName ?? ""}”? The old key will stop working immediately.`,
                 )
               : deleting
@@ -227,6 +201,8 @@ export function AccessKeyConfirmDialog({
                       `Disable “${pending?.key.displayName ?? ""}”? New requests will be rejected; you can enable it again later.`,
                     )}
           </Dialog.Description>
+          </div>
+          <footer className="nt-key-dialog__footer">
           {error ? (
             <div role="alert" className="nt-alert nt-alert--danger">
               {error}
@@ -252,6 +228,7 @@ export function AccessKeyConfirmDialog({
                 : t(`确认${action}`, `${action} key`)}
             </button>
           </div>
+          </footer>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

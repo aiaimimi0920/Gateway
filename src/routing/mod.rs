@@ -1,7 +1,9 @@
+pub(crate) mod admission;
 pub mod candidate;
 pub mod config;
 pub mod credential_routing;
 pub mod latency;
+pub(crate) mod model_circuit;
 pub mod protocol_resolution;
 pub mod queue;
 pub mod score;

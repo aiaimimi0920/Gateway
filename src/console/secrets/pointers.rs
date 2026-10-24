@@ -101,6 +101,9 @@ pub(super) fn validate_secret_target(
         .ok_or_else(|| outside_schema(pointer))?;
 
     match segments[2].as_str() {
+        "site_health" if super::site_health::secret_exists(provider, pointer)? => {
+            Ok(SecretTarget::OptionalString)
+        }
         field
             if segments.len() == 4
                 && super::storage_connections::secret_exists(provider, field, &segments[3]) =>

@@ -4,6 +4,14 @@ pub async fn list_models_for_project(
     pool: &PgPool,
     project_id: &str,
 ) -> Result<Vec<ModelInfo>, GatewayError> {
+    list_models_for_project_admitted(pool, project_id, &|_, _, _| true).await
+}
+
+pub(crate) async fn list_models_for_project_admitted(
+    pool: &PgPool,
+    project_id: &str,
+    admit: &impl Fn(&str, Option<&str>, &str) -> bool,
+) -> Result<Vec<ModelInfo>, GatewayError> {
     let project = get_active_project(pool, project_id).await?;
     let route_policy = get_route_policy_for_models(
         pool,
@@ -24,11 +32,16 @@ pub async fn list_models_for_project(
     .await
     .map_err(map_db_error)?;
 
-    let provider_rows = fetch_active_provider_rows(pool).await?;
-    let provider_rows_by_id = provider_rows
-        .iter()
-        .map(|row| (row.id.as_str(), row))
-        .collect::<HashMap<_, _>>();
+    let provider_rows = fetch_active_provider_rows(pool)
+        .await?
+        .into_iter()
+        .filter(|provider| {
+            provider_allowed_by_route_policy(
+                provider,
+                route_policy.as_ref().map(|policy| &policy.config),
+            )
+        })
+        .collect::<Vec<_>>();
     let provider_account_ids = provider_rows
         .iter()
         .map(|row| row.id.clone())
@@ -54,79 +67,46 @@ pub async fn list_models_for_project(
         .await
         .map_err(map_db_error)?
     };
-    let shadowed_upstream_models = collect_shadowed_upstream_models_for_catalog(
-        route_policy.as_ref().map(|policy| &policy.config),
-        &alias_rows,
-        &capability_rows,
-        &provider_rows_by_id,
-    );
-    let mut model_ids = BTreeSet::new();
-
-    for row in alias_rows {
-        if row.enabled
-            && route_policy_allows_models(
-                route_policy.as_ref().map(|policy| &policy.config),
-                [Some(row.alias.as_str()), row.upstream_model.as_deref()],
-            )
-        {
-            model_ids.insert(row.alias);
-        }
-    }
-
-    for row in capability_rows {
-        let Some(provider_row) = provider_rows_by_id.get(row.provider_account_id.as_str()) else {
-            continue;
-        };
+    let credentials =
+        crate::db::model_catalog_admission::CatalogCredentials::load(pool, &provider_account_ids)
+            .await?;
+    let mut defaults = HashMap::new();
+    for provider_row in &provider_rows {
         if !provider_allowed_by_route_policy(
             provider_row,
             route_policy.as_ref().map(|policy| &policy.config),
         ) {
             continue;
         }
-        if !route_policy_allows_models(
-            route_policy.as_ref().map(|policy| &policy.config),
-            [Some(row.model_code.as_str()), row.upstream_model.as_deref()],
-        ) {
-            continue;
-        }
-        let upstream_model = row
-            .upstream_model
-            .as_deref()
-            .unwrap_or(row.model_code.as_str());
-        if row.model_code == upstream_model
-            && shadowed_upstream_models
-                .contains(&(row.provider_account_id.clone(), upstream_model.to_string()))
-        {
-            continue;
-        }
-        model_ids.insert(row.model_code.clone());
-    }
-
-    for provider_row in provider_rows {
-        if !provider_allowed_by_route_policy(
-            &provider_row,
-            route_policy.as_ref().map(|policy| &policy.config),
-        ) {
-            continue;
-        }
-        let Some(account_payload) = provider_payload_value_from_row(&provider_row).await? else {
+        let Some(account_payload) = provider_payload_value_from_row(provider_row).await? else {
             continue;
         };
-        let Some(payload) = provider_payload_from_value(&provider_row, account_payload)? else {
+        let Some(payload) = provider_payload_from_value(provider_row, account_payload)? else {
             continue;
         };
-        if let Some(default_model) = payload.default_model.as_deref() {
-            if route_policy_allows_models(
-                route_policy.as_ref().map(|policy| &policy.config),
-                [Some(default_model), None],
-            ) && !shadowed_upstream_models
-                .contains(&(provider_row.id.clone(), default_model.to_string()))
-            {
-                model_ids.insert(default_model.to_string());
-            }
-        }
+        defaults.insert(provider_row.id.clone(), payload.default_model);
     }
-
+    let model_ids = super::catalog_selection::collect_catalog_ids(
+        route_policy.as_ref().map(|policy| &policy.config),
+        &alias_rows,
+        &provider_rows,
+        &capability_rows,
+        &defaults,
+        &|provider, model, upstream| {
+            credentials.allows(
+                provider,
+                upstream,
+                |credential| {
+                    credential_payload_supports_model(
+                        &credential.payload,
+                        Some(model),
+                        Some(upstream),
+                    )
+                },
+                admit,
+            )
+        },
+    );
     let created = OffsetDateTime::now_utc().unix_timestamp();
     Ok(model_ids
         .into_iter()
@@ -137,53 +117,4 @@ pub async fn list_models_for_project(
             owned_by: "neuro-gateway".to_string(),
         })
         .collect())
-}
-
-pub(super) fn collect_shadowed_upstream_models_for_catalog(
-    route_policy: Option<&GatewayRoutePolicyConfig>,
-    alias_rows: &[GatewayModelAliasRow],
-    capability_rows: &[ProviderCapabilityModelRow],
-    provider_rows_by_id: &HashMap<&str, &GatewayProviderRouteRow>,
-) -> HashSet<(String, String)> {
-    let mut shadowed = HashSet::new();
-
-    for row in alias_rows {
-        let Some(upstream_model) = row.upstream_model.as_deref() else {
-            continue;
-        };
-        if !row.enabled || row.alias == upstream_model {
-            continue;
-        }
-        if !route_policy_allows_models(
-            route_policy,
-            [Some(row.alias.as_str()), Some(upstream_model)],
-        ) {
-            continue;
-        }
-        shadowed.insert((row.provider_account_id.clone(), upstream_model.to_string()));
-    }
-
-    for row in capability_rows {
-        let Some(provider_row) = provider_rows_by_id.get(row.provider_account_id.as_str()) else {
-            continue;
-        };
-        let Some(upstream_model) = row.upstream_model.as_deref() else {
-            continue;
-        };
-        if row.model_code == upstream_model {
-            continue;
-        }
-        if !provider_allowed_by_route_policy(provider_row, route_policy) {
-            continue;
-        }
-        if !route_policy_allows_models(
-            route_policy,
-            [Some(row.model_code.as_str()), Some(upstream_model)],
-        ) {
-            continue;
-        }
-        shadowed.insert((row.provider_account_id.clone(), upstream_model.to_string()));
-    }
-
-    shadowed
 }

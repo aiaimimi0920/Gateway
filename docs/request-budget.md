@@ -53,6 +53,12 @@ video/audio 创建和 ResearchCreate 请求限制为 **一次 adapter execution*
 创建或回放。这里是 replay 风险分类，不宣称 Gateway 的工具解析器执行了工具，
 也不宣称任何 adapter 内部子操作已经变成全局 exactly-once。
 
+Chat/Responses 在交付前收到明确的模型/认证/余额准入拒绝，或已识别的 HTTP 403
+HTML 诊断页（`upstream_html_diagnostic`）时，外层候选切换边界可只增加下一次
+发送资格。后者计为服务商调用失败并扣可用性分，不重试同一失败凭据；未知 HTML
+或普通 403 不能借此重放。工具声明不阻断这类切换，但总计 6 次上限、原 deadline、
+明确账户授权和资格检查仍有效；预算已停止、已移交流、媒体创建均不适用。
+
 ## 精确授权，而不是猜付费身份
 
 保留 credential ownership、account group、access catalog 和 route policy 限制。
@@ -67,7 +73,13 @@ normalization trim；Redis 的 `cred:<id>` 不按品牌映射为另一 DB 账户
 2. 同一不可变 YAML snapshot 中，本请求经 alias 解析后命中的 enabled
    `ModelRoute.provider_ids`；
 3. 同一次 validated local key 事务中的 `providerIds`；
-4. 已认证 access key 的 validated access projection route rows。
+4. 已认证 access key 的 validated access projection route rows；
+5. 已认证 access key 的 `accountGroupIds` 在同一配置快照中解析出的具体账号成员，
+   再与请求分组取交集。仅请求头选择某个分组，不增加这一回退授权。
+
+对第 5 项，启用的模型规则保留其首选服务商，同时允许补入该授权集合内明确支持
+同一模型的备用服务商；整个模型规则禁用时仍不允许回退。备用候选继续接受本地 key
+的模型/provider 白名单及发送前资格校验，不把自动发现列表当授权依据。
 
 这些来源不能覆盖其它适用限制。YAML account group、local key restriction、DB
 policy 和协议过滤仍执行；access catalog 的余额、reservation、候选预扣/退款流程

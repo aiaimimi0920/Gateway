@@ -16,6 +16,8 @@
  * reuse a generic preset (`openrouter` and `xfyun-maas` both run on the `openai`
  * preset) while belonging to a completely different brand.
  */
+import { displayLabel } from "./displayLabel";
+
 const BRAND_BY_PROVIDER_ID: Record<string, string> = {
   // Catalog templates.
   openai: "OpenAI",
@@ -204,7 +206,7 @@ export function providerBrandLabel({
 }: ProviderBrandInput): string {
   const id = providerId.trim();
   const preset = providerPreset?.trim() ? providerPreset.trim() : null;
-  const label = providerLabel?.trim() ? providerLabel.trim() : null;
+  const label = providerLabel?.trim() ? displayLabel(providerLabel.trim()) : null;
 
   if (id.length === 0) {
     return label ?? prettifyVendorName(vendorName ?? "");

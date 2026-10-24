@@ -1,0 +1,53 @@
+.nt-provider-site-health__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nt-provider-site-health__header h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.dialog-content.nt-provider-site-health {
+  width: min(900px, calc(100vw - 32px));
+  height: min(760px, calc(100dvh - 48px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+.nt-provider-site-health__header {
+  padding: 20px 24px 17px;
+  flex-shrink: 0;
+}
+.nt-provider-site-health__header h2::before {
+  content: "";
+  display: inline-block;
+  margin-right: 11px;
+  border-top: 8px solid var(--nt-signal);
+  border-right: 8px solid transparent;
+}
+.nt-provider-site-health__body {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+}
+.nt-provider-site-health__body > .nt-site-health {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+.nt-provider-site-health__body .nt-health-plan-layout {
+  height: 100%;
+}
+.nt-provider-site-health__body fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

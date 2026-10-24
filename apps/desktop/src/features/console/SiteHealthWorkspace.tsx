@@ -1,108 +1,290 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { z } from "zod";
+import { useMemo, useState } from "react";
 import type { GatewayApiClient } from "../../api/client";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
-import { siteHealthConfigSchema, siteHealthResponseSchema, siteSnapshotSchema,
-  type SiteHealthConfig, type SiteHealthResponse } from "./siteHealth";
+import type { SiteHealthConfig } from "./siteHealth";
+import {
+  healthSecretIdentity,
+  type SiteHealthSecretChange,
+  type SiteHealthSecretEdit,
+} from "./siteHealthSecretDraft";
+import { routeAccountGroupsFromDocument } from "./routeAccountCatalog";
+import { useSiteHealthForm } from "./useSiteHealthForm";
+import { useSiteHealthTelemetry } from "./useSiteHealthTelemetry";
+import { validateSiteHealthPlans } from "./siteHealthValidation";
+import { SiteHealthProfileFields } from "./SiteHealthProfileFields";
+import { SiteHealthPolicyFields } from "./SiteHealthPolicyFields";
+import { SiteHealthAuthFields } from "./SiteHealthAuthFields";
+import { SiteHealthPlanLayout } from "./SiteHealthPlanLayout";
+import { SiteHealthReport } from "./SiteHealthReport";
+import "./SiteHealthWorkspace.css";
 
-type Props = { document: ConsoleRouteDocument | null; client: GatewayApiClient; managementToken: string | null;
-  locked: boolean; draftDirty: boolean; onSave(id: string, config: SiteHealthConfig | null): void;
-  t(zh: string, en: string): string };
+type Props = {
+  document: ConsoleRouteDocument | null;
+  client: GatewayApiClient;
+  managementToken: string | null;
+  locked: boolean;
+  draftDirty: boolean;
+  onSave(
+    id: string,
+    config: SiteHealthConfig | null,
+    secrets?: SiteHealthSecretChange[],
+  ): void;
+  providerId?: string;
+  initiallyOpen?: boolean;
+  hasSecretAccess?: boolean;
+  requestSecretAccess?(): void;
+  secretAccess?: { busy: boolean; error: string | null };
+  configuredSecrets?: ReadonlySet<string>;
+  pendingSecrets?: readonly SiteHealthSecretEdit[];
+  t(zh: string, en: string): string;
+};
 
-// Site telemetry is fetched only while expanded; cancellation and host/token changes fence stale UI.
-export function SiteHealthWorkspace({ document, client, managementToken, locked, draftDirty, onSave, t }: Props) {
-  const [open, setOpen] = useState(false);
+// The dialog is outside the flip card: longer plan forms never resize either face.
+export function SiteHealthWorkspace({
+  document,
+  client,
+  managementToken,
+  locked,
+  draftDirty,
+  onSave,
+  t,
+  providerId: fixedProviderId,
+  initiallyOpen = false,
+  hasSecretAccess = false,
+  requestSecretAccess,
+  secretAccess,
+  configuredSecrets,
+  pendingSecrets,
+}: Props) {
+  const [open, setOpen] = useState(initiallyOpen);
   const [id, setId] = useState("");
-  const [enabled, setEnabled] = useState(false);
-  const [config, setConfig] = useState<SiteHealthConfig>(() => siteHealthConfigSchema.parse({}));
-  const [groups, setGroups] = useState("");
-  const [mapping, setMapping] = useState("");
-  const [reports, setReports] = useState<SiteHealthResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [refresh, setRefresh] = useState(0);
-  const manual = useRef<AbortController | null>(null);
-  const providers = useMemo(() => (document?.providers ?? []).filter(isRecord), [document]);
-  const provider = providers.find((p) => p.id === id) ?? providers[0];
+  const providers = useMemo(
+    () => (document?.providers ?? []).filter(isRecord),
+    [document],
+  );
+  const provider =
+    fixedProviderId !== undefined
+      ? providers.find((p) => p.id === fixedProviderId)
+      : (providers.find((p) => p.id === id) ?? providers[0]);
   const providerId = String(provider?.id ?? "");
-  const saved = siteHealthConfigSchema.safeParse(provider?.site_health);
-  const policyEdited = enabled !== saved.success || (enabled && saved.success && (
-    JSON.stringify(config) !== JSON.stringify(saved.data)
-    || groups !== saved.data.monitor_groups.join(", ")
-    || mapping !== Object.entries(saved.data.model_map).map(([a,b]) => `${a}=${b}`).join("\n")));
-  useEffect(() => {
-    setBusy(false);
-    return () => { manual.current?.abort(); manual.current = null; };
-  }, [client, managementToken, providerId, open]);
-  useEffect(() => {
-    const parsed = siteHealthConfigSchema.safeParse(provider?.site_health);
-    setEnabled(parsed.success); setConfig(parsed.success ? parsed.data : siteHealthConfigSchema.parse({}));
-    setGroups(parsed.success ? parsed.data.monitor_groups.join(", ") : "");
-    setMapping(parsed.success ? Object.entries(parsed.data.model_map).map(([a,b]) => `${a}=${b}`).join("\n") : "");
-  }, [provider]);
-  useEffect(() => {
-    if (!open || !managementToken) return;
-    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
-    const load = async () => {
-      try {
-        const result = await client.request("/v1/internal/gateway/site-health", siteHealthResponseSchema,
-          { managementToken, signal: controller.signal });
-        if (!controller.signal.aborted) { setReports(result); setError(null); }
-      } catch (error) { if (!controller.signal.aborted) setError(String(error)); }
-      if (!controller.signal.aborted) timer = setTimeout(() => void load(), 15000);
-    };
-    setReports(null); void load();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [open, managementToken, client, refresh]);
-  const report = reports?.items.find((r) => r.provider_id === providerId)?.snapshot;
-  const run = () => { setRefresh((value) => value + 1); };
+  // A dialog already owns disclosure. Native details creates an extra content box
+  // that prevents the bounded flex body from scrolling in Chromium.
+  const Container = fixedProviderId !== undefined ? "div" : "details";
+  // Remount the editor on provider switches, so validation and passwords never cross providers.
+  return (
+    <Container
+      className="nt-panel nt-site-health"
+      open={open}
+      onToggle={(event) => {
+        if (event.currentTarget instanceof HTMLDetailsElement)
+          setOpen(event.currentTarget.open);
+      }}
+    >
+      {fixedProviderId === undefined && (
+        <summary>{t("站点健康", "Site health")}</summary>
+      )}
+      {open && (
+        <>
+          {fixedProviderId === undefined && (
+            <label className="nt-field">
+              <span>{t("站点", "Site")}</span>
+              <select
+                className="nt-select"
+                value={providerId}
+                onChange={(e) => {
+                  setId(e.target.value);
+                  setError(null);
+                }}
+              >
+                {providers.map((p) => (
+                  <option key={String(p.id)} value={String(p.id)}>
+                    {String(p.label ?? p.id)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <SiteHealthEditor
+            key={providerId}
+            {...{
+              document,
+              client,
+              managementToken,
+              locked,
+              draftDirty,
+              onSave,
+              t,
+              hasSecretAccess,
+              requestSecretAccess,
+              secretAccess,
+              configuredSecrets,
+              pendingSecrets,
+              provider,
+              providerId,
+              open,
+              error,
+              setError,
+            }}
+          />
+        </>
+      )}
+    </Container>
+  );
+}
+
+type EditorProps = Props & {
+  provider: Record<string, unknown> | undefined;
+  providerId: string;
+  open: boolean;
+  error: string | null;
+  setError(error: string | null): void;
+};
+function SiteHealthEditor({
+  document,
+  client,
+  managementToken,
+  locked,
+  draftDirty,
+  onSave,
+  t,
+  hasSecretAccess = false,
+  requestSecretAccess,
+  secretAccess,
+  configuredSecrets,
+  pendingSecrets,
+  provider,
+  providerId,
+  open,
+  error,
+  setError,
+}: EditorProps) {
+  const form = useSiteHealthForm(provider, hasSecretAccess);
+  const telemetry = useSiteHealthTelemetry(
+    client,
+    managementToken,
+    providerId,
+    form.selectedId,
+    open,
+  );
+  const groups = useMemo(
+    () => (document ? routeAccountGroupsFromDocument(document) : []),
+    [document],
+  );
   const save = () => {
+    if (locked || telemetry.busy || !providerId) return;
     try {
-      const model_map = Object.fromEntries(mapping.split("\n").filter((v) => v.trim()).map((line) => {
-        const at = line.indexOf("="); if (at < 1 || at === line.length - 1) throw new Error(t("模型映射格式：本地模型=站点模型", "Model mapping: local=site"));
-        return [line.slice(0,at).trim(), line.slice(at+1).trim()];
-      }));
-      onSave(providerId, enabled ? siteHealthConfigSchema.parse({ ...config, model_map,
-        monitor_groups: groups.split(",").map((s) => s.trim()).filter(Boolean) }) : null);
+      const result = form.build();
+      if (result.config)
+        validateSiteHealthPlans(
+          result.config,
+          new Set(groups.map((g) => g.id)),
+        );
+      if (result.changes.length)
+        onSave(providerId, result.config, result.changes);
+      else onSave(providerId, result.config);
       setError(null);
-    } catch (error) { setError(String(error)); }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    }
   };
-  return <details className="nt-panel" onToggle={(event) => setOpen(event.currentTarget.open)}>
-    <summary>{t("站点健康", "Site health")}</summary>
-    {open && <div className="nt-stack">
-      <label className="nt-field"><span>{t("站点", "Site")}</span><select className="nt-select" value={providerId} onChange={(e) => setId(e.target.value)}>
-        {providers.map((p) => <option key={String(p.id)} value={String(p.id)}>{String(p.label ?? p.id)}</option>)}
-      </select></label>
-      <fieldset disabled={locked || busy || !providerId} className="nt-grid nt-grid--2">
-        <label><input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />{t("启用自动接口识别与站点监控", "Enable automatic site health discovery")}</label>
-        <label className="nt-field"><span>{t("控制策略", "Policy")}</span><select className="nt-select" value={config.mode} onChange={(e) => setConfig({ ...config, mode: e.target.value as SiteHealthConfig["mode"] })}>
-          <option value="advisory">{t("仅提示", "Advisory")}</option><option value="restrict">{t("限制异常模型路由", "Restrict unhealthy models")}</option></select></label>
-        <label className="nt-field"><span>{t("监控站地址（留空使用本站）", "Monitor URL (empty: this site)")}</span><input className="nt-input" type="url" value={config.site_url ?? ""} onChange={(e) => setConfig({ ...config, site_url: e.target.value || null })} /></label>
-        <label className="nt-field"><span>{t("最低成功率 %", "Minimum success rate %")}</span><input className="nt-input" type="number" min={0} max={100} value={config.minimum_success_rate} onChange={(e) => setConfig({ ...config, minimum_success_rate: e.target.valueAsNumber })} /></label>
-        <label className="nt-field"><span>{t("刷新间隔（秒）", "Refresh interval (seconds)")}</span><input className="nt-input" type="number" min={30} value={config.refresh_interval_secs} onChange={(e) => setConfig({ ...config, refresh_interval_secs: e.target.valueAsNumber })} /></label>
-        <label className="nt-field"><span>{t("信息有效期（秒）", "Maximum age (seconds)")}</span><input className="nt-input" type="number" min={30} value={config.max_age_secs} onChange={(e) => setConfig({ ...config, max_age_secs: e.target.valueAsNumber })} /></label>
-        <label className="nt-field"><span>{t("未知或过期信息", "Unknown or stale information")}</span><select className="nt-select" value={config.unknown_policy} onChange={(e) => setConfig({ ...config, unknown_policy: e.target.value as SiteHealthConfig["unknown_policy"] })}>
-          <option value="allow">{t("放行", "Allow")}</option><option value="block">{t("阻止", "Block")}</option></select></label>
-        <label className="nt-field"><span>{t("监控分组（逗号分隔）", "Monitor groups (comma separated)")}</span><input className="nt-input" value={groups} onChange={(e) => setGroups(e.target.value)} /></label>
-        <label className="nt-field"><span>{t("模型映射", "Model mappings")}</span><textarea className="nt-textarea" value={mapping} onChange={(e) => setMapping(e.target.value)} placeholder="upstream-model=monitor-model" /></label>
-        <label><input type="checkbox" checked={config.allow_private_network} onChange={(e) => setConfig({ ...config, allow_private_network: e.target.checked })} />{t("允许访问所选站点的内网地址", "Allow private network addresses for this site")}</label>
-      </fieldset>
-      <div className="dialog-actions"><button className="nt-btn nt-btn--primary" disabled={locked || busy || !providerId} onClick={save}>{t("保存站点策略", "Save site policy")}</button>
-        <button className="nt-btn nt-btn--outline" disabled={locked || busy || draftDirty || policyEdited || !enabled || !managementToken} onClick={() => {
-          const controller = new AbortController(); manual.current?.abort(); manual.current = controller;
-          setBusy(true); void client.request(`/v1/internal/gateway/site-health/${encodeURIComponent(providerId)}/refresh`, z.object({snapshot:siteSnapshotSchema}), {method:"POST",managementToken,signal:controller.signal})
-            .then(() => { if (!controller.signal.aborted) run(); })
-            .catch((error) => { if (!controller.signal.aborted) setError(String(error)); })
-            .finally(() => { if (!controller.signal.aborted) setBusy(false); });
-        }}>{busy ? t("识别中", "Detecting") : t("立即识别接口", "Detect interfaces now")}</button></div>
-      {error && <div role="alert">{error}</div>}
-      {report ? <><div>{t("检测时间", "Checked")}: {new Date(report.checked_at * 1000).toLocaleString()} · {report.selected_template ?? t("未确认接口", "No confirmed interface")}
-        {Date.now()/1000-report.checked_at >= config.max_age_secs ? ` · ${t("已过期", "Stale")}` : ""}</div>
-        <table className="nt-table"><thead><tr><th>{t("自动模板", "Detected template")}</th><th>{t("状态", "Status")}</th><th>HTTP</th><th>{t("模型数", "Models")}</th></tr></thead>
-          <tbody>{report.probes.map((p) => <tr key={p.template}><td title={p.endpoint}>{p.template}</td><td>{p.status}</td><td>{p.http_status ?? "—"}</td><td>{p.model_count}</td></tr>)}</tbody></table>
-        <div>{Object.entries(report.models).map(([name,rate]) => <span className="nt-badge" key={name}>{name}: {rate === null ? t("无有效样本", "No valid samples") : `${rate.toFixed(1)}%`} </span>)}</div>
-      </> : <div role="status">{t("尚无站点健康结果", "No site health results yet")}</div>}
-    </div>}
-  </details>;
+  const configured =
+    configuredSecrets?.has(healthSecretIdentity(providerId, form.selectedId)) ??
+    false;
+  const pending = pendingSecrets?.find(
+    (p) => p.providerId === providerId && p.profileId === form.selectedId,
+  )?.operation;
+  return (
+    <SiteHealthPlanLayout
+      config={form.config}
+      selectedId={form.selectedId}
+      groups={groups}
+      enabled={form.enabled}
+      locked={locked || !providerId}
+      onEnable={form.setEnabled}
+      onChange={form.changeConfig}
+      onSelect={form.select}
+      t={t}
+      actions={
+        <>
+          <button
+            type="button"
+            className="nt-btn nt-btn--outline"
+            aria-label={
+              telemetry.busy
+                ? t("识别中", "Detecting")
+                : t("立即识别接口", "Detect interfaces now")
+            }
+            disabled={
+              locked ||
+              telemetry.busy ||
+              !providerId ||
+              draftDirty ||
+              form.dirty ||
+              !form.enabled ||
+              !managementToken
+            }
+            onClick={telemetry.detect}
+          >
+            {telemetry.busy
+              ? t("识别中", "Detecting")
+              : t("立即识别", "Detect now")}
+          </button>
+          <button
+            type="button"
+            className="nt-btn nt-btn--primary"
+            aria-label={t("保存站点策略", "Save site policy")}
+            disabled={locked || telemetry.busy || !providerId}
+            onClick={save}
+          >
+            {t("保存方案", "Save plan")}
+          </button>
+        </>
+      }
+      report={
+        <>
+          {(error || telemetry.error) && (
+            <div className="nt-alert nt-alert--danger" role="alert">
+              {error || telemetry.error}
+            </div>
+          )}
+          <SiteHealthReport
+            report={telemetry.report}
+            maxAge={form.policy.max_age_secs}
+            edited={form.dirty || draftDirty}
+            t={t}
+          />
+        </>
+      }
+    >
+      <SiteHealthProfileFields
+        config={form.config}
+        selectedId={form.selectedId}
+        groups={groups}
+        onChange={form.changeConfig}
+        t={t}
+      />
+      <SiteHealthPolicyFields
+        policy={form.policy}
+        onChange={form.changePolicy}
+        groups={form.text.groups}
+        mapping={form.text.mapping}
+        onText={(groups, mapping) => form.changeText({ groups, mapping })}
+        t={t}
+      />
+      <SiteHealthAuthFields
+        policy={form.policy}
+        onChange={form.changePolicy}
+        secret={form.secret}
+        onSecret={form.changeSecret}
+        configured={configured}
+        pending={pending}
+        hasSecretAccess={hasSecretAccess}
+        requestSecretAccess={requestSecretAccess}
+        secretAccess={secretAccess}
+        t={t}
+      />
+    </SiteHealthPlanLayout>
+  );
 }

@@ -1,0 +1,19 @@
+.nt-settings-workspace { min-width: 0; width: 100%; container: settings / inline-size; }
+.nt-settings-workspace__content { min-width: 0; padding: 0 10px 24px; }
+/* Security starts with its own compact toolbar; do not stack another top inset. */
+.nt-settings-workspace__content.nt-settings-workspace__content--security { padding-top: 0; }
+.nt-settings-workspace .nt-btn { font-size: 13px; font-weight: 600; }
+.nt-settings-workspace .nt-btn:hover:not(:disabled) { transform: none; }
+.nt-settings-tabs { display: flex; gap: 28px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+.nt-settings-tabs > button { position: relative; display: flex; flex: 0 0 116px; align-items: center; gap: 9px; min-height: 46px; padding: 0 1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--nt-text-muted); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.nt-settings-tabs > button[aria-selected="true"] { color: var(--nt-text); border-bottom-color: var(--nt-signal); }
+.nt-settings-tabs > button:disabled { opacity: .55; cursor: not-allowed; }
+.nt-settings-tabs > button:hover:not(:disabled) { color: var(--nt-text); }
+.nt-settings-tabs > button:focus-visible { outline: 2px solid var(--nt-signal); outline-offset: -3px; }
+.nt-settings-tabs svg { flex-shrink: 0; }
+.nt-settings-host-note { max-width: 620px; margin: 0 0 18px; color: var(--nt-text-muted); font-size: 12px; line-height: 1.7; }
+.nt-settings-native-shell .nt-stage { padding-top: 0; }
+@media (max-width: 700px) {
+  .nt-settings-tabs { gap: 20px; }
+  .nt-settings-workspace__content { padding: 0 0 24px; }
+}

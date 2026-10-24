@@ -11,6 +11,7 @@ pub(super) async fn send(
     attempt: PreparedAttempt,
 ) -> Result<PipelineOutput, AttemptError> {
     let mut stream_retry_policy = attempt.retry_policy.clone();
+    let terminal_gate = attempt.provider_attempt_gate.clone();
     let sticky = state.lifecycle.smart_routing.sticky(
         super::super::stage_route::smart::session_scope(ctx).as_deref(),
         ctx.canonical_req
@@ -270,6 +271,7 @@ pub(super) async fn send(
                         });
                     }
                     if success {
+                        terminal_gate.finish_success();
                         state_for_cb.lifecycle.smart_routing.outcome(
                             &provider_id,
                             audit_snapshot
@@ -334,19 +336,16 @@ pub(super) async fn send(
                                         crate::upstream::stream::StreamTermination::Interrupted,
                                     ))
                         {
-                            if evidenced_failure
-                                || metrics.termination
-                                    == Some(crate::upstream::stream::StreamTermination::Interrupted)
-                            {
-                                state_for_cb.lifecycle.smart_routing.outcome(
-                                    &provider_id,
-                                    audit_snapshot
-                                        .requested_model
-                                        .as_deref()
-                                        .unwrap_or_default(),
-                                    false,
-                                );
-                            }
+                            terminal_gate.finish_stream_failure();
+                            terminal_gate.release_failed_sticky();
+                            state_for_cb.lifecycle.smart_routing.outcome(
+                                &provider_id,
+                                audit_snapshot
+                                    .requested_model
+                                    .as_deref()
+                                    .unwrap_or_default(),
+                                false,
+                            );
                             ctrl_for_cb.on_failure(FailureKind::General);
                             spawn_record_provider_failure(
                                 Arc::clone(&state_for_cb),
@@ -356,6 +355,7 @@ pub(super) async fn send(
                                 failure_message.clone(),
                             );
                         }
+                        terminal_gate.finish_neutral();
                         let state_for_finalize = Arc::clone(&state_for_cb);
                         let upstream_failed = budget_for_cb.stopped_reason().is_none()
                             && (evidenced_failure

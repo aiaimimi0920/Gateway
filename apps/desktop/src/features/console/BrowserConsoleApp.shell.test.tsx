@@ -93,8 +93,10 @@ describe("BrowserConsoleApp", () => {
     const settingsButton = within(utility).getByRole("button", { name: /设置/i });
 
     await user.click(settingsButton);
-    expect(await screen.findByRole("heading", { name: /^主题$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /界面语言/i })).toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: /^主题$/i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /界面语言/i })).toBeInTheDocument();
+    expect(within(screen.getByRole("tablist", { name: "设置分类" })).getAllByRole("tab").map(tab => tab.textContent))
+      .toEqual(["界面偏好", "管理安全", "诊断与日志"]);
     expect(document.querySelector(".nt-hud-strip")).toBeNull();
   });
 
@@ -222,7 +224,7 @@ describe("BrowserConsoleApp", () => {
     expect(within(firstCard as HTMLElement).getByRole("switch", { name: /调度 acc-prod-1/i })).toHaveAttribute("aria-checked", "true");
     expect(
       within(secondCard as HTMLElement).getByRole("combobox", { name: /调整 生产账号 B 分组池/i }),
-    ).toHaveAttribute("data-group-id", "");
+    ).toHaveAttribute("data-group-id", "default");
     expect(within(secondCard as HTMLElement).getByRole("switch", { name: /调度 acc-prod-2/i })).toHaveAttribute("aria-checked", "true");
     expect(within(providerLibrary).queryByRole("table")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /Managed OpenAI 账号明细/i })).not.toBeInTheDocument();

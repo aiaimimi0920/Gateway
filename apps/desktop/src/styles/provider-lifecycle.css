@@ -23,6 +23,33 @@
 .nt-provider-lifecycle__pair > :first-child {
   padding-right: 9px;
 }
+/* Keep the client label/select and health action in equal, stable half-rows. */
+.nt-provider-lifecycle__client-row { align-items: center; }
+.nt-provider-lifecycle__client-row .nt-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.7rem;
+}
+.nt-provider-lifecycle__client-row .nt-field > span { flex-shrink: 0; }
+.nt-provider-lifecycle__client-row .nt-select {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: 30px;
+  min-height: 30px;
+  padding: 2px;
+  font-size: 0.7rem;
+}
+.nt-provider-lifecycle__site-health .nt-btn {
+  width: 100%;
+  min-height: 30px;
+  padding: 3px 5px;
+  gap: 4px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
 .nt-provider-lifecycle__metrics {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 9px 0 12px;

@@ -1,4 +1,5 @@
 import { providerStoragePathError } from "./providerStoragePath";
+import { displayLabel } from "./displayLabel";
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { ConsoleRouteDocument, ConsoleCredentialPoolAutomationResponse, ConsoleCredentialPoolAutomationProvider, ConsoleCredentialRefillResponse } from "../../api/contracts";
 import { pushAppToast } from "../../components/AppToast";
@@ -56,7 +57,7 @@ export function usePilotPolicyEditor({
         return;
       }
 
-      const providerLabel = optionalString(provider, "label") ?? providerId;
+      const providerLabel = displayLabel(optionalString(provider, "label") ?? providerId);
       const existingCategories = readPilotIdentityCategories(provider, providerId, providerLabel);
       const existingIds = new Set(existingCategories.map((category) => category.id));
       const baseId = normalizePilotCategoryId(label, `identity-${existingCategories.length + 1}`);
@@ -129,7 +130,7 @@ export function usePilotPolicyEditor({
         return;
       }
 
-      const providerLabel = optionalString(provider, "label") ?? providerId;
+      const providerLabel = displayLabel(optionalString(provider, "label") ?? providerId);
       const existingCategories = readPilotIdentityCategories(provider, providerId, providerLabel);
       const nextCategories = existingCategories.map((category) =>
         category.id === categoryId

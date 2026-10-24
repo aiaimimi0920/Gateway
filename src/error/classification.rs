@@ -92,6 +92,11 @@ pub fn classify_upstream_error(
     if let Some(error) = super::html_rejection::classify(status, body, provider_name) {
         return error;
     }
+    if let Some(error) =
+        super::stream_initialization_rejection::classify(status, body, provider_name)
+    {
+        return error;
+    }
     let status_kind = kind_from_http_status(status);
     let body_kind = kind_from_body_keywords(body);
     let code = extract_code_from_body(body);
@@ -151,7 +156,7 @@ pub fn classify_upstream_error(
         .map(|raw_message| sanitize_provider_error_message(&raw_message))
         .unwrap_or_else(|| truncate(&sanitize_provider_error_message(body), 200).to_string());
 
-    GatewayError {
+    let mut error = GatewayError {
         kind,
         message,
         code,
@@ -160,7 +165,14 @@ pub fn classify_upstream_error(
         fallback_hint,
         provider_name: provider_name.map(str::to_string),
         upstream_retry_after_ms,
+    };
+    if super::is_channel_unavailable(&error) {
+        error.retryable = false;
+        error.fallback_hint = FallbackHint::FallbackProvider {
+            reason: "No available model channel; cool this candidate and try another.".into(),
+        };
     }
+    error
 }
 
 /// Classify a [`rquest::Error`] (network / transport level) into a [`GatewayError`].

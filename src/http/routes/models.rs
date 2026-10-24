@@ -40,17 +40,34 @@ pub async fn handle_models(
     .await?;
 
     let local_id = crate::local_runtime::access_keys::local_key_id(&state, Some(&session));
+    let route = state.route_config.snapshot();
+    let admit = |p: &str, c: &str, m: &str| {
+        crate::routing::admission::subject_allowed(&state, &route, p, Some(c), m)
+    };
     let mut models = if let (Some(local), Some(id)) = (&state.local_runtime, local_id) {
-        local.local_access_models(id, &state.route_config).await?
+        local
+            .local_access_models_admitted(id, &state.route_config, &admit)
+            .await?
     } else if let Some(pg_pool) = &state.pg_pool {
         provider_runtime::sweep_cooling_provider_accounts_best_effort(&state, 10).await;
         if let Some(access_key_id) = session.access_key_id.as_deref() {
-            crate::db::list_models_for_access_key(pg_pool, &state.redis_pool, access_key_id).await?
+            crate::db::list_models_for_access_key_admitted(
+                pg_pool,
+                &state.redis_pool,
+                access_key_id,
+                &|p, c, m| crate::routing::admission::subject_allowed(&state, &route, p, c, m),
+            )
+            .await?
         } else {
-            crate::db::list_models_for_project(pg_pool, &session.project_id).await?
+            crate::db::list_models_for_project_admitted(pg_pool, &session.project_id, &|p, c, m| {
+                crate::routing::admission::subject_allowed(&state, &route, p, c, m)
+            })
+            .await?
         }
     } else {
-        state.route_config.list_models()
+        let mut models = route.list_models();
+        models.retain(|m| route.has_admitted_candidate(&m.id, None, None, &admit));
+        models
     };
     if local_id.is_none() {
         let snapshot = state.route_config.snapshot();
@@ -59,10 +76,7 @@ pub async fn handle_models(
         {
             // Group restrictions narrow server entitlements; they never grant a missing bundle right.
             models.retain(|model| {
-                !snapshot
-                    .resolve_candidates_with_constraint(Some(&model.id), Some(&groups))
-                    .candidates
-                    .is_empty()
+                snapshot.has_admitted_candidate(&model.id, Some(&groups), None, &admit)
             });
         }
     }

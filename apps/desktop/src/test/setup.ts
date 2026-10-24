@@ -6,16 +6,18 @@ import { server } from "./server";
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 // jsdom has no layout observer; Radix mounts one when keyboard focus opens a tooltip.
 beforeAll(() => vi.stubGlobal("ResizeObserver", class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  observe() { }
+  unobserve() { }
+  disconnect() { }
 }));
 
-// Native layout/pointer methods are absent in jsdom but used by Radix Select.
+// Native layout/pointer/popover methods are absent in jsdom; browser tests cover top-layer geometry.
 const selectDomFallbacks = {
   hasPointerCapture: () => false,
-  releasePointerCapture: () => {},
-  scrollIntoView: () => {},
+  releasePointerCapture: () => { },
+  scrollIntoView: () => { },
+  showPopover(this: HTMLElement) { this.style.display = "block"; },
+  hidePopover(this: HTMLElement) { this.style.removeProperty("display"); },
 };
 const addedDomMethods: string[] = [];
 beforeAll(() => {

@@ -7,72 +7,14 @@ fn collect_model_catalog_ids_for_tests(
     capability_rows: Vec<ProviderCapabilityModelRow>,
     provider_default_models: HashMap<String, Option<String>>,
 ) -> Vec<String> {
-    let provider_rows_by_id = provider_rows
-        .iter()
-        .map(|row| (row.id.as_str(), row))
-        .collect::<HashMap<_, _>>();
-    let shadowed_upstream_models = collect_shadowed_upstream_models_for_catalog(
+    super::catalog_selection::collect_catalog_ids(
         route_policy,
         &alias_rows,
+        &provider_rows,
         &capability_rows,
-        &provider_rows_by_id,
-    );
-    let mut model_ids = BTreeSet::new();
-
-    for row in alias_rows {
-        if row.enabled
-            && route_policy_allows_models(
-                route_policy,
-                [Some(row.alias.as_str()), row.upstream_model.as_deref()],
-            )
-        {
-            model_ids.insert(row.alias);
-        }
-    }
-
-    for row in capability_rows {
-        let Some(provider_row) = provider_rows_by_id.get(row.provider_account_id.as_str()) else {
-            continue;
-        };
-        if !provider_allowed_by_route_policy(provider_row, route_policy) {
-            continue;
-        }
-        if !route_policy_allows_models(
-            route_policy,
-            [Some(row.model_code.as_str()), row.upstream_model.as_deref()],
-        ) {
-            continue;
-        }
-        let upstream_model = row
-            .upstream_model
-            .as_deref()
-            .unwrap_or(row.model_code.as_str());
-        if row.model_code == upstream_model
-            && shadowed_upstream_models
-                .contains(&(row.provider_account_id.clone(), upstream_model.to_string()))
-        {
-            continue;
-        }
-        model_ids.insert(row.model_code.clone());
-    }
-
-    for provider_row in provider_rows {
-        if !provider_allowed_by_route_policy(&provider_row, route_policy) {
-            continue;
-        }
-        let Some(Some(default_model)) = provider_default_models.get(provider_row.id.as_str())
-        else {
-            continue;
-        };
-        if route_policy_allows_models(route_policy, [Some(default_model.as_str()), None])
-            && !shadowed_upstream_models
-                .contains(&(provider_row.id.clone(), default_model.to_string()))
-        {
-            model_ids.insert(default_model.clone());
-        }
-    }
-
-    model_ids.into_iter().collect()
+        &provider_default_models,
+        &|_, _, _| true,
+    )
 }
 
 fn make_provider_row(id: &str, protocol_family: &str) -> GatewayProviderRouteRow {

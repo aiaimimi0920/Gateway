@@ -44,12 +44,20 @@ pub fn show_settings(app: &AppHandle) {
     }
 }
 
+pub fn show_category(app: &AppHandle, category: &str) {
+    // The caller uses a fixed allowlist; no server input is evaluated or passed to IPC.
+    use tauri::Emitter;
+    let _ = app.emit_to("main", "gateway-settings-category", category);
+    show_settings(app);
+}
+
 pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
     *app.state::<ConnectionState>()
         .origin
         .lock()
         .map_err(|_| "Connection lock poisoned")? = Some(url.origin().ascii_serialization());
-    if let Some(window) = app.get_webview_window("gateway-console") {
+    super::panel::enqueue(app, super::panel::Request::Close);
+    if let Some(window) = app.get_window("gateway-console") {
         window
             .set_decorations(true)
             .map_err(|error| error.to_string())?;
@@ -57,7 +65,10 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
             .set_menu(native_menu(app)?)
             .map_err(|error| error.to_string())?;
         window.hide().map_err(|error| error.to_string())?;
-        window.navigate(url).map_err(|error| error.to_string())?;
+        app.get_webview("gateway-console")
+            .ok_or("Console webview unavailable")?
+            .navigate(url)
+            .map_err(|error| error.to_string())?;
     } else {
         let menu = native_menu(app)?;
         let navigation_app = app.clone();
@@ -66,12 +77,13 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
         // the fixed, intercepted navigation actions in chrome.rs.
         WebviewWindowBuilder::new(app, "gateway-console", WebviewUrl::External(url))
             .data_directory(crate::paths::gateway_app_dir()?.join("webview"))
+            .use_https_scheme(true)
             .title("Gateway")
             .visible(false)
             .background_color(Color(6, 8, 13, 255))
             .inner_size(1280.0, 850.0)
             .min_inner_size(900.0, 600.0)
-            .initialization_script(super::chrome::INITIALIZATION_SCRIPT)
+            .initialization_script(super::chrome::initialization_script())
             .on_page_load(|window, payload| {
                 // Do not expose WebView2's empty document or the intermediate connection form.
                 if !matches!(payload.event(), PageLoadEvent::Finished) {
@@ -113,6 +125,8 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
                 if super::chrome::handle_navigation(&navigation_app, "gateway-console", target) {
                     return false;
                 }
+                // A full document navigation bypasses React's unmount cleanup.
+                super::panel::enqueue(&navigation_app, super::panel::Request::Close);
                 navigation_app
                     .state::<ConnectionState>()
                     .origin

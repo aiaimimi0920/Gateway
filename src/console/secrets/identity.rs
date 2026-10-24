@@ -42,6 +42,12 @@ pub(super) fn active_path_for_keep(
         )?;
     }
     segments[1] = active_provider_index.to_string();
+    super::site_health::map_keep(
+        &active.providers[active_provider_index],
+        draft_provider,
+        pointer,
+        &mut segments,
+    )?;
     if segments.get(2).map(String::as_str) == Some("credentials") {
         let draft_credential_index = parse_array_index(&segments[3], pointer)?;
         let draft_credential = draft_provider
@@ -233,7 +239,7 @@ pub(super) fn require_operations_for_existing_secrets(
     Ok(())
 }
 
-enum SecretDisposition {
+pub(super) enum SecretDisposition {
     Retained(String),
     Replacement(String),
     ReplacementWithoutTarget(String),
@@ -283,6 +289,14 @@ fn draft_path_for_active_secret(
 
     let mut segments = pointer.segments.clone();
     segments[1] = draft_provider_index.to_string();
+    if segments[2] == "site_health" {
+        return super::site_health::draft_path(
+            active_provider,
+            &draft.providers[draft_provider_index],
+            pointer,
+            segments,
+        );
+    }
     if super::storage_connections::is_field(&segments[2])
         && !super::storage_connections::secret_exists(
             &draft.providers[draft_provider_index],

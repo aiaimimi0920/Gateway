@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ConsoleAnomalyIncident } from "../../api/contracts";
-import { operationsSummaryFixture } from "./OperationsWorkspace.fixtures";
+import {
+  operationsRequestFixture,
+  operationsSummaryFixture,
+} from "./OperationsWorkspace.fixtures";
 
 import {
   OPERATIONS_DEFAULT_REQUEST_FILTERS,
@@ -92,6 +95,43 @@ function incident(
 }
 
 describe("operations workspace boundaries", () => {
+  it("applies explicit incident search/order without changing summary badges, errors or mutation targets", () => {
+    const props = fixture({
+      incidents: { data: [incident("resolved-z", "resolved", "2026-10-24T09:00:00Z"), incident("open-a", "open", "2026-10-24T08:00:00Z")], error: "incident read warning", loading: false },
+    });
+    const { container, rerender } = render(<OperationsWorkspace {...props} listView={{ query: "", sort: "newest" }} />);
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Incident management" }));
+    const codes = () => [...container.querySelectorAll(".nt-table--incidents .nt-table__row")].map((row) => row.firstElementChild?.textContent);
+    expect(codes()).toEqual(["resolved-z", "open-a"]);
+    rerender(<OperationsWorkspace {...props} listView={{ query: "OPEN-A", sort: "name" }} />);
+    expect(codes()).toEqual(["open-a"]);
+    fireEvent.click(screen.getByRole("button", { name: "Resolve" }));
+    expect(props.onResolveIncident).toHaveBeenCalledWith("open-a");
+    rerender(<OperationsWorkspace {...props} listView={{ query: "missing", sort: "name" }} />);
+    expect(codes()).toEqual([]);
+    expect(screen.getByText("incident read warning")).toBeVisible();
+    expect(props.onApplyRequestFilters).not.toHaveBeenCalled();
+  });
+
+  it("surfaces failed requests on entry and transfers focus to investigation without applying filters", () => {
+    const props = fixture({
+      requests: {
+        data: [operationsRequestFixture()],
+        error: null,
+        loading: false,
+      },
+    });
+    render(<OperationsWorkspace {...props} />);
+    expect(screen.getByText("upstream rate limited")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "View requests" }));
+    expect(screen.getByRole("tab", { name: "Request log" })).toHaveFocus();
+    expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
+    expect(screen.getByRole("tabpanel", { name: "Request log" })).toBeVisible();
+    expect(screen.getByText("upstream rate limited")).toBeVisible();
+    expect(props.onApplyRequestFilters).not.toHaveBeenCalled();
+    expect(props.onRequestFiltersChange).not.toHaveBeenCalled();
+  });
+
   it("collapses routine checks but exposes readiness failures and open breakers", () => {
     const dependency = {
       configured: false,
@@ -187,7 +227,7 @@ describe("operations workspace boundaries", () => {
     expect(screen.getByText("Not ready")).toBeVisible();
   });
 
-  it("keeps pending incidents visible even while the anomaly section is collapsed", () => {
+  it("keeps pending incident counts visible while another view is active", () => {
     render(
       <OperationsWorkspace
         {...fixture({
@@ -212,8 +252,8 @@ describe("operations workspace boundaries", () => {
     );
     expect(screen.getByText("2 open")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: /Anomalies & remediation/ }),
-    ).toHaveAttribute("aria-expanded", "false");
+      screen.getByRole("tab", { name: /Incident management/ }),
+    ).toHaveAttribute("aria-selected", "false");
   });
 
   it("orders actionable incidents without mutating input and enforces per-row action locks", () => {
@@ -228,8 +268,8 @@ describe("operations workspace boundaries", () => {
       incidents: { data: rows, error: "stale incident data", loading: true },
     });
     const { container, rerender } = render(<OperationsWorkspace {...props} />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Anomalies & remediation" }),
+    fireEvent.mouseDown(
+      screen.getByRole("tab", { name: "Incident management" }),
     );
     expect(screen.getByText("stale incident data")).toBeVisible();
     expect(
@@ -309,7 +349,7 @@ describe("operations workspace boundaries", () => {
         })}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Request log" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Request log" }));
     fireEvent.click(screen.getByText("Usage archive"));
     fireEvent.click(screen.getByText("Prompt cache"));
     const queueCard = screen.getByText("Queue depth").closest("article");
@@ -319,7 +359,7 @@ describe("operations workspace boundaries", () => {
     expect(screen.getByText("$0.0100")).toBeVisible();
   });
 
-  it("opens live only and preserves independent panel errors and loading state", () => {
+  it("opens overview only and preserves independent panel errors and loading state", () => {
     render(
       <OperationsWorkspace
         {...fixture({
@@ -333,32 +373,34 @@ describe("operations workspace boundaries", () => {
         })}
       />,
     );
-    expect(screen.getByRole("button", { name: "Live" })).toHaveAttribute(
-      "aria-expanded",
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+      "aria-selected",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Request log" })).toHaveAttribute(
-      "aria-expanded",
+    expect(screen.getByRole("tab", { name: "Request log" })).toHaveAttribute(
+      "aria-selected",
       "false",
     );
-    expect(screen.getByText("pressure unavailable")).toBeVisible();
+    for (const message of screen.getAllByText("pressure unavailable")) {
+      expect(message).toBeVisible();
+    }
     expect(screen.getByText("Loading…")).toBeVisible();
     expect(screen.getByText("operator notice")).toBeVisible();
     expect(
       screen.queryByRole("heading", { name: "Incident summary" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Anomalies & remediation" }),
+    fireEvent.mouseDown(
+      screen.getByRole("tab", { name: "Incident management" }),
     );
     expect(
       screen.getByRole("heading", { name: "Incident summary" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Runtime pressure" }),
-    ).toBeVisible();
+      screen.queryByRole("heading", { name: "Runtime pressure" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("merges controlled filters and retains callbacks across collapse and reopen", () => {
+  it("merges controlled filters and retains callbacks across view changes", () => {
     const props = fixture({
       requestFilters: {
         ...OPERATIONS_DEFAULT_REQUEST_FILTERS,
@@ -366,8 +408,8 @@ describe("operations workspace boundaries", () => {
       },
     });
     render(<OperationsWorkspace {...props} />);
-    const toggle = screen.getByRole("button", { name: "Request log" });
-    fireEvent.click(toggle);
+    const toggle = screen.getByRole("tab", { name: "Request log" });
+    fireEvent.mouseDown(toggle);
     fireEvent.change(screen.getByLabelText("Status"), {
       target: { value: "failed" },
     });
@@ -377,9 +419,9 @@ describe("operations workspace boundaries", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
     expect(props.onApplyRequestFilters).toHaveBeenCalledTimes(1);
-    fireEvent.click(toggle);
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Overview" }));
     expect(screen.queryByLabelText("Project")).not.toBeInTheDocument();
-    fireEvent.click(toggle);
+    fireEvent.mouseDown(toggle);
     expect(screen.getByLabelText("Project")).toHaveValue("project-a");
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     expect(props.onRequestFiltersChange).toHaveBeenLastCalledWith(
@@ -390,7 +432,7 @@ describe("operations workspace boundaries", () => {
   it("removes manual refresh while preserving request mutation locks", () => {
     const props = fixture({ editorLocked: true });
     const { rerender } = render(<OperationsWorkspace {...props} />);
-    fireEvent.click(screen.getByRole("button", { name: "Request log" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Request log" }));
     expect(
       screen.getByRole("button", { name: "Apply filters" }),
     ).toBeDisabled();
@@ -415,19 +457,21 @@ describe("operations workspace boundaries", () => {
       />,
     );
     expect(
-      screen.getByText("pressure failed").closest("article"),
+      screen.getAllByText("pressure failed")[0].closest("article"),
     ).not.toHaveTextContent("No data yet");
     expect(
       screen.queryByText(/Operations data comes straight/),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Request log" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Request log" }));
     const cache = screen.getByText("Prompt cache").closest("details");
     expect(cache).not.toHaveAttribute("open");
     expect(within(cache!).getByText("Read failed")).toBeVisible();
     expect(screen.getByText("cache failed")).not.toBeVisible();
     fireEvent.click(screen.getByText("Prompt cache"));
     expect(screen.getByText("cache failed")).toBeVisible();
-    const section = container.querySelector("#nt-operations-section-requests")!;
+    const section = container.querySelector(
+      '[role="tabpanel"][data-state="active"]',
+    )!;
     const titles = Array.from(section.querySelectorAll("h3, summary")).map(
       (node) => node.textContent,
     );

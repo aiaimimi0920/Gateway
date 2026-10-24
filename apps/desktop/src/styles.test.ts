@@ -165,4 +165,11 @@ describe("Gateway Neuro theme contract", () => {
     expect(styles).toMatch(/\.nt-provider-card\s*\{[^}]*max-width: 292px;/);
     expect(styles).toMatch(/\.nt-provider-account-card\s*\{[^}]*width: 292px;/);
   });
+
+  it("shares the provider face grid track and fits client controls beside site health", () => {
+    expect(styles).toMatch(/\.nt-provider-card__face\s*\{[^}]*grid-area: 1 \/ 1;[^}]*min-height: 100%;/);
+    expect(styles).toMatch(/\.nt-provider-lifecycle__pair,[\s\S]*?\.nt-provider-lifecycle__metrics\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(styles).toMatch(/\.nt-provider-lifecycle__client-row \.nt-field\s*\{[^}]*display: flex;[^}]*align-items: center;/);
+    expect(styles).toMatch(/\.nt-provider-lifecycle__client-row \.nt-select\s*\{[^}]*min-width: 0;[^}]*height: 30px;[^}]*min-height: 30px;/);
+  });
 });

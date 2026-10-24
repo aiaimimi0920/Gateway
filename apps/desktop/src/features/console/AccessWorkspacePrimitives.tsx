@@ -42,12 +42,8 @@ export function CopyButton({
   };
 
   const resting = label ?? t("复制", "Copy");
-  const caption =
-    state === "copied"
-      ? t("已复制", "Copied")
-      : state === "failed"
-        ? t("复制失败", "Copy failed")
-        : resting;
+  // Success changes only the icon/color, not the label's layout width.
+  const caption = state === "failed" ? t("复制失败", "Copy failed") : resting;
   const stateClass =
     state === "copied"
       ? " nt-console-copy--ok"
@@ -62,7 +58,7 @@ export function CopyButton({
       onClick={() => {
         void copy();
       }}
-      title={caption}
+      title={state === "copied" ? t("已复制", "Copied") : caption}
       type="button"
     >
       {state === "copied" ? (
@@ -71,6 +67,9 @@ export function CopyButton({
         <Copy aria-hidden="true" size={14} />
       )}
       <span>{caption}</span>
+      <span className="nt-visually-hidden" aria-live="polite">
+        {state === "copied" ? t("已复制", "Copied") : ""}
+      </span>
     </button>
   );
 }

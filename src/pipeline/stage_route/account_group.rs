@@ -2,6 +2,21 @@
 
 use super::*;
 
+pub(super) fn key_group_candidates_error(
+    snapshot: &crate::routing::config::RouteConfigSnapshot,
+    constraint: &RouteAccountGroupConstraint,
+    model: Option<&str>,
+) -> GatewayError {
+    if snapshot.has_authorized_model(model, constraint) {
+        GatewayError::service_unavailable(
+            "Authorized upstream accounts are disabled or temporarily unavailable",
+        )
+        .with_code("authorized_candidates_unavailable")
+    } else {
+        crate::access_key_groups::denied()
+    }
+}
+
 pub(super) fn map_account_group_selection_error(
     error: crate::routing::config::RouteAccountGroupSelectionError,
 ) -> GatewayError {

@@ -245,13 +245,25 @@ pub(super) async fn get_or_rebuild_access_projection(
     rebuild_access_projection(pool, redis_pool, access_key).await
 }
 
+#[cfg(test)]
 pub(super) fn collect_model_catalog_ids_from_access_projection(
     projection: &CachedAccessProjection,
 ) -> Vec<String> {
-    let shadowed_upstream_models = projection
+    collect_admitted_model_catalog_ids(projection, &|_| true)
+}
+
+pub(super) fn collect_admitted_model_catalog_ids(
+    projection: &CachedAccessProjection,
+    allows: &impl Fn(&ProjectedPlatformAccessRow) -> bool,
+) -> Vec<String> {
+    let rows = projection
         .rows_by_model
         .values()
         .flat_map(|rows| rows.iter())
+        .filter(|row| allows(row))
+        .collect::<Vec<_>>();
+    let shadowed_upstream_models = rows
+        .iter()
         .filter_map(|row| {
             let upstream_model = row
                 .upstream_model
@@ -262,24 +274,19 @@ pub(super) fn collect_model_catalog_ids_from_access_projection(
         })
         .collect::<BTreeSet<_>>();
 
-    projection
-        .rows_by_model
-        .iter()
-        .filter_map(|(model_id, rows)| {
-            rows.iter()
-                .any(|row| {
-                    let upstream_model = row
-                        .upstream_model
-                        .as_deref()
-                        .unwrap_or(row.model_code.as_str());
-                    row.model_code != upstream_model
-                        || !shadowed_upstream_models.contains(&(
-                            row.provider_account_id.clone(),
-                            upstream_model.to_string(),
-                        ))
-                })
-                .then_some(model_id.clone())
+    rows.into_iter()
+        .filter(|row| {
+            let upstream_model = row
+                .upstream_model
+                .as_deref()
+                .unwrap_or(row.model_code.as_str());
+            row.model_code != upstream_model
+                || !shadowed_upstream_models
+                    .contains(&(row.provider_account_id.clone(), upstream_model.to_string()))
         })
+        .map(|row| row.model_code.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
         .collect()
 }
 
@@ -288,21 +295,59 @@ pub async fn list_models_for_access_key(
     redis_pool: &RedisPool,
     access_key_id: &str,
 ) -> Result<Vec<ModelInfo>, GatewayError> {
+    list_models_for_access_key_admitted(pool, redis_pool, access_key_id, &|_, _, _| true).await
+}
+
+pub(crate) async fn list_models_for_access_key_admitted(
+    pool: &PgPool,
+    redis_pool: &RedisPool,
+    access_key_id: &str,
+    admit: &impl Fn(&str, Option<&str>, &str) -> bool,
+) -> Result<Vec<ModelInfo>, GatewayError> {
     let access_key = find_access_key_auth_by_id(pool, access_key_id)
         .await?
         .ok_or_else(|| GatewayError::unauthorized("Access key not found"))?;
     validate_access_key_auth(&access_key)?;
     let projection = get_or_rebuild_access_projection(pool, redis_pool, &access_key).await?;
+    let providers = projection
+        .rows_by_model
+        .values()
+        .flatten()
+        .map(|row| row.provider_account_id.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let provider_meta =
+        super::projection_queries::load_provider_candidate_meta_map(pool, &providers).await?;
+    let credentials =
+        crate::db::model_catalog_admission::CatalogCredentials::load(pool, &providers).await?;
+    let allows = |row: &ProjectedPlatformAccessRow| {
+        let Some(provider) = provider_meta.get(&row.provider_account_id) else {
+            return false;
+        };
+        if provider
+            .cooldown_until
+            .is_some_and(|until| until > now_utc())
+        {
+            return false;
+        }
+        credentials.allows(
+            &row.provider_account_id,
+            row.upstream_model.as_deref().unwrap_or(&row.model_code),
+            |credential| {
+                super::route_filter::credential_payload_supports_route_row(&credential.payload, row)
+            },
+            admit,
+        )
+    };
     let created = OffsetDateTime::now_utc().unix_timestamp();
-    Ok(
-        collect_model_catalog_ids_from_access_projection(&projection)
-            .into_iter()
-            .map(|id| ModelInfo {
-                id,
-                object: "model".to_string(),
-                created,
-                owned_by: "neuro-gateway".to_string(),
-            })
-            .collect(),
-    )
+    Ok(collect_admitted_model_catalog_ids(&projection, &allows)
+        .into_iter()
+        .map(|id| ModelInfo {
+            id,
+            object: "model".to_string(),
+            created,
+            owned_by: "neuro-gateway".to_string(),
+        })
+        .collect())
 }

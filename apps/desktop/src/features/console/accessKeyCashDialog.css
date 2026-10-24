@@ -1,0 +1,68 @@
+.dialog-content.nt-cash-dialog.nt-cash-dialog--key-bills {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.nt-cash-dialog--key-bills .nt-cash-dialog__head {
+  padding: 18px 20px 8px;
+}
+.nt-cash-dialog--key-bills .nt-cash-dialog__head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.nt-cash-dialog--key-bills > p {
+  margin: 0;
+  padding: 0 20px 14px;
+  font-size: 0.82rem;
+  border-bottom: 1px solid var(--nt-border);
+}
+.nt-key-bills-body {
+  padding: 16px 20px;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.nt-key-bills-toolbar,
+.nt-key-bills-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: var(--nt-text-muted);
+}
+.nt-key-bills-toolbar {
+  margin-bottom: 12px;
+}
+.nt-key-bills-toolbar select {
+  width: auto;
+}
+.nt-key-bills-footer {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  border-top: 1px solid var(--nt-border);
+  background: var(--nt-slab);
+}
+.nt-cash-dialog--key-bills .nt-key-ledger th:first-child,
+.nt-cash-dialog--key-bills .nt-key-ledger td:first-child {
+  width: 44%;
+}
+.nt-cash-dialog--key-bills .nt-key-ledger td:nth-child(n+3),
+.nt-cash-dialog--key-bills .nt-key-ledger th:nth-child(n+3) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.nt-key-bill-status {
+  white-space: nowrap;
+  color: var(--nt-text-muted);
+}
+.nt-key-bill-status--settled {
+  color: var(--nt-success);
+}
+.nt-key-bill-status--reserved,
+.nt-key-bill-status--unresolved {
+  color: var(--nt-warning);
+}

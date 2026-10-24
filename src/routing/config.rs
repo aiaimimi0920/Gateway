@@ -38,6 +38,7 @@ use crate::routing::protocol_resolution::surface_supported_wire_protocol_familie
 
 mod account_constraints;
 mod account_inventory;
+mod admission;
 mod aliases;
 mod candidates;
 mod default_group;
@@ -103,7 +104,7 @@ use substitution::subst_provider;
 #[derive(Debug, Clone)]
 pub struct CompiledProvider {
     /// Configuration-bound, pre-hashed site policy; no JSON/hash allocation on the send path.
-    pub(crate) site_health: Option<(crate::site_health::SiteHealthConfig, String)>,
+    pub(crate) site_health: Option<crate::site_health::CompiledSiteHealth>,
     pub id: String,
     pub label: String,
     pub payload: ProviderAccountPayload,

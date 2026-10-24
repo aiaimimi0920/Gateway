@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import type {
   ConsoleAccessKey,
   ConsoleAccessCatalog,
@@ -45,7 +45,7 @@ export function AccessKeyEditDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
-          className="dialog-content nt-key-dialog"
+          className="dialog-content nt-key-dialog nt-key-dialog--structured"
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             if (trigger.current?.isConnected) trigger.current.focus();
@@ -58,6 +58,7 @@ export function AccessKeyEditDialog({
           }}
         >
           <div className="nt-key-dialog__head">
+            <Pencil className="nt-key-dialog__icon" size={20} aria-hidden="true" />
             <Dialog.Title>{t("编辑 API Key", "Edit API Key")}</Dialog.Title>
             <button
               type="button"
@@ -70,7 +71,7 @@ export function AccessKeyEditDialog({
             </button>
           </div>
           <Dialog.Description className="nt-visually-hidden">
-            {accessKey.displayName}
+            {t("编辑密钥名称、有效期、权益组及额度。", "Edit key name, validity, groups and quota.")}
           </Dialog.Description>
           <AccessKeyCreateForm
             editing

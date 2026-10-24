@@ -11,11 +11,18 @@ impl ProviderAttemptGate {
     }
 
     pub fn begin_attempt(&self) -> Result<(), GatewayError> {
-        self.request_budget.begin_attempt()?;
-        self.smart_routing.begin(
+        if let Some(circuit) = &self.circuit {
+            circuit.begin()?;
+        }
+        if let Err(error) = self.request_budget.begin_attempt() {
+            self.finish_neutral();
+            return Err(error);
+        }
+        self.smart_routing.begin_request(
             self.sticky_scope.as_deref(),
             &self.requested_model,
             &self.provider_account_id,
+            self.req_id,
         );
         self.outbound_attempt_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -30,19 +37,43 @@ impl ProviderAttemptGate {
     }
 
     pub fn observe_error(&self, error: &GatewayError) {
+        self.finish_circuit(crate::routing::model_circuit::failure_outcome(error));
         self.request_budget.observe_error(error);
-        if error.request_budget_stop_reason().is_none()
-            && error.code.as_deref() != Some("attempt_cancelled")
-            && !matches!(
-                error.kind,
-                crate::error::ErrorKind::BadRequest
-                    | crate::error::ErrorKind::ContextLength
-                    | crate::error::ErrorKind::ContentFilter
-            )
-        {
+        if provider_failed(error) {
             self.smart_routing
                 .outcome(&self.provider_account_id, &self.requested_model, false);
         }
+    }
+
+    pub(crate) fn finish_error(&self, error: &GatewayError) {
+        self.finish_circuit(crate::routing::model_circuit::failure_outcome(error));
+        if provider_failed(error) {
+            self.release_failed_sticky();
+        }
+    }
+
+    pub(crate) fn finish_success(&self) {
+        self.finish_circuit(crate::routing::model_circuit::Outcome::Success);
+    }
+    pub(crate) fn finish_neutral(&self) {
+        self.finish_circuit(crate::routing::model_circuit::Outcome::Neutral);
+    }
+    pub(crate) fn finish_stream_failure(&self) {
+        self.finish_circuit(crate::routing::model_circuit::Outcome::Failure(0));
+    }
+    fn finish_circuit(&self, outcome: crate::routing::model_circuit::Outcome) {
+        if let Some(circuit) = &self.circuit {
+            circuit.finish(outcome);
+        }
+    }
+
+    pub(crate) fn release_failed_sticky(&self) {
+        self.smart_routing.release_failed_request(
+            self.sticky_scope.as_deref(),
+            &self.requested_model,
+            &self.provider_account_id,
+            self.req_id,
+        );
     }
 
     pub fn observe_result<T>(&self, result: &Result<T, GatewayError>) {
@@ -82,5 +113,122 @@ impl ProviderAttemptGate {
             &policy,
         )
         .await
+    }
+}
+
+fn provider_failed(error: &GatewayError) -> bool {
+    error.request_budget_stop_reason().is_none()
+        && !matches!(
+            error.code.as_deref(),
+            Some(
+                "attempt_cancelled"
+                    | "upstream_credential_unavailable"
+                    | "rate_limit_admission_indeterminate"
+                    | "model_circuit_open"
+                    | "site_health_route_restricted"
+            )
+        )
+        && !matches!(
+            error.kind,
+            crate::error::ErrorKind::BadRequest
+                | crate::error::ErrorKind::ContextLength
+                | crate::error::ErrorKind::ContentFilter
+        )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn gate() -> ProviderAttemptGate {
+        ProviderAttemptGate {
+            req_id: uuid::Uuid::new_v4(),
+            redis_pool: crate::redis::pool::disabled_pool().unwrap(),
+            local_limits: None,
+            rules: Vec::new(),
+            outbound_attempt_count: Default::default(),
+            attempted_provider_ids: Default::default(),
+            provider_account_id: "diagnostic-provider".into(),
+            request_budget: crate::pipeline::request_budget::RequestBudget::new(
+                6,
+                std::time::Duration::from_secs(30),
+            ),
+            smart_routing: Default::default(),
+            sticky_scope: Some("diagnostic-session".into()),
+            requested_model: "fixture-model".into(),
+            eligibility: None,
+            circuit: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn diagnostic_html_failure_is_scored_once_and_releases_sticky() {
+        let gate = gate();
+        let result: Result<(), GatewayError> = gate
+            .execute_observed(
+                || async {
+                    Err(crate::error::classify_upstream_error(
+                        403,
+                        "<html><title>系统终端 - 异常状态诊断</title></html>",
+                        None,
+                    ))
+                },
+                |_| {},
+                &RetryPolicy::default(),
+            )
+            .await;
+        let error = result.unwrap_err();
+        assert_eq!(
+            gate.request_budget.attempts(),
+            1,
+            "never retry the rejected credential"
+        );
+        let score = gate
+            .smart_routing
+            .score("diagnostic-provider", "fixture-model");
+        assert!(
+            (85.0..85.1).contains(&score),
+            "expected exactly one -15 penalty: {score}"
+        );
+        assert_eq!(
+            gate.smart_routing.score("other-provider", "fixture-model"),
+            100.0
+        );
+        assert_eq!(
+            gate.smart_routing
+                .score("diagnostic-provider", "other-model"),
+            100.0
+        );
+        gate.finish_error(&error);
+        assert!(gate
+            .smart_routing
+            .sticky(Some("diagnostic-session"), "fixture-model")
+            .is_none());
+        assert!(
+            (85.0..85.1).contains(
+                &gate
+                    .smart_routing
+                    .score("diagnostic-provider", "fixture-model")
+            ),
+            "finishing failure must not deduct twice"
+        );
+    }
+
+    #[test]
+    fn request_side_errors_do_not_reduce_availability() {
+        let gate = gate();
+        for error in [
+            GatewayError::bad_request("invalid parameters"),
+            crate::error::classify_upstream_error(400, "maximum context length", None),
+            GatewayError::content_filtered("policy violation"),
+            GatewayError::bad_request("cancelled").with_code("attempt_cancelled"),
+        ] {
+            gate.observe_error(&error);
+        }
+        assert_eq!(
+            gate.smart_routing
+                .score("diagnostic-provider", "fixture-model"),
+            100.0
+        );
     }
 }

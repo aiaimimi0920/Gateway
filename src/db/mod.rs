@@ -19,6 +19,7 @@ pub mod usage_aggregates;
 
 mod account_models;
 mod benefit_projects;
+mod model_catalog_admission;
 mod project_api_access;
 mod project_details;
 mod provider_payloads;
@@ -65,6 +66,7 @@ use crate::object_storage::{
     gateway_object_storage,
 };
 
+pub(crate) use access::list_models_for_access_key_admitted;
 pub use access::{
     adjust_access_key_balance, delete_access_bundle, delete_access_key,
     ensure_default_access_bundle_for_project, evaluate_access_key_balance,
@@ -85,6 +87,7 @@ pub use access::{
     ResolvedAccessKeyRouteContext, UpsertAccessBundleInput, UpsertAccessKeyInput,
     UpsertPlatformAccessInput, UpsertProviderCapabilityInput,
 };
+pub(crate) use routing::list_models_for_project_admitted;
 
 pub use crate::provider_quota::{GatewayProviderQuotaView, GatewayProviderQuotaWindowView};
 pub use analysis_exports::{

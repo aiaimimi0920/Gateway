@@ -38,6 +38,15 @@ describe("ManagementSecuritySettings key list", () => {
     expect(screen.getByLabelText("Initial 的管理密钥")).toHaveAttribute("type", "password");
   });
 
+  it("keeps the title and Add together without redundant description or key count", async () => {
+    await setup();
+    expect(screen.queryByText(/用于登录与管理当前网关/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\/ 16 个管理密钥/)).not.toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: "管理密钥" });
+    expect(heading.parentElement).toHaveClass("nt-management-keys__toolbar");
+    expect(heading.parentElement).toContainElement(screen.getByRole("button", { name: "添加" }));
+  });
+
   it("creates one draft row on Add, prevents duplicate submissions and clears secrets after save", async () => {
     const pending = deferred<unknown>(); api.add.mockReturnValue(pending.promise);
     const { user } = await setup();
@@ -165,6 +174,19 @@ describe("ManagementSecuritySettings key list", () => {
     rerenderWithProviders({ managementToken: "changed-session", bootstrapStatus });
     await act(async () => pending.resolve({ token: "stale-secret" }));
     expect(document.body.innerHTML).not.toContain("stale-secret");
+  });
+
+  it("automatically removes revealed plaintext after fifteen seconds", async () => {
+    const { user } = await setup();
+    const timer = vi.spyOn(window, "setTimeout");
+    await user.click(screen.getByRole("button", { name: "显示 Initial 的密钥" }));
+    expect(screen.getByLabelText("Initial 的管理密钥")).toHaveValue("revealed-secret");
+    const hide = timer.mock.calls.find(([, delay]) => delay === 15_000)?.[0];
+    expect(hide).toBeTypeOf("function");
+    act(() => { (hide as () => void)(); });
+    expect(screen.getByLabelText("Initial 的管理密钥")).toHaveAttribute("type", "password");
+    expect(document.body.innerHTML).not.toContain("revealed-secret");
+    timer.mockRestore();
   });
 
   it("explains legacy nonrecoverable keys without pretending to reveal them", async () => {

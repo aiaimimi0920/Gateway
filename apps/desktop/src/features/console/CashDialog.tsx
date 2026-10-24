@@ -9,6 +9,7 @@ export function CashDialog({
   description,
   busy = false,
   wide = false,
+  className = "",
   onClose,
   t,
   children,
@@ -17,6 +18,7 @@ export function CashDialog({
   description: string;
   busy?: boolean;
   wide?: boolean;
+  className?: string;
   onClose(): void;
   t: TranslateFn;
   children: ReactNode;
@@ -36,7 +38,7 @@ export function CashDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
-          className={`dialog-content nt-cash-dialog${wide ? " nt-cash-dialog--wide" : ""}`}
+          className={`dialog-content nt-cash-dialog${wide ? " nt-cash-dialog--wide" : ""} ${className}`}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             if (trigger.current?.isConnected) trigger.current.focus();

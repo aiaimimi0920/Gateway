@@ -1,0 +1,93 @@
+.nt-key-group-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  min-width: 0;
+}
+.nt-key-group-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-key-group-trigger > svg {
+  flex-shrink: 0;
+}
+.nt-key-group-dropdown {
+  position: fixed;
+  inset: auto;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-md);
+  background: var(--nt-slab);
+  color: var(--nt-text);
+  font: inherit;
+}
+.nt-key-group-dropdown[hidden] {
+  display: none;
+}
+.nt-key-group-dropdown > .nt-input {
+  width: 100%;
+  margin-bottom: 6px;
+}
+.nt-key-group-dropdown p {
+  margin: 8px;
+  color: var(--nt-text-muted);
+  font-size: 0.78rem;
+}
+.nt-key-group-dropdown__list > button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--nt-radius-md);
+  background: transparent;
+  color: var(--nt-text);
+  text-align: left;
+  font: inherit;
+  font-size: 0.8rem;
+}
+.nt-key-group-dropdown__list > button:hover,
+.nt-key-group-dropdown__list > button[aria-checked="true"] {
+  background: var(--nt-hover);
+}
+.nt-key-group-dropdown__list > button:focus-visible,
+.nt-key-group-dropdown > input:focus-visible {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: -2px;
+}
+.nt-key-group-dropdown__list > button:disabled,
+.nt-key-group-dropdown__list > button[data-unavailable="true"] {
+  color: var(--nt-text-muted);
+}
+.nt-key-group-dropdown__check {
+  flex-shrink: 0;
+  color: var(--nt-signal);
+  visibility: hidden;
+}
+[aria-checked="true"] > .nt-key-group-dropdown__check {
+  visibility: visible;
+}
+.nt-key-group-dropdown__list > button > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.nt-key-group-dropdown small {
+  color: var(--nt-text-muted);
+  font-size: 0.72rem;
+}
+.nt-key-group-dropdown__list > button > span > small {
+  display: block;
+}
+.nt-key-group-dropdown__list > button > small {
+  flex-shrink: 0;
+}

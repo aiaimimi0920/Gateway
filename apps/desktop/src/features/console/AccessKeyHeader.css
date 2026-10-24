@@ -1,0 +1,25 @@
+.nt-key-header-slot {
+  min-width: 0;
+}
+
+.nt-key-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nt-key-header-url {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--nt-text-muted);
+}
+
+.nt-key-header-url code {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

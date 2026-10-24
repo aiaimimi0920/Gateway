@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { OperationsAnomalyPanels } from "./OperationsAnomalyPanels";
+import { OperationsCurrentIssues } from "./OperationsCurrentIssues";
 import {
   operationsRequestFixture,
   operationsSummaryFixture,
@@ -9,7 +10,8 @@ import {
 
 function props(
   postgresql = false,
-): ComponentProps<typeof OperationsAnomalyPanels> {
+): ComponentProps<typeof OperationsAnomalyPanels> &
+  ComponentProps<typeof OperationsCurrentIssues> {
   const summary = operationsSummaryFixture(postgresql);
   const empty = { data: null, loading: false, error: null };
   return {
@@ -71,7 +73,12 @@ describe("operations anomaly layout", () => {
     input.requests.data = Array.from({ length: 12 }, (_, index) =>
       operationsRequestFixture(String(index)),
     );
-    render(<OperationsAnomalyPanels {...input} />);
+    render(
+      <>
+        <OperationsCurrentIssues {...input} />
+        <OperationsAnomalyPanels {...input} />
+      </>,
+    );
     expect(screen.getByText("No runtime issues detected")).toBeVisible();
     expect(screen.getAllByText("upstream rate limited")).toHaveLength(10);
     expect(screen.getByText("12 failed out of 12 queried")).toBeVisible();
@@ -97,7 +104,12 @@ describe("operations anomaly layout", () => {
       error: "summary unavailable",
       loading: false,
     };
-    render(<OperationsAnomalyPanels {...input} />);
+    render(
+      <>
+        <OperationsCurrentIssues {...input} />
+        <OperationsAnomalyPanels {...input} />
+      </>,
+    );
     expect(
       screen.queryByText("No runtime issues detected"),
     ).not.toBeInTheDocument();
@@ -125,7 +137,7 @@ describe("operations anomaly layout", () => {
         breakerOpen: true,
       },
     ];
-    render(<OperationsAnomalyPanels {...input} />);
+    render(<OperationsCurrentIssues {...input} />);
     expect(screen.getByText("SQLite unavailable")).toBeVisible();
     expect(screen.getByText("Account A · Breaker open")).toBeVisible();
     expect(

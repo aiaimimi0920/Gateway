@@ -11,6 +11,7 @@ import { UiLocaleProvider } from "./i18n/UiLocaleProvider";
 import { UiThemeProvider } from "./theme/UiThemeProvider";
 import { AppToastViewport } from "./components/AppToast";
 import { DesktopWindowChrome } from "./features/shell/DesktopWindowChrome";
+import { EmbeddedDesktopSettings } from "./features/settings/EmbeddedDesktopSettings";
 import "./styles.css";
 
 declare const __GATEWAY_UI_TARGET__: GatewayUiTarget | undefined;
@@ -22,13 +23,14 @@ if (!rootElement) {
 }
 
 const target = typeof __GATEWAY_UI_TARGET__ === "undefined" ? "web" : __GATEWAY_UI_TARGET__;
+const embeddedSettings = target === "tauri" ? window.__GATEWAY_EMBEDDED_SETTINGS__ : undefined;
 
 createRoot(rootElement).render(
   <React.StrictMode>
-    <UiThemeProvider>
-      <UiLocaleProvider>
-        <DesktopWindowChrome />
-        {target === "web" ? (
+    <UiThemeProvider initialMode={embeddedSettings?.theme}>
+      <UiLocaleProvider initialLocale={embeddedSettings?.locale}>
+        {!embeddedSettings && <DesktopWindowChrome />}
+        {embeddedSettings ? <EmbeddedDesktopSettings context={embeddedSettings} /> : target === "web" ? (
           <HostProvider adapter={createBrowserHost()}>
             <ManagementSessionProvider>
               <AuthBoundary>

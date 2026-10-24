@@ -2,6 +2,7 @@
 
 mod chatgpt_oauth;
 mod credential_secret;
+pub(crate) mod diagnostics;
 mod discovery;
 pub use credential_secret::reveal_credential_key;
 mod probes;

@@ -34,3 +34,17 @@ pub async fn refresh(
     };
     Ok(no_store(serde_json::json!({"snapshot":report})))
 }
+
+pub async fn refresh_plan(
+    State(state): State<Arc<AppState>>,
+    Path((id, profile)): Path<(String, String)>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+) -> Result<Response, GatewayError> {
+    super::internal_gateway::assert_management_access(&state, token.as_deref(), &headers)?;
+    let report = tokio::select! {
+        _=state.shutdown.wait()=>return Err(GatewayError::service_unavailable("Gateway is shutting down")),
+        result=crate::site_health::runtime::refresh_plan(&state,&id,Some(&profile),true)=>result?,
+    };
+    Ok(no_store(serde_json::json!({"snapshot":report})))
+}

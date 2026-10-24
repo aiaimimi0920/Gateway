@@ -1,4 +1,5 @@
-import { Plus, RefreshCw, Search } from "lucide-react";
+import { Plus } from "lucide-react";
+import { AccessKeyHeaderContent, AccessKeyToolbar, compareAccessKeys, type AccessKeySort } from "./AccessKeyHeader";
 import { useMemo, useRef, useState } from "react";
 import { useGatewayHost } from "../../platform/HostProvider";
 import {
@@ -11,11 +12,7 @@ import { AccessKeyCashDialog } from "./AccessKeyCashDialog";
 import { AccessKeyEditDialog } from "./AccessKeyEditDialog";
 import type { ConsoleAccessKey } from "../../api/contracts";
 import { CopyButton } from "./AccessWorkspacePrimitives";
-import {
-  accessKeyStatus,
-  newAccessKeyDraft,
-  type AccessKeyStatus,
-} from "./accessKeyPresentation";
+import { newAccessKeyDraft } from "./accessKeyPresentation";
 import type { AccessKeysWorkspaceProps } from "./accessKeysTypes";
 import "../../styles/access-keys.css";
 
@@ -55,7 +52,7 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
   const { apiOrigin } = useGatewayHost();
   const apiBaseUrl = apiOrigin.replace(/\/$/, "") + "/v1";
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<"all" | AccessKeyStatus>("all");
+  const [sort, setSort] = useState<AccessKeySort>("newest");
   const [page, setPage] = useState(0);
   const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState<PendingKeyAction | null>(null);
@@ -68,18 +65,14 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
     return (catalog.data?.accessKeys ?? [])
       .filter(
         (key) =>
-          (status === "all" || accessKeyStatus(key) === status) &&
           [key.displayName, key.id, key.ownerId, key.publicKeyPrefix].some(
             (value) => value.toLocaleLowerCase().includes(needle),
           ),
       )
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  }, [catalog.data, query, status]);
+      .sort((left, right) => compareAccessKeys(left, right, sort));
+  }, [catalog.data, query, sort]);
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pages - 1);
-  const activeCount = (catalog.data?.accessKeys ?? []).filter(
-    (key) => accessKeyStatus(key) === "active",
-  ).length;
   const close = () => {
     setCreating(false);
     onDismissSecret();
@@ -94,28 +87,15 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
 
   return (
     <section className="nt-key-manager" aria-label="API Keys">
-      <div className="nt-key-manager__actions">
-        <div className="nt-key-summary">
-          <strong>API Key</strong>
-          <span>
-            {t("生效密钥", "Active keys")}{" "}
-            <b>{catalog.data ? activeCount : "—"}</b>
-          </span>
-          <span>
-            {t("全部", "Total")} <b>{catalog.data?.accessKeys.length ?? "—"}</b>
-          </span>
-        </div>
-        <div className="nt-key-actions">
-          <button
-            className="nt-btn nt-btn--outline"
-            type="button"
-            disabled={props.refreshing || busy}
-            onClick={props.onRefresh}
-            aria-label={t("刷新密钥", "Refresh keys")}
-            title={t("刷新密钥", "Refresh keys")}
-          >
-            <RefreshCw size={15} aria-hidden="true" />
-          </button>
+      <AccessKeyHeaderContent slot="leading">
+        <AccessKeyToolbar query={query} sort={sort} t={t}
+          onQuery={(value) => { setQuery(value); setPage(0); }}
+          onSort={(value) => { setSort(value); setPage(0); }} />
+      </AccessKeyHeaderContent>
+      <AccessKeyHeaderContent slot="actions">
+        <div className="nt-key-header-actions">
+          <span className="nt-key-header-url"><code title={apiBaseUrl}>{apiBaseUrl}</code></span>
+          <CopyButton t={t} value={apiBaseUrl} label={t("复制", "Copy")} variant="outline" />
           <button
             ref={createButton}
             className="nt-btn nt-btn--primary"
@@ -129,51 +109,10 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
             }}
           >
             <Plus size={16} aria-hidden="true" />
-            {t("新建 API Key", "New API Key")}
+            {t("新建 Key", "New Key")}
           </button>
         </div>
-      </div>
-      <div className="nt-key-connection">
-        <span>API Base URL</span>
-        <code>{apiBaseUrl}</code>
-        <CopyButton
-          t={t}
-          value={apiBaseUrl}
-          label={t("复制地址", "Copy URL")}
-          variant="outline"
-        />
-      </div>
-      <div className="nt-key-filters">
-        <label className="nt-key-search">
-          <Search size={15} aria-hidden="true" />
-          <input
-            className="nt-input"
-            value={query}
-            maxLength={256}
-            aria-label={t("搜索密钥", "Search keys")}
-            placeholder={t("搜索名称、归属或 ID", "Search name, owner or ID")}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(0);
-            }}
-          />
-        </label>
-        <select
-          className="nt-input"
-          aria-label={t("密钥状态", "Key status")}
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value as typeof status);
-            setPage(0);
-          }}
-        >
-          <option value="all">{t("全部状态", "All statuses")}</option>
-          <option value="active">{t("生效", "Active")}</option>
-          <option value="expired">{t("已过期", "Expired")}</option>
-          <option value="revoked">{t("已吊销", "Revoked")}</option>
-          <option value="inactive">{t("已停用", "Disabled")}</option>
-        </select>
-      </div>
+      </AccessKeyHeaderContent>
       {catalog.error ? (
         <div className="nt-alert nt-alert--danger" role="alert">
           {catalog.error}
@@ -187,7 +126,7 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
         <div className="nt-key-empty" role="status">
           {catalog.error && !catalog.data
             ? t("密钥列表不可用", "Key list unavailable")
-            : query || status !== "all"
+            : query
               ? t("没有匹配的密钥", "No matching keys")
               : t("暂无 API Key", "No API Keys yet")}
         </div>

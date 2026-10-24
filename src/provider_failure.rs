@@ -88,6 +88,16 @@ pub fn classify_provider_failure(
             permanent: false,
         };
     }
+    // A known balance refusal is not an invalid key, even if its request-id contains "key".
+    if upstream_status.is_some_and(|status| {
+        crate::error::is_account_balance_rejection(status, error_message.unwrap_or_default())
+    }) {
+        return ProviderFailureClassification {
+            class: ProviderFailureClass::QuotaExhausted,
+            scope: ProviderFailureScope::Credential,
+            permanent: false,
+        };
+    }
     let haystack = normalize_failure_text(error_code, error_message);
 
     if contains_any(

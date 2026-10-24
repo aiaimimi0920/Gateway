@@ -91,7 +91,7 @@ impl Policy {
 pub struct SmartRouting {
     policy: std::sync::OnceLock<Result<Policy, String>>,
     availability: Mutex<HashMap<(String, String), (f64, Instant)>>,
-    sticky: Mutex<HashMap<String, (String, String, Instant)>>,
+    sticky: Mutex<HashMap<String, (String, String, Instant, uuid::Uuid)>>,
 }
 const LIMIT: usize = 4096;
 impl SmartRouting {
@@ -113,6 +113,15 @@ impl SmartRouting {
             .map_err(Clone::clone)
     }
     pub fn begin(&self, scope: Option<&str>, model: &str, provider: &str) {
+        self.begin_request(scope, model, provider, uuid::Uuid::nil());
+    }
+    pub fn begin_request(
+        &self,
+        scope: Option<&str>,
+        model: &str,
+        provider: &str,
+        request: uuid::Uuid,
+    ) {
         let Some(scope) = scope else { return };
         let mut map = self.sticky.lock();
         if map.len() >= LIMIT && !map.contains_key(scope) {
@@ -122,12 +131,17 @@ impl SmartRouting {
         }
         map.insert(
             scope.to_owned(),
-            (model.to_owned(), provider.to_owned(), Instant::now()),
+            (
+                model.to_owned(),
+                provider.to_owned(),
+                Instant::now(),
+                request,
+            ),
         );
     }
     pub fn sticky(&self, scope: Option<&str>, model: &str) -> Option<String> {
         let map = self.sticky.lock();
-        let (last_model, provider, at) = map.get(scope?)?;
+        let (last_model, provider, at, _) = map.get(scope?)?;
         (last_model == model && at.elapsed() < Duration::from_secs(3600)).then(|| provider.clone())
     }
     pub fn score(&self, provider: &str, model: &str) -> f64 {
@@ -136,6 +150,24 @@ impl SmartRouting {
             .get(&(provider.into(), model.into()))
             .map(|(value, at)| recovered(*value, at.elapsed()))
             .unwrap_or(100.0)
+    }
+    /// Only terminal upstream failure releases stickiness, never an intermediate retry.
+    /// A late completion must not evict a newer request, even to the same provider.
+    pub fn release_failed_request(
+        &self,
+        scope: Option<&str>,
+        model: &str,
+        provider: &str,
+        request: uuid::Uuid,
+    ) {
+        let Some(scope) = scope else { return };
+        let mut map = self.sticky.lock();
+        if map
+            .get(scope)
+            .is_some_and(|(m, p, _, r)| m == model && p == provider && *r == request)
+        {
+            map.remove(scope);
+        }
     }
     pub fn outcome(&self, provider: &str, model: &str, success: bool) {
         let mut map = self.availability.lock();

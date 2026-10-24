@@ -1,0 +1,53 @@
+.nt-provider-pool-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nt-provider-pool-toolbar__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: clamp(160px, 24vw, 320px);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.nt-provider-pool-toolbar__search > svg {
+  position: absolute;
+  left: 10px;
+  color: var(--nt-text-muted);
+  pointer-events: none;
+}
+
+.nt-provider-pool-toolbar__search .nt-input {
+  width: 100%;
+  padding-inline: 32px;
+}
+
+.nt-provider-pool-toolbar__search .nt-icon-action {
+  position: absolute;
+  right: 4px;
+}
+
+.nt-provider-pool-toolbar__search input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.nt-provider-pool-toolbar__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.nt-shell--console .nt-board__header:has(.nt-provider-pool-toolbar) {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .nt-provider-pool-toolbar { width: 100%; }
+  .nt-provider-pool-toolbar__search { flex: 1 1 150px; }
+}

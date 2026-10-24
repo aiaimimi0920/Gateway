@@ -227,7 +227,7 @@ export function buildRouteAccountCatalogFromSummary(
     };
     bucket.providers.push({
       id: provider.id,
-      label: provider.label,
+      label: providerLabel,
       preset: provider.preset ?? null,
       baseUrl: provider.baseUrl ?? null,
       accounts: providerAccounts,

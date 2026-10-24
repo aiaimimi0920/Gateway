@@ -6,8 +6,10 @@
 
 mod accumulate;
 mod completeness;
+mod input_arguments;
 mod input_ids;
 mod normalize;
+pub(crate) use input_arguments::normalize_input_arguments;
 pub(crate) use input_ids::sanitize_replayed_message_ids;
 mod pack;
 mod response;

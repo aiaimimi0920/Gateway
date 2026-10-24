@@ -1,4 +1,6 @@
-//! Loopback contract: multi-group keys never select accounts outside the live group union.
+#[path = "access_key_groups_contract/dispatch.rs"]
+mod dispatch;
+// Loopback contract: multi-group keys never select accounts outside the live group union.
 #[path = "console_contract_support/mod.rs"]
 mod support;
 

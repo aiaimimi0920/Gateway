@@ -136,9 +136,11 @@ export function Harness({
 }
 
 export async function openCreate(user: ReturnType<typeof userEvent.setup>) {
-  const trigger = screen.getByRole("button", { name: "新建 API Key" });
+  const trigger = screen.getByRole("button", { name: "新建 Key" });
   await waitFor(() => expect(trigger).toBeEnabled());
   await user.click(trigger);
-  await user.click(screen.getByRole("checkbox", { name: /基础组/ }));
-  return screen.getByRole("dialog", { name: "新建 API Key" });
+  await user.click(screen.getByRole("button", { name: "权益组" }));
+  await user.click(screen.getByRole("menuitemcheckbox", { name: /基础组/ }));
+  await user.click(screen.getByRole("button", { name: "权益组" }));
+  return screen.getByRole("dialog", { name: "新建 Key" });
 }

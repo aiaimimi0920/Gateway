@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
@@ -60,8 +61,8 @@ const defaultContextValue: UiThemeContextValue = {
 
 const UiThemeContext = createContext<UiThemeContextValue>(defaultContextValue);
 
-export function UiThemeProvider({ children }: PropsWithChildren) {
-  const [mode, setMode] = useState<UiThemeMode>(() => detectInitialMode());
+export function UiThemeProvider({ children, initialMode }: PropsWithChildren<{ initialMode?: UiThemeMode }>) {
+  const [mode, setMode] = useState<UiThemeMode>(() => initialMode ?? detectInitialMode());
   const [systemPrefersLight, setSystemPrefersLight] = useState<boolean>(
     () => lightQuery()?.matches ?? false,
   );
@@ -78,7 +79,7 @@ export function UiThemeProvider({ children }: PropsWithChildren) {
 
   const resolved = resolveTheme(mode, systemPrefersLight);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, mode);
     }

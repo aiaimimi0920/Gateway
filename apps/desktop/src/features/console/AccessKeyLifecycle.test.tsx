@@ -65,7 +65,7 @@ describe("Key lifecycle", () => {
     expect(
       await within(screen.getByRole("dialog")).findByRole("alert"),
     ).toHaveTextContent("delete rejected");
-    expect(screen.getByText("failed-key")).toBeInTheDocument();
+    expect(screen.getByText("failed-key", { selector: "td strong" })).toBeInTheDocument();
   });
 
   it("cannot revive revoked keys and locks destructive actions in read-only mode", async () => {

@@ -9,15 +9,36 @@ It is a release-time product decision, not a measured popularity score or a
 runtime network service. Changing request volume never changes this order.
 
 Exact reviewed model names and their declared namespace aliases take precedence.
-The user-requested display policy additionally classifies `gpt-*` as OpenAI and
-`grok-*` as xAI, and all `glm`-prefixed names as Z.ai, including unlisted version/variant suffixes. Matching is case-insensitive. Z.ai namespaces include `z-ai`, `z.ai`, and `zai`. This fallback accepts
+The user-requested display policy additionally classifies `gpt-*` as OpenAI,
+`claude-*` as Anthropic, `grok-*` as xAI, `deepseek-*` as DeepSeek,
+`qwen` versioned/hyphenated families as Qwen, and all `glm`-prefixed names as Z.ai,
+including unlisted version/variant suffixes. Matching is case-insensitive.
+Z.ai namespaces include `z-ai`, `z.ai`, and `zai`. This fallback accepts
 bare IDs or the matching declared company namespace only, not arbitrary proxies,
 conflicting namespaces or unrelated names under a known namespace. Family matches
 follow exact catalogue ranks and retain input order. This is a naming convention,
 not verification of an upstream alias's actual manufacturer or availability.
+DeepSeek/Qwen accept common variant suffixes (including `:free`, `:batch`, `[free]`);
+the known OpenRouter `~deepseek` namespace is a display-only alias for DeepSeek.
+The display policy also maps `kimi-*` to Kimi (retaining the internal `moonshot`
+group ID), `mimo-*` to Xiaomi, `gemini-*` to Google, and `agnes-*` to Agnes.
+Xiaomi is an explicit user-selected company-brand label, overriding the single-family naming default.
+These families accept bare IDs and their declared company namespaces, including
+common version/variant suffixes; conflicting namespaces still remain unknown.
+The expanded family policy and current inventory are documented in
+[model-company-ownership.md](model-company-ownership.md). Single-family display
+brands include Claude, Grok and GLM; multi-family developers retain company names.
+`modelCompanyFamilies.ts` is the family-rule owner. Tools and virtual service IDs
+are separated from model developers, and unverified anonymous aliases stay in `other`.
 Unmatched models appear in the final `other` group, in input order,
 with the same expand/collapse behavior as the company groups.
 Known aliases with the same rank retain input order. Empty companies are omitted.
+The user-requested OpenAI display override orders named intelligence tiers as
+`astra > sol > terra > luna`, across GPT generations; within a tier, newer numeric
+versions come first. Other models retain catalogue/fallback order. The exact
+`codex-auto-review` alias (bare or in the OpenAI namespace) belongs to OpenAI;
+this does not classify arbitrary `codex-*` names. These are local display rules,
+not a measured intelligence ranking, a fresh online catalogue review, or routing policy.
 The table intersects current credential capabilities; it never grants access,
 adds a callable model, rewrites routes or replaces individual model statistics.
 Company rows show `Company(n)` and the same three metrics as model rows, even
@@ -48,7 +69,7 @@ for both Windows and Docker releases:
 3. Generate a candidate company/model array from those reviewed facts. Keep explicit
    aliases, put flagship/popular families first and retain supported legacy models
    below them. Never synthesize version suffixes or silently match whole namespaces.
-   Apart from the explicit GPT/Grok/GLM family display rules, unknown identifiers
+   Apart from the explicit GPT/Claude/Grok/GLM/DeepSeek/Qwen/Kimi/MiMo/Gemini/Agnes family display rules, unknown identifiers
    remain in `other` until reviewed. Do not infer that a
    model is callable just because it exists in the display table.
 4. Review the candidate diff, update the static table and its

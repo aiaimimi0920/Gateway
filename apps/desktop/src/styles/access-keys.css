@@ -70,7 +70,6 @@
 .nt-key-actions,
 .nt-key-summary,
 .nt-key-connection,
-.nt-key-filters,
 .nt-key-pagination,
 .nt-key-dialog__head {
   display: flex;
@@ -129,10 +128,6 @@
   padding-left: 32px;
   width: 100%;
 }
-.nt-key-filters > select {
-  width: auto;
-  min-width: 120px;
-}
 .nt-key-empty {
   padding: 56px 16px;
   text-align: center;
@@ -183,6 +178,7 @@
   padding: 12px 14px;
   border-bottom: 1px solid var(--nt-border);
   white-space: nowrap;
+  vertical-align: middle;
 }
 .nt-key-ledger tr:last-child td {
   border-bottom: 0;
@@ -234,6 +230,7 @@
 }
 .nt-key-row-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 .nt-key-row-actions .nt-btn {
@@ -251,8 +248,7 @@
   border-top: 1px solid var(--nt-border);
   padding-top: 14px;
 }
-.nt-key-advanced > summary,
-.nt-key-advanced-fields > summary {
+.nt-key-advanced > summary {
   cursor: pointer;
   font-size: 0.8rem;
   color: var(--nt-text-muted);
@@ -282,10 +278,6 @@
 }
 .nt-key-form .nt-input {
   width: 100%;
-}
-.nt-key-advanced-fields {
-  border-top: 1px solid var(--nt-border);
-  padding-top: 6px;
 }
 .nt-key-bundle-options {
   border: 0;
@@ -339,9 +331,6 @@
   }
   .nt-key-connection > code {
     flex: 1 1 180px;
-  }
-  .nt-key-filters {
-    flex-wrap: wrap;
   }
   .nt-key-search {
     max-width: none;

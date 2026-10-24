@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ProviderStorageConnectionDialog } from "./ProviderStorageConnectionDialog";
 import { storageConnectionLabel, storageSecretIdentity, type StorageTarget } from "./providerStorageConnection";
 import { Snowflake, TriangleAlert, UserPlus, UsersRound } from "lucide-react";
@@ -25,6 +25,7 @@ type Props = Pick<AccountsLedgerWorkspaceProps, "editorLocked" | "lifecycleActio
   "onToggleProviderAutoRefill" | "onToggleProviderAutoPrune" | "onToggleProviderPermanentDelete" |
   "onRequestProviderRefill" | "onUpdateProviderStoragePassword" | "t"> & {
   options: ProviderLifecycleBackOptions;
+  settings?: ReactNode;
   requestProviderLifecycleAction: (action: PendingProviderLifecycleAction) => void;
 };
 
@@ -32,7 +33,7 @@ export function ProviderLifecycleBack({ options, editorLocked, lifecycleActionsL
   onUpdateProviderPoolMinSize, onUpdateProviderRequestClientProfile, onUpdateProviderStoragePath, onUpdateProviderArchivePath,
   onToggleProviderAutoRefill, onToggleProviderAutoPrune, pruneBusyProviderId, refillBusyProviderId,
   archivePurgeBusyProviderId, onToggleProviderPermanentDelete, onRequestProviderRefill,
-  onUpdateProviderStoragePassword, requestProviderLifecycleAction, t,
+  onUpdateProviderStoragePassword, requestProviderLifecycleAction, settings, t,
 }: Props) {
   const { section, automation, refill } = options;
   const { providerId, providerLabel } = section;
@@ -73,10 +74,13 @@ export function ProviderLifecycleBack({ options, editorLocked, lifecycleActionsL
           onSave={(value) => onUpdateProviderPoolTargetSize(providerId, Number(value))} />
       </div>
     </section>
-    {onUpdateProviderRequestClientProfile && <section className="nt-provider-lifecycle__group">
-      <RequestClientProfileSelect t={t} value={section.requestClientProfile}
-        disabled={editorLocked || options.active === false}
-        onChange={(profile) => onUpdateProviderRequestClientProfile(providerId, profile)} />
+    {(onUpdateProviderRequestClientProfile || settings) && <section className="nt-provider-lifecycle__group">
+      <div className="nt-provider-lifecycle__pair nt-provider-lifecycle__client-row">
+        <div>{onUpdateProviderRequestClientProfile && <RequestClientProfileSelect t={t} value={section.requestClientProfile}
+          disabled={editorLocked || options.active === false}
+          onChange={(profile) => onUpdateProviderRequestClientProfile(providerId, profile)} />}</div>
+        <div className="nt-provider-lifecycle__site-health">{settings}</div>
+      </div>
     </section>}
     <section className="nt-provider-lifecycle__group" aria-label={t("补号与存储", "Refill and storage")}>
       <div className="nt-provider-lifecycle__pair nt-provider-lifecycle__operations">

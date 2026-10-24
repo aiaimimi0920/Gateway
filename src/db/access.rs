@@ -81,6 +81,7 @@ pub use models::{
     UpsertAccessKeyInput, UpsertPlatformAccessInput, UpsertProviderCapabilityInput,
 };
 pub use projection::list_models_for_access_key;
+pub(crate) use projection::list_models_for_access_key_admitted;
 pub use route_context::resolve_access_key_route_context;
 pub(crate) use route_context::resolve_access_key_route_context_with_reservation;
 pub use sticky::{

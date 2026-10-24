@@ -5,6 +5,7 @@ type SettingsSectionProps = {
   label: string;
   icon: ReactNode;
   defaultOpen?: boolean;
+  collapsible?: boolean;
   children: ReactNode;
 };
 
@@ -13,9 +14,21 @@ type SettingsSectionProps = {
  * hairline-separated trigger (icon + label + chevron) with an indented body.
  * Both shells reuse it so the launcher and the web console read the same.
  */
-export function SettingsSection({ label, icon, defaultOpen = true, children }: SettingsSectionProps) {
+export function SettingsSection({ label, icon, defaultOpen = true, collapsible = true, children }: SettingsSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   const bodyId = useId();
+
+  if (!collapsible) {
+    return (
+      <section className="nt-settings-section nt-settings-section--static">
+        <h2 className="nt-settings-section__heading">
+          <span className="nt-settings-section__icon" aria-hidden="true">{icon}</span>
+          {label}
+        </h2>
+        <div className="nt-settings-section__body">{children}</div>
+      </section>
+    );
+  }
 
   return (
     <section className={`nt-settings-section${open ? " nt-settings-section--open" : ""}`}>

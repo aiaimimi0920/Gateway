@@ -5,12 +5,13 @@
 use super::middleware::{body_limit_layer, request_logging};
 use super::routes::{health, metrics};
 use crate::state::AppState;
-use axum::{middleware as axum_mw, routing::get, Router};
+use axum::{extract::DefaultBodyLimit, middleware as axum_mw, routing::get, Router};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 
 mod analysis_reports;
 mod credential_lifecycle;
+mod diagnostics;
 mod inference;
 mod management_access;
 mod management_config;
@@ -41,6 +42,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
     let router = super::native_session::mount(router, &state);
     let router = management_access::mount(router);
     let router = management_config::mount(router);
+    let router = diagnostics::mount(router);
     let router = request_audits::mount(router);
     let router = credential_lifecycle::mount(router);
     let router = analysis_reports::mount(router);
@@ -50,6 +52,9 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/readyz", get(health::readyz))
         .route("/metrics", get(metrics::handle_metrics))
         // -- Middleware layers (applied inside-out for requests) ----------
+        // Align Bytes/Json extraction with configuration instead of Axum's 2 MiB
+        // default. Inner route limits (including management's 64 KiB) still win.
+        .layer(DefaultBodyLimit::max(state.config.max_request_body_bytes))
         .layer(body_limit_layer(state.config.max_request_body_bytes))
         .layer(axum_mw::from_fn_with_state(
             Arc::clone(&state),

@@ -1,4 +1,4 @@
-//! Recognize non-API upstream diagnostic pages without granting replay admission.
+//! Recognize non-API diagnostic refusals; the outer request budget owns bounded fallback.
 use super::{ErrorKind, FallbackHint, GatewayError};
 
 pub(super) fn classify(status: u16, body: &str, provider: Option<&str>) -> Option<GatewayError> {

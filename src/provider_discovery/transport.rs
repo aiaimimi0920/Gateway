@@ -21,6 +21,13 @@ pub(super) fn checked_url(value: &str) -> anyhow::Result<url::Url> {
 }
 
 pub(super) async fn read_json(response: rquest::Response) -> anyhow::Result<Value> {
+    read_json_bounded(response, 1_048_576).await
+}
+
+pub(super) async fn read_json_bounded(
+    response: rquest::Response,
+    limit: usize,
+) -> anyhow::Result<Value> {
     anyhow::ensure!(
         response.status().is_success(),
         "Upstream rejected discovery."
@@ -30,8 +37,8 @@ pub(super) async fn read_json(response: rquest::Response) -> anyhow::Result<Valu
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
         anyhow::ensure!(
-            bytes.len() + chunk.len() <= 1_048_576,
-            "Discovery response exceeds 1 MiB."
+            bytes.len() + chunk.len() <= limit,
+            "Discovery response exceeds its size limit."
         );
         bytes.extend_from_slice(&chunk);
     }
@@ -44,19 +51,28 @@ pub(super) async fn discover(url: &str, key: &str) -> anyhow::Result<CredentialD
         .redirect(rquest::redirect::Policy::none())
         .timeout(super::REQUEST_TIMEOUT)
         .build()?;
-    let models = catalogue::load(&client, url, key).await?;
-    let mut results = stream::iter(registry::ALL.into_iter().enumerate().map(
-        |(index, protocol)| {
-            let client = &client;
-            let models = &models;
-            async move {
-                (
-                    index,
-                    probe_protocol(client, url, models, key, protocol).await,
-                )
-            }
-        },
-    ))
+    // Known OpenRouter endpoints need neither alias scanning nor unrelated protocol probes.
+    let is_openrouter = super::openrouter::matches(url);
+    let models = if is_openrouter {
+        super::openrouter::load(&client, key).await?
+    } else {
+        catalogue::load(&client, url, key).await?
+    };
+    let candidates = if is_openrouter {
+        vec![DiscoveredProtocol::ChatCompletions]
+    } else {
+        registry::ALL.to_vec()
+    };
+    let mut results = stream::iter(candidates.into_iter().enumerate().map(|(index, protocol)| {
+        let client = &client;
+        let models = &models;
+        async move {
+            (
+                index,
+                probe_protocol(client, url, models, key, protocol).await,
+            )
+        }
+    }))
     .buffer_unordered(4)
     .collect::<Vec<_>>()
     .await;

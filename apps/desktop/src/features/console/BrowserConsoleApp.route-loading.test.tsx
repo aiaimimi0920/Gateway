@@ -9,8 +9,8 @@ describe("route-independent console navigation", () => {
   beforeEach(() => window.localStorage.clear());
 
   it.each([
-    { navigation: /Gateway console navigation/i, label: /^运维$/, content: /^实时$/ },
-    { navigation: /Gateway console navigation/i, label: /^密钥$/, content: /^生效密钥$/ },
+    { navigation: /Gateway console navigation/i, label: /^运维$/, content: /^运行概览$/ },
+    { navigation: /Gateway console navigation/i, label: /^密钥$/, content: /^新建 Key$/ },
     { navigation: /辅助导航/i, label: /^设置$/, content: /^界面语言$/ },
   ])("keeps $label reachable while the initial route request is pending or fails", async ({ navigation, label, content }) => {
     const api = createConsoleApi();
@@ -22,8 +22,15 @@ describe("route-independent console navigation", () => {
     const nav = screen.getByRole("navigation", { name: navigation });
     await user.click(within(nav).getByRole("button", { name: label }));
     expect(await screen.findByText(content)).toBeInTheDocument();
+    if (label.test("运维")) {
+      expect(screen.queryByRole("heading", { name: /^运维$/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("searchbox", { name: "搜索运维记录" })).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "运维排序" })).toBeInTheDocument();
+    }
     if (label.test("密钥")) {
-      expect(screen.getByRole("heading", { name: /^密钥$/ })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /^密钥$/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("searchbox", { name: "搜索密钥" })).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "密钥排序" })).toBeInTheDocument();
       expect(screen.queryByText(/运营侧签发与吊销/)).not.toBeInTheDocument();
       expect(document.querySelector(".nt-console-toolbar")).not.toBeInTheDocument();
     }

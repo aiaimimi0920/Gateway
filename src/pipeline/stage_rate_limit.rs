@@ -16,6 +16,7 @@ use crate::state::AppState;
 
 use super::PipelineContext;
 mod attempt_budget;
+pub(crate) mod eligibility;
 
 #[derive(Clone)]
 pub struct ProviderAttemptGate {
@@ -30,11 +31,27 @@ pub struct ProviderAttemptGate {
     smart_routing: Arc<crate::routing::smart::SmartRouting>,
     sticky_scope: Option<String>,
     requested_model: String,
+    eligibility: Option<eligibility::EligibilityCheck>,
+    circuit: Option<Arc<crate::routing::model_circuit::CircuitAttempt>>,
 }
 
 impl ProviderAttemptGate {
+    pub(crate) fn with_circuit(
+        mut self,
+        circuit: Arc<crate::routing::model_circuit::CircuitAttempt>,
+    ) -> Self {
+        self.circuit = Some(circuit);
+        self
+    }
+    pub(crate) fn with_eligibility(mut self, check: eligibility::EligibilityCheck) -> Self {
+        self.eligibility = Some(check);
+        self
+    }
     pub async fn admit(&self) -> Result<(), GatewayError> {
         self.request_budget.check()?;
+        if let Some(check) = &self.eligibility {
+            check.check().await?;
+        }
         enforce(
             self.req_id,
             &self.redis_pool,
@@ -99,6 +116,8 @@ pub fn provider_attempt_gate(
             .requested_model
             .clone()
             .unwrap_or_default(),
+        eligibility: None,
+        circuit: None,
     })
 }
 

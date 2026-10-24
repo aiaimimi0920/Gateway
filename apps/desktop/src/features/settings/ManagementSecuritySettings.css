@@ -1,5 +1,7 @@
-.nt-management-keys { display: grid; gap: 12px; min-width: 0; }
-.nt-management-keys__toolbar { display: flex; justify-content: flex-end; }
+.nt-management-keys { display: grid; gap: 12px; min-width: 0; container: management-keys / inline-size; }
+.nt-management-keys__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nt-management-keys__heading { display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; font-size: 15px; }
+.nt-management-keys__heading svg { flex-shrink: 0; color: var(--nt-text-muted); }
 .nt-management-keys__list { list-style: none; margin: 0; padding: 0; max-height: 480px; overflow: auto; }
 .nt-management-keys__item { padding: 10px 0; border-bottom: 1px solid var(--nt-border); }
 .nt-management-keys__item:first-child { border-top: 1px solid var(--nt-border); }
@@ -14,8 +16,23 @@
 .nt-management-keys__editor { margin: 0; }
 .nt-management-keys__hint, .nt-management-keys__message { margin: 6px 0 0; font-size: 12px; overflow-wrap: anywhere; }
 .nt-management-keys__hint { color: var(--nt-text-muted); }
+.nt-management-keys__message { color: var(--nt-danger); }
 .dialog-content.nt-management-key-delete-dialog { width: min(480px, calc(100vw - 32px)); }
 @media (max-width: 800px) {
   .nt-management-keys__row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
   .nt-management-keys__row > :first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .nt-management-keys__row { grid-template-columns: minmax(0, 1fr); }
+  .nt-management-keys__actions { flex-wrap: wrap; }
+  .nt-management-keys__identity { flex-wrap: wrap; }
+}
+/* Account for both navigation rails, not only the viewport width. */
+@container management-keys (max-width: 650px) {
+  .nt-management-keys__row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .nt-management-keys__row > :first-child { grid-column: 1 / -1; }
+}
+@container management-keys (max-width: 400px) {
+  .nt-management-keys__row { grid-template-columns: minmax(0, 1fr); }
+  .nt-management-keys__actions, .nt-management-keys__identity { flex-wrap: wrap; }
 }

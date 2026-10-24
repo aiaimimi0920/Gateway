@@ -33,7 +33,7 @@ export function ManagementKeyRow({ entry, api, managementToken, locked, last, on
   useEffect(() => {
     if (revealed === null) return;
     const hide = () => setRevealed(null);
-    const timer = window.setTimeout(hide, 60_000);
+    const timer = window.setTimeout(hide, 15_000);
     return () => { window.clearTimeout(timer); };
   }, [revealed]);
   const toggle = async () => {

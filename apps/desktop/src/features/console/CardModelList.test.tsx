@@ -22,21 +22,65 @@ function stats(total: number, success: number): ConsoleRequestAuditProviderStats
 }
 
 describe("release-ranked callable models", () => {
-  it("classifies every bare GLM prefix and declared Z.ai namespace without rewriting model IDs", () => {
+  it("classifies unlisted Claude variants under Claude without rewriting IDs or guessing proxy namespaces", () => {
+    const models = ["claude-sonnet-5-5", "claude-opus-5", "claude-opus-4-8", "claude-haiku-4-5-20251001",
+      "ANTHROPIC/CLAUDE-SONNET-5-5", "claude-sonnet-4-5", "custom/claude-opus-5", "openai/claude-opus-5",
+      "anthropic/future-unlisted", "not-claude-opus-5", "claude-", "proxy/anthropic/claude-opus-5"];
+    const groups = groupCardModels(models);
+    expect(groups.map((group) => group.id)).toEqual(["anthropic", "other"]);
+    expect(groups[0].label).toBe("Claude");
+    expect(groups[0].models).toEqual([models[5], ...models.slice(0, 5)]);
+    expect(groups[1].models).toEqual(models.slice(6));
+    expect(new Set(groups.flatMap((group) => group.models))).toEqual(new Set(models));
+  });
+
+  it("renders screenshot Claude variants inside Claude and keeps unrelated models in other", async () => {
+    const models = ["claude-sonnet-5-5", "claude-opus-5", "claude-opus-4-8", "claude-haiku-4-5-20251001"];
+    const { container } = render(<CardModelList models={[...models, "seedream-4-5"]} label="fixture" t={t} />);
+    const anthropic = container.querySelector('[data-model-company="anthropic"]')!;
+    const other = container.querySelector('[data-model-company="other"]')!;
+    expect(anthropic.querySelector("summary")).toHaveTextContent("Claude(4)");
+    await userEvent.setup().click(within(anthropic as HTMLElement).getByText("Claude"));
+    for (const modelId of models) {
+      expect(within(anthropic as HTMLElement).getByText(modelId)).toBeVisible();
+      expect(within(other as HTMLElement).queryByText(modelId)).toBeNull();
+    }
+    expect(within(other as HTMLElement).getByText("seedream-4-5")).toBeInTheDocument();
+  });
+
+  it("groups only the reviewed Codex alias with OpenAI without changing model IDs", () => {
+    const models = ["codex-auto-review", "OPENAI/CODEX-AUTO-REVIEW", "custom/codex-auto-review", "codex-unknown"];
+    const groups = groupCardModels(models);
+    expect(groups.map((group) => group.id)).toEqual(["openai", "other"]);
+    expect(groups[0].models).toEqual(models.slice(0, 2));
+    expect(groups[1].models).toEqual(models.slice(2));
+  });
+
+  it("orders OpenAI intelligence tiers across generations, not discovery order or traffic", () => {
+    const models = ["gpt-5.6-luna", "gpt-res", "gpt-5.6-terra", "gpt-6.1-sol", "codex-auto-review",
+      "gpt-6-sol", "openai/gpt-5.6-astra", "gpt-6-astra", "custom/gpt-6-astra"];
+    const groups = groupCardModels(models);
+    expect(groups[0].models).toEqual(["gpt-6-astra", "openai/gpt-5.6-astra", "gpt-6.1-sol", "gpt-6-sol",
+      "gpt-5.6-terra", "gpt-5.6-luna", "codex-auto-review", "gpt-res"]);
+    expect(groups[1].models).toEqual(["custom/gpt-6-astra"]);
+    expect(new Set(groups.flatMap((group) => group.models))).toEqual(new Set(models));
+  });
+
+  it("classifies every bare GLM prefix and declared GLM namespace without rewriting model IDs", () => {
     const models = ["glm-4.7-flash", "GLM-5-Turbo", "glm4.6", "glm_custom", "glm", "glm-5.1",
       "z-ai/glm-4.5-air", "Z.AI/GLM-4.6", "zai/glm-future", "custom/glm-4.7", "openai/glm-5", "not-glm-5"];
     const groups = groupCardModels(models);
     expect(groups.map((group) => group.id)).toEqual(["zai", "other"]);
-    expect(groups[0].label).toBe("Z.ai");
+    expect(groups[0].label).toBe("GLM");
     expect(groups[0].models).toEqual([models[5], ...models.slice(0, 5), ...models.slice(6, 9)]);
     expect(groups[1].models).toEqual(models.slice(9));
     expect(new Set(groups.flatMap((group) => group.models))).toEqual(new Set(models));
   });
 
-  it("renders unlisted GLM models under the expandable Z.ai group", async () => {
+  it("renders unlisted GLM models under the expandable GLM group", async () => {
     const { container } = render(<CardModelList models={["glm-4.7-flash", "glm4.6"]} label="fixture" t={t} />);
     expect(container.querySelector('[data-model-company="other"]')).toBeNull();
-    await userEvent.setup().click(screen.getByText("Z.ai"));
+    await userEvent.setup().click(screen.getByText("GLM"));
     expect(screen.getByText("glm-4.7-flash")).toBeVisible();
     expect(screen.getByText("glm4.6")).toBeVisible();
   });
@@ -54,13 +98,13 @@ describe("release-ranked callable models", () => {
     expect(new Set(groups.flatMap((group) => group.models))).toEqual(new Set(models));
   });
 
-  it("renders the discovered GPT and Grok models under OpenAI and xAI, not other", async () => {
+  it("renders the discovered GPT and Grok models under OpenAI and Grok, not other", async () => {
     const { container } = render(<CardModelList models={["gpt-4.1-nano", "grok-4.7"]} label="fixture" t={t} />);
     const user = userEvent.setup();
     expect(container.querySelector('[data-model-company="other"]')).toBeNull();
     await user.click(screen.getByText("OpenAI"));
     expect(screen.getByText("gpt-4.1-nano")).toBeVisible();
-    await user.click(screen.getByText("xAI"));
+    await user.click(screen.getByText("Grok"));
     expect(screen.getByText("grok-4.7")).toBeVisible();
   });
 
@@ -93,11 +137,12 @@ describe("release-ranked callable models", () => {
     expect(groupCardModels(models)).toEqual([{ id: "other", label: "other", models }]);
   });
 
-  it("indents model names while keeping the metric columns aligned", () => {
+  it("uses smaller, less-indented model names while keeping the metric columns aligned", () => {
     const css = readFileSync(resolve(process.cwd(), "src/features/console/CardModelList.css"), "utf8");
-    expect(css).toMatch(/\.nt-card-models__name\s*\{[^}]*padding-left: 40px;/);
+    expect(css).toMatch(/\.nt-card-models__name\s*\{[^}]*padding-left: 12px;/);
+    expect(css).toMatch(/\.nt-card-models__name\s*\{[^}]*font-size: 0\.65rem;/);
     expect(css).toMatch(/\.nt-card-models__row\s*\{[^}]*grid-template-columns: var\(--nt-model-columns\);/);
-    expect(css).toContain("--nt-model-columns: minmax(0, 1fr) 44px 54px 44px;");
+    expect(css).toContain("--nt-model-columns: minmax(0, 1fr) 40px 42px 40px;");
     expect(css).not.toContain("--nt-color-focus-surface");
     expect(css).toMatch(/\.nt-card-models summary\s*\{[^}]*border-left: 0;/);
     expect(css).not.toContain("border-left-color");

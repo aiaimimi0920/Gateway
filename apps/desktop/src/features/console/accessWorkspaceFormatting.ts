@@ -1,5 +1,13 @@
 const PLACEHOLDER = "—";
 
+/** Compact local time for key activity; the ledger tooltip retains the full timestamp. */
+export function formatRecentKeyUse(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return PLACEHOLDER;
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function formatCount(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return PLACEHOLDER;

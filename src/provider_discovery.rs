@@ -3,6 +3,7 @@ pub(crate) mod background;
 mod catalogue;
 mod endpoint_candidates;
 pub mod job;
+mod openrouter;
 mod registry;
 mod sampling;
 mod selection;

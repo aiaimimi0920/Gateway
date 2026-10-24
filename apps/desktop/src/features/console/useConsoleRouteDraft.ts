@@ -8,6 +8,8 @@ import { type ModelRouteDraftRow, modelRouteDraftRowsFromDocument } from "./mode
 import { type ProviderDraftRow, providerDraftRowsFromDocument } from "./providerCredentialDraft";
 import { type AccountGroupDraftRow, accountGroupDraftNeedsId, parseAccountGroupBillingMultiplier, documentHasInvalidAccountGroupBillingMultiplier, documentHasIncompleteAccountGroup } from "./accountGroupDraft";
 import { parseRouteDocument, formatRouteDocument, isRecord } from "./routeDocument";
+import { useSiteHealthDraft } from "./useSiteHealthDraft";
+import { buildSiteHealthSecretPatches, siteHealthSecretEditError } from "./siteHealthSecretDraft";
 
 export const ACCOUNT_GROUP_ID_REQUIRED_ERROR_ZH = "分组 ID 必须填写。";
 export const ACCOUNT_GROUP_ID_REQUIRED_ERROR_EN = "Group ID is required.";
@@ -53,6 +55,22 @@ export function useConsoleRouteDraft({
 
   const [accountGroupDraftRows, setAccountGroupDraftRows] = useState<AccountGroupDraftRow[]>([]);
 
+  const replaceEditorDocument = useCallback(
+    (document: ConsoleRouteDocument, syncStructuredEditors = false) => {
+      invalidateCredentialProbes();
+      setEditorText(formatRouteDocument(document));
+      if (syncStructuredEditors) {
+        setModelRouteDraftRows(modelRouteDraftRowsFromDocument(document));
+        setProviderDraftRows(providerDraftRowsFromDocument(document));
+        setAccountGroupDraftRows(accountGroupDraftRowsFromDocument(document));
+      }
+    },
+    [invalidateCredentialProbes, accountGroupDraftRowsFromDocument],
+  );
+  const requestHealthSecretAccess = useCallback(() => setSecretDialogOpen(true), [setSecretDialogOpen]);
+  const { siteHealthSecretEdits, applySiteHealth } = useSiteHealthDraft({ editorText, routeConfig, hasSecretAccess,
+    replace: replaceEditorDocument, setError, requestSecretAccess: requestHealthSecretAccess });
+
   const activeSecretPatches = useMemo(
     () => buildSecretPatches(routeConfig, secretDrafts),
     [routeConfig, secretDrafts],
@@ -75,14 +93,14 @@ export function useConsoleRouteDraft({
     if (!routeConfig || !secretPatchDraftDocument) {
       return activeSecretPatches;
     }
-    return buildStorageConnectionPatches(secretPatchDraftDocument, buildCredentialSecretPatches({
+    return buildSiteHealthSecretPatches(secretPatchDraftDocument, buildStorageConnectionPatches(secretPatchDraftDocument, buildCredentialSecretPatches({
       activeDocument: routeConfig.routeConfig.document,
       draftDocument: secretPatchDraftDocument,
       activeSecrets: routeConfig.routeConfig.secrets,
       activeSecretPatches,
       credentialSecretEdits,
-    }), storageConnectionEdits);
-  }, [activeSecretPatches, credentialSecretEdits, storageConnectionEdits, routeConfig, secretPatchDraftDocument]);
+    }), storageConnectionEdits), siteHealthSecretEdits);
+  }, [activeSecretPatches, credentialSecretEdits, storageConnectionEdits, siteHealthSecretEdits, routeConfig, secretPatchDraftDocument]);
 
   const draftDocumentState = useMemo(() => {
     if (editorText.trim().length === 0) {
@@ -147,6 +165,8 @@ export function useConsoleRouteDraft({
       }
       const connectionError = storageConnectionEditError(document, storageConnectionEdits);
       if (connectionError) throw new Error(connectionError);
+      const healthError = siteHealthSecretEditError(document, siteHealthSecretEdits);
+      if (healthError) throw new Error(healthError);
       const message = messageOverride?.trim() || commitMessage.trim();
       const commitSecretPatches = secretPatchOverride ?? secretPatches;
       for (const patch of commitSecretPatches) {
@@ -174,7 +194,7 @@ export function useConsoleRouteDraft({
         ...(message ? { message } : {}),
       };
     },
-    [commitMessage, hasSecretAccess, routeConfig, secretPatches, storageConnectionEdits, t],
+    [commitMessage, hasSecretAccess, routeConfig, secretPatches, storageConnectionEdits, siteHealthSecretEdits, t],
   );
 
   const parseDraft = useCallback((): ConsoleRouteConfigCommitRequest => {
@@ -212,19 +232,6 @@ export function useConsoleRouteDraft({
     }
     return buildCommitRequest(document);
   }, [accountGroupDraftRows, buildCommitRequest, editorText, t]);
-
-  const replaceEditorDocument = useCallback(
-    (document: ConsoleRouteDocument, syncStructuredEditors = false) => {
-      invalidateCredentialProbes();
-      setEditorText(formatRouteDocument(document));
-      if (syncStructuredEditors) {
-        setModelRouteDraftRows(modelRouteDraftRowsFromDocument(document));
-        setProviderDraftRows(providerDraftRowsFromDocument(document));
-        setAccountGroupDraftRows(accountGroupDraftRowsFromDocument(document));
-      }
-    },
-    [invalidateCredentialProbes, accountGroupDraftRowsFromDocument],
-  );
 
   const updateProviderStoragePassword = useCallback(
     (providerId: string, password: string): boolean => {
@@ -314,6 +321,8 @@ export function useConsoleRouteDraft({
   }, [accountGroupDraftRowsFromDocument, onRouteConfigHydrated, routeConfig]);
 
   return {
+    applySiteHealth,
+    siteHealthSecretEdits,
     editorText,
     setEditorText,
     commitMessage,

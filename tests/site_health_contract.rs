@@ -68,8 +68,10 @@ async fn respond(State(f): State<Arc<Fixture>>, req: Request) -> Response {
 }
 fn private_config() -> SiteHealthConfig {
     SiteHealthConfig {
-        allow_private_network: true,
-        monitor_groups: vec!["paid".into()],
+        policy: neuro_gateway::site_health::ProbePolicy {
+            allow_private_network: true,
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
@@ -80,9 +82,12 @@ async fn automatic_detection_tries_all_known_recipes_without_account_calls() {
     let report = discover("site", &format!("{}/v1", server.url), &private_config())
         .await
         .unwrap();
-    assert_eq!(report.probes.len(), 5);
+    assert_eq!(report.probes.len(), 6);
     assert!(
-        report.probes.iter().all(|p| p.status == "supported"),
+        report.probes.iter().all(|p| matches!(
+            p.status.as_str(),
+            "supported" | "parameters_required" | "not_supported"
+        )),
         "{:#?}",
         report.probes
     );
@@ -115,7 +120,10 @@ async fn automatic_detection_tries_all_known_recipes_without_account_calls() {
 async fn selected_models_bound_embed_evidence_and_missing_groups_are_not_guessed() {
     let server = Server::start(true).await;
     let config = SiteHealthConfig {
-        allow_private_network: true,
+        policy: neuro_gateway::site_health::ProbePolicy {
+            allow_private_network: true,
+            ..Default::default()
+        },
         ..Default::default()
     };
     let report = discover("site", &server.url, &config).await.unwrap();
@@ -152,11 +160,35 @@ async fn loopback_is_rejected_without_explicit_private_network_permission() {
     assert!(server.fixture.requests.lock().unwrap().is_empty());
 }
 
+#[tokio::test]
+async fn requested_remote_groups_never_reuse_an_unscoped_summary() {
+    let server = Server::start(false).await;
+    let mut config = private_config();
+    config.monitor_groups = vec!["paid".into()];
+    let report = discover("site", &server.url, &config).await.unwrap();
+    assert_eq!(
+        report.selected_template.as_deref(),
+        Some("model-status-all")
+    );
+    assert_eq!(report.models["a"], Some(99.0));
+    assert!(!report.models.contains_key("b"));
+    assert_eq!(
+        report
+            .probes
+            .iter()
+            .find(|p| p.template == "channel-health")
+            .unwrap()
+            .status,
+        "group_scope_unsupported"
+    );
+}
+
 #[test]
 fn advisory_restriction_unknown_ttl_binding_and_model_mapping_are_separate() {
     let mut config = SiteHealthConfig::default();
     let mut report = SiteSnapshot {
         provider_id: "site".into(),
+        profile_id: None,
         checked_at: 1000,
         binding: "binding".into(),
         probes: vec![],
@@ -191,9 +223,7 @@ fn configuration_has_finite_safe_defaults_and_is_additive() {
     ] {
         assert!(config.validate(url).is_err());
     }
-    let invalid = SiteHealthConfig {
-        refresh_interval_secs: 0,
-        ..config
-    };
+    let mut invalid = config;
+    invalid.refresh_interval_secs = 0;
     assert!(invalid.validate("https://fixture.invalid/v1").is_err());
 }

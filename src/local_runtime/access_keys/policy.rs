@@ -124,6 +124,16 @@ impl LocalRuntime {
         id: &str,
         routes: &crate::routing::config::RouteConfigStore,
     ) -> Result<Vec<crate::routing::config::ModelInfo>, GatewayError> {
+        self.local_access_models_admitted(id, routes, &|_, _, _| true)
+            .await
+    }
+
+    pub(crate) async fn local_access_models_admitted(
+        &self,
+        id: &str,
+        routes: &crate::routing::config::RouteConfigStore,
+        admit: &(dyn Fn(&str, &str, &str) -> bool + Sync),
+    ) -> Result<Vec<crate::routing::config::ModelInfo>, GatewayError> {
         let mut tx = self.pool.begin().await.map_err(storage_error)?;
         let key = read(&mut tx, id).await?;
         ensure_active(&key)?;
@@ -132,22 +142,22 @@ impl LocalRuntime {
         let snapshot = routes.snapshot();
         let groups = crate::access_key_groups::group_ids(key.metadata.as_ref())?
             .map(|ids| snapshot.access_key_group_constraint(&ids));
-        let mut models = snapshot.list_models();
+        let mut models = if groups.is_some() {
+            snapshot.model_inventory_for_admission()
+        } else {
+            snapshot.list_models()
+        };
         models.retain(|model| {
             policy
                 .models
                 .as_ref()
                 .is_none_or(|allowed| allowed.contains(&model.id))
-                && (groups.is_none() && policy.provider_ids.is_none()
-                    || snapshot
-                        .resolve_candidates_with_constraint(Some(&model.id), groups.as_ref())
-                        .candidates
-                        .iter()
-                        .any(|candidate| {
-                            policy.provider_ids.as_ref().is_none_or(|allowed| {
-                                allowed.contains(&candidate.provider_account_id)
-                            })
-                        }))
+                && snapshot.has_admitted_candidate(
+                    &model.id,
+                    groups.as_ref(),
+                    policy.provider_ids.as_deref(),
+                    admit,
+                )
         });
         Ok(models)
     }

@@ -1,5 +1,5 @@
 .nt-card-models {
-  --nt-model-columns: minmax(0, 1fr) 44px 54px 44px;
+  --nt-model-columns: minmax(0, 1fr) 40px 42px 40px;
   min-width: 0;
   min-height: 0;
   flex: 1 1 0;
@@ -136,7 +136,8 @@
 }
 
 .nt-card-models__name {
-  padding-left: 40px;
+  padding-left: 12px;
+  font-size: 0.65rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -125,6 +125,7 @@ export type AppShellProps<Id extends string = string> = {
   onToggleRailCollapsed(): void;
   railFooter?: ReactNode;
   title: string;
+  headerLeading?: ReactNode;
   headerActions?: ReactNode;
   onBack?: () => void;
   backLabel?: string;
@@ -151,6 +152,7 @@ export function AppShell<Id extends string = string>({
   onToggleRailCollapsed,
   railFooter,
   title,
+  headerLeading,
   headerActions,
   onBack,
   backLabel,
@@ -299,9 +301,9 @@ export function AppShell<Id extends string = string>({
 
       <section className="nt-board">
         <header className="nt-board__header">
-          <div className="nt-board__heading">
+          {headerLeading ?? <div className="nt-board__heading">
             <h1>{title}</h1>
-          </div>
+          </div>}
           {headerActions ? <div className="nt-actions nt-actions--right">{headerActions}</div> : null}
         </header>
 

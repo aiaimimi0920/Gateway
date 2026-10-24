@@ -1,6 +1,6 @@
 //! Template semantics: no samples, partial rows and duplicate IDs are never healthy evidence.
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub(super) fn parse(
     template: &str,
@@ -25,12 +25,13 @@ pub(super) fn parse(
         return channel_rates(rows);
     }
     let mut out = BTreeMap::new();
+    let mut seen: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for row in rows {
         if template == "model-status-all" && !groups.is_empty() {
             let group = row["group_name"]
                 .as_str()
                 .or_else(|| row["group"].as_str())
-                .unwrap_or("default");
+                .unwrap_or("");
             if !groups.iter().any(|g| g == group) {
                 continue;
             }
@@ -41,6 +42,12 @@ pub(super) fn parse(
         let mut rate = row["success_rate"]
             .as_f64()
             .filter(|n| n.is_finite() && (0.0..=100.0).contains(n));
+        if template == "model-status-all" && !groups.is_empty() {
+            let group = row["group_name"]
+                .as_str()
+                .or_else(|| row["group"].as_str())?;
+            seen.entry(name.into()).or_default().insert(group.into());
+        }
         if matches!(template, "model-status-all" | "model-health-slot")
             && (row["total_requests"].as_u64().unwrap_or(0) == 0 || row["current_status"] == "blue")
         {
@@ -50,6 +57,16 @@ pub(super) fn parse(
             out.insert(name.to_owned(), None);
         } else {
             out.insert(name.to_owned(), rate);
+        }
+    }
+    if template == "model-status-all" && !groups.is_empty() {
+        for (model, rate) in &mut out {
+            if !groups
+                .iter()
+                .all(|g| seen.get(model).is_some_and(|s| s.contains(g)))
+            {
+                *rate = None;
+            }
         }
     }
     Some(out)

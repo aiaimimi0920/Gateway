@@ -1,4 +1,7 @@
+mod autostart;
 mod connection;
+mod desktop_settings;
+mod desktop_tray;
 mod logs;
 mod paths;
 mod process;
@@ -41,23 +44,49 @@ pub fn run() {
         }
     }
     tauri::Builder::default()
+        .register_uri_scheme_protocol("gateway-settings", connection::presentation::handle)
         .manage(GatewayDesktopState::default())
         .manage(connection::ConnectionState::default())
+        .manage(connection::panel::PanelState::default())
+        .manage(desktop_settings::SettingsState::default())
         .manage(connection::authorization_browser::AuthorizationBrowser::default())
         .setup(|app| {
             let data = paths::gateway_app_dir().map_err(std::io::Error::other)?;
+            use tauri::Manager;
+            *app.state::<desktop_settings::SettingsState>()
+                .0
+                .lock()
+                .map_err(|_| std::io::Error::other("Settings lock poisoned"))? =
+                desktop_settings::load(&data.join("desktop-settings.json"))
+                    .map_err(std::io::Error::other)?;
             let chrome_app = app.handle().clone();
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
                 .data_directory(data.join("webview"))
-                .initialization_script(connection::chrome::INITIALIZATION_SCRIPT)
+                .initialization_script(connection::chrome::initialization_script())
                 .on_navigation(move |url| {
                     !connection::chrome::handle_navigation(&chrome_app, "main", url)
                 })
                 .build()?;
+            if let Err(error) = desktop_tray::setup(app.handle()) {
+                eprintln!("Gateway tray unavailable: {error}");
+            }
             Ok(())
         })
         .on_window_event(connection::handle_window_event)
         .invoke_handler(|invoke| {
+            // Embedded assets receive only settings commands, not legacy profile/process/log-tail IPC.
+            if invoke.message.webview_ref().label() == connection::panel::LABEL {
+                let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
+                    connection::load_gateway_connection,
+                    connection::connect_gateway,
+                    connection::test_gateway_connection,
+                    desktop_settings::load_gateway_desktop_preferences,
+                    desktop_settings::save_gateway_desktop_preferences,
+                    connection::panel::set_gateway_settings_busy,
+                    connection::panel::gateway_settings_ready,
+                ];
+                return handler(invoke);
+            }
             // Server content must never reach application commands, including legacy commands.
             if invoke.message.webview_ref().label() != "main" {
                 invoke
@@ -68,6 +97,9 @@ pub fn run() {
             let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
                 connection::load_gateway_connection,
                 connection::connect_gateway,
+                connection::test_gateway_connection,
+                desktop_settings::load_gateway_desktop_preferences,
+                desktop_settings::save_gateway_desktop_preferences,
                 get_gateway_ui_runtime_info,
                 list_profiles,
                 load_profile,
