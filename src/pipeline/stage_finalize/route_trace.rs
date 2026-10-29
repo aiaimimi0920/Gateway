@@ -30,7 +30,7 @@ pub(super) fn build_route_trace_from_ctx(
         "accessKeyId": ctx.requesting_access_key_id.clone(),
         "sourceAccessKeyId": ctx.source_access_key_id.clone(),
         "platformAccessId": ctx.selected_platform_access_id.clone(),
-        "realCredentialRef": ctx.selected_real_credential_ref.clone(),
+        "realCredentialRef": ctx.audited_real_credential_ref(),
         "selectedUpstreamTargetProtocolFamily": ctx
             .selected_upstream_target_protocol_family
             .clone(),

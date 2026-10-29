@@ -46,6 +46,7 @@ pub(super) fn list_model_inventory_inner(guard: &RouteConfigInner) -> Vec<ModelI
 
     model_ids
         .into_iter()
+        .filter(|id| !super::search_tools::is_retired(id))
         .map(|id| ModelInfo {
             object: "model".to_string(),
             owned_by: "neuro-gateway".to_string(),
@@ -56,7 +57,7 @@ pub(super) fn list_model_inventory_inner(guard: &RouteConfigInner) -> Vec<ModelI
 }
 
 fn provider_has_available_account(provider: &CompiledProvider) -> bool {
-    (provider.credential_pool.is_empty() && provider.credential_pool_auth_policy.is_any())
+    (provider.uses_provider_default_account() && provider.credential_pool_auth_policy.is_any())
         || provider.credential_pool.iter().any(|credential| {
             credential.enabled && provider.credential_pool_auth_policy.allows(credential)
         })
@@ -69,13 +70,34 @@ pub(super) fn model_has_available_candidate(
 ) -> bool {
     let resolved_alias = resolve_alias_inner(guard, requested_model);
     let resolved_model = resolved_alias.as_deref().unwrap_or(requested_model);
+    if super::search_tools::is_retired(resolved_model) {
+        return false;
+    }
     let available = |id: &str| {
         available_provider_ids.contains(id)
             && guard
                 .providers
                 .iter()
                 .find(|provider| provider.id == id)
-                .is_some_and(|provider| model_mapping::mapping_available(provider, resolved_model))
+                .is_some_and(|provider| {
+                    super::search_tools::allows_model(provider, Some(resolved_model))
+                        && model_mapping::mapping_available(provider, resolved_model)
+                        && (provider.model_map_targets.contains_key(resolved_model)
+                            || !provider
+                                .credential_pool
+                                .iter()
+                                .any(|c| c.explicit_model_selection)
+                            || provider.credential_pool.iter().any(|c| {
+                                c.enabled
+                                    && !c.discovery_required
+                                    && provider.credential_pool_auth_policy.allows(c)
+                                    && candidates::credential_supports_model(
+                                        c,
+                                        Some(resolved_model),
+                                        provider.model_map.get(resolved_model).map(String::as_str),
+                                    )
+                            }))
+                })
     };
 
     let mut matched_route = false;

@@ -10,7 +10,9 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<Value, GatewayError> {
-        if payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
+        if flow.executor == crate::protocol::chatgpt::basispoints::ADAPTER {
             return crate::upstream::basispoints::exchange(
                 &self.http,
                 self.timeout,
@@ -183,10 +185,16 @@ impl UpstreamClient {
             .await);
         }
 
-        let body: Value = response
-            .json()
-            .await
-            .map_err(|e| classify_network_error(&e, Some(provider)))?;
+        let body: Value = if payload.canonical_adapter() == "search_api_compatible"
+            && req.endpoint_kind == EndpointKind::Fetch
+        {
+            crate::upstream::search_fetch_response::read_json(response, payload, req).await?
+        } else {
+            response
+                .json()
+                .await
+                .map_err(|e| classify_network_error(&e, Some(provider)))?
+        };
         if matches!(
             payload.adapter.as_str(),
             "dashscope_compatible" | "dashscope_multimodal_compatible"
@@ -221,6 +229,8 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<BinaryUpstreamResponse, GatewayError> {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
         if gemini_api_modular::is_official_adapter(payload.adapter.as_str())
             && req.endpoint_kind == EndpointKind::AudioSpeech
         {

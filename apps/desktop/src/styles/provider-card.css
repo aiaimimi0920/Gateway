@@ -2,14 +2,25 @@
 /* Provider pool cards. Each provider is one card with a front summary face and
    a flipped face carrying the aggregated detail and pool policy controls. */
 .nt-provider-card-grid {
+  --nt-provider-grid-card-width: 292px;
   display: grid;
-  /* Match account cards: wider workspaces add columns, not card width. */
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 292px), 292px));
-  justify-content: start;
-  gap: 12px;
+  /* Center the track block, not individual rows; keep the existing card width. */
+  grid-template-columns: repeat(var(--nt-provider-grid-columns, auto-fill), minmax(min(100%, var(--nt-provider-grid-card-width)), var(--nt-provider-grid-card-width)));
+  justify-content: safe center;
+  row-gap: 16px;
+  column-gap: var(--nt-provider-grid-column-gap, 16px);
   /* Stretch, not start: cards in a row share the tallest card's height, so a
      neighbour never has to scroll to keep the row tidy. */
   align-items: stretch;
+}
+
+.nt-pool-scroll-loader {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  color: var(--nt-text-muted);
+  font-size: 0.75rem;
 }
 
 .nt-provider-card-stack {

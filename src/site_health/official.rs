@@ -95,11 +95,7 @@ pub(super) async fn discover(
     config: &ProbePolicy,
 ) -> anyhow::Result<SiteSnapshot> {
     let origin = super::transport::checked_url(config.adapter.official_url().unwrap())?;
-    let client = if config.adapter == HealthAdapter::AzureStatus {
-        super::transport::regional_client(&origin).await?
-    } else {
-        super::transport::client(&origin, false).await?
-    };
+    let client = super::transport::official_client(config.adapter).await?;
     let path = match config.adapter {
         HealthAdapter::DeepseekStatus => "api/status-page/6410630422455/summary/active",
         HealthAdapter::OpenrouterStatus => "config.json",

@@ -214,20 +214,16 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     expect(providerCard.querySelector('[data-provider-metric="success-rate"]')).toHaveTextContent(
       "66.7%",
     );
-    expect(providerCard.querySelectorAll('[data-provider-availability-cell="success"]')).toHaveLength(
-      8,
-    );
-    expect(providerCard.querySelectorAll('[data-provider-availability-cell="failure"]')).toHaveLength(
-      4,
-    );
+    expect(providerCard.querySelectorAll('[data-provider-availability-cell="mixed"]')).toHaveLength(1);
+    expect(providerCard.querySelectorAll('[data-provider-availability-cell="failure"]')).toHaveLength(0);
     expect(
-      within(providerCard).getByRole("img", {
+      within(providerCard).getByRole("group", {
         name: /最近窗口的调用成功率，所有模型聚合，4\/6 次成功，66\.7%/,
       }),
-    ).toHaveAttribute("title", expect.stringContaining("所有模型聚合，按小时"));
+    ).not.toHaveAttribute("title");
     expect(
       providerCard.querySelector('[data-provider-availability-window="10:00"]'),
-    ).toHaveAttribute("title", "10:00：4/6 次成功（67%）");
+    ).toHaveAttribute("title", "时间：10:00–10:30；调用 6 次；成功率 66.7%");
   });
 
   it("edits lifecycle policy and confirms delete or purge actions inside the app", async () => {

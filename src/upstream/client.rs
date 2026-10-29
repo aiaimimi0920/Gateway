@@ -6,6 +6,8 @@
 // ---------------------------------------------------------------------------
 
 use base64::Engine;
+#[cfg(test)]
+mod perplexity_contract_tests;
 use deadpool_redis::Pool as RedisPool;
 use futures::StreamExt;
 use rquest::header::{HeaderMap, HeaderName, HeaderValue};
@@ -327,6 +329,8 @@ pub struct UpstreamClient {
     plain_http: Client,
     native_claude_http: Client,
     native_http: reqwest::Client,
+    wait_native_http: std::sync::OnceLock<reqwest::Client>,
+    wait_http: std::sync::OnceLock<Client>,
     pub(crate) native_sessions:
         std::sync::Arc<crate::http_client::native_cookie_sessions::NativeCookieSessions>,
     pub(crate) timeout: Duration,
@@ -444,6 +448,21 @@ pub(crate) use fallback_policy::{
 };
 
 #[cfg(test)]
+#[path = "client/call_flow_tests.rs"]
+mod call_flow_tests;
+#[cfg(test)]
+#[path = "client/call_flow_wire_tests.rs"]
+mod call_flow_wire_tests;
+#[cfg(test)]
+#[path = "client/deepseek_contract_tests.rs"]
+mod deepseek_contract_tests;
+#[cfg(test)]
+#[path = "client/mistral_contract_tests.rs"]
+mod mistral_contract_tests;
+#[cfg(test)]
 #[path = "client/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "client/xai_contract_tests.rs"]
+mod xai_contract_tests;
 pub(crate) use native_codex::websocket::NativeResponsesSocket;

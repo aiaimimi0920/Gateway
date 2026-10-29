@@ -41,6 +41,18 @@ draft/commit flow. Requesting refill, deleting invalid credentials, or purging
 archives requires a saved route configuration. The existing management session,
 secret-access grant, and destructive-action confirmation rules remain in force.
 
+## Layout and scrolling
+
+The pool overview centers its grid tracks, keeping the existing 292px card width,
+card faces, contents, and actions. Column gaps vary only from 16px to 28px; incomplete
+rows retain the same column alignment. The existing narrow-screen fit is preserved.
+The console already fetches the complete catalog. It now reveals 24 items initially
+and appends another batch near the main list's bottom, without replacing mounted
+cards. This is incremental rendering, not a new backend pagination API. Search and
+sort reset the visible batch and main scroll position. The observer follows the
+actual scroll owner, disconnects at exhaustion/unmount, and has a manual-load fallback.
+Entitlement-group and expanded account-library pagination are unchanged.
+
 ## Capacity semantics
 
 - `pool_target_size` is the backward-compatible maximum refill target; if omitted,

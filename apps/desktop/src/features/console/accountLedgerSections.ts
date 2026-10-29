@@ -13,9 +13,12 @@ import { credentialStatusLabel, formatRelativeSince } from "./telemetryPresentat
 import { rollupProviderAccountTelemetry } from "./telemetryRollups";
 import { optionalString, hostLabelFromUrl } from "./routeAccountCatalog";
 import { optionalBoolean, readPilotProviderPolicy, readPilotIdentityCategories } from "./pilotPoolPolicy";
-import { readRequestClientProfile } from "./requestClientProfile";
+import { readProviderRequestClientProfile } from "./requestClientProfile";
 import { isRecord } from "./routeDocument";
 import { credentialCardModelTraffic, providerCardModelTraffic } from "./cardModelTraffic";
+import { catalogModels, catalogProviderKind } from "./officialModelCatalog";
+import { isChatgptCatalogProvider } from "./chatgptModelCatalog";
+import { supportsAccountDiscovery } from "./accountDiscovery";
 
 function optionalStringArray(record: Record<string, unknown>, key: string): string[] {
   const value = record[key];
@@ -136,9 +139,9 @@ function buildPilotSectionAccount(
     enabled: row.enabled,
     logicalLabels: [...logicalLabels],
     supportedModels: [...row.supportedModels],
-    modelTraffic: row.mode === "provider-default"
+    modelTraffic: { ...(row.mode === "provider-default"
       ? providerCardModelTraffic(snapshot, [row.providerId])
-      : credentialCardModelTraffic(snapshot, row.providerId, row.accountId),
+      : credentialCardModelTraffic(snapshot, row.providerId, row.accountId)), catalogModels: catalogModels(credential) },
     logicalGroupIds: [...row.groupIds],
     libraryName: credentialLibraryName(
       row.providerId,
@@ -175,7 +178,7 @@ function buildPilotSectionAccount(
     // Usage pricing and group multipliers do not prove settled revenue.
     userCost: null,
     successWindows: credentialAudit?.windows.map((window) => ({
-      label: window.label, success: window.successCount, requests: window.totalRequests,
+      label: window.bucketStart, success: window.successCount, requests: window.totalRequests,
     })) ?? providerAccount?.successWindows ?? null,
     quota: inventory?.providerQuota ?? null,
     quotaRemainingUsd:
@@ -343,7 +346,12 @@ export function buildAccountLedgerSections(
       }
       const providerLabel = displayLabel(optionalString(provider, "label") ?? providerId);
       const visibleRows = visibleRowsByProviderId.get(providerId) ?? [];
-      if (visibleRows.length === 0) {
+      const credentials = Array.isArray(provider.credentials)
+        ? provider.credentials.filter(isRecord)
+        : [];
+      // Empty explicit pools remain visible so their first account can be added.
+      // Do not revive populated pools whose rows were excluded by account filters.
+      if (visibleRows.length === 0 && !(provider.explicit_credentials_only === true && credentials.length === 0)) {
         return [];
       }
       const providerPolicy = readPilotProviderPolicy(provider);
@@ -352,9 +360,6 @@ export function buildAccountLedgerSections(
 
       const defaultAccount = visibleRows.find((row) => row.mode === "provider-default") ?? null;
       const explicitRows = visibleRows.filter((row) => row.mode === "credential");
-      const credentials = Array.isArray(provider.credentials)
-        ? provider.credentials.filter(isRecord)
-        : [];
       const credentialRecordById = new Map(
         credentials
           .map((entry) => {
@@ -396,7 +401,7 @@ export function buildAccountLedgerSections(
             "preview_logical_labels",
           );
           return buildPilotSectionAccount(account, telemetryContextFor(account), {
-            discoverySupported: !provider.preset && ["openai_compatible", "anthropic_compatible"].includes(String(provider.adapter)),
+            discoverySupported: !!catalogProviderKind(provider) || isChatgptCatalogProvider(provider) || supportsAccountDiscovery(provider),
             credential,
             categoryId: definition.id,
             inventory: credentialInventoryById.get(account.accountId) ?? null,
@@ -433,7 +438,7 @@ export function buildAccountLedgerSections(
           defaultAccountId: defaultAccount?.accountId ?? null,
           manualAddFamily,
           hasExplicitAccounts: explicitRows.length > 0,
-          requestClientProfile: readRequestClientProfile(provider.request_client_profile),
+          requestClientProfile: readProviderRequestClientProfile(provider),
           poolTargetSize: providerPolicy.poolTargetSize,
           poolMinSize: providerPolicy.poolMinSize,
           credentialStoragePath: optionalString(provider, "credential_storage_path") ?? undefined,
@@ -449,7 +454,7 @@ export function buildAccountLedgerSections(
             ? []
             : visibleRows.map((row) =>
                 buildPilotSectionAccount(row, telemetryContextFor(row), {
-                  discoverySupported: !provider.preset && ["openai_compatible", "anthropic_compatible"].includes(String(provider.adapter)),
+                  discoverySupported: !!catalogProviderKind(provider) || isChatgptCatalogProvider(provider) || supportsAccountDiscovery(provider),
                   credential:
                     row.mode === "credential"
                       ? credentialRecordById.get(row.accountId) ?? null
@@ -468,6 +473,8 @@ export function buildAccountLedgerSections(
   return mergeGeminiAccountLedgerSections(sections).map((section) => ({
     ...section,
     telemetry: buildSectionTelemetry(snapshot, section.providerIds),
-    modelTraffic: providerCardModelTraffic(snapshot, section.providerIds),
+    modelTraffic: { ...providerCardModelTraffic(snapshot, section.providerIds),
+      catalogModels: [...new Set([...section.directAccounts, ...section.identityCategories.flatMap((category) => category.accounts)]
+        .flatMap((account) => account.modelTraffic?.catalogModels ?? []))] },
   } satisfies AccountsLedgerPilotSection));
 }

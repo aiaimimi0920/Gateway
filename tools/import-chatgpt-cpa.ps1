@@ -44,6 +44,8 @@ $credentials = [Collections.Generic.List[object]]::new()
 $seen = [Collections.Generic.HashSet[string]]::new()
 $allModels = [Collections.Generic.HashSet[string]]::new()
 $providerIndex = @($config.document.providers).Count
+$grant = Invoke-Console POST '/session/confirm-secret-access' @{ token = $token }
+$headers['x-secret-grant'] = $grant.grant
 foreach ($path in $CredentialPaths) {
     $raw = [IO.File]::ReadAllText([IO.Path]::GetFullPath($path), [Text.Encoding]::UTF8) | ConvertFrom-Json
     foreach ($field in @('type', 'access_token', 'account_id', 'email', 'refresh_token', 'expired')) {
@@ -58,15 +60,12 @@ foreach ($path in $CredentialPaths) {
     if ($remaining -le 0) { throw 'Credential is expired; refresh it at its source before import.' }
     $id = 'chatgpt-' + ($raw.email -replace '[^a-zA-Z0-9_-]', '-')
     $index = $credentials.Count
-    $catalogHeaders = @{
-        Authorization = "Bearer $($raw.access_token)"
-        'Chatgpt-Account-Id' = [string]$raw.account_id
-        Originator = 'codex_cli_rs'
-    }
     try {
-        $catalog = Invoke-RestMethod -Uri 'https://chatgpt.com/backend-api/codex/models?client_version=0.154.0' `
-            -Headers $catalogHeaders -UserAgent 'codex_cli_rs/0.154.0 (Mac OS 26.3.1; arm64) iTerm.app/3.6.9' -TimeoutSec 30
-        $models = @($catalog.models | ForEach-Object { [string]$_.slug } | Where-Object { $_ } | Select-Object -Unique)
+        $catalog = (Invoke-Console POST '/chatgpt-model-catalog' @{
+            accessToken = [string]$raw.access_token; accountId = [string]$raw.account_id
+        }).catalog
+        $models = @($catalog.models | Where-Object { $_.visibility -notin @('hide', 'hidden') -and $_.supported_in_api -ne $false } |
+            ForEach-Object { [string]$_.slug } | Where-Object { $_ } | Select-Object -Unique)
     } catch { throw 'Could not read the account model catalog; no credentials were imported.' }
     if ($models.Count -eq 0) { throw 'Account returned no models; no credentials were imported.' }
     foreach ($model in $models) { $null = $allModels.Add($model) }

@@ -1,8 +1,6 @@
 //! Use persistent local model health when ranking route candidates.
-use super::{storage_error, LocalRuntime};
-use crate::db::provider_credential_model_states::{
-    provider_credential_model_state_id, GatewayProviderCredentialModelStateView,
-};
+use super::LocalRuntime;
+use crate::db::{GatewayProviderCredentialModelStateView, RecordCredentialModelSuccessInput};
 use crate::provider_health_state::candidate_penalty_status;
 use crate::{error::GatewayError, routing::candidate::RouteCandidate};
 
@@ -19,24 +17,20 @@ impl LocalRuntime {
             else {
                 continue;
             };
-            let id = provider_credential_model_state_id(
-                &candidate.provider_account_id,
-                candidate.provider_credential_id.as_deref(),
-                candidate
-                    .payload
-                    .credential_id
-                    .as_deref()
-                    .or(candidate.provider_credential_id.as_deref()),
-                Some(candidate.protocol_profile.as_str()),
-                model,
-            );
-            let payload: Option<String> =
-                sqlx::query_scalar("SELECT payload FROM credential_model_states WHERE id = ?")
-                    .bind(id)
-                    .fetch_optional(&self.pool)
-                    .await
-                    .map_err(storage_error)?;
-            let Some(payload) = payload else {
+            let snapshot = self
+                .model_health_snapshot(RecordCredentialModelSuccessInput {
+                    provider_account_id: candidate.provider_account_id.clone(),
+                    provider_credential_id: candidate.provider_credential_id.clone(),
+                    provider_credential_ref: candidate
+                        .payload
+                        .credential_id
+                        .clone()
+                        .or_else(|| candidate.provider_credential_id.clone()),
+                    protocol_profile: Some(candidate.protocol_profile.clone()),
+                    model: model.to_owned(),
+                })
+                .await?;
+            let Some(payload) = snapshot.version else {
                 continue;
             };
             let state: GatewayProviderCredentialModelStateView = serde_json::from_str(&payload)

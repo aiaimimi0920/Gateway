@@ -46,13 +46,12 @@ pub use openai::{
     poe_openai_preset, together_openai_preset, xai_openai_preset, xfyun_preset,
 };
 pub use qwen::{
-    qwen_coding_plan_anthropic_preset, qwen_coding_plan_openai_preset,
-    qwen_dashscope_openai_preset, qwen_preset, qwen_web_chat_preset,
+    qwen_coding_plan_anthropic_preset, qwen_coding_plan_openai_preset, qwen_web_chat_preset,
 };
 pub use registry::{builtin_presets, get_builtin_preset};
 pub use search::{
-    exa_preset, jina_reader_preset, jina_search_preset, linkup_preset, perplexity_search_preset,
-    tavily_preset, websearchapi_preset, you_preset,
+    exa_preset, jina_preset, jina_reader_preset, jina_search_preset, linkup_preset,
+    perplexity_search_preset, tavily_preset, websearchapi_preset, you_preset,
 };
 pub use session_chat::{
     accio_preset, chatgpt_web_reverse_preset, freebuff_preset, grok_preset, kiro_preset,
@@ -66,7 +65,7 @@ pub use session_chat::{
 /// the SAME across all accounts of this type.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderPreset {
-    /// Unique identifier, e.g. `"codex"`, `"azure-openai"`, `"anthropic"`.
+    /// Unique identifier, e.g. `"codex"`, `"azure-api"`, `"anthropic"`.
     pub id: String,
 
     /// Adapter type inherited by accounts using this preset.
@@ -239,6 +238,7 @@ pub fn compile_provider_account(
     }
 
     ProviderAccountPayload {
+        call_flow: None,
         request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: preset.adapter.clone(),

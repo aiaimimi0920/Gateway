@@ -14,7 +14,7 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         | "aistudio-official-api"
         | "gemini-api"
         | "gemini-api-modular" => Some(RefactoredImplementationLine::AIStudioOfficial),
-        "azure" | "azure_openai" | "azure-openai" => {
+        "azure" | "azure_openai" | "azure-api" => {
             Some(RefactoredImplementationLine::AzureOpenAIOfficialVendorApi)
         }
         "anthropic" | "anthropic_messages" | "anthropic-compatible" => {
@@ -61,13 +61,13 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         "longcat" | "longcat-openai" | "longcat_openai" => {
             Some(RefactoredImplementationLine::LongCatOpenAiOfficialModelApi)
         }
-        "deepseek" | "deepseek-openai" | "deepseek_openai" => {
+        "deepseek" | "deepseek-api" | "deepseek-openai" | "deepseek_openai" => {
             Some(RefactoredImplementationLine::DeepSeekOpenAiOfficialModelApi)
         }
-        "mistral" | "mistral-openai" | "mistral_openai" => {
+        "mistral" | "mistral-api" | "mistral_openai" => {
             Some(RefactoredImplementationLine::MistralOpenAiOfficialModelApi)
         }
-        "xai" | "xai-openai" | "xai_openai" => {
+        "xai" | "xai-api" | "xai_openai" => {
             Some(RefactoredImplementationLine::XaiOpenAiOfficialVendorApi)
         }
         "perplexity_chat" | "perplexity-chat" => {
@@ -119,9 +119,7 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         "websearchapi" | "websearchapi-search" | "websearchapi_search" => {
             Some(RefactoredImplementationLine::WebSearchApiSearchOfficialVendorApi)
         }
-        "qwen_dashscope_openai"
-        | "qwen-dashscope-openai"
-        | "qwen_coding_plan_openai"
+        "qwen_coding_plan_openai"
         | "qwen-coding-plan-openai"
         | "qwen_coding_plan_anthropic"
         | "qwen-coding-plan-anthropic"

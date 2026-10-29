@@ -1,6 +1,28 @@
 use super::*;
 
 #[test]
+fn capacity_does_not_poison_account_health_or_aimd() {
+    let mut error = classify_upstream_error(
+        429,
+        r#"{"error":{"code":"turn_rate_limit_exceeded","message":"Codex is at capacity, please try again later"}}"#,
+        None,
+    );
+    assert!(!should_record_provider_failure(&error));
+    error.retryable = false; // Local backoff: not a real upstream send.
+    assert!(
+        should_try_next_candidate(&error),
+        "eligible sibling fallback remains possible"
+    );
+    error.fallback_hint = FallbackHint::Abort {
+        reason: "budget_exhausted:deadline".into(),
+    };
+    assert!(!should_try_next_candidate(&error));
+    assert!(should_record_provider_failure(&GatewayError::rate_limited(
+        "too fast", 5_000
+    )));
+}
+
+#[test]
 fn classify_failure_kind_rate_limit() {
     let e = GatewayError::rate_limited("too fast", 1000);
     assert_eq!(classify_failure_kind(&e), FailureKind::RateLimited);
@@ -108,6 +130,41 @@ fn chatgpt_web_browser_fallback_forbidden_error_is_explicit() {
         Some("chatgpt_web_request_time_browser_forbidden")
     );
     assert!(error.message.contains("pure HTTP"));
+}
+
+#[test]
+fn chatgpt_web_disabled_browser_keeps_upstream_cause_before_policy() {
+    let mut original = GatewayError::service_unavailable(
+        "ChatGPT Web reverse upstream failure: stage=requirements upstream_status=403. Browser challenge.",
+    )
+    .with_code("chatgpt_web_browser_challenge_required");
+    original.http_status = Some(403);
+    let error = chatgpt_web_browser_fallback_forbidden_error(&original);
+
+    assert_eq!(
+        error.http_status,
+        Some(503),
+        "local availability status is not upstream auth"
+    );
+    assert!(
+        error.message.starts_with(&original.message),
+        "cause must precede fallback policy"
+    );
+    assert!(error.message.contains("upstream_status=403"));
+    assert!(error
+        .message
+        .contains("original_code=chatgpt_web_browser_challenge_required"));
+}
+
+#[test]
+fn chatgpt_web_disabled_browser_reports_status_without_stage_metadata() {
+    let original =
+        GatewayError::unauthorized("Session is invalid.").with_code("chatgpt_web_session_invalid");
+    let error = chatgpt_web_browser_fallback_forbidden_error(&original);
+    assert!(error.message.contains("upstream_status=401"));
+    assert!(error
+        .message
+        .contains("original_code=chatgpt_web_session_invalid"));
 }
 
 #[test]

@@ -40,11 +40,13 @@ mod account_constraints;
 mod account_inventory;
 mod admission;
 mod aliases;
+mod call_flow;
 mod candidates;
 mod default_group;
 mod document_compilation;
 mod model_catalog;
 mod model_mapping;
+mod model_selection;
 mod payload;
 mod pool_auth;
 #[cfg(test)]
@@ -53,8 +55,12 @@ mod probe_identity;
 #[cfg(test)]
 mod probe_identity_tests;
 mod provider_compilation;
+mod refresh_publication;
 mod refresh_state;
+#[cfg(test)]
+mod refresh_state_tests;
 mod schema;
+mod search_tools;
 mod snapshot;
 mod snapshot_publication;
 mod storage_connection;
@@ -69,6 +75,7 @@ pub(crate) use document_compilation::{
     compile_route_document, effective_credential_id, provider_default_account_id,
 };
 pub(crate) use model_mapping::model_for_probe;
+pub use model_selection::ModelSelection;
 pub use pool_auth::CredentialPoolAuthPolicy;
 pub(crate) use refresh_state::effective_refresh_lifetime_secs;
 pub use refresh_state::{future_rfc3339_after_secs, system_time_to_rfc3339_millis};
@@ -103,6 +110,7 @@ use substitution::subst_provider;
 /// A compiled provider ready for routing — all preset merging done at load time.
 #[derive(Debug, Clone)]
 pub struct CompiledProvider {
+    pub explicit_credentials_only: bool,
     /// Configuration-bound, pre-hashed site policy; no JSON/hash allocation on the send path.
     pub(crate) site_health: Option<crate::site_health::CompiledSiteHealth>,
     pub id: String,
@@ -121,12 +129,18 @@ pub struct CompiledProvider {
     pub scheduled_probe_interval_minutes: u64,
     pub credential_pool_auth_policy: CredentialPoolAuthPolicy,
     /// Credential pool for this provider.
-    /// Empty = single credential baked into `payload`.
+    /// Empty = legacy payload only unless explicit_credentials_only is set.
     /// Non-empty = select one at request time (round-robin).
     pub credential_pool: Vec<CompiledCredential>,
     /// Atomic counter for round-robin credential selection.
     /// Stored in an `Arc` so that cloning `CompiledProvider` shares the counter.
     pub credential_counter: std::sync::Arc<AtomicUsize>,
+}
+
+impl CompiledProvider {
+    pub fn uses_provider_default_account(&self) -> bool {
+        !self.explicit_credentials_only && self.credential_pool.is_empty()
+    }
 }
 
 /// A single credential within a provider's credential pool.
@@ -145,6 +159,8 @@ pub struct CompiledCredential {
     /// Models this credential can serve. Empty = any model the provider supports.
     pub supported_models: Vec<String>,
     pub scheduled_probe_enabled: bool,
+    /// An explicit empty selection serves no models, unlike legacy inheritance.
+    pub explicit_model_selection: bool,
     pub scheduled_probe_interval_minutes: u64,
     /// OAuth token refresh config. When present, access_token is auto-refreshed.
     pub refresh_config: Option<Arc<TokenRefreshState>>,
@@ -160,6 +176,7 @@ pub struct TokenRefreshState {
     pub expires_at_iso: parking_lot::Mutex<Option<String>>,
     /// Overrides payload.api_key when a refreshed token is available.
     pub api_key_override: parking_lot::Mutex<Option<String>>,
+    attempt_lock: Arc<tokio::sync::Mutex<()>>,
     lifecycle: parking_lot::Mutex<RefreshLifecycle>,
 }
 
@@ -167,6 +184,9 @@ pub struct TokenRefreshState {
 struct RefreshLifecycle {
     active: bool,
     generation: u64,
+    failures: u32,
+    retry_at: Option<std::time::Instant>,
+    reauthorization_required: bool,
 }
 
 pub(crate) fn safe_refresh_deadline(seconds: u64) -> std::time::Instant {

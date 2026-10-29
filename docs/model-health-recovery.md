@@ -49,3 +49,10 @@ Local 继续读取相同字段的旧 JSON，数据库 `user_version` 不变。�
 自动测试只调用 loopback 合成生成端点和隔离 Local 数据库。共用健康 CAS 合同覆盖 credential DB ID / ref-only identity、初始缺行、新失败、ABA-shaped 转换、并行恢复与硬封禁；PG fixture 额外包含锁等待后的物理版本重验，必须显式启用并通过其 loopback、独立数据库、非业务端口及 run ID guard。
 
 本轮实际执行情况以对应进度记录和证据目录为准。未运行的 PostgreSQL opt-in 不算通过；不借用业务数据库，不以 SQL 编译或源码 review 代替真实 PG 并发证明。测试也不代替 EXE 打包、真实供应商、Redis live 或部署验收。
+
+出口网络波动的定向回退、以及用户手动切换服务商调度开关时的显式健康重置，
+见[出口网络波动保护与手动健康重置](gateway-network-recovery.md)。它们不是生成探针
+成功后的隐式全池解封；生成探针仍保持本文的精确身份和 expected-state CAS 边界。
+
+普通业务请求中明确的容量拒绝使用[独立秒级退避](capacity-backoff.md)，不再进入
+持久化模型冷却或分钟级硬熔断；真实限流、鉴权和余额保护保持原有语义。

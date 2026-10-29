@@ -5,10 +5,12 @@ import { pilotSection, renderWorkspace as renderProviders, workspaceProps } from
 import { populatedWorkspaceProps, renderWorkspace as renderGroups } from "./CredentialGroupsWorkspace.fixtures";
 import { usePoolPagination } from "./usePoolPagination";
 import type { ProviderPoolView } from "./providerPoolView";
+import { buildAccountLedgerRows } from "./accountManagementViewModel";
+import { buildRouteAccountCatalog } from "./routeDocumentAccountCatalog";
 
 afterEach(cleanup);
 
-it("bounds provider cards and defers settings until the first flip", async () => {
+it("appends provider batches without remounting existing cards or their lazy settings", async () => {
   const user = userEvent.setup();
   const settings = vi.fn(() => <span>Lazy settings</span>);
   const sections = Array.from({ length: 49 }, (_, i) => pilotSection({
@@ -18,17 +20,21 @@ it("bounds provider cards and defers settings until the first flip", async () =>
     pilotSections: sections, renderProviderSettings: settings, t: (_zh, en) => en,
   }));
   expect(container.querySelectorAll("[data-provider-card]")).toHaveLength(24);
+  const firstCard = container.querySelector('[data-provider-card="site-0"]');
   expect(settings).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "Flip Site 0 for details" }));
   const settingsNode = screen.getByText("Lazy settings");
   expect(settingsNode).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Flip Site 0 back to the front" }));
   expect(screen.getByText("Lazy settings")).toBe(settingsNode);
-  const pager = within(screen.getByRole("navigation", { name: "Credential pools pagination" }));
-  await user.click(pager.getByRole("button", { name: "Next page" }));
-  expect(container.querySelector("[data-provider-card]")).toHaveAttribute("data-provider-card", "site-24");
-  await user.click(pager.getByRole("button", { name: "Next page" }));
-  expect(container.querySelectorAll("[data-provider-card]")).toHaveLength(1);
+  expect(screen.queryByRole("navigation", { name: "Credential pools pagination" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Load more" }));
+  expect(container.querySelectorAll("[data-provider-card]")).toHaveLength(48);
+  expect(container.querySelector('[data-provider-card="site-0"]')).toBe(firstCard);
+  expect(screen.getByText("Lazy settings")).toBe(settingsNode);
+  await user.click(screen.getByRole("button", { name: "Load more" }));
+  expect(container.querySelectorAll("[data-provider-card]")).toHaveLength(49);
+  expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
 });
 
 it("bounds entitlement cards and mounts only the opened scope board", async () => {
@@ -48,6 +54,32 @@ it("bounds entitlement cards and mounts only the opened scope board", async () =
   const pager = within(screen.getByRole("navigation", { name: "Entitlement pools pagination" }));
   await user.click(pager.getByRole("button", { name: "Next page" }));
   expect(container.querySelector("[data-entitlement-group-card]")).toHaveAttribute("data-entitlement-group-card", "group-24");
+});
+
+it("reveals legacy rows only after provider cards and appends them in the same feed", async () => {
+  const user = userEvent.setup();
+  const sections = Array.from({ length: 25 }, (_, index) => pilotSection({
+    providerId: `site-${index}`, providerIds: [`site-${index}`], providerLabel: `Site ${index}`,
+  }));
+  const rows = buildAccountLedgerRows(buildRouteAccountCatalog({
+    providers: Array.from({ length: 30 }, (_, index) => ({
+      id: `legacy-${index}`, label: `Legacy ${index}`, base_url: "https://example.invalid", api_key: "fixture",
+    })), model_routes: [], aliases: {},
+  }), {});
+  const { container } = renderProviders(workspaceProps({
+    pilotSections: sections, rows, t: (_zh, en) => en,
+  }));
+  expect(container.querySelectorAll("[data-provider-card]")).toHaveLength(24);
+  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Load more" }));
+  expect(container.querySelectorAll("[data-provider-card]")).toHaveLength(25);
+  const table = screen.getByRole("table", { name: "Account ledger table" });
+  expect(within(table).getAllByRole("row")).toHaveLength(24);
+  const first = within(table).getAllByRole("row")[1];
+  await user.click(screen.getByRole("button", { name: "Load more" }));
+  expect(within(table).getAllByRole("row")).toHaveLength(31);
+  expect(within(table).getAllByRole("row")[1]).toBe(first);
+  expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
 });
 
 it("resets for search and sort, clamps after deletion, and never mutates results", () => {

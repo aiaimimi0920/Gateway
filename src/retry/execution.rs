@@ -2,10 +2,10 @@
 use super::*;
 
 pub async fn execute_with_retry_after_admission_observed_started<T, F, Fut, A, AFut, B, O>(
-    mut f: F,
-    mut admit_retry: A,
-    mut begin_attempt: B,
-    mut observe_attempt: O,
+    f: F,
+    admit_retry: A,
+    begin_attempt: B,
+    observe_attempt: O,
     policy: &RetryPolicy,
 ) -> Result<T, GatewayError>
 where
@@ -15,6 +15,35 @@ where
     AFut: std::future::Future<Output = Result<(), GatewayError>>,
     B: FnMut() -> Result<(), GatewayError>,
     O: for<'a> FnMut(RetryAttemptObservation<'a>),
+{
+    execute_deciding(
+        f,
+        admit_retry,
+        begin_attempt,
+        observe_attempt,
+        |error, _| should_retry(error, policy),
+        policy,
+    )
+    .await
+}
+
+/// The send gate may narrow retry eligibility using the shared logical-request owner.
+pub(crate) async fn execute_deciding<T, F, Fut, A, AFut, B, O, R>(
+    mut f: F,
+    mut admit_retry: A,
+    mut begin_attempt: B,
+    mut observe_attempt: O,
+    mut retry: R,
+    policy: &RetryPolicy,
+) -> Result<T, GatewayError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, GatewayError>>,
+    A: FnMut() -> AFut,
+    AFut: std::future::Future<Output = Result<(), GatewayError>>,
+    B: FnMut() -> Result<(), GatewayError>,
+    O: for<'a> FnMut(RetryAttemptObservation<'a>),
+    R: FnMut(&GatewayError, usize) -> bool,
 {
     let mut last_error: Option<GatewayError> = None;
     let mut wait_budget = WaitBudget::new(policy.max_total_wait);
@@ -30,7 +59,7 @@ where
         match result {
             Ok(result) => return Ok(result),
             Err(error) => {
-                if attempt < policy.max_retries && should_retry(&error, policy) {
+                if attempt < policy.max_retries && retry(&error, attempt) {
                     let Some(delay) = wait_budget.next_delay(&error, attempt, policy) else {
                         warn!(attempt, kind = ?error.kind, "upstream retry wait budget exhausted");
                         return Err(error);

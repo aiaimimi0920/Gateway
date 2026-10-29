@@ -3,8 +3,8 @@ use crate::protocol::registry::canonicalize_protocol_profile_key;
 use crate::routing::candidate::ProviderAccountPayload;
 
 pub const AZURE_OPENAI_PROFILE: &str = "azure_openai";
-pub const AZURE_OPENAI_PRESET_ID: &str = "azure-openai";
-pub const AZURE_OPENAI_CATALOG_KEY: &str = "azure-openai";
+pub const AZURE_OPENAI_PRESET_ID: &str = "azure-api";
+pub const AZURE_OPENAI_CATALOG_KEY: &str = "azure-api";
 
 pub fn is_azure_openai_profile(value: &str) -> bool {
     matches!(
@@ -53,6 +53,7 @@ mod tests {
 
     fn make_payload(base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "openai_compatible".to_string(),
@@ -88,6 +89,26 @@ mod tests {
             session_auth: None,
             keepalive: None,
         }
+    }
+
+    #[test]
+    #[cfg(feature = "line-azure-openai-official-vendor-api")]
+    fn azure_api_is_the_only_registered_preset() {
+        let preset = crate::preset::get_builtin_preset("azure-api").unwrap();
+        assert!(crate::preset::get_builtin_preset("azure-openai").is_none());
+        assert_eq!(preset.id, AZURE_OPENAI_PRESET_ID);
+        assert_eq!(AZURE_OPENAI_CATALOG_KEY, "azure-api");
+        assert_eq!(preset.auth_mode.as_deref(), Some("api-key"));
+        assert_eq!(
+            preset.chat_completions_path.as_deref(),
+            Some("/chat/completions")
+        );
+        assert_eq!(preset.responses_path.as_deref(), Some("/responses"));
+        assert!(preset.default_model.is_none());
+        assert_eq!(
+            crate::protocol::registry::default_protocol_profile_for_preset(&preset.id),
+            AZURE_OPENAI_PROFILE
+        );
     }
 
     #[test]

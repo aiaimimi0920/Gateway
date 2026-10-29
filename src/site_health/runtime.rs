@@ -186,7 +186,7 @@ pub(crate) fn entries(state: &AppState) -> serde_json::Value {
         }).collect();
         let legacy=reports.iter().find(|p|p["profile_id"].is_null()).map(|p|p["snapshot"].clone());
         serde_json::json!({"provider_id":p.id,"config":c.config.redacted(),"snapshot":legacy,"profiles":reports})
-    })).collect::<Vec<_>>(), "model_circuits":state.lifecycle.model_circuits.reports()})
+    })).collect::<Vec<_>>(), "model_circuits":state.lifecycle.model_circuits.reports(), "gateway_network":state.lifecycle.model_circuits.network_report()})
 }
 
 async fn wait_plan_changed(state: &AppState, id: &str, plan: &CompiledPlan) {

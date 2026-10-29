@@ -131,7 +131,12 @@ impl Pool {
             *guard = None;
         }
         if guard.is_none() {
-            *guard = Some(open(origin, tls, proxy).await?);
+            // A managed response can be long-lived, but DNS/TCP/TLS setup cannot hang forever.
+            *guard = Some(
+                tokio::time::timeout(Duration::from_secs(15), open(origin, tls, proxy))
+                    .await
+                    .map_err(|_| Error::Timeout)??,
+            );
         }
         let conn = guard.as_mut().ok_or(Error::Network)?;
         let activity = conn.activity.clone();

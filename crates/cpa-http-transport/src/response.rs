@@ -20,7 +20,7 @@ type ChunkStream = Pin<Box<dyn futures::Stream<Item = io::Result<bytes::Bytes>> 
 struct State {
     stream: Option<ChunkStream>,
     lease: Option<Lease>,
-    deadline: Instant,
+    deadline: Option<Instant>,
     total: usize,
 }
 
@@ -29,7 +29,7 @@ pub(crate) fn adapt(
     uri: Uri,
     method: http::Method,
     lease: Lease,
-    deadline: Instant,
+    deadline: Option<Instant>,
 ) -> rquest::Response {
     let (mut parts, incoming) = response.into_parts();
     let encodings: Vec<_> = parts
@@ -95,7 +95,13 @@ pub(crate) fn adapt(
     };
     let stream = futures::stream::unfold(state, |mut state| async move {
         let source = state.stream.as_mut()?;
-        let value = match tokio::time::timeout_at(state.deadline, source.next()).await {
+        let next = async {
+            match state.deadline {
+                Some(deadline) => tokio::time::timeout_at(deadline, source.next()).await,
+                None => Ok(source.next().await),
+            }
+        };
+        let value = match next.await {
             Err(_) => Some(Err(io::Error::new(
                 io::ErrorKind::TimedOut,
                 "CPA response deadline",

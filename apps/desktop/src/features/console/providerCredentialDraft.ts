@@ -4,6 +4,8 @@ import type { CredentialDialogValue } from "./CredentialDialog";
 import { optionalString, readStringArray } from "./routeAccountCatalog";
 import { isRecord } from "./routeDocument";
 import { accountDiscoverySchema } from "./accountDiscovery";
+import { officialCatalogSchema } from "./officialModelCatalog";
+import { modelSelectionSchema, withModelEditors } from "./credentialModelSelection";
 
 export type ProviderDraftRow = {
   id: string;
@@ -84,19 +86,29 @@ export function credentialDialogValueFromDocument(
   if (!isRecord(credential)) {
     return null;
   }
-  return {
+  const selection = modelSelectionSchema.safeParse(credential.model_selection).data;
+  const discovery = accountDiscoverySchema.safeParse(credential.discovery).data;
+  const modelCatalog = officialCatalogSchema.safeParse(credential.model_catalog).data;
+  const declared = readStringArray(credential.supported_models);
+  // Legacy empty lists inherit provider models; opening the editor must not silently revoke them.
+  const effective = selection ? [...selection.manual, ...selection.fetched]
+    : [...(discovery?.models ?? (declared.length ? declared : readStringArray(provider.supported_models))), ...(modelCatalog?.models ?? [])];
+  return withModelEditors({
     providerId,
     credentialId,
+    chatgptGroup: optionalString(credential, "credential_identity_category_id") ?? undefined,
     codexBasispointsEnabled: typeof credential.codex_basispoints_enabled === "boolean" ? credential.codex_basispoints_enabled : undefined,
-    discovery: accountDiscoverySchema.safeParse(credential.discovery).data,
+    discovery,
+    modelCatalog,
     discoveryStatus: isRecord(credential.discovery_job) ? optionalString(credential.discovery_job, "status") ?? undefined : undefined,
     accountName: optionalString(credential, "account_name") ?? "",
     enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
     baseUrl: optionalString(credential, "base_url") ?? "",
-    supportedModelsText: readStringArray(credential.supported_models).join("\n"),
+    supportedModelsText: [...new Set(effective)].join("\n"),
+    ...(selection ? { fetchedModelsText: selection.fetched.join("\n"), manualModelsText: selection.manual.join("\n") } : {}),
     apiKeyOperation: "keep",
     apiKeyValue: "",
-  };
+  });
 }
 
 export function duplicateCredentialDialogValue(
@@ -105,15 +117,17 @@ export function duplicateCredentialDialogValue(
   account: AccountsLedgerPilotAccount,
 ): CredentialDialogValue {
   const copiedValue = credentialDialogValueFromDocument(document, providerId, account.accountId);
-  const sourceName = copiedValue?.accountName || account.displayName || account.accountId;
   return {
     providerId,
     credentialId: `${account.accountId}-copy`,
-    accountName: `${sourceName} Copy`,
+    chatgptGroup: copiedValue?.chatgptGroup,
+    accountName: "",
     enabled: account.enabled,
     codexBasispointsEnabled: copiedValue?.codexBasispointsEnabled,
     baseUrl: copiedValue?.baseUrl ?? "",
     supportedModelsText: copiedValue?.supportedModelsText ?? "",
+    fetchedModelsText: "",
+    manualModelsText: copiedValue?.supportedModelsText ?? "",
     apiKeyOperation: "replace",
     apiKeyValue: "",
   };

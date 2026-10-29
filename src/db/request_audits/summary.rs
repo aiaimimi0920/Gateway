@@ -19,7 +19,7 @@ struct ProviderStatsAccumulator {
     cancelled_count: usize,
     running_count: usize,
     last_request_at: Option<String>,
-    /// Keyed by `YYYY-MM-DDTHH` so the BTreeMap keeps chronological order.
+    /// UTC half-hour starts (`YYYY-MM-DDTHH:mm`) preserve chronological order.
     windows: BTreeMap<String, ProviderWindowAccumulator>,
     /// Keyed by upstream model name; empty for the per-model accumulators
     /// themselves so the nesting stays one level deep.
@@ -55,8 +55,8 @@ impl ProviderStatsAccumulator {
             self.last_request_at = Some(row.created_at.clone());
         }
 
-        if let Some(hour_key) = hour_bucket_key(&row.created_at) {
-            let window = self.windows.entry(hour_key).or_default();
+        if let Some(bucket_key) = half_hour_bucket_key(&row.created_at) {
+            let window = self.windows.entry(bucket_key).or_default();
             window.total_requests += 1;
             match row.status.as_str() {
                 "completed" => window.success_count += 1,
@@ -238,37 +238,33 @@ fn window_views(
 ) -> Vec<GatewayRequestAuditProviderWindowView> {
     windows
         .iter()
-        .map(|(hour_key, window)| GatewayRequestAuditProviderWindowView {
-            label: hour_bucket_label(hour_key),
-            bucket_start: format!("{hour_key}:00:00Z"),
-            total_requests: window.total_requests,
-            success_count: window.success_count,
-            failure_count: window.failure_count,
-        })
+        .map(
+            |(bucket_key, window)| GatewayRequestAuditProviderWindowView {
+                label: bucket_key
+                    .rsplit('T')
+                    .next()
+                    .unwrap_or(bucket_key)
+                    .to_string(),
+                bucket_start: format!("{bucket_key}:00Z"),
+                total_requests: window.total_requests,
+                success_count: window.success_count,
+                failure_count: window.failure_count,
+            },
+        )
         .collect()
 }
 
-/// `2026-08-21T13:45:12.123Z` -> `2026-08-21T13`. Returns `None` for anything
-/// that is not an ISO-8601 timestamp with an hour component.
-fn hour_bucket_key(created_at: &str) -> Option<String> {
-    let trimmed = created_at.trim();
-    if trimmed.len() < 13 || !trimmed.is_char_boundary(13) {
-        return None;
-    }
-    let candidate = &trimmed[..13];
-    let bytes = candidate.as_bytes();
-    if bytes[10] != b'T' && bytes[10] != b' ' {
-        return None;
-    }
-    if !bytes[11].is_ascii_digit() || !bytes[12].is_ascii_digit() {
-        return None;
-    }
-    Some(format!("{}T{}", &candidate[..10], &candidate[11..13]))
-}
-
-fn hour_bucket_label(hour_key: &str) -> String {
-    match hour_key.split_once('T') {
-        Some((_, hour)) => format!("{hour}:00"),
-        None => hour_key.to_string(),
-    }
+/// Normalize offsets before bucketing; malformed dates must not invent traffic windows.
+fn half_hour_bucket_key(created_at: &str) -> Option<String> {
+    let timestamp = OffsetDateTime::parse(created_at.trim(), &Rfc3339)
+        .ok()?
+        .to_offset(time::UtcOffset::UTC);
+    Some(format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}",
+        timestamp.year(),
+        u8::from(timestamp.month()),
+        timestamp.day(),
+        timestamp.hour(),
+        timestamp.minute() / 30 * 30,
+    ))
 }

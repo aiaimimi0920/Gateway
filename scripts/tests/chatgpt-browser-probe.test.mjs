@@ -60,14 +60,15 @@ test("HTTP relay passes successful transport result without UI fallback", async 
     content: async () => "",
     evaluate: async (_callback, input) => {
       requests.push(input);
-      return { status: 200, contentType: "application/json", bodyText: requests.length === 1 ? '{"token":"synthetic"}' : "data: fixture\n\n" };
+      return { status: 200, contentType: "application/json", text: '{"token":"synthetic"}', bodyText: "data: fixture\n\n" };
     },
   };
-  const result = await runChatGptBrowserRelay(page, { baseUrl: "https://chatgpt.com", accessToken: "synthetic", requestBody: { messages: [] } });
+  const result = await runChatGptBrowserRelay(page, { baseUrl: "https://chatgpt.com", accessToken: "synthetic", requirementsMode: "legacy", requestBody: { messages: [] } });
   assert.equal(result.status, 200);
   assert.equal(requests.length, 2);
   assert.equal(requests[1].headers["OpenAI-Sentinel-Chat-Requirements-Token"], "synthetic");
-  assert.equal(shouldFallbackToUiRelay({ requirementsStatus: 401, status: 200 }), true);
+  assert.equal(shouldFallbackToUiRelay({ requirementsStatus: 401, status: 200 }), false);
+  for (const status of [401, 403, 429]) assert.equal(shouldFallbackToUiRelay({ requirementsStatus: 200, status }), false);
   assert.equal(shouldFallbackToUiRelay({ requirementsStatus: 200, status: 200, bodyText: "fixture" }), false);
 });
 

@@ -104,7 +104,6 @@ pub(super) fn canonicalize_folder_surface_slug(value: &str) -> String {
         "producer-videos" | "producer-video" => "producer-videos".to_string(),
         "producer-web-reverse-api" => "producer".to_string(),
         "kiro" | "kiro-compatible" => "kiro-compatible".to_string(),
-        "qwen-dashscope" | "qwen-dashscope-openai" => "qwen-dashscope-openai".to_string(),
         "qwen-coding-plan-openai" | "qwen-coding-openai" => "qwen-coding-plan-openai".to_string(),
         "qwen-coding-plan-anthropic" | "qwen-coding-anthropic" => {
             "qwen-coding-plan-anthropic".to_string()

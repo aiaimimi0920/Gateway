@@ -37,12 +37,13 @@ export const ADDITIONAL_MODEL_COMPANIES: readonly ModelCompanyRule[] = [
   { id: "midjourney", label: "Midjourney", namespaces: ["midjourney"], models: [] },
   { id: "mistral-nvidia", label: "Mistral AI / NVIDIA", namespaces: ["nv-mistralai", "mistralai", "nvidia"], models: [] },
   // These configured IDs are tool/service adapters, not a claim of model authorship.
-  { id: "services", label: "工具与服务", namespaces: [], models: [] },
+  { id: "services", label: "tools", namespaces: [], models: [] },
 ];
 
 const suffix = "[a-z0-9][a-z0-9._:-]*(?:\\[free\\])?";
 const families = (...prefixes: string[]) => new RegExp(`^(?:${prefixes.join("|")})-${suffix}$`);
 const rules: readonly [string, RegExp][] = [
+  ["services", /^(?:search|fetch)$/],
   // Adapter smoke-test IDs do not identify which model generated the media.
   ["services", /^(?:(?:suno|udio|lumalabs)-(?:audio|music|image|video)-live|jina-(?:fetch|search))$/],
   // Derived models must win over the base model's family (e.g. Llama-Nemotron).

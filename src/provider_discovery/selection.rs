@@ -95,6 +95,12 @@ pub fn select_protocol_with_override(
         .discovered_protocols
         .iter()
         .filter(|c| c.protocol.routing_ready())
+        .filter(|c| {
+            candidate
+                .payload
+                .call_flow
+                .is_none_or(|flow| flow.call_adapter.allows(c.protocol))
+        })
         .filter(|c| forced.is_none_or(|target| target == c.protocol.family()))
         .filter(|c| model.is_none_or(|m| !c.failed_models.iter().any(|f| f == m)))
         .filter(|c| {

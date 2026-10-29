@@ -82,7 +82,7 @@ fn compiled_out_error_uses_stable_code() {
 fn qwen_official_payload_fails_compiled_check_when_feature_disabled() {
     let payload = make_payload(
         "openai_compatible",
-        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "https://coding.dashscope.aliyuncs.com/v1",
     );
     let error = ensure_payload_compiled(&payload).expect_err("qwen official line disabled");
     assert_eq!(
@@ -97,7 +97,6 @@ fn qwen_official_payload_fails_compiled_check_when_feature_disabled() {
 #[test]
 fn qwen_official_protocol_profiles_compile_when_feature_enabled() {
     for profile in [
-        "qwen_dashscope_openai",
         "qwen_coding_plan_openai",
         "qwen_coding_plan_anthropic",
         "qwen_official_api",
@@ -111,7 +110,6 @@ fn qwen_official_protocol_profiles_compile_when_feature_enabled() {
 #[test]
 fn qwen_official_protocol_profiles_fail_compile_check_when_feature_disabled() {
     for profile in [
-        "qwen_dashscope_openai",
         "qwen_coding_plan_openai",
         "qwen_coding_plan_anthropic",
         "qwen_official_api",

@@ -1,5 +1,11 @@
+#[path = "access_key_groups_contract/capacity.rs"]
+mod capacity;
 #[path = "access_key_groups_contract/dispatch.rs"]
 mod dispatch;
+#[path = "access_key_groups_contract/ip_block.rs"]
+mod ip_block;
+#[path = "access_key_groups_contract/recovery_wait.rs"]
+mod recovery_wait;
 // Loopback contract: multi-group keys never select accounts outside the live group union.
 #[path = "console_contract_support/mod.rs"]
 mod support;

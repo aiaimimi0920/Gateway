@@ -7,6 +7,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if ($env:GATEWAY_DEVTEST_ISOLATED -eq "1") { throw "Unset GATEWAY_DEVTEST_ISOLATED before a formal release build." }
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $desktopRoot = Join-Path $repoRoot "apps\\desktop"

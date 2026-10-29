@@ -14,6 +14,7 @@ import {
   formatAggregateRate,
 } from "./providerCardMetrics";
 import { ScopePager } from "./EntitlementScopePager";
+import { AvailabilityHeatmap } from "./AvailabilityHeatmap";
 
 type TranslateFn = (zh: string, en: string) => string;
 
@@ -145,36 +146,15 @@ export function EntitlementGroupModelScope({
                   <section
                     className="nt-entitlement-scope__model-success"
                     data-provider-availability-scope="entitlement-model"
-                    role="img"
+                    role="group"
                     aria-label={t(
                       `${row.model} 调用成功率${row.metrics.successRate == null ? "，暂无数据" : `，${row.metrics.successSuccessCount}/${row.metrics.successRequestCount} 次成功，${successLabel}`}`,
                       `${row.model} success rate${row.metrics.successRate == null ? ", unavailable" : `, ${row.metrics.successSuccessCount}/${row.metrics.successRequestCount} successful, ${successLabel}`}`,
                     )}
-                    title={t(
-                      `${row.model} 调用成功率 ${successLabel}`,
-                      `${row.model} success rate ${successLabel}`,
-                    )}
                   >
                     <Activity size={13} aria-hidden="true" />
                     {successWindows.length > 0 ? (
-                      <div className="nt-provider-card__availability-windows" aria-hidden="true">
-                        {successWindows.map((window, windowIndex) => (
-                          <div
-                            className="nt-provider-card__availability-window"
-                            key={`${cardKey}:${row.model}:window:${window.label}`}
-                          >
-                            {availabilityCells
-                              .filter((cell) => cell.windowIndex === windowIndex)
-                              .map((cell) => (
-                                <span
-                                  className={`nt-provider-card__availability-cell nt-provider-card__availability-cell--${cell.state}`}
-                                  key={`${cardKey}:${row.model}:cell:${cell.windowIndex}:${cell.position}`}
-                                  title={`${cell.windowLabel}: ${cell.success}/${cell.requests} (${formatAggregateRate(cell.rate)})`}
-                                />
-                              ))}
-                          </div>
-                        ))}
-                      </div>
+                      <AvailabilityHeatmap cells={availabilityCells} label={`${row.model} ${t("热度图", "heatmap")}`} t={t} />
                     ) : (
                       <span
                         className="nt-entitlement-scope__model-success-empty"

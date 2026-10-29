@@ -11,6 +11,7 @@ import {
   resolveHeadlessMode,
   resolveProxySettings,
   normalizeAuthSeed,
+  resolveBrowserLocale,
 } from "./chatgpt-web-session/configuration.mjs";
 import { createWorkerError, serializeError } from "./chatgpt-web-session/errors.mjs";
 import { maybeWriteCredentialFile } from "./chatgpt-web-session/credentials.mjs";
@@ -119,10 +120,7 @@ async function main() {
       executablePath,
       headless: resolveHeadlessMode(input),
       proxy: proxySettings?.launchOptions,
-      locale:
-        normalizeString(input?.languageCode) ??
-        normalizeString(input?.language) ??
-        DEFAULT_LANGUAGE_CODE,
+      locale: resolveBrowserLocale(input, DEFAULT_LANGUAGE_CODE),
       timezoneId: normalizeString(input?.timezone) ?? DEFAULT_TIMEZONE,
       userAgent: normalizeString(input?.userAgent) ?? DEFAULT_USER_AGENT,
       args: [
@@ -314,6 +312,8 @@ async function main() {
       currentStage = "browser_relay_request";
       relayResponse = await runChatGptBrowserRelay(page, {
         baseUrl,
+        accessToken: effectiveAuthToken,
+        requirementsMode: input.relayRequest.requirementsMode,
         requestBody: input.relayRequest.body,
         stream: input.relayRequest.stream === true,
         authUrl: normalizeString(input?.authUrl) ?? null,

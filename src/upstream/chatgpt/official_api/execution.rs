@@ -16,7 +16,7 @@ use crate::upstream::headers::build_inference_headers;
 use crate::upstream::response_error::classify_response_error;
 use crate::upstream::response_types::UpstreamStreamingResponse;
 
-use super::request_plan::{build_request_plan, owns_payload};
+use super::request_plan::owns_payload;
 use super::response::unpack_nonstreaming_response;
 
 #[derive(Debug)]
@@ -38,10 +38,23 @@ pub async fn execute_forced_streaming_accumulate(
     provider: &str,
     model: &str,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
-    let response = request
-        .send()
-        .await
-        .map_err(|error| classify_network_error(&error, Some(provider)))?;
+    accumulate_response(
+        request
+            .send()
+            .await
+            .map_err(|error| classify_network_error(&error, Some(provider))),
+        provider,
+        model,
+    )
+    .await
+}
+
+async fn accumulate_response(
+    response: Result<rquest::Response, GatewayError>,
+    provider: &str,
+    model: &str,
+) -> Result<CanonicalRelayResponse, GatewayError> {
+    let response = response?;
 
     if !response.status().is_success() {
         return Err(
@@ -59,6 +72,8 @@ pub fn prepare_execute_context<'a>(
     extra_headers: Option<&HashMap<String, String>>,
     stream: bool,
 ) -> Result<OfficialExecuteContext<'a>, GatewayError> {
+    let flow = crate::protocol::call_flow::prepare(payload)?;
+    let payload = flow.payload.as_ref();
     let mut headers = build_inference_headers(payload, req, model, extra_headers);
     crate::upstream::request_profile::apply_cpa_transport_headers(
         &mut headers,
@@ -69,7 +84,7 @@ pub fn prepare_execute_context<'a>(
     );
     Ok(OfficialExecuteContext {
         provider: surface::provider_line_name(payload),
-        plan: build_request_plan(payload, req, model, stream)?,
+        plan: UpstreamClient::build_request_plan(payload, req, model, stream)?,
         headers,
     })
 }
@@ -100,9 +115,14 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&HashMap<String, String>>,
     ) -> Result<CanonicalRelayResponse, GatewayError> {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
         let context = prepare_forced_streaming_execute_context(payload, req, model, extra_headers)?;
-        execute_forced_streaming_accumulate(
-            self.send_plan(&context.plan, context.headers),
+        accumulate_response(
+            self.send_profiled_plan(payload, &context.plan, context.headers)?
+                .with_provider(context.provider)
+                .send()
+                .await,
             context.provider,
             model,
         )
@@ -116,12 +136,14 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&HashMap<String, String>>,
     ) -> Result<CanonicalRelayResponse, GatewayError> {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
         let context = prepare_nonstreaming_execute_context(payload, req, model, extra_headers)?;
         let response = self
-            .send_plan(&context.plan, context.headers)
+            .send_profiled_plan(payload, &context.plan, context.headers)?
+            .with_provider(context.provider)
             .send()
-            .await
-            .map_err(|error| classify_network_error(&error, Some(context.provider)))?;
+            .await?;
 
         if !response.status().is_success() {
             return Err(classify_response_error(
@@ -144,12 +166,14 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&HashMap<String, String>>,
     ) -> Result<UpstreamStreamingResponse, GatewayError> {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
         let context = prepare_execute_context(payload, req, model, extra_headers, true)?;
         let response = self
-            .send_plan(&context.plan, context.headers)
+            .send_profiled_plan(payload, &context.plan, context.headers)?
+            .with_provider(context.provider)
             .send()
-            .await
-            .map_err(|error| classify_network_error(&error, Some(context.provider)))?;
+            .await?;
 
         if !response.status().is_success() {
             return Err(classify_response_error(
@@ -170,6 +194,7 @@ mod tests {
     mod body_preservation;
     mod body_targets;
     mod body_wire;
+    mod call_flow;
 
     use super::*;
     use crate::protocol::canonical::{CanonicalMessage, ContentPart, MessageRole, ProtocolFamily};
@@ -180,6 +205,7 @@ mod tests {
 
     fn make_payload(base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "openai_compatible".to_string(),

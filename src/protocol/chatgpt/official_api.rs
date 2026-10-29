@@ -119,6 +119,7 @@ mod tests {
         }
 
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "openai_compatible".to_string(),

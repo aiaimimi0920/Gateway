@@ -8,6 +8,7 @@ export type CardModelTrafficEntry = {
 };
 
 export type CardModelTraffic = {
+  catalogModels?: readonly string[];
   models: ReadonlyMap<string, CardModelTrafficEntry>;
   emptyRequestCount: 0 | null;
 };

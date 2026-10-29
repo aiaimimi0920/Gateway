@@ -1,0 +1,12 @@
+/* Brand artwork retains its own colors; a neutral plate keeps black marks legible. */
+.nt-provider-card__icon.nt-provider-card__icon--trademark {
+  background: var(--nt-color-focus-surface);
+  color: var(--nt-color-focus-ink);
+}
+
+.nt-provider-brand-icon {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}

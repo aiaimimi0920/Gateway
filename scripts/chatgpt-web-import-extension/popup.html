@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Gateway 会话导出</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <h1>ChatGPT Web</h1>
+  <button id="open" type="button">打开 ChatGPT</button>
+  <p>在普通浏览器完成登录后，回到 ChatGPT 页面，再打开此扩展。</p>
+  <label><input id="consent" type="checkbox">我确认将当前账号的登录凭据导出到本机，仅用于导入 Gateway。</label>
+  <button id="export" type="button" disabled>导出当前账号</button>
+  <p role="status" id="status"></p>
+  <p>文件包含敏感凭据，请勿发送给他人。导入后请自行删除下载文件。</p>
+  <script type="module" src="popup.mjs"></script>
+</body>
+</html>

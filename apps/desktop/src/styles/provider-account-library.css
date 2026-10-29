@@ -302,18 +302,8 @@
   gap: 6px;
 }
 
-.nt-provider-account-card__success .nt-provider-card__availability-windows {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 3px;
-}
-
-.nt-provider-account-card__success .nt-provider-card__availability-window {
-  gap: 1px;
-}
-
 .nt-provider-account-card__success .nt-provider-card__availability-cell {
-  height: 8px;
-  border-radius: 1px;
+  height: 10px;
 }
 
 .nt-provider-account-card__group-label {

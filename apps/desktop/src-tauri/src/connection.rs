@@ -119,7 +119,10 @@ pub async fn test_gateway_connection(
 ) -> Result<String, String> {
     require_settings_window(&window)?;
     let url = if settings.mode == ConnectionMode::Local {
-        settings::console_url("http://127.0.0.1:4200")?
+        settings::console_url(&format!(
+            "http://127.0.0.1:{}",
+            gateway_local_data::devtest::default_api_port()
+        ))?
     } else {
         settings::console_url(&settings.server_url)?
     };

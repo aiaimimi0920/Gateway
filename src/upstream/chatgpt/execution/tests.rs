@@ -3,7 +3,11 @@ use super::*;
 mod body_limits;
 mod body_targets;
 mod body_wire;
+mod failure_context;
+mod requirements_flow;
+mod session_compat;
 mod stream;
+mod text_compat;
 
 use std::sync::{Arc, Mutex};
 
@@ -107,6 +111,10 @@ async fn spawn_chatgpt_f_conversation_server(state: RequestState) -> String {
     let address = listener.local_addr().expect("addr");
     let app = Router::new()
         .route(
+            "/",
+            axum::routing::get(|| async { ([("content-type", "text/html")], "<html></html>") }),
+        )
+        .route(
             "/backend-api/sentinel/chat-requirements",
             post(record_requirements),
         )
@@ -131,6 +139,7 @@ fn make_payload(base_url: &str) -> ProviderAccountPayload {
         "conduit-material".to_string(),
     );
     ProviderAccountPayload {
+        call_flow: None,
         request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "chatgpt_web_reverse_compatible".to_string(),
@@ -163,6 +172,7 @@ fn make_payload(base_url: &str) -> ProviderAccountPayload {
         search_query_field: None,
         fetch_urls_field: None,
         extra_body: Some(HashMap::from([
+            ("chatgptWebRequirementsMode".to_string(), json!("legacy")),
             (
                 "chatgptPowSources".to_string(),
                 json!(["https://chatgpt.com/backend-api/sentinel/sdk.js"]),
@@ -210,7 +220,11 @@ fn make_request() -> CanonicalRelayRequest {
 async fn execute_uses_browserless_f_conversation_prepare_contract() {
     let state = RequestState::default();
     let base_url = spawn_chatgpt_f_conversation_server(state.clone()).await;
-    let payload = make_payload(&base_url);
+    let mut payload = make_payload(&base_url);
+    payload.extra_body.as_mut().unwrap().insert(
+        "conversationPath".into(),
+        json!("/backend-api/f/conversation"),
+    );
     let response = execute(
         &Client::new(),
         Duration::from_secs(5),
@@ -238,7 +252,10 @@ async fn execute_uses_browserless_f_conversation_prepare_contract() {
 
     let prepare = &seen[1];
     let conversation = &seen[2];
-    assert!(prepare.body.is_empty());
+    assert_eq!(
+        serde_json::from_str::<Value>(&prepare.body).expect("prepare JSON body"),
+        serde_json::from_str::<Value>(&conversation.body).expect("conversation JSON body")
+    );
     assert_eq!(
         prepare
             .headers

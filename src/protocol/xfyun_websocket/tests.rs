@@ -12,6 +12,7 @@ use std::collections::HashMap;
 
 fn make_payload() -> ProviderAccountPayload {
     ProviderAccountPayload {
+        call_flow: None,
         request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "xfyun_websocket_compatible".to_string(),

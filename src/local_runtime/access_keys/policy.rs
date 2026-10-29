@@ -137,7 +137,10 @@ impl LocalRuntime {
         let mut tx = self.pool.begin().await.map_err(storage_error)?;
         let key = read(&mut tx, id).await?;
         ensure_active(&key)?;
-        let policy = restrictions(key.metadata.as_ref())?;
+        let mut policy = restrictions(key.metadata.as_ref())?;
+        policy.provider_ids =
+            super::super::provider_identity::expand_restrictions(&mut tx, policy.provider_ids)
+                .await?;
         tx.commit().await.map_err(storage_error)?;
         let snapshot = routes.snapshot();
         let groups = crate::access_key_groups::group_ids(key.metadata.as_ref())?
@@ -222,7 +225,7 @@ impl LocalRuntime {
             .map(|_| ())
     }
 
-    /// Return explicit IDs from the same validated key transaction, never from auto candidates.
+    /// Return explicit IDs and only their declared identity aliases from the key transaction.
     pub async fn authorize_local_candidates_with_fallback_authorization(
         &self,
         id: &str,
@@ -232,7 +235,10 @@ impl LocalRuntime {
         let mut tx = self.pool.begin().await.map_err(storage_error)?;
         let key = read(&mut tx, id).await?;
         ensure_active(&key)?;
-        let policy = restrictions(key.metadata.as_ref())?;
+        let mut policy = restrictions(key.metadata.as_ref())?;
+        policy.provider_ids =
+            super::super::provider_identity::expand_restrictions(&mut tx, policy.provider_ids)
+                .await?;
         if let Some(models) = policy.models {
             if !model.is_some_and(|model| models.iter().any(|allowed| allowed == model)) {
                 return Err(denied("Access key does not allow this model"));

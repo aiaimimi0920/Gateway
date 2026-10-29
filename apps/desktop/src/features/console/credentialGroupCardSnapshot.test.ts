@@ -53,7 +53,7 @@ describe("buildCredentialGroupCardSnapshot", () => {
     expect(snapshot.providerScopeNarrowed).toBe(true);
     expect([...snapshot.selectedProviderIds]).toEqual(["openai"]);
     expect(snapshot.successWindows).toEqual(group.metrics?.successWindows);
-    expect(snapshot.availabilityCells).toHaveLength(12);
+    expect(snapshot.availabilityCells).toHaveLength(1);
   });
 
   it("uses the translated fallback and selects every provider by default", () => {

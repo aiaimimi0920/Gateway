@@ -10,10 +10,14 @@ S1 的单次 retry 累计睡眠额度仍见 [等待契约](retry-wait-policy.md)
 ChatGPT/Qwen recovery、browser relay 和 buffered Responses bridge 使用它的
 共享 clone，不在切换候选、刷新认证或再次进入 retry 时重新创建。
 
-- 普通请求最多 6 次 adapter execution；这是原逐候选默认 3 次的请求级上限，
-  不是另外新增 6 次 retry。默认截止时间为 Context 创建后 300 秒。
-- `totalRequestTimeoutSeconds` 复用已有可信 route policy 字段，合法范围 1–300；
-  从原始起点收紧，不能重新计时或放宽。非法持久化值在发送前 fail closed。
+- 普通执行最多 6 次 adapter execution；明确容量拒绝的恢复准入例外见
+  [恢复等待](request-recovery-wait.md)，不把未知执行结果变成无限重放。
+  有界模式默认截止时间为 Context 创建后 300 秒。
+- `totalRequestTimeoutSeconds` 复用已有可信 route policy 字段，合法范围 1–900；
+  首次配置可从原始起点选 5／10／15 分钟，后续仅收紧，不重新计时。
+  可信 provider 配置与 route policy 同时指定时取较短值。非法值在发送前 fail closed。
+- 官方 ChatGPT 模板默认支持连接期间长等待；只在首次配置、没有显式可信截止时
+  移除默认总 deadline。已经停止、移交或显式设置的预算不得被复活或延长。
 - admission 和 execution start 分离。只有成功准入后的 `begin_attempt` 消耗 slot，
   同时更新 route attempt count / 首次触达账户；被白名单拒绝、排队取消或准入拒绝
   不计已发送。retry observation 同样只在 begin 成功后创建。
@@ -58,6 +62,11 @@ HTML 诊断页（`upstream_html_diagnostic`）时，外层候选切换边界可�
 发送资格。后者计为服务商调用失败并扣可用性分，不重试同一失败凭据；未知 HTML
 或普通 403 不能借此重放。工具声明不阻断这类切换，但总计 6 次上限、原 deadline、
 明确账户授权和资格检查仍有效；预算已停止、已移交流、媒体创建均不适用。
+
+完整匹配的 HTTP 403 `bulk probe guard` IP 封禁也属于已确认的准入拒绝：
+须同时验证固定消息结构、合法 IP、模型数量、时间窗及 offense 字段，不能仅凭
+上游 JSON 自报 `provider_ip_temporarily_blocked` 就增加发送资格。它不在原服务商
+重试；仅在移交响应前按同一预算尝试下一个已授权候选。普通 403 行为不变。
 
 ## 精确授权，而不是猜付费身份
 

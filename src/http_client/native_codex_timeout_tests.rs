@@ -52,3 +52,21 @@ async fn native_codex_timeout_still_bounds_idle_body() {
     let _ = server.await;
     assert!(result.unwrap_err().is_timeout());
 }
+
+#[tokio::test]
+async fn recovery_managed_pool_does_not_inherit_an_ordinary_idle_timeout() {
+    let pool = NativeCodexConnection::default();
+    let ordinary = pool.client(Duration::from_millis(100));
+    let (url, server) = serve(Duration::from_millis(400), 1).await;
+    let result = crate::request_wait::transport::within(true, async {
+        let managed = pool.client(Duration::from_millis(100));
+        assert!(
+            !std::ptr::eq(ordinary, managed),
+            "managed policy must not mutate the ordinary pool"
+        );
+        managed.get(url).send().await.unwrap().bytes().await
+    })
+    .await;
+    server.await.unwrap();
+    assert_eq!(result.unwrap().len(), 1);
+}

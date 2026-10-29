@@ -10,8 +10,12 @@ use tokio::time::{sleep_until, Instant};
 use crate::error::{FallbackHint, GatewayError};
 use crate::protocol::canonical::{CanonicalRelayRequest, EndpointKind, MessageRole};
 
+#[path = "request_budget_capacity.rs"]
+mod capacity;
 #[path = "request_budget_stream.rs"]
 mod stream;
+#[path = "request_budget_wait.rs"]
+mod wait;
 pub use stream::BudgetStream;
 
 pub const MAX_REQUEST_ATTEMPTS: u32 = 6;
@@ -22,13 +26,17 @@ pub struct RequestBudget(Arc<Mutex<State>>);
 
 struct State {
     started_at: Instant,
-    deadline: Instant,
+    deadline: Option<Instant>,
+    policy_configured: bool,
+    wait_managed: bool,
     max_attempts: u32,
     attempts: u32,
     stop: Option<&'static str>,
     handed_off: bool,
     last_error: Option<GatewayError>,
     rejected_conversation_fallback: bool,
+    capacity_retry_available: bool,
+    capacity_readmission_at: u32,
 }
 
 /// Conservatively disallow replay for create operations or any tool-bearing request.
@@ -62,6 +70,7 @@ impl RequestBudget {
             },
             REQUEST_TIMEOUT,
         );
+        budget.0.lock().policy_configured = false;
         budget.0.lock().rejected_conversation_fallback = matches!(
             req.endpoint_kind,
             EndpointKind::Responses | EndpointKind::ChatCompletions
@@ -74,13 +83,17 @@ impl RequestBudget {
         let now = Instant::now();
         Self(Arc::new(Mutex::new(State {
             started_at: now,
-            deadline: now.checked_add(timeout).unwrap_or(now),
+            deadline: Some(now.checked_add(timeout).unwrap_or(now)),
+            policy_configured: true,
+            wait_managed: false,
             max_attempts,
             attempts: 0,
             stop: None,
             handed_off: false,
             last_error: None,
             rejected_conversation_fallback: false,
+            capacity_retry_available: max_attempts > 1,
+            capacity_readmission_at: 0,
         })))
     }
 
@@ -93,27 +106,34 @@ impl RequestBudget {
         state.max_attempts.saturating_sub(state.attempts)
     }
 
-    /// Tightening uses the original start, never candidate/recovery time.
+    /// The first trusted policy selects a duration; subsequent calls only tighten.
+    /// All deadlines use the original start, never candidate/recovery time.
     /// Reuse the existing policy field; corrupt persisted policy fails closed.
     pub fn configure(
         &self,
         req: &CanonicalRelayRequest,
         timeout_seconds: Option<i32>,
     ) -> Result<(), GatewayError> {
-        if timeout_seconds.is_some_and(|seconds| !(1..=300).contains(&seconds)) {
+        if timeout_seconds.is_some_and(|seconds| !(1..=900).contains(&seconds)) {
             return Err(GatewayError::bad_request(
-                "totalRequestTimeoutSeconds must be between 1 and 300",
+                "totalRequestTimeoutSeconds must be between 1 and 900",
             )
             .with_code("invalid_request_budget_policy"));
         }
         let mut state = self.0.lock();
         if !replay_safe(req) {
             state.max_attempts = state.max_attempts.min(1);
+            state.capacity_retry_available = false;
         }
         if let Some(seconds) = timeout_seconds {
             let deadline = state.started_at + Duration::from_secs(seconds as u64);
-            state.deadline = state.deadline.min(deadline);
+            state.deadline = Some(if state.policy_configured {
+                state.deadline.map_or(deadline, |old| old.min(deadline))
+            } else {
+                deadline
+            });
         }
+        state.policy_configured = true;
         Ok(())
     }
 
@@ -176,9 +196,9 @@ impl RequestBudget {
         let mut future = Box::pin(future);
         let result = tokio::select! {
             biased;
-            _ = sleep_until(deadline) => Err(self.stop("deadline")),
+            _ = async { match deadline { Some(deadline) => sleep_until(deadline).await, None => std::future::pending().await } } => Err(self.stop("deadline")),
             result = future.as_mut() => {
-                if Instant::now() >= deadline {
+                if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
                     // Mark the cause before dropping a late stream/transport and its callbacks.
                     let error = self.stop("deadline");
                     drop(result);
@@ -227,7 +247,10 @@ fn check_state(state: &mut State) -> Result<(), GatewayError> {
         ));
     }
     let reason = state.stop.or_else(|| {
-        if Instant::now() >= state.deadline {
+        if state
+            .deadline
+            .is_some_and(|deadline| Instant::now() >= deadline)
+        {
             Some("deadline")
         } else if state.attempts >= state.max_attempts {
             Some("attempt_limit")

@@ -9,7 +9,7 @@ pub(super) async fn fetch(client: &rquest::Client) -> Result<Value, (String, Opt
     // Never trust a bootstrap-provided host: this second origin is an explicit fixed allowlist.
     let origin = transport::checked_url("https://alkalimakersuite-pa.clients6.google.com/")
         .map_err(|_| ("network_policy_error".into(), None))?;
-    let client = transport::client(&origin, false)
+    let client = transport::gemini_rpc_client()
         .await
         .map_err(|_| ("network_policy_error".into(), None))?;
     let endpoint = origin.join("$rpc/google.internal.alkali.applications.makersuite.v1.MakerSuiteService/ListIncidentsHistory").unwrap();

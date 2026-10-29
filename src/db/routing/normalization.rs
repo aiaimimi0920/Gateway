@@ -68,7 +68,7 @@ pub fn normalize_route_policy_config(
         total_request_timeout_seconds: normalize_positive_i32(
             "totalRequestTimeoutSeconds",
             input.total_request_timeout_seconds,
-            300,
+            900,
         )?,
         max_stream_heartbeat_gap_seconds: normalize_positive_i32(
             "maxStreamHeartbeatGapSeconds",

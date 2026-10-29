@@ -48,8 +48,10 @@ it("keeps all reviewed exact models and namespace aliases under their declared o
 });
 
 it("does not confuse tools, anonymous aliases, conflicting namespaces or model substrings with developers", () => {
-  const tools = ["exa-search", "openrouter-random", "producer:standard", "suno-image-live", "jina-fetch"];
-  expect(groupCardModels(tools)).toEqual([{ id: "services", label: "工具与服务", models: tools }]);
+  const tools = ["search", "fetch", "exa-search", "openrouter-random", "producer:standard", "suno-image-live", "jina-fetch"];
+  expect(groupCardModels(tools)).toEqual([{ id: "services", label: "tools", models: tools.slice(2) }]);
+  expect(groupCardModels(["search", "fetch", " search ", "fetch"])).toEqual([]);
+  expect(groupCardModels(["linkup-balance", "search-balance", "search-api-balance"])).toEqual([]);
   const unknown = ["big-pickle", "space-bunny", "Meow", "42-pro-0721-free", "exo",
     "custom/phi-next", "meta/llama-9-nemotron-next", "google/claude-next", "my-qwen-proxy",
     "xop-unknown-qwen", "proxy/google/gemma-next", "starcoder2/not-a-model", "gemma-next/extra/path"];

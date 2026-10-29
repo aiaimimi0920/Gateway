@@ -59,10 +59,12 @@ pub async fn probe_console_credential(
         crate::provider_runtime::test_store::save(&state, &result).await?;
         return Ok(json_with_no_store(serde_json::json!({"result":result})));
     }
+    let started = std::time::Instant::now();
     let (probe_point, report) =
         crate::provider_runtime::probe_console_target(&state, &target).await;
     crate::provider_runtime::record_provider_credential_probe_report(
         state.as_ref(),
+        started,
         &target.provider_id,
         &target.credential_id,
         &report,
@@ -234,6 +236,7 @@ pub async fn probe_console_provider(
         if !budget.admit() {
             continue;
         }
+        let started = std::time::Instant::now();
         let (probe_point, report) = crate::provider_runtime::probe_console_target_with_request(
             &state,
             &target,
@@ -242,6 +245,7 @@ pub async fn probe_console_provider(
         .await;
         crate::provider_runtime::record_provider_credential_probe_report(
             state.as_ref(),
+            started,
             &target.provider_id,
             &target.credential_id,
             &report,

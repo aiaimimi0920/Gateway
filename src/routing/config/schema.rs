@@ -170,6 +170,12 @@ pub struct ProviderCredentialYaml {
     pub discovery_job: Option<crate::provider_discovery::job::DiscoveryJob>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discovery: Option<crate::provider_discovery::CredentialDiscovery>,
+    /// Directory visibility only; never creates successful-call or entitlement evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_catalog: Option<crate::provider_discovery::model_catalog::ModelCatalog>,
+    /// Editable source lists, not evidence of model availability or successful calls.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_selection: Option<super::ModelSelection>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub test_policy: Option<crate::credential_test_policy::CredentialTestPolicy>,
     /// Optional credential ID (auto-generated as `{provider_id}-cred-{index}` if absent).
@@ -244,6 +250,14 @@ pub struct ProviderCredentialYaml {
 /// Per-provider configuration block in the YAML file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfigYaml {
+    /// Trusted recovery waiting policy; absent keeps template-specific defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_wait: Option<crate::request_wait::RequestWaitPolicy>,
+    #[serde(default, alias = "callFlow", skip_serializing_if = "Option::is_none")]
+    pub call_flow: Option<crate::protocol::call_flow::ProviderCallFlow>,
+    /// Provider-only creation opts out of the legacy implicit default account.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub explicit_credentials_only: bool,
     /// Protocol authentication choice; independent from software identity profiles.
     #[serde(default, alias = "authMode", skip_serializing_if = "Option::is_none")]
     pub auth_mode: Option<String>,
@@ -408,4 +422,10 @@ pub struct ProviderConfigYaml {
     /// credential.
     #[serde(default)]
     pub credentials: Vec<ProviderCredentialYaml>,
+}
+
+impl ProviderConfigYaml {
+    pub fn uses_provider_default_account(&self) -> bool {
+        !self.explicit_credentials_only && self.credentials.is_empty()
+    }
 }

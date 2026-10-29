@@ -48,18 +48,18 @@ function catalog(onDiscover = vi.fn().mockResolvedValue(discovery)) {
   render(<UiLocaleProvider><ProviderCatalogDialog open existingProviderIds={[]} existingCredentialIds={[]}
     locked={false} hasSecretAccess onOpenChange={onOpenChange} onRequestSecretAccess={vi.fn()}
     onSubmit={onSubmit} onDiscover={onDiscover} /></UiLocaleProvider>);
-  fireEvent.click(screen.getByRole("button", { name: /自定义 API 服务商/i }));
+  fireEvent.click(screen.getByRole("button", { name: "自定义模板" }));
+  fireEvent.click(screen.getByRole("button", { name: "custom-api-provider" }));
   fireEvent.change(screen.getByLabelText("Base URL"), { target: { value: discovery.source_url } });
-  fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-key" } });
   return { onSubmit, onOpenChange, onDiscover };
 }
 
-it("submits the provider immediately using only root URL and key", async () => {
+it("submits only the provider immediately without running discovery", async () => {
   const props = catalog();
   expect(screen.queryByLabelText("支持模型与聚合路由")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "创建服务商与首个账号" }));
+  fireEvent.click(screen.getByRole("button", { name: "添加" }));
   await waitFor(() => expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-    baseUrl: discovery.source_url, supportedModels: [], apiKey: "fixture-key",
+    baseUrl: discovery.source_url, supportedModels: [],
   })));
   expect(props.onDiscover).not.toHaveBeenCalled();
   expect(props.onOpenChange).toHaveBeenCalledWith(false);
@@ -67,7 +67,7 @@ it("submits the provider immediately using only root URL and key", async () => {
 
 it("does not wait for a slow discovery request before closing creation", () => {
   const props = catalog(vi.fn(() => new Promise(() => {})));
-  fireEvent.click(screen.getByRole("button", { name: "创建服务商与首个账号" }));
+  fireEvent.click(screen.getByRole("button", { name: "添加" }));
   expect(props.onSubmit).toHaveBeenCalledTimes(1);
   expect(props.onOpenChange).toHaveBeenCalledWith(false);
   expect(props.onDiscover).not.toHaveBeenCalled();

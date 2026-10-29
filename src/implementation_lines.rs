@@ -57,6 +57,10 @@ pub fn required_feature_for_adapter(adapter: &str) -> Option<&'static str> {
 }
 
 pub fn is_protocol_profile_compiled_in(profile: &str) -> bool {
+    if crate::protocol::registry::canonicalize_protocol_profile_key(profile) == "jina" {
+        return RefactoredImplementationLine::JinaSearchOfficialVendorApi.compiled_in()
+            && RefactoredImplementationLine::JinaReaderOfficialVendorApi.compiled_in();
+    }
     line_for_protocol_profile(profile)
         .map(RefactoredImplementationLine::compiled_in)
         .unwrap_or(true)
@@ -69,6 +73,17 @@ pub fn is_adapter_compiled_in(adapter: &str) -> bool {
 }
 
 pub fn ensure_protocol_profile_compiled(profile: &str) -> Result<(), GatewayError> {
+    if crate::protocol::registry::canonicalize_protocol_profile_key(profile) == "jina" {
+        for line in [
+            RefactoredImplementationLine::JinaSearchOfficialVendorApi,
+            RefactoredImplementationLine::JinaReaderOfficialVendorApi,
+        ] {
+            if !line.compiled_in() {
+                return Err(compiled_out_error_for_line(line));
+            }
+        }
+        return Ok(());
+    }
     let Some(line) = line_for_protocol_profile(profile) else {
         return Ok(());
     };

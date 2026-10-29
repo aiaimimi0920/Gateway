@@ -2,64 +2,6 @@ use super::ProviderPreset;
 use crate::credential_runtime::SessionAuthConfig;
 use std::collections::HashMap;
 
-/// Legacy `qwen` alias preset.
-///
-/// The old OAuth-based `portal.qwen.ai` route is no longer the official
-/// baseline. For compatibility, `preset: qwen` now resolves to the current
-/// DashScope OpenAI-compatible API key line.
-pub fn qwen_preset() -> ProviderPreset {
-    ProviderPreset {
-        id: "qwen".to_string(),
-        adapter: "openai_compatible".to_string(),
-        headers: HashMap::new(),
-        extra_body: HashMap::new(),
-        default_model: None,
-        auth_mode: Some("bearer".to_string()),
-        anthropic_version: None,
-        beta_headers: None,
-        auth_header_name: None,
-        responses_path: None,
-        chat_completions_path: None,
-        messages_path: None,
-        search_path: None,
-        fetch_path: None,
-        research_path: None,
-        balance_path: None,
-        search_query_field: None,
-        fetch_urls_field: None,
-        session_auth: None,
-        execution_mode: None,
-        endpoint_execution_modes: None,
-    }
-}
-
-pub fn qwen_dashscope_openai_preset() -> ProviderPreset {
-    ProviderPreset {
-        id: "qwen-dashscope-openai".to_string(),
-        adapter: "openai_compatible".to_string(),
-        headers: HashMap::new(),
-        extra_body: HashMap::new(),
-        default_model: None,
-        auth_mode: Some("bearer".to_string()),
-        anthropic_version: None,
-        beta_headers: None,
-        auth_header_name: None,
-        // DashScope official OpenAI-compatible base URLs already include `/v1`.
-        responses_path: Some("/responses".to_string()),
-        chat_completions_path: Some("/chat/completions".to_string()),
-        messages_path: None,
-        search_path: None,
-        fetch_path: None,
-        research_path: None,
-        balance_path: None,
-        search_query_field: None,
-        fetch_urls_field: None,
-        session_auth: None,
-        execution_mode: None,
-        endpoint_execution_modes: None,
-    }
-}
-
 pub fn qwen_coding_plan_openai_preset() -> ProviderPreset {
     ProviderPreset {
         id: "qwen-coding-plan-openai".to_string(),

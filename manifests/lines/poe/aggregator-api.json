@@ -15,7 +15,7 @@
   },
   "capabilities": {
     "families": ["conversation", "models"],
-    "supportsModelsEndpoint": false
+    "supportsModelsEndpoint": true
   },
   "credentials": {
     "materialKinds": ["api_key"],

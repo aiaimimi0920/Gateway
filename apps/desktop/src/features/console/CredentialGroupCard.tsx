@@ -14,6 +14,7 @@ import type { CredentialGroupsWorkspaceProps, TranslateFn } from "./credentialGr
 import { useState } from "react";
 import type { CredentialGroupCardSnapshot } from "./credentialGroupCardSnapshot";
 import { EntitlementGroupScopeBoard } from "./EntitlementGroupScopeBoard";
+import { AvailabilityHeatmap } from "./AvailabilityHeatmap";
 import { formatAggregateMoney, formatAggregateRate } from "./providerCardMetrics";
 
 type CredentialGroupCardProps = Pick<
@@ -197,37 +198,16 @@ export function CredentialGroupCard({
             <section
               className="nt-entitlement-group-card__success"
               data-provider-availability-scope="entitlement-group"
-              role="img"
+              role="group"
               aria-label={t(
                 `${label} 最近窗口的调用成功率，组内账号聚合${metrics?.successRate == null ? "，暂无数据" : `，${metrics.successSuccessCount}/${metrics.successRequestCount} 次成功，${formatAggregateRate(metrics.successRate)}`}`,
                 `${label} recent window success rate, member accounts aggregated${metrics?.successRate == null ? ", unavailable" : `, ${metrics.successSuccessCount}/${metrics.successRequestCount} successful, ${formatAggregateRate(metrics.successRate)}`}`,
-              )}
-              title={t(
-                `${label} 调用成功率 ${formatAggregateRate(metrics?.successRate ?? null)}`,
-                `${label} success rate ${formatAggregateRate(metrics?.successRate ?? null)}`,
               )}
             >
               <Activity size={15} aria-hidden="true" />
               <span className="nt-entitlement-group-card__success-label" aria-hidden="true">{t("成功率", "Success rate")}</span>
               {successWindows.length > 0 ? (
-                <div className="nt-provider-card__availability-windows" aria-hidden="true">
-                  {successWindows.map((window, windowIndex) => (
-                    <div
-                      className="nt-provider-card__availability-window"
-                      key={`${group.rowId}:success:${window.label}`}
-                    >
-                      {availabilityCells
-                        .filter((cell) => cell.windowIndex === windowIndex)
-                        .map((cell) => (
-                          <span
-                            className={`nt-provider-card__availability-cell nt-provider-card__availability-cell--${cell.state}`}
-                            key={`${group.rowId}:cell:${cell.windowIndex}:${cell.position}`}
-                            title={`${cell.windowLabel}: ${cell.success}/${cell.requests} (${formatAggregateRate(cell.rate)})`}
-                          />
-                        ))}
-                    </div>
-                  ))}
-                </div>
+                <AvailabilityHeatmap cells={availabilityCells} label={`${label} ${t("热度图", "heatmap")}`} t={t} />
               ) : (
                 <span className="nt-entitlement-group-card__success-empty" aria-hidden="true">
                   {t("暂无调用数据", "No dispatch data yet")}

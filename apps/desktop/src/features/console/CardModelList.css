@@ -136,11 +136,26 @@
 }
 
 .nt-card-models__name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   padding-left: 12px;
   font-size: 0.65rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.nt-card-models__model-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nt-card-models__evidence {
+  color: var(--nt-text-muted);
+  font-family: inherit;
+  font-size: 0.6rem;
+  line-height: 1.4;
 }
 
 .nt-card-models__row > [data-model-metric] {
@@ -167,6 +182,7 @@
   flex: 1;
   min-width: 1px;
   height: 100%;
+  border-radius: 3px;
 }
 
 .nt-card-models :is(.nt-card-models__scroll, summary, .nt-card-models__name):focus-visible {

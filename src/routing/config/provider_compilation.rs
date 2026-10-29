@@ -13,6 +13,9 @@ use super::*;
 /// contains the base (first credential or provider-level key), and
 /// `credential_pool` stores all credential payloads for round-robin selection.
 pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvider, anyhow::Error> {
+    if let Some(policy) = &cfg.request_wait {
+        policy.validate()?;
+    }
     let label = cfg.label.clone().unwrap_or_else(|| cfg.id.clone());
 
     // Build the base payload (used as-is when no credential pool exists).
@@ -26,8 +29,14 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
         .site_health
         .as_ref()
         .map(|c| c.compile(&payload.base_url));
-    crate::protocol::chatgpt::basispoints::configure(&mut payload, cfg.codex_basispoints_enabled)?;
-    payload.request_client_profile = cfg.request_client_profile;
+    call_flow::configure(
+        &mut payload,
+        cfg.call_flow,
+        cfg.request_client_profile,
+        None,
+        cfg.codex_basispoints_enabled,
+        None,
+    )?;
 
     // Derive protocol_family from adapter name if not explicitly set.
     let protocol_family = infer_protocol_family(
@@ -99,51 +108,31 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                 if let Some(discovery) = &cred.discovery {
                     discovery.apply(&mut cred_payload)?;
                 }
-                cred_payload.request_client_profile =
-                    cred.request_client_profile.or(cfg.request_client_profile);
-                crate::protocol::chatgpt::basispoints::configure(
+                let mut supported_models = cred
+                    .discovery
+                    .as_ref()
+                    .map(|d| d.models.clone())
+                    .unwrap_or_else(|| cred.supported_models.clone());
+                if let Some(catalog) = &cred.model_catalog {
+                    catalog.validate(cfg.preset.as_deref(), &cred_payload.base_url)?;
+                    if cred.model_selection.is_none() {
+                        catalog.append_models_to(&mut supported_models);
+                    }
+                }
+                if let Some(selection) = &cred.model_selection {
+                    supported_models = selection.models()?;
+                }
+                call_flow::configure(
                     &mut cred_payload,
-                    cred.codex_basispoints_enabled
-                        .unwrap_or(cfg.codex_basispoints_enabled),
+                    cfg.call_flow,
+                    cfg.request_client_profile,
+                    cred.request_client_profile,
+                    cfg.codex_basispoints_enabled,
+                    cred.codex_basispoints_enabled,
                 )?;
 
                 // Build OAuth refresh config if refresh_token is provided.
-                let refresh_config = match (&cred.refresh_token, &cred.refresh_endpoint) {
-                    (Some(rt), Some(ep)) => {
-                        let expires_in_secs = cred.token_expires_in_secs.unwrap_or(21600);
-                        let duration = std::time::Duration::from_secs(expires_in_secs);
-                        let expires_at = std::time::Instant::now()
-                            .checked_add(duration)
-                            .ok_or_else(|| {
-                                anyhow::anyhow!(
-                                    "token_expires_in_secs cannot be represented by Instant"
-                                )
-                            })?;
-                        let expires_at_system = std::time::SystemTime::now()
-                            .checked_add(duration)
-                            .ok_or_else(|| {
-                                anyhow::anyhow!(
-                                    "token_expires_in_secs cannot be represented by SystemTime"
-                                )
-                            })?;
-                        Some(Arc::new(TokenRefreshState {
-                            refresh_token: parking_lot::Mutex::new(rt.clone()),
-                            refresh_endpoint: ep.clone(),
-                            client_id: cred.refresh_client_id.clone().unwrap_or_default(),
-                            expires_in_secs,
-                            expires_at: parking_lot::Mutex::new(expires_at),
-                            expires_at_iso: parking_lot::Mutex::new(Some(
-                                system_time_to_rfc3339_millis(expires_at_system),
-                            )),
-                            api_key_override: parking_lot::Mutex::new(None),
-                            lifecycle: parking_lot::Mutex::new(RefreshLifecycle {
-                                active: true,
-                                generation: 0,
-                            }),
-                        }))
-                    }
-                    _ => None,
-                };
+                let refresh_config = TokenRefreshState::from_credential(cred).map(Arc::new);
 
                 Ok(CompiledCredential {
                     discovery_required: cred.discovery_job.is_some() && cred.discovery.is_none(),
@@ -151,11 +140,8 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                     id: cred_id,
                     payload: cred_payload,
                     enabled: cred.enabled.unwrap_or(true),
-                    supported_models: cred
-                        .discovery
-                        .as_ref()
-                        .map(|d| d.models.clone())
-                        .unwrap_or_else(|| cred.supported_models.clone()),
+                    supported_models,
+                    explicit_model_selection: cred.model_selection.is_some(),
                     scheduled_probe_enabled: cred.scheduled_probe_enabled,
                     scheduled_probe_interval_minutes: cred
                         .scheduled_probe_interval_minutes
@@ -167,7 +153,20 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
             .collect::<Result<Vec<_>, anyhow::Error>>()?
     };
 
-    Ok(CompiledProvider {
+    let mut supported_models = cfg.supported_models;
+    for credential in &cfg.credentials {
+        if let Some(selection) = &credential.model_selection {
+            for model in selection.models()? {
+                if !supported_models.contains(&model) {
+                    supported_models.push(model);
+                }
+            }
+        } else if let Some(catalog) = &credential.model_catalog {
+            catalog.append_models_to(&mut supported_models);
+        }
+    }
+    let mut provider = CompiledProvider {
+        explicit_credentials_only: cfg.explicit_credentials_only,
         site_health,
         credential_pool_auth_policy: cfg.credential_pool_auth_policy,
         id: cfg.id,
@@ -175,7 +174,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
         payload,
         protocol_family: canonicalize_protocol_family_key(&protocol_family),
         protocol_profile,
-        supported_models: cfg.supported_models,
+        supported_models,
         model_map: cfg.model_map,
         model_map_targets: cfg.model_map_targets,
         scheduled_probe_enabled: cfg.scheduled_probe_enabled,
@@ -185,5 +184,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
             .clamp(1, 10_080),
         credential_pool,
         credential_counter: std::sync::Arc::new(AtomicUsize::new(0)),
-    })
+    };
+    super::search_tools::add_operation_mappings(&mut provider);
+    Ok(provider)
 }

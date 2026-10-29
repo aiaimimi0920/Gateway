@@ -61,6 +61,7 @@ export default defineConfig({
     },
     define: {
       __GATEWAY_UI_TARGET__: JSON.stringify(target),
+      __GATEWAY_LOCAL_PORT__: "4200",
     },
   },
   html: {

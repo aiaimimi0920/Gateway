@@ -11,19 +11,18 @@ const t = (zh: string) => zh;
 const document = { providers: [{ id: "pool", adapter: "openai_compatible", base_url: "https://fixture.test",
   credentials: [{ id: "account" }] }], model_routes: [], aliases: {} };
 
-it("creates a persisted discovery intent and leaves the key in the secret patch lane", () => {
-  const replaceEditorDocument = vi.fn(); const updateCredentialSecretEdit = vi.fn();
+it("creates an empty provider without queuing discovery or account secrets", () => {
+  const replaceEditorDocument = vi.fn(); const stageProviderCreationSecrets = vi.fn();
   const hook = renderHook(() => useProviderCatalogEditor({ editorText: JSON.stringify({ providers: [], model_routes: [], aliases: {} }),
-    replaceEditorDocument, updateCredentialSecretEdit, setActiveWorkspace: vi.fn(), setError: vi.fn(), t }));
+    replaceEditorDocument, stageProviderCreationSecrets, setActiveWorkspace: vi.fn(), setError: vi.fn(), t }));
   act(() => hook.result.current.applyProviderCatalogDraft({ templateId: "custom-api-provider", providerId: "pool",
     providerLabel: "Fixture", vendorKey: "fixture", vendorName: "Fixture", baseUrl: "https://fixture.test",
-    supportedModels: [], credentialId: "account", accountName: "Fixture account", apiKey: "fixture-secret" }));
+    supportedModels: [] }));
   const saved = replaceEditorDocument.mock.calls[0][0];
-  expect(saved.providers[0].credentials[0]).toMatchObject({ id: "account",
-    discovery_job: { id: expect.any(String), status: "pending" } });
-  expect(saved.providers[0].credentials[0].discovery).toBeUndefined();
-  expect(JSON.stringify(saved)).not.toContain("fixture-secret");
-  expect(updateCredentialSecretEdit).toHaveBeenCalledWith(expect.objectContaining({ apiKeyValue: "fixture-secret" }));
+  expect(saved.providers[0].credentials).toEqual([]);
+  expect(saved.providers[0].explicit_credentials_only).toBe(true);
+  expect(JSON.stringify(saved)).not.toContain("discovery_job");
+  expect(stageProviderCreationSecrets).toHaveBeenCalled();
 });
 
 it("queues new key detection while normal edits preserve the current job", () => {

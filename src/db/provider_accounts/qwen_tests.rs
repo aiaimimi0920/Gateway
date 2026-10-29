@@ -49,7 +49,7 @@ fn resolve_protocol_profile_infers_qwen_official_and_web_lines() {
             Some("qwen"),
             Some("https://dashscope.aliyuncs.com/compatible-mode/v1"),
         ),
-        "qwen_dashscope_openai"
+        "openai_compatible_generic"
     );
     assert_eq!(
         resolve_protocol_profile(

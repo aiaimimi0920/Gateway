@@ -130,19 +130,22 @@ pub fn longcat_openai_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("longcat-openai")
 }
 
-/// Returns the built-in "deepseek-openai" preset for DeepSeek's OpenAI-compatible API.
+/// Returns the built-in "deepseek-api" preset for DeepSeek's OpenAI-compatible API.
 pub fn deepseek_openai_preset() -> ProviderPreset {
-    generic_openai_compatible_profile_preset("deepseek-openai")
+    ProviderPreset {
+        chat_completions_path: Some("/chat/completions".to_string()),
+        ..generic_openai_compatible_profile_preset("deepseek-api")
+    }
 }
 
-/// Returns the built-in "mistral-openai" preset for Mistral's OpenAI-compatible API.
+/// Returns the built-in "mistral-api" preset for Mistral's OpenAI-compatible API.
 pub fn mistral_openai_preset() -> ProviderPreset {
-    generic_openai_compatible_profile_preset("mistral-openai")
+    generic_openai_compatible_profile_preset("mistral-api")
 }
 
-/// Returns the built-in "xai-openai" preset for xAI's official OpenAI-compatible API.
+/// Returns the built-in "xai-api" preset for xAI's official OpenAI-compatible API.
 pub fn xai_openai_preset() -> ProviderPreset {
-    generic_openai_compatible_profile_preset("xai-openai")
+    generic_openai_compatible_profile_preset("xai-api")
 }
 
 /// Returns the built-in "nvidia-openai" preset for NVIDIA's official OpenAI-compatible API.
@@ -153,7 +156,7 @@ pub fn nvidia_openai_preset() -> ProviderPreset {
     }
 }
 
-/// Returns the built-in "azure-openai" preset for Azure OpenAI's v1-style
+/// Returns the built-in "azure-api" preset for Azure OpenAI's v1-style
 /// OpenAI-compatible API surface.
 ///
 /// Recommended base URL form:
@@ -163,7 +166,7 @@ pub fn nvidia_openai_preset() -> ProviderPreset {
 /// standard OpenAI endpoint paths so they work under the `/openai/v1` base URL.
 pub fn azure_openai_preset() -> ProviderPreset {
     ProviderPreset {
-        id: "azure-openai".to_string(),
+        id: "azure-api".to_string(),
         adapter: "openai_compatible".to_string(),
         headers: HashMap::new(),
         extra_body: HashMap::new(),
@@ -217,10 +220,10 @@ pub fn xfyun_preset() -> ProviderPreset {
     }
 }
 
-/// Returns the built-in "perplexity" preset for Perplexity's OpenAI-compatible APIs.
+/// Sonar compatibility only; Agent uses a different request and response contract.
 pub fn perplexity_preset() -> ProviderPreset {
     ProviderPreset {
-        id: "perplexity".to_string(),
+        id: "perplexity-api".to_string(),
         adapter: "openai_compatible".to_string(),
         headers: HashMap::new(),
         extra_body: HashMap::new(),
@@ -229,8 +232,8 @@ pub fn perplexity_preset() -> ProviderPreset {
         anthropic_version: None,
         beta_headers: None,
         auth_header_name: None,
-        responses_path: Some("/v1/responses".to_string()),
-        chat_completions_path: Some("/chat/completions".to_string()),
+        responses_path: None,
+        chat_completions_path: Some("/v1/sonar".to_string()),
         messages_path: None,
         search_path: None,
         fetch_path: None,

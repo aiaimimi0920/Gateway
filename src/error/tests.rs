@@ -4,6 +4,56 @@ use super::*;
 const TEST_JWT: &str = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzZWNyZXQtdXNlciJ9.c2lnbmF0dXJl";
 
 #[test]
+fn current_openai_billing_codes_preserve_429_without_same_account_retry() {
+    for code in [
+        "credit_balance_exhausted",
+        "organization_spend_limit_exceeded",
+        "project_spend_limit_exceeded",
+        "organization_usage_limit_exceeded",
+    ] {
+        let body = serde_json::json!({"error": {"code": code, "type": "insufficient_quota", "message": "Billing refusal"}}).to_string();
+        let error = classify_upstream_error(429, &body, Some("openai-api"));
+        assert_eq!(error.kind, ErrorKind::InsufficientQuota);
+        assert_eq!(error.http_status, Some(429));
+        assert_eq!(error.code.as_deref(), Some(code));
+        assert!(!crate::retry::should_retry(
+            &error,
+            &crate::retry::RetryPolicy::default()
+        ));
+    }
+}
+
+#[test]
+fn explicit_openai_quota_is_not_retried_as_rate_limit() {
+    let body = r#"{"error":{"code":"insufficient_quota","type":"insufficient_quota","message":"You exceeded your current quota.","retry_after":1}}"#;
+    let error = classify_upstream_error(429, body, Some("openai-api"));
+    assert_eq!(error.kind, ErrorKind::InsufficientQuota);
+    assert_eq!(error.http_status, Some(429));
+    assert_eq!(error.code.as_deref(), Some("insufficient_quota"));
+    assert!(!error.retryable);
+    assert!(!crate::retry::should_retry(
+        &error,
+        &crate::retry::RetryPolicy::default()
+    ));
+    assert!(matches!(
+        error.fallback_hint,
+        FallbackHint::FallbackProvider { .. }
+    ));
+    // An arbitrary message or an auth failure must not be promoted to quota evidence.
+    let throttle = classify_upstream_error(
+        429,
+        r#"{"error":{"code":"rate_limit_exceeded","message":"insufficient_quota"}}"#,
+        None,
+    );
+    assert_eq!(throttle.kind, ErrorKind::RateLimit);
+    assert!(throttle.retryable);
+    assert_eq!(
+        classify_upstream_error(401, body, None).kind,
+        ErrorKind::Authentication
+    );
+}
+
+#[test]
 fn provider_error_message_sanitizer_redacts_secrets_and_bounds_output() {
     let raw = format!(
         "invalid api key\nAuthorization: Bearer bearer-secret-value\nBasic dXNlcjpwYXNzd29yZA==\napi_key=sk-proj-super-secret\ntoken='plain-token-secret'\ntoken=Bearer bearer-assignment-secret\nCookie: session=private-session; csrftoken=private-cookie\njwt={TEST_JWT}\n{}",

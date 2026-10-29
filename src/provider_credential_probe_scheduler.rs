@@ -60,7 +60,11 @@ pub async fn sweep_scheduled_provider_credentials_once(
 
     for scheduled in targets {
         // Never consume another account's interval after the shared round is exhausted or stale.
-        if !budget.available() || !budget.matches(state) || summary.due_count >= 128 {
+        if !budget.available()
+            || !budget.matches(state)
+            || summary.due_count >= 128
+            || state.lifecycle.model_circuits.network_blocked()
+        {
             break;
         }
         order.advance();
@@ -118,6 +122,7 @@ pub async fn sweep_scheduled_provider_credentials_once(
         if !budget.matches(state) || !budget.admit() {
             break;
         }
+        let started = std::time::Instant::now();
         let report = crate::provider_runtime::probe_provider_payload_for_console(
             state.upstream_client.client(),
             &scheduled.target.payload,
@@ -125,6 +130,7 @@ pub async fn sweep_scheduled_provider_credentials_once(
         .await;
         crate::provider_runtime::record_provider_credential_probe_report(
             state,
+            started,
             &scheduled.target.provider_id,
             &scheduled.target.credential_id,
             &report,

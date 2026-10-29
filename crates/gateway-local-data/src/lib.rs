@@ -1,4 +1,5 @@
 //! Shared EXE data ownership. No backend or desktop framework dependency.
+pub mod devtest;
 pub mod schema;
 pub mod startup;
 
@@ -54,7 +55,12 @@ pub fn selected_root() -> io::Result<PathBuf> {
     };
     // The old override remains supported for existing automation/isolation.
     let explicit = env_path("GATEWAY_DATA_DIR").or_else(|| env_path("GATEWAY_UI_DATA_DIR"));
-    resolve(&env::current_exe()?, home.as_deref(), explicit.as_deref())
+    devtest::resolve_root(
+        &env::current_exe()?,
+        home.as_deref(),
+        explicit.as_deref(),
+        devtest::isolated_build(),
+    )
 }
 
 pub fn prepare(root: &Path) -> io::Result<fs::File> {

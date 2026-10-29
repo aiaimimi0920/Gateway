@@ -25,7 +25,9 @@ use crate::routing::candidate::RouteCandidate;
 use crate::state::AppState;
 use crate::upstream::stream::TrackedStream;
 
+mod attempt_audit;
 mod cpa_scope;
+mod fallback_authorization;
 pub mod request_budget;
 mod route_health_cache;
 mod runtime_storage;
@@ -80,8 +82,12 @@ pub struct PipelineContext {
     pub started_at: Instant,
     /// Single send/deadline owner shared by all candidates and recoveries.
     pub request_budget: request_budget::RequestBudget,
-    /// Exact IDs explicitly named by trusted route/key/projection owners, not auto discovery.
+    /// Exact IDs explicitly named by trusted route/projection owners, not auto discovery.
     pub explicit_fallback_provider_ids: Vec<String>,
+    /// Replaceable local-key authority, separate from the route owner's grants.
+    local_key_fallback_provider_ids: Vec<String>,
+    /// Validated per-request equivalence; never rewrite observed IDs in audit history.
+    provider_identities: crate::provider_identity::ProviderAliases,
     /// Bearer token extracted from the HTTP Authorization header, if present.
     pub bearer_token: Option<String>,
     /// Caller correlation hints, never forwarded as upstream headers or treated as authentication.
@@ -122,6 +128,8 @@ pub struct PipelineContext {
     /// Unique provider accounts that received at least one admitted outbound attempt,
     /// in first-contact order. Retries increment the count but do not duplicate IDs.
     pub attempted_provider_ids: Arc<Mutex<Vec<String>>>,
+    /// Last admitted send, including failed candidates; never a synthetic winner.
+    last_provider_attempt: attempt_audit::LastAttempt,
 
     // ── Provider selection info (populated by stage_send) ─────────────────
     /// Provider account ID of the winning candidate.
@@ -223,6 +231,8 @@ impl PipelineContext {
             started_at: Instant::now(),
             request_budget,
             explicit_fallback_provider_ids: Vec::new(),
+            local_key_fallback_provider_ids: Vec::new(),
+            provider_identities: Default::default(),
             bearer_token,
             client_session_hints: HashMap::new(),
             session: None,
@@ -241,6 +251,7 @@ impl PipelineContext {
             route_selection_strategy: None,
             route_attempt_count: Arc::new(AtomicU32::new(0)),
             attempted_provider_ids: Arc::new(Mutex::new(Vec::new())),
+            last_provider_attempt: Default::default(),
             selected_provider_id: None,
             selected_provider_credential_id: None,
             selected_provider_label: None,
@@ -302,7 +313,11 @@ impl PipelineContext {
         if let Some(selected) = self.selected_provider_id.clone() {
             return Some(selected);
         }
-        self.attempted_provider_ids.lock().last().cloned()
+        self.last_provider_attempt
+            .lock()
+            .as_ref()
+            .map(|attempt| attempt.provider_id.clone())
+            .or_else(|| self.attempted_provider_ids.lock().last().cloned())
     }
 }
 

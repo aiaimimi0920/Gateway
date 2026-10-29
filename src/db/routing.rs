@@ -11,13 +11,10 @@ use crate::error::GatewayError;
 use crate::object_storage::gateway_object_storage;
 use crate::protocol::canonical::EndpointKind;
 use crate::routing::candidate::{
-    canonicalize_adapter_name, canonicalize_protocol_family_name, ProviderAccountPayload,
-    ProviderExecutionMode, RouteCandidate,
+    canonicalize_adapter_name, ProviderAccountPayload, ProviderExecutionMode, RouteCandidate,
 };
 use crate::routing::config::ModelInfo;
-use crate::routing::protocol_resolution::{
-    resolve_supported_wire_protocol_families_for_model, route_policy_family_matches_surface,
-};
+use crate::routing::protocol_resolution::route_policy_family_matches_surface;
 
 use super::access::bump_all_access_projection_versions;
 use super::GatewayProviderCredentialView;

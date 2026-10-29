@@ -56,7 +56,7 @@ impl CredentialTestPlan {
             let exists = match scope {
                 TestScope::Pool => true,
                 TestScope::Account { id } => {
-                    if provider.credentials.is_empty() {
+                    if provider.uses_provider_default_account() {
                         *id == format!("{}::default", provider.id)
                     } else {
                         provider
@@ -81,7 +81,7 @@ impl CredentialTestPlan {
                 return Err("Test plan scope is not present in this provider pool.");
             }
         }
-        let accounts = if provider.credentials.is_empty() {
+        let accounts = if provider.uses_provider_default_account() {
             1
         } else {
             provider

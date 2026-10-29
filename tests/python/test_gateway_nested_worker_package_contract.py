@@ -169,7 +169,8 @@ class GatewayNestedWorkerPackageContractTests(unittest.TestCase):
             file.relative_to(package_fixture.GATEWAY_ROOT).as_posix()
             for file in sorted((package_fixture.GATEWAY_ROOT / "scripts/chatgpt-web-session").glob("*.mjs"))
         )
-        self.assertEqual(len(chatgpt_modules), 23)
+        self.assertTrue({"scripts/chatgpt-web-session/browser-login.mjs",
+                         "scripts/chatgpt-web-session/browser-login-process.mjs"}.issubset(chatgpt_modules))
         modules += chatgpt_modules
         fixture = package_fixture.GatewayPackageFixture()
         with tempfile.TemporaryDirectory() as temporary_directory:

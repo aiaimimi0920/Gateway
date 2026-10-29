@@ -4,8 +4,8 @@
   "identity": {
     "serviceProviderKey": "qwen_platform",
     "serviceProviderLabel": "Qwen Platform",
-    "providerSurfaceKey": "qwen-dashscope-openai",
-    "providerSurfaceLabel": "Qwen Official API",
+    "providerSurfaceKey": "qwen-coding-plan-openai",
+    "providerSurfaceLabel": "Qwen Coding Plan API",
     "protocolProfile": "qwen_official_api",
     "implementationLine": "official_api",
     "adapter": "openai_compatible",
@@ -32,8 +32,8 @@
       "protocol::qwen::official_api",
       "upstream::qwen::official_api"
     ],
-    "fixtureSuiteId": "qwen_dashscope_openai_fixture",
-    "liveSuiteId": "qwen_dashscope_live",
+    "fixtureSuiteId": "qwen_coding_plan_fixture",
+    "liveSuiteId": "qwen_coding_plan_live",
     "useNoDefaultFeatures": true
   },
   "compilation": {

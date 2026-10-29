@@ -38,6 +38,16 @@ impl EligibilityCheck {
             candidate.upstream_model.as_deref().unwrap_or_default(),
         )?;
         if self.config_owned {
+            if let Some((_, credential)) = candidate
+                .payload
+                .credential_id
+                .as_deref()
+                .and_then(|id| config.oauth_refresh_target(&candidate.provider_account_id, id))
+            {
+                if let Some(refresh) = &credential.refresh_config {
+                    refresh.dispatch_readiness()?;
+                }
+            }
             if config.credential_dispatch_allowed(
                 &candidate.provider_account_id,
                 candidate.payload.credential_id.as_deref(),

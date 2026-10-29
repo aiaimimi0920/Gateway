@@ -37,6 +37,8 @@ impl UpstreamClient {
         let request_time_browser_policy = RequestTimeBrowserPolicy::from_env();
 
         Self {
+            wait_native_http: Default::default(),
+            wait_http: Default::default(),
             http,
             plain_http,
             native_claude_http: crate::http_client::native_claude_client(Duration::from_secs(

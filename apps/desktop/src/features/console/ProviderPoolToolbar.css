@@ -43,6 +43,23 @@
   white-space: nowrap;
 }
 
+.nt-provider-pool-toolbar__kinds {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-inline: 8px;
+}
+
+.nt-provider-pool-toolbar__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nt-provider-pool-toolbar__kind input { width: 16px; height: 16px; margin: 0; accent-color: var(--nt-signal); }
+
 .nt-shell--console .nt-board__header:has(.nt-provider-pool-toolbar) {
   flex-wrap: wrap;
 }

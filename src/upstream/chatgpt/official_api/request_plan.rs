@@ -7,8 +7,9 @@ use crate::upstream::common::RequestPlan;
 use crate::upstream::openai_compatible_official_api_common as openai_compatible_common;
 
 pub fn owns_payload(payload: &ProviderAccountPayload) -> bool {
-    surface::is_chatgpt_official_api_base_url(&payload.base_url)
-        || surface::is_chatgpt_codex_backend_base_url(&payload.base_url)
+    payload.canonical_adapter() == "openai_compatible"
+        && (surface::is_chatgpt_official_api_base_url(&payload.base_url)
+            || surface::is_chatgpt_codex_backend_base_url(&payload.base_url))
 }
 
 pub fn build_request_plan(
@@ -54,6 +55,7 @@ mod tests {
 
     fn make_payload(base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "openai_compatible".to_string(),

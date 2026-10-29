@@ -36,7 +36,7 @@ pub(super) fn build_route_account_group_inventory(
             provider_config.and_then(|config| trim_optional_field(config.preset.as_deref()));
         let provider_base_url = trim_optional_field(Some(provider.payload.base_url.as_str()));
         let mut provider_account_ids = Vec::new();
-        if provider.credential_pool.is_empty() {
+        if provider.uses_provider_default_account() {
             let account_id = provider_default_account_id(&provider.id);
             let account_groups = memberships
                 .get(account_id.as_str())
@@ -99,7 +99,9 @@ pub(super) fn build_route_account_group_inventory(
                     base_url: trim_optional_field(Some(credential.payload.base_url.as_str())),
                     mode: "credential".to_string(),
                     enabled: credential.enabled,
-                    supported_models: if credential.supported_models.is_empty() {
+                    supported_models: if credential.supported_models.is_empty()
+                        && !credential.explicit_model_selection
+                    {
                         provider.supported_models.clone()
                     } else {
                         credential.supported_models.clone()

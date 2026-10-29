@@ -20,6 +20,8 @@ mod fixture;
 mod html_diagnostic;
 #[path = "pipeline_send_runtime/model_circuit.rs"]
 mod model_circuit;
+#[path = "pipeline_send_runtime/recovery_admission.rs"]
+mod recovery_admission;
 #[path = "pipeline_send_runtime/rejected_channel.rs"]
 mod rejected_channel;
 #[path = "pipeline_send_runtime/responses_completeness.rs"]

@@ -33,7 +33,8 @@ fn tavily_preset_has_search_adapter_and_path() {
     assert_eq!(preset.default_model.as_deref(), Some("tavily-search"));
     assert_eq!(preset.search_path.as_deref(), Some("/search"));
     assert_eq!(preset.search_query_field.as_deref(), Some("query"));
-    assert!(preset.fetch_path.is_none());
+    assert_eq!(preset.fetch_path.as_deref(), Some("/extract"));
+    assert_eq!(preset.fetch_urls_field.as_deref(), Some("urls"));
     assert!(preset.research_path.is_none());
     assert!(preset.balance_path.is_none());
 }
@@ -41,6 +42,7 @@ fn tavily_preset_has_search_adapter_and_path() {
 #[test]
 fn exa_preset_has_search_and_contents_paths() {
     let preset = exa_preset();
+    assert_eq!(preset.auth_header_name.as_deref(), Some("x-api-key"));
     assert_eq!(preset.id, "exa");
     assert_eq!(preset.adapter, SEARCH_API_COMPATIBLE_ADAPTER);
     assert_eq!(preset.default_model.as_deref(), Some("exa-search"));
@@ -89,7 +91,8 @@ fn you_preset_has_search_adapter_and_custom_auth_header() {
     assert_eq!(preset.adapter, SEARCH_API_COMPATIBLE_ADAPTER);
     assert_eq!(preset.default_model.as_deref(), Some("you-search"));
     assert_eq!(preset.search_path.as_deref(), Some("/v1/search"));
-    assert!(preset.fetch_path.is_none());
+    assert_eq!(preset.fetch_path.as_deref(), Some("/v1/contents"));
+    assert_eq!(preset.fetch_urls_field.as_deref(), Some("urls"));
     assert!(preset.research_path.is_none());
     assert!(preset.balance_path.is_none());
     assert_eq!(preset.search_query_field.as_deref(), Some("query"));
@@ -104,8 +107,8 @@ fn websearchapi_preset_has_search_adapter_and_path() {
     assert_eq!(preset.default_model.as_deref(), Some("websearchapi-search"));
     assert_eq!(preset.search_path.as_deref(), Some("/ai-search"));
     assert_eq!(preset.search_query_field.as_deref(), Some("query"));
-    assert!(preset.fetch_path.is_none());
+    assert_eq!(preset.fetch_path.as_deref(), Some("/scrape"));
     assert!(preset.research_path.is_none());
     assert!(preset.balance_path.is_none());
-    assert!(preset.fetch_urls_field.is_none());
+    assert_eq!(preset.fetch_urls_field.as_deref(), Some("url"));
 }

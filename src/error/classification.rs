@@ -102,26 +102,53 @@ pub fn classify_upstream_error(
     let code = extract_code_from_body(body);
     let raw_message = extract_message_from_body(body);
 
+    if super::is_provider_ip_block_rejection(status, raw_message.as_deref().unwrap_or(body)) {
+        return GatewayError {
+            kind: ErrorKind::ServiceUnavailable,
+            message: sanitize_provider_error_message(raw_message.as_deref().unwrap_or(body)),
+            code: Some("provider_ip_temporarily_blocked".into()),
+            http_status: Some(status),
+            retryable: false,
+            fallback_hint: FallbackHint::FallbackProvider {
+                reason: "Provider blocked this gateway IP; cool this provider and try another eligible provider.".into(),
+            },
+            provider_name: provider_name.map(str::to_owned),
+            upstream_retry_after_ms: None,
+        };
+    }
+
     // Most status mappings are authoritative, but provider-specific 400s are
     // often overloaded. If the body carries a more specific semantic signal,
     // prefer it over the generic bad-request bucket.
-    let kind =
-        if super::is_account_balance_rejection(status, raw_message.as_deref().unwrap_or(body)) {
-            ErrorKind::InsufficientQuota
-        } else if super::is_model_capacity(status, code.as_deref(), raw_message.as_deref()) {
-            ErrorKind::ModelCapacity
-        } else {
-            match (status_kind, body_kind) {
-                (Some(ErrorKind::BadRequest), Some(body_kind))
-                    if body_kind != ErrorKind::BadRequest =>
-                {
-                    body_kind
-                }
-                (Some(status_kind), _) => status_kind,
-                (None, Some(body_kind)) => body_kind,
-                (None, None) => ErrorKind::Unknown,
+    let kind = if (status == 429
+        && matches!(
+            code.as_deref(),
+            Some(
+                "insufficient_quota"
+                    | "credit_balance_exhausted"
+                    | "organization_spend_limit_exceeded"
+                    | "project_spend_limit_exceeded"
+                    | "organization_usage_limit_exceeded"
+            )
+        ))
+        || super::is_account_balance_rejection(status, raw_message.as_deref().unwrap_or(body))
+    {
+        // OpenAI quota refusal is not throttling: retrying cannot replenish credits.
+        ErrorKind::InsufficientQuota
+    } else if super::is_model_capacity(status, code.as_deref(), raw_message.as_deref()) {
+        ErrorKind::ModelCapacity
+    } else {
+        match (status_kind, body_kind) {
+            (Some(ErrorKind::BadRequest), Some(body_kind))
+                if body_kind != ErrorKind::BadRequest =>
+            {
+                body_kind
             }
-        };
+            (Some(status_kind), _) => status_kind,
+            (None, Some(body_kind)) => body_kind,
+            (None, None) => ErrorKind::Unknown,
+        }
+    };
 
     // For rate-limit responses, try to parse a retry-after value from the body.
     let upstream_retry_after_ms = matches!(kind, ErrorKind::RateLimit | ErrorKind::ModelCapacity)

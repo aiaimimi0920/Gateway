@@ -396,7 +396,6 @@ pub(super) fn derive_provider_surface_slug<A: ProviderAccountDescriptor + ?Sized
         ("linkup_platform", "linkup") => "linkup-search".to_string(),
         ("you_platform", "you_search") => "you-search".to_string(),
         ("websearchapi_platform", "websearchapi") => "websearchapi-search".to_string(),
-        ("qwen_platform", "qwen_dashscope_openai") => "qwen-dashscope-openai".to_string(),
         ("qwen_platform", "qwen_coding_plan_openai") => "qwen-coding-plan-openai".to_string(),
         ("qwen_platform", "qwen_coding_plan_anthropic") => "qwen-coding-plan-anthropic".to_string(),
         ("qwen_platform", "qwen_web_chat") => "qwen-web-chat".to_string(),

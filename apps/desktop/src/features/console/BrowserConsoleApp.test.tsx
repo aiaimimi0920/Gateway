@@ -75,7 +75,7 @@ describe("BrowserConsoleApp", () => {
     expect(within(library).queryByRole("navigation", { name: /账号库分页/i })).not.toBeInTheDocument();
   });
 
-  it("creates a custom provider card and saves its first account before background discovery", async () => {
+  it("creates and autosaves a custom provider card with an explicitly empty pool", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
 
@@ -90,25 +90,17 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
     await user.click(screen.getByRole("button", { name: /添加服务商/i }));
-    const dialog = screen.getByRole("dialog", { name: /添加服务商与账号/i });
-    await user.click(within(dialog).getByRole("button", { name: /自定义 API 服务商/i }));
+    const dialog = screen.getByRole("dialog", { name: "添加服务商" });
+    await user.click(within(dialog).getByRole("button", { name: "自定义模板" }));
+    await user.click(within(dialog).getByRole("button", { name: "custom-api-provider" }));
     await user.clear(within(dialog).getByLabelText("Provider ID"));
     await user.type(within(dialog).getByLabelText("Provider ID"), "partner-openai");
-    await user.clear(within(dialog).getByLabelText("显示名称"));
-    await user.type(within(dialog).getByLabelText("显示名称"), "Partner OpenAI");
-    await user.clear(within(dialog).getByLabelText("服务商标识"));
-    await user.type(within(dialog).getByLabelText("服务商标识"), "partner");
-    await user.clear(within(dialog).getByLabelText("服务商名称"));
-    await user.type(within(dialog).getByLabelText("服务商名称"), "Partner");
     await user.type(within(dialog).getByLabelText("Base URL"), "https://partner.example.test/v1");
     expect(within(dialog).queryByLabelText("支持模型与聚合路由")).not.toBeInTheDocument();
-    await user.clear(within(dialog).getByLabelText("首个账号 ID"));
-    await user.type(within(dialog).getByLabelText("首个账号 ID"), "partner-account-1");
-    await user.type(within(dialog).getByLabelText("API Key"), "test-provider-api-key");
-    await user.click(within(dialog).getByRole("button", { name: /创建服务商与首个账号/i }));
+    expect(within(dialog).queryByLabelText("API Key")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "添加" }));
 
-    expect(screen.queryByRole("dialog", { name: /添加服务商与账号/i })).not.toBeInTheDocument();
-    expect(screen.getAllByText("Partner OpenAI").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("dialog", { name: "添加服务商" })).not.toBeInTheDocument();
     await waitFor(() => expect(consoleApi.commitRouteConfig).toHaveBeenCalled(), { timeout: 3000 });
 
     await waitFor(() => expect(consoleApi.commitRouteConfig).toHaveBeenCalledTimes(1));
@@ -119,23 +111,12 @@ describe("BrowserConsoleApp", () => {
           id: "partner-openai",
           adapter: "openai_compatible",
           protocol_profile: "openai_compatible_generic",
-          credentials: [
-            expect.objectContaining({ id: "partner-account-1", enabled: true,
-              discovery_job: { id: expect.any(String), status: "pending" } }),
-          ],
+          explicit_credentials_only: true,
+          credentials: [],
         }),
       ]),
     );
-    expect(JSON.stringify(commitRequest?.document)).not.toContain("test-provider-api-key");
-    expect(commitRequest?.secretPatches).toEqual(
-      expect.arrayContaining([
-        {
-          path: "/providers/1/credentials/0/api_key",
-          operation: "replace",
-          value: "test-provider-api-key",
-        },
-      ]),
-    );
+    expect(commitRequest?.secretPatches.some((patch) => patch.operation === "replace")).toBe(false);
   }, 15_000);
 
   it("groups internal Gemini providers into three operator-visible channels", async () => {

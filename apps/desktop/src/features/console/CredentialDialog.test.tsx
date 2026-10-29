@@ -38,6 +38,67 @@ it("uses only the OAuth save flow for OAuth account creation", () => {
   expect(props.onSubmit).not.toHaveBeenCalled();
 });
 
+it("imports an existing Codex token only with explicit account identity and secret access", async () => {
+  const { props } = setup({ mode: "add", initialValue: null, supportsBasispoints: () => true,
+    discoveryProvider: () => null, renderAuthentication: () => <button type="button">保存到凭证池</button>,
+    onDiscoverChatgptModels: vi.fn().mockResolvedValue({ clientVersion: "0.155.1", checkedAt: "now",
+      models: [{ slug: "fixture-model", visibility: "list", supported_in_api: true }] }) });
+  fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "token" } });
+  expect(screen.queryByRole("button", { name: "保存到凭证池" })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("账号 ID"), { target: { value: "codex-import" } });
+  fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-access-token" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  expect(props.onSubmit).not.toHaveBeenCalled();
+  expect(screen.getByRole("alert")).toHaveTextContent("ChatGPT Account ID");
+  fireEvent.change(screen.getByLabelText("ChatGPT Account ID"), { target: { value: "fixture-account" } });
+  fireEvent.change(screen.getByLabelText("订阅分组"), { target: { value: "pro20x" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+    chatgptAccountId: "fixture-account", chatgptGroup: "pro20x", apiKeyOperation: "replace", apiKeyValue: "fixture-access-token",
+  })));
+});
+
+it("clears imported token material when switching back to OAuth", () => {
+  setup({ mode: "add", initialValue: null, supportsBasispoints: () => true,
+    renderAuthentication: () => <button type="button">保存到凭证池</button> });
+  fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "token" } });
+  fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-access-token" } });
+  fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "oauth" } });
+  fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "token" } });
+  expect(screen.getByLabelText("API Key")).toHaveValue("");
+  expect(screen.getByLabelText("ChatGPT Account ID")).toHaveValue("");
+});
+
+it("rejects a cleared imported token and never carries it to another provider", () => {
+  const { props } = setup({ mode: "add", initialValue: null, existingCredentialIds: [],
+    providerOptions: [{ id: "pool", label: "Pool" }, { id: "other", label: "Other" }],
+    supportsBasispoints: (id) => id === "pool", discoveryProvider: () => null,
+    renderAuthentication: (id) => id === "pool" ? <span>OAuth</span> : null });
+  fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "pool" } });
+  fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "token" } });
+  fireEvent.change(screen.getByLabelText("ChatGPT Account ID"), { target: { value: "fixture-account" } });
+  fireEvent.change(screen.getByLabelText("账号 ID"), { target: { value: "imported" } });
+  fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-token" } });
+  fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  expect(props.onSubmit).not.toHaveBeenCalled();
+  expect(screen.getByRole("alert")).toHaveTextContent("Access Token");
+  fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-token" } });
+  fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "other" } });
+  expect(screen.getByLabelText("API Key")).toHaveValue("");
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  expect(props.onSubmit).not.toHaveBeenCalled();
+});
+
+it("does not submit an imported token without secret access", () => {
+  const { props } = setup({ mode: "add", initialValue: null, hasSecretAccess: false,
+    supportsBasispoints: () => true, renderAuthentication: () => <span>OAuth</span> });
+  fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "token" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  expect(props.onRequestSecretAccess).toHaveBeenCalled();
+  expect(props.onSubmit).not.toHaveBeenCalled();
+});
+
 it.each(["basispoints", "native", "inherit"])("saves optional Codex channel %s without replacing secrets", (channel) => {
   const { props } = setup({ supportsBasispoints: () => true });
   fireEvent.change(screen.getByLabelText("Codex 调用通道"), { target: { value: channel } });

@@ -106,6 +106,7 @@ pub(super) async fn send(
                     let failure_kind = classify_failure_kind(&e);
                     controller.on_failure(failure_kind);
                     spawn_record_provider_failure(
+                        ctx.started_at,
                         Arc::clone(state),
                         candidate.provider_account_id.clone(),
                         candidate.provider_credential_id.clone(),
@@ -228,6 +229,7 @@ pub(super) async fn send(
                     let failure_kind = classify_failure_kind(&e);
                     controller.on_failure(failure_kind);
                     spawn_record_provider_failure(
+                        ctx.started_at,
                         Arc::clone(state),
                         candidate.provider_account_id.clone(),
                         candidate.provider_credential_id.clone(),
@@ -383,6 +385,7 @@ pub(super) async fn send(
                 let failure_kind = classify_failure_kind(&e);
                 controller.on_failure(failure_kind);
                 spawn_record_provider_failure(
+                    ctx.started_at,
                     Arc::clone(state),
                     candidate.provider_account_id.clone(),
                     candidate.provider_credential_id.clone(),

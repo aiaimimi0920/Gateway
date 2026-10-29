@@ -128,28 +128,22 @@ describe("providerCardMetrics", () => {
     ).toEqual(["09:55", "10:00", "10:05", "10:10"]);
   });
 
-  it("builds compact availability cells from provider-level windows", () => {
+  it("builds one real half-hour cell per window rather than percentage fragments", () => {
     const windows = aggregateSuccessWindows([
       {
         successWindows: [
           { label: "10:00", success: 3, requests: 4 },
-          { label: "10:05", success: 5, requests: 8 },
-          { label: "10:10", success: 0, requests: 0 },
+          { label: "10:30", success: 8, requests: 8 },
+          { label: "11:00", success: 0, requests: 2 },
+          { label: "11:30", success: 0, requests: 0 },
         ],
       },
     ]);
-    const cells = buildProviderAvailabilityCells(windows, 4);
+    const cells = buildProviderAvailabilityCells(windows);
 
-    expect(cells).toHaveLength(12);
-    expect(cells.filter((cell) => cell.state === "success")).toHaveLength(5);
-    expect(cells.filter((cell) => cell.state === "mixed")).toHaveLength(1);
-    expect(cells.filter((cell) => cell.state === "failure")).toHaveLength(2);
-    expect(cells.filter((cell) => cell.state === "empty")).toHaveLength(4);
-    expect(cells.filter((cell) => cell.windowIndex === 1)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ windowLabel: "10:05", success: 5, requests: 8 }),
-      ]),
-    );
+    expect(cells).toHaveLength(4);
+    expect(cells.map((cell) => cell.state)).toEqual(["mixed", "success", "failure", "empty"]);
+    expect(cells[1]).toMatchObject({ windowLabel: "10:30", success: 8, requests: 8, rate: 1 });
   });
 
   it("aggregates success windows across provider accounts without a model split", () => {

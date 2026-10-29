@@ -1,20 +1,14 @@
-use std::collections::HashMap;
-use std::time::Duration;
-
-use rquest::Client;
-use serde_json::{json, Value};
-use tracing::debug;
-
-use crate::error::GatewayError;
-use crate::protocol::chatgpt::web_reverse as surface;
-use crate::protocol::upstream_body::collect_bounded_upstream_charset_text_with_provider;
+//! Select the handshake contract once; never downgrade after an upstream rejection.
+use super::super::{common::ResponseStage, web_reverse::ChatGptWebRequestContext};
+use super::policy::{conversation_path, extra_body_string};
 use crate::routing::candidate::ProviderAccountPayload;
+use crate::{error::GatewayError, protocol::chatgpt::web_reverse as surface};
+use rquest::Client;
+use serde_json::json;
+use std::{collections::HashMap, time::Duration};
 
-use super::super::common::classify_chatgpt_web_text_response;
-use super::super::web_reverse::ChatGptWebRequestContext;
-use super::super::PROVIDER;
-use super::transport::post_json;
-
+mod challenges;
+mod exchange;
 mod solver;
 
 pub(super) async fn get_requirements(
@@ -25,147 +19,70 @@ pub(super) async fn get_requirements(
     bootstrap: &surface::ChatGptWebBootstrap,
     extra_headers: Option<&HashMap<String, String>>,
 ) -> Result<surface::ChatRequirements, GatewayError> {
-    let user_agent = request_context.user_agent.as_str();
-    let legacy_token = solver::legacy(bootstrap, user_agent).await?;
-    let request_body = json!({ "p": legacy_token });
-    let response = post_json(
+    let two_stage = uses_two_stage(payload)?;
+    let source = solver::legacy(bootstrap, &request_context.user_agent).await?;
+    let exchange = exchange::Exchange {
         http,
         timeout,
         payload,
         request_context,
         extra_headers,
-        surface::CHATGPT_WEB_DEFAULT_REQUIREMENTS_PATH,
-        &request_body,
-        None,
-        false,
-        None,
-    )
-    .await?;
-    let status = response.status().as_u16();
-    let content_type = response
-        .headers()
-        .get(rquest::header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_string);
-    let body_text = collect_bounded_upstream_charset_text_with_provider(
-        response,
-        "ChatGPT Web reverse requirements body",
-        PROVIDER,
-    )
-    .await?;
-    classify_chatgpt_web_text_response(status, content_type.as_deref(), &body_text)?;
-
-    let value: Value = serde_json::from_str(&body_text).map_err(|error| {
-        GatewayError::server_error(format!(
-            "ChatGPT Web reverse failed to decode chat requirements JSON: {error}"
-        ))
-        .with_provider(PROVIDER)
-        .with_code("chatgpt_web_requirements_decode_failed")
-    })?;
-    let Some(object) = value.as_object() else {
-        return Err(GatewayError::server_error(
-            "ChatGPT Web reverse chat requirements payload was not a JSON object.",
-        )
-        .with_provider(PROVIDER)
-        .with_code("chatgpt_web_requirements_invalid_shape"));
     };
-
-    if object
-        .get("arkose")
-        .and_then(Value::as_object)
-        .and_then(|record| record.get("required"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        return Err(GatewayError::service_unavailable(
-            "ChatGPT Web reverse upstream requested Arkose; this route currently requires a browser-backed refresh or manual challenge clearance.",
-        )
-        .with_provider(PROVIDER)
-        .with_code(surface::CHATGPT_WEB_BROWSER_CHALLENGE_REQUIRED_CODE));
-    }
-
-    let mut proof_token = None;
-    if object
-        .get("proofofwork")
-        .and_then(Value::as_object)
-        .and_then(|record| record.get("required"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        let proof = object
-            .get("proofofwork")
-            .and_then(Value::as_object)
-            .unwrap();
-        let seed = proof
-            .get("seed")
-            .and_then(Value::as_str)
-            .unwrap_or_default();
-        let difficulty = proof
-            .get("difficulty")
-            .and_then(Value::as_str)
-            .unwrap_or("0fffff");
-        proof_token = Some(solver::proof(bootstrap, user_agent, seed, difficulty).await?);
-    }
-
-    let turnstile = object.get("turnstile").and_then(Value::as_object);
-    let turnstile_required = turnstile
-        .and_then(|record| record.get("required"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let turnstile_dx = turnstile
-        .and_then(|record| record.get("dx"))
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty());
-    let turnstile_token = turnstile
-        .and_then(|record| record.get("token"))
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string);
-    let turnstile_token = match (turnstile_token, turnstile_dx) {
-        (Some(token), _) => Some(token),
-        (None, Some(dx)) => solver::turnstile(dx, &legacy_token).await?,
-        (None, None) => None,
+    let path = if two_stage {
+        surface::CHATGPT_WEB_REQUIREMENTS_PREPARE_PATH
+    } else {
+        surface::CHATGPT_WEB_DEFAULT_REQUIREMENTS_PATH
     };
-    debug!(
-        turnstile_required,
-        turnstile_has_dx = turnstile_dx.is_some(),
-        turnstile_dx_len = turnstile_dx.map(str::len).unwrap_or_default(),
-        turnstile_solved = turnstile_token.is_some(),
-        "chatgpt web turnstile requirements"
-    );
-
-    if turnstile_required && turnstile_token.is_none() {
-        return Err(GatewayError::service_unavailable(
-            "ChatGPT Web reverse upstream requested Turnstile and the browserless dx solver did not produce a token; this route currently requires a browser-backed refresh or manual challenge clearance.",
-        )
-        .with_provider(PROVIDER)
-        .with_code(surface::CHATGPT_WEB_BROWSER_CHALLENGE_REQUIRED_CODE));
-    }
-
-    let token = object
-        .get("token")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| {
-            GatewayError::server_error(
-                "ChatGPT Web reverse chat requirements payload did not include token.",
+    let stage = if two_stage {
+        ResponseStage::RequirementsPrepare
+    } else {
+        ResponseStage::Requirements
+    };
+    let data = exchange.send(path, &json!({"p": source}), stage).await?;
+    // A missing prepare token is a protocol error, not a reason to retry the legacy endpoint.
+    let tokens =
+        challenges::resolve(&data, &source, bootstrap, &request_context.user_agent).await?;
+    let token_name = if two_stage { "prepare_token" } else { "token" };
+    let prepared_token = exchange::required_token(&data, token_name)?;
+    let data = if two_stage {
+        exchange
+            .send(
+                surface::CHATGPT_WEB_REQUIREMENTS_FINALIZE_PATH,
+                &json!({
+                    "prepare_token": prepared_token,
+                    "proof_token": tokens.proof_token.as_deref().unwrap_or_default(),
+                    "turnstile_token": tokens.turnstile_token.as_deref().unwrap_or_default()
+                }),
+                ResponseStage::RequirementsFinalize,
             )
-            .with_provider(PROVIDER)
-            .with_code("chatgpt_web_requirements_missing_token")
-        })?;
-
+            .await?
+    } else {
+        data
+    };
     Ok(surface::ChatRequirements {
-        token: token.to_string(),
-        proof_token,
-        turnstile_token,
-        so_token: object
-            .get("so_token")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_string),
+        token: exchange::required_token(&data, "token")?,
+        proof_token: tokens.proof_token,
+        turnstile_token: tokens.turnstile_token,
+        so_token: exchange::optional_token(&data, "so_token")?,
     })
+}
+
+fn uses_two_stage(payload: &ProviderAccountPayload) -> Result<bool, GatewayError> {
+    match extra_body_string(
+        payload,
+        &["chatgptWebRequirementsMode", "chatgptRequirementsMode"],
+    )
+    .as_deref()
+    {
+        Some("prepare_finalize") => Ok(true),
+        Some("legacy") => Ok(false),
+        Some(_) => Err(GatewayError::bad_request(
+            "ChatGPT Web requirements mode must be prepare_finalize or legacy.",
+        )
+        .with_code("chatgpt_web_requirements_mode_invalid")),
+        None => {
+            Ok(conversation_path(payload, false)
+                != surface::CHATGPT_WEB_DEFAULT_F_CONVERSATION_PATH)
+        }
+    }
 }

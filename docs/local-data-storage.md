@@ -14,6 +14,11 @@ The desktop passes the selected root to its backend, even when a separately loca
 backend executable is configured. Settings and console WebViews also store their
 profiles under this root. Data is not copied between home and portable roots implicitly.
 
+The daily devtest builder opts into a separate compile-time default:
+`home/.ng-devtest-4300`, ignoring executable-adjacent `.ng` unless an explicit
+absolute override is supplied. Normal/release binaries retain the rules above.
+See [devtest-build.md](devtest-build.md) for port, override and isolation boundaries.
+
 ## Layout
 
 | Path below .ng | Owner |

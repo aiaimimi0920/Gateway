@@ -15,6 +15,13 @@ pub(super) fn should_try_next_candidate(e: &GatewayError) -> bool {
     if e.code.as_deref() == Some("rate_limit_admission_indeterminate") {
         return false;
     }
+    // A local capacity wait prohibits this send, not another already-authorized
+    // account. Keep Retry timing for the caller without reopening same-account retry.
+    if e.kind == crate::error::ErrorKind::ModelCapacity
+        && matches!(e.fallback_hint, FallbackHint::Retry { .. })
+    {
+        return true;
+    }
     match &e.fallback_hint {
         FallbackHint::FallbackProvider { .. } => true,
         FallbackHint::Retry { .. } => e.retryable,
@@ -25,9 +32,15 @@ pub(super) fn should_try_next_candidate(e: &GatewayError) -> bool {
 
 pub(super) fn should_record_provider_failure(error: &GatewayError) -> bool {
     error.request_budget_stop_reason().is_none()
+        && error.kind != crate::error::ErrorKind::ModelCapacity
         && !matches!(
             error.code.as_deref(),
-            Some("rate_limit_admission_indeterminate" | "upstream_credential_unavailable")
+            Some(
+                "rate_limit_admission_indeterminate"
+                    | "upstream_credential_unavailable"
+                    | "gateway_network_unstable"
+                    | "capacity_backoff_registry_full"
+            )
         )
 }
 
@@ -103,6 +116,7 @@ pub(super) fn spawn_record_provider_success(
 }
 
 pub(super) fn spawn_record_provider_failure(
+    started: std::time::Instant,
     state: Arc<AppState>,
     provider_account_id: String,
     provider_credential_id: Option<String>,
@@ -110,6 +124,16 @@ pub(super) fn spawn_record_provider_failure(
     message: String,
 ) {
     tokio::spawn(async move {
+        let _health_update = state.lifecycle.health_control.gate.lock().await;
+        if !state
+            .lifecycle
+            .health_control
+            .feedback_allowed(&provider_account_id, started)
+            || state.lifecycle.model_circuits.network_blocked()
+            || crate::routing::model_circuit::health_control::is_transport_message(&message)
+        {
+            return;
+        }
         if let Err(error) = provider_runtime::record_provider_candidate_failure(
             &state,
             &provider_account_id,

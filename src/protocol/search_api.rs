@@ -88,11 +88,10 @@ pub fn normalize_research_get(research_id: &str) -> Result<CanonicalRelayRequest
 }
 
 pub fn normalize_credits_balance() -> Result<CanonicalRelayRequest, GatewayError> {
-    Ok(build_get_request(
-        EndpointKind::CreditsBalance,
-        BALANCE_ROUTE_MODEL,
-        Value::Object(Map::new()),
-    ))
+    Err(
+        GatewayError::bad_request("The public balance tool has been removed")
+            .with_code("unsupported_search_provider_endpoint"),
+    )
 }
 
 pub fn pack_search_api(req: &CanonicalRelayRequest) -> Value {
@@ -170,6 +169,14 @@ fn normalize_post_request(
         .filter(|v| !v.is_empty())
         .map(str::to_string)
         .or_else(|| Some(default_route_model.to_string()));
+    if matches!(requested_model.as_deref(), Some("search")) && endpoint_kind != EndpointKind::Search
+        || matches!(requested_model.as_deref(), Some("fetch"))
+            && endpoint_kind != EndpointKind::Fetch
+    {
+        return Err(GatewayError::bad_request(
+            "Generic search/fetch model must match its endpoint",
+        ));
+    }
 
     let explicit_session_key = body_obj
         .get("user")
@@ -410,10 +417,18 @@ mod tests {
     }
 
     #[test]
-    fn normalize_balance_uses_virtual_model() {
-        let req = normalize_credits_balance().unwrap();
-        assert_eq!(req.endpoint_kind, EndpointKind::CreditsBalance);
-        assert_eq!(req.requested_model.as_deref(), Some(BALANCE_ROUTE_MODEL));
+    fn normalize_balance_rejects_retired_public_tool() {
+        let error = normalize_credits_balance().unwrap_err();
+        assert_eq!(
+            error.code.as_deref(),
+            Some("unsupported_search_provider_endpoint")
+        );
+    }
+
+    #[test]
+    fn normalize_search_tools_rejects_mismatched_generic_operation() {
+        assert!(normalize_search(json!({"model":"fetch", "query":"Rust"})).is_err());
+        assert!(normalize_fetch(json!({"model":"search", "url":"https://example.com"})).is_err());
     }
 
     #[test]

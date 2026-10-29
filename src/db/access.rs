@@ -21,7 +21,6 @@ use crate::routing::candidate::{
     RouteCandidate,
 };
 use crate::routing::config::ModelInfo;
-use crate::routing::protocol_resolution::resolve_supported_wire_protocol_families_for_model;
 
 use super::{
     format_timestamp, get_provider_payload, list_active_provider_credentials_for_accounts,

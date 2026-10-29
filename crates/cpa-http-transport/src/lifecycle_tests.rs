@@ -120,3 +120,37 @@ async fn slow_h1_body_does_not_serialize_an_independent_request() {
     let _ = server.await;
     assert_eq!(body.as_deref(), Some(&b"ok"[..]));
 }
+
+#[tokio::test]
+async fn externally_owned_deadline_does_not_add_a_hidden_header_or_body_timeout() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        read_head(&mut socket).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        socket
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n")
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        socket.write_all(b"ok").await.unwrap();
+    });
+    let mut client = Client::new(None, true).unwrap();
+    client.proxies = Matcher::builder().build();
+    let builder = rquest::Client::builder().no_proxy().build().unwrap();
+    let request = builder.get(format!("http://{address}/")).build().unwrap();
+    let body = tokio::time::timeout(Duration::from_secs(2), async {
+        client
+            .send_with_deadline(request, None)
+            .await
+            .unwrap()
+            .bytes()
+            .await
+            .unwrap()
+    })
+    .await
+    .unwrap();
+    server.await.unwrap();
+    assert_eq!(body.as_ref(), b"ok");
+}

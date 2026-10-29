@@ -7,14 +7,19 @@ use crate::db::provider_credential_model_states::recovery::{
 impl LocalRuntime {
     pub async fn model_health_snapshot(
         &self,
-        identity: RecordCredentialModelSuccessInput,
+        mut identity: RecordCredentialModelSuccessInput,
     ) -> Result<ModelHealthSnapshot, GatewayError> {
+        // Pin the alias and row read to one SQLite snapshot, including rename races.
+        let mut tx = self.pool.begin().await.map_err(storage_error)?;
+        identity.provider_account_id =
+            super::super::model_identity::resolve(&mut tx, &identity.provider_account_id).await?;
         let version: Option<String> =
             sqlx::query_scalar("SELECT payload FROM credential_model_states WHERE id = ?")
                 .bind(identity.state_id())
-                .fetch_optional(&self.pool)
+                .fetch_optional(&mut *tx)
                 .await
                 .map_err(storage_error)?;
+        tx.commit().await.map_err(storage_error)?;
         let protected = version
             .as_deref()
             .map(decode)

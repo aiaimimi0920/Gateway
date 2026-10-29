@@ -7,6 +7,7 @@ use crate::routing::candidate::ProviderAccountPayload;
 
 fn make_payload() -> ProviderAccountPayload {
     ProviderAccountPayload {
+        call_flow: None,
         request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: GEMINI_CANVAS_PROGRAM_WEB_REVERSE_MODULAR_ADAPTER.to_string(),

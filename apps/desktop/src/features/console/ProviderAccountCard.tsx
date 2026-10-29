@@ -14,6 +14,8 @@ import {
 import { ActionTooltip } from "../../components/ActionTooltip";
 import { AccountBillingAction } from "./AccountBillingAction";
 import { CardModelList } from "./CardModelList";
+import { AvailabilityHeatmap } from "./AvailabilityHeatmap";
+import { recentAvailabilityWindows } from "./availabilityWindows";
 import { AccountRoutingPoolSelect } from "./AccountRoutingPoolSelect";
 import { ProviderQuotaPanel, quotaWindowRemainingRatio } from "./accountCardQuota";
 import type {
@@ -78,7 +80,7 @@ export function ProviderAccountCard(props: {
   const accountConcurrency = aggregateProviderConcurrency([account]);
   const accountCosts = aggregateProviderCosts([account]);
   const accountRequestCount = aggregateProviderRequests([account]);
-  const accountSuccessWindows = aggregateSuccessWindows([account]).slice(-4);
+  const accountSuccessWindows = recentAvailabilityWindows(aggregateSuccessWindows([account]));
   const accountAvailabilityCells = buildProviderAvailabilityCells(accountSuccessWindows);
   const accountSuccessTotals = accountSuccessWindows.reduce(
     (totals, window) => ({
@@ -165,43 +167,20 @@ export function ProviderAccountCard(props: {
           </div>
         </dl>
 
-        {/* Success strip only exists once the account has real windows. An account
-            that has never been dispatched used to render 4 x 12 empty cells plus a
-            "—" rate, which read as a broken chart instead of "no data yet". */}
+        {/* Do not invent a time range for an account that has never been dispatched. */}
         {accountSuccessWindows.length > 0 ? (
           <section
             className="nt-provider-card__success nt-provider-account-card__success"
             data-account-availability-scope="account"
-            role="img"
+            role="group"
             aria-label={t(
               `${account.displayName} 最近窗口调用成功率${accountSuccessRate === null ? "暂无数据" : ` ${accountSuccessTotals.success}/${accountSuccessTotals.requests}，${formatAggregateRate(accountSuccessRate)}`}`,
               `${account.displayName} recent success rate${accountSuccessRate === null ? " unavailable" : ` ${accountSuccessTotals.success}/${accountSuccessTotals.requests}, ${formatAggregateRate(accountSuccessRate)}`}`,
             )}
           >
             <Activity size={13} aria-hidden="true" />
-            <div className="nt-provider-card__availability-windows" aria-hidden="true">
-              {accountSuccessWindows.map((window, windowIndex) => {
-                const windowTitle = `${window.label}: ${window.success}/${window.requests} (${formatAggregateRate(window.rate)})`;
-                return (
-                  <div
-                    className="nt-provider-card__availability-window"
-                    data-account-availability-window={window.label}
-                    key={window.label}
-                    title={windowTitle}
-                  >
-                    {accountAvailabilityCells
-                      .filter((cell) => cell.windowIndex === windowIndex)
-                      .map((cell) => (
-                        <span
-                          className={`nt-provider-card__availability-cell nt-provider-card__availability-cell--${cell.state}`}
-                          data-account-availability-cell={cell.state}
-                          key={`${cell.windowIndex}:${cell.position}`}
-                        />
-                      ))}
-                  </div>
-                );
-              })}
-            </div>
+            <AvailabilityHeatmap cells={accountAvailabilityCells} scope="account"
+              label={`${account.displayName} ${t("热度图", "heatmap")}`} t={t} />
             <strong className="nt-provider-card__success-rate" data-account-metric="success-rate">
               {formatAggregateRate(accountSuccessRate)}
             </strong>

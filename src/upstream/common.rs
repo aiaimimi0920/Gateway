@@ -61,8 +61,10 @@ pub(crate) fn build_request_builder_from_plan(
     let mut builder = http
         .request(plan.method.clone(), &plan.url)
         .default_headers(use_defaults)
-        .headers(headers)
-        .timeout(timeout);
+        .headers(headers);
+    if !crate::request_wait::transport::managed() {
+        builder = builder.timeout(timeout);
+    }
     if let Some(original) = original {
         if workbuddy {
             builder = crate::upstream::request_profile::apply_workbuddy_transport(builder);

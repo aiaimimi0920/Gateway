@@ -21,7 +21,7 @@ impl RouteConfigSnapshot {
         let allowed = constraint.allowed_account_ids.as_ref();
         guard.providers.iter().any(|p| {
             let translated = model.and_then(|m| p.model_map.get(m).map(String::as_str));
-            if p.credential_pool.is_empty() {
+            if p.uses_provider_default_account() {
                 return allowed.is_none_or(|ids| ids.contains(&provider_default_account_id(&p.id)))
                     && model.is_none_or(|m| {
                         p.supported_models.is_empty()
@@ -87,7 +87,7 @@ fn provider_available(
         });
     }
     let upstream = p.model_map.get(model).map(String::as_str).unwrap_or(model);
-    if p.credential_pool.is_empty() {
+    if p.uses_provider_default_account() {
         let id = provider_default_account_id(&p.id);
         return p.credential_pool_auth_policy.is_any()
             && accounts.is_none_or(|ids| ids.contains(&id))

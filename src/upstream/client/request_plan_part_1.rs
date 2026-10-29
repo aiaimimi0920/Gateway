@@ -30,7 +30,9 @@ impl UpstreamClient {
         model: &str,
         stream: bool,
     ) -> Result<RequestPlan, GatewayError> {
-        if payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
+        if flow.executor == crate::protocol::chatgpt::basispoints::ADAPTER {
             let source = crate::protocol::chatgpt::basispoints::request::source(req, model)?;
             return Ok(RequestPlan {
                 method: rquest::Method::POST,
@@ -45,7 +47,7 @@ impl UpstreamClient {
         if !payload.adapter.starts_with("dashscope_") {
             crate::protocol::dashscope::validate_bridge(req)?;
         }
-        let mut plan = match payload.canonical_adapter() {
+        let mut plan = match flow.call_adapter {
             "dashscope_compatible" | "dashscope_multimodal_compatible" => {
                 crate::upstream::dashscope::build_request_plan(payload, req, model, stream)
             }
@@ -164,8 +166,10 @@ impl UpstreamClient {
             }
         }
 
-        crate::upstream::request_profile::apply_cpa_plan(payload, req, model, &mut plan);
-        crate::upstream::request_profile::prepare_cpa_full(payload, req, &mut plan)?;
+        if !flow.executor_owns_fingerprint {
+            crate::upstream::request_profile::apply_cpa_plan(payload, req, model, &mut plan);
+            crate::upstream::request_profile::prepare_cpa_full(payload, req, &mut plan)?;
+        }
         tracing::debug!(url = %plan.url, "request plan built");
         Ok(plan)
     }

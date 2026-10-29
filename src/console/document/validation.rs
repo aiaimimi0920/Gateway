@@ -160,7 +160,7 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
             );
         }
 
-        if provider.credentials.is_empty() {
+        if provider.uses_provider_default_account() {
             let default_account_id = provider_default_account_id(normalized_provider_id);
             register_account_identity(
                 &mut account_ids,

@@ -11,7 +11,9 @@ use crate::routing::candidate::ProviderAccountPayload;
 use crate::upstream::response_types::UpstreamStreamingResponse;
 
 use super::bootstrap::bootstrap_site;
-use super::common::{classify_chatgpt_web_text_response, is_event_stream_content_type};
+use super::common::{
+    classify_chatgpt_web_text_response, is_event_stream_content_type, ResponseStage,
+};
 use super::web_reverse::{build_request_context, translate_chatgpt_web_stream};
 use super::PROVIDER;
 
@@ -54,10 +56,14 @@ pub async fn execute(
     };
     let timezone = extra_body_string(payload, &["timezone"])
         .unwrap_or_else(|| surface::CHATGPT_WEB_DEFAULT_TIMEZONE.to_string());
-    let body = surface::pack_request(req, model, &timezone)?;
+    let conversation_path = conversation_path(payload, using_cached_f_conversation_material);
+    let body = if conversation_path == surface::CHATGPT_WEB_DEFAULT_F_CONVERSATION_PATH {
+        surface::pack_f_request(req, model, &timezone)?
+    } else {
+        surface::pack_request(req, model, &timezone)?
+    };
     let turn_trace_id = cached_f_conversation_turn_trace_id(payload)
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-    let conversation_path = conversation_path(payload, using_cached_f_conversation_material);
     if should_post_prepare(payload, using_cached_f_conversation_material) {
         if let Some(prepare_path) = conversation_prepare_path(payload, &conversation_path) {
             post_prepare(
@@ -67,6 +73,7 @@ pub async fn execute(
                 &request_context,
                 extra_headers,
                 &prepare_path,
+                &body,
                 &turn_trace_id,
             )
             .await?;
@@ -97,7 +104,12 @@ pub async fn execute(
         PROVIDER,
     )
     .await?;
-    classify_chatgpt_web_text_response(status, content_type.as_deref(), &body_text)?;
+    classify_chatgpt_web_text_response(
+        ResponseStage::Conversation,
+        status,
+        content_type.as_deref(),
+        &body_text,
+    )?;
 
     surface::accumulate_response(&body_text, model).map_err(|error| error.with_provider(PROVIDER))
 }
@@ -130,10 +142,14 @@ pub async fn execute_stream(
     };
     let timezone = extra_body_string(payload, &["timezone"])
         .unwrap_or_else(|| surface::CHATGPT_WEB_DEFAULT_TIMEZONE.to_string());
-    let body = surface::pack_request(req, model, &timezone)?;
+    let conversation_path = conversation_path(payload, using_cached_f_conversation_material);
+    let body = if conversation_path == surface::CHATGPT_WEB_DEFAULT_F_CONVERSATION_PATH {
+        surface::pack_f_request(req, model, &timezone)?
+    } else {
+        surface::pack_request(req, model, &timezone)?
+    };
     let turn_trace_id = cached_f_conversation_turn_trace_id(payload)
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-    let conversation_path = conversation_path(payload, using_cached_f_conversation_material);
     if should_post_prepare(payload, using_cached_f_conversation_material) {
         if let Some(prepare_path) = conversation_prepare_path(payload, &conversation_path) {
             post_prepare(
@@ -143,6 +159,7 @@ pub async fn execute_stream(
                 &request_context,
                 extra_headers,
                 &prepare_path,
+                &body,
                 &turn_trace_id,
             )
             .await?;
@@ -174,7 +191,12 @@ pub async fn execute_stream(
             PROVIDER,
         )
         .await?;
-        classify_chatgpt_web_text_response(status, content_type.as_deref(), &body_text)?;
+        classify_chatgpt_web_text_response(
+            ResponseStage::Conversation,
+            status,
+            content_type.as_deref(),
+            &body_text,
+        )?;
         unreachable!("non-success ChatGPT web reverse response unexpectedly passed validation");
     }
     if !is_event_stream_content_type(content_type.as_deref()) {
@@ -184,7 +206,12 @@ pub async fn execute_stream(
             PROVIDER,
         )
         .await?;
-        classify_chatgpt_web_text_response(status, content_type.as_deref(), &body_text)?;
+        classify_chatgpt_web_text_response(
+            ResponseStage::Conversation,
+            status,
+            content_type.as_deref(),
+            &body_text,
+        )?;
         return Err(GatewayError::server_error(
             "ChatGPT Web reverse streaming response did not use the text/event-stream content type.",
         )

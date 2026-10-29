@@ -173,7 +173,7 @@ pub struct GatewaySummaryBucketKeyView {
     pub count: usize,
 }
 
-/// One hourly slice of a provider account's traffic, used by the console to
+/// One half-hour slice of a provider account's traffic, used by the console to
 /// draw an availability strip without downloading raw audit rows.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -21,12 +21,17 @@ async fn completion(
     assert_eq!(body["model"], "gpt-5.6-luna");
     assert_eq!(body["stream"], true);
     assert_eq!(body["store"], false);
+    assert_eq!(body["probe_marker"], "shared-planner");
     assert!(body["instructions"].is_string());
-    assert_eq!(headers["accept"], "text/event-stream");
     let auth = headers["authorization"].to_str().unwrap().to_string();
     calls.lock().unwrap().push(auth.clone());
     let account = headers["chatgpt-account-id"].to_str().unwrap();
     assert_eq!(auth, format!("Bearer {account}-secret"));
+    if account == "profiled" {
+        assert_eq!(headers["x-stainless-runtime"], "node");
+    } else {
+        assert_eq!(headers["accept"], "text/event-stream");
+    }
     if account == "bad" {
         return (StatusCode::UNAUTHORIZED, "bad-secret".into());
     }
@@ -37,7 +42,7 @@ async fn completion(
         );
     }
     let event = json!({"type":"response.completed", "response":{"status":"completed", "output":[
-        {"type":"message","role":"assistant","content":[{"type":"output_text","text":"OK good-secret"}]}],
+        {"type":"message","role":"assistant","content":[{"type":"output_text","text":format!("OK {account}-secret")}]}],
         "usage":{"input_tokens":8,"output_tokens":1,"total_tokens":9}}});
     (
         StatusCode::OK,
@@ -56,12 +61,15 @@ async fn codex_probe_requires_completed_reply_and_preserves_account_identity() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    let credentials = ["good", "bad", "partial"].map(|id| {
+    let credentials = ["good", "bad", "partial", "profiled"].map(|id| {
         json!({"id":id, "api_key":format!("{id}-secret"),
+        "request_client_profile": if id == "profiled" { "claude_cli" } else { "codex_cli" },
         "headers":{"Chatgpt-Account-Id":id}})
     });
     let document = serde_json::from_value(json!({"providers":[{"id":"chatgpt",
         "preset":"chatgpt-codex-oauth-official-api", "base_url":format!("http://{address}"),
+        "extra_body":{"probe_marker":"shared-planner"},
+        "call_flow":{"call_adapter":"auto","fingerprint_adapter":"codex_cli","special_adapter":"auto"},
         "credentials":credentials}],"model_routes":[],"aliases":{}}))
     .unwrap();
     let mut fixture = ConsoleStateFixture::new(document, false);
@@ -69,7 +77,12 @@ async fn codex_probe_requires_completed_reply_and_preserves_account_identity() {
     let local = LocalRuntime::open(&directory).await.unwrap();
     Arc::get_mut(&mut fixture.state).unwrap().local_runtime = Some(local.clone());
     let grant = grant_console_secret_access(&fixture.state).await;
-    for (id, expected) in [("good", "passed"), ("bad", "failed"), ("partial", "failed")] {
+    for (id, expected) in [
+        ("good", "passed"),
+        ("bad", "failed"),
+        ("partial", "failed"),
+        ("profiled", "passed"),
+    ] {
         let response = probe_credential(&fixture.state, &grant, id).await;
         assert_eq!(response.status(), StatusCode::OK);
         let body = parse_json(response).await;
@@ -77,15 +90,15 @@ async fn codex_probe_requires_completed_reply_and_preserves_account_identity() {
         assert_eq!(body["result"]["status"], expected);
         assert!(!body.to_string().contains("-secret"));
     }
-    assert_eq!(calls.lock().unwrap().len(), 3);
+    assert_eq!(calls.lock().unwrap().len(), 4);
     let audits = local
         .list_audits(&db::RequestAuditFilters::default())
         .await
         .unwrap();
     let summary = db::request_audits::summarize_request_audit_rows(&audits);
-    assert_eq!(summary.total_requests, 3);
-    assert_eq!(summary.completed_count, 1);
-    assert_eq!(summary.credentials.len(), 3);
+    assert_eq!(summary.total_requests, 4);
+    assert_eq!(summary.completed_count, 2);
+    assert_eq!(summary.credentials.len(), 4);
     let good = audits
         .iter()
         .find(|audit| audit.status == "completed")

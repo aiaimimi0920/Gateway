@@ -17,9 +17,48 @@ pub(super) async fn begin(
     model: &str,
     responses: bool,
 ) -> Recording {
+    begin_endpoint(
+        state,
+        target,
+        model,
+        (
+            "openai",
+            if responses {
+                "responses"
+            } else {
+                "chat_completions"
+            },
+            responses,
+        ),
+    )
+    .await
+}
+
+pub(super) async fn begin_search(
+    state: &AppState,
+    target: &CredentialProbeTarget,
+    model: &str,
+) -> Recording {
+    begin_endpoint(state, target, model, ("search", "search", false)).await
+}
+
+pub(super) async fn begin_fetch(
+    state: &AppState,
+    target: &CredentialProbeTarget,
+    model: &str,
+) -> Recording {
+    begin_endpoint(state, target, model, ("search", "fetch", false)).await
+}
+
+async fn begin_endpoint(
+    state: &AppState,
+    target: &CredentialProbeTarget,
+    model: &str,
+    endpoint: (&str, &str, bool),
+) -> Recording {
     let health = super::model_probe_health::begin(state, target, model).await;
     Recording {
-        audit: begin_audit(state, target, model, responses).await,
+        audit: begin_audit(state, target, model, endpoint).await,
         health,
     }
 }
@@ -28,7 +67,7 @@ async fn begin_audit(
     state: &AppState,
     target: &CredentialProbeTarget,
     model: &str,
-    responses: bool,
+    (family, endpoint, stream): (&str, &str, bool),
 ) -> Option<String> {
     if state.local_runtime.is_none() && state.pg_pool.is_none() {
         return None;
@@ -42,17 +81,12 @@ async fn begin_audit(
         session_id: None,
         route_policy_id: None,
         provider_account_id: Some(target.provider_id.clone()),
-        protocol_family: "openai".into(),
-        endpoint_kind: if responses {
-            "responses"
-        } else {
-            "chat_completions"
-        }
-        .into(),
+        protocol_family: family.into(),
+        endpoint_kind: endpoint.into(),
         requested_model: Some(model.into()),
         resolved_model: Some(model.into()),
         model_alias: None,
-        stream: responses,
+        stream,
         route_attempt_count: 1,
         response_id: format!("probe-{}", uuid::Uuid::new_v4()),
         previous_response_id: None,

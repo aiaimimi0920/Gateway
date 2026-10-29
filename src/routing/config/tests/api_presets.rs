@@ -79,7 +79,7 @@ fn yaml_parsing_with_perplexity_preset() {
     let yaml = r#"
 providers:
   - id: perplexity-main
-    preset: perplexity
+    preset: perplexity-api
     base_url: "https://api.perplexity.ai"
     api_key: "pplx-test"
     supported_models: [sonar]
@@ -94,12 +94,9 @@ model_routes:
     assert_eq!(candidates[0].payload.adapter, "openai_compatible");
     assert_eq!(
         candidates[0].payload.chat_completions_path.as_deref(),
-        Some("/chat/completions")
+        Some("/v1/sonar")
     );
-    assert_eq!(
-        candidates[0].payload.responses_path.as_deref(),
-        Some("/v1/responses")
-    );
+    assert!(candidates[0].payload.responses_path.is_none());
     assert_eq!(candidates[0].protocol_family, "openai");
 }
 

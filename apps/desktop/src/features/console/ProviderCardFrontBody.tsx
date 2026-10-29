@@ -2,6 +2,7 @@ import { Activity, CircleDollarSign, Gauge, Send, TrendingUp, UsersRound } from 
 
 import { ProviderQuotaPanel } from "./ProviderAccountCard";
 import { CardModelList } from "./CardModelList";
+import { AvailabilityHeatmap } from "./AvailabilityHeatmap";
 import type { CardModelTraffic } from "./cardModelTraffic";
 import {
   formatAggregateMoney,
@@ -150,44 +151,15 @@ export function ProviderCardFrontBody({
         <section
           className="nt-provider-card__success"
           data-provider-availability-scope="provider"
-          role="img"
+          role="group"
           aria-label={t(
             `${providerLabel} 最近窗口的调用成功率，所有模型聚合${providerSuccessRate === null ? "，暂无数据" : `，${providerSuccessTotals.success}/${providerSuccessTotals.requests} 次成功，${formatAggregateRate(providerSuccessRate)}`}`,
             `${providerLabel} recent window success rate, all models aggregated${providerSuccessRate === null ? ", unavailable" : `, ${providerSuccessTotals.success}/${providerSuccessTotals.requests} successful, ${formatAggregateRate(providerSuccessRate)}`}`,
           )}
-          title={t(
-            `${providerLabel} 最近窗口的调用成功率（所有模型聚合，按小时）`,
-            `${providerLabel} recent window success rate (all models aggregated, hourly windows)`,
-          )}
         >
           <Activity size={15} aria-hidden="true" />
-          <div className="nt-provider-card__availability-windows" aria-hidden="true">
-            {providerSuccessWindows.map((window, windowIndex) => {
-              const windowTitle = t(
-                `${window.label}：${window.success}/${window.requests} 次成功（${Math.round((window.rate ?? 0) * 100)}%）`,
-                `${window.label}: ${window.success}/${window.requests} successful (${Math.round((window.rate ?? 0) * 100)}%)`,
-              );
-              return (
-                <div
-                  className="nt-provider-card__availability-window"
-                  data-provider-availability-window={window.label}
-                  key={window.label}
-                  title={windowTitle}
-                >
-                  {providerAvailabilityCells
-                    .filter((cell) => cell.windowIndex === windowIndex)
-                    .map((cell) => (
-                      <span
-                        className={`nt-provider-card__availability-cell nt-provider-card__availability-cell--${cell.state}`}
-                        data-provider-availability-cell={cell.state}
-                        key={`${cell.windowIndex}:${cell.position}`}
-                        title={windowTitle}
-                      />
-                    ))}
-                </div>
-              );
-            })}
-          </div>
+          <AvailabilityHeatmap cells={providerAvailabilityCells} scope="provider"
+            label={`${providerLabel} ${t("热度图", "heatmap")}`} t={t} />
           <strong className="nt-provider-card__success-rate" data-provider-metric="success-rate">
             {formatAggregateRate(providerSuccessRate)}
           </strong>

@@ -1,16 +1,14 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
-import {
-  PROVIDER_CATALOG_TEMPLATES,
-  type ProviderCatalogDraft,
-  type ProviderCatalogTemplate,
-} from "./providerCatalog";
+import type { ConsoleCredentialPoolAutomationDriver } from "../../api/contracts";
+import { PROVIDER_CATALOG_TEMPLATES, type ProviderCatalogDraft, type ProviderCatalogTemplate } from "./providerCatalog";
 import { ProviderCatalogDirectory, type CatalogCategoryFilter } from "./ProviderCatalogDirectory";
 import { ProviderCatalogForm } from "./ProviderCatalogForm";
 import type { DiscoverAccount } from "./accountDiscovery";
 import { availableCatalogId } from "./providerCatalogIdentity";
+import { catalogWorkflowError, compatibleCatalogDrivers, defaultCatalogWorkflow } from "./providerCatalogWorkflow";
 
 export type ProviderCatalogDialogProps = {
   open: boolean;
@@ -18,296 +16,92 @@ export type ProviderCatalogDialogProps = {
   existingCredentialIds: readonly string[];
   locked: boolean;
   hasSecretAccess: boolean;
+  drivers?: readonly ConsoleCredentialPoolAutomationDriver[];
   onOpenChange(open: boolean): void;
   onRequestSecretAccess(): void;
   onSubmit(value: ProviderCatalogDraft): void;
   onDiscover?: DiscoverAccount;
 };
+export type CatalogTab = "request" | "mapping" | "tests" | "pool" | "health";
 
-function suggestedCredentialId(providerId: string): string {
-  const normalized = providerId
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return `${normalized || "provider"}-account-1`;
-}
-
-function draftFromTemplate(
-  template: ProviderCatalogTemplate,
-  label: string,
-  providerIds: readonly string[],
-  credentialIds: readonly string[],
-): ProviderCatalogDraft {
+function draftFromTemplate(template: ProviderCatalogTemplate, providerIds: readonly string[]): ProviderCatalogDraft {
   const providerId = availableCatalogId(template.providerId, providerIds);
   return {
-    templateId: template.id,
-    ...(template.custom ? { siteHealthEnabled: true } : {}),
-    providerId,
-    providerLabel: providerId === template.providerId ? label : `${label} (${providerId.slice(template.providerId.length + 1)})`,
-    vendorKey: template.vendorKey,
-    vendorName: template.vendorName,
-    baseUrl: template.baseUrl,
-    supportedModels: [...template.supportedModels],
-    credentialId: availableCatalogId(suggestedCredentialId(providerId), credentialIds),
-    accountName: `${template.vendorName} Account 1`,
-    apiKey: "",
+    templateId: template.id, providerId, providerLabel: providerId,
+    vendorKey: template.vendorKey, vendorName: template.vendorName,
+    baseUrl: template.baseUrl, supportedModels: [...template.supportedModels],
+    requestClientProfile: template.id === "chatgpt" ? "codex_cli" : "auto",
+    workflow: defaultCatalogWorkflow(template), secrets: {},
   };
 }
-
-function parseSupportedModels(value: string): string[] {
-  return [
-    ...new Set(
-      value
-        .split(/[\n,]/)
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0),
-    ),
-  ];
-}
-
-function isHttpUrl(value: string): boolean {
+function validUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
+    return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash;
+  } catch { return false; }
 }
 
-export function ProviderCatalogDialog({
-  open,
-  existingProviderIds,
-  existingCredentialIds,
-  locked,
-  hasSecretAccess,
-  onOpenChange,
-  onRequestSecretAccess,
-  onSubmit,
-  onDiscover,
-}: ProviderCatalogDialogProps) {
+export function ProviderCatalogDialog({ open, existingProviderIds, locked, hasSecretAccess, drivers = [],
+  onOpenChange, onRequestSecretAccess, onSubmit }: ProviderCatalogDialogProps) {
   const { t } = useUiLocale();
   const openerRef = useRef<HTMLElement | null>(null);
   const wasOpen = useRef(false);
-  const firstTemplate: ProviderCatalogTemplate = PROVIDER_CATALOG_TEMPLATES[0];
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<CatalogCategoryFilter>("all");
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(firstTemplate.id);
-  const [draft, setDraft] = useState<ProviderCatalogDraft>(() =>
-    draftFromTemplate(firstTemplate, t(firstTemplate.labelZh, firstTemplate.labelEn), existingProviderIds, existingCredentialIds),
-  );
-  const [supportedModelsText, setSupportedModelsText] = useState(
-    firstTemplate.supportedModels.join("\n"),
-  );
+  const first = PROVIDER_CATALOG_TEMPLATES[0];
+  const [category, setCategory] = useState<CatalogCategoryFilter>("standard");
+  const [draft, setDraft] = useState(() => draftFromTemplate(first, existingProviderIds));
+  const [tab, setTab] = useState<CatalogTab>("request");
   const [validationError, setValidationError] = useState<string | null>(null);
-
-  const selectedTemplate: ProviderCatalogTemplate =
-    PROVIDER_CATALOG_TEMPLATES.find((template) => template.id === selectedTemplateId) ??
-    firstTemplate;
-  const existingProviderIdSet = useMemo(
-    () => new Set(existingProviderIds.map((id) => id.trim())),
-    [existingProviderIds],
-  );
-  const existingCredentialIdSet = useMemo(
-    () => new Set(existingCredentialIds.map((id) => id.trim())),
-    [existingCredentialIds],
-  );
-
+  const selectedTemplate = PROVIDER_CATALOG_TEMPLATES.find((entry) => entry.id === draft.templateId) ?? first;
   useEffect(() => {
-    if (!open) {
-      wasOpen.current = false;
-      return;
-    }
-    // A background inventory refresh must not erase a partially completed form.
-    if (wasOpen.current) return;
+    if (!open) { wasOpen.current = false; return; }
+    if (wasOpen.current) return; // Background refresh must not erase a partially edited draft.
     wasOpen.current = true;
-    const initial = PROVIDER_CATALOG_TEMPLATES[0];
-    const nextDraft = draftFromTemplate(initial, t(initial.labelZh, initial.labelEn), existingProviderIds, existingCredentialIds);
-    setQuery("");
-    setCategory("all");
-    setSelectedTemplateId(initial.id);
-    setDraft(nextDraft);
-    setSupportedModelsText(nextDraft.supportedModels.join("\n"));
-    setValidationError(null);
-  }, [open, t, existingProviderIds, existingCredentialIds]);
-
-  const filteredTemplates = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return PROVIDER_CATALOG_TEMPLATES.filter((template) => {
-      if (category !== "all" && template.category !== category) {
-        return false;
-      }
-      if (!normalizedQuery) {
-        return true;
-      }
-      return [
-        template.labelZh,
-        template.labelEn,
-        template.vendorName,
-        template.providerId,
-        template.preset ?? "",
-      ].some((value) => value.toLowerCase().includes(normalizedQuery));
-    });
-  }, [category, query]);
-
-  const selectTemplate = (template: ProviderCatalogTemplate) => {
-    const nextDraft = draftFromTemplate(template, t(template.labelZh, template.labelEn), existingProviderIds, existingCredentialIds);
-    setSelectedTemplateId(template.id);
-    setDraft(nextDraft);
-    setSupportedModelsText(nextDraft.supportedModels.join("\n"));
-    setValidationError(null);
-  };
-
+    setCategory("standard"); setTab("request"); setDraft(draftFromTemplate(first, existingProviderIds)); setValidationError(null);
+  }, [open, first, existingProviderIds]);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (locked) return;
     const providerId = draft.providerId.trim();
-    const providerLabel = draft.providerLabel.trim();
-    const vendorKey = draft.vendorKey.trim();
-    const vendorName = draft.vendorName.trim();
     const baseUrl = draft.baseUrl.trim().replace(/\/$/, "");
-    const credentialId = draft.credentialId.trim();
-    const accountName = draft.accountName.trim();
-    const apiKey = draft.apiKey.trim();
-    const supportedModels = parseSupportedModels(supportedModelsText);
-
-    if (existingProviderIdSet.has(providerId)) {
-      setValidationError(t(`Provider ID ${providerId} 已存在，请使用其他 ID。`, `Provider ID ${providerId} already exists; use a different ID.`));
-      return;
+    const fail = (message: string) => setValidationError(message);
+    if (existingProviderIds.some((id) => id.trim() === providerId)) return fail(t(`Provider ID ${providerId} 已存在，请使用其他 ID。`, `Provider ID ${providerId} already exists.`));
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(providerId) || providerId.length > 256) return fail(t("请输入有效的 Provider ID。", "Enter a valid Provider ID."));
+    if (!validUrl(baseUrl)) return fail(t("请输入有效的 HTTP(S) Base URL，不能包含凭据、查询参数或片段。", "Enter an HTTP(S) base URL without credentials, query or fragment."));
+    const workflow = draft.workflow!;
+    const error = catalogWorkflowError(workflow, draft.secrets);
+    if (error) return fail(error);
+    if (workflow.specialAdapter === "basispoints" && baseUrl !== "https://chatgpt.com/backend-api/codex") return fail(t("Basispoints 仅支持 ChatGPT 原生 Codex 地址。", "Basispoints requires the native ChatGPT Codex endpoint."));
+    const available = compatibleCatalogDrivers(drivers, providerId);
+    const driver = available.length === 1 ? available[0].id : available.find((entry) => entry.id === workflow.driverId)?.id ?? "";
+    if ((workflow.autoRefill || workflow.autoPrune) && !driver) return fail(t("请先选择兼容的号池驱动。", "Select a compatible pool driver."));
+    if (Object.values(draft.secrets ?? {}).some(Boolean) && !hasSecretAccess) {
+      onRequestSecretAccess(); return fail(t("保存认证信息需要敏感信息权限。", "Secret access is required to save authentication."));
     }
-    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(providerId)) {
-      setValidationError(
-        t(
-          "Provider ID 必须以字母或数字开头，且只能包含字母、数字、点、下划线、冒号或连字符。",
-          "Provider ID must start with a letter or number and contain only letters, numbers, dots, underscores, colons, or hyphens.",
-        ),
-      );
-      return;
-    }
-    if (!providerLabel || !vendorKey || !vendorName) {
-      setValidationError(
-        t(
-          "Provider 名称、服务商标识和服务商名称不能为空。",
-          "Provider label, vendor key, and vendor name are required.",
-        ),
-      );
-      return;
-    }
-    if (!isHttpUrl(baseUrl)) {
-      setValidationError(
-        t("请输入有效的 HTTP(S) Base URL。", "Enter a valid HTTP(S) base URL."),
-      );
-      return;
-    }
-    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(credentialId)) {
-      setValidationError(
-        t(
-          "账号 ID 必须以字母或数字开头，且只能包含字母、数字、点、下划线、冒号或连字符。",
-          "Account ID must start with a letter or number and contain only letters, numbers, dots, underscores, colons, or hyphens.",
-        ),
-      );
-      return;
-    }
-    if (existingCredentialIdSet.has(credentialId)) {
-      setValidationError(
-        t(`账号 ID ${credentialId} 已存在。`, `Account ID ${credentialId} already exists.`),
-      );
-      return;
-    }
-    if (supportedModels.length === 0 && !(selectedTemplate.custom && onDiscover)) {
-      setValidationError(
-        t(
-          "至少填写一个模型，Gateway 才能创建对应模型路由并参与聚合。",
-          "Enter at least one model so Gateway can create model routes and include the provider in aggregation.",
-        ),
-      );
-      return;
-    }
-    if (!apiKey) {
-      setValidationError(t("首个账号必须填写 API Key。", "The first account requires an API key."));
-      return;
-    }
-
-    const submission: ProviderCatalogDraft = {
-      ...draft,
-      providerId,
-      providerLabel,
-      vendorKey,
-      vendorName,
-      baseUrl,
-      supportedModels,
-      credentialId,
-      accountName,
-      apiKey,
-    };
-    onSubmit(submission);
+    onSubmit({ ...draft, providerId, providerLabel: providerId, baseUrl,
+      workflow: { ...workflow, driverId: driver } });
     onOpenChange(false);
   };
-
-  return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content
-          className="dialog-content nt-provider-catalog-dialog"
-          aria-describedby="provider-catalog-description"
-          onOpenAutoFocus={() => {
-            openerRef.current = document.activeElement instanceof HTMLElement
-              ? document.activeElement : null;
-          }}
-          onCloseAutoFocus={(event) => {
-            // Controlled dialogs have no Radix trigger; preserve a successor dialog's focus.
-            event.preventDefault();
-            if (document.activeElement?.closest('[role="dialog"]')?.isConnected) return;
-            if (openerRef.current?.isConnected) openerRef.current.focus();
-          }}
-        >
-          <div className="nt-pilot-dialog__header">
-            <div>
-              <Dialog.Title>{t("添加服务商与账号", "Add provider and account")}</Dialog.Title>
-            </div>
-            <Dialog.Close asChild>
-              <button className="nt-icon-close" type="button" aria-label={t("关闭", "Close")}>
-                <X size={18} aria-hidden="true" />
-              </button>
-            </Dialog.Close>
-          </div>
-          <Dialog.Description id="provider-catalog-description">
-            {t(
-              "选择服务商",
-              "Select a provider",
-            )}
-          </Dialog.Description>
-
-          <form className="nt-provider-catalog" onSubmit={submit}>
-            <ProviderCatalogDirectory
-              t={t}
-              query={query}
-              category={category}
-              filteredTemplates={filteredTemplates}
-              selectedTemplateId={selectedTemplateId}
-              setQuery={setQuery}
-              setCategory={setCategory}
-              selectTemplate={selectTemplate}
-            />
-
-            <ProviderCatalogForm
-              t={t}
-              selectedTemplate={selectedTemplate}
-              draft={draft}
-              setDraft={setDraft}
-              supportedModelsText={supportedModelsText}
-              setSupportedModelsText={setSupportedModelsText}
-              locked={locked}
-              autoDiscovery={!!selectedTemplate.custom && !!onDiscover}
-              hasSecretAccess={hasSecretAccess}
-              validationError={validationError}
-              onRequestSecretAccess={onRequestSecretAccess}
-              suggestedCredentialId={suggestedCredentialId}
-            />
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
+  return <Dialog.Root open={open} onOpenChange={onOpenChange}><Dialog.Portal>
+    <Dialog.Overlay className="dialog-overlay" />
+    <Dialog.Content className="dialog-content nt-provider-catalog-dialog" aria-describedby={undefined}
+      onOpenAutoFocus={() => { openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; }}
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        if (document.activeElement?.closest('[role="dialog"]')?.isConnected) return;
+        if (openerRef.current?.isConnected) openerRef.current.focus();
+      }}>
+      <div className="nt-pilot-dialog__header"><Dialog.Title>{t("添加服务商", "Add provider")}</Dialog.Title>
+        <Dialog.Close asChild><button className="nt-icon-close" type="button" aria-label={t("关闭", "Close")}><X size={18} aria-hidden="true" /></button></Dialog.Close>
+      </div>
+      <form className="nt-provider-catalog" noValidate onSubmit={submit}>
+        <ProviderCatalogDirectory t={t} category={category} setCategory={setCategory}
+          filteredTemplates={PROVIDER_CATALOG_TEMPLATES.filter((entry) => Boolean(entry.custom) === (category === "custom"))}
+          selectedTemplateId={draft.templateId} selectTemplate={(template) => {
+            setDraft(draftFromTemplate(template, existingProviderIds)); setValidationError(null);
+          }} />
+        <ProviderCatalogForm t={t} selectedTemplate={selectedTemplate} draft={draft} setDraft={setDraft}
+          tab={tab} setTab={setTab} locked={locked} drivers={drivers} validationError={validationError} />
+      </form>
+    </Dialog.Content>
+  </Dialog.Portal></Dialog.Root>;
 }

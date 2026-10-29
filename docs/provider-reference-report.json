@@ -1,9 +1,9 @@
 {
   "$schema": "provider-reference-report.schema.json",
   "schemaVersion": "gateway-provider-reference-report/v1",
-  "generatedAt": "2026-07-29T05:19:33Z",
-  "sourceRevision": "manifest-source:c9bfa39b7d8ffdc1ce6dc73c44ed69a6c659b50056483bf655ea3fcd28f30ea5",
-  "sourceFingerprint": "c9bfa39b7d8ffdc1ce6dc73c44ed69a6c659b50056483bf655ea3fcd28f30ea5",
+  "generatedAt": "2026-10-24T11:06:43Z",
+  "sourceRevision": "manifest-source:30ea61475d6d2adfa8e7332b6a00ba8feca18738f2b4960229a158eadc48983a",
+  "sourceFingerprint": "30ea61475d6d2adfa8e7332b6a00ba8feca18738f2b4960229a158eadc48983a",
   "guidePath": "docs/provider-reference-guide.md",
   "summary": {
     "lineCount": 44,
@@ -2744,7 +2744,7 @@
           "conversation",
           "models"
         ],
-        "supportsModelsEndpoint": false
+        "supportsModelsEndpoint": true
       },
       "materialKinds": [
         "api_key"
@@ -2905,8 +2905,8 @@
       "identity": {
         "serviceProviderKey": "qwen_platform",
         "serviceProviderLabel": "Qwen Platform",
-        "providerSurfaceKey": "qwen-dashscope-openai",
-        "providerSurfaceLabel": "Qwen Official API",
+        "providerSurfaceKey": "qwen-coding-plan-openai",
+        "providerSurfaceLabel": "Qwen Coding Plan API",
         "protocolProfile": "qwen_official_api",
         "implementationLine": "official_api",
         "adapter": "openai_compatible",

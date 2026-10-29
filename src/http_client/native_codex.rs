@@ -17,14 +17,22 @@ mod timeout_tests;
 pub(crate) struct NativeCodexConnection(
     std::sync::Arc<std::sync::OnceLock<reqwest::Client>>,
     std::sync::Arc<std::sync::OnceLock<reqwest::Client>>,
+    std::sync::Arc<std::sync::OnceLock<reqwest::Client>>,
+    std::sync::Arc<std::sync::OnceLock<reqwest::Client>>,
 );
 
 impl NativeCodexConnection {
     pub(crate) fn client(&self, timeout: Duration) -> &reqwest::Client {
+        if crate::request_wait::transport::managed() {
+            return self.2.get_or_init(|| build(timeout, false, false));
+        }
         self.0.get_or_init(|| client(timeout))
     }
 
     pub(crate) fn session_client(&self, timeout: Duration) -> &reqwest::Client {
+        if crate::request_wait::transport::managed() {
+            return self.3.get_or_init(|| build(timeout, false, true));
+        }
         self.1.get_or_init(|| build(timeout, false, true))
     }
 }
@@ -75,6 +83,8 @@ fn build(timeout: Duration, websocket: bool, session: bool) -> reqwest::Client {
     // Bound connection/idle reads, not its total lifetime. WS keeps its dial limit.
     let builder = if websocket {
         builder.timeout(timeout)
+    } else if crate::request_wait::transport::managed() {
+        builder.connect_timeout(timeout.min(Duration::from_secs(15)))
     } else {
         builder.connect_timeout(timeout).read_timeout(timeout)
     };

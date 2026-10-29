@@ -6,6 +6,10 @@ import {
 } from "./providerCatalog";
 
 describe("provider catalog", () => {
+  it("uses azure-api for both the template and runtime preset without seeding models", () => {
+    const template = PROVIDER_CATALOG_TEMPLATES.find((entry) => entry.id === "azure-api")!;
+    expect(template).toMatchObject({ providerId: "azure-api", preset: "azure-api", baseUrl: "", supportedModels: [] });
+  });
   it("exposes unique built-in templates for mainstream, aggregator, search, and compatible providers", () => {
     const ids = PROVIDER_CATALOG_TEMPLATES.map((template) => template.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -17,17 +21,22 @@ describe("provider catalog", () => {
         "openai",
         "anthropic",
         "gemini-api",
-        "azure-openai",
+        "azure-api",
         "groq-openai",
         "nvidia-openai",
-        "deepseek-openai",
-        "mistral-openai",
-        "qwen-dashscope-openai",
-        "xai-openai",
+        "deepseek-api",
+        "mistral-api",
+        "xai-api",
         "openrouter-openai",
         "custom-api-provider",
       ]),
     );
+  });
+
+  it("does not offer the retired LongCat template for provider creation", () => {
+    expect(PROVIDER_CATALOG_TEMPLATES.map((template) => template.id)).not.toContain("longcat-openai");
+    expect(PROVIDER_CATALOG_TEMPLATES.map((template) => template.providerId)).not.toContain("longcat");
+    expect(PROVIDER_CATALOG_TEMPLATES.map((template) => template.preset)).not.toContain("longcat-openai");
   });
 
   it("removes the Muyuan preset while preserving custom providers with the same identity", () => {

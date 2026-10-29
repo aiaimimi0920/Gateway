@@ -58,6 +58,7 @@ mod tests {
 
     fn make_payload(base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "accio_compatible".to_string(),

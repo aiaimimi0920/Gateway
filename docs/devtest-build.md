@@ -24,6 +24,25 @@ rtk proxy powershell.exe -NoProfile -File tools/package-gateway-devtest.ps1 -Edi
 默认并发 `min(4, 逻辑处理器数)`，至少 1，可用 `-Jobs 1..32` 调整；先观察内存再加并发。
 Cargo 的 jobs 控制 crate 任务并发，不等于同一 crate 的代码生成并发。
 
+## 手测端口与数据隔离
+
+快速手测入口在编译时为后端、桌面壳和前端统一设置
+`GATEWAY_DEVTEST_ISOLATED=1`。这不是依靠启动脚本临时改环境的端口补丁：
+
+- 手测后端默认端口为 **4200**；桌面本机连接、测试连接和地址显示使用同一默认值。
+  桌面启动时若 4200 已占用，明确报错，不自动换端口、不接管或停止已有进程。
+- 无显式数据目录覆盖时，两个 EXE 使用用户主目录下的 `.ng-devtest-4300`，
+  不读取正式 `.ng`，也不自动复制在线服务的账号、凭据、路由或桌面设置。
+  手测构建会忽略 EXE 旁已有的便携 `.ng`，防止复用当前在线实例的数据。
+  `.ng-devtest-4300` 是沿用的历史手测目录名；调整端口不迁移或重建已有手测数据。
+- 原有绝对路径 `GATEWAY_DATA_DIR` / `GATEWAY_UI_DATA_DIR` 覆盖仍有效；显式指定
+  在线数据或远端地址意味着用户主动选择共享，并不再具备默认的本地隔离保证。
+  直接运行后端时，显式 `PORT` 仍优先于默认端口。
+- 正常构建和正式 Release 保持原有 **4200** 与 `.ng` 规则。正式构建入口拒绝
+  继承 `GATEWAY_DEVTEST_ISOLATED=1`，避免把手测隔离参数带入正式包。
+- 构建回执记录 `defaultApiPort=4200` 和 `isolatedDataDirectory=.ng-devtest-4300`。
+  编译本身不会启动 Gateway、绑定端口或修改当前运行的 4200 实例。
+
 ## 编译与缓存
 
 后端及桌面独立工作区均声明 `devtest` profile：`opt-level=1`、`lto=false`、

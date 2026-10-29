@@ -72,6 +72,16 @@ impl Client {
         request: rquest::Request,
         timeout: Duration,
     ) -> Result<rquest::Response> {
+        self.send_with_deadline(request, Some(Instant::now() + timeout))
+            .await
+    }
+
+    /// The enclosing request owner may own the lifetime; cancellation still drops the pool lease.
+    pub async fn send_with_deadline(
+        &self,
+        request: rquest::Request,
+        deadline: Option<Instant>,
+    ) -> Result<rquest::Response> {
         let uri = request.uri().clone();
         let method = request.method().clone();
         let host = uri.host().ok_or(Error::Target)?;
@@ -96,19 +106,20 @@ impl Client {
                 return Err(Error::Body);
             }
         }
-        let deadline = Instant::now() + timeout;
         let admission = self
             .admission
             .clone()
             .try_acquire_owned()
             .map_err(|_| Error::Capacity)?;
-        let (response, lease) = tokio::time::timeout_at(
-            deadline,
-            self.pool
-                .send(&uri, request.into(), &self.tls, &self.proxies, admission),
-        )
-        .await
-        .map_err(|_| Error::Timeout)??;
+        let send = self
+            .pool
+            .send(&uri, request.into(), &self.tls, &self.proxies, admission);
+        let (response, lease) = match deadline {
+            Some(deadline) => tokio::time::timeout_at(deadline, send)
+                .await
+                .map_err(|_| Error::Timeout)??,
+            None => send.await?,
+        };
         Ok(response::adapt(response, uri, method, lease, deadline))
     }
 }

@@ -171,8 +171,48 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
             post(internal_console::discover_account),
         )
         .route(
+            "/v1/internal/gateway/console/chatgpt-model-catalog",
+            post(internal_console::read_chatgpt_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/nvidia-model-catalog",
+            post(internal_console::read_nvidia_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/openrouter-model-catalog",
+            post(internal_console::read_openrouter_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/openai-model-catalog",
+            post(internal_console::read_openai_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/anthropic-model-catalog",
+            post(internal_console::read_anthropic_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/groq-model-catalog",
+            post(internal_console::read_groq_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/poe-model-catalog",
+            post(internal_console::read_poe_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/gemini-model-catalog",
+            post(internal_console::read_gemini_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/cohere-model-catalog",
+            post(internal_console::read_cohere_model_catalog),
+        )
+        .route(
             "/v1/internal/gateway/console/credential-api-key",
             post(internal_console::reveal_credential_key),
+        )
+        .route(
+            "/v1/internal/gateway/console/chatgpt-web-browser",
+            post(internal_console::capture_web_browser),
         )
         .route(
             "/v1/internal/gateway/console/credentials/:credential_id/probe",

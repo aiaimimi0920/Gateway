@@ -146,6 +146,11 @@ pub(crate) async fn run(
             for case in &selected {
                 let reason = stopped
                     .or_else(|| {
+                        state.lifecycle.model_circuits.network_blocked().then_some(
+                            "Gateway egress network is temporarily unstable; call not sent.",
+                        )
+                    })
+                    .or_else(|| {
                         (!budget.matches(state)).then_some("Route revision changed; call not sent.")
                     })
                     .or_else(|| {

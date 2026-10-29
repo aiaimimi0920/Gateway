@@ -353,8 +353,9 @@
 .nt-provider-card__availability-windows {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
   min-width: 0;
 }
 
@@ -364,18 +365,11 @@
   gap: 8px;
 }
 
-.nt-provider-card__availability-window {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(2px, 1fr));
-  gap: 2px;
-  min-width: 0;
-}
-
 .nt-provider-card__availability-cell {
   display: block;
   min-width: 0;
-  height: 10px;
-  border-radius: 2px;
+  height: 12px;
+  border-radius: 3px;
   background: color-mix(in srgb, var(--nt-text-faint) 28%, var(--nt-color-control));
   transition: opacity 140ms ease, transform 140ms ease;
 }
@@ -383,6 +377,11 @@
 .nt-provider-card__availability-cell:hover {
   opacity: 0.86;
   transform: translateY(-1px);
+}
+
+.nt-provider-card__availability-cell:focus-visible {
+  outline: 2px solid var(--nt-signal);
+  outline-offset: 1px;
 }
 
 .nt-provider-card__availability-cell--success {

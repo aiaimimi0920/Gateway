@@ -10,7 +10,9 @@ use crate::protocol::chatgpt::web_reverse as surface;
 use crate::protocol::upstream_body::collect_bounded_upstream_charset_text_with_provider;
 use crate::routing::candidate::ProviderAccountPayload;
 
-use super::super::common::{classify_chatgpt_web_text_response, insert_header_map_value};
+use super::super::common::{
+    classify_chatgpt_web_text_response, insert_header_map_value, ResponseStage,
+};
 use super::super::headers::build_request_headers;
 use super::super::web_reverse::{build_target_url, ChatGptWebRequestContext};
 use super::super::PROVIDER;
@@ -40,7 +42,7 @@ pub(super) async fn post_json(
         path,
         accept,
         Some("application/json"),
-    );
+    )?;
     strip_request_headers_for_path(&mut headers, path);
     if let Some(requirements) = requirements {
         insert_header_map_value(
@@ -69,11 +71,13 @@ pub(super) async fn post_json(
     let response = http
         .request(Method::POST, &url)
         .headers(headers)
+        .redirect(rquest::redirect::Policy::none())
         .timeout(timeout.max(Duration::from_secs(if stream { 180 } else { 60 })))
         .json(body)
         .send()
         .await
         .map_err(|error| classify_network_error(&error, Some(PROVIDER)))?;
+    request_context.cookies.receive(&response);
     debug!(
         path = %path,
         status = response.status().as_u16(),
@@ -93,6 +97,7 @@ pub(super) async fn post_prepare(
     request_context: &ChatGptWebRequestContext,
     extra_headers: Option<&HashMap<String, String>>,
     path: &str,
+    body: &Value,
     turn_trace_id: &str,
 ) -> Result<(), GatewayError> {
     let url = build_target_url(request_context, path);
@@ -103,16 +108,20 @@ pub(super) async fn post_prepare(
         path,
         "application/json",
         Some("application/json"),
-    );
+    )?;
     strip_request_headers_for_path(&mut headers, path);
     insert_header_map_value(&mut headers, "X-OAI-Turn-Trace-Id", turn_trace_id);
     let response = http
         .request(Method::POST, &url)
         .headers(headers)
+        .redirect(rquest::redirect::Policy::none())
         .timeout(timeout.max(Duration::from_secs(60)))
+        // Prepare validates the same conversation that will be submitted next.
+        .json(body)
         .send()
         .await
         .map_err(|error| classify_network_error(&error, Some(PROVIDER)))?;
+    request_context.cookies.receive(&response);
     let status = response.status().as_u16();
     let content_type = response
         .headers()
@@ -131,7 +140,12 @@ pub(super) async fn post_prepare(
         content_type = ?content_type,
         "chatgpt web prepare response"
     );
-    classify_chatgpt_web_text_response(status, content_type.as_deref(), &body_text)
+    classify_chatgpt_web_text_response(
+        ResponseStage::Prepare,
+        status,
+        content_type.as_deref(),
+        &body_text,
+    )
 }
 
 fn strip_request_headers_for_path(headers: &mut rquest::header::HeaderMap, path: &str) {
@@ -162,6 +176,8 @@ fn strip_request_headers_for_path(headers: &mut rquest::header::HeaderMap, path:
     if !matches!(
         path,
         surface::CHATGPT_WEB_DEFAULT_REQUIREMENTS_PATH
+            | surface::CHATGPT_WEB_REQUIREMENTS_PREPARE_PATH
+            | surface::CHATGPT_WEB_REQUIREMENTS_FINALIZE_PATH
             | surface::CHATGPT_WEB_DEFAULT_CONVERSATION_PATH
     ) {
         return;

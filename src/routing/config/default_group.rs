@@ -16,7 +16,7 @@ pub(super) fn effective_groups(document: &RouteConfigYaml) -> Vec<AccountGroupYa
     let mut members = Vec::new();
     let mut seen = HashSet::new();
     for provider in &document.providers {
-        let ids = if provider.credentials.is_empty() {
+        let ids = if provider.uses_provider_default_account() {
             vec![provider_default_account_id(provider.id.trim())]
         } else {
             provider

@@ -1,15 +1,19 @@
 #[path = "provider_account_probe.rs"]
 mod account_probe;
+mod anthropic_model_probe;
 mod codex_model_probe;
+mod cohere_model_probe;
 mod console_model_probe;
 mod console_probe;
 mod console_probe_request;
+mod gemini_model_probe;
 mod http_probe;
 mod management;
 mod model_probe_health;
 mod model_probe_recording;
 mod probe_lock;
 mod recording;
+mod search_model_probe;
 pub(crate) mod test_execution;
 pub mod test_measurement;
 pub mod test_quota;

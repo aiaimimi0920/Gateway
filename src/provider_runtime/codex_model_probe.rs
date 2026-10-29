@@ -6,6 +6,8 @@ use serde_json::{json, Value};
 
 use super::console_model_probe::ModelProbeResult;
 use super::{ProviderPayloadProbeReport, ProviderPayloadProbeStatus};
+use crate::protocol::canonical::CanonicalRelayRequest;
+use crate::upstream::{client::UpstreamClient, response_types::UpstreamStreamingResponse};
 use crate::{routing::config::CredentialProbeTarget, state::AppState};
 
 pub(super) async fn probe(
@@ -22,20 +24,33 @@ pub(super) async fn probe_with_prompt(
     model: &str,
     prompt: &str,
 ) -> (String, ProviderPayloadProbeReport) {
-    let url = format!(
-        "{}/responses",
-        target.payload.base_url.trim_end_matches('/')
-    );
-    let point = format!(
-        "POST {} (model: {model})",
-        crate::console::secrets::redact_url_value(&url)
-    );
+    let request = crate::protocol::responses::normalize_responses(json!({
+        "model": model, "stream": true, "store": false, "instructions": "Reply briefly.",
+        "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}]
+    }));
+    let point = request
+        .as_ref()
+        .ok()
+        .and_then(|request| {
+            UpstreamClient::build_request_plan(&target.payload, request, model, true).ok()
+        })
+        .map_or_else(
+            || format!("Model call (model: {model})"),
+            |plan| {
+                format!(
+                    "POST {} (model: {model})",
+                    crate::console::secrets::redact_url_value(&plan.url)
+                )
+            },
+        );
     let audit = super::model_probe_recording::begin(state, target, model, true).await;
     let started = Instant::now();
-    let result = tokio::time::timeout(
-        Duration::from_secs(60),
-        generate(state, target, &url, model, prompt),
-    )
+    let result = tokio::time::timeout(Duration::from_secs(60), async {
+        match request {
+            Ok(request) => generate(state, target, &request, model).await,
+            Err(_) => failed(None, "Cannot build the ChatGPT model test request."),
+        }
+    })
     .await
     .unwrap_or_else(|_| failed(None, "Model call timed out after 60 seconds."));
     let health_recovery = super::model_probe_recording::finish(
@@ -75,35 +90,50 @@ pub(super) async fn probe_with_prompt(
 async fn generate(
     state: &AppState,
     target: &CredentialProbeTarget,
-    url: &str,
+    request: &CanonicalRelayRequest,
     model: &str,
-    prompt: &str,
 ) -> ModelProbeResult {
-    let body = json!({"model": model, "stream": true, "store": false,
-        "instructions": "Reply briefly.",
-        "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}]});
-    let request = state
+    // Use the production dispatcher: native Codex, profiled HTTP and product
+    // executors must honor the same call flow, without routing to another account.
+    let response = match state
         .upstream_client
-        .client()
-        .post(url)
-        .headers(crate::upstream::headers::build_upstream_headers(
-            &target.payload,
-        ))
-        .header("Accept", "text/event-stream")
-        .json(&body);
-    let response = match request.send().await {
+        .execute_stream_with_wire(&target.payload, request, model, None, None)
+        .await
+    {
         Ok(response) => response,
-        Err(_) => return failed(None, "Cannot reach the ChatGPT model endpoint."),
+        Err(error) => {
+            return failed(
+                error.http_status,
+                &format!(
+                    "ChatGPT model request failed ({:?}, HTTP {}).",
+                    error.kind,
+                    error
+                        .http_status
+                        .map_or_else(|| "unknown".into(), |status| status.to_string())
+                ),
+            )
+        }
     };
-    let status = response.status().as_u16();
-    if !response.status().is_success() {
-        return failed(
-            Some(status),
-            &format!("HTTP {status}: upstream rejected the model request."),
-        );
-    }
-    let stream = response.bytes_stream();
-    futures::pin_mut!(stream);
+    // Dispatchers reject non-success statuses. Erase transport-specific errors
+    // here so their bodies cannot leak secrets into the management test report.
+    type ProbeStream =
+        std::pin::Pin<Box<dyn futures::Stream<Item = Result<bytes::Bytes, ()>> + Send>>;
+    let (status, mut stream): (u16, ProbeStream) = match response {
+        UpstreamStreamingResponse::Http(response) => (
+            response.status().as_u16(),
+            Box::pin(response.bytes_stream().map(|chunk| chunk.map_err(|_| ()))),
+        ),
+        UpstreamStreamingResponse::Native(response) => (
+            response.status().as_u16(),
+            Box::pin(response.bytes_stream().map(|chunk| chunk.map_err(|_| ()))),
+        ),
+        UpstreamStreamingResponse::NativeEvents(stream) => {
+            (200, Box::pin(stream.map(|chunk| chunk.map_err(|_| ()))))
+        }
+        UpstreamStreamingResponse::Bytes(stream) => {
+            (200, Box::pin(stream.map(|chunk| chunk.map_err(|_| ()))))
+        }
+    };
     let mut bytes = Vec::new();
     loop {
         match stream.next().await {

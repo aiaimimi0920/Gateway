@@ -102,7 +102,7 @@ search_protocol_profile_compile_tests!(
 
 search_protocol_profile_compile_tests!(
     feature = "line-xai-openai-official-vendor-api",
-    profiles = ["xai", "xai-openai", "xai_openai"],
+    profiles = ["xai", "xai-api", "xai_openai"],
     line = "xai",
     enabled = xai_openai_protocol_profiles_compile_when_feature_enabled,
     disabled = xai_openai_protocol_profiles_fail_compile_check_when_feature_disabled

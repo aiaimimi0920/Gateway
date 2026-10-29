@@ -1,6 +1,8 @@
 //! Management catalog, bundle, key and route-diagnostic entry paths.
 
 mod access_keys;
+mod import_key;
+pub use import_key::import_unlimited_access_key;
 mod bundles;
 mod cash_ledger;
 mod catalog;

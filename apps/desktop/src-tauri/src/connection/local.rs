@@ -96,7 +96,7 @@ pub fn start(app: &AppHandle) -> Result<Url, String> {
         ));
     }
     // A busy default port belongs to somebody else; never adopt or stop it.
-    let reservation = reserve_api_port(4200)?;
+    let reservation = reserve_api_port(gateway_local_data::devtest::default_api_port())?;
     let port = reservation
         .local_addr()
         .map_err(|error| error.to_string())?

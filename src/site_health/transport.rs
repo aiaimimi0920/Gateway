@@ -1,9 +1,7 @@
-//! Same-origin pinned transport. Only explicit monitoring auth; no proxies or redirects.
+//! Arbitrary sites use pinned direct transport; fixed official destinations may use trusted proxies.
+mod dns;
 use futures::StreamExt;
-use std::{
-    net::{IpAddr, SocketAddr},
-    time::Duration,
-};
+use std::{net::IpAddr, time::Duration};
 
 pub(super) fn checked_url(input: &str) -> anyhow::Result<url::Url> {
     let mut url = url::Url::parse(input).map_err(|_| anyhow::anyhow!("Invalid site URL"))?;
@@ -23,33 +21,8 @@ pub(super) fn checked_url(input: &str) -> anyhow::Result<url::Url> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn public_only_by_default_and_explicit_private_never_permits_metadata() {
-        for ip in ["127.0.0.1", "10.0.0.1", "192.168.1.1", "::1", "fd00::1"] {
-            assert!(!allowed_ip(ip.parse().unwrap(), false), "{ip}");
-            assert!(allowed_ip(ip.parse().unwrap(), true), "{ip}");
-        }
-        for ip in [
-            "169.254.169.254",
-            "100.100.100.200",
-            "0.0.0.0",
-            "224.0.0.1",
-            "192.0.2.1",
-            "fe80::1",
-            "::ffff:169.254.169.254",
-            "2002:7f00:1::1",
-            "2001::1",
-        ] {
-            assert!(!allowed_ip(ip.parse().unwrap(), false), "{ip}");
-            assert!(!allowed_ip(ip.parse().unwrap(), true), "{ip}");
-        }
-        for ip in ["1.1.1.1", "8.8.8.8", "2606:4700:4700::1111"] {
-            assert!(allowed_ip(ip.parse().unwrap(), false), "{ip}");
-        }
-    }
-}
+#[path = "transport/tests.rs"]
+mod tests;
 
 pub(super) fn allowed_ip(ip: IpAddr, private: bool) -> bool {
     match ip {
@@ -91,18 +64,37 @@ pub(super) fn allowed_ip(ip: IpAddr, private: bool) -> bool {
 }
 
 pub(super) async fn client(origin: &url::Url, private: bool) -> anyhow::Result<rquest::Client> {
-    pinned_client(origin, private, Duration::from_secs(4)).await
+    pinned_client(origin, private, Duration::from_secs(4), false).await
 }
 
-/// Large public region HTML gets a separate deadline inside its finite 35-second discovery budget.
-pub(super) async fn regional_client(origin: &url::Url) -> anyhow::Result<rquest::Client> {
-    pinned_client(origin, false, Duration::from_secs(30)).await
+/// The proxy trust boundary is restricted to compile-time HTTPS official destinations, never user URLs.
+pub(super) async fn official_client(
+    adapter: super::HealthAdapter,
+) -> anyhow::Result<rquest::Client> {
+    let origin = checked_url(
+        adapter
+            .official_url()
+            .ok_or_else(|| anyhow::anyhow!("Not an official health adapter"))?,
+    )?;
+    let seconds = if adapter == super::HealthAdapter::AzureStatus {
+        30
+    } else {
+        4
+    };
+    pinned_client(&origin, false, Duration::from_secs(seconds), true).await
+}
+
+/// Gemini's page cannot choose this second origin. Its bootstrap key is public page data, not account auth.
+pub(super) async fn gemini_rpc_client() -> anyhow::Result<rquest::Client> {
+    let origin = checked_url("https://alkalimakersuite-pa.clients6.google.com/")?;
+    pinned_client(&origin, false, Duration::from_secs(4), true).await
 }
 
 async fn pinned_client(
     origin: &url::Url,
     private: bool,
     timeout: Duration,
+    official_proxy: bool,
 ) -> anyhow::Result<rquest::Client> {
     let host = origin
         .host_str()
@@ -111,25 +103,21 @@ async fn pinned_client(
         .port_or_known_default()
         .ok_or_else(|| anyhow::anyhow!("Missing port"))?;
     let host = host.trim_matches(['[', ']']);
-    let addresses: Vec<SocketAddr> = if let Ok(ip) = host.parse::<IpAddr>() {
-        vec![SocketAddr::new(ip, port)]
-    } else {
-        tokio::time::timeout(
-            Duration::from_secs(3),
-            tokio::net::lookup_host((host, port)),
-        )
-        .await??
-        .take(17)
-        .collect()
-    };
+    let addresses = dns::resolve(host, port).await?;
     anyhow::ensure!(
         !addresses.is_empty()
             && addresses.len() <= 16
             && addresses.iter().all(|a| allowed_ip(a.ip(), private)),
         "Site resolves to a prohibited network address"
     );
-    Ok(rquest::Client::builder()
-        .no_proxy()
+    // A configured proxy owns remote DNS/egress for fixed official sources. Direct/bypassed
+    // connections still pin validated public IPs. Arbitrary monitoring URLs never use this lane.
+    let builder = if official_proxy {
+        crate::http_client::builder()
+    } else {
+        rquest::Client::builder().no_proxy()
+    };
+    Ok(builder
         .redirect(rquest::redirect::Policy::none())
         .timeout(timeout)
         .resolve_to_addrs(host.to_owned(), addresses)

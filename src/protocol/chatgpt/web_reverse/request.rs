@@ -41,14 +41,12 @@ pub fn pack_request(
         "action": "next",
         "messages": [conversation_user_message(&prompt)],
         "model": model,
-        "parent_message_id": "client-created-root",
+        "parent_message_id": uuid::Uuid::new_v4().to_string(),
         "conversation_mode": {"kind": "primary_assistant"},
-        "client_prepare_state": "success",
-        "enable_message_followups": true,
-        "force_parallel_switch": "auto",
-        "paragen_cot_summary_display_override": "allow",
-        "supported_encodings": ["v1"],
-        "supports_buffering": true,
+        "conversation_origin": null,
+        "force_use_sse": true,
+        "history_and_training_disabled": true,
+        "supported_encodings": [],
         "system_hints": [],
         "timezone": timezone_name,
         "timezone_offset_min": CHATGPT_WEB_DEFAULT_TIMEZONE_OFFSET_MIN,
@@ -63,6 +61,38 @@ pub fn pack_request(
             "app_name": "chatgpt.com"
         }
     }))
+}
+
+/// Legacy f-conversation keeps its separately captured wire contract.
+pub fn pack_f_request(
+    req: &CanonicalRelayRequest,
+    model: &str,
+    timezone_name: &str,
+) -> Result<Value, GatewayError> {
+    let mut body = pack_request(req, model, timezone_name)?;
+    let object = body.as_object_mut().expect("conversation object");
+    for name in [
+        "conversation_origin",
+        "force_use_sse",
+        "history_and_training_disabled",
+    ] {
+        object.remove(name);
+    }
+    object.extend(
+        json!({
+            "parent_message_id": "client-created-root",
+            "client_prepare_state": "success",
+            "enable_message_followups": true,
+            "force_parallel_switch": "auto",
+            "paragen_cot_summary_display_override": "allow",
+            "supported_encodings": ["v1"],
+            "supports_buffering": true
+        })
+        .as_object()
+        .unwrap()
+        .clone(),
+    );
+    Ok(body)
 }
 
 fn combine_messages_for_chatgpt_web(messages: &[CanonicalMessage]) -> Result<String, GatewayError> {
@@ -270,8 +300,27 @@ mod tests {
     }
 
     #[test]
+    fn text_compat_uses_unique_parent_ids_and_preserves_explicit_model() {
+        let first = pack_request(&make_request(), "gpt-5.6-sol", "Asia/Shanghai").unwrap();
+        let second = pack_request(&make_request(), "gpt-5.6-sol", "Asia/Shanghai").unwrap();
+        for payload in [&first, &second] {
+            assert_eq!(payload["model"], "gpt-5.6-sol");
+            assert_eq!(payload["force_use_sse"], true);
+            assert_eq!(payload["history_and_training_disabled"], true);
+            assert_eq!(payload["supported_encodings"], json!([]));
+            assert!(payload.get("client_prepare_state").is_none());
+            assert!(payload.get("supports_buffering").is_none());
+            let parent = uuid::Uuid::parse_str(payload["parent_message_id"].as_str().unwrap())
+                .expect("new conversations require a UUID parent");
+            assert_eq!(parent.get_version_num(), 4);
+            assert_ne!(payload["parent_message_id"], payload["messages"][0]["id"]);
+        }
+        assert_ne!(first["parent_message_id"], second["parent_message_id"]);
+    }
+
+    #[test]
     fn pack_request_matches_f_conversation_contract() {
-        let payload = pack_request(
+        let payload = pack_f_request(
             &make_request(),
             "gpt-5",
             super::super::CHATGPT_WEB_DEFAULT_TIMEZONE,

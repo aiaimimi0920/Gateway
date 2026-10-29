@@ -35,8 +35,18 @@ fn official_presets_are_public_and_origin_locked() {
         assert!(policy.validate("https://provider.example/v1").is_ok());
         policy.site_url = Some(url.into());
         assert!(policy.validate("https://provider.example/v1").is_ok());
-        policy.site_url = Some("https://other.example/".into());
-        assert!(policy.validate("https://provider.example/v1").is_err());
+        for untrusted in [
+            "https://other.example/",
+            "http://status.openai.com/",
+            "https://status.openai.com:444/",
+            "https://status.openai.com.evil.invalid/",
+            "https://u:p@status.openai.com/",
+            "https://status.openai.com/?target=http://127.0.0.1/",
+            "https://status.openai.com/#fragment",
+        ] {
+            policy.site_url = Some(untrusted.into());
+            assert!(policy.validate("https://provider.example/v1").is_err());
+        }
         policy.site_url = Some(url.into());
         policy.auth.token = Some("must-not-leak".into());
         assert!(policy.validate("https://provider.example/v1").is_err());

@@ -13,6 +13,7 @@ use crate::{
 
 pub(super) enum ProbeHealth {
     Ready {
+        started: std::time::Instant,
         revision: String,
         expected: ModelHealthSnapshot,
     },
@@ -24,6 +25,7 @@ pub(super) async fn begin(
     target: &CredentialProbeTarget,
     model: &str,
 ) -> ProbeHealth {
+    let started = std::time::Instant::now();
     let route = state.route_config.snapshot();
     let Some(identity) = route.model_probe_identity(target, model) else {
         return ProbeHealth::Skipped(ModelHealthRecovery::StaleConfiguration);
@@ -37,6 +39,7 @@ pub(super) async fn begin(
     };
     match result {
         Ok(expected) => ProbeHealth::Ready {
+            started,
             revision: route.revision().id().into(),
             expected,
         },
@@ -54,12 +57,25 @@ pub(super) async fn finish(
     health: ProbeHealth,
     result: &ModelProbeResult,
 ) -> ModelHealthRecovery {
-    let ProbeHealth::Ready { revision, expected } = health else {
+    let _health_update = state.lifecycle.health_control.gate.lock().await;
+    let ProbeHealth::Ready {
+        revision,
+        expected,
+        started,
+    } = health
+    else {
         let ProbeHealth::Skipped(outcome) = health else {
             unreachable!()
         };
         return outcome;
     };
+    if !state
+        .lifecycle
+        .health_control
+        .feedback_allowed(&target.provider_id, started)
+    {
+        return ModelHealthRecovery::StaleHealth;
+    }
     let matches = || {
         let route = state.route_config.snapshot();
         route.revision().id() == revision
@@ -90,6 +106,17 @@ pub(super) async fn finish(
                     Some(message),
                 ),
             });
+    if failure.as_ref().is_some_and(|input| {
+        crate::routing::model_circuit::health_control::transient_failure(input)
+            && (state.lifecycle.model_circuits.network_blocked()
+                || !state
+                    .lifecycle
+                    .model_circuits
+                    .network_feedback_allowed(started))
+    }) {
+        // Audit retains the failed probe; network-only failures must not poison the pool.
+        return ModelHealthRecovery::FailureNotPenalized;
+    }
     let update = if let Some(local) = &state.local_runtime {
         local.apply_model_health_snapshot(&expected, failure).await
     } else if let Some(pool) = &state.pg_pool {

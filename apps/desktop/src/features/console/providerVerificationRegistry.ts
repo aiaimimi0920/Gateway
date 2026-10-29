@@ -95,13 +95,6 @@ export const PROVIDER_VERIFICATION_REGISTRY: Record<string, ProviderVerification
     evidenceRef: "live-provider-canary-text-unique-20260812",
     note: "The canary received a 404; route configuration needs a fresh upstream check.",
   },
-  "qwen-dashscope-openai": {
-    status: "failed",
-    families: [],
-    checkedAt: "2026-08-12T12:09:00+08:00",
-    evidenceRef: "live-provider-canary-text-unique-20260812",
-    note: "DashScope rejected the configured API key with 401.",
-  },
   "qwen-coding-plan-openai": {
     status: "failed",
     families: [],

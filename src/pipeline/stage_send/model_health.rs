@@ -46,7 +46,13 @@ pub(super) async fn record_rate_limit(
         error_message: Some(error.message.clone()),
         classification,
     };
-    if let Err(error) = crate::local_runtime::model_states::failure(state, input).await {
+    if let Err(error) = crate::routing::model_circuit::health_control::record_failure(
+        state,
+        input,
+        Some(ctx.started_at),
+    )
+    .await
+    {
         tracing::warn!(req_id = %ctx.req_id, error = %error,
             "failed to persist candidate credential/model failure");
     }

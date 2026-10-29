@@ -11,7 +11,7 @@ pub use bootstrap::{
     parse_bootstrap_from_html,
 };
 pub use proof::{build_legacy_requirements_token, build_proof_token, solve_turnstile_token};
-pub use request::{pack_request, supports_endpoint};
+pub use request::{pack_f_request, pack_request, supports_endpoint};
 pub use response::{
     accumulate_response, classify_chatgpt_web_http_error, response_indicates_browser_challenge,
     response_indicates_session_invalid, translate_chatgpt_web_stream, translate_to_openai_sse,
@@ -19,6 +19,10 @@ pub use response::{
 
 pub const CHATGPT_WEB_DEFAULT_BOOTSTRAP_PATH: &str = "/";
 pub const CHATGPT_WEB_DEFAULT_REQUIREMENTS_PATH: &str = "/backend-api/sentinel/chat-requirements";
+pub const CHATGPT_WEB_REQUIREMENTS_PREPARE_PATH: &str =
+    "/backend-api/sentinel/chat-requirements/prepare";
+pub const CHATGPT_WEB_REQUIREMENTS_FINALIZE_PATH: &str =
+    "/backend-api/sentinel/chat-requirements/finalize";
 pub const CHATGPT_WEB_DEFAULT_CONVERSATION_PATH: &str = "/backend-api/conversation";
 pub const CHATGPT_WEB_DEFAULT_F_CONVERSATION_PREPARE_PATH: &str =
     "/backend-api/f/conversation/prepare";

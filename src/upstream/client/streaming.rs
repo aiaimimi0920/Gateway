@@ -8,6 +8,8 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<UpstreamStreamingResponse, GatewayError> {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
         if Self::uses_native_claude(payload, req, model) {
             return self
                 .send_native_claude(payload, req, model, extra_headers, None)
@@ -25,7 +27,9 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<UpstreamStreamingResponse, GatewayError> {
-        if payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
+        if flow.executor == crate::protocol::chatgpt::basispoints::ADAPTER {
             return crate::upstream::basispoints::execute_stream(
                 &self.http,
                 self.timeout,
@@ -57,7 +61,7 @@ impl UpstreamClient {
                 .map(UpstreamStreamingResponse::Bytes);
         }
 
-        if payload.adapter == "chatgpt_web_reverse_compatible" {
+        if flow.executor == "chatgpt_web_reverse_compatible" {
             debug!(
                 model,
                 "sending upstream streaming request (chatgpt web reverse: bootstrap + sentinel + conversation -> fake openai sse)"
@@ -90,7 +94,7 @@ impl UpstreamClient {
                 .map(UpstreamStreamingResponse::Bytes);
         }
 
-        if matches!(payload.adapter.as_str(), "gemini_web_compatible") {
+        if flow.executor == "gemini_web_compatible" {
             debug!(
                 model,
                 "sending upstream streaming request (gemini web: bootstrap app + StreamGenerate -> fake openai sse)"
@@ -243,6 +247,13 @@ impl UpstreamClient {
             model,
             true,
         );
+        // Cohere's native SSE decoder owns this representation, not the inbound Accept.
+        if payload.canonical_adapter() == "cohere_compatible" {
+            headers.insert(
+                rquest::header::ACCEPT,
+                rquest::header::HeaderValue::from_static("text/event-stream"),
+            );
+        }
         if matches!(
             payload.adapter.as_str(),
             "dashscope_compatible" | "dashscope_multimodal_compatible"
@@ -300,7 +311,18 @@ impl UpstreamClient {
         plan: &RequestPlan,
         headers: rquest::header::HeaderMap,
     ) -> RequestBuilder {
-        build_request_builder_from_plan(&self.http, self.timeout, plan, headers)
+        let http = if crate::request_wait::transport::managed() {
+            self.wait_http.get_or_init(|| {
+                crate::http_client::builder()
+                    .emulation(Emulation::Chrome136)
+                    .connect_timeout(self.timeout.min(Duration::from_secs(15)))
+                    .build()
+                    .expect("failed to build recovery HTTP client")
+            })
+        } else {
+            &self.http
+        };
+        build_request_builder_from_plan(http, self.timeout, plan, headers)
     }
 
     pub(crate) fn send_profiled_plan(

@@ -8,7 +8,7 @@ import type { AccountLedgerRow } from "./accountManagementViewModel";
 import type { AccountsLedgerPilotAccount } from "./accountCardTypes";
 import type { ProviderAggregateMetrics } from "./providerCardMetrics";
 import type { CardModelTraffic } from "./cardModelTraffic";
-import type { RequestClientProfile } from "./requestClientProfile";
+import type { ProviderRequestClientProfile, RequestClientProfile } from "./requestClientProfile";
 import type { ProviderPoolView } from "./providerPoolView";
 
 export type TranslateFn = (zh: string, en: string) => string;
@@ -32,7 +32,7 @@ export type AccountsLedgerPilotCategory = {
 };
 
 export type AccountsLedgerPilotSection = {
-  requestClientProfile?: RequestClientProfile;
+  requestClientProfile?: ProviderRequestClientProfile;
   providerId: string;
   providerIds: string[];
   providerLabel: string;

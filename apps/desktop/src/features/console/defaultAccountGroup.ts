@@ -15,7 +15,7 @@ export function withDefaultAccountGroup(
     const credentials = Array.isArray(provider.credentials) ? provider.credentials.filter(isRecord) : [];
     const ids = credentials.length ? credentials.map((credential, index) =>
       typeof credential.id === "string" && credential.id.trim()
-        ? credential.id.trim() : `${providerId}-cred-${index}`) : [`${providerId}::default`];
+        ? credential.id.trim() : `${providerId}-cred-${index}`) : provider.explicit_credentials_only === true ? [] : [`${providerId}::default`];
     for (const id of ids) if (!assigned.has(id)) members.add(id);
   }
   const existing = groups.find((group) => group.id === "default");

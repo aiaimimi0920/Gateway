@@ -8,6 +8,7 @@ use tokio::sync::{oneshot, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
 
+use super::console_browser_workspace::ConsoleBrowserWorkspace;
 use crate::error::GatewayError;
 
 use super::producer_browser_worker_io::{
@@ -36,6 +37,12 @@ enum WorkerExecutionStop {
     Completed(Result<ProducerBrowserWorkerProcessOutput, GatewayError>),
     TimedOut,
     Cancelled,
+}
+
+#[derive(Default)]
+struct WorkerCleanup {
+    cancellation_probe: Option<oneshot::Sender<bool>>,
+    workspace: Option<ConsoleBrowserWorkspace>,
 }
 
 impl WorkerTaskGuard {
@@ -74,6 +81,31 @@ pub(crate) async fn execute_producer_browser_worker_process(
     .await
 }
 
+/// Console capture uses the same cancellation/reaping owner, with a much smaller output budget.
+pub(crate) async fn execute_console_browser_worker(
+    launch: PreparedProducerBrowserWorkerLaunch,
+    workspace: ConsoleBrowserWorkspace,
+) -> Result<ProducerBrowserWorkerProcessOutput, GatewayError> {
+    let mut command = Command::new(&launch.node_bin);
+    command.arg(&launch.script_path);
+    workspace.configure(&mut command);
+    execute_worker_command_observed(
+        command,
+        launch.script_path,
+        launch.stdin_json,
+        Duration::from_secs(225),
+        WorkerOutputLimits {
+            stdout: 128 * 1024,
+            stderr: 4096,
+        },
+        WorkerCleanup {
+            workspace: Some(workspace),
+            ..WorkerCleanup::default()
+        },
+    )
+    .await
+}
+
 async fn execute_worker_command(
     command: Command,
     script_path: PathBuf,
@@ -87,7 +119,7 @@ async fn execute_worker_command(
         stdin_json,
         worker_timeout,
         limits,
-        None,
+        WorkerCleanup::default(),
     )
     .await
 }
@@ -98,7 +130,7 @@ async fn execute_worker_command_observed(
     stdin_json: Vec<u8>,
     worker_timeout: Duration,
     limits: WorkerOutputLimits,
-    cancellation_cleanup_probe: Option<oneshot::Sender<bool>>,
+    cleanup: WorkerCleanup,
 ) -> Result<ProducerBrowserWorkerProcessOutput, GatewayError> {
     let (cancellation, cancellation_receiver) = oneshot::channel();
     let task = tokio::spawn(run_worker_command(
@@ -108,7 +140,7 @@ async fn execute_worker_command_observed(
         worker_timeout,
         limits,
         cancellation_receiver,
-        cancellation_cleanup_probe,
+        cleanup,
     ));
     WorkerTaskGuard {
         cancellation: Some(cancellation),
@@ -125,12 +157,12 @@ async fn run_worker_command(
     worker_timeout: Duration,
     limits: WorkerOutputLimits,
     mut cancellation: oneshot::Receiver<()>,
-    mut cancellation_cleanup_probe: Option<oneshot::Sender<bool>>,
+    mut cleanup: WorkerCleanup,
 ) -> Result<ProducerBrowserWorkerProcessOutput, GatewayError> {
     let worker_permit = tokio::select! {
         biased;
         _ = &mut cancellation => {
-            if let Some(probe) = cancellation_cleanup_probe.take() {
+            if let Some(probe) = cleanup.cancellation_probe.take() {
                 let _ = probe.send(true);
             }
             return Err(worker_cancelled_error());
@@ -195,8 +227,11 @@ async fn run_worker_command(
             _ = &mut cancellation => WorkerExecutionStop::Cancelled,
         }
     };
-    match stop {
-        WorkerExecutionStop::Completed(Ok(output)) => Ok(output),
+    let result = match stop {
+        WorkerExecutionStop::Completed(Ok(output)) => {
+            drop(process_tree);
+            Ok(output)
+        }
         WorkerExecutionStop::Completed(Err(error)) => {
             terminate_and_reap(child, Some(process_tree), worker_permit).await;
             Err(error)
@@ -207,12 +242,21 @@ async fn run_worker_command(
         }
         WorkerExecutionStop::Cancelled => {
             let reaped = terminate_and_reap(child, Some(process_tree), worker_permit).await;
-            if let Some(probe) = cancellation_cleanup_probe.take() {
+            if let Some(probe) = cleanup.cancellation_probe.take() {
                 let _ = probe.send(reaped);
             }
             Err(worker_cancelled_error())
         }
+    };
+    if let Some(workspace) = cleanup.workspace.take() {
+        if !workspace.cleanup().await {
+            tracing::warn!(
+                code = "console_browser_scratch_cleanup_pending",
+                "Browser scratch cleanup will retry"
+            );
+        }
     }
+    result
 }
 
 fn worker_cancelled_error() -> GatewayError {
@@ -421,7 +465,10 @@ mod tests {
                 stdout: 64 * 1024,
                 stderr: 64 * 1024,
             },
-            Some(cleanup_probe),
+            WorkerCleanup {
+                cancellation_probe: Some(cleanup_probe),
+                ..WorkerCleanup::default()
+            },
         ));
         tokio::time::sleep(Duration::from_millis(100)).await;
         worker.abort();
@@ -435,5 +482,48 @@ mod tests {
             .expect("cancel cleanup should complete")
             .expect("cancel cleanup result");
         assert!(reaped, "cancelled worker child was not reaped");
+    }
+
+    #[tokio::test]
+    async fn cancelling_console_worker_reclaims_parent_owned_profile() {
+        let workspace = ConsoleBrowserWorkspace::create().await.unwrap();
+        let root = workspace.path().to_path_buf();
+        tokio::fs::create_dir(root.join("browser-profile"))
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("browser-profile/private-fixture"), b"fixture")
+            .await
+            .unwrap();
+        let mut command = fixture_command("timeout");
+        workspace.configure(&mut command);
+        let (probe, result) = oneshot::channel();
+        let worker = tokio::spawn(execute_worker_command_observed(
+            command,
+            PathBuf::from("console-browser-workspace-fixture"),
+            b"{}".to_vec(),
+            Duration::from_secs(10),
+            WorkerOutputLimits {
+                stdout: 64 * 1024,
+                stderr: 64 * 1024,
+            },
+            WorkerCleanup {
+                cancellation_probe: Some(probe),
+                workspace: Some(workspace),
+            },
+        ));
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        worker.abort();
+        assert!(worker.await.unwrap_err().is_cancelled());
+        assert!(timeout(Duration::from_secs(3), result)
+            .await
+            .unwrap()
+            .unwrap());
+        timeout(Duration::from_secs(6), async {
+            while root.exists() {
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        })
+        .await
+        .expect("profile reclaimed after forced worker cancellation");
     }
 }

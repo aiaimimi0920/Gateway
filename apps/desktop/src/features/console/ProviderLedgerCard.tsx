@@ -9,9 +9,10 @@ import { useState, type ReactNode, type RefObject } from "react";
 
 import type { AccountsLedgerPilotSection, AccountsLedgerWorkspaceProps } from "./accountsLedgerTypes";
 import { ProviderCardFrontBody } from "./ProviderCardFrontBody";
-import { NvidiaBrandIcon } from "./NvidiaBrandIcon";
+import { ProviderBrandIcon } from "./ProviderBrandIcon";
 
 import { providerCardVisual } from "./providerCardVisual";
+import { providerAccessLabel } from "./providerAccessKind";
 import type { ProviderCardSnapshot } from "./providerCardSnapshot";
 
 type ProviderLedgerCardProps = {
@@ -107,24 +108,17 @@ export function ProviderLedgerCard({
           inert={flipped ? true : undefined}
         >
         <header className="nt-provider-card__front-head">
-          <span
-            className={`nt-provider-card__icon nt-provider-card__icon--${visual.iconKey}`}
-            data-provider-icon={visual.iconKey}
-            title={section.vendorLabel}
-            aria-hidden="true"
-          >
-            {visual.iconKey === "nvidia" ? <NvidiaBrandIcon /> : visual.iconLabel}
-          </span>
+          <ProviderBrandIcon iconKey={visual.iconKey} fallback={visual.iconLabel} title={section.vendorLabel} />
           <button
             className="nt-provider-card__title nt-provider-tree-item nt-provider-tree-item--level-0"
             type="button"
-            aria-label={section.providerLabel}
+            aria-label={providerAccessLabel(section)}
             aria-expanded={accountLibraryExpanded}
             aria-controls={accountLibraryId}
             onClick={() => toggleProviderAccountLibrary(section)}
           >
             <div className="nt-provider-tree-item__main">
-              <strong>{section.providerLabel}</strong>
+              <strong>{providerAccessLabel(section)}</strong>
             </div>
           </button>
           <div className="nt-provider-card__head-actions">
@@ -243,12 +237,9 @@ export function ProviderLedgerCard({
         inert={!flipped ? true : undefined}
       >
         <header className="nt-provider-card__back-head">
-          <span className={`nt-provider-card__icon nt-provider-card__icon--${visual.iconKey}`}
-            data-provider-icon={visual.iconKey} title={section.vendorLabel} aria-hidden="true">
-            {visual.iconKey === "nvidia" ? <NvidiaBrandIcon /> : visual.iconLabel}
-          </span>
+          <ProviderBrandIcon iconKey={visual.iconKey} fallback={visual.iconLabel} title={section.vendorLabel} />
           <div className="nt-provider-card__back-title">
-            <strong>{section.providerLabel}</strong>
+            <strong>{providerAccessLabel(section)}</strong>
           </div>
           <div className="nt-provider-card__head-actions">
             <button

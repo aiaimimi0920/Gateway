@@ -51,6 +51,7 @@ const PRESET_CATEGORIES: Record<string, ProviderCardCategory> = {
   tavily: "search",
   you: "search",
   exa: "search",
+  jina: "search",
   "jina-search": "search",
   "jina-reader": "search",
   websearchapi: "search",
@@ -67,10 +68,12 @@ const PROVIDER_ID_CATEGORIES: Record<string, ProviderCardCategory> = {
 
 const PROVIDER_ICON_KEYS: Record<string, { key: string; label: string }> = {
   openai: { key: "openai", label: "AI" },
+  chatgpt: { key: "openai", label: "AI" },
+  codex: { key: "openai", label: "AI" },
   anthropic: { key: "anthropic", label: "A" },
   "gemini-api": { key: "google", label: "G" },
   "gemini-business": { key: "google", label: "G" },
-  "azure-openai": { key: "azure", label: "AZ" },
+  "azure-api": { key: "azure", label: "AZ" },
   cohere: { key: "cohere", label: "C" },
   groq: { key: "groq", label: "GQ" },
   nvidia: { key: "nvidia", label: "N" },
@@ -89,9 +92,14 @@ const PROVIDER_ICON_KEYS: Record<string, { key: string; label: string }> = {
   you: { key: "you", label: "Y" },
   exa: { key: "exa", label: "E" },
   jina: { key: "jina", label: "J" },
+  websearchapi: { key: "websearchapi", label: "W" },
+  "you.com": { key: "you", label: "Y" },
   suno: { key: "suno", label: "S" },
   udio: { key: "udio", label: "U" },
 };
+
+const PROVIDER_ICON_ENTRIES = Object.entries(PROVIDER_ICON_KEYS)
+  .sort(([left], [right]) => right.length - left.length);
 
 function providerCardIcon(options: {
   providerId: string;
@@ -101,24 +109,21 @@ function providerCardIcon(options: {
 }): { key: string; label: string } {
   const candidates = [
     options.providerId,
-    options.providerPreset ?? "",
     options.providerLabel,
+    options.providerPreset ?? "",
   ]
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
-  // Match an explicit brand before protocol suffixes such as nvidia-openai.
-  // Looking for "openai" anywhere first incorrectly painted NVIDIA as OpenAI.
+  // An explicit ID/name (including a suffixed ID) outranks a generic API preset.
+  // OpenRouter using the openai preset must not inherit OpenAI's trademark.
   for (const candidate of candidates) {
     const direct = PROVIDER_ICON_KEYS[candidate];
     if (direct) return direct;
-  }
-  const entries = Object.entries(PROVIDER_ICON_KEYS).sort(([left], [right]) => right.length - left.length);
-  for (const candidate of candidates) {
-    const prefix = entries.find(([key]) => candidate.startsWith(`${key}-`) || candidate.startsWith(`${key}_`));
+    const prefix = PROVIDER_ICON_ENTRIES.find(([key]) => candidate.startsWith(`${key}-`) || candidate.startsWith(`${key}_`));
     if (prefix) return prefix[1];
   }
   for (const candidate of candidates) {
-    const matched = entries.find(([key]) => candidate.includes(key));
+    const matched = PROVIDER_ICON_ENTRIES.find(([key]) => candidate.includes(key));
     if (matched) return matched[1];
   }
   if (options.adapter?.toLowerCase().includes("openai")) {

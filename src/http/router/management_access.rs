@@ -164,6 +164,10 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
             post(internal_access::create_access_key),
         )
         .route(
+            "/v1/internal/gateway/access/keys/import-unlimited",
+            post(internal_access::import_unlimited_access_key),
+        )
+        .route(
             "/v1/internal/gateway/access/keys/:access_key_id",
             post(internal_access::update_access_key).delete(internal_access::delete_access_key),
         )

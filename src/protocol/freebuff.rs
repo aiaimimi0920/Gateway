@@ -51,6 +51,8 @@ use session_response::{
 use transport::send_chat_request;
 
 #[cfg(test)]
+mod call_flow_tests;
+#[cfg(test)]
 mod config_tests;
 
 #[cfg(test)]
@@ -141,6 +143,7 @@ pub async fn probe_payload(
     client: &Client,
     payload: &ProviderAccountPayload,
 ) -> Result<(), GatewayError> {
+    crate::protocol::call_flow::prepare(payload)?;
     runtime.ensure_open()?;
     let model = payload
         .default_model
@@ -165,6 +168,7 @@ async fn execute_attempt(
     extra_headers: Option<&HashMap<String, String>>,
     stream: bool,
 ) -> Result<FreeBuffStreamingExecution, GatewayError> {
+    crate::protocol::call_flow::prepare(payload)?;
     let provider = "freebuff_compatible";
     let config = FreeBuffRuntimeConfig::from_payload(payload, model)?;
 

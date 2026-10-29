@@ -50,7 +50,7 @@ fn payload_inference_distinguishes_qwen_official_and_web_reverse() {
             "openai_compatible",
             "https://dashscope.aliyuncs.com/compatible-mode/v1"
         )),
-        Some(RefactoredImplementationLine::QwenOfficialApi)
+        None
     );
     assert_eq!(
         line_for_payload(&make_payload(

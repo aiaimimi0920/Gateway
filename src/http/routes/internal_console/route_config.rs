@@ -63,6 +63,7 @@ pub async fn commit_route_config(
         &body.secret_patches,
     )?;
     assert_if_match_consistent(&headers, &body.expected_revision)?;
+    let _publication = state.lifecycle.health_control.publication.lock().await;
     let runtime = state.route_config_runtime.as_ref().ok_or_else(|| {
         GatewayError::service_unavailable(
             "Gateway console runtime is not configured for route mutations",
@@ -87,6 +88,9 @@ pub async fn commit_route_config(
         .commit_document(&body.expected_revision, candidate, body.message)
         .await
         .map_err(runtime_error_to_gateway_error)?;
+    crate::routing::model_circuit::health_control::apply_provider_toggles(&state,active.document(),snapshot.document())
+        .await.map_err(|_|GatewayError::service_unavailable("Route configuration committed, but provider health reset was not confirmed; refresh and retry the toggle")
+            .with_code("provider_health_reset_failed"))?;
     crate::provider_discovery::background::schedule(&state);
     crate::site_health::runtime::schedule(&state);
     Ok(json_with_no_store(serde_json::json!({

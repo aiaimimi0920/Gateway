@@ -17,6 +17,7 @@ use crate::error::GatewayError;
 
 mod execution;
 mod observation;
+pub(crate) use execution::execute_deciding;
 pub use execution::execute_with_retry_after_admission_observed_started;
 mod wait_budget;
 use observation::AttemptObservation;

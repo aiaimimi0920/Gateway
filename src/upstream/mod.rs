@@ -43,6 +43,10 @@ pub mod cohere_chat_official_api_common;
 #[path = "cohere_chat_official_api_disabled.rs"]
 pub mod cohere_chat_official_api_common;
 pub mod common;
+mod console_browser_interaction;
+mod console_browser_workspace;
+pub(crate) use console_browser_interaction::ConsoleBrowserInteraction;
+pub(crate) use console_browser_workspace::ConsoleBrowserWorkspace;
 mod cpa_transport;
 pub mod custom_http_request_plan;
 pub mod dashscope;
@@ -84,6 +88,8 @@ pub mod grok;
 pub mod grok;
 mod header_map_helpers;
 pub mod headers;
+#[cfg(feature = "family-search-api-compatible-official-api")]
+mod jina_request_plan;
 #[cfg(feature = "line-kiro-official-vendor-api")]
 pub mod kiro;
 #[cfg(not(feature = "line-kiro-official-vendor-api"))]
@@ -106,6 +112,9 @@ pub mod openai_compatible_official_api_common;
 pub mod openai_compatible_request_plan;
 mod producer_browser_worker_io;
 mod producer_browser_worker_process;
+pub(crate) use producer_browser_worker_process::{
+    execute_console_browser_worker, PreparedProducerBrowserWorkerLaunch,
+};
 #[cfg(test)]
 mod producer_browser_worker_security_tests;
 mod producer_browser_worker_tree;
@@ -119,6 +128,8 @@ pub(crate) mod request_time_browser_policy;
 mod response_error;
 mod response_preview_helpers;
 pub(crate) mod response_types;
+pub(crate) mod search_fetch_request;
+pub(crate) mod search_fetch_response;
 #[cfg(feature = "family-search-api-compatible-official-api")]
 mod search_provider_helpers;
 #[cfg(not(feature = "family-search-api-compatible-official-api"))]

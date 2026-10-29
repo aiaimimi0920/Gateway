@@ -1,6 +1,7 @@
 import { Activity, CircleDollarSign, Gauge, Send, TrendingUp } from "lucide-react";
 
 import type { ModelPoolCard } from "./modelPoolViewModel";
+import { AvailabilityHeatmap } from "./AvailabilityHeatmap";
 import {
   buildProviderAvailabilityCells,
   formatAggregateMoney,
@@ -92,39 +93,15 @@ export function ModelPoolCardMetrics({ card, t }: ModelPoolCardMetricsProps) {
       <section
         className="nt-entitlement-group-card__success"
         data-provider-availability-scope="model-pool"
-        role="img"
+        role="group"
         aria-label={t(
           `${card.model} 最近窗口的调用成功率，链上账号聚合${metrics?.successRate == null ? "，暂无数据" : `，${metrics.successSuccessCount}/${metrics.successRequestCount} 次成功，${formatAggregateRate(metrics.successRate)}`}`,
           `${card.model} recent window success rate, chain accounts aggregated${metrics?.successRate == null ? ", unavailable" : `, ${metrics.successSuccessCount}/${metrics.successRequestCount} successful, ${formatAggregateRate(metrics.successRate)}`}`,
         )}
-        title={t(
-          `${card.model} 调用成功率 ${formatAggregateRate(metrics?.successRate ?? null)}`,
-          `${card.model} success rate ${formatAggregateRate(metrics?.successRate ?? null)}`,
-        )}
       >
         <Activity size={15} aria-hidden="true" />
         {successWindows.length > 0 ? (
-          <div
-            className="nt-provider-card__availability-windows"
-            aria-hidden="true"
-          >
-            {successWindows.map((window, windowIndex) => (
-              <div
-                className="nt-provider-card__availability-window"
-                key={`${card.rowId}:success:${window.label}`}
-              >
-                {availabilityCells
-                  .filter((cell) => cell.windowIndex === windowIndex)
-                  .map((cell) => (
-                    <span
-                      className={`nt-provider-card__availability-cell nt-provider-card__availability-cell--${cell.state}`}
-                      key={`${card.rowId}:cell:${cell.windowIndex}:${cell.position}`}
-                      title={`${cell.windowLabel}: ${cell.success}/${cell.requests} (${formatAggregateRate(cell.rate)})`}
-                    />
-                  ))}
-              </div>
-            ))}
-          </div>
+          <AvailabilityHeatmap cells={availabilityCells} label={`${card.model} ${t("热度图", "heatmap")}`} t={t} />
         ) : (
           <span
             className="nt-entitlement-group-card__success-empty"

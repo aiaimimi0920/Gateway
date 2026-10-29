@@ -4,6 +4,9 @@ import type { ConsoleRouteDocument } from "../../api/contracts";
 import { usePilotPolicyEditor } from "./usePilotPolicyEditor";
 import { readPilotIdentityCategories } from "./pilotPoolPolicy";
 import { isRecord } from "./routeDocument";
+import { buildAccountLedgerSections } from "./accountLedgerSections";
+import { buildAccountLedgerRows, buildRouteAccountCatalog } from "./accountManagementViewModel";
+import { buildConsoleTelemetrySnapshot } from "./telemetry";
 
 it("preserves existing category policy fields when adding a new category", () => {
   const provider = { id: "custom", credential_identity_categories: [
@@ -64,4 +67,59 @@ it("changes an existing provider's client profile without rewriting pool state o
   rerender({ text: JSON.stringify(replace.mock.calls[0][0]) });
   act(() => result.current.updatePilotProviderPolicy("relay", { requestClientProfile: "auto" }));
   expect(replace.mock.lastCall?.[0].providers[0]).toEqual(provider);
+});
+
+it("round-trips a flow-only fingerprint through the real card editor and ledger", () => {
+  const flow = { call_adapter: "anthropic", fingerprint_adapter: "workbuddy", special_adapter: "none" };
+  const provider = { id: "relay", adapter: "openai_compatible", api_key: "fixture", call_flow: flow };
+  const document: ConsoleRouteDocument = { providers: [provider], model_routes: [], aliases: {} };
+  const snapshot = buildConsoleTelemetrySnapshot({ pressure: null, costOverview: null,
+    credentialModelStates: [], credentialInventory: null, requestAuditSummary: null });
+  const read = (doc: ConsoleRouteDocument) => buildAccountLedgerSections(doc,
+    buildAccountLedgerRows(buildRouteAccountCatalog(doc), {}), new Map(), snapshot, "zh-CN")[0].requestClientProfile;
+  expect(read(document)).toBe("workbuddy");
+  const replace = vi.fn();
+  const { result, rerender } = renderHook(({ text }) => usePilotPolicyEditor({ editorText: text,
+    setError: vi.fn(), replaceEditorDocument: replace, credentialPoolAutomation: null,
+    credentialPoolAutomationByProvider: new Map(), credentialRefill: null, t: (_zh, en) => en,
+  }), { initialProps: { text: JSON.stringify(document) } });
+  for (const profile of ["claude_cli", "auto"] as const) {
+    act(() => result.current.updatePilotProviderPolicy("relay", { requestClientProfile: profile }));
+    const updated = replace.mock.lastCall![0];
+    expect(updated.providers[0].call_flow).toEqual({ ...flow, fingerprint_adapter: profile });
+    expect(read(updated)).toBe(profile);
+    rerender({ text: JSON.stringify(updated) });
+  }
+  expect(provider.call_flow).toEqual(flow);
+});
+
+it("keeps camelCase flow edits valid through the real card editor", () => {
+  const provider = { id: "relay", adapter: "openai_compatible", callFlow: {
+    call_adapter: "anthropic", fingerprint_adapter: "workbuddy", special_adapter: "none",
+  } };
+  const document: ConsoleRouteDocument = { providers: [provider], model_routes: [], aliases: {} };
+  const replace = vi.fn();
+  const { result } = renderHook(() => usePilotPolicyEditor({ editorText: JSON.stringify(document),
+    setError: vi.fn(), replaceEditorDocument: replace, credentialPoolAutomation: null,
+    credentialPoolAutomationByProvider: new Map(), credentialRefill: null, t: (_zh, en) => en,
+  }));
+  act(() => result.current.updatePilotProviderPolicy("relay", { requestClientProfile: "claude_cli" }));
+  expect(replace.mock.lastCall?.[0].providers[0]).toEqual({ ...provider, request_client_profile: "claude_cli",
+    callFlow: { ...provider.callFlow, fingerprint_adapter: "claude_cli" } });
+});
+
+it("rejects an API fingerprint edit for a session-owned flow before replacing the draft", () => {
+  const provider = { id: "web", preset: "gemini-web-chat", call_flow: {
+    call_adapter: "auto", fingerprint_adapter: "session", special_adapter: "gemini_web",
+  } };
+  const document: ConsoleRouteDocument = { providers: [provider], model_routes: [], aliases: {} };
+  const replace = vi.fn();
+  const setError = vi.fn();
+  const { result } = renderHook(() => usePilotPolicyEditor({ editorText: JSON.stringify(document),
+    setError, replaceEditorDocument: replace, credentialPoolAutomation: null,
+    credentialPoolAutomationByProvider: new Map(), credentialRefill: null, t: (_zh, en) => en,
+  }));
+  act(() => result.current.updatePilotProviderPolicy("web", { requestClientProfile: "claude_cli" }));
+  expect(replace).not.toHaveBeenCalled();
+  expect(setError).toHaveBeenCalledWith(expect.any(String));
 });

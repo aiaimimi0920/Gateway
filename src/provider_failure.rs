@@ -79,6 +79,15 @@ pub fn classify_provider_failure(
     error_code: Option<&str>,
     error_message: Option<&str>,
 ) -> ProviderFailureClassification {
+    if upstream_status.is_some_and(|status| {
+        crate::error::is_provider_ip_block_rejection(status, error_message.unwrap_or_default())
+    }) {
+        return ProviderFailureClassification {
+            class: ProviderFailureClass::ProviderTransient,
+            scope: ProviderFailureScope::Provider,
+            permanent: false,
+        };
+    }
     if upstream_status
         .is_some_and(|status| crate::error::is_model_capacity(status, error_code, error_message))
     {
@@ -255,4 +264,24 @@ fn normalize_failure_text(error_code: Option<&str>, error_message: Option<&str>)
 
 fn contains_any(haystack: &str, needles: &[&str]) -> bool {
     needles.iter().any(|needle| haystack.contains(needle))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bulk_probe_ip_block_is_provider_scoped_not_a_bad_credential() {
+        let classification = classify_provider_failure(
+            Some(403),
+            None,
+            Some("该ip已被封禁，原因：bulk probe guard: ip 27.47.35.168 requested 5 distinct models in 60s (last_user 11552, offense 1)"),
+        );
+        assert_eq!(
+            classification.class,
+            ProviderFailureClass::ProviderTransient
+        );
+        assert_eq!(classification.scope, ProviderFailureScope::Provider);
+        assert!(!classification.permanent);
+    }
 }

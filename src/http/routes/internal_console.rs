@@ -1,6 +1,17 @@
 //! Console wire types, shared request/response boundaries and Gemini session route wiring.
 
+mod chatgpt_catalog;
+mod nvidia_catalog;
+pub use nvidia_catalog::{
+    read_anthropic_model_catalog, read_cohere_model_catalog, read_gemini_model_catalog,
+    read_groq_model_catalog, read_nvidia_model_catalog, read_openai_model_catalog,
+    read_openrouter_model_catalog, read_poe_model_catalog,
+};
 mod chatgpt_oauth;
+mod chatgpt_web_browser;
+mod chatgpt_web_login;
+pub use chatgpt_catalog::read_chatgpt_model_catalog;
+pub use chatgpt_web_browser::capture_web_browser;
 mod credential_secret;
 pub(crate) mod diagnostics;
 mod discovery;

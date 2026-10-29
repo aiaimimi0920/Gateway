@@ -24,6 +24,7 @@ mod tests {
 
     fn make_payload(base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "custom_http".to_string(),

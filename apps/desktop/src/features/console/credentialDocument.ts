@@ -36,12 +36,12 @@ export type ProviderProbeScheduleInput = {
 export type CredentialSecretEdit = CredentialIdentity &
   (
     | {
-        field: "api_key" | "auth_token";
+        field: "api_key" | "auth_token" | "headers/Cookie" | "extra_body/sessionId";
         operation: "replace";
         value: string;
       }
     | {
-        field: "api_key" | "auth_token";
+        field: "api_key" | "auth_token" | "headers/Cookie" | "extra_body/sessionId";
         operation: "clear";
       }
   );
@@ -481,6 +481,11 @@ export function buildCredentialSecretPatches({
       );
     }
     const path = `/providers/${draftProviderIndex}/credentials/${draftCredentialIndex}/${edit.field}`;
+    if (edit.field === "headers/Cookie") {
+      for (const key of patchesByPath.keys()) {
+        if (key.toLowerCase() === path.toLowerCase()) patchesByPath.delete(key);
+      }
+    }
     if (edit.operation === "replace") {
       patchesByPath.set(path, { path, operation: "replace", value: edit.value });
     } else {

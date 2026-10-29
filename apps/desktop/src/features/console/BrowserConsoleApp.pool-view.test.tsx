@@ -54,10 +54,15 @@ it("replaces the right-side pool title with site search/sort while retaining nav
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /添加账号/ })).toBeInTheDocument();
   const search = screen.getByRole("searchbox", { name: "搜索站点" });
+  for (const name of ["oauth", "api", "web"]) expect(screen.getByRole("checkbox", { name })).toBeChecked();
+  await user.click(screen.getByRole("checkbox", { name: "api" }));
+  expect(screen.queryByRole("button", { name: "Beta-api" })).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "没有匹配站点" })).toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: "api" }));
   await user.type(search, "BETA.EXAMPLE");
-  expect(screen.getByRole("button", { name: "Beta" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Beta-api" })).toBeInTheDocument();
   expect(
-    screen.queryByRole("button", { name: "Alpha" }),
+    screen.queryByRole("button", { name: "Alpha-api" }),
   ).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "清除站点搜索" }));
   await user.click(screen.getByRole("combobox", { name: "站点排序" }));

@@ -12,6 +12,8 @@ use crate::upstream::client::UpstreamClient;
 use std::collections::HashMap;
 
 mod account_groups;
+mod egress;
+mod identity_wait;
 mod latency;
 mod resolution;
 

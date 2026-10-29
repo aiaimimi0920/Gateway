@@ -44,7 +44,7 @@ pub fn chatgpt_web_reverse_preset() -> ProviderPreset {
         adapter: "chatgpt_web_reverse_compatible".to_string(),
         headers,
         extra_body,
-        default_model: Some("gpt-5.4".to_string()),
+        default_model: Some("auto".to_string()),
         auth_mode: None,
         anthropic_version: None,
         beta_headers: None,

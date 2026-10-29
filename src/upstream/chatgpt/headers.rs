@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::error::GatewayError;
 use rquest::header::HeaderMap;
 
 use crate::protocol::chatgpt::web_reverse as surface;
@@ -7,13 +8,13 @@ use crate::routing::candidate::ProviderAccountPayload;
 use crate::upstream::headers::build_upstream_headers_with;
 
 use super::common::insert_header_map_value;
-use super::web_reverse::ChatGptWebRequestContext;
+use super::web_reverse::{build_target_url, ChatGptWebRequestContext};
 
 pub fn build_bootstrap_headers(
     request_context: &ChatGptWebRequestContext,
     payload: &ProviderAccountPayload,
     extra_headers: Option<&HashMap<String, String>>,
-) -> HeaderMap {
+) -> Result<HeaderMap, GatewayError> {
     let mut headers = build_upstream_headers_with(payload, extra_headers);
     if !headers.contains_key("user-agent") {
         insert_header_map_value(&mut headers, "User-Agent", &request_context.user_agent);
@@ -50,7 +51,10 @@ pub fn build_bootstrap_headers(
         "Sec-CH-UA-Platform",
         surface::CHATGPT_WEB_DEFAULT_SEC_CH_UA_PLATFORM,
     );
-    headers
+    request_context
+        .cookies
+        .apply(&build_target_url(request_context, "/"), &mut headers)?;
+    Ok(headers)
 }
 
 pub fn build_request_headers(
@@ -60,7 +64,7 @@ pub fn build_request_headers(
     target_path: &str,
     accept: &str,
     content_type: Option<&str>,
-) -> HeaderMap {
+) -> Result<HeaderMap, GatewayError> {
     let mut headers = build_upstream_headers_with(payload, extra_headers);
     insert_header_map_value(&mut headers, "User-Agent", &request_context.user_agent);
     insert_header_map_value(
@@ -136,5 +140,9 @@ pub fn build_request_headers(
     if let Some(content_type) = content_type {
         insert_header_map_value(&mut headers, "Content-Type", content_type);
     }
-    headers
+    request_context.cookies.apply(
+        &build_target_url(request_context, target_path),
+        &mut headers,
+    )?;
+    Ok(headers)
 }

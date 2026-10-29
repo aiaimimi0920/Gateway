@@ -55,14 +55,6 @@ providers:
       HTTP-Referer: "${OPENROUTER_HTTP_REFERER:-https://neuroplatform.app}"
       X-Title: "${OPENROUTER_X_TITLE:-NeuroPlatform}"
 
-  - id: qwen-dashscope-openai
-    vendor_key: alibaba-qwen
-    vendor_name: "Alibaba / Qwen"
-    preset: qwen-dashscope-openai
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    api_key: "${QWEN_DASHSCOPE_API_KEY}"
-    supported_models: [qwen3-coder-plus, qwen-plus, qwen-turbo]
-
   - id: qwen-coding-plan-openai
     vendor_key: alibaba-qwen
     vendor_name: "Alibaba / Qwen"
@@ -340,7 +332,7 @@ providers:
   - id: perplexity-main
     vendor_key: perplexity
     vendor_name: "Perplexity"
-    preset: perplexity
+    preset: perplexity-api
     base_url: "https://api.perplexity.ai"
     supported_models:
       - sonar

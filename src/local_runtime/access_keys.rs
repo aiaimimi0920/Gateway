@@ -7,6 +7,7 @@ use crate::error::GatewayError;
 use sha2::{Digest, Sha256};
 use sqlx::{Sqlite, Transaction};
 
+mod importing;
 pub(super) mod policy;
 pub(super) mod secrets;
 pub use policy::local_key_id;
@@ -14,6 +15,8 @@ pub use policy::local_key_id;
 mod editing_tests;
 #[cfg(test)]
 mod lifecycle_tests;
+#[cfg(test)]
+mod provider_identity_tests;
 #[cfg(test)]
 mod tests;
 
@@ -80,6 +83,7 @@ async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
     key: &mut GatewayAccessKeyView,
     sealer: &secrets::KeySecretStore,
+    supplied_token: Option<&str>,
 ) -> Result<(), GatewayError> {
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM local_access_keys")
         .fetch_one(&mut **tx)
@@ -92,12 +96,23 @@ async fn insert(
     }
     key.id = format!("{ID_PREFIX}{}", uuid::Uuid::new_v4());
     // Two independent UUIDs provide 244 random bits, independent of the display encryption key.
-    let token = format!(
-        "{}-local-{}{}",
-        key.public_key_prefix,
-        uuid::Uuid::new_v4().simple(),
-        uuid::Uuid::new_v4().simple()
-    );
+    let token = supplied_token.map(str::to_owned).unwrap_or_else(|| {
+        format!(
+            "{}-local-{}{}",
+            key.public_key_prefix,
+            uuid::Uuid::new_v4().simple(),
+            uuid::Uuid::new_v4().simple()
+        )
+    });
+    let exists: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM local_access_keys WHERE token_hash = ?)")
+            .bind(digest(&token))
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(storage_error)?;
+    if exists {
+        return Err(GatewayError::conflict("Access key token already exists"));
+    }
     sqlx::query("INSERT INTO local_access_keys(id,token_hash,payload) VALUES (?,?, '{}')")
         .bind(&key.id)
         .bind(digest(&token))
@@ -158,6 +173,16 @@ impl LocalRuntime {
         input: UpsertAccessKeyInput,
         quota: Option<&crate::access_balance::quota::KeyQuotaInput>,
     ) -> Result<GatewayAccessKeyView, GatewayError> {
+        self.save_access_key_internal(id, input, quota, None).await
+    }
+
+    async fn save_access_key_internal(
+        &self,
+        id: Option<&str>,
+        input: UpsertAccessKeyInput,
+        quota: Option<&crate::access_balance::quota::KeyQuotaInput>,
+        supplied_token: Option<&str>,
+    ) -> Result<GatewayAccessKeyView, GatewayError> {
         policy::validate_input(&input)?;
         if let Some(quota) = quota {
             quota.validate()?;
@@ -212,7 +237,7 @@ impl LocalRuntime {
         key.metadata = input.metadata;
         key.updated_at = timestamp;
         if id.is_none() {
-            insert(&mut tx, &mut key, &self.key_secrets).await?;
+            insert(&mut tx, &mut key, &self.key_secrets, supplied_token).await?;
         } else {
             write(&mut tx, &key).await?;
         }
@@ -241,7 +266,7 @@ impl LocalRuntime {
         old.revoke_reason = Some("rotated".into());
         old.updated_at = now();
         write(&mut tx, &old).await?;
-        insert(&mut tx, &mut replacement, &self.key_secrets).await?;
+        insert(&mut tx, &mut replacement, &self.key_secrets, None).await?;
         tx.commit().await.map_err(storage_error)?;
         Ok(replacement)
     }

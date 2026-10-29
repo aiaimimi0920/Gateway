@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { isCodexProvider } from "./siteHealth";
 import { supportsAccountDiscovery } from "./accountDiscovery";
+import { catalogProviderKind } from "./officialModelCatalog";
 import { AccountGroupDialog } from "./AccountGroupDialog";
 import { CredentialDialog } from "./CredentialDialog";
 import { useCredentialKeyReveal } from "./useCredentialKeyReveal";
+import { useChatgptWebBrowserCapture } from "./useChatgptWebBrowserCapture";
 import { ChatgptOAuthPanel } from "./ChatgptOAuthPanel";
 import { GeminiManualAddDialog } from "./GeminiManualAddDialog";
 import { PilotActionDialog } from "./PilotActionDialog";
@@ -20,6 +22,8 @@ type ConsoleGlobalDialogsProps = {
     | "closeCredentialPruneReview"
     | "applyCredentialPruneReview"
     | "discoverAccount"
+    | "discoverChatgptModels"
+    | "discoverProviderModels"
     | "accountGroupDialogOpen"
     | "displayedAccountCatalog"
     | "groupDirectory"
@@ -57,6 +61,7 @@ type ConsoleGlobalDialogsProps = {
     | "pilotScheduleEnabled"
     | "pilotScheduleIntervalMinutes"
     | "providerCatalogDialogOpen"
+    | "providerCatalogDrivers"
     | "providerModelMappingTarget"
     | "providerProbeBusy"
     | "providerProbeError"
@@ -126,6 +131,8 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
   const revealCredentialKey = useCredentialKeyReveal(controller.client, session.managementToken,
     session.secretGrant?.grant ?? null, controller.routeConfig?.routeConfig.revision.id,
     credentialDialogState?.initialValue?.providerId, credentialDialogState?.initialValue?.credentialId);
+  const captureWebBrowser = useChatgptWebBrowserCapture(controller.client, session.managementToken,
+    session.secretGrant?.grant ?? null, controller.routeConfig?.routeConfig.revision.id, editorLocked || draftDirty);
 
   useEffect(() => { if (secretDialogOpen && session.secretGrant) setSecretDialogOpen(false); }, [secretDialogOpen, session.secretGrant, setSecretDialogOpen]);
 
@@ -145,6 +152,7 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
         open={providerCatalogDialogOpen}
         existingProviderIds={credentialProviderOptions.map((provider) => provider.id)}
         existingCredentialIds={explicitCredentialIds}
+        drivers={controller.providerCatalogDrivers}
         locked={editorLocked}
         hasSecretAccess={hasSecretAccess}
         onOpenChange={setProviderCatalogDialogOpen}
@@ -177,6 +185,7 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
           mode={credentialDialogState.mode}
           providerOptions={credentialProviderOptions}
           supportsBasispoints={(id) => isCodexProvider(controller.draftDocumentState.document?.providers.find((p) => !!p && typeof p === "object" && (p as Record<string,unknown>).id === id))}
+          supportsWebSession={(id) => controller.draftDocumentState.document?.providers.some((p) => !!p && typeof p === "object" && (p as Record<string, unknown>).id === id && (p as Record<string, unknown>).preset === "chatgpt-web-reverse") ?? false}
           existingCredentialIds={explicitCredentialIds}
           initialValue={credentialDialogState.initialValue}
           locked={editorLocked}
@@ -189,12 +198,19 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
           onRequestSecretAccess={() => setSecretDialogOpen(true)}
           onSubmit={applyCredentialDialogValue}
           onDiscover={controller.discoverAccount}
+          onDiscoverChatgptModels={controller.discoverChatgptModels}
+          onDiscoverProviderModels={controller.discoverProviderModels}
+          catalogProviderKind={(id) => {
+            const provider = controller.draftDocumentState.document?.providers.find((p) => !!p && typeof p === "object" && (p as Record<string, unknown>).id === id);
+            return provider && typeof provider === "object" ? catalogProviderKind(provider as Record<string, unknown>) : undefined;
+          }}
           discoveryProvider={(id) => {
             const provider = controller.draftDocumentState.document?.providers.find((p) =>
               !!p && typeof p === "object" && (p as Record<string, unknown>).id === id) as Record<string, unknown> | undefined;
-            return provider && supportsAccountDiscovery(provider) ? { baseUrl: String(provider.base_url ?? "") } : null;
+            return provider && !catalogProviderKind(provider) && supportsAccountDiscovery(provider) ? { baseUrl: String(provider.base_url ?? "") } : null;
           }}
           onRevealKey={revealCredentialKey}
+          onCaptureWebBrowser={captureWebBrowser}
           renderAuthentication={(providerId) => controller.routeConfig?.routeConfig.document.providers.some((provider) =>
             typeof provider === "object" && provider !== null && "id" in provider && "preset" in provider &&
             provider.id === providerId && provider.preset === "chatgpt-codex-oauth-official-api") ? (

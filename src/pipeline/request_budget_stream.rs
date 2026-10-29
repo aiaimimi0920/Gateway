@@ -12,15 +12,15 @@ use crate::protocol::stream_error::{ProtocolStreamError, StreamError};
 
 pub struct BudgetStream<S> {
     inner: Option<Pin<Box<S>>>,
-    deadline: Pin<Box<Sleep>>,
+    deadline: Option<Pin<Box<Sleep>>>,
     budget: RequestBudget,
 }
 
 impl<S> BudgetStream<S> {
-    pub(super) fn new(inner: S, budget: RequestBudget, deadline: Instant) -> Self {
+    pub(super) fn new(inner: S, budget: RequestBudget, deadline: Option<Instant>) -> Self {
         Self {
             inner: Some(Box::pin(inner)),
-            deadline: Box::pin(sleep_until(deadline)),
+            deadline: deadline.map(|deadline| Box::pin(sleep_until(deadline))),
             budget,
         }
     }
@@ -37,7 +37,11 @@ where
         if this.inner.is_none() {
             return Poll::Ready(None);
         }
-        if this.deadline.as_mut().poll(cx).is_ready() {
+        if this
+            .deadline
+            .as_mut()
+            .is_some_and(|deadline| deadline.as_mut().poll(cx).is_ready())
+        {
             // Release transport before accounting or exposing the terminal frame.
             this.budget.mark_stopped("deadline");
             drop(this.inner.take());

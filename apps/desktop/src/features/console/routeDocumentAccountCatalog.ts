@@ -10,6 +10,7 @@ import type {
   RouteProviderBucket,
 } from "./accountCatalogTypes";
 import { providerBrandLabel } from "./providerBrandLabel";
+import { modelSelectionSchema, selectedModels } from "./credentialModelSelection";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -142,7 +143,8 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
           typeof credential.base_url === "string" && credential.base_url.trim().length > 0
             ? credential.base_url.trim()
             : providerBaseUrl;
-        const supportedModels = readStringArray(credential.supported_models);
+        const selection = modelSelectionSchema.safeParse(credential.model_selection).data;
+        const supportedModels = selection ? selectedModels(selection) : readStringArray(credential.supported_models);
         const accountGroups = memberships.get(accountId) ?? [];
         const account: RouteManagedAccount = {
           id: accountId,
@@ -156,14 +158,14 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
           hostLabel: hostLabelFromUrl(baseUrl),
           mode: "credential",
           enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
-          supportedModels: supportedModels.length > 0 ? supportedModels : providerSupportedModels,
+          supportedModels: selection || supportedModels.length > 0 ? supportedModels : providerSupportedModels,
           groupIds: accountGroups.map((group) => group.id),
           groupNames: accountGroups.map((group) => group.name),
         };
         providerAccounts.push(account);
         accounts.push(account);
       });
-    } else {
+    } else if (provider.explicit_credentials_only !== true) {
       const accountId = providerDefaultAccountId(providerId);
       const accountGroups = memberships.get(accountId) ?? [];
       const account: RouteManagedAccount = {

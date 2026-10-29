@@ -41,6 +41,10 @@ async fn balance_rejection_is_quota_and_allows_only_next_candidate() {
         let budget = RequestBudget::for_request(&request());
         budget.begin_attempt().unwrap();
         budget.allow_rejected_candidate_fallback(&error);
+        if status == 401 {
+            // Upstream authentication rejection has its own existing fallback contract.
+            budget.begin_attempt().unwrap();
+        }
         assert!(budget.begin_attempt().is_err());
     }
 }
@@ -77,8 +81,35 @@ async fn preconsume_quota_rejection_allows_next_provider_without_replaying_unkno
         let budget = RequestBudget::for_request(&request());
         budget.begin_attempt().unwrap();
         budget.allow_rejected_candidate_fallback(&error);
+        if status == 401 {
+            budget.begin_attempt().unwrap();
+        }
         assert!(budget.begin_attempt().is_err());
     }
+}
+
+#[tokio::test]
+async fn recognized_bulk_probe_ip_block_allows_only_the_next_authorized_candidate() {
+    use neuro_gateway::error::{ErrorKind, FallbackHint};
+    let error = classify_upstream_error(
+        403,
+        r#"{"error":{"message":"该ip已被封禁，原因：bulk probe guard: ip 27.47.35.168 requested 5 distinct models in 60s (last_user 11552, offense 1)"}}"#,
+        Some("fixture"),
+    );
+    assert_eq!(error.kind, ErrorKind::ServiceUnavailable);
+    assert_eq!(
+        error.code.as_deref(),
+        Some("provider_ip_temporarily_blocked")
+    );
+    assert!(matches!(
+        error.fallback_hint,
+        FallbackHint::FallbackProvider { .. }
+    ));
+    let budget = RequestBudget::for_request(&request());
+    budget.begin_attempt().unwrap();
+    budget.allow_rejected_candidate_fallback(&error);
+    budget.begin_attempt().unwrap();
+    assert!(budget.begin_attempt().is_err());
 }
 
 fn request() -> CanonicalRelayRequest {

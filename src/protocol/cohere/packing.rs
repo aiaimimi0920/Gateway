@@ -29,7 +29,19 @@ pub fn pack_cohere(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Va
         body["thinking"] = reasoning.clone();
     }
     for (key, value) in &req.extra {
+        if matches!(key.as_str(), "max_output_tokens" | "max_completion_tokens") {
+            continue;
+        }
         body[key] = value.clone();
+    }
+    if !body.as_object().unwrap().contains_key("max_tokens") {
+        if let Some(limit) = req
+            .extra
+            .get("max_output_tokens")
+            .or_else(|| req.extra.get("max_completion_tokens"))
+        {
+            body["max_tokens"] = limit.clone();
+        }
     }
     body
 }

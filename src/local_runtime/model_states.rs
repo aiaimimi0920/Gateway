@@ -10,6 +10,7 @@ use crate::{
 };
 use sqlx::{QueryBuilder, Sqlite};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+mod control;
 mod recovery;
 #[cfg(test)]
 mod recovery_tests;
@@ -48,10 +49,19 @@ impl LocalRuntime {
 
     async fn update_model(
         &self,
-        input: RecordCredentialModelSuccessInput,
+        mut input: RecordCredentialModelSuccessInput,
         failure: Option<RecordCredentialModelFailureInput>,
         expected: Option<&ModelHealthSnapshot>,
     ) -> Result<Option<GatewayProviderCredentialModelStateView>, GatewayError> {
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(storage_error)?;
+        // Resolve under the same writer transaction as the update. A request
+        // selected before a rename must not recreate the retired identity.
+        input.provider_account_id =
+            super::model_identity::resolve(&mut tx, &input.provider_account_id).await?;
         let id = provider_credential_model_state_id(
             &input.provider_account_id,
             input.provider_credential_id.as_deref(),
@@ -59,11 +69,6 @@ impl LocalRuntime {
             input.protocol_profile.as_deref(),
             &input.model,
         );
-        let mut tx = self
-            .pool
-            .begin_with("BEGIN IMMEDIATE")
-            .await
-            .map_err(storage_error)?;
         let payload: Option<String> =
             sqlx::query_scalar("SELECT payload FROM credential_model_states WHERE id = ?")
                 .bind(&id)
@@ -181,8 +186,17 @@ impl LocalRuntime {
                 query
                     .push(" AND json_extract(payload, '$.")
                     .push(field)
-                    .push("') = ")
-                    .push_bind(value.to_string());
+                    .push("') = ");
+                if field == "providerAccountId" {
+                    query
+                        .push("COALESCE((SELECT canonical FROM model_provider_aliases WHERE alias=")
+                        .push_bind(value.to_string())
+                        .push("),")
+                        .push_bind(value.to_string())
+                        .push(")");
+                } else {
+                    query.push_bind(value.to_string());
+                }
             }
         }
         query
@@ -217,10 +231,5 @@ pub async fn failure(
     state: &AppState,
     input: RecordCredentialModelFailureInput,
 ) -> Result<(), GatewayError> {
-    if let Some(local) = &state.local_runtime {
-        local.model_failure(input).await?;
-    } else if let Some(pool) = &state.pg_pool {
-        record_provider_credential_model_failure(pool, input).await?;
-    }
-    Ok(())
+    crate::routing::model_circuit::health_control::record_failure(state, input, None).await
 }

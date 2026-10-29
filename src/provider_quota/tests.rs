@@ -6,6 +6,7 @@ fn codex_payload() -> ProviderAccountPayload {
     let mut headers = HashMap::new();
     headers.insert("Originator".to_string(), "codex_cli_rs".to_string());
     ProviderAccountPayload {
+        call_flow: None,
         request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "openai_compatible".to_string(),
@@ -52,6 +53,7 @@ fn accio_payload() -> ProviderAccountPayload {
         "cna=test-cna; other=value".to_string(),
     );
     ProviderAccountPayload {
+        call_flow: None,
         request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "accio_compatible".to_string(),

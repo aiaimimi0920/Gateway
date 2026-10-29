@@ -3,6 +3,7 @@ import { ArrowDownWideNarrow, Check, ChevronDown, Search, X } from "lucide-react
 import type { TranslateFn } from "./accountsLedgerTypes";
 import type { ProviderPoolSort, ProviderPoolView } from "./providerPoolView";
 import "./ProviderPoolToolbar.css";
+import { PROVIDER_ACCESS_KINDS } from "./providerAccessKind";
 
 export function ProviderPoolToolbar({ value, onChange, t, scope = "sites" }: {
   value: ProviderPoolView; onChange(value: ProviderPoolView): void; t: TranslateFn;
@@ -46,5 +47,15 @@ export function ProviderPoolToolbar({ value, onChange, t, scope = "sites" }: {
         </Select.Viewport>
       </Select.Content></Select.Portal>
     </Select.Root>
+    {scope === "sites" && <div className="nt-provider-pool-toolbar__kinds" role="group" aria-label={t("接入方式", "Access type")}>
+      {PROVIDER_ACCESS_KINDS.map((kind) => <label key={kind} className="nt-provider-pool-toolbar__kind">
+        <input type="checkbox" checked={(value.accessKinds ?? PROVIDER_ACCESS_KINDS).includes(kind)}
+          onChange={(event) => {
+            const selected = value.accessKinds ?? PROVIDER_ACCESS_KINDS;
+            onChange({ ...value, accessKinds: PROVIDER_ACCESS_KINDS.filter((entry) => entry === kind ? event.target.checked : selected.includes(entry)) });
+          }} />
+        <span>{kind}</span>
+      </label>)}
+    </div>}
   </div>;
 }

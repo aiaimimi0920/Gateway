@@ -1,0 +1,5 @@
+body { width: 320px; padding: 16px; font: 14px/1.5 system-ui, sans-serif; }
+h1 { font-size: 18px; margin-top: 0; }
+button { display: block; padding: 8px 12px; margin-top: 12px; }
+label { display: block; }
+#status { font-weight: 600; }

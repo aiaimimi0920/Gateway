@@ -33,7 +33,7 @@ export function DesktopConnectionApp() {
     title={t("设置", "Settings")} showLocaleToggle shellClassName="nt-settings-native-shell"
     headerLeading={<SettingsTabs category={category} onChange={setCategory} categories={nativeSettingsCategories} locked={connection.busy || preferences.pending} />}>
     <div className="nt-settings-workspace"><section className="nt-settings-workspace__content" role="tabpanel">
-      {category === "desktop" ? <DesktopBehaviorSettings preferences={preferences} /> : <BackendConnectionForm native current={current} localAddress="http://127.0.0.1:4200"
+      {category === "desktop" ? <DesktopBehaviorSettings preferences={preferences} /> : <BackendConnectionForm native current={current} localAddress={LOCAL_GATEWAY_ADDRESS}
           mode={connection.settings.mode} remote={connection.settings.serverUrl} busy={connection.operation || (connection.busy ? "apply" : "")}
           error={!!connection.error} message={connection.error ? t("未能连接目标后端，请检查地址和服务状态后重试。", "Could not connect. Check the backend address and service, then retry.") : connection.tested ? t("控制台可访问；管理权限需要在目标后端登录后验证。", "Console reachable. Management access requires sign-in on the target.") : ""}
           onMode={mode => connection.setSettings({ ...connection.settings, mode })}
@@ -42,3 +42,4 @@ export function DesktopConnectionApp() {
     </section></div>
   </AppShell>;
 }
+import { LOCAL_GATEWAY_ADDRESS } from "./localGatewayAddress";

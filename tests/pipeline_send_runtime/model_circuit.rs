@@ -94,7 +94,7 @@ async fn pool_filters_failed_plus_before_round_robin_without_disabling_pro() {
     let healthy = Upstream::start(StatusCode::OK, false, JSON_REPLY).await;
     let fixture = TestState::new();
     fixture.state.route_config.replace_document(serde_json::from_value(serde_json::json!({
-        "providers":[{"id":"site","preset":"openai","base_url":rejected.base_url,
+        "providers":[{"id":"site","preset":"openai","request_wait":{"mode":"disabled"},"base_url":rejected.base_url,
             "supported_models":["caller-alias"], "model_map":{"caller-alias":"upstream-model"},
             "credentials":[{"id":"plus-token","api_key":"send-test-token"},
                 {"id":"pro-token","base_url":healthy.base_url,"api_key":"send-test-token"}]}],

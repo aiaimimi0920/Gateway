@@ -12,6 +12,8 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
     let document = RouteConfigYaml {
         providers: vec![
             ProviderConfigYaml {
+                request_wait: None,
+                call_flow: None,
                 auth_mode: None,
                 request_client_profile: None,
                 codex_basispoints_enabled: false,
@@ -20,6 +22,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 test_policy: None,
                 subpool_test_policies: Default::default(),
                 default_account_test_policy: None,
+                explicit_credentials_only: false,
                 credential_pool_auth_policy: Default::default(),
                 id: "managed-provider".to_string(),
                 label: Some("Managed OpenAI".to_string()),
@@ -78,6 +81,8 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                     codex_basispoints_enabled: None,
                     discovery_job: None,
                     discovery: None,
+                    model_catalog: None,
+                    model_selection: None,
                     test_policy: None,
                     id: Some("acc-prod-1".to_string()),
                     base_url: None,
@@ -104,6 +109,8 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 }],
             },
             ProviderConfigYaml {
+                request_wait: None,
+                call_flow: None,
                 auth_mode: None,
                 request_client_profile: None,
                 codex_basispoints_enabled: false,
@@ -112,6 +119,7 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
                 test_policy: None,
                 subpool_test_policies: Default::default(),
                 default_account_test_policy: None,
+                explicit_credentials_only: false,
                 credential_pool_auth_policy: Default::default(),
                 id: "fallback-provider".to_string(),
                 label: Some("Fallback".to_string()),
@@ -203,6 +211,8 @@ fn account_groups_accept_explicit_and_provider_default_account_members() {
 fn account_groups_reject_unknown_account_members() {
     let document = RouteConfigYaml {
         providers: vec![ProviderConfigYaml {
+            request_wait: None,
+            call_flow: None,
             auth_mode: None,
             request_client_profile: None,
             codex_basispoints_enabled: false,
@@ -211,6 +221,7 @@ fn account_groups_reject_unknown_account_members() {
             test_policy: None,
             subpool_test_policies: Default::default(),
             default_account_test_policy: None,
+            explicit_credentials_only: false,
             credential_pool_auth_policy: Default::default(),
             id: "managed-provider".to_string(),
             label: Some("Managed OpenAI".to_string()),
@@ -269,6 +280,8 @@ fn account_groups_reject_unknown_account_members() {
                 codex_basispoints_enabled: None,
                 discovery_job: None,
                 discovery: None,
+                model_catalog: None,
+                model_selection: None,
                 test_policy: None,
                 id: Some("acc-prod-1".to_string()),
                 base_url: None,

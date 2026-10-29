@@ -47,6 +47,7 @@ fn music_generation_request(
 
 fn make_payload(base_url: &str) -> ProviderAccountPayload {
     ProviderAccountPayload {
+        call_flow: None,
         request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "udio_compatible".to_string(),

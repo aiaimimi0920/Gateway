@@ -9,6 +9,7 @@ pub mod anthropic;
 pub mod anthropic_messages;
 pub mod azure_openai;
 pub mod bedrock_converse;
+pub mod call_flow;
 pub mod canonical;
 #[cfg(test)]
 mod canonical_wire_tests;

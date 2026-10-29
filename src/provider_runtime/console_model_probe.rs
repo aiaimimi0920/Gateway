@@ -1,4 +1,4 @@
-//! Explicit NVIDIA console tests require a generated answer from the selected credential.
+//! Explicit model/search tests require real output from the selected credential.
 use std::time::{Duration, Instant};
 
 use futures::StreamExt;
@@ -31,6 +31,15 @@ pub(crate) async fn probe_console_target_with_request(
         provider.id == target.provider_id && provider.preset.as_deref() == Some("nvidia-openai")
     }) || target.provider_id == "nvidia";
     let point = super::provider_payload_probe_point(&target.payload);
+    if state.lifecycle.model_circuits.network_blocked() {
+        return (
+            point,
+            report(
+                ProviderPayloadProbeStatus::Unsupported,
+                "Gateway egress network is temporarily unstable; probe was not sent.",
+            ),
+        );
+    }
     if !target.enabled {
         return (
             point,
@@ -44,10 +53,18 @@ pub(crate) async fn probe_console_target_with_request(
         provider.id == target.provider_id
             && provider.preset.as_deref() == Some("chatgpt-codex-oauth-official-api")
     });
+    let search = snapshot
+        .document()
+        .providers
+        .iter()
+        .find(|provider| provider.id == target.provider_id)
+        .and_then(|provider| {
+            super::search_model_probe::SearchProbeKind::from_preset(provider.preset.as_deref())
+        });
     if codex && options.is_none() {
         return super::codex_model_probe::probe(state, target).await;
     }
-    if !nvidia && !codex && options.is_none() {
+    if !nvidia && !codex && search.is_none() && options.is_none() {
         return (
             point,
             super::probe_provider_payload_for_console(
@@ -57,8 +74,18 @@ pub(crate) async fn probe_console_target_with_request(
             .await,
         );
     }
+    let cohere = target.payload.canonical_adapter() == "cohere_compatible";
+    let anthropic = target.payload.canonical_adapter() == "anthropic_compatible";
+    let gemini = matches!(
+        target.payload.canonical_adapter(),
+        "gemini_api_compatible" | "gemini_api_modular_compatible"
+    );
     if options.is_some()
         && !codex
+        && !cohere
+        && !anthropic
+        && !gemini
+        && search.is_none()
         && (target.payload.canonical_adapter() != "openai_compatible"
             || target.payload.bridges_openai_text_endpoint_to_responses(
                 crate::protocol::canonical::EndpointKind::ChatCompletions,
@@ -124,9 +151,29 @@ pub(crate) async fn probe_console_target_with_request(
         return ("Model call".into(), report(ProviderPayloadProbeStatus::Unsupported,
             "No configured model is callable by this credential; choose a supported model or configure default_model."));
     };
+    if let Some(kind) = search {
+        if !kind.supports_model(&model) {
+            return (point, report(ProviderPayloadProbeStatus::Unsupported,
+                "This model is not supported by the provider's search test; Contents requires a fetch request."));
+        }
+        // Only absent input gets an operation-specific default; never replace a user's target.
+        let query = options.map_or(kind.default_prompt(&model), |options| {
+            options.prompt.as_str()
+        });
+        return super::search_model_probe::probe(state, target, &model, query, kind).await;
+    }
     let prompt = options.map_or("Reply with only OK.", |options| options.prompt.as_str());
     if codex {
         return super::codex_model_probe::probe_with_prompt(state, target, &model, prompt).await;
+    }
+    if cohere {
+        return super::cohere_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if anthropic {
+        return super::anthropic_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if gemini {
+        return super::gemini_model_probe::probe(state, target, &model, prompt).await;
     }
     let mut body = json!({"model": model, "stream": false, "max_tokens": 256,
         "messages": [{"role": "user", "content": prompt}]});

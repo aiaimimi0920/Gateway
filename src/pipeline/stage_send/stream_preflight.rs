@@ -81,6 +81,7 @@ pub(super) async fn normalize(
                         &error.message,
                     );
                     spawn_record_provider_failure(
+                        ctx.started_at,
                         Arc::clone(state),
                         candidate.provider_account_id.clone(),
                         candidate.provider_credential_id.clone(),
@@ -117,6 +118,7 @@ pub(super) async fn normalize(
                         &error.message,
                     );
                     spawn_record_provider_failure(
+                        ctx.started_at,
                         Arc::clone(state),
                         candidate.provider_account_id.clone(),
                         candidate.provider_credential_id.clone(),
@@ -151,6 +153,7 @@ pub(super) async fn normalize(
                     &error.message,
                 );
                 spawn_record_provider_failure(
+                    ctx.started_at,
                     Arc::clone(state),
                     candidate.provider_account_id.clone(),
                     candidate.provider_credential_id.clone(),
@@ -185,10 +188,17 @@ pub(super) async fn normalize(
             );
 
             // 首包仍按原始 HTTP 错误分类；进入协议转换后才建立领域错误边界。
-            Box::pin(accio::translate_anthropic_like_stream_to_openai_with_error(
-                replay.map_err(StreamError::Transport),
-                model.clone(),
-            ))
+            if candidate.adapter == "cohere_compatible" {
+                Box::pin(crate::protocol::cohere::native::translate(
+                    replay.map_err(StreamError::Transport),
+                    model.clone(),
+                ))
+            } else {
+                Box::pin(accio::translate_anthropic_like_stream_to_openai_with_error(
+                    replay.map_err(StreamError::Transport),
+                    model.clone(),
+                ))
+            }
         }
         UpstreamStreamingResponse::Http(response) if candidate.adapter == "grok_compatible" => {
             let stream = crate::upstream::stream::tap_model_declaration(
@@ -227,6 +237,7 @@ pub(super) async fn normalize(
                     &error.message,
                 );
                 spawn_record_provider_failure(
+                    ctx.started_at,
                     Arc::clone(state),
                     candidate.provider_account_id.clone(),
                     candidate.provider_credential_id.clone(),

@@ -95,6 +95,10 @@ pub struct SmartRouting {
 }
 const LIMIT: usize = 4096;
 impl SmartRouting {
+    pub(crate) fn reset_provider(&self, provider: &str) {
+        self.availability.lock().retain(|(id, _), _| id != provider);
+        self.sticky.lock().retain(|_, (_, id, _, _)| id != provider);
+    }
     pub fn policy(&self) -> Result<&Policy, String> {
         self.policy
             .get_or_init(|| {

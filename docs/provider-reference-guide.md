@@ -516,7 +516,7 @@ python tools/validate-gateway-provider-reference-report.py --as-json
 <a id="line-qwen-official-api"></a>
 ### qwen-official-api
 
-- Identity: `qwen_platform` / `qwen-dashscope-openai`
+- Identity: `qwen_platform` / `qwen-coding-plan-openai`
 - Capabilities: `conversation`, `models`
 - Material kinds: `api_key`
 - Manifest: `manifests/lines/qwen/official-api.json`

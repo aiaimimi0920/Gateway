@@ -1,0 +1,209 @@
+[
+  {
+    "file": "anthropic.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/anthropic.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "e833fdfa7e7187a86a05b870925067556a506dcd4239089aed73e1e58c9366a3",
+    "sha256": "e833fdfa7e7187a86a05b870925067556a506dcd4239089aed73e1e58c9366a3",
+    "transform": "none"
+  },
+  {
+    "file": "azure.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/azure-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "abc639d094593943c1b201270f4903c74d02d2e26acf26abf592a29c222c5181",
+    "sha256": "abc639d094593943c1b201270f4903c74d02d2e26acf26abf592a29c222c5181",
+    "transform": "none"
+  },
+  {
+    "file": "cohere.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/cohere-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "84d0ee3cbe66f030e5a18cb2c86da9166ab2137c7a98781693bb1fbf31e392b9",
+    "sha256": "84d0ee3cbe66f030e5a18cb2c86da9166ab2137c7a98781693bb1fbf31e392b9",
+    "transform": "none"
+  },
+  {
+    "file": "deepseek.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/deepseek-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "deba5f98a5c1796e20fcac3149bcd7eb8a32f0bdd04d048819400b1f28bd1439",
+    "sha256": "deba5f98a5c1796e20fcac3149bcd7eb8a32f0bdd04d048819400b1f28bd1439",
+    "transform": "none"
+  },
+  {
+    "file": "exa.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/exa.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "b1ae01ccce6798d7b9a129807e0fb9b0629cc035f4ead27d6300ab2adde792bb",
+    "sha256": "b1ae01ccce6798d7b9a129807e0fb9b0629cc035f4ead27d6300ab2adde792bb",
+    "transform": "none"
+  },
+  {
+    "file": "google.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/google-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "4e6aa8892ef15a6b431f40f2c9045979bf7e2357524e7bbb89b353cf4f32a5ac",
+    "sha256": "4e6aa8892ef15a6b431f40f2c9045979bf7e2357524e7bbb89b353cf4f32a5ac",
+    "transform": "none"
+  },
+  {
+    "file": "groq.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/groq.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "078d5cf6e7a54905040c15ddacf5ea33c13042fe7739e820cedc2096e4406651",
+    "sha256": "078d5cf6e7a54905040c15ddacf5ea33c13042fe7739e820cedc2096e4406651",
+    "transform": "none"
+  },
+  {
+    "file": "jina.png",
+    "source": "https://jina.ai/icons/favicon-128x128.png",
+    "origin": "Provider website (trademark)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "1fc7fa5210f845fa4efa32dfe1f800063009919ac6a066df3825b80196baa316",
+    "sha256": "1fc7fa5210f845fa4efa32dfe1f800063009919ac6a066df3825b80196baa316",
+    "transform": "none"
+  },
+  {
+    "file": "linkup.svg",
+    "source": "https://www.linkup.so/_next/static/immutable/media/logo-mark.0ik9azgcc90iz.svg",
+    "origin": "Provider website (trademark)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "49088ad12dce50e3582da8f3cb2f7ddf47000f5af4e841a54784a8a96d8d0328",
+    "sha256": "49088ad12dce50e3582da8f3cb2f7ddf47000f5af4e841a54784a8a96d8d0328",
+    "transform": "none"
+  },
+  {
+    "file": "longcat.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/longcat-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "227f808520d700bc4dc762d8978a737ab149fb53cecb581d71548bacfd26722a",
+    "sha256": "227f808520d700bc4dc762d8978a737ab149fb53cecb581d71548bacfd26722a",
+    "transform": "none"
+  },
+  {
+    "file": "mistral.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/mistral-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "722f74b289d95486b43662fe24fa883b333701296f618406cd0ed502299170b6",
+    "sha256": "722f74b289d95486b43662fe24fa883b333701296f618406cd0ed502299170b6",
+    "transform": "none"
+  },
+  {
+    "file": "openai.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/openai.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "a595df6b423920c67a7f8f73c063e4bfb72d415948097b6cac063a2366bb5186",
+    "sha256": "a595df6b423920c67a7f8f73c063e4bfb72d415948097b6cac063a2366bb5186",
+    "transform": "none"
+  },
+  {
+    "file": "openrouter.png",
+    "source": "https://openrouter.ai/favicon/glyph.png",
+    "origin": "Provider website (trademark)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "e6ce76bf956ac68569a7b1456fe0310fb9cc22bc1bc0fd8defd5daae099480b8",
+    "sha256": "e6ce76bf956ac68569a7b1456fe0310fb9cc22bc1bc0fd8defd5daae099480b8",
+    "transform": "none"
+  },
+  {
+    "file": "perplexity.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/perplexity-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "8353f3ab20822f1a933224b0ea32cc39f0c32d5740f4af8c254b0f418e0a3a70",
+    "sha256": "8353f3ab20822f1a933224b0ea32cc39f0c32d5740f4af8c254b0f418e0a3a70",
+    "transform": "none"
+  },
+  {
+    "file": "poe.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/poe-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "8a4b64f95c4c8d05eb90fbdd489acab747de6dfa2cf7b9c6f0ab28ea531939ac",
+    "sha256": "8a4b64f95c4c8d05eb90fbdd489acab747de6dfa2cf7b9c6f0ab28ea531939ac",
+    "transform": "none"
+  },
+  {
+    "file": "qwen.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/qwen-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "a158a0e3ed5b541e4f91384ece02c3acf0a0d81b7b11a46d77bafb248b09e32c",
+    "sha256": "a158a0e3ed5b541e4f91384ece02c3acf0a0d81b7b11a46d77bafb248b09e32c",
+    "transform": "none"
+  },
+  {
+    "file": "suno.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/suno.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "591debb0ed912ff6cb89fc66a05f58e3291eb383c691c9dbf717927559d4eafc",
+    "sha256": "591debb0ed912ff6cb89fc66a05f58e3291eb383c691c9dbf717927559d4eafc",
+    "transform": "none"
+  },
+  {
+    "file": "tavily.svg",
+    "source": "https://www.tavily.com/icon.svg?icon.0v6b1ltlljvdd.svg",
+    "origin": "Provider website (trademark)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "c265bd72bed3b8c509a4e3abdd378f4462ef26ff4a3c8789b5aa88c2f6107b65",
+    "sha256": "c265bd72bed3b8c509a4e3abdd378f4462ef26ff4a3c8789b5aa88c2f6107b65",
+    "transform": "none"
+  },
+  {
+    "file": "together.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/together-color.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "27ccaf118a431c386b88418a34a4346afd9638dde10e3f2295db2eec1fa5898a",
+    "sha256": "27ccaf118a431c386b88418a34a4346afd9638dde10e3f2295db2eec1fa5898a",
+    "transform": "none"
+  },
+  {
+    "file": "udio.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/udio.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "d83b682ac03b39b14bc5b474334b0b9c0b00288d1400dfdea0575d4832c4a042",
+    "sha256": "d83b682ac03b39b14bc5b474334b0b9c0b00288d1400dfdea0575d4832c4a042",
+    "transform": "none"
+  },
+  {
+    "file": "websearchapi.svg",
+    "source": "https://websearchapi.ai/favicon.svg",
+    "origin": "Provider website (trademark)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "94b053c15b8f4bdf4db3dd715d1f33061e8f0a9ab8d01f1388f4eb5c3e9a1cf6",
+    "sha256": "94b053c15b8f4bdf4db3dd715d1f33061e8f0a9ab8d01f1388f4eb5c3e9a1cf6",
+    "transform": "none"
+  },
+  {
+    "file": "xai.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/xai.svg",
+    "origin": "Lobe Icons (MIT)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "89eb7de9f0d02a41cfecd9109e253d7fd3529e27467dee4254faa67f3ac21451",
+    "sha256": "89eb7de9f0d02a41cfecd9109e253d7fd3529e27467dee4254faa67f3ac21451",
+    "transform": "none"
+  },
+  {
+    "file": "you.svg",
+    "source": "https://you.com/",
+    "origin": "Provider website (trademark)",
+    "retrievedDate": "2026-10-26",
+    "sourceSha256": "87334c52c22efe9a56540f910ff3d4e05d509a41b144970283aa499ee1f74391",
+    "sha256": "770b839690b691fb239c6939ddb000c21a0c42115f9e3792a51867f2b7e0a166",
+    "transform": "Official inline 28x28 mark; resolve site CSS to monochrome currentColor, remove CSS classes. Geometry unchanged."
+  }
+]

@@ -165,6 +165,7 @@ pub async fn read_runtime_breaker_open(
 
 pub async fn record_provider_credential_probe_report(
     state: &AppState,
+    started: std::time::Instant,
     provider_id: &str,
     credential_id: &str,
     report: &ProviderPayloadProbeReport,
@@ -172,6 +173,19 @@ pub async fn record_provider_credential_probe_report(
     // Generated model probes already use exact expected-row CAS; never follow it
     // with an unconditional credential/account-wide success or failure update.
     if report.health_recovery.is_some() {
+        return;
+    }
+    let _health_update = state.lifecycle.health_control.gate.lock().await;
+    if !state
+        .lifecycle
+        .health_control
+        .feedback_allowed(provider_id, started)
+        || state.lifecycle.model_circuits.network_blocked()
+        || !state
+            .lifecycle
+            .model_circuits
+            .network_feedback_allowed(started)
+    {
         return;
     }
     let Some(pg_pool) = state.pg_pool.as_ref() else {

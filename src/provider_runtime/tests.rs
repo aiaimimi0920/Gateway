@@ -11,6 +11,7 @@ fn codex_payload(base_url: &str, originator: Option<&str>) -> ProviderAccountPay
         headers.insert("Originator".to_string(), originator.to_string());
     }
     ProviderAccountPayload {
+        call_flow: None,
         request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: "openai_compatible".to_string(),

@@ -7,6 +7,7 @@ mod tests {
 
     fn make_payload() -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "grok_compatible".to_string(),

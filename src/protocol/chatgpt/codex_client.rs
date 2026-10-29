@@ -3,8 +3,9 @@ use crate::error::GatewayError;
 use futures::StreamExt;
 use serde_json::Value;
 
-pub const VERSION: &str = "0.154.0";
-pub const USER_AGENT: &str = "codex_cli_rs/0.154.0 (Mac OS 26.3.1; arm64) iTerm.app/3.6.9";
+pub mod catalog;
+pub const VERSION: &str = "0.155.1";
+pub const USER_AGENT: &str = "codex_cli_rs/0.155.1 (Mac OS 26.3.1; arm64) iTerm.app/3.6.9";
 pub const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 pub const BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 
@@ -28,12 +29,31 @@ pub async fn models(
     token: &str,
     account: &str,
 ) -> Result<Vec<String>, GatewayError> {
+    catalog_models(
+        &fetch_body(
+            client,
+            &format!("{BASE_URL}/models?client_version={VERSION}"),
+            token,
+            account,
+        )
+        .await?,
+    )
+}
+
+async fn fetch_body(
+    client: &rquest::Client,
+    url: &str,
+    token: &str,
+    account: &str,
+) -> Result<Value, GatewayError> {
     let response = client
-        .get(format!("{BASE_URL}/models?client_version={VERSION}"))
+        .get(url)
         .bearer_auth(token)
         .header("Chatgpt-Account-Id", account)
         .header("Originator", "codex_cli_rs")
         .header("User-Agent", USER_AGENT)
+        // Never replay the account header or bearer material to a redirected origin.
+        .redirect(rquest::redirect::Policy::none())
         .timeout(std::time::Duration::from_secs(30))
         .send()
         .await
@@ -44,20 +64,25 @@ pub async fn models(
             response.status().as_u16()
         )));
     }
-    let body = read_json(response).await?;
-    catalog_models(&body)
+    read_json(response).await
 }
 
 pub fn catalog_models(body: &Value) -> Result<Vec<String>, GatewayError> {
     let mut models = Vec::new();
-    for item in body["models"]
+    let entries = body["models"]
         .as_array()
-        .ok_or_else(|| GatewayError::bad_request("Missing ChatGPT models"))?
-    {
-        if let Some(slug) = item["slug"]
-            .as_str()
-            .filter(|s| !s.is_empty() && s.len() <= 200 && !s.contains(['*', '?']))
-        {
+        .ok_or_else(|| GatewayError::bad_request("Missing ChatGPT models"))?;
+    if entries.len() > 2048 {
+        return Err(GatewayError::bad_request("ChatGPT model catalog too large"));
+    }
+    for item in entries {
+        if let Some(slug) = item["slug"].as_str().filter(|s| {
+            !s.is_empty()
+                && s.len() <= 200
+                && s.trim() == *s
+                && !s.chars().any(char::is_control)
+                && !s.contains(['*', '?'])
+        }) {
             if !models.iter().any(|model| model == slug) {
                 models.push(slug.to_string());
             }

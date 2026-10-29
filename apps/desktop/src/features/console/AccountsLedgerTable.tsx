@@ -1,5 +1,6 @@
 import type { AccountLedgerRow } from "./accountManagementViewModel";
 import type { TranslateFn } from "./accountsLedgerTypes";
+import { providerAccessLabel } from "./providerAccessKind";
 
 export type AccountsLedgerTableProps = {
   t: TranslateFn;
@@ -49,7 +50,7 @@ export function AccountsLedgerTable({
             </span>
           </div>
           <div className="nt-ledger-cell" role="cell">
-            <strong>{row.providerLabel}</strong>
+            <strong>{providerAccessLabel(row)}</strong>
             <span>{row.vendorLabel}</span>
           </div>
           <div className="nt-ledger-cell" role="cell">

@@ -16,6 +16,8 @@ use crate::state::AppState;
 
 use super::PipelineContext;
 mod attempt_budget;
+#[cfg(test)]
+mod capacity_tests;
 pub(crate) mod eligibility;
 
 #[derive(Clone)]
@@ -26,6 +28,7 @@ pub struct ProviderAttemptGate {
     rules: Vec<crate::rate_limit::RateLimitRule>,
     outbound_attempt_count: Arc<AtomicU32>,
     attempted_provider_ids: Arc<parking_lot::Mutex<Vec<String>>>,
+    attempt_audit: super::attempt_audit::AttemptAudit,
     provider_account_id: String,
     request_budget: super::request_budget::RequestBudget,
     smart_routing: Arc<crate::routing::smart::SmartRouting>,
@@ -36,6 +39,14 @@ pub struct ProviderAttemptGate {
 }
 
 impl ProviderAttemptGate {
+    pub(crate) fn with_audit_candidate(
+        mut self,
+        candidate: &crate::routing::candidate::RouteCandidate,
+        model: &str,
+    ) -> Self {
+        self.attempt_audit.set_candidate(candidate, model);
+        self
+    }
     pub(crate) fn with_circuit(
         mut self,
         circuit: Arc<crate::routing::model_circuit::CircuitAttempt>,
@@ -107,6 +118,7 @@ pub fn provider_attempt_gate(
         rules,
         outbound_attempt_count: Arc::clone(&ctx.route_attempt_count),
         attempted_provider_ids: Arc::clone(&ctx.attempted_provider_ids),
+        attempt_audit: super::attempt_audit::AttemptAudit::new(ctx.last_provider_attempt.clone()),
         provider_account_id: provider_account_id.to_string(),
         request_budget: ctx.request_budget.clone(),
         smart_routing: Arc::clone(&state.lifecycle.smart_routing),

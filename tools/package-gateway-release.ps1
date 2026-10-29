@@ -17,6 +17,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "package-release/artifact-copy.ps1")
 . (Join-Path $PSScriptRoot "package-release/source-provenance.ps1")
+. (Join-Path $PSScriptRoot "package-release/chatgpt-browser-runtime.ps1")
 . (Join-Path $PSScriptRoot "release-editions.ps1")
 
 function Resolve-FullPath {
@@ -362,6 +363,7 @@ try {
     }
 
     Copy-FilteredTree -Source $scriptsSource -Destination (Join-Path $staging "scripts")
+    Copy-ChatgptBrowserRuntime -ScriptsRoot $scriptsSource -PackageScripts (Join-Path $staging "scripts")
     $scriptFiles = @(Get-ChildItem -LiteralPath (Join-Path $staging "scripts") -Recurse -File | Sort-Object FullName)
     foreach ($scriptFile in $scriptFiles) {
         $supportRecords += New-ArtifactRecord -PackageRoot $staging -Path $scriptFile.FullName -Kind "script"

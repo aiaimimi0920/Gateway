@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Gateway ChatGPT Web 会话导出",
+  "version": "0.1.0",
+  "description": "仅在用户点击时，将当前 ChatGPT 网页会话导出为 Gateway 导入文件。",
+  "permissions": ["cookies", "scripting"],
+  "host_permissions": ["https://chatgpt.com/*"],
+  "action": { "default_popup": "popup.html" },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'" }
+}

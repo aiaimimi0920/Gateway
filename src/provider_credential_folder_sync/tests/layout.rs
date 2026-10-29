@@ -171,11 +171,11 @@ fn describe_folder_import_path_supports_nested_service_surface_material_layout()
 #[test]
 fn default_folder_sync_relative_path_uses_nested_rollout_for_qwen_and_gemini() {
     let mut qwen_provider = build_test_provider_account(
-        "Qwen DashScope OpenAI",
+        "Qwen Coding Plan OpenAI",
         "openai_compatible",
         "openai",
-        "qwen_dashscope_openai",
-        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "qwen_coding_plan_openai",
+        "https://coding.dashscope.aliyuncs.com/v1",
         Some("official_model_api"),
         None,
     );
@@ -190,7 +190,7 @@ fn default_folder_sync_relative_path_uses_nested_rollout_for_qwen_and_gemini() {
 
     assert_eq!(
         default_folder_sync_relative_path(&qwen_provider, &qwen_credential),
-        "qwen-platform/qwen-dashscope-openai/api-key/cred-qwen.json"
+        "qwen-platform/qwen-coding-plan-openai/api-key/cred-qwen.json"
     );
 
     let mut gemini_provider = build_test_provider_account(
@@ -245,26 +245,6 @@ fn default_folder_sync_relative_path_uses_nested_rollout_for_chataibot() {
 
 #[test]
 fn default_folder_sync_relative_path_covers_all_qwen_canonical_surfaces() {
-    let mut dashscope_provider = build_test_provider_account(
-        "Qwen DashScope OpenAI",
-        "openai_compatible",
-        "openai",
-        "qwen_dashscope_openai",
-        "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        Some("official_model_api"),
-        None,
-    );
-    dashscope_provider.service_provider_key = "qwen_platform".to_string();
-    dashscope_provider.service_provider_label = "Qwen Platform".to_string();
-
-    let mut dashscope_credential =
-        build_test_credential("cred-qwen-dashscope", "folder_sync", None, "active", None);
-    dashscope_credential.payload = serde_json::json!({ "apiKey": "sk-test-dashscope" });
-    assert_eq!(
-        default_folder_sync_relative_path(&dashscope_provider, &dashscope_credential),
-        "qwen-platform/qwen-dashscope-openai/api-key/cred-qwen-dashscope.json"
-    );
-
     let mut coding_openai_provider = build_test_provider_account(
         "Qwen Coding Plan OpenAI",
         "openai_compatible",

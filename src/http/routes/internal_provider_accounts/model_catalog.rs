@@ -30,7 +30,7 @@ fn push_model_name(value: &Value, names: &mut Vec<String>) {
         return;
     }
     if let Some(object) = value.as_object() {
-        for key in ["id", "model", "name", "modelName"] {
+        for key in ["id", "slug", "model", "name", "modelName"] {
             if let Some(model) = object.get(key).and_then(Value::as_str) {
                 names.push(model.to_string());
                 return;
@@ -192,4 +192,18 @@ pub(super) fn normalize_model_names(models: Vec<String>) -> Vec<String> {
         map.entry(key).or_insert_with(|| trimmed.to_string());
     }
     map.into_values().collect()
+}
+
+#[cfg(test)]
+mod web_tests {
+    use super::*;
+    #[test]
+    fn webpage_slug_is_the_request_identity_not_the_display_name() {
+        assert_eq!(
+            extract_model_names_from_value(&serde_json::json!({"models":[
+                {"slug":"actual-slug","name":"Display name"}, {"slug":"actual-slug"}
+            ]})),
+            vec!["actual-slug"]
+        );
+    }
 }

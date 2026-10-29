@@ -10,6 +10,8 @@ import { type AccountGroupDraftRow, accountGroupDraftNeedsId, parseAccountGroupB
 import { parseRouteDocument, formatRouteDocument, isRecord } from "./routeDocument";
 import { useSiteHealthDraft } from "./useSiteHealthDraft";
 import { buildSiteHealthSecretPatches, siteHealthSecretEditError } from "./siteHealthSecretDraft";
+import { captureProviderCreationSecrets, providerCreationSecretPatches, type ProviderCreationSecret } from "./providerCreationSecrets";
+import type { ProviderCatalogDraft } from "./providerCatalog";
 
 export const ACCOUNT_GROUP_ID_REQUIRED_ERROR_ZH = "分组 ID 必须填写。";
 export const ACCOUNT_GROUP_ID_REQUIRED_ERROR_EN = "Group ID is required.";
@@ -47,6 +49,12 @@ export function useConsoleRouteDraft({
 
   const [storageConnectionEdits, setStorageConnectionEdits] = useState<StorageConnectionEdit[]>([]);
   const [credentialSecretEdits, setCredentialSecretEdits] = useState<CredentialSecretEdit[]>([]);
+  const [creationSecrets, setCreationSecrets] = useState<ProviderCreationSecret[]>([]);
+  const stageProviderCreationSecrets = useCallback((document: ConsoleRouteDocument, value: ProviderCatalogDraft) => {
+    const edits = captureProviderCreationSecrets(document, value.providerId, value.secrets ?? {});
+    if (edits.length && !hasSecretAccess) throw new Error("保存认证信息需要敏感信息权限。");
+    setCreationSecrets((current) => [...current.filter((edit) => edit.providerId !== value.providerId), ...edits]);
+  }, [hasSecretAccess]);
 
 
   const [modelRouteDraftRows, setModelRouteDraftRows] = useState<ModelRouteDraftRow[]>([]);
@@ -93,14 +101,14 @@ export function useConsoleRouteDraft({
     if (!routeConfig || !secretPatchDraftDocument) {
       return activeSecretPatches;
     }
-    return buildSiteHealthSecretPatches(secretPatchDraftDocument, buildStorageConnectionPatches(secretPatchDraftDocument, buildCredentialSecretPatches({
+    return [...buildSiteHealthSecretPatches(secretPatchDraftDocument, buildStorageConnectionPatches(secretPatchDraftDocument, buildCredentialSecretPatches({
       activeDocument: routeConfig.routeConfig.document,
       draftDocument: secretPatchDraftDocument,
       activeSecrets: routeConfig.routeConfig.secrets,
       activeSecretPatches,
       credentialSecretEdits,
-    }), storageConnectionEdits), siteHealthSecretEdits);
-  }, [activeSecretPatches, credentialSecretEdits, storageConnectionEdits, siteHealthSecretEdits, routeConfig, secretPatchDraftDocument]);
+    }), storageConnectionEdits), siteHealthSecretEdits), ...providerCreationSecretPatches(secretPatchDraftDocument, creationSecrets, false)];
+  }, [activeSecretPatches, credentialSecretEdits, storageConnectionEdits, siteHealthSecretEdits, creationSecrets, routeConfig, secretPatchDraftDocument]);
 
   const draftDocumentState = useMemo(() => {
     if (editorText.trim().length === 0) {
@@ -163,6 +171,7 @@ export function useConsoleRouteDraft({
       if (!routeConfig) {
         throw new Error("Route configuration is not loaded yet.");
       }
+      providerCreationSecretPatches(document, creationSecrets);
       const connectionError = storageConnectionEditError(document, storageConnectionEdits);
       if (connectionError) throw new Error(connectionError);
       const healthError = siteHealthSecretEditError(document, siteHealthSecretEdits);
@@ -194,7 +203,7 @@ export function useConsoleRouteDraft({
         ...(message ? { message } : {}),
       };
     },
-    [commitMessage, hasSecretAccess, routeConfig, secretPatches, storageConnectionEdits, siteHealthSecretEdits, t],
+    [commitMessage, hasSecretAccess, routeConfig, secretPatches, storageConnectionEdits, siteHealthSecretEdits, creationSecrets, t],
   );
 
   const parseDraft = useCallback((): ConsoleRouteConfigCommitRequest => {
@@ -312,6 +321,7 @@ export function useConsoleRouteDraft({
     setCommitMessage(routeConfig.routeConfig.revision.message ?? "");
     setSecretDrafts(createSecretPatchDrafts(routeConfig));
     setCredentialSecretEdits([]);
+    setCreationSecrets([]);
     setStorageConnectionEdits([]);
     // Preserve dependent UI/probe resets between draft-value and row hydration.
     onRouteConfigHydrated();
@@ -321,6 +331,7 @@ export function useConsoleRouteDraft({
   }, [accountGroupDraftRowsFromDocument, onRouteConfigHydrated, routeConfig]);
 
   return {
+    stageProviderCreationSecrets,
     applySiteHealth,
     siteHealthSecretEdits,
     editorText,

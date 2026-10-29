@@ -40,6 +40,10 @@ fn converts_exa_credential_to_search_fetch_adapter() {
         })),
     );
     let candidate = credential_to_candidate(&cred, "exa-search").unwrap();
+    assert_eq!(
+        candidate.payload.auth_header_name.as_deref(),
+        Some("x-api-key")
+    );
     assert_eq!(candidate.adapter, SEARCH_API_COMPATIBLE_ADAPTER);
     assert_eq!(candidate.protocol_family, EXA_SEARCH_FAMILY);
     assert_eq!(candidate.payload.search_path.as_deref(), Some("/search"));
@@ -121,10 +125,10 @@ fn converts_websearchapi_credential_to_search_adapter() {
         candidate.payload.search_query_field.as_deref(),
         Some("query")
     );
-    assert!(candidate.payload.fetch_path.is_none());
+    assert_eq!(candidate.payload.fetch_path.as_deref(), Some("/scrape"));
     assert!(candidate.payload.research_path.is_none());
     assert!(candidate.payload.balance_path.is_none());
-    assert!(candidate.payload.fetch_urls_field.is_none());
+    assert_eq!(candidate.payload.fetch_urls_field.as_deref(), Some("url"));
 }
 
 #[test]

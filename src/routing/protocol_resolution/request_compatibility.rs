@@ -149,7 +149,9 @@ pub(super) fn request_compatible_wire_protocol_families(
             _ => Vec::new(),
         },
         "cohere_compatible" => match endpoint_kind {
-            EndpointKind::ChatCompletions => vec![COHERE_CHAT_FAMILY.to_string()],
+            EndpointKind::ChatCompletions | EndpointKind::Responses => {
+                vec![COHERE_CHAT_FAMILY.to_string()]
+            }
             _ => Vec::new(),
         },
         "gemini_business_compatible" => match endpoint_kind {

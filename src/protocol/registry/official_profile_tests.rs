@@ -142,7 +142,7 @@ fn line_compile_switches_map_profiles_and_adapters() {
     );
     assert_eq!(
         crate::implementation_lines::required_feature_for_protocol_profile("qwen_dashscope_openai"),
-        Some("line-qwen-official-api")
+        None
     );
     assert_eq!(
         crate::implementation_lines::required_feature_for_protocol_profile(
@@ -219,7 +219,6 @@ fn default_build_keeps_all_ten_refactored_lines_enabled() {
             "gemini_canvas_program_web_reverse_modular"
         )
     );
-    assert!(crate::implementation_lines::is_protocol_profile_compiled_in("qwen_dashscope_openai"));
     assert!(
         crate::implementation_lines::is_protocol_profile_compiled_in("qwen_coding_plan_openai")
     );

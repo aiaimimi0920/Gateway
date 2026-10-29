@@ -72,11 +72,11 @@ pub fn tavily_preset() -> ProviderPreset {
         chat_completions_path: None,
         messages_path: None,
         search_path: Some("/search".to_string()),
-        fetch_path: None,
+        fetch_path: Some("/extract".to_string()),
         research_path: None,
         balance_path: None,
         search_query_field: Some("query".to_string()),
-        fetch_urls_field: None,
+        fetch_urls_field: Some("urls".to_string()),
         session_auth: None,
         execution_mode: None,
         endpoint_execution_modes: None,
@@ -99,11 +99,11 @@ pub fn you_preset() -> ProviderPreset {
         chat_completions_path: None,
         messages_path: None,
         search_path: Some("/v1/search".to_string()),
-        fetch_path: None,
+        fetch_path: Some("/v1/contents".to_string()),
         research_path: None,
         balance_path: None,
         search_query_field: Some("query".to_string()),
-        fetch_urls_field: None,
+        fetch_urls_field: Some("urls".to_string()),
         session_auth: None,
         execution_mode: None,
         endpoint_execution_modes: None,
@@ -121,7 +121,7 @@ pub fn exa_preset() -> ProviderPreset {
         auth_mode: None,
         anthropic_version: None,
         beta_headers: None,
-        auth_header_name: None,
+        auth_header_name: Some("x-api-key".to_string()),
         responses_path: None,
         chat_completions_path: None,
         messages_path: None,
@@ -165,6 +165,15 @@ pub fn jina_search_preset() -> ProviderPreset {
         execution_mode: None,
         endpoint_execution_modes: None,
     }
+}
+
+/// One account owns both fixed Jina endpoints; the planner chooses the host per operation.
+pub fn jina_preset() -> ProviderPreset {
+    let mut preset = jina_search_preset();
+    preset.id = "jina".into();
+    preset.fetch_path = Some("/".into());
+    preset.fetch_urls_field = Some("url".into());
+    preset
 }
 
 /// Returns the built-in "jina-reader" preset for Jina Reader URL fetches.
@@ -213,11 +222,11 @@ pub fn websearchapi_preset() -> ProviderPreset {
         chat_completions_path: None,
         messages_path: None,
         search_path: Some("/ai-search".to_string()),
-        fetch_path: None,
+        fetch_path: Some("/scrape".to_string()),
         research_path: None,
         balance_path: None,
         search_query_field: Some("query".to_string()),
-        fetch_urls_field: None,
+        fetch_urls_field: Some("url".to_string()),
         session_auth: None,
         execution_mode: None,
         endpoint_execution_modes: None,

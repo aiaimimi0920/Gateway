@@ -2,7 +2,15 @@
 mod attempt;
 #[cfg(test)]
 mod balance_tests;
+mod capacity;
 mod failure;
+pub(crate) mod health_control;
+mod network;
+pub(crate) mod network_probe;
+#[cfg(test)]
+mod network_tests;
+#[cfg(test)]
+mod provider_tests;
 #[cfg(test)]
 mod tests;
 pub(crate) use attempt::CircuitAttempt;
@@ -23,7 +31,7 @@ pub(crate) struct CircuitKey {
     pub group: String,
     pub model: String,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum Phase {
     Closed,
     Open(u64),
@@ -33,7 +41,7 @@ enum Phase {
         lease: Option<Uuid>,
     },
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Entry {
     phase: Phase,
     generation: u64,
@@ -78,30 +86,49 @@ struct Ticket {
     key: CircuitKey,
     generation: u64,
     lease: Option<Uuid>,
+    recovery_generation: u64,
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Outcome {
     Success,
     Failure(u64),
+    TransportFailure(u64),
     ChannelUnavailable(u64),
+    ProviderUnavailable(u64),
     BalanceUnavailable(u64),
     Neutral,
 }
 
 #[derive(Debug)]
 pub(crate) struct ModelCircuits {
-    origin: Instant,
+    origin: tokio::time::Instant,
     entries: Mutex<HashMap<CircuitKey, Entry>>,
+    network: Mutex<network::NetworkWindow>,
+    capacity: Mutex<capacity::CapacityBackoff>,
+    wake: std::sync::Arc<tokio::sync::Notify>,
 }
 impl Default for ModelCircuits {
     fn default() -> Self {
         Self {
-            origin: Instant::now(),
+            origin: tokio::time::Instant::now(),
             entries: Mutex::new(HashMap::new()),
+            network: Mutex::new(network::NetworkWindow::default()),
+            capacity: Default::default(),
+            wake: Default::default(),
         }
     }
 }
 impl ModelCircuits {
+    pub(crate) fn nonrecoverable_blocked(&self, keys: &[CircuitKey]) -> bool {
+        let entries = self.entries.lock();
+        keys.iter().any(|key| {
+            key.provider.len() > 1024
+                || key.group.len() > 1024
+                || key.model.len() > 1024
+                || (key.group.starts_with("balance:")
+                    && entries.get(key).is_some_and(|e| !e.available(self.now())))
+        })
+    }
     fn now(&self) -> u64 {
         self.origin.elapsed().as_millis().min(u64::MAX as u128) as u64
     }
@@ -109,6 +136,9 @@ impl ModelCircuits {
         self.available_at(key, self.now())
     }
     fn available_at(&self, key: &CircuitKey, now: u64) -> bool {
+        if self.network_blocked() {
+            return false;
+        }
         if key.provider.len() > 1024 || key.group.len() > 1024 || key.model.len() > 1024 {
             return false;
         }
@@ -124,6 +154,13 @@ impl ModelCircuits {
             return Err(());
         }
         let mut entries = self.entries.lock();
+        let recovery_generation = {
+            let network = self.network.lock();
+            if network.active() {
+                return Err(());
+            }
+            network.recovery_generation
+        };
         if keys
             .iter()
             .any(|key| entries.get(key).is_some_and(|e| !e.available(now)))
@@ -188,6 +225,7 @@ impl ModelCircuits {
                     key: key.clone(),
                     generation: entry.generation,
                     lease,
+                    recovery_generation,
                 }
             })
             .collect())
@@ -203,18 +241,38 @@ impl ModelCircuits {
             if entry.generation != ticket.generation {
                 continue;
             }
+            if matches!(outcome, Outcome::TransportFailure(_))
+                && ticket.recovery_generation != self.network.lock().recovery_generation
+            {
+                continue;
+            }
             if let Phase::Trial { lease, .. } = &entry.phase {
                 if *lease != ticket.lease {
                     continue;
                 }
             }
             entry.touched = now;
-            // Only balance outcomes poison the account-wide ticket. Other failures retain
-            // their existing model/group scope; successes can recover both trial types.
+            let previous = entry.clone();
+            // Scope is part of the fault identity: ordinary model/account failures must
+            // never accumulate on the provider-wide IP restriction ticket.
             let outcome = match (ticket.key.group.starts_with("balance:"), outcome) {
+                (_, Outcome::ProviderUnavailable(minimum_ms))
+                    if ticket.key.group == "provider:availability"
+                        && ticket.key.model.is_empty() =>
+                {
+                    Outcome::ChannelUnavailable(minimum_ms)
+                }
+                (_, Outcome::ProviderUnavailable(_)) => Outcome::Neutral,
+                (_, Outcome::Success) => Outcome::Success,
+                (_, _) if ticket.key.group == "provider:availability" => Outcome::Neutral,
                 (true, Outcome::BalanceUnavailable(ms)) => Outcome::ChannelUnavailable(ms),
                 (false, Outcome::BalanceUnavailable(_)) => Outcome::Neutral,
-                (true, Outcome::Failure(_) | Outcome::ChannelUnavailable(_)) => Outcome::Neutral,
+                (
+                    true,
+                    Outcome::Failure(_)
+                    | Outcome::TransportFailure(_)
+                    | Outcome::ChannelUnavailable(_),
+                ) => Outcome::Neutral,
                 (_, other) => other,
             };
             match outcome {
@@ -223,22 +281,22 @@ impl ModelCircuits {
                     // Store the level as well as the deadline so a failed trial reaches level 4.
                     entry.trip(now, minimum_ms, 3);
                 }
-                Outcome::Failure(minimum_ms) => {
+                Outcome::Failure(minimum_ms) | Outcome::TransportFailure(minimum_ms) => {
                     entry.stable_since = None;
                     if !matches!(entry.phase, Phase::Closed) {
                         entry.trip(now, minimum_ms, 1);
-                        continue;
-                    }
-                    while entry
-                        .failures
-                        .front()
-                        .is_some_and(|at| now.saturating_sub(*at) > 60_000)
-                    {
-                        entry.failures.pop_front();
-                    }
-                    entry.failures.push_back(now);
-                    if entry.failures.len() >= 3 || minimum_ms > 0 {
-                        entry.trip(now, minimum_ms, 1);
+                    } else {
+                        while entry
+                            .failures
+                            .front()
+                            .is_some_and(|at| now.saturating_sub(*at) > 60_000)
+                        {
+                            entry.failures.pop_front();
+                        }
+                        entry.failures.push_back(now);
+                        if entry.failures.len() >= 3 || minimum_ms > 0 {
+                            entry.trip(now, minimum_ms, 1);
+                        }
                     }
                 }
                 Outcome::Success => {
@@ -264,11 +322,32 @@ impl ModelCircuits {
                         }
                     }
                 }
-                Outcome::Neutral | Outcome::BalanceUnavailable(_) => {
+                Outcome::Neutral
+                | Outcome::BalanceUnavailable(_)
+                | Outcome::ProviderUnavailable(_) => {
                     if let Phase::Trial { next, lease, .. } = &mut entry.phase {
                         *lease = None;
                         *next = now.saturating_add(30_000);
                     }
+                }
+            }
+            // A confirmed provider IP refusal proves transport reachability. It must not
+            // start a process-wide egress check that blocks this request's next provider.
+            if ticket.key.group != "provider:availability"
+                && matches!(
+                    outcome,
+                    Outcome::Failure(_)
+                        | Outcome::TransportFailure(_)
+                        | Outcome::ChannelUnavailable(_)
+                )
+            {
+                if self.network.lock().observe(
+                    &ticket.key,
+                    previous,
+                    entry,
+                    matches!(outcome, Outcome::TransportFailure(_)),
+                ) {
+                    self.wake.notify_one();
                 }
             }
         }

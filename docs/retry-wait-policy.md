@@ -3,6 +3,8 @@
 关联 [Issue #3](https://github.com/aiaimimi0920/Gateway/issues/3) 的 S1；执行记录见
 [优化计划](plan/issue-3-reliability-optimization.md)。本文只规定共用重试循环的
 等待决策，不把逐候选预算冒充整个逻辑请求的 deadline 或费用额度。
+明确容量拒绝的外层恢复等待另见 [恢复等待](request-recovery-wait.md)：开启时不再
+消费旧的一次容量重试许可，而由唯一请求 owner 控制重新准入，避免嵌套放大。
 
 ## 等待来源和优先级
 

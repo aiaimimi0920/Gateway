@@ -168,7 +168,7 @@ impl RouteConfigSnapshot {
             .providers
             .iter()
             .find(|p| p.id == provider_id)?;
-        if provider.credential_pool.is_empty() {
+        if provider.uses_provider_default_account() {
             return Some(
                 credential_id.is_none_or(|id| id == provider_default_account_id(provider_id)),
             );
@@ -202,7 +202,7 @@ impl RouteConfigSnapshot {
         }
 
         for provider in &self.compiled.providers {
-            if provider.credential_pool.is_empty() {
+            if provider.uses_provider_default_account() {
                 let default_id = provider_default_account_id(&provider.id);
                 if credential_id == default_id {
                     return Some(CredentialProbeTarget {
@@ -245,7 +245,7 @@ impl RouteConfigSnapshot {
             .providers
             .iter()
             .find(|provider| provider.id == provider_id)?;
-        if provider.credential_pool.is_empty() {
+        if provider.uses_provider_default_account() {
             return Some(vec![CredentialProbeTarget {
                 credential_id: provider_default_account_id(&provider.id),
                 provider_id: provider.id.clone(),
@@ -276,7 +276,7 @@ impl RouteConfigSnapshot {
     pub(crate) fn scheduled_credential_probe_targets(&self) -> Vec<ScheduledCredentialProbeTarget> {
         let mut targets = Vec::new();
         for provider in &self.compiled.providers {
-            if provider.credential_pool.is_empty() {
+            if provider.uses_provider_default_account() {
                 if provider.scheduled_probe_enabled {
                     targets.push(ScheduledCredentialProbeTarget {
                         plan_id: None,

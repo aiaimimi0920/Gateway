@@ -89,7 +89,6 @@ describe("providerBrandLabel", () => {
       { providerId: "producer", providerPreset: "producer" },
       { providerId: "qwen-coding-plan-anthropic", providerPreset: "qwen-coding-plan-anthropic" },
       { providerId: "qwen-coding-plan-openai", providerPreset: "qwen-coding-plan-openai" },
-      { providerId: "qwen-dashscope-openai", providerPreset: "qwen-dashscope-openai" },
       { providerId: "qwen-web-chat", providerPreset: "qwen-web-chat" },
       { providerId: "suno", providerPreset: "suno" },
       { providerId: "tavily", providerPreset: "tavily" },
@@ -101,7 +100,7 @@ describe("providerBrandLabel", () => {
 
     const labels = deployed.map((provider) => providerBrandLabel(provider));
 
-    expect(labels).toHaveLength(28);
+    expect(labels).toHaveLength(27);
     expect(new Set(labels).size).toBe(labels.length);
     expect(labels.every((label) => label.length > 0)).toBe(true);
     // No slug survives: nothing keeps a lowercase-hyphen shape.

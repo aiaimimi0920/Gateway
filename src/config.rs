@@ -118,7 +118,7 @@ impl Config {
         {
             return Err("Local storage requires standalone runtime role".into());
         }
-        let port = parse_env_or("PORT", 4200u16)?;
+        let port = parse_env_or("PORT", gateway_local_data::devtest::default_api_port())?;
         let redis_url = if storage_mode == GatewayStorageMode::Local {
             String::new()
         } else {

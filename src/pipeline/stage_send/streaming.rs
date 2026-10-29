@@ -11,6 +11,7 @@ pub(super) async fn send(
     attempt: PreparedAttempt,
 ) -> Result<PipelineOutput, AttemptError> {
     let mut stream_retry_policy = attempt.retry_policy.clone();
+    let capacity_retry_allowed = stream_retry_policy.max_retries > 0;
     let terminal_gate = attempt.provider_attempt_gate.clone();
     let sticky = state.lifecycle.smart_routing.sticky(
         super::super::stage_route::smart::session_scope(ctx).as_deref(),
@@ -90,7 +91,7 @@ pub(super) async fn send(
         .map(|(response, started_at)| (response, None, started_at))
     } else {
         provider_attempt_gate
-            .execute_observed(
+            .execute_with_capacity_retry(
                 || {
                     state.upstream_client.execute_stream_with_wire(
                         &effective_payload,
@@ -102,6 +103,7 @@ pub(super) async fn send(
                 },
                 |_| {},
                 &stream_retry_policy,
+                capacity_retry_allowed,
             )
             .await
             .map(|response| (response, None, stream_attempt_started_at))
@@ -348,6 +350,7 @@ pub(super) async fn send(
                             );
                             ctrl_for_cb.on_failure(FailureKind::General);
                             spawn_record_provider_failure(
+                                audit_snapshot.started_at,
                                 Arc::clone(&state_for_cb),
                                 provider_id.clone(),
                                 provider_credential_id_for_cb.clone(),
@@ -389,6 +392,9 @@ pub(super) async fn send(
                 },
             );
 
+            if ctx.canonical_req.endpoint_kind == EndpointKind::Responses {
+                tracked = tracked.with_responses_terminal();
+            }
             tracked.native_response_metadata = response_metadata;
             return Ok(PipelineOutput::Sse(tracked));
         }
@@ -419,6 +425,7 @@ pub(super) async fn send(
                     );
                 }
                 spawn_record_provider_failure(
+                    ctx.started_at,
                     Arc::clone(state),
                     candidate.provider_account_id.clone(),
                     candidate.provider_credential_id.clone(),

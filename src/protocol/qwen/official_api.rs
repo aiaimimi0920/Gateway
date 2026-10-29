@@ -3,9 +3,6 @@ use crate::protocol::registry::canonicalize_protocol_profile_key;
 use crate::routing::candidate::ProviderAccountPayload;
 
 pub const QWEN_OFFICIAL_API_IMPLEMENTATION_LINE: &str = "qwen_official_api";
-pub const QWEN_DASHSCOPE_OPENAI_PROFILE: &str = "qwen_dashscope_openai";
-pub const QWEN_DASHSCOPE_OPENAI_PRESET_ID: &str = "qwen-dashscope-openai";
-pub const QWEN_DASHSCOPE_OPENAI_CATALOG_KEY: &str = "qwen-dashscope-openai";
 pub const QWEN_CODING_PLAN_OPENAI_PROFILE: &str = "qwen_coding_plan_openai";
 pub const QWEN_CODING_PLAN_OPENAI_PRESET_ID: &str = "qwen-coding-plan-openai";
 pub const QWEN_CODING_PLAN_OPENAI_CATALOG_KEY: &str = "qwen-coding-plan-openai";
@@ -16,15 +13,8 @@ pub const QWEN_CODING_PLAN_ANTHROPIC_CATALOG_KEY: &str = "qwen-coding-plan-anthr
 pub fn is_qwen_official_api_profile(value: &str) -> bool {
     matches!(
         canonicalize_protocol_profile_key(value).as_str(),
-        QWEN_DASHSCOPE_OPENAI_PROFILE
-            | QWEN_CODING_PLAN_OPENAI_PROFILE
-            | QWEN_CODING_PLAN_ANTHROPIC_PROFILE
+        QWEN_CODING_PLAN_OPENAI_PROFILE | QWEN_CODING_PLAN_ANTHROPIC_PROFILE
     )
-}
-
-pub fn is_qwen_dashscope_openai_base_url(base_url: &str) -> bool {
-    let normalized = base_url.trim_end_matches('/').to_ascii_lowercase();
-    normalized.contains("dashscope.aliyuncs.com/compatible-mode/")
 }
 
 pub fn is_qwen_coding_plan_openai_base_url(base_url: &str) -> bool {
@@ -44,9 +34,6 @@ pub fn infer_qwen_official_profile_from_payload(
     payload: &ProviderAccountPayload,
 ) -> Option<&'static str> {
     match payload.adapter.trim() {
-        "openai_compatible" if is_qwen_dashscope_openai_base_url(&payload.base_url) => {
-            Some(QWEN_DASHSCOPE_OPENAI_PROFILE)
-        }
         "openai_compatible" if is_qwen_coding_plan_openai_base_url(&payload.base_url) => {
             Some(QWEN_CODING_PLAN_OPENAI_PROFILE)
         }
@@ -83,6 +70,7 @@ mod tests {
 
     fn make_payload(adapter: &str, base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
@@ -122,13 +110,10 @@ mod tests {
 
     #[test]
     fn recognizes_qwen_official_profiles_and_base_urls() {
-        assert!(is_qwen_official_api_profile("qwen"));
-        assert!(is_qwen_official_api_profile("qwen_dashscope_openai"));
+        assert!(!is_qwen_official_api_profile("qwen"));
+        assert!(!is_qwen_official_api_profile("qwen_dashscope_openai"));
         assert!(is_qwen_official_api_profile("qwen_coding_plan_openai"));
         assert!(is_qwen_official_api_profile("qwen_coding_plan_anthropic"));
-        assert!(is_qwen_dashscope_openai_base_url(
-            "https://dashscope.aliyuncs.com/compatible-mode/v1"
-        ));
         assert!(is_qwen_coding_plan_openai_base_url(
             "https://coding.dashscope.aliyuncs.com/v1"
         ));
@@ -144,7 +129,7 @@ mod tests {
                 "openai_compatible",
                 "https://dashscope.aliyuncs.com/compatible-mode/v1"
             )),
-            Some(QWEN_DASHSCOPE_OPENAI_PROFILE)
+            None
         );
         assert_eq!(
             infer_qwen_official_profile_from_payload(&make_payload(

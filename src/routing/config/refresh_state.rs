@@ -51,6 +51,91 @@ pub fn future_rfc3339_after_secs(offset_secs: u64) -> String {
 const MAX_REFRESH_LIFETIME_SECS: u64 = 100 * 365 * 24 * 60 * 60;
 
 impl TokenRefreshState {
+    pub(super) fn from_credential(cred: &ProviderCredentialYaml) -> Option<Self> {
+        let rt = cred
+            .refresh_token
+            .as_ref()
+            .filter(|s| !s.trim().is_empty())?;
+        let endpoint = cred
+            .refresh_endpoint
+            .as_ref()
+            .filter(|s| !s.trim().is_empty())?;
+        let expiry = cred.expires_at.as_deref().or_else(|| {
+            cred.session_auth
+                .as_ref()
+                .and_then(|s| s.expires_at.as_deref())
+        });
+        let parsed = expiry.and_then(|s| {
+            time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339).ok()
+        });
+        // Missing/invalid absolute expiry is unknown, not a fresh lifetime on every restart.
+        let remaining = parsed
+            .map(|at| {
+                (at - time::OffsetDateTime::now_utc())
+                    .whole_seconds()
+                    .max(0) as u64
+            })
+            .unwrap_or(0);
+        Some(Self {
+            refresh_token: parking_lot::Mutex::new(rt.clone()),
+            refresh_endpoint: endpoint.clone(),
+            client_id: cred.refresh_client_id.clone().unwrap_or_default(),
+            expires_in_secs: effective_refresh_lifetime_secs(
+                cred.token_expires_in_secs.unwrap_or(21600),
+            ),
+            expires_at: parking_lot::Mutex::new(safe_refresh_deadline(remaining)),
+            expires_at_iso: parking_lot::Mutex::new(parsed.and_then(|at| {
+                at.format(&time::format_description::well_known::Rfc3339)
+                    .ok()
+            })),
+            api_key_override: parking_lot::Mutex::new(None),
+            attempt_lock: Arc::new(tokio::sync::Mutex::new(())),
+            lifecycle: parking_lot::Mutex::new(RefreshLifecycle {
+                active: true,
+                generation: 0,
+                failures: 0,
+                retry_at: None,
+                reauthorization_required: false,
+            }),
+        })
+    }
+
+    /// The owned guard releases even if shutdown cancels an HTTP refresh future.
+    pub(crate) fn try_refresh_lock(&self) -> Option<tokio::sync::OwnedMutexGuard<()>> {
+        self.attempt_lock.clone().try_lock_owned().ok()
+    }
+
+    /// Expired access material waits for the existing single-flight worker, never starts a second refresh.
+    pub(crate) fn dispatch_readiness(&self) -> Result<(), crate::error::GatewayError> {
+        let lifecycle = self.lifecycle.lock();
+        if *self.expires_at.lock() > std::time::Instant::now() {
+            return Ok(());
+        }
+        let (code, message) = if !lifecycle.active || lifecycle.reauthorization_required {
+            (
+                "oauth_reauthorization_required",
+                "OAuth authorization must be renewed",
+            )
+        } else {
+            (
+                "upstream_credential_cooling",
+                "OAuth credential refresh is pending",
+            )
+        };
+        Err(crate::error::GatewayError::service_unavailable(message).with_code(code))
+    }
+
+    pub(crate) fn record_refresh_failure(&self, generation: u64, terminal: bool) {
+        let mut lifecycle = self.lifecycle.lock();
+        if !lifecycle.active || lifecycle.generation != generation {
+            return;
+        }
+        lifecycle.failures = lifecycle.failures.saturating_add(1);
+        lifecycle.reauthorization_required = terminal;
+        let delay = 60u64.saturating_mul(1 << lifecycle.failures.saturating_sub(1).min(6));
+        lifecycle.retry_at = Some(safe_refresh_deadline(delay.min(3600)));
+    }
+
     /// Check configured material without copying, rewriting, or logging the secret.
     /// The lifecycle lock follows the same lock order as refresh/retirement.
     pub(super) fn has_active_refresh_material(&self) -> bool {
@@ -65,7 +150,12 @@ impl TokenRefreshState {
         refresh_margin: std::time::Duration,
     ) -> Option<(u64, String)> {
         let lifecycle = self.lifecycle.lock();
-        if !lifecycle.active {
+        if !lifecycle.active
+            || lifecycle.reauthorization_required
+            || lifecycle
+                .retry_at
+                .is_some_and(|at| at > std::time::Instant::now())
+        {
             return None;
         }
         let expires_at = *self.expires_at.lock();
@@ -96,6 +186,9 @@ impl TokenRefreshState {
         *self.expires_at.lock() = safe_refresh_deadline(expires_in_secs);
         *self.expires_at_iso.lock() = Some(expires_at_iso);
         lifecycle.generation = lifecycle.generation.wrapping_add(1);
+        lifecycle.failures = 0;
+        lifecycle.retry_at = None;
+        lifecycle.reauthorization_required = false;
         Some(lifecycle.generation)
     }
 

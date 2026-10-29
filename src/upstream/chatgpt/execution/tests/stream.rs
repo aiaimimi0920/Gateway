@@ -17,12 +17,15 @@ impl StreamServer {
         let base_url = format!("http://{}", listener.local_addr().expect("address"));
         let app = Router::new()
             .route(
+                "/",
+                axum::routing::get(|| async { ([("content-type", "text/html")], "<html></html>") }),
+            )
+            .route(
                 "/backend-api/sentinel/chat-requirements",
                 post(record_requirements),
             )
-            .route("/backend-api/f/conversation/prepare", post(record_prepare))
             .route(
-                "/backend-api/f/conversation",
+                "/backend-api/conversation",
                 post(move || async move {
                     let mut response = Response::builder().status(status);
                     if let Some(content_type) = content_type {

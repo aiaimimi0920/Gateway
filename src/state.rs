@@ -22,12 +22,15 @@ use sqlx::PgPool;
 
 #[derive(Debug, Default)]
 pub struct GatewayLifecycleState {
+    pub(crate) request_waiters: Arc<crate::request_wait::WaitRegistry>,
     pub(crate) smart_routing: Arc<crate::routing::smart::SmartRouting>,
     pub(crate) model_circuits: Arc<crate::routing::model_circuit::ModelCircuits>,
+    pub(crate) health_control: crate::routing::model_circuit::health_control::HealthControl,
     pub(crate) site_health: crate::site_health::runtime::SiteHealthRuntime,
     pub(crate) discovery: crate::provider_discovery::background::DiscoveryWorker,
     /// Per-runtime admission cursor; released with this runtime, never reused by another instance.
     pub(crate) credential_probe_cursor: AtomicUsize,
+    pub(crate) oauth_refresh_task: parking_lot::Mutex<Option<tokio::task::JoinHandle<()>>>,
     draining: AtomicBool,
     active_requests: AtomicUsize,
     drain_started_at: RwLock<Option<String>>,

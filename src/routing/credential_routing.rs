@@ -16,7 +16,6 @@ use crate::routing::candidate::{
     canonicalize_adapter_name, ProviderAccountPayload, RouteCandidate,
     SEARCH_API_COMPATIBLE_ADAPTER,
 };
-use crate::routing::protocol_resolution::resolve_supported_wire_protocol_families_for_model;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -39,7 +38,7 @@ pub fn credential_to_candidate(cred: &CredentialEntry, model: &str) -> Option<Ro
     };
 
     // Build payload - if preset specified, compile with preset
-    let payload = if let Some(preset_name) = cred.preset_name() {
+    let mut payload = if let Some(preset_name) = cred.preset_name() {
         if let Some(preset) = get_builtin_preset(preset_name) {
             let overrides = AccountOverrides {
                 base_url: base_url.to_string(),
@@ -82,6 +81,11 @@ pub fn credential_to_candidate(cred: &CredentialEntry, model: &str) -> Option<Ro
         build_raw_payload(cred, base_url, api_key)
     };
 
+    if super::call_flow::hydrate_cached_policy(&mut payload, cred.account_payload.as_ref()).is_err()
+    {
+        tracing::warn!(credential_id = %cred.id, "skip malformed credential call-flow policy");
+        return None;
+    }
     let adapter = canonicalize_adapter_name(&payload.adapter);
     let protocol_profile = cred
         .preset_name()
@@ -104,15 +108,35 @@ pub fn credential_to_candidate(cred: &CredentialEntry, model: &str) -> Option<Ro
             .or(Some(&cred.provider)),
         Some(base_url),
     );
+    let super::call_flow::PreparedRoutePayload {
+        payload,
+        adapter,
+        protocol_family,
+        supported_protocol_families,
+    } = match super::call_flow::prepare_route_payload(
+        payload,
+        cred.account_payload.as_ref(),
+        &protocol_family,
+        Some(model),
+        Some(model),
+    ) {
+        Ok(Some(prepared)) => prepared,
+        Ok(None) => return None,
+        Err(_) => {
+            tracing::warn!(credential_id = %cred.id, "skip invalid credential call-flow combination");
+            return None;
+        }
+    };
+    let protocol_profile = if payload
+        .call_flow
+        .is_some_and(|flow| flow.call_adapter.adapter().is_some())
+    {
+        infer_protocol_profile(&adapter, None, Some(base_url))
+    } else {
+        protocol_profile
+    };
     let resolved_execution_mode =
         payload.resolve_execution_mode(crate::protocol::canonical::EndpointKind::ChatCompletions);
-    let supported_protocol_families = resolve_supported_wire_protocol_families_for_model(
-        cred.account_payload.as_ref(),
-        Some(model),
-        Some(model),
-        &adapter,
-        &protocol_family,
-    );
 
     Some(RouteCandidate {
         provider_account_id: format!("cred:{}", cred.id),
@@ -155,6 +179,7 @@ fn build_raw_payload(
 ) -> ProviderAccountPayload {
     let eb = cred.extra_body_fields();
     ProviderAccountPayload {
+        call_flow: None,
         request_client_profile: None,
         discovered_protocols: Vec::new(),
         adapter: adapter_for_provider(&cred.provider),

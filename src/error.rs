@@ -14,7 +14,8 @@ mod retry_after;
 mod stream_initialization_rejection;
 
 pub(crate) use admission_rejection::{
-    is_account_balance_rejection, is_explicit_admission_rejection,
+    is_account_balance_rejection, is_explicit_admission_rejection, is_provider_ip_block,
+    is_provider_ip_block_rejection,
 };
 pub(crate) use channel_unavailable::is_channel_unavailable;
 pub(crate) use classification::{classify_native_network_error, classify_native_transport_failure};
@@ -295,8 +296,10 @@ impl axum::response::IntoResponse for GatewayError {
         };
 
         let retry_after_seconds = match &self.fallback_hint {
-            FallbackHint::Retry { delay_ms, .. } if self.kind == ErrorKind::RateLimit => {
-                Some(delay_ms.saturating_add(999) / 1_000)
+            FallbackHint::Retry { delay_ms, .. }
+                if matches!(self.kind, ErrorKind::RateLimit | ErrorKind::ModelCapacity) =>
+            {
+                Some(delay_ms / 1_000 + u64::from(delay_ms % 1_000 != 0))
             }
             _ => None,
         };

@@ -87,6 +87,7 @@ pub(super) async fn invoke(target: Target, url: &str) -> Result<String, GatewayE
             &context,
             None,
             target.path(),
+            &serde_json::json!({"action": "next", "model": "auto"}),
             "fixture-trace",
         )
         .await

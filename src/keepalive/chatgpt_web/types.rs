@@ -78,6 +78,8 @@ pub(in crate::keepalive) struct ChatGptWebSessionWorkerAuthSeed {
 pub(in crate::keepalive) struct ChatGptWebSessionWorkerRelayRequest {
     pub(in crate::keepalive) stream: bool,
     pub(in crate::keepalive) body: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(in crate::keepalive) requirements_mode: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -186,4 +188,25 @@ pub(in crate::keepalive) struct ChatGptWebRefreshedRuntime {
 pub(in crate::keepalive) struct ChatGptWebSessionWorkerExecution {
     pub(in crate::keepalive) refreshed: ChatGptWebRefreshedRuntime,
     pub(in crate::keepalive) relay_response: Option<ChatGptWebSessionWorkerRelayResponse>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ChatGptWebSessionWorkerRelayRequest;
+    use serde_json::{json, to_value};
+
+    #[test]
+    fn chatgpt_browser_relay_wire_keeps_explicit_mode_and_omits_unspecified_mode() {
+        let mut request = ChatGptWebSessionWorkerRelayRequest {
+            stream: false,
+            body: json!({"model": "fixture-model"}),
+            requirements_mode: None,
+        };
+        assert!(to_value(&request)
+            .unwrap()
+            .get("requirementsMode")
+            .is_none());
+        request.requirements_mode = Some("legacy".to_string());
+        assert_eq!(to_value(&request).unwrap()["requirementsMode"], "legacy");
+    }
 }

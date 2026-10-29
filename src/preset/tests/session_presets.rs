@@ -94,6 +94,7 @@ fn gemini_web_modular_preset_uses_parallel_adapter() {
 #[test]
 fn chatgpt_web_reverse_preset_uses_bearer_session_auth() {
     let preset = chatgpt_web_reverse_preset();
+    assert_eq!(preset.default_model.as_deref(), Some("auto"));
     assert_eq!(preset.id, "chatgpt-web-reverse");
     assert_eq!(preset.adapter, "chatgpt_web_reverse_compatible");
     assert_eq!(

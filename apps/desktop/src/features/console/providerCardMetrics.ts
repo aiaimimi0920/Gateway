@@ -1,3 +1,5 @@
+import { recentAvailabilityWindows, RECENT_AVAILABILITY_WINDOW_LIMIT } from "./availabilityWindows";
+
 export type ProviderPoolState = "available" | "rate-limited" | "invalid" | "unknown";
 
 export type ProviderPoolAccountLike = {
@@ -386,43 +388,18 @@ export function aggregateSuccessWindows(
 
 export function buildProviderAvailabilityCells(
   windows: readonly AggregatedSuccessWindow[],
-  cellsPerWindow = 12,
 ): ProviderAvailabilityCell[] {
-  const cellCount = Number.isFinite(cellsPerWindow)
-    ? Math.min(100, Math.max(1, Math.floor(cellsPerWindow)))
-    : 12;
-
-  return windows.flatMap((window, windowIndex) => {
-    const rate = window.rate === null ? null : Math.min(1, Math.max(0, window.rate));
-    const successfulShare = rate === null ? 0 : rate * cellCount;
-    const successfulCells = Math.floor(successfulShare);
-    const hasMixedCell =
-      rate !== null &&
-      successfulCells < cellCount &&
-      successfulShare - successfulCells > Number.EPSILON;
-
-    return Array.from({ length: cellCount }, (_, position): ProviderAvailabilityCell => {
-      let state: ProviderAvailabilityCellState;
-      if (rate === null || window.requests === 0) {
-        state = "empty";
-      } else if (position < successfulCells) {
-        state = "success";
-      } else if (hasMixedCell && position === successfulCells) {
-        state = "mixed";
-      } else {
-        state = "failure";
-      }
-      return {
-        state,
-        windowIndex,
-        position,
-        windowLabel: window.label,
-        success: window.success,
-        requests: window.requests,
-        rate: window.rate,
-      };
-    });
-  });
+  return windows.map((window, windowIndex) => ({
+    state: window.rate === null || window.requests === 0 ? "empty"
+      : window.success >= window.requests ? "success"
+      : window.success > 0 ? "mixed" : "failure",
+    windowIndex,
+    position: 0,
+    windowLabel: window.label,
+    success: window.success,
+    requests: window.requests,
+    rate: window.rate,
+  }));
 }
 
 export function aggregateProviderQuotaWindows(
@@ -510,10 +487,10 @@ export function aggregateQuotaRemainingUsd(accounts: readonly ProviderQuotaLike[
  */
 export function aggregateProviderMetrics(
   accounts: readonly ProviderMetricsAccountLike[],
-  windowLimit = 4,
+  windowLimit = RECENT_AVAILABILITY_WINDOW_LIMIT,
 ): ProviderAggregateMetrics {
   const costs = aggregateProviderCosts(accounts);
-  const successWindows = aggregateSuccessWindows(accounts).slice(-Math.max(1, windowLimit));
+  const successWindows = recentAvailabilityWindows(aggregateSuccessWindows(accounts), windowLimit);
   const totals = successWindows.reduce(
     (accumulated, window) => ({
       success: accumulated.success + window.success,

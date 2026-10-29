@@ -1,9 +1,7 @@
 //! Only the send-start seam consumes an admitted request's shared attempt slot.
 use super::ProviderAttemptGate;
 use crate::error::GatewayError;
-use crate::retry::{
-    execute_with_retry_after_admission_observed_started, RetryAttemptObservation, RetryPolicy,
-};
+use crate::retry::{execute_deciding, should_retry, RetryAttemptObservation, RetryPolicy};
 
 impl ProviderAttemptGate {
     pub fn check_remaining(&self) -> Result<(), GatewayError> {
@@ -18,6 +16,7 @@ impl ProviderAttemptGate {
             self.finish_neutral();
             return Err(error);
         }
+        self.attempt_audit.record();
         self.smart_routing.begin_request(
             self.sticky_scope.as_deref(),
             &self.requested_model,
@@ -37,7 +36,7 @@ impl ProviderAttemptGate {
     }
 
     pub fn observe_error(&self, error: &GatewayError) {
-        self.finish_circuit(crate::routing::model_circuit::failure_outcome(error));
+        self.prepare_error(error);
         self.request_budget.observe_error(error);
         if provider_failed(error) {
             self.smart_routing
@@ -46,7 +45,7 @@ impl ProviderAttemptGate {
     }
 
     pub(crate) fn finish_error(&self, error: &GatewayError) {
-        self.finish_circuit(crate::routing::model_circuit::failure_outcome(error));
+        self.prepare_error(error);
         if provider_failed(error) {
             self.release_failed_sticky();
         }
@@ -59,12 +58,17 @@ impl ProviderAttemptGate {
         self.finish_circuit(crate::routing::model_circuit::Outcome::Neutral);
     }
     pub(crate) fn finish_stream_failure(&self) {
-        self.finish_circuit(crate::routing::model_circuit::Outcome::Failure(0));
+        self.finish_circuit(crate::routing::model_circuit::Outcome::TransportFailure(0));
     }
     fn finish_circuit(&self, outcome: crate::routing::model_circuit::Outcome) {
         if let Some(circuit) = &self.circuit {
             circuit.finish(outcome);
         }
+    }
+    fn prepare_error(&self, error: &GatewayError) -> GatewayError {
+        self.circuit
+            .as_ref()
+            .map_or_else(|| error.clone(), |circuit| circuit.finish_error(error))
     }
 
     pub(crate) fn release_failed_sticky(&self) {
@@ -85,7 +89,7 @@ impl ProviderAttemptGate {
     pub async fn execute_observed<T, F, Fut, O>(
         &self,
         f: F,
-        mut observe: O,
+        observe: O,
         policy: &RetryPolicy,
     ) -> Result<T, GatewayError>
     where
@@ -93,12 +97,39 @@ impl ProviderAttemptGate {
         Fut: std::future::Future<Output = Result<T, GatewayError>>,
         O: for<'a> FnMut(RetryAttemptObservation<'a>),
     {
+        self.execute_with_capacity_retry(f, observe, policy, false)
+            .await
+    }
+
+    /// Only pre-handoff nonsticky streaming may add a capacity-only retry to its
+    /// zero normal-retry policy. Explicit adapter replay prohibitions stay intact.
+    pub(crate) async fn execute_with_capacity_retry<T, F, Fut, O>(
+        &self,
+        mut f: F,
+        mut observe: O,
+        policy: &RetryPolicy,
+        capacity_only_retry: bool,
+    ) -> Result<T, GatewayError>
+    where
+        F: FnMut() -> Fut,
+        Fut: std::future::Future<Output = Result<T, GatewayError>>,
+        O: for<'a> FnMut(RetryAttemptObservation<'a>),
+    {
+        let normal_retries = policy.max_retries;
         let mut policy = policy.clone();
-        policy.max_retries = policy
-            .max_retries
-            .min(self.request_budget.remaining_attempts().saturating_sub(1) as usize);
-        execute_with_retry_after_admission_observed_started(
-            f,
+        policy.max_retries = (if capacity_only_retry {
+            policy.max_retries.max(1)
+        } else {
+            policy.max_retries
+        })
+        .min(self.request_budget.remaining_attempts().saturating_sub(1) as usize);
+        execute_deciding(
+            || {
+                // Native dispatch futures can be large; keep retry-frame moves bounded
+                // without spawning a task or changing cancellation ownership.
+                let future = Box::pin(f());
+                async { future.await.map_err(|error| self.prepare_error(&error)) }
+            },
             || self.admit(),
             || self.begin_attempt(),
             |observation| {
@@ -109,6 +140,14 @@ impl ProviderAttemptGate {
                     }
                 }
                 observe(observation);
+            },
+            |error, attempt| {
+                should_retry(error, &policy)
+                    && if error.kind == crate::error::ErrorKind::ModelCapacity {
+                        self.request_budget.claim_capacity_retry(error)
+                    } else {
+                        attempt < normal_retries
+                    }
             },
             &policy,
         )
@@ -126,6 +165,7 @@ fn provider_failed(error: &GatewayError) -> bool {
                     | "rate_limit_admission_indeterminate"
                     | "model_circuit_open"
                     | "site_health_route_restricted"
+                    | "capacity_backoff_registry_full"
             )
         )
         && !matches!(
@@ -133,14 +173,15 @@ fn provider_failed(error: &GatewayError) -> bool {
             crate::error::ErrorKind::BadRequest
                 | crate::error::ErrorKind::ContextLength
                 | crate::error::ErrorKind::ContentFilter
+                | crate::error::ErrorKind::ModelCapacity
         )
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
 
-    fn gate() -> ProviderAttemptGate {
+    pub(crate) fn gate() -> ProviderAttemptGate {
         ProviderAttemptGate {
             req_id: uuid::Uuid::new_v4(),
             redis_pool: crate::redis::pool::disabled_pool().unwrap(),
@@ -148,6 +189,7 @@ mod tests {
             rules: Vec::new(),
             outbound_attempt_count: Default::default(),
             attempted_provider_ids: Default::default(),
+            attempt_audit: Default::default(),
             provider_account_id: "diagnostic-provider".into(),
             request_budget: crate::pipeline::request_budget::RequestBudget::new(
                 6,

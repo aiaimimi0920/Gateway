@@ -30,6 +30,11 @@ impl Pending {
         })
     }
 
+    pub(crate) fn with_provider(mut self, provider: &str) -> Self {
+        self.provider = provider.into();
+        self
+    }
+
     pub(crate) async fn send(self) -> Result<Response, GatewayError> {
         #[cfg(feature = "cpa-rust-transport")]
         if self.rust {
@@ -77,5 +82,9 @@ async fn send_rust(
     let remaining = deadline
         .checked_duration_since(tokio::time::Instant::now())
         .ok_or_else(|| map(Error::Timeout))?;
-    client.send(request, remaining).await.map_err(map)
+    if crate::request_wait::transport::managed() {
+        client.send_with_deadline(request, None).await.map_err(map)
+    } else {
+        client.send(request, remaining).await.map_err(map)
+    }
 }

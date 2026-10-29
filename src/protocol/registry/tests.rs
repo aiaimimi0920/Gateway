@@ -33,14 +33,14 @@ fn infer_protocol_profile_uses_base_url_for_azure_and_perplexity() {
 }
 
 #[test]
-fn infer_protocol_profile_supports_qwen_hint_and_official_urls() {
+fn infer_protocol_profile_retires_dashscope_but_preserves_other_qwen_lines() {
     assert_eq!(
         infer_protocol_profile(
             "openai_compatible",
             Some("qwen"),
             Some("https://api.openai.com/v1"),
         ),
-        "qwen_dashscope_openai"
+        "chatgpt_official_api"
     );
     assert_eq!(
         infer_protocol_profile(
@@ -48,7 +48,7 @@ fn infer_protocol_profile_supports_qwen_hint_and_official_urls() {
             None,
             Some("https://dashscope.aliyuncs.com/compatible-mode/v1"),
         ),
-        "qwen_dashscope_openai"
+        "openai_compatible_generic"
     );
     assert_eq!(
         infer_protocol_profile(

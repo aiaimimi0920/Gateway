@@ -1,7 +1,9 @@
+use super::session::SessionCookies;
 use crate::error::GatewayError;
 use crate::protocol::chatgpt::web_reverse as surface;
 use crate::routing::candidate::ProviderAccountPayload;
 use serde_json::Value;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct ChatGptWebRequestContext {
@@ -15,6 +17,7 @@ pub struct ChatGptWebRequestContext {
     pub client_build_number: String,
     pub device_id: String,
     pub session_id: String,
+    pub(super) cookies: Arc<SessionCookies>,
 }
 
 pub fn unsupported_request_plan_error() -> GatewayError {
@@ -28,11 +31,13 @@ pub fn build_request_context(payload: &ProviderAccountPayload) -> ChatGptWebRequ
     let site_base_url = surface::normalize_site_base_url(&payload.base_url);
     let origin = site_base_url.clone();
     let referer = format!("{origin}/");
+    let cookies = Arc::new(SessionCookies::new(&site_base_url));
 
     ChatGptWebRequestContext {
         site_base_url,
         origin,
         referer,
+        cookies,
         user_agent: extra_string(payload, &["userAgent"])
             .unwrap_or_else(|| surface::CHATGPT_WEB_DEFAULT_USER_AGENT.to_string()),
         accept_language: extra_string(payload, &["language"])

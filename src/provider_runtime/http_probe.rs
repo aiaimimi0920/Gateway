@@ -37,7 +37,11 @@ pub(super) async fn probe_known_http_payload(
             send_probe_request(
                 client,
                 Method::GET,
-                format!("{base_url}/models"),
+                if payload.canonical_adapter() == "anthropic_compatible" {
+                    format!("{base_url}/v1/models")
+                } else {
+                    format!("{base_url}/models")
+                },
                 payload,
                 strict_expectation,
             )

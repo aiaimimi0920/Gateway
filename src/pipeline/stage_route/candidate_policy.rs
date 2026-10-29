@@ -2,6 +2,9 @@
 
 use super::*;
 
+#[cfg(test)]
+mod call_flow_tests;
+
 pub(super) fn finalize_candidate_pairs_for_request<T: Clone>(
     req: &crate::protocol::canonical::CanonicalRelayRequest,
     candidates: Vec<RouteCandidate>,

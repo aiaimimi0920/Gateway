@@ -106,13 +106,11 @@ fn groq_and_together_presets_use_nonduplicating_chat_paths() {
 #[test]
 fn perplexity_preset_uses_official_openai_compatible_paths() {
     let preset = perplexity_preset();
+    assert_eq!(preset.id, "perplexity-api");
     assert_eq!(preset.adapter, "openai_compatible");
     assert_eq!(preset.default_model.as_deref(), Some("sonar"));
-    assert_eq!(
-        preset.chat_completions_path.as_deref(),
-        Some("/chat/completions")
-    );
-    assert_eq!(preset.responses_path.as_deref(), Some("/v1/responses"));
+    assert_eq!(preset.chat_completions_path.as_deref(), Some("/v1/sonar"));
+    assert!(preset.responses_path.is_none());
 }
 
 #[test]
@@ -129,21 +127,13 @@ fn nvidia_openai_preset_uses_openai_compatible_adapter() {
 }
 
 #[test]
-fn qwen_legacy_preset_points_to_dashscope_openai_line() {
-    let preset = qwen_preset();
-    assert_eq!(preset.id, "qwen");
-    assert_eq!(preset.adapter, "openai_compatible");
-    assert_eq!(preset.auth_mode.as_deref(), Some("bearer"));
-    assert!(preset.session_auth.is_none());
-    assert!(preset.headers.is_empty());
+fn qwen_dashscope_and_legacy_presets_are_retired() {
+    assert!(get_builtin_preset("qwen").is_none());
+    assert!(get_builtin_preset("qwen-dashscope-openai").is_none());
 }
 
 #[test]
 fn qwen_official_api_presets_use_current_protocols() {
-    let dashscope = qwen_dashscope_openai_preset();
-    assert_eq!(dashscope.adapter, "openai_compatible");
-    assert_eq!(dashscope.auth_mode.as_deref(), Some("bearer"));
-
     let coding_openai = qwen_coding_plan_openai_preset();
     assert_eq!(coding_openai.adapter, "openai_compatible");
     assert_eq!(coding_openai.auth_mode.as_deref(), Some("bearer"));

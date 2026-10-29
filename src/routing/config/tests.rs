@@ -11,11 +11,16 @@ use serde_json::json;
 mod account_groups;
 mod api_presets;
 mod browser_presets;
+mod call_flow;
 mod candidates;
+mod catalogs;
 mod credentials;
+mod empty_pools;
+mod model_selection;
 mod probes;
 mod refresh;
 mod rules;
+mod search_tools;
 
 fn make_store_from_yaml(yaml: &str) -> RouteConfigStore {
     let config: RouteConfigYaml = serde_yaml::from_str(yaml).expect("parse yaml");

@@ -64,10 +64,9 @@ fn route_document_provider_identities(state: &AppState) -> Vec<db::GatewayRuntim
         .get_providers()
         .into_iter()
         .map(|provider| {
-            // A provider with an empty credential pool carries its credential in
-            // the payload itself, so it is routable; one with a pool is routable
-            // only while at least one credential in it stays enabled.
-            let routable = provider.credential_pool.is_empty()
+            // Only legacy implicit-default pools can route from the base payload.
+            // Provider-only empty pools stay visible without a runnable account.
+            let routable = provider.uses_provider_default_account()
                 || provider
                     .credential_pool
                     .iter()

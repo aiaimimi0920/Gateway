@@ -74,7 +74,8 @@ OpenRouter 另有按模型 endpoint 的 `uptime_last_30m` 等数据；本轮适�
 
 ## 安全和验证
 
-复用无代理、无重定向、DNS 校验并 pin 地址的 transport。普通响应 1 MiB、单请求 4 秒、
+固定官方入口复用既有环境/Windows 代理和 bypass；自定义站点仍禁止代理。所有入口禁止重定向，
+直连采用 DNS 校验并 pin 地址，普通响应 1 MiB、单请求 4 秒、
 整体 25 秒；仅 Azure 约 7 MiB 的公开矩阵采用 8 MiB、30 秒请求和 35 秒整体预算，
 HTML 在有界后台解析任务中处理，不扩大其他适配器限制。Gemini 第二 origin 同样独立校验，绝不信任页面中的动态目的地址。
 报告不包含 bootstrap key、监控 key 或业务 key。路由热路径仍只读缓存。
@@ -89,12 +90,23 @@ cargo test --locked --test site_health_official_contract official_public_status_
 
 本功能不是生产部署或正式发布，不改变运行中的 Gateway、凭证和数据库。
 
-### Fake-IP 网络环境限制
+### Fake-IP 恢复与代理信任边界（2026-10-26）
 
-健康探测拒绝 `198.18.0.0/15` 等保留地址，即使域名属于固定官方入口也不豁免。
-2026-10-23 首轮验证时，本机系统 DNS 将首批六个入口分别解析为 `198.18.0.177` 至
-`198.18.0.182`，真实 Rust smoke 在首次连接前返回
-`Site resolves to a prohibited network address`。因此，公开接口调研成功不等于
-本机安全 transport 的端到端探测成功。使用 Fake-IP 的环境需要为官方状态域名
-（Gemini 还包括上述固定 RPC 域名）提供真实公网 DNS 解析，并确保直连可达后再执行 smoke。
-本轮没有修改系统 DNS、代理规则，也没有放宽地址校验或启用代理转发。
+`198.18.0.0/15` 仍不作为真实目标连接，`allow_private_network` 也不豁免。系统 DNS
+非空、最多 16 项且**全部**为该网段（含 IPv4-mapped IPv6）时，才尝试恢复；IP 字面量、
+单标签及 `.local`/`.internal`/`.home.arpa` 等本地名称不发给公共解析器，混合禁用地址不丢弃后放行。
+
+恢复使用固定 `https://dns.google/resolve`，仅该固定解析器可复用既有可信代理；无重定向，
+直连/bypass 时以 `8.8.8.8:443` 固定 bootstrap，
+保留正常 TLS 域名/证书校验。仅发送目标 hostname 和 A/AAAA 类型，不发送 URL 路径或任何账号/监控密钥。
+每请求 4 秒、16 KiB，A/AAAA 并发，每类仅瞬态 I/O 错误可再尝试一次（总计最多两次），
+恢复请求等待最多 8 秒且受原有整体检测预算约束；校验状态、question、记录类型、全部返回地址和总数，
+最多保留 16 个去重公网地址。失败保持未知，不回退连接 Fake-IP。恢复会让 Google Public DNS
+看到查询域名；不改系统 DNS、hosts 或代理设置，也不是绕过网络封锁的保证。
+
+自定义站点始终 `no_proxy`，按恢复后的公开 IP 固定连接，并保留原 Host/TLS SNI。
+官方入口由 `HealthAdapter` 固定表选择，Gemini 第二 RPC 域名也是单独的编译期常量，
+不接受配置或响应中的动态 URL。它们在 DNS 校验后可复用已有代理合同；代理启用且未 bypass 时，
+**远端解析及最终出口由用户配置的代理负责，不能宣称最终代理目标 IP 也被本地 pin**。
+无代理或 bypass 时仍按已校验的地址直连，不因官方身份放开保留网段。官方请求不带业务或监控密钥；
+Gemini 仅带页面提供的公开 bootstrap key。超时、响应上限、禁重定向及整体检测预算保持不变。

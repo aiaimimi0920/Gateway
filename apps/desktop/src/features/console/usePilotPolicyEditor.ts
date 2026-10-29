@@ -1,4 +1,5 @@
 import { providerStoragePathError } from "./providerStoragePath";
+import { writeRequestClientProfile } from "./requestClientProfile";
 import { displayLabel } from "./displayLabel";
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { ConsoleRouteDocument, ConsoleCredentialPoolAutomationResponse, ConsoleCredentialPoolAutomationProvider, ConsoleCredentialRefillResponse } from "../../api/contracts";
@@ -202,8 +203,10 @@ export function usePilotPolicyEditor({
       }
 
       if (updates.requestClientProfile !== undefined) {
-        if (updates.requestClientProfile === "auto") delete provider.request_client_profile;
-        else provider.request_client_profile = updates.requestClientProfile;
+        if (!writeRequestClientProfile(provider, updates.requestClientProfile)) {
+          setError(t("当前调用流程不允许修改 API 客户端指纹。", "The current call flow does not allow changing the API client profile."));
+          return;
+        }
         replaceEditorDocument(document, true);
         setError(null);
         return;

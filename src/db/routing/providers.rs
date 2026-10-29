@@ -1,4 +1,8 @@
 use super::*;
+use crate::routing::call_flow::{prepare_route_payload, PreparedRoutePayload};
+
+#[cfg(test)]
+mod call_flow_tests;
 
 pub(super) async fn fetch_active_provider_rows(
     pool: &PgPool,
@@ -67,7 +71,7 @@ pub(super) fn provider_payload_from_value(
             })?,
         );
     }
-    Ok(Some(payload))
+    Ok(Some(crate::routing::call_flow::prepare_owned(payload)?))
 }
 
 pub(super) async fn build_route_candidates_for_provider(
@@ -96,14 +100,22 @@ pub(super) async fn build_route_candidates_for_provider(
                 &account_payload,
                 &credential.payload,
             );
-            let supported_protocol_families = resolve_supported_wire_protocol_families_for_model(
+            let Some(payload) = provider_payload_from_value(provider_row, merged_payload.clone())?
+            else {
+                continue;
+            };
+            let Some(PreparedRoutePayload {
+                mut payload,
+                adapter,
+                protocol_family,
+                supported_protocol_families,
+            }) = prepare_route_payload(
+                payload,
                 Some(&merged_payload),
+                &provider_row.protocol_family,
                 model_alias.as_deref(),
                 upstream_model.as_deref(),
-                &provider_row.adapter,
-                &provider_row.protocol_family,
-            );
-            let Some(mut payload) = provider_payload_from_value(provider_row, merged_payload)?
+            )?
             else {
                 continue;
             };
@@ -113,10 +125,10 @@ pub(super) async fn build_route_candidates_for_provider(
                 provider_credential_id: Some(credential.id.clone()),
                 label: format!("{} / {}", provider_row.label, credential.label),
                 payload: payload.clone(),
-                protocol_family: canonicalize_protocol_family_name(&provider_row.protocol_family),
+                protocol_family,
                 protocol_profile: provider_row.protocol_profile.clone(),
                 supported_protocol_families,
-                adapter: canonicalize_adapter_name(&provider_row.adapter),
+                adapter,
                 model_alias: model_alias.clone(),
                 upstream_model: upstream_model.clone(),
                 resolved_execution_mode: payload.resolve_execution_mode(endpoint_kind),
@@ -135,14 +147,22 @@ pub(super) async fn build_route_candidates_for_provider(
         return Ok(candidates);
     }
 
-    let supported_protocol_families = resolve_supported_wire_protocol_families_for_model(
+    let Some(payload) = provider_payload_from_value(provider_row, account_payload.clone())? else {
+        return Ok(Vec::new());
+    };
+    let Some(PreparedRoutePayload {
+        payload,
+        adapter,
+        protocol_family,
+        supported_protocol_families,
+    }) = prepare_route_payload(
+        payload,
         Some(&account_payload),
+        &provider_row.protocol_family,
         model_alias.as_deref(),
         upstream_model.as_deref(),
-        &provider_row.adapter,
-        &provider_row.protocol_family,
-    );
-    let Some(payload) = provider_payload_from_value(provider_row, account_payload)? else {
+    )?
+    else {
         return Ok(Vec::new());
     };
     candidates.push(RouteCandidate {
@@ -150,10 +170,10 @@ pub(super) async fn build_route_candidates_for_provider(
         provider_credential_id: None,
         label: provider_row.label.clone(),
         payload: payload.clone(),
-        protocol_family: canonicalize_protocol_family_name(&provider_row.protocol_family),
+        protocol_family,
         protocol_profile: provider_row.protocol_profile.clone(),
         supported_protocol_families,
-        adapter: canonicalize_adapter_name(&provider_row.adapter),
+        adapter,
         model_alias,
         upstream_model,
         resolved_execution_mode: payload.resolve_execution_mode(endpoint_kind),

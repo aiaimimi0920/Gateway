@@ -197,5 +197,13 @@ fn normalized_header_overrides_body_but_not_error_identity_or_auth_eligibility()
     assert_eq!(error.provider_name.as_deref(), Some("fixture-provider"));
     let error = classify_upstream_error(401, body, None).with_retry_after_ms(Some(25));
     assert!(!error.retryable);
+    // A header cannot retry the rejected upstream credential or remove its fallback eligibility.
+    assert!(matches!(
+        error.fallback_hint,
+        FallbackHint::FallbackProvider { .. }
+    ));
+    let error =
+        crate::error::GatewayError::unauthorized("local fixture").with_retry_after_ms(Some(25));
+    assert!(!error.retryable);
     assert!(matches!(error.fallback_hint, FallbackHint::Abort { .. }));
 }

@@ -112,6 +112,9 @@ pub fn deserialize_provider_payload(
 /// request; the remaining fields are adapter-specific.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderAccountPayload {
+    /// Additive, independent adapter selections; absent means exact legacy behavior.
+    #[serde(default, alias = "callFlow", skip_serializing_if = "Option::is_none")]
+    pub call_flow: Option<crate::protocol::call_flow::ProviderCallFlow>,
     /// Optional software identity/defaults, never an authentication or protocol selector.
     #[serde(
         default,
@@ -423,6 +426,7 @@ mod tests {
 
     fn make_payload(adapter: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),

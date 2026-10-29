@@ -54,26 +54,41 @@ pub(crate) fn build_search_provider_request_plan(
     payload: &ProviderAccountPayload,
     req: &CanonicalRelayRequest,
 ) -> Result<RequestPlan, GatewayError> {
+    if super::jina_request_plan::owns_payload(payload) {
+        return super::jina_request_plan::build_request_plan(payload, req);
+    }
     match req.endpoint_kind {
         EndpointKind::Search => {
             let path = require_search_api_path(payload, EndpointKind::Search)?;
             let query_field = payload.search_query_field.as_deref().unwrap_or("q");
+            let mut body = search_api::pack_search(req, query_field);
+            if req.requested_model.as_deref() == Some("search")
+                && payload.default_model.as_deref() == Some("linkup-search")
+                && path == "/v1/search"
+                && query_field == "q"
+            {
+                if let Some(map) = body.as_object_mut() {
+                    map.entry("depth")
+                        .or_insert_with(|| serde_json::json!("standard"));
+                    map.entry("outputType")
+                        .or_insert_with(|| serde_json::json!("searchResults"));
+                }
+            }
             Ok(RequestPlan {
                 method: Method::POST,
                 url: format!("{}{}", payload.base_url.trim_end_matches('/'), path),
                 query: Vec::new(),
-                body: Some(search_api::pack_search(req, query_field)),
+                body: Some(body),
                 response_kind: EndpointKind::Search,
             })
         }
         EndpointKind::Fetch => {
             let path = require_search_api_path(payload, EndpointKind::Fetch)?;
-            let urls_field = payload.fetch_urls_field.as_deref().unwrap_or("url");
             Ok(RequestPlan {
                 method: Method::POST,
                 url: format!("{}{}", payload.base_url.trim_end_matches('/'), path),
                 query: Vec::new(),
-                body: Some(search_api::pack_fetch(req, urls_field)),
+                body: Some(super::search_fetch_request::pack(payload, req)?),
                 response_kind: EndpointKind::Fetch,
             })
         }
@@ -138,6 +153,7 @@ mod tests {
 
     fn make_payload(adapter: &str, base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
@@ -294,7 +310,7 @@ mod tests {
         req.raw_body = json!({
             "model": "exa-search",
             "q": "best rust crates for parsing markdown",
-            "num_results": 5
+            "numResults": 5
         });
 
         let plan = build_search_provider_request_plan(&payload, &req).unwrap();
@@ -305,7 +321,7 @@ mod tests {
             plan.body.as_ref().unwrap()["query"],
             "best rust crates for parsing markdown"
         );
-        assert_eq!(plan.body.as_ref().unwrap()["num_results"], 5);
+        assert_eq!(plan.body.as_ref().unwrap()["numResults"], 5);
     }
 
     #[test]

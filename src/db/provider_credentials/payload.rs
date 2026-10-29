@@ -2,7 +2,13 @@ use super::{GatewayProviderCredentialRow, GatewayProviderCredentialView};
 use crate::db::format_timestamp;
 use crate::error::GatewayError;
 use crate::object_storage::{build_gateway_provider_credential_object_key, gateway_object_storage};
+use crate::protocol::call_flow::ProviderCallFlow;
+use serde::Deserialize;
 use serde_json::{Map, Value};
+use std::borrow::Cow;
+
+#[cfg(test)]
+mod call_flow_tests;
 
 pub fn merge_provider_account_and_credential_payloads(
     account_payload: &Value,
@@ -10,11 +16,63 @@ pub fn merge_provider_account_and_credential_payloads(
 ) -> Value {
     match (account_payload, credential_payload) {
         (Value::Object(account), Value::Object(credential)) => {
-            let mut merged = account.clone();
-            deep_merge_object(&mut merged, credential);
+            let mut merged = normalized_policy_keys(account).into_owned();
+            let credential = normalized_policy_keys(credential);
+            deep_merge_object(&mut merged, &credential);
+            apply_credential_fingerprint_override(&mut merged, &credential);
             Value::Object(merged)
         }
         (_, value) => value.clone(),
+    }
+}
+
+/// Normalize each layer separately: cross-layer aliases may override, but duplicate
+/// aliases within one input remain visible to the typed reader as malformed policy.
+fn normalized_policy_keys(object: &Map<String, Value>) -> Cow<'_, Map<String, Value>> {
+    let mut normalized = Cow::Borrowed(object);
+    for (name, alias) in [
+        ("call_flow", "callFlow"),
+        ("request_client_profile", "requestClientProfile"),
+    ] {
+        if object.contains_key(alias) && !object.contains_key(name) {
+            let target = normalized.to_mut();
+            if let Some(value) = target.remove(alias) {
+                target.insert(name.into(), value);
+            }
+        }
+    }
+    normalized
+}
+
+/// Preserve credential precedence while provenance is still known. Never infer it
+/// later from a flattened payload, where the old profile may be a stale projection.
+fn apply_credential_fingerprint_override(
+    merged: &mut Map<String, Value>,
+    credential: &Map<String, Value>,
+) {
+    if credential.contains_key("callFlow") || credential.contains_key("requestClientProfile") {
+        return;
+    }
+    let Some(Value::String(profile)) = credential.get("request_client_profile") else {
+        return;
+    };
+    if profile.trim().is_empty()
+        || credential
+            .get("call_flow")
+            .and_then(Value::as_object)
+            .is_some_and(|flow| flow.contains_key("fingerprint_adapter"))
+    {
+        return;
+    }
+    let Some(flow) = merged.get_mut("call_flow") else {
+        return;
+    };
+    // Legacy projections must not sanitize unknown/null/ill-typed flow fields.
+    if ProviderCallFlow::deserialize(&*flow).is_err() {
+        return;
+    }
+    if let Some(flow) = flow.as_object_mut() {
+        flow.insert("fingerprint_adapter".into(), Value::String(profile.clone()));
     }
 }
 

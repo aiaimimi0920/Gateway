@@ -12,6 +12,7 @@ use crate::routing::candidate::RouteCandidate;
 
 use super::{format_timestamp, map_db_error};
 
+pub(crate) mod control;
 pub mod recovery;
 
 #[derive(Debug, Clone)]

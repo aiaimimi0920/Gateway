@@ -3,6 +3,7 @@ import { isRecord } from "./routeDocument";
 import { displayLabel } from "./displayLabel";
 import { indexAccountsByProvider } from "./accountCatalogIndex";
 import { withDefaultAccountGroup } from "./defaultAccountGroup";
+import { modelSelectionSchema, selectedModels } from "./credentialModelSelection";
 
 export type RouteAccountGroup = {
   id: string;
@@ -215,7 +216,8 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
           typeof credential.base_url === "string" && credential.base_url.trim().length > 0
             ? credential.base_url.trim()
             : providerBaseUrl;
-        const supportedModels = readStringArray(credential.supported_models);
+        const selection = modelSelectionSchema.safeParse(credential.model_selection).data;
+        const supportedModels = selection ? selectedModels(selection) : readStringArray(credential.supported_models);
         const accountGroups = memberships.get(accountId) ?? [];
         const account: RouteManagedAccount = {
           id: accountId,
@@ -229,14 +231,14 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
           hostLabel: hostLabelFromUrl(baseUrl),
           mode: "credential",
           enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
-          supportedModels: supportedModels.length > 0 ? supportedModels : providerSupportedModels,
+          supportedModels: selection || supportedModels.length > 0 ? supportedModels : providerSupportedModels,
           groupIds: accountGroups.map((group) => group.id),
           groupNames: accountGroups.map((group) => group.name),
         };
         providerAccounts.push(account);
         accounts.push(account);
       });
-    } else {
+    } else if (provider.explicit_credentials_only !== true) {
       const accountId = providerDefaultAccountId(providerId);
       const accountGroups = memberships.get(accountId) ?? [];
       const account: RouteManagedAccount = {

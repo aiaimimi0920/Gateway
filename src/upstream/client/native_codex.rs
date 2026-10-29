@@ -53,6 +53,8 @@ impl UpstreamClient {
         extra: Option<&HashMap<String, String>>,
         wire: Option<&NativeRequestWire>,
     ) -> Result<UpstreamStreamingResponse, GatewayError> {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
         if wire.is_some_and(|w| w.native_session.is_some())
             && !Self::uses_native_codex(payload, req, model)
         {
@@ -91,6 +93,8 @@ impl UpstreamClient {
         extra: Option<&HashMap<String, String>>,
         wire: Option<&NativeRequestWire>,
     ) -> Result<Value, GatewayError> {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
         if wire.is_some_and(|w| w.compact) && !Self::uses_native_codex(payload, req, model) {
             return Err(compact::unsupported());
         }
@@ -230,14 +234,22 @@ impl UpstreamClient {
                         })
                     })
             })
-            .unwrap_or(&self.native_http);
+            .unwrap_or_else(|| {
+                if crate::request_wait::transport::managed() {
+                    self.wait_native_http
+                        .get_or_init(|| crate::http_client::native_codex_client(self.timeout))
+                } else {
+                    &self.native_http
+                }
+            });
         let mut builder = http.request(plan.method.clone(), url).headers(headers);
         // reqwest total timeout includes body consumption; never apply it to SSE.
         // Buffered/auxiliary requests retain their existing total deadline.
-        if !plan
-            .body
-            .as_ref()
-            .is_some_and(|body| body["stream"] == true)
+        if !crate::request_wait::transport::managed()
+            && !plan
+                .body
+                .as_ref()
+                .is_some_and(|body| body["stream"] == true)
         {
             builder = builder.timeout(self.timeout);
         }

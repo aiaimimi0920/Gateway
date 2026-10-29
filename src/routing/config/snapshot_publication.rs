@@ -48,22 +48,6 @@ fn reuse_unchanged_providers(
     reused
 }
 
-fn retire_replaced_refresh_states(
-    current: &RouteConfigSnapshot,
-    reused_provider_ids: &std::collections::HashSet<String>,
-) {
-    for provider in &current.compiled().providers {
-        if reused_provider_ids.contains(&provider.id) {
-            continue;
-        }
-        for credential in &provider.credential_pool {
-            if let Some(refresh) = &credential.refresh_config {
-                refresh.retire();
-            }
-        }
-    }
-}
-
 pub(super) fn validate_revision_matches_document(
     revision: &RevisionMetadata,
     validated: &ValidatedRouteDocument,
@@ -102,8 +86,8 @@ pub(super) fn build_snapshot(
     let (mut compiled, fingerprints) = compile_yaml_with_fingerprints(validated.document().clone())
         .map_err(|error| RouteConfigReplaceError::Compilation(error.to_string()))?;
     if let Some(current) = current {
-        let reusable_ids = reuse_unchanged_providers(current, &mut compiled, &fingerprints);
-        retire_replaced_refresh_states(current, &reusable_ids);
+        reuse_unchanged_providers(current, &mut compiled, &fingerprints);
+        refresh_publication::reuse_and_retire(current, &mut compiled, validated.document());
     }
     Ok(Arc::new(RouteConfigSnapshot::new(
         revision,

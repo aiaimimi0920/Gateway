@@ -53,6 +53,13 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     {
         presets.push(jina_reader_preset());
     }
+    #[cfg(all(
+        feature = "line-jina-search-official-vendor-api",
+        feature = "line-jina-reader-official-vendor-api"
+    ))]
+    {
+        presets.push(jina_preset());
+    }
     #[cfg(feature = "line-websearchapi-search-official-vendor-api")]
     {
         presets.push(websearchapi_preset());
@@ -124,8 +131,6 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     }
     #[cfg(feature = "line-qwen-official-api")]
     {
-        presets.push(qwen_preset());
-        presets.push(qwen_dashscope_openai_preset());
         presets.push(qwen_coding_plan_openai_preset());
         presets.push(qwen_coding_plan_anthropic_preset());
     }

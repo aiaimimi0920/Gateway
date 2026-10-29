@@ -121,18 +121,54 @@ pub(crate) fn merge(
     if credential.discovery_job.as_ref() != Some(job) {
         return false;
     }
-    credential.discovery_job.as_mut().unwrap().status = if discovery.is_some() {
-        DiscoveryJobStatus::Complete
-    } else {
-        DiscoveryJobStatus::Unconfirmed
-    };
     let Some(discovery) = discovery else {
+        credential.discovery_job.as_mut().unwrap().status = DiscoveryJobStatus::Unconfirmed;
         return true;
     };
+    let previous = credential.supported_models.clone();
+    let models = if let Some(selection) = &mut credential.model_selection {
+        let mut next = selection.clone();
+        next.fetched = discovery.models.clone();
+        let Ok(models) = next.models() else {
+            return false;
+        };
+        *selection = next;
+        models
+    } else {
+        discovery.models.clone()
+    };
+    credential.discovery_job.as_mut().unwrap().status = DiscoveryJobStatus::Complete;
     credential.discovery = Some(discovery.clone());
-    credential.supported_models = discovery.models.clone();
+    credential.supported_models = models.clone();
+    if credential.model_selection.is_some() {
+        let inherited = provider.credentials.iter().any(|c| {
+            c.id.as_deref() != Some(credential_id)
+                && c.model_selection.is_none()
+                && c.supported_models.is_empty()
+        });
+        let remaining: std::collections::HashSet<_> = provider
+            .credentials
+            .iter()
+            .flat_map(|c| c.supported_models.iter().cloned())
+            .collect();
+        provider
+            .supported_models
+            .retain(|m| inherited || !previous.contains(m) || remaining.contains(m));
+        if !inherited {
+            document.model_routes.retain_mut(|route| {
+                if route.enabled
+                    && previous.contains(&route.pattern)
+                    && !remaining.contains(&route.pattern)
+                {
+                    route.provider_ids.retain(|id| id != provider_id);
+                    return !route.provider_ids.is_empty();
+                }
+                true
+            });
+        }
+    }
     // Preserve inherited/manual models for the other accounts and route policy fields.
-    for model in &discovery.models {
+    for model in &models {
         if !provider.supported_models.contains(model) {
             provider.supported_models.push(model.clone());
         }

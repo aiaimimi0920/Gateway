@@ -8,6 +8,12 @@ import { emptyCredentialDialogValue, credentialDialogValueFromDocument, duplicat
 import { parseRouteDocument } from "./routeDocument";
 import { removeProviderDocument } from "./providerRemovalDocument";
 import { applyAccountDiscovery, supportsAccountDiscovery } from "./accountDiscovery";
+import { registerChatgptCredentialModels } from "./chatgptCredentialModels";
+import { CHATGPT_POOL_CATEGORIES } from "./chatgptPool";
+import { applyOfficialCatalog, catalogProviderKind } from "./officialModelCatalog";
+import { applyModelSelection, dialogModelSelection, selectedModels } from "./credentialModelSelection";
+import { applyChatgptWebMaterial } from "./chatgptWebMaterial";
+import { mergeCredentialSecretEditEntries } from "./secretPatchDraft";
 
 type CredentialDialogEditorOptions = {
   editorText: string;
@@ -32,11 +38,21 @@ export function useCredentialDialogEditor({
   const dispatchDraftRef = useRef(editorText);
   dispatchDraftRef.current = editorText;
   const openAddCredentialDialog = useCallback((providerId = "") => {
+    const initialValue = emptyCredentialDialogValue(providerId);
+    try {
+      const provider = parseRouteDocument(editorText).providers.find((p) => p && typeof p === "object"
+        && (p as Record<string, unknown>).id === providerId) as Record<string, unknown> | undefined;
+      if (provider && !catalogProviderKind(provider) && provider.preset !== "chatgpt-codex-oauth-official-api") {
+        initialValue.manualModelsText = Array.isArray(provider.supported_models) ? provider.supported_models.filter((id) => typeof id === "string").join("\n") : "";
+        initialValue.fetchedModelsText = "";
+        initialValue.supportedModelsText = initialValue.manualModelsText;
+      }
+    } catch { /* Invalid drafts are rejected by the normal save path. */ }
     setCredentialDialogState({
       mode: "add",
-      initialValue: emptyCredentialDialogValue(providerId),
+      initialValue,
     });
-  }, []);
+  }, [editorText]);
 
   const openEditCredentialDialog = useCallback(
     (providerId: string, credentialId: string) => {
@@ -113,20 +129,29 @@ export function useCredentialDialogEditor({
         return;
       }
 
-      const supportedModels = parseSupportedModelsText(value.supportedModelsText);
+      let selection;
+      try { selection = dialogModelSelection(value); }
+      catch { setError(t("模型列表无效。", "Invalid model list.")); return; }
+      const supportedModels = selection ? selectedModels(selection) : parseSupportedModelsText(value.supportedModelsText);
       const provider = document.providers.find((p) => p && typeof p === "object" &&
         (p as Record<string, unknown>).id === value.providerId) as Record<string, unknown> | undefined;
-      const discoverLater = !value.discovery && value.apiKeyOperation === "replace" &&
-        provider && supportsAccountDiscovery(provider);
+      const discoverLater = !selection && !value.discovery && value.apiKeyOperation === "replace" &&
+        provider && !catalogProviderKind(provider) && supportsAccountDiscovery(provider);
       const fields: Record<string, unknown> = {
+        ...(provider?.preset === "chatgpt-codex-oauth-official-api" && CHATGPT_POOL_CATEGORIES.some((group) => group.id === value.chatgptGroup)
+          ? { credential_identity_category_id: value.chatgptGroup } : {}),
+        // Token import is additive only; editing must preserve existing OAuth headers/refresh state.
+        ...(credentialDialogState?.mode === "add" && provider?.preset === "chatgpt-codex-oauth-official-api" && value.chatgptAccountId
+          ? { headers: { "Chatgpt-Account-Id": value.chatgptAccountId } } : {}),
         codex_basispoints_enabled: value.codexBasispointsEnabled,
         account_name: value.accountName || undefined,
         enabled: value.enabled,
         base_url: value.baseUrl || undefined,
-        supported_models: supportedModels.length > 0 ? supportedModels : undefined,
+        ...(!selection ? { supported_models: supportedModels.length > 0 ? supportedModels : undefined } : {}),
         ...(value.discovery ? { discovery: value.discovery } : value.apiKeyOperation !== "keep" ? { discovery: undefined } : {}),
+        ...(!value.modelCatalog ? { model_catalog: undefined } : {}),
         ...(discoverLater ? { discovery_job: { id: crypto.randomUUID(), status: "pending" } }
-          : value.discovery || value.apiKeyOperation === "clear" ? { discovery_job: undefined } : {}),
+          : selection || value.modelCatalog || value.discovery || value.apiKeyOperation === "clear" ? { discovery_job: undefined } : {}),
       };
       try {
         const nextDocument =
@@ -146,10 +171,18 @@ export function useCredentialDialogEditor({
                   ...fields,
                 },
               });
+        const completeDocument = provider?.preset === "chatgpt-codex-oauth-official-api"
+          ? registerChatgptCredentialModels(nextDocument, value.providerId, supportedModels) : nextDocument;
+        const discoveredDocument = value.modelCatalog
+          ? applyOfficialCatalog(completeDocument, value.providerId, value.credentialId, value.modelCatalog)
+          : value.discovery ? applyAccountDiscovery(nextDocument, value.providerId, value.credentialId, value.discovery)
+          : completeDocument;
+        const selectedDocument = selection ? applyModelSelection(discoveredDocument, value.providerId, value.credentialId, selection) : discoveredDocument;
+        const webImport = value.webSessionMaterial
+          ? applyChatgptWebMaterial(selectedDocument, value.providerId, value.credentialId, value.webSessionMaterial) : null;
         updateCredentialSecretEdit(value);
-        replaceEditorDocument(value.discovery
-          ? applyAccountDiscovery(nextDocument, value.providerId, value.credentialId, value.discovery)
-          : nextDocument, true);
+        if (webImport) setCredentialSecretEdits((current) => mergeCredentialSecretEditEntries(current, webImport.secretEdits));
+        replaceEditorDocument(webImport?.document ?? selectedDocument, true);
         setError(null);
         pushAppToast(
           "info",

@@ -39,7 +39,7 @@ export function testProviderContext(document: ConsoleRouteDocument | null, provi
     category: typeof credential.credential_identity_category_id === "string" ? credential.credential_identity_category_id : null,
     models: stringModels(credential.supported_models).length ? stringModels(credential.supported_models) : poolModels,
     enabled: credential.enabled !== false,
-  })) : [{ id: `${providerId}::default`, name: label, category: null, models: poolModels, enabled: true }];
+  })) : provider.explicit_credentials_only === true ? [] : [{ id: `${providerId}::default`, name: label, category: null, models: poolModels, enabled: true }];
   const categories = readPilotIdentityCategories(provider, providerId, label);
   const options: TestScopeOption[] = [
     { scope: { kind: "pool" as const, providerId }, label: `凭据池 · ${label}`, key: "" },
@@ -95,7 +95,7 @@ function assignTestPolicy(next: ConsoleRouteDocument, scope: CredentialTestScope
   } else if (scope.kind === "account") {
     const credential = credentials[context.accounts.findIndex((account) => account.id === scope.id)];
     if (credential) owner = credential;
-    else if (credentials.length === 0 && scope.id === `${scope.providerId}::default`) field = "default_account_test_policy";
+    else if (credentials.length === 0 && provider.explicit_credentials_only !== true && scope.id === `${scope.providerId}::default`) field = "default_account_test_policy";
     else throw new Error("Test account was not found in this pool.");
   }
   if (nextPolicy) owner[field] = structuredClone(nextPolicy); else delete owner[field];

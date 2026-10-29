@@ -55,9 +55,7 @@ pub fn line_for_payload(payload: &ProviderAccountPayload) -> Option<RefactoredIm
                 Some(RefactoredImplementationLine::ChatGptCodexOAuthOfficial)
             } else if base_url.contains("api.openai.com") {
                 Some(RefactoredImplementationLine::ChatGptOfficialApi)
-            } else if base_url.contains("dashscope.aliyuncs.com/compatible-mode/")
-                || base_url.contains("coding.dashscope.aliyuncs.com/v1")
-            {
+            } else if base_url.contains("coding.dashscope.aliyuncs.com/v1") {
                 Some(RefactoredImplementationLine::QwenOfficialApi)
             } else if base_url.contains("api.groq.com") || base_url.contains("console.groq.com") {
                 Some(RefactoredImplementationLine::GroqOpenAiOfficialVendorApi)

@@ -33,6 +33,22 @@ pub fn finalize_candidate_protocol_family_with_override(
     req: &CanonicalRelayRequest,
     forced: Option<&str>,
 ) -> Option<bool> {
+    if crate::routing::call_flow::prepare_candidate(candidate, req.endpoint_kind).is_err() {
+        return None;
+    }
+    // Generic tools may skip incapable providers, but never send a partial batch.
+    if matches!(req.requested_model.as_deref(), Some("search" | "fetch"))
+        && (candidate.payload.canonical_adapter() != "search_api_compatible"
+            || crate::upstream::client::UpstreamClient::build_request_plan(
+                &candidate.payload,
+                req,
+                candidate.upstream_model.as_deref().unwrap_or_default(),
+                false,
+            )
+            .is_err())
+    {
+        return None;
+    }
     if !candidate.payload.discovered_protocols.is_empty() {
         return crate::provider_discovery::select_protocol_with_override(candidate, req, forced);
     }

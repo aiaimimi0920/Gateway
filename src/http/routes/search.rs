@@ -255,7 +255,7 @@ async fn inspect_search_provider(
     let mut success_count = 0usize;
     let mut failure_count = 0usize;
 
-    if provider.credential_pool.is_empty() {
+    if provider.uses_provider_default_account() {
         let entry = inspect_search_provider_payload(
             state,
             &provider.id,

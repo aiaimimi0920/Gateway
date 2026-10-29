@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import type { AccountDiscovery, DiscoverAccount, DiscoveryInput } from "./accountDiscovery";
+import type { AccountDiscovery, DiscoveryInput } from "./accountDiscovery";
 
 /** Dialog cancellation fences late results; no API key is retained beyond its request. */
-export function useDiscoverySubmission(open: boolean, discover?: DiscoverAccount) {
+export function useDiscoverySubmission<I = DiscoveryInput, O = AccountDiscovery>(open: boolean,
+  discover?: (input: I, signal?: AbortSignal) => Promise<O>, fence?: string) {
   const active = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { setError(null); return () => { active.current?.abort(); active.current = null; setBusy(false); }; }, [open]);
-  const run = async (input: DiscoveryInput, done: (discovery: AccountDiscovery) => void) => {
+  useEffect(() => { setError(null); return () => { active.current?.abort(); active.current = null; setBusy(false); }; }, [open, fence]);
+  const run = async (input: I, done: (discovery: O) => void) => {
     if (!discover || active.current) return;
     const request = new AbortController(); active.current = request; setBusy(true); setError(null);
     try {

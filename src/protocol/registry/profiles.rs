@@ -37,7 +37,6 @@ pub fn canonicalize_protocol_profile_key(value: &str) -> String {
         "codex" | "chatgpt_codex_backend" | "chatgpt_codex_oauth_official_api" => {
             "chatgpt_codex_oauth_official_api".to_string()
         }
-        "qwen" => "qwen_dashscope_openai".to_string(),
         "qwen_web" | "qwen_webui" | "qwen_webui_replay" | "qwen_webui_replay_live" => {
             "qwen_web_chat".to_string()
         }
@@ -66,7 +65,7 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         | "chatgpt-codex-oauth-official-api"
         | "chatgpt-codex-backend" => "chatgpt_codex_oauth_official_api",
         "openai" => "chatgpt_official_api",
-        "azure-openai" => "azure_openai",
+        "azure-api" => "azure_openai",
         "gemini-api" | "aistudio-official-api" => "aistudio_official_api",
         "google-agent-platform"
         | "google-agent-platform-official-api"
@@ -87,16 +86,14 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "openrouter-openai" => "openrouter",
         "poe-openai" => "poe",
         "longcat-openai" => "longcat",
-        "deepseek-openai" => "deepseek",
-        "mistral-openai" => "mistral",
-        "xai-openai" => "xai",
+        "deepseek-api" => "deepseek",
+        "mistral-api" => "mistral",
+        "xai-api" => "xai",
         "nvidia-openai" => "nvidia",
         "xfyun" => "xfyun_openai",
         "xfyun-websocket" => "xfyun_native_websocket",
         "anthropic" => "anthropic",
         "accio" => "accio",
-        "qwen" => "qwen_dashscope_openai",
-        "qwen-dashscope-openai" => "qwen_dashscope_openai",
         "qwen-coding-plan-openai" => "qwen_coding_plan_openai",
         "qwen-coding-plan-anthropic" => "qwen_coding_plan_anthropic",
         "qwen-web"
@@ -107,12 +104,13 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "chatgpt-web-chat" => "chatgpt_web_reverse",
         "aistudio-web-chat" => "aistudio_web_reverse",
         "grok" => "grok_web",
-        "perplexity" => "perplexity_chat",
+        "perplexity-api" => "perplexity_chat",
         "perplexity-search" => "perplexity_search",
         "linkup" => "linkup",
         "tavily" => "tavily",
         "you" => "you_search",
         "exa" => "exa",
+        "jina" => "jina",
         "jina-search" => "jina_search",
         "jina-reader" => "jina_reader",
         "websearchapi" => "websearchapi",
@@ -212,6 +210,7 @@ pub fn default_protocol_family_for_profile(profile: &str, adapter: &str) -> Stri
         "perplexity_search" => PERPLEXITY_SEARCH_FAMILY.to_string(),
         "tavily" => TAVILY_SEARCH_FAMILY.to_string(),
         "exa" => EXA_SEARCH_FAMILY.to_string(),
+        "jina" => SEARCH_API_FAMILY.to_string(),
         "jina_search" => JINA_SEARCH_FAMILY.to_string(),
         "jina_reader" => JINA_READER_FAMILY.to_string(),
         "linkup" => LINKUP_SEARCH_FAMILY.to_string(),

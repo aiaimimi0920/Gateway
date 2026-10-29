@@ -36,7 +36,7 @@ describe("release-ranked callable models", () => {
 
   it("renders screenshot Claude variants inside Claude and keeps unrelated models in other", async () => {
     const models = ["claude-sonnet-5-5", "claude-opus-5", "claude-opus-4-8", "claude-haiku-4-5-20251001"];
-    const { container } = render(<CardModelList models={[...models, "seedream-4-5"]} label="fixture" t={t} />);
+    const { container } = render(<CardModelList models={[...models, "local-custom"]} label="fixture" t={t} />);
     const anthropic = container.querySelector('[data-model-company="anthropic"]')!;
     const other = container.querySelector('[data-model-company="other"]')!;
     expect(anthropic.querySelector("summary")).toHaveTextContent("Claude(4)");
@@ -45,7 +45,7 @@ describe("release-ranked callable models", () => {
       expect(within(anthropic as HTMLElement).getByText(modelId)).toBeVisible();
       expect(within(other as HTMLElement).queryByText(modelId)).toBeNull();
     }
-    expect(within(other as HTMLElement).getByText("seedream-4-5")).toBeInTheDocument();
+    expect(within(other as HTMLElement).getByText("local-custom")).toBeInTheDocument();
   });
 
   it("groups only the reviewed Codex alias with OpenAI without changing model IDs", () => {
@@ -183,6 +183,19 @@ describe("release-ranked callable models", () => {
       .toMatchObject({ requestCount: 0, successCount: 0 });
   });
 
+  it.each(["zh", "en"])("omits successful-call evidence text in %s without removing model metrics", (locale) => {
+    const { container } = render(<CardModelList models={[model]} label="pool" t={locale === "zh" ? (zh) => zh : t}
+      traffic={{ emptyRequestCount: 0, models: new Map([[model, { requestCount: 10, successCount: 9, successWindows: [] }]]) }} />);
+    const row = container.querySelector(`[data-card-model="${model}"]`)!;
+    expect(row.querySelector(".nt-card-models__evidence")).toBeNull();
+    expect(row.innerHTML).not.toMatch(/有成功记录|Successful call recorded/);
+    expect(row.querySelector(".nt-card-models__name")).toHaveAttribute("title", model);
+    expect(row.querySelector(".nt-card-models__name")).toHaveAttribute("aria-label", model);
+    expect(row.querySelector('[data-model-metric="requests"]')).toHaveTextContent("10");
+    expect(row.querySelector('[data-model-metric="success-rate"]')).toHaveTextContent("90%");
+    expect(row.querySelector('[data-model-metric="quality"] [role="group"]')).toBeInTheDocument();
+  });
+
   it("separates total calls, recent quality and total success without reusing the recent rate", async () => {
     const user = userEvent.setup();
     render(<CardModelList models={[model, "local-custom"]} label="pool" t={t} traffic={{
@@ -203,9 +216,9 @@ describe("release-ranked callable models", () => {
     expect(within(row).getByLabelText("Total calls (retained history): 100")).toHaveTextContent("100");
     expect(within(row).getByText("90%")).toBeVisible();
     expect(within(row).queryByText("75%")).not.toBeInTheDocument();
-    expect(row.querySelector('[data-model-metric="quality"]')).toHaveAttribute("role", "img");
-    expect(row.querySelector('[data-model-metric="quality"]')).toHaveAttribute("title", expect.stringContaining("01:00: 3/4"));
-    expect(row.querySelectorAll(".nt-card-models__cells > span")).toHaveLength(3);
+    expect(row.querySelector('[data-model-metric="quality"]')).not.toHaveAttribute("title");
+    expect(row.querySelector(".nt-card-models__cells > span")).toHaveAttribute("title", "Time: 01:00–01:30; Calls: 4; Success: 75%");
+    expect(row.querySelectorAll(".nt-card-models__cells > span")).toHaveLength(1);
     await user.click(screen.getByText("other"));
     const unknown = screen.getByText("local-custom").closest("li")!;
     expect(within(unknown).getByText("0")).toBeVisible();
@@ -250,7 +263,8 @@ describe("release-ranked callable models", () => {
     expect(summary.querySelectorAll(":scope > [data-model-metric]")).toHaveLength(3);
     expect(summary.querySelector('[data-model-metric="requests"]')).toHaveTextContent("100");
     expect(summary.querySelector('[data-model-metric="success-rate"]')).toHaveTextContent("55%");
-    expect(summary.querySelector('[data-model-metric="quality"]')).toHaveAttribute("title", expect.stringContaining("01:00: 3/4"));
+    expect(summary.querySelector('[data-model-metric="quality"]')).not.toHaveAttribute("title");
+    expect(summary.querySelector(".nt-card-models__cells > span")).toHaveAttribute("title", "时间：01:00–01:30；调用 4 次；成功率 75%");
     expect(summary).toBeVisible();
     expect(group).not.toHaveAttribute("open");
     await user.click(summary);

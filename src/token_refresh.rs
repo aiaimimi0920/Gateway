@@ -1,208 +1,190 @@
-// ---------------------------------------------------------------------------
-// token_refresh.rs — Background OAuth token auto-refresh
-//
-// Periodically checks all provider credentials for expiring OAuth tokens
-// and refreshes them before they expire. Supports any OAuth2 provider
-// that uses the refresh_token grant (Qwen, Codex, etc.).
-// ---------------------------------------------------------------------------
+//! Expiry-driven OAuth maintenance, independent of model probes and inference traffic.
+mod persistence;
+mod server_cache;
+#[cfg(test)]
+mod tests;
+mod transport;
 
-use std::sync::Arc;
-use std::time::Duration;
-
-use rquest::Client;
-use serde::Deserialize;
-
-use crate::redis::credential_cache;
+use crate::console::RouteConfigRuntime;
 use crate::routing::config::{
     effective_refresh_lifetime_secs, future_rfc3339_after_secs, RouteConfigStore,
 };
+use crate::state::AppState;
+use persistence::PendingRefresh;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
-#[derive(Deserialize)]
-struct TokenResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    #[serde(default)]
-    expires_in: Option<u64>,
-}
+type Pending = HashMap<(String, String), PendingRefresh>;
 
-/// Refresh an OAuth access_token using the refresh_token grant.
-async fn refresh_oauth_token(
-    http: &Client,
-    endpoint: &str,
-    refresh_token: &str,
-    client_id: &str,
-) -> Result<(String, Option<String>, u64), String> {
-    let params = [
-        ("grant_type", "refresh_token"),
-        ("refresh_token", refresh_token),
-        ("client_id", client_id),
-    ];
-
-    let resp = http
-        .post(endpoint)
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .form(&params)
-        .timeout(Duration::from_secs(15))
-        .send()
-        .await
-        .map_err(|e| format!("refresh request failed: {e}"))?;
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!(
-            "refresh failed ({status}): {}",
-            &body[..body.len().min(200)]
-        ));
+pub(crate) fn spawn(state: &Arc<AppState>) {
+    let mut task = state.lifecycle.oauth_refresh_task.lock();
+    if task.is_some() {
+        return;
     }
-
-    let body: TokenResponse = resp
-        .json()
-        .await
-        .map_err(|e| format!("parse refresh response: {e}"))?;
-
-    Ok((
-        body.access_token,
-        body.refresh_token,
-        body.expires_in.unwrap_or(21600),
-    ))
+    let state = Arc::clone(state);
+    *task = Some(tokio::spawn(start_token_refresh_task(state, 60, 300)));
 }
 
-/// Background task: checks all credentials every `check_interval_secs` and
-/// refreshes tokens that expire within `refresh_margin_secs`.
-pub async fn start_token_refresh_task(
-    route_config: Arc<RouteConfigStore>,
-    http: Client,
-    redis_pool: deadpool_redis::Pool,
-    check_interval_secs: u64,
-    refresh_margin_secs: u64,
-) {
-    let check_interval = Duration::from_secs(check_interval_secs);
-    let refresh_margin = Duration::from_secs(refresh_margin_secs);
+pub(crate) async fn join(state: &AppState) {
+    let task = state.lifecycle.oauth_refresh_task.lock().take();
+    if let Some(task) = task {
+        if task.await.is_err() {
+            tracing::error!("OAuth maintenance task did not exit cleanly");
+        }
+    }
+}
 
-    tracing::info!(
-        check_interval_secs,
-        refresh_margin_secs,
-        "OAuth token refresh task started"
-    );
-
+/// Runs in both local and server modes. Local mode never touches the closed Redis pool.
+pub async fn start_token_refresh_task(state: Arc<AppState>, check_secs: u64, margin_secs: u64) {
+    let mut pending = Pending::new();
+    tracing::info!(check_secs, margin_secs, "OAuth token refresh task started");
     loop {
-        tokio::time::sleep(check_interval).await;
+        if state.shutdown.is_requested() {
+            break;
+        }
+        refresh_once(
+            &state.route_config,
+            state.upstream_client.client(),
+            state
+                .local_runtime
+                .as_ref()
+                .and(state.route_config_runtime.as_deref()),
+            state.local_runtime.is_none().then_some(&state.redis_pool),
+            &mut pending,
+            Duration::from_secs(margin_secs),
+            Some(&state.shutdown),
+        )
+        .await;
+        tokio::select! {
+            _ = state.shutdown.wait() => break,
+            _ = tokio::time::sleep(Duration::from_secs(check_secs.max(1))) => {}
+        }
+    }
+    // Normal shutdown waits for the in-flight exchange/commit, then one final disk-only flush.
+    if let Some(runtime) = state
+        .local_runtime
+        .as_ref()
+        .and(state.route_config_runtime.as_deref())
+    {
+        for refresh in pending.values() {
+            if !refresh.persist(runtime).await {
+                tracing::error!(provider = %refresh.provider, cred_id = %refresh.credential,
+                    "OAuth refreshed material could not be persisted before shutdown");
+            }
+        }
+    } else if state.local_runtime.is_none() {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+        for refresh in pending.values() {
+            if !refresh.is_current(&state.route_config) {
+                continue;
+            }
+            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+            if !matches!(
+                tokio::time::timeout(remaining, refresh.write_to(None, Some(&state.redis_pool)))
+                    .await,
+                Ok(true)
+            ) {
+                tracing::error!(cred_id = %refresh.credential, "OAuth cache material not persisted before shutdown");
+            }
+        }
+    }
+}
 
-        let providers = route_config.get_providers();
-
-        for provider in &providers {
-            for cred in &provider.credential_pool {
-                if !cred.enabled {
+async fn refresh_once(
+    store: &RouteConfigStore,
+    http: &rquest::Client,
+    local: Option<&RouteConfigRuntime>,
+    redis: Option<&deadpool_redis::Pool>,
+    pending: &mut Pending,
+    margin: Duration,
+    shutdown: Option<&crate::state::GatewayShutdownHandle>,
+) {
+    let keys: Vec<_> = pending.keys().cloned().collect();
+    for key in keys {
+        if shutdown.is_some_and(|s| s.is_requested()) {
+            return;
+        }
+        if !pending[&key].is_current(store) || pending[&key].write_to(local, redis).await {
+            pending.remove(&key);
+        }
+    }
+    let targets = store.snapshot().oauth_refresh_targets();
+    for key in targets {
+        if shutdown.is_some_and(|s| s.is_requested()) {
+            return;
+        }
+        // Each local commit can replace the provider snapshot. Re-pin before the next credential.
+        let snapshot = store.snapshot();
+        let Some((provider, cred)) = snapshot.oauth_refresh_target(&key.0, &key.1) else {
+            continue;
+        };
+        if !cred.enabled || pending.contains_key(&key) {
+            continue;
+        }
+        let Some(config) = &cred.refresh_config else {
+            continue;
+        };
+        let Some(_guard) = config.try_refresh_lock() else {
+            continue;
+        };
+        let Some((generation, refresh_token)) = config.refresh_snapshot(margin) else {
+            continue;
+        };
+        let previous_access = config
+            .runtime_override()
+            .0
+            .unwrap_or_else(|| cred.payload.api_key.clone());
+        let result = transport::exchange(
+            http,
+            &config.refresh_endpoint,
+            &refresh_token,
+            &config.client_id,
+        )
+        .await;
+        match result {
+            Ok(mut token) => {
+                let lifetime = effective_refresh_lifetime_secs(token.expires_in.unwrap_or(21600));
+                token.expires_in = Some(lifetime);
+                let expires_at = future_rfc3339_after_secs(lifetime);
+                let original =
+                    persistence::credential(snapshot.document(), &provider.id, &cred.id).cloned();
+                let Some(original) = original else {
+                    continue;
+                };
+                let refreshed = PendingRefresh {
+                    provider: provider.id.clone(),
+                    credential: cred.id.clone(),
+                    original,
+                    token,
+                    expires_at,
+                    previous_access,
+                    previous_refresh: refresh_token,
+                };
+                if !refreshed.is_current(store) {
                     continue;
                 }
-                let config = match &cred.refresh_config {
-                    Some(c) => c,
-                    None => continue,
-                };
-                let Some((attempt_generation, current_rt)) =
-                    config.refresh_snapshot(refresh_margin)
-                else {
+                let applied = config.apply_refresh_if_active(
+                    generation,
+                    refreshed.token.access_token.clone(),
+                    refreshed.token.refresh_token.clone(),
+                    lifetime,
+                    refreshed.expires_at.clone(),
+                );
+                // A routing-policy change retires the old owner, but need not discard
+                // rotated material for the same authorization. The local commit CAS
+                // retains the new policy and rechecks the original credential.
+                if applied.is_none() && local.is_none() {
                     continue;
-                };
-
-                match refresh_oauth_token(
-                    &http,
-                    &config.refresh_endpoint,
-                    &current_rt,
-                    &config.client_id,
-                )
-                .await
-                {
-                    Ok((new_access, new_refresh, expires_in)) => {
-                        let expires_in = effective_refresh_lifetime_secs(expires_in);
-                        let expires_at_iso = future_rfc3339_after_secs(expires_in);
-                        let Some(applied_generation) = config.apply_refresh_if_active(
-                            attempt_generation,
-                            new_access.clone(),
-                            new_refresh.clone(),
-                            expires_in,
-                            expires_at_iso.clone(),
-                        ) else {
-                            tracing::debug!(
-                                cred_id = %cred.id,
-                                provider = %provider.id,
-                                "discarded OAuth refresh response for retired route snapshot"
-                            );
-                            continue;
-                        };
-
-                        // Write back to Redis so user-hosted credentials persist
-                        // across cache reloads. Best-effort — don't block the loop.
-                        if !config.is_generation_active(applied_generation) {
-                            continue;
-                        }
-                        if let Err(e) = credential_cache::write_back_refreshed_token(
-                            &redis_pool,
-                            &cred.id,
-                            &new_access,
-                            new_refresh.as_deref(),
-                        )
-                        .await
-                        {
-                            tracing::debug!(
-                                cred_id = %cred.id,
-                                error = %e,
-                                "token refresh Redis writeback failed (non-fatal)"
-                            );
-                        }
-
-                        if !config.is_generation_active(applied_generation) {
-                            tracing::debug!(
-                                cred_id = %cred.id,
-                                provider = %provider.id,
-                                "stopped stale OAuth refresh writeback after route replacement"
-                            );
-                            continue;
-                        }
-
-                        if cred.payload.session_auth.is_some() || cred.payload.keepalive.is_some() {
-                            let mut session_auth = cred.payload.session_auth.clone();
-                            if let Some(ref mut session) = session_auth {
-                                session.expires_at = Some(expires_at_iso.clone());
-                            }
-                            if let Err(e) = credential_cache::write_back_runtime_material(
-                                &redis_pool,
-                                &cred.id,
-                                Some(&new_access),
-                                None,
-                                None,
-                                session_auth.as_ref(),
-                                cred.payload.keepalive.as_ref(),
-                                Some(&expires_at_iso),
-                                None,
-                            )
-                            .await
-                            {
-                                tracing::debug!(
-                                    cred_id = %cred.id,
-                                    error = %e,
-                                    "token refresh runtime material writeback failed (non-fatal)"
-                                );
-                            }
-                        }
-
-                        tracing::info!(
-                            cred_id = %cred.id,
-                            provider = %provider.id,
-                            expires_in_secs = expires_in,
-                            "OAuth token refreshed"
-                        );
-                    }
-                    Err(e) => {
-                        tracing::error!(
-                            cred_id = %cred.id,
-                            provider = %provider.id,
-                            error = %e,
-                            "OAuth token refresh failed"
-                        );
-                    }
                 }
+                if !refreshed.write_to(local, redis).await {
+                    pending.insert(key, refreshed);
+                }
+                tracing::info!(provider = %provider.id, cred_id = %cred.id,
+                        expires_in_secs = lifetime, "OAuth token refreshed");
+            }
+            Err(error) => {
+                config.record_refresh_failure(generation, error.terminal);
+                tracing::warn!(provider = %provider.id, cred_id = %cred.id, code = error.code,
+                        reauthorization_required = error.terminal, "OAuth token refresh failed");
             }
         }
     }

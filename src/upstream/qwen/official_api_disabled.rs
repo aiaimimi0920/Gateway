@@ -33,6 +33,7 @@ mod tests {
 
     fn make_payload(adapter: &str, base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
@@ -97,10 +98,10 @@ mod tests {
     }
 
     #[test]
-    fn plan_qwen_dashscope_chat_returns_compiled_out_when_official_line_disabled() {
+    fn plan_qwen_coding_plan_chat_returns_compiled_out_when_official_line_disabled() {
         let mut payload = make_payload(
             "openai_compatible",
-            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "https://coding.dashscope.aliyuncs.com/v1",
         );
         payload.chat_completions_path = Some("/chat/completions".to_string());
         payload.responses_path = Some("/responses".to_string());
@@ -114,10 +115,10 @@ mod tests {
     }
 
     #[test]
-    fn plan_qwen_dashscope_responses_return_compiled_out_when_official_line_disabled() {
+    fn plan_qwen_coding_plan_responses_return_compiled_out_when_official_line_disabled() {
         let mut payload = make_payload(
             "openai_compatible",
-            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "https://coding.dashscope.aliyuncs.com/v1",
         );
         payload.chat_completions_path = Some("/chat/completions".to_string());
         payload.responses_path = Some("/responses".to_string());

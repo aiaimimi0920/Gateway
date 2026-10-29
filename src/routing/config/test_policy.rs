@@ -50,7 +50,7 @@ impl RouteConfigSnapshot {
             })
             .map(|(_, credential)| credential);
         if let Some(policy) = credential.and_then(|c| c.test_policy.as_ref()).or_else(|| {
-            (provider.credentials.is_empty())
+            (provider.uses_provider_default_account())
                 .then_some(provider.default_account_test_policy.as_ref())
                 .flatten()
         }) {

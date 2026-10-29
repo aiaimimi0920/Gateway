@@ -76,6 +76,15 @@ pub(super) async fn record_credential_model_failure(
     upstream_status: Option<u16>,
     state: &Arc<AppState>,
 ) {
+    // Capacity timing has an in-memory owner, not a persisted minute-scale health cooldown.
+    if error.kind == crate::error::ErrorKind::ModelCapacity
+        || matches!(
+            error.code.as_deref(),
+            Some("gateway_network_unstable" | "capacity_backoff_registry_full")
+        )
+    {
+        return;
+    }
     let Some(provider_account_id) = ctx.selected_provider_id.clone() else {
         return;
     };
@@ -108,7 +117,13 @@ pub(super) async fn record_credential_model_failure(
         classification,
     };
 
-    if let Err(error) = crate::local_runtime::model_states::failure(state, input).await {
+    if let Err(error) = crate::routing::model_circuit::health_control::record_failure(
+        state,
+        input,
+        Some(ctx.started_at),
+    )
+    .await
+    {
         warn!(
             req_id = %ctx.req_id,
             error = %error,
@@ -149,7 +164,13 @@ pub(super) async fn record_credential_model_failure_from_snapshot(
         classification,
     };
 
-    if let Err(error) = crate::local_runtime::model_states::failure(state, input).await {
+    if let Err(error) = crate::routing::model_circuit::health_control::record_failure(
+        state,
+        input,
+        Some(snapshot.started_at),
+    )
+    .await
+    {
         warn!(
             request_id = %snapshot.request_id,
             error = %error,

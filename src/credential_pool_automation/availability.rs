@@ -64,7 +64,7 @@ SELECT COALESCE(SUM(has_active AND NOT has_failure), 0), COUNT(*) FROM (
 }
 
 fn enabled_credential_refs(provider: &ProviderConfigYaml) -> Vec<String> {
-    if provider.credentials.is_empty() {
+    if provider.uses_provider_default_account() {
         if super::capacity::active_credential_count(provider) == 0 {
             return Vec::new();
         }

@@ -122,15 +122,6 @@ providers:
       - api_key: "${GATEWAY_LONGCAT_CREDENTIAL_1_API_KEY}"
 
   # Qwen Platform — official API key lines + WebUI reverse surface
-  - id: qwen-dashscope-openai
-    vendor_key: alibaba-qwen
-    vendor_name: "Alibaba / Qwen"
-    preset: qwen-dashscope-openai
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    supported_models: [qwen3-coder-plus, qwen-plus, qwen-turbo]
-    credentials:
-      - api_key: "${QWEN_DASHSCOPE_API_KEY}"
-
   - id: qwen-coding-plan-openai
     vendor_key: alibaba-qwen
     vendor_name: "Alibaba / Qwen"

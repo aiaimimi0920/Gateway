@@ -10,9 +10,11 @@ mod audit_queries;
 pub mod audits;
 mod finalizers;
 mod maintenance;
+mod model_identity;
 mod model_routing;
 pub mod model_states;
 mod pressure;
+mod provider_identity;
 mod refill_lock;
 pub use maintenance::spawn_maintenance;
 #[cfg(test)]
@@ -78,6 +80,9 @@ impl LocalRuntime {
         }
         // Additive initialization also runs for already released schema-1 databases.
         sqlx::raw_sql(access_keys::SCHEMA).execute(&mut *tx).await?;
+        sqlx::raw_sql(model_identity::SCHEMA)
+            .execute(&mut *tx)
+            .await?;
         sqlx::raw_sql(crate::cash_billing::SCHEMA)
             .execute(&mut *tx)
             .await?;

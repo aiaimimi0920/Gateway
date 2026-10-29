@@ -139,6 +139,8 @@ export function groupCardModels(models: readonly string[]): CardModelGroup[] {
   const groups = new Map<string, CardModelGroup>();
   const unknown: CardModelGroup = { id: "other", label: "other", models: [] };
   for (const model of new Set(models.map((value) => value.trim()).filter(Boolean))) {
+    // Pool aliases stay routable, but cards and their totals show concrete operations only.
+    if (["search", "fetch", "linkup-balance", "search-balance", "search-api-balance"].includes(model)) continue;
     const rule = modelDisplayRule(model);
     if (!rule) {
       unknown.models.push(model);

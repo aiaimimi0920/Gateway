@@ -102,7 +102,7 @@ pub(super) fn conversation_path(
 }
 
 fn dynamic_backend_conversation_enabled(payload: &ProviderAccountPayload) -> bool {
-    if extra_body_bool(
+    if let Some(enabled) = extra_body_bool(
         payload,
         &[
             "chatgptWebDynamicBackendConversation",
@@ -110,30 +110,23 @@ fn dynamic_backend_conversation_enabled(payload: &ProviderAccountPayload) -> boo
             "dynamicBackendConversation",
             "preferDynamicConversation",
         ],
-    )
-    .unwrap_or(false)
-    {
-        return true;
+    ) {
+        return enabled;
     }
-    match extra_body_string(
-        payload,
-        &[
-            "chatgptWebConversationMode",
-            "chatgptConversationMode",
-            "conversationMode",
-        ],
+    // Plain text is the default; the old f flow remains an explicit compatibility mode.
+    !matches!(
+        extra_body_string(
+            payload,
+            &[
+                "chatgptWebConversationMode",
+                "chatgptConversationMode",
+                "conversationMode",
+            ],
+        )
+        .map(|value| value.trim().to_ascii_lowercase())
+        .as_deref(),
+        Some("f_conversation" | "legacy_f_conversation" | "backend_f_conversation")
     )
-    .map(|value| value.trim().to_ascii_lowercase())
-    .as_deref()
-    {
-        Some(
-            "dynamic_backend_conversation"
-            | "backend_conversation"
-            | "browserless_dynamic_backend_conversation"
-            | "chatgpt2api",
-        ) => true,
-        _ => false,
-    }
 }
 
 pub(super) fn conversation_prepare_path(

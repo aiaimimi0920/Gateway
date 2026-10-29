@@ -173,6 +173,8 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
 }
 
 pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
+    crate::token_refresh::spawn(app_state);
+    crate::routing::model_circuit::network_probe::schedule(app_state);
     crate::local_runtime::spawn_maintenance(app_state);
     let state_for_credential_refill = Arc::clone(app_state);
     tokio::spawn(async move {
@@ -195,20 +197,6 @@ pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
     let pool_clone = app_state.redis_pool.clone();
     tokio::spawn(async move {
         crate::credential_store::start_credential_refresh_task(cache_clone, pool_clone, 10).await;
-    });
-
-    let rc_for_refresh = app_state.route_config.clone();
-    let http_for_refresh = app_state.upstream_client.client().clone();
-    let pool_for_refresh = app_state.redis_pool.clone();
-    tokio::spawn(async move {
-        crate::token_refresh::start_token_refresh_task(
-            rc_for_refresh,
-            http_for_refresh,
-            pool_for_refresh,
-            60,
-            300,
-        )
-        .await;
     });
 
     let state_for_folder_sync = Arc::clone(app_state);
@@ -266,6 +254,8 @@ pub async fn run_gateway_server(app_state: Arc<AppState>, port: u16) -> anyhow::
         .await?;
 
     tracing::info!(port, "Gateway HTTP server stopped");
+    app_state.shutdown.request("http_server_stopped");
+    crate::token_refresh::join(&app_state).await;
     if let Some(local) = &app_state.local_runtime {
         local.close().await;
     }

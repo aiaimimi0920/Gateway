@@ -88,6 +88,7 @@ mod tests {
 
     fn make_payload(adapter: &str, base_url: &str) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: adapter.to_string(),
@@ -125,7 +126,7 @@ mod tests {
         }
     }
 
-    fn assert_qwen_dashscope_openai_path(
+    fn assert_qwen_coding_plan_openai_path(
         plan: &RequestPlan,
         expected_url: &str,
         expected_response_kind: EndpointKind,
@@ -156,40 +157,40 @@ mod tests {
 
     #[cfg(feature = "line-qwen-official-api")]
     #[test]
-    fn plan_qwen_dashscope_chat_uses_native_chat_path_without_double_v1() {
+    fn plan_qwen_coding_plan_chat_uses_native_chat_path_without_double_v1() {
         let plan = build_request_plan(
             &make_payload(
                 "openai_compatible",
-                "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                "https://coding.dashscope.aliyuncs.com/v1",
             ),
             &make_request(EndpointKind::ChatCompletions),
             "qwen3.5-flash",
             false,
         )
         .unwrap();
-        assert_qwen_dashscope_openai_path(
+        assert_qwen_coding_plan_openai_path(
             &plan,
-            "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+            "https://coding.dashscope.aliyuncs.com/v1/chat/completions",
             EndpointKind::ChatCompletions,
         );
     }
 
     #[cfg(feature = "line-qwen-official-api")]
     #[test]
-    fn plan_qwen_dashscope_responses_use_native_responses_path() {
+    fn plan_qwen_coding_plan_responses_use_native_responses_path() {
         let plan = build_request_plan(
             &make_payload(
                 "openai_compatible",
-                "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                "https://coding.dashscope.aliyuncs.com/v1",
             ),
             &make_request(EndpointKind::Responses),
             "qwen3.5-flash",
             false,
         )
         .unwrap();
-        assert_qwen_dashscope_openai_path(
+        assert_qwen_coding_plan_openai_path(
             &plan,
-            "https://dashscope.aliyuncs.com/compatible-mode/v1/responses",
+            "https://coding.dashscope.aliyuncs.com/v1/responses",
             EndpointKind::Responses,
         );
     }

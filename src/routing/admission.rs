@@ -39,6 +39,11 @@ pub(crate) fn keys(
             group,
             model: model.into(),
         })
+        .chain(std::iter::once(CircuitKey {
+            provider: provider.into(),
+            group: "provider:availability".into(),
+            model: String::new(),
+        }))
         .chain(std::iter::once(balance))
         .collect()
 }
@@ -56,8 +61,36 @@ pub(crate) fn subject_allowed(
         && crate::site_health::runtime::subject_allowed(state, route, provider, credential, model)
 }
 
-pub(crate) fn candidate_allowed(state: &AppState, candidate: &RouteCandidate, model: &str) -> bool {
-    subject_allowed(
+/// Keep temporary restrictions in the authorized queue; manual flags and balance stay hard.
+pub(crate) fn subject_queueable(
+    state: &AppState,
+    route: &RouteConfigSnapshot,
+    provider: &str,
+    credential: Option<&str>,
+    model: &str,
+) -> bool {
+    if crate::request_wait::RequestWaitPolicy::for_provider(route, provider).mode
+        == crate::request_wait::RequestWaitMode::Disabled
+        && !state.lifecycle.model_circuits.network_blocked()
+    {
+        return subject_allowed(state, route, provider, credential, model);
+    }
+    // A gateway-wide outage is not a missing provider. Retain eligible subjects
+    // through authorization so send admission owns the exact network error:
+    // disabled waiting fails immediately; enabled waiting uses the original budget.
+    // check_candidate and CircuitAttempt still forbid every actual send.
+    !state
+        .lifecycle
+        .model_circuits
+        .nonrecoverable_blocked(&keys(route, provider, credential, model))
+        && crate::site_health::runtime::subject_allowed(state, route, provider, credential, model)
+}
+pub(crate) fn candidate_queueable(
+    state: &AppState,
+    candidate: &RouteCandidate,
+    model: &str,
+) -> bool {
+    subject_queueable(
         state,
         &state.route_config.snapshot(),
         &candidate.provider_account_id,
@@ -74,12 +107,25 @@ pub(crate) fn check_candidate(
     candidate: &RouteCandidate,
     model: &str,
 ) -> Result<(), crate::error::GatewayError> {
+    if let Some(error) = state.lifecycle.model_circuits.network_error() {
+        return Err(error);
+    }
     let route = state.route_config.snapshot();
     let credential = candidate
         .provider_credential_id
         .as_deref()
         .or(candidate.payload.credential_id.as_deref());
-    let (code, message) = if !crate::site_health::runtime::subject_allowed(
+    let (code, message) = if state.lifecycle.model_circuits.nonrecoverable_blocked(&keys(
+        &route,
+        &candidate.provider_account_id,
+        credential,
+        model,
+    )) {
+        (
+            "upstream_balance_unavailable",
+            "Upstream account balance is unavailable",
+        )
+    } else if !crate::site_health::runtime::subject_allowed(
         state,
         &route,
         &candidate.provider_account_id,
@@ -114,7 +160,7 @@ pub(crate) fn attempt(
     candidate: &RouteCandidate,
     model: &str,
 ) -> Arc<CircuitAttempt> {
-    CircuitAttempt::new(
+    CircuitAttempt::scoped(
         Arc::clone(&state.lifecycle.model_circuits),
         keys(
             &state.route_config.snapshot(),
@@ -125,5 +171,17 @@ pub(crate) fn attempt(
                 .or(candidate.payload.credential_id.as_deref()),
             model,
         ),
+        Some(CircuitKey {
+            provider: candidate.provider_account_id.clone(),
+            group: candidate
+                .provider_credential_id
+                .as_deref()
+                .or(candidate.payload.credential_id.as_deref())
+                .map_or_else(
+                    || format!("{}::default", candidate.provider_account_id),
+                    str::to_owned,
+                ),
+            model: model.into(),
+        }),
     )
 }

@@ -8,6 +8,7 @@ import type {
   ConsoleRuntimePressure,
 } from "../../api/contracts";
 import type { ProviderSuccessWindow } from "./providerCardMetrics";
+import { RECENT_AVAILABILITY_WINDOW_LIMIT } from "./availabilityWindows";
 
 const MICROS_PER_USD = 1_000_000;
 
@@ -97,7 +98,7 @@ export type ConsoleTelemetryInput = {
   requestAuditSummary: ConsoleRequestAuditSummary | null;
   credentialModelStates: ConsoleProviderCredentialModelState[] | null;
   credentialInventory: ConsoleProviderCredentialInventoryItem[] | null;
-  /** How many hourly windows the availability strip should keep. */
+  /** How many half-hour windows the availability strip should keep. */
   successWindowLimit?: number;
 };
 
@@ -190,7 +191,7 @@ type ProviderAccountAccumulator = Omit<ConsoleTelemetryProviderAccount, "modelSt
 export function buildConsoleTelemetrySnapshot(
   input: ConsoleTelemetryInput,
 ): ConsoleTelemetrySnapshot {
-  const windowLimit = Math.max(1, Math.floor(input.successWindowLimit ?? 4));
+  const windowLimit = Math.max(1, Math.floor(input.successWindowLimit ?? RECENT_AVAILABILITY_WINDOW_LIMIT));
   const providerAccounts = new Map<string, ProviderAccountAccumulator>();
 
   const ensureProviderAccount = (providerAccountId: string): ProviderAccountAccumulator => {
@@ -301,7 +302,7 @@ export function buildConsoleTelemetrySnapshot(
     entry.lastRequestAt = laterTimestamp(entry.lastRequestAt, stats.lastRequestAt);
     entry.successWindows = stats.windows
       .map((window) => ({
-        label: window.label,
+        label: window.bucketStart,
         success: Math.max(0, Math.floor(window.successCount)),
         requests: Math.max(0, Math.floor(window.totalRequests)),
       }))

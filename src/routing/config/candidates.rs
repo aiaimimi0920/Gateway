@@ -167,6 +167,7 @@ pub(super) fn resolve_candidates_filtered(
         .flat_map(|matched| {
             provider_map
                 .get(matched.id)
+                .filter(|provider| search_tools::allows_model(provider, resolved))
                 .map_or_else(Vec::new, |provider| {
                     fallback::provider_candidates(
                         provider,
@@ -179,8 +180,11 @@ pub(super) fn resolve_candidates_filtered(
                 })
         })
         .collect();
-    if authorized_group_fallback && admission.is_some() && allowed_account_ids.is_some() {
-        // Concrete membership, not automatic discovery, authorizes cross-provider fallback.
+    if (authorized_group_fallback && admission.is_some() && allowed_account_ids.is_some())
+        || resolved.is_some_and(search_tools::is_generic)
+    {
+        // Concrete membership or an explicit tool-pool request authorizes fallback
+        // only among these already-filtered operation/account candidates.
         let mut ids = Vec::new();
         for candidate in &candidates {
             if !ids.contains(&candidate.provider_account_id) {
@@ -235,7 +239,7 @@ fn select_credential_filtered(
     admission: Admission<'_>,
     rotate: bool,
 ) -> Option<ProviderAccountPayload> {
-    if provider.credential_pool.is_empty() {
+    if provider.uses_provider_default_account() {
         if !provider.credential_pool_auth_policy.is_any() {
             return None; // Base payloads have no typed refresh owner: unknown fails closed.
         }
@@ -292,7 +296,10 @@ fn select_credential_filtered(
     // Unrestricted legacy routing retains its model compatibility fallback.
     let legacy: Vec<usize> = available
         .into_iter()
-        .filter(|index| provider.credential_pool[*index].discovery.is_none())
+        .filter(|index| {
+            provider.credential_pool[*index].discovery.is_none()
+                && !provider.credential_pool[*index].explicit_model_selection
+        })
         .collect();
     let eligible: Vec<_> = (if model_eligible.is_empty() {
         &legacy
@@ -338,6 +345,9 @@ pub(super) fn credential_supports_model(
     original: Option<&str>,
     translated: Option<&str>,
 ) -> bool {
+    if credential.explicit_model_selection && credential.supported_models.is_empty() {
+        return false;
+    }
     // A discovered catalogue names upstream models, not arbitrary local aliases.
     if credential.discovery.is_some() {
         return translated.or(original).is_none_or(|model| {
@@ -408,7 +418,7 @@ fn provider_to_candidate(
     // A group-scoped default account must not inherit compatibility fallback
     // for models outside its declared catalogue. Aliases are already resolved.
     if allowed_account_ids.is_some()
-        && p.credential_pool.is_empty()
+        && p.uses_provider_default_account()
         && !p.supported_models.is_empty()
         && model.is_some_and(|model| !model_mapping::provider_supports_model(p, model))
     {

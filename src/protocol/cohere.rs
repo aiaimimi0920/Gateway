@@ -12,6 +12,7 @@ use crate::protocol::canonical::{
 use crate::protocol::sse_parse::{format_sse_event, parse_sse_line, SseParseState};
 use crate::protocol::tool_choice;
 
+pub mod native;
 mod packing;
 pub use packing::{build_chat_v2_success, pack_cohere};
 

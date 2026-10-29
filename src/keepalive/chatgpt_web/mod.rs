@@ -128,6 +128,10 @@ pub async fn execute_chatgpt_web_browser_relay(
         Some(ChatGptWebSessionWorkerRelayRequest {
             stream,
             body: relay_body,
+            requirements_mode: read_extra_body_string(
+                payload.extra_body.as_ref(),
+                &["chatgptWebRequirementsMode", "chatgptRequirementsMode"],
+            ),
         }),
     )
     .await?;

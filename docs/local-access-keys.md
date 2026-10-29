@@ -1,5 +1,15 @@
 # Local access keys
 
+## 显式复用已有无限额 Key
+
+`POST /v1/internal/gateway/access/keys/import-unlimited` 是独立的 local-only 管理操作，
+请求为 `{ "token": "<existing token>", "key": { ...normal key fields... } }`。
+它要求严格的 console 管理认证及 Secret Grant；普通创建仍然生成随机 Key，不接受指定 token。
+仅用于操作员已核实仍 active、未过期、无额度/时段限制及未结算请求的无限额 Key；
+不是预付费或现金账务迁移接口，拒绝 `quota`。导入者须保留原 owner/project/tenant、到期时间及 metadata 限制。
+重复 token 返回冲突，不覆盖旧 Key；目标目录重新加密 secret，同事务保存摘要、权限与无限额余额。
+成功返回不含 token 且带 `no-store`，不复制来源目录的数据库、密文或加密主密钥。
+
 Local/desktop storage serves the access-key catalog and normal-key create, edit,
 rotate, enable/disable, revoke and delete operations from `local/state/runtime.sqlite3`. The
 management authorization boundary is unchanged. Issued tokens work with Bearer

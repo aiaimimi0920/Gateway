@@ -24,6 +24,25 @@ export function normalizeString(value) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+// Browser locale is one BCP 47 tag, never an HTTP Accept-Language list.
+export function resolveBrowserLocale(input, fallback = "zh-CN") {
+  for (const value of [input?.languageCode, input?.oaiLanguage, input?.language, input?.acceptLanguage]) {
+    const text = normalizeString(value);
+    if (!text || text.length > 4096) continue;
+    for (const entry of text.split(",")) {
+      const [tag, ...parameters] = entry.trim().split(";");
+      if (!tag || tag === "*" || parameters.some((part) => /^q=0(?:\.0*)?$/i.test(part.trim()))) continue;
+      try {
+        const [locale] = Intl.getCanonicalLocales(tag.trim());
+        if (locale) return locale;
+      } catch {
+        // Ignore invalid legacy values rather than failing browser initialization.
+      }
+    }
+  }
+  return fallback;
+}
+
 export function normalizeTimeoutMs(value) {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return Math.min(value, 10 * 60 * 1000);

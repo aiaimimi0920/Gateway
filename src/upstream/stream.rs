@@ -7,6 +7,10 @@
 // ---------------------------------------------------------------------------
 
 use std::pin::Pin;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::task::{Context, Poll};
 use std::time::Instant;
 
@@ -17,6 +21,7 @@ mod archive;
 mod completion;
 mod model_declaration;
 mod observation;
+mod responses_terminal;
 mod usage;
 
 pub use archive::{
@@ -80,6 +85,7 @@ pub struct TrackedStream<E = rquest::Error> {
     /// Set to `true` after `on_complete` has been called, preventing double-fire.
     completed: bool,
     termination: Option<StreamTermination>,
+    response_terminal: Option<Arc<AtomicBool>>,
     pub(crate) native_response_metadata: super::native_response_metadata::NativeResponseMetadata,
 }
 
@@ -131,8 +137,23 @@ impl<E> TrackedStream<E> {
             on_complete: Some(Box::new(on_complete)),
             completed: false,
             termination: None,
+            response_terminal: None,
             native_response_metadata: Default::default(),
         }
+    }
+
+    /// Responses consumers can close after a terminal SSE event without waiting for HTTP EOF.
+    /// Opt in only for Responses; errors still win and bytes/backpressure stay unchanged.
+    pub(crate) fn with_responses_terminal(mut self) -> Self
+    where
+        E: Send + 'static,
+    {
+        if let Some(inner) = self.inner.take() {
+            let (stream, terminal) = responses_terminal::tap(inner);
+            self.inner = Some(Box::pin(stream));
+            self.response_terminal = Some(terminal);
+        }
+        self
     }
 
     /// Return a snapshot of the metrics accumulated so far.
@@ -216,7 +237,16 @@ impl<E> Drop for TrackedStream<E> {
     fn drop(&mut self) {
         // Ensure callback fires even if the stream is dropped before exhaustion
         // (e.g., the client disconnected).
-        self.fire_callback(StreamTermination::Cancelled);
+        let termination = if self
+            .response_terminal
+            .as_ref()
+            .is_some_and(|terminal| terminal.load(Ordering::Acquire))
+        {
+            StreamTermination::Completed
+        } else {
+            StreamTermination::Cancelled
+        };
+        self.fire_callback(termination);
     }
 }
 
@@ -229,3 +259,6 @@ mod tests;
 
 #[cfg(test)]
 mod typed_error_tests;
+
+#[cfg(test)]
+mod responses_terminal_tests;

@@ -6,6 +6,7 @@ pub(super) async fn prepare(
     candidate: &crate::routing::candidate::RouteCandidate,
     request: &crate::protocol::canonical::CanonicalRelayRequest,
 ) -> Result<(String, stage_rate_limit::eligibility::EligibilityCheck), GatewayError> {
+    crate::routing::call_flow::validate_prepared_candidate(candidate)?;
     let model = candidate
         .upstream_model
         .as_deref()

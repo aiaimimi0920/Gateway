@@ -46,6 +46,9 @@ describe("credential audit to ledger", () => {
     expect(accounts.map(({ accountId, requestCount }) => ({ accountId, requestCount })))
       .toEqual([{ accountId: "one", requestCount: 2 }, { accountId: "two", requestCount: 5 }]);
     expect(accounts.map((account) => account.successWindows?.[0].requests)).toEqual([2, 5]);
+    expect(accounts.map((account) => account.successWindows?.[0].label))
+      .toEqual(["2026-09-27T01:00:00Z", "2026-09-27T01:00:00Z"]);
+    expect(snapshot.providerAccounts.get("nvidia")?.successWindows[0].label).toBe("2026-09-27T01:00:00Z");
     expect(accounts.map((account) => account.modelTraffic?.models.get("nvidia/nemotron-3-super-120b-a12b")?.requestCount))
       .toEqual([20, 50]);
     expect(sections[0].modelTraffic?.models.get("nvidia/nemotron-3-super-120b-a12b")?.successWindows[0].requests).toBe(7);

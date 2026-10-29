@@ -61,9 +61,7 @@ pub(super) fn derive_credential_material_kind(
     }
 
     match provider_account.protocol_profile.as_str() {
-        "qwen_dashscope_openai" | "qwen_coding_plan_openai" | "qwen_coding_plan_anthropic" => {
-            "api_key".to_string()
-        }
+        "qwen_coding_plan_openai" | "qwen_coding_plan_anthropic" => "api_key".to_string(),
         "chatgpt_web_reverse" => "session_auth".to_string(),
         "qwen_web_chat" | "accio" | "chataibot" | "suno" | "udio" | "lumalabs" | "freebuff"
         | "producer" => "session_auth".to_string(),

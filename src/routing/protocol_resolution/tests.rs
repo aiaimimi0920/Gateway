@@ -1,3 +1,4 @@
+mod call_flow;
 mod candidate_selection;
 mod gemini_bridges;
 mod text_bridges;
@@ -55,6 +56,7 @@ fn make_candidate(protocol_family: &str) -> RouteCandidate {
         provider_credential_id: Some("cred-1".to_string()),
         label: "provider-1".to_string(),
         payload: ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "openai_compatible".to_string(),

@@ -68,6 +68,10 @@ pub(super) fn normalized_alias_entries(
 }
 
 pub(super) fn resolve_alias_inner(guard: &RouteConfigInner, model: &str) -> Option<String> {
+    // Reserved tool pools must not be captured by fuzzy aliases or a single vendor alias.
+    if super::search_tools::is_generic(model) {
+        return None;
+    }
     if let Some(target) = guard.aliases.get(model) {
         return Some(target.clone());
     }

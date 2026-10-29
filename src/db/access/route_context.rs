@@ -5,6 +5,7 @@ use super::projection_queries::{
 };
 use super::route_filter::{credential_payload_supports_route_row, route_rows_for_endpoint};
 use super::*;
+use crate::routing::call_flow::{prepare_route_payload, PreparedRoutePayload};
 
 pub async fn resolve_access_key_route_context(
     pool: &PgPool,
@@ -105,14 +106,6 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                     &account_payload,
                     &credential.payload,
                 );
-                let supported_protocol_families =
-                    resolve_supported_wire_protocol_families_for_model(
-                        Some(&merged_payload),
-                        Some(requested_model),
-                        row.upstream_model.as_deref(),
-                        &provider_row.adapter,
-                        &provider_row.protocol_family,
-                    );
                 let mut payload = crate::routing::candidate::deserialize_provider_payload(
                     &merged_payload,
                     Some(&provider_row.adapter),
@@ -123,6 +116,22 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                         credential.id
                     ))
                 })?;
+                payload.adapter = canonicalize_adapter_name(&provider_row.adapter);
+                let Some(PreparedRoutePayload {
+                    mut payload,
+                    adapter,
+                    protocol_family,
+                    supported_protocol_families,
+                }) = prepare_route_payload(
+                    payload,
+                    Some(&merged_payload),
+                    &provider_row.protocol_family,
+                    Some(requested_model),
+                    row.upstream_model.as_deref(),
+                )?
+                else {
+                    continue;
+                };
                 if !payload.supports_search_endpoint(endpoint_kind) {
                     continue;
                 }
@@ -146,12 +155,10 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                         provider_credential_id: Some(credential.id.clone()),
                         label: format!("{} / {}", provider_row.label, credential.label),
                         payload,
-                        protocol_family: canonicalize_protocol_family_name(
-                            &provider_row.protocol_family,
-                        ),
+                        protocol_family,
                         protocol_profile: provider_row.protocol_profile.clone(),
                         supported_protocol_families,
-                        adapter: canonicalize_adapter_name(&provider_row.adapter),
+                        adapter,
                         model_alias: Some(requested_model.to_string()),
                         upstream_model: row.upstream_model.clone(),
                         resolved_execution_mode: match provider_row.execution_mode.as_str() {
@@ -183,13 +190,6 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
             else {
                 continue;
             };
-            let supported_protocol_families = resolve_supported_wire_protocol_families_for_model(
-                Some(&payload_view.payload),
-                Some(requested_model),
-                row.upstream_model.as_deref(),
-                &provider_row.adapter,
-                &provider_row.protocol_family,
-            );
             let mut payload = crate::routing::candidate::deserialize_provider_payload(
                 &payload_view.payload,
                 Some(&provider_row.adapter),
@@ -200,6 +200,22 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                     row.provider_account_id
                 ))
             })?;
+            payload.adapter = canonicalize_adapter_name(&provider_row.adapter);
+            let Some(PreparedRoutePayload {
+                mut payload,
+                adapter,
+                protocol_family,
+                supported_protocol_families,
+            }) = prepare_route_payload(
+                payload,
+                Some(&payload_view.payload),
+                &provider_row.protocol_family,
+                Some(requested_model),
+                row.upstream_model.as_deref(),
+            )?
+            else {
+                continue;
+            };
             if !payload.supports_search_endpoint(endpoint_kind) {
                 continue;
             }
@@ -218,12 +234,10 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                     provider_credential_id: None,
                     label: provider_row.label.clone(),
                     payload,
-                    protocol_family: canonicalize_protocol_family_name(
-                        &provider_row.protocol_family,
-                    ),
+                    protocol_family,
                     protocol_profile: provider_row.protocol_profile.clone(),
                     supported_protocol_families,
-                    adapter: canonicalize_adapter_name(&provider_row.adapter),
+                    adapter,
                     model_alias: Some(requested_model.to_string()),
                     upstream_model,
                     resolved_execution_mode: match provider_row.execution_mode.as_str() {

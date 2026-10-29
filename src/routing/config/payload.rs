@@ -220,6 +220,7 @@ pub(super) fn build_base_payload(
         };
 
         Ok(ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter,

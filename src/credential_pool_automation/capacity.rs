@@ -16,7 +16,7 @@ pub fn pool_min_size(provider: &ProviderConfigYaml) -> usize {
 }
 
 pub fn active_credential_count(provider: &ProviderConfigYaml) -> usize {
-    if provider.credentials.is_empty() {
+    if provider.uses_provider_default_account() {
         usize::from(!provider.api_key.trim().is_empty() || provider.auth_token.is_some())
     } else {
         provider

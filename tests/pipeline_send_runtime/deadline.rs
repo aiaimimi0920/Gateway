@@ -117,7 +117,7 @@ async fn policy_tightens_from_original_start_and_never_resets_or_accepts_corrupt
     advance(Duration::from_secs(2)).await;
     budget.configure(&ctx.canonical_req, Some(3)).unwrap();
     budget.configure(&ctx.canonical_req, Some(300)).unwrap();
-    for seconds in [-1, 0, 301, i32::MAX] {
+    for seconds in [-1, 0, 901, i32::MAX] {
         let error = budget
             .configure(&ctx.canonical_req, Some(seconds))
             .unwrap_err();

@@ -73,7 +73,11 @@ pub fn provider_payload_probe_point(payload: &ProviderAccountPayload) -> String 
     let base_url = payload.base_url.trim_end_matches('/');
     match payload.canonical_adapter() {
         "openai_compatible" | "anthropic_compatible" => {
-            let url = format!("{base_url}/models");
+            let url = if payload.canonical_adapter() == "anthropic_compatible" {
+                format!("{base_url}/v1/models")
+            } else {
+                format!("{base_url}/models")
+            };
             format!("GET {}", crate::console::secrets::redact_url_value(&url))
         }
         "search_api_compatible" => payload

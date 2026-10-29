@@ -73,18 +73,17 @@ fn profile_from_hint(value: &str) -> Option<&'static str> {
         "mistral" => Some("mistral"),
         "xai" | "x_ai" => Some("xai"),
         "nvidia" | "nvidia_platform" | "nvidia_nim" => Some("nvidia"),
-        "perplexity" | "perplexity_chat" => Some("perplexity_chat"),
+        "perplexity" | "perplexity_api" | "perplexity_chat" => Some("perplexity_chat"),
         "perplexity_search" => Some("perplexity_search"),
         "tavily" => Some("tavily"),
         "exa" => Some("exa"),
-        "jina" | "jina_search" => Some("jina_search"),
+        "jina" => Some("jina"),
+        "jina_search" => Some("jina_search"),
         "jina_reader" => Some("jina_reader"),
         "linkup" => Some("linkup"),
         "you" | "you_search" => Some("you_search"),
         "websearchapi" => Some("websearchapi"),
         "accio" | "accio_platform" => Some("accio"),
-        "qwen" | "qwen_platform" => Some("qwen_dashscope_openai"),
-        "qwen_dashscope" | "qwen_dashscope_openai" => Some("qwen_dashscope_openai"),
         "qwen_coding_plan" | "qwen_coding_plan_openai" => Some("qwen_coding_plan_openai"),
         "qwen_coding_plan_anthropic" => Some("qwen_coding_plan_anthropic"),
         "qwen_web" | "qwen_web_chat" => Some("qwen_web_chat"),
@@ -109,6 +108,13 @@ fn profile_from_hint(value: &str) -> Option<&'static str> {
 }
 
 fn profile_from_base_url(adapter: &str, base_url: &str) -> Option<&'static str> {
+    if let Ok(url) = url::Url::parse(base_url) {
+        match url.host_str() {
+            Some("s.jina.ai") => return Some("jina"),
+            Some("r.jina.ai") => return Some("jina_reader"),
+            _ => {}
+        }
+    }
     if base_url.contains("openai.azure.com")
         || (base_url.contains("azure.com") && base_url.contains("/openai/"))
         || base_url.contains(".cognitiveservices.azure.com")
@@ -141,12 +147,6 @@ fn profile_from_base_url(adapter: &str, base_url: &str) -> Option<&'static str> 
     }
     if base_url.contains("coding.dashscope.aliyuncs.com") {
         return Some("qwen_coding_plan_openai");
-    }
-    if base_url.contains("dashscope.aliyuncs.com/compatible-mode/")
-        || base_url.contains("dashscope-us.aliyuncs.com/compatible-mode/")
-        || base_url.contains("dashscope-intl.aliyuncs.com/compatible-mode/")
-    {
-        return Some("qwen_dashscope_openai");
     }
     if base_url.contains("api.anthropic.com") {
         return Some("anthropic");

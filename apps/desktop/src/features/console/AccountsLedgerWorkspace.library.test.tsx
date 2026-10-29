@@ -353,7 +353,7 @@ describe("AccountsLedgerWorkspace account library", () => {
     expect(
       screen.queryByRole("article", { name: /Managed OpenAI 账号明细/ }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Managed OpenAI$/ }));
+    await user.click(screen.getByRole("button", { name: /^Managed OpenAI-api$/ }));
 
     expect(screen.getByRole("region", { name: "Managed OpenAI 账号库" })).toBeInTheDocument();
     expect(

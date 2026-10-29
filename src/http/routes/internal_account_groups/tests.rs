@@ -271,6 +271,8 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
     let route_config = RouteConfigStore::from_document(RouteConfigYaml {
         providers: vec![
             crate::routing::config::ProviderConfigYaml {
+                request_wait: None,
+                call_flow: None,
                 auth_mode: None,
                 request_client_profile: None,
                 codex_basispoints_enabled: false,
@@ -279,6 +281,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 test_policy: None,
                 subpool_test_policies: Default::default(),
                 default_account_test_policy: None,
+                explicit_credentials_only: false,
                 credential_pool_auth_policy: Default::default(),
                 id: "openai-default".to_string(),
                 label: Some("OpenAI".to_string()),
@@ -335,6 +338,8 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 credentials: vec![],
             },
             crate::routing::config::ProviderConfigYaml {
+                request_wait: None,
+                call_flow: None,
                 auth_mode: None,
                 request_client_profile: None,
                 codex_basispoints_enabled: false,
@@ -343,6 +348,7 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                 test_policy: None,
                 subpool_test_policies: Default::default(),
                 default_account_test_policy: None,
+                explicit_credentials_only: false,
                 credential_pool_auth_policy: Default::default(),
                 id: "codex-main".to_string(),
                 label: Some("Codex".to_string()),
@@ -401,6 +407,8 @@ async fn account_group_summary_exposes_effective_billing_multiplier_and_membersh
                     codex_basispoints_enabled: None,
                     discovery_job: None,
                     discovery: None,
+                    model_catalog: None,
+                    model_selection: None,
                     test_policy: None,
                     id: Some("codex-live".to_string()),
                     base_url: None,

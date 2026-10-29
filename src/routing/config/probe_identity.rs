@@ -25,7 +25,7 @@ impl RouteConfigSnapshot {
             .providers
             .iter()
             .find(|provider| provider.id == target.provider_id)?;
-        let (payload, discovery) = if provider.credential_pool.is_empty() {
+        let (payload, discovery) = if provider.uses_provider_default_account() {
             if target.credential_id != provider_default_account_id(&provider.id) {
                 return None;
             }

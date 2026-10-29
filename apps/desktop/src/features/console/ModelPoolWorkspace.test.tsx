@@ -82,11 +82,11 @@ it("renders aggregate metrics and preserves the missing-data and empty states", 
   expect(metric("upstream-cost")).toHaveTextContent("$1.25");
   expect(metric("platform-revenue")).toHaveTextContent("$2.50");
   expect(metric("requests")).toHaveTextContent("1,234");
-  expect(screen.getByRole("img")).toHaveAccessibleName(/3\/4 successful/);
+  expect(screen.getByRole("group", { name: /3\/4 successful/ })).toBeInTheDocument();
+  expect(screen.getByRole("img")).toHaveAttribute("title", "Time: 10:00–10:30; Calls: 4; Success: 75%");
   expect(container.querySelectorAll(".nt-provider-card__availability-cell").length).toBeGreaterThan(0);
   rerender(<ModelPoolWorkspace {...props} models={[modelCard()]} />);
-  expect(within(screen.getByRole("img")).getByText("No dispatch data yet")).toBeVisible();
-  expect(screen.getByRole("img")).toHaveAccessibleName(/unavailable/);
+  expect(within(screen.getByRole("group", { name: /unavailable/ })).getByText("No dispatch data yet")).toBeVisible();
   rerender(<ModelPoolWorkspace {...props} models={[]} />);
   expect(screen.getByRole("heading", { name: "No models yet" })).toBeVisible();
   expect(screen.queryByRole("region", { name: "Model cards" })).not.toBeInTheDocument();

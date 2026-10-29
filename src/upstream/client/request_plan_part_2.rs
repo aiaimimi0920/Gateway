@@ -9,7 +9,9 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<CanonicalRelayResponse, GatewayError> {
-        if payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER {
+        let flow = crate::protocol::call_flow::prepare(payload)?;
+        let payload = flow.payload.as_ref();
+        if flow.executor == crate::protocol::chatgpt::basispoints::ADAPTER {
             return crate::upstream::basispoints::execute(
                 &self.http,
                 self.timeout,
@@ -38,7 +40,7 @@ impl UpstreamClient {
                 .await;
         }
 
-        if payload.adapter == "chatgpt_web_reverse_compatible" {
+        if flow.executor == "chatgpt_web_reverse_compatible" {
             debug!(
                 model,
                 "sending upstream request (chatgpt web reverse: bootstrap + sentinel + conversation accumulate)"
@@ -64,7 +66,7 @@ impl UpstreamClient {
                 .await;
         }
 
-        if matches!(payload.adapter.as_str(), "gemini_web_compatible") {
+        if flow.executor == "gemini_web_compatible" {
             debug!(
                 model,
                 "sending upstream request (gemini web: bootstrap app + StreamGenerate accumulate)"
@@ -300,7 +302,11 @@ impl UpstreamClient {
 
         if payload.adapter == "cohere_compatible" {
             let plan = Self::build_request_plan(payload, req, model, true)?;
-            let headers = build_inference_headers(payload, req, model, extra_headers);
+            let mut headers = build_inference_headers(payload, req, model, extra_headers);
+            headers.insert(
+                rquest::header::ACCEPT,
+                rquest::header::HeaderValue::from_static("text/event-stream"),
+            );
             let provider = &payload.adapter;
 
             debug!(url = %plan.url, model, adapter = %payload.adapter, "sending upstream request (cohere chat: forced streaming + accumulate)");

@@ -62,6 +62,7 @@ pub(super) async fn send(
                     &failure.message,
                 );
                 spawn_record_provider_failure(
+                    ctx.started_at,
                     Arc::clone(state),
                     candidate.provider_account_id.clone(),
                     candidate.provider_credential_id.clone(),
@@ -140,6 +141,7 @@ pub(super) async fn send(
                         &error.message,
                     );
                     spawn_record_provider_failure(
+                        ctx.started_at,
                         Arc::clone(state),
                         candidate.provider_account_id.clone(),
                         candidate.provider_credential_id.clone(),
@@ -178,6 +180,7 @@ pub(super) async fn send(
                 &error.message,
             );
             spawn_record_provider_failure(
+                ctx.started_at,
                 Arc::clone(state),
                 candidate.provider_account_id.clone(),
                 candidate.provider_credential_id.clone(),
@@ -195,22 +198,25 @@ pub(super) async fn send(
         Err(error) => {
             provider_attempt_gate.observe_error(&error);
             cancellation.disarm();
-            let failure_kind = classify_failure_kind(&error);
-            controller.on_failure(failure_kind);
-            observe_provider_failure_metric(
-                global_gateway_metrics().as_ref(),
-                &candidate.provider_account_id,
-                &model,
-                bridge_attempt_started_at.elapsed().as_millis() as u64,
-                &error.message,
-            );
-            spawn_record_provider_failure(
-                Arc::clone(state),
-                candidate.provider_account_id.clone(),
-                candidate.provider_credential_id.clone(),
-                route_policy_config.clone(),
-                error.message.clone(),
-            );
+            if should_record_provider_failure(&error) {
+                let failure_kind = classify_failure_kind(&error);
+                controller.on_failure(failure_kind);
+                observe_provider_failure_metric(
+                    global_gateway_metrics().as_ref(),
+                    &candidate.provider_account_id,
+                    &model,
+                    bridge_attempt_started_at.elapsed().as_millis() as u64,
+                    &error.message,
+                );
+                spawn_record_provider_failure(
+                    ctx.started_at,
+                    Arc::clone(state),
+                    candidate.provider_account_id.clone(),
+                    candidate.provider_credential_id.clone(),
+                    route_policy_config.clone(),
+                    error.message.clone(),
+                );
+            }
             drop(permit);
 
             if should_try_next_candidate(&error) {

@@ -47,7 +47,7 @@ pub(super) fn eligible_credentials(
     allowed: Option<&HashSet<String>>,
     admission: candidates::Admission<'_>,
 ) -> Option<Vec<usize>> {
-    if provider.credential_pool.is_empty() {
+    if provider.uses_provider_default_account() {
         if !provider.credential_pool_auth_policy.is_any() {
             return None;
         }
@@ -97,7 +97,7 @@ fn target_is_available(
     target: &str,
     allowed: Option<&HashSet<String>>,
 ) -> bool {
-    if provider.credential_pool.is_empty() {
+    if provider.uses_provider_default_account() {
         return eligible_credentials(provider, original, target, allowed, None).is_some();
     }
     provider.credential_pool.iter().any(|credential| {
@@ -178,7 +178,7 @@ pub(crate) fn model_for_probe(
             .filter(|target| {
                 provider.credential_pool.iter().any(|credential| {
                     credential_eligible(credential, model, target, Some(&allowed))
-                }) || (provider.credential_pool.is_empty()
+                }) || (provider.uses_provider_default_account()
                     && allowed.contains(&provider_default_account_id(&provider.id))
                     && (provider.supported_models.is_empty()
                         || provider

@@ -128,7 +128,7 @@ pub(super) async fn finalize_request_audit(
         session_id: None,
         route_policy_id: ctx.route_policy_id.clone(),
         provider_account_id: ctx.audited_provider_id(),
-        resolved_model: ctx.resolved_model.clone(),
+        resolved_model: ctx.audited_resolved_model(),
         model_alias: ctx.selected_model_alias.clone(),
         route_attempt_count: ctx.route_attempt_count(),
         route_trace,

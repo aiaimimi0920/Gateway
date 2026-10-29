@@ -213,14 +213,15 @@ impl Drop for ConsoleDirectory {
             .to_string_lossy()
             .starts_with("gateway-send-runtime-"));
         // SQLite workers can release their final Windows handle just after pool close.
-        // Retry only sharing/lock violations, on this fixture-owned path, for < 1 s.
-        for attempt in 0..40 {
+        // Retry only sharing/lock violations on this fixture-owned path, for < 5 s.
+        // Concurrent debug linking can delay the native SQLite worker's final handle close.
+        for attempt in 0..200 {
             match std::fs::remove_dir_all(&resolved) {
                 Ok(()) => break,
                 Err(error)
                     if cfg!(windows)
                         && matches!(error.raw_os_error(), Some(32 | 33))
-                        && attempt < 39 =>
+                        && attempt < 199 =>
                 {
                     std::thread::sleep(Duration::from_millis(25));
                 }

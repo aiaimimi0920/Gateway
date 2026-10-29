@@ -104,10 +104,13 @@ pub(super) fn chatgpt_web_request_time_browser_path_needed(
 }
 
 pub(super) fn chatgpt_web_browser_fallback_forbidden_error(error: &GatewayError) -> GatewayError {
+    // Keep the upstream cause first; 503 here describes local route availability,
+    // not the upstream status or Gateway caller authentication.
     GatewayError::service_unavailable(format!(
-        "ChatGPT Web reverse pure HTTP replay failed and request-time browser fallback is disabled. original_code={} original_message={}",
+        "{} ChatGPT Web reverse pure HTTP replay cannot continue: request-time browser fallback is disabled. original_code={} upstream_status={}",
+        error.message,
         error.code.as_deref().unwrap_or("none"),
-        error.message
+        error.http_status.map(|status| status.to_string()).unwrap_or_else(|| "none".to_string())
     ))
     .with_provider("chatgpt_web_reverse_compatible")
     .with_code("chatgpt_web_request_time_browser_forbidden")

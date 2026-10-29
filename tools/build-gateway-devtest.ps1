@@ -22,7 +22,7 @@ $layout = Get-GatewayEditionLayout -Root $root -Edition $Edition -BuildKind devt
 $cargo = @("build", "--locked", "--profile", "devtest", "--bin", "gateway", "--jobs", "$Jobs", "--target-dir", "target")
 if ($Edition -eq "api") { $cargo += @("--no-default-features", "--features", "runtime-defaults") }
 if ($DryRun) {
-    "buildKind=devtest edition=$Edition jobs=$Jobs incremental=1 lto=false opt-level=1"
+    "buildKind=devtest edition=$Edition jobs=$Jobs incremental=1 lto=false opt-level=1 apiPort=4200 isolatedData=.ng-devtest-4300"
     if ($layout.WebUi) { "npm run build:web --prefix apps/desktop" }
     "cargo $($cargo -join ' ')"
     if ($layout.DesktopUi) {
@@ -38,6 +38,7 @@ function Invoke-Step([string]$Command, [string[]]$Arguments) {
     if ($LASTEXITCODE -ne 0) { throw "devtest command failed ($LASTEXITCODE): $Command" }
 }
 $settings = @{
+    GATEWAY_DEVTEST_ISOLATED = "1"
     CARGO_BUILD_JOBS = "$Jobs"
     CARGO_INCREMENTAL = "1"
     GATEWAY_PREBUILT_WEB_UI = $(if ($layout.WebUi) { "1" } else { "0" })
@@ -84,7 +85,7 @@ try {
         capabilities = @{ managementUi = $layout.WebUi; desktopUi = $layout.DesktopUi }
         builtAt = [DateTimeOffset]::UtcNow.ToString("o")
         sourceTreeFingerprint = $after.fingerprint; sourceTreeDirty = $after.dirty; sourceTree = $after
-        buildSettings = @{ profile = "devtest"; jobs = $Jobs; incremental = $true; lto = $false; optLevel = 1 }
+        buildSettings = @{ profile = "devtest"; jobs = $Jobs; incremental = $true; lto = $false; optLevel = 1; defaultApiPort = 4200; isolatedDataDirectory = ".ng-devtest-4300" }
         artifactReuse = "Cargo fingerprint/incremental cache; no unchecked binary reuse"
         artifacts = $records
     }

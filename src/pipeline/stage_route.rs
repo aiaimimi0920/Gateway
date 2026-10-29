@@ -52,6 +52,7 @@ use candidate_policy::{
 /// - `PlatformUnlimited` / `PlatformLimited`: shared across all project users
 pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(), GatewayError> {
     ctx.explicit_fallback_provider_ids.clear();
+    ctx.local_key_fallback_provider_ids.clear();
     let model = ctx.canonical_req.requested_model.as_deref();
     let requested_account_group_id = ctx.account_group_id.clone();
     let route_snapshot = state.route_config.snapshot();
@@ -134,7 +135,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             .into_iter()
             .zip(projected_candidates)
             .filter(|(c, _)| {
-                crate::routing::admission::candidate_allowed(
+                crate::routing::admission::candidate_queueable(
                     state,
                     c,
                     c.upstream_model.as_deref().unwrap_or(requested_model),
@@ -403,7 +404,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
                 model,
                 &account_group_constraint,
                 &|p, c, m| {
-                    crate::routing::admission::subject_allowed(
+                    crate::routing::admission::subject_queueable(
                         state,
                         &route_snapshot,
                         p,
@@ -424,7 +425,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     // routing before affinity or queue ordering can select an outside account.
     all_candidates = account_group_constraint.filter_candidates(all_candidates);
     all_candidates.retain(|c| {
-        crate::routing::admission::candidate_allowed(
+        crate::routing::admission::candidate_queueable(
             state,
             c,
             c.upstream_model.as_deref().unwrap_or_else(|| {
@@ -452,7 +453,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
                 )
                 .await?
             {
-                ctx.explicit_fallback_provider_ids.extend(ids);
+                ctx.local_key_fallback_provider_ids = ids;
             }
         }
     }

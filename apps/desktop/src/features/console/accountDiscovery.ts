@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ConsoleRouteDocument } from "../../api/contracts";
+import { applyModelSelection, modelSelectionSchema } from "./credentialModelSelection";
 
 const discoveryProtocol = z.enum(["chat_completions", "responses", "messages", "gemini_generate_content",
   "gemini_interactions", "ollama_chat", "ollama_generate", "cohere_chat", "bedrock_converse", "completions", "dashscope_text", "dashscope_multimodal"]);
@@ -43,6 +44,8 @@ export function applyAccountDiscovery(document: ConsoleRouteDocument, providerId
   if (!provider || !credential) throw new Error("账号已不存在，请刷新后重试。");
   delete credential.discovery_job;
   credential.discovery = discovery;
+  const selection = modelSelectionSchema.safeParse(credential.model_selection).data;
+  if (selection) return applyModelSelection(next, providerId, credentialId, { ...selection, fetched: discovery.models });
   credential.supported_models = [...discovery.models];
   const inherited = credentials!.some((c) => c !== credential && !c.discovery && !Array.isArray(c.supported_models));
   const previous = inherited && Array.isArray(provider.supported_models) ? provider.supported_models as string[] : [];

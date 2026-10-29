@@ -80,6 +80,7 @@ mod model_health;
 mod model_observation;
 mod pack;
 mod qwen_recovery;
+mod recovery_wait;
 mod responses_bridge;
 mod responses_bridge_stream;
 mod selection;
@@ -126,20 +127,13 @@ pub async fn run(
     ctx: &mut PipelineContext,
     state: &Arc<AppState>,
 ) -> Result<PipelineOutput, GatewayError> {
-    let budget = ctx.request_budget.clone();
-    budget.configure(
-        &ctx.canonical_req,
-        ctx.route_policy_config
-            .as_ref()
-            .and_then(|policy| policy.total_request_timeout_seconds),
-    )?;
-    // Keep the large dispatch state out of the budget wrapper's stack frame.
-    budget.run(Box::pin(run_candidates(ctx, state))).await
+    recovery_wait::run(ctx, state).await
 }
 
 async fn run_candidates(
     ctx: &mut PipelineContext,
     state: &Arc<AppState>,
+    waiting: &mut Option<recovery_wait::WaitingCandidate>,
 ) -> Result<PipelineOutput, GatewayError> {
     if matches!(
         ctx.canonical_req.endpoint_kind,
@@ -183,40 +177,37 @@ async fn run_candidates(
             match admission::prepare(state, candidate, &ctx.canonical_req).await {
                 Ok(prepared) => prepared,
                 Err(error)
-                    if matches!(
-                        error.code.as_deref(),
-                        Some(
-                            "upstream_credential_unavailable"
-                                | "site_health_route_restricted"
-                                | "model_circuit_open"
-                        )
-                    ) =>
+                    if crate::request_wait::recoverable(&error)
+                        || matches!(
+                            error.code.as_deref(),
+                            Some(
+                                "upstream_credential_unavailable"
+                                    | "upstream_balance_unavailable"
+                                    | "oauth_reauthorization_required"
+                                    | "site_health_route_restricted"
+                                    | "model_circuit_open"
+                            )
+                        ) =>
                 {
+                    recovery_wait::remember(
+                        waiting,
+                        candidate_index,
+                        &error,
+                        false,
+                        &ctx.request_budget,
+                    );
                     last_error = Some(error);
                     continue;
                 }
                 Err(error) => return Err(error),
             };
-        if !super::stage_route::provider_allowed_by_policy(
-            &candidate.provider_account_id,
-            ctx.route_policy_config.as_ref(),
-        ) {
+        if !ctx.provider_allowed_for_send(&candidate.provider_account_id) {
             rejected_by_policy = true;
             continue;
         }
-        if ctx
-            .attempted_provider_ids
-            .lock()
-            .iter()
-            .any(|id| id != &candidate.provider_account_id)
-            && !super::stage_route::provider_explicitly_allowed_by_policy(
-                &candidate.provider_account_id,
-                ctx.route_policy_config.as_ref(),
-            )
-            && !ctx
-                .explicit_fallback_provider_ids
-                .iter()
-                .any(|id| id == &candidate.provider_account_id)
+        if ctx.has_other_provider_attempt(&candidate.provider_account_id)
+            && !ctx.provider_explicitly_allowed_for_send(&candidate.provider_account_id)
+            && !ctx.fallback_provider_authorized(&candidate.provider_account_id)
         {
             rejected_fallback = true;
             continue;
@@ -227,6 +218,7 @@ async fn run_candidates(
             state,
             &candidate.provider_account_id,
         )?
+        .with_audit_candidate(candidate, &model)
         .with_eligibility(eligibility)
         .with_circuit(crate::routing::admission::attempt(state, candidate, &model));
         if ctx
@@ -392,10 +384,28 @@ async fn run_candidates(
         let controller = state
             .concurrency_registry
             .get_or_create(&candidate.provider_account_id);
-        let permit = controller.acquire().await;
+        let permit = recovery_wait::cancellable(
+            ctx.caller_cancel.clone(),
+            ctx.request_budget.clone(),
+            state,
+            controller.acquire(),
+        )
+        .await?;
         if let Err(error) = provider_attempt_gate.admit().await {
             drop(permit);
-            if error.code.as_deref() == Some("upstream_credential_unavailable") {
+            recovery_wait::remember(waiting, candidate_index, &error, false, &ctx.request_budget);
+            if crate::request_wait::recoverable(&error) {
+                last_error = Some(error);
+                continue;
+            }
+            if matches!(
+                error.code.as_deref(),
+                Some(
+                    "upstream_credential_unavailable"
+                        | "upstream_balance_unavailable"
+                        | "oauth_reauthorization_required"
+                )
+            ) {
                 last_error = Some(error);
                 continue;
             }
@@ -456,29 +466,23 @@ async fn run_candidates(
         let candidate_started_at = Instant::now();
         // Never cancel admission/reservation transactions: their result must first
         // reach ctx so failure settlement can refund the exact source reservation.
-        let cancel = ctx.caller_cancel.clone();
-        let send = async {
-            if ctx.canonical_req.stream {
-                streaming::send(ctx, state, candidate, candidate_index, attempt).await
-            } else {
-                buffered::send(ctx, state, candidate, candidate_index, attempt).await
-            }
-        };
-        let result = if let Some(mut cancel) = cancel {
-            tokio::select! {
-                biased;
-                _ = async {
-                    while !*cancel.borrow_and_update() {
-                        if cancel.changed().await.is_err() { break; }
-                    }
-                } => Err(AttemptError::Stop(GatewayError::bad_request("Responses caller disconnected"))),
-                output = send => output,
-            }
-        } else {
-            send.await
-        };
+        let result =
+            recovery_wait::send_cancellable(ctx, state, candidate, candidate_index, attempt).await;
         if let Err(AttemptError::Next(error) | AttemptError::Stop(error)) = &result {
             terminal_gate.finish_error(error);
+            let sent = ctx.route_attempt_count() > attempts_before;
+            recovery_wait::remember(waiting, candidate_index, error, sent, &ctx.request_budget);
+            if sent {
+                model_health::record_rate_limit(
+                    ctx,
+                    state,
+                    candidate,
+                    candidate_index,
+                    &model_for_feedback,
+                    error,
+                )
+                .await;
+            }
         }
         match result {
             Ok(output) => {
@@ -494,32 +498,10 @@ async fn run_candidates(
             }
             Err(AttemptError::Next(error)) => {
                 ctx.request_budget.allow_rejected_candidate_fallback(&error);
-                if ctx.route_attempt_count() > attempts_before {
-                    model_health::record_rate_limit(
-                        ctx,
-                        state,
-                        candidate,
-                        candidate_index,
-                        &model_for_feedback,
-                        &error,
-                    )
-                    .await;
-                }
                 last_error = Some(error);
                 continue;
             }
             Err(AttemptError::Stop(error)) => {
-                if ctx.route_attempt_count() > attempts_before {
-                    model_health::record_rate_limit(
-                        ctx,
-                        state,
-                        candidate,
-                        candidate_index,
-                        &model_for_feedback,
-                        &error,
-                    )
-                    .await;
-                }
                 return Err(error);
             }
         }

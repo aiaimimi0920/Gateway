@@ -1,220 +1,61 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import type { Dispatch, SetStateAction } from "react";
+import type { ConsoleCredentialPoolAutomationDriver } from "../../api/contracts";
 import type { ProviderCatalogDraft, ProviderCatalogTemplate } from "./providerCatalog";
-import { RequestClientProfileSelect } from "./RequestClientProfileSelect";
-
-type TranslateFn = (zh: string, en: string) => string;
+import type { CatalogTab } from "./ProviderCatalogDialog";
+import type { CatalogWorkflow } from "./providerCatalogWorkflow";
+import { CatalogField } from "./ProviderCatalogFields";
+import { ProviderCatalogRequestFields } from "./ProviderCatalogRequestFields";
+import { ProviderCatalogMappingFields } from "./ProviderCatalogMappingFields";
+import { ProviderCatalogTestFields } from "./ProviderCatalogTestFields";
+import { ProviderCatalogPoolFields } from "./ProviderCatalogPoolFields";
+import { ProviderCatalogHealthFields } from "./ProviderCatalogHealthFields";
 
 export type ProviderCatalogFormProps = {
-  t: TranslateFn;
+  t(zh: string, en: string): string;
   selectedTemplate: ProviderCatalogTemplate;
   draft: ProviderCatalogDraft;
   setDraft: Dispatch<SetStateAction<ProviderCatalogDraft>>;
-  supportedModelsText: string;
-  setSupportedModelsText: Dispatch<SetStateAction<string>>;
   locked: boolean;
-  autoDiscovery?: boolean;
-  hasSecretAccess: boolean;
+  tab: CatalogTab;
+  setTab(tab: CatalogTab): void;
+  drivers: readonly ConsoleCredentialPoolAutomationDriver[];
   validationError: string | null;
-  onRequestSecretAccess(): void;
-  suggestedCredentialId(providerId: string): string;
 };
-
-export function ProviderCatalogForm({
-  t,
-  selectedTemplate,
-  draft,
-  setDraft,
-  supportedModelsText,
-  setSupportedModelsText,
-  locked,
-  autoDiscovery,
-  hasSecretAccess,
-  validationError,
-  onRequestSecretAccess,
-  suggestedCredentialId,
-}: ProviderCatalogFormProps) {
-  return (
-            <section className="nt-provider-catalog__form">
-              <div className="nt-provider-catalog__summary">
-                <div>
-                  <strong>{t(selectedTemplate.labelZh, selectedTemplate.labelEn)}</strong>
-                  <p>{t(selectedTemplate.descriptionZh, selectedTemplate.descriptionEn)}</p>
-                </div>
-                <span className="nt-badge nt-badge--info">
-                  {autoDiscovery ? t("自动识别", "Automatic") : selectedTemplate.compatibility === "openai"
-                    ? "OpenAI-compatible"
-                    : selectedTemplate.compatibility === "anthropic"
-                      ? "Anthropic Messages"
-                      : selectedTemplate.compatibility === "search"
-                        ? t("搜索协议", "Search protocol")
-                        : t("原生协议", "Native protocol")}
-                </span>
-              </div>
-
-                  <div className="nt-grid nt-grid--2">
-                    <label className="nt-field">
-                      <span>Provider ID</span>
-                      <input
-                        className="nt-input"
-                        value={draft.providerId}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const providerId = event.currentTarget.value;
-                          setDraft((current) => ({
-                            ...current,
-                            providerId,
-                            credentialId:
-                              current.credentialId === suggestedCredentialId(current.providerId)
-                                ? suggestedCredentialId(providerId)
-                                : current.credentialId,
-                          }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field">
-                      <span>{t("显示名称", "Display label")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.providerLabel}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const providerLabel = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, providerLabel }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field">
-                      <span>{t("服务商标识", "Vendor key")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.vendorKey}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const vendorKey = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, vendorKey }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field">
-                      <span>{t("服务商名称", "Vendor name")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.vendorName}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const vendorName = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, vendorName }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field nt-field--wide">
-                      <span>Base URL</span>
-                      <input
-                        className="nt-input"
-                        type="url"
-                        value={draft.baseUrl}
-                        disabled={locked}
-                        placeholder="https://api.example.com"
-                        onChange={(event) => {
-                          const baseUrl = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, baseUrl }));
-                        }}
-                      />
-                    </label>
-                    {!autoDiscovery && <label className="nt-field nt-field--wide">
-                      <span>{t("支持模型与聚合路由", "Supported models and aggregation routes")}</span>
-                      <textarea
-                        className="nt-textarea nt-provider-catalog__models"
-                        rows={4}
-                        value={supportedModelsText}
-                        disabled={locked}
-                        placeholder={t("每行一个模型", "One model per line")}
-                        onChange={(event) => setSupportedModelsText(event.currentTarget.value)}
-                      />
-                    </label>}
-                    <label className="nt-field">
-                      <span>{t("首个账号 ID", "First account ID")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.credentialId}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const credentialId = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, credentialId }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field">
-                      <span>{t("账号名称", "Account name")}</span>
-                      <input
-                        className="nt-input"
-                        value={draft.accountName}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const accountName = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, accountName }));
-                        }}
-                      />
-                    </label>
-                    <label className="nt-field nt-field--wide">
-                      <span>API Key</span>
-                      <input
-                        className="nt-input"
-                        type="password"
-                        autoComplete="new-password"
-                        value={draft.apiKey}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const apiKey = event.currentTarget.value;
-                          setDraft((current) => ({ ...current, apiKey }));
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  <RequestClientProfileSelect value={draft.requestClientProfile} disabled={locked} t={t}
-                    onChange={(requestClientProfile) => setDraft((current) => ({ ...current, requestClientProfile }))} />
-                  <label><input type="checkbox" checked={draft.siteHealthEnabled ?? false} disabled={locked}
-                    onChange={(event) => setDraft((current) => ({ ...current, siteHealthEnabled: event.target.checked }))} />
-                    {t("自动识别站点健康接口", "Discover site health interfaces automatically")}</label>
-                  {selectedTemplate.id === "chatgpt" && <label><input type="checkbox" checked={draft.codexBasispointsEnabled ?? false} disabled={locked}
-                    onChange={(event) => setDraft((current) => ({ ...current, codexBasispointsEnabled: event.target.checked }))} />
-                    {t("使用 Basispoints 通道", "Use Basispoints channel")}</label>}
-
-                  {!hasSecretAccess ? (
-                    <div className="nt-validation-list nt-validation-list--warning">
-                      <strong>{t("保存密钥需要敏感信息权限", "Secret access is required to save the key")}</strong>
-                      <ul>
-                        <li>
-                          {t(
-                            "服务商和账号可以先写入草稿；正式保存路由配置前需要确认管理员敏感信息访问权限。",
-                            "The provider and account can be added to the draft first; confirm administrator secret access before saving the route config.",
-                          )}
-                        </li>
-                      </ul>
-                      <button className="nt-btn nt-btn--outline" type="button" onClick={onRequestSecretAccess}>
-                        {t("确认敏感信息访问权限", "Confirm secret access")}
-                      </button>
-                    </div>
-                  ) : null}
-
-              {validationError ? (
-                <div className="nt-validation-list" role="alert">
-                  <strong>{validationError}</strong>
-                </div>
-              ) : null}
-
-              <div className="dialog-actions">
-                <Dialog.Close asChild>
-                  <button className="nt-btn nt-btn--outline" type="button">
-                    {t("取消", "Cancel")}
-                  </button>
-                </Dialog.Close>
-                <button className="nt-btn nt-btn--primary" type="submit" disabled={locked}>
-                  {t("创建服务商与首个账号", "Create provider and first account")}
-                </button>
-              </div>
-            </section>
-  );
+export function ProviderCatalogForm({ t, selectedTemplate, draft, setDraft, locked, tab, setTab, drivers, validationError }: ProviderCatalogFormProps) {
+  const update = (patch: Partial<CatalogWorkflow>) => setDraft((current) => ({ ...current, workflow: { ...current.workflow!, ...patch } }));
+  const fields = { t, workflow: draft.workflow!, update, locked };
+  const tabs = [["request", t("调用流程", "Call flow")], ["mapping", t("模型映射", "Model mapping")],
+    ["tests", t("自动测试", "Automatic tests")], ["pool", t("号池流程", "Pool workflow")], ["health", t("站点健康", "Site health")]] as const;
+  const panel = {
+    request: <ProviderCatalogRequestFields {...fields} template={selectedTemplate} draft={draft} setDraft={setDraft} />,
+    mapping: <ProviderCatalogMappingFields key={draft.templateId} {...fields} models={draft.supportedModels} />,
+    tests: <ProviderCatalogTestFields key={draft.templateId} {...fields} />,
+    pool: <ProviderCatalogPoolFields key={draft.templateId} {...fields} draft={draft} setDraft={setDraft} drivers={drivers} />,
+    health: <ProviderCatalogHealthFields {...fields} template={selectedTemplate} draft={draft} setDraft={setDraft} />,
+  };
+  return <section className="nt-provider-catalog__form" aria-label={t("服务商配置", "Provider configuration")}>
+    <div className="nt-provider-catalog__basics">
+      <CatalogField name="Provider ID"><input className="nt-input" value={draft.providerId} maxLength={256} disabled={locked}
+        onChange={(event) => setDraft((current) => ({ ...current, providerId: event.target.value }))} /></CatalogField>
+      <CatalogField name="Base URL"><input className="nt-input" type="url" value={draft.baseUrl} disabled={locked}
+        readOnly={!selectedTemplate.custom && selectedTemplate.id !== "azure-api"} spellCheck={false}
+        onChange={(event) => setDraft((current) => ({ ...current, baseUrl: event.target.value }))} /></CatalogField>
+    </div>
+    <div className="nt-provider-catalog__tabs" role="tablist" aria-label={t("服务商标准配置", "Provider configuration tabs")}>
+      {tabs.map(([id, name], index) => <button type="button" key={id} role="tab" id={`catalog-tab-${id}`}
+        aria-selected={tab === id} aria-controls={`catalog-panel-${id}`} tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)}
+        onKeyDown={(event) => {
+          const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length
+            : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : null;
+          if (next !== null) { event.preventDefault(); setTab(tabs[next][0]); document.getElementById(`catalog-tab-${tabs[next][0]}`)?.focus(); }
+        }}>{name}</button>)}
+    </div>
+    <div className="nt-provider-catalog__panels">
+      {tabs.map(([id]) => <div key={id} role="tabpanel" id={`catalog-panel-${id}`} aria-labelledby={`catalog-tab-${id}`} hidden={tab !== id}>{panel[id]}</div>)}
+    </div>
+    <footer className="nt-provider-catalog__actions">
+      <div className="nt-provider-catalog__error" role={validationError ? "alert" : undefined}>{validationError}</div>
+      <button className="nt-btn nt-btn--primary" type="submit" disabled={locked}>{t("添加", "Add")}</button>
+    </footer>
+  </section>;
 }

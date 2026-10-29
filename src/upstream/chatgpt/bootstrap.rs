@@ -8,6 +8,7 @@ use crate::protocol::chatgpt::web_reverse as surface;
 use crate::protocol::upstream_body::collect_bounded_upstream_charset_text_with_provider;
 use crate::routing::candidate::ProviderAccountPayload;
 
+use super::common::{classify_chatgpt_web_text_response, ResponseStage};
 use super::headers::build_bootstrap_headers;
 use super::web_reverse::{
     build_target_url, merge_bootstrap_from_fallback, ChatGptWebRequestContext,
@@ -22,20 +23,34 @@ pub async fn bootstrap_site(
     extra_headers: Option<&HashMap<String, String>>,
 ) -> Result<surface::ChatGptWebBootstrap, GatewayError> {
     let fallback = surface::bootstrap_from_payload_cache(payload.extra_body.as_ref());
-    if let Some(cached) = fallback.as_ref() {
-        return Ok(merge_bootstrap_from_fallback(cached.clone(), None));
-    }
+    // Cached script metadata is not an initialized account-local HTTP session.
+    // Always receive normal homepage cookies; never let metadata suppress an HTTP rejection.
+    let body_text = initialize_site(http, timeout, payload, request_context, extra_headers).await?;
+    let bootstrap = surface::parse_bootstrap_from_html(&body_text)
+        .or_else(|primary_error| fallback.clone().ok_or(primary_error))?;
+    Ok(merge_bootstrap_from_fallback(bootstrap, fallback.as_ref()))
+}
 
+/// Both generation and read-only catalog requests initialize their own authenticated session.
+pub(super) async fn initialize_site(
+    http: &Client,
+    timeout: Duration,
+    payload: &ProviderAccountPayload,
+    request_context: &ChatGptWebRequestContext,
+    extra_headers: Option<&HashMap<String, String>>,
+) -> Result<String, GatewayError> {
     let bootstrap_url =
         build_target_url(request_context, surface::CHATGPT_WEB_DEFAULT_BOOTSTRAP_PATH);
-    let headers = build_bootstrap_headers(request_context, payload, extra_headers);
+    let headers = build_bootstrap_headers(request_context, payload, extra_headers)?;
     let response = http
         .request(Method::GET, &bootstrap_url)
         .headers(headers)
+        .redirect(rquest::redirect::Policy::none())
         .timeout(timeout.max(Duration::from_secs(30)))
         .send()
         .await
         .map_err(|error| classify_network_error(&error, Some(PROVIDER)))?;
+    request_context.cookies.receive(&response);
     let status = response.status().as_u16();
     let content_type = response
         .headers()
@@ -48,24 +63,21 @@ pub async fn bootstrap_site(
         PROVIDER,
     )
     .await?;
-    if !(200..300).contains(&status)
-        || surface::response_indicates_browser_challenge(
-            status,
-            content_type.as_deref(),
-            &body_text,
-        )
-        || surface::response_indicates_session_invalid(status, content_type.as_deref(), &body_text)
-    {
-        return Err(surface::classify_chatgpt_web_http_error(
-            status,
-            content_type.as_deref(),
-            &body_text,
-        ));
-    }
+    classify_chatgpt_web_text_response(
+        ResponseStage::Bootstrap,
+        status,
+        content_type.as_deref(),
+        &body_text,
+    )
+    .map_err(|mut error| {
+        // Homepage HTML may contain session material even on redirects or auth errors.
+        error.message = format!(
+            "ChatGPT Web site initialization failed: stage=bootstrap upstream_status={status}."
+        );
+        error
+    })?;
 
-    let bootstrap = surface::parse_bootstrap_from_html(&body_text)
-        .or_else(|primary_error| fallback.clone().ok_or(primary_error))?;
-    Ok(merge_bootstrap_from_fallback(bootstrap, fallback.as_ref()))
+    Ok(body_text)
 }
 
 #[cfg(test)]
@@ -82,6 +94,7 @@ mod tests {
         extra_body: Option<HashMap<String, serde_json::Value>>,
     ) -> ProviderAccountPayload {
         ProviderAccountPayload {
+            call_flow: None,
             request_client_profile: None,
             discovered_protocols: Vec::new(),
             adapter: "chatgpt_web_reverse_compatible".to_string(),
@@ -196,7 +209,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn bootstrap_site_prefers_payload_cache_over_live_challenge() {
+    async fn bootstrap_site_cache_does_not_suppress_live_challenge() {
         let base_url = spawn_bootstrap_server(
             403,
             "text/html; charset=utf-8",
@@ -211,7 +224,7 @@ mod tests {
         extra_body.insert("chatgptPowDataBuild".to_string(), json!("build-from-cache"));
         let payload = make_payload(&base_url, Some(extra_body));
         let request_context = build_request_context(&payload);
-        let bootstrap = bootstrap_site(
+        let error = bootstrap_site(
             &Client::new(),
             Duration::from_secs(5),
             &payload,
@@ -219,8 +232,65 @@ mod tests {
             None,
         )
         .await
-        .expect("cached bootstrap should avoid live challenge");
+        .expect_err("metadata cache cannot substitute for site initialization");
 
+        assert_eq!(
+            error.code.as_deref(),
+            Some(surface::CHATGPT_WEB_BROWSER_CHALLENGE_REQUIRED_CODE)
+        );
+    }
+
+    #[tokio::test]
+    async fn bootstrap_site_cache_still_receives_fresh_session_cookie() {
+        let app = Router::new().route(
+            "/",
+            get(|| async {
+                (
+                    [
+                        ("content-type", "text/html"),
+                        ("set-cookie", "session=fresh; Path=/; HttpOnly"),
+                    ],
+                    "<html></html>",
+                )
+            }),
+        );
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let mut payload = make_payload(
+            &base_url,
+            Some(HashMap::from([
+                (
+                    "chatgptPowSources".to_string(),
+                    json!(["https://chatgpt.com/backend-api/sentinel/sdk.js"]),
+                ),
+                ("chatgptPowDataBuild".to_string(), json!("build-from-cache")),
+            ])),
+        );
+        payload
+            .headers
+            .insert("Cookie".into(), "session=old".into());
+        let context = build_request_context(&payload);
+        let bootstrap = bootstrap_site(
+            &Client::new(),
+            Duration::from_secs(5),
+            &payload,
+            &context,
+            None,
+        )
+        .await
+        .unwrap();
+        task.abort();
+        let _ = task.await;
+        let mut headers = rquest::header::HeaderMap::new();
+        context
+            .cookies
+            .apply(
+                &format!("{base_url}/backend-api/conversation"),
+                &mut headers,
+            )
+            .unwrap();
+        assert_eq!(headers["cookie"], "session=fresh");
         assert_eq!(
             bootstrap.pow_data_build.as_deref(),
             Some("build-from-cache")

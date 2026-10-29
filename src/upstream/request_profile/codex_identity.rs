@@ -3,7 +3,7 @@
 use std::sync::OnceLock;
 
 pub(super) const ORIGINATOR: &str = "codex_exec";
-const VERSION: &str = "0.155.1";
+use crate::protocol::chatgpt::codex_client::VERSION;
 
 pub(super) fn user_agent() -> &'static str {
     static UA: OnceLock<String> = OnceLock::new();

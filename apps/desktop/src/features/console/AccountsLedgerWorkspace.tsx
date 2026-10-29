@@ -20,8 +20,8 @@ import {
   type PendingCredentialRemoval,
 } from "./ProviderAccountCard";
 import { providerPoolEntries, providerPoolTableRows } from "./providerPoolView";
-import { usePoolPagination } from "./usePoolPagination";
-import { ScopePager } from "./EntitlementScopePager";
+import { usePoolScrollLoading } from "./usePoolScrollLoading";
+import { useCenteredPoolGrid } from "./useCenteredPoolGrid";
 
 export type {
   AccountsLedgerPilotAccount,
@@ -75,14 +75,17 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   const poolView = props.poolView ?? { query: "", sort: "default" as const };
   const providerEntries = useMemo(
     () => providerPoolEntries(pilotSections, poolView),
-    [pilotSections, poolView.query, poolView.sort],
+    [pilotSections, poolView.query, poolView.sort, poolView.accessKinds],
   );
   const hasAccounts = totalAccounts > 0;
+  const hasSiteFilter = Boolean(poolView.query.trim()) || (poolView.accessKinds?.length ?? 3) < 3;
   const pilotProviderIds = new Set(pilotSections.flatMap((section) => section.providerIds));
   const tableRows = providerPoolTableRows(rows.filter((row) => !pilotProviderIds.has(row.providerId)), poolView);
   const hasVisibleLedgerContent = providerEntries.length > 0 || tableRows.length > 0;
-  const providerPage = usePoolPagination(providerEntries, poolView);
-  const tablePage = usePoolPagination(tableRows, poolView);
+  const poolFeed = usePoolScrollLoading(providerEntries.length + tableRows.length, poolView);
+  const providerGridRef = useCenteredPoolGrid();
+  const visibleProviders = providerEntries.slice(0, poolFeed.visibleCount);
+  const visibleTableRows = tableRows.slice(0, Math.max(0, poolFeed.visibleCount - providerEntries.length));
   const [expandedAccountLibraryProviderId, setExpandedAccountLibraryProviderId] = useState<
     string | null
   >(null);
@@ -323,15 +326,13 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   );
 
   return (
-    <div className="nt-stack">
+    <div className="nt-stack" ref={poolFeed.workspaceRef}>
       {notice}
       <p className="nt-visually-hidden" role="status" aria-live="polite" aria-atomic="true">
         {providerFlipAnnouncement}
       </p>
-      <ScopePager {...providerPage} t={t} navLabel={t("凭据池分页", "Credential pools pagination")}
-        onPage={(page) => { providerPage.onPage(page); setActivePilotActionMenuKey(null); }} />
-      <div className="nt-provider-card-grid">
-        {providerPage.items.map(({ section, snapshot }) => {
+      <div className="nt-provider-card-grid" ref={providerGridRef}>
+        {visibleProviders.map(({ section, snapshot }) => {
           const accountLibraryExpanded =
             expandedAccountLibraryProviderId === section.providerId;
           const flipped = flippedProviderIds.includes(section.providerId);
@@ -380,13 +381,21 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
       <AccountsLedgerTable
         t={t}
         editorLocked={editorLocked}
-        rows={tablePage.items}
+        rows={visibleTableRows}
         onEdit={onEdit}
         onAddExplicit={onAddExplicit}
       />
-      <ScopePager {...tablePage} t={t} navLabel={t("其他凭据分页", "Other credentials pagination")} />
+      {poolFeed.hasMore ? (
+        <div className="nt-pool-scroll-loader" ref={poolFeed.loaderRef} role="status" aria-live="polite">
+          {poolFeed.automatic ? t("正在加载更多…", "Loading more…") : (
+            <button type="button" className="nt-btn nt-btn--outline" onClick={poolFeed.loadMore}>
+              {t("加载更多", "Load more")}
+            </button>
+          )}
+        </div>
+      ) : null}
 
-      {!hasAccounts && !poolView.query.trim() ? (
+      {!hasAccounts && !hasVisibleLedgerContent && !hasSiteFilter ? (
         <article className="nt-card nt-card--panel nt-empty-state">
           <h2>{t("暂无账号", "No accounts yet")}</h2>
           <p className="nt-copy">
@@ -398,9 +407,9 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
         </article>
       ) : null}
 
-      {(hasAccounts || poolView.query.trim()) && !hasVisibleLedgerContent ? (
+      {(hasAccounts || hasSiteFilter) && !hasVisibleLedgerContent ? (
         <article className="nt-card nt-card--panel nt-empty-state">
-          <h2>{poolView.query.trim() ? t("没有匹配站点", "No matching sites") : t("没有匹配账号", "No matching accounts")}</h2>
+          <h2>{hasSiteFilter ? t("没有匹配站点", "No matching sites") : t("没有匹配账号", "No matching accounts")}</h2>
           <p className="nt-copy">
             {t(
               "没有匹配当前搜索或筛选条件的站点。",
