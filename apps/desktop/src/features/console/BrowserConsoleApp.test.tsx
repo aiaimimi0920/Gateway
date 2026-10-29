@@ -57,7 +57,7 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
 
-    const card = providerCard(/^LongCat$/i);
+    const card = providerCard(/^LongCat-api$/i);
     for (const metric of ["concurrency", "upstream-cost", "platform-revenue", "requests"]) {
       expect(card.querySelector(`[data-provider-metric="${metric}"]`)).toHaveTextContent("—");
     }
@@ -67,7 +67,7 @@ describe("BrowserConsoleApp", () => {
       }),
     ).not.toBeInTheDocument();
 
-    await user.click(within(card).getByRole("button", { name: /^LongCat$/i }));
+    await user.click(within(card).getByRole("button", { name: /^LongCat-api$/i }));
     const library = screen.getByRole("region", { name: /^LongCat 账号库$/i });
     expect(library.querySelectorAll("[data-account-card]")).toHaveLength(1);
     expect(library.querySelector('[data-account-card="longcat-live"]')).not.toBeNull();
@@ -92,7 +92,7 @@ describe("BrowserConsoleApp", () => {
     await user.click(screen.getByRole("button", { name: /添加服务商/i }));
     const dialog = screen.getByRole("dialog", { name: "添加服务商" });
     await user.click(within(dialog).getByRole("button", { name: "自定义模板" }));
-    await user.click(within(dialog).getByRole("button", { name: "custom-api-provider" }));
+    await user.click(within(dialog).getByRole("button", { name: "custom-api" }));
     await user.clear(within(dialog).getByLabelText("Provider ID"));
     await user.type(within(dialog).getByLabelText("Provider ID"), "partner-openai");
     await user.type(within(dialog).getByLabelText("Base URL"), "https://partner.example.test/v1");
@@ -167,18 +167,18 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
 
-    expect(screen.getByRole("button", { name: /^Gemini$/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Gemini Business$/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Gemini Canvas$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Gemini-web$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Gemini Business-web$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Gemini Canvas-web$/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Gemini Web \/u\/1\/$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^gemini-canvas-chat$/ })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^Gemini$/ }));
+    await user.click(screen.getByRole("button", { name: /^Gemini-web$/ }));
     const geminiPanel = screen.getByRole("region", { name: /^Gemini 账号库$/ });
     expect(within(geminiPanel).getByText("Gemini Web Account")).toBeInTheDocument();
     expect(within(geminiPanel).getByText("Gemini Chat Account")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^Gemini Canvas$/ }));
+    await user.click(screen.getByRole("button", { name: /^Gemini Canvas-web$/ }));
     const canvasPanel = screen.getByRole("region", { name: /^Gemini Canvas 账号库$/ });
     expect(within(canvasPanel).getByText("Canvas Account")).toBeInTheDocument();
   });

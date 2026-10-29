@@ -117,6 +117,11 @@ export const TEMPLATE_ADAPTATION_RECEIPTS: readonly TemplateAdaptationReceipt[] 
   verifiedAt: "2026-10-27T14:57:45Z",
   flowVersion: 1,
   acceptanceBasis: "documentation-and-local-tests",
+}, {
+  templateId: "gemini-web",
+  evidencePath: "docs/progress/2026-10-29-gemini-web-template-acceptance.md",
+  verifiedAt: "2026-10-29T14:51:21.5147534Z",
+  flowVersion: 1,
 }];
 export function templateAdaptationComplete(templateId: string): boolean {
   return TEMPLATE_ADAPTATION_RECEIPTS.some((receipt) => receipt.templateId === templateId

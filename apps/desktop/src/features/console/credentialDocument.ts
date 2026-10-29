@@ -36,12 +36,12 @@ export type ProviderProbeScheduleInput = {
 export type CredentialSecretEdit = CredentialIdentity &
   (
     | {
-        field: "api_key" | "auth_token" | "headers/Cookie" | "extra_body/sessionId";
+        field: "api_key" | "auth_token" | "headers/Cookie" | "extra_body/sessionId" | "extra_body/accessToken";
         operation: "replace";
         value: string;
       }
     | {
-        field: "api_key" | "auth_token" | "headers/Cookie" | "extra_body/sessionId";
+        field: "api_key" | "auth_token" | "headers/Cookie" | "extra_body/sessionId" | "extra_body/accessToken";
         operation: "clear";
       }
   );

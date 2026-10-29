@@ -123,6 +123,7 @@ fn build_web_generated_draft_keeps_both_cookies_in_secret_edits() {
         error: None,
         api_key: Some("primary-cookie".to_string()),
         auth_token: Some("secondary-cookie".to_string()),
+        cookie_header: None,
         account_index: Some("1".to_string()),
         access_token: Some("access-1".to_string()),
         build_label: Some("build-1".to_string()),
@@ -179,6 +180,24 @@ async fn create_business_session_starts_waiting_for_manual_capture() {
     assert!(session.message.contains("Gemini Business"));
     let loaded = manager.get_session(&session.id).expect("stored session");
     assert_eq!(loaded.status, GeminiAuthSessionStatus::WaitingUser);
+}
+
+#[test]
+fn web_capture_supplemental_cookies_use_secret_patch_not_public_headers() {
+    let output: GeminiWebCaptureOutput = serde_json::from_value(serde_json::json!({
+        "ok": true, "cookieHeader": "__Secure-1PSID=primary; SID=supplemental",
+        "responseStatus": 200, "responseContainsParis": true,
+    }))
+    .unwrap();
+    let drafts = build_web_generated_drafts("gemini-web", "primary", None, &output);
+    assert_eq!(drafts[0].credential["headers"]["Cookie"], "");
+    let cookie = drafts[0]
+        .secret_edits
+        .iter()
+        .find(|edit| edit.field == "headers/Cookie")
+        .expect("supplemental Google cookies must survive through the secret owner");
+    assert_eq!(cookie.operation, "replace");
+    assert_eq!(cookie.value, "__Secure-1PSID=primary; SID=supplemental");
 }
 
 #[test]

@@ -2,8 +2,8 @@
  * Captures the authenticated Gemini Web runtime for a selected Google account.
  *
  * The operator signs in and sends the validation prompt in a visible browser.
- * The script captures the matching StreamGenerate request and returns only the
- * runtime material required by the Gateway's Gemini Web reverse adapter.
+ * Both page transports require a successful legacy HTTP reply before returning
+ * runtime material for the Gateway's Gemini Web reverse adapter.
  */
 
 import { existsSync } from "node:fs";
@@ -12,6 +12,7 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium } from "playwright-core";
+import { waitForGeminiWebRuntime } from "./gemini-web-capture-session.mjs";
 
 export const DEFAULT_TARGET_URL = "https://gemini.google.com/u/1/";
 export const VALIDATION_PROMPT = "法国的首都在哪里";
@@ -117,6 +118,14 @@ export function extractGeminiWebRuntime({ requestUrl, postData, headers, cookies
   if (!normalizeString(primaryCookie?.value)) {
     throw new Error(`Gemini Web login did not expose ${PRIMARY_COOKIE_NAME}.`);
   }
+  const sessionCookies = (cookies ?? []).filter(cookie =>
+    /^(?:\.?google\.com|gemini\.google\.com)$/i.test(cookie.domain ?? "")
+      && /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(cookie.name ?? "")
+      && !/[;\r\n]/.test(cookie.value ?? ""));
+  const cookieHeader = sessionCookies.map(cookie => `${cookie.name}=${cookie.value}`).join("; ");
+  if (sessionCookies.length > 64 || Buffer.byteLength(cookieHeader) > 16 * 1024) {
+    throw new Error("Gemini Web session cookies exceeded the capture limit.");
+  }
 
   const referer = normalizeString(normalizedHeaders.referer) ?? normalizeString(currentUrl);
   const accountIndex =
@@ -134,6 +143,7 @@ export function extractGeminiWebRuntime({ requestUrl, postData, headers, cookies
   return {
     apiKey: primaryCookie.value,
     authToken: normalizeString(secondaryCookie?.value),
+    cookieHeader,
     accountIndex,
     accessToken: normalizeString(form.get("at")),
     buildLabel: normalizeString(request.searchParams.get("bl")),
@@ -159,10 +169,14 @@ async function main() {
   }
   const targetUrl = normalizeString(process.env.GEMINI_WEB_CAPTURE_TARGET_URL) ?? DEFAULT_TARGET_URL;
   const timeoutMs = Number(process.env.GEMINI_WEB_CAPTURE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
+  const storageStatePath = normalizeString(process.env.GEMINI_WEB_CAPTURE_STORAGE_STATE_PATH);
+  if (storageStatePath && (!path.isAbsolute(storageStatePath) || !existsSync(storageStatePath))) {
+    throw new Error("Gemini Web recovery storage state must be an existing absolute file.");
+  }
 
   console.log(`[gemini-web-export] Opening browser at ${targetUrl}`);
   console.log(
-    `[gemini-web-export] Sign in to account /u/1/, then send exactly: ${VALIDATION_PROMPT}`,
+    `[gemini-web-export] Sign in, then send exactly: ${VALIDATION_PROMPT}`,
   );
 
   const browser = await chromium.launch({
@@ -183,62 +197,20 @@ async function main() {
       locale: "zh-CN",
       ignoreHTTPSErrors: true,
       bypassCSP: true,
+      ...(storageStatePath ? { storageState: storageStatePath } : {}),
     });
-    const capturePromise = new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (callback, value) => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        clearTimeout(timeout);
-        context.off("response", handleResponse);
-        callback(value);
-      };
-      const timeout = setTimeout(() => {
-        finish(
-          reject,
-          new Error(
-            `Timed out waiting for the exact prompt '${VALIDATION_PROMPT}' on ${targetUrl}.`,
-          ),
-        );
-      }, timeoutMs);
-      const handleResponse = async (response) => {
-        const request = response.request();
-        if (
-          !isGeminiWebStreamGenerateUrl(request.url())
-          || !requestContainsValidationPrompt(request.postData())
-        ) {
-          return;
-        }
-        try {
-          const [headers, cookies, responseBody] = await Promise.all([
-            request.allHeaders(),
-            context.cookies(),
-            response.text().catch(() => ""),
-          ]);
-          const runtime = extractGeminiWebRuntime({
-            requestUrl: request.url(),
-            postData: request.postData(),
-            headers,
-            cookies,
-            currentUrl: response.frame()?.url() ?? targetUrl,
-          });
-          finish(resolve, {
-            ...runtime,
-            responseStatus: response.status(),
-            responseContainsParis: responseBody.includes("巴黎"),
-          });
-        } catch (error) {
-          finish(reject, error);
-        }
-      };
-      context.on("response", handleResponse);
+    const capturePromise = waitForGeminiWebRuntime(context, {
+      targetUrl, timeoutMs, prompt: VALIDATION_PROMPT,
+      isLegacyRequest: isGeminiWebStreamGenerateUrl,
+      containsPrompt: requestContainsValidationPrompt,
+      extractRuntime: extractGeminiWebRuntime,
+      resumeValidation: Boolean(storageStatePath),
     });
 
     const page = await context.newPage();
-    await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
-    const runtime = await capturePromise;
+    const [runtime] = await Promise.all([
+      capturePromise, page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 }),
+    ]);
     process.stdout.write(
       `${JSON.stringify(
         {
@@ -246,7 +218,7 @@ async function main() {
           targetFamily: "gemini-web",
           currentUrl: page.url(),
           ...runtime,
-          note: "Captured Gemini Web /u/1/ runtime after the exact validation prompt completed.",
+          note: "Captured Gemini Web HTTP runtime after the exact validation prompt completed.",
         },
         null,
         2,
@@ -266,4 +238,3 @@ if (invokedPath && pathToFileURL(invokedPath).href === import.meta.url) {
     process.exitCode = 1;
   });
 }
-

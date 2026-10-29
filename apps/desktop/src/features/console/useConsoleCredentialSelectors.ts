@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import type { ConsoleCredentialPoolAutomationProvider, ConsoleCredentialRefillDemand } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
 import { optionalString } from "./routeAccountCatalog";
-import { providerBrandLabel } from "./providerBrandLabel";
+import { providerAccessLabel } from "./providerAccessKind";
+import { displayLabel } from "./displayLabel";
 import type { useConsoleRouteData } from "./useConsoleRouteData";
 import type { useConsoleRouteDraft } from "./useConsoleRouteDraft";
 import type { useConsoleAccountSelectors } from "./useConsoleAccountSelectors";
@@ -60,11 +61,13 @@ export function useConsoleCredentialSelectors({
         return [
           {
             id,
-            label: providerBrandLabel({
+            // Match provider cards without changing the persisted option value.
+            label: providerAccessLabel({
               providerId: id,
               providerPreset: optionalString(provider, "preset"),
-              providerLabel: optionalString(provider, "label"),
-              vendorName: optionalString(provider, "vendor_name"),
+              providerLabel: displayLabel(optionalString(provider, "label") ?? id),
+              adapter: optionalString(provider, "adapter"),
+              protocolProfile: optionalString(provider, "protocol_profile"),
             }),
           },
         ];

@@ -170,12 +170,24 @@ pub(super) fn build_web_generated_drafts(
             value: auth_token.to_string(),
         });
     }
+    if let Some(cookie) = output
+        .cookie_header
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        headers.insert("Cookie".to_string(), Value::String(String::new()));
+        secret_edits.push(GeminiAuthSecretEdit {
+            field: "headers/Cookie".to_string(),
+            operation: "replace".to_string(),
+            value: cookie.to_string(),
+        });
+    }
 
     vec![GeminiGeneratedCredentialDraft {
         provider_id: provider_id.to_string(),
         credential: json!({
             "id": format!("gemini-web-manual-{suffix}"),
-            "account_name": format!("Gemini Web /u/1/ Manual {suffix}"),
+            "account_name": format!("Gemini Web Manual {suffix}"),
             "api_key": "",
             "auth_token": "",
             "headers": headers,

@@ -140,6 +140,8 @@ struct GeminiWebCaptureOutput {
     #[serde(default)]
     auth_token: Option<String>,
     #[serde(default)]
+    cookie_header: Option<String>,
+    #[serde(default)]
     account_index: Option<String>,
     #[serde(default)]
     access_token: Option<String>,
@@ -262,7 +264,7 @@ impl GeminiAuthSessionManager {
             }
             GeminiAuthFamily::GeminiWeb => {
                 session.status = GeminiAuthSessionStatus::WaitingUser;
-                session.message = "Complete Gemini Web login for /u/1/, then send the exact validation prompt in the opened browser window.".to_string();
+                session.message = "Complete Gemini Web login, then send the exact validation prompt in the opened browser window.".to_string();
                 session.updated_at = now_rfc3339();
                 self.sessions.insert(session_id.clone(), session.clone());
                 let manager = Arc::clone(self);
@@ -361,7 +363,7 @@ impl GeminiAuthSessionManager {
                 self.update_session(
                     session_id.as_str(),
                     GeminiAuthSessionStatus::Succeeded,
-                    "Gemini Web /u/1/ runtime captured.".to_string(),
+                    "Gemini Web HTTP runtime captured.".to_string(),
                     generated_drafts,
                 );
             }

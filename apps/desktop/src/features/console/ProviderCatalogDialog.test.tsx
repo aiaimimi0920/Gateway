@@ -83,7 +83,7 @@ describe("ProviderCatalogDialog", () => {
   });
   it("does not mark historical canaries as new adapter acceptance", () => {
     renderDialog();
-    expect(TEMPLATE_ADAPTATION_RECEIPTS.map(({ templateId }) => templateId)).toEqual(["nvidia-openai", "openrouter-openai", "you", "exa", "chatgpt", "tavily", "linkup", "websearchapi", "jina", "poe-openai", "groq-openai", "cohere-chat", "openai", "anthropic", "gemini-api", "azure-api", "mistral-api", "xai-api", "deepseek-api", "perplexity-api"]);
+    expect(TEMPLATE_ADAPTATION_RECEIPTS.map(({ templateId }) => templateId)).toEqual(["nvidia-openai", "openrouter-openai", "you", "exa", "chatgpt", "tavily", "linkup", "websearchapi", "jina", "poe-openai", "groq-openai", "cohere-chat", "openai", "anthropic", "gemini-api", "azure-api", "mistral-api", "xai-api", "deepseek-api", "perplexity-api", "gemini-web"]);
     expect(templateAdaptationComplete("mistral-api")).toBe(true);
     expect(templateAdaptationComplete("xai-api")).toBe(true);
     expect(templateAdaptationComplete("deepseek-api")).toBe(true);
@@ -93,6 +93,7 @@ describe("ProviderCatalogDialog", () => {
     expect(templateAdaptationComplete("openai")).toBe(true);
     expect(templateAdaptationComplete("anthropic")).toBe(true);
     expect(templateAdaptationComplete("gemini-api")).toBe(true);
+    expect(templateAdaptationComplete("gemini-web")).toBe(true);
     expect(templateAdaptationComplete("azure-api")).toBe(true);
     expect(TEMPLATE_ADAPTATION_RECEIPTS.find(({ templateId }) => templateId === "azure-api")?.acceptanceBasis).toBe("documentation-and-local-tests");
     expect(templateAdaptationComplete("nvidia-openai")).toBe(true);
@@ -107,7 +108,7 @@ describe("ProviderCatalogDialog", () => {
     expect(templateAdaptationComplete("websearchapi")).toBe(true);
     expect(templateAdaptationComplete("jina")).toBe(true);
     expect([...document.querySelectorAll('[data-adaptation="complete"]')].map((button) => button.textContent))
-      .toEqual(["codex-oauth新调用流程已验收", "openai-api新调用流程已验收", "anthropic-api新调用流程已验收", "gemini-api新调用流程已验收", "azure-api新调用流程已验收", "cohere-api新调用流程已验收", "groq-api新调用流程已验收", "nvidia-api新调用流程已验收", "deepseek-api新调用流程已验收", "mistral-api新调用流程已验收", "xAI-api新调用流程已验收", "perplexity-api新调用流程已验收", "openrouter-api新调用流程已验收", "poe-api新调用流程已验收", "linkup-api新调用流程已验收", "tavily-api新调用流程已验收", "you-api新调用流程已验收", "exa-api新调用流程已验收", "jina-api新调用流程已验收", "websearchapi-api新调用流程已验收"]);
+      .toEqual(["codex-oauth新调用流程已验收", "openai-api新调用流程已验收", "anthropic-api新调用流程已验收", "gemini-api新调用流程已验收", "gemini-web新调用流程已验收", "azure-api新调用流程已验收", "cohere-api新调用流程已验收", "groq-api新调用流程已验收", "nvidia-api新调用流程已验收", "deepseek-api新调用流程已验收", "mistral-api新调用流程已验收", "xAI-api新调用流程已验收", "perplexity-api新调用流程已验收", "openrouter-api新调用流程已验收", "poe-api新调用流程已验收", "linkup-api新调用流程已验收", "tavily-api新调用流程已验收", "you-api新调用流程已验收", "exa-api新调用流程已验收", "jina-api新调用流程已验收", "websearchapi-api新调用流程已验收"]);
     for (const text of document.querySelectorAll('[data-adaptation="complete"] span')) {
       expect(text).toHaveClass("nt-visually-hidden");
     }

@@ -13,7 +13,7 @@ export type ConsoleGeminiAuthSessionStatus =
   | "failed";
 
 export type ConsoleGeminiAuthSecretEdit = {
-  field: "api_key" | "auth_token";
+  field: "api_key" | "auth_token" | "headers/Cookie";
   operation: "replace";
   value: string;
 };

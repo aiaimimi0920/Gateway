@@ -64,7 +64,8 @@ pub(crate) async fn probe_console_target_with_request(
     if codex && options.is_none() {
         return super::codex_model_probe::probe(state, target).await;
     }
-    if !nvidia && !codex && search.is_none() && options.is_none() {
+    let gemini_web = target.payload.canonical_adapter() == "gemini_web_compatible";
+    if !nvidia && !codex && !gemini_web && search.is_none() && options.is_none() {
         return (
             point,
             super::probe_provider_payload_for_console(
@@ -85,6 +86,7 @@ pub(crate) async fn probe_console_target_with_request(
         && !cohere
         && !anthropic
         && !gemini
+        && !gemini_web
         && search.is_none()
         && (target.payload.canonical_adapter() != "openai_compatible"
             || target.payload.bridges_openai_text_endpoint_to_responses(
@@ -172,7 +174,7 @@ pub(crate) async fn probe_console_target_with_request(
     if anthropic {
         return super::anthropic_model_probe::probe(state, target, &model, prompt).await;
     }
-    if gemini {
+    if gemini || gemini_web {
         return super::gemini_model_probe::probe(state, target, &model, prompt).await;
     }
     let mut body = json!({"model": model, "stream": false, "max_tokens": 256,

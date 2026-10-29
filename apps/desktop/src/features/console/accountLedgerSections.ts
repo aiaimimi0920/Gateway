@@ -239,7 +239,8 @@ function mergeGeminiAccountLedgerSections(
       providerIds: [...new Set(members.flatMap((section) => section.providerIds))],
       providerLabel: channel.label,
       vendorLabel: "Google / Gemini",
-      manualAddFamily: channel.manualAddFamily,
+      // Grouping cards must not switch the selected provider's credential protocol.
+      manualAddFamily: primary.manualAddFamily ?? channel.manualAddFamily,
       hasExplicitAccounts: members.some((section) => section.hasExplicitAccounts),
       supportsIdentityCategories: false,
       identityCategories: [],

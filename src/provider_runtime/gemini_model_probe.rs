@@ -12,7 +12,12 @@ pub(super) async fn probe(
     model: &str,
     prompt: &str,
 ) -> (String, ProviderPayloadProbeReport) {
-    let point = format!("Gemini API model call (model: {model})");
+    let surface = if target.payload.canonical_adapter() == "gemini_web_compatible" {
+        "Gemini Web"
+    } else {
+        "Gemini API"
+    };
+    let point = format!("{surface} model call (model: {model})");
     let audit = super::model_probe_recording::begin(state, target, model, false).await;
     let started = Instant::now();
     let result = tokio::time::timeout(
@@ -68,8 +73,8 @@ async fn generate(
     let Ok(request) = request else {
         return failed(None, "Cannot build the Gemini model test request.");
     };
-    // Production Gemini uses forced-stream accumulation even for a non-streaming request.
-    // This proves completed output, not token-by-token downstream forwarding.
+    // The production dispatcher owns API forced-stream accumulation and Web bootstrap/form
+    // replay. Keep the exact payload; neither path performs routing or account fallback.
     let response = match state
         .upstream_client
         .execute(&target.payload, &request, model, None)
@@ -105,6 +110,19 @@ async fn generate(
         .filter(|value| !value.is_empty())
     {
         reply = reply.replace(secret, "[redacted]");
+    }
+    // Web bootstrap/session material is not an API Key, but must not enter probe evidence.
+    for field in ["accessToken", "sessionId", "requestContextHeader"] {
+        if let Some(secret) = target
+            .payload
+            .extra_body
+            .as_ref()
+            .and_then(|extra| extra.get(field))
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+        {
+            reply = reply.replace(secret, "[redacted]");
+        }
     }
     ModelProbeResult {
         status: Some(200),

@@ -214,7 +214,7 @@ export const consoleProviderProbeResponseSchema: z.ZodType<ConsoleProviderProbeR
   });
 
 const consoleGeminiAuthSecretEditSchema = z.object({
-  field: z.enum(["api_key", "auth_token"]),
+  field: z.enum(["api_key", "auth_token", "headers/Cookie"]),
   operation: z.literal("replace"),
   value: z.string().min(1),
 });

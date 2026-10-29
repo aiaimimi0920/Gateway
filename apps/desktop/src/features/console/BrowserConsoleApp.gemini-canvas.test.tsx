@@ -159,7 +159,7 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^Gemini Canvas$/i }));
+    await user.click(screen.getByRole("button", { name: /^Gemini Canvas-web$/i }));
 
     const canvasArticle = providerAccountLibrary(/Gemini Canvas 账号库/i);
     await user.click(
@@ -342,7 +342,7 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^Gemini Canvas$/i }));
+    await user.click(screen.getByRole("button", { name: /^Gemini Canvas-web$/i }));
 
     const canvasArticle = providerAccountLibrary(/Gemini Canvas 账号库/i);
     await user.click(

@@ -23,6 +23,7 @@ export function useGeminiManualAddSession({
 }: GeminiManualAddSessionOptions) {
   const [geminiManualAddDialogState, setGeminiManualAddDialogState] =
     useState<GeminiManualAddDialogState | null>(null);
+  const [pollRevision, setPollRevision] = useState(0);
   const geminiManualAddPollTimeoutRef = useRef<number | null>(null);
   const lifecycleGeneration = useRef(0);
   const responseSequence = useRef(0);
@@ -56,6 +57,11 @@ export function useGeminiManualAddSession({
           setError(cause instanceof Error ? cause.message : String(cause));
         }
         return;
+      } finally {
+        // A waiting response may keep the same updatedAt; every settled read must rearm polling.
+        if (generation === lifecycleGeneration.current && sequence === responseSequence.current) {
+          setPollRevision((revision) => revision + 1);
+        }
       }
       if (generation !== lifecycleGeneration.current || sequence !== responseSequence.current) return;
       setGeminiManualAddDialogState((current) => {
@@ -216,6 +222,7 @@ export function useGeminiManualAddSession({
     geminiManualAddDialogState?.session?.id,
     geminiManualAddDialogState?.session?.status,
     geminiManualAddDialogState?.session?.updatedAt,
+    pollRevision,
     refreshGeminiManualAddSession,
   ]);
 

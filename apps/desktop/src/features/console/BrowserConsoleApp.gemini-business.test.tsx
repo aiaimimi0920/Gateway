@@ -99,7 +99,7 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^Gemini Business$/i }));
+    await user.click(screen.getByRole("button", { name: /^Gemini Business-web$/i }));
 
     const businessArticle = providerAccountLibrary(/Gemini Business 账号库/i);
     await user.click(

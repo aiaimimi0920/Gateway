@@ -2,6 +2,10 @@ use serde_json::Value;
 
 use super::{GeminiBusinessCaptureOutput, GeminiCanvasCaptureOutput, GeminiWebCaptureOutput};
 
+#[cfg(test)]
+#[path = "gemini_web_capture_parsing_tests.rs"]
+mod web_capture_tests;
+
 pub(super) fn parse_remote_gemini_canvas_capture_output(
     value: Value,
 ) -> Result<GeminiCanvasCaptureOutput, String> {
@@ -179,26 +183,12 @@ pub(super) fn parse_gemini_web_capture_output(
     stderr: &str,
     exited_successfully: bool,
 ) -> Result<GeminiWebCaptureOutput, String> {
-    let combined = if stderr.trim().is_empty() {
-        stdout.trim().to_string()
-    } else if stdout.trim().is_empty() {
-        stderr.trim().to_string()
-    } else {
-        format!("{}\n{}", stdout.trim(), stderr.trim())
-    };
-    let json_text = extract_last_json_object(&combined).ok_or_else(|| {
-        format!(
-            "Gemini Web auth helper returned no parseable JSON output. stdout: {} stderr: {}",
-            summarize_output(stdout),
-            summarize_output(stderr)
-        )
-    })?;
-    let parsed = serde_json::from_str::<GeminiWebCaptureOutput>(&json_text).map_err(|error| {
-        format!(
-            "Failed to parse Gemini Web auth helper JSON output: {error}. payload: {}",
-            summarize_output(&json_text)
-        )
-    })?;
+    // stderr may contain harmless diagnostics; neither stream may enter public errors.
+    let json_text = extract_last_json_object(stdout)
+        .or_else(|| extract_last_json_object(stderr))
+        .ok_or_else(|| "Gemini Web auth helper returned no parseable JSON output.".to_string())?;
+    let parsed = serde_json::from_str::<GeminiWebCaptureOutput>(&json_text)
+        .map_err(|_| "Gemini Web auth helper returned invalid capture fields.".to_string())?;
     let parsed = validate_gemini_web_capture_output(parsed, "Gemini Web auth helper")?;
     if !exited_successfully {
         return Err(
@@ -225,6 +215,15 @@ fn validate_gemini_web_capture_output(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| format!("{source} did not return the primary Gemini Web cookie."))?;
+    if parsed
+        .cookie_header
+        .as_ref()
+        .is_some_and(|value| value.len() > 16 * 1024 || value.contains(['\r', '\n']))
+    {
+        return Err(format!(
+            "{source} returned invalid Gemini Web session cookies."
+        ));
+    }
     let response_status = parsed
         .response_status
         .ok_or_else(|| format!("{source} did not return the validation response status."))?;

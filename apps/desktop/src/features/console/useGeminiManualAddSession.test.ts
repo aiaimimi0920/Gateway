@@ -112,6 +112,48 @@ it("clears the scheduled poll on unmount", async () => {
   }
 });
 
+it("keeps polling unchanged waiting sessions until capture completes, then stops", async () => {
+  vi.useFakeTimers();
+  try {
+    const h = setup();
+    vi.mocked(h.api.createGeminiAuthSession).mockResolvedValueOnce(response("active", "waiting_user"));
+    vi.mocked(h.api.getGeminiAuthSession)
+      .mockResolvedValueOnce(response("active", "waiting_user"))
+      .mockResolvedValueOnce(response("active", "waiting_user"))
+      .mockResolvedValueOnce(response("active", "waiting_user"))
+      .mockResolvedValue(response("active"));
+    await act(() => h.result.current.openGeminiManualAddDialog("gemini-web", "active"));
+    for (let calls = 2; calls <= 4; calls += 1) {
+      await act(() => vi.advanceTimersByTimeAsync(1500));
+      expect(h.api.getGeminiAuthSession).toHaveBeenCalledTimes(calls);
+    }
+    expect(h.result.current.geminiManualAddDialogState?.session?.status).toBe("succeeded");
+    await act(() => vi.advanceTimersByTimeAsync(6000));
+    expect(h.api.getGeminiAuthSession).toHaveBeenCalledTimes(4);
+    h.unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("retries a live polling failure without requiring a new session status", async () => {
+  vi.useFakeTimers();
+  try {
+    const h = setup();
+    vi.mocked(h.api.createGeminiAuthSession).mockResolvedValueOnce(response("active", "waiting_user"));
+    vi.mocked(h.api.getGeminiAuthSession).mockRejectedValueOnce(new Error("temporary polling failure"))
+      .mockResolvedValue(response("active"));
+    await act(() => h.result.current.openGeminiManualAddDialog("gemini-web", "active"));
+    expect(h.error).toHaveBeenLastCalledWith("temporary polling failure");
+    await act(() => vi.advanceTimersByTimeAsync(1500));
+    expect(h.api.getGeminiAuthSession).toHaveBeenCalledTimes(2);
+    expect(h.result.current.geminiManualAddDialogState?.session?.status).toBe("succeeded");
+    h.unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("does not replace a completed session with an older pending refresh", async () => {
   const h = setup();
   const pending = deferred();
