@@ -7,8 +7,11 @@ use super::{GEMINI_WEB_BROWSER_CHALLENGE_REQUIRED_CODE, GEMINI_WEB_SESSION_INVAL
 use crate::error::{classify_upstream_error, GatewayError};
 use crate::protocol::canonical::CanonicalRelayResponse;
 
+mod completion;
 mod frames;
 mod payload;
+
+pub(crate) use completion::accumulate_complete_media_response;
 
 use frames::{parse_response_envelopes, strip_xssi_prefix};
 use payload::{extract_generate_response, select_more_complete_response};
@@ -153,6 +156,10 @@ pub fn translate_gemini_web_to_openai_sse(
     model: &str,
 ) -> Result<Vec<Bytes>, GatewayError> {
     let canonical = accumulate_gemini_web_response(body, model)?;
+    Ok(canonical_to_sse(canonical))
+}
+
+pub(crate) fn canonical_to_sse(canonical: CanonicalRelayResponse) -> Vec<Bytes> {
     let response_id = format!("chatcmpl_geminiweb_{}", uuid::Uuid::new_v4().simple());
     let created = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -169,10 +176,10 @@ pub fn translate_gemini_web_to_openai_sse(
             "finish_reason": canonical.finish_reason,
         }]
     });
-    Ok(vec![
+    vec![
         Bytes::from(format!("data: {chunk}\n\n")),
         Bytes::from_static(b"data: [DONE]\n\n"),
-    ])
+    ]
 }
 
 #[cfg(test)]

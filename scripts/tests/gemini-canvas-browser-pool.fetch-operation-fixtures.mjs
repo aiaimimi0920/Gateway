@@ -103,6 +103,12 @@ export function fetchOperationHarness(t, app, options = {}) {
     async downloadBinaryViaNavigation(...args) { record("download", ...args); return result; },
     buildProgramHandleState(...args) { record("handle", ...args); return app.buildProgramHandleState(...args); },
     async ensureSharePage(...args) { record("share", ...args); },
+    async runCanvasHostFetchOperation(input) {
+      record("host-fetch", input);
+      if (options.hostUnavailable) throw Object.assign(new Error("Canvas host identity unavailable"),
+        { status: 503, code: "gemini_canvas_host_identity_unavailable" });
+      return { ...result, executionSurface: "canvas_preview_host" };
+    },
     async ensureLoopbackConnectedClient(...args) { record("connect", ...args); },
     listConnectedClients() { record("clients"); return options.connected ? [{ id: "fixture-client" }] : []; },
     async dispatchConnectedProxyRequest(...args) { record("proxy", ...args); return { status: 202, headers: { "Content-Type": "text/plain" }, bodyText: "proxy result" }; },

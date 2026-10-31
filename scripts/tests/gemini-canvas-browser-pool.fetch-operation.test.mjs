@@ -138,9 +138,10 @@ test("Fetch nonretryable evaluation rejection preserves identity without connect
   assertFetchReleased(assert, h);
 });
 
-test("Fetch missing proxy client preserves 503 envelope and capture cleanup", async (t) => {
-  const h = fetchOperationHarness(t, app);
-  await assert.rejects(h.run({ googleFetchMode: "canvas_proxy" }), { status: 503, code: "gemini_canvas_program_ws_client_unavailable", bodyText: null });
+test("Fetch missing Canvas host preserves 503 envelope and capture cleanup", async (t) => {
+  const h = fetchOperationHarness(t, app, { hostUnavailable: true, connected: true });
+  await assert.rejects(h.run({ googleFetchMode: "canvas_proxy" }), { status: 503, code: "gemini_canvas_host_identity_unavailable" });
+  assert.deepEqual(fetchCalls(h, "proxy"), []);
   assertFetchReleased(assert, h);
 });
 

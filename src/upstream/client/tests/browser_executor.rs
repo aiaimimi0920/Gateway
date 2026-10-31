@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "browser_executor_media.rs"]
+mod media;
+
 #[tokio::test]
 async fn remote_only_browser_executor_without_base_url_returns_required_unavailable_error() {
     let mut client = UpstreamClient::new(5);

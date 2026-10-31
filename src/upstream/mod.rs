@@ -71,6 +71,7 @@ mod gemini_canvas_image_edit_local_helpers;
 mod gemini_canvas_image_encoder;
 mod gemini_canvas_music_helpers;
 mod gemini_canvas_official_api_helpers;
+mod gemini_canvas_pool_paths;
 mod gemini_canvas_program_route_helpers;
 mod gemini_canvas_request_headers;
 mod gemini_canvas_runtime_error_helpers;

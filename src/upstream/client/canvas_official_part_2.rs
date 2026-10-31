@@ -252,7 +252,7 @@ impl UpstreamClient {
         }
 
         let script_path = gemini_canvas_browser_pool_script_path();
-        let log_path = gemini_canvas_browser_pool_log_path();
+        let log_path = gemini_canvas_browser_pool_log_path()?;
         if let Some(parent) = log_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }

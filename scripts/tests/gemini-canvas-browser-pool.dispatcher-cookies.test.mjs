@@ -4,18 +4,41 @@ import { importTestableScript } from "./gemini-canvas-browser-pool.fixtures.mjs"
 import { callsAt, dispatchBaseUrl, dispatcherHarness } from "./gemini-canvas-browser-pool.dispatcher-fixtures.mjs";
 
 const app = await importTestableScript();
-for (const { name, options, args, syncs, authChecks = 1, embedded = 1 } of [
+
+for (const mode of ["profile_dir", "storage_state_file"]) {
+  test(`Dispatcher retains rotated ${mode} cookies across invocations and nested recovery`, async () => {
+    let cookie = "";
+    const h = dispatcherHarness(app, {
+      entry: { runtimeStateMode: mode },
+      onAuth: () => Boolean(cookie),
+      onCookieSync: () => { cookie = "imported-old"; return 1; },
+      onOperation: (_stage, _entry, args) => {
+        assert.equal(args.cookieHeader, undefined);
+        cookie = "browser-rotated";
+        return {};
+      },
+    });
+    assert.equal((await h.run({ cookieHeader: "SID=imported-old" })).ok, true);
+    assert.equal((await h.run({ cookieHeader: "SID=imported-old", forceCookieSync: true })).ok, true);
+    assert.equal(cookie, "browser-rotated");
+    assert.equal(callsAt(h, "cookies").length, 1);
+    assert.equal(callsAt(h, "embedded").length, mode === "profile_dir" ? 1 : 0);
+    for (const call of callsAt(h, "app-page")) assert.equal(call[4].cookieHeader, undefined);
+  });
+}
+for (const { name, options, args, syncs, authChecks = 1, embedded = 0 } of [
   { name: "authoritative profile auth", options: {}, syncs: 0 },
-  { name: "missing profile auth", options: { authCookies: [false] }, syncs: 1 },
-  { name: "storage state file", options: { entry: { runtimeStateMode: "storage_state_file" } }, syncs: 1, embedded: 0 },
-  { name: "cloned profile", options: { entry: { launchClonedProfile: true } }, syncs: 1 },
-  { name: "embedded auth restoration", options: { authCookies: [false, true], embeddedCount: 2 }, syncs: 0, authChecks: 2 },
-  { name: "embedded non-auth cookies", options: { authCookies: [false, false], embeddedCount: 2 }, syncs: 1, authChecks: 2 },
-  { name: "explicit false suppresses missing-auth sync", options: { authCookies: [false] }, args: { forceCookieSync: "false" }, syncs: 0 },
+  { name: "storage state file", options: { entry: { runtimeStateMode: "storage_state_file" } }, syncs: 0 },
+  { name: "missing storage state auth", options: { authCookies: [false], entry: { runtimeStateMode: "storage_state_file" } }, syncs: 1 },
+  { name: "cloned profile", options: { entry: { launchClonedProfile: true } }, syncs: 0 },
+  { name: "embedded auth restoration", options: { authCookies: [false, true], embeddedCount: 2 }, syncs: 0, authChecks: 2, embedded: 1 },
+  { name: "embedded non-auth cookies", options: { authCookies: [false, false], embeddedCount: 2 }, syncs: 1, authChecks: 2, embedded: 1 },
+  { name: "missing profile auth", options: { authCookies: [false] }, syncs: 1, embedded: 1 },
+  { name: "explicit false suppresses missing-auth sync", options: { authCookies: [false] }, args: { forceCookieSync: "false" }, syncs: 0, embedded: 1 },
   { name: "forced true preserves authoritative auth", options: {}, args: { forceCookieSync: "true" }, syncs: 0 },
-  { name: "environment false", options: { authCookies: [false], env: { GEMINI_CANVAS_BROWSER_FORCE_COOKIE_SYNC: "false" } }, syncs: 0 },
-  { name: "argument overrides environment", options: { authCookies: [false], env: { GEMINI_CANVAS_BROWSER_FORCE_COOKIE_SYNC: "false" } }, args: { forceCookieSync: "true" }, syncs: 1 },
-  { name: "invalid override uses default", options: { authCookies: [false] }, args: { forceCookieSync: "invalid" }, syncs: 1 },
+  { name: "environment false", options: { authCookies: [false], env: { GEMINI_CANVAS_BROWSER_FORCE_COOKIE_SYNC: "false" } }, syncs: 0, embedded: 1 },
+  { name: "argument overrides environment", options: { authCookies: [false], env: { GEMINI_CANVAS_BROWSER_FORCE_COOKIE_SYNC: "false" } }, args: { forceCookieSync: "true" }, syncs: 1, embedded: 1 },
+  { name: "invalid override uses default", options: { authCookies: [false] }, args: { forceCookieSync: "invalid" }, syncs: 1, embedded: 1 },
 ]) {
   test(`Dispatcher cookie policy preserves ${name}`, async () => {
     const h = dispatcherHarness(app, options);

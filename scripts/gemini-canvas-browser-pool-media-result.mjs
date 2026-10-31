@@ -4,6 +4,7 @@ import {
   extractAudioBytes as defaultExtractAudioBytes,
 } from "./gemini-canvas-browser-pool-payload.mjs";
 import { isAudioLikeUrl, isAudioLikeMimeType } from "./gemini-canvas-browser-pool-media-urls.mjs";
+import { downloadWebMusic as defaultDownloadWebMusic } from "./gemini-canvas-browser-pool-web-music-download.mjs";
 
 export function createMediaResultOwner({
   mergeInvokeContract,
@@ -14,6 +15,7 @@ export function createMediaResultOwner({
   buildProgramHandleState,
   extractImageBytes = defaultExtractImageBytes,
   extractAudioBytes = defaultExtractAudioBytes,
+  downloadWebMusic = defaultDownloadWebMusic,
 }) {
   async function finalizeMediaOperation({
     operation,
@@ -46,9 +48,19 @@ export function createMediaResultOwner({
     capture.state.invokeContract = finalInvokeContract;
     const refreshedMedia = selectMediaAssetsForOperation(operation, lastSnapshot, capture.state);
     let resolvedMedia = refreshedMedia.length > 0 ? refreshedMedia : media;
+    if (operation === "music" && !resolvedMedia.some(asset => asset.kind === "audio")) {
+      // Gemini uses a video player for the music cover; it is not the MP3 track.
+      const downloaded = await downloadWebMusic(page, deadline - now());
+      if (downloaded) resolvedMedia = [downloaded];
+      else if (now() + 1600 < deadline) { await page.waitForTimeout(1600); return null; }
+      else throw Object.assign(new Error("Music finished without an audio track."), {
+        status: 502, code: "gemini_web_music_missing_audio",
+      });
+    }
     if (operation === "image" || operation === "music") {
+      const candidates = resolvedMedia;
       resolvedMedia = [];
-      for (const asset of (refreshedMedia.length > 0 ? refreshedMedia : media)) {
+      for (const asset of candidates) {
         if (operation === "image" && asset.kind !== "image") {
           resolvedMedia.push(asset);
           continue;
@@ -130,7 +142,7 @@ export function createMediaResultOwner({
           "music media awaiting streamgenerate settlement",
           JSON.stringify({
             pollCount,
-            media: resolvedMedia,
+            mediaKinds: resolvedMedia.map(asset => asset.kind),
           }),
         );
         await page.waitForTimeout(1600);
@@ -142,7 +154,7 @@ export function createMediaResultOwner({
       JSON.stringify({
         operation,
         pollCount,
-        media: resolvedMedia,
+        mediaKinds: resolvedMedia.map(asset => asset.kind),
       }),
     );
     return {

@@ -204,7 +204,8 @@ export function createMediaExecutionOwner({
           );
         }
         log("media operation mode selected", operation);
-        await submitPrompt(page, prompt, timeoutMs);
+      // An ambiguous click can already have started a non-idempotent generation.
+      await submitPrompt(page, prompt, timeoutMs, { singleSubmit: true });
         log("media prompt submitted", `${operation}: ${String(prompt).slice(0, 180)}`);
       } else {
         log("resuming existing media result", JSON.stringify({ operation, pageUrl: page.url() }));

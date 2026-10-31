@@ -20,6 +20,7 @@ mod conversation_requests;
 mod defaults;
 mod errors;
 mod frames;
+pub(crate) mod image_recovery;
 mod media_candidates;
 mod media_debug;
 mod media_mime;

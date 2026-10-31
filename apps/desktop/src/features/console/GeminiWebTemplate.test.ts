@@ -74,16 +74,21 @@ it("keeps a new Gemini Web pool on its own Web login capture flow", () => {
     directAccounts: [], hasExplicitAccounts: false });
 });
 
-it("preserves the selected primary provider's capture family in legacy merged Gemini pools", () => {
+it("prefers Web capture in mixed pools and preserves legacy-only capture", () => {
   for (const canvas of [false, true]) {
     const providers = [{ id: "custom-web", preset: "gemini-web-chat", explicit_credentials_only: true, credentials: [] },
       ...(canvas ? [{ id: "gemini-canvas-chat", preset: "gemini-canvas-chat", explicit_credentials_only: true, credentials: [] }] : [])];
     const document = { providers, model_routes: [], aliases: {} };
     const sections = buildAccountLedgerSections(document, [], new Map(), snapshot, "zh-CN");
-    expect(sections[0]).toMatchObject(canvas
-      ? { providerId: "gemini-canvas-chat", manualAddFamily: "gemini-canvas-chat" }
-      : { providerId: "custom-web", manualAddFamily: "gemini-web" });
+    expect(sections[0]).toMatchObject({ providerId: "custom-web", manualAddFamily: "gemini-web" });
+    document.providers.reverse();
+    expect(buildAccountLedgerSections(document, [], new Map(), snapshot, "zh-CN")[0])
+      .toMatchObject({ providerId: "custom-web", manualAddFamily: "gemini-web" });
   }
+  const legacy = { providers: [{ id: "legacy", preset: "gemini-canvas-chat", credentials: [],
+    explicit_credentials_only: true }], model_routes: [], aliases: {} };
+  expect(buildAccountLedgerSections(legacy, [], new Map(), snapshot, "zh-CN")[0])
+    .toMatchObject({ providerId: "legacy", manualAddFamily: "gemini-canvas-chat" });
 });
 
 it("registers the Web session alias after capture without claiming a live model directory", () => {

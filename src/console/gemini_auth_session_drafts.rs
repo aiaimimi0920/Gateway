@@ -2,11 +2,13 @@ use serde_json::{json, Value};
 use time::OffsetDateTime;
 
 use super::{
-    GeminiAuthSecretEdit, GeminiGeneratedCredentialDraft, GeminiWebCaptureOutput,
-    GEMINI_CANVAS_CHAT_API_BASE_URL,
+    GeminiAuthFamily, GeminiAuthSecretEdit, GeminiGeneratedCredentialDraft, GeminiWebCaptureOutput,
 };
 
+const GEMINI_CANVAS_CHAT_API_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
+
 pub(super) fn build_canvas_generated_drafts(
+    target: Option<(&str, GeminiAuthFamily)>,
     runtime_state_object_key: &str,
     suggested_share_id: &str,
     browser_runtime_state_object_key: Option<&str>,
@@ -46,7 +48,7 @@ pub(super) fn build_canvas_generated_drafts(
     if !normalized_api_keys.is_empty() {
         canvas_chat_extra_body["apiKeys"] = json!(normalized_api_keys);
     }
-    vec![
+    let mut drafts = vec![
         GeminiGeneratedCredentialDraft {
             provider_id: "gemini-canvas".to_string(),
             credential: json!({
@@ -67,7 +69,19 @@ pub(super) fn build_canvas_generated_drafts(
             }),
             secret_edits: Vec::new(),
         },
-    ]
+    ];
+    // Legacy readers retain both families; an interactive import belongs only to its selected pool.
+    if let Some((provider_id, family)) = target {
+        let index = match family {
+            GeminiAuthFamily::GeminiCanvas => 0,
+            GeminiAuthFamily::GeminiCanvasChat => 1,
+            _ => return Vec::new(),
+        };
+        let mut draft = drafts.remove(index);
+        draft.provider_id = provider_id.to_string();
+        return vec![draft];
+    }
+    drafts
 }
 
 pub(super) fn build_business_generated_drafts(

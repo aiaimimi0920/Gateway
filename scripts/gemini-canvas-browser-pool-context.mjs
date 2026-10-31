@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { normalizeString } from "./gemini-canvas-browser-pool-input.mjs";
 import { parseBoolean, resolveExecutablePath } from "./gemini-canvas-browser-pool-executable.mjs";
-import { resolveRuntimeStateSource } from "./gemini-canvas-browser-pool-runtime-state.mjs";
+import { loadContextStateSnapshot } from "./gemini-canvas-browser-pool-state-snapshot.mjs";
+import { loadAuthCheckpoint } from "./gemini-canvas-browser-pool-auth-checkpoint.mjs";
 import { normalizeMaxContexts, selectContextCapacityVictims } from "./gemini-canvas-browser-pool-resources.mjs";
 
 export function inspectContextEntryForReuse(entry) {
@@ -74,7 +75,7 @@ export function createContextOwner({
   const contexts = new Map();
   const initializingContexts = new Map();
 
-  async function createContextEntry(args) {
+  async function createContextEntry(args, preparedSource = null, preparedCheckpoint = undefined) {
     const browserCdpUrl = normalizeString(args.browserCdpUrl);
     const executablePath = resolveExecutablePath(
       args.browserExecutablePath ?? process.env.GEMINI_CANVAS_BROWSER_EXECUTABLE_PATH ?? null,
@@ -95,6 +96,7 @@ export function createContextOwner({
     let context;
     let launchClonedProfile = false;
     let runtimeStateSource = null;
+    let authCheckpoint = null;
     let launchRuntimePath = browserCdpUrl ?? args.runtimeStateObjectKey;
     let defaultProfileDir = null;
     let page;
@@ -116,9 +118,10 @@ export function createContextOwner({
             bypassCSP: true,
           }));
       } else {
-        runtimeStateSource = await resolveRuntimeStateSource(args.runtimeStateObjectKey, {
+        runtimeStateSource = preparedSource ?? await loadContextStateSnapshot(args.runtimeStateObjectKey, {
           allowFixtureEmptyProfile: isFixtureCanvasBaseUrl(args.baseUrl),
         });
+        authCheckpoint = preparedCheckpoint === undefined ? await loadAuthCheckpoint(runtimeStateSource) : preparedCheckpoint;
         launchRuntimePath = runtimeStateSource.absolutePath;
         defaultProfileDir =
           runtimeStateSource.mode === "profile_dir"
@@ -164,7 +167,7 @@ export function createContextOwner({
           browser = await chromium.launch(launchOptions);
           context = await browser.newContext({
             locale: normalizeString(args.locale) ?? DEFAULT_LOCALE,
-            storageState: runtimeStateSource.absolutePath,
+            storageState: authCheckpoint?.storageState ?? runtimeStateSource.storageState,
             ignoreHTTPSErrors: true,
             bypassCSP: true,
           });
@@ -196,6 +199,8 @@ export function createContextOwner({
       launchClonedProfile,
       attachedCdp: Boolean(browserCdpUrl),
       contextClosed: false,
+      sourceSnapshot: runtimeStateSource,
+      authCheckpoint,
     };
     const markContextClosed = (reason) => {
       if (entry.contextClosed) {
@@ -228,32 +233,42 @@ export function createContextOwner({
   }
 
   async function ensureContext(args) {
-    const existing = contexts.get(args.runtimeStateObjectKey);
-    if (existing) {
-      const reuseInspection = inspectContextEntryForReuse(existing);
-      if (reuseInspection.recreate) {
-        log("evicting stale Gemini Canvas context", args.runtimeStateObjectKey);
-        await closeContext(args.runtimeStateObjectKey);
-      } else {
-        if (reuseInspection.adoptedPage) {
-          log("adopted surviving Gemini Canvas page for cached context", args.runtimeStateObjectKey);
-        }
-        existing.lastUsedAt = Date.now();
-        return existing;
-      }
-    }
-
     const inflight = initializingContexts.get(args.runtimeStateObjectKey);
-    if (inflight) {
-      return inflight;
-    }
-
-    const capacityReady = reserveContextCapacity();
+    if (inflight) return inflight;
+    const existing = contexts.get(args.runtimeStateObjectKey);
+    // Invocation owns a busy entry. A source update must never interrupt generation.
+    if (existing?.busy) return existing;
+    const capacityReady = existing ? Promise.resolve() : reserveContextCapacity();
+    if (existing) existing.busy = true; // Also excludes this entry from idle/capacity eviction during I/O.
     let creation;
     creation = (async () => {
       await capacityReady;
-      return createContextEntry(args);
+      const cdp = normalizeString(args.browserCdpUrl);
+      const source = cdp ? null : await loadContextStateSnapshot(args.runtimeStateObjectKey, {
+        allowFixtureEmptyProfile: isFixtureCanvasBaseUrl(args.baseUrl), previous: existing?.sourceSnapshot,
+      });
+      const checkpoint = cdp ? null : await loadAuthCheckpoint(source);
+      if (existing) {
+        const inspection = inspectContextEntryForReuse(existing);
+        const sameSource = cdp
+          ? existing.attachedCdp && existing.runtimeStatePath === cdp
+          : !existing.attachedCdp && existing.sourceSnapshot?.identity === source.identity &&
+            existing.sourceSnapshot?.fingerprint === source.fingerprint;
+        const sameCheckpoint = existing.authCheckpoint?.binding === checkpoint?.binding &&
+          existing.authCheckpoint?.token === checkpoint?.token;
+        if (!inspection.recreate && sameSource && sameCheckpoint) {
+          if (inspection.adoptedPage) log("adopted surviving Gemini Canvas page for cached context", args.runtimeStateObjectKey);
+          existing.sourceSnapshot = source;
+          existing.authCheckpoint = checkpoint;
+          existing.lastUsedAt = Date.now();
+          return existing;
+        }
+        log("evicting stale or reimported Gemini Canvas context", args.runtimeStateObjectKey);
+        await closeContext(args.runtimeStateObjectKey);
+      }
+      return createContextEntry(args, source, checkpoint);
     })().finally(() => {
+      if (existing) existing.busy = false;
       if (initializingContexts.get(args.runtimeStateObjectKey) === creation) {
         initializingContexts.delete(args.runtimeStateObjectKey);
       }

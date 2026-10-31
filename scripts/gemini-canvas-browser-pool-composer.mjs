@@ -1,10 +1,15 @@
-export async function submitPrompt(page, prompt, timeoutMs) {
+import { fillAndSubmitMediaPrompt } from "./gemini-canvas-browser-pool-media-submit.mjs";
+
+export async function submitPrompt(page, prompt, timeoutMs, { singleSubmit = false } = {}) {
   const textbox = page
     .locator(
       '[role="textbox"][aria-label*="Gemini"], [role="textbox"][aria-label*="输入"], [role="textbox"], [contenteditable="true"]',
     )
     .first();
   await textbox.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 30_000) });
+  if (singleSubmit) {
+    return fillAndSubmitMediaPrompt(page, textbox, prompt, timeoutMs, () => buildSendButtonCandidates(page));
+  }
   await textbox.focus();
   let populated = false;
   let prefersKeyboardTyping = false;

@@ -66,7 +66,29 @@ impl UpstreamClient {
                 .await;
             }
         }
+        if matches!(
+            payload.adapter.as_str(),
+            "gemini_web_compatible" | "gemini_web_reverse_modular_compatible"
+        ) && req.endpoint_kind == EndpointKind::AudioTranscriptions
+        {
+            let text = gemini_web_reverse_modular::execute_transcription(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+                extra_headers,
+            )
+            .await?;
+            return Ok(json!({"text":text}));
+        }
         if payload.adapter == "gemini_canvas_web_reverse_compatible" {
+            if req.endpoint_kind == EndpointKind::AudioTranscriptions {
+                let text = self
+                    .execute_gemini_canvas_host_transcription(payload, req, model)
+                    .await?;
+                return Ok(json!({"text":text}));
+            }
             return self
                 .execute_gemini_canvas_modular_browser_relay_media(
                     provider_account_id,
@@ -251,6 +273,19 @@ impl UpstreamClient {
                 .execute_gemini_canvas_tts(payload, req, model, extra_headers)
                 .await;
         }
+        if payload.adapter == "gemini_web_compatible"
+            && req.endpoint_kind == EndpointKind::AudioSpeech
+        {
+            return gemini_web_reverse_modular::execute_speech(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+                extra_headers,
+            )
+            .await;
+        }
         if aistudio_web_reverse_modular::is_aistudio_web_reverse_adapter(&payload.adapter)
             && aistudio_web_reverse_modular::supports_binary_passthrough_endpoint(req.endpoint_kind)
         {
@@ -273,6 +308,38 @@ impl UpstreamClient {
                 )
                 .await;
             }
+        }
+        if matches!(
+            payload.adapter.as_str(),
+            "gemini_web_compatible" | "gemini_web_reverse_modular_compatible"
+        ) && req.endpoint_kind == EndpointKind::AudioTranscriptions
+        {
+            let text = gemini_web_reverse_modular::execute_transcription(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+                extra_headers,
+            )
+            .await?;
+            return Ok(BinaryUpstreamResponse {
+                body: text.into_bytes().into(),
+                content_type: Some("text/plain; charset=utf-8".into()),
+                extra_headers: vec![],
+            });
+        }
+        if payload.adapter == "gemini_canvas_web_reverse_compatible"
+            && req.endpoint_kind == EndpointKind::AudioTranscriptions
+        {
+            let text = self
+                .execute_gemini_canvas_host_transcription(payload, req, model)
+                .await?;
+            return Ok(BinaryUpstreamResponse {
+                body: text.into_bytes().into(),
+                content_type: Some("text/plain; charset=utf-8".into()),
+                extra_headers: vec![],
+            });
         }
         if payload.adapter == "gemini_canvas_web_reverse_compatible"
             && req.endpoint_kind == EndpointKind::AudioSpeech

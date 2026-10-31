@@ -106,13 +106,15 @@ describe("accountManagementViewModel", () => {
 
   it("maps internal Gemini providers to three operator-visible channels", () => {
     expect(resolveGeminiLogicalChannel("gemini-web-secondary", "gemini-web-chat-modular"))
-      .toMatchObject({ key: "logical:gemini", label: "Gemini" });
+      .toMatchObject({ key: "logical:gemini", label: "gemini-web" });
     expect(resolveGeminiLogicalChannel("gemini-canvas-chat", "gemini-canvas-chat"))
-      .toMatchObject({ key: "logical:gemini", label: "Gemini" });
+      .toMatchObject({ key: "logical:gemini", label: "gemini-web" });
     expect(resolveGeminiLogicalChannel("gemini-business", "gemini-business"))
       .toMatchObject({ key: "logical:gemini-business", label: "Gemini Business" });
     expect(resolveGeminiLogicalChannel("gemini-canvas", "gemini-canvas-program-relay"))
-      .toMatchObject({ key: "logical:gemini-canvas", label: "Gemini Canvas" });
+      .toMatchObject({ key: "logical:gemini-canvas", label: "gemini-canvas" });
+    expect(resolveGeminiLogicalChannel("custom", "gemini-canvas-browser-relay"))
+      .toMatchObject({ key: "logical:gemini-canvas", label: "gemini-canvas" });
   });
 
   it("drops summary accounts whose provider was deleted from the active inventory", () => {

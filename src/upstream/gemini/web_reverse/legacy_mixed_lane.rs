@@ -55,20 +55,15 @@ pub fn classify_legacy_mixed_lane_endpoint(
 pub fn force_legacy_mixed_lane_payload(payload: &ProviderAccountPayload) -> ProviderAccountPayload {
     let mut cloned = payload.clone();
     cloned.execution_mode = Some(ProviderExecutionMode::DirectHttp);
-    if let Some(extra_body) = cloned.extra_body.as_mut() {
+    let extra_body = cloned.extra_body.get_or_insert_with(HashMap::new);
+    // Default to HTTP, but never erase an explicit required/disabled policy.
+    if !extra_body.contains_key("pureHttpMode") && !extra_body.contains_key("pure_http_mode") {
         extra_body.insert(
             "pureHttpMode".to_string(),
             Value::String("enabled".to_string()),
         );
-        extra_body.remove("canvasExecutionOwner");
-    } else {
-        let mut extra_body = HashMap::new();
-        extra_body.insert(
-            "pureHttpMode".to_string(),
-            Value::String("enabled".to_string()),
-        );
-        cloned.extra_body = Some(extra_body);
     }
+    extra_body.remove("canvasExecutionOwner");
     cloned
 }
 
@@ -141,9 +136,14 @@ pub fn legacy_mixed_lane_execution_route(
     endpoint_kind: EndpointKind,
     wants_stream: bool,
 ) -> Option<LegacyMixedLaneExecutionRoute> {
-    if !is_legacy_mixed_lane_adapter(payload) {
+    let default_web_media = payload.adapter == "gemini_web_compatible"
+        && supports_legacy_mixed_lane_media_endpoint(endpoint_kind);
+    if !is_legacy_mixed_lane_adapter(payload) && !default_web_media {
         return None;
     }
+    // Validate the original identity before projecting an internal execution owner.
+    // Default Web text/transcription keep their own HTTP path; TTS is not promoted here.
+    crate::protocol::call_flow::prepare(payload).ok()?;
 
     let kind = if supports_legacy_mixed_lane_text_endpoint(endpoint_kind) {
         if wants_stream {
@@ -159,9 +159,18 @@ pub fn legacy_mixed_lane_execution_route(
         return None;
     };
 
+    let mut effective = force_legacy_mixed_lane_payload(payload);
+    if default_web_media {
+        // A request-local alias reuses all single-submit and no-fallback boundaries.
+        // Never persist this projection or replace credential/session/model policy.
+        effective.adapter = surface::GEMINI_WEB_REVERSE_MODULAR_ADAPTER.into();
+        if let Some(flow) = effective.call_flow.as_mut() {
+            flow.special_adapter = crate::protocol::call_flow::SpecialAdapter::Auto;
+        }
+    }
     Some(LegacyMixedLaneExecutionRoute {
         kind,
-        payload: force_legacy_mixed_lane_payload(payload),
+        payload: effective,
     })
 }
 
@@ -320,5 +329,31 @@ mod tests {
             false,
         )
         .is_none());
+    }
+
+    #[test]
+    fn media_route_preserves_explicit_http_required_and_disabled_aliases() {
+        for key in ["pureHttpMode", "pure_http_mode"] {
+            for mode in ["required", "disabled"] {
+                let mut payload = make_payload(surface::GEMINI_WEB_REVERSE_MODULAR_ADAPTER);
+                payload.extra_body =
+                    Some(HashMap::from([(key.into(), Value::String(mode.into()))]));
+                let route = legacy_mixed_lane_execution_route(
+                    &payload,
+                    EndpointKind::ImagesGenerations,
+                    false,
+                )
+                .unwrap();
+                assert_eq!(route.payload.extra_body.as_ref().unwrap()[key], mode);
+                assert_eq!(
+                    crate::protocol::gemini_canvas::pure_http_required(&route.payload),
+                    mode == "required"
+                );
+                assert_eq!(
+                    crate::protocol::gemini_canvas::pure_http_enabled(&route.payload),
+                    mode != "disabled"
+                );
+            }
+        }
     }
 }

@@ -13,6 +13,19 @@ pub fn pack_request(
     _model: &str,
     bootstrap: &GeminiWebBootstrap,
 ) -> Result<GeminiWebRequest, GatewayError> {
+    pack_request_with_uploaded_files(req, bootstrap, &[])
+}
+
+pub(crate) fn pack_request_with_uploaded_files(
+    req: &CanonicalRelayRequest,
+    bootstrap: &GeminiWebBootstrap,
+    uploaded_files: &[Value],
+) -> Result<GeminiWebRequest, GatewayError> {
+    let combined_text = validate_text_request(req)?;
+    pack_text(combined_text, bootstrap, uploaded_files)
+}
+
+pub(crate) fn validate_text_request(req: &CanonicalRelayRequest) -> Result<String, GatewayError> {
     if !matches!(
         req.endpoint_kind,
         EndpointKind::ChatCompletions
@@ -33,10 +46,21 @@ pub fn pack_request(
         .with_code("gemini_web_missing_text"));
     }
 
+    Ok(combined_text)
+}
+
+fn pack_text(
+    combined_text: String,
+    bootstrap: &GeminiWebBootstrap,
+    uploaded_files: &[Value],
+) -> Result<GeminiWebRequest, GatewayError> {
     let request_id = current_reqid();
     let request_uuid = uuid::Uuid::new_v4().to_string();
     let mut inner_req_list = vec![Value::Null; 69];
     inner_req_list[0] = json!([combined_text, 0, null, null, null, null, 0]);
+    if !uploaded_files.is_empty() {
+        inner_req_list[0][3] = json!(uploaded_files);
+    }
     inner_req_list[1] = json!([bootstrap.language]);
     inner_req_list[2] = json!(["", "", "", null, null, null, null, null, null, ""]);
     inner_req_list[6] = json!([1]);

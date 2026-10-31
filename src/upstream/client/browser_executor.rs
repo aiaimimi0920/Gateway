@@ -23,6 +23,21 @@ impl UpstreamClient {
         };
 
         let endpoint_kind_key = browser_executor_endpoint_kind_key(endpoint_kind);
+        let no_replay = provider == "gemini_canvas"
+            && matches!(
+                endpoint_kind,
+                EndpointKind::ImagesGenerations
+                    | EndpointKind::ImagesEdits
+                    | EndpointKind::MusicGenerations
+                    | EndpointKind::VideosGenerations
+            );
+        // Once handed to a remote executor, an uncertain response must not create
+        // a second local generation. No configured remote still permits local use.
+        let response_policy = if no_replay {
+            RequestTimeBrowserPolicy::RemoteOnly
+        } else {
+            self.request_time_browser_policy
+        };
         let remote_executor_timeout = browser_executor_remote_request_timeout(self.timeout, &input);
         let request = BrowserExecutorInvocationRequest {
             provider,
@@ -41,6 +56,9 @@ impl UpstreamClient {
         if let Some(token) = self.browser_executor_bearer_token.as_deref() {
             builder = builder.bearer_auth(token);
         }
+        if no_replay {
+            builder = builder.redirect(rquest::redirect::Policy::none());
+        }
 
         let response = match builder.send().await {
             Ok(response) => response,
@@ -51,12 +69,13 @@ impl UpstreamClient {
                     endpoint_kind = endpoint_kind_key,
                     timed_out = error.is_timeout(),
                     connect_failed = error.is_connect(),
-                    "remote browser executor unavailable; falling back to local worker"
+                    "remote browser executor transport failed"
                 );
-                if self.request_time_browser_policy.forbids_local_fallback() {
-                    return Err(remote_browser_executor_required_unavailable_error(
+                if response_policy.forbids_local_fallback() {
+                    let error = remote_browser_executor_required_unavailable_error(
                         "Remote browser executor is unavailable while request-time local browser fallback is disabled.",
-                    ));
+                    );
+                    return Err(protect_remote_generation_error(error, no_replay));
                 }
                 return Ok(None);
             }
@@ -64,12 +83,13 @@ impl UpstreamClient {
 
         decode_remote_browser_executor_response(
             response,
-            self.request_time_browser_policy,
+            response_policy,
             provider,
             provider_account_id,
             endpoint_kind_key,
         )
         .await
+        .map_err(|error| protect_remote_generation_error(error, no_replay))
     }
 
     pub async fn execute_browser_executor_service_invocation(
@@ -144,4 +164,14 @@ impl UpstreamClient {
             _ => Err(unsupported_browser_executor_provider_error(&provider_label)),
         }
     }
+}
+
+fn protect_remote_generation_error(mut error: GatewayError, no_replay: bool) -> GatewayError {
+    if no_replay {
+        error.retryable = false;
+        error.fallback_hint = crate::error::FallbackHint::Abort {
+            reason: "A dispatched Gemini media generation must not be replayed locally.".into(),
+        };
+    }
+    error
 }

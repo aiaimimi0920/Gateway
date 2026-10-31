@@ -1,12 +1,20 @@
 use crate::protocol::canonical::EndpointKind;
 
+mod attachments;
 mod bootstrap;
 mod constants;
 mod headers;
 mod media;
 mod request;
 mod response;
+pub(crate) mod speech;
+mod speech_containers;
+pub(crate) mod speech_response;
 mod types;
+
+pub(crate) use attachments::{
+    has_media, mime_and_extension, prepare_media, without_media_replay, WebUpload,
+};
 
 pub use super::shared::{GEMINI_WEB_REVERSE_MODULAR_ADAPTER, GEMINI_WEB_REVERSE_MODULAR_PROFILE};
 pub use bootstrap::{
@@ -30,6 +38,8 @@ pub use constants::{
 pub use headers::extract_model_headers;
 pub use media::prompt_for_legacy_mixed_lane_media_request;
 pub use request::pack_request;
+pub(crate) use request::{pack_request_with_uploaded_files, validate_text_request};
+pub(crate) use response::{accumulate_complete_media_response, canonical_to_sse};
 pub use response::{
     accumulate_gemini_web_response, classify_gemini_web_http_error, parse_response,
     response_indicates_browser_challenge, response_indicates_session_invalid,

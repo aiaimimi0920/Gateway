@@ -102,6 +102,7 @@ pub enum SpecialAdapter {
     None,
     Basispoints,
     GeminiWeb,
+    GeminiCanvas,
     ChatgptWeb,
     AistudioWeb,
 }
@@ -112,6 +113,7 @@ impl SpecialAdapter {
             Self::Auto | Self::None => None,
             Self::Basispoints => Some(crate::protocol::chatgpt::basispoints::ADAPTER),
             Self::GeminiWeb => Some("gemini_web_compatible"),
+            Self::GeminiCanvas => Some("gemini_canvas_web_reverse_compatible"),
             Self::ChatgptWeb => Some("chatgpt_web_reverse_compatible"),
             Self::AistudioWeb => Some("aistudio_web_reverse_compatible"),
         }

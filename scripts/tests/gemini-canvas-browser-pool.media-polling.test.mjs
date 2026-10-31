@@ -55,29 +55,12 @@ test("Media result finalization rebuilds and stores the latest invoke contract",
   releasedAfterPolling(h);
 });
 
-test("Media template-stall prompt retry stops after two attempts before accepting image", async (t) => {
+test("Media template stall accepts the available image without resubmitting", async (t) => {
   const h = mediaOperationHarness(t, app, { responses: { "retry-check": [true] } });
   await h.run();
-  assert.equal(calls(h, "retry").length, 2);
-  assert.equal(calls(h, "snapshot").length, 3);
-  assert.deepEqual(waits(h), [1200, 1200]);
-  releasedAfterPolling(h);
-});
-
-test("Media video composer resets are capped and restart the prompt retry budget", async (t) => {
-  const h = mediaOperationHarness(t, app, { snapshots: [snapshot("ready", [video])], responses: { "retry-check": [true] } });
-  await runVideo(h);
-  assert.equal(calls(h, "retry").length, 8);
-  for (const stage of ["reset", "mode", "submit"]) assert.equal(calls(h, stage).length, 4);
-  assert.equal(calls(h, "snapshot").length, 12);
-  assert.deepEqual(waits(h), Array(8).fill(1200));
-  releasedAfterPolling(h);
-});
-
-test("Media failed video composer reactivation keeps its 409 error and cleanup", async (t) => {
-  const h = mediaOperationHarness(t, app, { snapshots: [snapshot()], responses: { "retry-check": [true], mode: [true, false] } });
-  await assert.rejects(runVideo(h), { status: 409, code: "gemini_canvas_video_mode_unavailable" });
-  assert.equal(calls(h, "submit").length, 1);
+  assert.equal(calls(h, "retry").length, 0);
+  assert.equal(calls(h, "snapshot").length, 1);
+  assert.deepEqual(waits(h), []);
   releasedAfterPolling(h);
 });
 
@@ -89,33 +72,14 @@ test("Media video template selection attempts remain capped at three", async (t)
   releasedAfterPolling(h);
 });
 
-test("Media video create probes retain the three-second spacing and three-attempt cap", async (t) => {
+test("Media video create action is attempted at most once", async (t) => {
   const h = mediaOperationHarness(t, app, {
     snapshots: [snapshot("Choose a template"), ...Array.from({ length: 4 }, () => snapshot("Create video")), snapshot("ready", [video])],
     responses: { template: [{ clicked: true }], create: [true, false] },
   });
   await runVideo(h);
-  assert.equal(calls(h, "create").length, 3);
+  assert.equal(calls(h, "create").length, 1);
   assert.deepEqual(waits(h), [1500, 2000, 2000, 2000]);
-  releasedAfterPolling(h);
-});
-
-test("Media video transient failures retry three times then preserve an available result", async (t) => {
-  const h = mediaOperationHarness(t, app, { snapshots: [snapshot("Something went wrong (1155)", [video])], gates: {} });
-  assert.deepEqual((await runVideo(h)).media, [video]);
-  for (const stage of ["reset", "mode", "submit"]) assert.equal(calls(h, stage).length, 4);
-  assert.deepEqual(waits(h), [2000, 2000, 2000]);
-  releasedAfterPolling(h);
-});
-
-test("Media video transient retry resets template and create attempt state", async (t) => {
-  const h = mediaOperationHarness(t, app, {
-    snapshots: [snapshot("Choose a template"), snapshot("Something went wrong (1155)"), snapshot("Choose a template"), snapshot("ready", [video])],
-    responses: { template: [{ clicked: true, videoCreateClicked: true }] }, gates: {},
-  });
-  await runVideo(h);
-  assert.deepEqual(calls(h, "template").map((call) => call[3]), [0, 0]);
-  assert.deepEqual(waits(h), [2000]);
   releasedAfterPolling(h);
 });
 

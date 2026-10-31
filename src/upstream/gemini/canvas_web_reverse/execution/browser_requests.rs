@@ -1,12 +1,16 @@
 //! Submit browser operations using the existing bounded recovery policy.
 
+#[cfg(test)]
+#[path = "browser_requests_tests.rs"]
+mod tests;
+
 use std::time::Duration;
 
 use rquest::{Client, Method};
 use serde_json::Value;
 use tokio::time::sleep;
 
-use crate::error::{classify_network_error, GatewayError};
+use crate::error::{classify_network_error, FallbackHint, GatewayError};
 use crate::upstream::gemini::canvas_program_web_reverse as program;
 
 use super::super::browser_operation::build_browser_operation_invocation_input_from_values;
@@ -94,7 +98,15 @@ pub async fn execute_browser_request_input_with_recovery(
         .await
         {
             Ok(result) => return Ok(result),
-            Err(error) => {
+            Err(mut error) => {
+                if matches!(operation, "image" | "music" | "video") {
+                    // A lost worker response may follow an accepted generation.
+                    error.retryable = false;
+                    error.fallback_hint = FallbackHint::Abort {
+                        reason: "Browser media generation must not be replayed.".to_string(),
+                    };
+                    return Err(error);
+                }
                 let Some(delay_ms) = browser_request_retry_delay_ms(&error, attempts) else {
                     return Err(error);
                 };
@@ -119,32 +131,24 @@ pub async fn execute_browser_request_with_recovery(
     prompt: &str,
     locale: &str,
 ) -> Result<program::GeminiCanvasBrowserInvocationResult, GatewayError> {
-    let mut attempts = 0usize;
-    loop {
-        match execute_browser_request(
-            http,
-            timeout,
-            provider,
-            browser_pool_base_url,
-            base_url,
-            share_id,
-            runtime_state_object_key,
-            browser_cdp_url,
-            cookie_header,
-            operation,
-            prompt,
-            locale,
-        )
-        .await
-        {
-            Ok(result) => return Ok(result),
-            Err(error) => {
-                let Some(delay_ms) = browser_request_retry_delay_ms(&error, attempts) else {
-                    return Err(error);
-                };
-                attempts += 1;
-                sleep(Duration::from_millis(delay_ms)).await;
-            }
-        }
-    }
+    let input = build_browser_operation_invocation_input_from_values(
+        base_url,
+        share_id,
+        runtime_state_object_key,
+        browser_cdp_url,
+        cookie_header,
+        operation,
+        prompt,
+        locale,
+        timeout,
+    );
+    execute_browser_request_input_with_recovery(
+        http,
+        timeout,
+        provider,
+        browser_pool_base_url,
+        &input,
+        operation,
+    )
+    .await
 }

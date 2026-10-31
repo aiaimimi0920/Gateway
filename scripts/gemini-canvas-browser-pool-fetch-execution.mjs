@@ -32,6 +32,7 @@ export function createFetchExecutionOwner({
   resolveProgramPageUrl,
   startNetworkCapture,
   runFetchPreviewOperation,
+  runCanvasHostFetchOperation,
   runFetchPageMusicOperation,
   isFixtureCanvasBaseUrl,
   ensureProgramPage,
@@ -126,7 +127,7 @@ export function createFetchExecutionOwner({
       args,
     );
     const attachedAppPage =
-      useCanvasPreviewNoKeyMode && preferredProgramPageUrl
+      useCanvasProxyMode || (useCanvasPreviewNoKeyMode && preferredProgramPageUrl)
         ? null
         : await findAttachedGeminiAppPage(
             entry,
@@ -145,7 +146,6 @@ export function createFetchExecutionOwner({
       );
     }
     const capture = startNetworkCapture(entry.page, "text");
-    let connectedClientBootstrapError = null;
     try {
     await capture.ready;
     const requestBodyText =
@@ -171,6 +171,10 @@ export function createFetchExecutionOwner({
       referrer: requestReferrer,
       referrerPolicy: requestReferrerPolicy,
     };
+    if (useCanvasProxyMode && !(method === "GET" && isBrowserDownloadAssetUrl(url))) {
+      return await runCanvasHostFetchOperation({ entry, args, url, method, requestedHeaders,
+        requestBodyText, timeoutMs, preferredProgramPageUrl, fixtureBaseUrl, capture });
+    }
     if (useCanvasPreviewNoKeyMode || useCanvasPreviewMusicNoKeyMode) {
       return await runFetchPreviewOperation({
         entry, args, url, method, requestedHeaders, requestBodyText,
@@ -232,80 +236,6 @@ export function createFetchExecutionOwner({
         networkEvents: capture.state.events,
         rpcCaptures: capture.state.rpcCaptures,
       };
-    }
-
-    if (useCanvasProxyMode) {
-      try {
-        await ensureLoopbackConnectedClient(entry);
-      } catch (error) {
-        connectedClientBootstrapError = error;
-        log(
-          "failed to bootstrap Gemini Canvas loopback connected client",
-          error instanceof Error ? error.message : String(error),
-        );
-      }
-    }
-
-    if (useCanvasProxyMode && listConnectedClients().length > 0) {
-      try {
-        const connectedResult = await dispatchConnectedProxyRequest({
-          method,
-          url,
-          headers: requestedHeaders,
-          ...connectedRequestSpec,
-        });
-        return {
-          operation: "fetch",
-          ...buildProgramHandleState(
-            fixtureBaseUrl ?? "https://gemini.google.com",
-            args,
-            entry.page.url(),
-            capture.state,
-          ),
-          status: connectedResult.status,
-          ok: connectedResult.status >= 200 && connectedResult.status < 300,
-          finalUrl: url,
-          contentType:
-            connectedResult.headers["content-type"] ??
-            connectedResult.headers["Content-Type"] ??
-            null,
-          headers: connectedResult.headers,
-          bodyText: connectedResult.bodyText,
-          bodyBase64: Buffer.from(connectedResult.bodyText ?? "", "utf8").toString("base64"),
-          networkEvents: capture.state.events,
-          rpcCaptures: capture.state.rpcCaptures,
-        };
-      } catch (error) {
-        if (error?.status === 413) {
-          throw error;
-        }
-        connectedClientBootstrapError = error;
-        log(
-          "Gemini Canvas connected client fetch failed; trying browser navigation fallback",
-          error instanceof Error ? error.message : String(error),
-        );
-      }
-    }
-
-    if (useCanvasProxyMode) {
-      throw Object.assign(
-        new Error(
-          connectedClientBootstrapError instanceof Error
-            ? `Gemini Canvas program websocket path is unavailable: ${connectedClientBootstrapError.message}`
-            : "Gemini Canvas program websocket path is unavailable because no connected client is attached.",
-        ),
-        {
-          status: 503,
-          code:
-            connectedClientBootstrapError instanceof Error
-              ? "gemini_canvas_program_ws_bootstrap_failed"
-              : "gemini_canvas_program_ws_client_unavailable",
-          bodyText:
-            connectedClientBootstrapError instanceof Error
-              ? connectedClientBootstrapError.message
-              : null,
-        },
-      );
     }
 
     if (args.requireAppPage === false && isFixtureCanvasBaseUrl(fixtureBaseUrl)) {
@@ -395,7 +325,6 @@ export function createFetchExecutionOwner({
             await ensureLoopbackConnectedClient(entry);
           }
         } catch (connectedClientError) {
-          connectedClientBootstrapError = connectedClientError;
           log(
             "failed to bootstrap Gemini Canvas loopback connected client after page.evaluate fetch error",
             connectedClientError instanceof Error ? connectedClientError.message : String(connectedClientError),

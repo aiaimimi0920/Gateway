@@ -33,7 +33,8 @@ export class ElementFixture {
 }
 
 export function domPage({ images = [], controls = [], bodyText = "" } = {}) {
-  const document = { body: { innerText: bodyText }, querySelectorAll: (selector) => selector === "img" ? images : controls };
+  const document = { body: { innerText: bodyText }, querySelectorAll: (selector) => selector === "img" ? images
+    : selector === '[role="menu"]' ? controls.filter(node => node.getAttribute("role") === "menu") : controls };
   const waits = [];
   const page = {
     async evaluate(callback, argument) {

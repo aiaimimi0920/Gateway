@@ -25,7 +25,7 @@ impl UpstreamClient {
             gemini_canvas::GeminiCanvasMediaOperation::Image,
         )?;
         if gemini_canvas::pure_http_enabled(payload) {
-            match self
+            return self
                 .execute_gemini_canvas_media_direct_http(
                     payload,
                     req,
@@ -34,23 +34,9 @@ impl UpstreamClient {
                     prompt.clone(),
                     self.timeout.max(Duration::from_secs(240)),
                 )
-                .await
-            {
-                Ok(body) => return Ok(body),
-                Err(error) if payload.adapter != "gemini_web_reverse_modular_compatible" => {
-                    return Err(error);
-                }
-                Err(error) => {
-                    debug!(
-                        provider,
-                        adapter = %payload.adapter,
-                        error = %summarize_gateway_error(&error),
-                        "gemini web reverse modular legacy image direct HTTP lane failed; falling back to browser-owned image invocation"
-                    );
-                }
-            }
+                .await;
         }
-        // Resolve browser state only after pure HTTP declines the request.
+        // Select one generation owner before submission, never after an uncertain result.
         let browser_runtime_state_object_key = browser_runtime_state_object_key_for("image");
         let request_timeout = self.timeout.max(Duration::from_secs(240));
         let invocation_input =

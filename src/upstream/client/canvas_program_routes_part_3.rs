@@ -53,7 +53,9 @@ impl UpstreamClient {
         {
             Ok(asset) => asset,
             Err(download_error) => {
-                if payload.adapter == "gemini_canvas_program_web_reverse_compatible" {
+                if payload.adapter == "gemini_canvas_program_web_reverse_compatible"
+                    || gemini_canvas::pure_http_required(payload)
+                {
                     return Err(download_error);
                 }
                 let browser_runtime_state_object_key =

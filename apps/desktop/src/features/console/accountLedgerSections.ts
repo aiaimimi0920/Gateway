@@ -19,6 +19,7 @@ import { credentialCardModelTraffic, providerCardModelTraffic } from "./cardMode
 import { catalogModels, catalogProviderKind } from "./officialModelCatalog";
 import { isChatgptCatalogProvider } from "./chatgptModelCatalog";
 import { supportsAccountDiscovery } from "./accountDiscovery";
+import { geminiProviderMode } from "./geminiProviderMode";
 
 function optionalStringArray(record: Record<string, unknown>, key: string): string[] {
   const value = record[key];
@@ -222,7 +223,8 @@ function mergeGeminiAccountLedgerSections(
 
   const mergedGeminiSections = [...geminiGroups.values()].map(({ channel, sections: members }) => {
     const primary =
-      members.find((section) => section.providerId === channel.primaryProviderId) ?? members[0];
+      members.find((section) => section.providerId === channel.primaryProviderId)
+      ?? members.find((section) => section.manualAddFamily === channel.manualAddFamily) ?? members[0];
     const accountMap = new Map<string, AccountsLedgerPilotAccount>();
     for (const member of members) {
       const memberAccounts = [
@@ -272,28 +274,17 @@ function resolveGeminiManualAddFamily(
   provider: Record<string, unknown>,
   providerId: string,
 ): ConsoleGeminiAuthFamily | null {
-  const candidates = [
-    providerId,
-    optionalString(provider, "preset"),
-    optionalString(provider, "label"),
-  ]
-    .filter((value): value is string => Boolean(value))
-    .map((value) => value.trim().toLowerCase());
-  if (candidates.includes("gemini-canvas")) {
+  const mode = geminiProviderMode(providerId, optionalString(provider, "preset"), optionalString(provider, "label") ?? "");
+  if (mode === "canvas") {
     return "gemini-canvas";
   }
-  if (candidates.includes("gemini-canvas-chat")) {
+  if (mode === "canvas-chat") {
     return "gemini-canvas-chat";
   }
-  if (candidates.includes("gemini-business")) {
+  if (mode === "business") {
     return "gemini-business";
   }
-  if (
-    candidates.includes("gemini-web") ||
-    candidates.includes("gemini-web-chat") ||
-    candidates.includes("gemini-web-chat-modular") ||
-    candidates.includes("gemini-web-secondary")
-  ) {
+  if (mode === "web") {
     return "gemini-web";
   }
   return null;

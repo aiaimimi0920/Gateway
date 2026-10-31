@@ -101,6 +101,7 @@ COPY --from=builder /app/gateway-release /usr/local/bin/gateway
 ENV GATEWAY_RUNTIME_ROLE=standalone
 
 ENV PORT=4200 \
+  GATEWAY_RELEASE_PAYLOAD_ROOT=/app \
   GATEWAY_ROUTES_FILE=/data/routes.yaml \
   GATEWAY_STATE_DIR=/data/state
 

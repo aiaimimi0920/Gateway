@@ -30,6 +30,7 @@ fn extracts_last_json_object_after_helper_logs() {
 #[test]
 fn build_canvas_generated_drafts_shares_runtime_material_across_both_families() {
     let drafts = build_canvas_generated_drafts(
+        None,
         "credential-runtime/gemini-canvas/demo/storage-state.json",
         "fe24c455a570",
         None,
@@ -53,6 +54,7 @@ fn build_canvas_generated_drafts_shares_runtime_material_across_both_families() 
 #[test]
 fn build_canvas_generated_drafts_keeps_official_api_keys_out_of_program_owned_draft() {
     let drafts = build_canvas_generated_drafts(
+        None,
         "credential-runtime/gemini-canvas/demo/storage-state.json",
         "fe24c455a570",
         Some("credential-runtime/gemini-canvas/demo/browser-profile"),
@@ -81,6 +83,7 @@ fn build_canvas_generated_drafts_keeps_official_api_keys_out_of_program_owned_dr
 #[test]
 fn build_canvas_generated_drafts_keeps_browser_profile_override_for_profile_dirs() {
     let drafts = build_canvas_generated_drafts(
+        None,
         "credential-runtime/gemini-canvas/demo/browser-profile",
         "fe24c455a570",
         Some("credential-runtime/gemini-canvas/demo/browser-profile"),
@@ -95,6 +98,41 @@ fn build_canvas_generated_drafts_keeps_browser_profile_override_for_profile_dirs
         drafts[1].credential["extra_body"]["browserRuntimeStateObjectKey"],
         Value::String("credential-runtime/gemini-canvas/demo/browser-profile".to_string())
     );
+}
+
+#[test]
+fn canvas_import_targets_one_exact_provider_without_cross_family_keys() {
+    for family in [
+        GeminiAuthFamily::GeminiCanvas,
+        GeminiAuthFamily::GeminiCanvasChat,
+    ] {
+        let drafts = build_canvas_generated_drafts(
+            Some(("custom-canvas-pool", family)),
+            "credential-runtime/fixture/state.json",
+            "fixture-share",
+            Some("credential-runtime/fixture/profile"),
+            Some(&["fixture-key".to_string()]),
+        );
+        assert_eq!(drafts.len(), 1);
+        assert_eq!(drafts[0].provider_id, "custom-canvas-pool");
+        let credential = &drafts[0].credential;
+        assert_eq!(
+            credential["runtime_state_object_key"],
+            "credential-runtime/fixture/state.json"
+        );
+        assert_eq!(
+            credential["extra_body"]["browserRuntimeStateObjectKey"],
+            "credential-runtime/fixture/profile"
+        );
+        assert_eq!(credential["extra_body"]["shareId"], "fixture-share");
+        assert!(drafts[0].secret_edits.is_empty());
+        if family == GeminiAuthFamily::GeminiCanvas {
+            assert!(credential["extra_body"].get("apiKeys").is_none());
+            assert!(credential["extra_body"].get("apiBaseUrl").is_none());
+        } else {
+            assert_eq!(credential["extra_body"]["apiKeys"], json!(["fixture-key"]));
+        }
+    }
 }
 
 #[test]

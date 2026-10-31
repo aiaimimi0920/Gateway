@@ -199,19 +199,35 @@ pub(super) fn request_compatible_wire_protocol_families(
                 EndpointKind::ImagesGenerations => {
                     vec![GEMINI_CANVAS_IMAGES_FAMILY.to_string()]
                 }
+                EndpointKind::ImagesEdits
+                    if payload.adapter == "gemini_canvas_web_reverse_compatible" =>
+                {
+                    vec![GEMINI_CANVAS_IMAGES_FAMILY.to_string()]
+                }
+                EndpointKind::AudioTranscriptions
+                    if payload.adapter == "gemini_canvas_web_reverse_compatible" =>
+                {
+                    vec![GEMINI_GENERATE_CONTENT_FAMILY.to_string()]
+                }
                 EndpointKind::MusicGenerations => vec![GEMINI_CANVAS_MUSIC_FAMILY.to_string()],
                 EndpointKind::VideosGenerations => vec![GEMINI_CANVAS_VIDEOS_FAMILY.to_string()],
                 _ => Vec::new(),
             }
         }
-        "gemini_web_reverse_modular_compatible" => match endpoint_kind {
+        "gemini_web_compatible" | "gemini_web_reverse_modular_compatible" => match endpoint_kind {
             EndpointKind::ChatCompletions
             | EndpointKind::Messages
             | EndpointKind::Responses
-            | EndpointKind::Completions => {
+            | EndpointKind::Completions
+            | EndpointKind::AudioTranscriptions => {
                 vec![GEMINI_WEB_CHAT_FAMILY.to_string()]
             }
-            EndpointKind::AudioSpeech => vec![GEMINI_GENERATE_CONTENT_FAMILY.to_string()],
+            EndpointKind::AudioSpeech
+                if payload.adapter == "gemini_web_reverse_modular_compatible" =>
+            {
+                vec![GEMINI_GENERATE_CONTENT_FAMILY.to_string()]
+            }
+            EndpointKind::AudioSpeech => vec![OPENAI_AUDIO_SPEECH_FAMILY.to_string()],
             EndpointKind::ImagesGenerations | EndpointKind::ImagesEdits => {
                 vec![GEMINI_CANVAS_IMAGES_FAMILY.to_string()]
             }

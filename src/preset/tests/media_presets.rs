@@ -152,6 +152,10 @@ fn gemini_canvas_browser_relay_preset_defaults_to_browser_backed() {
     assert_eq!(preset.id, "gemini-canvas-browser-relay");
     assert_eq!(preset.adapter, "gemini_canvas_web_reverse_compatible");
     assert_eq!(
+        preset.default_model.as_deref(),
+        Some(GEMINI_CANVAS_DEFAULT_TEXT_MODEL)
+    );
+    assert_eq!(
         preset.execution_mode,
         Some(ProviderExecutionMode::BrowserBacked)
     );

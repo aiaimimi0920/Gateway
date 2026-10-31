@@ -45,8 +45,10 @@ pub async fn handle_audio_transcriptions(
             let bytes = field.bytes().await.map_err(|error| {
                 GatewayError::bad_request(format!("Invalid audio upload payload: {error}"))
             })?;
-            body.insert(
-                normalized_name,
+            // Preserve duplicates for validation instead of silently transcribing the last file.
+            insert_form_value(
+                &mut body,
+                &normalized_name,
                 serde_json::json!({
                     "file_name": file_name,
                     "mime_type": mime_type,

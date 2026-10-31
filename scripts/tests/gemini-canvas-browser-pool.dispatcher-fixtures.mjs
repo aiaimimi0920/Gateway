@@ -28,13 +28,15 @@ export function dispatcherHarness(app, options = {}) {
     applyGeminiAccountScope(args) { record("scope", args); scopedArgs = app.applyGeminiAccountScope(args); return scopedArgs; },
     async ensureContext(...args) { record("context", ...args); return entry; },
     async closeContext(...args) { record("close", ...args); },
+    async settleAuthCheckpoint() {},
     async contextHasGeminiAuthCookies(...args) {
       record("auth", ...args);
+      if (options.onAuth) return options.onAuth(...args);
       const values = options.authCookies ?? [true];
       return values[Math.min(counts.get("auth") - 1, values.length - 1)];
     },
     async syncEmbeddedStorageStateIntoContext(...args) { record("embedded", ...args); return options.embeddedCount ?? 0; },
-    async syncCookieHeaderIntoContext(...args) { record("cookies", ...args); return 2; },
+    async syncCookieHeaderIntoContext(...args) { record("cookies", ...args); return options.onCookieSync ? options.onCookieSync(...args) : 2; },
     resolveProgramPageUrl(...args) { record("resolve", ...args); return options.programUrl ?? null; },
     async ensureProgramPage(...args) { record("program-page", ...args); },
     async ensureAppPage(...args) { record("app-page", ...args); },

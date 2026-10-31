@@ -55,15 +55,11 @@ pub(crate) fn udio_browser_request_timeout(
 }
 
 pub(crate) fn gemini_canvas_browser_pool_script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts")
-        .join("gemini-canvas-browser-pool.mjs")
+    super::gemini_canvas_pool_paths::script_path()
 }
 
-pub(crate) fn gemini_canvas_browser_pool_log_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join(".runtime")
-        .join("gemini-canvas-browser-pool.log")
+pub(crate) fn gemini_canvas_browser_pool_log_path() -> Result<PathBuf, GatewayError> {
+    super::gemini_canvas_pool_paths::log_path()
 }
 
 pub(crate) fn gemini_canvas_browser_pool_base_url() -> String {

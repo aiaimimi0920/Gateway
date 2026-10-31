@@ -46,30 +46,16 @@ impl UpstreamClient {
             }
             return Ok(canonical);
         }
-        let browser_runtime_state_object_key =
-            resolved_gemini_canvas_browser_runtime_state_object_key(&effective_payload, &runtime);
-        let browser_cookie_header = gemini_canvas::browser_cookie_header(&effective_payload);
-        let request_body = gemini_canvas::build_text_request_body(req, model);
-        let request_url = gemini_canvas::build_text_fetch_url(&runtime, model);
-        let browser_pool_base_url = self.ensure_gemini_canvas_browser_pool(provider).await?;
+        let request_body = canvas_host_generation::text_request(req, model)?;
         let body = self
-            .execute_gemini_canvas_connected_fetch_json_with_mode(
-                provider,
-                &browser_pool_base_url,
-                payload.base_url.trim_end_matches('/'),
-                &runtime.share_id,
-                &browser_runtime_state_object_key,
-                gemini_canvas::browser_cdp_url(payload).as_deref(),
-                browser_cookie_header.as_deref(),
-                &request_url,
-                &request_body,
-                "canvas_proxy",
-                request_timeout,
-            )
+            .execute_gemini_canvas_host_generate(payload, model, &request_body, request_timeout)
             .await?;
-        let canonical = gemini_api_modular::parse_generate_content_response(&body, model)?;
+        let canonical = gemini_api_modular::parse_generate_content_response(&body, model)
+            .map_err(canvas_host_generation::without_host_replay)?;
         if gemini_canvas_text_response_is_generic_welcome(&prompt, &canonical.text) {
-            return Err(gemini_canvas_generic_welcome_response_error(provider));
+            return Err(canvas_host_generation::without_host_replay(
+                gemini_canvas_generic_welcome_response_error(provider),
+            ));
         }
         Ok(canonical)
     }
@@ -100,6 +86,11 @@ impl UpstreamClient {
         model: &str,
         _extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<BinaryUpstreamResponse, GatewayError> {
+        if payload.adapter == "gemini_canvas_web_reverse_compatible" {
+            return self
+                .execute_gemini_canvas_host_tts(payload, req, model)
+                .await;
+        }
         let locale = gemini_canvas::locale_from_payload(payload);
         let request_timeout = self.timeout.max(Duration::from_secs(300));
         let provider = payload.adapter.as_str();
@@ -205,6 +196,16 @@ impl UpstreamClient {
         model: &str,
         _extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<Value, GatewayError> {
+        if payload.adapter == "gemini_canvas_web_reverse_compatible"
+            && matches!(
+                req.endpoint_kind,
+                EndpointKind::ImagesGenerations | EndpointKind::ImagesEdits
+            )
+        {
+            return self
+                .execute_gemini_canvas_host_image(payload, req, model)
+                .await;
+        }
         let locale = gemini_canvas::locale_from_payload(payload);
         let provider = payload.adapter.as_str();
         let bootstrap_operation = match req.endpoint_kind {
@@ -308,6 +309,11 @@ impl UpstreamClient {
                         req,
                         gemini_canvas::GeminiCanvasMediaOperation::Music,
                     )?;
+                if payload.adapter == "gemini_canvas_web_reverse_compatible" {
+                    return Err(super::canvas_host_generation::media_contract_unavailable(
+                        "music",
+                    ));
+                }
                 let request_timeout = self.timeout.max(Duration::from_secs(480));
                 let effective_payload = if program_owned {
                     self.ensure_gemini_canvas_program_payload_handle(
@@ -379,6 +385,11 @@ impl UpstreamClient {
                         req,
                         gemini_canvas::GeminiCanvasMediaOperation::Video,
                     )?;
+                if payload.adapter == "gemini_canvas_web_reverse_compatible" {
+                    return Err(super::canvas_host_generation::media_contract_unavailable(
+                        "video",
+                    ));
+                }
                 let request_timeout = self.timeout.max(Duration::from_secs(720));
                 let direct_http_attempt_timeout = request_timeout.min(Duration::from_secs(300));
                 let program_direct_http_payload = if program_owned {

@@ -22,27 +22,23 @@ test("Fetch execution browser-download failure preserves identity and releases c
   assertFetchReleased(assert, h);
 });
 
-for (const failureAt of ["connect", "proxy"]) {
-  test(`Fetch execution ${failureAt} failure retains websocket-unavailable diagnostics`, async (t) => {
-    const h = fetchOperationHarness(t, app, { failureAt, connected: failureAt === "proxy" });
-    await assert.rejects(h.run({ googleFetchMode: "canvas_proxy" }), (error) => {
-      assert.equal(error.status, 503);
-      assert.equal(error.code, "gemini_canvas_program_ws_bootstrap_failed");
-      assert.equal(error.bodyText, h.failure.message);
-      assert.equal(error.message, `Gemini Canvas program websocket path is unavailable: ${h.failure.message}`);
-      return true;
-    });
+for (const connected of [true, false]) {
+  test(`Fetch execution host failure is not replayed with connected clients=${connected}`, async (t) => {
+    const h = fetchOperationHarness(t, app, { failureAt: "host-fetch", connected });
+    await assert.rejects(h.run({ googleFetchMode: "canvas_proxy" }), error => error === h.failure);
+    assert.deepEqual(fetchCalls(h, "connect"), []);
+    assert.deepEqual(fetchCalls(h, "proxy"), []);
     assert.deepEqual(fetchCalls(h, "evaluate"), []);
     assertFetchReleased(assert, h);
   });
 }
 
-test("Fetch execution preserves connected-client body-limit status and code", async (t) => {
+test("Fetch execution preserves Canvas-host body-limit status and code", async (t) => {
   const failure = Object.assign(new Error("connected response exceeded the body budget"), {
     status: 413,
     code: "gemini_canvas_browser_body_too_large",
   });
-  const h = fetchOperationHarness(t, app, { failureAt: "proxy", failure, connected: true });
+  const h = fetchOperationHarness(t, app, { failureAt: "host-fetch", failure, connected: true });
   await assert.rejects(h.run({ googleFetchMode: "canvas_proxy" }), (error) => error === failure);
   assert.deepEqual(fetchCalls(h, "evaluate"), []);
   assertFetchReleased(assert, h);

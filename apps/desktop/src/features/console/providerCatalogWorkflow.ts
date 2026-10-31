@@ -18,6 +18,7 @@ export const SPECIAL_ADAPTERS = {
   none: ["无（标准 API）", "None (standard API)", ""],
   basispoints: ["Basispoints", "Basispoints", "chatgpt-codex-oauth-official-api"],
   gemini_web: ["Gemini Web", "Gemini Web", "gemini-web-chat"],
+  gemini_canvas: ["Gemini Canvas", "Gemini Canvas", "gemini-canvas-browser-relay"],
   chatgpt_web: ["ChatGPT Web", "ChatGPT Web", "chatgpt-web-reverse"],
   aistudio_web: ["AI Studio Web", "AI Studio Web", "aistudio-web-reverse"],
 } as const;

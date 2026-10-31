@@ -1,6 +1,5 @@
 import { collectPageSnapshot } from "./gemini-canvas-browser-pool-page-snapshot.mjs";
 import { mergeActionContract, extractCanvasProgramActionContractFromText } from "./gemini-canvas-browser-pool-action.mjs";
-import { submitPrompt } from "./gemini-canvas-browser-pool-composer.mjs";
 import {
   bodyTextSuggestsVideoTemplateSelection, trySelectVideoTemplateCard, tryClickVideoCreateAction,
 } from "./gemini-canvas-browser-pool-video-ui.mjs";
@@ -12,8 +11,6 @@ export function createMediaPollingOwner({
   buildCanvasProgramInvokeContract,
   selectMediaAssetsForOperation,
   log,
-  shouldRetryMediaPromptSubmission,
-  retryMediaPromptSubmission,
   resetConversation,
   clickOperationMode,
   detectMediaProviderGate,
@@ -24,6 +21,7 @@ export function createMediaPollingOwner({
   buildProgramHandleState,
   extractImageBytes,
   extractAudioBytes,
+  downloadWebMusic,
 }) {
   const { finalizeMediaOperation } = createMediaResultOwner({
     mergeInvokeContract,
@@ -34,6 +32,7 @@ export function createMediaPollingOwner({
     buildProgramHandleState,
     extractImageBytes,
     extractAudioBytes,
+    downloadWebMusic,
   });
 
   async function pollMediaOperation({
@@ -52,9 +51,7 @@ export function createMediaPollingOwner({
     let videoTemplateSelectedAt = null;
     let videoCreateClickAttempts = 0;
     let videoCreateClickedAt = null;
-    let videoTransientFailureRetryCount = 0;
-    let mediaPromptSubmissionRetryCount = 0;
-    let videoComposerResetCount = 0;
+    const resumeExistingMedia = args.resumeExistingMedia === true;
     let playerReadyPlayAttempted = false;
     let playerReadyDownloadAttempted = false;
     while (Date.now() < deadline) {
@@ -81,6 +78,11 @@ export function createMediaPollingOwner({
         ),
       );
       const media = selectMediaAssetsForOperation(operation, lastSnapshot, capture.state);
+      const musicDownloadReady = operation === "music" && (lastSnapshot?.buttons || []).some(
+        button => [button.text, button.ariaLabel, button.title].some(
+          value => /^(?:下载音乐作品|Download music)$/i.test(String(value || "").trim()),
+        ),
+      );
 
         let quotaGateText = null;
         if (operation === "video") {
@@ -118,64 +120,7 @@ export function createMediaPollingOwner({
         }
 
         if (
-          mediaPromptSubmissionRetryCount < 2
-          && shouldRetryMediaPromptSubmission(operation, {
-            bodyText: lastSnapshot?.pageState?.bodyText ?? "",
-            events: capture.state.events,
-            prompt,
-          })
-        ) {
-          mediaPromptSubmissionRetryCount += 1;
-          log(
-            "retrying media prompt submission after template-only stall",
-            JSON.stringify({
-              operation,
-              pollCount,
-              attempt: mediaPromptSubmissionRetryCount,
-              bodyPreview: String(lastSnapshot?.pageState?.bodyText || "").slice(0, 400),
-            }),
-          );
-          await retryMediaPromptSubmission(page, prompt, timeoutMs);
-          await page.waitForTimeout(1_200);
-          continue;
-        }
-
-        if (
-          operation === "video"
-          && mediaPromptSubmissionRetryCount >= 2
-          && videoComposerResetCount < 3
-          && shouldRetryMediaPromptSubmission(operation, {
-            bodyText: lastSnapshot?.pageState?.bodyText ?? "",
-            events: capture.state.events,
-            prompt,
-          })
-        ) {
-          videoComposerResetCount += 1;
-          log(
-            "resetting stalled video composer",
-            JSON.stringify({
-              operation,
-              pollCount,
-              attempt: videoComposerResetCount,
-            }),
-          );
-          await resetConversation(page, baseUrl, timeoutMs, null, {
-            skipInitialNavigationWhenAppSurfaceReady: true,
-          });
-          const retryModeSelected = await clickOperationMode(page, operation, timeoutMs);
-          if (!retryModeSelected) {
-            throw Object.assign(new Error("Gemini Canvas video mode could not be reactivated."), {
-              status: 409,
-              code: "gemini_canvas_video_mode_unavailable",
-            });
-          }
-          await submitPrompt(page, prompt, timeoutMs);
-          mediaPromptSubmissionRetryCount = 0;
-          continue;
-        }
-
-        if (
-          operation === "video" &&
+          !resumeExistingMedia && operation === "video" &&
           media.length === 0 &&
           bodyTextSuggestsVideoTemplateSelection(lastSnapshot?.pageState?.bodyText) &&
           videoTemplateSelectionAttempts < 3
@@ -212,12 +157,12 @@ export function createMediaPollingOwner({
         }
 
         if (
-          operation === "video" &&
+          !resumeExistingMedia && operation === "video" &&
           media.length === 0 &&
           videoTemplateSelectedAt &&
           Date.now() - videoTemplateSelectedAt < 20_000 &&
           /创作视频|制作视频|Create video/i.test(String(lastSnapshot?.pageState?.bodyText || "")) &&
-          videoCreateClickAttempts < 3 &&
+          videoCreateClickAttempts < 1 &&
           (!videoCreateClickedAt || Date.now() - videoCreateClickedAt > 3_000)
         ) {
           const videoCreateClicked = await tryClickVideoCreateAction(page, timeoutMs).catch(
@@ -248,33 +193,12 @@ export function createMediaPollingOwner({
           && /something went wrong\s*\(1155\)/i.test(
             String(lastSnapshot?.pageState?.bodyText || ""),
           );
-        if (videoTransientFailure && videoTransientFailureRetryCount < 3) {
-          videoTransientFailureRetryCount += 1;
-          log(
-            "retrying video prompt after transient provider failure",
-            JSON.stringify({
-              operation,
-              pollCount,
-              attempt: videoTransientFailureRetryCount,
-            }),
-          );
-          await page.waitForTimeout(2_000);
-          await resetConversation(page, baseUrl, timeoutMs, null, {
-            skipInitialNavigationWhenAppSurfaceReady: true,
+        if (videoTransientFailure && media.length === 0) {
+          // An error or missing response does not prove the generation was not accepted.
+          throw Object.assign(new Error("Gemini video generation failed; it was not resubmitted."), {
+            status: 502,
+            code: "gemini_canvas_video_generation_failed",
           });
-          const retryModeSelected = await clickOperationMode(page, operation, timeoutMs);
-          if (!retryModeSelected) {
-            throw Object.assign(new Error("Gemini Canvas video mode could not be reactivated."), {
-              status: 409,
-              code: "gemini_canvas_video_mode_unavailable",
-            });
-          }
-          await submitPrompt(page, prompt, timeoutMs);
-          videoTemplateSelectionAttempts = 0;
-          videoTemplateSelectedAt = null;
-          videoCreateClickAttempts = 0;
-          videoCreateClickedAt = null;
-          continue;
         }
 
         const providerGate =
@@ -327,6 +251,7 @@ export function createMediaPollingOwner({
 
         const needsPlayerReadyTargetBoost =
           media.length === 0 &&
+          !musicDownloadReady &&
           (operation === "music" || operation === "video") &&
           /_player_ready$/i.test(String(capture.state.invokeContract?.uiState || "")) &&
           !normalizeString(capture.state.invokeContract?.targetSource);
@@ -370,7 +295,7 @@ export function createMediaPollingOwner({
           }
         }
 
-        if (media.length > 0) {
+        if (media.length > 0 || musicDownloadReady) {
           const result = await finalizeMediaOperation({
             operation,
             prompt,

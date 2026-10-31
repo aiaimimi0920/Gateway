@@ -12,7 +12,14 @@ impl UpstreamClient {
         allow_replay_template: bool,
         image_edit_followup_context: &mut Option<&mut GeminiCanvasImageEditFollowupContext>,
     ) -> Result<StreamGenerateBootstrapOutcome, GatewayError> {
-        if let StreamGenerateReplayOutcome::Completed(body) = self
+        if payload.adapter == "gemini_web_reverse_modular_compatible" && prepared.is_image_mode {
+            if let Some(template) = prepared.replay_template.as_ref() {
+                return self
+                    .send_gemini_web_image_template_once(payload, &prepared, template)
+                    .await
+                    .map(StreamGenerateBootstrapOutcome::Completed);
+            }
+        } else if let StreamGenerateReplayOutcome::Completed(body) = self
             .replay_gemini_canvas_stream_generate_before_bootstrap(
                 &prepared,
                 runtime,
@@ -22,7 +29,7 @@ impl UpstreamClient {
             )
             .await?
         {
-            return Ok(StreamGenerateBootstrapOutcome::Completed(body));
+            return Ok(StreamGenerateBootstrapOutcome::Completed(body.into()));
         }
 
         let StreamGeneratePreparation {

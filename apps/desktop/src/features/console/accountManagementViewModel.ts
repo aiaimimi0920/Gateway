@@ -20,6 +20,7 @@ import {
   type ProviderVerificationStatus,
 } from "./providerVerificationRegistry";
 import { providerBrandLabel } from "./providerBrandLabel";
+import { geminiProviderMode } from "./geminiProviderMode";
 
 export { hostLabelFromUrl } from "./accountCatalogSupport";
 export type {
@@ -51,9 +52,9 @@ export type {
 
 export type GeminiLogicalChannel = {
   key: "logical:gemini" | "logical:gemini-business" | "logical:gemini-canvas";
-  label: "Gemini" | "Gemini Business" | "Gemini Canvas";
-  primaryProviderId: "gemini-canvas-chat" | "gemini-business" | "gemini-canvas";
-  manualAddFamily: "gemini-canvas-chat" | "gemini-business" | "gemini-canvas";
+  label: "gemini-web" | "Gemini Business" | "gemini-canvas";
+  primaryProviderId: "gemini-web" | "gemini-business" | "gemini-canvas";
+  manualAddFamily: "gemini-web" | "gemini-business" | "gemini-canvas";
   order: number;
 };
 
@@ -95,11 +96,9 @@ export function resolveGeminiLogicalChannel(
   providerPreset: string | null,
   providerLabel = "",
 ): GeminiLogicalChannel | null {
-  const candidates = [providerId, providerPreset, providerLabel]
-    .filter((value): value is string => Boolean(value))
-    .map((value) => value.trim().toLowerCase());
+  const mode = geminiProviderMode(providerId, providerPreset, providerLabel);
 
-  if (candidates.includes("gemini-business")) {
+  if (mode === "business") {
     return {
       key: "logical:gemini-business",
       label: "Gemini Business",
@@ -108,30 +107,21 @@ export function resolveGeminiLogicalChannel(
       order: 1,
     };
   }
-  if (
-    candidates.includes("gemini-canvas") ||
-    candidates.includes("gemini-canvas-program-relay")
-  ) {
+  if (mode === "canvas") {
     return {
       key: "logical:gemini-canvas",
-      label: "Gemini Canvas",
+      label: "gemini-canvas",
       primaryProviderId: "gemini-canvas",
       manualAddFamily: "gemini-canvas",
       order: 2,
     };
   }
-  if (
-    candidates.includes("gemini-canvas-chat") ||
-    candidates.includes("gemini-web") ||
-    candidates.includes("gemini-web-chat") ||
-    candidates.includes("gemini-web-chat-modular") ||
-    candidates.includes("gemini-web-secondary")
-  ) {
+  if (mode === "web" || mode === "canvas-chat") {
     return {
       key: "logical:gemini",
-      label: "Gemini",
-      primaryProviderId: "gemini-canvas-chat",
-      manualAddFamily: "gemini-canvas-chat",
+      label: "gemini-web",
+      primaryProviderId: "gemini-web",
+      manualAddFamily: "gemini-web",
       order: 0,
     };
   }

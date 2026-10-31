@@ -12,6 +12,9 @@ import { isRecord } from "./routeDocument";
 import { applyModelSelection, modelSelectionSchema } from "./credentialModelSelection";
 import { separateGeminiWebDraftSecrets } from "./geminiWebDraftSecrets";
 
+// Manual routing defaults for the working host surfaces, not a fetched model directory.
+const canvasDefaultModels = ["gemini-3-flash-preview", "gemini-2.5-flash-image", "gemini-2.5-flash-preview-tts"];
+
 export function isGeminiAuthSessionTerminal(status: ConsoleGeminiAuthSession["status"]): boolean {
   return status === "succeeded" || status === "failed";
 }
@@ -52,6 +55,7 @@ export function applyGeminiGeneratedDraftsToDocument(
     }
 
     const web = ["gemini-web-chat", "gemini-web-chat-modular"].includes(String(provider.preset));
+    const canvas = provider.preset === "gemini-canvas-browser-relay";
     const separated = web ? separateGeminiWebDraftSecrets(draft.credential, draft.providerId, credentialId) : null;
     const updates = { ...(separated?.credential ?? draft.credential), id: credentialId };
     secretEdits.push(...(separated?.secretEdits ?? []));
@@ -72,16 +76,16 @@ export function applyGeminiGeneratedDraftsToDocument(
           credential: updates,
         });
 
-    if (web) {
+    if (web || canvas) {
       const nextProvider = nextDocument.providers.find((entry) => isRecord(entry) && entry.id === draft.providerId);
       const credential = isRecord(nextProvider) && Array.isArray(nextProvider.credentials)
         ? nextProvider.credentials.find((entry) => isRecord(entry) && entry.id === credentialId) : null;
       if (isRecord(credential)) {
         const models = Array.isArray(credential.supported_models)
           ? credential.supported_models.filter((entry): entry is string => typeof entry === "string") : [];
-        // This alias addresses the captured Web session, not a discovered Google API directory.
+        // Manual defaults are routing hints, never claims of a discovered/verified model directory.
         const selection = credential.model_selection === undefined
-          ? { fetched: [], manual: models.length ? models : ["gemini-web-chat"] }
+          ? { fetched: [], manual: models.length ? models : canvas ? canvasDefaultModels : ["gemini-web-chat"] }
           : modelSelectionSchema.parse(credential.model_selection);
         nextDocument = applyModelSelection(nextDocument, draft.providerId, credentialId, selection);
       }

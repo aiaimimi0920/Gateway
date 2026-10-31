@@ -37,6 +37,7 @@ fn independent_api_format_and_fingerprint_keep_authentication() {
 fn specialized_executor_has_canonical_input_and_session_fingerprint() {
     for (adapter, special) in [
         ("gemini_web_compatible", "gemini_web"),
+        ("gemini_canvas_web_reverse_compatible", "gemini_canvas"),
         ("chatgpt_web_reverse_compatible", "chatgpt_web"),
         ("aistudio_web_reverse_compatible", "aistudio_web"),
     ] {
@@ -55,6 +56,14 @@ fn unsupported_combinations_fail_instead_of_discarding_an_adapter() {
     for (adapter, flow) in [
         ("openai_compatible", json!({"special_adapter":"gemini_web"})),
         ("gemini_web_compatible", json!({"special_adapter":"none"})),
+        (
+            "gemini_web_compatible",
+            json!({"special_adapter":"gemini_canvas"}),
+        ),
+        (
+            "gemini_canvas_web_reverse_compatible",
+            json!({"special_adapter":"gemini_web"}),
+        ),
         ("gemini_web_compatible", json!({"call_adapter":"anthropic"})),
         (
             "gemini_web_compatible",

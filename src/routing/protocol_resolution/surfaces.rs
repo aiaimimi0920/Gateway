@@ -117,6 +117,13 @@ pub fn surface_supported_wire_protocol_families(
             GEMINI_CANVAS_MUSIC_FAMILY.to_string(),
             GEMINI_CANVAS_VIDEOS_FAMILY.to_string(),
         ],
+        "gemini_web_compatible" => vec![
+            GEMINI_WEB_CHAT_FAMILY.to_string(),
+            OPENAI_AUDIO_SPEECH_FAMILY.to_string(),
+            GEMINI_CANVAS_IMAGES_FAMILY.to_string(),
+            GEMINI_CANVAS_MUSIC_FAMILY.to_string(),
+            GEMINI_CANVAS_VIDEOS_FAMILY.to_string(),
+        ],
         "gemini_web_reverse_modular_compatible" => vec![
             GEMINI_WEB_CHAT_FAMILY.to_string(),
             GEMINI_GENERATE_CONTENT_FAMILY.to_string(),

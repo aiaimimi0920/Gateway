@@ -1,3 +1,6 @@
+import { dismissMediaModeOnboarding } from "./gemini-canvas-browser-pool-media-mode-onboarding.mjs";
+import { revealAdditionalOperationTools } from "./gemini-canvas-browser-pool-operation-menu.mjs";
+
 export function createOperationUiOwner({ operationConfig, operationNavLabel, dismissGeminiAppInterstitials, log }) {
   async function clickOperationMode(page, operation, timeoutMs) {
     const config = operationConfig(operation);
@@ -8,7 +11,7 @@ export function createOperationUiOwner({ operationConfig, operationNavLabel, dis
     try {
       await dismissGeminiAppInterstitials(page, timeoutMs);
       if (await operationModeAppearsSelected(page, config, Math.min(timeoutMs, 8_000))) {
-        return true;
+        return await dismissMediaModeOnboarding(page, operation, timeoutMs);
       }
     } catch {
       // keep trying explicit mode buttons below
@@ -17,6 +20,7 @@ export function createOperationUiOwner({ operationConfig, operationNavLabel, dis
       page.getByRole("button", { name: config.buttonName }).first(),
       page.getByRole("link", { name: config.buttonName }).first(),
       page.getByRole("menuitem", { name: config.buttonName }).first(),
+      page.getByRole("menuitemcheckbox", { name: config.buttonName }).first(),
       page.locator(`[aria-label*="${operation}"], [title*="${operation}"]`).first(),
       page.getByText(config.buttonName).first(),
       ...(navLabel
@@ -30,10 +34,13 @@ export function createOperationUiOwner({ operationConfig, operationNavLabel, dis
 
     for (const candidate of candidates) {
       try {
+        // Hidden dropdown entries must not each consume an eight-second wait.
+        if (!await candidate.isVisible()) continue;
         await dismissGeminiAppInterstitials(page, timeoutMs);
         await candidate.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 8_000) });
         await candidate.click({ timeout: Math.min(timeoutMs, 15_000), force: true });
         await page.waitForTimeout(1200);
+        if (!await dismissMediaModeOnboarding(page, operation, timeoutMs)) return false;
         if (await operationModeAppearsSelected(page, config, timeoutMs)) {
           return true;
         }
@@ -43,7 +50,9 @@ export function createOperationUiOwner({ operationConfig, operationNavLabel, dis
     }
 
     if (await openOperationModeSelector(page, timeoutMs)) {
+      await revealAdditionalOperationTools(page, config, timeoutMs);
       const selectorCandidates = [
+        page.getByRole("menuitemcheckbox", { name: config.buttonName }).first(),
         page.getByRole("menuitem", { name: config.buttonName }).first(),
         page.getByRole("button", { name: config.buttonName }).first(),
         page.getByRole("link", { name: config.buttonName }).first(),
@@ -55,6 +64,7 @@ export function createOperationUiOwner({ operationConfig, operationNavLabel, dis
           await candidate.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 8_000) });
           await candidate.click({ timeout: Math.min(timeoutMs, 15_000), force: true });
           await page.waitForTimeout(1200);
+          if (!await dismissMediaModeOnboarding(page, operation, timeoutMs)) return false;
           if (await operationModeAppearsSelected(page, config, timeoutMs)) {
             return true;
           }
@@ -124,6 +134,7 @@ export function createOperationUiOwner({ operationConfig, operationNavLabel, dis
         if (fallbackClicked?.clicked) {
           log("media operation mode dom fallback clicked", JSON.stringify({ operation, fallbackClicked }));
           await page.waitForTimeout(1200);
+          if (!await dismissMediaModeOnboarding(page, operation, timeoutMs)) return false;
           if (await operationModeAppearsSelected(page, config, timeoutMs)) {
             return true;
           }
@@ -330,8 +341,15 @@ export function createOperationUiOwner({ operationConfig, operationNavLabel, dis
         }
       }
       try {
-        const bodyText = await page.evaluate(() => document.body?.innerText ?? "");
-        if (modeIndicator.test(String(bodyText || ""))) {
+        const bodyText = await page.evaluate(() => {
+          const menuOpen = Array.from(document.querySelectorAll('[role="menu"]')).some(node => {
+            const rect = node.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+          });
+          // An available tool label is not proof that its composer mode was selected.
+          return menuOpen ? "" : document.body?.innerText ?? "";
+        });
+        if (modeIndicator?.test(String(bodyText || ""))) {
           return true;
         }
       } catch {

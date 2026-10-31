@@ -6,7 +6,7 @@ import { normalizeString } from "./gemini-canvas-browser-pool-input.mjs";
 
 let objectStorageClient = null;
 
-function resolveObjectStorageConfig() {
+export function resolveObjectStorageConfig() {
   const driver =
     normalizeString(process.env.AI_GATEWAY_OBJECT_STORAGE_DRIVER) ??
     normalizeString(process.env.OBJECT_STORAGE_DRIVER) ??

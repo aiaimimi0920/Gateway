@@ -55,7 +55,7 @@ providers:
 - `fingerprint_adapter`：`auto`、`codex_cli`、`claude_cli`、`workbuddy`、`cpa`、
   `cpa_claude_code`、`session`。API 身份能力仍以现有文本接口支持范围为准。
 - `special_adapter`：`auto`（继承 preset 的执行 owner）、`none`、`basispoints`、
-  `gemini_web`、`chatgpt_web`、`aistudio_web`。
+  `gemini_web`、`gemini_canvas`、`chatgpt_web`、`aistudio_web`。
 
 缺少整个 `call_flow` 时不合成新策略、不额外序列化字段，完全沿旧配置路径。存在时，
 三项策略为准；旧 `adapter/preset/request_client_profile` 保留为兼容投影和原生身份默认值。

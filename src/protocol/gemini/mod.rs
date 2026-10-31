@@ -27,6 +27,7 @@ pub mod canvas_program_web_reverse;
 #[path = "canvas_program_web_reverse_disabled.rs"]
 pub mod canvas_program_web_reverse;
 pub mod canvas_web_reverse;
+pub(crate) mod document_input;
 pub mod shared;
 // Gemini Web reverse protocol helpers are shared by:
 // - Gemini Web Reverse

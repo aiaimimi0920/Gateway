@@ -78,7 +78,11 @@ impl UpstreamClient {
                 .await
             {
                 Ok(body) => return Ok(body),
-                Err(error) if should_fallback_gemini_canvas_image_to_browser(&error) => {
+                Err(error)
+                    if payload.adapter != "gemini_web_reverse_modular_compatible"
+                        && !gemini_canvas::pure_http_required(payload)
+                        && should_fallback_gemini_canvas_image_to_browser(&error) =>
+                {
                     debug!(
                         provider,
                         error = %summarize_gateway_error(&error),

@@ -5,7 +5,7 @@ import {
 
 export async function executeCanvasProxyPreviewNoKeyFetch(frame, request, timeoutMs) {
   return await frame.evaluate(
-    async ({ url, method, headers, bodyText, timeoutMs, maxBodyBytes, maxTextBytes }) => {
+    async ({ url, method, headers, bodyText, timeoutMs, maxBodyBytes, maxTextBytes, canvasHostIdentity }) => {
       const normalizeString = (value) =>
         typeof value === "string" && value.trim() ? value.trim() : null;
       const appendEmptyKeyIfMissing = (rawUrl) => {
@@ -106,7 +106,68 @@ export async function executeCanvasProxyPreviewNoKeyFetch(frame, request, timeou
         return bytes;
       };
       try {
-        const response = await fetch(requestUrl, {
+        const hostFetch = canvasHostIdentity ? window.fetch : fetch;
+        // Atomic document/wrapper admission: no await may separate this guard from fetch.
+        if (canvasHostIdentity && (location.origin !== canvasHostIdentity.origin
+          || location.href !== canvasHostIdentity.href
+          || !Object.hasOwn(document, canvasHostIdentity.documentTokenKey)
+          || document[canvasHostIdentity.documentTokenKey] !== canvasHostIdentity.documentToken
+          || !document.querySelector("script[data-bard-client-injected]")
+          || typeof hostFetch !== "function"
+          || Function.prototype.toString.call(hostFetch).includes("[native code]"))) {
+          throw Object.assign(new Error("Canvas preview identity changed; no generation request was sent."),
+            { status: 503, code: "gemini_canvas_host_identity_changed" });
+        }
+        if (canvasHostIdentity) {
+          // Google only intercepts its advertised model/operation prefixes. A wrapped
+          // fetch alone does not prove this request will avoid the native/API path.
+          const operations = { textModelName: ["generateContent", "streamGenerateContent"],
+            imageModelName: ["predict", "predictLongRunning"], imageEditModelName: ["generateContent"],
+            imageTransformModelName: ["generateContent"], videoModelName: ["predict", "predictLongRunning"],
+            ttsModelName: ["generateContent"],
+            deprecatedTextModelNames: ["generateContent", "streamGenerateContent"],
+            deprecatedImageModelNames: ["predict", "predictLongRunning", "generateContent", "streamGenerateContent"],
+            deprecatedGenerateImageModelNames: ["generateContent", "streamGenerateContent"],
+            deprecatedImageTransformModelNames: ["generateContent", "streamGenerateContent"] };
+          const scripts = document.querySelectorAll("script[data-bard-client-injected]");
+          const models = new Map();
+          let sourceBytes = 0, validMetadata = true;
+          const remember = (field, names) => {
+            if (!Array.isArray(names) || names.length > 64
+              || names.some(name => typeof name !== "string" || !/^[a-zA-Z0-9._-]{1,120}$/.test(name))) {
+              validMetadata = false;
+              return;
+            }
+            const canonical = [...new Set(names)].sort();
+            if (!models.has(field)) models.set(field, { signatures: new Set(), names: canonical });
+            models.get(field).signatures.add(JSON.stringify(canonical));
+          };
+          if (scripts.length <= 32) for (const script of scripts) {
+            const source = script.textContent ?? "";
+            sourceBytes += source.length;
+            if (sourceBytes > 512 * 1024) break;
+            if (!source.includes("googleLlmBaseApiUrls")) continue;
+            for (const match of source.matchAll(/["']?((?:text|image|imageEdit|imageTransform|video|tts)ModelName)["']?\s*:\s*["']([a-zA-Z0-9._-]{1,120})["']/g)) {
+              remember(match[1], [match[2]]);
+            }
+            // These exact alias buckets are also proxied by Google's current wrapper.
+            // Read bounded JSON literals only, never evaluate injected source or invent models.
+            for (const match of source.matchAll(/["']?(deprecated(?:Text|Image|GenerateImage|ImageTransform)ModelNames)["']?\s*:\s*(\[[^\]]{0,8192}\])/g)) {
+              try { remember(match[1], JSON.parse(match[2])); }
+              catch { validMetadata = false; }
+            }
+          }
+          const target = new URL(requestUrl);
+          const admitted = validMetadata && sourceBytes <= 512 * 1024 && scripts.length <= 32
+            && !target.username && !target.password
+            && String(method).toUpperCase() === "POST" && target.origin === "https://generativelanguage.googleapis.com"
+            && [...models].some(([field, values]) => values.signatures.size === 1
+              && values.names.some(model => operations[field].some(operation =>
+                target.pathname === `/v1beta/models/${model}:${operation}`)));
+          if (!admitted) throw Object.assign(new Error("Canvas host does not advertise this model and operation; no request was sent."),
+            { status: 503, code: "gemini_canvas_host_model_unavailable" });
+        }
+        const response = await hostFetch.call(globalThis, requestUrl, {
           method,
           headers: sanitizeHeaders(headers),
           body: typeof bodyText === "string" ? bodyText : undefined,
@@ -148,8 +209,10 @@ export async function executeCanvasProxyPreviewNoKeyFetch(frame, request, timeou
           bodyBase64: toBase64(bodyBuffer),
         };
       } catch (error) {
+        const hostAdmissionError = ["gemini_canvas_host_identity_changed", "gemini_canvas_host_model_unavailable"].includes(error?.code);
         return {
-          status: 599,
+          status: hostAdmissionError ? 503 : 599,
+          ...(hostAdmissionError ? { errorCode: error.code } : {}),
           ok: false,
           finalUrl: null,
           contentType: null,
@@ -168,6 +231,7 @@ export async function executeCanvasProxyPreviewNoKeyFetch(frame, request, timeou
       method: request.method,
       headers: request.headers,
       bodyText: request.bodyText,
+      canvasHostIdentity: request.canvasHostIdentity,
       timeoutMs,
       maxBodyBytes: BROWSER_POOL_BINARY_BODY_LIMIT_BYTES,
       maxTextBytes: BROWSER_POOL_TEXT_BODY_LIMIT_BYTES,

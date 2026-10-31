@@ -237,7 +237,6 @@ use crate::upstream::gemini_canvas_music_helpers::{
     build_gemini_canvas_music_accepted_response_from_body,
     decode_gemini_canvas_program_music_no_key_audio,
     gemini_canvas_music_body_indicates_accepted_progress, gemini_canvas_music_missing_asset_error,
-    gemini_canvas_music_response_requires_browser_followup,
     gemini_canvas_program_music_invoke_target_missing_error,
     gemini_canvas_program_music_no_key_browserless_stage_incomplete_error,
     gemini_canvas_program_music_no_key_contract_missing_error,
@@ -381,6 +380,8 @@ mod canvas_completion_part_3;
 mod canvas_followups_part_1;
 #[path = "client/canvas_followups_part_2.rs"]
 mod canvas_followups_part_2;
+#[path = "client/canvas_host_generation.rs"]
+mod canvas_host_generation;
 #[path = "client/canvas_image_edit.rs"]
 mod canvas_image_edit;
 #[path = "client/canvas_official_part_1.rs"]

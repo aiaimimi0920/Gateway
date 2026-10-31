@@ -2,6 +2,10 @@ use super::*;
 
 #[path = "canvas_assets_part_1/async_followups.rs"]
 mod async_followups;
+#[path = "canvas_assets_part_1/image_once.rs"]
+mod image_once;
+#[path = "canvas_assets_part_1/image_recovery.rs"]
+mod image_recovery;
 
 impl UpstreamClient {
     pub(super) async fn execute_gemini_canvas_direct_http_image(
@@ -14,6 +18,19 @@ impl UpstreamClient {
         timeout: Duration,
     ) -> Result<Value, GatewayError> {
         let mut context = prepare_image_context(payload, req, &prompt).await?;
+        if payload.adapter == "gemini_web_reverse_modular_compatible" {
+            return self
+                .execute_gemini_web_image_http_once(
+                    payload,
+                    req,
+                    model,
+                    runtime,
+                    &prompt,
+                    timeout,
+                    &mut context,
+                )
+                .await;
+        }
         let primary_result = self
             .execute_gemini_canvas_direct_http_image_primary_body(
                 payload,

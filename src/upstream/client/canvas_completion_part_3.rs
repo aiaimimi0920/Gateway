@@ -1,9 +1,31 @@
 use super::*;
+use crate::upstream::gemini::canvas_program_web_reverse::GeminiCanvasBrowserMediaAsset;
 
 #[path = "canvas_completion_part_3/image_generation.rs"]
 mod image_generation;
 #[path = "canvas_completion_part_3/text.rs"]
 mod text;
+
+#[cfg(test)]
+#[path = "canvas_completion_part_3/music_result_tests.rs"]
+mod music_result_tests;
+
+fn select_music_asset(
+    adapter: &str,
+    media: &[GeminiCanvasBrowserMediaAsset],
+) -> Option<gemini_canvas::GeminiCanvasMediaAsset> {
+    media
+        .iter()
+        .find(|asset| {
+            if adapter == "gemini_web_reverse_modular_compatible" {
+                // Old/remote workers may still expose the cover video as music.
+                asset.kind == "audio" && asset.mime_type.starts_with("audio/")
+            } else {
+                asset.kind == "video" || asset.kind == "audio"
+            }
+        })
+        .map(convert_gemini_canvas_asset)
+}
 
 impl UpstreamClient {
     pub(crate) async fn execute_gemini_canvas_media(
@@ -12,9 +34,64 @@ impl UpstreamClient {
         payload: &ProviderAccountPayload,
         req: &CanonicalRelayRequest,
         model: &str,
+        extra_headers: Option<&std::collections::HashMap<String, String>>,
+    ) -> Result<Value, GatewayError> {
+        let result = self
+            .execute_gemini_canvas_media_once(
+                provider_account_id,
+                payload,
+                req,
+                model,
+                extra_headers,
+            )
+            .await;
+        if payload.adapter == "gemini_web_reverse_modular_compatible"
+            && matches!(
+                req.endpoint_kind,
+                EndpointKind::ImagesGenerations
+                    | EndpointKind::ImagesEdits
+                    | EndpointKind::MusicGenerations
+                    | EndpointKind::VideosGenerations
+            )
+        {
+            // Covers remote dispatch, decoding and materialization failures too.
+            result.map_err(|mut error| {
+                if matches!(req.endpoint_kind, EndpointKind::ImagesGenerations | EndpointKind::ImagesEdits) {
+                    error.message = "Gemini Web image request failed; no automatic resubmission was performed. Private response content was omitted.".into();
+                }
+                error.retryable = false;
+                error.fallback_hint = crate::error::FallbackHint::Abort {
+                    reason: "Web media generation must not be replayed on another account."
+                        .to_string(),
+                };
+                error
+            })
+        } else {
+            result
+        }
+    }
+
+    async fn execute_gemini_canvas_media_once(
+        &self,
+        provider_account_id: &str,
+        payload: &ProviderAccountPayload,
+        req: &CanonicalRelayRequest,
+        model: &str,
         _extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<Value, GatewayError> {
         let provider = "gemini_canvas_compatible";
+        if payload.adapter == "gemini_web_reverse_modular_compatible"
+            && ((gemini_canvas::pure_http_required(payload)
+                && matches!(
+                    req.endpoint_kind,
+                    EndpointKind::MusicGenerations | EndpointKind::VideosGenerations
+                ))
+                || (!gemini_canvas::pure_http_enabled(payload)
+                    && req.endpoint_kind == EndpointKind::ImagesEdits))
+        {
+            return Err(GatewayError::bad_request("The requested Gemini Web media operation is unavailable under the explicit HTTP/browser policy.")
+                .with_code("gemini_web_media_execution_policy_unsupported"));
+        }
         let runtime = gemini_canvas::runtime_from_payload(payload)?;
         let browser_runtime_state_object_key_for = |operation: &str| {
             gemini_canvas::browser_runtime_state_object_key_for_browser_operation(
@@ -73,8 +150,10 @@ impl UpstreamClient {
                         req,
                         gemini_canvas::GeminiCanvasMediaOperation::Music,
                     )?;
-                if gemini_canvas::pure_http_enabled(payload) {
-                    match self
+                if gemini_canvas::pure_http_enabled(payload)
+                    && payload.adapter != "gemini_web_reverse_modular_compatible"
+                {
+                    return self
                         .execute_gemini_canvas_media_direct_http(
                             payload,
                             req,
@@ -83,35 +162,7 @@ impl UpstreamClient {
                             prompt.clone(),
                             self.timeout.max(Duration::from_secs(480)),
                         )
-                        .await
-                    {
-                        Ok(body)
-                            if payload.adapter == "gemini_web_reverse_modular_compatible"
-                                && gemini_canvas_music_response_requires_browser_followup(
-                                    &body,
-                                ) =>
-                        {
-                            debug!(
-                                provider,
-                                adapter = %payload.adapter,
-                                "gemini web reverse modular legacy music direct HTTP lane reached accepted/pending semantics; continuing with browser-owned music invocation"
-                            );
-                        }
-                        Ok(body) => return Ok(body),
-                        Err(error)
-                            if payload.adapter != "gemini_web_reverse_modular_compatible" =>
-                        {
-                            return Err(error);
-                        }
-                        Err(error) => {
-                            debug!(
-                                provider,
-                                adapter = %payload.adapter,
-                                error = %summarize_gateway_error(&error),
-                                "gemini web reverse modular legacy music direct HTTP lane failed; falling back to browser-owned music invocation"
-                            );
-                        }
-                    }
+                        .await;
                 }
                 let browser_runtime_state_object_key =
                     browser_runtime_state_object_key_for("music");
@@ -159,11 +210,7 @@ impl UpstreamClient {
                     .await?
                 };
 
-                let asset = result
-                    .media
-                    .iter()
-                    .find(|asset| asset.kind == "video" || asset.kind == "audio")
-                    .map(convert_gemini_canvas_asset)
+                let asset = select_music_asset(&payload.adapter, &result.media)
                     .ok_or_else(|| gemini_canvas_music_missing_asset_error(provider))?;
 
                 Ok(gemini_canvas::build_music_generation_response(

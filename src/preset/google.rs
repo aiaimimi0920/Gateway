@@ -311,6 +311,7 @@ pub fn gemini_canvas_browser_relay_preset() -> ProviderPreset {
     let mut preset = gemini_canvas_preset();
     preset.id = "gemini-canvas-browser-relay".to_string();
     preset.adapter = "gemini_canvas_web_reverse_compatible".to_string();
+    preset.default_model = Some(GEMINI_CANVAS_DEFAULT_TEXT_MODEL.to_string());
     preset.execution_mode = Some(ProviderExecutionMode::BrowserBacked);
     preset
 }

@@ -42,7 +42,7 @@ describe("provider-only creation", () => {
     expect(JSON.stringify(next)).not.toContain("protocolPreference");
     expect((next.providers[0] as Record<string, unknown>).model_map_targets).not.toHaveProperty("unlinked");
   });
-  it.each(["gemini_web", "chatgpt_web", "aistudio_web"] as const)("selects existing specialized preset %s without advertising acceptance", (specialAdapter) => {
+  it.each(["gemini_web", "gemini_canvas", "chatgpt_web", "aistudio_web"] as const)("selects existing specialized preset %s without advertising acceptance", (specialAdapter) => {
     const draft = value(); draft.workflow!.specialAdapter = specialAdapter; draft.requestClientProfile = "codex_cli";
     const provider = addCatalogProvider(empty(), template, draft).providers[0];
     expect(provider).toHaveProperty("preset"); expect(provider).not.toHaveProperty("request_client_profile");

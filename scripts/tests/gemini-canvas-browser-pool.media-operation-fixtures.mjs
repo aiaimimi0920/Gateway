@@ -66,8 +66,10 @@ export function mediaOperationHarness(t, app, options = {}) {
     async extractAudioBytes(...args) {
       record("audio", ...args);
       if (options.extractionError) throw options.extractionError;
+      if (args[1]?.bodyBase64) return { mimeType: args[1].mimeType, bodyBase64: args[1].bodyBase64 };
       return { mimeType: "audio/wav", bodyBase64: "Zml4dHVyZQ==" };
     },
+    async downloadWebMusic(...args) { record("native-download", ...args); return options.downloadedAudio ?? null; },
     buildProgramHandleState(...args) { record("handle", ...args); return { appPath: "/app/0123456789abcdef" }; },
     log(...args) { record("log", ...args); },
   };

@@ -12,7 +12,9 @@ import { runFetchPageRequest } from "./gemini-canvas-browser-pool-fetch-page.mjs
 export { shouldAttemptConnectedClientFetchFallback } from "./gemini-canvas-browser-pool-fetch-execution.mjs";
 import { createFetchPageMusicOwner } from "./gemini-canvas-browser-pool-fetch-page-music.mjs";
 import { createFetchPreviewOwner } from "./gemini-canvas-browser-pool-fetch-preview.mjs";
+import { createCanvasHostFetchOwner } from "./gemini-canvas-browser-pool-host-fetch.mjs";
 import { createInvocationDispatcher } from "./gemini-canvas-browser-pool-dispatcher.mjs";
+import { settleAuthCheckpoint } from "./gemini-canvas-browser-pool-auth-checkpoint.mjs";
 import { createMediaExecutionOwner } from "./gemini-canvas-browser-pool-media-execution.mjs";
 export { shouldExitCanvasProgramSurfaceForMediaMode } from "./gemini-canvas-browser-pool-media-execution.mjs";
 import { createMediaPollingOwner } from "./gemini-canvas-browser-pool-media-polling.mjs";
@@ -312,14 +314,15 @@ function operationConfig(operation) {
       };
     case "music":
       return {
-        buttonName: /创作音乐|Create music/i,
+        buttonName: /制作音乐|创作音乐|Create music/i,
+        selectedButtonName: /取消选择.*音乐|Deselect.*music|Cancel selection.*music/i,
         modeIndicator: /制作音乐|创作音乐|Create music/i,
         resultTimeoutMs: 8 * 60 * 1000,
       };
     case "video":
       return {
         buttonName: /创作视频|制作视频|Create video/i,
-        selectedButtonName: /取消选择.?创作视频|取消选择.?制作视频|Deselect.*video|Cancel selection.*video/i,
+        selectedButtonName: /取消选择.*视频|Deselect.*video|Cancel selection.*video/i,
         modeIndicator: /挑选一个模板|开始制作你的视频|choose a template|start creating your video|视频生成模板图片|video generation template/i,
         routePathPattern: /\/videos(?:\/|$|\?)/i,
         resultTimeoutMs: 12 * 60 * 1000,
@@ -477,6 +480,9 @@ const { runFetchPreviewOperation } = createFetchPreviewOwner({
 });
 
 const { runFetchPageMusicOperation } = createFetchPageMusicOwner({ buildProgramHandleState });
+const { runCanvasHostFetchOperation } = createCanvasHostFetchOwner({
+  ensureSharePage, ensureProgramPage, buildProgramHandleState, log,
+});
 
 const { runFetchOperation } = createFetchExecutionOwner({
   DEFAULT_TIMEOUT_MS,
@@ -484,6 +490,7 @@ const { runFetchOperation } = createFetchExecutionOwner({
   resolveProgramPageUrl,
   startNetworkCapture,
   runFetchPreviewOperation,
+  runCanvasHostFetchOperation,
   runFetchPageMusicOperation,
   runFetchPageRequest,
   isFixtureCanvasBaseUrl,
@@ -497,6 +504,7 @@ const { runFetchOperation } = createFetchExecutionOwner({
 });
 
 const { invokeGeminiCanvas } = createInvocationDispatcher({
+  settleAuthCheckpoint: (entry, outcome) => settleAuthCheckpoint(entry, outcome, { closeContext, contextHasGeminiAuthCookies, log }),
   DEFAULT_TIMEOUT_MS,
   log,
   ensureContext,

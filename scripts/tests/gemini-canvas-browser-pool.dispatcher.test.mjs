@@ -108,12 +108,12 @@ test("Dispatcher program page receives its handle and explicit timeout before op
   assert.ok(stages(h).indexOf("program-page") < stages(h).indexOf("text"));
 });
 
-test("Dispatcher app page receives normalized default URL, timeout, cookie and attached navigation hint", async () => {
+test("Dispatcher app page receives navigation hints without stale-cookie recovery", async () => {
   const h = dispatcherHarness(app, { entry: { attachedCdp: true } });
   await h.run({ baseUrl: " ", timeoutMs: 0, cookieHeader: "fixture=value" });
   const call = callsAt(h, "app-page")[0];
   assert.equal(call[1], h.entry);
-  assert.deepEqual(structuredClone(call.slice(2)), ["https://gemini.google.com", 5000, { cookieHeader: "fixture=value", skipInitialNavigationWhenAppSurfaceReady: true }]);
+  assert.deepEqual(structuredClone(call.slice(2)), ["https://gemini.google.com", 5000, { cookieHeader: undefined, skipInitialNavigationWhenAppSurfaceReady: true }]);
 });
 
 test("Dispatcher attached CDP fetch defers outer page ensure even with a concrete program handle", async () => {

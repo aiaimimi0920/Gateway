@@ -2,12 +2,20 @@ mod bootstrap;
 mod direct_http_tts;
 mod execution;
 mod headers;
+mod http_checkpoint;
+mod http_session;
 mod legacy_execution;
 mod legacy_mixed_lane;
 mod legacy_text;
 mod legacy_tts;
 mod request_plan;
+mod session_cookies;
+mod speech;
 mod surface_bridge;
+mod transcription;
+mod uploads;
+
+pub(in crate::upstream) use session_cookies::SessionCookies;
 
 pub use bootstrap::bootstrap_app;
 pub use direct_http_tts::{
@@ -31,6 +39,8 @@ pub use legacy_mixed_lane::{
 pub use legacy_text::{execute_legacy_text, execute_legacy_text_stream};
 pub use legacy_tts::execute_legacy_tts;
 pub use request_plan::unsupported_request_plan_error;
+pub use speech::execute_speech;
 pub use surface_bridge::bootstrap_from_payload_cache;
+pub use transcription::execute_transcription;
 
 const PROVIDER: &str = "gemini_web_compatible";

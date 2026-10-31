@@ -34,7 +34,6 @@ use workers::{
 const GEMINI_CANVAS_CAPTURE_SCRIPT: &str = "export-gemini-canvas-storage-state.mjs";
 const GEMINI_BUSINESS_CAPTURE_SCRIPT: &str = "export-gemini-business-runtime.mjs";
 const GEMINI_WEB_CAPTURE_SCRIPT: &str = "export-gemini-web-runtime.mjs";
-const GEMINI_CANVAS_CHAT_API_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_GEMINI_CANVAS_SHARE_ID: &str = "fe24c455a570";
 const GEMINI_AUTH_HELPER_TIMEOUT_SECS: u64 = 25 * 60;
 const GEMINI_AUTH_REMOTE_HELPER_TIMEOUT_SECS: u64 = GEMINI_AUTH_HELPER_TIMEOUT_SECS + 30;
@@ -466,6 +465,7 @@ impl GeminiAuthSessionManager {
                     .as_deref()
                     .expect("validated Gemini Canvas runtimeStateObjectKey");
                 let generated_drafts = build_canvas_generated_drafts(
+                    Some((provider_id.as_str(), target_family)),
                     runtime_state_object_key,
                     output
                         .suggested_share_id

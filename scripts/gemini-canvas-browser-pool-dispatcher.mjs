@@ -18,6 +18,7 @@ export function createInvocationDispatcher({
   runTtsOperation,
   runDebugOperation,
   runMediaOperation,
+  settleAuthCheckpoint = async () => {},
 }) {
   async function invokeGeminiCanvas(args) {
     args = applyGeminiAccountScope(args);
@@ -46,6 +47,8 @@ export function createInvocationDispatcher({
 
     let entry = null;
     let entryLeaseAcquired = false;
+    let succeeded = false;
+    let invalidAuth = false;
     try {
       entry = await ensureContext({
         runtimeStateObjectKey,
@@ -77,7 +80,7 @@ export function createInvocationDispatcher({
       const cookieSyncBaseUrl = normalizeString(args.baseUrl) ?? "https://gemini.google.com";
       const runtimeHasAuthCookies = await contextHasGeminiAuthCookies(entry.context, cookieSyncBaseUrl);
       const synchronizedEmbeddedStorageStateCookieCount =
-        entry.runtimeStateMode === "profile_dir"
+        entry.runtimeStateMode === "profile_dir" && !runtimeHasAuthCookies
           ? await syncEmbeddedStorageStateIntoContext(entry.context, entry.runtimeStatePath).catch(
               (error) => {
                 log(
@@ -93,20 +96,14 @@ export function createInvocationDispatcher({
         synchronizedEmbeddedStorageStateCookieCount > 0
           ? await contextHasGeminiAuthCookies(entry.context, cookieSyncBaseUrl)
           : runtimeHasAuthCookies;
-      const defaultCookieSyncEnabled =
-        entry.runtimeStateMode === "storage_state_file" ||
-        entry.launchClonedProfile === true ||
-        runtimeHasAuthCookiesAfterEmbeddedSync === false;
+      // Live context cookies (including rotated cookies) own the session. Imported
+      // headers and embedded JSON are bootstrap seeds, never a refresh source.
+      const defaultCookieSyncEnabled = runtimeHasAuthCookiesAfterEmbeddedSync === false;
       const cookieSyncEnabled = parseBoolean(
         args.forceCookieSync ?? process.env.GEMINI_CANVAS_BROWSER_FORCE_COOKIE_SYNC,
         defaultCookieSyncEnabled,
       );
-      const runtimeAlreadyHasAuthCookies =
-        cookieSyncEnabled &&
-        entry.runtimeStateMode !== "storage_state_file" &&
-        entry.launchClonedProfile !== true
-          ? runtimeHasAuthCookiesAfterEmbeddedSync
-          : false;
+      const runtimeAlreadyHasAuthCookies = runtimeHasAuthCookiesAfterEmbeddedSync;
       const synchronizedCookieCount =
         cookieSyncEnabled && !runtimeAlreadyHasAuthCookies
           ? await syncCookieHeaderIntoContext(entry.context, args.cookieHeader, cookieSyncBaseUrl).catch(
@@ -120,6 +117,10 @@ export function createInvocationDispatcher({
               },
             )
           : 0;
+      if (args.cookieHeader !== undefined) {
+        // Only seed once above. Navigation may rotate cookies before nested recovery.
+        args = { ...args, cookieHeader: undefined };
+      }
       if (!cookieSyncEnabled) {
         log("skipped cookie sync because runtime mirroring is authoritative", runtimeStateObjectKey);
       } else if (runtimeAlreadyHasAuthCookies) {
@@ -138,6 +139,7 @@ export function createInvocationDispatcher({
       const operation = normalizeString(args.operation);
       if (operation === "bootstrap_program") {
         const result = await runBootstrapProgramOperation(entry, args);
+        succeeded = true;
         return {
           ok: true,
           result,
@@ -197,6 +199,8 @@ export function createInvocationDispatcher({
             : operation === "debug"
               ? await runDebugOperation(entry, args)
             : await runMediaOperation(entry, args);
+      invalidAuth = hasFetchRequest && [401, 403].includes(Number(result?.status));
+      succeeded = !hasFetchRequest || result?.ok === true;
       return {
         ok: true,
         result,
@@ -205,6 +209,7 @@ export function createInvocationDispatcher({
       const message = error instanceof Error ? error.message : String(error);
       const status = Number(error?.status ?? 500);
       if ([401, 403].includes(status)) {
+        invalidAuth = entryLeaseAcquired;
         await closeContext(runtimeStateObjectKey);
       }
       log(
@@ -228,8 +233,15 @@ export function createInvocationDispatcher({
       };
     } finally {
       if (entry && entryLeaseAcquired) {
-        entry.busy = false;
-        entry.lastUsedAt = Date.now();
+        try {
+          await settleAuthCheckpoint(entry, { succeeded, invalidAuth, runtimeStateObjectKey,
+            baseUrl: normalizeString(args.baseUrl) ?? "https://gemini.google.com" });
+        } catch {
+          log("Gemini auth checkpoint settlement failed");
+        } finally {
+          entry.busy = false;
+          entry.lastUsedAt = Date.now();
+        }
       }
       log(
         "invokeGeminiCanvas finally release",

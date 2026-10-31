@@ -11,7 +11,7 @@ impl UpstreamClient {
         timeout: Duration,
         allow_replay_template: bool,
         image_edit_followup_context: &mut Option<&mut GeminiCanvasImageEditFollowupContext>,
-    ) -> Result<String, GatewayError> {
+    ) -> Result<StreamGenerateBody, GatewayError> {
         let StreamGenerateRequestContext {
             preparation:
                 StreamGeneratePreparation {
@@ -40,7 +40,9 @@ impl UpstreamClient {
             request,
         } = request_context;
         let provider = "gemini_canvas_compatible";
-        if is_image_mode {
+        let web_single_submit =
+            is_image_mode && payload.adapter == "gemini_web_reverse_modular_compatible";
+        if is_image_mode && !web_single_submit {
             if let Some(template) = replay_template.as_ref() {
                 let refreshed_template =
                     gemini_canvas::refresh_stream_generate_template_with_bootstrap(
@@ -157,9 +159,9 @@ impl UpstreamClient {
                             status,
                             "gemini canvas pure HTTP image-edit replay template returned a non-challenge StreamGenerate body after bootstrap refresh; deferring asset resolution to follow-up extraction"
                         );
-                        return Ok(body_text);
+                        return Ok(body_text.into());
                     }
-                    return Ok(body_text);
+                    return Ok(body_text.into());
                 }
                 debug!(
                     provider,
@@ -225,6 +227,7 @@ impl UpstreamClient {
             &headers,
         );
         if is_image_edit_request
+            && !web_single_submit
             && !allow_replay_template
             && should_attempt_gemini_canvas_browser_backed_image_edit_retry(
                 payload,
@@ -295,7 +298,7 @@ impl UpstreamClient {
                                         &body_text,
                                     );
                                 if !browser_failed {
-                                    return Ok(body_text);
+                                    return Ok(body_text.into());
                                 }
                                 debug!(
                                     provider,
@@ -354,6 +357,13 @@ impl UpstreamClient {
             );
         }
 
+        let mut cookies = if web_single_submit {
+            let cookies = SessionCookies::new(&payload.base_url, &headers)?;
+            cookies.apply(&stream_url, &mut headers)?;
+            Some(cookies)
+        } else {
+            None
+        };
         debug!(
             provider,
             url = %stream_url,
@@ -368,6 +378,7 @@ impl UpstreamClient {
             let response = self
                 .http
                 .request(Method::POST, &stream_url)
+                .redirect(rquest::redirect::Policy::none())
                 .headers(headers.clone())
                 .query(&request.query)
                 .timeout(image_stream_timeout)
@@ -376,6 +387,7 @@ impl UpstreamClient {
                 .await
                 .map_err(|error| classify_network_error(&error, Some(provider)))?;
             let final_url = response.uri().to_string();
+            let response_headers = web_single_submit.then(|| response.headers().clone());
             let status = response.status().as_u16();
             let location = response
                 .headers()
@@ -433,7 +445,7 @@ impl UpstreamClient {
                     &body_text,
                 );
             if failed {
-                if status == 400 {
+                if status == 400 && !web_single_submit {
                     if let Some(token) = maybe_retry_gemini_canvas_form_xsrf_token(
                         &mut request_form,
                         &body_text,
@@ -462,7 +474,13 @@ impl UpstreamClient {
                 ));
             }
 
-            return Ok(body_text);
+            if let (Some(cookies), Some(headers)) = (&mut cookies, &response_headers) {
+                cookies.receive(&stream_url, headers);
+            }
+            return Ok(StreamGenerateBody {
+                text: body_text,
+                cookies,
+            });
         }
     }
 }

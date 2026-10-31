@@ -76,7 +76,13 @@ pub(crate) async fn decode_remote_browser_executor_response(
     };
 
     if result.ok {
-        return Ok(extract_browser_executor_invocation_success(result));
+        return match extract_browser_executor_invocation_success(result) {
+            Some(value) => Ok(Some(value)),
+            None => fallback_or_required_failure(
+                policy,
+                "Remote browser executor returned success without a result.".into(),
+            ),
+        };
     }
 
     Err(classify_browser_executor_invocation_failure(
