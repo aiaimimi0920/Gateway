@@ -29,8 +29,8 @@ impl UpstreamClient {
         } else {
             payload.clone()
         };
-        let runtime = gemini_canvas::runtime_from_payload(&effective_payload)?;
         if program_owned {
+            let runtime = gemini_canvas::runtime_from_payload(&effective_payload)?;
             let canonical = self
                 .execute_gemini_canvas_direct_http_stream_generate_text(
                     &effective_payload,

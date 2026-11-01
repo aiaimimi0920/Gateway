@@ -65,6 +65,7 @@ pub async fn run_stream_success(
         usage.clone(),
         None,
         Some(build_route_trace_from_snapshot(&snapshot, None)),
+        false,
         state,
     )
     .await;

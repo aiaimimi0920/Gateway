@@ -26,7 +26,7 @@ pub struct Action {
     callback_url: String,
 }
 
-fn authorize(
+pub(super) fn authorize(
     state: &AppState,
     headers: &HeaderMap,
     bearer: Option<&str>,

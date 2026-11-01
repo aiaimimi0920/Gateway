@@ -5,6 +5,7 @@ use std::{cmp::Reverse, collections::HashSet, fmt};
 use url::Url;
 
 mod snapshot;
+mod storage_state;
 pub(super) use snapshot::CookieSnapshot;
 
 use crate::error::GatewayError;

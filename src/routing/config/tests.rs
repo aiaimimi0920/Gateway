@@ -16,6 +16,7 @@ mod candidates;
 mod catalogs;
 mod credentials;
 mod empty_pools;
+mod flowmusic;
 mod model_selection;
 mod probes;
 mod refresh;

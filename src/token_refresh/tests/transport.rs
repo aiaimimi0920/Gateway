@@ -2,6 +2,17 @@ use super::super::transport::exchange;
 use super::*;
 
 #[tokio::test]
+async fn antigravity_rejects_custom_endpoints_without_sending_tokens_or_invalidating_account() {
+    let mock = MockOAuth::new(200, ROTATED, 0).await;
+    let Err(error) = exchange(&client(), &mock.url, "secret-refresh", "client", true).await else {
+        panic!("must reject")
+    };
+    assert_eq!(error.code, "antigravity_oauth_client_mismatch");
+    assert!(!error.terminal);
+    assert_eq!(mock.count(), 0);
+}
+
+#[tokio::test]
 async fn malformed_and_oversized_responses_preserve_secret_safe_errors() {
     for body in [
         "not-json".to_string(),
@@ -10,7 +21,7 @@ async fn malformed_and_oversized_responses_preserve_secret_safe_errors() {
         r#"{"access_token":"fixture","expires_in":0}"#.to_string(),
     ] {
         let mock = MockOAuth::new(200, &body, 0).await;
-        let result = exchange(&client(), &mock.url, "secret-refresh", "client").await;
+        let result = exchange(&client(), &mock.url, "secret-refresh", "client", false).await;
         let Err(error) = result else {
             panic!("expected invalid OAuth response");
         };
@@ -31,7 +42,8 @@ async fn invalid_grant_requires_authorization_but_rate_limit_retries() {
         (503, "temporary failure", false),
     ] {
         let mock = MockOAuth::new(status, body, 0).await;
-        let Err(error) = exchange(&client(), &mock.url, "secret-refresh", "client").await else {
+        let Err(error) = exchange(&client(), &mock.url, "secret-refresh", "client", false).await
+        else {
             panic!("expected rejection");
         };
         assert_eq!(error.terminal, terminal);
@@ -46,7 +58,7 @@ async fn unsafe_endpoints_are_rejected_before_network() {
         "https://user:secret@example.com/token",
         "not a URL",
     ] {
-        assert!(exchange(&client(), url, "secret-refresh", "client")
+        assert!(exchange(&client(), url, "secret-refresh", "client", false)
             .await
             .is_err());
     }
@@ -70,7 +82,7 @@ async fn oauth_redirect_never_replays_form_to_another_endpoint() {
     let task = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    assert!(exchange(&client(), &url, "secret-refresh", "client")
+    assert!(exchange(&client(), &url, "secret-refresh", "client", false)
         .await
         .is_err());
     task.abort();

@@ -33,7 +33,7 @@ export function ProviderCatalogRequestFields({ t, workflow, update, locked, temp
       </select>
     </CatalogField>}
     <CatalogField name={t("指纹适配器", "Fingerprint adapter")}>
-      {fixed || managed ? <input className="nt-input" readOnly value={managed ? t("站点会话指纹", "Site session profile") : fingerprint === "codex_cli" ? "Codex" : t("自动", "Automatic")} /> :
+      {fixed || managed ? <input className="nt-input" readOnly value={workflow.specialAdapter === "antigravity_oauth" ? "Antigravity" : managed ? t("站点会话指纹", "Site session profile") : fingerprint === "codex_cli" ? "Codex" : t("自动", "Automatic")} /> :
         <select className="nt-select" value={fingerprint} disabled={locked} onChange={(event) => setDraft((current) => ({ ...current, requestClientProfile: event.target.value as RequestClientProfile }))}>
           {REQUEST_CLIENT_PROFILES.map((id) => <option key={id} value={id}>{id === "auto" ? t("自动", "Automatic") : id}</option>)}
         </select>}

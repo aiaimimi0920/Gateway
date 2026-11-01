@@ -54,5 +54,6 @@ pub(super) fn classify(
         },
         provider_name: provider_name.map(str::to_owned),
         upstream_retry_after_ms: None,
+        native_transport: None,
     })
 }

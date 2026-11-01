@@ -72,6 +72,7 @@ pub struct CreateRequestAuditInput {
 #[derive(Debug, Clone)]
 pub struct FinalizeRequestAuditInput {
     pub status: String,
+    pub client_disconnected: bool,
     pub upstream_status: Option<u16>,
     pub duration_ms: u64,
     pub prompt_tokens: Option<u64>,

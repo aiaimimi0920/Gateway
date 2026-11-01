@@ -216,6 +216,7 @@ mod tests {
             },
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 

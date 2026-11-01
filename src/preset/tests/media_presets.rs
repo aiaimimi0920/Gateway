@@ -147,7 +147,7 @@ fn gemini_canvas_chat_preset_defaults_to_direct_http_reverse_web() {
 }
 
 #[test]
-fn gemini_canvas_browser_relay_preset_defaults_to_browser_backed() {
+fn gemini_canvas_browser_relay_legacy_id_defaults_to_http_only() {
     let preset = gemini_canvas_browser_relay_preset();
     assert_eq!(preset.id, "gemini-canvas-browser-relay");
     assert_eq!(preset.adapter, "gemini_canvas_web_reverse_compatible");
@@ -157,7 +157,7 @@ fn gemini_canvas_browser_relay_preset_defaults_to_browser_backed() {
     );
     assert_eq!(
         preset.execution_mode,
-        Some(ProviderExecutionMode::BrowserBacked)
+        Some(ProviderExecutionMode::DirectHttp)
     );
     assert_eq!(
         preset.extra_body.get("shareId").and_then(Value::as_str),

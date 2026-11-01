@@ -220,6 +220,7 @@ fn classify_accio_provider_error(code: &str, message: &str) -> GatewayError {
             },
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     } else {
         GatewayError::server_error(format!("Accio upstream error: {}", message.trim()))

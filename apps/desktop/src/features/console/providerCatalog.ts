@@ -374,9 +374,11 @@ const STANDARD_CATALOG_TEMPLATES = [
   },
 ] as const satisfies readonly ProviderCatalogTemplate[];
 
-export const PROVIDER_CATALOG_TEMPLATES: readonly ProviderCatalogTemplate[] = STANDARD_CATALOG_TEMPLATES.flatMap((template) => [
-  template, ...WEB_CATALOG_TEMPLATES.filter((web) => web.id === "chatgpt-web" ? template.id === "chatgpt" : template.id === "gemini-api"),
-]);
+export const PROVIDER_CATALOG_TEMPLATES: readonly ProviderCatalogTemplate[] = [
+  ...STANDARD_CATALOG_TEMPLATES.flatMap((template) => [template, ...WEB_CATALOG_TEMPLATES.filter((web) =>
+    web.id !== "flowmusic-web" && (web.id === "chatgpt-web" ? template.id === "chatgpt" : template.id === "gemini-api"))]),
+  ...WEB_CATALOG_TEMPLATES.filter((web) => web.id === "flowmusic-web"),
+];
 
 export function providerCatalogClassification(
   _providerId: string,
@@ -423,6 +425,10 @@ export function providerDefinitionFromCatalogDraft(
   if (template.id === "chatgpt") {
     provider.protocol_profile = "chatgpt_codex_backend";
     provider.credential_identity_categories = CHATGPT_POOL_CATEGORIES.map((category) => ({ ...category }));
+  }
+  if (template.id === "flowmusic-web") {
+    provider.supported_protocol_families = ["producer_music"];
+    provider.execution_mode = "direct_http";
   }
   if (draft.workflow) {
     writeCatalogWorkflow(provider, draft.workflow);

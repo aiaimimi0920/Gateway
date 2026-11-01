@@ -348,37 +348,6 @@ impl UpstreamClient {
         .await
     }
 
-    pub(super) async fn execute_gemini_canvas_connected_fetch_json_with_mode(
-        &self,
-        provider: &str,
-        browser_pool_base_url: &str,
-        base_url: &str,
-        share_id: &str,
-        runtime_state_object_key: &str,
-        browser_cdp_url: Option<&str>,
-        cookie_header: Option<&str>,
-        request_url: &str,
-        request_body: &Value,
-        google_fetch_mode: &str,
-        timeout: Duration,
-    ) -> Result<Value, GatewayError> {
-        gemini_canvas_web_reverse_modular::execute_connected_fetch_json_with_mode(
-            &self.http,
-            timeout,
-            provider,
-            browser_pool_base_url,
-            base_url,
-            share_id,
-            runtime_state_object_key,
-            browser_cdp_url,
-            cookie_header,
-            request_url,
-            request_body,
-            google_fetch_mode,
-        )
-        .await
-    }
-
     // Direct HTTP helpers for the active `gemini_canvas_compatible` hot path.
     // Legacy browser-connected and browser-pool flows remain below as explicit
     // compatibility fallbacks when pure HTTP replay is disabled.

@@ -10,6 +10,8 @@ mod classification;
 mod diagnostics;
 mod html_rejection;
 mod model_capacity;
+mod model_pricing;
+mod native_transport;
 mod retry_after;
 mod stream_initialization_rejection;
 
@@ -22,6 +24,9 @@ pub(crate) use classification::{classify_native_network_error, classify_native_t
 pub use classification::{classify_network_error, classify_upstream_error};
 pub use diagnostics::{sanitize_provider_error_message, PROVIDER_ERROR_MESSAGE_MAX_CHARS};
 pub(crate) use model_capacity::is_model_capacity;
+pub(crate) use model_pricing::is_model_pricing_failure;
+pub(crate) use native_transport::classify_native_send_error;
+pub use native_transport::NativeTransportEvidence;
 pub(crate) use retry_after::retry_after_from_headers;
 
 use axum::http::{header::RETRY_AFTER, HeaderValue, StatusCode};
@@ -90,6 +95,8 @@ pub struct GatewayError {
     /// Explicit upstream timing evidence, independent of local retry defaults.
     /// Internal only: never serialized into the public error response.
     pub upstream_retry_after_ms: Option<u64>,
+    /// Trusted local evidence only; never inferred from provider codes or text.
+    pub native_transport: Option<NativeTransportEvidence>,
 }
 
 impl GatewayError {
@@ -106,6 +113,7 @@ impl GatewayError {
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 
@@ -120,6 +128,7 @@ impl GatewayError {
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 
@@ -134,6 +143,7 @@ impl GatewayError {
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 
@@ -151,6 +161,7 @@ impl GatewayError {
             },
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 
@@ -168,6 +179,7 @@ impl GatewayError {
             },
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 
@@ -182,6 +194,7 @@ impl GatewayError {
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 
@@ -196,6 +209,7 @@ impl GatewayError {
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 
@@ -210,6 +224,7 @@ impl GatewayError {
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 
@@ -224,6 +239,7 @@ impl GatewayError {
             fallback_hint: build_fallback_hint(kind),
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     }
 
@@ -242,6 +258,8 @@ impl GatewayError {
             "budget_exhausted:attempt_limit" => Some("attempt_limit"),
             "budget_exhausted:deadline" => Some("deadline"),
             "budget_exhausted:cancelled" => Some("cancelled"),
+            "budget_exhausted:shutdown" => Some("shutdown"),
+            "budget_exhausted:caller_cancelled" => Some("caller_cancelled"),
             "budget_exhausted:response_handed_off" => Some("response_handed_off"),
             _ => None,
         }

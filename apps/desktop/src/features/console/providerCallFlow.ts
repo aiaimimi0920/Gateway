@@ -9,7 +9,7 @@ export function writeProviderCallFlow(provider: Record<string, unknown>, templat
   const managed = special !== "none";
   provider.call_flow = {
     call_adapter: managed || !template.custom ? "auto" : workflow.callAdapter,
-    fingerprint_adapter: managed ? "session" : draft.requestClientProfile ?? "auto",
+    fingerprint_adapter: special === "antigravity_oauth" ? "antigravity" : managed ? "session" : draft.requestClientProfile ?? "auto",
     special_adapter: special === "none" && !template.custom ? "auto" : special,
   };
   if (template.custom) {

@@ -27,16 +27,14 @@ pub(super) async fn finalize_request_audit_failure(
     state: &Arc<AppState>,
 ) {
     let upstream_status = if ctx.route_attempt_count() > 0 {
-        error
-            .http_status
-            .and_then(|status| u16::try_from(status).ok())
+        error.provider_response_status()
     } else {
         None
     };
 
     finalize_request_audit(
         ctx,
-        "failed",
+        StreamFailureCause::from_observation(ctx.request_budget.stopped_reason(), true).status(),
         upstream_status,
         None,
         Some(error.message.clone()),
@@ -53,31 +51,36 @@ pub(super) async fn finalize_request_audit_failure_snapshot(
     snapshot: &FailureFinalizeSnapshot,
     state: &Arc<AppState>,
     error_summary: Option<&str>,
-    upstream_failed: bool,
+    cause: StreamFailureCause,
 ) {
+    let mut trace = build_route_trace_from_snapshot(&snapshot.request_audit, error_summary);
+    trace["terminationReason"] = json!(cause.label());
+    if cause != StreamFailureCause::Upstream {
+        for field in ["failureClass", "failureScope", "failurePermanent"] {
+            trace[field] = Value::Null;
+        }
+    }
     finalize_request_audit_from_snapshot(
         &snapshot.request_audit,
-        "failed",
+        cause.status(),
         None,
         None,
         error_summary.map(str::to_string),
-        Some(build_route_trace_from_snapshot(
-            &snapshot.request_audit,
-            error_summary,
-        )),
+        Some(trace),
+        cause == StreamFailureCause::ClientDisconnected,
         state,
     )
     .await;
     let classification = classify_provider_failure(None, Some("stream_failed"), error_summary);
     persist_stream_conversation_archive_failure(
         &snapshot.request_audit,
-        Some(classification.class_name().to_string()),
-        Some(classification.scope_name().to_string()),
+        (cause == StreamFailureCause::Upstream).then(|| classification.class_name().to_string()),
+        (cause == StreamFailureCause::Upstream).then(|| classification.scope_name().to_string()),
         error_summary,
         state,
     )
     .await;
-    if upstream_failed {
+    if cause == StreamFailureCause::Upstream {
         record_credential_model_failure_from_snapshot(
             &snapshot.request_audit,
             error_summary,
@@ -113,6 +116,7 @@ pub(super) async fn finalize_request_audit(
 
     let input = db::FinalizeRequestAuditInput {
         status: status.to_string(),
+        client_disconnected: ctx.request_budget.stopped_reason() == Some("caller_cancelled"),
         upstream_status,
         duration_ms: ctx.started_at.elapsed().as_millis() as u64,
         prompt_tokens,
@@ -153,6 +157,7 @@ pub(super) async fn finalize_request_audit_from_snapshot(
     usage: Option<TokenUsage>,
     error_summary: Option<String>,
     route_trace: Option<Value>,
+    client_disconnected: bool,
     state: &Arc<AppState>,
 ) {
     let Some(request_audit_id) = snapshot.request_audit_id.as_deref() else {
@@ -171,6 +176,7 @@ pub(super) async fn finalize_request_audit_from_snapshot(
 
     let input = db::FinalizeRequestAuditInput {
         status: status.to_string(),
+        client_disconnected,
         upstream_status,
         duration_ms: snapshot.started_at.elapsed().as_millis() as u64,
         prompt_tokens,

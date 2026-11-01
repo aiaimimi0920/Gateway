@@ -218,7 +218,7 @@ pub async fn execute_stream(
         .with_provider(PROVIDER)
         .with_code("chatgpt_web_non_sse_response"));
     }
-    Ok(UpstreamStreamingResponse::Bytes(Box::pin(
+    Ok(UpstreamStreamingResponse::NativeEvents(Box::pin(
         translate_chatgpt_web_stream(response.bytes_stream(), model.to_string()),
     )))
 }

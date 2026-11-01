@@ -124,6 +124,7 @@ export type ConsoleApi = {
   createGeminiAuthSession(
     managementToken: string,
     request: ConsoleGeminiAuthSessionRequest,
+    secretGrant?: string,
   ): Promise<ConsoleGeminiAuthSessionResponse>;
   completeGeminiAuthSession(
     managementToken: string,

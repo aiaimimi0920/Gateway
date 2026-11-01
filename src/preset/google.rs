@@ -189,7 +189,7 @@ pub fn aistudio_web_reverse_preset() -> ProviderPreset {
         adapter: "aistudio_web_reverse_compatible".to_string(),
         headers,
         extra_body,
-        default_model: Some("gemini-2.5-flash".to_string()),
+        default_model: Some("gemini-3.5-flash-lite".to_string()),
         auth_mode: None,
         anthropic_version: None,
         beta_headers: None,
@@ -305,14 +305,16 @@ pub fn gemini_canvas_preset() -> ProviderPreset {
     }
 }
 
-/// Returns the built-in "gemini-canvas-browser-relay" preset for the parallel
-/// true-canvas browser-owned surface.
+/// The historical ID remains compatible; normal Canvas calls now use HTTP only.
 pub fn gemini_canvas_browser_relay_preset() -> ProviderPreset {
     let mut preset = gemini_canvas_preset();
     preset.id = "gemini-canvas-browser-relay".to_string();
     preset.adapter = "gemini_canvas_web_reverse_compatible".to_string();
     preset.default_model = Some(GEMINI_CANVAS_DEFAULT_TEXT_MODEL.to_string());
-    preset.execution_mode = Some(ProviderExecutionMode::BrowserBacked);
+    preset.execution_mode = Some(ProviderExecutionMode::DirectHttp);
+    preset
+        .extra_body
+        .insert("pureHttpMode".into(), Value::String("required".into()));
     preset
 }
 

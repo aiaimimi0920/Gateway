@@ -42,15 +42,45 @@ upstream model，之后不重新运行 stage_route，不重复配额预扣／res
 实际发送数和审计累计保留。未知网络错误维持原有限重试和工具保护，不能借等待重放副作用。
 SSE 返回流所有权后，不重进调度、不换账号、不拼接第二份回答；部分流中断维持原错误终止。
 
+Native Codex 首次 hop 的已证建连失败另走同账号短时恢复：最多 4 次额外连接资格、
+30 秒重试准入窗口，仍通过原 gate／attempt budget，不加入无限等待队列。
+具体安全条件和时间边界见 [请求预算](request-budget.md#native-连接建立失败的有限恢复)。
+未知执行结果不会因为“本地代理不稳定”就被当作未执行。
+
+流审计区分 `upstream_interrupted`、`deadline`、`gateway_shutdown`、
+`client_disconnected` 和 `stream_consumer_closed`。取消／shutdown 写 `cancelled`，
+deadline 和真实上游中断仍写 `failed`；退款和 usage failure settlement 保留。
+仅明确 caller cancellation 填写 `clientDisconnectedAt`；一般流 Drop 不猜用户意图。
+审计按 first-terminal-wins 保存，迟到回调不覆盖先前结果。
+
 ## 资源与生命周期
 
 外层轮询间隔为 2／4／8／15／30／60 秒，之后封顶 60 秒，尊重更长 Retry-After。
 本地容量窗口仍是独立的发送准入屏障；等待不新增真实探测，不提前发请求。
 发送 permit 在睡眠前释放，恢复发送使用每 provider 的 FIFO mutex；取消等待者不阻塞下一位。
 
-首次保留请求时登记进程内队列，限制总计 64、每 Key 8、每 provider 32、估算保留量 64 MiB。
+首次保留请求时登记进程内队列，限制总计 64 个实际请求、每 Key 16 个等待名额、
+每 provider 32 个实际请求、估算保留量 64 MiB。
+这里的 session 指一个主 AI 对话及其派生的子对话／子代理构成的任务树，
+不是客户端版本、进程、窗口、网络连接或 Key。同一客户端另开的独立主对话分别计数。
+使用客户端显式提供的根会话 `session-id`（兼容 `session_id`），同一已鉴权 Key 下，
+同一主对话及其子任务的多个等待请求共用一个 Key 名额。最后一个请求及其持锁 turn
+退出后才释放；同一请求内部的恢复轮次始终只登记一次，不按对话历史累计占额。
+分组标签须非空、无控制字符且不超过 256 bytes。缺少、无效、重复或冲突的根会话标识
+按实际请求分别占名额；不把鉴权主体、JSON `user`、request ID、父 thread、客户端窗口
+或 prompt cache key 猜成根会话。会话标签仅用于公平计数，不授予权限。
+Codex 的子代理继承根 `session-id` 并拥有独立 `thread-id`，这里有意合并前者，
+不因后者不同拆分名额。客户端应为独立主对话提供不同根标签；若把不相关任务显式标为
+同一根会话，网关无法从内容或线程 ID 猜测真实边界。其他客户端无可靠根标识时逐请求计数。
+依据官方 [Codex 0.155.1 根会话继承](https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/src/session/session.rs#L809-L821)。
+官方 main 的 [Responses session-id](https://github.com/openai/codex/blob/4bc746c94fce95ec7ca5f1a91a786156d240c8a2/codex-rs/core/src/client.rs#L730-L737)
+也承担缓存亲和性，显式复用该标签的 ephemeral fork 会合并计数；本实现不宣称能从请求恢复所有客户端的任务树。
+这不是执行去重：同会话的不同请求仍分别执行、审计、取消和记内存，全局／provider 的
+实际请求上限不打折，也不自动取消旧请求、复用另一请求的回答或重放不确定的执行。
 超限返回 `recovery_wait_queue_full`，不无限堆积。保留量根据 canonical JSON 流式计数后
 保守估算副本开销，不是操作系统 RSS 的硬内存承诺。
+拒绝日志记录 `limit`（`key_slots`／`global_requests`／`provider_requests`／`retained_bytes`）
+及实际计数，不记录 Key、session 标签、凭据或请求内容；公开错误码和错误文案保持兼容。
 本地请求另预留 768 KiB 身份映射预算，覆盖最多 256 对、每个 ID 最多 256 bytes
 的当前／替换快照及保守树节点开销。即使入队时映射为空也预留，避免等待期间映射
 增长绕过原队列记账；非本地请求不增加这项预算。预算随原 lease 一起释放，不重新入队。

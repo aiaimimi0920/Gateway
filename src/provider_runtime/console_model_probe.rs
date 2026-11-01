@@ -65,6 +65,8 @@ pub(crate) async fn probe_console_target_with_request(
         return super::codex_model_probe::probe(state, target).await;
     }
     let gemini_web = target.payload.canonical_adapter() == "gemini_web_compatible";
+    let chatgpt_web = target.payload.canonical_adapter() == "chatgpt_web_reverse_compatible";
+    let antigravity = target.payload.adapter == crate::protocol::antigravity::ADAPTER;
     if !nvidia && !codex && !gemini_web && search.is_none() && options.is_none() {
         return (
             point,
@@ -87,6 +89,8 @@ pub(crate) async fn probe_console_target_with_request(
         && !anthropic
         && !gemini
         && !gemini_web
+        && !chatgpt_web
+        && !antigravity
         && search.is_none()
         && (target.payload.canonical_adapter() != "openai_compatible"
             || target.payload.bridges_openai_text_endpoint_to_responses(
@@ -165,8 +169,14 @@ pub(crate) async fn probe_console_target_with_request(
         return super::search_model_probe::probe(state, target, &model, query, kind).await;
     }
     let prompt = options.map_or("Reply with only OK.", |options| options.prompt.as_str());
+    if antigravity {
+        return super::antigravity_model_probe::probe(state, target, &model, prompt).await;
+    }
     if codex {
         return super::codex_model_probe::probe_with_prompt(state, target, &model, prompt).await;
+    }
+    if chatgpt_web {
+        return super::chatgpt_web_model_probe::probe(state, target, &model, prompt).await;
     }
     if cohere {
         return super::cohere_model_probe::probe(state, target, &model, prompt).await;

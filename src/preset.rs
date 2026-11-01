@@ -18,6 +18,8 @@ use std::collections::HashMap;
 use crate::credential_runtime::{KeepaliveConfig, SessionAuthConfig};
 use crate::routing::candidate::{ProviderAccountPayload, ProviderExecutionMode};
 
+mod antigravity;
+mod flow;
 mod google;
 mod media;
 mod native_api;
@@ -26,7 +28,10 @@ mod qwen;
 mod registry;
 mod search;
 mod session_chat;
+mod stitch;
 
+pub use antigravity::antigravity_oauth_preset;
+pub use flow::flow_web_preset;
 pub use google::{
     aistudio_official_api_preset, aistudio_web_reverse_preset, gemini_api_modular_preset,
     gemini_api_preset, gemini_business_preset, gemini_canvas_browser_relay_preset,
@@ -56,6 +61,7 @@ pub use search::{
 pub use session_chat::{
     accio_preset, chatgpt_web_reverse_preset, freebuff_preset, grok_preset, kiro_preset,
 };
+pub use stitch::stitch_web_preset;
 
 // ---------------------------------------------------------------------------
 // Preset definition

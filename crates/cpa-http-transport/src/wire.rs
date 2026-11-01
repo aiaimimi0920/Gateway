@@ -1,5 +1,5 @@
 //! Go transport settings and HTTP header serialization, independent of authentication.
-use crate::{Error, Result};
+use crate::{Error, Profile, Result};
 use http::{header, HeaderMap, HeaderName, HeaderValue, Request};
 use http_body::Body as _;
 use wreq_proto::ext::{on_preserve_header, OnPreserveHeaderCallback};
@@ -36,10 +36,25 @@ pub(crate) fn options() -> wreq_proto::http2::Http2Options {
         .build()
 }
 
+#[cfg(test)]
 pub(crate) fn prepare(request: &mut Request<rquest::Body>, h2: bool) -> Result<()> {
+    prepare_profile(request, h2, Profile::Cpa)
+}
+
+pub(crate) fn prepare_profile(
+    request: &mut Request<rquest::Body>,
+    h2: bool,
+    profile: Profile,
+) -> Result<()> {
     let size = request.body().size_hint().exact().ok_or(Error::Body)?;
     let uri = request.uri().clone();
     let method = request.method().clone();
+    // Native hub streams its buffered generation JSON as one HTTP/1 chunk.
+    // Remove caller framing below, then choose framing from the immutable profile and method.
+    let native_chunked = !h2
+        && profile == Profile::AntigravityHub215
+        && method == http::Method::POST
+        && uri.path() == "/v1internal:streamGenerateContent";
     let headers = request.headers_mut();
     let connection = headers.get(header::CONNECTION).cloned();
     let named: Vec<_> = headers
@@ -91,13 +106,18 @@ pub(crate) fn prepare(request: &mut Request<rquest::Body>, h2: bool) -> Result<(
     if h2 {
         headers.remove(header::HOST);
     }
-    if size > 0 || matches!(method.as_str(), "POST" | "PUT" | "PATCH") {
+    if native_chunked {
+        headers.insert(
+            header::TRANSFER_ENCODING,
+            HeaderValue::from_static("chunked"),
+        );
+    } else if size > 0 || matches!(method.as_str(), "POST" | "PUT" | "PATCH") {
         headers.insert(header::CONTENT_LENGTH, HeaderValue::from(size));
     }
-    if !headers.contains_key(header::ACCEPT_ENCODING)
+    let auto_gzip = !headers.contains_key(header::ACCEPT_ENCODING)
         && !headers.contains_key(header::RANGE)
-        && method != http::Method::HEAD
-    {
+        && method != http::Method::HEAD;
+    if auto_gzip {
         headers.insert(header::ACCEPT_ENCODING, HeaderValue::from_static("gzip"));
     }
     headers
@@ -143,14 +163,23 @@ pub(crate) fn prepare(request: &mut Request<rquest::Body>, h2: bool) -> Result<(
             .parse()
             .map_err(|_| Error::Target)?;
     }
-    on_preserve_header(request, GoHeaders);
+    on_preserve_header(
+        request,
+        GoHeaders {
+            auto_gzip_tail: !h2 && auto_gzip && profile == Profile::AntigravityHub215,
+            native_chunked,
+        },
+    );
     if h2 {
         request.extensions_mut().insert(http2::GoCompatibility);
     }
     Ok(())
 }
 
-struct GoHeaders;
+struct GoHeaders {
+    auto_gzip_tail: bool,
+    native_chunked: bool,
+}
 impl OnPreserveHeaderCallback for GoHeaders {
     fn call(&self, headers: &mut HeaderMap) {
         // Ordinary Go HTTP/2 map order is random; content-length is always after that map.
@@ -163,7 +192,12 @@ impl OnPreserveHeaderCallback for GoHeaders {
         headers: &mut HeaderMap,
         visit: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue),
     ) {
-        for name in [header::HOST, header::USER_AGENT, header::CONTENT_LENGTH] {
+        let framing = if self.native_chunked {
+            header::TRANSFER_ENCODING
+        } else {
+            header::CONTENT_LENGTH
+        };
+        for name in [header::HOST, header::USER_AGENT, framing] {
             for value in headers.get_all(&name) {
                 visit(&canonical(&name), value);
             }
@@ -171,11 +205,18 @@ impl OnPreserveHeaderCallback for GoHeaders {
         let mut names: Vec<_> = headers
             .keys()
             .filter(|k| !matches!(k.as_str(), "host" | "user-agent" | "content-length"))
+            .filter(|k| !(self.native_chunked && *k == header::TRANSFER_ENCODING))
+            .filter(|k| !(self.auto_gzip_tail && *k == header::ACCEPT_ENCODING))
             .collect();
         names.sort_by_key(|name| canonical(name));
         for name in names {
             for value in headers.get_all(name) {
                 visit(&canonical(name), value);
+            }
+        }
+        if self.auto_gzip_tail {
+            for value in headers.get_all(header::ACCEPT_ENCODING) {
+                visit(&b"Accept-Encoding".as_slice(), value);
             }
         }
     }

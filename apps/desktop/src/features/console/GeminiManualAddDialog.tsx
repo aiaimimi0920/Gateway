@@ -22,6 +22,10 @@ export function GeminiManualAddDialog({
   if (!geminiManualAddDialogState) {
     return null;
   }
+  const aistudio = geminiManualAddDialogState.targetFamily === "aistudio-web";
+  const flowmusic = geminiManualAddDialogState.targetFamily === "flowmusic-web";
+  const flow = geminiManualAddDialogState.targetFamily === "flow-web";
+  const stitch = geminiManualAddDialogState.targetFamily === "stitch-web";
   return (
     <Dialog.Root open onOpenChange={(open) => {
       if (!open) closeGeminiManualAddDialog();
@@ -43,7 +47,7 @@ export function GeminiManualAddDialog({
         >
           <div className="nt-pilot-dialog__header">
             <Dialog.Title asChild>
-              <h2>{t("Gemini 手动添加", "Gemini manual add")}</h2>
+              <h2>{stitch ? t("Google Stitch 账号导入", "Google Stitch account import") : flow ? t("Google Flow 账号导入", "Google Flow account import") : flowmusic ? t("FlowMusic 账号导入", "FlowMusic account import") : aistudio ? t("AI Studio 账号导入", "AI Studio account import") : t("Gemini 手动添加", "Gemini manual add")}</h2>
             </Dialog.Title>
             <button
               className="nt-icon-close"
@@ -61,9 +65,11 @@ export function GeminiManualAddDialog({
               </div>
               <p className="nt-copy" role="status" aria-live="polite" aria-atomic="true">
                 {geminiManualAddDialogState.busy
-                  ? t("正在启动本地 Gemini 认证助手。", "Starting the local Gemini auth helper.")
+                  ? geminiManualAddDialogState.importMethod === "json"
+                    ? t("正在解析网页会话 JSON。", "Parsing web session JSON.")
+                    : t("正在启动网页登录助手。", "Starting the web sign-in helper.")
                   : geminiManualAddDialogState.session?.message ??
-                    t("等待 Gemini 认证结果。", "Waiting for Gemini auth results.")}
+                    t("等待网页登录认证结果。", "Waiting for web sign-in results.")}
               </p>
               {geminiManualAddDialogState.session ? (
                 <div className="nt-ledger-chip-list nt-ledger-chip-list--dense">
@@ -80,7 +86,7 @@ export function GeminiManualAddDialog({
               <article className="nt-card nt-card--panel">
                 <p className="nt-copy">
                   {t(
-                    "认证结果已经写入当前草稿。保存路由配置后生效。",
+                    "账号材料已经写入当前草稿。保存路由配置后生效。",
                     "The generated credentials were merged into the current draft. Save the route config to apply them.",
                   )}
                 </p>

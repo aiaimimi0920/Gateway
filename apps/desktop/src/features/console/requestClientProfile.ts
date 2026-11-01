@@ -2,7 +2,7 @@
 export const REQUEST_CLIENT_PROFILES = ["auto", "codex_cli", "claude_cli", "workbuddy", "cpa", "cpa_claude_code"] as const;
 export type RequestClientProfile = typeof REQUEST_CLIENT_PROFILES[number];
 /** Session identity is display-only; only the owning executor can change it. */
-export type ProviderRequestClientProfile = RequestClientProfile | "session";
+export type ProviderRequestClientProfile = RequestClientProfile | "session" | "antigravity";
 
 export function readRequestClientProfile(value: unknown): RequestClientProfile {
   return REQUEST_CLIENT_PROFILES.includes(value as RequestClientProfile) ? value as RequestClientProfile : "auto";
@@ -13,6 +13,7 @@ export function readProviderRequestClientProfile(provider: Record<string, unknow
   const flow = provider[Object.hasOwn(provider, "callFlow") ? "callFlow" : "call_flow"];
   if (flow && typeof flow === "object" && !Array.isArray(flow)) {
     const policy = flow as Record<string, unknown>;
+    if (policy.special_adapter === "antigravity_oauth" || policy.fingerprint_adapter === "antigravity") return "antigravity";
     return ownsSessionFingerprint(policy) ? "session" : readRequestClientProfile(policy.fingerprint_adapter);
   }
   return readRequestClientProfile(provider[Object.hasOwn(provider, "requestClientProfile") ? "requestClientProfile" : "request_client_profile"]);
@@ -39,6 +40,7 @@ export function writeRequestClientProfile(provider: Record<string, unknown>, pro
 }
 
 function ownsSessionFingerprint(flow: Record<string, unknown>): boolean {
-  return flow.fingerprint_adapter === "session"
-    || ["basispoints", "gemini_web", "chatgpt_web", "aistudio_web"].includes(flow.special_adapter as string);
+  return flow.fingerprint_adapter === "session" || flow.fingerprint_adapter === "antigravity"
+    || flow.special_adapter === "antigravity_oauth"
+    || ["basispoints", "gemini_web", "gemini_canvas", "chatgpt_web", "aistudio_web", "flowmusic_web", "flow_web", "stitch_web"].includes(flow.special_adapter as string);
 }

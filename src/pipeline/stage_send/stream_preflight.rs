@@ -26,6 +26,17 @@ pub(super) async fn normalize(
                 .effective_payload
                 .bridges_openai_responses_to_chat_completions(ctx.canonical_req.endpoint_kind));
     let byte_stream: ByteStream = match stream_response {
+        UpstreamStreamingResponse::NativeEvents(stream)
+            if attempt.effective_payload.canonical_adapter()
+                == "chatgpt_web_reverse_compatible" =>
+        {
+            Box::pin(crate::upstream::stream::tap_model_declaration(
+                stream,
+                model_observation::metadata(ctx, candidate, model),
+                Arc::clone(global_gateway_metrics()),
+                false,
+            ))
+        }
         UpstreamStreamingResponse::NativeEvents(stream) => {
             // WS transport validates terminal events itself, after exposing the
             // original failure event to the caller and before final settlement.

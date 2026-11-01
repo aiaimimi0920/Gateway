@@ -46,6 +46,7 @@ export type CredentialDialogProviderOption = {
 export type CredentialDialogProps = {
   onCaptureWebBrowser?: WebBrowserCapture;
   supportsWebSession?: (providerId: string) => boolean;
+  managedWebProvider?: (providerId: string) => boolean;
   supportsBasispoints?: (providerId: string) => boolean;
   open: boolean;
   mode: CredentialDialogMode;
@@ -101,6 +102,7 @@ export function CredentialDialog({
   onRevealKey,
   supportsBasispoints,
   supportsWebSession,
+  managedWebProvider,
   onCaptureWebBrowser,
 }: CredentialDialogProps) {
   const { t } = useUiLocale();
@@ -117,6 +119,7 @@ export function CredentialDialog({
   const official = useDiscoverySubmission(open && hasSecretAccess, onDiscoverProviderModels, requestFence);
   const busy = discovery.busy || catalog.busy || official.busy;
   const webSession = Boolean(supportsWebSession?.(value.providerId));
+  const managedWeb = Boolean(managedWebProvider?.(value.providerId));
   const oauth = mode === "add" && !webSession ? renderAuthentication?.(value.providerId) : null;
   const manualCodex = Boolean(oauth && supportsBasispoints?.(value.providerId) && authenticationMode === "token");
   // OAuth owns credential creation; never submit its result through the API-key form.
@@ -147,7 +150,7 @@ export function CredentialDialog({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (authentication) return;
+    if (authentication || (managedWeb && mode === "add")) return;
     if (locked || busy) return;
     if ((manualCodex || value.apiKeyOperation !== "keep") && !hasSecretAccess) { onRequestSecretAccess(); return; }
     if (webSession && mode === "add" && !value.webSessionMaterial) {
@@ -373,7 +376,8 @@ export function CredentialDialog({
                   return webSessionMaterial.modelSlugs?.length
                     ? editModelSources(imported, webSessionMaterial.modelSlugs.join("\n"), current.manualModelsText ?? "") : imported;
                 })} />}
-              {open && !webSession && <CredentialSecretField key={`${value.providerId}:${value.credentialId}`}
+              {open && managedWeb && <span role="status">{t("网页登录凭据已保存", "Web sign-in credentials saved")}</span>}
+              {open && !webSession && !managedWeb && <CredentialSecretField key={`${value.providerId}:${value.credentialId}`}
                 value={value.apiKeyValue} existing={mode === "edit" && value.apiKeyOperation === "keep"}
                 disabled={locked || busy} hasSecretAccess={hasSecretAccess}
                 onRequestSecretAccess={onRequestSecretAccess} onReveal={onRevealKey}

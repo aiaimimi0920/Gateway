@@ -29,6 +29,27 @@ impl UpstreamClient {
     ) -> Result<UpstreamStreamingResponse, GatewayError> {
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        if matches!(
+            flow.executor,
+            "stitch_web_compatible" | "antigravity_oauth_compatible"
+        ) {
+            // Bounded native accumulation then canonical SSE, not token-by-token forwarding.
+            let response = self
+                .execute_with_provider_account_id(
+                    provider_account_id,
+                    payload,
+                    req,
+                    model,
+                    extra_headers,
+                )
+                .await?;
+            let frames = crate::upstream::canonical_sse::canonical_response_to_openai_sse_bytes(
+                req, model, &response,
+            );
+            return Ok(UpstreamStreamingResponse::Bytes(Box::pin(
+                futures::stream::iter(frames.into_iter().map(Ok)),
+            )));
+        }
         if flow.executor == crate::protocol::chatgpt::basispoints::ADAPTER {
             return crate::upstream::basispoints::execute_stream(
                 &self.http,
@@ -163,16 +184,16 @@ impl UpstreamClient {
                     | EndpointKind::Completions
             )
         {
-            let browser_owned_payload =
-                gemini_canvas_web_reverse_modular::force_browser_owned_payload(payload);
+            let http_owned_payload =
+                gemini_canvas_web_reverse_modular::force_http_owned_payload(payload);
             debug!(
                 model,
                 endpoint = ?req.endpoint_kind,
-                "sending upstream streaming request (gemini canvas browser relay modular: connected-canvas text -> fake openai sse)"
+                "sending upstream streaming request (gemini canvas HTTP-only host text -> buffered openai sse)"
             );
             return self
                 .execute_gemini_canvas_modular_browser_relay_text_stream(
-                    &browser_owned_payload,
+                    &http_owned_payload,
                     req,
                     model,
                     extra_headers,

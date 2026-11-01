@@ -128,6 +128,18 @@ impl ProviderAccountPayload {
     }
 
     pub fn resolve_execution_mode(&self, endpoint_kind: EndpointKind) -> ProviderExecutionMode {
+        // A transport invariant, not a preference: old saved overrides cannot re-enable browsers.
+        if self.adapter == GEMINI_CANVAS_WEB_REVERSE_MODULAR_COMPATIBLE_ADAPTER
+            || self.adapter == AISTUDIO_WEB_REVERSE_COMPATIBLE_ADAPTER
+            || self.adapter == "flow_web_compatible"
+            || self.adapter == "stitch_web_compatible"
+            || self.adapter == crate::protocol::antigravity::ADAPTER
+            || self.call_flow.is_some_and(|flow| {
+                flow.special_adapter == crate::protocol::call_flow::SpecialAdapter::FlowmusicWeb
+            })
+        {
+            return ProviderExecutionMode::DirectHttp;
+        }
         let endpoint_key = endpoint_kind_key(endpoint_kind);
         if let Some(mode) = self
             .endpoint_execution_modes
@@ -149,10 +161,7 @@ impl ProviderAccountPayload {
 
 fn default_execution_mode_for_adapter(adapter: &str) -> ProviderExecutionMode {
     match adapter {
-        "lumalabs_compatible"
-        | "udio_compatible"
-        | GEMINI_CANVAS_WEB_REVERSE_MODULAR_COMPATIBLE_ADAPTER
-        | AISTUDIO_WEB_REVERSE_COMPATIBLE_ADAPTER => ProviderExecutionMode::BrowserBacked,
+        "lumalabs_compatible" | "udio_compatible" => ProviderExecutionMode::BrowserBacked,
         _ => ProviderExecutionMode::DirectHttp,
     }
 }
@@ -176,5 +185,50 @@ fn endpoint_kind_key(endpoint_kind: EndpointKind) -> &'static str {
         EndpointKind::ResearchList => "research_list",
         EndpointKind::ResearchGet => "research_get",
         EndpointKind::CreditsBalance => "credits_balance",
+    }
+}
+
+#[cfg(test)]
+mod canvas_http_tests {
+    use super::*;
+
+    #[test]
+    fn aistudio_saved_overrides_cannot_launch_a_browser() {
+        let payload: ProviderAccountPayload = serde_json::from_value(serde_json::json!({
+            "adapter":"aistudio_web_reverse_compatible", "base_url":"https://aistudio.google.com",
+            "api_key":"", "execution_mode":"browser_backed",
+            "endpoint_execution_modes":{"chat_completions":"browser_backed","images_generations":"browser_backed"}
+        })).unwrap();
+        for endpoint in [
+            EndpointKind::ChatCompletions,
+            EndpointKind::ImagesGenerations,
+            EndpointKind::Embeddings,
+        ] {
+            assert_eq!(
+                payload.resolve_execution_mode(endpoint),
+                ProviderExecutionMode::DirectHttp
+            );
+        }
+    }
+
+    #[test]
+    fn canvas_http_transport_overrides_old_saved_browser_preferences() {
+        let payload: ProviderAccountPayload = serde_json::from_value(serde_json::json!({
+            "adapter":"gemini_canvas_web_reverse_compatible", "base_url":"https://gemini.google.com",
+            "api_key":"", "execution_mode":"browser_backed",
+            "endpoint_execution_modes":{"chat_completions":"browser_backed","audio_speech":"browser_backed"}
+        })).unwrap();
+        for endpoint in [
+            EndpointKind::ChatCompletions,
+            EndpointKind::ImagesGenerations,
+            EndpointKind::AudioSpeech,
+            EndpointKind::AudioTranscriptions,
+            EndpointKind::VideosGenerations,
+        ] {
+            assert_eq!(
+                payload.resolve_execution_mode(endpoint),
+                ProviderExecutionMode::DirectHttp
+            );
+        }
     }
 }

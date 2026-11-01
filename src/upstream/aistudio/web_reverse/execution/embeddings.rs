@@ -24,6 +24,13 @@ impl UpstreamClient {
     ) -> Result<Value, GatewayError> {
         let provider = aistudio_web::AISTUDIO_WEB_REVERSE_ADAPTER;
         let config = aistudio_web_reverse_modular::config_from_payload(payload)?;
+        if !config.fixture_transport {
+            return Err(GatewayError::bad_request(
+                "This AI Studio HTTP modality is not implemented yet.",
+            )
+            .with_provider(provider)
+            .with_code("unsupported_aistudio_http_modality"));
+        }
         if config.fixture_transport {
             return aistudio_web::build_fixture_embeddings_response(req, model)
                 .map_err(|error| error.with_provider(provider));

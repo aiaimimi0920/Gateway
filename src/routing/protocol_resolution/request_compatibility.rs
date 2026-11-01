@@ -132,6 +132,13 @@ pub(super) fn request_compatible_wire_protocol_families(
             EndpointKind::VideosGenerations => vec![GEMINI_CANVAS_VIDEOS_FAMILY.to_string()],
             _ => Vec::new(),
         },
+        "antigravity_oauth_compatible" => match endpoint_kind {
+            EndpointKind::ChatCompletions
+            | EndpointKind::Completions
+            | EndpointKind::Messages
+            | EndpointKind::Responses => vec![GEMINI_GENERATE_CONTENT_FAMILY.to_string()],
+            _ => Vec::new(),
+        },
         "aistudio_web_reverse_compatible" => match endpoint_kind {
             EndpointKind::ChatCompletions
             | EndpointKind::Messages
@@ -139,7 +146,9 @@ pub(super) fn request_compatible_wire_protocol_families(
             | EndpointKind::Completions => {
                 vec![GEMINI_GENERATE_CONTENT_FAMILY.to_string()]
             }
-            EndpointKind::ImagesGenerations => vec![GEMINI_GENERATE_CONTENT_FAMILY.to_string()],
+            EndpointKind::ImagesGenerations
+            | EndpointKind::ImagesEdits
+            | EndpointKind::AudioTranscriptions => vec![GEMINI_GENERATE_CONTENT_FAMILY.to_string()],
             EndpointKind::Embeddings => vec![OPENAI_EMBEDDINGS_FAMILY.to_string()],
             EndpointKind::AudioSpeech => vec![OPENAI_AUDIO_SPEECH_FAMILY.to_string()],
             _ => Vec::new(),
@@ -239,6 +248,19 @@ pub(super) fn request_compatible_wire_protocol_families(
             EndpointKind::ImagesGenerations => vec![PRODUCER_IMAGES_FAMILY.to_string()],
             EndpointKind::MusicGenerations => vec![PRODUCER_MUSIC_FAMILY.to_string()],
             EndpointKind::VideosGenerations => vec![PRODUCER_VIDEOS_FAMILY.to_string()],
+            _ => Vec::new(),
+        },
+        "stitch_web_compatible" => match endpoint_kind {
+            EndpointKind::ChatCompletions
+            | EndpointKind::Completions
+            | EndpointKind::Messages
+            | EndpointKind::Responses => vec!["stitch_design".into()],
+            _ => Vec::new(),
+        },
+        "flow_web_compatible" => match endpoint_kind {
+            EndpointKind::ImagesGenerations | EndpointKind::VideosGenerations => {
+                vec!["flow_media".into()]
+            }
             _ => Vec::new(),
         },
         "suno_compatible" => match endpoint_kind {

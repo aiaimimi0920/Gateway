@@ -68,6 +68,30 @@ HTML 诊断页（`upstream_html_diagnostic`）时，外层候选切换边界可�
 上游 JSON 自报 `provider_ip_temporarily_blocked` 就增加发送资格。它不在原服务商
 重试；仅在移交响应前按同一预算尝试下一个已授权候选。普通 403 行为不变。
 
+## Native 连接建立失败的有限恢复
+
+Native Codex HTTP 的首次 hop 在 DNS／TCP／代理隧道／TLS 建连失败，且请求局部
+redirect 记录证明没有先前 HTTP exchange 时，可为同一账号增加下一次连接尝试资格。
+这表示尚未发送 origin HTTP 请求，不代表代理 CONNECT 没有网络字节。
+资格由本地 typed evidence 授予；上游自报错误码或字符串不能获得它。
+
+每个逻辑请求最多增加 4 次此类资格，每次真实尝试仍重新准入并累计审计，不重置
+原 deadline、不重新预扣、不扩大普通工具请求重放权限。连接恢复准入窗口为该次
+send gate 进入后 30 秒，默认退避为约 0.5／1／2／4 秒（带 jitter）。窗口到期不再
+开始下一次发送；已经准入的一次建连仍受 transport connect timeout 约束。
+默认 managed native connect timeout 上限 15 秒，因此这不是“30 秒硬切断整个请求”
+的承诺；正常连接后等待模型响应不会被该恢复窗口截断。
+
+证书错误、代理认证错误不作短时重试。redirect 后建连失败、已发送后断开、响应头
+等待超时、响应体中断和 SSE handoff 均不获得此资格。故障耗尽后返回固定类别的
+网络错误，不将本地 egress 故障记为账号／模型失效，也不隐式切换账号。
+本地网络错误的 502／504 是 Gateway 返回给客户端的状态，不冒充 Google／OpenAI
+实际返回的 HTTP 响应：审计 `upstreamStatus` 留空，trace 提供 `networkCategory`，
+attempt 指标分类为 `native_network`，不生成供应商故障分类或账号模型 cooldown。
+
+本项只为普通 Native Codex HTTP 路径授予新连接恢复资格；opt-in native cookie
+session、WebSocket、handoff 后的 body 中断不据此宣称已具备无副作用透明重试。
+
 ## 精确授权，而不是猜付费身份
 
 保留 credential ownership、account group、access catalog 和 route policy 限制。
@@ -119,7 +143,7 @@ HTTP body 原 message/type/code 结构不变，预算类别独立暴露为固定
 
 ```text
 x-gateway-error-code: budget_exhausted
-x-gateway-stop-reason: attempt_limit | deadline | cancelled | response_handed_off
+x-gateway-stop-reason: attempt_limit | deadline | cancelled | caller_cancelled | shutdown | response_handed_off
 ```
 
 无真实上游错误时，body 的 code 才是 `budget_exhausted`。预算错误不输出 Retry-After。

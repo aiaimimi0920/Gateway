@@ -94,7 +94,17 @@ impl GatewayObjectStorage {
     }
 
     pub async fn read_bytes(&self, object_key: &str) -> Result<Vec<u8>, GatewayError> {
-        let limit = limit_for_object_key(object_key);
+        self.read_bytes_with_limit(object_key, limit_for_object_key(object_key))
+            .await
+    }
+
+    /// Callers may narrow admission, but cannot raise the storage owner's policy limit.
+    pub(crate) async fn read_bytes_with_limit(
+        &self,
+        object_key: &str,
+        maximum: usize,
+    ) -> Result<Vec<u8>, GatewayError> {
+        let limit = maximum.min(limit_for_object_key(object_key));
         match &self.driver {
             ObjectStorageDriver::Local { root } => {
                 let _operation_guard = local_operation_guard(root).await;

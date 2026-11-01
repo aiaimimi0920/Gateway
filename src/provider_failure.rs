@@ -88,9 +88,10 @@ pub fn classify_provider_failure(
             permanent: false,
         };
     }
-    if upstream_status
-        .is_some_and(|status| crate::error::is_model_capacity(status, error_code, error_message))
-    {
+    if upstream_status.is_some_and(|status| {
+        crate::error::is_model_capacity(status, error_code, error_message)
+            || crate::error::is_model_pricing_failure(status, error_code, error_message)
+    }) {
         return ProviderFailureClassification {
             class: ProviderFailureClass::ProviderTransient,
             scope: ProviderFailureScope::CredentialModel,

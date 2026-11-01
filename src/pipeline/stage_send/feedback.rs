@@ -31,7 +31,8 @@ pub(super) fn should_try_next_candidate(e: &GatewayError) -> bool {
 }
 
 pub(super) fn should_record_provider_failure(error: &GatewayError) -> bool {
-    error.request_budget_stop_reason().is_none()
+    error.native_transport.is_none()
+        && error.request_budget_stop_reason().is_none()
         && error.kind != crate::error::ErrorKind::ModelCapacity
         && !matches!(
             error.code.as_deref(),
@@ -61,13 +62,23 @@ pub(super) fn retry_policy_for_request(
     if !super::super::request_budget::replay_safe(req) {
         policy.max_retries = 0;
     }
-    if payload.adapter == "gemini_canvas_program_web_reverse_compatible"
-        && matches!(req.endpoint_kind, EndpointKind::ChatCompletions)
+    if payload.adapter == "gemini_canvas_web_reverse_compatible"
+        || (matches!(
+            payload.adapter.as_str(),
+            "gemini_web_compatible" | "gemini_web_reverse_modular_compatible"
+        ) && matches!(
+            req.endpoint_kind,
+            EndpointKind::AudioSpeech
+                | EndpointKind::ImagesGenerations
+                | EndpointKind::ImagesEdits
+                | EndpointKind::MusicGenerations
+                | EndpointKind::VideosGenerations
+        ))
+        || (payload.adapter == "gemini_canvas_program_web_reverse_compatible"
+            && matches!(req.endpoint_kind, EndpointKind::ChatCompletions))
     {
-        // Program text execution already performs its own handle recovery and
-        // can consume the full 300-second operation timeout. Replaying that
-        // entire workflow at the provider layer can keep one request alive for
-        // several additional timeout windows.
+        // Host generations have no idempotency key: a lost response does not prove
+        // that Google did not generate. Program text already owns handle recovery.
         policy.max_retries = 0;
     }
     if payload.adapter == "gemini_canvas_compatible"
@@ -169,6 +180,9 @@ pub(super) fn observe_provider_attempt_metric(
             .map(|error| {
                 if error.code.as_deref() == Some("attempt_cancelled") {
                     return "cancelled";
+                }
+                if error.native_transport.is_some() {
+                    return "native_network";
                 }
                 classify_provider_failure(
                     error.http_status,

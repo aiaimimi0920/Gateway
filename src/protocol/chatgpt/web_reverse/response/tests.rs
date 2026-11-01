@@ -1,4 +1,5 @@
 use super::*;
+use futures::StreamExt;
 
 use crate::protocol::chatgpt::web_reverse::{
     CHATGPT_WEB_BROWSER_CHALLENGE_REQUIRED_CODE, CHATGPT_WEB_SESSION_INVALID_CODE,
@@ -88,6 +89,49 @@ fn accumulate_response_ignores_json_string_status_frames() {
     );
     let response = accumulate_response(body, "gpt-5").expect("canonical");
     assert_eq!(response.text, "Paris");
+}
+
+#[test]
+fn accumulate_response_preserves_explicit_completion_and_failure_status() {
+    let text = "data: {\"message\":{\"author\":{\"role\":\"assistant\"},\"content\":{\"parts\":[\"answer\"]}}}\n\n";
+    for event in [
+        "data: failed\n\n",
+        "data: \"failed\"\n\n",
+        "data: {\"message\":{\"author\":{\"role\":\"assistant\"},\"status\":\"failed\"}}\n\n",
+        "data: {\"error\":{\"message\":\"private-marker\"}}\n\n",
+        "data: {\"type\":\"moderation\",\"moderation_response\":{\"blocked\":true}}\n\n",
+    ] {
+        let error = accumulate_response(&format!("{text}{event}data: [DONE]\n\n"), "exact-model")
+            .unwrap_err();
+        assert!(!error.message.contains("private-marker"));
+    }
+    assert_eq!(
+        accumulate_response(
+            &format!("{text}data: finished_partial_completion\n\ndata: [DONE]\n\n"),
+            "exact-model"
+        )
+        .unwrap()
+        .finish_reason
+        .as_deref(),
+        Some("length")
+    );
+    assert_eq!(
+        accumulate_response(
+            &format!("{text}data: finished_successfully\n\n"),
+            "exact-model"
+        )
+        .unwrap()
+        .finish_reason
+        .as_deref(),
+        Some("stop")
+    );
+    assert_eq!(
+        accumulate_response(text, "exact-model")
+            .unwrap_err()
+            .code
+            .as_deref(),
+        Some("chatgpt_web_incomplete_stream")
+    );
 }
 
 #[test]

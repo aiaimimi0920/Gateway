@@ -3,8 +3,7 @@ use serde_json::Value;
 use crate::error::GatewayError;
 use crate::routing::candidate::ProviderAccountPayload;
 
-pub const AISTUDIO_DEFAULT_APP_URL: &str =
-    "https://ai.studio/apps/fa9cb8e6-4d92-4fb6-a2b1-b947405c22ae";
+pub const AISTUDIO_DEFAULT_APP_URL: &str = "https://aistudio.google.com/prompts/new_chat";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AIStudioWebConfig {

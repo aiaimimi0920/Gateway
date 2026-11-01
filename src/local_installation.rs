@@ -2,6 +2,8 @@
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 
+mod object_defaults;
+
 pub fn configure() -> anyhow::Result<Option<File>> {
     let managed = std::env::var("GATEWAY_DESKTOP_MANAGED").as_deref() == Ok("1");
     let selected =
@@ -37,7 +39,14 @@ pub fn configure() -> anyhow::Result<Option<File>> {
         Err(error) => return Err(error.into()),
     }
     // This runs before constructing Tokio or worker threads.
-    for (key, value) in gateway_local_data::local_environment(&root) {
+    let object_driver = std::env::var("AI_GATEWAY_OBJECT_STORAGE_DRIVER").ok();
+    let object_root = gateway_local_data::env_path("AI_GATEWAY_OBJECT_STORAGE_LOCAL_DIR");
+    for (key, value) in object_defaults::defaults(
+        gateway_local_data::local_environment(&root),
+        explicit_root,
+        object_driver.as_deref(),
+        object_root.as_deref(),
+    ) {
         std::env::set_var(key, value);
     }
     for (key, value) in [

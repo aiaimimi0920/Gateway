@@ -138,6 +138,7 @@ async fn refresh_once(
             &config.refresh_endpoint,
             &refresh_token,
             &config.client_id,
+            cred.payload.adapter == crate::protocol::antigravity::ADAPTER,
         )
         .await;
         match result {

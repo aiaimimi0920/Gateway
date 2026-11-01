@@ -1,4 +1,4 @@
-//! GenerateContent media stays on the selected account's injected Canvas host, never Web composer.
+//! GenerateContent uses the selected account's Canvas HTTP host RPC, never a browser or Web composer.
 use super::*;
 use crate::protocol::gemini::api as surface;
 
@@ -7,6 +7,8 @@ const MAX_INLINE_BYTES: usize = 16 * 1024 * 1024;
 #[path = "canvas_host_generation/inputs.rs"]
 mod inputs;
 pub(super) use inputs::text_request;
+#[path = "canvas_host_generation/http.rs"]
+mod http;
 #[path = "canvas_host_generation/transcription.rs"]
 mod transcription;
 
@@ -347,26 +349,9 @@ impl UpstreamClient {
         timeout: Duration,
     ) -> Result<Value, GatewayError> {
         validate_model_path(model)?;
-        let provider = payload.adapter.as_str();
-        let runtime = gemini_canvas::runtime_from_payload(payload)?;
-        let state_key = resolved_gemini_canvas_browser_runtime_state_object_key(payload, &runtime);
-        let cookie = gemini_canvas::browser_cookie_header(payload);
-        let pool = self.ensure_gemini_canvas_browser_pool(provider).await?;
-        self.execute_gemini_canvas_connected_fetch_json_with_mode(
-            provider,
-            &pool,
-            payload.base_url.trim_end_matches('/'),
-            &runtime.share_id,
-            &state_key,
-            gemini_canvas::browser_cdp_url(payload).as_deref(),
-            cookie.as_deref(),
-            &gemini_canvas::build_text_fetch_url(&runtime, model),
-            body,
-            "canvas_proxy",
-            timeout,
-        )
-        .await
-        .map_err(without_host_replay)
+        self.execute_gemini_canvas_http_host_generate(payload, model, body, timeout)
+            .await
+            .map_err(without_host_replay)
     }
 
     pub(super) async fn execute_gemini_canvas_host_image(
@@ -434,3 +419,7 @@ impl UpstreamClient {
 #[cfg(test)]
 #[path = "canvas_host_generation/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "canvas_host_generation/http_contract_tests.rs"]
+mod http_contract_tests;

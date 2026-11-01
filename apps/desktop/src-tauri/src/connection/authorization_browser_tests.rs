@@ -45,6 +45,23 @@ fn rejects_overlap_and_joins_the_worker_on_exit() {
 }
 
 #[test]
+fn antigravity_allows_only_the_official_google_authorization_endpoint() {
+    assert!(allowed(
+        &Url::parse("https://accounts.google.com/o/oauth2/v2/auth?state=synthetic").unwrap()
+    ));
+    for value in [
+        "http://accounts.google.com/o/oauth2/v2/auth",
+        "https://accounts.google.com.evil.invalid/o/oauth2/v2/auth",
+        "https://accounts.google.com:444/o/oauth2/v2/auth",
+        "https://accounts.google.com/o/oauth2/v2/token",
+        "https://user:secret@accounts.google.com/o/oauth2/v2/auth",
+        "https://accounts.google.com/o/oauth2/v2/auth#fragment",
+    ] {
+        assert!(!allowed(&Url::parse(value).unwrap()), "{value}");
+    }
+}
+
+#[test]
 fn passes_the_url_as_one_argument_without_a_shell() {
     let url = Url::parse(AUTHORIZATION).unwrap();
     let command = browser_command(&url);

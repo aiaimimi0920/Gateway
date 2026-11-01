@@ -20,6 +20,7 @@ fn failure(provider: &str, credential: &str, model: &str) -> db::RecordCredentia
         model: model.into(),
         upstream_status: Some(401),
         upstream_retry_after_ms: None,
+        native_transport: None,
         error_message: Some("invalid API key fixture".into()),
         classification: neuro_gateway::provider_failure::classify_provider_failure(
             Some(401),

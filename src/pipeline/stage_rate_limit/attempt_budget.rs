@@ -2,6 +2,14 @@
 use super::ProviderAttemptGate;
 use crate::error::GatewayError;
 use crate::retry::{execute_deciding, should_retry, RetryAttemptObservation, RetryPolicy};
+#[cfg(test)]
+#[path = "connect_proxy_tests.rs"]
+mod connect_proxy_tests;
+#[path = "connect_recovery.rs"]
+mod connect_recovery;
+#[cfg(test)]
+#[path = "connect_recovery_tests.rs"]
+mod connect_tests;
 
 impl ProviderAttemptGate {
     pub fn check_remaining(&self) -> Result<(), GatewayError> {
@@ -66,6 +74,11 @@ impl ProviderAttemptGate {
         }
     }
     fn prepare_error(&self, error: &GatewayError) -> GatewayError {
+        if error.native_transport.is_some() {
+            // A local egress incident must not open an account/model failure circuit.
+            self.finish_neutral();
+            return error.clone();
+        }
         self.circuit
             .as_ref()
             .map_or_else(|| error.clone(), |circuit| circuit.finish_error(error))
@@ -116,6 +129,7 @@ impl ProviderAttemptGate {
         O: for<'a> FnMut(RetryAttemptObservation<'a>),
     {
         let normal_retries = policy.max_retries;
+        let connect_recovery = connect_recovery::ConnectRecovery::new();
         let mut policy = policy.clone();
         policy.max_retries = (if capacity_only_retry {
             policy.max_retries.max(1)
@@ -123,6 +137,8 @@ impl ProviderAttemptGate {
             policy.max_retries
         })
         .min(self.request_budget.remaining_attempts().saturating_sub(1) as usize);
+        let replay_retries = policy.max_retries;
+        policy.max_retries = policy.max_retries.max(connect_recovery::MAX_RETRIES);
         execute_deciding(
             || {
                 // Native dispatch futures can be large; keep retry-frame moves bounded
@@ -130,7 +146,11 @@ impl ProviderAttemptGate {
                 let future = Box::pin(f());
                 async { future.await.map_err(|error| self.prepare_error(&error)) }
             },
-            || self.admit(),
+            || async {
+                connect_recovery.check()?;
+                self.admit().await?;
+                connect_recovery.check()
+            },
             || self.begin_attempt(),
             |observation| {
                 if let Some(error) = observation.error {
@@ -142,7 +162,12 @@ impl ProviderAttemptGate {
                 observe(observation);
             },
             |error, attempt| {
-                should_retry(error, &policy)
+                if error.native_transport.is_some() {
+                    return connect_recovery.remember(error)
+                        && self.request_budget.allow_connect_readmission(error);
+                }
+                attempt < replay_retries
+                    && should_retry(error, &policy)
                     && if error.kind == crate::error::ErrorKind::ModelCapacity {
                         self.request_budget.claim_capacity_retry(error)
                     } else {
@@ -156,7 +181,8 @@ impl ProviderAttemptGate {
 }
 
 fn provider_failed(error: &GatewayError) -> bool {
-    error.request_budget_stop_reason().is_none()
+    error.native_transport.is_none()
+        && error.request_budget_stop_reason().is_none()
         && !matches!(
             error.code.as_deref(),
             Some(

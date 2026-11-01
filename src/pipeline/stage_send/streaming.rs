@@ -318,11 +318,22 @@ pub(super) async fn send(
                             .await;
                         });
                     } else {
+                        let upstream_failed = budget_for_cb.stopped_reason().is_none()
+                            && (evidenced_failure
+                                || metrics.termination
+                                    == Some(
+                                        crate::upstream::stream::StreamTermination::Interrupted,
+                                    ));
+                        let cause =
+                            crate::pipeline::stage_finalize::StreamFailureCause::from_observation(
+                                budget_for_cb.stopped_reason(),
+                                upstream_failed,
+                            );
                         let failure_message =
                             failure_evidence.lock().clone().unwrap_or_else(|| {
                                 format!(
-                                    "stream terminated before completion ({:?})",
-                                    metrics.termination
+                                    "stream terminated before completion ({:?}); termination_reason={}",
+                                    metrics.termination, cause.label()
                                 )
                             });
                         warn!(req_id = %failure_finalize_snapshot.request_id,
@@ -331,13 +342,7 @@ pub(super) async fn send(
                             duration_ms = metrics.total_duration_ms, "stream failed after handoff");
                         // A local deadline or caller cancellation still finalizes/refunds,
                         // but must not poison provider health or reduce its capacity.
-                        if budget_for_cb.stopped_reason().is_none()
-                            && (evidenced_failure
-                                || metrics.termination
-                                    == Some(
-                                        crate::upstream::stream::StreamTermination::Interrupted,
-                                    ))
-                        {
+                        if upstream_failed {
                             terminal_gate.finish_stream_failure();
                             terminal_gate.release_failed_sticky();
                             state_for_cb.lifecycle.smart_routing.outcome(
@@ -360,12 +365,6 @@ pub(super) async fn send(
                         }
                         terminal_gate.finish_neutral();
                         let state_for_finalize = Arc::clone(&state_for_cb);
-                        let upstream_failed = budget_for_cb.stopped_reason().is_none()
-                            && (evidenced_failure
-                                || metrics.termination
-                                    == Some(
-                                        crate::upstream::stream::StreamTermination::Interrupted,
-                                    ));
                         let finalizer = state_for_finalize
                             .local_runtime
                             .as_ref()
@@ -376,7 +375,7 @@ pub(super) async fn send(
                                 failure_finalize_snapshot,
                                 &state_for_finalize,
                                 &failure_message,
-                                upstream_failed,
+                                cause,
                             )
                             .await;
                         });

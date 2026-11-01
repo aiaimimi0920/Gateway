@@ -175,7 +175,7 @@ async fn successful_sse_is_consumed_as_canonical_stream() {
         )
         .await;
         let response = server.execute().await.expect("SSE response");
-        let UpstreamStreamingResponse::Bytes(mut stream) = response else {
+        let UpstreamStreamingResponse::NativeEvents(mut stream) = response else {
             panic!("expected translated byte stream");
         };
         let rendered = tokio::time::timeout(Duration::from_secs(5), async {
@@ -263,7 +263,7 @@ async fn mime_ows_and_quoted_parameters_preserve_streaming() {
         )
         .await;
         let response = server.execute().await.expect("SSE response");
-        let UpstreamStreamingResponse::Bytes(mut stream) = response else {
+        let UpstreamStreamingResponse::NativeEvents(mut stream) = response else {
             panic!("expected translated byte stream");
         };
         let rendered = tokio::time::timeout(Duration::from_secs(5), async {

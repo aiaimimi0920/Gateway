@@ -63,6 +63,7 @@ pub enum FingerprintAdapter {
     Workbuddy,
     Cpa,
     CpaClaudeCode,
+    Antigravity,
     Session,
 }
 
@@ -75,7 +76,7 @@ impl FingerprintAdapter {
             Self::Workbuddy => RequestClientProfile::Workbuddy,
             Self::Cpa => RequestClientProfile::Cpa,
             Self::CpaClaudeCode => RequestClientProfile::CpaClaudeCode,
-            Self::Session => return None,
+            Self::Session | Self::Antigravity => return None,
         })
     }
 }
@@ -105,6 +106,10 @@ pub enum SpecialAdapter {
     GeminiCanvas,
     ChatgptWeb,
     AistudioWeb,
+    FlowmusicWeb,
+    FlowWeb,
+    StitchWeb,
+    AntigravityOauth,
 }
 
 impl SpecialAdapter {
@@ -116,6 +121,10 @@ impl SpecialAdapter {
             Self::GeminiCanvas => Some("gemini_canvas_web_reverse_compatible"),
             Self::ChatgptWeb => Some("chatgpt_web_reverse_compatible"),
             Self::AistudioWeb => Some("aistudio_web_reverse_compatible"),
+            Self::FlowmusicWeb => Some("producer_compatible"),
+            Self::FlowWeb => Some("flow_web_compatible"),
+            Self::StitchWeb => Some("stitch_web_compatible"),
+            Self::AntigravityOauth => Some(crate::protocol::antigravity::ADAPTER),
         }
     }
 }

@@ -4,7 +4,11 @@ export type ConsoleGeminiAuthFamily =
   | "gemini-canvas"
   | "gemini-canvas-chat"
   | "gemini-business"
-  | "gemini-web";
+  | "gemini-web"
+  | "aistudio-web"
+  | "flowmusic-web"
+  | "flow-web"
+  | "stitch-web";
 
 export type ConsoleGeminiAuthSessionStatus =
   | "pending"
@@ -39,6 +43,8 @@ export type ConsoleGeminiAuthSessionRequest = {
   targetFamily: ConsoleGeminiAuthFamily;
   providerId: string;
   accountLabel?: string;
+  webSessionJson?: string;
+  expectedRevision?: string;
 };
 
 export type ConsoleGeminiAuthSessionResponse = {

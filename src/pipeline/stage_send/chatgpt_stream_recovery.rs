@@ -155,7 +155,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
                     let translated =
                         chatgpt_web::translate_chatgpt_web_stream(upstream, model.to_string());
                     Ok((
-                        UpstreamStreamingResponse::Bytes(Box::pin(translated)),
+                        UpstreamStreamingResponse::NativeEvents(Box::pin(translated)),
                         relay_started_at,
                     ))
                 }
@@ -211,7 +211,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
                     let translated =
                         chatgpt_web::translate_chatgpt_web_stream(upstream, model.to_string());
                     Ok((
-                        UpstreamStreamingResponse::Bytes(Box::pin(translated)),
+                        UpstreamStreamingResponse::NativeEvents(Box::pin(translated)),
                         relay_started_at,
                     ))
                 }
@@ -266,7 +266,7 @@ pub(super) async fn execute_chatgpt_web_stream_with_recovery(
             });
             let translated = chatgpt_web::translate_chatgpt_web_stream(upstream, model.to_string());
             Ok((
-                UpstreamStreamingResponse::Bytes(Box::pin(translated)),
+                UpstreamStreamingResponse::NativeEvents(Box::pin(translated)),
                 relay_started_at,
             ))
         }

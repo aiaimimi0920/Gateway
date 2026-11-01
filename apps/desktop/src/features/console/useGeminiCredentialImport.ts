@@ -5,6 +5,7 @@ import { buildCredentialSecretPatches, type CredentialSecretEdit } from "./crede
 import { applyGeminiGeneratedDraftsToDocument } from "./geminiCredentialDraft";
 import { mergeCredentialSecretEditEntries } from "./secretPatchDraft";
 import { parseRouteDocument } from "./routeDocument";
+import { googleWebAuthFamily } from "./GoogleWebAccountImport";
 import type { useConsoleRouteDraft } from "./useConsoleRouteDraft";
 import type { useConsoleRouteData } from "./useConsoleRouteData";
 import type { useConsoleActionIdentity } from "./useConsoleActionIdentity";
@@ -66,7 +67,11 @@ export function useGeminiCredentialImport({
       if (
         targetFamily !== "gemini-canvas" &&
         targetFamily !== "gemini-canvas-chat" &&
-        targetFamily !== "gemini-web"
+        targetFamily !== "gemini-web" &&
+        targetFamily !== "aistudio-web" &&
+        targetFamily !== "flowmusic-web" &&
+        targetFamily !== "flow-web" &&
+        targetFamily !== "stitch-web"
       ) {
         return false;
       }
@@ -93,7 +98,7 @@ export function useGeminiCredentialImport({
       try {
         const draft = buildCommitRequest(
           document,
-          `Import Gemini manual credentials (${sessionId})`,
+          `Import ${targetFamily} manual credentials (${sessionId})`,
           commitSecretPatches,
         );
         const result = await actionRequest.api.commitRouteConfig(
@@ -108,8 +113,8 @@ export function useGeminiCredentialImport({
         pushAppToast(
           "success",
           t(
-            `Gemini 凭证已导入并保存为激活修订 ${result.routeConfig.revision.id}（${generatedDraftCount} 条）。`,
-            `Gemini credentials were imported and saved as active revision ${result.routeConfig.revision.id} (${generatedDraftCount} entries).`,
+            `${targetFamily} 凭证已导入并保存为激活修订 ${result.routeConfig.revision.id}（${generatedDraftCount} 条）。`,
+            `${targetFamily} credentials were imported and saved as active revision ${result.routeConfig.revision.id} (${generatedDraftCount} entries).`,
           ),
         );
         await refresh();
@@ -169,6 +174,16 @@ export function useGeminiCredentialImport({
       }
 
       try {
+        if (nextSession.targetFamily === "aistudio-web" || nextSession.targetFamily === "flowmusic-web" || nextSession.targetFamily === "flow-web" || nextSession.targetFamily === "stitch-web") {
+          const provider = document.providers.find((entry) => entry && typeof entry === "object"
+            && (entry as Record<string, unknown>).id === nextSession.providerId) as Record<string, unknown> | undefined;
+          const matches = nextSession.targetFamily === "flowmusic-web" ? provider?.preset === "producer"
+            : googleWebAuthFamily(provider?.preset) === nextSession.targetFamily;
+          if (!matches
+            || nextSession.generatedDrafts.some((draft) => draft.providerId !== nextSession.providerId)) {
+            throw new Error(t("导入目标已改变，请重新开始该服务商的登录导入。", "The import target changed; restart sign-in for this provider."));
+          }
+        }
         const generated = applyGeminiGeneratedDraftsToDocument(document, nextSession.generatedDrafts);
         const mergedSecretEdits = mergeCredentialSecretEditEntries(
           credentialSecretEdits,
@@ -196,8 +211,8 @@ export function useGeminiCredentialImport({
           pushAppToast(
             "info",
             t(
-              `Gemini 凭证已写入草稿（${nextSession.generatedDrafts.length} 条），保存路由配置后生效。`,
-              `Gemini credentials were added to the draft (${nextSession.generatedDrafts.length} entries). Save the route config to apply them.`,
+              `${nextSession.targetFamily} 凭证已写入草稿（${nextSession.generatedDrafts.length} 条），保存路由配置后生效。`,
+              `${nextSession.targetFamily} credentials were added to the draft (${nextSession.generatedDrafts.length} entries). Save the route config to apply them.`,
             ),
           );
         });

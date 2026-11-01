@@ -4,6 +4,7 @@ use crate::request_wait::RequestWaitMode;
 use std::io::Write;
 mod identity;
 mod policy;
+mod session;
 
 pub(super) struct WaitingCandidate {
     index: usize,
@@ -72,7 +73,7 @@ pub(super) async fn cancellable<T>(
 ) -> Result<T, GatewayError> {
     tokio::select! {
         biased;
-        _ = state.shutdown.wait() => Err(budget.cancel()),
+        _ = state.shutdown.wait() => Err(budget.cancel_shutdown()),
         _ = async {
             match cancel.as_mut() {
                 Some(cancel) => while !*cancel.borrow_and_update() {
@@ -80,7 +81,7 @@ pub(super) async fn cancellable<T>(
                 },
                 None => std::future::pending().await,
             }
-        } => Err(budget.cancel()),
+        } => Err(budget.cancel_caller()),
         result = future => Ok(result),
     }
 }
@@ -157,8 +158,9 @@ async fn dispatch(
                     .and_then(|s| s.access_key_id.as_deref().or(s.api_key_id.as_deref()))
                     .unwrap_or("anonymous")
             );
-            queue = Some(state.lifecycle.request_waiters.enter(
+            queue = Some(state.lifecycle.request_waiters.enter_session(
                 key,
+                session::waiting_identity(ctx),
                 candidate.provider_account_id.clone(),
                 retained_bytes(ctx, state.local_runtime.is_some())?,
             )?);

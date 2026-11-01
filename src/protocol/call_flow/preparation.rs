@@ -43,6 +43,18 @@ pub fn prepare(payload: &ProviderAccountPayload) -> Result<PreparedCallFlow<'_>,
         });
     };
     let api = is_api_adapter(&payload.adapter);
+    let antigravity = payload.adapter == crate::protocol::antigravity::ADAPTER;
+    if (flow.fingerprint_adapter == FingerprintAdapter::Antigravity && !antigravity)
+        || (antigravity
+            && !matches!(
+                flow.fingerprint_adapter,
+                FingerprintAdapter::Auto | FingerprintAdapter::Antigravity
+            ))
+    {
+        return Err(invalid(
+            "Antigravity requires its dedicated executor-owned fingerprint",
+        ));
+    }
     if flow.special_adapter == SpecialAdapter::None && !api {
         return Err(invalid(
             "special_adapter=none cannot disable a preset-owned product executor",
@@ -68,7 +80,9 @@ pub fn prepare(payload: &ProviderAccountPayload) -> Result<PreparedCallFlow<'_>,
     if !api
         && !matches!(
             flow.fingerprint_adapter,
-            FingerprintAdapter::Auto | FingerprintAdapter::Session
+            FingerprintAdapter::Auto
+                | FingerprintAdapter::Session
+                | FingerprintAdapter::Antigravity
         )
     {
         return Err(invalid(

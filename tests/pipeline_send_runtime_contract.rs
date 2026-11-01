@@ -20,6 +20,12 @@ mod fixture;
 mod html_diagnostic;
 #[path = "pipeline_send_runtime/model_circuit.rs"]
 mod model_circuit;
+#[path = "pipeline_send_runtime/model_pricing.rs"]
+mod model_pricing;
+#[path = "pipeline_send_runtime/model_pricing_smart.rs"]
+mod model_pricing_smart;
+#[path = "pipeline_send_runtime/model_pricing_stream.rs"]
+mod model_pricing_stream;
 #[path = "pipeline_send_runtime/recovery_admission.rs"]
 mod recovery_admission;
 #[path = "pipeline_send_runtime/rejected_channel.rs"]

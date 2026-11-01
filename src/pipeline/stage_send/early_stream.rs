@@ -59,8 +59,14 @@ pub(super) async fn check(mut stream: ByteStream) -> Result<ByteStream, GatewayE
                             .or_else(|| error.get("type"))
                             .and_then(|v| v.as_str())
                             .unwrap_or("");
-                        // Keep the structured balance message intact for the narrow admission classifier.
-                        if crate::error::is_account_balance_rejection(403, message) {
+                        // Keep known admission messages intact for their narrow classifiers.
+                        if crate::error::is_account_balance_rejection(403, message)
+                            || crate::error::is_model_pricing_failure(
+                                502,
+                                Some(code),
+                                Some(message),
+                            )
+                        {
                             return Err(classify(message, code));
                         }
                         return Err(classify(&format!("{code}: {message}"), code));
@@ -128,8 +134,9 @@ fn classify(message: &str, code: &str) -> GatewayError {
     // errors must not acquire the non-idempotent admission-rejection allowance.
     let model_missing = code == "model_not_found";
     let balance_rejected = crate::error::is_account_balance_rejection(403, message);
+    let pricing_rejected = crate::error::is_model_pricing_failure(502, Some(code), Some(message));
     let body = serde_json::json!({"error": {"message": message,
-        "code": if model_missing { "model_not_found" } else if code == "get_channel_failed" { code } else { "upstream_stream_error" }}});
+        "code": if model_missing { "model_not_found" } else if code == "get_channel_failed" || pricing_rejected { code } else { "upstream_stream_error" }}});
     let mut error = crate::error::classify_upstream_error(
         // SSE has HTTP 200; synthesize the semantic admission status only before handoff.
         if model_missing {

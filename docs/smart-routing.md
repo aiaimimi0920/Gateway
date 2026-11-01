@@ -133,3 +133,26 @@ provider/model 白名单。授权成员全部停用或暂不可用时返回
 
 该服务商级状态同样只在当前进程内保存；它并不代表上游已经解封 IP。具体检查与
 边界见 [本轮修复记录](progress/2026-10-25-provider-ip-block-recovery.md)。
+
+## 上游计费表达式编译失败（2026-11-02）
+
+中转站可能用 HTTP 400 返回 `model_price_error`，主错误消息形如
+`model <model> tiered expr run failed: expr compile error: ...`。这种已识别的
+预计费拒绝属于上游配置故障，不是调用方参数错误。共用 HTTP 错误分类将其记为
+`ServerError`，保留原 status/code/provider 和脱敏消息，不重试同一失败候选，
+而是继续本请求已有的智能排序候选队列。健康反馈为非永久的
+`ProviderTransient / CredentialModel`，沿既有可用性评分、失败黏性释放和模型熔断
+机制处理，不把账号标为永久凭据失效。
+
+识别仅接受 HTTP 400/500/502/503、主错误消息的有界固定前缀，以及匹配的
+`model_price_error` 或缺失 code。其他明确的认证/参数 code 优先；仅自报 code、
+prompt 中的引文或任意 JSON 字段不能获得安全重放资格。OpenAI 兼容 SSE 在响应
+移交前的同类结构化错误也会进入该分类；已经输出或移交的流绝不切换重放。
+
+Chat/Responses 的工具声明不阻止这种明确拒绝后的候选切换，但仍受原请求截止时间、
+总计最多 6 次发送、已授权账号/分组/模型及所有现有准入限制约束；媒体创建不新增
+重放权限。不改变用户请求模型，也不将普通 400 泛化为自动重试。没有合规可用候选
+时仍返回真实失败，而不是伪装为生成成功或绕过白名单。
+
+根因、发送前拒绝依据与验收结果见
+[本轮修复记录](progress/2026-11-02-model-pricing-fallback.md)。

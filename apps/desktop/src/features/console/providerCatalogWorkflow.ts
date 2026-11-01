@@ -21,6 +21,10 @@ export const SPECIAL_ADAPTERS = {
   gemini_canvas: ["Gemini Canvas", "Gemini Canvas", "gemini-canvas-browser-relay"],
   chatgpt_web: ["ChatGPT Web", "ChatGPT Web", "chatgpt-web-reverse"],
   aistudio_web: ["AI Studio Web", "AI Studio Web", "aistudio-web-reverse"],
+  flowmusic_web: ["FlowMusic Web", "FlowMusic Web", "producer"],
+  flow_web: ["Google Flow Web", "Google Flow Web", "flow-web"],
+  stitch_web: ["Google Stitch Web", "Google Stitch Web", "stitch-web"],
+  antigravity_oauth: ["Antigravity OAuth", "Antigravity OAuth", "antigravity-oauth"],
 } as const;
 export type SpecialAdapter = keyof typeof SPECIAL_ADAPTERS;
 export type CatalogWorkflow = {
@@ -58,6 +62,10 @@ export function compatibleCatalogDrivers(drivers: readonly ConsoleCredentialPool
 export function defaultCatalogWorkflow(template: ProviderCatalogTemplate): CatalogWorkflow {
   const special = Object.entries(SPECIAL_ADAPTERS).find(([, value]) => value[2] === template.preset)?.[0];
   const testPolicy = defaultTestPolicy();
+  if (template.id === "flowmusic-web") {
+    testPolicy.modelSelection = "selected"; testPolicy.models = ["producer:standard"];
+    testPolicy.cases = [{ id: "music", name: "音乐生成", prompt: "Generate a short original instrumental music track with gentle piano and no vocals.", expectedAnswer: null, difficulty: 1, enabled: true }];
+  }
   // 仅保留文档示例作为用户主动测试的单模型目标，不批量探测目录。
   if (["mistral-api", "xai-api", "deepseek-api", "perplexity-api"].includes(template.id)) {
     testPolicy.modelSelection = "selected"; testPolicy.models = [template.id === "perplexity-api" ? "sonar" : template.id === "deepseek-api" ? "deepseek-flash" : template.id === "xai-api" ? "grok-4.7" : "mistral-large-latest"];

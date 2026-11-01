@@ -256,7 +256,8 @@ aliases: {}
 
     for (credential_id, expected_fragment) in [
         ("disabled-credential", "disabled"),
-        ("unknown-provider::default", "gemini_web_compatible"),
+        // Gemini Web now supports explicit model tests; this fixture has no model configured.
+        ("unknown-provider::default", "No configured model"),
         ("browser-provider::default", "browser-backed"),
         ("fixed-provider::default", "fixed-model"),
     ] {
@@ -265,9 +266,12 @@ aliases: {}
         let body = parse_json(response).await;
         assert_eq!(body["result"]["credentialId"], credential_id);
         assert_eq!(body["result"]["status"], "unsupported");
-        assert!(body["result"]["message"]
-            .as_str()
-            .is_some_and(|message| message.contains(expected_fragment)));
+        assert!(
+            body["result"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected_fragment)),
+            "{credential_id}: {body}"
+        );
     }
 }
 

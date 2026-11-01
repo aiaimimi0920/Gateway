@@ -147,7 +147,7 @@ async fn live_sse_produces_text_before_body_completion() {
     .await
     .expect("stream headers")
     .expect("stream");
-    let UpstreamStreamingResponse::Bytes(mut stream) = response else {
+    let UpstreamStreamingResponse::NativeEvents(mut stream) = response else {
         panic!("translated stream")
     };
     tokio::time::timeout(Duration::from_secs(5), async {

@@ -7,7 +7,11 @@ pub use nvidia_catalog::{
     read_groq_model_catalog, read_nvidia_model_catalog, read_openai_model_catalog,
     read_openrouter_model_catalog, read_poe_model_catalog,
 };
+mod antigravity_oauth;
 mod chatgpt_oauth;
+pub use antigravity_oauth::{
+    act_antigravity_oauth, create_antigravity_oauth, get_antigravity_oauth,
+};
 mod chatgpt_web_browser;
 mod chatgpt_web_login;
 pub use chatgpt_catalog::read_chatgpt_model_catalog;
@@ -97,13 +101,17 @@ pub struct ValidateRouteConfigRequest {
     pub secret_patches: Vec<SecretPatch>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateGeminiAuthSessionRequest {
     pub target_family: GeminiAuthFamily,
     pub provider_id: String,
     #[serde(default)]
     pub account_label: Option<String>,
+    #[serde(default)]
+    pub web_session_json: Option<String>,
+    #[serde(default)]
+    pub expected_revision: Option<String>,
 }
 
 pub type CredentialProbeResponse = crate::provider_runtime::test_results::TestRunResult;
@@ -130,7 +138,7 @@ pub async fn create_gemini_auth_session(
     Json(body): Json<CreateGeminiAuthSessionRequest>,
 ) -> Result<Response, GatewayError> {
     let request = console_request_context(&headers, connect_info.as_ref());
-    state.console_auth.authenticate_management_token(
+    let actor = state.console_auth.authenticate_management_token(
         &request,
         required_console_management_token(token.as_deref(), &headers)?,
     )?;
@@ -141,11 +149,73 @@ pub async fn create_gemini_auth_session(
                 .with_code("console_gemini_auth_provider_required"),
         );
     }
-    let session = gemini_auth_session_manager().create_session(CreateGeminiAuthSessionInput {
+    let snapshot = state.route_config.snapshot();
+    let provider = snapshot
+        .document()
+        .providers
+        .iter()
+        .find(|provider| provider.id == provider_id)
+        .ok_or_else(|| GatewayError::not_found("网页登录导入的目标服务商不存在。"))?;
+    if !body
+        .target_family
+        .matches_provider_preset(provider.preset.as_deref().unwrap_or_default())
+    {
+        return Err(
+            GatewayError::bad_request("网页登录导入类型与目标服务商模板不匹配。")
+                .with_code("console_web_auth_provider_mismatch"),
+        );
+    }
+    if body
+        .account_label
+        .as_deref()
+        .is_some_and(|label| label.chars().count() > 128 || label.chars().any(char::is_control))
+    {
+        return Err(GatewayError::bad_request(
+            "账号名称不能超过 128 个字符或包含控制字符。",
+        ));
+    }
+    let input = CreateGeminiAuthSessionInput {
         target_family: body.target_family,
         provider_id: provider_id.to_string(),
         account_label: body.account_label,
-    });
+    };
+    let session = if let Some(source) = body.web_session_json {
+        state.console_auth.verify_secret_grant(
+            &request,
+            &actor,
+            headers
+                .get("x-secret-grant")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or_default(),
+        )?;
+        if body.expected_revision.as_deref() != Some(snapshot.revision().id()) {
+            return Err(GatewayError::conflict("配置已改变，请重新打开账号导入。"));
+        }
+        let origin = match input.target_family {
+            GeminiAuthFamily::AistudioWeb => "https://aistudio.google.com",
+            GeminiAuthFamily::FlowmusicWeb => "https://www.flowmusic.app",
+            GeminiAuthFamily::FlowWeb => "https://flow.google.com",
+            GeminiAuthFamily::StitchWeb => "https://stitch.withgoogle.com",
+            _ => "https://gemini.google.com",
+        };
+        if provider.base_url.trim_end_matches('/') != origin {
+            return Err(GatewayError::bad_request(
+                "网页 JSON 导入仅支持对应服务的官方地址。",
+            ));
+        }
+        if input.target_family == GeminiAuthFamily::FlowmusicWeb {
+            crate::console::gemini_auth_sessions::import_flowmusic_session(input, &source).await?
+        } else {
+            crate::console::google_web_json::import(input, &source).await?
+        }
+    } else {
+        if body.expected_revision.is_some() {
+            return Err(GatewayError::bad_request(
+                "网页 JSON 导入缺少 webSessionJson；不会回退到网页登录。",
+            ));
+        }
+        gemini_auth_session_manager().create_session(input)
+    };
     Ok(json_with_no_store(
         serde_json::json!({ "session": session }),
     ))

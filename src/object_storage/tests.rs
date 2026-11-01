@@ -4,6 +4,39 @@ use uuid::Uuid;
 
 mod s3;
 
+#[tokio::test]
+async fn caller_read_limit_is_enforced_without_changing_default_reads() {
+    let root = std::env::temp_dir().join(format!("canvas-object-read-limit-{}", Uuid::new_v4()));
+    let storage = GatewayObjectStorage {
+        driver: ObjectStorageDriver::Local { root: root.clone() },
+    };
+    storage
+        .put_bytes("state.json", b"synthetic".to_vec(), "application/json")
+        .await
+        .unwrap();
+    assert_eq!(
+        storage
+            .read_bytes_with_limit("state.json", 9)
+            .await
+            .unwrap(),
+        b"synthetic"
+    );
+    assert_eq!(
+        storage
+            .read_bytes_with_limit("state.json", 8)
+            .await
+            .unwrap_err()
+            .code
+            .as_deref(),
+        Some("object_storage_object_too_large")
+    );
+    assert_eq!(
+        storage.read_bytes("state.json").await.unwrap(),
+        b"synthetic"
+    );
+    std::fs::remove_dir_all(root).unwrap();
+}
+
 #[test]
 fn choose_storage_mode_uses_inline_for_small_payloads() {
     let payload = serde_json::json!({

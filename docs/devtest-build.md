@@ -69,6 +69,16 @@ Rust 后端/桌面由 Cargo 的依赖指纹和增量缓存决定重编，不手�
 日常只跑本次改动关联的检查；包完整性必查。启动相关改动及首次流程验证使用临时
 数据目录进行隔离启动。未经授权不跑付费服务商测试，不反复全量回归。
 
+## AI Studio 手测依赖
+
+需要包含 AI Studio HTTP proof helper 时，构建宿主可显式设置绝对目录
+`GATEWAY_AISTUDIO_RUNTIME_DIR` 后执行上述手测打包入口。该目录必须包含
+`runtime-manifest.json`，固定上游版本、当前 `tools/aistudio-proof` 源码摘要、helper
+与许可证文件的大小／SHA256；缺失、漂移、符号链接或越界路径均阻止出包。
+最终载荷位于 `scripts/aistudio-http/runtime` 并纳入包校验，不导入 Cookie 或浏览器状态。
+不设置此变量时维持原打包行为，不声称包内含 helper。Node >=22.22.0 和 MP3 可选的
+ffmpeg 仍使用宿主安装；不自动安装、升级或分发编码器。
+
 ## 正式发布
 
 ```powershell

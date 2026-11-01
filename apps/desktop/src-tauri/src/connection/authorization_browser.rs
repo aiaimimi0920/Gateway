@@ -1,4 +1,4 @@
-//! Only the official ChatGPT authorization endpoint may leave the console WebView.
+//! Only explicitly allowlisted official OAuth authorization endpoints may leave the WebView.
 use std::{
     process::{Command, Stdio},
     sync::{
@@ -25,9 +25,12 @@ struct Launch {
 fn allowed(url: &Url) -> bool {
     url.as_str().len() <= 8192
         && url.scheme() == "https"
-        && url.host_str() == Some("auth.openai.com")
+        && matches!(
+            (url.host_str(), url.path()),
+            (Some("auth.openai.com"), "/oauth/authorize")
+                | (Some("accounts.google.com"), "/o/oauth2/v2/auth")
+        )
         && url.port_or_known_default() == Some(443)
-        && url.path() == "/oauth/authorize"
         && url.username().is_empty()
         && url.password().is_none()
         && url.fragment().is_none()

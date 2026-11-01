@@ -1,6 +1,8 @@
 #[path = "provider_account_probe.rs"]
 mod account_probe;
 mod anthropic_model_probe;
+mod antigravity_model_probe;
+mod chatgpt_web_model_probe;
 mod codex_model_probe;
 mod cohere_model_probe;
 mod console_model_probe;

@@ -8,6 +8,7 @@ type GeminiManualAddDialogState = {
   providerId: string;
   session: ConsoleGeminiAuthSession | null;
   busy: boolean;
+  importMethod?: "browser" | "json";
 };
 
 type GeminiManualAddSessionOptions = {
@@ -16,10 +17,11 @@ type GeminiManualAddSessionOptions = {
   applyGeminiManualAddSessionResult: (session: ConsoleGeminiAuthSession) => void;
   setError: (error: string | null) => void;
   t: (zh: string, en: string) => string;
+  jsonImportContext?: { revision?: string; secretGrant: string | null };
 };
 
 export function useGeminiManualAddSession({
-  api, managementToken, applyGeminiManualAddSessionResult, setError, t,
+  api, managementToken, applyGeminiManualAddSessionResult, setError, t, jsonImportContext,
 }: GeminiManualAddSessionOptions) {
   const [geminiManualAddDialogState, setGeminiManualAddDialogState] =
     useState<GeminiManualAddDialogState | null>(null);
@@ -28,6 +30,12 @@ export function useGeminiManualAddSession({
   const lifecycleGeneration = useRef(0);
   const responseSequence = useRef(0);
   const completionPending = useRef(false);
+  const jsonContext = useRef(jsonImportContext);
+  const jsonContextEpoch = useRef(0);
+  useLayoutEffect(() => {
+    jsonContext.current = jsonImportContext;
+    jsonContextEpoch.current += 1;
+  }, [jsonImportContext?.revision, jsonImportContext?.secretGrant]);
 
   // Closing, replacing the host/session, or unmounting invalidates pending results.
   useLayoutEffect(() => {
@@ -152,10 +160,15 @@ export function useGeminiManualAddSession({
   }, []);
 
   const openGeminiManualAddDialog = useCallback(
-    async (targetFamily: ConsoleGeminiAuthFamily, providerId: string) => {
+    async (targetFamily: ConsoleGeminiAuthFamily, providerId: string, accountLabel?: string, webSessionJson?: string) => {
       if (!managementToken) {
         setError(t("当前没有可用的 Gateway 管理密钥。", "Gateway management token is unavailable."));
         return;
+      }
+      const context = jsonContext.current;
+      const contextEpoch = jsonContextEpoch.current;
+      if (webSessionJson !== undefined && (!context?.revision || !context.secretGrant)) {
+        setError(t("请确认敏感信息访问权限并刷新配置后重试。", "Confirm secret access and refresh configuration first.")); return;
       }
 
       const generation = ++lifecycleGeneration.current;
@@ -170,19 +183,33 @@ export function useGeminiManualAddSession({
         providerId,
         session: null,
         busy: true,
+        importMethod: webSessionJson === undefined ? "browser" : "json",
       });
 
       try {
-        const response = await api.createGeminiAuthSession(managementToken, {
+        const request = {
           targetFamily,
           providerId,
-        });
+          ...(accountLabel ? { accountLabel } : {}),
+        };
+        const response = webSessionJson === undefined ? await api.createGeminiAuthSession(managementToken, request)
+          : await api.createGeminiAuthSession(managementToken, { ...request, webSessionJson, expectedRevision: context!.revision }, context!.secretGrant!);
         if (generation !== lifecycleGeneration.current) return;
+        if (webSessionJson !== undefined && (contextEpoch !== jsonContextEpoch.current
+          || response.session.providerId !== providerId || response.session.targetFamily !== targetFamily)) {
+          setGeminiManualAddDialogState(null); setError(t("导入目标、配置或授权已改变，请重新导入。", "Import target, revision or access changed; import again.")); return;
+        }
+        // Offline imports are one-shot drafts, never managed browser sessions to poll.
+        if (webSessionJson !== undefined && (response.session.status !== "succeeded" || response.session.generatedDrafts.length === 0
+          || response.session.generatedDrafts.some(draft => draft.providerId !== providerId))) {
+          setGeminiManualAddDialogState(null); setError(t("网页 JSON 未返回有效的目标账号草稿，请重新导入。", "Web JSON did not return a valid target account draft; import again.")); return;
+        }
         setGeminiManualAddDialogState({
           targetFamily,
           providerId,
           session: response.session,
           busy: false,
+          importMethod: webSessionJson === undefined ? "browser" : "json",
         });
         if (isGeminiAuthSessionTerminal(response.session.status)) {
           applyGeminiManualAddSessionResult(response.session);
@@ -192,6 +219,7 @@ export function useGeminiManualAddSession({
       } catch (cause) {
         if (generation !== lifecycleGeneration.current) return;
         setGeminiManualAddDialogState(null);
+        if (webSessionJson !== undefined && contextEpoch !== jsonContextEpoch.current) return;
         setError(cause instanceof Error ? cause.message : String(cause));
       }
     },

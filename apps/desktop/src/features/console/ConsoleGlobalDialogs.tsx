@@ -7,6 +7,8 @@ import { CredentialDialog } from "./CredentialDialog";
 import { useCredentialKeyReveal } from "./useCredentialKeyReveal";
 import { useChatgptWebBrowserCapture } from "./useChatgptWebBrowserCapture";
 import { ChatgptOAuthPanel } from "./ChatgptOAuthPanel";
+import { GoogleWebAccountImport, googleWebAuthFamily } from "./GoogleWebAccountImport";
+import { FlowmusicAccountImport } from "./FlowmusicAccountImport";
 import { GeminiManualAddDialog } from "./GeminiManualAddDialog";
 import { PilotActionDialog } from "./PilotActionDialog";
 import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
@@ -41,6 +43,7 @@ type ConsoleGlobalDialogsProps = {
     | "applyProviderCatalogDraft"
     | "applyProviderProbeSchedule"
     | "closeGeminiManualAddDialog"
+    | "openGeminiManualAddDialog"
     | "closePilotActionDialog"
     | "credentialDialogState"
     | "client"
@@ -133,6 +136,8 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
     credentialDialogState?.initialValue?.providerId, credentialDialogState?.initialValue?.credentialId);
   const captureWebBrowser = useChatgptWebBrowserCapture(controller.client, session.managementToken,
     session.secretGrant?.grant ?? null, controller.routeConfig?.routeConfig.revision.id, editorLocked || draftDirty);
+  const credentialProvider = (id: string) => controller.draftDocumentState.document?.providers.find((p) =>
+    !!p && typeof p === "object" && (p as Record<string, unknown>).id === id) as Record<string, unknown> | undefined;
 
   useEffect(() => { if (secretDialogOpen && session.secretGrant) setSecretDialogOpen(false); }, [secretDialogOpen, session.secretGrant, setSecretDialogOpen]);
 
@@ -186,6 +191,7 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
           providerOptions={credentialProviderOptions}
           supportsBasispoints={(id) => isCodexProvider(controller.draftDocumentState.document?.providers.find((p) => !!p && typeof p === "object" && (p as Record<string,unknown>).id === id))}
           supportsWebSession={(id) => controller.draftDocumentState.document?.providers.some((p) => !!p && typeof p === "object" && (p as Record<string, unknown>).id === id && (p as Record<string, unknown>).preset === "chatgpt-web-reverse") ?? false}
+          managedWebProvider={(id) => googleWebAuthFamily(credentialProvider(id)?.preset) !== null || credentialProvider(id)?.preset === "producer"}
           existingCredentialIds={explicitCredentialIds}
           initialValue={credentialDialogState.initialValue}
           locked={editorLocked}
@@ -211,10 +217,26 @@ export function ConsoleGlobalDialogs({ controller }: ConsoleGlobalDialogsProps) 
           }}
           onRevealKey={revealCredentialKey}
           onCaptureWebBrowser={captureWebBrowser}
-          renderAuthentication={(providerId) => controller.routeConfig?.routeConfig.document.providers.some((provider) =>
-            typeof provider === "object" && provider !== null && "id" in provider && "preset" in provider &&
-            provider.id === providerId && provider.preset === "chatgpt-codex-oauth-official-api") ? (
+          renderAuthentication={(providerId) => credentialProvider(providerId)?.preset === "producer" ? (
+            <FlowmusicAccountImport providerId={providerId} disabled={editorLocked || draftDirty || !draftMatchesActiveRevision}
+              hasSecretAccess={hasSecretAccess} onRequestSecretAccess={() => setSecretDialogOpen(true)}
+              onStart={(family, id, label) => { setCredentialDialogState(null); void controller.openGeminiManualAddDialog(family, id, label); }}
+              onImportJson={(family, id, label, source) => { setCredentialDialogState(null); void controller.openGeminiManualAddDialog(family, id, label, source); }} />
+          ) : googleWebAuthFamily(credentialProvider(providerId)?.preset) ? (
+            <GoogleWebAccountImport preset={credentialProvider(providerId)?.preset} providerId={providerId}
+              disabled={editorLocked || draftDirty || !draftMatchesActiveRevision}
+              hasSecretAccess={hasSecretAccess} onRequestSecretAccess={() => setSecretDialogOpen(true)}
+              onImportJson={(family, id, label, source) => {
+                setCredentialDialogState(null);
+                void controller.openGeminiManualAddDialog(family, id, label, source);
+              }}
+              onStart={(family, id, label) => {
+                setCredentialDialogState(null);
+                void controller.openGeminiManualAddDialog(family, id, label);
+              }} />
+          ) : ["chatgpt-codex-oauth-official-api", "antigravity-oauth"].includes(String(credentialProvider(providerId)?.preset)) ? (
               <ChatgptOAuthPanel client={controller.client} providerId={providerId}
+                kind={credentialProvider(providerId)?.preset === "antigravity-oauth" ? "antigravity" : "chatgpt"}
                 managementToken={session.managementToken} secretGrant={session.secretGrant?.grant ?? null}
                 disabled={editorLocked || draftDirty} onRequestSecretAccess={async () => {
                   if (!session.managementToken) throw new Error(t("管理会话不可用，请重新连接。", "Management session unavailable; reconnect."));

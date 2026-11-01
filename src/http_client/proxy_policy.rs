@@ -104,7 +104,11 @@ fn resolve_addresses(environment: Addresses, enabled: bool, server: Option<&str>
 }
 
 fn resolve_bypass(environment: Option<String>, system: Option<String>) -> Option<NoProxy> {
-    let raw = environment.or_else(|| {
+    bypass_text(environment, system).map(|value| NoProxy::from_string(&value).unwrap_or_default())
+}
+
+fn bypass_text(environment: Option<String>, system: Option<String>) -> Option<String> {
+    environment.or_else(|| {
         system.map(|value| {
             value
                 .split(';')
@@ -113,8 +117,7 @@ fn resolve_bypass(environment: Option<String>, system: Option<String>) -> Option
                 .join(",")
                 .replace("*.", "")
         })
-    });
-    raw.map(|value| NoProxy::from_string(&value).unwrap_or_default())
+    })
 }
 
 #[cfg(windows)]
@@ -175,7 +178,7 @@ fn apply(
     builder
 }
 
-pub(super) fn configure(builder: ClientBuilder) -> ClientBuilder {
+fn frozen_addresses() -> &'static Addresses {
     // 与旧客户端相同：代理地址在首次构造时冻结，bypass 每次构造读取。
     static ADDRESSES: LazyLock<Addresses> = LazyLock::new(|| {
         platform_addresses(environment_addresses(
@@ -183,17 +186,25 @@ pub(super) fn configure(builder: ClientBuilder) -> ClientBuilder {
             std::env::var_os("REQUEST_METHOD").is_some(),
         ))
     });
+    &ADDRESSES
+}
+
+pub(super) fn configure(builder: ClientBuilder) -> ClientBuilder {
+    let addresses = frozen_addresses();
     // macOS 无环境代理时继续委托平台实现；本轮仅验收 Windows/Linux 代理来源合同。
     #[cfg(target_os = "macos")]
-    if ADDRESSES.is_empty() {
+    if addresses.is_empty() {
         return builder;
     }
     let environment = std::env::var("NO_PROXY")
         .or_else(|_| std::env::var("no_proxy"))
         .ok();
     let system = environment.is_none().then(platform_bypass).flatten();
-    apply(builder, &ADDRESSES, resolve_bypass(environment, system))
+    apply(builder, addresses, resolve_bypass(environment, system))
 }
+
+#[cfg(feature = "cpa-rust-transport")]
+pub(crate) mod native;
 
 #[cfg(test)]
 #[path = "proxy_policy_tests.rs"]

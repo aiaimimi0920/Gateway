@@ -143,4 +143,5 @@ pub(crate) fn is_explicit_admission_rejection(error: &GatewayError) -> bool {
             && error.code.as_deref() == Some("system_cpu_overloaded"))
         || is_provider_ip_block(error)
         || super::is_channel_unavailable(error)
+        || super::model_pricing::is_admission_rejection(error)
 }

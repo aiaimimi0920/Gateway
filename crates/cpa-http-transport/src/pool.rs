@@ -1,5 +1,5 @@
 //! Bounded origin pool. HTTP/1 owns its slot through EOF; HTTP/2 multiplexes.
-use crate::{dial, wire, Error, Result};
+use crate::{dial, wire, Error, Profile, Result};
 use http::{Request, Response, Uri};
 use hyper_util::client::proxy::matcher::Matcher;
 use rama_boring::ssl::SslConnector;
@@ -84,6 +84,7 @@ impl Pool {
         mut request: Request<rquest::Body>,
         tls: &SslConnector,
         proxy: &Matcher,
+        profile: Profile,
         admission: OwnedSemaphorePermit,
     ) -> Result<(Response<Incoming>, Lease)> {
         let key = format!(
@@ -133,7 +134,7 @@ impl Pool {
         if guard.is_none() {
             // A managed response can be long-lived, but DNS/TCP/TLS setup cannot hang forever.
             *guard = Some(
-                tokio::time::timeout(Duration::from_secs(15), open(origin, tls, proxy))
+                tokio::time::timeout(Duration::from_secs(15), open(origin, tls, proxy, profile))
                     .await
                     .map_err(|_| Error::Timeout)??,
             );
@@ -148,7 +149,7 @@ impl Pool {
             _admission: admission,
             body_complete: false,
         };
-        wire::prepare(&mut request, matches!(conn.sender, Sender::H2(_)))?;
+        wire::prepare_profile(&mut request, matches!(conn.sender, Sender::H2(_)), profile)?;
         match &mut conn.sender {
             Sender::H1(_) => {
                 let mut pending = H1Pending(Some(guard));
@@ -196,8 +197,13 @@ async fn idle(mut activity: watch::Receiver<(usize, Instant)>) {
     }
 }
 
-async fn open(origin: &Uri, tls: &SslConnector, proxy: &Matcher) -> Result<Connection> {
-    let (io, h2) = dial::connect(origin, tls, proxy).await?;
+async fn open(
+    origin: &Uri,
+    tls: &SslConnector,
+    proxy: &Matcher,
+    profile: Profile,
+) -> Result<Connection> {
+    let (io, h2) = dial::connect(origin, tls, proxy, profile).await?;
     let (activity, receiver) = watch::channel((0, Instant::now()));
     let (sender, driver) = if h2 {
         let (sender, conn) = http2::Builder::new(TokioExecutor)

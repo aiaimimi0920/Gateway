@@ -1,5 +1,5 @@
 //! Verified TLS and bounded CONNECT. Proxy credentials never enter origin headers.
-use crate::{Error, Result};
+use crate::{Error, Profile, Result};
 use http::Uri;
 use hyper_util::client::proxy::matcher::Matcher;
 use rama_boring::{
@@ -13,7 +13,7 @@ pub(crate) trait Socket: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> Socket for T {}
 pub(crate) type Io = Box<dyn Socket>;
 
-pub(crate) fn connector(extra_ca: Option<&Path>) -> Result<SslConnector> {
+pub(crate) fn connector(extra_ca: Option<&Path>, profile: Profile) -> Result<SslConnector> {
     let mut builder = SslConnector::builder(SslMethod::tls_client()).map_err(|_| Error::Trust)?;
     let roots = rustls_native_certs::load_native_certs();
     if roots.certs.is_empty() {
@@ -43,7 +43,7 @@ pub(crate) fn connector(extra_ca: Option<&Path>) -> Result<SslConnector> {
                 .map_err(|_| Error::Trust)?;
         }
     }
-    gateway_cpa_tls_profile::configure_context(&mut builder).map_err(|_| Error::Trust)?;
+    profile.context(&mut builder).map_err(|_| Error::Trust)?;
     Ok(builder.build())
 }
 
@@ -51,6 +51,7 @@ pub(crate) async fn connect(
     target: &Uri,
     tls: &SslConnector,
     proxies: &Matcher,
+    profile: Profile,
 ) -> Result<(Io, bool)> {
     let proxy = proxies.intercept(target);
     let endpoint = proxy.as_ref().map_or(target, |p| p.uri());
@@ -78,7 +79,7 @@ pub(crate) async fn connect(
     if let Some(proxy) = proxy.as_ref() {
         if scheme == "https" {
             // Verify the proxy independently before the inner origin TLS handshake.
-            io = tls_stream(io, tls, host).await?.0;
+            io = tls_stream(io, tls, host, profile).await?.0;
         }
         match scheme {
             "http" | "https" => crate::proxy::connect(&mut io, target, proxy.basic_auth()).await?,
@@ -89,15 +90,20 @@ pub(crate) async fn connect(
     if target.scheme_str() == Some("http") {
         return Ok((io, false));
     }
-    tls_stream(io, tls, target.host().ok_or(Error::Target)?).await
+    tls_stream(io, tls, target.host().ok_or(Error::Target)?, profile).await
 }
 
-async fn tls_stream(io: Io, tls: &SslConnector, host: &str) -> Result<(Io, bool)> {
+async fn tls_stream(
+    io: Io,
+    tls: &SslConnector,
+    host: &str,
+    profile: Profile,
+) -> Result<(Io, bool)> {
     let mut ssl = tls
         .configure()
         .and_then(|c| c.into_ssl(Some(host.trim_matches(['[', ']']))))
         .map_err(|_| Error::Trust)?;
-    gateway_cpa_tls_profile::configure_connection(&mut ssl).map_err(|_| Error::Trust)?;
+    profile.connection(&mut ssl).map_err(|_| Error::Trust)?;
     let stream = rama_boring_tokio::SslStreamBuilder::new(ssl, io)
         .connect()
         .await

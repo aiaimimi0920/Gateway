@@ -114,6 +114,7 @@ pub(super) async fn finish(
     let passed = result.reply.is_ok();
     if let Some(id) = recording.audit.as_deref() {
         let input = db::FinalizeRequestAuditInput {
+            client_disconnected: false,
             status: if passed { "completed" } else { "failed" }.into(),
             upstream_status: result.status,
             duration_ms: elapsed.as_millis().min(u64::MAX as u128) as u64,

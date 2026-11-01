@@ -34,7 +34,7 @@ async fn run(http: &Client, base: &str, account: &str, streaming: bool) {
     let mut request = make_request();
     request.stream = streaming;
     if streaming {
-        let UpstreamStreamingResponse::Bytes(mut stream) = execute_stream(
+        let UpstreamStreamingResponse::NativeEvents(mut stream) = execute_stream(
             http,
             Duration::from_secs(5),
             &payload,

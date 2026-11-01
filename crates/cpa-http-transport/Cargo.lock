@@ -485,6 +485,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gateway-cpa-bssl-build"
+version = "0.1.0"
+dependencies = [
+ "bindgen",
+ "cmake",
+ "fs_extra",
+ "fslock",
+]
+
+[[package]]
 name = "gateway-cpa-http-transport"
 version = "0.1.0"
 dependencies = [
@@ -993,13 +1003,8 @@ dependencies = [
 [[package]]
 name = "rama-boring-sys"
 version = "0.6.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea17f614cc3eff7c149e8a68a4645fb6f556a31b768f6bbcb4162e6d42a2bba7"
 dependencies = [
- "bindgen",
- "cmake",
- "fs_extra",
- "fslock",
+ "gateway-cpa-bssl-build",
 ]
 
 [[package]]

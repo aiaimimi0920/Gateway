@@ -207,7 +207,7 @@ model_routes:
     );
     assert_eq!(
         candidates[0].payload.execution_mode,
-        Some(ProviderExecutionMode::BrowserBacked)
+        Some(ProviderExecutionMode::DirectHttp)
     );
     assert_eq!(
         candidates[0].payload.runtime_state_object_key.as_deref(),

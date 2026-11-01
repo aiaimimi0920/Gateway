@@ -1,6 +1,56 @@
 use super::*;
 
 #[test]
+fn ordinary_web_media_are_single_attempt_but_chat_is_unchanged() {
+    for adapter in [
+        "gemini_web_compatible",
+        "gemini_web_reverse_modular_compatible",
+    ] {
+        let candidate = make_candidate(adapter);
+        for endpoint in [
+            EndpointKind::AudioSpeech,
+            EndpointKind::ImagesGenerations,
+            EndpointKind::ImagesEdits,
+            EndpointKind::MusicGenerations,
+            EndpointKind::VideosGenerations,
+        ] {
+            let req = make_req(ProtocolFamily::OpenAi, endpoint);
+            assert_eq!(
+                retry_policy_for_request(&req, &candidate.payload).max_retries,
+                0
+            );
+        }
+        let req = make_req(ProtocolFamily::OpenAi, EndpointKind::ChatCompletions);
+        assert_eq!(
+            retry_policy_for_request(&req, &candidate.payload).max_retries,
+            2
+        );
+    }
+}
+
+#[test]
+fn canvas_host_generation_is_never_replayed_by_the_provider_retry_loop() {
+    let candidate = make_candidate("gemini_canvas_web_reverse_compatible");
+    for endpoint in [
+        EndpointKind::ChatCompletions,
+        EndpointKind::ImagesGenerations,
+        EndpointKind::ImagesEdits,
+        EndpointKind::AudioSpeech,
+        EndpointKind::MusicGenerations,
+        EndpointKind::VideosGenerations,
+    ] {
+        let req = make_req(ProtocolFamily::OpenAi, endpoint);
+        assert_eq!(
+            retry_policy_for_request(&req, &candidate.payload).max_retries,
+            0
+        );
+    }
+    let req = make_req(ProtocolFamily::OpenAi, EndpointKind::ChatCompletions);
+    let web = make_candidate("gemini_web_reverse_compatible");
+    assert_eq!(retry_policy_for_request(&req, &web.payload).max_retries, 2);
+}
+
+#[test]
 fn capacity_does_not_poison_account_health_or_aimd() {
     let mut error = classify_upstream_error(
         429,

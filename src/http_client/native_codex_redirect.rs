@@ -1,4 +1,26 @@
 //! Follow native same-origin redirects without granting arbitrary upstream egress.
+tokio::task_local! {
+    static REDIRECT_OBSERVED: std::cell::Cell<bool>;
+}
+
+/// Scope evidence to this send, not the pooled client or a thread shared by tasks.
+pub(crate) async fn send(
+    builder: reqwest::RequestBuilder,
+    provider: &str,
+) -> Result<reqwest::Response, crate::error::GatewayError> {
+    REDIRECT_OBSERVED
+        .scope(std::cell::Cell::new(false), async {
+            builder.send().await.map_err(|error| {
+                crate::error::classify_native_send_error(
+                    error,
+                    provider,
+                    !REDIRECT_OBSERVED.with(|seen| seen.get()),
+                )
+            })
+        })
+        .await
+}
+
 pub(super) fn policy() -> reqwest::redirect::Policy {
     reqwest::redirect::Policy::custom(|attempt| {
         if attempt.previous().len() >= 10 {
@@ -7,11 +29,18 @@ pub(super) fn policy() -> reqwest::redirect::Policy {
         // The configured provider remains the authority. A redirect cannot switch
         // host/port/scheme, leak explicit headers, or downgrade HTTPS to HTTP.
         match attempt.previous().first() {
-            Some(original) if original.origin() == attempt.url().origin() => attempt.follow(),
+            Some(original) if original.origin() == attempt.url().origin() => {
+                let _ = REDIRECT_OBSERVED.try_with(|seen| seen.set(true));
+                attempt.follow()
+            }
             _ => attempt.stop(),
         }
     })
 }
+
+#[cfg(test)]
+#[path = "native_connect_tests.rs"]
+mod connect_tests;
 
 #[cfg(test)]
 mod tests {

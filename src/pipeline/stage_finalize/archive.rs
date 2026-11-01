@@ -66,11 +66,15 @@ pub(super) async fn persist_conversation_archive_failure(
     if !is_conversation_archive_endpoint(ctx.canonical_req.endpoint_kind) {
         return;
     }
-    let classification = classify_provider_failure(
-        upstream_status,
-        error.code.as_deref(),
-        Some(error.message.as_str()),
-    );
+    let classification = (error.native_transport.is_none()
+        && error.request_budget_stop_reason().is_none())
+    .then(|| {
+        classify_provider_failure(
+            upstream_status,
+            error.code.as_deref(),
+            Some(error.message.as_str()),
+        )
+    });
     let input = PersistConversationArchiveInput {
         request_audit_id: ctx.request_audit_id.clone(),
         request_id: ctx.req_id.to_string(),
@@ -97,8 +101,12 @@ pub(super) async fn persist_conversation_archive_failure(
         resolved_model: ctx.audited_resolved_model(),
         status: "failed".to_string(),
         upstream_status,
-        failure_class: Some(classification.class_name().to_string()),
-        failure_scope: Some(classification.scope_name().to_string()),
+        failure_class: classification
+            .as_ref()
+            .map(|value| value.class_name().to_string()),
+        failure_scope: classification
+            .as_ref()
+            .map(|value| value.scope_name().to_string()),
         request_payload: build_archive_request_payload_from_ctx(ctx),
         response_payload: Some(json!({
             "error": {

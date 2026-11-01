@@ -14,6 +14,8 @@
 下一次请求或新的 Gateway 进程可以恢复该状态。没有新增浏览器依赖或 Node 子进程。
 Web 图片生成的另一 legacy HTTP session owner 不在此范围内；Canvas browser checkpoint
 仍使用其独立配置与存储格式。没有自动启用现有账号。
+标准 Canvas 已改为[调用阶段 HTTP-only](gemini-canvas-http-only.md)，不使用上述 Canvas
+browser checkpoint，也不自动启用本页的 Web HTTP checkpoint。
 
 ## 显式配置
 

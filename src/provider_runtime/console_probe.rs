@@ -7,6 +7,26 @@ pub async fn probe_provider_payload_for_console(
     client: &rquest::Client,
     payload: &ProviderAccountPayload,
 ) -> ProviderPayloadProbeReport {
+    if payload.adapter == crate::protocol::antigravity::ADAPTER {
+        return match crate::upstream::antigravity::probe(client, payload).await {
+            Ok(()) => unsupported_probe_report("Antigravity HTTP project and catalog reads passed; no model generation was submitted."),
+            Err(error) => failed_probe_report(&error.message),
+        };
+    }
+    if payload.adapter == "stitch_web_compatible" {
+        return match crate::upstream::stitch_web::probe(client, payload).await {
+            Ok(()) => {
+                unsupported_probe_report("Stitch HTTP 只读登录态请求通过；未执行界面设计生成测试。")
+            }
+            Err(error) => failed_probe_report(&error.message),
+        };
+    }
+    if payload.adapter == "flow_web_compatible" {
+        return match crate::upstream::flow_web::read_credits(client, payload).await {
+            Ok(_) => unsupported_probe_report("Flow HTTP 只读额度请求通过；图片/视频生成仍缺少 HTTP-only fresh proof，未执行生成测试。"),
+            Err(error) => failed_probe_report(&error.message),
+        };
+    }
     if payload_requires_browser_backing(payload) {
         return unsupported_probe_report(
             "Connectivity probe is unsupported for browser-backed credentials.",

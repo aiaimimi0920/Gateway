@@ -122,8 +122,44 @@ export const TEMPLATE_ADAPTATION_RECEIPTS: readonly TemplateAdaptationReceipt[] 
   evidencePath: "docs/progress/2026-10-29-gemini-web-template-acceptance.md",
   verifiedAt: "2026-10-29T14:51:21.5147534Z",
   flowVersion: 1,
+}, {
+  // 支持范围的真实 HTTP 调用已通过；不包含音乐或视频生成。
+  templateId: "gemini-canvas",
+  evidencePath: "docs/progress/2026-10-31-gemini-canvas-http-only-r32.md",
+  verifiedAt: "2026-10-31T13:17:11.0319268Z",
+  flowVersion: 1,
+}, {
+  // 公共 API 真实调用通过；buffered SSE、长期刷新和未支持模态的边界见证据。
+  templateId: "aistudio-web",
+  evidencePath: "docs/progress/2026-11-01-aistudio-http-public-api-r36.md",
+  verifiedAt: "2026-10-31T17:41:21.145Z",
+  flowVersion: 1,
+}, {
+  // 当前精确账号的生产 HTTP 提示词测试通过；不代表全部模型、模态或长期会话可用。
+  templateId: "chatgpt-web",
+  evidencePath: "docs/progress/2026-11-01-chatgpt-web-current-acceptance-r39.md",
+  verifiedAt: "2026-10-31T22:20:59.7882036Z",
+  flowVersion: 1,
+}, {
+  // 单账号公共音乐 API 和两个音频 URL 读取通过；不包含视频或长期会话续期验收。
+  templateId: "flowmusic-web",
+  evidencePath: "docs/progress/2026-11-01-flowmusic-web.md",
+  verifiedAt: "2026-11-01T04:22:35.3306341Z",
+  flowVersion: 1,
+}, {
+  // 单账号公共 Chat API 到真实 HTML 下载通过；不代表工具、附件或逐 token 流式能力。
+  templateId: "stitch-web",
+  evidencePath: "docs/progress/2026-11-01-stitch-web-http.md",
+  verifiedAt: "2026-11-01T11:12:26Z",
+  flowVersion: 1,
 }];
 export function templateAdaptationComplete(templateId: string): boolean {
   return TEMPLATE_ADAPTATION_RECEIPTS.some((receipt) => receipt.templateId === templateId
     && receipt.flowVersion === 1 && Boolean(receipt.evidencePath.trim()) && Number.isFinite(Date.parse(receipt.verifiedAt)));
+}
+
+// Pausing development must not manufacture acceptance or hide configuration/import controls.
+const PAUSED_TEMPLATE_IDS: readonly string[] = ["flow-web"];
+export function templateAdaptationPaused(templateId: string): boolean {
+  return PAUSED_TEMPLATE_IDS.includes(templateId);
 }

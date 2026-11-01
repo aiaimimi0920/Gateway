@@ -38,8 +38,17 @@ impl RequestBudget {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn cancel(&self) -> GatewayError {
         self.stop("cancelled")
+    }
+
+    pub(crate) fn cancel_caller(&self) -> GatewayError {
+        self.stop("caller_cancelled")
+    }
+
+    pub(crate) fn cancel_shutdown(&self) -> GatewayError {
+        self.stop("shutdown")
     }
 }
 
@@ -47,6 +56,27 @@ impl RequestBudget {
 mod tests {
     use super::*;
     use crate::protocol::responses::normalize_responses;
+    #[test]
+    fn cancellation_preserves_the_first_cause_and_distinguishes_shutdown_from_caller() {
+        let shutdown = RequestBudget::new(1, Duration::from_secs(30));
+        assert_eq!(
+            shutdown.cancel_shutdown().request_budget_stop_reason(),
+            Some("shutdown")
+        );
+        assert_eq!(
+            shutdown.cancel_caller().request_budget_stop_reason(),
+            Some("shutdown")
+        );
+        let caller = RequestBudget::new(1, Duration::from_secs(30));
+        assert_eq!(
+            caller.cancel_caller().request_budget_stop_reason(),
+            Some("caller_cancelled")
+        );
+        assert_eq!(
+            caller.cancel_shutdown().request_budget_stop_reason(),
+            Some("caller_cancelled")
+        );
+    }
     #[test]
     fn capacity_readmission_is_exactly_once_per_completed_refusal_and_never_for_unknown_delivery() {
         let req = normalize_responses(serde_json::json!({"input":"hello", "tools":[{"type":"function","name":"fixture","parameters":{"type":"object"}}]})).unwrap();

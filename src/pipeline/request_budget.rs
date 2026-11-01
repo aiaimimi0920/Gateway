@@ -12,6 +12,8 @@ use crate::protocol::canonical::{CanonicalRelayRequest, EndpointKind, MessageRol
 
 #[path = "request_budget_capacity.rs"]
 mod capacity;
+#[path = "request_budget_connect.rs"]
+mod connect;
 #[path = "request_budget_stream.rs"]
 mod stream;
 #[path = "request_budget_wait.rs"]
@@ -37,6 +39,8 @@ struct State {
     rejected_conversation_fallback: bool,
     capacity_retry_available: bool,
     capacity_readmission_at: u32,
+    connect_readmission_at: u32,
+    connect_readmissions: u32,
 }
 
 /// Conservatively disallow replay for create operations or any tool-bearing request.
@@ -94,6 +98,8 @@ impl RequestBudget {
             rejected_conversation_fallback: false,
             capacity_retry_available: max_attempts > 1,
             capacity_readmission_at: 0,
+            connect_readmission_at: 0,
+            connect_readmissions: 0,
         })))
     }
 

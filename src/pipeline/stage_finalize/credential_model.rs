@@ -2,6 +2,20 @@
 
 use super::*;
 
+#[cfg(test)]
+#[path = "credential_model_failure_tests.rs"]
+mod failure_tests;
+
+fn records_failure(error: &crate::error::GatewayError) -> bool {
+    error.native_transport.is_none()
+        && error.request_budget_stop_reason().is_none()
+        && error.kind != crate::error::ErrorKind::ModelCapacity
+        && !matches!(
+            error.code.as_deref(),
+            Some("gateway_network_unstable" | "capacity_backoff_registry_full")
+        )
+}
+
 pub(super) async fn record_credential_model_success(ctx: &PipelineContext, state: &Arc<AppState>) {
     let Some(provider_account_id) = ctx.selected_provider_id.clone() else {
         return;
@@ -77,12 +91,7 @@ pub(super) async fn record_credential_model_failure(
     state: &Arc<AppState>,
 ) {
     // Capacity timing has an in-memory owner, not a persisted minute-scale health cooldown.
-    if error.kind == crate::error::ErrorKind::ModelCapacity
-        || matches!(
-            error.code.as_deref(),
-            Some("gateway_network_unstable" | "capacity_backoff_registry_full")
-        )
-    {
+    if !records_failure(error) {
         return;
     }
     let Some(provider_account_id) = ctx.selected_provider_id.clone() else {

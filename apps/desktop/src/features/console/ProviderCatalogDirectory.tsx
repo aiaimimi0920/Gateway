@@ -1,5 +1,5 @@
 import type { ProviderCatalogTemplate } from "./providerCatalog";
-import { templateAdaptationComplete } from "./providerTemplateAdaptation";
+import { templateAdaptationComplete, templateAdaptationPaused } from "./providerTemplateAdaptation";
 
 export type CatalogCategoryFilter = "standard" | "custom";
 type Props = {
@@ -19,12 +19,16 @@ export function ProviderCatalogDirectory({ t, category, filteredTemplates, selec
     <div className="nt-provider-catalog__list">
       {filteredTemplates.map((template) => {
         const complete = templateAdaptationComplete(template.id);
+        const paused = !complete && templateAdaptationPaused(template.id);
+        const status = complete ? t("新调用流程已验收", "New call flow verified")
+          : paused ? t("未完成（已暂停）", "Incomplete (paused)") : undefined;
         return <button type="button" key={template.id} aria-pressed={template.id === selectedTemplateId}
           data-adaptation={complete ? "complete" : "pending"}
-          title={complete ? t("新调用流程已验收", "New call flow verified") : undefined}
+          data-development={paused ? "paused" : undefined}
+          title={status}
           className={`nt-provider-catalog__item${template.id === selectedTemplateId ? " nt-provider-catalog__item--selected" : ""}${complete ? " nt-provider-catalog__item--adapted" : ""}`}
           onClick={() => selectTemplate(template)}>{template.providerId}
-          {complete && <span className="nt-visually-hidden">{t("新调用流程已验收", "New call flow verified")}</span>}
+          {status && <span className="nt-visually-hidden">{status}</span>}
         </button>;
       })}
     </div>

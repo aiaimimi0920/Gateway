@@ -22,7 +22,7 @@
 | 维度 | 本轮保存链 | 后续验收边界 |
 | --- | --- | --- |
 | 调用适配器 | 保存 call_adapter，运行时与发现链共同解析；旧 adapter/profile 保留兼容投影 | auto 复用已有发现证据；固定格式不能被发现链或调试协议静默改写 |
-| 指纹适配器 | 保存 fingerprint_adapter；标准 API 使用已有身份层 | Web/Basispoints 保存 session；目前不支持的 API 指纹组合明确拒绝 |
+| 指纹适配器 | 保存 fingerprint_adapter；标准 API 使用已有身份层 | Web/Basispoints 保存 session；Antigravity 使用独立 antigravity；不支持的指纹组合明确拒绝 |
 | 专用适配器 | 保存 special_adapter，并绑定已有产品 preset/执行 owner | 保留多步骤会话、响应与取消归属；逐模板上游验收仍需后续完成 |
 
 自动测试使用现有 `test_policy` 与测试集校验，只保存策略；打开面板不调用上游。
@@ -49,6 +49,33 @@
 创建时按 Provider ID 和目标身份绑定，提交时重新解析数组位置；目标改变则拒绝重用，
 owner 删除则丢弃。WebDAV 密码必须同时提供用户名。
 
+## Web 服务商的专用账号导入
+
+“添加账号”按已保存的 preset 选择专用控件，不依赖可改的 Provider ID：
+
+| 模板 | 专用导入方式 |
+| --- | --- |
+| `chatgpt-web` | 保留既有网页登录／网页会话 JSON 控件 |
+| `gemini-web` | 账号名称（可选）＋ 网页登录／专属网页会话 JSON |
+| `gemini-canvas` | 账号名称（可选）＋ 网页登录／专属网页会话 JSON |
+| `aistudio-web` | 账号名称（可选）＋ 网页登录／专属网页会话 JSON |
+| `flow-web` | 账号名称（可选）＋ Google Flow 网页登录／专属网页会话 JSON；生成未完成，已暂停 |
+
+上述 Google Web 模板新建账号不再显示通用 API Key 表单；编辑已有账号仍保留模型选择和已存凭据。
+Canvas 历史 preset 的专用导入入口保持兼容。账号库“手动添加”和全局“添加账号”
+复用同一认证会话及 revision/CAS 保存链；导入期间不启用账号自动测试。
+
+AI Studio 本地 Windows 流程先打开没有自动化／远程调试连接的普通专用浏览器，用户
+正常登录后关闭该窗口，再短暂重开以导入必要 scoped Cookie。只有 Gateway 正常对象
+存储 owner 保存 Cookie；管理响应仅含对象引用、账号名称和支持范围内的模型目录。
+此入口不导出完整浏览器状态，不发送生成请求；当前未接远程宿主／容器登录入口。
+本轮新增管理 UI 链已做合成回归，尚未通过新入口重新执行真实 Google 登录验收。
+
+Google Web JSON 支持粘贴或选择文件，再显式导入；要求敏感信息授权、当前修订及
+目标模板绑定。该分支不启动浏览器、不联网，不把材料解析当账号可用验证。Canvas／
+AI Studio／Flow 只返回 Cookie 对象引用；Gemini Web 沿已有 secret patches 保存，不进入
+普通配置。格式和边界见 [网页会话 JSON 导入](google-web-json-import.md)。
+
 ## NVIDIA 目录与调用证据
 
 NVIDIA 新账号导入在保存前读取官方 `GET https://integrate.api.nvidia.com/v1/models`；
@@ -69,13 +96,33 @@ NVIDIA 新账号导入在保存前读取官方 `GET https://integrate.api.nvidia
 ## 蓝色完成标记
 
 唯一登记入口为 `providerTemplateAdaptation.ts` 的 `TEMPLATE_ADAPTATION_RECEIPTS`。
-当前登记 `nvidia-openai`、`openrouter-openai`、`you`、`exa` 与 `chatgpt`，分别见
+原始登记包含 `nvidia-openai`、`openrouter-openai`、`you`、`exa` 与 `chatgpt`，分别见
 [Nvidia 实测记录](progress/2026-10-25-nvidia-template-acceptance.md) 和
 [OpenRouter 实测记录](progress/2026-10-25-openrouter-template-acceptance.md)及
 [You 重新导入实测记录](progress/2026-10-25-you-key-reimport-acceptance.md)及
 [Exa 实测记录](progress/2026-10-25-exa-template-acceptance.md)及
 [ChatGPT 原生通道实测记录](progress/2026-10-25-chatgpt-template-acceptance.md)。
 历史 canary、模型列表成功、界面测试成功都不能自动写入。
+
+完整当前名单以该登记表为准，避免文档摘录漏项。2026-11-01 补齐此前漏记的
+`gemini-canvas` 和 `aistudio-web`，分别依据
+[Canvas HTTP-only 实测](progress/2026-10-31-gemini-canvas-http-only-r32.md)和
+[AI Studio 公共 API 实测](progress/2026-11-01-aistudio-http-public-api-r36.md)。
+`gemini-web` 已有登记，保持蓝色。`chatgpt-web` 于 2026-11-01 使用当前独立手测实例的
+指定账号与 `gpt-5-6` 完成生产 HTTP 提示词测试，返回 `OK`，现已登记蓝色；见
+[本轮真实验收](progress/2026-11-01-chatgpt-web-current-acceptance-r39.md)。此前的 403
+历史保留，不把当前成功扩张为所有账号、模型和模态均可用。
+蓝色表示登记支持范围的验收，不扩张为所有模型／模态、长期免登录或新导入入口的真实验收。
+
+`flow-web` 保持 `pending`，不登记完成凭据、不标蓝；用户于 2026-11-01 暂停其生成开发。
+目录状态为“未完成（已暂停）”，仍可从标准模板创建独立服务商并使用其专用账号导入控件。
+创建服务商不生成账号、生成模型目录或模型路由；导入也不执行图片／视频生成。
+具体边界见 [Flow Web](flow-web.md)。
+
+`antigravity-oauth` 是独立 OAuth 模板，不属于 Google Web Cookie 导入 family。
+账号对话框提供官方 Google OAuth、回调完成和显式保存入口；模型及项目从 Cloud Code 读取。
+调用与保活都是 HTTP，不依赖运行中的浏览器；专用指纹由 Antigravity executor 管理。
+当前不以本地合同测试替代真实上游验收，模板不标蓝。见 [Antigravity OAuth](antigravity-oauth.md)。
 
 You 的空池创建、凭据导入和搜索专用测试经真实 UI 操作；首轮占位符认证导致 403，
 用户提供真实密钥后重新导入独立账号，UI 搜索及普通 query/q 搜索均返回有效结果，现已登记。

@@ -76,7 +76,7 @@ async fn run(payload: &ProviderAccountPayload, streaming: bool) -> Result<(), Ga
     let mut request = make_request();
     request.stream = streaming;
     if streaming {
-        let UpstreamStreamingResponse::Bytes(mut stream) = execute_stream(
+        let UpstreamStreamingResponse::NativeEvents(mut stream) = execute_stream(
             &client,
             Duration::from_secs(5),
             payload,

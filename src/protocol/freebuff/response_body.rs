@@ -21,5 +21,6 @@ pub(super) async fn read_chat_response(response: rquest::Response) -> Result<Val
         },
         provider_name: Some("freebuff_compatible".to_string()),
         upstream_retry_after_ms: None,
+        native_transport: None,
     })
 }

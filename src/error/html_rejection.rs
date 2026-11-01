@@ -68,5 +68,6 @@ pub(super) fn classify(status: u16, body: &str, provider: Option<&str>) -> Optio
         },
         provider_name: provider.map(str::to_owned),
         upstream_retry_after_ms: None,
+        native_transport: None,
     })
 }

@@ -6,9 +6,12 @@ mod native_cookie_store;
 mod proxy_policy;
 pub(crate) use native_claude::client as native_claude_client;
 pub(crate) use native_codex::client as native_codex_client;
+pub(crate) use native_codex::send as send_native_codex;
 pub(crate) use native_codex::websocket_client as native_codex_websocket_client;
 pub(crate) use native_codex::websocket_tls as native_codex_websocket_tls;
 pub(crate) use native_codex::NativeCodexConnection;
+#[cfg(feature = "cpa-rust-transport")]
+pub(crate) use proxy_policy::native::matcher as native_proxy_matcher;
 
 /// 保持旧环境/Windows 代理合同。显式代理调用者应先 `.no_proxy()` 再添加自己的代理。
 pub fn builder() -> rquest::ClientBuilder {

@@ -42,6 +42,7 @@
 
 # Local configuration and credentials. Versioned route configuration remains
 # tracked for the current private development workflow.
+**/antigravity-oauth-client.json
 /.env
 /.env.*
 !/.env.example

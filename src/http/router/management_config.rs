@@ -229,7 +229,20 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
         )
         .route(
             "/v1/internal/gateway/console/gemini-auth-sessions",
-            post(internal_console::create_gemini_auth_session),
+            post(internal_console::create_gemini_auth_session)
+                .layer(axum::extract::DefaultBodyLimit::max(512 * 1024)),
+        )
+        .route(
+            "/v1/internal/gateway/console/antigravity-auth-sessions",
+            post(internal_console::create_antigravity_oauth),
+        )
+        .route(
+            "/v1/internal/gateway/console/antigravity-auth-sessions/:session_id",
+            get(internal_console::get_antigravity_oauth),
+        )
+        .route(
+            "/v1/internal/gateway/console/antigravity-auth-sessions/:session_id/:action",
+            post(internal_console::act_antigravity_oauth),
         )
         .route(
             "/v1/internal/gateway/console/chatgpt-auth-sessions",

@@ -133,10 +133,7 @@ impl UpstreamClient {
                 .await?;
             self.send_native_session(builder, payload, scope).await?
         } else {
-            builder
-                .send()
-                .await
-                .map_err(|e| crate::error::classify_native_network_error(e, &payload.adapter))?
+            crate::http_client::send_native_codex(builder, &payload.adapter).await?
         };
         native_response::success(response, &payload.adapter).await
     }

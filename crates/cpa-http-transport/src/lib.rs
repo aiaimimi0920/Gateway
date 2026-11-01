@@ -1,4 +1,9 @@
-//! Opt-in CPA HTTP transport. No credentials, redirects or automatic request retries.
+//! Profiled native HTTP primitives. No credentials, redirects or automatic request retries.
+mod antigravity_tls;
+#[cfg(test)]
+mod antigravity_wire_tests;
+mod profile;
+pub use profile::Profile;
 mod body_limit;
 mod dial;
 mod proxy;
@@ -49,6 +54,7 @@ type Result<T> = std::result::Result<T, Error>;
 /// Share one instance to preserve connection reuse. Plain HTTP is loopback-test-only.
 pub struct Client {
     tls: SslConnector,
+    profile: Profile,
     proxies: Matcher,
     pool: pool::Pool,
     admission: Arc<Semaphore>,
@@ -57,9 +63,34 @@ pub struct Client {
 impl Client {
     /// Load system trust plus an optional explicit test/private CA. Never disables verification.
     pub fn new(extra_ca: Option<&Path>, allow_http_loopback: bool) -> Result<Self> {
+        Self::with_profile(Profile::Cpa, extra_ca, allow_http_loopback)
+    }
+
+    /// Profile is fixed for the lifetime of this isolated pool; caller headers cannot change it.
+    pub fn with_profile(
+        profile: Profile,
+        extra_ca: Option<&Path>,
+        allow_http_loopback: bool,
+    ) -> Result<Self> {
+        Self::with_profile_and_proxy(
+            profile,
+            extra_ca,
+            allow_http_loopback,
+            Matcher::from_system(),
+        )
+    }
+
+    /// Startup proxy selection is immutable too; a live pool cannot change its proxy identity.
+    pub fn with_profile_and_proxy(
+        profile: Profile,
+        extra_ca: Option<&Path>,
+        allow_http_loopback: bool,
+        proxies: Matcher,
+    ) -> Result<Self> {
         Ok(Self {
-            tls: dial::connector(extra_ca)?,
-            proxies: Matcher::from_system(),
+            tls: dial::connector(extra_ca, profile)?,
+            profile,
+            proxies,
             pool: pool::Pool::default(),
             admission: pool::admission(),
             allow_http_loopback,
@@ -111,9 +142,14 @@ impl Client {
             .clone()
             .try_acquire_owned()
             .map_err(|_| Error::Capacity)?;
-        let send = self
-            .pool
-            .send(&uri, request.into(), &self.tls, &self.proxies, admission);
+        let send = self.pool.send(
+            &uri,
+            request.into(),
+            &self.tls,
+            &self.proxies,
+            self.profile,
+            admission,
+        );
         let (response, lease) = match deadline {
             Some(deadline) => tokio::time::timeout_at(deadline, send)
                 .await

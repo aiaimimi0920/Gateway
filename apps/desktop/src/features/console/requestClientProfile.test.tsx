@@ -117,7 +117,7 @@ it("does not overwrite session-owned fingerprints or ambiguous policy aliases", 
 });
 
 it("recognizes session ownership for explicit specialized adapters even with an automatic fingerprint", () => {
-  for (const special_adapter of ["basispoints", "gemini_web", "chatgpt_web", "aistudio_web"]) {
+  for (const special_adapter of ["basispoints", "gemini_web", "gemini_canvas", "chatgpt_web", "aistudio_web"]) {
     const provider = { callFlow: { fingerprint_adapter: "auto", special_adapter } };
     expect(readProviderRequestClientProfile(provider)).toBe("session");
     const before = structuredClone(provider);

@@ -121,8 +121,9 @@ pub async fn finalize_request_audit(
           route_attempt_count = $21,
           response_id = coalesce($22, response_id),
           completed_at = $23,
-          updated_at = $23
-        where id = $1
+          updated_at = $23,
+          client_disconnected_at = case when $24 then $23 else client_disconnected_at end
+        where id = $1 and status = 'running'
         "#,
     )
     .bind(request_audit_id)
@@ -148,12 +149,21 @@ pub async fn finalize_request_audit(
     .bind(i32::try_from(input.route_attempt_count).unwrap_or(i32::MAX))
     .bind(input.response_id.as_deref())
     .bind(timestamp)
+    .bind(input.client_disconnected)
     .execute(pool)
     .await
     .map_err(map_db_error)?;
 
     if result.rows_affected() == 0 {
-        return Err(GatewayError::not_found("AI gateway request audit 不存在"));
+        let exists: bool =
+            sqlx::query_scalar("select exists(select 1 from gateway_request_audits where id = $1)")
+                .bind(request_audit_id)
+                .fetch_one(pool)
+                .await
+                .map_err(map_db_error)?;
+        if !exists {
+            return Err(GatewayError::not_found("AI gateway request audit 不存在"));
+        }
     }
 
     Ok(())

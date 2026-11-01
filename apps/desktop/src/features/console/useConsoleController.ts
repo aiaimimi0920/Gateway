@@ -298,6 +298,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
 
   const geminiManualAdd = useGeminiManualAddSession({
     api, managementToken, applyGeminiManualAddSessionResult, setError, t,
+    jsonImportContext: { revision: routeConfig?.routeConfig.revision.id, secretGrant: session.secretGrant?.grant ?? null },
   });
 
   const pilotPolicyEditor = usePilotPolicyEditor({

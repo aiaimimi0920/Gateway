@@ -35,20 +35,20 @@ async fn drive<T>(task: &tokio::task::JoinHandle<T>, seconds: u32) {
     );
 }
 
-async fn recovers(stream: bool, tools: bool) {
-    let f = Box::pin(Fixture::with_wait(7, None)).await;
+async fn recovers(refusals: usize, stream: bool, tools: bool) {
+    let f = Box::pin(Fixture::with_wait(refusals, None)).await;
     let app = build_router(f.state.clone());
     let input = request(&f, stream, tools);
     tokio::time::pause();
     let task = tokio::spawn(async move { Box::pin(app.oneshot(input)).await.unwrap() });
-    drive(&task, 800).await;
+    drive(&task, 1800).await;
     let response = task.await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
     assert!(String::from_utf8_lossy(&bytes).contains("OK"));
     assert_eq!(
         f.mock.calls.load(Ordering::SeqCst),
-        8,
+        refusals + 1,
         "only actual refusals permit readmission"
     );
     tokio::time::resume();
@@ -58,11 +58,16 @@ async fn recovers(stream: bool, tools: bool) {
 
 #[tokio::test]
 async fn recovery_json_survives_more_than_six_explicit_capacity_refusals() {
-    Box::pin(recovers(false, false)).await;
+    Box::pin(recovers(7, false, false)).await;
 }
 #[tokio::test]
 async fn recovery_sse_before_first_event_and_tool_declarations_are_safe() {
-    Box::pin(recovers(true, true)).await;
+    Box::pin(recovers(7, true, true)).await;
+}
+
+#[tokio::test]
+async fn one_request_survives_more_recovery_rounds_than_the_per_key_slot_limit() {
+    Box::pin(recovers(17, false, false)).await;
 }
 
 #[tokio::test]

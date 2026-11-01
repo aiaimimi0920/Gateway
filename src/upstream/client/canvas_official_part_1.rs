@@ -310,15 +310,35 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<Value, GatewayError> {
-        let headers = maybe_refresh_producer_headers(
+        let headers = crate::upstream::flowmusic_session::headers(
             &self.http,
+            payload,
             &build_upstream_headers_with(payload, extra_headers),
         )
-        .await;
+        .await?;
         let base_url = payload.base_url.trim_end_matches('/');
         let request_timeout = self.timeout.max(Duration::from_secs(180));
-        execute_producer_music_http(&self.http, base_url, &headers, req, model, request_timeout)
-            .await
+        let managed = payload.call_flow.is_some_and(|flow| {
+            flow.special_adapter == crate::protocol::call_flow::SpecialAdapter::FlowmusicWeb
+        });
+        let request = if managed {
+            Some(crate::protocol::producer::prepare_flowmusic_request(req)?)
+        } else {
+            None
+        };
+        let mut result = execute_producer_music_http(
+            &self.http,
+            base_url,
+            &headers,
+            request.as_ref().unwrap_or(req),
+            model,
+            request_timeout,
+        )
+        .await?;
+        if managed {
+            result["provider"] = serde_json::json!("flowmusic.app");
+        }
+        Ok(result)
     }
 
     pub(super) async fn execute_producer_video(

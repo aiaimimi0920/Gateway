@@ -367,6 +367,7 @@ fn detect_accio_html_challenge(body: &[u8]) -> Option<GatewayError> {
         },
         provider_name: Some("accio_compatible".to_string()),
         upstream_retry_after_ms: None,
+        native_transport: None,
     })
 }
 
@@ -384,6 +385,7 @@ fn classify_accio_provider_error(code: &str, message: &str) -> GatewayError {
             },
             provider_name: None,
             upstream_retry_after_ms: None,
+            native_transport: None,
         }
     } else {
         GatewayError::server_error(format!("Accio upstream error: {}", message.trim()))

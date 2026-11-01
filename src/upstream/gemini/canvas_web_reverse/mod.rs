@@ -23,7 +23,7 @@ pub use execution::{
     select_downloaded_image_mime_type,
 };
 pub use payload::{
-    force_browser_owned_payload, relay_config_from_payload, unsupported_request_plan_error,
+    force_http_owned_payload, relay_config_from_payload, unsupported_request_plan_error,
 };
 pub(crate) use result::build_gemini_canvas_browser_executor_service_result;
 pub(crate) use result::classify_http_replay_worker_failure;

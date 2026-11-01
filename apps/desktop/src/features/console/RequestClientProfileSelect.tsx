@@ -8,14 +8,15 @@ type Props = {
 };
 
 export function RequestClientProfileSelect({ value = "auto", disabled, onChange, t }: Props) {
+  const managed = value === "session" || value === "antigravity";
   return <label className="nt-field">
     <span>{t("客户端", "Client")}</span>
-    <select className="nt-select" value={value} disabled={disabled || value === "session"}
+    <select className="nt-select" value={value} disabled={disabled || managed}
       onChange={(event) => {
         const profile = event.currentTarget.value as RequestClientProfile;
-        if (value !== "session" && REQUEST_CLIENT_PROFILES.includes(profile)) onChange(profile);
+        if (!managed && REQUEST_CLIENT_PROFILES.includes(profile)) onChange(profile);
       }}>
-      {value === "session" ? <option value="session">{t("站点会话", "Site session")}</option> : REQUEST_CLIENT_PROFILES.map((profile) => <option key={profile} value={profile}>
+      {managed ? <option value={value}>{value === "antigravity" ? "Antigravity" : t("站点会话", "Site session")}</option> : REQUEST_CLIENT_PROFILES.map((profile) => <option key={profile} value={profile}>
         {profile === "auto" ? t("自动", "Auto")
           : profile === "codex_cli" ? "codex" : profile === "claude_cli" ? "claude"
             : profile === "cpa_claude_code" ? "cpa-claude" : profile}

@@ -159,9 +159,9 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^Gemini Canvas-web$/i }));
+    await user.click(screen.getByRole("button", { name: /^gemini-canvas-web$/i }));
 
-    const canvasArticle = providerAccountLibrary(/Gemini Canvas 账号库/i);
+    const canvasArticle = providerAccountLibrary(/gemini-canvas 账号库/i);
     await user.click(
       within(canvasArticle).getByRole("button", { name: /手动添加|Manual add/i }),
     );
@@ -342,9 +342,9 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^Gemini Canvas-web$/i }));
+    await user.click(screen.getByRole("button", { name: /^gemini-canvas-web$/i }));
 
-    const canvasArticle = providerAccountLibrary(/Gemini Canvas 账号库/i);
+    const canvasArticle = providerAccountLibrary(/gemini-canvas 账号库/i);
     await user.click(
       within(canvasArticle).getByRole("button", { name: /手动添加|Manual add/i }),
     );

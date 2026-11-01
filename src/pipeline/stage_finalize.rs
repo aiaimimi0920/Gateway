@@ -48,12 +48,14 @@ mod credential_model;
 mod failure;
 mod quota;
 mod route_trace;
+mod stream_failure;
 mod streaming;
 mod timestamps;
 
 pub use audit_begin::{begin_request_audit, snapshot_request_audit};
 pub use buffered::{run, run_non_json_success};
 pub use failure::{run_failure, run_stream_failure};
+pub use stream_failure::StreamFailureCause;
 pub use streaming::run_stream_success;
 
 use archive::{

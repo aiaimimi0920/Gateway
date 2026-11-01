@@ -14,10 +14,10 @@ const t = (_zh: string, en: string) => en;
 const invalidate = () => {};
 const groups = () => [];
 
-async function setup(family: ConsoleGeminiAuthFamily = "gemini-canvas") {
+async function setup(family: ConsoleGeminiAuthFamily = "gemini-canvas", preset?: string) {
   const api = createConsoleApi();
   const baseline = await api.getRouteConfig("token");
-  const document = { providers: [{ id: family, credentials: [] }], model_routes: [], aliases: {}, account_groups: [] };
+  const document = { providers: [{ id: family, preset, credentials: [] }], model_routes: [], aliases: {}, account_groups: [] };
   const routeConfig = { routeConfig: { ...baseline.routeConfig, document, secrets: [] } };
   const session: ConsoleGeminiAuthSession = {
     id: "session", providerId: family, targetFamily: family, status: "succeeded",
@@ -83,4 +83,29 @@ it("applies a completed session once and leaves failed persistence for ordinary 
   expect(h.error).toHaveBeenLastCalledWith("commit unavailable");
   expect(pushAppToast).toHaveBeenCalledOnce();
   expect(pushAppToast).toHaveBeenCalledWith("info", expect.stringContaining("Save the route config"));
+});
+
+it.each(["aistudio-web", "flowmusic-web", "flow-web", "stitch-web"] as const)("rejects changed targets for %s before merging or saving", async (family) => {
+  const h = await setup(family, "gemini-web-chat");
+  await act(async () => h.result.current.applyGeminiManualAddSessionResult(h.session));
+  expect(h.api.commitRouteConfig).not.toHaveBeenCalled();
+  expect(h.error).toHaveBeenCalledWith(expect.stringContaining("import target changed"));
+});
+
+it("saves a Flow Cookie reference without inventing generation models or routes", async () => {
+  const h = await setup("flow-web", "flow-web");
+  h.session.generatedDrafts[0].credential = { id: "new-account", runtime_state_object_key: "credential-runtime/flow-web/fixture/http-cookies.json",
+    supported_models: [], model_selection: { fetched: [], manual: [] } };
+  await act(async () => h.result.current.applyGeminiManualAddSessionResult(h.session));
+  expect(h.api.commitRouteConfig).toHaveBeenCalledOnce();
+  expect(vi.mocked(h.api.commitRouteConfig).mock.calls[0][1].document.model_routes).toEqual([]);
+  expect(h.error).not.toHaveBeenCalledWith(expect.any(String));
+});
+
+it.each(["foreign-preset", "foreign-draft"])("rejects AI Studio %s before merging credentials or saving", async (change) => {
+  const h = await setup("aistudio-web", change === "foreign-preset" ? "gemini-web-chat" : "aistudio-web-reverse");
+  if (change === "foreign-draft") h.session.generatedDrafts[0].providerId = "unrelated-pool";
+  await act(async () => h.result.current.applyGeminiManualAddSessionResult(h.session));
+  expect(h.api.commitRouteConfig).not.toHaveBeenCalled();
+  expect(h.error).toHaveBeenCalledWith(expect.stringContaining("import target changed"));
 });

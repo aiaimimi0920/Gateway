@@ -1,14 +1,18 @@
 use super::*;
 
 #[test]
-fn force_browser_owned_payload_sets_browser_owner_marker() {
-    let payload = force_browser_owned_payload(&make_payload());
+fn force_http_owned_payload_sets_http_only_owner_marker() {
+    let payload = force_http_owned_payload(&make_payload());
+    assert_eq!(
+        payload.execution_mode,
+        Some(crate::routing::candidate::ProviderExecutionMode::DirectHttp)
+    );
     let extra = payload.extra_body.expect("extra_body");
     assert_eq!(
         extra
             .get("canvasExecutionOwner")
             .and_then(serde_json::Value::as_str),
-        Some("browser_owned_relay")
+        Some("http_only_host")
     );
 }
 

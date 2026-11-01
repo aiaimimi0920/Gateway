@@ -8,13 +8,17 @@ pub(super) fn build_route_trace_from_ctx(
 ) -> Value {
     let attempted_provider_ids = ctx.attempted_provider_ids();
 
-    let failure_classification = error.map(|value| {
-        classify_provider_failure(
-            value.http_status,
-            value.code.as_deref(),
-            Some(value.message.as_str()),
-        )
-    });
+    let failure_classification = error
+        .filter(|value| {
+            value.native_transport.is_none() && value.request_budget_stop_reason().is_none()
+        })
+        .map(|value| {
+            classify_provider_failure(
+                value.http_status,
+                value.code.as_deref(),
+                Some(value.message.as_str()),
+            )
+        });
 
     json!({
         "requestedProtocolFamily": protocol_family_name(ctx),
@@ -46,6 +50,8 @@ pub(super) fn build_route_trace_from_ctx(
         "fallbackEligible": error.map(is_fallback_eligible),
         "errorCode": error.and_then(|value| value.code.clone()),
         "errorKind": error.map(|value| format!("{:?}", value.kind)),
+        "terminationReason": ctx.request_budget.stopped_reason(),
+        "networkCategory": error.and_then(|value| value.native_transport.as_ref()).map(|value| value.category()),
         "failureClass": failure_classification.as_ref().map(|value| value.class_name()),
         "failureScope": failure_classification.as_ref().map(|value| value.scope_name()),
         "failurePermanent": failure_classification.as_ref().map(|value| value.permanent),

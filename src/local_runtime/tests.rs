@@ -89,6 +89,7 @@ fn create_input(id: &str, stream: bool) -> CreateRequestAuditInput {
 fn finish_input() -> FinalizeRequestAuditInput {
     FinalizeRequestAuditInput {
         status: "completed".into(),
+        client_disconnected: false,
         upstream_status: Some(200),
         duration_ms: 12,
         prompt_tokens: Some(1000),
@@ -176,6 +177,38 @@ async fn local_audit_restart_stream_terminal_idempotency_and_filters() {
         .await
         .is_err());
     reopened.close().await;
+    crate::local_runtime::test_support::remove_test_root(&root).await;
+}
+
+#[tokio::test]
+async fn local_cancelled_audit_records_only_evidenced_disconnect_and_first_terminal_wins() {
+    let (root, db) = setup().await;
+    for disconnected in [true, false] {
+        let id = if disconnected {
+            "disconnect"
+        } else {
+            "shutdown"
+        };
+        db.create_audit(create_input(id, true)).await.unwrap();
+        let mut cancelled = finish_input();
+        cancelled.status = "cancelled".into();
+        cancelled.client_disconnected = disconnected;
+        cancelled.total_tokens = None;
+        db.finalize_audit(id, cancelled).await.unwrap();
+        db.finalize_audit(id, finish_input()).await.unwrap();
+    }
+    let rows = db
+        .list_audits(&RequestAuditFilters::default())
+        .await
+        .unwrap();
+    for row in &rows {
+        assert_eq!(row.status, "cancelled");
+        assert_eq!(row.client_disconnected_at.is_some(), row.id == "disconnect");
+        assert_eq!(row.response_id, "upstream-id");
+        assert_eq!(row.provider_account_id.as_deref(), Some("provider-a"));
+        assert_eq!(row.total_tokens, None);
+    }
+    db.close().await;
     crate::local_runtime::test_support::remove_test_root(&root).await;
 }
 

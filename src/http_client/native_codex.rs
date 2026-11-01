@@ -5,6 +5,7 @@ use std::time::Duration;
 mod custom_ca;
 #[path = "native_codex_redirect.rs"]
 mod redirect;
+pub(crate) use redirect::send;
 #[cfg(test)]
 #[path = "native_codex_timeout_tests.rs"]
 mod timeout_tests;

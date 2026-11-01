@@ -1,7 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
-use futures::{Stream, StreamExt};
 use serde_json::{json, Value};
 
 use super::CHATGPT_WEB_REVERSE_ADAPTER;
@@ -10,6 +9,9 @@ use crate::protocol::canonical::{CanonicalRelayResponse, TokenUsage};
 use crate::protocol::sse_parse::{parse_sse_line, SseParseState};
 
 mod classification;
+mod stream;
+
+pub use stream::translate_chatgpt_web_stream;
 
 pub use classification::{
     classify_chatgpt_web_http_error, response_indicates_browser_challenge,
@@ -23,16 +25,19 @@ pub fn accumulate_response(
     let mut parser = SseParseState::new();
     let mut state = ConversationState::default();
     let mut saw_frame = false;
+    let mut saw_done = false;
     for raw_line in body.lines() {
         if let Some(frame) = parse_sse_line(raw_line, &mut parser) {
             saw_frame = true;
             let data = frame.data.trim();
             if data == "[DONE]" {
+                saw_done = true;
                 break;
             }
             if data == "\"v1\"" || data == "v1" {
                 continue;
             }
+            state.observe_status(data);
             match serde_json::from_str::<Value>(data) {
                 Ok(value) => process_event(&value, &mut state),
                 Err(_) => {
@@ -50,20 +55,7 @@ pub fn accumulate_response(
         .with_provider(CHATGPT_WEB_REVERSE_ADAPTER)
         .with_code("chatgpt_web_invalid_sse"));
     }
-    if state.blocked && state.text.trim().is_empty() {
-        return Err(GatewayError::bad_request(
-            "ChatGPT Web reverse request was blocked by upstream moderation or policy filters.",
-        )
-        .with_provider(CHATGPT_WEB_REVERSE_ADAPTER)
-        .with_code("chatgpt_web_blocked"));
-    }
-    if state.text.trim().is_empty() {
-        return Err(GatewayError::server_error(
-            "ChatGPT Web reverse SSE stream ended without any caller-visible assistant text.",
-        )
-        .with_provider(CHATGPT_WEB_REVERSE_ADAPTER)
-        .with_code("chatgpt_web_missing_text"));
-    }
+    let finish_reason = state.finish_reason(saw_done)?;
     Ok(CanonicalRelayResponse {
         model_declaration: None,
         model: model.to_string(),
@@ -71,7 +63,7 @@ pub fn accumulate_response(
         usage: None::<TokenUsage>,
         tool_calls: Vec::new(),
         upstream_status: None,
-        finish_reason: Some("stop".to_string()),
+        finish_reason: Some(finish_reason.to_string()),
     })
 }
 
@@ -99,152 +91,14 @@ pub fn translate_to_openai_sse(body: &str, model: &str) -> Result<Vec<Bytes>, Ga
     ])
 }
 
-pub fn translate_chatgpt_web_stream(
-    inner: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
-    model: String,
-) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
-    let response_id = format!("chatcmpl_chatgptweb_{}", uuid::Uuid::new_v4().simple());
-    let created = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
-    let state = ChatGptWebTranslatorState {
-        buffer: Vec::new(),
-        parser: SseParseState::new(),
-        model,
-        response_id,
-        created,
-        emitted_stop: false,
-        emitted_done: false,
-        conversation: ConversationState::default(),
-    };
-
-    futures::stream::unfold(
-        (
-            Box::pin(inner)
-                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, rquest::Error>> + Send>>,
-            state,
-            false,
-        ),
-        |(mut stream, mut state, done)| async move {
-            if done {
-                return None;
-            }
-
-            loop {
-                if let Some(pos) = state.buffer.iter().position(|&byte| byte == b'\n') {
-                    let line: Vec<u8> = state.buffer.drain(..=pos).collect();
-                    let line_str = match std::str::from_utf8(&line) {
-                        Ok(value) => value,
-                        Err(_) => continue,
-                    };
-                    let normalized_line = line_str.trim_end_matches('\n');
-                    if let Some(frame) = parse_sse_line(normalized_line, &mut state.parser) {
-                        let data = frame.data.trim();
-                        if data == "[DONE]" {
-                            if let Some(stop_chunk) = state.finish_chunk() {
-                                return Some((Ok(stop_chunk), (stream, state, false)));
-                            }
-                            if !state.emitted_done {
-                                state.emitted_done = true;
-                                return Some((
-                                    Ok(Bytes::from_static(b"data: [DONE]\n\n")),
-                                    (stream, state, true),
-                                ));
-                            }
-                            return None;
-                        }
-                        if let Some(chunk) = state.process_frame(data) {
-                            return Some((Ok(chunk), (stream, state, false)));
-                        }
-                    }
-                    continue;
-                }
-
-                match stream.next().await {
-                    Some(Ok(chunk)) => state.buffer.extend_from_slice(&chunk),
-                    Some(Err(error)) => return Some((Err(error), (stream, state, true))),
-                    None => {
-                        if let Some(stop_chunk) = state.finish_chunk() {
-                            return Some((Ok(stop_chunk), (stream, state, false)));
-                        }
-                        if !state.emitted_done {
-                            state.emitted_done = true;
-                            return Some((
-                                Ok(Bytes::from_static(b"data: [DONE]\n\n")),
-                                (stream, state, true),
-                            ));
-                        }
-                        return None;
-                    }
-                }
-            }
-        },
-    )
-}
-
 #[derive(Default)]
 struct ConversationState {
     text: String,
     conversation_id: Option<String>,
     blocked: bool,
-}
-
-struct ChatGptWebTranslatorState {
-    buffer: Vec<u8>,
-    parser: SseParseState,
-    model: String,
-    response_id: String,
-    created: i64,
-    emitted_stop: bool,
-    emitted_done: bool,
-    conversation: ConversationState,
-}
-
-impl ChatGptWebTranslatorState {
-    fn process_frame(&mut self, data: &str) -> Option<Bytes> {
-        if data.is_empty() || data == "\"v1\"" || data == "v1" {
-            return None;
-        }
-
-        let before = self.conversation.text.clone();
-        match serde_json::from_str::<Value>(data) {
-            Ok(value) => process_event(&value, &mut self.conversation),
-            Err(_) if !is_non_text_control_frame(data) => self.conversation.append_text(data),
-            Err(_) => {}
-        }
-
-        let delta = text_delta(&before, &self.conversation.text)?;
-        Some(self.content_chunk(&delta, None))
-    }
-
-    fn finish_chunk(&mut self) -> Option<Bytes> {
-        if self.emitted_stop {
-            return None;
-        }
-        self.emitted_stop = true;
-        Some(self.content_chunk("", Some("stop")))
-    }
-
-    fn content_chunk(&self, content: &str, finish_reason: Option<&str>) -> Bytes {
-        let delta = if content.is_empty() {
-            json!({})
-        } else {
-            json!({ "content": content })
-        };
-        let chunk = json!({
-            "id": self.response_id,
-            "object": "chat.completion.chunk",
-            "created": self.created,
-            "model": self.model,
-            "choices": [{
-                "index": 0,
-                "delta": delta,
-                "finish_reason": finish_reason,
-            }]
-        });
-        Bytes::from(format!("data: {chunk}\n\n"))
-    }
+    finished: bool,
+    partial: bool,
+    failed: bool,
 }
 
 fn is_plain_status_frame(data: &str) -> bool {
@@ -289,6 +143,56 @@ fn text_delta(previous: &str, current: &str) -> Option<String> {
 }
 
 impl ConversationState {
+    fn failure(&self) -> Option<GatewayError> {
+        if self.blocked {
+            Some(GatewayError::bad_request(
+                "ChatGPT Web reverse request was blocked by upstream moderation or policy filters.",
+            ).with_provider(CHATGPT_WEB_REVERSE_ADAPTER).with_code("chatgpt_web_blocked"))
+        } else if self.failed {
+            Some(
+                GatewayError::server_error(
+                    "ChatGPT Web reverse upstream reported a failed generation.",
+                )
+                .with_provider(CHATGPT_WEB_REVERSE_ADAPTER)
+                .with_code("chatgpt_web_generation_failed"),
+            )
+        } else {
+            None
+        }
+    }
+
+    fn finish_reason(&self, saw_done: bool) -> Result<&'static str, GatewayError> {
+        if let Some(error) = self.failure() {
+            return Err(error);
+        }
+        if self.text.trim().is_empty() {
+            return Err(GatewayError::server_error(
+                "ChatGPT Web reverse SSE stream ended without any caller-visible assistant text.",
+            )
+            .with_provider(CHATGPT_WEB_REVERSE_ADAPTER)
+            .with_code("chatgpt_web_missing_text"));
+        }
+        // HTTP EOF alone does not prove a completed model answer.
+        if !saw_done && !self.finished && !self.partial {
+            return Err(GatewayError::server_error(
+                "ChatGPT Web reverse SSE stream ended before its terminal event.",
+            )
+            .with_provider(CHATGPT_WEB_REVERSE_ADAPTER)
+            .with_code("chatgpt_web_incomplete_stream"));
+        }
+        Ok(if self.partial { "length" } else { "stop" })
+    }
+
+    fn observe_status(&mut self, status: &str) {
+        // Failure/partial status is sticky; a later transport terminator cannot turn it into success.
+        match status.trim() {
+            "finished_successfully" => self.finished = true,
+            "finished_partial_completion" => self.partial = true,
+            "failed" => self.failed = true,
+            _ => {}
+        }
+    }
+
     fn append_text(&mut self, value: &str) {
         if value.is_empty() {
             return;
@@ -306,6 +210,7 @@ fn process_event(value: &Value, state: &mut ConversationState) {
     match value {
         Value::String(text) => {
             let text = text.trim();
+            state.observe_status(text);
             if !text.is_empty() && text != "v1" && !is_non_text_control_frame(text) {
                 state.append_text(text);
             }
@@ -316,6 +221,9 @@ fn process_event(value: &Value, state: &mut ConversationState) {
             }
         }
         Value::Object(map) => {
+            if map.get("error").is_some_and(|error| !error.is_null()) {
+                state.failed = true;
+            }
             if let Some(conversation_id) = map.get("conversation_id").and_then(Value::as_str) {
                 if !conversation_id.trim().is_empty() {
                     state.conversation_id = Some(conversation_id.trim().to_string());
@@ -362,6 +270,11 @@ fn process_event(value: &Value, state: &mut ConversationState) {
 
 fn process_patch(path: &str, op: &str, value: Option<&Value>, state: &mut ConversationState) {
     match op {
+        "replace" | "add" if path == "/message/status" => {
+            if let Some(status) = value.and_then(Value::as_str) {
+                state.observe_status(status);
+            }
+        }
         "append" if path == "/message/content/parts/0" => {
             if let Some(text) = value.and_then(Value::as_str) {
                 state.append_text(text);
@@ -410,6 +323,9 @@ fn extract_message_text(value: &Value, state: &mut ConversationState) {
     if role != "assistant" {
         return;
     }
+    if let Some(status) = message_map.get("status").and_then(Value::as_str) {
+        state.observe_status(status);
+    }
     let parts = message_map
         .get("content")
         .and_then(Value::as_object)
@@ -432,3 +348,6 @@ fn extract_message_text(value: &Value, state: &mut ConversationState) {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod stream_tests;

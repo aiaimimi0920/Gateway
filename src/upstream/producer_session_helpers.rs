@@ -1,4 +1,5 @@
 use base64::Engine;
+use futures::StreamExt;
 use percent_encoding::percent_decode_str;
 use rquest::header::{HeaderMap, HeaderValue};
 use rquest::Client;
@@ -16,6 +17,8 @@ pub(crate) const DEFAULT_PRODUCER_SUPABASE_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiI
 #[derive(Debug, serde::Deserialize)]
 pub(crate) struct ProducerSupabaseRefreshResponse {
     pub(crate) access_token: String,
+    #[serde(default)]
+    pub(crate) refresh_token: Option<String>,
 }
 
 #[derive(Debug)]
@@ -115,6 +118,7 @@ pub(crate) async fn maybe_refresh_producer_headers(
         match refresh_token {
             Some(token) => refresh_producer_supabase_access_token(http, token)
                 .await
+                .map(|session| session.access_token)
                 .or(current_bearer),
             None => current_bearer,
         }
@@ -131,10 +135,10 @@ pub(crate) async fn maybe_refresh_producer_headers(
     effective
 }
 
-async fn refresh_producer_supabase_access_token(
+pub(crate) async fn refresh_producer_supabase_access_token(
     http: &Client,
     refresh_token: &str,
-) -> Option<String> {
+) -> Option<ProducerSupabaseRefreshResponse> {
     let response = http
         .post(format!(
             "{DEFAULT_PRODUCER_SUPABASE_URL}/auth/v1/token?grant_type=refresh_token"
@@ -156,12 +160,21 @@ async fn refresh_producer_supabase_access_token(
     if !response.status().is_success() {
         return None;
     }
-    let payload: ProducerSupabaseRefreshResponse = response.json().await.ok()?;
+    let mut chunks = response.bytes_stream();
+    let mut body = Vec::new();
+    while let Some(chunk) = chunks.next().await {
+        let chunk = chunk.ok()?;
+        if body.len().saturating_add(chunk.len()) > 32768 {
+            return None;
+        }
+        body.extend_from_slice(&chunk);
+    }
+    let payload: ProducerSupabaseRefreshResponse = serde_json::from_slice(&body).ok()?;
     let access_token = payload.access_token.trim();
     if access_token.is_empty() {
         return None;
     }
-    Some(access_token.to_string())
+    Some(payload)
 }
 
 fn parse_producer_cookie_payload(candidate: &str) -> Option<Value> {

@@ -274,6 +274,9 @@ function resolveGeminiManualAddFamily(
   provider: Record<string, unknown>,
   providerId: string,
 ): ConsoleGeminiAuthFamily | null {
+  if (provider.preset === "aistudio-web-reverse") return "aistudio-web";
+  if (provider.preset === "flow-web") return "flow-web";
+  if (provider.preset === "stitch-web") return "stitch-web";
   const mode = geminiProviderMode(providerId, optionalString(provider, "preset"), optionalString(provider, "label") ?? "");
   if (mode === "canvas") {
     return "gemini-canvas";

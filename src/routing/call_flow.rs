@@ -69,7 +69,7 @@ pub(crate) fn prepare_route_payload(
     let payload = prepare_owned(payload)?;
     let adapter = canonicalize_adapter_name(&payload.adapter);
     let protocol_family = effective_family(&payload, legacy_family);
-    let supported_protocol_families =
+    let mut supported_protocol_families =
         super::protocol_resolution::resolve_supported_wire_protocol_families_for_model(
             raw,
             model_alias,
@@ -77,6 +77,12 @@ pub(crate) fn prepare_route_payload(
             &adapter,
             &protocol_family,
         );
+    if payload.call_flow.is_some_and(|flow| {
+        flow.special_adapter == crate::protocol::call_flow::SpecialAdapter::FlowmusicWeb
+    }) {
+        supported_protocol_families
+            .retain(|family| family == crate::protocol::registry::PRODUCER_MUSIC_FAMILY);
+    }
     // Empty after applying explicit model blocks means deny, never "use all surfaces".
     if supported_protocol_families.is_empty() {
         return Ok(None);
@@ -94,6 +100,15 @@ pub(crate) fn prepare_candidate(
     endpoint: EndpointKind,
 ) -> Result<(), GatewayError> {
     let flow = prepare(&candidate.payload)?;
+    if candidate.payload.call_flow.is_some_and(|flow| {
+        flow.special_adapter == crate::protocol::call_flow::SpecialAdapter::FlowmusicWeb
+    }) && endpoint != EndpointKind::MusicGenerations
+    {
+        return Err(GatewayError::bad_request(
+            "FlowMusic Web supports only /v1/music/generations.",
+        )
+        .with_code("unsupported_flowmusic_endpoint"));
+    }
     if candidate.payload.call_flow.is_none() {
         return Ok(());
     }

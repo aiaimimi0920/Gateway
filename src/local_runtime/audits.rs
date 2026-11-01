@@ -114,6 +114,9 @@ impl LocalRuntime {
         if let Some(payload) = payload {
             let mut row = decode(&payload)?;
             row.status = input.status;
+            if input.client_disconnected {
+                row.client_disconnected_at = Some(timestamp());
+            }
             row.upstream_status = input.upstream_status.map(i32::from);
             row.duration_ms = Some(count(input.duration_ms));
             row.prompt_tokens = input.prompt_tokens.map(count);

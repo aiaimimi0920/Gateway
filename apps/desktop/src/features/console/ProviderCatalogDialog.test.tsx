@@ -22,6 +22,24 @@ describe("ProviderCatalogDialog", () => {
     expect(screen.queryByRole("button", { name: /^longcat(?:\s*新调用流程已验收)?$/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^openrouter-api(?:\s*新调用流程已验收)?$/i })).toBeInTheDocument();
   });
+  it("keeps paused Flow incomplete but allows creating its independent provider", async () => {
+    const user = userEvent.setup(); const props = renderDialog();
+    const flow = screen.getByRole("button", { name: /^flow-web/ });
+    expect(flow).toHaveAttribute("data-adaptation", "pending");
+    expect(flow).toHaveAttribute("data-development", "paused");
+    expect(flow).toHaveAttribute("title", "未完成（已暂停）");
+    expect(flow).not.toHaveClass("nt-provider-catalog__item--adapted");
+    expect(templateAdaptationComplete("flow-web")).toBe(false);
+    await user.click(flow);
+    expect(screen.getByLabelText("Base URL")).toHaveValue("https://flow.google.com");
+    expect(screen.getByLabelText("专用适配器")).toHaveValue("Google Flow Web");
+    expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "添加" }));
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      templateId: "flow-web", providerId: "flow-web", supportedModels: [],
+      workflow: expect.objectContaining({ specialAdapter: "flow_web" }),
+    }));
+  });
   it("returns keyboard focus to the opener after Escape without submitting", async () => {
     const user = userEvent.setup(); const onSubmit = vi.fn();
     function Harness() {
@@ -83,7 +101,7 @@ describe("ProviderCatalogDialog", () => {
   });
   it("does not mark historical canaries as new adapter acceptance", () => {
     renderDialog();
-    expect(TEMPLATE_ADAPTATION_RECEIPTS.map(({ templateId }) => templateId)).toEqual(["nvidia-openai", "openrouter-openai", "you", "exa", "chatgpt", "tavily", "linkup", "websearchapi", "jina", "poe-openai", "groq-openai", "cohere-chat", "openai", "anthropic", "gemini-api", "azure-api", "mistral-api", "xai-api", "deepseek-api", "perplexity-api", "gemini-web"]);
+    expect(TEMPLATE_ADAPTATION_RECEIPTS.map(({ templateId }) => templateId)).toEqual(["nvidia-openai", "openrouter-openai", "you", "exa", "chatgpt", "tavily", "linkup", "websearchapi", "jina", "poe-openai", "groq-openai", "cohere-chat", "openai", "anthropic", "gemini-api", "azure-api", "mistral-api", "xai-api", "deepseek-api", "perplexity-api", "gemini-web", "gemini-canvas", "aistudio-web", "chatgpt-web", "flowmusic-web", "stitch-web"]);
     expect(templateAdaptationComplete("mistral-api")).toBe(true);
     expect(templateAdaptationComplete("xai-api")).toBe(true);
     expect(templateAdaptationComplete("deepseek-api")).toBe(true);
@@ -94,6 +112,13 @@ describe("ProviderCatalogDialog", () => {
     expect(templateAdaptationComplete("anthropic")).toBe(true);
     expect(templateAdaptationComplete("gemini-api")).toBe(true);
     expect(templateAdaptationComplete("gemini-web")).toBe(true);
+    expect(templateAdaptationComplete("gemini-canvas")).toBe(true);
+    expect(templateAdaptationComplete("aistudio-web")).toBe(true);
+    expect(templateAdaptationComplete("chatgpt-web")).toBe(true);
+    expect(TEMPLATE_ADAPTATION_RECEIPTS.find(({ templateId }) => templateId === "chatgpt-web")).toEqual({
+      templateId: "chatgpt-web", flowVersion: 1, verifiedAt: "2026-10-31T22:20:59.7882036Z",
+      evidencePath: "docs/progress/2026-11-01-chatgpt-web-current-acceptance-r39.md",
+    });
     expect(templateAdaptationComplete("azure-api")).toBe(true);
     expect(TEMPLATE_ADAPTATION_RECEIPTS.find(({ templateId }) => templateId === "azure-api")?.acceptanceBasis).toBe("documentation-and-local-tests");
     expect(templateAdaptationComplete("nvidia-openai")).toBe(true);
@@ -108,7 +133,7 @@ describe("ProviderCatalogDialog", () => {
     expect(templateAdaptationComplete("websearchapi")).toBe(true);
     expect(templateAdaptationComplete("jina")).toBe(true);
     expect([...document.querySelectorAll('[data-adaptation="complete"]')].map((button) => button.textContent))
-      .toEqual(["codex-oauth新调用流程已验收", "openai-api新调用流程已验收", "anthropic-api新调用流程已验收", "gemini-api新调用流程已验收", "gemini-web新调用流程已验收", "azure-api新调用流程已验收", "cohere-api新调用流程已验收", "groq-api新调用流程已验收", "nvidia-api新调用流程已验收", "deepseek-api新调用流程已验收", "mistral-api新调用流程已验收", "xAI-api新调用流程已验收", "perplexity-api新调用流程已验收", "openrouter-api新调用流程已验收", "poe-api新调用流程已验收", "linkup-api新调用流程已验收", "tavily-api新调用流程已验收", "you-api新调用流程已验收", "exa-api新调用流程已验收", "jina-api新调用流程已验收", "websearchapi-api新调用流程已验收"]);
+      .toEqual(["codex-oauth新调用流程已验收", "chatgpt-web新调用流程已验收", "openai-api新调用流程已验收", "anthropic-api新调用流程已验收", "gemini-api新调用流程已验收", "stitch-web新调用流程已验收", "gemini-web新调用流程已验收", "gemini-canvas新调用流程已验收", "aistudio-web新调用流程已验收", "azure-api新调用流程已验收", "cohere-api新调用流程已验收", "groq-api新调用流程已验收", "nvidia-api新调用流程已验收", "deepseek-api新调用流程已验收", "mistral-api新调用流程已验收", "xAI-api新调用流程已验收", "perplexity-api新调用流程已验收", "openrouter-api新调用流程已验收", "poe-api新调用流程已验收", "linkup-api新调用流程已验收", "tavily-api新调用流程已验收", "you-api新调用流程已验收", "exa-api新调用流程已验收", "jina-api新调用流程已验收", "websearchapi-api新调用流程已验收", "flowmusic-web新调用流程已验收"]);
     for (const text of document.querySelectorAll('[data-adaptation="complete"] span')) {
       expect(text).toHaveClass("nt-visually-hidden");
     }

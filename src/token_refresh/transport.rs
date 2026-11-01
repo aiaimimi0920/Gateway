@@ -29,7 +29,27 @@ pub(super) async fn exchange(
     endpoint: &str,
     refresh_token: &str,
     client_id: &str,
+    antigravity: bool,
 ) -> Result<TokenResponse, RefreshError> {
+    // Identify by adapter, never by an ID coincidence. Config failures are recoverable
+    // and must not send a refresh token or mark an existing account permanently invalid.
+    let oauth_client = if antigravity {
+        if endpoint != crate::protocol::antigravity::TOKEN_ENDPOINT {
+            return Err(RefreshError::transient("antigravity_oauth_client_mismatch"));
+        }
+        Some(
+            crate::protocol::antigravity::OAuthClient::load()
+                .await
+                .map_err(RefreshError::transient)?,
+        )
+    } else {
+        None
+    };
+    let antigravity_secret = oauth_client
+        .as_ref()
+        .map(|client| client.refresh_secret(endpoint, client_id))
+        .transpose()
+        .map_err(RefreshError::transient)?;
     // An OAuth redirect must never forward a refresh token to another endpoint.
     let url = url::Url::parse(endpoint)
         .map_err(|_| RefreshError::transient("oauth_refresh_invalid_endpoint"))?;
@@ -45,14 +65,19 @@ pub(super) async fn exchange(
             terminal: true,
         });
     }
+    let mut form = vec![
+        ("grant_type", "refresh_token"),
+        ("refresh_token", refresh_token),
+        ("client_id", client_id),
+    ];
+    if let Some(secret) = antigravity_secret {
+        form.push(("client_secret", secret));
+    }
     let response = http
         .post(url.as_str())
+        .default_headers(antigravity_secret.is_none())
         .redirect(rquest::redirect::Policy::none())
-        .form(&[
-            ("grant_type", "refresh_token"),
-            ("refresh_token", refresh_token),
-            ("client_id", client_id),
-        ])
+        .form(&form)
         .timeout(Duration::from_secs(15))
         .send()
         .await

@@ -6,9 +6,11 @@ use tokio::sync::{Mutex as AsyncMutex, OwnedMutexGuard};
 mod identity;
 #[cfg(test)]
 mod identity_tests;
+#[cfg(test)]
+mod session_tests;
 
 const MAX_REQUESTS: usize = 64;
-const MAX_PER_KEY: usize = 8;
+const MAX_PER_KEY: usize = 16;
 const MAX_PER_PROVIDER: usize = 32;
 const MAX_BYTES: usize = 64 * 1024 * 1024;
 
@@ -18,7 +20,7 @@ pub(crate) struct WaitRegistry(Mutex<Entries>);
 struct Entries {
     count: usize,
     bytes: usize,
-    keys: HashMap<String, usize>,
+    keys: HashMap<String, KeyWaiters>,
     providers: HashMap<String, (usize, Arc<AsyncMutex<()>>)>,
     identities: crate::provider_identity::ProviderAliases,
 }
@@ -28,6 +30,7 @@ pub(crate) struct WaitLease {
 struct Lease {
     registry: Arc<WaitRegistry>,
     key: String,
+    session: Option<[u8; 32]>,
     provider: String,
     bytes: usize,
     gate: Arc<AsyncMutex<()>>,
@@ -38,22 +41,36 @@ pub(crate) struct WaitTurn {
     _lease: Arc<Lease>,
 }
 impl WaitRegistry {
+    #[cfg(test)]
     pub(crate) fn enter(
         self: &Arc<Self>,
         key: String,
         provider: String,
         bytes: usize,
     ) -> Result<WaitLease, GatewayError> {
+        self.enter_session(key, None, provider, bytes)
+    }
+
+    pub(crate) fn enter_session(
+        self: &Arc<Self>,
+        key: String,
+        session: Option<[u8; 32]>,
+        provider: String,
+        bytes: usize,
+    ) -> Result<WaitLease, GatewayError> {
         let mut entries = self.0.lock();
         let provider = entries.identities.original(&provider).to_owned();
-        if entries.count >= MAX_REQUESTS
-            || bytes > MAX_BYTES.saturating_sub(entries.bytes)
-            || entries.keys.get(&key).copied().unwrap_or(0) >= MAX_PER_KEY
-            || entries
-                .providers
-                .get(&provider)
-                .is_some_and(|(n, _)| *n >= MAX_PER_PROVIDER)
-        {
+        if let Some(limit) = entries.full_reason(&key, session.as_ref(), &provider, bytes) {
+            // Counts only: never log the caller's key/session label, credential or retained body.
+            tracing::warn!(
+                limit,
+                requests = entries.count,
+                key_slots = entries.keys.get(&key).map_or(0, |waiters| waiters.slots),
+                provider_requests = entries.providers.get(&provider).map_or(0, |(n, _)| *n),
+                retained_bytes = entries.bytes,
+                requested_retained_bytes = bytes,
+                "Recovery waiting queue admission rejected"
+            );
             return Err(
                 GatewayError::service_unavailable("Recovery waiting queue is full")
                     .with_code("recovery_wait_queue_full"),
@@ -62,13 +79,14 @@ impl WaitRegistry {
         let (count, gate) = entries.providers.entry(provider.clone()).or_default();
         *count += 1;
         let gate = gate.clone();
-        *entries.keys.entry(key.clone()).or_default() += 1;
+        entries.keys.entry(key.clone()).or_default().add(session);
         entries.count += 1;
         entries.bytes += bytes;
         Ok(WaitLease {
             inner: Arc::new(Lease {
                 registry: self.clone(),
                 key,
+                session,
                 provider,
                 bytes,
                 gate,
@@ -89,9 +107,9 @@ impl Drop for Lease {
         let mut entries = self.registry.0.lock();
         entries.count -= 1;
         entries.bytes -= self.bytes;
-        if let Some(count) = entries.keys.get_mut(&self.key) {
-            *count -= 1;
-            if *count == 0 {
+        if let Some(waiters) = entries.keys.get_mut(&self.key) {
+            waiters.remove(self.session);
+            if waiters.slots == 0 {
                 entries.keys.remove(&self.key);
             }
         }
@@ -101,6 +119,65 @@ impl Drop for Lease {
             if *count == 0 {
                 entries.providers.remove(&provider);
             }
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct KeyWaiters {
+    slots: usize,
+    sessions: HashMap<[u8; 32], usize>,
+}
+impl KeyWaiters {
+    fn needs_slot(&self, session: Option<&[u8; 32]>) -> bool {
+        session.is_none_or(|id| !self.sessions.contains_key(id))
+    }
+    fn add(&mut self, session: Option<[u8; 32]>) {
+        if self.needs_slot(session.as_ref()) {
+            self.slots += 1;
+        }
+        if let Some(id) = session {
+            *self.sessions.entry(id).or_default() += 1;
+        }
+    }
+    fn remove(&mut self, session: Option<[u8; 32]>) {
+        if let Some(id) = session {
+            let count = self.sessions.get_mut(&id).expect("live waiting session");
+            *count -= 1;
+            if *count != 0 {
+                return;
+            }
+            self.sessions.remove(&id);
+        }
+        self.slots -= 1;
+    }
+}
+impl Entries {
+    fn full_reason(
+        &self,
+        key: &str,
+        session: Option<&[u8; 32]>,
+        provider: &str,
+        bytes: usize,
+    ) -> Option<&'static str> {
+        if self.count >= MAX_REQUESTS {
+            Some("global_requests")
+        } else if bytes > MAX_BYTES.saturating_sub(self.bytes) {
+            Some("retained_bytes")
+        } else if self
+            .keys
+            .get(key)
+            .is_some_and(|waiters| waiters.slots >= MAX_PER_KEY && waiters.needs_slot(session))
+        {
+            Some("key_slots")
+        } else if self
+            .providers
+            .get(provider)
+            .is_some_and(|(n, _)| *n >= MAX_PER_PROVIDER)
+        {
+            Some("provider_requests")
+        } else {
+            None
         }
     }
 }

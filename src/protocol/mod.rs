@@ -7,6 +7,7 @@ pub mod accio;
 pub mod aistudio_web;
 pub mod anthropic;
 pub mod anthropic_messages;
+pub mod antigravity;
 pub mod azure_openai;
 pub mod bedrock_converse;
 pub mod call_flow;

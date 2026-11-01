@@ -76,7 +76,8 @@ export function applyGeminiGeneratedDraftsToDocument(
           credential: updates,
         });
 
-    if (web || canvas) {
+    const aistudio = provider.preset === "aistudio-web-reverse";
+    if (web || canvas || aistudio || provider.preset === "producer" || provider.preset === "flow-web" || provider.preset === "stitch-web") {
       const nextProvider = nextDocument.providers.find((entry) => isRecord(entry) && entry.id === draft.providerId);
       const credential = isRecord(nextProvider) && Array.isArray(nextProvider.credentials)
         ? nextProvider.credentials.find((entry) => isRecord(entry) && entry.id === credentialId) : null;
@@ -85,7 +86,7 @@ export function applyGeminiGeneratedDraftsToDocument(
           ? credential.supported_models.filter((entry): entry is string => typeof entry === "string") : [];
         // Manual defaults are routing hints, never claims of a discovered/verified model directory.
         const selection = credential.model_selection === undefined
-          ? { fetched: [], manual: models.length ? models : canvas ? canvasDefaultModels : ["gemini-web-chat"] }
+          ? { fetched: [], manual: models.length ? models : canvas ? canvasDefaultModels : web ? ["gemini-web-chat"] : [] }
           : modelSelectionSchema.parse(credential.model_selection);
         nextDocument = applyModelSelection(nextDocument, draft.providerId, credentialId, selection);
       }

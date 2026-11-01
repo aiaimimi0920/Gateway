@@ -16,6 +16,7 @@ pub fn is_aistudio_web_reverse_adapter(adapter: &str) -> bool {
 pub enum JsonPassthroughRoute {
     Embeddings,
     ImagesGenerations,
+    AudioTranscriptions,
 }
 
 pub fn json_passthrough_route(
@@ -23,13 +24,19 @@ pub fn json_passthrough_route(
 ) -> Result<JsonPassthroughRoute, GatewayError> {
     match endpoint_kind {
         EndpointKind::Embeddings => Ok(JsonPassthroughRoute::Embeddings),
-        EndpointKind::ImagesGenerations => Ok(JsonPassthroughRoute::ImagesGenerations),
+        EndpointKind::ImagesGenerations | EndpointKind::ImagesEdits => {
+            Ok(JsonPassthroughRoute::ImagesGenerations)
+        }
+        EndpointKind::AudioTranscriptions => Ok(JsonPassthroughRoute::AudioTranscriptions),
         _ => Err(unsupported_json_passthrough_endpoint_error()),
     }
 }
 
 pub fn supports_binary_passthrough_endpoint(endpoint_kind: EndpointKind) -> bool {
-    endpoint_kind == EndpointKind::AudioSpeech
+    matches!(
+        endpoint_kind,
+        EndpointKind::AudioSpeech | EndpointKind::AudioTranscriptions
+    )
 }
 
 pub fn unsupported_request_plan_error() -> GatewayError {
@@ -41,7 +48,7 @@ pub fn unsupported_request_plan_error() -> GatewayError {
 
 pub fn unsupported_json_passthrough_endpoint_error() -> GatewayError {
     GatewayError::bad_request(
-        "AI Studio Web reverse JSON passthrough currently supports text, /v1/embeddings, and /v1/images/generations.",
+        "AI Studio Web reverse JSON passthrough supports images, transcriptions, and the explicit embeddings fixture contract.",
     )
     .with_provider(surface::AISTUDIO_WEB_REVERSE_ADAPTER)
     .with_code("unsupported_aistudio_web_reverse_json_endpoint")
@@ -118,8 +125,17 @@ mod tests {
             JsonPassthroughRoute::ImagesGenerations
         );
 
-        let err = json_passthrough_route(crate::protocol::canonical::EndpointKind::ImagesEdits)
-            .expect_err("unsupported endpoint should fail fast");
+        assert_eq!(
+            json_passthrough_route(EndpointKind::ImagesEdits).unwrap(),
+            JsonPassthroughRoute::ImagesGenerations
+        );
+        assert_eq!(
+            json_passthrough_route(EndpointKind::AudioTranscriptions).unwrap(),
+            JsonPassthroughRoute::AudioTranscriptions
+        );
+        let err =
+            json_passthrough_route(crate::protocol::canonical::EndpointKind::VideosGenerations)
+                .expect_err("unsupported endpoint should fail fast");
         assert_eq!(
             err.code.as_deref(),
             Some("unsupported_aistudio_web_reverse_json_endpoint")

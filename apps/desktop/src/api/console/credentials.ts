@@ -101,11 +101,12 @@ export function createConsoleCredentialsApi(client: GatewayApiClient): ConsoleCr
           body: requestedCount === undefined ? {} : { requestedCount },
         },
       ),
-    createGeminiAuthSession: (managementToken, request) =>
+    createGeminiAuthSession: (managementToken, request, secretGrant) =>
       client.request(`${CONSOLE_ROOT}/gemini-auth-sessions`, consoleGeminiAuthSessionResponseSchema, {
         method: "POST",
         managementToken,
         body: request,
+        secretGrant,
       }),
     completeGeminiAuthSession: (managementToken, sessionId) =>
       client.request(

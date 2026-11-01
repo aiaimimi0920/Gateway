@@ -12,6 +12,9 @@ impl UpstreamClient {
     ) -> Result<Value, GatewayError> {
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        if payload.adapter == "flow_web_compatible" {
+            return Err(crate::upstream::flow_web::generation_unavailable());
+        }
         if flow.executor == crate::protocol::chatgpt::basispoints::ADAPTER {
             return crate::upstream::basispoints::exchange(
                 &self.http,
@@ -147,6 +150,12 @@ impl UpstreamClient {
                         extra_headers,
                     )
                     .await
+                }
+                Ok(aistudio_web_reverse_modular::JsonPassthroughRoute::AudioTranscriptions) => {
+                    let text = self
+                        .execute_aistudio_http_transcription(payload, req, model)
+                        .await?;
+                    Ok(json!({"text":text}))
                 }
                 Err(err) => Err(err),
             };
@@ -289,6 +298,16 @@ impl UpstreamClient {
         if aistudio_web_reverse_modular::is_aistudio_web_reverse_adapter(&payload.adapter)
             && aistudio_web_reverse_modular::supports_binary_passthrough_endpoint(req.endpoint_kind)
         {
+            if req.endpoint_kind == EndpointKind::AudioTranscriptions {
+                let text = self
+                    .execute_aistudio_http_transcription(payload, req, model)
+                    .await?;
+                return Ok(BinaryUpstreamResponse {
+                    body: text.into_bytes().into(),
+                    content_type: Some("text/plain; charset=utf-8".to_string()),
+                    extra_headers: Vec::new(),
+                });
+            }
             return self
                 .execute_aistudio_web_tts(provider_account_id, payload, req, model, extra_headers)
                 .await;

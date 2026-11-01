@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type {
   ConsoleCredentialPoolAutomationProvider,
   ConsoleCredentialRefillDemand,
+  ConsoleGeminiAuthFamily,
 } from "../../api/contracts";
 import type { AccountLedgerRow } from "./accountManagementViewModel";
 import type { AccountsLedgerPilotAccount } from "./accountCardTypes";
@@ -42,12 +43,7 @@ export type AccountsLedgerPilotSection = {
   protocolProfile: string | null;
   hostLabel: string | null;
   defaultAccountId: string | null;
-  manualAddFamily:
-    | "gemini-canvas"
-    | "gemini-canvas-chat"
-    | "gemini-business"
-    | "gemini-web"
-    | null;
+  manualAddFamily: ConsoleGeminiAuthFamily | null;
   hasExplicitAccounts: boolean;
   poolMinSize?: number;
   credentialStoragePath?: string;
@@ -95,11 +91,7 @@ export type AccountsLedgerWorkspaceProps = {
   onBackToEditor?: () => void;
   onAddIdentityCategory: (providerId: string) => void;
   onOpenGeminiManualAdd: (
-    targetFamily:
-      | "gemini-canvas"
-      | "gemini-canvas-chat"
-      | "gemini-business"
-      | "gemini-web",
+    targetFamily: ConsoleGeminiAuthFamily,
     providerId: string,
   ) => void;
   onEdit: (providerId: string, accountId: string) => void;

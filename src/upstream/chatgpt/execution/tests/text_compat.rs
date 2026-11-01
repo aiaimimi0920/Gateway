@@ -17,7 +17,7 @@ async fn text_compat_defaults_to_plain_conversation_for_buffered_and_streaming()
         request.stream = streaming;
         request.requested_model = Some("gpt-5.6-sol".into());
         if streaming {
-            let UpstreamStreamingResponse::Bytes(mut stream) = execute_stream(
+            let UpstreamStreamingResponse::NativeEvents(mut stream) = execute_stream(
                 &client,
                 Duration::from_secs(5),
                 &payload,

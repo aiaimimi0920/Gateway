@@ -54,7 +54,8 @@ fn infer_selected_upstream_target_protocol_family(
             | EndpointKind::Messages
             | EndpointKind::Responses
             | EndpointKind::Completions
-            | EndpointKind::AudioSpeech => GEMINI_GENERATE_CONTENT_FAMILY.to_string(),
+            | EndpointKind::AudioSpeech
+            | EndpointKind::AudioTranscriptions => GEMINI_GENERATE_CONTENT_FAMILY.to_string(),
             EndpointKind::MusicGenerations => GEMINI_CANVAS_MUSIC_FAMILY.to_string(),
             EndpointKind::VideosGenerations => GEMINI_CANVAS_VIDEOS_FAMILY.to_string(),
             _ => GEMINI_CANVAS_IMAGES_FAMILY.to_string(),

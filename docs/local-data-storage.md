@@ -14,6 +14,14 @@ The desktop passes the selected root to its backend, even when a separately loca
 backend executable is configured. Settings and console WebViews also store their
 profiles under this root. Data is not copied between home and portable roots implicitly.
 
+For an explicitly selected absolute `GATEWAY_DATA_DIR`, Windows local startup also
+preserves an explicit `AI_GATEWAY_OBJECT_STORAGE_DRIVER=local` plus an absolute
+`AI_GATEWAY_OBJECT_STORAGE_LOCAL_DIR`. This opt-in separates the object owner from
+the SQLite/routes root without copying credentials. With no complete selection,
+the existing `<data-root>/objects` default remains isolated; routes and state always
+stay under the selected local data root. Selecting an existing object root is an
+intentional sharing boundary, not a fully isolated object store.
+
 The daily devtest builder opts into a separate compile-time default:
 `home/.ng-devtest-4300`, ignoring executable-adjacent `.ng` unless an explicit
 absolute override is supplied. Normal/release binaries retain the rules above.

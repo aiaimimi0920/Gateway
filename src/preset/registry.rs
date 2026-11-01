@@ -3,6 +3,7 @@ use super::*;
 /// Returns all built-in presets indexed by ID.
 pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     let mut presets = vec![
+        antigravity_oauth_preset(),
         xai_openai_preset(),
         xfyun_preset(),
         xfyun_websocket_preset(),
@@ -14,6 +15,8 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
         gemini_canvas_chat_preset(),
         freebuff_preset(),
         producer_preset(),
+        flow_web_preset(),
+        stitch_web_preset(),
         suno_preset(),
         udio_preset(),
     ];

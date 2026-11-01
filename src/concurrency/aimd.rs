@@ -93,6 +93,8 @@ pub struct AimdController {
     current_limit: AtomicUsize,
     active_count: AtomicUsize,
     consecutive_successes: AtomicUsize,
+    // Serialize feedback with capacity transfers; never held across an await.
+    update_guard: Mutex<()>,
     withheld: Mutex<WithheldPool>,
 }
 
@@ -105,6 +107,7 @@ impl AimdController {
             current_limit: AtomicUsize::new(initial),
             active_count: AtomicUsize::new(0),
             consecutive_successes: AtomicUsize::new(0),
+            update_guard: Mutex::new(()),
             withheld: Mutex::new(WithheldPool {
                 held: Vec::new(),
                 pending: 0,
@@ -139,6 +142,7 @@ impl AimdController {
     /// Call after a successful upstream response. Triggers an additive increase
     /// once `increase_threshold` consecutive successes have been observed.
     pub fn on_success(&self) {
+        let _update = self.update_guard.lock();
         let prev = self.consecutive_successes.fetch_add(1, Ordering::Relaxed);
         let next = prev + 1;
 
@@ -152,6 +156,7 @@ impl AimdController {
     /// Call after an upstream failure. Applies the appropriate multiplicative
     /// decrease and resets the consecutive-success counter.
     pub fn on_failure(&self, kind: FailureKind) {
+        let _update = self.update_guard.lock();
         self.consecutive_successes.store(0, Ordering::Relaxed);
 
         let factor = match kind {
@@ -164,9 +169,11 @@ impl AimdController {
     // ── snapshot ─────────────────────────────────────────────────────────
 
     pub fn snapshot(&self) -> ConcurrencySnapshot {
+        let _update = self.update_guard.lock();
         let current_limit = self.current_limit.load(Ordering::Relaxed);
         let active_count = self.active_count.load(Ordering::Relaxed);
-        let available = current_limit.saturating_sub(active_count);
+        // Report the real permit source, not a derived number masking pool drift.
+        let available = self.semaphore.available_permits();
         ConcurrencySnapshot {
             current_limit,
             active_count,
@@ -307,6 +314,10 @@ unsafe impl Sync for ConcurrencyPermit {}
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+#[cfg(test)]
+#[path = "aimd_race_tests.rs"]
+mod race_tests;
 
 #[cfg(test)]
 mod tests {

@@ -102,6 +102,15 @@ pub fn classify_upstream_error(
     let code = extract_code_from_body(body);
     let raw_message = extract_message_from_body(body);
 
+    if let Some(error) = super::model_pricing::classify(
+        status,
+        code.as_deref(),
+        raw_message.as_deref().unwrap_or(body),
+        provider_name,
+    ) {
+        return error;
+    }
+
     if super::is_provider_ip_block_rejection(status, raw_message.as_deref().unwrap_or(body)) {
         return GatewayError {
             kind: ErrorKind::ServiceUnavailable,
@@ -114,6 +123,7 @@ pub fn classify_upstream_error(
             },
             provider_name: provider_name.map(str::to_owned),
             upstream_retry_after_ms: None,
+            native_transport: None,
         };
     }
 
@@ -192,6 +202,7 @@ pub fn classify_upstream_error(
         fallback_hint,
         provider_name: provider_name.map(str::to_string),
         upstream_retry_after_ms,
+        native_transport: None,
     };
     if super::is_channel_unavailable(&error) {
         error.retryable = false;
@@ -233,35 +244,14 @@ pub fn classify_network_error(err: &rquest::Error, provider_name: Option<&str>) 
         fallback_hint: build_fallback_hint(kind),
         provider_name: provider_name.map(str::to_string),
         upstream_retry_after_ms: None,
+        native_transport: None,
     }
 }
 
 /// Keep native transport classification and strip URLs before diagnostics can expose query secrets.
 pub(crate) fn classify_native_network_error(err: reqwest::Error, provider: &str) -> GatewayError {
-    let kind = if err.is_timeout() {
-        ErrorKind::Timeout
-    } else if err.is_connect() {
-        ErrorKind::Network
-    } else {
-        ErrorKind::Unknown
-    };
-    let status = err
-        .status()
-        .map(|s| s.as_u16())
-        .or_else(|| err.is_timeout().then_some(504));
-    GatewayError {
-        kind,
-        message: sanitize_provider_error_message(&format!(
-            "Native transport error: {}",
-            err.without_url()
-        )),
-        code: None,
-        http_status: status,
-        retryable: is_kind_retryable(kind),
-        fallback_hint: build_fallback_hint(kind),
-        provider_name: Some(provider.to_owned()),
-        upstream_retry_after_ms: None,
-    }
+    // Callers without request-local redirect evidence cannot grant pre-send recovery.
+    super::native_transport::classify_native_send_error(err, provider, false)
 }
 
 // ---------------------------------------------------------------------------
@@ -354,5 +344,6 @@ pub(crate) fn classify_native_transport_failure(timeout: bool, provider: &str) -
         fallback_hint: build_fallback_hint(kind),
         provider_name: Some(provider.into()),
         upstream_retry_after_ms: None,
+        native_transport: None,
     }
 }

@@ -8,6 +8,17 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+#[path = "aistudio_auth.rs"]
+mod aistudio;
+#[path = "flow_auth.rs"]
+mod flow;
+#[path = "flowmusic_auth.rs"]
+mod flowmusic;
+#[path = "stitch_auth.rs"]
+mod stitch;
+pub use flowmusic::import as import_flowmusic_session;
+#[path = "gemini_auth_session_capture.rs"]
+mod capture;
 #[path = "gemini_auth_session_drafts.rs"]
 mod drafts;
 #[path = "gemini_auth_session_parsing.rs"]
@@ -51,6 +62,10 @@ pub enum GeminiAuthFamily {
     GeminiCanvasChat,
     GeminiBusiness,
     GeminiWeb,
+    AistudioWeb,
+    FlowmusicWeb,
+    FlowWeb,
+    StitchWeb,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -232,6 +247,18 @@ impl GeminiAuthSessionManager {
         self: &Arc<Self>,
         input: CreateGeminiAuthSessionInput,
     ) -> GeminiAuthSessionView {
+        if input.target_family == GeminiAuthFamily::AistudioWeb {
+            return self.create_aistudio_session(input);
+        }
+        if input.target_family == GeminiAuthFamily::FlowmusicWeb {
+            return self.create_flowmusic_session(input);
+        }
+        if input.target_family == GeminiAuthFamily::FlowWeb {
+            return self.create_flow_session(input);
+        }
+        if input.target_family == GeminiAuthFamily::StitchWeb {
+            return self.create_stitch_session(input);
+        }
         let now = now_rfc3339();
         let session_id = Uuid::new_v4().to_string();
         let trimmed_provider_id = input.provider_id.trim().to_string();
@@ -247,6 +274,12 @@ impl GeminiAuthSessionManager {
         };
 
         match input.target_family {
+            GeminiAuthFamily::AistudioWeb
+            | GeminiAuthFamily::FlowmusicWeb
+            | GeminiAuthFamily::FlowWeb
+            | GeminiAuthFamily::StitchWeb => {
+                unreachable!("handled by the dedicated capture owner")
+            }
             GeminiAuthFamily::GeminiBusiness => {
                 session.status = GeminiAuthSessionStatus::WaitingUser;
                 session.message = "Complete Gemini Business login, then trigger one Gemini Business request in the opened browser window.".to_string();
@@ -256,7 +289,7 @@ impl GeminiAuthSessionManager {
                 let provider_id = trimmed_provider_id.clone();
                 tokio::spawn(async move {
                     manager
-                        .run_business_capture_session(session_id, provider_id)
+                        .run_business_capture_session(session_id, provider_id, input.account_label)
                         .await;
                 });
                 session
@@ -270,7 +303,7 @@ impl GeminiAuthSessionManager {
                 let provider_id = trimmed_provider_id.clone();
                 tokio::spawn(async move {
                     manager
-                        .run_web_capture_session(session_id, provider_id)
+                        .run_web_capture_session(session_id, provider_id, input.account_label)
                         .await;
                 });
                 session
@@ -308,75 +341,6 @@ impl GeminiAuthSessionManager {
         }
     }
 
-    async fn run_business_capture_session(
-        self: Arc<Self>,
-        session_id: String,
-        provider_id: String,
-    ) {
-        match run_gemini_business_capture_worker(provider_id.as_str()).await {
-            Ok(output) => {
-                let generated_drafts = build_business_generated_drafts(
-                    output
-                        .jwt
-                        .as_deref()
-                        .expect("validated Gemini Business jwt"),
-                    output
-                        .config_id
-                        .as_deref()
-                        .expect("validated Gemini Business configId"),
-                    output
-                        .session
-                        .as_deref()
-                        .expect("validated Gemini Business session"),
-                );
-                self.update_session(
-                    session_id.as_str(),
-                    GeminiAuthSessionStatus::Succeeded,
-                    "Gemini Business runtime captured.".to_string(),
-                    generated_drafts,
-                );
-            }
-            Err(message) => {
-                self.update_session(
-                    session_id.as_str(),
-                    GeminiAuthSessionStatus::Failed,
-                    message,
-                    Vec::new(),
-                );
-            }
-        }
-    }
-
-    async fn run_web_capture_session(self: Arc<Self>, session_id: String, provider_id: String) {
-        match run_gemini_web_capture_worker(provider_id.as_str()).await {
-            Ok(output) => {
-                let generated_drafts = build_web_generated_drafts(
-                    provider_id.as_str(),
-                    output
-                        .api_key
-                        .as_deref()
-                        .expect("validated Gemini Web primary cookie"),
-                    output.auth_token.as_deref(),
-                    &output,
-                );
-                self.update_session(
-                    session_id.as_str(),
-                    GeminiAuthSessionStatus::Succeeded,
-                    "Gemini Web HTTP runtime captured.".to_string(),
-                    generated_drafts,
-                );
-            }
-            Err(message) => {
-                self.update_session(
-                    session_id.as_str(),
-                    GeminiAuthSessionStatus::Failed,
-                    message,
-                    Vec::new(),
-                );
-            }
-        }
-    }
-
     pub fn get_session(&self, session_id: &str) -> Option<GeminiAuthSessionView> {
         self.sessions
             .get(session_id)
@@ -397,6 +361,18 @@ impl GeminiAuthSessionManager {
             })?;
         if session.status != GeminiAuthSessionStatus::WaitingUser {
             return Ok(session);
+        }
+        if session.target_family == GeminiAuthFamily::AistudioWeb {
+            return Err("请登录 AI Studio 后关闭本次专用浏览器窗口，程序会自动继续导入。".into());
+        }
+        if session.target_family == GeminiAuthFamily::FlowmusicWeb {
+            return Err("请登录 FlowMusic 后关闭本次专用浏览器窗口，程序会自动继续导入。".into());
+        }
+        if session.target_family == GeminiAuthFamily::FlowWeb {
+            return Err("请登录 Google Flow 后关闭本次专用浏览器窗口，程序会自动继续导入。".into());
+        }
+        if session.target_family == GeminiAuthFamily::StitchWeb {
+            return Err("请登录 Stitch 后关闭本次专用浏览器窗口，程序会自动继续导入。".into());
         }
         if matches!(
             session.target_family,
@@ -454,7 +430,7 @@ impl GeminiAuthSessionManager {
         match run_gemini_canvas_capture_worker(
             provider_id.as_str(),
             target_family,
-            account_label,
+            account_label.clone(),
             force_complete_signal_relative_path.as_deref(),
         )
         .await
@@ -464,7 +440,7 @@ impl GeminiAuthSessionManager {
                     .runtime_state_object_key
                     .as_deref()
                     .expect("validated Gemini Canvas runtimeStateObjectKey");
-                let generated_drafts = build_canvas_generated_drafts(
+                let mut generated_drafts = build_canvas_generated_drafts(
                     Some((provider_id.as_str(), target_family)),
                     runtime_state_object_key,
                     output
@@ -474,6 +450,7 @@ impl GeminiAuthSessionManager {
                     output.browser_runtime_state_object_key.as_deref(),
                     output.api_keys.as_deref(),
                 );
+                capture::apply_account_label(&mut generated_drafts, account_label.as_deref());
                 self.update_session(
                     session_id.as_str(),
                     GeminiAuthSessionStatus::Succeeded,

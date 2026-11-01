@@ -11,6 +11,26 @@ impl UpstreamClient {
     ) -> Result<CanonicalRelayResponse, GatewayError> {
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        if flow.executor == crate::protocol::antigravity::ADAPTER {
+            return crate::upstream::antigravity::execute(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
+        if flow.executor == "stitch_web_compatible" {
+            return crate::upstream::stitch_web::execute(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
         if flow.executor == crate::protocol::chatgpt::basispoints::ADAPTER {
             return crate::upstream::basispoints::execute(
                 &self.http,
@@ -132,16 +152,16 @@ impl UpstreamClient {
                     | EndpointKind::Completions
             )
         {
-            let browser_owned_payload =
-                gemini_canvas_web_reverse_modular::force_browser_owned_payload(payload);
+            let http_owned_payload =
+                gemini_canvas_web_reverse_modular::force_http_owned_payload(payload);
             debug!(
                 model,
                 endpoint = ?req.endpoint_kind,
-                "sending upstream request (gemini canvas browser relay modular: connected-canvas text accumulate)"
+                "sending upstream request (gemini canvas HTTP-only host text accumulate)"
             );
             return self
                 .execute_gemini_canvas_modular_browser_relay_text(
-                    &browser_owned_payload,
+                    &http_owned_payload,
                     req,
                     model,
                     extra_headers,

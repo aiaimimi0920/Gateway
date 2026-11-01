@@ -12,6 +12,7 @@ pub mod anthropic_messages;
 #[cfg(not(feature = "line-anthropic-messages-official-model-api"))]
 #[path = "anthropic_messages_disabled.rs"]
 pub mod anthropic_messages;
+pub mod antigravity;
 #[cfg(feature = "line-azure-openai-official-vendor-api")]
 pub mod azure_openai;
 #[cfg(not(feature = "line-azure-openai-official-vendor-api"))]
@@ -50,6 +51,8 @@ pub(crate) use console_browser_workspace::ConsoleBrowserWorkspace;
 mod cpa_transport;
 pub mod custom_http_request_plan;
 pub mod dashscope;
+pub mod flow_web;
+mod flowmusic_session;
 pub mod gemini;
 mod gemini_business_helpers;
 mod gemini_canvas_asset_helpers;
@@ -113,8 +116,10 @@ pub mod openai_compatible_official_api_common;
 pub mod openai_compatible_request_plan;
 mod producer_browser_worker_io;
 mod producer_browser_worker_process;
+pub mod stitch_web;
 pub(crate) use producer_browser_worker_process::{
-    execute_console_browser_worker, PreparedProducerBrowserWorkerLaunch,
+    execute_console_browser_worker, execute_producer_browser_worker_process,
+    PreparedProducerBrowserWorkerLaunch,
 };
 #[cfg(test)]
 mod producer_browser_worker_security_tests;

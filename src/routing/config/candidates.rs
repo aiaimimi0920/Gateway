@@ -473,7 +473,11 @@ fn provider_to_candidate(
         adapter: selected_payload.adapter.clone(),
         protocol_family: family.to_owned(),
         protocol_profile: super::probe_identity::effective_protocol_profile(p, discovery),
-        supported_protocol_families: if discovery.is_some() {
+        supported_protocol_families: if selected_payload.call_flow.is_some_and(|flow| {
+            flow.special_adapter == crate::protocol::call_flow::SpecialAdapter::FlowmusicWeb
+        }) {
+            vec![crate::protocol::registry::PRODUCER_MUSIC_FAMILY.to_string()]
+        } else if discovery.is_some() {
             selected_payload
                 .discovered_protocols
                 .iter()

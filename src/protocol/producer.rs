@@ -8,6 +8,8 @@ mod conversation_summary;
 #[cfg(test)]
 mod conversation_summary_tests;
 mod endpoints;
+mod flowmusic;
+pub use flowmusic::prepare_flowmusic_request;
 #[cfg(test)]
 mod endpoints_tests;
 mod image_response;
