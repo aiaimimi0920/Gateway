@@ -17,7 +17,7 @@ test("OSV covers every committed first-party lockfile with validated reports", (
     .filter((name) => /(^|\/)(Cargo\.lock|package-lock\.json)$/.test(name) && !name.includes("node_modules/"));
   const covered = [...runner.matchAll(/"([^"\n]*(?:Cargo\.lock|package-lock\.json))"/g)].map((match) => match[1]);
   assert.deepEqual(covered.sort(), tracked.sort());
-  assert.equal(covered.length, 9);
+  assert.equal(covered.length, 10);
   assert.ok(security.includes("uses: ./.github/workflows/osv-scan.yml"));
   assert.match(osv, /if: inputs.enforce_findings && steps.scan.outputs.findings_free != 'true'/);
   assert.match(osv, /wait-for-processing: true/);

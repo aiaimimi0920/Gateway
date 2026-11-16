@@ -15,7 +15,10 @@ test("invalid storageState releases a real headless browser before creation reje
   timeout: 60_000,
 }, async (t) => {
   const root = storageFixture(t), runtimeStateObjectKey = path.join(root, "invalid-state.json");
-  fs.writeFileSync(runtimeStateObjectKey, "invalid storageState fixture");
+  // Pass the early JSON check, then fail Playwright's schema check after launch.
+  fs.writeFileSync(runtimeStateObjectKey, JSON.stringify({
+    cookies: [{ name: "fixture-cookie", value: 123, domain: "example.invalid", path: "/" }], origins: [],
+  }));
   const launch = chromium.launch.bind(chromium);
   let browser;
   t.mock.method(chromium, "launch", async (options) => {

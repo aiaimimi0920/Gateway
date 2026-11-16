@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import { validateGitleaks, validateOsv } from "./security-report.mjs";
 
 export const lockfiles = ["Cargo.lock", "apps/desktop/src-tauri/Cargo.lock",
-  "crates/gateway-local-data/Cargo.lock", "crates/cpa-claude-profile/Cargo.lock",
+  "crates/gateway-local-data/Cargo.lock", "crates/gateway-copilot-runtime/Cargo.lock", "crates/cpa-claude-profile/Cargo.lock",
   "crates/cpa-http-transport/Cargo.lock", "crates/cpa-tls-profile/Cargo.lock",
   "crates/http2-go-compat/Cargo.lock", "apps/desktop/package-lock.json", "scripts/package-lock.json"];
 
