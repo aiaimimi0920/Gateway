@@ -31,28 +31,28 @@ describe("AccountsLedgerWorkspace provider cards", () => {
   it("renders one card per provider with its category tint and pool capacity", () => {
     renderWorkspace(
       workspaceProps({
-          pilotSections: [
-            pilotSection(),
-            pilotSection({
-              providerId: "suno",
-              providerIds: ["suno"],
-              providerLabel: "Suno",
-              providerPreset: "suno",
-              hostLabel: "studio-api-prod.suno.com",
-              directAccounts: [pilotAccount({ providerId: "suno", accountId: "suno-1" })],
-            }),
-            pilotSection({
-              providerId: "custom-openai",
-              providerIds: ["custom-openai"],
-              providerLabel: "Custom OpenAI",
-              providerPreset: null,
-              adapter: "openai_compatible",
-              protocolProfile: "openai_compatible_generic",
-              directAccounts: [
-                pilotAccount({ providerId: "custom-openai", accountId: "custom-1" }),
-              ],
-            }),
-          ],
+        pilotSections: [
+          pilotSection(),
+          pilotSection({
+            providerId: "suno",
+            providerIds: ["suno"],
+            providerLabel: "Suno",
+            providerPreset: "suno",
+            hostLabel: "studio-api-prod.suno.com",
+            directAccounts: [pilotAccount({ providerId: "suno", accountId: "suno-1" })],
+          }),
+          pilotSection({
+            providerId: "custom-openai",
+            providerIds: ["custom-openai"],
+            providerLabel: "Custom OpenAI",
+            providerPreset: null,
+            adapter: "openai_compatible",
+            protocolProfile: "openai_compatible_generic",
+            directAccounts: [
+              pilotAccount({ providerId: "custom-openai", accountId: "custom-1" }),
+            ],
+          }),
+        ],
       }),
     );
 
@@ -152,16 +152,16 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     const user = userEvent.setup();
     renderWorkspace(
       workspaceProps({
-          pilotSections: [
-            pilotSection(),
-            pilotSection({
-              providerId: "poe",
-              providerIds: ["poe"],
-              providerLabel: "Poe",
-              providerPreset: "poe-openai",
-              directAccounts: [pilotAccount({ providerId: "poe", accountId: "poe-1" })],
-            }),
-          ],
+        pilotSections: [
+          pilotSection(),
+          pilotSection({
+            providerId: "poe",
+            providerIds: ["poe"],
+            providerLabel: "Poe",
+            providerPreset: "poe-openai",
+            directAccounts: [pilotAccount({ providerId: "poe", accountId: "poe-1" })],
+          }),
+        ],
       }),
     );
 
@@ -268,17 +268,17 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     await user.click(screen.getByRole("switch", { name: /Managed OpenAI 自动删除失效号/ }));
     expect(onToggleProviderAutoPrune).toHaveBeenCalledWith("managed-provider", true);
     await user.click(screen.getByRole("button", { name: /Managed OpenAI 手动删除失效号/ }));
-    expect(screen.queryByRole("dialog", { name: "确认归档失效号" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog", { name: "确认归档失效号" })).not.toBeInTheDocument();
     expect(onPruneProviderCredentials).toHaveBeenCalledWith("managed-provider");
 
     await user.click(screen.getByRole("switch", { name: /Managed OpenAI 彻底删除模式/ }));
-    expect(screen.getByRole("dialog", { name: "开启彻底删除模式" })).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog", { name: "开启彻底删除模式" })).toBeInTheDocument();
     expect(onToggleProviderPermanentDelete).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "确认开启" }));
     expect(onToggleProviderPermanentDelete).toHaveBeenCalledWith("managed-provider", true);
 
     await user.click(screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ }));
-    expect(screen.getByRole("dialog", { name: "确认清空账号归档" })).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog", { name: "确认清空账号归档" })).toBeInTheDocument();
     expect(onPurgeProviderArchive).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "彻底删除归档" }));
     expect(onPurgeProviderArchive).toHaveBeenCalledWith("managed-provider");
@@ -287,9 +287,11 @@ describe("AccountsLedgerWorkspace provider cards", () => {
   it("shows unsupported cloud purge as restricted without opening a delete dialog", async () => {
     const user = userEvent.setup();
     const onPurgeProviderArchive = vi.fn();
-    renderWorkspace(workspaceProps({ onPurgeProviderArchive, refillByProvider: new Map([["managed-provider", {
-      ...refillDemand(), archivePurgeSupported: false, archivePurgeUnsupportedReason: "Conditional delete is unverified",
-    }]]) }));
+    renderWorkspace(workspaceProps({
+      onPurgeProviderArchive, refillByProvider: new Map([["managed-provider", {
+        ...refillDemand(), archivePurgeSupported: false, archivePurgeUnsupportedReason: "Conditional delete is unverified",
+      }]])
+    }));
     await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
     const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
     expect(trigger).toBeDisabled();
@@ -297,15 +299,17 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     expect(trigger).toHaveAttribute("title", "Conditional delete is unverified");
     await user.click(trigger);
     expect(onPurgeProviderArchive).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
   it("preserves unavailable counts and read errors when cloud purge is also restricted", async () => {
     const user = userEvent.setup();
-    renderWorkspace(workspaceProps({ refillByProvider: new Map([["managed-provider", {
-      ...refillDemand(), archivedCredentialCount: null, archiveStorageError: "Storage authentication failed",
-      archivePurgeSupported: false, archivePurgeUnsupportedReason: "Conditional delete is unverified",
-    }]]) }));
+    renderWorkspace(workspaceProps({
+      refillByProvider: new Map([["managed-provider", {
+        ...refillDemand(), archivedCredentialCount: null, archiveStorageError: "Storage authentication failed",
+        archivePurgeSupported: false, archivePurgeUnsupportedReason: "Conditional delete is unverified",
+      }]])
+    }));
     await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
     const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
     expect(trigger).toBeDisabled();
@@ -321,7 +325,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
     expect(trigger).toBeDisabled();
     await user.click(trigger);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
   it("returns focus to the destructive action after Cancel or Escape", async () => {
@@ -397,7 +401,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     expect(screen.queryByRole("button", { name: "编辑" })).not.toBeInTheDocument();
     const remove = screen.getByRole("button", { name: "删除凭据池" });
     await user.click(remove);
-    expect(screen.getByRole("dialog", { name: "确认删除凭据池" })).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog", { name: "确认删除凭据池" })).toBeInTheDocument();
     expect(onRemoveProvider).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "取消" }));
     expect(onRemoveProvider).not.toHaveBeenCalled();
@@ -417,7 +421,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     const onOpenModelMapping = vi.fn();
     renderWorkspace(workspaceProps({ pilotSections: [section], onOpenProviderSchedule, onOpenModelMapping }));
     const footer = screen.getByRole("button", { name: "测试" }).closest("footer")!;
-    expect(Array.from(footer.querySelectorAll("button")).map((button) => button.getAttribute("aria-label")))
+    expect(Array.from(footer.querySelectorAll('button, input[role="switch"]')).map((control) => control.getAttribute("aria-label")))
       .toEqual(["Managed OpenAI 调度开关", "测试", "模型映射", "删除凭据池"]);
     await user.click(screen.getByRole("button", { name: "测试" }));
     expect(onOpenProviderSchedule).toHaveBeenCalledWith(section);

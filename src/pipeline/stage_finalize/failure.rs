@@ -16,6 +16,14 @@ pub async fn run_failure(
     refund_pre_deducted_quota(ctx, state).await;
     finalize_request_audit_failure(ctx, error, state).await;
 
+    report_failure(error, ctx, state).await;
+}
+
+pub(super) async fn report_failure(
+    error: &crate::error::GatewayError,
+    ctx: &PipelineContext,
+    state: &Arc<AppState>,
+) {
     let session = match &ctx.session {
         Some(session) => session,
         None => return,

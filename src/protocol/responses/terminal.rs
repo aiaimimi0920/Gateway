@@ -9,7 +9,7 @@ use crate::protocol::stream_error::ProtocolStreamError;
 pub(super) enum CompletionError {
     Incomplete,
     InvalidEvent,
-    Upstream(String),
+    Upstream(&'static str),
 }
 
 impl CompletionError {
@@ -21,7 +21,7 @@ impl CompletionError {
         }
     }
 
-    fn message(&self) -> &str {
+    fn message(&self) -> &'static str {
         match self {
             Self::Incomplete => {
                 "Responses stream ended before response.completed or response.incomplete."
@@ -32,7 +32,7 @@ impl CompletionError {
     }
 
     pub(super) fn protocol(self) -> ProtocolStreamError {
-        // Include only the bounded, sanitized error fields, never partial output or raw JSON.
+        // Only fixed local text leaves this owner, never provider prose, code or partial output.
         ProtocolStreamError::invalid_data(format!("{}: {}", self.code(), self.message()))
     }
 
@@ -124,19 +124,38 @@ impl Completion {
 fn upstream_failure(payload: &Value) -> CompletionError {
     let error = payload
         .get("error")
+        .filter(|value| !value.is_null())
         .or_else(|| payload.pointer("/response/error"));
-    let message = error
-        .and_then(|e| {
-            e.get("message")
-                .and_then(Value::as_str)
-                .or_else(|| e.as_str())
-        })
-        .unwrap_or("Responses upstream stream failed before completion.");
     let code = error
         .and_then(|e| e.get("code").or_else(|| e.get("type")))
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    CompletionError::Upstream(crate::error::sanitize_provider_error_message(&format!(
-        "{code}: {message}"
-    )))
+        .and_then(Value::as_str);
+    // Exact structured-code compatibility only. Arbitrary prose must not grant a health category;
+    // these labels preserve existing classifiers without changing GatewayError/replay policy.
+    CompletionError::Upstream(match code {
+        Some("invalid_api_key" | "invalid_token" | "authentication_error" | "unauthorized") => {
+            "Responses upstream stream failed (credential_invalid)."
+        }
+        Some("token_expired" | "expired_token" | "session_expired") => {
+            "Responses upstream stream failed (token_expired)."
+        }
+        Some("model_not_found" | "model_not_supported" | "unsupported_model") => {
+            "Responses upstream stream failed (model_unsupported)."
+        }
+        Some(
+            "insufficient_quota"
+            | "quota_exceeded"
+            | "quota_exhausted"
+            | "billing_hard_limit_reached",
+        ) => "Responses upstream stream failed (quota_exhausted).",
+        Some("rate_limit_exceeded" | "rate_limit_error" | "rate_limited" | "too_many_requests") => {
+            "Responses upstream stream failed (rate_limited)."
+        }
+        Some(
+            "content_filter"
+            | "content_policy_violation"
+            | "safety_violation"
+            | "content_filter_error",
+        ) => "Responses upstream stream failed (content_filter).",
+        _ => "Responses upstream stream failed before completion.",
+    })
 }

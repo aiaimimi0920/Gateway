@@ -7,8 +7,84 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+#[cfg(feature = "line-accio-web-reverse-api")]
+mod accio_cache;
+#[cfg(feature = "line-accio-web-reverse-api")]
+mod accio_fixture;
+mod accio_guard;
+#[cfg(feature = "line-accio-web-reverse-api")]
+mod accio_lifecycle;
+mod accio_material;
+#[cfg(feature = "line-accio-web-reverse-api")]
+mod accio_recovery;
+mod authority_fixture;
+mod cache_recovery;
+mod cache_recovery_real_redis;
+mod cache_recovery_safety;
+mod cache_target_tests;
+mod cache_wire;
+mod dim_cache;
+mod dim_fixture;
+mod dim_lifecycle;
+mod dim_material;
+mod durable_ack;
+mod durable_backend;
+mod durable_gate;
+mod durable_real_redis;
+mod durable_recovery;
+mod grok_context;
+mod grok_lifecycle;
+mod grok_wire;
+#[cfg(feature = "line-kiro-official-vendor-api")]
+mod kiro_cache;
+#[cfg(feature = "line-kiro-official-vendor-api")]
+mod kiro_fixture;
+mod kiro_guard;
+#[cfg(feature = "line-kiro-official-vendor-api")]
+mod kiro_lifecycle;
+mod kiro_material;
+#[cfg(feature = "line-kiro-official-vendor-api")]
+mod kiro_runtime;
 mod lifecycle;
+mod lobsterai_fixture;
+mod lobsterai_lifecycle;
+mod lobsterai_material;
+mod lobsterai_reauthorization;
+mod lobsterai_recovery;
+mod nous_cache;
+mod nous_config;
+mod nous_fixture;
+mod nous_lifecycle;
+mod nous_material;
+#[cfg(feature = "line-nous-portal-oauth")]
+mod nous_probe;
+mod nous_recovery;
+mod nous_scheduler_fixture;
+mod nous_server;
+mod nous_target;
+mod server_authority;
+mod server_authority_recovery_owner;
+mod server_authority_timeout;
+mod server_persistence;
+mod server_policy;
 mod transport;
+#[cfg(feature = "line-google-agent-platform-official")]
+mod vertex_cache;
+#[cfg(feature = "line-google-agent-platform-official")]
+mod vertex_fixture;
+#[cfg(feature = "line-google-agent-platform-official")]
+mod vertex_lifecycle;
+#[cfg(feature = "line-google-agent-platform-official")]
+mod vertex_material;
+mod worker_authority;
+mod worker_projection;
+mod worker_recovery;
+mod worker_scheduler;
+mod worker_state_fixture;
+
+tokio::task_local! {
+    pub(super) static SERVER_AUTHORITY_BUDGET: Duration;
+}
 
 struct MockOAuth {
     url: String,
@@ -49,6 +125,16 @@ impl MockOAuth {
 
     fn count(&self) -> usize {
         self.calls.load(Ordering::SeqCst)
+    }
+
+    async fn wait_called(&self) {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            while self.count() == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
     }
 }
 
@@ -104,6 +190,13 @@ impl LocalFixture {
     fn saved(&self) -> crate::routing::config::ProviderCredentialYaml {
         self.runtime.route_config().snapshot().document().providers[0].credentials[0].clone()
     }
+
+    fn writer_lock(&self) -> crate::console::WriterLockGuard {
+        RouteConfigPersistence::new(&self.config.state_dir, &self.config.routes_file)
+            .unwrap()
+            .try_writer_lock()
+            .unwrap()
+    }
 }
 
 fn client() -> rquest::Client {
@@ -140,21 +233,23 @@ async fn local_refresh_rotates_persists_and_survives_restart_without_redis() {
 
 #[tokio::test]
 async fn rotated_material_retries_disk_only_after_writer_lock_conflict() {
-    let mock = MockOAuth::new(200, ROTATED, 0).await;
+    let mock = MockOAuth::new(200, ROTATED, 100).await;
     let fixture = LocalFixture::new(&mock.url).await;
-    let persistence =
-        RouteConfigPersistence::new(&fixture.config.state_dir, &fixture.config.routes_file)
-            .unwrap();
-    let guard = persistence.try_writer_lock().unwrap();
     let mut pending = Pending::new();
-    fixture.refresh(&mut pending).await;
+    let (_, guard) = tokio::join!(fixture.refresh(&mut pending), async {
+        mock.wait_called().await;
+        fixture.writer_lock()
+    });
     assert_eq!(pending.len(), 1);
     assert_eq!(fixture.saved().api_key.as_deref(), Some("old-access"));
     let candidate = fixture
         .runtime
         .route_config()
         .resolve_candidates(Some("test-model"));
-    assert_eq!(candidate[0].payload.api_key, "new-access");
+    assert_eq!(
+        candidate[0].payload.api_key, "old-access",
+        "Result must be durable before apply"
+    );
     fixture.refresh(&mut pending).await;
     assert_eq!(mock.count(), 1, "do not reuse a rotated refresh token");
     drop(guard);

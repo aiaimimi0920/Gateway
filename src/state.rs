@@ -22,6 +22,9 @@ use sqlx::PgPool;
 
 #[derive(Debug, Default)]
 pub struct GatewayLifecycleState {
+    pub(crate) background_tasks: crate::runtime::background_tasks::BackgroundTasks,
+    /// Heartbeat stop is later than internal shutdown: HTTP must finish draining first.
+    pub(crate) local_maintenance_stop: GatewayShutdownHandle,
     pub(crate) request_waiters: Arc<crate::request_wait::WaitRegistry>,
     pub(crate) smart_routing: Arc<crate::routing::smart::SmartRouting>,
     pub(crate) model_circuits: Arc<crate::routing::model_circuit::ModelCircuits>,
@@ -31,6 +34,21 @@ pub struct GatewayLifecycleState {
     /// Per-runtime admission cursor; released with this runtime, never reused by another instance.
     pub(crate) credential_probe_cursor: AtomicUsize,
     pub(crate) oauth_refresh_task: parking_lot::Mutex<Option<tokio::task::JoinHandle<()>>>,
+    /// Coalesced request feedback wakes the single durable OAuth worker.
+    pub(crate) oauth_refresh_wake: Notify,
+    pub(crate) accio_db_refresh_task: parking_lot::Mutex<Option<tokio::task::JoinHandle<()>>>,
+    /// DB maintenance stops at drain admission, before active HTTP requests finish.
+    pub(crate) accio_db_refresh_stop: GatewayShutdownHandle,
+    pub(crate) grok_oauth: Arc<crate::console::grok_oauth::Registry>,
+    pub(crate) accio_oauth: Arc<crate::console::accio_oauth::Registry>,
+    pub(crate) kiro_oauth: Arc<crate::console::kiro_oauth::Registry>,
+    pub(crate) vertex_oauth: Arc<crate::console::vertex_oauth::Registry>,
+    pub(crate) dim_oauth: Arc<crate::console::dim_oauth::Registry>,
+    pub(crate) luma_oauth: Arc<crate::console::luma_oauth::Registry>,
+    pub(crate) nous_oauth: Arc<crate::console::nous_oauth::Registry>,
+    pub(crate) lobsterai_oauth: Arc<crate::console::lobsterai_oauth::Registry>,
+    pub(crate) freebuff_login: Arc<crate::console::freebuff_login::Registry>,
+    pub(crate) freebuff_purchases: Arc<crate::console::freebuff_purchase::Registry>,
     draining: AtomicBool,
     active_requests: AtomicUsize,
     drain_started_at: RwLock<Option<String>>,
@@ -42,6 +60,8 @@ impl GatewayLifecycleState {
     pub fn begin_drain(&self, reason: &str) -> bool {
         let started = !self.draining.swap(true, Ordering::SeqCst);
         if started {
+            self.accio_db_refresh_stop.request(reason);
+            self.freebuff_purchases.close();
             *self.drain_started_at.write() = Some(
                 OffsetDateTime::now_utc()
                     .format(&time::format_description::well_known::Rfc3339)

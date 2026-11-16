@@ -50,13 +50,15 @@ export function isChallengeOutcome(outcome) {
 
 export function requireJsonResponse(outcome, invalidJsonCode, invalidJsonMessage) {
   if (outcome.ok) {
+    if (typeof outcome.contentType === "string" && outcome.contentType.split(";")[0].trim().toLowerCase() !== "application/json") {
+      throw Object.assign(new Error("Udio response is not JSON; body omitted."), { status: 502, code: "udio_browser_content_type" });
+    }
     try {
       return JSON.parse(outcome.text);
     } catch (error) {
-      throw Object.assign(new Error(`${invalidJsonMessage} ${error}`), {
+      throw Object.assign(new Error(invalidJsonMessage), {
         status: 502,
         code: invalidJsonCode,
-        body: trimBody(outcome.text),
       });
     }
   }
@@ -65,7 +67,6 @@ export function requireJsonResponse(outcome, invalidJsonCode, invalidJsonMessage
     throw Object.assign(new Error("Udio browser session is not authenticated."), {
       status: 401,
       code: "udio_session_unauthorized",
-      body: trimBody(outcome.text),
     });
   }
 
@@ -77,19 +78,17 @@ export function requireJsonResponse(outcome, invalidJsonCode, invalidJsonMessage
     throw Object.assign(new Error("Udio captcha verification failed."), {
       status: Number(outcome.status) || 400,
       code: "udio_captcha_verification_failed",
-      body: trimBody(outcome.text),
     });
   }
 
   if (Number(outcome.status) === 403 && lower.includes("user disallowed")) {
     throw Object.assign(
       new Error(
-        "Udio rejected the current challenge token or browser clearance. Refresh the challenge in the same browser context and retry.",
+        "Udio requires a security check; generation is not replayed automatically.",
       ),
       {
         status: 403,
         code: "udio_browser_challenge_required",
-        body: trimBody(outcome.text),
       },
     );
   }
@@ -97,7 +96,6 @@ export function requireJsonResponse(outcome, invalidJsonCode, invalidJsonMessage
   throw Object.assign(new Error(`Udio request failed with HTTP ${outcome.status}.`), {
     status: Number(outcome.status) || 500,
     code: "udio_browser_request_failed",
-    body: trimBody(outcome.text),
   });
 }
 
@@ -107,40 +105,49 @@ export function extractTrackIds(body) {
     : Array.isArray(body?.trackIds)
       ? body.trackIds
       : null;
-  if (direct?.length) {
-    const ids = direct
-      .map((value) => (typeof value === "string" ? value.trim() : ""))
-      .filter(Boolean);
-    if (ids.length) {
-      return ids;
-    }
-  }
-
-  const songs = readSongs(body);
-  const songIds = songs
-    .map((song) => (typeof song?.id === "string" ? song.id.trim() : ""))
-    .filter(Boolean);
-  if (songIds.length) {
-    return songIds;
-  }
-
-  throw Object.assign(new Error("Udio generation response missing track ids."), {
-    status: 502,
-    code: "udio_missing_track_ids",
-    body: trimBody(JSON.stringify(body)),
+  if ((body?.track_ids !== undefined || body?.trackIds !== undefined) && !direct) throw identityError();
+  const ids = direct ?? readSongs(body).map(song => song.id);
+  if (!ids.length) throw Object.assign(new Error("Udio generation response missing track ids."), {
+    status: 502, code: "udio_missing_track_ids",
   });
+  validateIds(ids);
+  if (body.track_ids !== undefined && body.trackIds !== undefined &&
+      JSON.stringify(body.track_ids) !== JSON.stringify(body.trackIds)) throw identityError();
+  return ids;
 }
 
 export function readSongs(body) {
-  const songs = Array.isArray(body?.songs) ? body.songs : [];
-  return songs.filter((song) => song && typeof song === "object" && !Array.isArray(song));
+  if (body?.songs === undefined) return [];
+  const songs = body.songs;
+  if (!Array.isArray(songs) || songs.some(song => !song || typeof song !== "object" || Array.isArray(song))) throw identityError();
+  validateIds(songs.map(song => song.id));
+  for (const song of songs) {
+    for (const status of [song.status, song.state]) {
+      if (status !== undefined && (typeof status !== "string" || !status || status.trim() !== status || Buffer.byteLength(status) > 64)) throw identityError();
+      if (["error", "failed", "canceled", "cancelled"].includes(status?.toLowerCase())) {
+        throw Object.assign(new Error("Udio generation failed; remote detail omitted. Do not resubmit automatically."), {
+          status: 502, code: "udio_browser_generation_failed",
+        });
+      }
+    }
+  }
+  return songs;
+}
+
+const identityError = () => Object.assign(new Error("Udio track identity is malformed, duplicated or exceeds its bound."), {
+  status: 502, code: "udio_browser_song_identity",
+});
+function validateIds(ids) {
+  if (ids.length > 16 || new Set(ids).size !== ids.length || ids.some(id =>
+    typeof id !== "string" || !id || id.trim() !== id || Buffer.byteLength(id) > 128)) throw identityError();
 }
 
 export function songsReadyForTarget(songs, targetAssetKind) {
   return (
     Array.isArray(songs) &&
     songs.length > 0 &&
-    songs.every((song) => songHasTargetAsset(song, targetAssetKind))
+    songs.every((song) => songHasTargetAsset(song, targetAssetKind) &&
+      (song.finished === true || ["finished", "complete", "completed"].includes(String(song.status ?? song.state ?? "").toLowerCase())))
   );
 }
 

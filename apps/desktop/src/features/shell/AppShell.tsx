@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { IconButton, NavigationItem } from "@neuro/ui";
 import {
   ChevronLeft,
   Languages,
@@ -14,6 +15,8 @@ import {
 } from "lucide-react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import { useUiTheme } from "../../theme/UiThemeProvider";
+import { SettingsSearch } from "../settings/SettingsSearch";
+import { ShellPageTitle } from "./ShellPageTitle";
 
 export type ShellNavItem<Id extends string = string> = {
   id: Id;
@@ -79,11 +82,10 @@ export function ThemeToggleButton() {
         : t("主题：浅色", "Theme: light");
 
   return (
-    <button
-      className="nt-shell-icon-button nt-theme-toggle"
-      type="button"
+    <IconButton compact variant="quiet"
+      className="nt-theme-toggle"
       title={label}
-      aria-label={label}
+      label={label}
       onClick={cycleMode}
     >
       {mode === "system" ? (
@@ -93,7 +95,7 @@ export function ThemeToggleButton() {
       ) : (
         <Sun size={16} aria-hidden="true" />
       )}
-    </button>
+    </IconButton>
   );
 }
 
@@ -102,15 +104,14 @@ export function LocaleToggleButton() {
   const label = locale === "zh-CN" ? t("切换到英文", "Switch to English") : t("切换到中文", "Switch to Chinese");
 
   return (
-    <button
-      className="nt-shell-icon-button nt-locale-toggle"
-      type="button"
+    <IconButton compact variant="quiet"
+      className="nt-locale-toggle"
       title={label}
-      aria-label={label}
+      label={label}
       onClick={toggleLocale}
     >
       <Languages size={16} aria-hidden="true" />
-    </button>
+    </IconButton>
   );
 }
 
@@ -169,54 +170,53 @@ export function AppShell<Id extends string = string>({
 }: AppShellProps<Id>) {
   const { t } = useUiLocale();
   const toggleLabel = railCollapsed ? t("展开侧栏", "Expand sidebar") : t("收起侧栏", "Collapse sidebar");
+  const settings = activeNavId === "settings";
+  const consoleShell = shellClassName?.includes("console") || shellClassName?.includes("settings-native");
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const restoreToggleFocus = useRef(false);
+  useLayoutEffect(() => {
+    // Collapsing moves the trigger between the rail and header; retain keyboard focus.
+    if (restoreToggleFocus.current) toggleRef.current?.focus();
+    restoreToggleFocus.current = false;
+  }, [railCollapsed]);
+  const toggle = <IconButton compact variant="quiet" className="nt-console-rail-toggle" title={toggleLabel} label={toggleLabel}
+    ref={toggleRef} aria-expanded={!railCollapsed} onClick={event => {
+      restoreToggleFocus.current = document.activeElement === event.currentTarget;
+      onToggleRailCollapsed();
+    }}>
+    {railCollapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
+  </IconButton>;
+  const brand = <><span className="nt-brand__mark"><GatewayMark /></span><strong className="nt-brand__name">{productName}</strong></>;
 
   const renderNavItem = (item: ShellNavItem<Id>) => {
     const active = item.id === activeNavId;
     return (
-      <button
+      <NavigationItem
         key={item.id}
-        className={`nt-rail__item${active ? " nt-rail__item--active" : ""}`}
-        type="button"
+        className="nt-rail__item"
+        active={active}
         title={item.label}
         aria-label={item.label}
-        aria-current={active ? "page" : undefined}
         onClick={() => onNavigate(item.id)}
       >
         <span className="nt-rail__icon" aria-hidden="true">
           {item.icon}
         </span>
         <span className="nt-rail__label">{item.label}</span>
-      </button>
+      </NavigationItem>
     );
   };
 
   return (
     <main
-      className={`nt-shell${railCollapsed ? " nt-shell--rail-collapsed" : ""}${
-        shellClassName ? ` ${shellClassName}` : ""
-      }`}
+      className={`nt-shell nt-shell--compact${settings ? " nt-shell--settings" : ""}${railCollapsed ? " nt-shell--rail-collapsed" : ""}${shellClassName ? ` ${shellClassName}` : ""
+        }`}
     >
-      <aside className="nt-rail">
-        <div className="nt-brand">
-          <button
-            className="nt-console-rail-toggle"
-            type="button"
-            title={toggleLabel}
-            aria-label={toggleLabel}
-            aria-expanded={!railCollapsed}
-            onClick={onToggleRailCollapsed}
-          >
-            {railCollapsed ? (
-              <PanelLeftOpen size={17} aria-hidden="true" />
-            ) : (
-              <PanelLeftClose size={17} aria-hidden="true" />
-            )}
-          </button>
-          <span className="nt-brand__mark">
-            <GatewayMark />
-          </span>
-          <strong className="nt-brand__name">{productName}</strong>
+      {!railCollapsed && <aside className="nt-rail">
+        <div className="nt-brand" data-tauri-drag-region>
+          {brand}
         </div>
+        <div className="nt-rail__context">{toggle}</div>
 
         <nav className="nt-rail__nav" aria-label={navLabel}>
           {navItems.map(renderNavItem)}
@@ -230,83 +230,82 @@ export function AppShell<Id extends string = string>({
                 {utilityItems.map(renderNavItem)}
               </nav>
             ) : null}
+            {settings && headerLeading}
           </div>
         ) : null}
-      </aside>
+      </aside>}
 
       <header className="nt-titlebar">
-        {/* The drag region stays text-free: the workspace title already lives in the board header below. */}
+        {/* Window chrome excludes interactive descendants from dragging, including the compact top navigation. */}
         <div className="nt-titlebar__drag" data-tauri-drag-region>
+          {railCollapsed && toggle}
+          {railCollapsed && <>
+            <div className="nt-brand" data-tauri-drag-region>{brand}</div>
+            <nav className="nt-top-nav" aria-label={navLabel}>{navItems.map(renderNavItem)}</nav>
+          </>}
+          <ShellPageTitle title={title} settings={settings} />
+        </div>
+        <div className="nt-titlebar__controls">
+          {(!settings || railCollapsed) && headerLeading}
+          {headerActions ? <div className="nt-actions nt-actions--right">{headerActions}</div> : null}
           {onBack ? (
-            <button
-              className="nt-shell-icon-button nt-titlebar__back"
-              type="button"
+            <IconButton compact variant="quiet"
+              className="nt-titlebar__back"
               title={backLabel ?? t("返回", "Back")}
-              aria-label={backLabel ?? t("返回", "Back")}
+              label={backLabel ?? t("返回", "Back")}
               onClick={onBack}
             >
               <ChevronLeft size={17} aria-hidden="true" />
-            </button>
+            </IconButton>
           ) : null}
-        </div>
-        <div className="nt-titlebar__controls">
           {titlebarActions}
-          {showLocaleToggle ? <LocaleToggleButton /> : null}
-          {showThemeToggle ? <ThemeToggleButton /> : null}
+          {settings && <SettingsSearch />}
+          {railCollapsed && !!utilityItems?.length && <nav className="nt-top-utility" aria-label={t("辅助导航", "Utility navigation")}>{utilityItems.map(renderNavItem)}</nav>}
+          {showLocaleToggle && !consoleShell ? <LocaleToggleButton /> : null}
+          {showThemeToggle && !consoleShell ? <ThemeToggleButton /> : null}
           {onRefresh ? (
-            <button
-              className="nt-shell-icon-button nt-titlebar__refresh"
-              type="button"
+            <IconButton compact variant="quiet"
+              className="nt-titlebar__refresh"
               title={t("刷新", "Refresh")}
-              aria-label={t("刷新", "Refresh")}
-              disabled={refreshBusy}
+              label={t("刷新", "Refresh")}
+              loading={refreshBusy}
               onClick={onRefresh}
             >
               <RefreshCw size={16} aria-hidden="true" />
-            </button>
+            </IconButton>
           ) : null}
           {showWindowControls ? (
             <>
-              <button
-                className="nt-window-control"
-                type="button"
+              <IconButton compact variant="quiet"
+                className="gateway-window-action"
                 title={t("最小化", "Minimize")}
-                aria-label={t("最小化", "Minimize")}
+                label={t("最小化", "Minimize")}
                 onClick={() => void runWindowCommand("minimize")}
               >
                 <Minus size={15} aria-hidden="true" />
-              </button>
-              <button
-                className="nt-window-control"
-                type="button"
+              </IconButton>
+              <IconButton compact variant="quiet"
+                className="gateway-window-action"
                 title={t("最大化", "Toggle maximize")}
-                aria-label={t("最大化", "Toggle maximize")}
+                label={t("最大化", "Toggle maximize")}
                 onClick={() => void runWindowCommand("toggle-maximize")}
               >
                 <Square size={13} aria-hidden="true" />
-              </button>
-              <button
-                className="nt-window-control nt-window-control--close"
-                type="button"
+              </IconButton>
+              <IconButton compact variant="quiet"
+                className="gateway-window-action"
                 title={t("关闭", "Close")}
-                aria-label={t("关闭", "Close")}
+                label={t("关闭", "Close")}
                 onClick={() => void runWindowCommand("close")}
               >
                 <X size={15} aria-hidden="true" />
-              </button>
+              </IconButton>
             </>
           ) : null}
         </div>
       </header>
 
       <section className="nt-board">
-        <header className="nt-board__header">
-          {headerLeading ?? <div className="nt-board__heading">
-            <h1>{title}</h1>
-          </div>}
-          {headerActions ? <div className="nt-actions nt-actions--right">{headerActions}</div> : null}
-        </header>
-
         {beforeStage}
 
         <section className={`nt-stage${stageClassName ? ` ${stageClassName}` : ""}`}>{children}</section>

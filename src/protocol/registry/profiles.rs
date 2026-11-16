@@ -41,6 +41,7 @@ pub fn canonicalize_protocol_profile_key(value: &str) -> String {
             "qwen_web_chat".to_string()
         }
         "chatgpt_web_chat" => "chatgpt_web_reverse".to_string(),
+        "lumalabs_api" | "lumalabs_agents_api" => "lumalabs_agents_api".to_string(),
         "aistudio_web" => "aistudio_web_reverse".to_string(),
         "gemini_web_chat" => "gemini_web".to_string(),
         "google_gemini_api" | "google_gemini_api_modular" | "aistudio_official_api" => {
@@ -67,6 +68,7 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "openai" => "chatgpt_official_api",
         "azure-api" => "azure_openai",
         "gemini-api" | "aistudio-official-api" => "aistudio_official_api",
+        "vertex-express-api" => "vertex_express_api",
         "google-agent-platform"
         | "google-agent-platform-official-api"
         | "vertex-gemini"
@@ -85,6 +87,15 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "bedrock-converse" => "aws_bedrock",
         "cohere-chat" => "cohere",
         "groq-openai" => "groq",
+        "river-api" => "river",
+        "agnes-api" => "agnes_api",
+        "sensenova-token-plan" => "sensenova_token_plan",
+        "commandcode-api" => "commandcode_chat",
+        "sap-aicore-chat" => "sap_aicore_chat",
+        "minimax-m-plan" | "minimax-m-plan-cn" => "minimax_m_plan",
+        "cloudflare-workers-ai" => "cloudflare_workers_ai",
+        "dim-cn-oauth" | "dim-global-oauth" => "dim_user_oauth",
+        "nous-portal-oauth" => "nous_portal_oauth",
         "together-openai" => "together",
         "openrouter-openai" => "openrouter",
         "poe-openai" => "poe",
@@ -92,11 +103,13 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "deepseek-api" => "deepseek",
         "mistral-api" => "mistral",
         "xai-api" => "xai",
+        "grok-oauth" => "grok_build_oauth",
         "nvidia-openai" => "nvidia",
         "xfyun" => "xfyun_openai",
         "xfyun-websocket" => "xfyun_native_websocket",
         "anthropic" => "anthropic",
         "accio" => "accio",
+        "qwen-official-api" => "qwen_official_api",
         "qwen-coding-plan-openai" => "qwen_coding_plan_openai",
         "qwen-coding-plan-anthropic" => "qwen_coding_plan_anthropic",
         "qwen-web"
@@ -108,6 +121,7 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "aistudio-web-chat" => "aistudio_web_reverse",
         "grok" => "grok_web",
         "perplexity-api" => "perplexity_chat",
+        "perplexity-web" => "perplexity_web",
         "perplexity-search" => "perplexity_search",
         "linkup" => "linkup",
         "tavily" => "tavily",
@@ -120,10 +134,11 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "gemini-business" => "gemini_business",
         "chataibot" => "chataibot",
         "lumalabs" => "lumalabs",
+        "lumalabs-api" => crate::protocol::luma_agents::PROFILE,
         "gemini-canvas" => "gemini_canvas",
         "gemini-canvas-chat" => "gemini_canvas",
         "gemini-web" => "gemini_web",
-        "kiro" => "kiro",
+        "kiro" | "kiro-api-key" => "kiro",
         "freebuff" => "freebuff",
         "producer" => "producer",
         "suno" => "suno",
@@ -142,6 +157,7 @@ pub fn default_protocol_profile_for_adapter(adapter: &str) -> &'static str {
         "cohere_compatible" => "cohere",
         "kiro_compatible" => "kiro",
         "freebuff_compatible" => "freebuff",
+        "perplexity_web_compatible" => "perplexity_web",
         "producer_compatible" => "producer",
         "flow_web_compatible" => "flow_web",
         "stitch_web_compatible" => "stitch_web",
@@ -149,6 +165,7 @@ pub fn default_protocol_profile_for_adapter(adapter: &str) -> &'static str {
         "gemini_business_compatible" => "gemini_business",
         "chataibot_compatible" => "chataibot",
         "lumalabs_compatible" => "lumalabs",
+        "lumalabs_agents_compatible" => crate::protocol::luma_agents::PROFILE,
         "gemini_canvas_compatible" => "gemini_canvas",
         "gemini_api_modular_compatible" => "aistudio_official_api",
         "gemini_web_reverse_modular_compatible" => "gemini_web_reverse_modular",
@@ -172,6 +189,7 @@ pub fn default_protocol_profile_for_adapter(adapter: &str) -> &'static str {
 pub fn default_protocol_family_for_adapter(adapter: &str) -> &'static str {
     match adapter.trim() {
         "accio_compatible" => OPENAI_RESPONSES_FAMILY,
+        "perplexity_web_compatible" => OPENAI_CHAT_FAMILY,
         "anthropic_compatible" => "anthropic",
         "gemini_api_compatible" => GEMINI_GENERATE_CONTENT_FAMILY,
         "gemini_api_modular_compatible" => GEMINI_GENERATE_CONTENT_FAMILY,
@@ -188,6 +206,7 @@ pub fn default_protocol_family_for_adapter(adapter: &str) -> &'static str {
         "gemini_business_compatible" => GEMINI_BUSINESS_IMAGES_FAMILY,
         "chataibot_compatible" => CHATAIBOT_IMAGES_FAMILY,
         "lumalabs_compatible" => LUMALABS_IMAGES_FAMILY,
+        "lumalabs_agents_compatible" => crate::protocol::luma_agents::FAMILY,
         "gemini_canvas_compatible" => GEMINI_CANVAS_IMAGES_FAMILY,
         "gemini_canvas_web_reverse_compatible" => GEMINI_CANVAS_IMAGES_FAMILY,
         "gemini_canvas_program_web_reverse_compatible" => GEMINI_CANVAS_IMAGES_FAMILY,
@@ -206,11 +225,17 @@ pub fn default_protocol_family_for_adapter(adapter: &str) -> &'static str {
 
 pub fn default_protocol_family_for_profile(profile: &str, adapter: &str) -> String {
     match canonicalize_protocol_profile_key(profile).as_str() {
+        "dim_user_oauth_chat" => OPENAI_CHAT_FAMILY.to_string(),
+        "nous_portal_oauth" => OPENAI_CHAT_FAMILY.to_string(),
+        "dim_user_oauth_responses" => OPENAI_RESPONSES_FAMILY.to_string(),
+        "dim_user_oauth_messages" => "anthropic_messages".to_string(),
+        "dim_user_oauth_gemini" => GEMINI_GENERATE_CONTENT_FAMILY.to_string(),
         "chatgpt_official_api" | "chatgpt_codex_oauth_official_api" => {
             OPENAI_CHAT_FAMILY.to_string()
         }
-        "accio" => OPENAI_RESPONSES_FAMILY.to_string(),
+        "accio" | "grok_build_oauth" => OPENAI_RESPONSES_FAMILY.to_string(),
         "qwen_web_chat" => QWEN_WEB_CHAT_FAMILY.to_string(),
+        "perplexity_web" => OPENAI_CHAT_FAMILY.to_string(),
         "chatgpt_web_reverse" => CHATGPT_WEB_CHAT_FAMILY.to_string(),
         "aistudio_official_api" | "google_agent_platform_official_api" => {
             GEMINI_GENERATE_CONTENT_FAMILY.to_string()
@@ -228,6 +253,7 @@ pub fn default_protocol_family_for_profile(profile: &str, adapter: &str) -> Stri
         "gemini_business" => GEMINI_BUSINESS_IMAGES_FAMILY.to_string(),
         "chataibot" => CHATAIBOT_IMAGES_FAMILY.to_string(),
         "lumalabs" => LUMALABS_IMAGES_FAMILY.to_string(),
+        "lumalabs_agents_api" => crate::protocol::luma_agents::FAMILY.to_string(),
         "gemini_canvas" => GEMINI_CANVAS_IMAGES_FAMILY.to_string(),
         "gemini_web" => GEMINI_WEB_CHAT_FAMILY.to_string(),
         "producer" => PRODUCER_MUSIC_FAMILY.to_string(),

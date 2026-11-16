@@ -3,14 +3,26 @@ use serde_json::Value;
 use crate::protocol::canonical::CanonicalToolCall;
 
 pub(super) fn parse_openai_message_tool_calls(message: &Value) -> Vec<CanonicalToolCall> {
-    let tool_calls = parse_openai_tool_calls(message.get("tool_calls"));
+    parse_message_calls(message, true)
+}
+
+/// Signed Google JSON arguments cannot undergo the legacy provider HTML-entity repair.
+pub(super) fn parse_openai_message_tool_calls_lossless(message: &Value) -> Vec<CanonicalToolCall> {
+    parse_message_calls(message, false)
+}
+
+fn parse_message_calls(message: &Value, decode_entities: bool) -> Vec<CanonicalToolCall> {
+    let tool_calls = parse_openai_tool_calls(message.get("tool_calls"), decode_entities);
     if !tool_calls.is_empty() {
         return tool_calls;
     }
-    parse_openai_legacy_function_call(message.get("function_call"))
+    parse_openai_legacy_function_call(message.get("function_call"), decode_entities)
 }
 
-fn parse_openai_legacy_function_call(raw: Option<&Value>) -> Vec<CanonicalToolCall> {
+fn parse_openai_legacy_function_call(
+    raw: Option<&Value>,
+    decode_entities: bool,
+) -> Vec<CanonicalToolCall> {
     let Some(raw) = raw else {
         return vec![];
     };
@@ -27,12 +39,14 @@ fn parse_openai_legacy_function_call(raw: Option<&Value>) -> Vec<CanonicalToolCa
             .map(str::to_string),
         call_type: "function".to_string(),
         name: raw.get("name").and_then(|v| v.as_str()).map(str::to_string),
-        arguments: raw.get("arguments").map(normalize_tool_arguments),
+        arguments: raw
+            .get("arguments")
+            .map(|v| normalize_tool_arguments(v, decode_entities)),
         raw: std::collections::HashMap::new(),
     }]
 }
 
-fn parse_openai_tool_calls(raw: Option<&Value>) -> Vec<CanonicalToolCall> {
+fn parse_openai_tool_calls(raw: Option<&Value>, decode_entities: bool) -> Vec<CanonicalToolCall> {
     let arr = match raw.and_then(|v| v.as_array()) {
         Some(a) => a,
         None => return vec![],
@@ -62,7 +76,7 @@ fn parse_openai_tool_calls(raw: Option<&Value>) -> Vec<CanonicalToolCall> {
                                 .map(str::to_string)
                                 .unwrap_or_else(|| value.to_string())
                         } else {
-                            normalize_tool_arguments(value)
+                            normalize_tool_arguments(value, decode_entities)
                         }
                     }),
                 raw: std::collections::HashMap::new(),
@@ -71,9 +85,13 @@ fn parse_openai_tool_calls(raw: Option<&Value>) -> Vec<CanonicalToolCall> {
         .collect()
 }
 
-fn normalize_tool_arguments(value: &Value) -> String {
+fn normalize_tool_arguments(value: &Value, decode_entities: bool) -> String {
     if let Some(text) = value.as_str() {
-        decode_provider_tool_argument_entities(text)
+        if decode_entities {
+            decode_provider_tool_argument_entities(text)
+        } else {
+            text.to_owned()
+        }
     } else {
         serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string())
     }

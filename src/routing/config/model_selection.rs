@@ -11,6 +11,17 @@ pub struct ModelSelection {
 
 impl ModelSelection {
     pub fn models(&self) -> anyhow::Result<Vec<String>> {
+        self.models_validated(crate::credential_test_policy::exact_model)
+    }
+
+    pub(super) fn models_for_payload(
+        &self,
+        payload: &super::ProviderAccountPayload,
+    ) -> anyhow::Result<Vec<String>> {
+        self.models_validated(|model| crate::provider_model_id::valid_for_payload(model, payload))
+    }
+
+    fn models_validated(&self, valid: impl Fn(&str) -> bool) -> anyhow::Result<Vec<String>> {
         let mut seen = HashSet::new();
         let mut models = Vec::new();
         for list in [&self.manual, &self.fetched] {
@@ -19,13 +30,7 @@ impl ModelSelection {
                 "Model selection exceeds 2048 IDs per source."
             );
             for id in list {
-                anyhow::ensure!(
-                    !id.is_empty()
-                        && id.trim() == id
-                        && id.len() <= 256
-                        && !id.chars().any(|c| c.is_control() || matches!(c, '*' | '?')),
-                    "Invalid model selection ID."
-                );
+                anyhow::ensure!(valid(id), "Invalid model selection ID.");
                 if seen.insert(id.as_str()) {
                     models.push(id.clone());
                 }

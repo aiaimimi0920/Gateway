@@ -30,7 +30,25 @@ pub fn is_api_adapter(adapter: &str) -> bool {
 }
 
 pub fn prepare(payload: &ProviderAccountPayload) -> Result<PreparedCallFlow<'_>, GatewayError> {
+    crate::protocol::luma_mcp::boundary::reject_generic(payload)?;
+    crate::protocol::agnes::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::sensenova::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::commandcode::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::sap_aicore::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::minimax::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::nous_portal::runtime::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::dim_oauth::runtime::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::cloudflare_workers_ai::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::luma_agents::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::vertex_express::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::vertex_oauth::business::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::kiro_api_key::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::kiro_oauth::runtime::validate(payload)?;
+    crate::protocol::qwen::workspace_api::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::grok_oauth::business::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::perplexity_web::material::validate(payload, payload.canonical_adapter())?;
     let Some(flow) = payload.call_flow else {
+        validate_bedrock_identity(payload, payload.canonical_adapter())?;
         return Ok(PreparedCallFlow {
             payload: Cow::Borrowed(payload),
             call_adapter: payload.canonical_adapter(),
@@ -94,6 +112,10 @@ pub fn prepare(payload: &ProviderAccountPayload) -> Result<PreparedCallFlow<'_>,
     } else {
         &payload.adapter
     };
+    validate_bedrock_identity(payload, adapter)?;
+    crate::protocol::cloudflare_workers_ai::validate(payload, adapter)?;
+    crate::protocol::qwen::workspace_api::validate(payload, adapter)?;
+    crate::protocol::grok_oauth::business::validate(payload, adapter)?;
     let profile = if api {
         flow.fingerprint_adapter.profile()
     } else {
@@ -105,6 +127,9 @@ pub fn prepare(payload: &ProviderAccountPayload) -> Result<PreparedCallFlow<'_>,
         updated.adapter = adapter.to_owned();
         updated.request_client_profile = profile;
     }
+    crate::protocol::vertex_express::validate(effective.as_ref(), adapter)?;
+    crate::protocol::vertex_oauth::business::validate(effective.as_ref(), adapter)?;
+    crate::protocol::nous_portal::runtime::validate(effective.as_ref(), adapter)?;
     tracing::trace!(call_adapter = adapter, executor = %payload.adapter,
         fingerprint = ?flow.fingerprint_adapter, "call flow prepared");
     let call_adapter = if adapter == payload.adapter {
@@ -122,4 +147,19 @@ pub fn prepare(payload: &ProviderAccountPayload) -> Result<PreparedCallFlow<'_>,
 
 fn invalid(message: &str) -> GatewayError {
     GatewayError::bad_request(format!("Invalid call_flow: {message}"))
+}
+
+fn validate_bedrock_identity(
+    payload: &ProviderAccountPayload,
+    adapter: &str,
+) -> Result<(), GatewayError> {
+    // Run before any native shortcut, worker or alternate transport can consume the material.
+    if crate::protocol::bedrock_converse::explicit_auth_mode(payload.auth_mode.as_deref())
+        && adapter != "bedrock_converse_compatible"
+    {
+        return Err(invalid(
+            "explicit Bedrock authentication cannot use another protocol or executor",
+        ));
+    }
+    Ok(())
 }

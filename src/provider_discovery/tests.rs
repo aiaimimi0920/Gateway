@@ -5,6 +5,84 @@ use axum::{
 };
 use serde_json::json;
 
+#[tokio::test]
+async fn configured_models_probe_multiple_protocols_without_a_catalogue() {
+    let router = Router::new()
+        .route(
+            "/v1/chat/completions",
+            post(|| async { Json(json!({"choices":[{"message":{"content":"OK"}}]})) }),
+        )
+        .route(
+            "/v1/responses",
+            post(|| async { Json(json!({"output":[{"content":[{"text":"OK"}]}]})) }),
+        );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let task = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let missing = discover(&base, "synthetic-key").await.unwrap_err();
+    assert!(matches!(
+        missing.downcast_ref::<DiscoveryFailure>(),
+        Some(DiscoveryFailure::Catalogue)
+    ));
+    let result = discover_with_models(&base, "synthetic-key", &["known-text-model".into()])
+        .await
+        .unwrap();
+    assert_eq!(result.protocols.len(), 2);
+    assert!(result
+        .protocols
+        .iter()
+        .any(|p| p.protocol == DiscoveredProtocol::ChatCompletions));
+    assert!(result
+        .protocols
+        .iter()
+        .any(|p| p.protocol == DiscoveredProtocol::Responses));
+    assert_eq!(result.verified_models, ["known-text-model"]);
+    task.abort();
+    let _ = task.await;
+}
+
+#[tokio::test]
+async fn failed_protocol_diagnostics_do_not_echo_upstream_bodies_or_credentials() {
+    let router = Router::new().fallback(|| async {
+        (
+            axum::http::StatusCode::UNAUTHORIZED,
+            "private-upstream-body synthetic-key",
+        )
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let task = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let error = discover_with_models(&base, "synthetic-key", &["known-model".into()])
+        .await
+        .unwrap_err();
+    let message = error.to_string();
+    assert!(message.contains("HTTP 401"));
+    assert!(message.contains("authentication_required"));
+    assert!(!message.contains("private-upstream-body"));
+    assert!(!message.contains("synthetic-key"));
+    assert!(!message.contains(&base));
+    task.abort();
+    let _ = task.await;
+}
+
+#[tokio::test]
+async fn discovery_rejects_unbounded_or_invalid_model_candidates_before_network_io() {
+    for models in [
+        vec!["".into()],
+        vec!["model\nheader".into()],
+        vec!["x".repeat(257)],
+        vec!["m".into(); 2049],
+    ] {
+        assert!(
+            discover_with_models("http://127.0.0.1:1", "synthetic-key", &models)
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid discovery model")
+        );
+    }
+}
+
 #[test]
 fn alias_candidates_are_bounded_unique_and_preserve_explicit_prefixes() {
     use DiscoveredProtocol as P;

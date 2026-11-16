@@ -21,3 +21,7 @@ pub fn build_request_plan(
 }
 
 pub fn apply_runtime_headers(_payload: &ProviderAccountPayload, _map: &mut HeaderMap) {}
+
+pub fn is_reserved_payload_extra_key(_key: &str) -> bool {
+    false
+}

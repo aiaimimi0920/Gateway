@@ -131,7 +131,37 @@ pub(super) fn validate_secret_target(
                 .get(credential_index)
                 .ok_or_else(|| outside_schema(pointer))?;
             match segments[4].as_str() {
-                "api_key" | "auth_token" | "refresh_token" if segments.len() == 5 => {
+                "freebuff_session"
+                    if segments.len() == 6
+                        && matches!(
+                            segments[5].as_str(),
+                            "fingerprint_id" | "fingerprint_hash"
+                        )
+                        && credential.freebuff_session.is_some() =>
+                {
+                    Ok(SecretTarget::OptionalString)
+                }
+                "kiro_oauth"
+                    if segments.len() == 6
+                        && segments[5] == "client_secret"
+                        && credential.kiro_oauth.is_some() =>
+                {
+                    Ok(SecretTarget::OptionalString)
+                }
+                "vertex_oauth"
+                    if segments.len() == 6
+                        && segments[5] == "client_secret"
+                        && credential.vertex_oauth.is_some() =>
+                {
+                    Ok(SecretTarget::OptionalString)
+                }
+                "api_key"
+                | "auth_token"
+                | "refresh_token"
+                | "accio_sgcookie"
+                | "copilot_github_token"
+                    if segments.len() == 5 =>
+                {
                     Ok(SecretTarget::OptionalString)
                 }
                 "keepalive"

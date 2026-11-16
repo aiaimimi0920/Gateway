@@ -16,6 +16,10 @@ pub fn build_request_plan(
     model: &str,
     stream: bool,
 ) -> Result<RequestPlan, GatewayError> {
+    if crate::protocol::qwen::workspace_api::owns_payload(payload) {
+        crate::protocol::qwen::workspace_api::validate(payload, payload.canonical_adapter())?;
+        crate::protocol::qwen::workspace_api::validate_key(payload)?;
+    }
     if !owns_payload(payload) {
         return Err(GatewayError::bad_request(
             "Qwen official API request plan received a payload that does not belong to the Qwen official line.",

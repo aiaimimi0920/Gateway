@@ -15,21 +15,19 @@ it.each([
   const write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
   render(<CopyButton t={t} value="https://gateway.test/v1" label={label} variant="outline" />);
   const button = screen.getByRole("button", { name: caption });
-  const visibleCaption = () => button.querySelector("span:not(.nt-visually-hidden)")?.textContent;
+  const visibleCaption = () => button.querySelector(".n-copy-rest")?.textContent;
   expect(visibleCaption()).toBe(caption);
-  expect(button.querySelector(".lucide-copy")).not.toBeNull();
+  expect(button).toHaveAttribute("data-copy-state", "idle");
   await act(async () => { fireEvent.click(button); });
   expect(write).toHaveBeenCalledWith("https://gateway.test/v1");
   expect(visibleCaption()).toBe(caption);
-  expect(button.querySelector(".lucide-check")).not.toBeNull();
-  expect(button).toHaveClass("nt-console-copy--ok");
+  expect(button).toHaveAttribute("data-copy-state", "copied");
   expect(button).toHaveAttribute("title", copied);
-  expect(button.querySelector('[aria-live="polite"]')).toHaveTextContent(copied);
+  expect(screen.getByRole("status")).toHaveTextContent(copied);
   await act(async () => { vi.advanceTimersByTime(2400); });
   expect(visibleCaption()).toBe(caption);
-  expect(button.querySelector(".lucide-copy")).not.toBeNull();
-  expect(button.querySelector(".lucide-check")).toBeNull();
-  expect(button.querySelector('[aria-live="polite"]')).toHaveTextContent("");
+  expect(button).toHaveAttribute("data-copy-state", "idle");
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
 });
 
 it("preserves clipboard failure feedback without showing a success check", async () => {
@@ -39,6 +37,7 @@ it("preserves clipboard failure feedback without showing a success check", async
   const button = screen.getByRole("button", { name: "复制" });
   await act(async () => { fireEvent.click(button); });
   expect(button).toHaveTextContent("复制失败");
-  expect(button).toHaveClass("nt-console-copy--fail");
-  expect(button.querySelector(".lucide-check")).toBeNull();
+  expect(button).toHaveAttribute("data-copy-state", "error");
+  expect(button).toHaveAttribute("title", "复制失败");
+  expect(screen.getByRole("status")).toHaveTextContent("复制失败");
 });

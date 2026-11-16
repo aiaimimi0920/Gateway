@@ -1,18 +1,23 @@
+import { NeuroProvider } from "@neuro/ui";
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
 import { CredentialDialog, type CredentialDialogProps } from "./CredentialDialog";
 
-const catalog = { sourceUrl: "https://api.poe.com/v1/models" as const,
-  checkedAt: "2026-10-26T15:00:00Z", models: ["shared", "fetched"] };
+const catalog = {
+  sourceUrl: "https://api.poe.com/v1/models" as const,
+  checkedAt: "2026-10-26T15:00:00Z", models: ["shared", "fetched"]
+};
 beforeEach(() => localStorage.setItem("gateway-ui-locale", "zh-CN"));
 function setup(overrides: Partial<CredentialDialogProps> = {}) {
-  const props: CredentialDialogProps = { open: true, mode: "add", providerOptions: [{ id: "poe", label: "Poe" }],
+  const props: CredentialDialogProps = {
+    open: true, mode: "add", providerOptions: [{ id: "poe", label: "Poe" }],
     existingCredentialIds: [], locked: false, hasSecretAccess: true, onOpenChange: vi.fn(),
     onRequestSecretAccess: vi.fn(), onSubmit: vi.fn(), catalogProviderKind: () => "poe",
-    onDiscoverProviderModels: vi.fn().mockResolvedValue(catalog), ...overrides };
-  const view = render(<UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider>);
+    onDiscoverProviderModels: vi.fn().mockResolvedValue(catalog), ...overrides
+  };
+  const view = render(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider></NeuroProvider>);
   return { props, view };
 }
 function enterAccount() {
@@ -79,9 +84,13 @@ it("allows manual-only saving after a directory failure without retrying the ups
 });
 
 it("keeps hidden legacy name and endpoint unchanged while editing model sources", () => {
-  const { props } = setup({ mode: "edit", initialValue: { providerId: "poe", credentialId: "existing",
-    accountName: "Legacy", baseUrl: "https://api.poe.com/v1", supportedModelsText: "shared\nmanual",
-    modelCatalog: catalog, enabled: false, apiKeyOperation: "keep", apiKeyValue: "" } });
+  const { props } = setup({
+    mode: "edit", initialValue: {
+      providerId: "poe", credentialId: "existing",
+      accountName: "Legacy", baseUrl: "https://api.poe.com/v1", supportedModelsText: "shared\nmanual",
+      modelCatalog: catalog, enabled: false, apiKeyOperation: "keep", apiKeyValue: ""
+    }
+  });
   expect(screen.getByLabelText("拉取模型列表")).toHaveValue("shared");
   expect(screen.getByLabelText("手动模型列表")).toHaveValue("manual");
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
@@ -100,23 +109,29 @@ it("never treats generic protocol discovery as a directory-only fetch", () => {
 
 it("fences late directory responses after closing and clears sources on reopen", async () => {
   let resolve!: (value: typeof catalog) => void;
-  const { props, view } = setup({ providerOptions: [{ id: "poe", label: "Poe" }, { id: "other", label: "Other" }],
-    onDiscoverProviderModels: vi.fn(() => new Promise<typeof catalog>((done) => { resolve = done; })) });
+  const { props, view } = setup({
+    providerOptions: [{ id: "poe", label: "Poe" }, { id: "other", label: "Other" }],
+    onDiscoverProviderModels: vi.fn(() => new Promise<typeof catalog>((done) => { resolve = done; }))
+  });
   fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "poe" } });
   enterAccount();
   fireEvent.click(screen.getByRole("button", { name: "拉取模型" }));
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props} open={false} /></UiLocaleProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} open={false} /></UiLocaleProvider></NeuroProvider>);
   await act(async () => resolve(catalog));
   expect(props.onSubmit).not.toHaveBeenCalled();
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider></NeuroProvider>);
   expect(screen.getByLabelText("拉取模型列表")).toHaveValue("");
   expect(screen.getByLabelText("手动模型列表")).toHaveValue("");
 });
 
 it("clears model sources and hidden endpoint overrides when switching the provider", () => {
-  setup({ providerOptions: [{ id: "poe", label: "Poe" }, { id: "other", label: "Other" }],
-    initialValue: { providerId: "poe", credentialId: "copy", accountName: "Legacy", baseUrl: "https://legacy.test",
-      supportedModelsText: "manual", enabled: true, apiKeyOperation: "replace", apiKeyValue: "fixture-key" } });
+  setup({
+    providerOptions: [{ id: "poe", label: "Poe" }, { id: "other", label: "Other" }],
+    initialValue: {
+      providerId: "poe", credentialId: "copy", accountName: "Legacy", baseUrl: "https://legacy.test",
+      supportedModelsText: "manual", enabled: true, apiKeyOperation: "replace", apiKeyValue: "fixture-key"
+    }
+  });
   fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "other" } });
   expect(screen.getByLabelText("拉取模型列表")).toHaveValue("");
   expect(screen.getByLabelText("手动模型列表")).toHaveValue("");
@@ -124,9 +139,13 @@ it("clears model sources and hidden endpoint overrides when switching the provid
 });
 
 it("does not refetch or inherit models after intentionally clearing an existing selection", () => {
-  const { props } = setup({ mode: "edit", initialValue: { providerId: "poe", credentialId: "existing", accountName: "",
-    baseUrl: "", supportedModelsText: "old", fetchedModelsText: "old", manualModelsText: "", enabled: true,
-    apiKeyOperation: "keep", apiKeyValue: "" } });
+  const { props } = setup({
+    mode: "edit", initialValue: {
+      providerId: "poe", credentialId: "existing", accountName: "",
+      baseUrl: "", supportedModelsText: "old", fetchedModelsText: "old", manualModelsText: "", enabled: true,
+      apiKeyOperation: "keep", apiKeyValue: ""
+    }
+  });
   fireEvent.change(screen.getByLabelText("拉取模型列表"), { target: { value: "" } });
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
   expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ supportedModelsText: "", fetchedModelsText: "", manualModelsText: "" }));
@@ -146,7 +165,7 @@ it("aborts a pending official catalog when secret access is revoked", async () =
   const { props, view } = setup({ onDiscoverProviderModels: vi.fn(() => new Promise<typeof catalog>((done) => { resolve = done; })) });
   enterAccount(); fireEvent.click(screen.getByRole("button", { name: "拉取模型" }));
   const signal = vi.mocked(props.onDiscoverProviderModels!).mock.calls[0][1]!;
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props} hasSecretAccess={false} /></UiLocaleProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} hasSecretAccess={false} /></UiLocaleProvider></NeuroProvider>);
   await act(async () => resolve(catalog));
   expect(signal.aborted).toBe(true);
   expect(screen.getByLabelText("拉取模型列表")).toHaveValue("");

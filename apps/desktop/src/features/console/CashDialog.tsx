@@ -1,6 +1,5 @@
-import * as Dialog from "@radix-ui/react-dialog";
-import { useRef, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { Dialog } from "@neuro/ui";
+import type { ReactNode } from "react";
 import type { TranslateFn } from "./accessKeysTypes";
 import "./cashBilling.css";
 
@@ -23,49 +22,19 @@ export function CashDialog({
   t: TranslateFn;
   children: ReactNode;
 }) {
-  const trigger = useRef(
-    document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null,
-  );
   return (
-    <Dialog.Root
+    <Dialog
       open
+      title={title}
+      description={description}
+      busy={busy}
+      closeLabel={t("关闭", "Close")}
+      className={`nt-cash-dialog${wide ? " nt-cash-dialog--wide" : ""} ${className}`}
       onOpenChange={(open) => {
-        if (!open && !busy) onClose();
+        if (!open) onClose();
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content
-          className={`dialog-content nt-cash-dialog${wide ? " nt-cash-dialog--wide" : ""} ${className}`}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            if (trigger.current?.isConnected) trigger.current.focus();
-          }}
-          onEscapeKeyDown={(event) => {
-            if (busy) event.preventDefault();
-          }}
-          onPointerDownOutside={(event) => {
-            if (busy) event.preventDefault();
-          }}
-        >
-          <div className="nt-cash-dialog__head">
-            <Dialog.Title>{title}</Dialog.Title>
-            <button
-              type="button"
-              className="nt-icon-action"
-              aria-label={t("关闭", "Close")}
-              disabled={busy}
-              onClick={onClose}
-            >
-              <X size={17} />
-            </button>
-          </div>
-          <Dialog.Description>{description}</Dialog.Description>
-          {children}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+      {children}
+    </Dialog>
   );
 }

@@ -10,6 +10,9 @@ impl UpstreamClient {
         model: &str,
     ) -> bool {
         payload.canonical_adapter() == "anthropic_compatible"
+            && !crate::protocol::dim_oauth::business::owns_payload(payload)
+            && !crate::protocol::nous_portal::business::owns_payload(payload)
+            && !crate::protocol::minimax::owns_payload(payload)
             && !payload.request_client_profile.unwrap_or_default().is_cpa()
             && req.endpoint_kind == EndpointKind::Messages
             && req.stream

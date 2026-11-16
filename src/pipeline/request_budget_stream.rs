@@ -7,8 +7,50 @@ use bytes::Bytes;
 use futures::Stream;
 use tokio::time::{sleep_until, Instant, Sleep};
 
-use super::RequestBudget;
+use super::{terminal_error, RequestBudget};
 use crate::protocol::stream_error::{ProtocolStreamError, StreamError};
+
+/// Continuation of exactly one already-counted operation, never admission for another send.
+/// Its owner cooperatively closes the original run instead of dropping it at the HTTP handoff.
+pub(crate) struct AdmittedStream {
+    budget: RequestBudget,
+    attempt: u32,
+}
+impl RequestBudget {
+    pub(crate) fn admitted_stream(&self) -> Result<AdmittedStream, crate::error::GatewayError> {
+        let mut state = self.0.lock();
+        super::check_lifetime(&mut state)?;
+        if state.attempts == 0 {
+            return Err(terminal_error(
+                "stream_not_admitted",
+                state.last_error.as_ref(),
+            ));
+        }
+        Ok(AdmittedStream {
+            budget: self.clone(),
+            attempt: state.attempts,
+        })
+    }
+}
+impl AdmittedStream {
+    pub(crate) fn check(&self) -> Result<(), crate::error::GatewayError> {
+        let mut state = self.budget.0.lock();
+        if let Some(reason) = state.stop {
+            return Err(terminal_error(reason, state.last_error.as_ref()));
+        }
+        if state.attempts != self.attempt {
+            return Err(terminal_error(
+                "admitted_attempt_changed",
+                state.last_error.as_ref(),
+            ));
+        }
+        if state.deadline.is_some_and(|at| Instant::now() >= at) {
+            state.stop = Some("deadline");
+            return Err(terminal_error("deadline", state.last_error.as_ref()));
+        }
+        Ok(())
+    }
+}
 
 pub struct BudgetStream<S> {
     inner: Option<Pin<Box<S>>>,
@@ -66,3 +108,7 @@ impl<S> Drop for BudgetStream<S> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "request_budget_stream_tests.rs"]
+mod tests;

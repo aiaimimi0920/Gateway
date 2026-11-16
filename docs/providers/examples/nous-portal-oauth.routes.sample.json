@@ -1,0 +1,21 @@
+{
+  "providers": [
+    {
+      "id": "nous-subscription",
+      "preset": "nous-portal-oauth",
+      "auth_mode": "nous_portal_oauth",
+      "base_url": "https://inference-api.nousresearch.com/v1",
+      "explicit_credentials_only": true,
+      "credentials": []
+    },
+    {
+      "id": "nous-welcome",
+      "preset": "nous-portal-oauth",
+      "auth_mode": "nous_portal_oauth",
+      "base_url": "https://welcome-api.nousresearch.com/v1",
+      "explicit_credentials_only": true,
+      "credentials": []
+    }
+  ],
+  "model_routes": []
+}

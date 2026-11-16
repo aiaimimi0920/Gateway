@@ -118,3 +118,19 @@ pub fn anthropic_preset() -> ProviderPreset {
         endpoint_execution_modes: None,
     }
 }
+
+/// M Plan keys have fixed regional targets and no guessed default model.
+pub fn minimax_m_plan_preset(china: bool) -> ProviderPreset {
+    ProviderPreset {
+        id: if china {
+            crate::protocol::minimax::PRESET_CN
+        } else {
+            crate::protocol::minimax::PRESET
+        }
+        .into(),
+        auth_mode: Some(crate::protocol::minimax::AUTH_MODE.into()),
+        default_model: None,
+        messages_path: Some("/v1/messages".into()),
+        ..anthropic_preset()
+    }
+}

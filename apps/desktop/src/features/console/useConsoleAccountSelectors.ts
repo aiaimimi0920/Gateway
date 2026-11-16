@@ -6,11 +6,12 @@ import type { CredentialProbeViewResult } from "./useConsoleProbeActions";
 import type { PilotActionDialogState } from "./PilotActionDialog";
 import type { AccountsLedgerPilotAccount } from "./AccountsLedgerWorkspace";
 import type { ProviderMetricsAccountLike } from "./providerCardMetrics";
-import { buildRouteAccountCatalog, buildRouteAccountCatalogFromSummary, filterRouteAccountCatalog, type RouteAccountCatalog } from "./routeAccountCatalog";
+import { buildRouteAccountCatalog, buildRouteAccountCatalogFromSummary, filterRouteAccountCatalog, optionalString, type RouteAccountCatalog } from "./routeAccountCatalog";
 import { buildAccountLedgerRows, filterAccountLedgerRows, resolveGeminiLogicalChannel } from "./accountManagementViewModel";
 import { buildConsoleTelemetrySnapshot } from "./telemetry";
 import { buildAccountLedgerSections } from "./accountLedgerSections";
 import { buildPilotStatsView } from "./pilotStatsView";
+import { isRecord } from "./routeDocument";
 
 type RouteData = ReturnType<typeof useConsoleRouteData>;
 type ConsoleAccountSelectorsOptions = {
@@ -73,7 +74,12 @@ export function useConsoleAccountSelectors({
     if (accountGroupSummary.routeConfigRevision !== routeConfig.routeConfig.revision.id) {
       return null;
     }
-    return buildRouteAccountCatalogFromSummary(accountGroupSummary);
+    const catalog = buildRouteAccountCatalogFromSummary(accountGroupSummary);
+    // Summary omits auth_mode; only its same-revision public document may supply typed identity.
+    const authModes = new Map(routeConfig.routeConfig.document.providers.filter(isRecord)
+      .map((provider) => [optionalString(provider, "id"), optionalString(provider, "auth_mode")]));
+    for (const account of catalog.accounts) account.authMode = authModes.get(account.providerId) ?? null;
+    return catalog;
   }, [accountGroupSummary, routeConfig]);
 
   const displayedAccountCatalog = useMemo<RouteAccountCatalog>(

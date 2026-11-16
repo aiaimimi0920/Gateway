@@ -1,3 +1,4 @@
+import { Disclosure } from "@neuro/ui";
 import type { CashReceipt } from "./cashBillingApi";
 import { formatCashMicros } from "./cashAmount";
 import type { TranslateFn } from "./accessKeysTypes";
@@ -12,8 +13,7 @@ export function CashReceiptDetails({
   const usage = receipt.usage;
   const quotes = receipt.settledQuote ? [receipt.settledQuote] : receipt.quotes;
   return (
-    <details className="nt-cash-receipt">
-      <summary>{t("用量与固定报价", "Usage and frozen quote")}</summary>
+    <Disclosure className="nt-cash-receipt" title={t("用量与固定报价", "Usage and frozen quote")}>
       <dl>
         <dt>{t("请求 ID", "Request ID")}</dt>
         <dd>{receipt.requestId}</dd>
@@ -65,6 +65,6 @@ export function CashReceiptDetails({
           <dd>{quote.priceSource}</dd>
         </dl>
       ))}
-    </details>
+    </Disclosure>
   );
 }

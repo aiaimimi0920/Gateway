@@ -4,6 +4,7 @@ export type BootstrapStatus = {
   needsBootstrap: boolean;
   managementConfigured: boolean;
   environmentOverride: boolean;
+  passwordlessToken?: string;
 };
 
 export type ManagementSession = {

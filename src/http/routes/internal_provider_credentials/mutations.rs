@@ -103,9 +103,12 @@ pub async fn update_provider_credential(
 ) -> Result<Json<Value>, GatewayError> {
     assert_management_access(state.as_ref(), token.as_deref(), &headers)?;
     let pg_pool = required_pg_pool(state.as_ref())?;
-    let existing = db::get_provider_credential(pg_pool, provider_credential_id.trim())
-        .await?
-        .ok_or_else(|| GatewayError::not_found("Provider credential 不存在"))?;
+    let (snapshot, existing) = db::provider_credentials::get_provider_credential_for_update(
+        pg_pool,
+        provider_credential_id.trim(),
+    )
+    .await?
+    .ok_or_else(|| GatewayError::not_found("Provider credential 不存在"))?;
     let provider_account_id = body
         .provider_account_id
         .clone()
@@ -119,9 +122,10 @@ pub async fn update_provider_credential(
         .unwrap_or_else(|| existing.payload.clone());
     let normalized_payload =
         normalize_provider_credential_payload_for_storage(&provider_account, &next_payload);
-    let updated = db::update_provider_credential(
+    let updated = db::provider_credentials::update_provider_credential_from_snapshot(
         pg_pool,
         provider_credential_id.trim(),
+        &snapshot,
         db::UpsertProviderCredentialInput {
             provider_account_id,
             label: body.label.clone().unwrap_or_else(|| existing.label.clone()),

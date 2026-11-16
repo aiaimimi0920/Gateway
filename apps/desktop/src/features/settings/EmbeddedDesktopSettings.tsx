@@ -7,6 +7,7 @@ import { useDesktopConnection } from "../connection/useDesktopConnection";
 import { BackendConnectionForm } from "./BackendConnectionForm";
 import { DesktopBehaviorSettings } from "./DesktopBehaviorSettings";
 import { useDesktopPreferences } from "./useDesktopPreferences";
+import { NativeAboutSettings } from "./NativeAboutSettings";
 import "./AppearanceSettings.css";
 import "./DesktopSettingsEntry.css";
 
@@ -30,8 +31,14 @@ export function EmbeddedDesktopSettings({ context: initialContext }: { context: 
     }
   }, [context.revision, context.locale, context.theme, locale, resolved]);
   return <div className="nt-embedded-settings nt-settings-workspace">
-    {context.category === "backend" ? <EmbeddedBackend current={context.current} revision={context.revision} /> : <EmbeddedPreferences revision={context.revision} />}
+    {context.category === "about" ? <EmbeddedAbout revision={context.revision} /> : context.category === "backend" ? <EmbeddedBackend current={context.current} revision={context.revision} /> : <EmbeddedPreferences revision={context.revision} />}
   </div>;
+}
+
+function EmbeddedAbout({ revision }: { revision: number }) {
+  const [pending, setPending] = useState(false);
+  useParentLock(pending, revision);
+  return <NativeAboutSettings onInteractionChange={setPending} />;
 }
 
 function useParentLock(pending: boolean, revision: number) {
@@ -52,12 +59,12 @@ function EmbeddedBackend({ current, revision }: { current: string; revision: num
   // Opening settings must not reconnect, start a sidecar or replace the current console.
   const connection = useDesktopConnection(false, current);
   useParentLock(connection.busy, revision);
-  return <BackendConnectionForm native current={connection.address} localAddress={LOCAL_GATEWAY_ADDRESS}
+  return <BackendConnectionForm native current={connection.address} localAddress={connection.localAddress}
     mode={connection.settings.mode} remote={connection.settings.serverUrl} busy={connection.operation || (connection.busy ? "apply" : "")}
     error={!!connection.error} message={connection.error ? t("未能连接目标后端，请检查地址和服务状态后重试。", "Could not connect. Check the backend address and service, then retry.")
       : connection.tested ? t("控制台可访问；管理权限需要在目标后端登录后验证。", "Console reachable. Management access requires sign-in on the target.") : ""}
     onMode={mode => connection.setSettings({ ...connection.settings, mode })}
     onRemote={serverUrl => connection.setSettings({ ...connection.settings, serverUrl })}
+    onLocalPort={localPort => connection.setSettings({ ...connection.settings, localPort })}
     onTest={() => void connection.test(connection.settings)} onApply={() => void connection.connect(connection.settings)} />;
 }
-import { LOCAL_GATEWAY_ADDRESS } from "../connection/localGatewayAddress";

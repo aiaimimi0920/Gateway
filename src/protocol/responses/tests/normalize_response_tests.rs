@@ -117,6 +117,45 @@ fn unpack_responses_response_reads_usage() {
 }
 
 #[test]
+fn unpack_responses_response_accepts_agnes_usage_aliases_without_inventing_counts() {
+    let mut body = json!({"status":"completed", "output":[], "usage":{
+        "prompt_tokens":9, "completion_tokens":6, "prompt_tokens_details":{"cached_tokens":3}
+    }});
+    let usage = unpack_responses_response(&body).unwrap().usage.unwrap();
+    assert_eq!(
+        (
+            usage.prompt_tokens,
+            usage.completion_tokens,
+            usage.total_tokens
+        ),
+        (9, 6, 15)
+    );
+    assert_eq!(usage.cache_read_input_tokens, Some(3));
+    body["usage"]["input_tokens"] = json!(2);
+    body["usage"]["output_tokens"] = json!(4);
+    body["usage"]["total_tokens"] = json!(8);
+    body["usage"]["input_tokens_details"] = json!({"cached_tokens":1});
+    let usage = unpack_responses_response(&body).unwrap().usage.unwrap();
+    assert_eq!(
+        (
+            usage.prompt_tokens,
+            usage.completion_tokens,
+            usage.total_tokens
+        ),
+        (2, 4, 8)
+    );
+    assert_eq!(usage.cache_read_input_tokens, Some(1));
+    for invalid in [
+        json!({"prompt_tokens":9}),
+        json!({"input_tokens":-1,"prompt_tokens":9,"completion_tokens":6}),
+        json!({"prompt_tokens":u64::MAX,"completion_tokens":1}),
+    ] {
+        body["usage"] = invalid;
+        assert!(unpack_responses_response(&body).unwrap().usage.is_none());
+    }
+}
+
+#[test]
 fn normalize_responses_parses_function_call_and_output_items() {
     let body = json!({
         "model": "gpt-4o",

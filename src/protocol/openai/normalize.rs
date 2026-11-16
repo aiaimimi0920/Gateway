@@ -6,7 +6,9 @@ use crate::protocol::canonical::{
     ProtocolFamily,
 };
 
-use super::tool_calls::parse_openai_message_tool_calls;
+use super::tool_calls::{
+    parse_openai_message_tool_calls, parse_openai_message_tool_calls_lossless,
+};
 
 /// Normalize an OpenAI `POST /v1/chat/completions` request body into a
 /// [`CanonicalRelayRequest`].
@@ -50,7 +52,17 @@ pub fn normalize_chat_completions(body: Value) -> Result<CanonicalRelayRequest, 
             .and_then(|v| v.as_str())
             .map(str::to_string);
 
-        let tool_calls = parse_openai_message_tool_calls(raw_msg);
+        let tool_calls = if body
+            .get(crate::protocol::vertex_turn::HISTORY_FIELD)
+            .is_some()
+            || body
+                .get(crate::protocol::bedrock_turn::HISTORY_FIELD)
+                .is_some()
+        {
+            parse_openai_message_tool_calls_lossless(raw_msg)
+        } else {
+            parse_openai_message_tool_calls(raw_msg)
+        };
 
         messages.push(CanonicalMessage {
             role,
@@ -70,6 +82,8 @@ pub fn normalize_chat_completions(body: Value) -> Result<CanonicalRelayRequest, 
 
     // Known top-level fields that are handled explicitly above.
     const KNOWN_FIELDS: &[&str] = &[
+        "gateway_vertex_history",
+        "gateway_bedrock_history",
         "model",
         "messages",
         "stream",

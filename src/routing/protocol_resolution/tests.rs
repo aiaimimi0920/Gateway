@@ -1,6 +1,10 @@
 mod call_flow;
 mod candidate_selection;
+#[cfg(feature = "line-commandcode-provider-api")]
+mod commandcode;
 mod gemini_bridges;
+#[cfg(feature = "line-commandcode-provider-api")]
+mod systemone;
 mod text_bridges;
 use serde_json::json;
 

@@ -13,6 +13,8 @@ import { AppToastViewport } from "./components/AppToast";
 import { DesktopWindowChrome } from "./features/shell/DesktopWindowChrome";
 import { EmbeddedDesktopSettings } from "./features/settings/EmbeddedDesktopSettings";
 import "./styles.css";
+import "@neuro/ui/styles.css";
+import { initializeDisplayPreferences } from "./features/settings/displayPreferences";
 
 declare const __GATEWAY_UI_TARGET__: GatewayUiTarget | undefined;
 
@@ -24,6 +26,7 @@ if (!rootElement) {
 
 const target = typeof __GATEWAY_UI_TARGET__ === "undefined" ? "web" : __GATEWAY_UI_TARGET__;
 const embeddedSettings = target === "tauri" ? window.__GATEWAY_EMBEDDED_SETTINGS__ : undefined;
+initializeDisplayPreferences();
 
 createRoot(rootElement).render(
   <React.StrictMode>

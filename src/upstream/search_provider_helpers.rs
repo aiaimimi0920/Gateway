@@ -44,6 +44,7 @@ pub(crate) fn search_endpoint_label(endpoint_kind: EndpointKind) -> &'static str
             "research"
         }
         EndpointKind::CreditsBalance => "credits balance",
+        EndpointKind::SystemOne => "system one",
         EndpointKind::ChatCompletions => "chat completions",
         EndpointKind::Messages => "messages",
         EndpointKind::Responses => "responses",

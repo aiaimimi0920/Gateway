@@ -5,6 +5,9 @@ import { defaultTestPolicy, testPolicyError } from "./credentialTestPolicyDocume
 import { siteHealthConfigSchema, type SiteHealthConfig } from "./siteHealth";
 import { validateStorageConnection, type StorageConnection } from "./providerStorageConnection";
 import { validateSiteHealthPlans } from "./siteHealthValidation";
+import { specialAdapterForPreset, type SpecialAdapter } from "./providerSpecialAdapters";
+import { applySessionCatalogTestPolicy } from "./providerSessionCatalog";
+export { SPECIAL_ADAPTERS, type SpecialAdapter } from "./providerSpecialAdapters";
 
 export const CALL_ADAPTERS = {
   auto: ["自动", "Automatic", "openai_compatible", "openai_compatible_generic"],
@@ -14,19 +17,6 @@ export const CALL_ADAPTERS = {
   cohere: ["Cohere Chat", "Cohere Chat", "cohere_compatible", "cohere"],
 } as const;
 export type CallAdapter = keyof typeof CALL_ADAPTERS;
-export const SPECIAL_ADAPTERS = {
-  none: ["无（标准 API）", "None (standard API)", ""],
-  basispoints: ["Basispoints", "Basispoints", "chatgpt-codex-oauth-official-api"],
-  gemini_web: ["Gemini Web", "Gemini Web", "gemini-web-chat"],
-  gemini_canvas: ["Gemini Canvas", "Gemini Canvas", "gemini-canvas-browser-relay"],
-  chatgpt_web: ["ChatGPT Web", "ChatGPT Web", "chatgpt-web-reverse"],
-  aistudio_web: ["AI Studio Web", "AI Studio Web", "aistudio-web-reverse"],
-  flowmusic_web: ["FlowMusic Web", "FlowMusic Web", "producer"],
-  flow_web: ["Google Flow Web", "Google Flow Web", "flow-web"],
-  stitch_web: ["Google Stitch Web", "Google Stitch Web", "stitch-web"],
-  antigravity_oauth: ["Antigravity OAuth", "Antigravity OAuth", "antigravity-oauth"],
-} as const;
-export type SpecialAdapter = keyof typeof SPECIAL_ADAPTERS;
 export type CatalogWorkflow = {
   callAdapter: CallAdapter;
   specialAdapter: SpecialAdapter;
@@ -60,8 +50,14 @@ export function compatibleCatalogDrivers(drivers: readonly ConsoleCredentialPool
   return drivers.filter((driver) => driver.providerIds.includes(providerId.trim()));
 }
 export function defaultCatalogWorkflow(template: ProviderCatalogTemplate): CatalogWorkflow {
-  const special = Object.entries(SPECIAL_ADAPTERS).find(([, value]) => value[2] === template.preset)?.[0];
+  const special = specialAdapterForPreset(template.preset);
   const testPolicy = defaultTestPolicy();
+  applySessionCatalogTestPolicy(template.id, testPolicy);
+  // These directories are not free-call grants; keep automatic tests off and invent no model.
+  if (["sap-aicore-chat", "commandcode-api", "sensenova-token-plan", "minimax-m-plan", "minimax-m-plan-cn", "agnes-api", "river-api", "cloudflare-workers-ai", "dim-cn-oauth", "dim-global-oauth", "nous-portal-oauth", "lobsterai-session"].includes(template.id)) {
+    testPolicy.automaticEnabled = false; testPolicy.models = [];
+    testPolicy.cases = [{ id: "connection", name: "连通", prompt: "Reply with only OK.", expectedAnswer: null, difficulty: 1, enabled: true }];
+  }
   if (template.id === "flowmusic-web") {
     testPolicy.modelSelection = "selected"; testPolicy.models = ["producer:standard"];
     testPolicy.cases = [{ id: "music", name: "音乐生成", prompt: "Generate a short original instrumental music track with gentle piano and no vocals.", expectedAnswer: null, difficulty: 1, enabled: true }];
@@ -103,7 +99,7 @@ export function defaultCatalogWorkflow(template: ProviderCatalogTemplate): Catal
   return {
     callAdapter: template.compatibility === "anthropic" ? "anthropic" : template.id === "gemini-api" ? "gemini"
       : template.preset === "cohere-chat" ? "cohere" : "auto",
-    specialAdapter: special && special !== "basispoints" ? special as SpecialAdapter : "none",
+    specialAdapter: special ?? "none",
     mappings: {}, testPolicy, poolMin: 1, poolMax: 100,
     driverId: "", autoRefill: false, autoPrune: false, permanentDelete: false,
     // Public health reads are independent of paid account tests; unmatched products stay unsupported.

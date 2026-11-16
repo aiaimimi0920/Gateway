@@ -1,0 +1,35 @@
+/* Legacy desktop page composition. Control appearance belongs to @neuro/ui. */
+.gateway-desktop-panels, .gateway-desktop-panel { display: grid; align-content: start; min-width: 0; gap: 14px; }
+.gateway-desktop-panel { grid-template-columns: minmax(0, 1fr); }
+.gateway-desktop-panel :is(h2, h3, p) { margin: 0; }
+.gateway-desktop-panel .nt-section__head { flex-wrap: wrap; min-width: 0; }
+.gateway-desktop-panel .nt-actions { flex-wrap: wrap; min-width: 0; }
+.gateway-desktop-panel .nt-actions > .n-select { width: auto; max-width: 100%; }
+.gateway-profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; min-width: 0; }
+.gateway-profile-fields__wide { grid-column: 1 / -1; min-width: 0; }
+.gateway-profile-fields label { overflow-wrap: anywhere; }
+.gateway-runtime-role--narrow { display: none; }
+.gateway-profile-template.n-button { height: auto; padding: 12px; justify-content: flex-start; }
+.gateway-profile-template .n-button-label { display: grid; gap: 8px; white-space: normal; text-align: left; }
+.gateway-profile-env, .gateway-path-results { display: grid; gap: 12px; min-width: 0; }
+.gateway-profile-env__row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: start; gap: 10px; }
+.gateway-profile-env__row > .n-button { align-self: end; }
+.gateway-path-result { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.gateway-path-result :is(code, small) { flex-basis: 100%; overflow-wrap: anywhere; }
+.gateway-launcher-summary { grid-template-columns: minmax(0, 1fr) minmax(0, 280px); }
+.gateway-launcher-actions { display: grid; align-content: start; gap: 14px; min-width: 0; }
+.gateway-onboarding-step { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 10px; }
+.gateway-onboarding-step p { overflow-wrap: anywhere; }
+.gateway-desktop-terminal { min-width: 0; max-height: 60vh; overflow: auto; }
+.gateway-desktop-terminal__line { display: grid; grid-template-columns: 3ch minmax(0, 1fr); gap: 12px; font-family: var(--n-mono); }
+.gateway-desktop-terminal__line > span { color: var(--n-muted); }
+.gateway-desktop-terminal__line code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.gateway-desktop-panel :is(.nt-code, .nt-api-context) { max-width: 100%; min-width: 0; overflow: auto; }
+@media (max-width: 760px) {
+  .gateway-runtime-role--wide { display: none; }
+  .gateway-runtime-role--narrow { display: block; }
+  .gateway-profile-fields, .gateway-launcher-summary { grid-template-columns: minmax(0, 1fr); }
+  .gateway-profile-env__row { grid-template-columns: minmax(0, 1fr); }
+  .gateway-profile-env__row > .n-button { justify-self: end; }
+  .gateway-desktop-panel .nt-focus-grid { grid-template-columns: minmax(0, 1fr); }
+}

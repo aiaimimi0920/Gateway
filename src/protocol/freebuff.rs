@@ -17,6 +17,8 @@ use crate::routing::candidate::ProviderAccountPayload;
 #[cfg(test)]
 use crate::upstream::common::RequestPlan;
 
+pub(crate) mod business_target;
+pub mod catalog;
 mod config;
 mod request;
 mod response_body;
@@ -57,6 +59,9 @@ mod config_tests;
 
 #[cfg(test)]
 mod request_tests;
+
+#[cfg(test)]
+mod ownership_tests;
 
 #[cfg(test)]
 mod session_response_tests;

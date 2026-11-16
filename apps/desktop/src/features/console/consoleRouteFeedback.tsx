@@ -1,3 +1,5 @@
+import { Notice } from "@neuro/ui";
+
 type ConsoleRouteFeedbackOptions = {
   activeRouteDiagnostics: readonly { code: string; path: string; message: string }[];
   accountGroupSummaryError: string | null;
@@ -12,9 +14,9 @@ export function buildConsoleRouteFeedback({
   t,
 }: ConsoleRouteFeedbackOptions) {
   const activeDiagnosticsFeedback = activeRouteDiagnostics.length > 0 ? (
-    <div
-      className="nt-alert nt-alert--danger nt-diagnostics-report"
-      role="alert"
+    <Notice
+      tone="danger"
+      className="nt-diagnostics-report"
       aria-label={t("Active route diagnostics", "Active route diagnostics")}
     >
       <div>
@@ -38,12 +40,11 @@ export function buildConsoleRouteFeedback({
           )}
         </p>
       </div>
-    </div>
+    </Notice>
   ) : null;
   const accountSummaryFeedback = accountGroupSummaryError ? (
-    <div
-      className="nt-alert nt-alert--warning"
-      role="status"
+    <Notice
+      tone="warning"
       aria-label={t("Account summary status", "Account summary status")}
     >
       <span>
@@ -52,10 +53,10 @@ export function buildConsoleRouteFeedback({
           `Backend account summary unavailable; showing the locally parseable snapshot: ${accountGroupSummaryError}`,
         )}
       </span>
-    </div>
+    </Notice>
   ) : null;
   const draftStructureNotice = draftDocumentState.invalid ? (
-    <div className="nt-validation-list nt-validation-list--warning">
+    <Notice tone="warning" className="nt-diagnostics-report">
       <strong>{t("当前 JSON 草稿不可解析", "Current JSON draft is invalid")}</strong>
       <ul>
         <li>
@@ -65,7 +66,7 @@ export function buildConsoleRouteFeedback({
           )}
         </li>
       </ul>
-    </div>
+    </Notice>
   ) : null;
   return { activeDiagnosticsFeedback, accountSummaryFeedback, draftStructureNotice };
 }

@@ -134,6 +134,9 @@ pub async fn accumulate_anthropic_stream(
     };
 
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: reported_model,
         text,

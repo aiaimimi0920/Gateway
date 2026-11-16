@@ -1,5 +1,5 @@
-import * as Dialog from "@radix-ui/react-dialog";
-import { type FormEvent, useEffect, useState } from "react";
+import { Button, Dialog, Field, Input, Notice } from "@neuro/ui";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 
 export type SecretConfirmDialogProps = {
@@ -18,6 +18,7 @@ export function SecretConfirmDialog({
   onConfirm,
 }: SecretConfirmDialogProps) {
   const [token, setToken] = useState("");
+  const tokenRef = useRef<HTMLInputElement>(null);
   const { t } = useUiLocale();
 
   useEffect(() => {
@@ -37,40 +38,31 @@ export function SecretConfirmDialog({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-content" aria-describedby="secret-confirm-description">
-          <Dialog.Title>{t("确认敏感信息访问权限", "Confirm secret access")}</Dialog.Title>
-          <Dialog.Description id="secret-confirm-description">
-            {t(
-              "重新输入管理密钥，以获取一个短时有效的敏感信息访问授权。",
-              "Re-enter the management token to receive a short-lived secret grant.",
-            )}
-          </Dialog.Description>
-          <form onSubmit={(event) => void submit(event)}>
-            <label htmlFor="secret-confirm-token">{t("管理密钥", "Management token")}</label>
-            <input
-              id="secret-confirm-token"
-              type="password"
-              autoComplete="current-password"
-              value={token}
-              onChange={(event) => setToken(event.currentTarget.value)}
-              required
-              autoFocus
-            />
-            {error && <p role="alert">{error}</p>}
-            <div className="dialog-actions">
-              <Dialog.Close asChild>
-                <button type="button" disabled={busy}>{t("取消", "Cancel")}</button>
-              </Dialog.Close>
-              <button type="submit" disabled={busy}>
-                {busy ? t("确认中...", "Confirming...") : t("确认", "Confirm")}
-              </button>
-            </div>
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open={open} onOpenChange={onOpenChange} busy={busy} initialFocusRef={tokenRef}
+      title={t("确认敏感信息访问权限", "Confirm secret access")} closeLabel={t("关闭", "Close")}
+      className="gateway-secret-dialog" description={t(
+        "重新输入管理密钥，以获取一个短时有效的敏感信息访问授权。",
+        "Re-enter the management token to receive a short-lived secret grant.",
+      )}>
+      <form className="gateway-secret-form" onSubmit={(event) => void submit(event)}>
+        <div className="gateway-secret-body">
+          <Field label={t("管理密钥", "Management token")}><Input
+            ref={tokenRef}
+            id="secret-confirm-token"
+            type="password"
+            autoComplete="current-password"
+            value={token}
+            onChange={(event) => setToken(event.currentTarget.value)}
+            required
+            disabled={busy}
+          /></Field>
+          {error && <Notice tone="danger">{error}</Notice>}
+        </div>
+        <div className="n-dialog-actions">
+          <Button disabled={busy} onClick={() => onOpenChange(false)}>{t("取消", "Cancel")}</Button>
+          <Button variant="primary" type="submit" loading={busy}>{t("确认", "Confirm")}</Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

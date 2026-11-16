@@ -1,10 +1,13 @@
 import { Database, GalleryHorizontalEnd, Layers, RotateCcw } from "lucide-react";
 import { useState } from "react";
+import { Button, IconButton } from "@neuro/ui";
+import "../../styles/account-workspace-controls.css";
 
 import type { ModelPoolCard as ModelPoolCardData } from "./modelPoolViewModel";
 import { ModelPoolCardActions } from "./ModelPoolCardActions";
 import { ModelPoolCardMetrics } from "./ModelPoolCardMetrics";
 import { ModelPoolChainBoard } from "./ModelPoolChainBoard";
+import { ModelDisplayName } from "./ModelDisplayName";
 
 type TranslateFn = (zh: string, en: string) => string;
 type FlipSide = "front" | "back";
@@ -68,50 +71,45 @@ export function ModelPoolCardView({
             <span className="nt-entitlement-group-card__icon" aria-hidden="true">
               <Layers size={17} />
             </span>
-            <button
-              className="nt-entitlement-group-card__toggle"
-              type="button"
+            <Button variant="quiet" compact
+              className="nt-pool-card-title"
               aria-label={card.model}
               aria-expanded={expanded}
               aria-controls={accountPanelId}
               onClick={onToggleCard}
             >
-              <strong>{card.model}</strong>
-            </button>
+              <span className="nt-pool-card-title__text"><strong title={card.model}><ModelDisplayName model={card.model} providerIds={card.chain.map(link => link.providerId)} /></strong></span>
+            </Button>
             <div className="nt-entitlement-group-card__head-actions">
-              <button
-                className="nt-icon-action nt-entitlement-group-card__library-toggle"
-                type="button"
+              <IconButton variant="quiet" compact
                 title={
                   expanded
                     ? t("收起可用账号", "Hide serving accounts")
                     : t("显示可用账号", "Show serving accounts")
                 }
-                aria-label={
+                label={
                   expanded
                     ? t(
-                        `收起 ${card.model} 可用账号`,
-                        `Hide ${card.model} serving accounts`,
-                      )
+                      `收起 ${card.model} 可用账号`,
+                      `Hide ${card.model} serving accounts`,
+                    )
                     : t(
-                        `显示 ${card.model} 可用账号`,
-                        `Show ${card.model} serving accounts`,
-                      )
+                      `显示 ${card.model} 可用账号`,
+                      `Show ${card.model} serving accounts`,
+                    )
                 }
                 aria-expanded={expanded}
                 aria-controls={accountPanelId}
                 onClick={onToggleCard}
               >
                 <Database size={15} aria-hidden="true" />
-              </button>
-              <button
-                className="nt-icon-action nt-entitlement-group-card__flip"
-                type="button"
+              </IconButton>
+              <IconButton variant="quiet" compact
                 title={t(
                   `翻面调整 ${card.model} 优先级`,
                   `Flip ${card.model} to reorder its chain`,
                 )}
-                aria-label={t(
+                label={t(
                   `翻面调整 ${card.model} 优先级`,
                   `Flip ${card.model} to reorder its chain`,
                 )}
@@ -120,7 +118,7 @@ export function ModelPoolCardView({
                 onClick={() => onFlip("back")}
               >
                 <GalleryHorizontalEnd size={16} aria-hidden="true" />
-              </button>
+              </IconButton>
             </div>
           </header>
 
@@ -143,52 +141,46 @@ export function ModelPoolCardView({
         >
           <header className="nt-entitlement-group-card__back-head">
             <div className="nt-entitlement-group-card__back-title">
-              <strong>{card.model}</strong>
+              <strong><ModelDisplayName model={card.model} providerIds={card.chain.map(link => link.providerId)} /></strong>
             </div>
             <div className="nt-entitlement-group-card__head-actions">
-              <button
-                className="nt-icon-action"
-                type="button"
-                aria-label={t("重置优先级", "Reset chain")}
+              <IconButton variant="quiet" compact
+                label={t("重置优先级", "Reset chain")}
                 title={card.pinned ? t("重置优先级", "Reset chain") : t("当前已是默认顺序", "Already the inherited order")}
                 disabled={editorLocked || !card.pinned}
                 onClick={() => onResetChain(card.model)}
               >
                 <RotateCcw size={15} aria-hidden="true" />
-              </button>
-              <button
-                className="nt-icon-action nt-entitlement-group-card__library-toggle"
-                type="button"
+              </IconButton>
+              <IconButton variant="quiet" compact
                 title={
                   expanded
                     ? t("收起可用账号", "Hide serving accounts")
                     : t("显示可用账号", "Show serving accounts")
                 }
-                aria-label={
+                label={
                   expanded
                     ? t(
-                        `收起 ${card.model} 可用账号`,
-                        `Hide ${card.model} serving accounts`,
-                      )
+                      `收起 ${card.model} 可用账号`,
+                      `Hide ${card.model} serving accounts`,
+                    )
                     : t(
-                        `显示 ${card.model} 可用账号`,
-                        `Show ${card.model} serving accounts`,
-                      )
+                      `显示 ${card.model} 可用账号`,
+                      `Show ${card.model} serving accounts`,
+                    )
                 }
                 aria-expanded={expanded}
                 aria-controls={accountPanelId}
                 onClick={onToggleCard}
               >
                 <Database size={15} aria-hidden="true" />
-              </button>
-              <button
-                className="nt-icon-action nt-entitlement-group-card__flip"
-                type="button"
+              </IconButton>
+              <IconButton variant="quiet" compact
                 title={t(
                   `翻回 ${card.model} 卡牌正面`,
                   `Flip ${card.model} back to the front`,
                 )}
-                aria-label={t(
+                label={t(
                   `翻回 ${card.model} 卡牌正面`,
                   `Flip ${card.model} back to the front`,
                 )}
@@ -197,7 +189,7 @@ export function ModelPoolCardView({
                 onClick={() => onFlip("front")}
               >
                 <GalleryHorizontalEnd size={16} aria-hidden="true" />
-              </button>
+              </IconButton>
             </div>
           </header>
 

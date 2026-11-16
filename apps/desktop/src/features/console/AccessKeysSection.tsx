@@ -1,3 +1,4 @@
+import { Button, Dialog, EmptyState, Notice } from "@neuro/ui";
 import { Plus } from "lucide-react";
 import { AccessKeyHeaderContent, AccessKeyToolbar, compareAccessKeys, type AccessKeySort } from "./AccessKeyHeader";
 import { useMemo, useRef, useState } from "react";
@@ -12,7 +13,7 @@ import { AccessKeyCashDialog } from "./AccessKeyCashDialog";
 import { AccessKeyEditDialog } from "./AccessKeyEditDialog";
 import type { ConsoleAccessKey } from "../../api/contracts";
 import { CopyButton } from "./AccessWorkspacePrimitives";
-import { newAccessKeyDraft } from "./accessKeyPresentation";
+import { accessKeyStatus, newAccessKeyDraft } from "./accessKeyPresentation";
 import type { AccessKeysWorkspaceProps } from "./accessKeysTypes";
 import "../../styles/access-keys.css";
 
@@ -52,6 +53,8 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
   const { apiOrigin } = useGatewayHost();
   const apiBaseUrl = apiOrigin.replace(/\/$/, "") + "/v1";
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("all");
+  const [showAddress, setShowAddress] = useState(false);
   const [sort, setSort] = useState<AccessKeySort>("newest");
   const [page, setPage] = useState(0);
   const [creating, setCreating] = useState(false);
@@ -63,6 +66,7 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
   const rows = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     return (catalog.data?.accessKeys ?? [])
+      .filter(key => status === "all" || accessKeyStatus(key) === status)
       .filter(
         (key) =>
           [key.displayName, key.id, key.ownerId, key.publicKeyPrefix].some(
@@ -70,7 +74,7 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
           ),
       )
       .sort((left, right) => compareAccessKeys(left, right, sort));
-  }, [catalog.data, query, sort]);
+  }, [catalog.data, query, sort, status]);
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pages - 1);
   const close = () => {
@@ -88,17 +92,18 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
   return (
     <section className="nt-key-manager" aria-label="API Keys">
       <AccessKeyHeaderContent slot="leading">
-        <AccessKeyToolbar query={query} sort={sort} t={t}
+        <AccessKeyToolbar query={query} sort={sort} status={status} t={t}
+          onStatus={value => { setStatus(value); setPage(0); }}
           onQuery={(value) => { setQuery(value); setPage(0); }}
           onSort={(value) => { setSort(value); setPage(0); }} />
       </AccessKeyHeaderContent>
       <AccessKeyHeaderContent slot="actions">
         <div className="nt-key-header-actions">
-          <span className="nt-key-header-url"><code title={apiBaseUrl}>{apiBaseUrl}</code></span>
-          <CopyButton t={t} value={apiBaseUrl} label={t("复制", "Copy")} variant="outline" />
-          <button
+          <Button compact onClick={() => setShowAddress(true)}>{t("接入地址", "API address")}</Button>
+          <Button
             ref={createButton}
-            className="nt-btn nt-btn--primary"
+            variant="primary"
+            compact
             type="button"
             disabled={
               editorLocked || busy || !catalog.data || Boolean(revealedSecret)
@@ -109,27 +114,23 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
             }}
           >
             <Plus size={16} aria-hidden="true" />
-            {t("新建 Key", "New Key")}
-          </button>
+            {t("新建密钥", "New Key")}
+          </Button>
         </div>
       </AccessKeyHeaderContent>
       {catalog.error ? (
-        <div className="nt-alert nt-alert--danger" role="alert">
+        <Notice tone="danger">
           {catalog.error}
-        </div>
+        </Notice>
       ) : null}
       {catalog.loading && !catalog.data ? (
-        <div className="nt-key-empty" role="status">
-          {t("正在读取密钥…", "Loading keys…")}
-        </div>
+        <div role="status"><EmptyState title={t("正在读取密钥…", "Loading keys…")} /></div>
       ) : rows.length === 0 ? (
-        <div className="nt-key-empty" role="status">
-          {catalog.error && !catalog.data
+        <div role="status"><EmptyState title={catalog.error && !catalog.data
             ? t("密钥列表不可用", "Key list unavailable")
-            : query
+            : query || status !== "all"
               ? t("没有匹配的密钥", "No matching keys")
-              : t("暂无 API Key", "No API Keys yet")}
-        </div>
+              : t("暂无 API Key", "No API Keys yet")} /></div>
       ) : (
         <AccessKeyLedger
           keys={rows.slice(
@@ -150,24 +151,25 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
           <span>
             {currentPage + 1} / {pages} · {rows.length}
           </span>
-          <button
-            className="nt-btn nt-btn--outline"
+          <Button compact
             type="button"
             disabled={currentPage === 0}
             onClick={() => setPage(currentPage - 1)}
           >
             {t("上一页", "Previous")}
-          </button>
-          <button
-            className="nt-btn nt-btn--outline"
+          </Button>
+          <Button compact
             type="button"
             disabled={currentPage + 1 >= pages}
             onClick={() => setPage(currentPage + 1)}
           >
             {t("下一页", "Next")}
-          </button>
+          </Button>
         </div>
       ) : null}
+      <Dialog title={t("接入地址", "API address")} open={showAddress} onOpenChange={setShowAddress}>
+        <div className="nt-key-address"><code>{apiBaseUrl}</code><CopyButton t={t} value={apiBaseUrl} label={t("复制", "Copy")} variant="outline" /></div>
+      </Dialog>
       {billingKey ? (
         <AccessKeyCashDialog
           accessKey={billingKey}
@@ -179,7 +181,7 @@ export function AccessKeysSection(props: AccessKeysSectionProps) {
         {...props}
         open={creating}
         onClose={close}
-        onRestoreFocus={() => createButton.current?.focus()}
+        returnFocusRef={createButton}
         apiBaseUrl={apiBaseUrl}
         revealedSecret={pending ? null : revealedSecret}
       />

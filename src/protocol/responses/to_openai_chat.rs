@@ -10,6 +10,7 @@ mod tool_calls;
 use super::unpack_responses_response;
 use crate::protocol::canonical::TokenUsage;
 use crate::protocol::openai;
+use crate::protocol::response_sources::{self, ResponseSource};
 use crate::protocol::sse_parse::{format_sse_event, SseFrame};
 use crate::protocol::stream_decode::{
     BoundedSseDecoder, DecodeStep, MAX_TRANSLATED_SSE_FRAME_BYTES,
@@ -50,6 +51,9 @@ where
         outputs: VecDeque::new(),
         passthrough_openai: false,
         latest_usage: None,
+        sources: Vec::new(),
+        vertex_turn: None,
+        vertex_output: Default::default(),
         pending_finish_reason: None,
         emitted_text: false,
         tool_call_indexes: BTreeMap::new(),
@@ -79,6 +83,11 @@ where
                     return Some((Err(error.into()), (stream, st, true)));
                 }
                 if let Some(output) = st.outputs.pop_front() {
+                    if !st.passthrough_openai {
+                        if let Err(error) = st.vertex_output.accept_output(&output) {
+                            return Some((Err(error.into()), (stream, st, true)));
+                        }
+                    }
                     done = st.final_emitted && st.outputs.is_empty();
                     return Some((Ok(Bytes::from(output)), (stream, st, done)));
                 }
@@ -112,6 +121,11 @@ where
                             ));
                         }
                         if let Some(output) = st.outputs.pop_front() {
+                            if !st.passthrough_openai {
+                                if let Err(error) = st.vertex_output.accept_output(&output) {
+                                    return Some((Err(error.into()), (stream, st, true)));
+                                }
+                            }
                             done = st.final_emitted && st.outputs.is_empty();
                             return Some((Ok(Bytes::from(output)), (stream, st, done)));
                         }
@@ -131,6 +145,9 @@ struct ResponsesToOpenAiChatState {
     outputs: VecDeque<Vec<u8>>,
     passthrough_openai: bool,
     latest_usage: Option<TokenUsage>,
+    sources: Vec<ResponseSource>,
+    vertex_turn: Option<crate::protocol::vertex_turn::VertexAssistantTurn>,
+    vertex_output: crate::protocol::vertex_turn::wire::TerminalTurn,
     pending_finish_reason: Option<String>,
     emitted_text: bool,
     tool_call_indexes: BTreeMap<String, usize>,
@@ -171,6 +188,19 @@ impl ResponsesToOpenAiChatState {
             .as_deref()
             .or_else(|| payload.get("type").and_then(|value| value.as_str()))
             .unwrap_or_default();
+        if payload
+            .get(crate::protocol::vertex_turn::WIRE_FIELD)
+            .is_some()
+            || payload["response"]
+                .get(crate::protocol::vertex_turn::WIRE_FIELD)
+                .is_some()
+                && !matches!(event_type, "response.completed" | "response.incomplete")
+        {
+            self.failure = Some(ProtocolStreamError::invalid_data(
+                crate::protocol::vertex_turn::INVALID,
+            ));
+            return;
+        }
 
         match event_type {
             "response.created" | "response.in_progress" => {
@@ -242,8 +272,31 @@ impl ResponsesToOpenAiChatState {
                     {
                         self.created_at = created_at;
                     }
-                    if let Ok(mut canonical) = unpack_responses_response(response) {
-                        if canonical.tool_calls.is_empty() && !canonical.text.is_empty() {
+                    let unpacked = unpack_responses_response(response);
+                    if unpacked.is_err()
+                        && response
+                            .get(crate::protocol::vertex_turn::WIRE_FIELD)
+                            .is_some()
+                    {
+                        self.failure = Some(ProtocolStreamError::invalid_data(
+                            crate::protocol::vertex_turn::INVALID,
+                        ));
+                        return;
+                    }
+                    // Preserve the legacy no-extension path, but never turn a rejected
+                    // declared source list into a successful empty-source completion.
+                    if unpacked.is_err() && response.get(response_sources::WIRE_FIELD).is_some() {
+                        self.failure =
+                            Some(ProtocolStreamError::invalid_data(response_sources::INVALID));
+                        return;
+                    }
+                    if let Ok(mut canonical) = unpacked {
+                        self.vertex_turn = canonical.vertex_turn.take();
+                        self.sources = std::mem::take(&mut canonical.sources);
+                        if self.vertex_turn.is_none()
+                            && canonical.tool_calls.is_empty()
+                            && !canonical.text.is_empty()
+                        {
                             let parse_result =
                                 tool_inject::parse_tool_calls_from_text(&canonical.text);
                             if parse_result.had_tool_calls
@@ -289,22 +342,19 @@ impl ResponsesToOpenAiChatState {
         if self.final_emitted || self.passthrough_openai {
             return;
         }
-        self.outputs.push_back(
-            format_sse_event(
-                None,
-                &build_openai_chat_stop_chunk(
-                    &self.response_id,
-                    self.created_at,
-                    &self.model,
-                    self.latest_usage.as_ref(),
-                    self.pending_finish_reason
-                        .as_deref()
-                        .or(fallback_finish_reason),
-                )
-                .to_string(),
-            )
-            .into_bytes(),
+        let mut stop = build_openai_chat_stop_chunk(
+            &self.response_id,
+            self.created_at,
+            &self.model,
+            self.latest_usage.as_ref(),
+            self.pending_finish_reason
+                .as_deref()
+                .or(fallback_finish_reason),
         );
+        response_sources::project(&mut stop, &self.sources);
+        crate::protocol::vertex_turn::project(&mut stop, self.vertex_turn.as_ref());
+        self.outputs
+            .push_back(format_sse_event(None, &stop.to_string()).into_bytes());
         self.outputs
             .push_back(format_sse_event(None, "[DONE]").into_bytes());
         self.final_emitted = true;

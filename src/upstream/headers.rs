@@ -68,6 +68,18 @@ pub fn build_inference_headers(
     model: &str,
     extra_headers: Option<&std::collections::HashMap<String, String>>,
 ) -> HeaderMap {
+    if crate::protocol::nous_portal::business::owns_payload(payload) {
+        return crate::protocol::nous_portal::runtime::headers(payload);
+    }
+    if crate::protocol::dim_oauth::business::owns_payload(payload) {
+        return crate::protocol::dim_oauth::runtime::headers(payload);
+    }
+    if crate::protocol::kiro_oauth::runtime::owns_payload(payload) {
+        return crate::upstream::kiro_oauth_runtime::headers(payload);
+    }
+    if crate::protocol::kiro_api_key::owns_payload(payload) {
+        return crate::upstream::kiro_api_key::headers(payload);
+    }
     let mut headers = build_upstream_headers_with(payload, extra_headers);
     crate::upstream::request_profile::apply_headers(&mut headers, payload, req, model);
     headers
@@ -78,6 +90,24 @@ pub fn build_upstream_headers_with(
     payload: &ProviderAccountPayload,
     extra_headers: Option<&std::collections::HashMap<String, String>>,
 ) -> HeaderMap {
+    // A SAP service key is client-credentials material, never an inference bearer token.
+    if crate::protocol::sap_aicore::owns_payload(payload)
+        || crate::protocol::commandcode::owns_payload(payload)
+    {
+        return HeaderMap::new();
+    }
+    if crate::protocol::nous_portal::business::owns_payload(payload) {
+        return crate::protocol::nous_portal::runtime::headers(payload);
+    }
+    if crate::protocol::dim_oauth::business::owns_payload(payload) {
+        return crate::protocol::dim_oauth::runtime::headers(payload);
+    }
+    if crate::protocol::kiro_oauth::runtime::owns_payload(payload) {
+        return crate::upstream::kiro_oauth_runtime::headers(payload);
+    }
+    if crate::protocol::kiro_api_key::owns_payload(payload) {
+        return crate::upstream::kiro_api_key::headers(payload);
+    }
     let mut map = HeaderMap::new();
 
     // Always set Content-Type.

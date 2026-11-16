@@ -106,6 +106,20 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn accio_import_sg_and_archived_material_use_normal_credential_masking() {
+        let secret = "synthetic-accio-private-cookie";
+        let masked = mask_provider_payload_secrets(json!({"accioSgcookie":secret,
+            "rawSource":{"sgcookie":secret,"refreshToken":secret,"extraBody":{"accio_sgcookie":secret}}}));
+        assert!(!masked.to_string().contains(secret));
+        assert_eq!(masked["accioSgcookie"], "syn***kie");
+        assert_eq!(masked["rawSource"]["sgcookie"], "syn***kie");
+        assert_eq!(
+            masked["rawSource"]["extraBody"]["accio_sgcookie"],
+            "syn***kie"
+        );
+    }
+
+    #[test]
     fn secret_preview_rejects_partial_unicode_boundaries() {
         for secret in ["ab\u{00e9}defghij", "abcdefghij\u{00e9}xy"] {
             let masked = mask_provider_payload_secrets(json!({

@@ -390,22 +390,10 @@ fn normalize_accio_import_payload_converts_manager_account_file() {
             .and_then(Value::as_str),
         Some("test-cna")
     );
-    assert_eq!(
-        payload
-            .get("extraBody")
-            .and_then(Value::as_object)
-            .and_then(|extra| extra.get("token"))
-            .and_then(Value::as_str),
-        Some("accio-token-123")
-    );
-    assert_eq!(
-        payload
-            .get("extraBody")
-            .and_then(Value::as_object)
-            .and_then(|extra| extra.get("accessToken"))
-            .and_then(Value::as_str),
-        Some("accio-token-123")
-    );
+    // The ordinary Accio planner binds canonical apiKey/device, not stale body copies.
+    for key in ["token", "accessToken", "utdid"] {
+        assert!(payload["extraBody"].get(key).is_none());
+    }
     assert_eq!(
         payload
             .get("extraBody")

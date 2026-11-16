@@ -151,6 +151,24 @@ fn infer_responses_instructions(req: &CanonicalRelayRequest) -> Option<String> {
 
 /// Pack a [`CanonicalRelayRequest`] into an OpenAI Responses API request body.
 pub fn pack_responses(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Value {
+    pack_responses_inner(req, model, stream, false)
+}
+
+/// Native products preserve every system message rather than infer a replacement instruction.
+pub fn pack_responses_preserving_system(
+    req: &CanonicalRelayRequest,
+    model: &str,
+    stream: bool,
+) -> Value {
+    pack_responses_inner(req, model, stream, true)
+}
+
+fn pack_responses_inner(
+    req: &CanonicalRelayRequest,
+    model: &str,
+    stream: bool,
+    preserve_system: bool,
+) -> Value {
     let translated =
         crate::protocol::generation_parameters::for_target(req, ProtocolFamily::OpenAi);
     let req = translated.as_ref();
@@ -164,14 +182,17 @@ pub fn pack_responses(req: &CanonicalRelayRequest, model: &str, stream: bool) ->
             Value::String(previous_response_id.to_string()),
         );
     }
-    if let Some(instructions) = infer_responses_instructions(req) {
+    if let Some(instructions) = (!preserve_system)
+        .then(|| infer_responses_instructions(req))
+        .flatten()
+    {
         body.insert("instructions".to_string(), Value::String(instructions));
     }
 
     let mut input_items = Vec::new();
     let output_kinds = crate::protocol::openai_tool_wire::output_kinds(req);
     for message in &req.messages {
-        if message.role == MessageRole::System {
+        if message.role == MessageRole::System && !preserve_system {
             continue;
         }
         if message.role == MessageRole::Tool {

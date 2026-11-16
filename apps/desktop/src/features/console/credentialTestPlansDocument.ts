@@ -1,7 +1,7 @@
 // Named collections are additive; mutations clone once and never rewrite credentials or old policies.
 import type { ConsoleRouteDocument, CredentialTestPlan, CredentialTestScope } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
-import { readTestPolicy, testPolicyError, testProviderContext, testScopeKey } from "./credentialTestPolicyDocument";
+import { readTestPolicy, testPolicyError, testProviderContext, testScopeKey, testScopeModelPolicy } from "./credentialTestPolicyDocument";
 import { selectedTestAccounts, selectedTestCallCount, testInvocations } from "./credentialTestSelection";
 
 export type TestPlanChange = { providerId: string; id: string; plan: CredentialTestPlan | null };
@@ -53,12 +53,12 @@ export function namedPlanError(document: ConsoleRouteDocument, change: TestPlanC
   if (plan.id !== change.id || !exact(plan.id) || !plan.name.trim() || /\p{Cc}/u.test(plan.name)
     || new TextEncoder().encode(plan.name).length > 256) return "请填写 1–256 字节的计划名称。";
   if (!plan.scopes.length || plan.scopes.length > 128 || new Set(plan.scopes.map((scope) => testScopeKey({ ...scope, providerId: change.providerId }))).size !== plan.scopes.length
-    || plan.scopes.some((scope) => scope.kind !== plan.scopes[0].kind)
+    || plan.scopes.some((scope) => scope.kind !== plan.scopes[0].kind || (scope.kind !== "pool" && !exact(scope.id)))
     || (plan.scopes.length > 1 && plan.scopes[0].kind === "pool")) return "请选择一个全池，或 1–128 个不同子池或账户。";
   if (plan.scopes.some((scope) => !context.options.some((option) => option.key === testScopeKey({ ...scope, providerId: change.providerId })))) return "计划范围不属于当前凭据池。";
   if (plan.scopes.some((scope) => scope.kind === "subpool" && !context.accounts.some((account) => account.category === scope.id))) return "所选子池暂无账户。";
   if (context.accounts.filter((account) => plan.scopes.some((scope) => scope.kind === "pool" || (scope.kind === "account" ? account.id === scope.id : account.category === scope.id))).length > 128) return "每个计划的范围最多包含 128 个账户。";
-  return testPolicyError(plan.policy);
+  return testPolicyError(plan.policy, testScopeModelPolicy(document, plan.scopes.map((scope) => ({ ...scope, providerId: change.providerId }))));
 }
 
 export function updateTestPlans(document: ConsoleRouteDocument, changes: TestPlanChange[]): ConsoleRouteDocument {
@@ -88,7 +88,7 @@ export function prepareTestPlanRun(document: ConsoleRouteDocument | null, row: T
   const calls = row.legacy ? selectedTestCallCount(document, row.scopes, row.policy, accounts.map((account) => account.key))
     : accounts.reduce((total, account) => total + (row.policy.modelSelection === "all" ? account.models.length : row.policy.models.length)
       * row.policy.cases.filter((item) => item.enabled).length, 0);
-  const error = testPolicyError(row.policy) ?? (!accounts.length ? "所选范围暂无启用的账户"
+  const error = testPolicyError(row.policy, testScopeModelPolicy(document, row.scopes)) ?? (!accounts.length ? "所选范围暂无启用的账户"
     : accounts.length > 128 || calls > 128 ? "本轮超过 128 次调用或账户" : null);
   const invocations = row.legacy ? testInvocations(document, row.scopes, row.policy, accounts.map((account) => account.key))
     : [{ providerId: row.providerId, request: { planId: row.id, credentialIds: accounts.map((account) => account.id) } }];

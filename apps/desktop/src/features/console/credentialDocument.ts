@@ -4,6 +4,12 @@ import type {
   ConsoleSecretPatch,
 } from "../../api/contracts";
 import { remapSiteHealthSecretPath } from "./siteHealthSecretPath";
+import { sessionMaterialTarget, type SessionMaterialBinding } from "./providerSessionTarget";
+import { clearBedrockMaterialAliases, validateBedrockStaging, type BedrockMaterialBinding } from "./bedrockMaterialBinding";
+import { validateQwenStaging, type QwenMaterialBinding } from "./qwenMaterialBinding";
+import { validateKiroKeyStaging, type KiroKeyMaterialBinding } from "./kiroKeyMaterialBinding";
+import { validateVertexExpressStaging, type VertexExpressMaterialBinding } from "./vertexExpress";
+import { validateLumaAgentsStaging, type LumaAgentsMaterialBinding } from "./lumaAgents";
 
 export type AddExplicitCredentialInput = {
   providerId: string;
@@ -33,15 +39,17 @@ export type ProviderProbeScheduleInput = {
   intervalMinutes: number;
 };
 
-export type CredentialSecretEdit = CredentialIdentity &
+type CredentialSecretFieldPath = "api_key" | "auth_token" | "refresh_token" | "headers/Cookie" | "headers/Authorization"
+  | "extra_body/sessionId" | "extra_body/accessToken" | "extra_body/awsAccessKeyId" | "extra_body/awsSecretAccessKey" | "extra_body/awsSessionToken";
+export type CredentialSecretEdit = CredentialIdentity & { sessionBinding?: SessionMaterialBinding; bedrockBinding?: BedrockMaterialBinding; qwenBinding?: QwenMaterialBinding; kiroKeyBinding?: KiroKeyMaterialBinding; vertexExpressBinding?: VertexExpressMaterialBinding; lumaAgentsBinding?: LumaAgentsMaterialBinding } &
   (
     | {
-        field: "api_key" | "auth_token" | "headers/Cookie" | "extra_body/sessionId" | "extra_body/accessToken";
+        field: CredentialSecretFieldPath;
         operation: "replace";
         value: string;
       }
     | {
-        field: "api_key" | "auth_token" | "headers/Cookie" | "extra_body/sessionId" | "extra_body/accessToken";
+        field: CredentialSecretFieldPath;
         operation: "clear";
       }
   );
@@ -52,6 +60,7 @@ export type BuildCredentialSecretPatchesInput = {
   activeSecrets: readonly ConsoleSecretDescriptor[];
   activeSecretPatches?: readonly ConsoleSecretPatch[];
   credentialSecretEdits?: readonly CredentialSecretEdit[];
+  strictSessionBindings?: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -396,6 +405,7 @@ export function buildCredentialSecretPatches({
   activeSecrets,
   activeSecretPatches = [],
   credentialSecretEdits = [],
+  strictSessionBindings = true,
 }: BuildCredentialSecretPatchesInput): ConsoleSecretPatch[] {
   const patchesByPath = new Map<string, ConsoleSecretPatch>();
   const activePatchesByPath = new Map(
@@ -467,6 +477,43 @@ export function buildCredentialSecretPatches({
     const providerId = requiredId(edit.providerId, "providerId");
     const credentialId = requiredId(edit.credentialId, "credentialId");
     const draftProviderIndex = providerIndexById(draftDocument, providerId);
+    if (edit.qwenBinding || edit.operation === "replace" && edit.field === "api_key"
+      && (draftDocument.providers[draftProviderIndex] as Record<string, unknown> | undefined)?.preset === "qwen-official-api") {
+      try { validateQwenStaging(draftDocument, providerId, credentialId, edit.qwenBinding); }
+      catch (error) { if (!strictSessionBindings) continue; throw error; }
+    }
+    if (edit.kiroKeyBinding || edit.operation === "replace" && edit.field === "api_key"
+      && (draftDocument.providers[draftProviderIndex] as Record<string, unknown> | undefined)?.preset === "kiro-api-key") {
+      try { validateKiroKeyStaging(draftDocument, providerId, credentialId, edit.kiroKeyBinding); }
+      catch (error) { if (!strictSessionBindings) continue; throw error; }
+    }
+    if (edit.vertexExpressBinding || edit.operation === "replace" && edit.field === "api_key"
+      && (draftDocument.providers[draftProviderIndex] as Record<string, unknown> | undefined)?.preset === "vertex-express-api") {
+      try { validateVertexExpressStaging(draftDocument, providerId, credentialId, edit.vertexExpressBinding); }
+      catch (error) { if (!strictSessionBindings) continue; throw error; }
+    }
+    if (edit.lumaAgentsBinding || edit.operation === "replace" && edit.field === "api_key"
+      && (draftDocument.providers[draftProviderIndex] as Record<string, unknown> | undefined)?.preset === "lumalabs-api") {
+      try { validateLumaAgentsStaging(draftDocument, providerId, credentialId, edit.lumaAgentsBinding); }
+      catch (error) { if (!strictSessionBindings) continue; throw error; }
+    }
+    if (edit.bedrockBinding) {
+      try { validateBedrockStaging(draftDocument, providerId, credentialId, edit.bedrockBinding, activeDocument, activeSecrets); }
+      catch (error) { if (!strictSessionBindings) continue; throw error; }
+    }
+    if (edit.sessionBinding) {
+      try {
+        sessionMaterialTarget(draftDocument, providerId, credentialId, edit.sessionBinding, true);
+        const activeIndex = providerIndexById(activeDocument, providerId);
+        if (activeSecrets.some((secret) => secret.configured && new RegExp(`^/providers/${activeIndex}/(?:api_key|auth_token|headers/(?:cookie|authorization))$`, "i").test(secret.path))) {
+          throw new Error("会话材料不能与服务商级共享认证并用；请使用独立空凭据池。");
+        }
+      } catch (error) {
+        // Render previews omit unsafe staged values; the actual commit always uses strict validation.
+        if (!strictSessionBindings) continue;
+        throw error;
+      }
+    }
     if (draftProviderIndex < 0) {
       throw new Error(`Provider '${providerId}' was not found.`);
     }
@@ -481,9 +528,11 @@ export function buildCredentialSecretPatches({
       );
     }
     const path = `/providers/${draftProviderIndex}/credentials/${draftCredentialIndex}/${edit.field}`;
-    if (edit.field === "headers/Cookie") {
+    if (edit.bedrockBinding) clearBedrockMaterialAliases(patchesByPath, path);
+    if (edit.field === "headers/Cookie" || edit.field === "headers/Authorization") {
       for (const key of patchesByPath.keys()) {
-        if (key.toLowerCase() === path.toLowerCase()) patchesByPath.delete(key);
+        // Backend identities and map keys are case-sensitive: every old path needs an operation.
+        if (key !== path && key.toLowerCase() === path.toLowerCase()) patchesByPath.set(key, { path: key, operation: "clear" });
       }
     }
     if (edit.operation === "replace") {

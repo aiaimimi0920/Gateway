@@ -1,5 +1,6 @@
 pub mod debug_protocol;
 pub mod extractors;
+pub(crate) mod lan_sharing;
 mod management_ui;
 pub mod middleware;
 pub mod native_json;

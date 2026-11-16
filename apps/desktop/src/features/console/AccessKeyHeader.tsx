@@ -1,5 +1,5 @@
-import * as Select from "@radix-ui/react-select";
-import { ArrowDownWideNarrow, Check, ChevronDown, Search, X } from "lucide-react";
+import { IconButton, Input, PopupSelect } from "@neuro/ui";
+import { ArrowDownWideNarrow, Search, X } from "lucide-react";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { ConsoleAccessKey } from "../../api/contracts";
@@ -46,7 +46,8 @@ export function compareAccessKeys(left: ConsoleAccessKey, right: ConsoleAccessKe
   return sort === "name-desc" ? -order : order;
 }
 
-export function AccessKeyToolbar({ query, sort, onQuery, onSort, t }: {
+export function AccessKeyToolbar({ query, sort, status, onStatus, onQuery, onSort, t }: {
+  status: string; onStatus: (value: string) => void;
   query: string; sort: AccessKeySort; onQuery: (value: string) => void;
   onSort: (value: AccessKeySort) => void; t: (zh: string, en: string) => string;
 }) {
@@ -54,27 +55,19 @@ export function AccessKeyToolbar({ query, sort, onQuery, onSort, t }: {
     ["newest", t("最新创建", "Newest first")], ["oldest", t("最早创建", "Oldest first")],
     ["name", t("名称升序", "Name ascending")], ["name-desc", t("名称降序", "Name descending")],
   ];
-  return <div className="nt-provider-pool-toolbar" role="search" aria-label={t("搜索密钥", "Search keys")}>
+  return <div className="nt-provider-pool-toolbar nt-key-toolbar" role="search" aria-label={t("搜索密钥", "Search keys")}>
     <div className="nt-provider-pool-toolbar__search">
       <Search size={15} aria-hidden="true" />
-      <input type="search" className="nt-input" maxLength={256} value={query}
+      <Input type="search" className="nt-key-search-input" compact maxLength={256} value={query}
         aria-label={t("搜索密钥", "Search keys")} placeholder={t("搜索名称、归属或 ID", "Search name, owner or ID")}
         onChange={(event) => onQuery(event.target.value)} />
-      {query && <button className="nt-icon-action" type="button" aria-label={t("清除密钥搜索", "Clear key search")}
-        onClick={() => onQuery("")}><X size={14} aria-hidden="true" /></button>}
+      {query && <IconButton className="nt-key-search-clear" compact variant="quiet" label={t("清除密钥搜索", "Clear key search")}
+        onClick={() => onQuery("")}><X size={14} aria-hidden="true" /></IconButton>}
     </div>
-    <Select.Root value={sort} onValueChange={(value: AccessKeySort) => onSort(value)}>
-      <Select.Trigger className="nt-btn nt-btn--outline nt-provider-pool-toolbar__sort" aria-label={t("密钥排序", "Sort keys")}>
-        <ArrowDownWideNarrow size={15} aria-hidden="true" /><Select.Value />
-        <Select.Icon><ChevronDown size={13} aria-hidden="true" /></Select.Icon>
-      </Select.Trigger>
-      <Select.Portal><Select.Content className="nt-account-routing-pool-select__popup" position="popper" align="start" sideOffset={4} collisionPadding={8}>
-        <Select.Viewport className="nt-account-routing-pool-select__viewport">
-          {options.map(([value, label]) => <Select.Item className="nt-account-routing-pool-select__item" key={value} value={value} textValue={label}>
-            <Select.ItemText>{label}</Select.ItemText><Select.ItemIndicator><Check size={13} aria-hidden="true" /></Select.ItemIndicator>
-          </Select.Item>)}
-        </Select.Viewport>
-      </Select.Content></Select.Portal>
-    </Select.Root>
+    <PopupSelect value={status} onValueChange={onStatus} aria-label={t("密钥状态", "Key status")}
+      options={[["all", t("全部状态", "All statuses")], ["active", t("启用", "Active")], ["disabled", t("停用", "Disabled")], ["expired", t("已过期", "Expired")], ["revoked", t("已撤销", "Revoked")]].map(([value, label]) => ({ value, label }))} />
+    <PopupSelect value={sort} onValueChange={onSort} options={options.map(([value, label]) => ({ value, label }))}
+      leading={<ArrowDownWideNarrow size={15} aria-hidden="true" />}
+      className="nt-provider-pool-toolbar__sort" aria-label={t("密钥排序", "Sort keys")} />
   </div>;
 }

@@ -11,8 +11,20 @@ use crate::protocol::canonical::{CanonicalMessage, CanonicalRelayRequest, Messag
 mod accumulator;
 mod accumulator_content;
 mod anthropic_events;
-pub use accumulator::accumulate_kiro_stream;
+pub use accumulator::{accumulate_kiro_api_key_stream, accumulate_kiro_stream};
+mod event_payload;
 mod event_stream;
+#[cfg(test)]
+mod key_contract_tests;
+mod key_request;
+mod key_response;
+#[cfg(test)]
+mod runtime_integrity_tests;
+mod runtime_state;
+pub(crate) use runtime_state::valid as valid_runtime_state;
+mod material_metadata;
+use material_metadata::normalize_lookup_key;
+pub use material_metadata::{generate_machine_id, normalize_machine_id, read_payload_string};
 #[cfg(test)]
 mod request_metadata_tests;
 use anthropic_events::{anthropic_event_bytes, push_anthropic_events, push_anthropic_finish};
@@ -58,7 +70,20 @@ pub const KIRO_DEFAULT_SYSTEM_VERSION: &str = "win32#10.0.22631";
 pub const KIRO_DEFAULT_NODE_VERSION: &str = "22.22.0";
 
 pub fn pack_kiro(req: &CanonicalRelayRequest, model: &str) -> Result<Value, GatewayError> {
-    let requested_model = map_model(model);
+    pack_with_options(req, &map_model(model), false)
+}
+
+/// Native Key uses exact operator-selected IDs and CLI origin; IDE aliases remain legacy-only.
+pub fn pack_kiro_api_key(req: &CanonicalRelayRequest, model: &str) -> Result<Value, GatewayError> {
+    key_request::validate(req)?;
+    pack_with_options(req, model, true)
+}
+
+fn pack_with_options(
+    req: &CanonicalRelayRequest,
+    requested_model: &str,
+    cli: bool,
+) -> Result<Value, GatewayError> {
     let tool_name_map = build_tool_name_map(req);
     let short_tool_name_map = build_short_tool_name_map(&tool_name_map);
     let mut tools = req
@@ -120,6 +145,15 @@ pub fn pack_kiro(req: &CanonicalRelayRequest, model: &str) -> Result<Value, Gate
     }
     validate_tool_pairing(&mut history, &mut current);
 
+    if cli {
+        current["origin"] = json!("KIRO_CLI");
+        for entry in &mut history {
+            if let Some(user) = entry.get_mut("userInputMessage") {
+                user["origin"] = json!("KIRO_CLI");
+            }
+        }
+    }
+
     let mut conversation_state = json!({
         "conversationId": resolve_conversation_id(req),
         "agentContinuationId": uuid::Uuid::new_v4().to_string(),
@@ -132,7 +166,10 @@ pub fn pack_kiro(req: &CanonicalRelayRequest, model: &str) -> Result<Value, Gate
     });
 
     if let Some(object) = conversation_state.as_object_mut() {
-        for (key, value) in &req.extra {
+        if cli {
+            object.remove("agentContinuationId");
+        }
+        for (key, value) in req.extra.iter().filter(|_| !cli) {
             if is_handled_request_extra_key(key) {
                 continue;
             }
@@ -199,62 +236,6 @@ pub fn is_reserved_payload_extra_key(key: &str) -> bool {
     )
 }
 
-pub fn read_payload_string(
-    extra: Option<&HashMap<String, Value>>,
-    aliases: &[&str],
-) -> Option<String> {
-    let extra = extra?;
-    let alias_keys: Vec<String> = aliases
-        .iter()
-        .map(|key| normalize_lookup_key(key))
-        .collect();
-    extra.iter().find_map(|(key, value)| {
-        if !alias_keys.contains(&normalize_lookup_key(key)) {
-            return None;
-        }
-        match value {
-            Value::String(text) => {
-                let trimmed = text.trim();
-                if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                }
-            }
-            Value::Number(number) => Some(number.to_string()),
-            Value::Bool(flag) => Some(flag.to_string()),
-            _ => None,
-        }
-    })
-}
-
-pub fn normalize_machine_id(machine_id: &str) -> Option<String> {
-    let trimmed = machine_id.trim();
-    if trimmed.len() == 64 && trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Some(trimmed.to_ascii_lowercase());
-    }
-    let without_dashes: String = trimmed.chars().filter(|c| *c != '-').collect();
-    if without_dashes.len() == 32 && without_dashes.chars().all(|c| c.is_ascii_hexdigit()) {
-        let normalized = without_dashes.to_ascii_lowercase();
-        return Some(format!("{normalized}{normalized}"));
-    }
-    None
-}
-
-pub fn generate_machine_id(
-    explicit_machine_id: Option<&str>,
-    refresh_token: Option<&str>,
-) -> Option<String> {
-    if let Some(machine_id) = explicit_machine_id.and_then(normalize_machine_id) {
-        return Some(machine_id);
-    }
-    let refresh_token = refresh_token?.trim();
-    if refresh_token.is_empty() {
-        return None;
-    }
-    Some(sha256_hex(&format!("KotlinNativeAPI/{refresh_token}")))
-}
-
 fn is_handled_request_extra_key(key: &str) -> bool {
     matches!(
         normalize_lookup_key(key).as_str(),
@@ -279,14 +260,6 @@ fn contains_version(value: &str, version: &str) -> bool {
     let dotted = version.to_ascii_lowercase();
     let dashed = dotted.replace('.', "-");
     value.contains(&dotted) || value.contains(&dashed)
-}
-
-fn normalize_lookup_key(value: &str) -> String {
-    value
-        .chars()
-        .filter(|ch| *ch != '_' && *ch != '-')
-        .collect::<String>()
-        .to_ascii_lowercase()
 }
 
 fn prompt_tokens_from_context(model: &str, context_usage_percentage: f64) -> u64 {
@@ -356,6 +329,20 @@ pub fn translate_kiro_event_stream_to_openai_sse(
     req: CanonicalRelayRequest,
 ) -> impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static {
     translate_kiro_event_stream_to_openai_sse_with_error(inner, model, req)
+}
+
+/// Decode the shared framed stream without reinterpreting a native Key model as an IDE alias.
+pub fn translate_kiro_api_key_stream<
+    E: From<crate::protocol::stream_error::ProtocolStreamError> + Send + 'static,
+>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+    req: CanonicalRelayRequest,
+    anthropic: bool,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
+    let mut state = build_translator_state(model.clone(), req);
+    state.model = model;
+    event_stream_translate::translate_kiro_key_stream(inner, state, anthropic)
 }
 
 pub fn translate_kiro_event_stream_to_openai_sse_with_error<E: Send + 'static>(

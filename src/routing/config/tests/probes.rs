@@ -210,7 +210,15 @@ aliases: {}
         .and_then(|credential| credential.refresh_config.as_ref())
         .expect("refresh state")
         .clone();
-    *refresh_state.api_key_override.lock() = Some("latest-access-token".to_string());
+    refresh_state
+        .apply_refresh_if_active(
+            0,
+            "latest-access-token".to_string(),
+            None,
+            3600,
+            future_rfc3339_after_secs(3600),
+        )
+        .unwrap();
 
     let target = snapshot
         .select_credential_probe_target("oauth-live")

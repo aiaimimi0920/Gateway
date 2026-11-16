@@ -1,3 +1,5 @@
+import { Button, CheckboxGroup, Field, Input, Notice, Select } from "@neuro/ui";
+import type { RefObject } from "react";
 import type {
   ConsoleAccessBundle,
   ConsoleAccessKeyGroup,
@@ -26,6 +28,7 @@ type Props = {
   balance?: ConsoleAccessKeyBalance;
   cashQuotaSupported?: boolean;
   onCancel?(): void;
+  nameInputRef: RefObject<HTMLInputElement | null>;
 };
 
 export function AccessKeyCreateForm({
@@ -43,6 +46,7 @@ export function AccessKeyCreateForm({
   balance,
   cashQuotaSupported = false,
   onCancel,
+  nameInputRef,
 }: Props) {
   const patch = (value: Partial<AccessKeyDraft>) =>
     onChange({ ...draft, ...value });
@@ -61,22 +65,18 @@ export function AccessKeyCreateForm({
     >
       <div className="nt-key-dialog__body">
         <fieldset className="nt-key-form" disabled={busy || locked}>
-          <label className="nt-field">
-            <span>{t("名称", "Name")}</span>
-            <input
-              className="nt-input"
-              autoFocus
+          <Field label={t("名称", "Name")}>
+            <Input
+              ref={nameInputRef}
               required
               maxLength={128}
               value={draft.displayName}
               placeholder={t("例如：我的客户端", "e.g. My client")}
               onChange={(event) => patch({ displayName: event.target.value })}
             />
-          </label>
-          <label className="nt-field">
-            <span>{t("有效期", "Validity")}</span>
-            <select
-              className="nt-input"
+          </Field>
+          <Field label={t("有效期", "Validity")}>
+            <Select
               value={draft.expiresAt ? "current" : "0"}
               onChange={(event) => {
                 const days = Number(event.target.value);
@@ -97,8 +97,8 @@ export function AccessKeyCreateForm({
               <option value="7">{t("7 天", "7 days")}</option>
               <option value="30">{t("30 天", "30 days")}</option>
               <option value="90">{t("90 天", "90 days")}</option>
-            </select>
-          </label>
+            </Select>
+          </Field>
           <AccessKeyGroupPicker
             groups={groups}
             selected={draft.accountGroupIds}
@@ -123,10 +123,8 @@ export function AccessKeyCreateForm({
                   ["resolvedTenantId", t("租户 ID", "Tenant ID")],
                 ] as const
               ).map(([field, label]) => (
-                <label className="nt-field" key={field}>
-                  <span>{label}</span>
-                  <input
-                    className="nt-input"
+                <Field label={label} key={field}>
+                  <Input
                     required
                     maxLength={128}
                     disabled={
@@ -137,78 +135,51 @@ export function AccessKeyCreateForm({
                     value={draft[field]}
                     onChange={(event) => patch({ [field]: event.target.value })}
                   />
-                </label>
+                </Field>
               ))}
-              <label className="nt-field">
-                <span>{t("密钥类型", "Key kind")}</span>
-                <select
-                  className="nt-input"
+              <Field label={t("密钥类型", "Key kind")}>
+                <Select
                   value={draft.keyKind}
                   disabled={editing}
                   onChange={(event) => patch({ keyKind: event.target.value })}
                 >
                   <option value="normal">{t("普通", "Normal")}</option>
                   <option value="aggregate">{t("聚合", "Aggregate")}</option>
-                </select>
-              </label>
+                </Select>
+              </Field>
             </>
           ) : null}
           {bundles.length > 0 ? (
-            <div className="nt-key-form__group-field">
-              <span aria-hidden="true">{t("权益包", "Bundles")}</span>
-              <fieldset className="nt-key-bundle-options">
-                <legend className="nt-visually-hidden">{t("权益包", "Bundles")}</legend>
-                {bundles.map((bundle) => (
-                  <label key={bundle.id}>
-                    <input
-                      type="checkbox"
-                      checked={draft.bundleIds.includes(bundle.id)}
-                      onChange={(event) => {
-                        patch({
-                          bundleIds: event.target.checked
-                            ? [...draft.bundleIds, bundle.id]
-                            : draft.bundleIds.filter((id) => id !== bundle.id),
-                        });
-                      }}
-                    />
-                    {bundle.displayName || bundle.slug}
-                  </label>
-                ))}
-              </fieldset>
-            </div>
+            <CheckboxGroup label={t("权益包", "Bundles")} orientation="vertical"
+              options={bundles.map(bundle => ({ value: bundle.id, label: bundle.displayName || bundle.slug }))}
+              values={draft.bundleIds} onValuesChange={bundleIds => patch({ bundleIds })} />
           ) : null}
         </fieldset>
       </div>
       <footer className="nt-key-dialog__footer">
         {error ? (
-          <div className="nt-alert nt-alert--danger" role="alert" tabIndex={0} title={error}>
+          <Notice tone="danger" tabIndex={0} title={error}>
             {error}
-          </div>
+          </Notice>
         ) : null}
-        <div className="dialog-actions">
+        <div className="n-dialog-actions">
           {onCancel ? (
-            <button
-              className="nt-btn nt-btn--outline"
+            <Button
               type="button"
               disabled={busy || locked}
               onClick={onCancel}
             >
               {t("取消", "Cancel")}
-            </button>
+            </Button>
           ) : null}
-          <button
-            className="nt-btn nt-btn--primary"
+          <Button
+            variant="primary"
+            loading={busy}
             type="submit"
             disabled={busy || locked || !valid}
           >
-            {editing
-              ? busy
-                ? t("保存中…", "Saving…")
-                : t("保存", "Save")
-              : busy
-                ? t("创建中…", "Creating…")
-                : t("创建 API Key", "Create API Key")}
-          </button>
+            {editing ? t("保存", "Save") : t("创建 API Key", "Create API Key")}
+          </Button>
         </div>
       </footer>
     </form>

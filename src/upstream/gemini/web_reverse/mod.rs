@@ -1,5 +1,14 @@
 mod bootstrap;
 mod direct_http_tts;
+#[cfg(not(any(
+    feature = "line-gemini-web-reverse",
+    feature = "line-gemini-canvas-program"
+)))]
+mod disabled;
+#[cfg(any(
+    feature = "line-gemini-web-reverse",
+    feature = "line-gemini-canvas-program"
+))]
 mod execution;
 mod headers;
 mod http_checkpoint;
@@ -10,9 +19,21 @@ mod legacy_text;
 mod legacy_tts;
 mod request_plan;
 mod session_cookies;
+#[cfg(any(
+    feature = "line-gemini-web-reverse",
+    feature = "line-gemini-canvas-program"
+))]
 mod speech;
 mod surface_bridge;
+#[cfg(any(
+    feature = "line-gemini-web-reverse",
+    feature = "line-gemini-canvas-program"
+))]
 mod transcription;
+#[cfg(any(
+    feature = "line-gemini-web-reverse",
+    feature = "line-gemini-canvas-program"
+))]
 mod uploads;
 
 pub(in crate::upstream) use session_cookies::SessionCookies;
@@ -24,6 +45,15 @@ pub use direct_http_tts::{
     gemini_canvas_tts_direct_http_audio_unavailable_from_bodies,
     resolve_direct_http_tts_audio_response,
 };
+#[cfg(not(any(
+    feature = "line-gemini-web-reverse",
+    feature = "line-gemini-canvas-program"
+)))]
+pub use disabled::{execute, execute_speech, execute_stream, execute_transcription};
+#[cfg(any(
+    feature = "line-gemini-web-reverse",
+    feature = "line-gemini-canvas-program"
+))]
 pub use execution::{execute, execute_stream};
 pub use headers::build_headers;
 pub use legacy_execution::execute_legacy_media;
@@ -39,8 +69,16 @@ pub use legacy_mixed_lane::{
 pub use legacy_text::{execute_legacy_text, execute_legacy_text_stream};
 pub use legacy_tts::execute_legacy_tts;
 pub use request_plan::unsupported_request_plan_error;
+#[cfg(any(
+    feature = "line-gemini-web-reverse",
+    feature = "line-gemini-canvas-program"
+))]
 pub use speech::execute_speech;
 pub use surface_bridge::bootstrap_from_payload_cache;
+#[cfg(any(
+    feature = "line-gemini-web-reverse",
+    feature = "line-gemini-canvas-program"
+))]
 pub use transcription::execute_transcription;
 
 const PROVIDER: &str = "gemini_web_compatible";

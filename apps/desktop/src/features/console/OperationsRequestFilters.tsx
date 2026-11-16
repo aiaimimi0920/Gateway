@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { Badge, Button, Dialog, Field, Input, Panel } from "@neuro/ui";
 import {
   OPERATIONS_DEFAULT_REQUEST_FILTERS,
   type OperationsRequestFilterDraft,
@@ -55,9 +56,9 @@ export function OperationsRequestFilters({
     requestFilters[key].trim(),
   ).length;
   // Editing the last populated field must not hide the focused input.
-  const [advancedOpen, setAdvancedOpen] = useState(activeAdvanced > 0);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   return (
-    <form
+    <Panel><form
       className="nt-operations-filters"
       aria-label={t("请求筛选", "Request filters")}
       onSubmit={(event) => {
@@ -66,42 +67,36 @@ export function OperationsRequestFilters({
       }}
     >
       <div className="nt-operations-filters__primary">
-        <label className="nt-field">
-          <span>{t("状态", "Status")}</span>
-          <input
-            className="nt-input"
+        <Field label={t("状态", "Status")}>
+          <Input compact
             list={statusOptionsId}
             placeholder={t("全部状态", "All statuses")}
             value={requestFilters.status}
             onChange={(event) => patchFilters({ status: event.target.value })}
           />
-          <datalist id={statusOptionsId}>
-            {["completed", "failed", "running", "cancelled"].map((status) => (
-              <option key={status} value={status} />
-            ))}
-          </datalist>
-        </label>
-        <label className="nt-field">
-          <span>{t("条数上限", "Limit")}</span>
-          <input
-            className="nt-input"
+        </Field>
+        <datalist id={statusOptionsId}>
+          {["completed", "failed", "running", "cancelled"].map((status) => (
+            <option key={status} value={status} />
+          ))}
+        </datalist>
+        <Field label={t("条数上限", "Limit")}>
+          <Input compact
             inputMode="numeric"
             value={requestFilters.limit}
             onChange={(event) => patchFilters({ limit: event.target.value })}
           />
-        </label>
+        </Field>
         <div className="nt-operations-filters__actions">
-          <button
-            className="nt-btn nt-btn--primary"
+          <Button compact variant="primary"
             disabled={editorLocked || requests.loading}
             type="submit"
           >
             {requests.loading
               ? t("查询中…", "Querying…")
               : t("应用筛选", "Apply filters")}
-          </button>
-          <button
-            className="nt-btn nt-btn--outline"
+          </Button>
+          <Button compact
             disabled={editorLocked}
             type="button"
             onClick={() =>
@@ -109,42 +104,34 @@ export function OperationsRequestFilters({
             }
           >
             {t("重置条件", "Reset")}
-          </button>
+          </Button>
         </div>
       </div>
-      <details
-        className="nt-operations-detail nt-operations-filters__advanced"
+      <Dialog
+        className="nt-operations-filters__advanced"
         open={advancedOpen}
-        onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
-      >
-        <summary>
-          {t("更多筛选", "More filters")}
+        onOpenChange={setAdvancedOpen}
+        title={t("更多筛选", "More filters")}
+        trigger={<Button compact type="button">{t("更多筛选", "More filters")}
           {activeAdvanced > 0 ? (
-            <span className="nt-badge">{activeAdvanced}</span>
+            <Badge>{activeAdvanced}</Badge>
           ) : null}
-        </summary>
-        <div className="nt-console-field-grid">
+        </Button>}
+      >
+        <div className="nt-operations-filters__fields">
           {fields.map(({ key, label, placeholder }) => (
-            <label className="nt-field" key={key}>
-              <span>{label}</span>
-              <input
-                className="nt-input"
+            <Field label={label} key={key}>
+              <Input compact
                 value={requestFilters[key]}
                 placeholder={placeholder}
                 onChange={(event) =>
                   patchFilters({ [key]: event.target.value })
                 }
               />
-            </label>
+            </Field>
           ))}
         </div>
-      </details>
-      <p className="nt-operations-filters__hint">
-        {t(
-          "修改或重置条件后，点击“应用筛选”更新结果。",
-          "Apply filters after editing or resetting conditions to update results.",
-        )}
-      </p>
-    </form>
+      </Dialog>
+    </form></Panel>
   );
 }

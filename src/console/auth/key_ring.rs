@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 mod editing;
 #[path = "key_ring_secret.rs"]
 mod secret;
+#[path = "key_slots.rs"]
+mod slots;
 
 const MAX_KEYS: usize = 16;
 
@@ -27,6 +29,12 @@ struct StoredKey {
     created_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     sealed_token: Option<String>,
+    #[serde(default = "enabled_by_default")]
+    enabled: bool,
+}
+
+fn enabled_by_default() -> bool {
+    true
 }
 
 #[derive(Serialize)]
@@ -36,6 +44,7 @@ pub struct ManagementKeyView {
     name: String,
     created_at: String,
     current: bool,
+    enabled: bool,
 }
 
 impl KeyRing {
@@ -48,7 +57,7 @@ impl KeyRing {
         if let Some(id) = auth.key_verifications.lock().get(&cache_key).cloned() {
             return Ok(id);
         }
-        for key in &self.keys {
+        for key in self.keys.iter().filter(|key| key.enabled) {
             let hash = PasswordHash::new(&key.token_hash).map_err(|_| invalid_record())?;
             if Argon2::default()
                 .verify_password(token.as_bytes(), &hash)
@@ -73,6 +82,7 @@ impl KeyRing {
                 name: key.name.clone(),
                 created_at: key.created_at.clone(),
                 current: key.id == current,
+                enabled: key.enabled,
             })
             .collect()
     }
@@ -84,6 +94,16 @@ fn invalid_record() -> GatewayError {
 }
 
 impl ConsoleAuthRuntime {
+    /// Export authentication hashes as an owned ring without changing the running administrator.
+    pub(crate) fn backup_key_ring(&self) -> Result<Vec<u8>, GatewayError> {
+        let mut ring = match self.load_key_ring()? {
+            Some(ring) => ring,
+            None => self.initial_key_ring()?,
+        };
+        ring.revision = uuid::Uuid::new_v4().to_string();
+        serde_json::to_vec(&ring).map_err(|_| invalid_record())
+    }
+
     pub fn managed_keys_active(&self) -> Result<bool, GatewayError> {
         Ok(self.load_key_ring()?.is_some())
     }
@@ -142,6 +162,7 @@ impl ConsoleAuthRuntime {
                     .format(&time::format_description::well_known::Rfc3339)
                     .unwrap_or_default(),
                 sealed_token: None,
+                enabled: true,
             }],
         })
     }
@@ -153,7 +174,11 @@ impl ConsoleAuthRuntime {
     ) -> Result<Vec<ManagementKeyView>, GatewayError> {
         self.authenticate_management_token(request, token)?;
         if let Some(ring) = self.load_key_ring()? {
-            let current = ring.verify(self, token.trim())?;
+            let current = if ring.keys.iter().all(|key| !key.enabled) {
+                String::new()
+            } else {
+                ring.verify(self, token.trim())?
+            };
             Ok(ring.views(&current))
         } else {
             Ok(vec![ManagementKeyView {
@@ -161,6 +186,7 @@ impl ConsoleAuthRuntime {
                 name: "初始管理密钥".into(),
                 created_at: String::new(),
                 current: true,
+                enabled: true,
             }])
         }
     }
@@ -210,6 +236,7 @@ impl ConsoleAuthRuntime {
                 .format(&time::format_description::well_known::Rfc3339)
                 .unwrap_or_default(),
             sealed_token: None,
+            enabled: true,
         };
         key.sealed_token = Some(self.seal_management_key(&guard, &key, &token)?);
         ring.keys.push(key);

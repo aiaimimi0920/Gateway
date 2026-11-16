@@ -49,10 +49,10 @@ impl RouteConfigSnapshot {
                 .take(32)
                 .filter(|plan| plan.policy.automatic_enabled && plan.validate(provider).is_ok())
             {
-                for target in accounts
-                    .iter()
-                    .filter(|target| self.test_plan_matches(target, plan))
-                {
+                for target in accounts.iter().filter(|target| {
+                    self.test_plan_matches(target, plan)
+                        && plan.policy.validate_for_payload(&target.payload).is_ok()
+                }) {
                     targets.push(ScheduledCredentialProbeTarget {
                         target: target.clone(),
                         interval_minutes: plan.policy.interval_minutes,

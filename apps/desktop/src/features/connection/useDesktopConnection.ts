@@ -1,9 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LOCAL_GATEWAY_ADDRESS } from "./localGatewayAddress";
 
 export type ConnectionSettings = {
   mode: "local" | "existing";
   serverUrl: string;
+  localPort?: number;
 };
 
 export function useDesktopConnection(autoConnect = true, currentAddress = "") {
@@ -63,5 +65,6 @@ export function useDesktopConnection(autoConnect = true, currentAddress = "") {
     return () => { active = false; };
   }, [autoConnect, connect, setSettings]);
 
-  return { settings, setSettings, busy, error, address, connect, test, operation, tested };
+  const localAddress = settings.localPort === undefined ? LOCAL_GATEWAY_ADDRESS : `http://127.0.0.1:${settings.localPort}`;
+  return { settings, setSettings, busy, error, address, connect, test, operation, tested, localAddress };
 }

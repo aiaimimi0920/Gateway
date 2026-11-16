@@ -10,6 +10,7 @@ use serde_json::Value;
 use crate::protocol::canonical::TokenUsage;
 
 use super::observation::{BoundaryRule, ObservationLine, ObservationLines};
+use super::ObservationScope;
 
 struct UsageTappedStream<E> {
     inner: Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
@@ -18,12 +19,14 @@ struct UsageTappedStream<E> {
 
 #[derive(Debug)]
 struct SseUsageCapture {
+    scope: ObservationScope,
     latest_usage: Arc<Mutex<Option<TokenUsage>>>,
     lines: ObservationLines,
     pending_event: Option<String>,
     pending_data_lines: Vec<String>,
     prompt_tokens: Option<u64>,
     completion_tokens: Option<u64>,
+    reported_total_tokens: Option<u64>,
     prompt_reported: bool,
     completion_reported: bool,
     cache_creation_input_tokens: Option<u64>,
@@ -46,8 +49,39 @@ pub fn tap_sse_usage_with_error<E: Send + 'static>(
     impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     Arc<Mutex<Option<TokenUsage>>>,
 ) {
+    tap_usage_mode(inner, ObservationScope::Generic)
+}
+
+/// Native Messages extensions are opaque; only validated native counters can affect billing.
+pub(crate) fn tap_messages_usage_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+) -> (
+    impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    Arc<Mutex<Option<TokenUsage>>>,
+) {
+    tap_usage_mode(inner, ObservationScope::Messages)
+}
+
+/// The product guard validates and releases exactly one authoritative terminal envelope.
+pub(crate) fn tap_commandcode_responses_usage_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+) -> (
+    impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    Arc<Mutex<Option<TokenUsage>>>,
+) {
+    tap_usage_mode(inner, ObservationScope::CommandCodeResponses)
+}
+
+fn tap_usage_mode<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    scope: ObservationScope,
+) -> (
+    impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    Arc<Mutex<Option<TokenUsage>>>,
+) {
     let latest_usage = Arc::new(Mutex::new(None));
-    let capture = SseUsageCapture::new(Arc::clone(&latest_usage));
+    let mut capture = SseUsageCapture::new(Arc::clone(&latest_usage));
+    capture.scope = scope;
     (
         UsageTappedStream {
             inner: Box::pin(inner),
@@ -79,12 +113,14 @@ impl<E> Stream for UsageTappedStream<E> {
 impl SseUsageCapture {
     fn new(latest_usage: Arc<Mutex<Option<TokenUsage>>>) -> Self {
         Self {
+            scope: ObservationScope::Generic,
             latest_usage,
             lines: ObservationLines::default(),
             pending_event: None,
             pending_data_lines: Vec::new(),
             prompt_tokens: None,
             completion_tokens: None,
+            reported_total_tokens: None,
             prompt_reported: false,
             completion_reported: false,
             cache_creation_input_tokens: None,
@@ -137,6 +173,43 @@ impl SseUsageCapture {
             return;
         };
 
+        if self.scope == ObservationScope::CommandCodeResponses {
+            if matches!(
+                event.as_deref(),
+                Some("response.completed" | "response.incomplete")
+            ) {
+                let (usage, _) = crate::protocol::commandcode::native_json::observe(
+                    &value["response"],
+                    crate::protocol::canonical::EndpointKind::Responses,
+                );
+                if let Ok(mut latest) = self.latest_usage.lock() {
+                    *latest = usage;
+                }
+            }
+            return;
+        }
+        if self.scope == ObservationScope::Messages {
+            let start = event.as_deref() == Some("message_start");
+            let raw = match event.as_deref() {
+                Some("message_start") => &value["message"]["usage"],
+                Some("message_delta") => &value["usage"],
+                _ => return,
+            };
+            let mut counters = serde_json::Map::new();
+            for key in [
+                "input_tokens",
+                "output_tokens",
+                "cache_creation_input_tokens",
+                "cache_read_input_tokens",
+            ] {
+                if let Some(n) = raw[key].as_u64() {
+                    counters.insert(key.into(), n.into());
+                }
+            }
+            self.observe_usage(&Value::Object(counters), start);
+            return;
+        }
+
         if event.as_deref() == Some("message_start") {
             if let Some(raw) = value
                 .get("message")
@@ -162,6 +235,27 @@ impl SseUsageCapture {
         let Some(usage) = parse_usage_value(raw) else {
             return;
         };
+        if let Some(value) = raw
+            .get("prompt_tokens")
+            .or_else(|| raw.get("input_tokens"))
+            .and_then(Value::as_u64)
+        {
+            self.prompt_tokens = Some(value);
+        }
+        if let Some(value) = raw
+            .get("completion_tokens")
+            .or_else(|| raw.get("output_tokens"))
+            .and_then(Value::as_u64)
+        {
+            self.completion_tokens = Some(value);
+        }
+        // Totals can include reasoning/tool tokens; an explicit zero is not an absent report.
+        // message_start is provisional. A later partial native update without a total uses its counters.
+        self.reported_total_tokens = if message_start {
+            None
+        } else {
+            raw.get("total_tokens").and_then(Value::as_u64)
+        };
         self.prompt_reported |= raw
             .get("prompt_tokens")
             .or_else(|| raw.get("input_tokens"))
@@ -178,12 +272,6 @@ impl SseUsageCapture {
     }
 
     fn merge_usage(&mut self, usage: TokenUsage) {
-        if usage.prompt_tokens > 0 {
-            self.prompt_tokens = Some(usage.prompt_tokens);
-        }
-        if usage.completion_tokens > 0 {
-            self.completion_tokens = Some(usage.completion_tokens);
-        }
         if let Some(value) = usage.cache_creation_input_tokens {
             self.cache_creation_input_tokens = Some(value);
         }
@@ -194,10 +282,11 @@ impl SseUsageCapture {
         let merged = TokenUsage {
             prompt_tokens: self.prompt_tokens.unwrap_or(usage.prompt_tokens),
             completion_tokens: self.completion_tokens.unwrap_or(usage.completion_tokens),
-            total_tokens: self
-                .prompt_tokens
-                .unwrap_or(usage.prompt_tokens)
-                .saturating_add(self.completion_tokens.unwrap_or(usage.completion_tokens)),
+            total_tokens: self.reported_total_tokens.unwrap_or_else(|| {
+                self.prompt_tokens
+                    .unwrap_or(usage.prompt_tokens)
+                    .saturating_add(self.completion_tokens.unwrap_or(usage.completion_tokens))
+            }),
             cache_creation_input_tokens: self.cache_creation_input_tokens,
             cache_read_input_tokens: self.cache_read_input_tokens,
         };
@@ -268,3 +357,6 @@ fn parse_usage_value(value: &Value) -> Option<TokenUsage> {
 
     None
 }
+
+#[cfg(test)]
+mod tests;

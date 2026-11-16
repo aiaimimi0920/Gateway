@@ -353,6 +353,29 @@ fn draft_path_for_active_secret(
             return Ok(SecretDisposition::Replacement(format_pointer(&segments)));
         };
         segments[3] = draft_credential_index.to_string();
+        // Removing this credential-owned optional container deletes its secret, like its owner.
+        // Other kept access/refresh material still undergoes the complete destination comparison.
+        if segments.get(4).map(String::as_str) == Some("freebuff_session")
+            && draft.providers[draft_provider_index].credentials[draft_credential_index]
+                .freebuff_session
+                .is_none()
+        {
+            return Ok(SecretDisposition::Deleted);
+        }
+        if segments.get(4).map(String::as_str) == Some("kiro_oauth")
+            && draft.providers[draft_provider_index].credentials[draft_credential_index]
+                .kiro_oauth
+                .is_none()
+        {
+            return Ok(SecretDisposition::Deleted);
+        }
+        if segments.get(4).map(String::as_str) == Some("vertex_oauth")
+            && draft.providers[draft_provider_index].credentials[draft_credential_index]
+                .vertex_oauth
+                .is_none()
+        {
+            return Ok(SecretDisposition::Deleted);
+        }
     }
     Ok(SecretDisposition::Retained(format_pointer(&segments)))
 }

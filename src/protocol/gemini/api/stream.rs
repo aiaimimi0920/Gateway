@@ -147,6 +147,9 @@ fn accumulate_gemini_stream_buffer(
     });
 
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: reported_model,
         text,

@@ -16,11 +16,15 @@ impl CredentialPoolAuthPolicy {
     }
 
     pub(super) fn allows(self, credential: &CompiledCredential) -> bool {
-        self.is_any()
-            || (!credential.discovery_required
-                && credential
-                    .refresh_config
-                    .as_ref()
-                    .is_some_and(|owner| owner.has_active_refresh_material()))
+        credential
+            .refresh_config
+            .as_ref()
+            .is_none_or(|owner| owner.is_routing_active())
+            && (self.is_any()
+                || (!credential.discovery_required
+                    && credential
+                        .refresh_config
+                        .as_ref()
+                        .is_some_and(|owner| owner.has_active_refresh_material())))
     }
 }

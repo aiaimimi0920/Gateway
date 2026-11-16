@@ -138,6 +138,9 @@ fn selected_candidate_tracks_prompt_only_when_tools_are_injected() {
 #[test]
 fn xml_tool_response_bridge_promotes_upstream_xml_when_tools_requested() {
     let mut canonical_resp = CanonicalRelayResponse {
+            sources: Vec::new(),
+            bedrock_turn: None,
+            vertex_turn: None,
             model_declaration: None,
             model: "xop35qwen2b".to_string(),
             text: "<tool_calls>\n<tool_call>\n<tool_name>weather</tool_name>\n<parameters>{\"city\":\"Hangzhou\"}</parameters>\n</tool_call>\n</tool_calls>".to_string(),
@@ -180,6 +183,9 @@ fn xml_tool_response_bridge_promotes_upstream_xml_when_tools_requested() {
 #[test]
 fn xml_tool_response_bridge_skips_when_native_tool_calls_already_present() {
     let mut canonical_resp = CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: "xop35qwen2b".to_string(),
         text: "<tool_calls><tool_call><tool_name>weather</tool_name></tool_call></tool_calls>"

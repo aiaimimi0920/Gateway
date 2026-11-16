@@ -233,6 +233,7 @@ fn endpoint_kind_name(endpoint_kind: EndpointKind) -> &'static str {
         EndpointKind::ResearchList => "research_list",
         EndpointKind::ResearchGet => "research_get",
         EndpointKind::CreditsBalance => "credits_balance",
+        EndpointKind::SystemOne => "systemone",
     }
 }
 

@@ -15,7 +15,7 @@ pub(super) fn pack_response(
         .as_secs() as i64;
     let reply_model = caller_visible_reply_model(req, &resp.model);
 
-    match (req.protocol_family, req.endpoint_kind) {
+    let mut body = match (req.protocol_family, req.endpoint_kind) {
         (ProtocolFamily::Anthropic, EndpointKind::Messages) => {
             crate::protocol::anthropic::build_messages_success(
                 &resp_id,
@@ -59,7 +59,11 @@ pub(super) fn pack_response(
                 resp.finish_reason.as_deref(),
             )
         }
-    }
+    };
+    crate::protocol::response_sources::project(&mut body, &resp.sources);
+    crate::protocol::vertex_turn::project(&mut body, resp.vertex_turn.as_ref());
+    crate::protocol::bedrock_turn::project(&mut body, resp.bedrock_turn.as_ref());
+    body
 }
 
 pub(super) fn caller_visible_reply_model(

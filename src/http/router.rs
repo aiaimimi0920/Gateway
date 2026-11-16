@@ -15,6 +15,7 @@ mod diagnostics;
 mod inference;
 mod management_access;
 mod management_config;
+pub(crate) mod passwordless_auth;
 mod request_audits;
 
 /// Build the axum [`Router`] with all gateway routes mounted.
@@ -27,6 +28,7 @@ mod request_audits;
 ///      `X-Request-Id`.
 ///   3. Request body size limit — reject oversized payloads before handlers.
 pub fn build_router(state: Arc<AppState>) -> Router {
+    let lan_sharing = Arc::new(super::lan_sharing::Runtime::new(&state.config.console));
     crate::site_health::runtime::schedule(&state);
     if crate::provider_discovery::job::requested(state.route_config.snapshot().document()) {
         crate::provider_discovery::background::schedule(&state);
@@ -46,7 +48,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
     let router = request_audits::mount(router);
     let router = credential_lifecycle::mount(router);
     let router = analysis_reports::mount(router);
-    router
+    let router = router
         // -- Observability -----------------------------------------------
         .route("/healthz", get(health::healthz))
         .route("/readyz", get(health::readyz))
@@ -56,11 +58,23 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // default. Inner route limits (including management's 64 KiB) still win.
         .layer(DefaultBodyLimit::max(state.config.max_request_body_bytes))
         .layer(body_limit_layer(state.config.max_request_body_bytes))
+        // Backups have their own bounded upload limit; shared LAN/auth/lifecycle layers still apply.
+        .merge(super::routes::internal_console::backup::router())
+        .layer(axum::Extension(Arc::clone(&lan_sharing)))
+        .layer(axum_mw::from_fn_with_state(
+            lan_sharing,
+            super::lan_sharing::enforce,
+        ))
+        .layer(axum_mw::from_fn(passwordless_auth::scope))
         .layer(axum_mw::from_fn_with_state(
             Arc::clone(&state),
             request_logging,
         ))
         .layer(cors)
         // -- State -------------------------------------------------------
-        .with_state(state)
+        .with_state(state);
+    // Private loopback transport scope only; no production route, setting or issuer override.
+    #[cfg(all(test, feature = "line-accio-web-reverse-api"))]
+    let router = crate::provider_credential_refresh::accio::server_peer::wrap_router(router);
+    router
 }

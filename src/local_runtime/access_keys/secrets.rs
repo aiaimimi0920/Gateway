@@ -1,19 +1,9 @@
 //! Recoverable local key copies, separate from the authentication digest and public catalog.
 use super::*;
-use base64::{engine::general_purpose::STANDARD, Engine};
-use ring::{
-    aead,
-    rand::{SecureRandom, SystemRandom},
-};
-use std::{
-    fs::{self, OpenOptions},
-    io::{Read, Write},
-    path::Path,
-    sync::Arc,
-};
+use crate::local_runtime::secret_seal::LocalSecretSeal;
 
 #[derive(Clone, Default)]
-pub(crate) struct KeySecretStore(Option<Arc<aead::LessSafeKey>>);
+pub(crate) struct KeySecretStore(pub(in crate::local_runtime) LocalSecretSeal);
 
 fn unavailable() -> GatewayError {
     GatewayError::service_unavailable(
@@ -23,107 +13,30 @@ fn unavailable() -> GatewayError {
 }
 
 impl KeySecretStore {
-    // Called under the startup SQLite writer transaction; concurrent instances cannot re-key it.
-    pub(crate) fn open(directory: &Path, has_sealed: bool) -> Self {
-        Self(Self::load(directory, has_sealed).ok().map(Arc::new))
-    }
-
-    fn load(directory: &Path, has_sealed: bool) -> Result<aead::LessSafeKey, GatewayError> {
-        let path = directory.join("access-key-seal.json");
-        match fs::symlink_metadata(&path) {
-            Ok(metadata) => {
-                if !metadata.is_file() || metadata.file_type().is_symlink() {
-                    return Err(unavailable());
-                }
-                #[cfg(windows)]
-                {
-                    use std::os::windows::fs::MetadataExt;
-                    if metadata.file_attributes() & 0x400 != 0 {
-                        return Err(unavailable());
-                    }
-                }
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound && !has_sealed => {
-                let mut key = [0u8; 32];
-                SystemRandom::new()
-                    .fill(&mut key)
-                    .map_err(|_| unavailable())?;
-                let encoded =
-                    serde_json::to_vec(&STANDARD.encode(key)).map_err(|_| unavailable())?;
-                let mut options = OpenOptions::new();
-                options.write(true).create_new(true);
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::OpenOptionsExt;
-                    options.mode(0o600);
-                }
-                let mut file = options.open(&path).map_err(|_| unavailable())?;
-                file.write_all(&encoded)
-                    .and_then(|_| file.sync_all())
-                    .map_err(|_| unavailable())?;
-            }
-            Err(_) => return Err(unavailable()),
-        }
-        let mut bytes = Vec::new();
-        fs::File::open(&path)
-            .map_err(|_| unavailable())?
-            .take(257)
-            .read_to_end(&mut bytes)
-            .map_err(|_| unavailable())?;
-        if bytes.len() > 256 {
-            return Err(unavailable());
-        }
-        let encoded: String = serde_json::from_slice(&bytes).map_err(|_| unavailable())?;
-        let key = STANDARD.decode(encoded).map_err(|_| unavailable())?;
-        aead::UnboundKey::new(&aead::AES_256_GCM, &key)
-            .map(aead::LessSafeKey::new)
+    fn seal(&self, id: &str, token: &str) -> Result<String, GatewayError> {
+        let binding = format!("gateway-access-key:v1:{id}:{}", digest(token));
+        self.0
+            .seal(binding.as_bytes(), token.as_bytes(), 512)
             .map_err(|_| unavailable())
     }
 
-    fn seal(&self, id: &str, token: &str) -> Result<String, GatewayError> {
-        let key = self.0.as_ref().ok_or_else(unavailable)?;
-        let mut nonce = [0u8; 12];
-        SystemRandom::new()
-            .fill(&mut nonce)
-            .map_err(|_| unavailable())?;
-        let mut data = token.as_bytes().to_vec();
-        let binding = format!("gateway-access-key:v1:{id}:{}", digest(token));
-        key.seal_in_place_append_tag(
-            aead::Nonce::assume_unique_for_key(nonce),
-            aead::Aad::from(binding.as_bytes()),
-            &mut data,
-        )
-        .map_err(|_| unavailable())?;
-        let mut payload = nonce.to_vec();
-        payload.extend(data);
-        Ok(STANDARD.encode(payload))
-    }
-
     fn open_token(&self, id: &str, token_hash: &str, sealed: &str) -> Result<String, GatewayError> {
-        let key = self.0.as_ref().ok_or_else(unavailable)?;
-        if sealed.len() > 1024 {
-            return Err(unavailable());
-        }
-        let mut bytes = STANDARD.decode(sealed).map_err(|_| unavailable())?;
-        if !(28..=540).contains(&bytes.len()) {
-            return Err(unavailable());
-        }
-        let (nonce, data) = bytes.split_at_mut(12);
         let binding = format!("gateway-access-key:v1:{id}:{token_hash}");
-        let plaintext = key
-            .open_in_place(
-                aead::Nonce::try_assume_unique_for_key(nonce).map_err(|_| unavailable())?,
-                aead::Aad::from(binding.as_bytes()),
-                data,
-            )
+        let plaintext = self
+            .0
+            .open_bytes(binding.as_bytes(), sealed, 1024, 512)
             .map_err(|_| unavailable())?;
-        let token = String::from_utf8(plaintext.to_vec()).map_err(|_| unavailable())?;
+        let token = String::from_utf8(plaintext).map_err(|_| unavailable())?;
         if digest(&token) != token_hash {
             return Err(unavailable());
         }
         Ok(token)
     }
 }
+
+#[cfg(test)]
+#[path = "secret_compatibility_tests.rs"]
+mod compatibility;
 
 pub(super) async fn store(
     tx: &mut Transaction<'_, Sqlite>,

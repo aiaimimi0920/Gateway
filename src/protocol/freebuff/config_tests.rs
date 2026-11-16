@@ -89,12 +89,16 @@ fn credential_bucket_identity_does_not_include_raw_auth_token() {
     let mut payload = make_payload();
     payload.credential_id = Some(" stable-id ".into());
     let config = FreeBuffRuntimeConfig::from_payload(&payload, "z-ai/glm-5.1").unwrap();
-    assert_eq!(config.session_bucket_key, "cred:stable-id");
-    assert_eq!(config.bucket_key, "cred:stable-id::base2-free");
+    assert_eq!(config.session_bucket_key, credential_subject_id(&payload));
+    assert_eq!(
+        config.bucket_key,
+        format!("{}::base2-free", config.session_bucket_key)
+    );
+    assert!(!config.session_bucket_key.contains("stable-id"));
     payload.credential_id = None;
     let first = credential_subject_id(&payload);
-    assert!(first.starts_with("payload:"));
-    assert_eq!(first.len(), "payload:".len() + 24);
+    assert!(first.starts_with("subject:"));
+    assert_eq!(first.len(), "subject:".len() + 64);
     assert!(!first.contains(&payload.api_key));
     payload.api_key.push('x');
     assert_ne!(credential_subject_id(&payload), first);
@@ -111,4 +115,45 @@ fn config_debug_does_not_expose_credential_or_connection_details() {
     assert!(!debug.contains("synthetic-pass"));
     assert!(!debug.contains("synthetic-query"));
     assert!(debug.contains("[REDACTED_SECRET]"));
+}
+
+#[test]
+fn freebuff_business_target_cannot_fall_back_to_legacy_agent_or_unsigned_plan() {
+    let mut payload = make_payload();
+    payload.base_url = "https://freebuff.com".into();
+    payload.extra_body.as_mut().unwrap().insert(
+        "freebuffBusiness".into(),
+        json!({"origin":"https://codebuff.com","client":"cli"}),
+    );
+    let error = FreeBuffRuntimeConfig::from_payload(&payload, "z-ai/glm-5.1").unwrap_err();
+    assert_eq!(
+        error.code.as_deref(),
+        Some("freebuff_business_admission_required")
+    );
+    let error =
+        build_request_plan(&payload, &super::tests::make_request(), "m-stable", false).unwrap_err();
+    assert_eq!(
+        error.code.as_deref(),
+        Some("freebuff_business_admission_required")
+    );
+}
+
+#[test]
+fn freebuff_business_target_is_not_a_caller_wire_field_or_a_legacy_mode_override() {
+    let payload = make_payload();
+    let mut request = super::tests::make_request();
+    for key in ["freebuffBusiness", "FREEBUFF_BUSINESS", "freebuff-business"] {
+        assert!(is_reserved_payload_extra_key(key));
+        request.extra.insert(
+            key.into(),
+            json!({"origin":"https://evil.invalid","client":"cli"}),
+        );
+    }
+    let body = build_request_plan(&payload, &request, "z-ai/glm-5.1", false)
+        .unwrap()
+        .body
+        .unwrap();
+    assert!(!body.to_string().contains("evil.invalid"));
+    assert!(!body.to_string().contains("freebuffBusiness"));
+    assert!(FreeBuffRuntimeConfig::from_payload(&payload, "z-ai/glm-5.1").is_ok());
 }

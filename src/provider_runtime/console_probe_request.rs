@@ -12,6 +12,7 @@ pub(crate) struct ConsoleProbeRequest {
     pub test_plan: Option<crate::credential_test_policy::CredentialTestPolicy>,
     pub scope: Option<ConsoleTestScope>,
     pub plan_id: Option<String>,
+    pub media: Option<super::media_probe_request::MediaProbeRequest>,
 }
 
 pub(crate) use crate::credential_test_plan::TestScope as ConsoleTestScope;
@@ -22,24 +23,28 @@ impl ConsoleProbeRequest {
             return Ok(None);
         }
         let invalid = || {
-            GatewayError::bad_request("Invalid manual test: prompt 1..8192 bytes, exact model up to 256 bytes, and 1..128 unique credential IDs.")
+            GatewayError::bad_request("Invalid manual test: prompt 1..8192 bytes, exact model up to 2048 bytes with a target-specific product limit, and 1..128 unique credential IDs.")
             .with_code("console_probe_input_invalid")
         };
         if body.len() > 262_144 {
             return Err(invalid());
         }
         let request: Self = serde_json::from_slice(body).map_err(|_| invalid())?;
+        if request
+            .media
+            .as_ref()
+            .is_some_and(|media| !media.valid(&request))
+        {
+            return Err(invalid());
+        }
         if (request.test_plan.is_none()
             && request.plan_id.is_none()
             && request.prompt.trim().is_empty())
             || request.prompt.len() > 8192
-            || request.model.as_ref().is_some_and(|model| {
-                model.is_empty()
-                    || model.len() > 256
-                    || model.trim() != model
-                    || model.contains(['*', '?'])
-                    || model.chars().any(char::is_control)
-            })
+            || request
+                .model
+                .as_ref()
+                .is_some_and(|model| !crate::provider_model_id::valid_structure(model))
             || request.credential_ids.as_ref().is_some_and(|ids| {
                 ids.is_empty()
                     || ids.len() > 128
@@ -59,7 +64,7 @@ impl ConsoleProbeRequest {
             return Err(invalid());
         }
         if let Some(plan) = &request.test_plan {
-            plan.validate().map_err(|message| {
+            plan.validate_structure().map_err(|message| {
                 GatewayError::bad_request(message).with_code("console_probe_input_invalid")
             })?;
             if !request.prompt.is_empty() || request.model.is_some() {

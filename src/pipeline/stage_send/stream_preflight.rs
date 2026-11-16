@@ -18,6 +18,10 @@ pub(super) async fn normalize(
         ref model,
         ..
     } = attempt;
+    let observed_model = crate::protocol::lobsterai::virtual_model::observed_model(
+        &attempt.effective_payload,
+        model,
+    );
     let needs_completion = matches!(&stream_response, UpstreamStreamingResponse::Native(_))
         || (matches!(&stream_response, UpstreamStreamingResponse::Http(_))
             && attempt.effective_payload.canonical_adapter() == "openai_compatible"
@@ -25,6 +29,8 @@ pub(super) async fn normalize(
             && !attempt
                 .effective_payload
                 .bridges_openai_responses_to_chat_completions(ctx.canonical_req.endpoint_kind));
+    let lobster_messages = matches!(&stream_response, UpstreamStreamingResponse::Http(_))
+        && crate::protocol::lobsterai::messages::selected(&attempt.effective_payload);
     let byte_stream: ByteStream = match stream_response {
         UpstreamStreamingResponse::NativeEvents(stream)
             if attempt.effective_payload.canonical_adapter()
@@ -32,7 +38,7 @@ pub(super) async fn normalize(
         {
             Box::pin(crate::upstream::stream::tap_model_declaration(
                 stream,
-                model_observation::metadata(ctx, candidate, model),
+                model_observation::metadata(ctx, candidate, &observed_model),
                 Arc::clone(global_gateway_metrics()),
                 false,
             ))
@@ -47,7 +53,7 @@ pub(super) async fn normalize(
                 response
                     .bytes_stream()
                     .map_err(|e| StreamError::NativeTransport(e.without_url())),
-                model_observation::metadata(ctx, candidate, model),
+                model_observation::metadata(ctx, candidate, &observed_model),
                 Arc::clone(global_gateway_metrics()),
                 true,
             );
@@ -56,7 +62,7 @@ pub(super) async fn normalize(
         UpstreamStreamingResponse::Bytes(stream) => {
             Box::pin(crate::upstream::stream::tap_model_declaration(
                 stream.map_err(StreamError::Transport),
-                model_observation::metadata(ctx, candidate, model),
+                model_observation::metadata(ctx, candidate, &observed_model),
                 Arc::clone(global_gateway_metrics()),
                 false,
             ))
@@ -193,7 +199,7 @@ pub(super) async fn normalize(
                 .chain(upstream);
             let replay = crate::upstream::stream::tap_model_declaration(
                 replay,
-                model_observation::metadata(ctx, candidate, model),
+                model_observation::metadata(ctx, candidate, &observed_model),
                 Arc::clone(global_gateway_metrics()),
                 true,
             );
@@ -203,6 +209,34 @@ pub(super) async fn normalize(
                 Box::pin(crate::protocol::cohere::native::translate(
                     replay.map_err(StreamError::Transport),
                     model.clone(),
+                ))
+            } else if candidate.adapter == "accio_compatible" {
+                Box::pin(accio::translate_accio_stream_with_error(
+                    replay.map_err(StreamError::Transport),
+                    model.clone(),
+                ))
+            } else if candidate.adapter == "bedrock_converse_compatible" {
+                // Reuse the full deterministic planner, including payload defaults and fingerprint rules.
+                let plan = crate::upstream::client::UpstreamClient::build_request_plan(
+                    &attempt.effective_payload,
+                    &ctx.canonical_req,
+                    model,
+                    true,
+                )
+                .map_err(AttemptError::Stop)?;
+                let scope = crate::protocol::bedrock_turn::continuation::Continuation::from_body(
+                    plan.body.as_ref().ok_or_else(|| {
+                        AttemptError::Stop(GatewayError::server_error(
+                            "Missing Bedrock request body.",
+                        ))
+                    })?,
+                    model,
+                )
+                .map_err(AttemptError::Stop)?;
+                Box::pin(crate::protocol::bedrock_converse::translate_scoped(
+                    replay.map_err(StreamError::Transport),
+                    model.clone(),
+                    Some(scope),
                 ))
             } else {
                 Box::pin(accio::translate_anthropic_like_stream_to_openai_with_error(
@@ -214,7 +248,7 @@ pub(super) async fn normalize(
         UpstreamStreamingResponse::Http(response) if candidate.adapter == "grok_compatible" => {
             let stream = crate::upstream::stream::tap_model_declaration(
                 response.bytes_stream(),
-                model_observation::metadata(ctx, candidate, model),
+                model_observation::metadata(ctx, candidate, &observed_model),
                 Arc::clone(global_gateway_metrics()),
                 true,
             );
@@ -225,14 +259,27 @@ pub(super) async fn normalize(
         UpstreamStreamingResponse::Http(response) => {
             let stream = crate::upstream::stream::tap_model_declaration(
                 response.bytes_stream().map_err(StreamError::Transport),
-                model_observation::metadata(ctx, candidate, model),
+                model_observation::metadata(ctx, candidate, &observed_model),
                 Arc::clone(global_gateway_metrics()),
                 true,
             );
             Box::pin(stream)
         }
     };
-    let byte_stream = if candidate.payload.canonical_adapter() == "openai_compatible"
+    let qwen_workspace =
+        crate::protocol::qwen::workspace_api::owns_payload(&attempt.effective_payload);
+    // This product owns raw admission and fixed error diagnostics; generic early replay must not
+    // interpret or expose its first error frame before that guard sees it.
+    let sensenova = crate::protocol::sensenova::owns_payload(&attempt.effective_payload);
+    let sap = crate::protocol::sap_aicore::owns_payload(&attempt.effective_payload);
+    let commandcode = crate::protocol::commandcode::owns_payload(&attempt.effective_payload);
+    let lobsterai = crate::protocol::lobsterai::owns_payload(&attempt.effective_payload);
+    let byte_stream = if !qwen_workspace
+        && !sensenova
+        && !sap
+        && !commandcode
+        && !lobsterai
+        && candidate.payload.canonical_adapter() == "openai_compatible"
         && is_conversation_endpoint(ctx.canonical_req.endpoint_kind)
     {
         match early_stream::check(byte_stream).await {
@@ -269,6 +316,76 @@ pub(super) async fn normalize(
     // collapse a chunk containing both output and a later error into one Err.
     let byte_stream: ByteStream = if needs_completion {
         Box::pin(responses::require_responses_completion(byte_stream))
+    } else {
+        byte_stream
+    };
+    let byte_stream: ByteStream = if qwen_workspace {
+        Box::pin(crate::protocol::qwen::workspace_stream::require_completion(
+            byte_stream,
+        ))
+    } else {
+        byte_stream
+    };
+    let byte_stream: ByteStream =
+        if crate::protocol::minimax::owns_payload(&attempt.effective_payload) {
+            Box::pin(crate::protocol::minimax::stream::require_completion(
+                byte_stream,
+            ))
+        } else {
+            byte_stream
+        };
+    let byte_stream: ByteStream = if sensenova {
+        Box::pin(crate::protocol::openai::chat_stream::require_completion(
+            byte_stream,
+            crate::protocol::sensenova::stream_error,
+        ))
+    } else {
+        byte_stream
+    };
+    let byte_stream: ByteStream = if sap {
+        Box::pin(crate::protocol::openai::chat_stream::require_completion(
+            byte_stream,
+            crate::protocol::sap_aicore::stream_error,
+        ))
+    } else {
+        byte_stream
+    };
+    let byte_stream: ByteStream =
+        if commandcode && attempt.effective_payload.responses_path.is_some() {
+            Box::pin(crate::protocol::commandcode::responses_stream::guard(
+                byte_stream,
+                attempt.reply_model.clone(),
+            ))
+        } else if crate::protocol::commandcode::messages::selected(&attempt.effective_payload) {
+            Box::pin(crate::protocol::commandcode::messages_stream::guard(
+                byte_stream,
+                attempt.reply_model.clone(),
+            ))
+        } else if commandcode {
+            Box::pin(crate::protocol::openai::chat_stream::require_completion(
+                byte_stream,
+                crate::protocol::commandcode::stream_error,
+            ))
+        } else {
+            byte_stream
+        };
+    let byte_stream: ByteStream = if lobsterai {
+        let byte_stream = if lobster_messages {
+            crate::protocol::lobsterai::messages::translate(byte_stream, model.clone())
+        } else {
+            byte_stream
+        };
+        if crate::protocol::lobsterai::messages::selected(&attempt.effective_payload) {
+            Box::pin(crate::protocol::lobsterai::stream::from_messages(
+                byte_stream,
+                Some(attempt.reply_model.clone()),
+            ))
+        } else {
+            Box::pin(crate::protocol::lobsterai::stream::with_model(
+                byte_stream,
+                attempt.reply_model.clone(),
+            ))
+        }
     } else {
         byte_stream
     };

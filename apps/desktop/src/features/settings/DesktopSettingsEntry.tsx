@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { Notice } from "@neuro/ui";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import { useUiTheme } from "../../theme/UiThemeProvider";
 import type { NativeSettingsCategory } from "../../platform/desktopSettings";
 import "./DesktopSettingsEntry.css";
 
 /** Reserve a content-only slot for a trusted local child view, not another native window. */
-export function DesktopSettingsEntry({ category, onInteractionChange }: {
-  category: NativeSettingsCategory; onInteractionChange(locked: boolean): void;
+export function DesktopSettingsEntry({ category, onInteractionChange, suspended = false }: {
+  category: NativeSettingsCategory; onInteractionChange(locked: boolean): void; suspended?: boolean;
 }) {
   const { t, locale } = useUiLocale();
   const { resolved } = useUiTheme();
@@ -19,8 +20,8 @@ export function DesktopSettingsEntry({ category, onInteractionChange }: {
     const timer = window.setTimeout(() => setShowLoading(true), 200);
     return () => window.clearTimeout(timer);
   }, [ready]);
-  const latest = useRef({ category, resolved, locale, onInteractionChange });
-  latest.current = { category, resolved, locale, onInteractionChange };
+  const latest = useRef({ category, resolved, locale, onInteractionChange, suspended });
+  latest.current = { category, resolved, locale, onInteractionChange, suspended };
   const requestUpdate = useRef<() => void>(() => {});
   useEffect(() => {
     const bridge = window.__GATEWAY_WINDOW_CHROME__;
@@ -37,7 +38,7 @@ export function DesktopSettingsEntry({ category, onInteractionChange }: {
       const y = Math.max(0, Math.round(rect.top), Math.ceil(stage?.top ?? 0));
       const width = Math.round(Math.min(rect.right, window.innerWidth, stage?.right ?? Infinity) - x);
       const height = Math.round(Math.min(rect.bottom, window.innerHeight, stage?.bottom ?? Infinity) - y);
-      if (width <= 0 || height <= 0 || document.hidden) { bridge.send("settings-hide"); return; }
+      if (width <= 0 || height <= 0 || document.hidden || latest.current.suspended) { bridge.send("settings-hide"); return; }
       const current = latest.current;
       bridge.showSettings({ category: current.category, x, y, width, height, theme: current.resolved, locale: current.locale });
     };
@@ -71,10 +72,10 @@ export function DesktopSettingsEntry({ category, onInteractionChange }: {
     };
   }, []);
   // Category/theme changes update the retained local view, without hide/recreate or loading text flashes.
-  useEffect(() => { requestUpdate.current(); }, [category, locale, resolved]);
-  return <div ref={slot} className="nt-desktop-settings-slot" aria-busy={!ready && !failed}>
-    {((!ready && showLoading) || failed) && <p className="nt-settings-host-note" role={failed ? "alert" : "status"}>{failed
+  useEffect(() => { requestUpdate.current(); }, [category, locale, resolved, suspended]);
+  return <div ref={slot} data-setting-id={category === "backend" ? "endpoint" : category === "about" ? "version" : "close"} tabIndex={-1} className={`nt-desktop-settings-slot nt-desktop-settings-slot--${category}`} aria-busy={!ready && !failed}>
+    {((!ready && showLoading) || failed) && <Notice tone={failed ? "danger" : "info"}>{failed
       ? t("无法显示内嵌设置，请确认使用的是支持此功能的新版客户端。", "Could not display embedded settings. Use a client that supports this feature.")
-      : t("加载中…", "Loading…")}</p>}
+      : t("加载中…", "Loading…")}</Notice>}
   </div>;
 }

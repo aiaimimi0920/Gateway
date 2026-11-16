@@ -47,10 +47,9 @@ async fn finalize_json(body: &Value, ctx: &PipelineContext, state: &Arc<AppState
     };
 
     // Extract usage from response body (OpenAI and Anthropic shapes).
-    let usage = ctx
-        .observed_usage
-        .clone()
-        .or_else(|| extract_usage(body, &ctx.selected_adapter));
+    let usage = ctx.observed_usage.clone().unwrap_or_else(|| {
+        extract_endpoint_usage(body, &ctx.selected_adapter, ctx.canonical_req.endpoint_kind)
+    });
     crate::cash_billing::finalization::success(ctx, usage.clone(), state).await;
     let prompt_tokens = usage.as_ref().map(|value| value.prompt_tokens).unwrap_or(0);
     let completion_tokens = usage
@@ -166,10 +165,60 @@ pub(super) fn extract_usage(body: &Value, provider: &Option<String>) -> Option<T
     parse_upstream_usage(body, provider_name)
 }
 
+fn extract_endpoint_usage(
+    body: &Value,
+    provider: &Option<String>,
+    endpoint: crate::protocol::canonical::EndpointKind,
+) -> Option<TokenUsage> {
+    // Preserve previously recognized aliases/totals before adding the input-only embedding shape.
+    extract_usage(body, provider).or_else(|| {
+        (endpoint == crate::protocol::canonical::EndpointKind::Embeddings)
+            .then(|| crate::protocol::openai::parse_embeddings_usage(body))
+            .flatten()
+    })
+}
+
 fn normalize_provider_name(provider: &str) -> &str {
     if provider.contains("anthropic") {
         "anthropic"
     } else {
         "openai"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::canonical::EndpointKind;
+    use serde_json::json;
+
+    #[test]
+    fn embeddings_usage_preserves_legacy_aliases_and_inferred_totals() {
+        for body in [
+            json!({"usage":{"prompt_tokens":2,"completion_tokens":0}}),
+            json!({"usage":{"input_tokens":2,"output_tokens":0,"total_tokens":2}}),
+        ] {
+            let usage = extract_endpoint_usage(&body, &None, EndpointKind::Embeddings).unwrap();
+            assert_eq!(
+                (
+                    usage.prompt_tokens,
+                    usage.completion_tokens,
+                    usage.total_tokens
+                ),
+                (2, 0, 2)
+            );
+        }
+    }
+
+    #[test]
+    fn embeddings_input_only_usage_is_not_a_chat_fallback() {
+        let body = json!({"usage":{"prompt_tokens":2,"total_tokens":2}});
+        assert!(extract_endpoint_usage(&body, &None, EndpointKind::ChatCompletions).is_none());
+        assert_eq!(
+            extract_endpoint_usage(&body, &None, EndpointKind::Embeddings)
+                .unwrap()
+                .total_tokens,
+            2
+        );
     }
 }

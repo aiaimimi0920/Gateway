@@ -47,6 +47,7 @@ pub(super) fn build_route_trace_from_ctx(
         "canonicalToolChoiceSemantics": ctx.canonical_tool_choice_semantics.clone(),
         "canonicalCompletionSemantics": ctx.canonical_completion_semantics.clone(),
         "selectedCandidate": build_selected_candidate_trace_from_ctx(ctx),
+        "upstreamModelResolution": ctx.lobster_model_resolution.as_ref().map(|value| value.trace()),
         "fallbackEligible": error.map(is_fallback_eligible),
         "errorCode": error.and_then(|value| value.code.clone()),
         "errorKind": error.map(|value| format!("{:?}", value.kind)),
@@ -91,6 +92,7 @@ pub(super) fn build_route_trace_from_snapshot(
         "canonicalToolChoiceSemantics": snapshot.canonical_tool_choice_semantics.clone(),
         "canonicalCompletionSemantics": snapshot.canonical_completion_semantics.clone(),
         "selectedCandidate": build_selected_candidate_trace_from_snapshot(snapshot),
+        "upstreamModelResolution": snapshot.lobster_model_resolution.as_ref().map(|value| value.trace()),
         "errorSummary": error_summary,
         "failureClass": failure_classification.as_ref().map(|value| value.class_name()),
         "failureScope": failure_classification.as_ref().map(|value| value.scope_name()),
@@ -341,6 +343,9 @@ pub(super) fn protocol_family_name(ctx: &PipelineContext) -> String {
         crate::protocol::canonical::ProtocolFamily::DashScope => "dashscope_text",
         crate::protocol::canonical::ProtocolFamily::DashScopeMultimodal => "dashscope_multimodal",
         crate::protocol::canonical::ProtocolFamily::SearchApi => SEARCH_API_FAMILY,
+        crate::protocol::canonical::ProtocolFamily::SystemOne => {
+            crate::protocol::registry::SYSTEMONE_FAMILY
+        }
     }
     .to_string()
 }
@@ -364,6 +369,7 @@ pub(super) fn endpoint_kind_name(ctx: &PipelineContext) -> String {
         crate::protocol::canonical::EndpointKind::ResearchList => "research_list",
         crate::protocol::canonical::EndpointKind::ResearchGet => "research_get",
         crate::protocol::canonical::EndpointKind::CreditsBalance => "credits_balance",
+        crate::protocol::canonical::EndpointKind::SystemOne => "systemone",
     }
     .to_string()
 }

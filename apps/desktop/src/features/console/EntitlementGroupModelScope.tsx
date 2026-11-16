@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import type { ProviderAggregateMetrics } from "./providerCardMetrics";
+import { EmptyState } from "@neuro/ui";
 import {
   buildProviderAvailabilityCells,
   formatAggregateMoney,
@@ -183,11 +184,9 @@ export function EntitlementGroupModelScope({
           />
         </>
       ) : (
-        <p className="nt-entitlement-scope__empty">
-          {selectedProviderIds.size === 0
-            ? t("选择服务商标签以查看模型", "Select a provider tab to list models")
-            : t("所选服务商暂无模型", "Selected providers expose no models")}
-        </p>
+        <EmptyState compact title={selectedProviderIds.size === 0
+          ? t("选择服务商以查看模型", "Select providers to list models")
+          : t("所选服务商暂无模型", "Selected providers expose no models")} />
       )}
     </section>
   );

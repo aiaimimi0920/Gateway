@@ -12,7 +12,41 @@ use axum::{
 use std::sync::Arc;
 
 pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
-    router
+    let router = internal_console::mount_luma_mcp(router);
+    let router = internal_console::mount_luma_oauth(router);
+    #[cfg(feature = "copilot-sdk-runtime")]
+    let router = internal_console::mount_copilot_catalog(router);
+    internal_console::mount_nous_oauth(internal_console::mount_lobsterai_oauth(router))
+        .route(
+            "/v1/internal/gateway/console/dim-model-catalog",
+            post(internal_console::read_dim_model_catalog)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::dim_oauth_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/dim-auth-sessions",
+            post(internal_console::create_dim_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::dim_oauth_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/dim-auth-sessions/:session_id",
+            get(internal_console::get_dim_oauth).layer(axum::middleware::map_response(
+                internal_console::dim_oauth_no_store,
+            )),
+        )
+        .route(
+            "/v1/internal/gateway/console/dim-auth-sessions/:session_id/:action",
+            post(internal_console::act_dim_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(32 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::dim_oauth_no_store,
+                )),
+        )
         .route(
             "/v1/internal/gateway/browser-executor/nodes/heartbeat",
             post(internal_browser_executor::heartbeat_browser_executor_node),
@@ -195,6 +229,26 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
             post(internal_console::read_groq_model_catalog),
         )
         .route(
+            "/v1/internal/gateway/console/river-model-catalog",
+            post(internal_console::read_river_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/agnes-model-catalog",
+            post(internal_console::read_agnes_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/sensenova-model-catalog",
+            post(internal_console::read_sensenova_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/commandcode-model-catalog",
+            post(internal_console::read_commandcode_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/cloudflare-workers-ai-model-catalog",
+            post(internal_console::read_cloudflare_model_catalog),
+        )
+        .route(
             "/v1/internal/gateway/console/poe-model-catalog",
             post(internal_console::read_poe_model_catalog),
         )
@@ -205,6 +259,62 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
         .route(
             "/v1/internal/gateway/console/cohere-model-catalog",
             post(internal_console::read_cohere_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/qwen-model-catalog",
+            post(internal_console::read_qwen_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-model-catalog",
+            post(internal_console::read_freebuff_model_catalog),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-session-inspection",
+            post(internal_console::inspect_freebuff_session)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::freebuff_login_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-device-registration",
+            post(internal_console::register_freebuff_device),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-device-registration/status",
+            post(internal_console::read_freebuff_device_state),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-session-claim",
+            post(internal_console::read_freebuff_claim)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::freebuff_login_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-session-claim/end",
+            post(internal_console::end_freebuff_claim)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::freebuff_login_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-pending-purchases",
+            post(internal_console::read_freebuff_pending_purchases)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::freebuff_login_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-pending-purchases/decision",
+            post(internal_console::decide_freebuff_purchase)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::freebuff_login_no_store,
+                )),
         )
         .route(
             "/v1/internal/gateway/console/credential-api-key",
@@ -247,6 +357,100 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
         .route(
             "/v1/internal/gateway/console/chatgpt-auth-sessions",
             post(internal_console::create_chatgpt_oauth),
+        )
+        .route(
+            "/v1/internal/gateway/console/grok-auth-sessions",
+            post(internal_console::create_grok_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024)),
+        )
+        .route(
+            "/v1/internal/gateway/console/kiro-auth-sessions",
+            post(internal_console::create_kiro_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::kiro_oauth_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-auth-sessions",
+            post(internal_console::create_freebuff_login)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::freebuff_login_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-auth-sessions/:session_id",
+            get(internal_console::get_freebuff_login).layer(axum::middleware::map_response(
+                internal_console::freebuff_login_no_store,
+            )),
+        )
+        .route(
+            "/v1/internal/gateway/console/freebuff-auth-sessions/:session_id/:action",
+            post(internal_console::act_freebuff_login)
+                .layer(axum::extract::DefaultBodyLimit::max(1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::freebuff_login_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/kiro-auth-sessions/:session_id",
+            get(internal_console::get_kiro_oauth).layer(axum::middleware::map_response(
+                internal_console::kiro_oauth_no_store,
+            )),
+        )
+        .route(
+            "/v1/internal/gateway/console/kiro-auth-sessions/:session_id/:action",
+            post(internal_console::act_kiro_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::kiro_oauth_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/accio-auth-sessions",
+            post(internal_console::create_accio_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024)),
+        )
+        .route(
+            "/v1/internal/gateway/console/vertex-auth-sessions",
+            post(internal_console::create_vertex_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::vertex_oauth_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/vertex-auth-sessions/:session_id",
+            get(internal_console::get_vertex_oauth).layer(axum::middleware::map_response(
+                internal_console::vertex_oauth_no_store,
+            )),
+        )
+        .route(
+            "/v1/internal/gateway/console/vertex-auth-sessions/:session_id/:action",
+            post(internal_console::act_vertex_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(32 * 1024))
+                .layer(axum::middleware::map_response(
+                    internal_console::vertex_oauth_no_store,
+                )),
+        )
+        .route(
+            "/v1/internal/gateway/console/accio-auth-sessions/:session_id",
+            get(internal_console::get_accio_oauth),
+        )
+        .route(
+            "/v1/internal/gateway/console/accio-auth-sessions/:session_id/:action",
+            post(internal_console::act_accio_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/v1/internal/gateway/console/grok-auth-sessions/:session_id",
+            get(internal_console::get_grok_oauth),
+        )
+        .route(
+            "/v1/internal/gateway/console/grok-auth-sessions/:session_id/:action",
+            post(internal_console::act_grok_oauth)
+                .layer(axum::extract::DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/v1/internal/gateway/console/chatgpt-auth-sessions/:session_id",

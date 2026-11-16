@@ -1,3 +1,4 @@
+mod image_admission;
 mod media_outputs;
 mod planning;
 mod worker_results;

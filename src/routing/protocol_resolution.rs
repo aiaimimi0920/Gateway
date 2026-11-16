@@ -10,6 +10,7 @@ mod tests;
 pub use surfaces::{requested_wire_protocol_family, surface_supported_wire_protocol_families};
 
 pub use model_policy::resolve_supported_wire_protocol_families_for_model;
+pub(crate) use model_policy::resolve_supported_wire_protocol_families_on_surface;
 
 use crate::protocol::canonical::CanonicalRelayRequest;
 use crate::protocol::registry::{
@@ -34,6 +35,15 @@ pub fn finalize_candidate_protocol_family_with_override(
     forced: Option<&str>,
 ) -> Option<bool> {
     if crate::routing::call_flow::prepare_candidate(candidate, req.endpoint_kind).is_err() {
+        return None;
+    }
+    if crate::protocol::commandcode::owns_payload(&candidate.payload)
+        && crate::protocol::commandcode::catalog::select(candidate, req, forced).ok()?
+    {
+        return Some(true);
+    }
+    // A decision request cannot fall back to Chat or to an unrelated adapter's default family.
+    if req.endpoint_kind == crate::protocol::canonical::EndpointKind::SystemOne {
         return None;
     }
     // Generic tools may skip incapable providers, but never send a partial batch.

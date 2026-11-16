@@ -140,14 +140,21 @@ function terminateChild(child) {
 function spawnWorker(scriptPath, input, provider = "worker") {
   let cancel = () => undefined;
   const promise = new Promise((resolve, reject) => {
-    const resultFilePath =
+    const metadataOnly = provider === "lumalabs";
+    const resultFilePath = metadataOnly ? null :
       typeof input?.resultFilePath === "string" && input.resultFilePath.trim()
         ? input.resultFilePath.trim()
         : createWorkerResultFilePath(provider);
     const workerInput = {
       ...(input && typeof input === "object" ? input : {}),
-      resultFilePath,
+      resultFilePath: resultFilePath ?? undefined,
     };
+    const serializedInput = JSON.stringify(workerInput);
+    if (metadataOnly && Buffer.byteLength(serializedInput, "utf8") > 1024 * 1024) {
+      reject(Object.assign(new Error("Luma Web executor input exceeded 1 MiB."),
+        { code: "lumalabs_browser_executor_input_too_large", status: 400 }));
+      return;
+    }
     const child = spawn(process.execPath, [scriptPath], {
       cwd: REPO_ROOT,
       env: process.env,
@@ -157,6 +164,8 @@ function spawnWorker(scriptPath, input, provider = "worker") {
     let stdout = "";
     let stderr = "";
     let settled = false;
+    const metadataChunks = [];
+    let stdoutBytes = 0, stderrBytes = 0;
 
     let pollTimer = null;
     let deadlineTimer = null;
@@ -184,7 +193,7 @@ function spawnWorker(scriptPath, input, provider = "worker") {
       if (pollTimer) clearTimeout(pollTimer);
       if (deadlineTimer) clearTimeout(deadlineTimer);
       await terminateChild(child);
-      await unlinkAsync(resultFilePath).catch(() => undefined);
+      if (resultFilePath) await unlinkAsync(resultFilePath).catch(() => undefined);
       reject(error);
     };
 
@@ -193,7 +202,7 @@ function spawnWorker(scriptPath, input, provider = "worker") {
         return;
       }
       try {
-        if (existsSync(resultFilePath)) {
+        if (resultFilePath && existsSync(resultFilePath)) {
           const payload = await readResultFilePayload(resultFilePath);
           await finishResolve(payload);
           return;
@@ -207,19 +216,33 @@ function spawnWorker(scriptPath, input, provider = "worker") {
       pollTimer = setTimeout(pollResultFile, 50);
     };
 
+    // Luma is metadata-only: no caller-supplied result/body files or unbounded pipes.
+    const metadataLimit = () => void finishReject(Object.assign(
+      new Error("Luma Web worker exceeded its metadata byte budget."),
+      { code: "lumalabs_browser_worker_output_too_large" }));
     child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString("utf8");
+      if (!metadataOnly) { stdout += chunk.toString("utf8"); return; }
+      stdoutBytes += chunk.length;
+      if (stdoutBytes > 128 * 1024) { metadataLimit(); return; }
+      if (!settled) metadataChunks.push(chunk);
     });
     child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString("utf8");
+      if (!metadataOnly) { stderr += chunk.toString("utf8"); return; }
+      stderrBytes += chunk.length;
+      if (stderrBytes > 16 * 1024) metadataLimit();
     });
     child.on("error", (error) => void finishReject(error));
     child.on("close", async (code) => {
       if (settled) {
         return;
       }
+      if (metadataOnly) {
+        if (code !== 0) { void finishReject(new Error("Luma Web worker exited unsuccessfully.")); return; }
+        try { stdout = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(metadataChunks, stdoutBytes)); }
+        catch { void finishReject(new Error("Luma Web worker returned invalid UTF-8.")); return; }
+      }
       try {
-        if (existsSync(resultFilePath)) {
+        if (resultFilePath && existsSync(resultFilePath)) {
           const payload = await readResultFilePayload(resultFilePath);
           await finishResolve(payload);
           return;
@@ -249,7 +272,7 @@ function spawnWorker(scriptPath, input, provider = "worker") {
       }
     });
 
-    pollResultFile().catch((error) => void finishReject(error));
+    if (!metadataOnly) pollResultFile().catch((error) => void finishReject(error));
 
     deadlineTimer = setTimeout(() => {
       const error = Object.assign(
@@ -271,7 +294,9 @@ function spawnWorker(scriptPath, input, provider = "worker") {
       void finishReject(error);
     };
 
-    child.stdin.write(JSON.stringify(workerInput));
+    if (metadataOnly) child.stdin.on("error", () => void finishReject(
+      new Error("Luma Web worker input pipe failed.")));
+    child.stdin.write(serializedInput);
     child.stdin.end();
   });
   return { promise, cancel };
@@ -317,7 +342,7 @@ async function handleHealth(_req, res) {
   });
 }
 
-async function handleExecute(req, res) {
+async function handleExecute(req, res, boundSuno = false) {
   let body;
   try {
     body = await readJsonBody(req);
@@ -335,6 +360,12 @@ async function handleExecute(req, res) {
   }
 
   const provider = String(body?.provider || "").trim().toLowerCase();
+  if (boundSuno && provider !== "suno") {
+    writeJson(res, 400, { ok: false, error: {
+      code: "suno_browser_binding_provider", message: "This versioned executor accepts only Suno.", status: 400,
+    } });
+    return;
+  }
   const scriptPath = PROVIDER_SCRIPTS[provider];
   if (!scriptPath || !existsSync(scriptPath)) {
     writeJson(res, 400, {
@@ -381,10 +412,11 @@ async function handleExecute(req, res) {
   req.once("aborted", cancelOnDisconnect);
   res.once("close", cancelOnDisconnect);
   try {
-    const workerResponse = normalizeWorkerResponse(await execution.promise);
+    const rawResponse = await execution.promise;
+    const workerResponse = provider === "lumalabs" ? rawResponse : normalizeWorkerResponse(rawResponse);
     if (workerResponse?.ok) {
       const resultPayload =
-        provider === "aistudio" ? workerResponse : workerResponse.result ?? null;
+        (provider === "aistudio" || provider === "lumalabs") ? workerResponse : workerResponse.result ?? null;
       writeJson(res, 200, {
         ok: true,
         provider,
@@ -423,7 +455,7 @@ async function handleExecute(req, res) {
       result: null,
       error: {
         code: error?.code ?? "browser_executor_spawn_failed",
-        message: error.message,
+        message: provider === "lumalabs" ? "Luma Web executor failed; details omitted." : error.message,
         status: Number.isFinite(error?.status) ? Number(error.status) : 500,
         body: null,
       },
@@ -452,6 +484,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/v1/internal/browser-executor/execute") {
       await handleExecute(req, res);
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/v1/internal/browser-executor/suno-bound-v1/execute") {
+      await handleExecute(req, res, true);
       return;
     }
     writeJson(res, 404, {

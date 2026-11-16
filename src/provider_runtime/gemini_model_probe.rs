@@ -12,7 +12,9 @@ pub(super) async fn probe(
     model: &str,
     prompt: &str,
 ) -> (String, ProviderPayloadProbeReport) {
-    let surface = if target.payload.canonical_adapter() == "gemini_web_compatible" {
+    let surface = if crate::protocol::vertex_express::owns_payload(&target.payload) {
+        "Vertex Express"
+    } else if target.payload.canonical_adapter() == "gemini_web_compatible" {
         "Gemini Web"
     } else {
         "Gemini API"
@@ -98,6 +100,16 @@ async fn generate(
         return failed(
             Some(200),
             "No completed non-empty assistant reply was returned.",
+        );
+    }
+    // Express's single text proof is not a tool execution or a truncated answer.
+    // Preserve the existing Gemini/Web probe contract outside this product.
+    if crate::protocol::vertex_express::owns_payload(&target.payload)
+        && (!response.tool_calls.is_empty() || response.text.chars().count() > 8192)
+    {
+        return failed(
+            Some(200),
+            "Vertex Express test requires a completed text-only reply of at most 8192 characters.",
         );
     }
     let usage = response.usage.map_or(Value::Null, |usage| json!({

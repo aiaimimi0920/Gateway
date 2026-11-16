@@ -1,6 +1,3 @@
-import type { LucideIcon } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
-
 import type { ConsoleProviderQuota } from "../../api/contracts";
 import type { ProviderSuccessWindow } from "./providerCardMetrics";
 import type { CardModelTraffic } from "./cardModelTraffic";
@@ -57,13 +54,13 @@ export type QuotaDisplayWindow = {
   accountCount?: number;
 };
 
-export type AccountCardMenuActionId = "probe" | "duplicate" | "model-mapping" | "discover";
+export type AccountCardActionId = "probe" | "duplicate" | "model-mapping" | "discover";
 
-export type AccountCardMenuItem = {
-  id: AccountCardMenuActionId;
-  icon: LucideIcon;
-  label: [string, string];
-};
+export type AccountCardAction = (
+  action: AccountCardActionId,
+  providerId: string,
+  account: AccountsLedgerPilotAccount,
+) => void;
 
 export type PendingCredentialRemoval = {
   providerId: string;
@@ -78,18 +75,4 @@ export type ProviderAccountCardHandlers = {
   onToggleDispatch: (providerId: string, accountId: string, nextEnabled: boolean) => void;
   onSetAccountGroup: (accountId: string, groupId: string) => void;
   onOpenStats: (providerId: string, account: AccountsLedgerPilotAccount) => void;
-};
-
-export type ProviderAccountCardMenu = {
-  /** Namespaces the menu key so two pages can render the same account at once. */
-  keyPrefix: string;
-  activeKey: string | null;
-  onActiveKeyChange: Dispatch<SetStateAction<string | null>>;
-  registerTrigger: (key: string, node: HTMLButtonElement | null) => void;
-  items: readonly AccountCardMenuItem[];
-  onAction: (
-    action: AccountCardMenuActionId,
-    providerId: string,
-    account: AccountsLedgerPilotAccount,
-  ) => void;
 };

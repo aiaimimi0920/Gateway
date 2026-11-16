@@ -3,3 +3,7 @@
 # Daily devtest entrypoints explicitly override jobs and enable incrementality.
 jobs = 1
 incremental = false
+
+[env]
+# Copilot runtime is explicitly supplied by the operator; builds must never fetch a CLI.
+COPILOT_SKIP_CLI_DOWNLOAD = { value = "1", force = true }

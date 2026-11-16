@@ -79,7 +79,45 @@ fn packing_preserves_custom_metadata_and_overwrites_owned_runtime_fields() {
     req.extra
         .insert("codebuff_metadata".into(), json!("opaque"));
     let body = build_chat_request_body(&req, "model", false, "run", "free", None);
-    assert_eq!(body["codebuff_metadata"], "opaque");
+    assert_eq!(body["codebuff_metadata"]["run_id"], "run");
+    assert_eq!(body["codebuff_metadata"]["cost_mode"], "free");
+    assert!(body["codebuff_metadata"].is_object());
+}
+
+#[test]
+fn cli_claim_metadata_keeps_multi_session_and_surface_with_the_original_instance() {
+    let mut req = make_request();
+    req.extra.insert(
+        "codebuff_metadata".into(),
+        json!({"freebuff_multi_session":"caller", "surface":"desktop", "freebuff_instance_id":"foreign"}),
+    );
+    let body = build_chat_request_body(
+        &req,
+        "fbm1.current",
+        false,
+        "real-run",
+        "free",
+        Some("cli:8759f8e9-6046-4350-9aef-bcd7309a02ea"),
+    );
+    let metadata = &body["codebuff_metadata"];
+    assert_eq!(metadata["freebuff_multi_session"], "1");
+    assert_eq!(metadata["surface"], "cli");
+    assert_eq!(
+        metadata["freebuff_instance_id"],
+        "cli:8759f8e9-6046-4350-9aef-bcd7309a02ea"
+    );
+    let legacy = build_chat_request_body(
+        &req,
+        "legacy",
+        false,
+        "run",
+        "free",
+        Some("legacy-instance"),
+    );
+    assert!(legacy["codebuff_metadata"]
+        .get("freebuff_multi_session")
+        .is_none());
+    assert!(legacy["codebuff_metadata"].get("surface").is_none());
 }
 
 #[test]

@@ -1,0 +1,10 @@
+{
+  "providers": [{
+    "id": "agnes-international",
+    "preset": "agnes-api",
+    "base_url": "https://apihub.agnes-ai.com/v1",
+    "explicit_credentials_only": true,
+    "credentials": []
+  }],
+  "model_routes": []
+}

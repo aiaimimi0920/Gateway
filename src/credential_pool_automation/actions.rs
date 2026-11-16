@@ -10,13 +10,21 @@ pub async fn start_credential_pool_automation_task(state: Arc<AppState>) {
         tracing::info!("credential pool automation worker is disabled");
         return;
     }
-    loop {
+    while !state.shutdown.is_requested() {
+        // Driver delivery, archive and durable route publication finish before exiting.
         sweep_credential_pool_automation_once(&state).await;
-        tokio::time::sleep(state.credential_pool_automation.interval()).await;
+        tokio::select! {
+            biased;
+            _ = state.shutdown.wait() => break,
+            _ = tokio::time::sleep(state.credential_pool_automation.interval()) => {},
+        }
     }
 }
 
 pub async fn sweep_credential_pool_automation_once(state: &Arc<AppState>) {
+    if state.shutdown.is_requested() {
+        return;
+    }
     if let Err(error) = super::cycle::settle_refill_cycles(state).await {
         tracing::warn!(code = ?error.code, "credential refill cycle settlement failed");
     }
@@ -35,6 +43,9 @@ pub async fn sweep_credential_pool_automation_once(state: &Arc<AppState>) {
         .map(|provider| provider.id.clone())
         .collect::<Vec<_>>();
     for provider_id in provider_ids {
+        if state.shutdown.is_requested() {
+            break;
+        }
         if let Err(error) = run_provider_credential_pool_automation(state, &provider_id).await {
             tracing::warn!(provider_id, error = %error, "credential pool automation sweep failed");
         }

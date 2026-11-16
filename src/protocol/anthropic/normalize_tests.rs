@@ -133,7 +133,7 @@ fn preserves_tools_and_tool_choice_normalization() {
 }
 
 #[test]
-fn preserves_current_image_url_extraction() {
+fn preserves_image_urls_and_base64_data() {
     let request = normalize_messages(json!({
         "messages": [{
             "role": "user",
@@ -152,7 +152,8 @@ fn preserves_current_image_url_extraction() {
     ));
     assert!(matches!(
         &request.messages[0].content[1],
-        ContentPart::ImageUrl { image_url, detail: None } if image_url.is_empty()
+        ContentPart::ImageUrl { image_url, detail: None }
+            if image_url == "data:image/png;base64,AA=="
     ));
 }
 

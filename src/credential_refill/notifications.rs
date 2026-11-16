@@ -9,19 +9,19 @@ pub async fn start_credential_refill_notification_task(state: Arc<AppState>) {
         tracing::info!("credential refill queue is disabled");
         return;
     }
-    loop {
+    while !state.shutdown.is_requested() {
+        // Complete an admitted sweep's durable writes; only idle waits are cancellable.
         if let Err(error) = publish_notification_refill_demands_once(state.as_ref()).await {
             tracing::warn!(
                 code = ?error.code,
                 "credential refill notification sweep failed"
             );
         }
-        tokio::time::sleep(
-            state
-                .credential_pool_automation
-                .refill_notification_interval(),
-        )
-        .await;
+        tokio::select! {
+            biased;
+            _ = state.shutdown.wait() => break,
+            _ = tokio::time::sleep(state.credential_pool_automation.refill_notification_interval()) => {},
+        }
     }
 }
 
@@ -35,6 +35,9 @@ pub async fn publish_notification_refill_demands_once(
         .into_iter()
         .filter(|demand| demand.notification_enabled && demand.needs_refill)
     {
+        if state.shutdown.is_requested() {
+            break;
+        }
         let result = create_task_from_demand(
             state,
             &demand,

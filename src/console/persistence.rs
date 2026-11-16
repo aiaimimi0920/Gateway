@@ -5,18 +5,25 @@ mod atomic_json;
 mod file_io;
 mod first_save;
 mod local_active;
+mod luma_registration;
 mod paths;
 mod platform;
 mod records;
+mod refresh_grants;
+mod refresh_intent;
+mod refresh_publication;
 mod validation;
 mod yaml;
 
 pub(crate) use file_io::read_transaction_json;
+pub(crate) use luma_registration::LumaRegistrationRecord;
 use paths::{
     absolute_lexical, configure_lock_sharing, ensure_regular_file, ensure_secure_directory,
     reject_existing_links, reject_link_metadata, validate_platform_path,
     validate_unresolved_platform_path,
 };
+pub(crate) use refresh_intent::RefreshIntent;
+pub(crate) use refresh_publication::RefreshPublication;
 use validation::validate_safe_id;
 
 use std::fmt;
@@ -235,6 +242,8 @@ impl RouteConfigPersistence {
             state_root.join("revisions"),
             state_root.join("transactions"),
             state_root.join("backups"),
+            state_root.join("refresh-intents"),
+            state_root.join("refresh-grants"),
         ] {
             ensure_secure_directory(&directory)?;
         }

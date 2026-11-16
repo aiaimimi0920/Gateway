@@ -147,6 +147,7 @@ pub fn endpoint_rate_limit_identity(endpoint_kind: EndpointKind) -> (&'static st
         EndpointKind::ResearchList => ("research_list", "get /v1/research"),
         EndpointKind::ResearchGet => ("research_get", "get /v1/research/:id"),
         EndpointKind::CreditsBalance => ("credits_balance", "get /v1/credits/balance"),
+        EndpointKind::SystemOne => ("systemone", "post /v1/systemone"),
     }
 }
 

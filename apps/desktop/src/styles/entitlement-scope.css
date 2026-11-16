@@ -1,6 +1,11 @@
 /* entitlement scope styles; preserve position in styles.css. */
-/* Card back: a multi-select provider band over one aggregate row per model.
-   Both bands page rather than scroll, so the face keeps its fixed height. */
+/* Provider choices and bounded model pages share the card's scrollable face. */
+/* Portaled options live outside the card: front-face hover lift would move the
+   back face and its popup when the pointer crosses into the options. */
+.nt-entitlement-group-card.nt-entitlement-group-card--flipped:hover {
+  transform: none;
+}
+
 .nt-entitlement-scope {
   display: grid;
   align-content: start;
@@ -40,75 +45,72 @@
   font-family: var(--nt-font-mono);
   font-size: 0.7rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
-.nt-entitlement-scope__band-action {
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--nt-text-muted);
-  cursor: pointer;
-  font-size: 0.7rem;
-}
-
-.nt-entitlement-scope__band-action:hover {
-  color: var(--nt-info);
-}
-
-/* Two fixed columns instead of wrapping chips: a long provider name then
-   ellipsizes instead of pushing the band a row taller on some cards only. */
-.nt-entitlement-scope__tabs {
+.nt-entitlement-scope__selector-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
   min-width: 0;
 }
 
-.nt-entitlement-scope__tab {
+.nt-entitlement-scope__selector-row .nt-entitlement-scope__selector {
+  width: 100%;
+}
+
+/* Reserve the longer action label without changing the standard button skin. */
+.nt-entitlement-scope__action-label {
+  display: grid;
+}
+
+.nt-entitlement-scope__action-label > span {
+  grid-area: 1 / 1;
+}
+
+.nt-entitlement-scope__choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.nt-entitlement-scope__choices .nt-entitlement-scope__choice {
+  min-width: 0;
+  min-height: 28px;
+}
+
+.nt-entitlement-scope__choice > span {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 5px;
+  flex: 1;
   min-width: 0;
-  height: 24px;
-  border: 1px solid var(--nt-border);
-  border-radius: 999px;
-  padding: 0 8px;
-  background: var(--nt-color-control);
-  color: var(--nt-text-muted);
-  cursor: pointer;
-  font-size: 0.68rem;
 }
 
-.nt-entitlement-scope__tab > span {
+.nt-entitlement-scope__choice > span > span {
+  flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
-.nt-entitlement-scope__tab small {
+.nt-entitlement-scope__choice small {
   flex: 0 0 auto;
   font-family: var(--nt-font-mono);
-  font-size: 0.62rem;
-  font-weight: 700;
-  opacity: 0.75;
-}
-
-.nt-entitlement-scope__tab[aria-pressed="true"] {
-  border-color: color-mix(in srgb, var(--nt-info) 48%, var(--nt-border));
-  background: color-mix(in srgb, var(--nt-info) 16%, var(--nt-color-control));
-  color: var(--nt-info);
+  color: var(--nt-text-muted);
 }
 
 .nt-entitlement-scope__pager {
   justify-content: center;
 }
 
-.nt-entitlement-scope__empty {
-  margin: 0;
-  color: var(--nt-text-muted);
-  font-size: 0.7rem;
+.nt-entitlement-scope__page-count {
+  font-family: var(--nt-font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .nt-entitlement-scope__model-list {
@@ -208,8 +210,7 @@
   white-space: nowrap;
 }
 
-/* Same window strip as the provider and group cards, one size down so three
-   model rows still fit the card face without a scrollbar. */
+/* Same window strip as the provider and group cards. */
 .nt-entitlement-scope__model-success {
   display: flex;
   align-items: center;

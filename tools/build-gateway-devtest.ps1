@@ -86,6 +86,7 @@ try {
         builtAt = [DateTimeOffset]::UtcNow.ToString("o")
         sourceTreeFingerprint = $after.fingerprint; sourceTreeDirty = $after.dirty; sourceTree = $after
         buildSettings = @{ profile = "devtest"; jobs = $Jobs; incremental = $true; lto = $false; optLevel = 1; defaultApiPort = 4200; isolatedDataDirectory = ".ng-devtest-4300" }
+        managementLoginRequired = $false
         artifactReuse = "Cargo fingerprint/incremental cache; no unchecked binary reuse"
         artifacts = $records
     }

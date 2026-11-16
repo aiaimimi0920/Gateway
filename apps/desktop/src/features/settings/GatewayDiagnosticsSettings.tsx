@@ -1,5 +1,5 @@
-import { Check, Copy } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Button, CopyButton, Input, Notice, Select } from "@neuro/ui";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import { useGatewayHost } from "../../platform/HostProvider";
 import { useManagementSession } from "../../session/useManagementSession";
@@ -18,20 +18,18 @@ export function GatewayDiagnosticsSettings({ onInteractionChange }: { onInteract
   const [operation, setOperation] = useState("");
   const [failed, setFailed] = useState(false);
   const [truncated, setTruncated] = useState(false);
-  const [copied, setCopied] = useState(false);
   const generation = useRef(0);
   const request = useRef<AbortController | null>(null);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const token = session.phase === "authenticated" ? session.managementToken : null;
   useEffect(() => {
     const version = ++generation.current;
     const controller = new AbortController(); request.current = controller;
-    setValue(null); setFailed(false); setTruncated(false); setCopied(false); setOperation(token ? "load" : "");
+    setValue(null); setFailed(false); setTruncated(false); setOperation(token ? "load" : "");
     if (token) void api.load(token, controller.signal).then(snapshot => {
       if (generation.current === version) setValue(snapshot);
     }).catch(() => { if (generation.current === version && !controller.signal.aborted) setFailed(true); })
       .finally(() => { if (generation.current === version) { request.current = null; setOperation(""); } });
-    return () => { generation.current++; controller.abort(); request.current?.abort(); request.current = null; clearTimeout(copyTimer.current); };
+    return () => { generation.current++; controller.abort(); request.current?.abort(); request.current = null; };
   }, [api, token]);
   useEffect(() => { onInteractionChange?.(operation !== "" && operation !== "load"); }, [operation, onInteractionChange]);
   useEffect(() => () => onInteractionChange?.(false), [onInteractionChange]);
@@ -61,35 +59,33 @@ export function GatewayDiagnosticsSettings({ onInteractionChange }: { onInteract
     const version = generation.current;
     try {
       await navigator.clipboard.writeText(value.logDirectory);
-      if (generation.current !== version) return;
-      setCopied(true); clearTimeout(copyTimer.current); copyTimer.current = setTimeout(() => setCopied(false), 1500);
-    } catch { if (generation.current === version) setFailed(true); }
+    } catch (error) { if (generation.current === version) setFailed(true); throw error; }
   };
   return <>
     <div className="nt-settings-fields">
-      <div className="nt-setting-row"><label htmlFor={`${id}-directory`}>{t("日志目录", "Log directory")}</label>
-        <div className="nt-gateway-log-directory"><input id={`${id}-directory`} className="nt-input" readOnly value={value?.logDirectory ?? ""} />
-          <button className="nt-btn nt-btn--outline" type="button" disabled={disabled} onClick={() => void copy()}>
-            {copied ? <Check size={14} /> : <Copy size={14} />}{t("复制", "Copy")}</button></div></div>
-      <div className="nt-setting-row"><label htmlFor={`${id}-retention`}>{t("日志保留时间", "Log retention")}</label>
-        <select className="nt-input" id={`${id}-retention`} disabled={disabled} value={value?.retentionDays ?? 0}
+      <div className="nt-setting-row" data-setting-id="log-directory" tabIndex={-1}><label htmlFor={`${id}-directory`}>{t("日志保存位置", "Log directory")}</label>
+        <div className="nt-gateway-log-directory"><Input compact id={`${id}-directory`} readOnly value={value?.logDirectory ?? ""} />
+          <CopyButton key={generation.current} compact label={t("复制", "Copy")} disabled={disabled} onCopy={copy}
+            copiedLabel={t("已复制", "Copied")} errorLabel={t("复制失败", "Copy failed")} feedbackDuration={1500} /></div></div>
+      <div className="nt-setting-row" data-setting-id="log-retention" tabIndex={-1}><label htmlFor={`${id}-retention`}>{t("日志保留天数", "Log retention")}</label>
+        <Select compact id={`${id}-retention`} disabled={disabled} value={value?.retentionDays ?? 0}
           onChange={event => value && void run("save", { ...value, retentionDays: Number(event.target.value) as GatewayLogSettings["retentionDays"] })}>
           <option value="0">{t("不自动清理", "No automatic cleanup")}</option>
           {[3, 7, 30].map(days => <option key={days} value={days}>{t(`${days} 天`, `${days} days`)}</option>)}
-        </select></div>
-      <div className="nt-setting-row"><label htmlFor={`${id}-limit`}>{t("历史日志上限", "History limit")}</label>
-        <select className="nt-input" id={`${id}-limit`} disabled={disabled} value={value?.logLimitMb ?? 0}
+        </Select></div>
+      <div className="nt-setting-row" data-setting-id="log-limit" tabIndex={-1}><label htmlFor={`${id}-limit`}>{t("日志占用上限", "History limit")}</label>
+        <Select compact id={`${id}-limit`} disabled={disabled} value={value?.logLimitMb ?? 0}
           onChange={event => value && void run("save", { ...value, logLimitMb: Number(event.target.value) as GatewayLogSettings["logLimitMb"] })}>
           <option value="0">{t("不限", "Unlimited")}</option>{[100, 200, 500].map(mb => <option key={mb} value={mb}>{mb} MB</option>)}
-        </select></div>
-      <div className="nt-setting-row"><span className="nt-setting-label">{t("诊断信息", "Diagnostics")}</span>
-        <button className="nt-btn nt-btn--outline" type="button" disabled={disabled} onClick={() => void run("diagnostics")}>{t("导出", "Export")}</button></div>
-      <div className="nt-setting-row"><span className="nt-setting-label">{t("运行日志", "Runtime logs")}</span>
-        <button className="nt-btn nt-btn--outline" type="button" disabled={disabled} onClick={() => void run("logs")}>{t("导出", "Export")}</button></div>
+        </Select></div>
+      <div className="nt-setting-row" data-setting-id="diagnostic-export" tabIndex={-1}><span className="nt-setting-label">{t("导出诊断信息", "Diagnostics")}</span>
+        <Button compact disabled={disabled} loading={operation === "diagnostics"} onClick={() => void run("diagnostics")}>{t("导出", "Export")}</Button></div>
+      <div className="nt-setting-row" data-setting-id="log-export" tabIndex={-1}><span className="nt-setting-label">{t("导出运行日志", "Runtime logs")}</span>
+        <Button compact disabled={disabled} loading={operation === "logs"} onClick={() => void run("logs")}>{t("导出", "Export")}</Button></div>
     </div>
-    <p className="nt-settings-feedback" role={failed ? "alert" : "status"}><span>{failed
+    <div className="nt-settings-feedback-slot">{(failed || !token || operation || truncated) && <Notice tone={failed ? "danger" : "info"}>{failed
       ? t("无法完成后端日志操作，请检查管理权限和后端状态后重试。", "Could not complete the backend log operation. Check access and backend status.")
       : !token ? t("登录后可管理此 Gateway 的诊断与日志。", "Sign in to manage this Gateway's diagnostics and logs.")
-      : operation ? t("处理中…", "Working…") : truncated ? t("已导出最近日志，超出大小或文件数量上限的内容已截断。", "Recent logs exported; older or oversized content was truncated.") : ""}</span></p>
+      : operation ? t("处理中…", "Working…") : truncated ? t("已导出最近日志，超出大小或文件数量上限的内容已截断。", "Recent logs exported; older or oversized content was truncated.") : ""}</Notice>}</div>
   </>;
 }

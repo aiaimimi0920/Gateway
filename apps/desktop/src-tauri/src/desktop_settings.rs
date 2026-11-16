@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager};
 #[serde(rename_all = "camelCase", default, deny_unknown_fields)]
 pub struct Preferences {
     pub close_behavior: CloseBehavior,
+    pub sleep_mode: crate::sleep_prevention::SleepMode,
     // Legacy values remain readable for compatibility; backend log-policy.json now owns retention.
     pub retention_days: u16,
     pub log_limit_mb: u16,
@@ -26,6 +27,7 @@ pub struct Snapshot {
     pub preferences: Preferences,
     pub autostart: bool,
     pub autostart_supported: bool,
+    pub sleep_supported: bool,
 }
 #[derive(Default)]
 pub struct SettingsState(pub Mutex<Preferences>);
@@ -74,6 +76,7 @@ pub fn load_gateway_desktop_preferences(app: AppHandle) -> Result<Snapshot, Stri
         preferences: settings,
         autostart: crate::autostart::enabled()?,
         autostart_supported: cfg!(windows),
+        sleep_supported: cfg!(windows),
     })
 }
 #[tauri::command]
@@ -90,10 +93,27 @@ pub fn save_gateway_desktop_preferences(
     }
     let previous = crate::autostart::enabled()?;
     let path = crate::paths::gateway_app_dir()?.join("desktop-settings.json");
-    crate::autostart::set(autostart)?;
+    let startup_changed = previous != autostart;
+    if startup_changed {
+        crate::autostart::set(autostart)?;
+    }
+    let power = app.state::<crate::sleep_prevention::SleepPrevention>();
+    if let Err(error) = power.apply(settings.sleep_mode) {
+        if startup_changed {
+            crate::autostart::set(previous)?;
+        }
+        return Err(error);
+    }
     if let Err(error) = save(&path, &settings) {
-        crate::autostart::set(previous)
-            .map_err(|_| "Settings save and autostart rollback failed; check startup settings")?;
+        let power_restore = power.apply(guard.sleep_mode);
+        let startup_restore = if startup_changed {
+            crate::autostart::set(previous)
+        } else {
+            Ok(())
+        };
+        if power_restore.is_err() || startup_restore.is_err() {
+            return Err("Settings save and rollback failed; check desktop settings".into());
+        }
         return Err(error);
     }
     *guard = settings.clone();
@@ -101,6 +121,7 @@ pub fn save_gateway_desktop_preferences(
         preferences: settings,
         autostart,
         autostart_supported: cfg!(windows),
+        sleep_supported: cfg!(windows),
     })
 }
 pub fn minimize_to_tray(app: &AppHandle) -> bool {
@@ -121,6 +142,7 @@ mod tests {
         let value: Preferences = serde_json::from_str("{}").unwrap();
         assert_eq!(value, Preferences::default());
         assert_eq!(value.close_behavior, CloseBehavior::Exit);
+        assert_eq!(value.sleep_mode, crate::sleep_prevention::SleepMode::Off);
         assert_eq!(value.retention_days, 0);
         assert_eq!(value.log_limit_mb, 0);
     }
@@ -155,6 +177,7 @@ mod tests {
             close_behavior: CloseBehavior::Tray,
             retention_days: 7,
             log_limit_mb: 200,
+            sleep_mode: crate::sleep_prevention::SleepMode::Display,
         };
         save(&path, &settings).unwrap();
         save(&path, &settings).unwrap();

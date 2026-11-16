@@ -46,6 +46,9 @@ pub fn build_fixture_canonical_response(
 
     let arguments = fixture_tool_arguments_json(req, &tool_name);
     Some(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: model.to_string(),
         text: String::new(),

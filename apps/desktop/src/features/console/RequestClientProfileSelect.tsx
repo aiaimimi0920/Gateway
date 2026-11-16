@@ -1,3 +1,4 @@
+import { Field, Select } from "@neuro/ui";
 import { REQUEST_CLIENT_PROFILES, type ProviderRequestClientProfile, type RequestClientProfile } from "./requestClientProfile";
 
 type Props = {
@@ -9,9 +10,8 @@ type Props = {
 
 export function RequestClientProfileSelect({ value = "auto", disabled, onChange, t }: Props) {
   const managed = value === "session" || value === "antigravity";
-  return <label className="nt-field">
-    <span>{t("客户端", "Client")}</span>
-    <select className="nt-select" value={value} disabled={disabled || managed}
+  return <Field label={t("客户端", "Client")}>
+    <Select compact value={value} disabled={disabled || managed}
       onChange={(event) => {
         const profile = event.currentTarget.value as RequestClientProfile;
         if (!managed && REQUEST_CLIENT_PROFILES.includes(profile)) onChange(profile);
@@ -21,6 +21,6 @@ export function RequestClientProfileSelect({ value = "auto", disabled, onChange,
           : profile === "codex_cli" ? "codex" : profile === "claude_cli" ? "claude"
             : profile === "cpa_claude_code" ? "cpa-claude" : profile}
       </option>)}
-    </select>
-  </label>;
+    </Select>
+  </Field>;
 }

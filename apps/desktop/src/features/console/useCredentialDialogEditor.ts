@@ -13,7 +13,25 @@ import { CHATGPT_POOL_CATEGORIES } from "./chatgptPool";
 import { applyOfficialCatalog, catalogProviderKind } from "./officialModelCatalog";
 import { applyModelSelection, dialogModelSelection, selectedModels } from "./credentialModelSelection";
 import { applyChatgptWebMaterial } from "./chatgptWebMaterial";
+import { applyProviderSessionMaterial } from "./providerSessionMaterialApply";
+import { sessionProductForPreset } from "./providerSessionProducts";
 import { mergeCredentialSecretEditEntries } from "./secretPatchDraft";
+import { normalizeSapCredential } from "./sapAiCore";
+import { applyBedrockMaterial } from "./bedrockMaterialApply";
+import { isBedrockProvider } from "./bedrockMaterial";
+import { modelIdPolicy } from "./providerModelId";
+import { isQwenProvider } from "./qwenEndpoint";
+import { normalizeQwenCredentialDraft } from "./qwenCredentialDraft";
+import { qwenMaterialTarget, type QwenMaterialBinding } from "./qwenMaterialBinding";
+import { kiroKeyMaterialTarget, type KiroKeyMaterialBinding } from "./kiroKeyMaterialBinding";
+import { isVertexExpressProvider, normalizeVertexExpressDraft, vertexExpressMaterialTarget, type VertexExpressMaterialBinding } from "./vertexExpress";
+import { withModelEditors } from "./credentialModelSelection";
+import { normalizeVertexOAuthDraft } from "./vertexOAuth";
+import { isLumaAgentsProvider, normalizeLumaAgentsDraft, lumaAgentsMaterialTarget, type LumaAgentsMaterialBinding } from "./lumaAgents";
+import { freebuffBusinessFields } from "./freebuffBusiness";
+import { dimCatalogFields } from "./dimModelCatalog";
+import { lobsteraiCatalogFields } from "./lobsteraiModelCatalog";
+import { commandcodeZdrFields } from "./commandcodeZdr";
 
 type CredentialDialogEditorOptions = {
   editorText: string;
@@ -42,7 +60,7 @@ export function useCredentialDialogEditor({
     try {
       const provider = parseRouteDocument(editorText).providers.find((p) => p && typeof p === "object"
         && (p as Record<string, unknown>).id === providerId) as Record<string, unknown> | undefined;
-      if (provider && !catalogProviderKind(provider) && provider.preset !== "chatgpt-codex-oauth-official-api") {
+      if (provider && !isQwenProvider(provider) && !catalogProviderKind(provider) && provider.preset !== "chatgpt-codex-oauth-official-api") {
         initialValue.manualModelsText = Array.isArray(provider.supported_models) ? provider.supported_models.filter((id) => typeof id === "string").join("\n") : "";
         initialValue.fetchedModelsText = "";
         initialValue.supportedModelsText = initialValue.manualModelsText;
@@ -82,7 +100,7 @@ export function useCredentialDialogEditor({
     [editorText, t],
   );
 
-  const updateCredentialSecretEdit = useCallback((value: CredentialDialogValue) => {
+  const updateCredentialSecretEdit = useCallback((value: CredentialDialogValue, qwenBinding?: QwenMaterialBinding, kiroKeyBinding?: KiroKeyMaterialBinding, vertexExpressBinding?: VertexExpressMaterialBinding, lumaAgentsBinding?: LumaAgentsMaterialBinding) => {
     setCredentialSecretEdits((current) => {
       const next = current.filter(
         (entry) =>
@@ -93,7 +111,8 @@ export function useCredentialDialogEditor({
           ),
       );
       if (value.apiKeyOperation === "keep") {
-        return next;
+        // Keep refers to the current draft, including an unsaved replacement.
+        return current;
       }
       if (value.apiKeyOperation === "replace") {
         return [
@@ -104,6 +123,10 @@ export function useCredentialDialogEditor({
             field: "api_key",
             operation: "replace",
             value: value.apiKeyValue,
+            ...(qwenBinding ? { qwenBinding } : {}),
+            ...(kiroKeyBinding ? { kiroKeyBinding } : {}),
+            ...(vertexExpressBinding ? { vertexExpressBinding } : {}),
+            ...(lumaAgentsBinding ? { lumaAgentsBinding } : {}),
           },
         ];
       }
@@ -120,7 +143,8 @@ export function useCredentialDialogEditor({
   }, []);
 
   const applyCredentialDialogValue = useCallback(
-    (value: CredentialDialogValue) => {
+    (input: CredentialDialogValue) => {
+      let value = input;
       let document: ConsoleRouteDocument;
       try {
         document = parseRouteDocument(editorText);
@@ -129,15 +153,31 @@ export function useCredentialDialogEditor({
         return;
       }
 
-      let selection;
-      try { selection = dialogModelSelection(value); }
-      catch { setError(t("模型列表无效。", "Invalid model list.")); return; }
-      const supportedModels = selection ? selectedModels(selection) : parseSupportedModelsText(value.supportedModelsText);
       const provider = document.providers.find((p) => p && typeof p === "object" &&
         (p as Record<string, unknown>).id === value.providerId) as Record<string, unknown> | undefined;
+      try { value = normalizeQwenCredentialDraft(provider, value, credentialDialogState?.mode === "edit"
+        ? credentialDialogValueFromDocument(document, value.providerId, value.credentialId) : null); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+      try { value = normalizeVertexExpressDraft(provider, isVertexExpressProvider(provider) ? withModelEditors(value) : value, credentialDialogState?.mode === "edit"); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+      try { value = normalizeVertexOAuthDraft(provider, value, credentialDialogState?.mode === "edit"); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+      try { value = normalizeLumaAgentsDraft(provider, value, credentialDialogState?.mode === "edit"); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+      let selection;
+      try { value = normalizeSapCredential(provider, value); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+      try { selection = dialogModelSelection(value, modelIdPolicy(provider, { discovery: value.discovery })); }
+      catch { setError(t("模型列表无效。", "Invalid model list.")); return; }
+      const supportedModels = selection ? selectedModels(selection) : parseSupportedModelsText(value.supportedModelsText);
+      let businessFields;
+      try { businessFields = { ...freebuffBusinessFields(provider, value), ...dimCatalogFields(provider, value), ...lobsteraiCatalogFields(provider, value) }; }
+      catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
       const discoverLater = !selection && !value.discovery && value.apiKeyOperation === "replace" &&
-        provider && !catalogProviderKind(provider) && supportsAccountDiscovery(provider);
+        provider && !isQwenProvider(provider) && !isBedrockProvider(provider) && !catalogProviderKind(provider) && supportsAccountDiscovery(provider);
       const fields: Record<string, unknown> = {
+        ...businessFields,
+        ...commandcodeZdrFields(provider, value),
         ...(provider?.preset === "chatgpt-codex-oauth-official-api" && CHATGPT_POOL_CATEGORIES.some((group) => group.id === value.chatgptGroup)
           ? { credential_identity_category_id: value.chatgptGroup } : {}),
         // Token import is additive only; editing must preserve existing OAuth headers/refresh state.
@@ -148,12 +188,20 @@ export function useCredentialDialogEditor({
         enabled: value.enabled,
         base_url: value.baseUrl || undefined,
         ...(!selection ? { supported_models: supportedModels.length > 0 ? supportedModels : undefined } : {}),
-        ...(value.discovery ? { discovery: value.discovery } : value.apiKeyOperation !== "keep" ? { discovery: undefined } : {}),
+        ...(isQwenProvider(provider) ? { discovery: undefined, discovery_job: undefined }
+          : value.discovery ? { discovery: value.discovery } : value.apiKeyOperation !== "keep" ? { discovery: undefined } : {}),
         ...(!value.modelCatalog ? { model_catalog: undefined } : {}),
         ...(discoverLater ? { discovery_job: { id: crypto.randomUUID(), status: "pending" } }
           : selection || value.modelCatalog || value.discovery || value.apiKeyOperation === "clear" ? { discovery_job: undefined } : {}),
       };
       try {
+        if (sessionProductForPreset(provider?.preset) && !value.sessionMaterial
+          && (credentialDialogState?.mode !== "edit" || value.apiKeyOperation !== "keep")) {
+          throw new Error("此产品需要完整会话材料，不能通过 API Key 表单添加或替换。");
+        }
+        if (isBedrockProvider(provider) && value.apiKeyOperation !== "keep" && (value.apiKeyOperation !== "replace" || !value.bedrockMaterial)) {
+          throw new Error("Bedrock 账号需要完整、显式的认证材料，不能使用单 API Key 字段或保存半套材料。");
+        }
         const nextDocument =
           credentialDialogState?.mode === "edit"
             ? updateExplicitCredential(
@@ -178,9 +226,18 @@ export function useCredentialDialogEditor({
           : value.discovery ? applyAccountDiscovery(nextDocument, value.providerId, value.credentialId, value.discovery)
           : completeDocument;
         const selectedDocument = selection ? applyModelSelection(discoveredDocument, value.providerId, value.credentialId, selection) : discoveredDocument;
-        const webImport = value.webSessionMaterial
-          ? applyChatgptWebMaterial(selectedDocument, value.providerId, value.credentialId, value.webSessionMaterial) : null;
-        updateCredentialSecretEdit(value);
+        const webImport = isBedrockProvider(provider) && value.apiKeyOperation === "replace" && value.bedrockMaterial
+          ? applyBedrockMaterial(selectedDocument, value.providerId, value.credentialId, value.bedrockMaterial)
+          : value.sessionMaterial
+          ? applyProviderSessionMaterial(selectedDocument, value.providerId, value.credentialId, value.sessionMaterial)
+          : value.webSessionMaterial ? applyChatgptWebMaterial(selectedDocument, value.providerId, value.credentialId, value.webSessionMaterial) : null;
+        if (!value.sessionMaterial && !sessionProductForPreset(provider?.preset) && !isBedrockProvider(provider)
+          // Metadata-only Keep must retain a previously staged, audience-bound Key until autosave.
+          && (!isQwenProvider(provider) && provider?.preset !== "kiro-api-key" && provider?.preset !== "agnes-api" && provider?.preset !== "sensenova-token-plan" && provider?.preset !== "commandcode-api" && provider?.preset !== "sap-aicore-chat" && provider?.preset !== "minimax-m-plan" && provider?.preset !== "minimax-m-plan-cn" && !isVertexExpressProvider(provider) && !isLumaAgentsProvider(provider) || value.apiKeyOperation !== "keep")) updateCredentialSecretEdit(value,
+            isQwenProvider(provider) && value.apiKeyOperation === "replace" ? qwenMaterialTarget(selectedDocument, value.providerId, value.credentialId) : undefined,
+            provider?.preset === "kiro-api-key" && value.apiKeyOperation === "replace" ? kiroKeyMaterialTarget(selectedDocument, value.providerId, value.credentialId) : undefined,
+            isVertexExpressProvider(provider) && value.apiKeyOperation === "replace" ? vertexExpressMaterialTarget(selectedDocument, value.providerId, value.credentialId) : undefined,
+            isLumaAgentsProvider(provider) && value.apiKeyOperation === "replace" ? lumaAgentsMaterialTarget(selectedDocument, value.providerId, value.credentialId) : undefined);
         if (webImport) setCredentialSecretEdits((current) => mergeCredentialSecretEditEntries(current, webImport.secretEdits));
         replaceEditorDocument(webImport?.document ?? selectedDocument, true);
         setError(null);

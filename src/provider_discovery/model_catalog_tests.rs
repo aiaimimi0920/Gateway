@@ -146,6 +146,8 @@ async fn catalog_get_is_bounded_and_never_follows_redirects_or_generates() {
 #[test]
 fn poe_catalog_origin_and_metadata_are_strictly_bound() {
     let catalog = ModelCatalog {
+        account_base_url: None,
+        supported_endpoints: Default::default(),
         source_url: "https://api.poe.com/v1/models".into(),
         checked_at: "2026-10-26T13:00:00Z".into(),
         models: vec!["gpt-4o-mini".into()],
@@ -236,6 +238,8 @@ async fn groq_catalog_is_origin_bound_bounded_metadata_without_generation() {
 #[test]
 fn openrouter_catalog_origin_and_metadata_are_strictly_bound() {
     let mut catalog = ModelCatalog {
+        account_base_url: None,
+        supported_endpoints: Default::default(),
         source_url: OPENROUTER_SOURCE.into(),
         checked_at: "2026-10-26T04:00:00Z".into(),
         models: vec!["vendor/one".into()],
@@ -267,6 +271,8 @@ fn openrouter_catalog_origin_and_metadata_are_strictly_bound() {
 #[test]
 fn openai_catalog_requires_platform_origin_and_preserves_legacy_openrouter() {
     let catalog = ModelCatalog {
+        account_base_url: None,
+        supported_endpoints: Default::default(),
         source_url: OPENAI_SOURCE.into(),
         checked_at: "2026-10-27T04:00:00Z".into(),
         models: vec!["gpt-4o-mini".into()],
@@ -304,6 +310,8 @@ fn catalog_metadata_is_optional_validated_and_not_generation_evidence() {
         .get("model_catalog")
         .is_none());
     let mut catalog = ModelCatalog {
+        account_base_url: None,
+        supported_endpoints: Default::default(),
         source_url: NVIDIA_SOURCE.into(),
         checked_at: "2026-10-26T04:00:00Z".into(),
         models: vec!["one".into()],

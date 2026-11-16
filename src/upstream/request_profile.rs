@@ -28,6 +28,8 @@ pub(crate) use workbuddy_transport::apply as apply_workbuddy_transport;
 pub(crate) fn applies(payload: &ProviderAccountPayload, req: &CanonicalRelayRequest) -> bool {
     // Basispoints canonicalizes to OpenAI for routing, not for product-specific wire identity.
     payload.adapter != crate::protocol::chatgpt::basispoints::ADAPTER
+        && !crate::protocol::grok_oauth::business::owns_payload(payload)
+        && !crate::protocol::dim_oauth::business::owns_payload(payload)
         && matches!(
             req.endpoint_kind,
             EndpointKind::Responses

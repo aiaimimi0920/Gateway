@@ -1,3 +1,5 @@
+import { Button } from "@neuro/ui";
+
 type ConsoleWorkspaceHeaderActionsProps = {
   activeWorkspace: string;
   actionBusy: "save" | null;
@@ -42,44 +44,36 @@ export function ConsoleWorkspaceHeaderActions({
   const workspaceHeaderActions =
     activeWorkspace === "accounts" ? (
       <>
-        <button
-          className="nt-btn nt-btn--primary"
-          type="button"
+        <Button variant="primary"
           disabled={editorLocked}
           onClick={() => setProviderCatalogDialogOpen(true)}
         >
           {t("添加服务商", "Add provider")}
-        </button>
-        <button
-          className="nt-btn nt-btn--outline"
-          type="button"
+        </Button>
+        <Button
           disabled={editorLocked || accountLedgerProviderOptions.length <= 1}
           onClick={() => openAddCredentialDialog()}
         >
           {t("添加账号", "Add account")}
-        </button>
+        </Button>
       </>
     ) : activeWorkspace === "groups" ? (
       <>
-        <button
-          className="nt-btn nt-btn--primary"
-          type="button"
+        <Button variant="primary"
           disabled={editorLocked}
           onClick={() => addAccountGroupRow()}
         >
           {t("添加分组", "Add group")}
-        </button>
+        </Button>
       </>
     ) : activeWorkspace === "models" ? (
       <>
-        <button
-          className="nt-btn nt-btn--primary"
-          type="button"
+        <Button variant="primary"
           disabled={editorLocked || modelPoolDialogProviderOptions.length === 0}
           onClick={openAddModelDialog}
         >
           {t("添加模型", "Add model")}
-        </button>
+        </Button>
         {draftAutosaveStatus}
       </>
     ) : null;

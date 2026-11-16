@@ -3,6 +3,7 @@ mod input;
 mod lookup;
 mod mutations;
 mod payload;
+pub(crate) mod refresh;
 mod snapshot_update;
 mod state;
 #[cfg(test)]
@@ -22,6 +23,7 @@ pub use mutations::{
 pub use payload::merge_provider_account_and_credential_payloads;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+pub(crate) use snapshot_update::get_provider_credential_for_update;
 pub use snapshot_update::update_provider_credential_from_snapshot;
 use sqlx::types::Json;
 use sqlx::FromRow;

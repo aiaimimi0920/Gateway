@@ -46,6 +46,9 @@ fn parse_json_payload(payload: &str) -> Value {
 fn canonical_sse_prefers_requested_model_and_emits_usage_and_done() {
     let req = minimal_request(Some("caller-model"));
     let response = CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: "upstream-model".to_string(),
         text: "hello".to_string(),
@@ -82,6 +85,9 @@ fn canonical_sse_prefers_requested_model_and_emits_usage_and_done() {
 fn canonical_sse_streams_tool_call_start_arguments_and_tool_finish() {
     let req = minimal_request(None);
     let response = CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: "upstream-model".to_string(),
         text: String::new(),
@@ -121,4 +127,78 @@ fn canonical_sse_streams_tool_call_start_arguments_and_tool_finish() {
     let stop_frame = parse_json_payload(&payloads[payloads.len() - 2]);
     assert_eq!(stop_frame["choices"][0]["finish_reason"], "tool_calls");
     assert!(stop_frame["usage"].is_null());
+}
+
+#[test]
+fn response_sources_canonical_sse_emits_final_list_once_without_changing_answer() {
+    let sources = json!([{"name":"标题", "url":"https://example.org", "snippet":"摘要"}]);
+    let response: CanonicalRelayResponse = serde_json::from_value(json!({
+        "model":"unknown", "text":"答案 [1]", "usage":null, "tool_calls":[],
+        "upstream_status":200, "finish_reason":"stop", "sources":sources,
+    }))
+    .unwrap();
+    let frames = sse_payloads(canonical_response_to_openai_sse_bytes(
+        &minimal_request(Some("caller-alias")),
+        "unknown",
+        &response,
+    ));
+    assert_eq!(frames.last().unwrap(), "[DONE]");
+    let text = parse_json_payload(&frames[0]);
+    assert_eq!(text["choices"][0]["delta"]["content"], "答案 [1]");
+    assert!(text.get("gateway_sources").is_none());
+    let stop = parse_json_payload(&frames[frames.len() - 2]);
+    assert_eq!(stop["gateway_sources"], sources);
+    assert_eq!(stop["model"], "caller-alias");
+    assert!(stop["usage"].is_null());
+    assert!(stop.get("annotations").is_none());
+}
+
+#[tokio::test]
+async fn response_sources_perplexity_final_snapshot_reaches_responses_aggregate() {
+    use crate::protocol::{perplexity_web::Decoder, responses};
+    use futures::{stream, StreamExt};
+    let sources = json!([{"name":"标题", "url":"https://example.org", "snippet":"摘要"}]);
+    let raw = json!({"blocks":[
+        {"intended_usage":"ask_text", "markdown_block":{"answer":"答案 [1]"}},
+        {"intended_usage":"web_results", "web_result_block":{"web_results":sources}}
+    ], "read_write_token":"must-not-project"});
+    let wire = format!("data: {}\n\nevent: end_of_stream\ndata: {{}}\n\n", raw);
+    let mut decoder = Decoder::new();
+    let canonical = decoder
+        .push(bytes::Bytes::from(wire))
+        .unwrap()
+        .unwrap()
+        .into_canonical();
+    decoder.finish().unwrap();
+    assert_eq!(canonical.model, "unknown");
+    assert!(canonical.model_declaration.is_none());
+    assert!(canonical.usage.is_none());
+    let input = canonical_response_to_openai_sse_bytes(
+        &minimal_request(Some("caller-alias")),
+        "unknown",
+        &canonical,
+    )
+    .into_iter()
+    .map(Ok::<_, crate::protocol::stream_error::ProtocolStreamError>);
+    let output = responses::translate_openai_sse_to_responses_with_error(
+        stream::iter(input),
+        "unknown".into(),
+    );
+    let bytes: Vec<_> = output
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .flat_map(|part| part.unwrap().to_vec())
+        .collect();
+    assert!(!String::from_utf8_lossy(&bytes).contains("must-not-project"));
+    let input = stream::iter(vec![Ok::<
+        _,
+        crate::protocol::stream_error::ProtocolStreamError,
+    >(bytes::Bytes::from(bytes))]);
+    let result = responses::accumulate_responses_sse_stream_with_error(Box::pin(input), "unknown")
+        .await
+        .unwrap();
+    assert_eq!(result.text, "答案 [1]");
+    assert!(result.usage.is_none());
+    assert_eq!(serde_json::to_value(result).unwrap()["sources"], sources);
 }

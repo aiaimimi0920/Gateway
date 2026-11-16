@@ -7,6 +7,31 @@ pub async fn probe_provider_payload_for_console(
     client: &rquest::Client,
     payload: &ProviderAccountPayload,
 ) -> ProviderPayloadProbeReport {
+    if crate::protocol::kiro_oauth::runtime::owns_payload(payload) {
+        return unsupported_probe_report(
+            "Kiro OAuth runtime requires an explicit model test; no generic request was sent.",
+        );
+    }
+    if crate::protocol::kiro_api_key::owns_payload(payload) {
+        return unsupported_probe_report(
+            "Kiro CLI Key requires an explicit model test; no generic request was sent.",
+        );
+    }
+    if crate::protocol::grok_oauth::business::owns_payload(payload) {
+        return unsupported_probe_report(
+            "Grok Build requires an explicit Responses model test; no generic connectivity request was sent.",
+        );
+    }
+    if crate::protocol::qwen::workspace_api::owns_payload(payload) {
+        return unsupported_probe_report(
+            "Qwen workspace API requires an explicit model/prompt or saved test plan; no connectivity or generation request was sent.",
+        );
+    }
+    if crate::protocol::vertex_express::owns_payload(payload) {
+        return unsupported_probe_report(
+            "Vertex Express requires an explicit model test; no catalog or generation request was sent.",
+        );
+    }
     if payload.adapter == crate::protocol::antigravity::ADAPTER {
         return match crate::upstream::antigravity::probe(client, payload).await {
             Ok(()) => unsupported_probe_report("Antigravity HTTP project and catalog reads passed; no model generation was submitted."),
@@ -83,6 +108,15 @@ pub async fn probe_provider_payload_for_console(
 }
 
 pub fn provider_payload_probe_point(payload: &ProviderAccountPayload) -> String {
+    if crate::protocol::vertex_express::owns_payload(payload) {
+        return "Vertex Express (explicit model test required)".to_string();
+    }
+    if crate::protocol::grok_oauth::business::owns_payload(payload) {
+        return "Grok Build (explicit Responses model test required)".to_string();
+    }
+    if crate::protocol::qwen::workspace_api::owns_payload(payload) {
+        return "Qwen workspace API (explicit model test required)".to_string();
+    }
     if payload_requires_browser_backing(payload) {
         return "browser-backed credential (unsupported)".to_string();
     }

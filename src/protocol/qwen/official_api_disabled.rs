@@ -13,7 +13,9 @@ pub const QWEN_CODING_PLAN_ANTHROPIC_CATALOG_KEY: &str = "qwen-coding-plan-anthr
 pub fn is_qwen_official_api_profile(value: &str) -> bool {
     matches!(
         canonicalize_protocol_profile_key(value).as_str(),
-        QWEN_CODING_PLAN_OPENAI_PROFILE | QWEN_CODING_PLAN_ANTHROPIC_PROFILE
+        QWEN_CODING_PLAN_OPENAI_PROFILE
+            | QWEN_CODING_PLAN_ANTHROPIC_PROFILE
+            | super::workspace_api::PROFILE
     )
 }
 
@@ -33,6 +35,9 @@ pub fn is_qwen_coding_plan_anthropic_base_url(base_url: &str) -> bool {
 pub fn infer_qwen_official_profile_from_payload(
     payload: &ProviderAccountPayload,
 ) -> Option<&'static str> {
+    if super::workspace_api::owns_payload(payload) {
+        return Some(super::workspace_api::PROFILE);
+    }
     match payload.adapter.trim() {
         "openai_compatible" if is_qwen_coding_plan_openai_base_url(&payload.base_url) => {
             Some(QWEN_CODING_PLAN_OPENAI_PROFILE)

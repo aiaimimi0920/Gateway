@@ -70,13 +70,20 @@ export function useModelPoolEditor({
    * order into a route of its own; later reorders just rewrite it.
    */
   const reorderModelPoolChain = useCallback(
-    (model: string, providerId: string, direction: "up" | "down") => {
+    (model: string, providerId: string, direction: "up" | "down" | number) => {
       const card = modelPoolDirectory.find((entry) => entry.model === model);
       if (!card) {
         return;
       }
       const currentOrder = card.chain.map((link) => link.providerId);
-      const nextOrder = moveChainProvider(currentOrder, providerId, direction);
+      let nextOrder: string[];
+      if (typeof direction === "number") {
+        const from = currentOrder.indexOf(providerId);
+        if (from < 0 || !Number.isInteger(direction) || direction < 0 || direction >= currentOrder.length) return;
+        nextOrder = [...currentOrder];
+        nextOrder.splice(from, 1);
+        nextOrder.splice(direction, 0, providerId);
+      } else nextOrder = moveChainProvider(currentOrder, providerId, direction);
       // Already at the head or the tail: nothing to write, so no revision churn.
       if (nextOrder.every((id, index) => id === currentOrder[index])) {
         return;

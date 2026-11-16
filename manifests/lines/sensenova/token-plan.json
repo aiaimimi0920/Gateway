@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "sensenova-token-plan",
+  "identity": {
+    "serviceProviderKey": "sensenova", "serviceProviderLabel": "SenseNova",
+    "providerSurfaceKey": "sensenova-token-plan", "providerSurfaceLabel": "SenseNova Token Plan Key",
+    "protocolProfile": "sensenova_token_plan", "implementationLine": "official_vendor_api", "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api", "executionMode": "direct_http", "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation", "models"], "supportsModelsEndpoint": true },
+  "credentials": {
+    "materialKinds": ["api_key"], "samplePath": "docs/providers/examples/sensenova-token-plan.routes.sample.json",
+    "fieldsDocPath": "docs/providers/sensenova-token-plan-contract-2026-11-10.md"
+  },
+  "docs": { "overviewDocPath": "docs/providers/sensenova-token-plan-contract-2026-11-10.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "sensenova-token-plan-verify", "focusedCargoFilters": ["sensenova"],
+    "fixtureSuiteId": "sensenova_fixture", "liveSuiteId": "sensenova_live_pending", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-sensenova-token-plan",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"], "binaryInclusionGroup": "sensenova-token-plan"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/sensenova.rs", "upstreamModule": "gateway/src/upstream/openai_compatible_request_plan.rs",
+    "platformDeltaModule": "gateway/src/provider_discovery/model_catalog.rs"
+  }
+}

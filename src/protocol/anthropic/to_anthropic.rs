@@ -2,7 +2,10 @@ use crate::protocol::stream_error::{ProtocolStreamError, StreamError};
 use crate::protocol::stream_error_legacy::with_transport_error;
 use bytes::Bytes;
 use futures::Stream;
-use serde_json::{json, Value};
+use serde_json::Value;
+#[path = "to_anthropic_events.rs"]
+mod events;
+use events::*;
 use std::collections::{BTreeMap, VecDeque};
 
 use crate::protocol::canonical::TokenUsage;
@@ -16,120 +19,6 @@ const MAX_TRANSLATED_CONTENT_BLOCKS: usize = 4096;
 // ---------------------------------------------------------------------------
 // OpenAI SSE → Anthropic SSE stream translation
 // ---------------------------------------------------------------------------
-
-fn build_anthropic_message_start_event(
-    model: &str,
-    response_id: &str,
-    usage: Option<&TokenUsage>,
-) -> String {
-    let prompt_tokens = usage.map(|entry| entry.prompt_tokens).unwrap_or(0);
-    let data = json!({
-        "type": "message_start",
-        "message": {
-            "id": response_id,
-            "type": "message",
-            "role": "assistant",
-            "content": [],
-            "model": model,
-            "stop_reason": null,
-            "stop_sequence": null,
-            "usage": {
-                "input_tokens": prompt_tokens,
-                "output_tokens": 0
-            }
-        }
-    });
-    format!("event: message_start\ndata: {}\n\n", data)
-}
-
-fn build_anthropic_text_block_start_event(index: usize) -> String {
-    let data = json!({
-        "type": "content_block_start",
-        "index": index,
-        "content_block": {
-            "type": "text",
-            "text": ""
-        }
-    });
-    format!("event: content_block_start\ndata: {}\n\n", data)
-}
-
-fn build_anthropic_tool_block_start_event(index: usize, id: &str, name: &str) -> String {
-    let data = json!({
-        "type": "content_block_start",
-        "index": index,
-        "content_block": {
-            "type": "tool_use",
-            "id": id,
-            "name": name,
-            "input": {}
-        }
-    });
-    format!("event: content_block_start\ndata: {}\n\n", data)
-}
-
-fn build_anthropic_text_block_delta_event(index: usize, text: &str) -> String {
-    let data = json!({
-        "type": "content_block_delta",
-        "index": index,
-        "delta": {
-            "type": "text_delta",
-            "text": text
-        }
-    });
-    format!("event: content_block_delta\ndata: {}\n\n", data)
-}
-
-fn build_anthropic_tool_block_delta_event(index: usize, partial_json: &str) -> String {
-    let data = json!({
-        "type": "content_block_delta",
-        "index": index,
-        "delta": {
-            "type": "input_json_delta",
-            "partial_json": partial_json
-        }
-    });
-    format!("event: content_block_delta\ndata: {}\n\n", data)
-}
-
-fn build_anthropic_content_block_stop(index: usize) -> String {
-    let data = json!({
-        "type": "content_block_stop",
-        "index": index
-    });
-    format!("event: content_block_stop\ndata: {}\n\n", data)
-}
-
-fn build_anthropic_message_delta(stop_reason: &str, usage: Option<&TokenUsage>) -> String {
-    let mut data = json!({
-        "type": "message_delta",
-        "delta": {
-            "stop_reason": stop_reason,
-            "stop_sequence": null
-        }
-    });
-
-    if let Some(u) = usage {
-        data["usage"] = json!({
-            "input_tokens": u.prompt_tokens,
-            "output_tokens": u.completion_tokens
-        });
-    } else {
-        data["usage"] = json!({
-            "input_tokens": 0,
-            "output_tokens": 0
-        });
-    }
-
-    format!("event: message_delta\ndata: {}\n\n", data)
-}
-
-fn build_anthropic_message_stop_event() -> String {
-    let data = json!({
-        "type": "message_stop"
-    });
-    format!("event: message_stop\ndata: {}\n\n", data)
-}
 
 /// Wrap an OpenAI-format SSE byte stream and translate each event to Anthropic
 /// SSE event format on-the-fly.
@@ -196,6 +85,8 @@ where
         pending_finish_reason: None,
         latest_usage: None,
         final_emitted: false,
+        vertex_turn: Default::default(),
+        bedrock: Default::default(),
     };
 
     futures::stream::unfold(
@@ -220,12 +111,14 @@ where
                     DecodeStep::Frame(frame) => {
                         if let Err(error) = st.handle_frame(frame) {
                             st.abort();
+                            stream = Box::pin(futures::stream::empty());
                             return Some((Err(error.into()), (stream, st, true)));
                         }
                         continue;
                     }
                     DecodeStep::Error(error) => {
                         st.abort();
+                        stream = Box::pin(futures::stream::empty());
                         return Some((Err(error.into()), (stream, st, true)));
                     }
                     DecodeStep::NeedInput => {}
@@ -237,12 +130,26 @@ where
                     }
                     Some(Err(error)) => {
                         st.abort();
+                        stream = Box::pin(futures::stream::empty());
                         return Some((Err(error), (stream, st, true)));
                     }
                     None => {
+                        if st.bedrock.active() {
+                            stream = Box::pin(futures::stream::empty());
+                            if let Err(error) = st
+                                .decoder
+                                .finish_strict()
+                                .and_then(|()| st.bedrock.finish())
+                            {
+                                st.abort();
+                                stream = Box::pin(futures::stream::empty());
+                                return Some((Err(error.into()), (stream, st, true)));
+                            }
+                        }
                         if let Some(frame) = st.decoder.flush_pending_frame() {
                             if let Err(error) = st.handle_frame(frame) {
                                 st.abort();
+                                stream = Box::pin(futures::stream::empty());
                                 return Some((Err(error.into()), (stream, st, true)));
                             }
                         }
@@ -272,6 +179,8 @@ struct OpenAiToAnthropicState {
     pending_finish_reason: Option<String>,
     latest_usage: Option<TokenUsage>,
     final_emitted: bool,
+    vertex_turn: crate::protocol::vertex_turn::wire::TerminalTurn,
+    bedrock: crate::protocol::bedrock_converse::StreamRelay,
 }
 
 struct PendingAnthropicToolBlock {
@@ -284,13 +193,24 @@ impl OpenAiToAnthropicState {
             return Ok(());
         }
         if frame.data == "[DONE]" {
+            self.bedrock.done()?;
             self.emit_final_if_needed(None);
             return Ok(());
         }
 
         let Ok(chunk) = serde_json::from_str::<Value>(&frame.data) else {
+            if self.bedrock.active() {
+                return Err(translation_error("Invalid Bedrock stream JSON".into()));
+            }
             return Ok(());
         };
+        if let Some((_, body)) = self.bedrock.observe(&chunk)? {
+            self.ensure_message_started();
+            self.outputs.push_back(
+                crate::protocol::bedrock_converse::StreamRelay::public_event(&chunk, &body),
+            );
+        }
+        self.vertex_turn.accept(&chunk)?;
         if let Some(usage) = extract_openai_stream_usage(&chunk) {
             self.latest_usage = Some(usage);
         }
@@ -459,7 +379,7 @@ impl OpenAiToAnthropicState {
     }
 
     fn emit_final_if_needed(&mut self, fallback_reason: Option<&str>) {
-        if self.final_emitted {
+        if self.final_emitted || self.bedrock.hold_terminal() {
             return;
         }
         self.ensure_message_started();
@@ -471,7 +391,13 @@ impl OpenAiToAnthropicState {
             .or_else(|| fallback_reason.map(str::to_string))
             .unwrap_or_else(|| "end_turn".to_string());
         self.outputs.push_back(
-            build_anthropic_message_delta(&reason, self.latest_usage.as_ref()).into_bytes(),
+            build_anthropic_message_delta(
+                &reason,
+                self.latest_usage.as_ref(),
+                self.vertex_turn.0.as_ref(),
+                &self.bedrock,
+            )
+            .into_bytes(),
         );
         self.outputs
             .push_back(build_anthropic_message_stop_event().into_bytes());
@@ -534,6 +460,7 @@ fn map_openai_finish_reason(value: &str) -> Option<String> {
             "stop" => "end_turn",
             "length" => "max_tokens",
             "tool_calls" => "tool_use",
+            "content_filter" => "refusal",
             other => other,
         }
         .to_string(),

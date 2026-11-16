@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 
-import { NeuroTooltipProvider } from "../../components/ActionTooltip";
+import { NeuroProvider } from "@neuro/ui";
 import type {
   ConsoleCredentialPoolAutomationProvider,
   ConsoleCredentialRefillDemand,
@@ -16,9 +16,9 @@ import {
 
 export function renderWorkspace(props: AccountsLedgerWorkspaceProps) {
   return render(
-    <NeuroTooltipProvider>
+    <NeuroProvider>
       <AccountsLedgerWorkspace {...props} />
-    </NeuroTooltipProvider>,
+    </NeuroProvider>,
   );
 }
 

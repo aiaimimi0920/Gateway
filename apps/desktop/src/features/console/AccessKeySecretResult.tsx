@@ -1,3 +1,4 @@
+import { Button, Input, Textarea } from "@neuro/ui";
 import type { RefObject } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { CopyButton } from "./AccessWorkspacePrimitives";
@@ -19,18 +20,18 @@ export function AccessKeySecretResult({ secret, apiBaseUrl, inputRef, onClose, t
         <div className="nt-key-result-field__head"><span>API Key</span>
           <CopyButton t={t} value={secret.secret} label={t("复制 API Key", "Copy API Key")} variant="outline" />
         </div>
-        <textarea ref={inputRef} className="nt-input nt-key-secret-value" aria-label="API Key"
+        <Textarea ref={inputRef} className="nt-key-secret-value" aria-label="API Key"
           readOnly value={secret.secret} rows={3} spellCheck={false} />
       </section>
       <section className="nt-key-result-field">
         <div className="nt-key-result-field__head"><span>API Base URL</span>
           <CopyButton t={t} value={apiBaseUrl} label={t("复制 API 地址", "Copy API URL")} variant="outline" />
         </div>
-        <input className="nt-input" aria-label="API Base URL" readOnly value={apiBaseUrl} />
+        <Input aria-label="API Base URL" readOnly value={apiBaseUrl} />
       </section>
     </div>
-    <footer className="nt-key-dialog__footer"><div className="dialog-actions">
-      <button type="button" className="nt-btn nt-btn--primary" onClick={onClose}>{t("完成", "Done")}</button>
+    <footer className="nt-key-dialog__footer"><div className="n-dialog-actions">
+      <Button variant="primary" onClick={onClose}>{t("完成", "Done")}</Button>
     </div></footer>
   </>;
 }

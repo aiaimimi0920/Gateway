@@ -3,7 +3,8 @@ use std::collections::HashMap;
 
 use bytes::{Buf, Bytes};
 use crc::{Crc, CRC_32_ISO_HDLC};
-use serde_json::{json, Value};
+#[cfg(test)]
+use serde_json::json;
 
 use crate::error::GatewayError;
 
@@ -40,6 +41,7 @@ pub(super) struct EventStreamParser {
     input: Bytes,
     buffer: Vec<u8>,
     max_buffer_bytes: usize,
+    key: Option<super::key_response::KeyResponse>,
 }
 
 impl Default for EventStreamParser {
@@ -54,6 +56,14 @@ impl EventStreamParser {
             input: Bytes::new(),
             buffer: Vec::new(),
             max_buffer_bytes,
+            key: None,
+        }
+    }
+
+    pub(super) fn for_api_key() -> Self {
+        Self {
+            key: Some(Default::default()),
+            ..Self::default()
         }
     }
 
@@ -82,10 +92,15 @@ impl EventStreamParser {
 
     fn decode_next(&mut self) -> Result<Option<KiroEvent>, GatewayError> {
         loop {
-            if let Some((_, frame)) =
-                parse_event_stream_frame_with_limit(&self.buffer, self.max_buffer_bytes)?
-            {
-                let event = parse_kiro_event(frame);
+            if let Some((_, frame)) = parse_event_stream_frame_with_limit(
+                &self.buffer,
+                self.max_buffer_bytes,
+                self.key.is_some(),
+            )? {
+                let mut event = super::event_payload::parse(frame, self.key.is_some())?;
+                if let Some(key) = &mut self.key {
+                    key.observe(&mut event)?;
+                }
                 if self.buffer.capacity() > 64 * 1024 {
                     self.buffer = Vec::new();
                 } else {
@@ -152,8 +167,12 @@ impl EventStreamParser {
 
     pub(super) fn finish(&mut self) -> Result<(), GatewayError> {
         if self.buffer.is_empty() && self.input.is_empty() {
+            let result = self
+                .key
+                .as_ref()
+                .map_or(Ok(()), super::key_response::KeyResponse::finish);
             self.reset();
-            return Ok(());
+            return result;
         }
         self.reset();
         Err(
@@ -165,6 +184,9 @@ impl EventStreamParser {
     pub(super) fn reset(&mut self) {
         self.input = Bytes::new();
         self.buffer = Vec::new();
+        if let Some(key) = &mut self.key {
+            *key = Default::default();
+        }
     }
 
     #[cfg(test)]
@@ -187,8 +209,8 @@ fn event_stream_limit_error(scope: &str, code: &str, limit: usize) -> GatewayErr
 
 #[derive(Debug)]
 pub(super) struct EventStreamFrame<'a> {
-    headers: HashMap<String, HeaderValue>,
-    payload: &'a [u8],
+    pub(super) headers: HashMap<String, HeaderValue>,
+    pub(super) payload: &'a [u8],
 }
 
 #[derive(Debug, Clone)]
@@ -202,7 +224,7 @@ pub(super) enum HeaderValue {
 }
 
 impl HeaderValue {
-    fn as_str(&self) -> Option<&str> {
+    pub(super) fn as_str(&self) -> Option<&str> {
         match self {
             Self::String(value) => Some(value),
             _ => None,
@@ -214,12 +236,13 @@ impl HeaderValue {
 pub(super) fn parse_event_stream_frame(
     buffer: &[u8],
 ) -> Result<Option<(usize, EventStreamFrame<'_>)>, GatewayError> {
-    parse_event_stream_frame_with_limit(buffer, MAX_KIRO_EVENT_STREAM_BYTES)
+    parse_event_stream_frame_with_limit(buffer, MAX_KIRO_EVENT_STREAM_BYTES, false)
 }
 
 fn parse_event_stream_frame_with_limit(
     buffer: &[u8],
     max_frame_bytes: usize,
+    strict: bool,
 ) -> Result<Option<(usize, EventStreamFrame<'_>)>, GatewayError> {
     if buffer.len() < 12 {
         return Ok(None);
@@ -284,13 +307,31 @@ fn parse_event_stream_frame_with_limit(
     Ok(Some((
         total_len,
         EventStreamFrame {
-            headers: parse_headers(&buffer[headers_start..headers_end])?,
+            headers: parse_headers_with_mode(&buffer[headers_start..headers_end], strict)?,
             payload: &buffer[headers_end..payload_end],
         },
     )))
 }
 
+#[cfg(test)]
 pub(super) fn parse_headers(buffer: &[u8]) -> Result<HashMap<String, HeaderValue>, GatewayError> {
+    parse_headers_with_mode(buffer, false)
+}
+
+fn header_text(bytes: &[u8], strict: bool) -> Result<String, GatewayError> {
+    if strict {
+        std::str::from_utf8(bytes)
+            .map(str::to_owned)
+            .map_err(|_| super::key_response::invalid())
+    } else {
+        Ok(String::from_utf8_lossy(bytes).into_owned())
+    }
+}
+
+fn parse_headers_with_mode(
+    buffer: &[u8],
+    strict: bool,
+) -> Result<HashMap<String, HeaderValue>, GatewayError> {
     let mut headers = HashMap::new();
     let mut offset = 0usize;
 
@@ -309,7 +350,11 @@ pub(super) fn parse_headers(buffer: &[u8]) -> Result<HashMap<String, HeaderValue
                     .with_code("kiro_invalid_header_bounds"),
             );
         }
-        let name = String::from_utf8_lossy(&buffer[offset..name_end]).to_string();
+        let name = header_text(&buffer[offset..name_end], strict)?;
+        // A map must never erase an ambiguous header before the strict envelope is checked.
+        if strict && (name.is_empty() || headers.contains_key(&name)) {
+            return Err(super::key_response::invalid());
+        }
         offset = name_end;
 
         let value_type = *buffer.get(offset).ok_or_else(|| {
@@ -351,7 +396,7 @@ pub(super) fn parse_headers(buffer: &[u8]) -> Result<HashMap<String, HeaderValue
                     );
                 }
                 offset = end;
-                HeaderValue::String(String::from_utf8_lossy(&buffer[start..end]).to_string())
+                HeaderValue::String(header_text(&buffer[start..end], strict)?)
             }
             8 => {
                 offset = checked_header_end(offset, 8, buffer.len())?;
@@ -394,82 +439,6 @@ fn read_header_value_len(buffer: &[u8], offset: usize) -> Result<(usize, usize),
 fn header_overflow_error() -> GatewayError {
     GatewayError::server_error("Invalid Kiro header overflow")
         .with_code("kiro_invalid_header_overflow")
-}
-
-fn parse_kiro_event(frame: EventStreamFrame<'_>) -> KiroEvent {
-    let message_type = frame
-        .headers
-        .get(":message-type")
-        .and_then(HeaderValue::as_str)
-        .unwrap_or("event");
-    match message_type {
-        "event" => parse_kiro_event_payload(frame),
-        "error" => KiroEvent::Error {
-            error_code: frame
-                .headers
-                .get(":error-code")
-                .and_then(HeaderValue::as_str)
-                .unwrap_or("UnknownError")
-                .to_string(),
-            error_message: String::from_utf8_lossy(frame.payload).to_string(),
-        },
-        "exception" => KiroEvent::Exception {
-            exception_type: frame
-                .headers
-                .get(":exception-type")
-                .and_then(HeaderValue::as_str)
-                .unwrap_or("UnknownException")
-                .to_string(),
-            message: String::from_utf8_lossy(frame.payload).to_string(),
-        },
-        _ => KiroEvent::Unknown,
-    }
-}
-
-fn parse_kiro_event_payload(frame: EventStreamFrame<'_>) -> KiroEvent {
-    let event_type = frame
-        .headers
-        .get(":event-type")
-        .and_then(HeaderValue::as_str)
-        .unwrap_or("");
-    let payload: Value = serde_json::from_slice(frame.payload).unwrap_or_else(|_| json!({}));
-    match event_type {
-        "assistantResponseEvent" => KiroEvent::AssistantResponse {
-            content: payload
-                .get("content")
-                .and_then(|value| value.as_str())
-                .unwrap_or_default()
-                .to_string(),
-        },
-        "toolUseEvent" => KiroEvent::ToolUse {
-            name: payload
-                .get("name")
-                .and_then(|value| value.as_str())
-                .unwrap_or_default()
-                .to_string(),
-            tool_use_id: payload
-                .get("toolUseId")
-                .and_then(|value| value.as_str())
-                .unwrap_or_default()
-                .to_string(),
-            input: payload
-                .get("input")
-                .and_then(|value| value.as_str())
-                .unwrap_or_default()
-                .to_string(),
-            stop: payload
-                .get("stop")
-                .and_then(|value| value.as_bool())
-                .unwrap_or(false),
-        },
-        "contextUsageEvent" => KiroEvent::ContextUsage {
-            context_usage_percentage: payload
-                .get("contextUsagePercentage")
-                .and_then(|value| value.as_f64())
-                .unwrap_or(0.0),
-        },
-        _ => KiroEvent::Unknown,
-    }
 }
 
 #[cfg(test)]

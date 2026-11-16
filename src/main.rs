@@ -67,6 +67,8 @@ fn parse_tokio_worker_stack_bytes(raw: Option<&str>) -> Result<usize, String> {
 async fn async_main(worker_stack_bytes: usize) -> anyhow::Result<()> {
     let mut config =
         Config::from_env().map_err(|error| anyhow::anyhow!("Config error: {}", error))?;
+    neuro_gateway::http_client::proxy_settings::initialize(&config.console.state_dir)
+        .map_err(anyhow::Error::msg)?;
     neuro_gateway::console::diagnostics::logging::initialize(&mut config.console)
         .map_err(anyhow::Error::msg)?;
 

@@ -50,11 +50,27 @@ pub fn exact_model(model: &str) -> bool {
 
 impl CredentialTestPolicy {
     pub fn validate(&self) -> Result<(), &'static str> {
+        self.validate_models(exact_model)
+    }
+
+    // Parsing has no target yet; compilation and execution must apply the product gate.
+    pub(crate) fn validate_structure(&self) -> Result<(), &'static str> {
+        self.validate_models(crate::provider_model_id::valid_structure)
+    }
+
+    pub(crate) fn validate_for_payload(
+        &self,
+        payload: &crate::routing::candidate::ProviderAccountPayload,
+    ) -> Result<(), &'static str> {
+        self.validate_models(|model| crate::provider_model_id::valid_for_payload(model, payload))
+    }
+
+    fn validate_models(&self, valid: impl Fn(&str) -> bool) -> Result<(), &'static str> {
         if !(1..=10_080).contains(&self.interval_minutes) {
             return Err("Test interval must be 1..10080 minutes.");
         }
         if self.models.len() > 128
-            || self.models.iter().any(|model| !exact_model(model))
+            || self.models.iter().any(|model| !valid(model))
             || self.models.iter().collect::<HashSet<_>>().len() != self.models.len()
             || (self.model_selection == ModelSelection::Selected && self.models.is_empty())
         {

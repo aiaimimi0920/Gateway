@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { IconButton } from "@neuro/ui";
 import { CircleDollarSign } from "lucide-react";
 import { AccountBillingDialog } from "./AccountBillingDialog";
 import type { TranslateFn } from "./accessKeysTypes";
@@ -17,16 +18,14 @@ export function AccountBillingAction(props: {
   );
   return (
     <>
-      <button
-        className="nt-icon-action"
-        type="button"
+      <IconButton compact variant="quiet"
         disabled={props.locked}
-        aria-label={label}
+        label={label}
         title={label}
         onClick={() => setOpen(true)}
       >
         <CircleDollarSign size={14} aria-hidden="true" />
-      </button>
+      </IconButton>
       {open ? (
         <AccountBillingDialog {...props} onClose={() => setOpen(false)} />
       ) : null}

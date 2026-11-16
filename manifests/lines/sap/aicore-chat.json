@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "sap-aicore-chat",
+  "identity": {
+    "serviceProviderKey": "sap", "serviceProviderLabel": "SAP AI Core",
+    "providerSurfaceKey": "sap-aicore-chat", "providerSurfaceLabel": "SAP AI Core Azure OpenAI Chat",
+    "protocolProfile": "sap_aicore_chat", "implementationLine": "official_vendor_api", "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api", "executionMode": "direct_http", "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation"], "supportsModelsEndpoint": false },
+  "credentials": {
+    "materialKinds": ["api_key"], "samplePath": "docs/providers/examples/sap-aicore-chat.routes.sample.json",
+    "fieldsDocPath": "docs/providers/sap-aicore-chat-contract-2026-11-10.md"
+  },
+  "docs": { "overviewDocPath": "docs/providers/sap-aicore-chat-contract-2026-11-10.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "sap-aicore-chat-verify", "focusedCargoFilters": ["sap_aicore"],
+    "fixtureSuiteId": "sap_aicore_fixture", "liveSuiteId": "sap_aicore_live_pending", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-sap-aicore-chat",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"], "binaryInclusionGroup": "sap-aicore-chat"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/sap_aicore.rs", "upstreamModule": "gateway/src/protocol/sap_aicore/runtime.rs",
+    "platformDeltaModule": "gateway/src/protocol/sap_aicore/auth.rs"
+  }
+}

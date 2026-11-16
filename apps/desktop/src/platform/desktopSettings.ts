@@ -1,5 +1,5 @@
 /** Only presentation metadata crosses the server/native boundary; never credentials or settings. */
-export type NativeSettingsCategory = "backend" | "desktop";
+export type NativeSettingsCategory = "backend" | "desktop" | "about";
 export type SettingsPanelLayout = {
   category: NativeSettingsCategory;
   x: number; y: number; width: number; height: number;

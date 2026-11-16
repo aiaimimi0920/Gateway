@@ -3,9 +3,17 @@
 mod activation;
 mod commit;
 mod local_backend;
+mod pooled_backend;
 mod recovery;
+pub(crate) mod refresh_authority;
+mod refresh_cache;
+mod refresh_grants;
+mod refresh_recovery;
 mod revision_state;
 mod snapshots;
+mod transaction_fence;
+#[cfg(test)]
+mod transaction_fence_tests;
 
 use std::sync::Arc;
 
@@ -18,8 +26,8 @@ use super::persistence::{
     PersistenceError, RouteConfigPersistence, StoredRouteRevision, TransactionRecord,
 };
 use super::redis_store::{
-    RouteConfigRedisActivationOutcome, RouteConfigRedisRevision, RouteConfigRedisStore,
-    RouteConfigRedisStoreError,
+    RouteConfigRedisActivationOutcome, RouteConfigRedisRevision, RouteConfigRedisSettlement,
+    RouteConfigRedisStore, RouteConfigRedisStoreError,
 };
 use super::revision::RevisionActor;
 use super::ConsoleConfig;
@@ -77,8 +85,92 @@ impl RouteConfigRuntimeError {
 
 #[async_trait]
 pub trait RouteConfigRedisBackend: Send + Sync {
+    /// Recovery already owns the writer guard. Local backends must not acquire it recursively.
+    async fn load_refresh_grant_locked(
+        &self,
+        _guard: &super::WriterLockGuard,
+        locator: &super::refresh_grants::GrantLocator,
+    ) -> Result<Option<super::refresh_grants::GrantRecord>, RouteConfigRedisStoreError> {
+        self.load_refresh_grant(locator).await
+    }
+    async fn mark_refresh_grant_published_locked(
+        &self,
+        _guard: &super::WriterLockGuard,
+        revision: &RouteConfigRedisRevision,
+        record: &super::refresh_grants::GrantRecord,
+    ) -> Result<super::refresh_grants::GrantRecord, RouteConfigRedisStoreError> {
+        self.mark_refresh_grant_published(revision, record).await
+    }
+    async fn find_refresh_grant(
+        &self,
+        _request: &super::refresh_grants::GrantRequest,
+    ) -> Result<Option<super::refresh_grants::GrantRecord>, RouteConfigRedisStoreError> {
+        Err(refresh_grants::unsupported())
+    }
+
+    async fn load_refresh_grant(
+        &self,
+        _locator: &super::refresh_grants::GrantLocator,
+    ) -> Result<Option<super::refresh_grants::GrantRecord>, RouteConfigRedisStoreError> {
+        Err(refresh_grants::unsupported())
+    }
+
+    async fn repair_refresh_grant_cache(
+        &self,
+        _revision: &RouteConfigRedisRevision,
+        _record: &super::refresh_grants::GrantRecord,
+        _transaction: &TransactionRecord,
+    ) -> Result<(), RouteConfigRedisStoreError> {
+        Err(refresh_grants::unsupported())
+    }
+
+    /// Unknown backends must not admit grants without permanent consumption evidence.
+    async fn reserve_refresh_grant(
+        &self,
+        _revision: &RouteConfigRedisRevision,
+        _request: &super::refresh_grants::GrantRequest,
+    ) -> Result<super::refresh_grants::GrantReservation, RouteConfigRedisStoreError> {
+        Err(refresh_grants::unsupported())
+    }
+
+    async fn store_refresh_grant_receipt(
+        &self,
+        _record: &super::refresh_grants::GrantRecord,
+        _receipt: &super::refresh_grants::GrantReceipt,
+    ) -> Result<super::refresh_grants::GrantRecord, RouteConfigRedisStoreError> {
+        Err(refresh_grants::unsupported())
+    }
+
+    async fn store_refresh_grant_result(
+        &self,
+        _record: &super::refresh_grants::GrantRecord,
+        _result: &super::refresh_grants::GrantResult,
+    ) -> Result<super::refresh_grants::GrantRecord, RouteConfigRedisStoreError> {
+        Err(refresh_grants::unsupported())
+    }
+
+    async fn mark_refresh_grant_published(
+        &self,
+        _revision: &RouteConfigRedisRevision,
+        _record: &super::refresh_grants::GrantRecord,
+    ) -> Result<super::refresh_grants::GrantRecord, RouteConfigRedisStoreError> {
+        Err(refresh_grants::unsupported())
+    }
+
     fn active_source(&self) -> ActiveConfigSource {
         ActiveConfigSource::Redis
+    }
+
+    /// Confirm this exact transaction activated, or permanently fence its remote
+    /// commands before allowing local rollback. Unsupported backends fail closed.
+    async fn settle_transaction_locked(
+        &self,
+        _guard: &super::WriterLockGuard,
+        _record: &TransactionRecord,
+    ) -> Result<RouteConfigRedisSettlement, RouteConfigRedisStoreError> {
+        Err(RouteConfigRedisStoreError::from_persistence(
+            PersistenceError::recovery_required("Backend cannot fence pending route transactions"),
+        ))
     }
 
     async fn activate_revision_locked(
@@ -128,49 +220,6 @@ impl PooledRouteConfigRedisBackend {
     }
 }
 
-#[async_trait]
-impl RouteConfigRedisBackend for PooledRouteConfigRedisBackend {
-    async fn store_revision(
-        &self,
-        revision: &RouteConfigRedisRevision,
-    ) -> Result<(), RouteConfigRedisStoreError> {
-        self.store.store_revision(&self.pool, revision).await
-    }
-
-    async fn store_prepared_transaction(
-        &self,
-        record: &TransactionRecord,
-    ) -> Result<(), RouteConfigRedisStoreError> {
-        self.store
-            .store_prepared_transaction(&self.pool, record)
-            .await
-    }
-
-    async fn activate_revision(
-        &self,
-        expected_active_revision: Option<&str>,
-        revision: &RouteConfigRedisRevision,
-        prepared_record: &TransactionRecord,
-        activated_record: &TransactionRecord,
-    ) -> Result<RouteConfigRedisActivationOutcome, RouteConfigRedisStoreError> {
-        self.store
-            .activate_revision(
-                &self.pool,
-                expected_active_revision,
-                revision,
-                prepared_record,
-                activated_record,
-            )
-            .await
-    }
-
-    async fn load_active_revision(
-        &self,
-    ) -> Result<Option<RouteConfigRedisRevision>, RouteConfigRedisStoreError> {
-        self.store.load_active_revision(&self.pool).await
-    }
-}
-
 #[derive(Clone)]
 pub struct RouteConfigCoordinator {
     route_config: Arc<RouteConfigStore>,
@@ -193,6 +242,10 @@ impl std::fmt::Debug for RouteConfigCoordinator {
 }
 
 impl RouteConfigCoordinator {
+    pub(crate) fn registration_persistence(&self) -> RouteConfigPersistence {
+        self.persistence.clone()
+    }
+
     pub fn route_config(&self) -> &Arc<RouteConfigStore> {
         &self.route_config
     }
@@ -274,7 +327,11 @@ impl RouteConfigReplica {
 pub struct RouteConfigRuntime {
     route_config: Arc<RouteConfigStore>,
     coordinator: Option<RouteConfigCoordinator>,
+    // Never exposed as a management coordinator; it accepts only current refresh tickets.
+    refresh_coordinator: RouteConfigCoordinator,
     replica: RouteConfigReplica,
+    // Refresh recovery survives discarded tickets; clones share both the obligation and its lock.
+    pub(crate) refresh_authority_recovery: Arc<tokio::sync::Mutex<bool>>,
 }
 
 impl std::fmt::Debug for RouteConfigRuntime {
@@ -353,12 +410,13 @@ impl RouteConfigRuntime {
         writable: bool,
     ) -> Self {
         let journal = TransactionJournal::new(persistence.clone());
-        let coordinator = writable.then(|| RouteConfigCoordinator {
+        let refresh_coordinator = RouteConfigCoordinator {
             route_config: Arc::clone(&route_config),
             persistence,
             journal,
             redis: Arc::clone(&redis),
-        });
+        };
+        let coordinator = writable.then(|| refresh_coordinator.clone());
         let replica = RouteConfigReplica {
             route_config: Arc::clone(&route_config),
             redis,
@@ -366,7 +424,9 @@ impl RouteConfigRuntime {
         Self {
             route_config,
             coordinator,
+            refresh_coordinator,
             replica,
+            refresh_authority_recovery: Arc::new(tokio::sync::Mutex::new(false)),
         }
     }
 

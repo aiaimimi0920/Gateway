@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "commandcode-provider-api",
+  "identity": {
+    "serviceProviderKey": "commandcode",
+    "serviceProviderLabel": "Command Code",
+    "providerSurfaceKey": "commandcode-api",
+    "providerSurfaceLabel": "Command Code Provider API Chat",
+    "protocolProfile": "commandcode_chat",
+    "implementationLine": "official_vendor_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": [
+      "conversation",
+      "models"
+    ],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": [
+      "api_key"
+    ],
+    "samplePath": "docs/providers/examples/commandcode-api.routes.sample.json",
+    "fieldsDocPath": "docs/providers/commandcode-chat-contract-2026-11-10.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/providers/commandcode-chat-contract-2026-11-10.md",
+    "buildDocPath": "docs/devtest-build.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "commandcode-provider-api-verify",
+    "focusedCargoFilters": [
+      "commandcode"
+    ],
+    "fixtureSuiteId": "commandcode_fixture",
+    "liveSuiteId": "commandcode_live_pending",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-commandcode-provider-api",
+    "familyCommonFeatures": [
+      "family-openai-compatible-official-api"
+    ],
+    "binaryInclusionGroup": "commandcode-provider-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/commandcode.rs",
+    "upstreamModule": "gateway/src/protocol/commandcode/runtime.rs",
+    "platformDeltaModule": "gateway/src/provider_discovery/model_catalog.rs"
+  }
+}

@@ -85,7 +85,11 @@ pub async fn handle_image_edits(
         body
     };
 
-    let canonical = normalize_image_edits(body)?;
+    let canonical = if body.get("source").is_some_and(|value| !value.is_null()) {
+        crate::protocol::luma_agents::normalize_source_edit(body)?
+    } else {
+        normalize_image_edits(body)?
+    };
     let mut ctx = PipelineContext::new(canonical, token);
     apply_common_headers(
         &mut ctx,

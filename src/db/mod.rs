@@ -181,7 +181,8 @@ pub use provider_credentials::{
     UpsertProviderCredentialInput,
 };
 pub(crate) use provider_credentials::{
-    list_provider_credential_import_metadata, ProviderCredentialImportMetadata,
+    list_active_provider_credential_refs_for_accounts, list_provider_credential_import_metadata,
+    ProviderCredentialImportMetadata,
 };
 pub use rate_limit_hotspots::{
     get_rate_limit_hotspot_anomaly_report, get_rate_limit_hotspot_anomaly_snapshot,

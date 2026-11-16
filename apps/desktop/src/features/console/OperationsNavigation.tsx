@@ -1,4 +1,4 @@
-import * as Tabs from "@radix-ui/react-tabs";
+import { Badge, Tab, TabList } from "@neuro/ui";
 import { Gauge, ListOrdered, ShieldAlert } from "lucide-react";
 import type { Ref } from "react";
 import type {
@@ -40,12 +40,12 @@ export function OperationsNavigation({
     },
   ] as const;
   return (
-    <Tabs.List
+    <TabList
       className="nt-operations-navigation"
-      aria-label={t("运维视图", "Operations views")}
+      label={t("运维视图", "Operations views")}
     >
       {sections.map(({ id, label, icon: Icon }) => (
-        <Tabs.Trigger
+        <Tab
           className="nt-operations-navigation__tab"
           key={id}
           value={id}
@@ -55,21 +55,21 @@ export function OperationsNavigation({
           <span>{label}</span>
           {id === "anomalies" && availability === "available" ? (
             incidentSummary.error ? (
-              <span className="nt-badge nt-badge--warning">
+              <Badge tone="warning">
                 {t("读取失败", "Read failed")}
-              </span>
+              </Badge>
             ) : incidentSummary.data &&
               incidentSummary.data.openIncidents > 0 ? (
-              <span className="nt-badge nt-badge--danger">
+              <Badge tone="danger">
                 {t(
                   `${incidentSummary.data.openIncidents} 未处理`,
                   `${incidentSummary.data.openIncidents} open`,
                 )}
-              </span>
+              </Badge>
             ) : null
           ) : null}
-        </Tabs.Trigger>
+        </Tab>
       ))}
-    </Tabs.List>
+    </TabList>
   );
 }

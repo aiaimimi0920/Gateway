@@ -177,10 +177,35 @@ fn transport_unknown_is_counted_but_arbitrary_unknown_and_oversized_keys_are_not
     assert_eq!(failure_delay(&error), None);
     let runtime = ModelCircuits::default();
     let mut k = key("plus");
-    k.model = "m".repeat(1025);
+    k.model = "m".repeat(2049);
     assert!(!runtime.available(&k));
     assert!(runtime.acquire_at(&[k], 0).is_err());
     assert!(runtime.entries.lock().is_empty());
+}
+
+#[test]
+fn extended_model_storage_does_not_relax_provider_or_group_identity_bounds() {
+    let runtime = ModelCircuits::default();
+    let mut k = key("plus");
+    k.model = "m".repeat(2048);
+    assert!(runtime.available(&k));
+    assert!(!runtime.nonrecoverable_blocked(&[k.clone()]));
+    let tickets = runtime.acquire_at(&[k.clone()], 0).unwrap();
+    runtime.finish_at(tickets, Outcome::Neutral, 0);
+    let ticket = runtime.capacity.lock().acquire(&k, 0).unwrap();
+    runtime.capacity.lock().finish(ticket, false);
+    for field in ["provider", "group", "model"] {
+        let mut oversized = k.clone();
+        match field {
+            "provider" => oversized.provider = "p".repeat(1025),
+            "group" => oversized.group = "g".repeat(1025),
+            _ => oversized.model = "m".repeat(2049),
+        }
+        assert!(!runtime.available(&oversized));
+        assert!(runtime.nonrecoverable_blocked(&[oversized.clone()]));
+        assert!(runtime.acquire_at(&[oversized.clone()], 0).is_err());
+        assert!(runtime.capacity.lock().acquire(&oversized, 0).is_err());
+    }
 }
 
 #[test]

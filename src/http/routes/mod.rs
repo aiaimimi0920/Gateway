@@ -36,5 +36,6 @@ mod provider_deletion;
 pub mod realtime;
 pub mod responses;
 pub mod search;
+pub mod systemone;
 pub mod videos;
 pub(crate) mod ws_bridge;

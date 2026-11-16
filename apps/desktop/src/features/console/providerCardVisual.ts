@@ -41,6 +41,7 @@ const PRESET_CATEGORIES: Record<string, ProviderCardCategory> = {
   udio: "media",
   producer: "media",
   lumalabs: "media",
+  "lumalabs-api": "media",
   "gemini-canvas": "media",
   "gemini-canvas-chat": "browser",
   "qwen-web-chat": "browser",
@@ -173,7 +174,7 @@ export function providerCardVisual(options: {
   const normalizedPreset = options.providerPreset?.trim().toLowerCase() ?? "";
 
   const category =
-    PROVIDER_ID_CATEGORIES[normalizedId] ??
+    (normalizedPreset === "lumalabs-api" ? "media" : PROVIDER_ID_CATEGORIES[normalizedId]) ??
     PRESET_CATEGORIES[normalizedPreset] ??
     PRESET_CATEGORIES[normalizedId] ??
     providerCatalogClassification(

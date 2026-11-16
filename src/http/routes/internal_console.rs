@@ -1,23 +1,77 @@
 //! Console wire types, shared request/response boundaries and Gemini session route wiring.
 
 mod chatgpt_catalog;
+#[cfg(feature = "copilot-sdk-runtime")]
+mod copilot_catalog;
+#[cfg(feature = "copilot-sdk-runtime")]
+pub(crate) use copilot_catalog::mount as mount_copilot_catalog;
+mod cloudflare_catalog;
+pub use cloudflare_catalog::read_cloudflare_model_catalog;
 mod nvidia_catalog;
+mod qwen_catalog;
 pub use nvidia_catalog::{
-    read_anthropic_model_catalog, read_cohere_model_catalog, read_gemini_model_catalog,
-    read_groq_model_catalog, read_nvidia_model_catalog, read_openai_model_catalog,
-    read_openrouter_model_catalog, read_poe_model_catalog,
+    read_agnes_model_catalog, read_anthropic_model_catalog, read_cohere_model_catalog,
+    read_commandcode_model_catalog, read_gemini_model_catalog, read_groq_model_catalog,
+    read_nvidia_model_catalog, read_openai_model_catalog, read_openrouter_model_catalog,
+    read_poe_model_catalog, read_river_model_catalog, read_sensenova_model_catalog,
 };
+pub use qwen_catalog::read_qwen_model_catalog;
+mod accio_oauth;
 mod antigravity_oauth;
 mod chatgpt_oauth;
+mod dim_oauth;
+pub use dim_oauth::{act_dim_oauth, create_dim_oauth, dim_oauth_no_store, get_dim_oauth};
+mod dim_catalog;
+mod luma_mcp;
+pub(crate) use luma_mcp::mount as mount_luma_mcp;
+mod luma_oauth;
+pub(crate) use luma_oauth::mount as mount_luma_oauth;
+mod nous_catalog;
+mod nous_oauth;
+pub use dim_catalog::read_dim_model_catalog;
+pub(crate) use nous_oauth::mount as mount_nous_oauth;
+mod lobsterai_catalog;
+mod lobsterai_oauth;
+pub(crate) use lobsterai_oauth::mount as mount_lobsterai_oauth;
+mod freebuff_catalog;
+mod freebuff_claim;
+mod freebuff_pending;
+pub use freebuff_pending::{decide_freebuff_purchase, read_freebuff_pending_purchases};
+#[cfg(all(test, feature = "line-freebuff-web-reverse-api"))]
+mod freebuff_pending_tests;
+pub use freebuff_claim::{end_freebuff_claim, read_freebuff_claim};
+mod freebuff_device;
+mod freebuff_inspection;
+#[cfg(all(test, feature = "line-freebuff-web-reverse-api"))]
+mod freebuff_inspection_tests;
+pub use freebuff_device::{read_freebuff_device_state, register_freebuff_device};
+pub use freebuff_inspection::inspect_freebuff_session;
+mod freebuff_login;
+pub use freebuff_catalog::read_freebuff_model_catalog;
+mod grok_oauth;
+mod kiro_oauth;
+mod vertex_oauth;
+pub use accio_oauth::{act_accio_oauth, create_accio_oauth, get_accio_oauth};
 pub use antigravity_oauth::{
     act_antigravity_oauth, create_antigravity_oauth, get_antigravity_oauth,
+};
+pub use freebuff_login::{
+    act_freebuff_login, create_freebuff_login, freebuff_login_no_store, get_freebuff_login,
+};
+pub use grok_oauth::{act_grok_oauth, create_grok_oauth, get_grok_oauth};
+pub use kiro_oauth::{act_kiro_oauth, create_kiro_oauth, get_kiro_oauth, kiro_oauth_no_store};
+pub use vertex_oauth::{
+    act_vertex_oauth, create_vertex_oauth, get_vertex_oauth, vertex_oauth_no_store,
 };
 mod chatgpt_web_browser;
 mod chatgpt_web_login;
 pub use chatgpt_catalog::read_chatgpt_model_catalog;
 pub use chatgpt_web_browser::capture_web_browser;
 mod credential_secret;
+pub(crate) mod backup;
 pub(crate) mod diagnostics;
+pub(crate) mod proxy_settings;
+pub(crate) mod lan_sharing;
 mod discovery;
 pub use credential_secret::reveal_credential_key;
 mod probes;

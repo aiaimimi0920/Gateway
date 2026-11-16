@@ -70,22 +70,31 @@ pub fn spawn_maintenance(state: &Arc<AppState>) {
     if state.local_runtime.is_none() {
         return;
     }
-    let state = Arc::downgrade(state);
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(10));
-        loop {
-            interval.tick().await;
-            let Some(state) = state.upgrade() else {
-                break;
-            };
-            if let Some(local) = &state.local_runtime {
-                if local.pool.is_closed() {
-                    break;
+    let weak = Arc::downgrade(state);
+    let stop = state.lifecycle.local_maintenance_stop.clone();
+    state.lifecycle.background_tasks.spawn(
+        crate::runtime::background_tasks::Worker::LocalMaintenance,
+        &state.lifecycle.local_maintenance_stop,
+        async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(10));
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = stop.wait() => break,
+                    _ = interval.tick() => {},
                 }
-                if let Err(error) = local.maintain().await {
-                    tracing::warn!(code = ?error.code, "Local runtime maintenance failed");
+                let Some(state) = weak.upgrade() else {
+                    break;
+                };
+                if let Some(local) = &state.local_runtime {
+                    if local.pool.is_closed() {
+                        break;
+                    }
+                    if let Err(error) = local.maintain().await {
+                        tracing::warn!(code = ?error.code, "Local runtime maintenance failed");
+                    }
                 }
             }
-        }
-    });
+        },
+    );
 }

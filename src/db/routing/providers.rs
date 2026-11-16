@@ -3,6 +3,8 @@ use crate::routing::call_flow::{prepare_route_payload, PreparedRoutePayload};
 
 #[cfg(test)]
 mod call_flow_tests;
+#[cfg(test)]
+mod commandcode_tests;
 
 pub(super) async fn fetch_active_provider_rows(
     pool: &PgPool,
@@ -48,7 +50,8 @@ pub(super) fn provider_payload_from_value(
     row: &GatewayProviderRouteRow,
     payload_value: Value,
 ) -> Result<Option<ProviderAccountPayload>, GatewayError> {
-    let mut payload: ProviderAccountPayload = match serde_json::from_value(payload_value) {
+    let mut payload: ProviderAccountPayload = match serde::Deserialize::deserialize(&payload_value)
+    {
         Ok(payload) => payload,
         Err(error) => {
             tracing::warn!(
@@ -71,6 +74,7 @@ pub(super) fn provider_payload_from_value(
             })?,
         );
     }
+    crate::protocol::commandcode::catalog::hydrate(&mut payload, Some(&payload_value))?;
     Ok(Some(crate::routing::call_flow::prepare_owned(payload)?))
 }
 
@@ -108,6 +112,7 @@ pub(super) async fn build_route_candidates_for_provider(
                 mut payload,
                 adapter,
                 protocol_family,
+                protocol_profile,
                 supported_protocol_families,
             }) = prepare_route_payload(
                 payload,
@@ -126,7 +131,8 @@ pub(super) async fn build_route_candidates_for_provider(
                 label: format!("{} / {}", provider_row.label, credential.label),
                 payload: payload.clone(),
                 protocol_family,
-                protocol_profile: provider_row.protocol_profile.clone(),
+                protocol_profile: protocol_profile
+                    .unwrap_or_else(|| provider_row.protocol_profile.clone()),
                 supported_protocol_families,
                 adapter,
                 model_alias: model_alias.clone(),
@@ -154,6 +160,7 @@ pub(super) async fn build_route_candidates_for_provider(
         payload,
         adapter,
         protocol_family,
+        protocol_profile,
         supported_protocol_families,
     }) = prepare_route_payload(
         payload,
@@ -171,7 +178,7 @@ pub(super) async fn build_route_candidates_for_provider(
         label: provider_row.label.clone(),
         payload: payload.clone(),
         protocol_family,
-        protocol_profile: provider_row.protocol_profile.clone(),
+        protocol_profile: protocol_profile.unwrap_or_else(|| provider_row.protocol_profile.clone()),
         supported_protocol_families,
         adapter,
         model_alias,

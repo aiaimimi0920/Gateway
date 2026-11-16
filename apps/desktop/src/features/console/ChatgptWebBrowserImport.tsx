@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Button, Notice } from "@neuro/ui";
 import { parseChatgptWebMaterial, type ChatgptWebMaterial } from "./chatgptWebMaterial";
 
 type LoginPhase = "login_window" | "session_read" | "verification_required" | "verification_window";
@@ -36,9 +37,11 @@ export function ChatgptWebBrowserImport({ capture, providerId, disabled, onMater
     const requestId = crypto.randomUUID();
     let pollTimer: ReturnType<typeof setTimeout> | undefined;
     let pollController: AbortController | undefined;
-    const current = { controller, requestId, verificationSubmitted: false, stopPolling: () => { clearTimeout(pollTimer); pollController?.abort(); }, cancel: () => {
-      void capture({ providerId, operation: "cancel", requestId }, AbortSignal.timeout(10000)).catch(() => {});
-    } };
+    const current = {
+      controller, requestId, verificationSubmitted: false, stopPolling: () => { clearTimeout(pollTimer); pollController?.abort(); }, cancel: () => {
+        void capture({ providerId, operation: "cancel", requestId }, AbortSignal.timeout(10000)).catch(() => { });
+      }
+    };
     request.current = current;
     setBusy(true); setContinuing(false); setPhase("login_window"); setError(null); setAccountName(""); onClear();
     const poll = async () => {
@@ -77,16 +80,16 @@ export function ChatgptWebBrowserImport({ capture, providerId, disabled, onMater
       if (!current.controller.signal.aborted && request.current === current) setError(cause instanceof Error ? cause.message : "无法打开验证窗口。");
     } finally { if (request.current === current) setContinuing(false); }
   };
-  return <section className="nt-stack" aria-label="ChatGPT 网页登录">
-    <button className="nt-btn nt-btn--outline" type="button" disabled={disabled || busy} onClick={() => void run()}>网页登录</button>
+  return <section className="n-stack" aria-label="ChatGPT 网页登录">
+    <Button variant="primary" disabled={disabled || busy} loading={busy} onClick={() => void run()}>网页登录</Button>
     {busy && <>
-      <span role="status">{phase === "verification_required" ? "会话接口要求官网验证，尚未读取账号。"
+      <Notice>{phase === "verification_required" ? "会话接口要求官网验证，尚未读取账号。"
         : phase === "verification_window" ? "请在专用窗口完成官网验证后关闭窗口；请勿复制页面内容。"
-          : phase === "session_read" ? "正在读取已登录账号…" : "请完成登录，看到 ChatGPT 首页后关闭该专用窗口…"}</span>
-      {phase === "verification_required" && <button className="nt-btn nt-btn--outline" type="button" disabled={continuing} onClick={() => void verify()}>打开验证窗口</button>}
-      <button className="nt-btn nt-btn--outline" type="button" onClick={stop}>取消登录</button>
+          : phase === "session_read" ? "正在读取已登录账号…" : "请完成登录，看到 ChatGPT 首页后关闭该专用窗口…"}</Notice>
+      {phase === "verification_required" && <Button disabled={continuing} loading={continuing} onClick={() => void verify()}>打开验证窗口</Button>}
+      <Button onClick={stop}>取消登录</Button>
     </>}
-    {accountName && <span role="status">已读取账号：{accountName}</span>}
-    {error && <span role="alert">{error}</span>}
+    {accountName && <Notice tone="success">已读取账号：{accountName}</Notice>}
+    {error && <Notice tone="danger">{error}</Notice>}
   </section>;
 }

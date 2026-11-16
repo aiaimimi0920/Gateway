@@ -60,7 +60,7 @@ export async function pageLooksSignedOut(page) {
 }
 
 export async function runCreateThroughPageUi(page, options) {
-  const { prompt, timeoutMs } = options;
+  const { prompt, timeoutMs, responses, modelGate } = options;
   await dismissKnownBlockingOverlays(page);
   let createButton = page
     .locator('button:visible[aria-label="创作歌曲"], button:visible[aria-label="Create song"]')
@@ -77,19 +77,18 @@ export async function runCreateThroughPageUi(page, options) {
   });
   await expectButtonEnabled(createButton, timeoutMs);
 
-  const createResponsePromise = page.waitForResponse(
-    (response) =>
-      /\/api\/generate\/v2-web\/?$/.test(response.url()) &&
-      response.request().method().toUpperCase() === "POST",
-    { timeout: timeoutMs },
-  );
-  await createButton.click();
+  // Page routing cannot bind requests handled by an already controlling Service Worker.
+  if (await page.evaluate(() => Boolean(navigator.serviceWorker?.controller))) {
+    throw createError(409, "suno_browser_request_mismatch", "Suno model binding requires a page not controlled by a Service Worker.");
+  }
+  modelGate.arm();
+
+  const createResponsePromise = responses.next("generate", timeoutMs);
+  // click can fail before await; capture.stop() will reject its still-owned waiter.
+  void createResponsePromise.catch(() => undefined);
+  await createButton.click({ timeout: timeoutMs });
   try {
-    const createResponse = await createResponsePromise;
-    return {
-      status: createResponse.status(),
-      bodyText: await createResponse.text(),
-    };
+    return await createResponsePromise;
   } catch (error) {
     if (await pageLooksChallenged(page)) {
       throw createError(
@@ -417,10 +416,14 @@ export async function releaseEasyBrowserLease(lease) {
   if (!lease?.sessionId || !lease?.baseUrl) {
     return;
   }
-  await fetch(`${lease.baseUrl}/v1/browser/sessions/${encodeURIComponent(lease.sessionId)}/release`, {
+  const response = await fetch(`${lease.baseUrl}/v1/browser/sessions/${encodeURIComponent(lease.sessionId)}/release`, {
     method: "POST",
     headers: buildEasyBrowserHeaders(lease.bearerToken),
+    signal: AbortSignal.timeout(5_000),
   });
+  if (!response.ok) {
+    throw createError(502, "suno_easybrowser_release_failed", "EasyBrowser lease release failed.");
+  }
 }
 
 function buildEasyBrowserHeaders(bearerToken) {

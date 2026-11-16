@@ -18,6 +18,12 @@ pub fn build_request_plan(
     req: &CanonicalRelayRequest,
     model: &str,
 ) -> Result<RequestPlan, GatewayError> {
+    if crate::protocol::kiro_oauth::runtime::owns_payload(payload) {
+        return super::kiro_oauth_runtime::build_request_plan(payload, req, model);
+    }
+    if crate::protocol::kiro_api_key::owns_payload(payload) {
+        return super::kiro_api_key::build_request_plan(payload, req, model);
+    }
     if !supports_endpoint(req.endpoint_kind) {
         return Err(GatewayError::bad_request(
             "Kiro adapters currently support only chat/messages/responses style endpoints",

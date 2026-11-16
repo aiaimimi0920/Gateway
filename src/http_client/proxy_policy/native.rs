@@ -14,6 +14,20 @@ fn build(addresses: &Addresses, bypass: Option<String>) -> Matcher {
 }
 
 pub(crate) fn matcher() -> Matcher {
+    use crate::http_client::proxy_settings::{active, Mode, LOCAL_BYPASS};
+    match active().mode {
+        Mode::Off => return Matcher::builder().build(),
+        Mode::Custom => {
+            return build(
+                &Addresses {
+                    http: Some(active().url.clone()),
+                    https: Some(active().url.clone()),
+                },
+                Some(LOCAL_BYPASS.into()),
+            )
+        }
+        Mode::Auto => {}
+    }
     let addresses = frozen_addresses();
     #[cfg(target_os = "macos")]
     if addresses.is_empty() {

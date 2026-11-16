@@ -2,6 +2,16 @@ use super::catalog::RefactoredImplementationLine;
 
 pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementationLine> {
     match profile.trim() {
+        "nous_portal_oauth" | "nous-portal-oauth" => {
+            Some(RefactoredImplementationLine::NousPortalOauth)
+        }
+        "dim_user_oauth"
+        | "dim-cn-oauth"
+        | "dim-global-oauth"
+        | "dim_user_oauth_chat"
+        | "dim_user_oauth_responses"
+        | "dim_user_oauth_messages"
+        | "dim_user_oauth_gemini" => Some(RefactoredImplementationLine::DimUserOauth),
         "gemini_web_reverse_modular" | "gemini-web-chat-modular" => {
             Some(RefactoredImplementationLine::GeminiWebReverse)
         }
@@ -43,6 +53,21 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         "groq" | "groq-openai" | "groq_openai" => {
             Some(RefactoredImplementationLine::GroqOpenAiOfficialVendorApi)
         }
+        "river" | "river-api" => Some(RefactoredImplementationLine::RiverOfficialApi),
+        "agnes_api" | "agnes-api" => Some(RefactoredImplementationLine::AgnesOfficialApi),
+        "commandcode_chat" | "commandcode-api" => {
+            Some(RefactoredImplementationLine::CommandCodeProviderApi)
+        }
+        "sap_aicore_chat" | "sap-aicore-chat" => Some(RefactoredImplementationLine::SapAiCoreChat),
+        "sensenova_token_plan" | "sensenova-token-plan" => {
+            Some(RefactoredImplementationLine::SenseNovaTokenPlan)
+        }
+        "minimax_m_plan" | "minimax-m-plan" | "minimax-m-plan-cn" => {
+            Some(RefactoredImplementationLine::MiniMaxMPlan)
+        }
+        "cloudflare_workers_ai" | "cloudflare-workers-ai" => {
+            Some(RefactoredImplementationLine::CloudflareWorkersAi)
+        }
         "nvidia" | "nvidia-openai" | "nvidia_openai" | "nvidia-nim" | "nvidia_nim" => {
             Some(RefactoredImplementationLine::NvidiaOpenAiOfficialVendorApi)
         }
@@ -73,6 +98,9 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         "perplexity_chat" | "perplexity-chat" => {
             Some(RefactoredImplementationLine::PerplexityChatOfficialVendorApi)
         }
+        "perplexity_web" | "perplexity-web" => {
+            Some(RefactoredImplementationLine::PerplexityWebReverseApi)
+        }
         "freebuff" | "freebuff-compatible" | "codebuff" => {
             Some(RefactoredImplementationLine::FreeBuffWebReverseApi)
         }
@@ -91,6 +119,9 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         | "suno_videos" => Some(RefactoredImplementationLine::SunoWebReverseApi),
         "udio" | "udio-music" | "udio_music" | "udio-images" | "udio_images" | "udio-videos"
         | "udio_videos" => Some(RefactoredImplementationLine::UdioWebReverseApi),
+        "lumalabs_agents_api" | "lumalabs-api" | "lumalabs_api" => {
+            Some(RefactoredImplementationLine::LumaLabsAgentsOfficialApi)
+        }
         "lumalabs" | "luma" | "luma-labs" | "lumalabs-images" | "lumalabs_images"
         | "lumalabs-videos" | "lumalabs_videos" | "lumalabs-audio" | "lumalabs_audio" => {
             Some(RefactoredImplementationLine::LumaLabsWebReverseApi)
@@ -141,6 +172,8 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
             Some(RefactoredImplementationLine::KiroOfficialVendorApi)
         }
         "google_agent_platform_official_api"
+        | "vertex_express_api"
+        | "vertex-express-api"
         | "google-agent-platform-official-api"
         | "google-agent-platform"
         | "vertex_official_api"
@@ -167,9 +200,13 @@ pub fn line_for_adapter(adapter: &str) -> Option<RefactoredImplementationLine> {
         "qwen_web_compatible" => Some(RefactoredImplementationLine::QwenWebReverse),
         "chataibot_compatible" => Some(RefactoredImplementationLine::ChataibotWebReverse),
         "grok_compatible" => Some(RefactoredImplementationLine::GrokWebReverseApi),
+        "perplexity_web_compatible" => Some(RefactoredImplementationLine::PerplexityWebReverseApi),
         "suno_compatible" => Some(RefactoredImplementationLine::SunoWebReverseApi),
         "udio_compatible" => Some(RefactoredImplementationLine::UdioWebReverseApi),
         "lumalabs_compatible" => Some(RefactoredImplementationLine::LumaLabsWebReverseApi),
+        "lumalabs_agents_compatible" => {
+            Some(RefactoredImplementationLine::LumaLabsAgentsOfficialApi)
+        }
         "freebuff_compatible" => Some(RefactoredImplementationLine::FreeBuffWebReverseApi),
         "xfyun_websocket_compatible" => {
             Some(RefactoredImplementationLine::XfyunNativeWebSocketOfficialVendorApi)

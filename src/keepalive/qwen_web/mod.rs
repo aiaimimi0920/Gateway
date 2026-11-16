@@ -56,6 +56,10 @@ pub(super) async fn ensure_qwen_web_payload_ready(
     model: &str,
     force_refresh: bool,
 ) -> Result<ProviderAccountPayload, GatewayError> {
+    // A typed imported session has no legacy browser/profile/password recovery owner.
+    if crate::upstream::qwen::web_session::owns_payload(payload) {
+        return Ok(payload.clone());
+    }
     if !qwen_web_should_refresh(payload, force_refresh) {
         return Ok(payload.clone());
     }

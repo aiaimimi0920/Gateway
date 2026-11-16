@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button, Disclosure, Field, Notice, Select } from "@neuro/ui";
 import type { GatewayApiClient } from "../../api/client";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
@@ -69,68 +70,55 @@ export function SiteHealthWorkspace({
       ? providers.find((p) => p.id === fixedProviderId)
       : (providers.find((p) => p.id === id) ?? providers[0]);
   const providerId = String(provider?.id ?? "");
-  // A dialog already owns disclosure. Native details creates an extra content box
-  // that prevents the bounded flex body from scrolling in Chromium.
-  const Container = fixedProviderId !== undefined ? "div" : "details";
   // Remount the editor on provider switches, so validation and passwords never cross providers.
-  return (
-    <Container
-      className="nt-panel nt-site-health"
-      open={open}
-      onToggle={(event) => {
-        if (event.currentTarget instanceof HTMLDetailsElement)
-          setOpen(event.currentTarget.open);
-      }}
-    >
+  const content = open && (
+    <>
       {fixedProviderId === undefined && (
-        <summary>{t("站点健康", "Site health")}</summary>
-      )}
-      {open && (
-        <>
-          {fixedProviderId === undefined && (
-            <label className="nt-field">
-              <span>{t("站点", "Site")}</span>
-              <select
-                className="nt-select"
-                value={providerId}
-                onChange={(e) => {
-                  setId(e.target.value);
-                  setError(null);
-                }}
-              >
-                {providers.map((p) => (
-                  <option key={String(p.id)} value={String(p.id)}>
-                    {String(p.label ?? p.id)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <SiteHealthEditor
-            key={providerId}
-            {...{
-              document,
-              client,
-              managementToken,
-              locked,
-              draftDirty,
-              onSave,
-              t,
-              hasSecretAccess,
-              requestSecretAccess,
-              secretAccess,
-              configuredSecrets,
-              pendingSecrets,
-              provider,
-              providerId,
-              open,
-              error,
-              setError,
+        <Field label={t("站点", "Site")}>
+          <Select
+            value={providerId}
+            onChange={(e) => {
+              setId(e.target.value);
+              setError(null);
             }}
-          />
-        </>
+          >
+            {providers.map((p) => (
+              <option key={String(p.id)} value={String(p.id)}>
+                {String(p.label ?? p.id)}
+              </option>
+            ))}
+          </Select>
+        </Field>
       )}
-    </Container>
+      <SiteHealthEditor
+        key={providerId}
+        {...{
+          document,
+          client,
+          managementToken,
+          locked,
+          draftDirty,
+          onSave,
+          t,
+          hasSecretAccess,
+          requestSecretAccess,
+          secretAccess,
+          configuredSecrets,
+          pendingSecrets,
+          provider,
+          providerId,
+          open,
+          error,
+          setError,
+        }}
+      />
+    </>
+  );
+  // A modal already owns disclosure; keep its flex body free of an extra details box.
+  return fixedProviderId !== undefined ? <div className="nt-site-health">{content}</div> : (
+    <Disclosure className="nt-site-health" title={t("站点健康", "Site health")} open={open} onOpenChange={setOpen}>
+      {content}
+    </Disclosure>
   );
 }
 
@@ -208,9 +196,7 @@ function SiteHealthEditor({
       t={t}
       actions={
         <>
-          <button
-            type="button"
-            className="nt-btn nt-btn--outline"
+          <Button wrap
             aria-label={
               telemetry.busy
                 ? t("识别中", "Detecting")
@@ -230,24 +216,22 @@ function SiteHealthEditor({
             {telemetry.busy
               ? t("识别中", "Detecting")
               : t("立即识别", "Detect now")}
-          </button>
-          <button
-            type="button"
-            className="nt-btn nt-btn--primary"
+          </Button>
+          <Button wrap variant="primary"
             aria-label={t("保存站点策略", "Save site policy")}
             disabled={locked || telemetry.busy || !providerId}
             onClick={save}
           >
             {t("保存方案", "Save plan")}
-          </button>
+          </Button>
         </>
       }
       report={
         <>
           {(error || telemetry.error) && (
-            <div className="nt-alert nt-alert--danger" role="alert">
+            <Notice tone="danger">
               {error || telemetry.error}
-            </div>
+            </Notice>
           )}
           <SiteHealthReport
             report={telemetry.report}
@@ -262,6 +246,7 @@ function SiteHealthEditor({
         config={form.config}
         selectedId={form.selectedId}
         groups={groups}
+        disabled={locked || !providerId || !form.enabled}
         onChange={form.changeConfig}
         t={t}
       />

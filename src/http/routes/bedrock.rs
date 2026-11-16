@@ -44,14 +44,7 @@ pub async fn handle_converse(
     match run_pipeline(ctx, &state).await? {
         PipelineOutput::Json(value) => {
             let canonical_resp = openai::unpack_openai_response(&value)?;
-            Ok(Json(bedrock_converse::build_converse_success(
-                &canonical_resp.model,
-                &canonical_resp.text,
-                canonical_resp.usage.as_ref(),
-                &canonical_resp.tool_calls,
-                canonical_resp.finish_reason.as_deref(),
-            ))
-            .into_response())
+            Ok(Json(bedrock_converse::build_converse_response(&canonical_resp)).into_response())
         }
         PipelineOutput::Sse(_) => Err(GatewayError::server_error(
             "unexpected streaming response for Bedrock converse",
@@ -88,11 +81,19 @@ pub async fn handle_converse_stream(
 
     match run_pipeline(ctx, &state).await? {
         PipelineOutput::Sse(stream) => {
-            let translated =
-                bedrock_converse::translate_openai_sse_to_bedrock_eventstream_with_error(
-                    stream, model,
-                );
-            let mapped = translated.map(|item| {
+            // Native encoding already ran inside pipeline tracking; never encode a second time here.
+            let mapped = stream.map(|item| {
+                // Err has already crossed the sole tracker and fired its failure/refund callback.
+                // Encoding a terminal exception here cannot turn that outcome into a success.
+                if let Err(crate::protocol::stream_error::StreamError::Protocol(error)) = &item {
+                    match bedrock_converse::encode_native_failure(error) {
+                        Ok(Some(bytes)) => return Ok(bytes),
+                        Err(error) => {
+                            return Err(Box::new(error) as Box<dyn std::error::Error + Send + Sync>)
+                        }
+                        Ok(None) => {}
+                    }
+                }
                 item.map_err(|error| Box::new(error) as Box<dyn std::error::Error + Send + Sync>)
             });
             let body = Body::from_stream(mapped);

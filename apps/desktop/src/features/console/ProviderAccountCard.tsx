@@ -11,7 +11,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { ActionTooltip } from "../../components/ActionTooltip";
+import { ActionTooltip, Button, IconButton, Switch } from "@neuro/ui";
+import "../../styles/account-workspace-controls.css";
 import { AccountBillingAction } from "./AccountBillingAction";
 import { CardModelList } from "./CardModelList";
 import { AvailabilityHeatmap } from "./AvailabilityHeatmap";
@@ -20,9 +21,9 @@ import { AccountRoutingPoolSelect } from "./AccountRoutingPoolSelect";
 import { ProviderQuotaPanel, quotaWindowRemainingRatio } from "./accountCardQuota";
 import type {
   AccountCardGroupOption,
+  AccountCardAction,
   AccountsLedgerPilotAccount,
   ProviderAccountCardHandlers,
-  ProviderAccountCardMenu,
   QuotaDisplayWindow,
   TranslateFn,
 } from "./accountCardTypes";
@@ -51,16 +52,14 @@ export {
 } from "./accountCardQuota";
 export type {
   AccountCardGroupOption,
-  AccountCardMenuActionId,
-  AccountCardMenuItem,
+  AccountCardAction,
+  AccountCardActionId,
   AccountsLedgerPilotAccount,
   PendingCredentialRemoval,
   ProviderAccountCardHandlers,
-  ProviderAccountCardMenu,
   QuotaDisplayWindow,
   TranslateFn,
 } from "./accountCardTypes";
-export { ACCOUNT_CARD_MENU_ITEMS, useAccountCardMenu } from "./useAccountCardMenu";
 
 /**
  * The account card of the credential pool. Fixed geometry, front-only: identity
@@ -73,9 +72,9 @@ export function ProviderAccountCard(props: {
   editorLocked: boolean;
   groupOptions: readonly AccountCardGroupOption[];
   handlers: ProviderAccountCardHandlers;
-  menu: ProviderAccountCardMenu;
+  onAction: AccountCardAction;
 }) {
-  const { t, account, editorLocked, groupOptions, handlers, menu } = props;
+  const { t, account, editorLocked, groupOptions, handlers, onAction } = props;
   const accountPoolState = classifyAccountPoolState(account);
   const accountConcurrency = aggregateProviderConcurrency([account]);
   const accountCosts = aggregateProviderCosts([account]);
@@ -114,12 +113,12 @@ export function ProviderAccountCard(props: {
           <strong title={account.displayName}>{account.displayName}</strong>
         </div>
         {account.mode !== "provider-default" ? <ActionTooltip label={t(`编辑账号 ${account.displayName}`, `Edit account ${account.displayName}`)}>
-          <button className="nt-icon-action" type="button"
+          <IconButton variant="quiet" compact
             disabled={editorLocked || account.previewOnly}
-            aria-label={t(`编辑账号 ${account.displayName}`, `Edit account ${account.displayName}`)}
+            label={t(`编辑账号 ${account.displayName}`, `Edit account ${account.displayName}`)}
             onClick={() => handlers.onEdit(account.providerId, account.accountId)}>
             <Pencil size={14} aria-hidden="true" />
-          </button>
+          </IconButton>
         </ActionTooltip> : null}
         <AccountBillingAction providerId={account.providerId} accountId={account.accountId}
           name={account.displayName} locked={editorLocked || Boolean(account.previewOnly)} t={t} />
@@ -194,7 +193,7 @@ export function ProviderAccountCard(props: {
           remainingUsd={account.quotaRemainingUsd ?? null}
         />
 
-        <CardModelList models={account.supportedModels ?? []} label={account.displayName} traffic={account.modelTraffic} t={t} />
+        <CardModelList models={account.supportedModels ?? []} providerId={account.providerId} label={account.displayName} traffic={account.modelTraffic} t={t} />
 
         <div className="nt-provider-account-card__meta">
           <div className="nt-provider-account-card__groups">
@@ -220,45 +219,40 @@ export function ProviderAccountCard(props: {
         </div>
       </div>
 
-      <footer className="nt-provider-account-card__actions nt-provider-card__actions">
+      <footer className="nt-provider-account-card__actions nt-provider-card__actions nt-pool-card-actions">
         {account.mode === "provider-default" ? (
-          <button
-            className="nt-btn nt-btn--secondary nt-btn--compact"
-            type="button"
+          <Button compact wrap className="nt-pool-card-actions__wide"
             disabled={editorLocked}
             onClick={() => handlers.onAddExplicit(account.providerId)}
           >
             <Plus size={14} aria-hidden="true" />
             {t("添加显式账号", "Add explicit account")}
-          </button>
+          </Button>
         ) : (
           <>
-            <button className={`nt-provider-card__action${account.enabled ? " nt-provider-card__action--active" : ""}`}
-              type="button" role="switch" aria-checked={account.enabled}
+            <Switch checked={account.enabled}
               aria-label={t(`调度 ${account.accountId}`, `Dispatch ${account.accountId}`)}
               disabled={editorLocked || !account.dispatchEditable || account.previewOnly}
-              onClick={() => handlers.onToggleDispatch(account.providerId, account.accountId, !account.enabled)}>
-              <span className="nt-switch__track" aria-hidden="true"><span className="nt-switch__thumb" /></span>
-            </button>
-            <button className="nt-provider-card__action nt-provider-card__action--icon" type="button"
+              onChange={() => handlers.onToggleDispatch(account.providerId, account.accountId, !account.enabled)} />
+            <IconButton
               disabled={editorLocked || account.previewOnly}
-              aria-label={t(`测试账号 ${account.displayName}`, `Test account ${account.displayName}`)}
-              onClick={() => menu.onAction("probe", account.providerId, account)}>
+              label={t(`测试账号 ${account.displayName}`, `Test account ${account.displayName}`)}
+              onClick={() => onAction("probe", account.providerId, account)}>
               <Activity size={14} aria-hidden="true" />
-            </button>
-            <button className="nt-provider-card__action nt-provider-card__action--icon" type="button"
+            </IconButton>
+            <IconButton
               disabled={editorLocked || account.previewOnly}
-              aria-label={t(`模型映射 ${account.displayName}`, `Model mapping ${account.displayName}`)}
+              label={t(`模型映射 ${account.displayName}`, `Model mapping ${account.displayName}`)}
               title={t("编辑所属凭据池的模型映射", "Edit model mapping for this credential pool")}
-              onClick={() => menu.onAction("model-mapping", account.providerId, account)}>
+              onClick={() => onAction("model-mapping", account.providerId, account)}>
               <ArrowLeftRight size={14} aria-hidden="true" />
-            </button>
-            <button className="nt-provider-card__action nt-provider-card__action--icon nt-provider-card__action--danger" type="button"
+            </IconButton>
+            <IconButton variant="danger"
               disabled={editorLocked || account.previewOnly}
-              aria-label={t(`删除账号 ${account.displayName}`, `Delete account ${account.displayName}`)}
+              label={t(`删除账号 ${account.displayName}`, `Delete account ${account.displayName}`)}
               onClick={() => handlers.onRequestRemoval(account.providerId, account.accountId, account.displayName)}>
               <Trash2 size={14} aria-hidden="true" />
-            </button>
+            </IconButton>
           </>
         )}
       </footer>

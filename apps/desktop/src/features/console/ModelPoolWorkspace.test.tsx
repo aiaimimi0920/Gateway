@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { ModelPoolWorkspace, type ModelPoolWorkspaceProps } from "./ModelPoolWorkspace";
 import type { ModelPoolCard } from "./modelPoolViewModel";
+import { NeuroProvider } from "@neuro/ui";
 
 afterEach(cleanup);
 
@@ -62,7 +63,7 @@ function renderWorkspace(overrides: Partial<ModelPoolWorkspaceProps> = {}) {
     onMoveProvider: vi.fn(), onResetChain: vi.fn(), onToggleEnabled: vi.fn(),
     onEditModel: vi.fn(), onDeleteModel: vi.fn(), ...overrides,
   };
-  return { ...render(<ModelPoolWorkspace {...props} />), props, user: userEvent.setup() };
+  return { ...render(<ModelPoolWorkspace {...props} />, { wrapper: NeuroProvider }), props, user: userEvent.setup() };
 }
 
 it("renders aggregate metrics and preserves the missing-data and empty states", () => {
@@ -88,7 +89,7 @@ it("renders aggregate metrics and preserves the missing-data and empty states", 
   rerender(<ModelPoolWorkspace {...props} models={[modelCard()]} />);
   expect(within(screen.getByRole("group", { name: /unavailable/ })).getByText("No dispatch data yet")).toBeVisible();
   rerender(<ModelPoolWorkspace {...props} models={[]} />);
-  expect(screen.getByRole("heading", { name: "No models yet" })).toBeVisible();
+  expect(screen.getByText("No models yet").closest(".n-empty")).toBeVisible();
   expect(screen.queryByRole("region", { name: "Model cards" })).not.toBeInTheDocument();
 });
 
@@ -150,10 +151,10 @@ it("shares provider selection with the attached account panel and forwards chain
   await user.click(screen.getByRole("button", { name: /to reorder its chain/ }));
   await user.click(screen.getByRole("button", { name: "Move First provider down one slot" }));
   expect(props.onMoveProvider).toHaveBeenCalledExactlyOnceWith(model, "first", "down");
-  await user.click(screen.getByRole("button", { name: "First provider" }));
+  await user.click(screen.getByRole("checkbox", { name: "First provider" }));
   expect(within(panel).getByText("Filtered to 1 providers")).toBeVisible();
   expect(count()).toHaveTextContent("2");
-  await user.click(screen.getByRole("button", { name: "Second provider" }));
+  await user.click(screen.getByRole("checkbox", { name: "Second provider" }));
   expect(count()).toHaveTextContent("0");
   expect(within(panel).getByText("No accounts fall inside the selected provider scope.")).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Select all" }));

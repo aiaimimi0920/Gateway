@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 // Follow the actual flat import entry so these assertions cover the loaded cascade.
 const sourceRoot = resolve(process.cwd(), "src");
+const uiStyles = readFileSync(new URL(import.meta.resolve("@neuro/ui/styles.css")), "utf8");
+const accountControlStyles = readFileSync(resolve(sourceRoot, "styles/account-workspace-controls.css"), "utf8");
 const styles = readFileSync(resolve(sourceRoot, "styles.css"), "utf8").replace(
   /^@import "(\.\/styles\/[a-z-]+\.css)";\n/gm,
   (_statement: string, relative: string) => {
@@ -15,21 +17,17 @@ const styles = readFileSync(resolve(sourceRoot, "styles.css"), "utf8").replace(
 if (styles.includes("@import")) throw new Error("Unsupported stylesheet import");
 
 describe("Gateway Neuro theme contract", () => {
-  it("defines the canonical palette once and exposes semantic roles", () => {
-    expect(styles).toContain("--nt-color-signal-yellow: #d9ff38;");
-    expect(styles).toContain("--nt-color-signal-green: #22c55e;");
-    expect(styles).toContain("--nt-color-info-blue: #06b6d4;");
-    expect(styles).toContain("--nt-color-danger-red: #f43f5e;");
-    expect(styles).toContain("--nt-color-background: #06080d;");
-    expect(styles).toContain("--nt-color-surface: #090c11;");
-    expect(styles).toContain("--nt-color-panel: #0e1218;");
-    expect(styles).toContain("--nt-color-control: #111720;");
-    expect(styles).toContain("--nt-color-control-hover: #18222c;");
-    expect(styles).toContain("--nt-color-text: #f7f8ef;");
-    expect(styles).toContain("--nt-color-text-muted: #929a9f;");
-    expect(styles).toContain("--nt-success: var(--nt-color-signal-green);");
-    expect(styles).toContain("--nt-info: var(--nt-color-info-blue);");
-    expect(styles).toContain("--nt-danger: var(--nt-color-danger-red);");
+  it("maps application roles to the standard Provider palette without copying it", () => {
+    const foundation = readFileSync(resolve(sourceRoot, "styles/foundation.css"), "utf8");
+    const providerAliases = foundation.match(/\.neuro-root\s*\{([^}]+)\}/)?.[1];
+    expect(providerAliases).toBeDefined();
+    for (const [application, standard] of [["color-background", "bg"], ["color-surface", "surface"], ["color-panel", "panel"], ["color-control", "control"], ["color-control-hover", "control-hover"], ["text", "text"], ["text-muted", "muted"], ["signal", "signal"], ["success", "success"], ["info", "info"], ["danger", "danger"], ["border", "line"], ["rail", "rail"], ["hover", "hover"], ["shadow-surface", "shadow"]]) {
+      expect(providerAliases).toContain(`--nt-${application}: var(--n-${standard});`);
+    }
+    expect(foundation).not.toMatch(/#[a-f\d]{3,8}\b/i);
+    expect(foundation.match(/:root\s*\{([^}]+)\}/)?.[1]).not.toMatch(/var\(--n-/);
+    expect(foundation).toContain("background: Canvas;");
+    expect(styles).not.toMatch(/--nt-color-(?:signal|info|danger|text|rail|shadow)/);
   });
 
   it("does not restore legacy purple accents or decorative radial gradients", () => {
@@ -38,25 +36,36 @@ describe("Gateway Neuro theme contract", () => {
     expect(styles).not.toContain("radial-gradient(");
   });
 
-  it("keeps status components bound to semantic aliases", () => {
-    expect(styles).toMatch(/\.nt-badge--success\s*\{[^}]*var\(--nt-success-soft\)/s);
-    expect(styles).toMatch(/\.nt-badge--warning\s*\{[^}]*var\(--nt-warning-soft\)/s);
-    expect(styles).toMatch(/\.nt-badge--danger\s*\{[^}]*var\(--nt-danger-soft\)/s);
-    expect(styles).toMatch(/\.nt-alert--success\s*\{[^}]*var\(--nt-success-soft\)/s);
-    expect(styles).toMatch(/\.nt-alert--danger\s*\{[^}]*var\(--nt-danger-soft\)/s);
-    expect(styles).toMatch(
-      /\.nt-filter-count\s*\{[^}]*border: 1px solid var\(--nt-border-strong\);[^}]*border-radius: var\(--nt-radius-md\);[^}]*background: var\(--nt-signal-soft\);/s,
-    );
+  it("leaves standard focus, reduced motion and group-picker appearance in the package", () => {
+    const picker = readFileSync(resolve(sourceRoot, "styles/account-routing-pool-select.css"), "utf8");
+    expect(picker).toMatch(/width: 112px;[\s\S]*min-width: 0;/);
+    expect(picker).not.toMatch(/background:|color:|font-size:|outline:|opacity:|padding:|cursor:/);
+    expect(styles).not.toContain(".nt-key-manager :focus-visible");
+    expect(styles).not.toMatch(/button:focus-visible,\s*input:focus-visible/);
+    expect(styles).not.toMatch(/animation-duration: 0\.01ms|scroll-behavior: auto !important/);
+    expect(uiStyles).toContain("@media (forced-colors: active)");
+    expect(uiStyles).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(styles).not.toContain(".nt-pilot-menu");
+    expect(styles).not.toContain(".nt-provider-account-card__stats");
+    expect(styles).not.toMatch(/\.nt-entitlement-group-card__action(?:[\s:{.\[-]|$)/);
   });
 
-  it("loads the canonical layer after the base responsive rules", () => {
+  it("keeps status components bound to semantic aliases", () => {
+    expect(uiStyles).toMatch(/\.n-tone-success\s*\{[^}]*--n-tone: var\(--n-success\)/);
+    expect(uiStyles).toMatch(/\.n-tone-warning\s*\{[^}]*--n-tone: var\(--n-signal\)/);
+    expect(uiStyles).toMatch(/\.n-tone-danger\s*\{[^}]*--n-tone: var\(--n-danger\)/);
+    expect(styles).not.toMatch(/\.nt-alert(?:[\s.{:#-]|$)|\.nt-validation-list(?:[\s.{:#-]|$)/);
+    expect(uiStyles).toMatch(/\.n-notice\s*\{[^}]*border-left: 2px solid var\(--n-tone\)/);
+  });
+
+  it("loads application surface rules after the base responsive rules", () => {
     const baseMobileIndex = styles.indexOf("@media (max-width: 720px)");
-    const canonicalLayerIndex = styles.indexOf("/* Canonical Neuro theme layer.");
+    const canonicalLayerIndex = styles.indexOf("/* Application shell and card surfaces");
 
     expect(baseMobileIndex).toBeGreaterThan(-1);
     expect(canonicalLayerIndex).toBeGreaterThan(baseMobileIndex);
-    expect(styles).toContain("@media (min-width: 721px) and (max-width: 1200px)");
-    expect(styles).toContain(".nt-provider-account-table {\n    min-width: 980px;");
+    expect(styles).not.toContain(".nt-provider-account-table");
+    expect(uiStyles).toMatch(/\.n-table-scroll\s*\{[^}]*overflow: auto;[^}]*overscroll-behavior: contain;/);
   });
 
   it("uses flippable entitlement cards with attached account expansion", () => {
@@ -75,37 +84,24 @@ describe("Gateway Neuro theme contract", () => {
     expect(styles).toMatch(
       /\.nt-entitlement-group-card__accounts--attached\s*\{[^}]*grid-column: 1 \/ -1;/,
     );
-    expect(styles).toMatch(
-      /@media \(min-width: 1201px\)[\s\S]*\.nt-group-members\s*\{[^}]*max-height: min\(56vh, 620px\);[^}]*overflow: auto;/,
-    );
-    expect(styles).toMatch(
-      /\.nt-group-panel--members\s*\{[^}]*border-top: 1px solid var\(--nt-border\);[^}]*background: transparent;/,
-    );
+    expect(uiStyles).toMatch(/\.n-table thead th\s*\{[^}]*position: sticky;[^}]*background: var\(--n-surface\);/);
   });
 
   it("uses compact semantic tooltips and a visually hidden workspace heading", () => {
-    expect(styles).toMatch(
-      /\.nt-tooltip\s*\{[^}]*background: var\(--nt-color-focus-surface\);[^}]*color: var\(--nt-color-focus-ink\);/,
-    );
+    expect(uiStyles).toMatch(/\.n-tooltip\s*\{[^}]*color: var\(--n-tooltip-ink\);[^}]*background: var\(--n-tooltip-bg\);/);
     expect(styles).toMatch(
       /\.nt-visually-hidden\s*\{[^}]*width: 1px;[^}]*clip-path: inset\(50%\);/,
     );
-    expect(styles).toMatch(/\.nt-workspace-toolbar\s*\{[^}]*padding: 14px 16px;/);
+    expect(uiStyles).toMatch(/\.n-toolbar\s*\{[^}]*display: flex;[^}]*flex-wrap: wrap;/);
   });
 
-  it("keeps draft actions reachable without making the mobile bar sticky", () => {
-    expect(styles).toMatch(
-      /\.nt-workspace-action-bar\s*\{[^}]*position: sticky;[^}]*top: 0;[^}]*background: color-mix\(in srgb, var\(--nt-color-panel\) 94%, transparent\);/,
-    );
-    expect(styles).toMatch(
-      /@media \(max-width: 720px\)[\s\S]*\.nt-workspace-action-bar\s*\{[^}]*position: static;[^}]*flex-direction: column;/,
-    );
+  it("keeps the current autosave status and standard actions reachable", () => {
+    expect(styles).toMatch(/\.nt-console-autosave\s*\{[^}]*min-height: 36px;[^}]*background: transparent;/);
+    expect(accountControlStyles).toMatch(/\.nt-pool-card-actions > :is\(\.n-button, \.n-switch\)\s*\{[^}]*min-width: 0;/);
   });
 
   it("uses compact controls and bounded responsive navigation", () => {
-    expect(styles).toMatch(
-      /\.nt-input,[\s\S]*\.nt-textarea\s*\{[^}]*border-radius: var\(--nt-radius-md\);[^}]*padding: 10px 12px;[^}]*background: var\(--nt-color-control\);/,
-    );
+    expect(uiStyles).toMatch(/\.n-input\s*\{[^}]*min-height: 36px;[^}]*padding: 10px 12px;[^}]*background: var\(--n-control\);/);
     expect(styles).toMatch(
       /\.nt-entitlement-account-grid\s*\{[^}]*grid-template-columns: repeat\(auto-fill, 240px\);[^}]*justify-content: start;/,
     );
@@ -141,11 +137,10 @@ describe("Gateway Neuro theme contract", () => {
 
   it("truncates long provider titles on both faces without growing the header", () => {
     expect(/\.nt-provider-card__inner\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/.test(styles)).toBe(true);
-    expect(/\.nt-provider-card__front-head \.nt-provider-tree-item__main\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/.test(styles)).toBe(true);
-    expect(/\.nt-provider-card__front-head \.nt-provider-card__title,\s*\.nt-provider-card__back-title\s*\{[^}]*min-width: 0;[^}]*max-width: 100%;/.test(styles)).toBe(true);
-    expect(styles).toMatch(
-      /\.nt-provider-card__front-head \.nt-provider-card__title strong,\s*\.nt-provider-card__back-title strong\s*\{[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/,
-    );
+    expect(accountControlStyles).toMatch(/\.nt-pool-card-title\s*\{[^}]*min-width: 0;[^}]*max-width: 100%;/);
+    expect(styles).toMatch(/\.nt-provider-card__back-title\s*\{[^}]*min-width: 0;[^}]*max-width: 100%;/);
+    expect(accountControlStyles).toMatch(/\.nt-pool-card-title__text strong\s*\{[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/);
+    expect(styles).toMatch(/\.nt-provider-card__back-title strong\s*\{[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/);
   });
 
   it("starts the progress section directly below the fixed front header", () => {
@@ -153,15 +148,14 @@ describe("Gateway Neuro theme contract", () => {
     expect(styles).toMatch(/\.nt-provider-card__front-body\s*\{[^}]*padding: 0 12px 12px;/);
   });
 
-  it("owns routing-pool popup, hover and selected colors instead of native option highlighting", () => {
-    expect(styles).toMatch(/\.nt-provider-account-card__group-select\s*\{[^}]*background: var\(--nt-color-control\);[^}]*color: var\(--nt-text\);/);
-    expect(styles).toMatch(/\.nt-account-routing-pool-select__popup\s*\{[^}]*background: var\(--nt-color-control\);[^}]*color: var\(--nt-text\);/);
-    expect(styles).toMatch(/\.nt-account-routing-pool-select__item\[data-highlighted\]\s*\{[^}]*background: var\(--nt-color-control-hover\);/);
-    expect(styles).toMatch(/\.nt-account-routing-pool-select__item\[data-state="checked"\]\s*\{[^}]*background: var\(--nt-signal-soft\);[^}]*color: var\(--nt-signal\);/);
+  it("uses the shared routing-pool popup colors instead of native option highlighting", () => {
+    expect(uiStyles).toMatch(/\.n-popup-select\s*\{[^}]*color: var\(--n-text\);[^}]*background: var\(--n-panel\);/);
+    expect(uiStyles).toMatch(/\.n-popup-select-option\[data-highlighted\]\s*\{[^}]*background: var\(--n-hover\);/);
+    expect(uiStyles).toMatch(/\.n-popup-select-option\[data-state="checked"\]\s*\{[^}]*color: var\(--n-signal\);[^}]*background: var\(--n-signal-soft\);/);
   });
 
   it("keeps provider pools as narrow as account cards instead of widening with the window", () => {
-    expect(styles).toMatch(/\.nt-provider-card-grid\s*\{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 292px\), 292px\)\);[^}]*justify-content: start;/);
+    expect(styles).toMatch(/\.nt-provider-card-grid\s*\{[^}]*--nt-provider-grid-card-width: 292px;[^}]*grid-template-columns: repeat\(var\(--nt-provider-grid-columns, auto-fill\), minmax\(min\(100%, var\(--nt-provider-grid-card-width\)\), var\(--nt-provider-grid-card-width\)\)\);[^}]*justify-content: safe center;/);
     expect(styles).toMatch(/\.nt-provider-card\s*\{[^}]*max-width: 292px;/);
     expect(styles).toMatch(/\.nt-provider-account-card\s*\{[^}]*width: 292px;/);
   });
@@ -169,7 +163,12 @@ describe("Gateway Neuro theme contract", () => {
   it("shares the provider face grid track and fits client controls beside site health", () => {
     expect(styles).toMatch(/\.nt-provider-card__face\s*\{[^}]*grid-area: 1 \/ 1;[^}]*min-height: 100%;/);
     expect(styles).toMatch(/\.nt-provider-lifecycle__pair,[\s\S]*?\.nt-provider-lifecycle__metrics\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(styles).toMatch(/\.nt-provider-lifecycle__client-row \.nt-field\s*\{[^}]*display: flex;[^}]*align-items: center;/);
-    expect(styles).toMatch(/\.nt-provider-lifecycle__client-row \.nt-select\s*\{[^}]*min-width: 0;[^}]*height: 30px;[^}]*min-height: 30px;/);
+    expect(styles).toMatch(/\.nt-provider-lifecycle__client-row \.n-field\s*\{[^}]*display: flex;[^}]*align-items: center;/);
+    expect(styles).toMatch(/\.nt-provider-lifecycle__client-row \.n-select\s*\{[^}]*flex: 1;[^}]*min-width: 0;/);
+  });
+
+  it("does not retain retired primitive skins or their toast animations", () => {
+    expect(styles).not.toMatch(/\.(?:nt-btn|nt-input|nt-select|nt-textarea|nt-badge|nt-chip|nt-switch|nt-toast)(?:[\s.:>#\[,-]|\{)/);
+    expect(styles).not.toMatch(/@keyframes nt-toast-(?:enter|exit)/);
   });
 });

@@ -39,6 +39,7 @@ export type AccountsLedgerPilotSection = {
   providerLabel: string;
   vendorLabel: string;
   providerPreset: string | null;
+  authMode?: string | null;
   adapter: string | null;
   protocolProfile: string | null;
   hostLabel: string | null;

@@ -266,6 +266,12 @@ fn select_credential_filtered(
         .enumerate()
         .filter(|(_, credential)| credential.enabled && !credential.discovery_required)
         .filter(|(_, credential)| {
+            credential
+                .refresh_config
+                .as_ref()
+                .is_none_or(|owner| owner.is_routing_active())
+        })
+        .filter(|(_, credential)| {
             allowed_account_ids.is_none_or(|allowed| allowed.contains(&credential.id))
         })
         .map(|(index, _)| index)
@@ -385,14 +391,24 @@ pub(super) fn has_model_eligible_oauth_credential(
 pub(super) fn apply_token_override(cred: &CompiledCredential) -> ProviderAccountPayload {
     let mut payload = cred.payload.clone();
     if let Some(ref config) = cred.refresh_config {
-        let (override_key, expiry) = config.runtime_override();
+        if let Some((access, context, generation)) = config.lobster_dispatch_snapshot() {
+            payload.api_key = access;
+            crate::protocol::lobsterai::metadata::update(&mut payload, &context, generation);
+            return payload;
+        }
+
+        let (override_key, expiry, target) = config.runtime_dispatch_override();
         if let Some(override_key) = override_key {
             payload.api_key = override_key;
         }
         if let Some(expiry) = expiry {
+            payload.expires_at = Some(expiry.clone());
             if let Some(session_auth) = payload.session_auth.as_mut() {
                 session_auth.expires_at = Some(expiry);
             }
+        }
+        if let Some(target) = target {
+            payload.base_url = target.into();
         }
     }
     payload
@@ -433,7 +449,7 @@ fn provider_to_candidate(
     //
     // Example 1 — xfyun-maas: user requests "hunyuan-mt-7b", model_map → "xophunyuan7bmt",
     //   credential lists "xophunyuan7bmt" → matches via translated name.
-    let (upstream_model, selected_payload) =
+    let (upstream_model, mut selected_payload) =
         if let Some(model) = model.filter(|m| p.model_map_targets.contains_key(*m)) {
             let (mapped, payload) = model_mapping::select_mapped_payload_filtered(
                 p,
@@ -457,6 +473,21 @@ fn provider_to_candidate(
                 )?,
             )
         };
+    let dim_family = if crate::protocol::dim_oauth::business::owns_payload(&selected_payload) {
+        let catalog = p
+            .credential_pool
+            .iter()
+            .find(|c| Some(c.id.as_str()) == selected_payload.credential_id.as_deref())?
+            .dim_catalog
+            .as_ref()?;
+        let (effective, family) = catalog
+            .project(&selected_payload, upstream_model.as_deref()?)
+            .ok()?;
+        selected_payload = effective;
+        Some(family)
+    } else {
+        None
+    };
     let resolved_execution_mode = selected_payload
         .resolve_execution_mode(crate::protocol::canonical::EndpointKind::ChatCompletions);
     let discovery = p
@@ -464,7 +495,8 @@ fn provider_to_candidate(
         .iter()
         .find(|c| Some(c.id.as_str()) == selected_payload.credential_id.as_deref())
         .and_then(|c| c.discovery.as_ref());
-    let family = discovery.map(|d| d.family()).unwrap_or(&p.protocol_family);
+    let family =
+        dim_family.unwrap_or_else(|| discovery.map(|d| d.family()).unwrap_or(&p.protocol_family));
 
     Some(RouteCandidate {
         provider_account_id: p.id.clone(),
@@ -472,8 +504,13 @@ fn provider_to_candidate(
         label: p.label.clone(),
         adapter: selected_payload.adapter.clone(),
         protocol_family: family.to_owned(),
-        protocol_profile: super::probe_identity::effective_protocol_profile(p, discovery),
-        supported_protocol_families: if selected_payload.call_flow.is_some_and(|flow| {
+        protocol_profile: dim_family
+            .map(crate::protocol::dim_oauth::runtime::protocol_profile)
+            .map(str::to_owned)
+            .unwrap_or_else(|| super::probe_identity::effective_protocol_profile(p, discovery)),
+        supported_protocol_families: if dim_family.is_some() {
+            vec![family.to_owned()]
+        } else if selected_payload.call_flow.is_some_and(|flow| {
             flow.special_adapter == crate::protocol::call_flow::SpecialAdapter::FlowmusicWeb
         }) {
             vec![crate::protocol::registry::PRODUCER_MUSIC_FAMILY.to_string()]
@@ -483,6 +520,11 @@ fn provider_to_candidate(
                 .iter()
                 .map(|c| c.protocol.family().to_owned())
                 .collect()
+        } else if let Some(families) = crate::protocol::commandcode::catalog::families(
+            &selected_payload,
+            upstream_model.as_deref(),
+        ) {
+            families
         } else {
             surface_supported_wire_protocol_families(&selected_payload.adapter, family)
         },

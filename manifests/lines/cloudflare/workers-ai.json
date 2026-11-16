@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "cloudflare-workers-ai",
+  "identity": {
+    "serviceProviderKey": "cloudflare", "serviceProviderLabel": "Cloudflare",
+    "providerSurfaceKey": "cloudflare-workers-ai", "providerSurfaceLabel": "Workers AI",
+    "protocolProfile": "cloudflare_workers_ai", "implementationLine": "official_vendor_api", "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api", "executionMode": "direct_http", "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation", "models", "embeddings"], "supportsModelsEndpoint": true },
+  "credentials": {
+    "materialKinds": ["api_key"], "samplePath": "docs/providers/examples/cloudflare-workers-ai.routes.sample.json",
+    "fieldsDocPath": "docs/providers/magpie-expansion-2026-11-08.md"
+  },
+  "docs": { "overviewDocPath": "docs/providers/magpie-expansion-2026-11-08.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "cloudflare-workers-ai-verify", "focusedCargoFilters": ["cloudflare"],
+    "fixtureSuiteId": "cloudflare_fixture", "liveSuiteId": "cloudflare_live_pending", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-cloudflare-workers-ai",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"], "binaryInclusionGroup": "cloudflare-workers-ai"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/cloudflare_workers_ai.rs", "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/routing/config/cloudflare_workers_ai.rs"
+  }
+}

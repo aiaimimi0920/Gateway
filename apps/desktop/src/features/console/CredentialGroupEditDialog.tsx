@@ -1,5 +1,4 @@
-import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { Button, Dialog, Notice, type DialogProps } from "@neuro/ui";
 import { type FormEventHandler, useRef } from "react";
 
 import { CredentialGroupEditor } from "./CredentialGroupEditor";
@@ -26,11 +25,10 @@ type CredentialGroupEditDialogProps = Pick<
   | "onToggleMember"
 > & {
   group: NonNullable<CredentialGroupsWorkspaceProps["selectedGroup"]>;
-  onRestoreFocus(): void;
+  resolveReturnFocus?: DialogProps["resolveReturnFocus"];
   onClose(): void;
   open?: boolean;
   onCreate?: FormEventHandler<HTMLFormElement>;
-  onCaptureFocus?: () => void;
   groupIdError?: string;
 };
 
@@ -39,81 +37,55 @@ export function CredentialGroupEditDialog({
   t, notice, error, group, editorLocked, selectedGroupIdInvalid,
   selectedGroupBillingInvalid, memberCandidates, memberQuery, memberMode,
   onUpdateField, onToggleEnabled, onRemoveGroup, onMemberQueryChange,
-  onMemberModeChange, onToggleMember, onRestoreFocus, onClose,
-  open = true, onCreate, onCaptureFocus, groupIdError,
+  onMemberModeChange, onToggleMember, resolveReturnFocus, onClose,
+  open = true, onCreate, groupIdError,
 }: CredentialGroupEditDialogProps) {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const groupIdInputRef = useRef<HTMLInputElement>(null);
+  const fieldError = selectedGroupIdInvalid ? groupIdError ?? t("分组 ID 必须填写。", "Group ID is required.")
+    : selectedGroupBillingInvalid ? t("分组计费倍率必须是大于等于 0 的数字。", "Group billing multiplier must be a number greater than or equal to 0.") : undefined;
 
   return (
-    <Dialog.Root open={open} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content
-          asChild
-          className="dialog-content nt-group-edit-dialog"
-          onOpenAutoFocus={(event) => {
-            onCaptureFocus?.();
-            if (!editorLocked) {
-              event.preventDefault();
-              (onCreate ? groupIdInputRef : nameInputRef).current?.focus();
-            }
-          }}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            onRestoreFocus();
-          }}
-        >
-          <form onSubmit={(event) => { event.preventDefault(); onCreate?.(event); }} noValidate>
-          <div className="nt-group-edit-dialog__head">
-            <Dialog.Title>{onCreate ? t("添加分组", "Add group") : t("编辑权益组", "Edit entitlement group")}</Dialog.Title>
-            <Dialog.Close asChild>
-              <button className="nt-icon-action" type="button" aria-label={t("关闭", "Close")}>
-                <X size={16} aria-hidden="true" />
-              </button>
-            </Dialog.Close>
-          </div>
-          <Dialog.Description className="nt-visually-hidden">
-            {onCreate ? t("填写分组信息与成员，确认后创建。", "Set group details and members, then confirm to create.") : t("编辑分组信息与成员，修改自动保存。", "Edit group details and members. Changes save automatically.")}
-          </Dialog.Description>
-          <div className="nt-group-edit-dialog__body">
-            {notice}
-            {error ? <div className="nt-alert nt-alert--danger" role="alert">{error}</div> : null}
-            <CredentialGroupEditor
-              t={t}
-              group={group}
-              nameInputRef={nameInputRef}
-              groupIdInputRef={groupIdInputRef}
-              creating={Boolean(onCreate)}
-              groupIdError={groupIdError}
-              editorLocked={editorLocked}
-              selectedGroupIdInvalid={selectedGroupIdInvalid}
-              selectedGroupBillingInvalid={selectedGroupBillingInvalid}
-              onUpdateField={onUpdateField}
-              onToggleEnabled={onToggleEnabled}
-              onRemoveGroup={onRemoveGroup}
-            />
-            <CredentialGroupMembersPanel
-              t={t}
-              group={group}
-              editorLocked={editorLocked}
-              candidates={memberCandidates}
-              query={memberQuery}
-              mode={memberMode}
-              onQueryChange={onMemberQueryChange}
-              onModeChange={onMemberModeChange}
-              onToggleMember={onToggleMember}
-            />
-          </div>
-          <div className="dialog-actions">
-            <Dialog.Close asChild>
-              <button className={onCreate ? "nt-btn nt-btn--outline" : "nt-btn nt-btn--primary"} type="button">{onCreate ? t("取消", "Cancel") : t("完成", "Done")}</button>
-            </Dialog.Close>
-            {onCreate ? <button className="nt-btn nt-btn--primary" type="submit" disabled={editorLocked}>{t("创建分组", "Create group")}</button> : null}
-          </div>
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open={open} onOpenChange={(open) => { if (!open) onClose(); }}
+      title={onCreate ? t("添加分组", "Add group") : t("编辑权益组", "Edit entitlement group")}
+      closeLabel={t("关闭", "Close")} className="nt-group-edit-dialog"
+      initialFocusRef={onCreate ? groupIdInputRef : nameInputRef}
+      resolveReturnFocus={resolveReturnFocus}>
+      <form onSubmit={(event) => { event.preventDefault(); onCreate?.(event); }} noValidate>
+        <div className="nt-group-edit-dialog__body">
+          {notice}
+          {error && error !== fieldError ? <Notice tone="danger">{error}</Notice> : null}
+          <CredentialGroupEditor
+            t={t}
+            group={group}
+            nameInputRef={nameInputRef}
+            groupIdInputRef={groupIdInputRef}
+            creating={Boolean(onCreate)}
+            groupIdError={groupIdError}
+            editorLocked={editorLocked}
+            selectedGroupIdInvalid={selectedGroupIdInvalid}
+            selectedGroupBillingInvalid={selectedGroupBillingInvalid}
+            onUpdateField={onUpdateField}
+            onToggleEnabled={onToggleEnabled}
+            onRemoveGroup={onRemoveGroup}
+          />
+          <CredentialGroupMembersPanel
+            t={t}
+            group={group}
+            editorLocked={editorLocked}
+            candidates={memberCandidates}
+            query={memberQuery}
+            mode={memberMode}
+            onQueryChange={onMemberQueryChange}
+            onModeChange={onMemberModeChange}
+            onToggleMember={onToggleMember}
+          />
+        </div>
+        <div className="n-dialog-actions">
+          <Button variant={onCreate ? "secondary" : "primary"} onClick={onClose}>{onCreate ? t("取消", "Cancel") : t("完成", "Done")}</Button>
+          {onCreate ? <Button variant="primary" type="submit" disabled={editorLocked}>{t("创建分组", "Create group")}</Button> : null}
+        </div>
+      </form>
+    </Dialog>
   );
 }

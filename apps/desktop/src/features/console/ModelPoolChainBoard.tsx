@@ -9,6 +9,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useState } from "react";
+import { Badge, Button, Checkbox, EmptyState, IconButton } from "@neuro/ui";
 
 import { ScopePager } from "./EntitlementGroupScopeBoard";
 import type { ModelPoolProviderLink } from "./modelPoolViewModel";
@@ -20,11 +21,7 @@ import {
 
 type TranslateFn = (zh: string, en: string) => string;
 
-/**
- * The chain pages instead of scrolling: the card face is a fixed height and the
- * standing rule is that no card ever grows a scrollbar, so a model served by a
- * dozen providers walks through pages at a stable height.
- */
+/** Bound mounted links; the fixed card face scrolls locally for larger text. */
 const CHAIN_LINKS_PER_PAGE = 4;
 
 export type ModelPoolChainBoardProps = {
@@ -47,7 +44,7 @@ export type ModelPoolChainBoardProps = {
  * The model card back: the provider fallback chain, first link tried first. The
  * operator reorders links with the arrow buttons, and selecting links narrows
  * the account panel below the card the same way the entitlement group card's
- * provider tabs do.
+ * provider choices do.
  */
 export function ModelPoolChainBoard({
   t,
@@ -93,17 +90,18 @@ export function ModelPoolChainBoard({
               {selectedCount}/{chain.length}
             </span>
             {chain.length > 1 ? (
-              <button
-                className="nt-entitlement-scope__band-action"
-                type="button"
+              <Button variant="quiet" compact
                 onClick={() =>
                   onDeselectedProviderIdsChange(
                     allSelected ? chain.map((link) => link.providerId) : [],
                   )
                 }
               >
-                {allSelected ? t("清空", "Clear") : t("全选", "Select all")}
-              </button>
+                <span className="nt-entitlement-scope__action-label">
+                  <span style={{ visibility: allSelected ? "visible" : "hidden" }} aria-hidden={!allSelected}>{t("清空", "Clear")}</span>
+                  <span style={{ visibility: allSelected ? "hidden" : "visible" }} aria-hidden={allSelected}>{t("全选", "Select all")}</span>
+                </span>
+              </Button>
             ) : null}
           </span>
         </header>
@@ -125,7 +123,7 @@ export function ModelPoolChainBoard({
                     data-model-chain-provider={link.providerId}
                     data-model-chain-rank={chainIndex + 1}
                   >
-                    <div className="nt-entitlement-scope__model-head">
+                    <div className="nt-model-chain__head">
                       <span
                         className="nt-model-chain__order"
                         aria-hidden="true"
@@ -137,22 +135,36 @@ export function ModelPoolChainBoard({
                       >
                         {chainIndex + 1}
                       </span>
-                      <button
+                      <Checkbox
                         className="nt-model-chain__label"
-                        type="button"
-                        aria-pressed={selected}
+                        checked={selected}
+                        label={link.providerLabel}
                         title={t(
                           `${link.providerLabel}，${link.enabledAccountCount}/${link.accountCount} 个可用账号`,
                           `${link.providerLabel}, ${link.enabledAccountCount}/${link.accountCount} accounts available`,
                         )}
-                        onClick={() => toggleProvider(link.providerId)}
-                      >
-                        <strong>{link.providerLabel}</strong>
-                      </button>
+                        onChange={() => toggleProvider(link.providerId)}
+                      />
+                      <span className="nt-model-chain__moves">
+                        <IconButton variant="quiet" compact
+                          disabled={editorLocked || chainIndex <= 0}
+                          title={t("上移一位", "Move up one slot")}
+                          label={t(`将 ${link.providerLabel} 上移一位`, `Move ${link.providerLabel} up one slot`)}
+                          onClick={() => onMoveProvider(link.providerId, "up")}
+                        ><ArrowUp size={13} aria-hidden="true" /></IconButton>
+                        <IconButton variant="quiet" compact
+                          disabled={editorLocked || chainIndex >= chain.length - 1}
+                          title={t("下移一位", "Move down one slot")}
+                          label={t(`将 ${link.providerLabel} 下移一位`, `Move ${link.providerLabel} down one slot`)}
+                          onClick={() => onMoveProvider(link.providerId, "down")}
+                        ><ArrowDown size={13} aria-hidden="true" /></IconButton>
+                      </span>
+                    </div>
+                    <div className="nt-model-chain__status">
                       {link.detached ? (
-                        <span className="nt-model-chain__detached">
+                        <Badge tone="warning">
                           {t("无账号", "No accounts")}
-                        </span>
+                        </Badge>
                       ) : null}
                       <span
                         className="nt-entitlement-scope__model-concurrency"
@@ -167,34 +179,6 @@ export function ModelPoolChainBoard({
                             ? `${link.metrics.concurrency.used}/${link.metrics.concurrency.total ?? "—"}`
                             : "—"}
                         </span>
-                      </span>
-                      <span className="nt-model-chain__moves">
-                        <button
-                          className="nt-icon-action"
-                          type="button"
-                          disabled={editorLocked || chainIndex <= 0}
-                          title={t("上移一位", "Move up one slot")}
-                          aria-label={t(
-                            `将 ${link.providerLabel} 上移一位`,
-                            `Move ${link.providerLabel} up one slot`,
-                          )}
-                          onClick={() => onMoveProvider(link.providerId, "up")}
-                        >
-                          <ArrowUp size={13} aria-hidden="true" />
-                        </button>
-                        <button
-                          className="nt-icon-action"
-                          type="button"
-                          disabled={editorLocked || chainIndex >= chain.length - 1}
-                          title={t("下移一位", "Move down one slot")}
-                          aria-label={t(
-                            `将 ${link.providerLabel} 下移一位`,
-                            `Move ${link.providerLabel} down one slot`,
-                          )}
-                          onClick={() => onMoveProvider(link.providerId, "down")}
-                        >
-                          <ArrowDown size={13} aria-hidden="true" />
-                        </button>
                       </span>
                     </div>
                     <dl className="nt-entitlement-scope__model-metrics">
@@ -303,9 +287,7 @@ export function ModelPoolChainBoard({
             />
           </>
         ) : (
-          <p className="nt-entitlement-scope__empty">
-            {t("暂无服务商支持这个模型", "No provider serves this model yet")}
-          </p>
+          <EmptyState compact title={t("暂无服务商支持这个模型", "No provider serves this model yet")} />
         )}
       </section>
     </div>

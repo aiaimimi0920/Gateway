@@ -68,6 +68,7 @@ export function useConsoleCredentialSelectors({
               providerLabel: displayLabel(optionalString(provider, "label") ?? id),
               adapter: optionalString(provider, "adapter"),
               protocolProfile: optionalString(provider, "protocol_profile"),
+              authMode: optionalString(provider, "auth_mode"),
             }),
           },
         ];

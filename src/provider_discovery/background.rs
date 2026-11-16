@@ -36,7 +36,11 @@ pub(crate) fn schedule(state: &Arc<AppState>) {
     let weak = Arc::downgrade(state);
     let wake = worker.wake.clone();
     let shutdown = state.shutdown.clone();
-    tokio::spawn(run(weak, wake, shutdown));
+    state.lifecycle.background_tasks.spawn(
+        crate::runtime::background_tasks::Worker::Discovery,
+        &state.shutdown,
+        run(weak, wake, shutdown),
+    );
 }
 
 struct Target {
@@ -92,6 +96,7 @@ async fn run(
     let mut completed: Option<(Target, Option<CredentialDiscovery>)> = None;
     loop {
         tokio::select! {
+            biased;
             _ = shutdown.wait() => return,
             _ = wake.notified() => {},
         }
@@ -106,6 +111,7 @@ async fn run(
                     break;
                 };
                 let slot = tokio::select! {
+                    biased;
                     _ = shutdown.wait() => return,
                     slot = SLOTS.acquire() => slot,
                 };
@@ -113,6 +119,7 @@ async fn run(
                     return;
                 };
                 let result = tokio::select! {
+                    biased;
                     _ = shutdown.wait() => return,
                     result = discover_current(&state, &target, &wake) => result,
                 };

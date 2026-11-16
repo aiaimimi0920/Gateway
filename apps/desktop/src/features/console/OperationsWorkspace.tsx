@@ -1,16 +1,12 @@
-import * as Tabs from "@radix-ui/react-tabs";
-import { useRef, useState } from "react";
+import { Button, Dialog } from "@neuro/ui";
 import {
   type OperationsWorkspaceProps,
-  type OperationsSectionId,
   type OperationsRequestFilterDraft,
 } from "./operations-contracts";
-import { OperationsNavigation } from "./OperationsNavigation";
-import { OperationsCurrentIssues } from "./OperationsCurrentIssues";
-import { OperationsLivePanels } from "./OperationsLivePanels";
 import { OperationsRequestPanels } from "./OperationsRequestPanels";
 import { OperationsAnomalyPanels } from "./OperationsAnomalyPanels";
 import { DEFAULT_OPERATIONS_LIST_VIEW, requestRowMetadata, selectOperationsRows } from "./operationsListView";
+import { databaseOperationsAvailability } from "./operationsAvailability";
 import "./OperationsWorkspace.css";
 
 export { OPERATIONS_DEFAULT_REQUEST_FILTERS } from "./operations-contracts";
@@ -54,56 +50,20 @@ export function OperationsWorkspace({
   onAcknowledgeIncident,
   onResolveIncident,
 }: OperationsWorkspaceProps) {
-  const [section, setSection] = useState<OperationsSectionId>("live");
-  const requestsTabRef = useRef<HTMLButtonElement>(null);
-  const openRequests = () => {
-    setSection("requests");
-    // The source button unmounts; keep keyboard focus at the destination.
-    requestsTabRef.current?.focus();
-  };
-
   const patchFilters = (patch: Partial<OperationsRequestFilterDraft>) => {
     onRequestFiltersChange({ ...requestFilters, ...patch });
   };
 
   return (
-    <div className="nt-settings-page nt-console-page nt-console-table-page nt-operations">
+    <div className="nt-operations">
       {notice}
 
-      <Tabs.Root
-        value={section}
-        onValueChange={(value) => setSection(value as OperationsSectionId)}
-      >
-        <OperationsNavigation
-          t={t}
-          operatorSummary={operatorSummary}
-          incidentSummary={incidentSummary}
-          requestsTabRef={requestsTabRef}
-        />
-        <Tabs.Content className="nt-operations-panel" value="live">
-          <OperationsLivePanels
-            t={t}
-            pressure={pressure}
-            readiness={readiness}
-            operatorSummary={operatorSummary}
-            listView={listView}
-          />
-          <OperationsCurrentIssues
-            t={t}
-            pressure={pressure}
-            readiness={readiness}
-            requests={requests}
-            listView={listView}
-            onOpenRequests={openRequests}
-          />
-        </Tabs.Content>
-
-        <Tabs.Content className="nt-operations-panel" value="requests">
+      <div className="nt-operations-panel">
           <OperationsRequestPanels
             t={t}
             operatorSummary={operatorSummary}
             editorLocked={editorLocked}
-            requests={{ ...requests, data: requests.data === null ? null : selectOperationsRows(requests.data, listView, requestRowMetadata) }}
+            requests={{ ...requests, data: requests.data === null ? null : selectOperationsRows(requests.data, { ...listView, sort: listView.sort === "default" ? "newest" : listView.sort }, requestRowMetadata) }}
             requestSummary={requestSummary}
             usageSummary={usageSummary}
             promptCache={promptCache}
@@ -112,9 +72,8 @@ export function OperationsWorkspace({
             onApplyRequestFilters={onApplyRequestFilters}
             patchFilters={patchFilters}
           />
-        </Tabs.Content>
-
-        <Tabs.Content className="nt-operations-panel" value="anomalies">
+      </div>
+      {databaseOperationsAvailability(operatorSummary) === "available" && <Dialog className="nt-operations-drawer" title={t("事件记录", "Incident records")} trigger={<Button compact>{t("事件记录", "Incident records")}</Button>}>
           <OperationsAnomalyPanels
             t={t}
             listView={listView}
@@ -134,8 +93,7 @@ export function OperationsWorkspace({
             exportInventory={exportInventory}
             exports={exports}
           />
-        </Tabs.Content>
-      </Tabs.Root>
+      </Dialog>}
     </div>
   );
 }

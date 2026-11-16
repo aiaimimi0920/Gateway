@@ -156,7 +156,7 @@ fn ensure_stream_usage_requested(body: &mut Value) {
     }
 }
 
-pub(super) fn pack_openai_message(msg: &CanonicalMessage) -> Value {
+pub(crate) fn pack_openai_message(msg: &CanonicalMessage) -> Value {
     let role = match msg.role {
         MessageRole::System => "system",
         MessageRole::User => "user",

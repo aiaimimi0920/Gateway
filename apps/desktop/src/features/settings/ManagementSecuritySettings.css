@@ -1,4 +1,6 @@
 .nt-management-keys { display: grid; gap: 12px; min-width: 0; container: management-keys / inline-size; }
+.nt-management-key-slots { min-width: 0; }
+.nt-management-key-slots__input { width: min(440px, 50vw); font-family: var(--nt-font-mono); }
 .nt-management-keys__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .nt-management-keys__heading { display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; font-size: 15px; }
 .nt-management-keys__heading svg { flex-shrink: 0; color: var(--nt-text-muted); }
@@ -8,16 +10,14 @@
 .nt-management-keys__row { display: grid; grid-template-columns: minmax(140px, 0.65fr) minmax(180px, 1fr) auto; gap: 12px; align-items: center; min-width: 0; }
 .nt-management-keys__identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .nt-management-keys__identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nt-management-keys__current { flex-shrink: 0; color: var(--nt-text-muted); font-size: 12px; }
+.nt-management-keys__identity > .n-badge { flex-shrink: 0; }
 .nt-management-keys__actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
-.nt-management-keys__actions .nt-management-keys__eye { width: 36px; min-width: 36px; padding: 0; }
-.nt-management-keys__eye svg { flex-shrink: 0; }
 .nt-management-keys__secret { min-width: 0; width: 100%; font-family: var(--nt-font-mono); }
 .nt-management-keys__editor { margin: 0; }
-.nt-management-keys__hint, .nt-management-keys__message { margin: 6px 0 0; font-size: 12px; overflow-wrap: anywhere; }
+.nt-management-keys__hint { margin: 6px 0 0; font-size: 12px; overflow-wrap: anywhere; }
 .nt-management-keys__hint { color: var(--nt-text-muted); }
-.nt-management-keys__message { color: var(--nt-danger); }
-.dialog-content.nt-management-key-delete-dialog { width: min(480px, calc(100vw - 32px)); }
+.nt-management-key-editor-dialog { width: min(620px, calc(100vw - 32px)); }
+.nt-management-key-editor-dialog .nt-management-keys__row { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 800px) {
   .nt-management-keys__row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
   .nt-management-keys__row > :first-child { grid-column: 1 / -1; }

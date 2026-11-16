@@ -154,14 +154,14 @@ describe("operations anomaly layout", () => {
       screen.getByRole("heading", { name: "Incident summary" }),
     ).toBeVisible();
     expect(screen.queryByText("Remediation impact")).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Automated remediation" }),
+    fireEvent.mouseDown(
+      screen.getByRole("tab", { name: "Automated remediation" }),
     );
     expect(screen.getByText("Remediation impact")).toBeVisible();
     expect(
       screen.queryByRole("heading", { name: "Incident summary" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Analysis & exports" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Analysis & exports" }));
     expect(screen.getByText("Export inventory")).toBeVisible();
     expect(screen.queryByText("Remediation impact")).not.toBeInTheDocument();
   });

@@ -59,10 +59,7 @@ impl ProviderAttemptGate {
         self
     }
     pub async fn admit(&self) -> Result<(), GatewayError> {
-        self.request_budget.check()?;
-        if let Some(check) = &self.eligibility {
-            check.check().await?;
-        }
+        self.recheck_send_eligibility().await?;
         enforce(
             self.req_id,
             &self.redis_pool,
@@ -70,6 +67,23 @@ impl ProviderAttemptGate {
             &self.rules,
         )
         .await
+    }
+    /// Recheck mutable dispatch state after an awaited preparation, without charging rate limits twice.
+    pub(crate) async fn recheck_send_eligibility(&self) -> Result<(), GatewayError> {
+        self.request_budget.check()?;
+        if let Some(check) = &self.eligibility {
+            check.check().await?;
+        }
+        self.request_budget.check()
+    }
+    /// The paid operation already consumed its one attempt. Mutable eligibility still applies to
+    /// generation after START, but this is not permission/admission for a second paid operation.
+    pub(crate) async fn recheck_inflight_eligibility(&self) -> Result<(), GatewayError> {
+        self.request_budget.check_inflight()?;
+        if let Some(check) = &self.eligibility {
+            check.check().await?;
+        }
+        self.request_budget.check_inflight()
     }
 }
 

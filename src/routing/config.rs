@@ -42,12 +42,27 @@ mod admission;
 mod aliases;
 mod call_flow;
 mod candidates;
+mod cloudflare_workers_ai;
+pub(crate) mod copilot;
 mod default_group;
+mod dim_oauth;
 mod document_compilation;
+pub(crate) mod freebuff_session;
+#[cfg(all(test, feature = "line-freebuff-web-reverse-api"))]
+mod freebuff_session_tests;
+mod grok_oauth;
+mod kiro_api_key;
+mod kiro_oauth;
+pub(crate) mod lobsterai;
+pub(crate) mod luma_agents;
+pub(crate) mod luma_mcp;
 mod model_catalog;
+mod model_identity_validation;
 mod model_mapping;
 mod model_selection;
+mod nous_portal;
 mod payload;
+pub(crate) mod perplexity_web;
 mod pool_auth;
 #[cfg(test)]
 mod pool_auth_tests;
@@ -55,6 +70,11 @@ mod probe_identity;
 #[cfg(test)]
 mod probe_identity_tests;
 mod provider_compilation;
+mod qwen_workspace;
+mod refresh_exchange;
+#[cfg(test)]
+mod refresh_handoff_tests;
+mod refresh_material;
 mod refresh_publication;
 mod refresh_state;
 #[cfg(test)]
@@ -68,6 +88,8 @@ mod store;
 mod substitution;
 mod test_plans;
 mod test_policy;
+mod vertex_express;
+mod vertex_oauth;
 
 pub(crate) use aliases::normalized_alias_conflicts;
 pub use candidates::CandidateResolution;
@@ -77,7 +99,10 @@ pub(crate) use document_compilation::{
 pub(crate) use model_mapping::model_for_probe;
 pub use model_selection::ModelSelection;
 pub use pool_auth::CredentialPoolAuthPolicy;
-pub(crate) use refresh_state::effective_refresh_lifetime_secs;
+pub(crate) use refresh_exchange::RefreshAttempt;
+pub(crate) use refresh_material::refresh_absolute_expiry;
+pub(crate) use refresh_publication::same_authorization;
+pub(crate) use refresh_state::{effective_refresh_lifetime_secs, token_expiry_supported};
 pub use refresh_state::{future_rfc3339_after_secs, system_time_to_rfc3339_millis};
 pub use schema::{
     AccountGroupYaml, ModelInfo, ModelRoute, ProviderConfigYaml, ProviderCredentialYaml,
@@ -148,6 +173,7 @@ impl CompiledProvider {
 /// merged in — ready to use with no per-request merging needed.
 #[derive(Debug, Clone)]
 pub struct CompiledCredential {
+    pub dim_catalog: Option<crate::protocol::dim_oauth::ModelCatalog>,
     pub discovery_required: bool,
     pub discovery: Option<crate::provider_discovery::CredentialDiscovery>,
     pub id: String,
@@ -166,27 +192,10 @@ pub struct CompiledCredential {
     pub refresh_config: Option<Arc<TokenRefreshState>>,
 }
 
-/// Holds the mutable state for OAuth token refresh.
+/// Routing revocation is separate from the shared, generation-bound authorization material.
 pub struct TokenRefreshState {
-    pub refresh_token: parking_lot::Mutex<String>,
-    pub refresh_endpoint: String,
-    pub client_id: String,
-    pub expires_in_secs: u64,
-    pub expires_at: parking_lot::Mutex<std::time::Instant>,
-    pub expires_at_iso: parking_lot::Mutex<Option<String>>,
-    /// Overrides payload.api_key when a refreshed token is available.
-    pub api_key_override: parking_lot::Mutex<Option<String>>,
-    attempt_lock: Arc<tokio::sync::Mutex<()>>,
-    lifecycle: parking_lot::Mutex<RefreshLifecycle>,
-}
-
-#[derive(Debug)]
-struct RefreshLifecycle {
-    active: bool,
-    generation: u64,
-    failures: u32,
-    retry_at: Option<std::time::Instant>,
-    reauthorization_required: bool,
+    authorization: Arc<refresh_material::RefreshAuthorization>,
+    routing_active: std::sync::atomic::AtomicBool,
 }
 
 pub(crate) fn safe_refresh_deadline(seconds: u64) -> std::time::Instant {

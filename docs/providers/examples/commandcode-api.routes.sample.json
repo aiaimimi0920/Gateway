@@ -1,0 +1,12 @@
+{
+  "providers": [
+    {
+      "id": "commandcode-api",
+      "preset": "commandcode-api",
+      "base_url": "https://api.commandcode.ai/provider/v1",
+      "explicit_credentials_only": true,
+      "credentials": []
+    }
+  ],
+  "model_routes": []
+}

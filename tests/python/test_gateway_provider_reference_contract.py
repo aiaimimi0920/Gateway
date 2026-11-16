@@ -16,6 +16,7 @@ CHECKED_IN_REPORT = GATEWAY_ROOT / "docs" / "provider-reference-report.json"
 CHECKED_IN_GUIDE = GATEWAY_ROOT / "docs" / "provider-reference-guide.md"
 sys.path.insert(0, str(GATEWAY_ROOT / "tools"))
 gateway_provider_references = importlib.import_module("gateway_provider_references")
+from provider_inventory.contracts import CANONICAL_PROVIDER_LINE_IDS
 
 ALLOWED_STATUSES = {"local_present", "external_legacy_reference"}
 REFERENCE_FIELDS = (
@@ -82,15 +83,23 @@ class GatewayProviderReferenceContractTests(unittest.TestCase):
             self.assertEqual(
                 payload["schemaVersion"], "gateway-provider-reference-report/v1"
             )
-            self.assertEqual(payload["summary"]["lineCount"], 44)
-            self.assertEqual(payload["summary"]["declaredReferenceCount"], 176)
-            self.assertEqual(payload["summary"]["uniqueReferenceCount"], 166)
+            expected_ids = set(CANONICAL_PROVIDER_LINE_IDS)
+            expected_keys = {(line_id, field) for line_id in expected_ids for field in REFERENCE_FIELDS}
+            expected_paths = set()
+            for path in (GATEWAY_ROOT / "manifests/lines").rglob("*.json"):
+                manifest = json.loads(path.read_text(encoding="utf-8"))
+                for field in REFERENCE_FIELDS:
+                    group, name = field.split(".")
+                    expected_paths.add(manifest[group][name])
+            self.assertEqual(payload["summary"]["lineCount"], len(expected_ids))
+            self.assertEqual(payload["summary"]["declaredReferenceCount"], len(expected_keys))
+            self.assertEqual(payload["summary"]["uniqueReferenceCount"], len(expected_paths))
             self.assertEqual(payload["summary"]["unclassifiedReferenceCount"], 0)
 
             references = payload["references"]
             keys = [(item["lineId"], item["field"]) for item in references]
-            self.assertEqual(len(keys), 176)
-            self.assertEqual(len(set(keys)), 176)
+            self.assertEqual(len(keys), len(expected_keys))
+            self.assertEqual(set(keys), expected_keys)
             self.assertEqual(
                 {item["field"] for item in references}, set(REFERENCE_FIELDS)
             )
@@ -99,11 +108,9 @@ class GatewayProviderReferenceContractTests(unittest.TestCase):
             )
 
             unique = payload["uniqueReferences"]
-            self.assertEqual(len(unique), 166)
-            self.assertEqual(
-                len({item["path"] for item in unique}), 166
-            )
-            self.assertEqual(len(payload["lines"]), 44)
+            self.assertEqual(len(unique), len(expected_paths))
+            self.assertEqual({item["path"] for item in unique}, expected_paths)
+            self.assertEqual({line["id"] for line in payload["lines"]}, expected_ids)
             for line in payload["lines"]:
                 self.assertEqual(len(line["legacyReferences"]), 4)
                 self.assertIn("identity", line)
@@ -160,14 +167,17 @@ class GatewayProviderReferenceContractTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads(report_path.read_text(encoding="utf-8"))
 
-            self.assertEqual(
-                payload["summary"]["externalLegacyReferenceCount"], 176
-            )
-            self.assertEqual(payload["summary"]["localPresentReferenceCount"], 0)
+            local_count = 0
             for item in payload["references"]:
-                self.assertEqual(item["status"], "external_legacy_reference")
+                local = (GATEWAY_ROOT / item["path"]).is_file()
+                local_count += int(local)
+                self.assertEqual(item["status"], "local_present" if local else "external_legacy_reference")
                 self.assertEqual(item["resolution"]["guidePath"], guide_path.name)
                 self.assertTrue(item["resolution"]["guideAnchor"].startswith("#"))
+            self.assertGreater(local_count, 0)
+            self.assertLess(local_count, len(payload["references"]))
+            self.assertEqual(payload["summary"]["localPresentReferenceCount"], local_count)
+            self.assertEqual(payload["summary"]["externalLegacyReferenceCount"], len(payload["references"]) - local_count)
 
     def test_guide_uses_only_obvious_placeholders(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -446,8 +456,9 @@ class GatewayProviderReferenceContractTests(unittest.TestCase):
         )
         payload = json.loads(result.stdout)
         self.assertEqual(payload["status"], "pass")
-        self.assertEqual(payload["declaredReferenceCount"], 176)
-        self.assertEqual(payload["uniqueReferenceCount"], 166)
+        self.assertEqual(payload["declaredReferenceCount"], len(CANONICAL_PROVIDER_LINE_IDS) * len(REFERENCE_FIELDS))
+        report = json.loads(CHECKED_IN_REPORT.read_text(encoding="utf-8"))
+        self.assertEqual(payload["uniqueReferenceCount"], len({item["path"] for item in report["references"]}))
 
 
 if __name__ == "__main__":

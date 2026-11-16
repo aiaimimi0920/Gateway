@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Button, Field, Input, Notice } from "@neuro/ui";
 import { CashDialog } from "./CashDialog";
 import { parseCashMicros } from "./cashAmount";
 import { useCashBillingApi } from "./useCashBillingApi";
@@ -118,12 +119,12 @@ export function AccountBillingDialog({
       t={t}
     >
       {!token ? (
-        <p role="alert">
+        <Notice tone="danger">
           {t("请先登录管理会话。", "Sign in to the management session.")}
-        </p>
+        </Notice>
       ) : null}
       {!loaded && !error && token ? (
-        <p role="status">{t("读取中…", "Loading…")}</p>
+        <Notice tone="info">{t("读取中…", "Loading…")}</Notice>
       ) : null}
       <form
         className="nt-stack"
@@ -132,10 +133,9 @@ export function AccountBillingDialog({
           void save();
         }}
       >
-        <label className="nt-field">
-          <span>{t("账户倍率", "Account multiplier")}</span>
-          <input
-            className="nt-input"
+        <Field label={t("账户倍率", "Account multiplier")}
+          description={t("留空恢复默认 1；只影响新请求。", "Leave blank for default 1; applies to new requests only.")}>
+          <Input
             value={value}
             disabled={disabled}
             maxLength={30}
@@ -143,36 +143,30 @@ export function AccountBillingDialog({
             placeholder="1"
             onChange={(event) => setValue(event.target.value)}
           />
-        </label>
-        <small>
-          {t(
-            "留空恢复默认 1；只影响新请求。",
-            "Leave blank for default 1; applies to new requests only.",
-          )}
-        </small>
+        </Field>
         {error ? (
-          <div className="nt-alert nt-alert--danger" role="alert">
+          <Notice tone="danger">
             {error}
-          </div>
+          </Notice>
         ) : null}
         <div className="nt-cash-dialog__actions">
           {!loaded && error ? (
-            <button
+            <Button
               type="button"
-              className="nt-btn nt-btn--outline"
               disabled={pending || !token}
               onClick={() => setRetry(retry + 1)}
             >
               {t("重新读取", "Reload")}
-            </button>
+            </Button>
           ) : null}
-          <button
+          <Button
             type="submit"
-            className="nt-btn nt-btn--primary"
+            variant="primary"
+            loading={pending}
             disabled={disabled}
           >
-            {pending ? t("保存中…", "Saving…") : t("保存", "Save")}
-          </button>
+            {t("保存", "Save")}
+          </Button>
         </div>
       </form>
     </CashDialog>

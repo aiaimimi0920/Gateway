@@ -1,5 +1,5 @@
-import * as Dialog from "@radix-ui/react-dialog";
-import type { ComponentProps, Dispatch, ReactNode, SetStateAction } from "react";
+import { ConfirmDialog } from "@neuro/ui";
+import { useRef, type ComponentProps, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { ModelPoolWorkspace } from "./ModelPoolWorkspace";
 import {
   ModelPoolModelDialog,
@@ -52,21 +52,27 @@ export function ConsoleModelWorkspace({
   deleteModelPoolModel,
   groupAccountRemovalDialog,
 }: ConsoleModelWorkspaceProps) {
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const resolveReturnFocus = (target: HTMLElement | null) =>
+    target?.isConnected && target !== document.body && !target.matches(":disabled") && !target.closest("[inert]")
+      ? target : workspaceRef.current;
   return (
     <>
-      <ModelPoolWorkspace
-        t={t}
-        notice={draftStructureNotice}
-        editorLocked={editorLocked}
-        models={modelPoolDirectory}
-        poolView={poolView}
-        accountCards={entitlementAccountCardBridge}
-        onMoveProvider={reorderModelPoolChain}
-        onResetChain={resetModelPoolChain}
-        onToggleEnabled={toggleModelPoolEnabled}
-        onEditModel={openEditModelDialog}
-        onDeleteModel={setPendingModelPoolRemoval}
-      />
+      <div ref={workspaceRef} tabIndex={-1} className="nt-model-workspace-frame">
+        <ModelPoolWorkspace
+          t={t}
+          notice={draftStructureNotice}
+          editorLocked={editorLocked}
+          models={modelPoolDirectory}
+          poolView={poolView}
+          accountCards={entitlementAccountCardBridge}
+          onMoveProvider={reorderModelPoolChain}
+          onResetChain={resetModelPoolChain}
+          onToggleEnabled={toggleModelPoolEnabled}
+          onEditModel={openEditModelDialog}
+          onDeleteModel={setPendingModelPoolRemoval}
+        />
+      </div>
       <ModelPoolModelDialog
         open={modelPoolDialog !== null}
         mode={modelPoolDialog?.mode ?? "add"}
@@ -80,56 +86,33 @@ export function ConsoleModelWorkspace({
           }
         }}
         onSubmit={submitModelPoolDialog}
+        resolveReturnFocus={resolveReturnFocus}
       />
-      <Dialog.Root
+      <ConfirmDialog
         open={pendingModelPoolRemoval !== null}
         onOpenChange={(open) => {
           if (!open) {
             setPendingModelPoolRemoval(null);
           }
         }}
-      >
-        <Dialog.Portal>
-          <Dialog.Overlay className="dialog-overlay" />
-          <Dialog.Content
-            className="dialog-content nt-credential-remove-dialog"
-            aria-describedby="model-pool-remove-description"
-          >
-            <Dialog.Title>{t("确认删除模型", "Confirm model deletion")}</Dialog.Title>
-            <Dialog.Description id="model-pool-remove-description">
-              {pendingModelPoolRemoval
-                ? t(
-                    `将从当前草稿中删除模型 ${pendingModelPoolRemoval}：它的服务商顺序、各账号的模型声明、别名与模型映射都会一并移除。`,
-                    `This removes model ${pendingModelPoolRemoval} from the current draft: its provider order, every account declaration, its aliases and its model map entries all go with it.`,
-                  )
-                : ""}
-            </Dialog.Description>
-            <div className="nt-validation-list nt-validation-list--warning">
-              <strong>{t("请再次确认", "Please confirm")}</strong>
-              <ul>
-                <li>{t("其他模型不会受到影响。", "Other models are not affected.")}</li>
-              </ul>
-            </div>
-            <div className="dialog-actions">
-              <Dialog.Close asChild>
-                <button type="button">{t("取消", "Cancel")}</button>
-              </Dialog.Close>
-              <button
-                className="nt-btn nt-btn--danger"
-                type="button"
-                onClick={() => {
-                  if (pendingModelPoolRemoval) {
-                    deleteModelPoolModel(pendingModelPoolRemoval);
-                  }
-                  setPendingModelPoolRemoval(null);
-                }}
-              >
-                {t("确认删除", "Delete model")}
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+        title={t("确认删除模型", "Confirm model deletion")}
+        description={pendingModelPoolRemoval
+          ? t(
+            `将从当前草稿中删除模型 ${pendingModelPoolRemoval}：它的服务商顺序、各账号的模型声明、别名与模型映射都会一并移除。`,
+            `This removes model ${pendingModelPoolRemoval} from the current draft: its provider order, every account declaration, its aliases and its model map entries all go with it.`,
+          )
+          : ""}
+        confirmLabel={t("确认删除", "Delete model")}
+        cancelLabel={t("取消", "Cancel")}
+        confirmDisabled={editorLocked}
+        resolveReturnFocus={resolveReturnFocus}
+        onConfirm={() => {
+          if (pendingModelPoolRemoval) {
+            deleteModelPoolModel(pendingModelPoolRemoval);
+          }
+          setPendingModelPoolRemoval(null);
+        }}
+      />
       {groupAccountRemovalDialog}
     </>
   );

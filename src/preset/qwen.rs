@@ -2,6 +2,33 @@ use super::ProviderPreset;
 use crate::credential_runtime::SessionAuthConfig;
 use std::collections::HashMap;
 
+/// Ordinary workspace Key product; no default region, model or native Responses surface.
+pub fn qwen_official_api_preset() -> ProviderPreset {
+    ProviderPreset {
+        id: "qwen-official-api".into(),
+        adapter: "openai_compatible".into(),
+        headers: HashMap::new(),
+        extra_body: HashMap::new(),
+        default_model: None,
+        auth_mode: Some(crate::protocol::qwen::workspace_api::AUTH_MODE.into()),
+        anthropic_version: None,
+        beta_headers: None,
+        auth_header_name: None,
+        responses_path: None,
+        chat_completions_path: Some("/chat/completions".into()),
+        messages_path: None,
+        search_path: None,
+        fetch_path: None,
+        research_path: None,
+        balance_path: None,
+        search_query_field: None,
+        fetch_urls_field: None,
+        session_auth: None,
+        execution_mode: None,
+        endpoint_execution_modes: None,
+    }
+}
+
 pub fn qwen_coding_plan_openai_preset() -> ProviderPreset {
     ProviderPreset {
         id: "qwen-coding-plan-openai".to_string(),

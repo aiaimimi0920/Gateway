@@ -50,6 +50,17 @@ pub(super) fn translate_openai_chat_sse_to_legacy_completions_with_limit(
     )
 }
 
+/// Product presentation can pin its public alias after the raw upstream declaration was observed.
+pub(crate) fn translate_openai_chat_sse_to_legacy_completions_with_reply_model<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
+    translate_legacy(inner, model, MAX_TRANSLATED_SSE_FRAME_BYTES, true)
+}
+
 fn translate_openai_chat_sse_to_legacy_completions_with_limit_and_error<E>(
     inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     model: String,
@@ -58,10 +69,23 @@ fn translate_openai_chat_sse_to_legacy_completions_with_limit_and_error<E>(
 where
     E: From<ProtocolStreamError> + Send + 'static,
 {
+    translate_legacy(inner, model, max_frame_bytes, false)
+}
+
+fn translate_legacy<E>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    model: String,
+    max_frame_bytes: usize,
+    pin_reply_model: bool,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    E: From<ProtocolStreamError> + Send + 'static,
+{
     let state = OpenAiChatToLegacyCompletionsState {
         decoder: BoundedSseDecoder::new(max_frame_bytes),
         response_id: format!("cmpl_{}", uuid::Uuid::new_v4().as_simple()),
         model,
+        pin_reply_model,
         created_at: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -148,6 +172,7 @@ struct OpenAiChatToLegacyCompletionsState {
     decoder: BoundedSseDecoder,
     response_id: String,
     model: String,
+    pin_reply_model: bool,
     created_at: i64,
     outputs: VecDeque<Vec<u8>>,
     native_passthrough: bool,
@@ -199,7 +224,7 @@ impl OpenAiChatToLegacyCompletionsState {
         };
 
         if let Some(model) = chunk.get("model").and_then(|value| value.as_str()) {
-            if !model.trim().is_empty() {
+            if !self.pin_reply_model && !model.trim().is_empty() {
                 self.model = model.to_string();
             }
         }

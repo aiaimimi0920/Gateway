@@ -5,14 +5,17 @@ use crate::error::{ErrorKind, FallbackHint, GatewayError};
 use crate::protocol::canonical::{
     CanonicalRelayRequest, CanonicalRelayResponse, CanonicalToolCall, TokenUsage,
 };
-use crate::protocol::upstream_body::collect_bounded_upstream_body;
 
 mod event_parse;
+mod native;
+mod native_decode;
+mod native_response;
 mod request;
 mod request_contents;
 mod stream_decode;
 mod stream_translate;
 
+pub use native::{accumulate_accio_stream, translate_accio_stream_with_error};
 pub use request::{inspect_prompt_cache_telemetry, pack_accio};
 use stream_decode::drain_parsed_events;
 pub(crate) use stream_decode::{parse_sse_line, ParsedEvent};
@@ -68,6 +71,9 @@ pub fn unpack_accio_response(body: &Value) -> Result<CanonicalRelayResponse, Gat
     });
 
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: body
             .get("modelVersion")
@@ -87,114 +93,6 @@ pub fn normalize_accio(_body: Value) -> Result<CanonicalRelayRequest, GatewayErr
     Err(GatewayError::bad_request(
         "Direct Accio format input not yet supported",
     ))
-}
-
-pub async fn accumulate_accio_stream(
-    response: rquest::Response,
-    model: &str,
-) -> Result<CanonicalRelayResponse, GatewayError> {
-    let body = collect_bounded_upstream_body(response, "Accio streaming adapter body").await?;
-    let mut text = String::new();
-    let mut prompt_tokens = 0u64;
-    let mut completion_tokens = 0u64;
-    let mut finish_reason = None;
-    let mut reported_model = model.to_string();
-    let mut tool_calls = Vec::new();
-    let mut pending: HashMap<i64, PendingToolCall> = HashMap::new();
-
-    let mut buffer = body.clone();
-    for event in drain_parsed_events(&mut buffer) {
-        match event {
-            ParsedEvent::ProviderError { code, message } => {
-                return Err(classify_accio_provider_error(&code, &message));
-            }
-            ParsedEvent::Start { model, usage } => {
-                if let Some(model) = model {
-                    reported_model = model;
-                }
-                if let Some(usage) = usage {
-                    prompt_tokens = prompt_tokens.max(usage.prompt_tokens);
-                    completion_tokens = completion_tokens.max(usage.completion_tokens);
-                }
-            }
-            ParsedEvent::Text(delta) => text.push_str(&delta),
-            ParsedEvent::ToolStart { index, id, name } => {
-                pending.insert(
-                    index,
-                    PendingToolCall {
-                        id,
-                        name,
-                        arguments: String::new(),
-                        announced: false,
-                    },
-                );
-            }
-            ParsedEvent::ToolDelta { index, partial } => {
-                if let Some(call) = pending.get_mut(&index) {
-                    call.arguments.push_str(&partial);
-                }
-            }
-            ParsedEvent::ToolEnd { index } => {
-                if let Some(call) = pending.remove(&index) {
-                    tool_calls.push(to_tool_call(call));
-                }
-            }
-            ParsedEvent::ToolCall {
-                id,
-                name,
-                arguments,
-            } => tool_calls.push(CanonicalToolCall {
-                id: Some(id),
-                call_type: "function".into(),
-                name: Some(name),
-                arguments: Some(normalize_tool_args(&arguments)),
-                raw: HashMap::new(),
-            }),
-            ParsedEvent::Finish { reason, usage } => {
-                if let Some(reason) = reason {
-                    finish_reason = Some(reason);
-                }
-                if let Some(usage) = usage {
-                    prompt_tokens = prompt_tokens.max(usage.prompt_tokens);
-                    completion_tokens = completion_tokens.max(usage.completion_tokens);
-                }
-            }
-            ParsedEvent::Done => {}
-        }
-    }
-
-    for (_, call) in pending {
-        tool_calls.push(to_tool_call(call));
-    }
-
-    if text.is_empty() && tool_calls.is_empty() {
-        if let Some(error) = detect_accio_html_challenge(&body) {
-            return Err(error);
-        }
-    }
-
-    let total_tokens = prompt_tokens + completion_tokens;
-    let usage = if total_tokens > 0 {
-        Some(TokenUsage {
-            prompt_tokens,
-            completion_tokens,
-            total_tokens,
-            cache_creation_input_tokens: None,
-            cache_read_input_tokens: None,
-        })
-    } else {
-        None
-    };
-
-    Ok(CanonicalRelayResponse {
-        model_declaration: None,
-        model: reported_model,
-        text,
-        usage,
-        tool_calls,
-        upstream_status: Some(200),
-        finish_reason: Some(finish_reason.unwrap_or_else(|| "stop".into())),
-    })
 }
 
 #[derive(Debug, Clone)]
@@ -230,7 +128,7 @@ fn map_finish_reason(value: Option<&str>) -> Option<String> {
     }
     Some(
         match value {
-            "end_turn" | "stop" | "stop_sequence" | "complete" | "COMPLETE" => "stop",
+            "end_turn" | "stop" | "STOP" | "stop_sequence" | "complete" | "COMPLETE" => "stop",
             "tool_use" | "tool_call" | "TOOL_CALL" | "function_call" => "tool_calls",
             "max_tokens" | "length" | "MAX_TOKENS" => "length",
             other => other,
@@ -264,7 +162,7 @@ fn usage_from_value(value: Option<&Value>) -> Option<TokenUsage> {
         .or_else(|| usage.get("totalTokens"))
         .or_else(|| usage.get("total_tokens"))
         .and_then(|v| v.as_u64())
-        .unwrap_or(prompt_tokens + completion_tokens);
+        .unwrap_or_else(|| prompt_tokens.saturating_add(completion_tokens));
 
     if prompt_tokens == 0 && completion_tokens == 0 && total_tokens == 0 {
         None
@@ -376,7 +274,7 @@ fn classify_accio_provider_error(code: &str, message: &str) -> GatewayError {
     let err = if code == "5015" || lower.contains("user not activated") {
         GatewayError {
             kind: ErrorKind::ServiceUnavailable,
-            message: format!("Accio account unavailable: {}", message.trim()),
+            message: "Accio account unavailable: user not activated.".into(),
             code: None,
             http_status: Some(503),
             retryable: false,
@@ -388,10 +286,14 @@ fn classify_accio_provider_error(code: &str, message: &str) -> GatewayError {
             native_transport: None,
         }
     } else {
-        GatewayError::server_error(format!("Accio upstream error: {}", message.trim()))
+        GatewayError::server_error("Accio upstream returned a business error.")
     };
-    err.with_code(code.to_string())
-        .with_provider("accio_compatible")
+    err.with_code(if code == "5015" {
+        "5015"
+    } else {
+        "accio_upstream_error"
+    })
+    .with_provider("accio_compatible")
 }
 
 fn to_tool_call(call: PendingToolCall) -> CanonicalToolCall {

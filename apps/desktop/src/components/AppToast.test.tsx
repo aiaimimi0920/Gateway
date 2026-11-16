@@ -2,22 +2,24 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppToastViewport, pushAppToast } from "./AppToast";
+import { NeuroProvider } from "@neuro/ui";
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe("AppToastViewport", () => {
-  it("portals the notification viewport to the document body", () => {
-    render(<AppToastViewport />);
+  it("portals the notification viewport inside the current theme", () => {
+    render(<NeuroProvider mode="light"><AppToastViewport /></NeuroProvider>);
 
     const viewport = screen.getByLabelText("Gateway notifications");
-    expect(viewport.parentElement).toBe(document.body);
+    expect(viewport.parentElement).toHaveClass("n-portal-host");
+    expect(viewport.closest("[data-neuro-mode]")).toHaveAttribute("data-neuro-mode", "light");
   });
 
   it("stacks notifications and dismisses one when clicked", () => {
     vi.useFakeTimers();
-    render(<AppToastViewport />);
+    render(<NeuroProvider><AppToastViewport /></NeuroProvider>);
 
     act(() => {
       pushAppToast("success", "Saved active revision");
@@ -34,7 +36,7 @@ describe("AppToastViewport", () => {
 
   it("automatically removes informational notifications", () => {
     vi.useFakeTimers();
-    render(<AppToastViewport />);
+    render(<NeuroProvider><AppToastViewport /></NeuroProvider>);
 
     act(() => pushAppToast("info", "Short-lived information"));
     act(() => vi.advanceTimersByTime(3_420));
@@ -44,7 +46,7 @@ describe("AppToastViewport", () => {
 
   it("uses assertive alerts for errors and preserves the longer error lifetime", () => {
     vi.useFakeTimers();
-    render(<AppToastViewport />);
+    render(<NeuroProvider><AppToastViewport /></NeuroProvider>);
 
     act(() => {
       pushAppToast("success", "Saved successfully");

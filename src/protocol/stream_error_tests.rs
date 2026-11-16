@@ -1,6 +1,29 @@
 use super::*;
 
 #[test]
+fn typed_stream_classification_is_explicit_and_never_inferred_from_provider_text() {
+    let message = "bedrock_stream_upstream_error: throttlingException";
+    let plain = ProtocolStreamError::invalid_data(message);
+    assert!(plain.is_upstream_failure());
+    assert!(plain.gateway_error().is_none());
+    let error = ProtocolStreamError::classified(
+        message,
+        crate::error::GatewayError::rate_limited("safe classified failure", 1000)
+            .with_code("safe_code"),
+    );
+    assert_eq!(
+        error.gateway_error().unwrap().kind,
+        crate::error::ErrorKind::RateLimit
+    );
+    assert_eq!(
+        error.gateway_error().unwrap().code.as_deref(),
+        Some("safe_code")
+    );
+    assert_eq!(error.to_string(), plain.to_string());
+    assert!(error.source().unwrap().is::<serde_json::Error>());
+}
+
+#[test]
 fn protocol_errors_preserve_display_and_json_io_source() {
     let error = ProtocolStreamError::invalid_data("bounded protocol failure");
     assert_eq!(

@@ -37,3 +37,35 @@ fn pack_response_prefers_requested_model_over_upstream_model() {
     let json = pack_response(&req, &resp);
     assert_eq!(json["model"], "gpt-4o");
 }
+
+#[test]
+fn response_sources_buffered_pack_and_unpack_preserve_list_and_text() {
+    let mut value = serde_json::to_value(make_resp()).unwrap();
+    let sources =
+        serde_json::json!([{"name":"标题", "url":"https://example.org/a", "snippet":"摘要"}]);
+    value["sources"] = sources.clone();
+    value["usage"] = serde_json::Value::Null;
+    let resp: CanonicalRelayResponse = serde_json::from_value(value).unwrap();
+    for endpoint in [EndpointKind::ChatCompletions, EndpointKind::Responses] {
+        let wire = pack_response(&make_req(ProtocolFamily::OpenAi, endpoint), &resp);
+        assert_eq!(wire["gateway_sources"], sources);
+        assert!(wire.get("usage").is_none());
+        let canonical = if endpoint == EndpointKind::Responses {
+            crate::protocol::responses::unpack_responses_response(&wire)
+        } else {
+            crate::protocol::openai::unpack_openai_response(&wire)
+        }
+        .unwrap();
+        assert_eq!(canonical.text, "Hello!");
+        assert_eq!(serde_json::to_value(canonical).unwrap()["sources"], sources);
+    }
+}
+
+#[test]
+fn response_sources_empty_pack_leaves_both_old_formats_unchanged() {
+    for endpoint in [EndpointKind::ChatCompletions, EndpointKind::Responses] {
+        let wire = pack_response(&make_req(ProtocolFamily::OpenAi, endpoint), &make_resp());
+        assert!(wire.get("gateway_sources").is_none());
+        assert!(wire.to_string().contains("Hello!"));
+    }
+}

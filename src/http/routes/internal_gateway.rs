@@ -42,6 +42,12 @@ pub(crate) fn assert_management_access(
     if state.console_auth.managed_keys_active()? {
         let token = crate::access_control::management_request_token(bearer_token, headers)
             .ok_or_else(|| GatewayError::unauthorized("Management token is required"))?;
+        if state.console_auth.passwordless_token()?.as_deref() == Some(token) {
+            return crate::http::router::passwordless_auth::authenticate(
+                &state.console_auth,
+                token,
+            );
+        }
         return state.console_auth.verify_management_token(token);
     }
     assert_management_access_with_expected(

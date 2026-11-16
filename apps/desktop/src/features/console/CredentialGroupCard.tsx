@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import type { CredentialGroupsWorkspaceProps, TranslateFn } from "./credentialGroupsWorkspaceTypes";
 import { useState } from "react";
+import { Button, IconButton, Switch } from "@neuro/ui";
+import "../../styles/account-workspace-controls.css";
 import type { CredentialGroupCardSnapshot } from "./credentialGroupCardSnapshot";
 import { EntitlementGroupScopeBoard } from "./EntitlementGroupScopeBoard";
 import { AvailabilityHeatmap } from "./AvailabilityHeatmap";
@@ -80,27 +82,24 @@ export function CredentialGroupCard({
             <span className="nt-entitlement-group-card__icon" aria-hidden="true">
               <UsersRound size={17} />
             </span>
-            <button
-              className="nt-entitlement-group-card__toggle"
-              type="button"
+            <Button variant="quiet" compact className="nt-pool-card-title"
               aria-label={label}
               aria-expanded={expanded}
               aria-controls={accountPanelId}
               onClick={() => onToggleCard(group.rowId)}
             >
-              <strong title={label}>{label}</strong>
-              {group.groupId ? <span className="nt-entitlement-group-card__id" title={group.groupId}>{group.groupId}</span> : null}
-            </button>
+              <span className="nt-pool-card-title__text"><strong title={label}>{label}</strong>
+                {group.groupId ? <span className="nt-entitlement-group-card__id" title={group.groupId}>{group.groupId}</span> : null}
+              </span>
+            </Button>
             <div className="nt-entitlement-group-card__head-actions">
-              <button
-                className="nt-icon-action nt-entitlement-group-card__library-toggle"
-                type="button"
+              <IconButton variant="quiet" compact
                 title={
                   expanded
                     ? t("收起组内账号", "Hide group accounts")
                     : t("显示组内账号", "Show group accounts")
                 }
-                aria-label={
+                label={
                   expanded
                     ? t(`收起 ${label} 组内账号`, `Hide ${label} group accounts`)
                     : t(`显示 ${label} 组内账号`, `Show ${label} group accounts`)
@@ -110,18 +109,16 @@ export function CredentialGroupCard({
                 onClick={() => onToggleCard(group.rowId)}
               >
                 <Database size={15} aria-hidden="true" />
-              </button>
-              <button
-                className="nt-icon-action nt-entitlement-group-card__flip"
-                type="button"
+              </IconButton>
+              <IconButton variant="quiet" compact
                 title={t(`翻面查看 ${label} 详情`, `Flip ${label} for details`)}
-                aria-label={t(`翻面查看 ${label} 详情`, `Flip ${label} for details`)}
+                label={t(`翻面查看 ${label} 详情`, `Flip ${label} for details`)}
                 aria-pressed={false}
                 ref={(node) => registerFlipButton(group.rowId, "front", node)}
                 onClick={() => onFlip(group.rowId, label, "back")}
               >
                 <GalleryHorizontalEnd size={16} aria-hidden="true" />
-              </button>
+              </IconButton>
             </div>
           </header>
 
@@ -222,46 +219,29 @@ export function CredentialGroupCard({
             </section>
           </div>
 
-          <footer className="nt-entitlement-group-card__actions nt-entitlement-group-card__actions--group">
-            <button
-              className={
-                group.enabled
-                  ? "nt-entitlement-group-card__action nt-entitlement-group-card__action--icon nt-entitlement-group-card__action--active"
-                  : "nt-entitlement-group-card__action nt-entitlement-group-card__action--icon"
-              }
-              type="button"
-              role="switch"
-              aria-checked={group.enabled}
+          <footer className="nt-entitlement-group-card__actions nt-entitlement-group-card__actions--group nt-pool-card-actions">
+            <Switch checked={group.enabled}
               disabled={editorLocked}
               aria-label={t(`${label} 启用状态`, `${label} enabled state`)}
               title={group.enabled ? t("停用分组", "Disable group") : t("启用分组", "Enable group")}
-              onClick={() => onToggleEnabled(group.rowId, !group.enabled)}
-            >
-              <span className="nt-switch__track" aria-hidden="true">
-                <span className="nt-switch__thumb" />
-              </span>
-              <span className="nt-entitlement-group-card__state">{group.enabled ? t("启用", "Enabled") : t("停用", "Disabled")}</span>
-            </button>
-            <button
-              className="nt-entitlement-group-card__action nt-entitlement-group-card__action--icon"
-              type="button"
+              label={group.enabled ? t("启用", "Enabled") : t("停用", "Disabled")}
+              onChange={() => onToggleEnabled(group.rowId, !group.enabled)} />
+            <IconButton
               disabled={editorLocked}
-              aria-label={t("编辑", "Edit")}
+              label={t("编辑", "Edit")}
               title={t("编辑权益组", "Edit entitlement group")}
               onClick={() => onEditGroup(group.rowId)}
             >
               <Pencil size={14} aria-hidden="true" />
-            </button>
-            <button
-              className="nt-entitlement-group-card__action nt-entitlement-group-card__action--icon nt-entitlement-group-card__action--danger"
-              type="button"
+            </IconButton>
+            <IconButton variant="danger"
               disabled={editorLocked}
-              aria-label={t("删除", "Delete")}
+              label={t("删除", "Delete")}
               title={t("移除权益组", "Remove entitlement group")}
               onClick={() => onRemoveGroup(group.rowId)}
             >
               <Trash2 size={14} aria-hidden="true" />
-            </button>
+            </IconButton>
           </footer>
         </div>
 
@@ -275,15 +255,13 @@ export function CredentialGroupCard({
               <strong>{label}</strong>
             </div>
             <div className="nt-entitlement-group-card__head-actions">
-              <button
-                className="nt-icon-action nt-entitlement-group-card__library-toggle"
-                type="button"
+              <IconButton variant="quiet" compact
                 title={
                   expanded
                     ? t("收起组内账号", "Hide group accounts")
                     : t("显示组内账号", "Show group accounts")
                 }
-                aria-label={
+                label={
                   expanded
                     ? t(`收起 ${label} 组内账号`, `Hide ${label} group accounts`)
                     : t(`显示 ${label} 组内账号`, `Show ${label} group accounts`)
@@ -293,18 +271,16 @@ export function CredentialGroupCard({
                 onClick={() => onToggleCard(group.rowId)}
               >
                 <Database size={15} aria-hidden="true" />
-              </button>
-              <button
-                className="nt-icon-action nt-entitlement-group-card__flip"
-                type="button"
+              </IconButton>
+              <IconButton variant="quiet" compact
                 title={t(`翻回 ${label} 卡牌正面`, `Flip ${label} back to the front`)}
-                aria-label={t(`翻回 ${label} 卡牌正面`, `Flip ${label} back to the front`)}
+                label={t(`翻回 ${label} 卡牌正面`, `Flip ${label} back to the front`)}
                 aria-pressed={true}
                 ref={(node) => registerFlipButton(group.rowId, "back", node)}
                 onClick={() => onFlip(group.rowId, label, "front")}
               >
                 <GalleryHorizontalEnd size={16} aria-hidden="true" />
-              </button>
+              </IconButton>
             </div>
           </header>
 

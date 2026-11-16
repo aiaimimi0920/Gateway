@@ -107,6 +107,35 @@ pub fn groq_openai_preset() -> ProviderPreset {
     }
 }
 
+/// Agnes 国际站 Key；不把订阅 Key 建模为 OAuth 或自动刷新材料。
+pub fn agnes_api_preset() -> ProviderPreset {
+    ProviderPreset {
+        auth_mode: Some(crate::protocol::agnes::AUTH_MODE.into()),
+        chat_completions_path: Some("/chat/completions".into()),
+        responses_path: Some("/responses".into()),
+        ..generic_openai_compatible_profile_preset(crate::protocol::agnes::PRESET)
+    }
+}
+
+/// River uses stateless OpenAI Chat and Responses with an account-selected model.
+pub fn river_api_preset() -> ProviderPreset {
+    ProviderPreset {
+        chat_completions_path: Some("/chat/completions".to_string()),
+        responses_path: Some("/responses".to_string()),
+        ..generic_openai_compatible_profile_preset("river-api")
+    }
+}
+
+/// Workers AI's account target and restricted Responses support are validated separately.
+pub fn cloudflare_workers_ai_preset() -> ProviderPreset {
+    ProviderPreset {
+        auth_mode: Some(crate::protocol::cloudflare_workers_ai::AUTH_MODE.into()),
+        chat_completions_path: Some("/chat/completions".into()),
+        responses_path: Some("/responses".into()),
+        ..generic_openai_compatible_profile_preset("cloudflare-workers-ai")
+    }
+}
+
 /// Returns the built-in "together-openai" preset for Together's OpenAI-compatible API.
 pub fn together_openai_preset() -> ProviderPreset {
     ProviderPreset {
@@ -244,5 +273,31 @@ pub fn perplexity_preset() -> ProviderPreset {
         session_auth: None,
         execution_mode: None,
         endpoint_execution_modes: None,
+    }
+}
+
+/// Token Plan is a Key product; all public text endpoints use the Chat wire.
+pub fn sensenova_token_plan_preset() -> ProviderPreset {
+    ProviderPreset {
+        auth_mode: Some(crate::protocol::sensenova::AUTH_MODE.into()),
+        chat_completions_path: Some("/chat/completions".into()),
+        ..generic_openai_compatible_profile_preset(crate::protocol::sensenova::PRESET)
+    }
+}
+
+/// SAP's client-credentials owner authenticates one explicit deployment.
+pub fn sap_aicore_chat_preset() -> ProviderPreset {
+    ProviderPreset {
+        auth_mode: Some(crate::protocol::sap_aicore::AUTH_MODE.into()),
+        ..generic_openai_compatible_profile_preset(crate::protocol::sap_aicore::PRESET)
+    }
+}
+
+/// Provider API Chat is explicit; the directory selects models without guessing their protocol.
+pub fn commandcode_api_preset() -> ProviderPreset {
+    ProviderPreset {
+        auth_mode: Some(crate::protocol::commandcode::AUTH_MODE.into()),
+        chat_completions_path: Some("/chat/completions".into()),
+        ..generic_openai_compatible_profile_preset(crate::protocol::commandcode::PRESET)
     }
 }

@@ -1,8 +1,8 @@
 {
   "$schema": "provider-inventory.schema.json",
   "schemaVersion": "gateway-product-inventory/v1",
-  "generatedAt": "2026-07-29T05:19:33Z",
-  "sourceRevision": "657956dc43244d77d2245e1327c0f326caad9b16",
+  "generatedAt": "2026-11-01T22:23:13Z",
+  "sourceRevision": "7969f12c85efceacf2a5e384e143b5c39a550981",
   "sources": {
     "manifestRoot": "manifests/lines",
     "cargoManifest": "Cargo.toml",
@@ -14,7 +14,7 @@
     "mode": "offline",
     "counts": {
       "compiled": 0,
-      "metadata_only": 44,
+      "metadata_only": 54,
       "fixture_passed": 0,
       "live_passed": 0,
       "external_gate": 0,
@@ -126,7 +126,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -157,8 +157,163 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "agnes-official-api",
+      "manifestPath": "manifests/lines/agnes/official-api.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "agnes-official-api",
+        "identity": {
+          "serviceProviderKey": "agnes-ai",
+          "serviceProviderLabel": "Agnes AI",
+          "providerSurfaceKey": "agnes-api",
+          "providerSurfaceLabel": "Agnes AI International API",
+          "protocolProfile": "agnes_api",
+          "implementationLine": "official_vendor_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_vendor_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "models"
+          ],
+          "supportsModelsEndpoint": true
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/agnes-contract-2026-11-10.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "agnes-official-api-verify",
+          "focusedCargoFilters": [
+            "agnes"
+          ],
+          "fixtureSuiteId": "agnes_fixture",
+          "liveSuiteId": "agnes_live_pending",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-agnes-official-api",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "agnes-official-api"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/agnes.rs",
+          "upstreamModule": "gateway/src/upstream/openai_compatible_request_plan.rs",
+          "platformDeltaModule": "gateway/src/provider_discovery/model_catalog.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "agnes-ai",
+        "serviceProviderLabel": "Agnes AI",
+        "providerSurfaceKey": "agnes-api",
+        "providerSurfaceLabel": "Agnes AI International API",
+        "protocolProfile": "agnes_api",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/providers/examples/agnes.routes.sample.json",
+        "fieldsDocPath": "docs/providers/agnes-contract-2026-11-10.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/agnes-contract-2026-11-10.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "agnes-official-api-verify",
+        "focusedCargoFilters": [
+          "agnes"
+        ],
+        "fixtureSuiteId": "agnes_fixture",
+        "liveSuiteId": "agnes_live_pending",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-agnes-official-api",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "agnes-official-api",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/agnes.rs",
+        "upstreamModule": "gateway/src/upstream/openai_compatible_request_plan.rs",
+        "platformDeltaModule": "gateway/src/provider_discovery/model_catalog.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "AgnesOfficialApi",
+        "canonicalProtocolProfile": "agnes_api",
+        "featureName": "line-agnes-official-api",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -272,7 +427,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -306,8 +461,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -333,21 +488,21 @@
           "implementationLine": "web_reverse",
           "adapter": "aistudio_web_reverse_compatible",
           "sourceKind": "web_reverse_api",
-          "executionMode": "browser_backed"
+          "executionMode": "direct_http"
         },
         "capabilities": {
           "families": [
             "conversation",
             "images",
+            "audio_transcriptions",
             "audio_speech",
-            "embeddings",
             "models"
           ],
           "supportsModelsEndpoint": true
         },
         "credentials": "<redacted>",
         "docs": {
-          "overviewDocPath": "docs/20-ai-gateway/AIStudio Web Reverse基线.md",
+          "overviewDocPath": "docs/aistudio-web-http.md",
           "buildDocPath": "docs/20-ai-gateway/实现线可选编译与物理隔离规范.md"
         },
         "verification": {
@@ -357,7 +512,7 @@
             "upstream::aistudio_web"
           ],
           "fixtureSuiteId": "aistudio_web_reverse_fixture",
-          "liveSuiteId": "aistudio_web_reverse_live_browser_owned_full_text",
+          "liveSuiteId": "aistudio_web_reverse_live_http_multimodal",
           "useNoDefaultFeatures": true
         },
         "compilation": {
@@ -380,28 +535,27 @@
         "implementationLine": "web_reverse",
         "adapter": "aistudio_web_reverse_compatible",
         "sourceKind": "web_reverse_api",
-        "executionMode": "browser_backed"
+        "executionMode": "direct_http"
       },
       "capabilities": {
         "families": [
           "conversation",
           "images",
+          "audio_transcriptions",
           "audio_speech",
-          "embeddings",
           "models"
         ],
         "supportsModelsEndpoint": true
       },
       "credentials": {
         "materialKinds": [
-          "session_auth",
-          "browser_state"
+          "session_auth"
         ],
         "samplePath": "docs/20-ai-gateway/examples/credentials/aistudio/web_reverse/minimal.raw.sample.json",
         "fieldsDocPath": "docs/20-ai-gateway/examples/credentials/aistudio/web_reverse/FIELDS.md"
       },
       "docs": {
-        "overviewDocPath": "docs/20-ai-gateway/AIStudio Web Reverse基线.md",
+        "overviewDocPath": "docs/aistudio-web-http.md",
         "buildDocPath": "docs/20-ai-gateway/实现线可选编译与物理隔离规范.md"
       },
       "verification": {
@@ -411,7 +565,7 @@
           "upstream::aistudio_web"
         ],
         "fixtureSuiteId": "aistudio_web_reverse_fixture",
-        "liveSuiteId": "aistudio_web_reverse_live_browser_owned_full_text",
+        "liveSuiteId": "aistudio_web_reverse_live_http_multimodal",
         "useNoDefaultFeatures": true
       },
       "compilation": {
@@ -422,7 +576,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -455,8 +609,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -576,7 +730,7 @@
           "familyFeaturesDeclared": {
             "family-anthropic-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -607,8 +761,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -728,7 +882,7 @@
           "familyFeaturesDeclared": {
             "family-bedrock-converse-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -759,8 +913,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -880,7 +1034,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -916,8 +1070,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1026,7 +1180,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -1057,8 +1211,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1179,7 +1333,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -1215,8 +1369,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1343,7 +1497,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -1379,8 +1533,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1491,7 +1645,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -1522,8 +1676,165 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "cloudflare-workers-ai",
+      "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "cloudflare-workers-ai",
+        "identity": {
+          "serviceProviderKey": "cloudflare",
+          "serviceProviderLabel": "Cloudflare",
+          "providerSurfaceKey": "cloudflare-workers-ai",
+          "providerSurfaceLabel": "Workers AI",
+          "protocolProfile": "cloudflare_workers_ai",
+          "implementationLine": "official_vendor_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_vendor_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "models",
+            "embeddings"
+          ],
+          "supportsModelsEndpoint": true
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/magpie-expansion-2026-11-08.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "cloudflare-workers-ai-verify",
+          "focusedCargoFilters": [
+            "cloudflare"
+          ],
+          "fixtureSuiteId": "cloudflare_fixture",
+          "liveSuiteId": "cloudflare_live_pending",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-cloudflare-workers-ai",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "cloudflare-workers-ai"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/cloudflare_workers_ai.rs",
+          "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+          "platformDeltaModule": "gateway/src/routing/config/cloudflare_workers_ai.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "cloudflare",
+        "serviceProviderLabel": "Cloudflare",
+        "providerSurfaceKey": "cloudflare-workers-ai",
+        "providerSurfaceLabel": "Workers AI",
+        "protocolProfile": "cloudflare_workers_ai",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models",
+          "embeddings"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/providers/examples/cloudflare-workers-ai.routes.sample.json",
+        "fieldsDocPath": "docs/providers/magpie-expansion-2026-11-08.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/magpie-expansion-2026-11-08.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "cloudflare-workers-ai-verify",
+        "focusedCargoFilters": [
+          "cloudflare"
+        ],
+        "fixtureSuiteId": "cloudflare_fixture",
+        "liveSuiteId": "cloudflare_live_pending",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-cloudflare-workers-ai",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "cloudflare-workers-ai",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/cloudflare_workers_ai.rs",
+        "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+        "platformDeltaModule": "gateway/src/routing/config/cloudflare_workers_ai.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "CloudflareWorkersAi",
+        "canonicalProtocolProfile": "cloudflare_workers_ai",
+        "featureName": "line-cloudflare-workers-ai",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1643,7 +1954,7 @@
           "familyFeaturesDeclared": {
             "family-cohere-chat-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -1674,8 +1985,163 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "commandcode-provider-api",
+      "manifestPath": "manifests/lines/commandcode/provider-api.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "commandcode-provider-api",
+        "identity": {
+          "serviceProviderKey": "commandcode",
+          "serviceProviderLabel": "Command Code",
+          "providerSurfaceKey": "commandcode-api",
+          "providerSurfaceLabel": "Command Code Provider API Chat",
+          "protocolProfile": "commandcode_chat",
+          "implementationLine": "official_vendor_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_vendor_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "models"
+          ],
+          "supportsModelsEndpoint": true
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/commandcode-chat-contract-2026-11-10.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "commandcode-provider-api-verify",
+          "focusedCargoFilters": [
+            "commandcode"
+          ],
+          "fixtureSuiteId": "commandcode_fixture",
+          "liveSuiteId": "commandcode_live_pending",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-commandcode-provider-api",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "commandcode-provider-api"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/commandcode.rs",
+          "upstreamModule": "gateway/src/protocol/commandcode/runtime.rs",
+          "platformDeltaModule": "gateway/src/provider_discovery/model_catalog.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "commandcode",
+        "serviceProviderLabel": "Command Code",
+        "providerSurfaceKey": "commandcode-api",
+        "providerSurfaceLabel": "Command Code Provider API Chat",
+        "protocolProfile": "commandcode_chat",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/providers/examples/commandcode-api.routes.sample.json",
+        "fieldsDocPath": "docs/providers/commandcode-chat-contract-2026-11-10.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/commandcode-chat-contract-2026-11-10.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "commandcode-provider-api-verify",
+        "focusedCargoFilters": [
+          "commandcode"
+        ],
+        "fixtureSuiteId": "commandcode_fixture",
+        "liveSuiteId": "commandcode_live_pending",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-commandcode-provider-api",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "commandcode-provider-api",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/commandcode.rs",
+        "upstreamModule": "gateway/src/protocol/commandcode/runtime.rs",
+        "platformDeltaModule": "gateway/src/provider_discovery/model_catalog.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "CommandCodeProviderApi",
+        "canonicalProtocolProfile": "commandcode_chat",
+        "featureName": "line-commandcode-provider-api",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1719,9 +2185,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "deepseek-openai-official-model-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
-            "protocol::tool_inject::tests::deepseek_needs_injection",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+            "protocol::tool_inject::tests::policy::deepseek_needs_injection",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
           ],
           "fixtureSuiteId": "deepseek_fixture",
           "liveSuiteId": "deepseek_live",
@@ -1774,9 +2240,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "deepseek-openai-official-model-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
-          "protocol::tool_inject::tests::deepseek_needs_injection",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+          "protocol::tool_inject::tests::policy::deepseek_needs_injection",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
         ],
         "fixtureSuiteId": "deepseek_fixture",
         "liveSuiteId": "deepseek_live",
@@ -1797,7 +2263,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -1833,8 +2299,170 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "dim-user-oauth",
+      "manifestPath": "manifests/lines/dim/user-oauth.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "dim-user-oauth",
+        "identity": {
+          "serviceProviderKey": "dim",
+          "serviceProviderLabel": "DIM",
+          "providerSurfaceKey": "dim-user-oauth",
+          "providerSurfaceLabel": "DIM China / Global User OAuth",
+          "protocolProfile": "dim_user_oauth",
+          "implementationLine": "official_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_vendor_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "models"
+          ],
+          "supportsModelsEndpoint": true
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/progress/2026-11-08-dim-local.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "dim-user-oauth-verify",
+          "focusedCargoFilters": [
+            "dim_oauth",
+            "dim_model_routing"
+          ],
+          "fixtureSuiteId": "dim_local_fixture",
+          "liveSuiteId": "dim_live_pending_client_registration",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-dim-user-oauth",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api",
+            "family-anthropic-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "dim-user-oauth"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/dim_oauth.rs",
+          "upstreamModule": "gateway/src/upstream/client",
+          "platformDeltaModule": "gateway/src/console/dim_oauth"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "dim",
+        "serviceProviderLabel": "DIM",
+        "providerSurfaceKey": "dim-user-oauth",
+        "providerSurfaceLabel": "DIM China / Global User OAuth",
+        "protocolProfile": "dim_user_oauth",
+        "implementationLine": "official_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "credentials": {
+        "materialKinds": [
+          "bearer_token"
+        ],
+        "samplePath": "docs/providers/examples/dim-user-oauth.routes.sample.json",
+        "fieldsDocPath": "docs/progress/2026-11-08-dim-local.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/progress/2026-11-08-dim-local.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "dim-user-oauth-verify",
+        "focusedCargoFilters": [
+          "dim_oauth",
+          "dim_model_routing"
+        ],
+        "fixtureSuiteId": "dim_local_fixture",
+        "liveSuiteId": "dim_live_pending_client_registration",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-dim-user-oauth",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api",
+          "family-anthropic-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "dim-user-oauth",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-anthropic-compatible-official-api",
+            "family-openai-compatible-official-api",
+            "line-aistudio-official"
+          ],
+          "familyFeaturesDeclared": {
+            "family-anthropic-compatible-official-api": true,
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/dim_oauth.rs",
+        "upstreamModule": "gateway/src/upstream/client",
+        "platformDeltaModule": "gateway/src/console/dim_oauth"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "DimUserOauth",
+        "canonicalProtocolProfile": "dim_user_oauth",
+        "featureName": "line-dim-user-oauth",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1877,9 +2505,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "exa-search-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "preset::tests::exa_preset_has_search_and_contents_paths",
-            "implementation_lines::tests::exa_search_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+            "preset::tests::search_presets::exa_preset_has_search_and_contents_paths",
+            "implementation_lines::tests::feature_profiles::exa_search_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
           ],
           "fixtureSuiteId": "exa_fixture",
           "useNoDefaultFeatures": true
@@ -1930,9 +2558,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "exa-search-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "preset::tests::exa_preset_has_search_and_contents_paths",
-          "implementation_lines::tests::exa_search_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+          "preset::tests::search_presets::exa_preset_has_search_and_contents_paths",
+          "implementation_lines::tests::feature_profiles::exa_search_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
         ],
         "fixtureSuiteId": "exa_fixture",
         "useNoDefaultFeatures": true
@@ -1952,7 +2580,7 @@
           "familyFeaturesDeclared": {
             "family-search-api-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -1983,8 +2611,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2027,9 +2655,9 @@
           "recommendedCargoTargetDirSlug": "freebuff-web-reverse-api-verify",
           "focusedCargoFilters": [
             "protocol::freebuff",
-            "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-            "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+            "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
           ],
           "fixtureSuiteId": "freebuff_glm51",
           "useNoDefaultFeatures": true
@@ -2078,9 +2706,9 @@
         "recommendedCargoTargetDirSlug": "freebuff-web-reverse-api-verify",
         "focusedCargoFilters": [
           "protocol::freebuff",
-          "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-          "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+          "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
         ],
         "fixtureSuiteId": "freebuff_glm51",
         "useNoDefaultFeatures": true
@@ -2093,7 +2721,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -2124,8 +2752,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2242,7 +2870,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -2276,8 +2904,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2390,7 +3018,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -2425,8 +3053,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2532,7 +3160,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -2566,8 +3194,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2610,8 +3238,8 @@
           "recommendedCargoTargetDirSlug": "grok-web-reverse-api-verify",
           "focusedCargoFilters": [
             "protocol::grok",
-            "implementation_lines::tests::protocol_profile_mapping_includes_nvidia_and_grok_lines",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
+            "implementation_lines::tests::profiles::protocol_profile_mapping_includes_nvidia_and_grok_lines",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
           ],
           "fixtureSuiteId": "grok_fixture",
           "liveSuiteId": "grok_live",
@@ -2660,8 +3288,8 @@
         "recommendedCargoTargetDirSlug": "grok-web-reverse-api-verify",
         "focusedCargoFilters": [
           "protocol::grok",
-          "implementation_lines::tests::protocol_profile_mapping_includes_nvidia_and_grok_lines",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
+          "implementation_lines::tests::profiles::protocol_profile_mapping_includes_nvidia_and_grok_lines",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
         ],
         "fixtureSuiteId": "grok_fixture",
         "liveSuiteId": "grok_live",
@@ -2675,7 +3303,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -2706,8 +3334,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2751,8 +3379,8 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "groq-openai-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::protocol_profile_inference_includes_wave4_openai_compatible_profiles",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+            "implementation_lines::tests::profiles::protocol_profile_inference_includes_wave4_openai_compatible_profiles",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
           ],
           "fixtureSuiteId": "groq_fixture",
           "liveSuiteId": "groq_live",
@@ -2805,8 +3433,8 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "groq-openai-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::protocol_profile_inference_includes_wave4_openai_compatible_profiles",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+          "implementation_lines::tests::profiles::protocol_profile_inference_includes_wave4_openai_compatible_profiles",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
         ],
         "fixtureSuiteId": "groq_fixture",
         "liveSuiteId": "groq_live",
@@ -2827,7 +3455,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -2863,8 +3491,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2906,9 +3534,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "jina-reader-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "preset::tests::jina_reader_preset_has_fetch_path_and_json_accept",
-            "implementation_lines::tests::jina_reader_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+            "preset::tests::search_presets::jina_reader_preset_has_fetch_path_and_json_accept",
+            "implementation_lines::tests::feature_profiles::jina_reader_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
           ],
           "fixtureSuiteId": "jina_reader_fixture",
           "useNoDefaultFeatures": true
@@ -2958,9 +3586,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "jina-reader-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "preset::tests::jina_reader_preset_has_fetch_path_and_json_accept",
-          "implementation_lines::tests::jina_reader_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+          "preset::tests::search_presets::jina_reader_preset_has_fetch_path_and_json_accept",
+          "implementation_lines::tests::feature_profiles::jina_reader_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
         ],
         "fixtureSuiteId": "jina_reader_fixture",
         "useNoDefaultFeatures": true
@@ -2980,7 +3608,7 @@
           "familyFeaturesDeclared": {
             "family-search-api-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -3011,8 +3639,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3054,9 +3682,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "jina-search-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "preset::tests::jina_search_preset_has_search_path_and_json_accept",
-            "implementation_lines::tests::jina_search_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+            "preset::tests::search_presets::jina_search_preset_has_search_path_and_json_accept",
+            "implementation_lines::tests::feature_profiles::jina_search_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
           ],
           "fixtureSuiteId": "jina_search_fixture",
           "useNoDefaultFeatures": true
@@ -3106,9 +3734,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "jina-search-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "preset::tests::jina_search_preset_has_search_path_and_json_accept",
-          "implementation_lines::tests::jina_search_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+          "preset::tests::search_presets::jina_search_preset_has_search_path_and_json_accept",
+          "implementation_lines::tests::feature_profiles::jina_search_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
         ],
         "fixtureSuiteId": "jina_search_fixture",
         "useNoDefaultFeatures": true
@@ -3128,7 +3756,7 @@
           "familyFeaturesDeclared": {
             "family-search-api-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -3159,8 +3787,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3203,7 +3831,7 @@
           "recommendedCargoTargetDirSlug": "kiro-official-vendor-api-verify",
           "focusedCargoFilters": [
             "protocol::kiro",
-            "kiro_compatible"
+            "upstream::headers::tests::api_auth::kiro_uses_runtime_bearer_and_aws_headers"
           ],
           "useNoDefaultFeatures": true
         },
@@ -3250,7 +3878,7 @@
         "recommendedCargoTargetDirSlug": "kiro-official-vendor-api-verify",
         "focusedCargoFilters": [
           "protocol::kiro",
-          "kiro_compatible"
+          "upstream::headers::tests::api_auth::kiro_uses_runtime_bearer_and_aws_headers"
         ],
         "useNoDefaultFeatures": true
       },
@@ -3262,7 +3890,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -3293,8 +3921,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3339,9 +3967,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "linkup-search-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "preset::tests::linkup_preset_has_search_adapter_and_path",
-            "implementation_lines::tests::linkup_search_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+            "preset::tests::search_presets::linkup_preset_has_search_adapter_and_path",
+            "implementation_lines::tests::feature_profiles::linkup_search_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
           ],
           "fixtureSuiteId": "linkup_fixture",
           "useNoDefaultFeatures": true
@@ -3394,9 +4022,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "linkup-search-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "preset::tests::linkup_preset_has_search_adapter_and_path",
-          "implementation_lines::tests::linkup_search_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+          "preset::tests::search_presets::linkup_preset_has_search_adapter_and_path",
+          "implementation_lines::tests::feature_profiles::linkup_search_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
         ],
         "fixtureSuiteId": "linkup_fixture",
         "useNoDefaultFeatures": true
@@ -3416,7 +4044,7 @@
           "familyFeaturesDeclared": {
             "family-search-api-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -3447,8 +4075,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3492,7 +4120,7 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "longcat-openai-official-model-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
           ],
           "fixtureSuiteId": "longcat_fixture",
           "liveSuiteId": "longcat_live",
@@ -3545,7 +4173,7 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "longcat-openai-official-model-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
         ],
         "fixtureSuiteId": "longcat_fixture",
         "liveSuiteId": "longcat_live",
@@ -3566,7 +4194,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -3602,8 +4230,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3651,8 +4279,8 @@
             "protocol::lumalabs",
             "upstream::lumalabs",
             "upstream::media_platform_compile_gate_test",
-            "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+            "implementation_lines::tests::compile_checks::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_media_platform_lines"
           ],
           "liveSuiteId": "lumalabs_live",
           "useNoDefaultFeatures": true
@@ -3706,8 +4334,8 @@
           "protocol::lumalabs",
           "upstream::lumalabs",
           "upstream::media_platform_compile_gate_test",
-          "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+          "implementation_lines::tests::compile_checks::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_media_platform_lines"
         ],
         "liveSuiteId": "lumalabs_live",
         "useNoDefaultFeatures": true
@@ -3720,7 +4348,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -3753,8 +4381,156 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "minimax-m-plan",
+      "manifestPath": "manifests/lines/minimax/m-plan.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "minimax-m-plan",
+        "identity": {
+          "serviceProviderKey": "minimax",
+          "serviceProviderLabel": "MiniMax",
+          "providerSurfaceKey": "minimax-m-plan",
+          "providerSurfaceLabel": "MiniMax M Plan Subscription Key",
+          "protocolProfile": "minimax_m_plan",
+          "implementationLine": "official_vendor_api",
+          "adapter": "anthropic_compatible",
+          "sourceKind": "official_vendor_api",
+          "executionMode": "direct_http",
+          "templateFamily": "anthropic_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation"
+          ],
+          "supportsModelsEndpoint": false
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/minimax-m-plan-contract-2026-11-10.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "minimax-m-plan-verify",
+          "focusedCargoFilters": [
+            "minimax"
+          ],
+          "fixtureSuiteId": "minimax_m_plan_fixture",
+          "liveSuiteId": "minimax_m_plan_live_pending",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-minimax-m-plan",
+          "familyCommonFeatures": [
+            "family-anthropic-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "minimax-m-plan"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/minimax.rs",
+          "upstreamModule": "gateway/src/upstream/anthropic_compatible_official_api_common.rs",
+          "platformDeltaModule": "gateway/src/protocol/minimax/stream.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "minimax",
+        "serviceProviderLabel": "MiniMax",
+        "providerSurfaceKey": "minimax-m-plan",
+        "providerSurfaceLabel": "MiniMax M Plan Subscription Key",
+        "protocolProfile": "minimax_m_plan",
+        "implementationLine": "official_vendor_api",
+        "adapter": "anthropic_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "anthropic_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/providers/examples/minimax-m-plan.routes.sample.json",
+        "fieldsDocPath": "docs/providers/minimax-m-plan-contract-2026-11-10.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/minimax-m-plan-contract-2026-11-10.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "minimax-m-plan-verify",
+        "focusedCargoFilters": [
+          "minimax"
+        ],
+        "fixtureSuiteId": "minimax_m_plan_fixture",
+        "liveSuiteId": "minimax_m_plan_live_pending",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-minimax-m-plan",
+        "familyCommonFeatures": [
+          "family-anthropic-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "minimax-m-plan",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-anthropic-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-anthropic-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/minimax.rs",
+        "upstreamModule": "gateway/src/upstream/anthropic_compatible_official_api_common.rs",
+        "platformDeltaModule": "gateway/src/protocol/minimax/stream.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "MiniMaxMPlan",
+        "canonicalProtocolProfile": "minimax_m_plan",
+        "featureName": "line-minimax-m-plan",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "anthropic_messages"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3798,9 +4574,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "mistral-openai-official-model-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
             "protocol::hooks::tests::resolve_returns_mistral_hook_for_mistral_provider",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
           ],
           "fixtureSuiteId": "mistral_fixture",
           "liveSuiteId": "mistral_live",
@@ -3853,9 +4629,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "mistral-openai-official-model-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
           "protocol::hooks::tests::resolve_returns_mistral_hook_for_mistral_provider",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
         ],
         "fixtureSuiteId": "mistral_fixture",
         "liveSuiteId": "mistral_live",
@@ -3876,7 +4652,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -3912,8 +4688,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3957,7 +4733,7 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "muyuan-openai-aggregator-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
           ],
           "fixtureSuiteId": "muyuan_fixture",
           "liveSuiteId": "muyuan_live",
@@ -4010,7 +4786,7 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "muyuan-openai-aggregator-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
         ],
         "fixtureSuiteId": "muyuan_fixture",
         "liveSuiteId": "muyuan_live",
@@ -4031,7 +4807,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -4067,8 +4843,165 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "nous-portal-oauth",
+      "manifestPath": "manifests/lines/nous/portal-oauth.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "nous-portal-oauth",
+        "identity": {
+          "serviceProviderKey": "nous",
+          "serviceProviderLabel": "Nous Research",
+          "providerSurfaceKey": "nous-portal-oauth",
+          "providerSurfaceLabel": "Nous Portal Subscription / Welcome OAuth",
+          "protocolProfile": "nous_portal_oauth",
+          "implementationLine": "official_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_model_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "embeddings",
+            "models"
+          ],
+          "supportsModelsEndpoint": true
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/nous-contract-2026-11-08.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "nous-portal-oauth-verify",
+          "focusedCargoFilters": [
+            "nous_"
+          ],
+          "fixtureSuiteId": "nous_local_fixture",
+          "liveSuiteId": "nous_live_pending_client_permission",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-nous-portal-oauth",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "nous-portal-oauth"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/nous_portal.rs",
+          "upstreamModule": "gateway/src/protocol/nous_portal/runtime.rs",
+          "platformDeltaModule": "gateway/src/console/nous_oauth"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "nous",
+        "serviceProviderLabel": "Nous Research",
+        "providerSurfaceKey": "nous-portal-oauth",
+        "providerSurfaceLabel": "Nous Portal Subscription / Welcome OAuth",
+        "protocolProfile": "nous_portal_oauth",
+        "implementationLine": "official_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_model_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "embeddings",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "credentials": {
+        "materialKinds": [
+          "bearer_token"
+        ],
+        "samplePath": "docs/providers/examples/nous-portal-oauth.routes.sample.json",
+        "fieldsDocPath": "docs/providers/nous-contract-2026-11-08.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/nous-contract-2026-11-08.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "nous-portal-oauth-verify",
+        "focusedCargoFilters": [
+          "nous_"
+        ],
+        "fixtureSuiteId": "nous_local_fixture",
+        "liveSuiteId": "nous_live_pending_client_permission",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-nous-portal-oauth",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "nous-portal-oauth",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/nous_portal.rs",
+        "upstreamModule": "gateway/src/protocol/nous_portal/runtime.rs",
+        "platformDeltaModule": "gateway/src/console/nous_oauth"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "NousPortalOauth",
+        "canonicalProtocolProfile": "nous_portal_oauth",
+        "featureName": "line-nous-portal-oauth",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4112,8 +5045,8 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "nvidia-openai-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::protocol_profile_mapping_includes_nvidia_and_grok_lines",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
+            "implementation_lines::tests::profiles::protocol_profile_mapping_includes_nvidia_and_grok_lines",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
           ],
           "fixtureSuiteId": "nvidia_fixture",
           "liveSuiteId": "nvidia_live",
@@ -4166,8 +5099,8 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "nvidia-openai-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::protocol_profile_mapping_includes_nvidia_and_grok_lines",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
+          "implementation_lines::tests::profiles::protocol_profile_mapping_includes_nvidia_and_grok_lines",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_nvidia_and_grok_lines"
         ],
         "fixtureSuiteId": "nvidia_fixture",
         "liveSuiteId": "nvidia_live",
@@ -4188,7 +5121,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -4224,8 +5157,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4269,8 +5202,8 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "openrouter-openai-aggregator-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
           ],
           "fixtureSuiteId": "openrouter_fixture",
           "liveSuiteId": "openrouter_live",
@@ -4323,8 +5256,8 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "openrouter-openai-aggregator-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
         ],
         "fixtureSuiteId": "openrouter_fixture",
         "liveSuiteId": "openrouter_live",
@@ -4345,7 +5278,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -4381,8 +5314,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4426,9 +5359,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "perplexity-chat-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-            "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+            "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
           ],
           "fixtureSuiteId": "perplexity_chat_fixture",
           "useNoDefaultFeatures": true
@@ -4480,9 +5413,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "perplexity-chat-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-          "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+          "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
         ],
         "fixtureSuiteId": "perplexity_chat_fixture",
         "useNoDefaultFeatures": true
@@ -4502,7 +5435,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -4538,8 +5471,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4581,9 +5514,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "perplexity-search-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "preset::tests::perplexity_search_preset_uses_query_field",
-            "implementation_lines::tests::perplexity_search_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+            "preset::tests::search_presets::perplexity_search_preset_uses_query_field",
+            "implementation_lines::tests::feature_profiles::perplexity_search_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
           ],
           "fixtureSuiteId": "perplexity_search_fixture",
           "useNoDefaultFeatures": true
@@ -4633,9 +5566,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "perplexity-search-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "preset::tests::perplexity_search_preset_uses_query_field",
-          "implementation_lines::tests::perplexity_search_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+          "preset::tests::search_presets::perplexity_search_preset_uses_query_field",
+          "implementation_lines::tests::feature_profiles::perplexity_search_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
         ],
         "fixtureSuiteId": "perplexity_search_fixture",
         "useNoDefaultFeatures": true
@@ -4655,7 +5588,7 @@
           "familyFeaturesDeclared": {
             "family-search-api-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -4686,8 +5619,144 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "perplexity-web-reverse-api",
+      "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "perplexity-web-reverse-api",
+        "identity": {
+          "serviceProviderKey": "perplexity_platform",
+          "serviceProviderLabel": "Perplexity Web",
+          "providerSurfaceKey": "perplexity-web",
+          "providerSurfaceLabel": "Perplexity consumption-site single-turn text",
+          "protocolProfile": "perplexity_web",
+          "implementationLine": "web_reverse_api",
+          "adapter": "perplexity_web_compatible",
+          "sourceKind": "web_reverse_api",
+          "executionMode": "direct_http_replay"
+        },
+        "capabilities": {
+          "families": [
+            "conversation"
+          ],
+          "supportsModelsEndpoint": false
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/provider-perplexity-web.md",
+          "buildDocPath": "docs/provider-perplexity-web.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "perplexity-web-reverse-api-verify",
+          "focusedCargoFilters": [
+            "perplexity_web"
+          ],
+          "fixtureSuiteId": "perplexity_web_fixture",
+          "liveSuiteId": "perplexity_web_live",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "binary_exclusion",
+          "lineFeature": "line-perplexity-web-reverse-api",
+          "binaryInclusionGroup": "perplexity-web-reverse-api"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/perplexity_web",
+          "upstreamModule": "gateway/src/upstream/perplexity_web",
+          "platformDeltaModule": "gateway/src/protocol/perplexity_web/request.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "perplexity_platform",
+        "serviceProviderLabel": "Perplexity Web",
+        "providerSurfaceKey": "perplexity-web",
+        "providerSurfaceLabel": "Perplexity consumption-site single-turn text",
+        "protocolProfile": "perplexity_web",
+        "implementationLine": "web_reverse_api",
+        "adapter": "perplexity_web_compatible",
+        "sourceKind": "web_reverse_api",
+        "executionMode": "direct_http_replay"
+      },
+      "capabilities": {
+        "families": [
+          "conversation"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "credentials": {
+        "materialKinds": [
+          "session_auth"
+        ],
+        "samplePath": "docs/provider-perplexity-web-material.sample.json",
+        "fieldsDocPath": "docs/provider-perplexity-web.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/provider-perplexity-web.md",
+        "buildDocPath": "docs/provider-perplexity-web.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "perplexity-web-reverse-api-verify",
+        "focusedCargoFilters": [
+          "perplexity_web"
+        ],
+        "fixtureSuiteId": "perplexity_web_fixture",
+        "liveSuiteId": "perplexity_web_live",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "binary_exclusion",
+        "lineFeature": "line-perplexity-web-reverse-api",
+        "binaryInclusionGroup": "perplexity-web-reverse-api",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [],
+          "familyFeaturesDeclared": {},
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/perplexity_web",
+        "upstreamModule": "gateway/src/upstream/perplexity_web",
+        "platformDeltaModule": "gateway/src/protocol/perplexity_web/request.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "PerplexityWebReverseApi",
+        "canonicalProtocolProfile": "perplexity_web",
+        "featureName": "line-perplexity-web-reverse-api",
+        "protocolProfileMapped": true,
+        "adapterMapped": true,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_chat"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4721,7 +5790,7 @@
             "conversation",
             "models"
           ],
-          "supportsModelsEndpoint": false
+          "supportsModelsEndpoint": true
         },
         "credentials": "<redacted>",
         "docs": {
@@ -4731,7 +5800,7 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "poe-openai-aggregator-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
           ],
           "fixtureSuiteId": "poe_fixture",
           "liveSuiteId": "poe_live",
@@ -4768,7 +5837,7 @@
           "conversation",
           "models"
         ],
-        "supportsModelsEndpoint": false
+        "supportsModelsEndpoint": true
       },
       "credentials": {
         "materialKinds": [
@@ -4784,7 +5853,7 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "poe-openai-aggregator-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls"
         ],
         "fixtureSuiteId": "poe_fixture",
         "liveSuiteId": "poe_live",
@@ -4805,7 +5874,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -4841,8 +5910,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4888,9 +5957,9 @@
           "focusedCargoFilters": [
             "protocol::producer",
             "upstream::producer_media_helpers",
-            "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-            "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+            "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
           ],
           "liveSuiteId": "producer_live",
           "useNoDefaultFeatures": true
@@ -4942,9 +6011,9 @@
         "focusedCargoFilters": [
           "protocol::producer",
           "upstream::producer_media_helpers",
-          "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-          "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+          "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
         ],
         "liveSuiteId": "producer_live",
         "useNoDefaultFeatures": true
@@ -4957,7 +6026,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -4990,8 +6059,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5011,8 +6080,8 @@
         "identity": {
           "serviceProviderKey": "qwen_platform",
           "serviceProviderLabel": "Qwen Platform",
-          "providerSurfaceKey": "qwen-dashscope-openai",
-          "providerSurfaceLabel": "Qwen Official API",
+          "providerSurfaceKey": "qwen-coding-plan-openai",
+          "providerSurfaceLabel": "Qwen Coding Plan API",
           "protocolProfile": "qwen_official_api",
           "implementationLine": "official_api",
           "adapter": "openai_compatible",
@@ -5038,8 +6107,8 @@
             "protocol::qwen::official_api",
             "upstream::qwen::official_api"
           ],
-          "fixtureSuiteId": "qwen_dashscope_openai_fixture",
-          "liveSuiteId": "qwen_dashscope_live",
+          "fixtureSuiteId": "qwen_coding_plan_fixture",
+          "liveSuiteId": "qwen_coding_plan_live",
           "useNoDefaultFeatures": true
         },
         "compilation": {
@@ -5060,8 +6129,8 @@
       "identity": {
         "serviceProviderKey": "qwen_platform",
         "serviceProviderLabel": "Qwen Platform",
-        "providerSurfaceKey": "qwen-dashscope-openai",
-        "providerSurfaceLabel": "Qwen Official API",
+        "providerSurfaceKey": "qwen-coding-plan-openai",
+        "providerSurfaceLabel": "Qwen Coding Plan API",
         "protocolProfile": "qwen_official_api",
         "implementationLine": "official_api",
         "adapter": "openai_compatible",
@@ -5093,8 +6162,8 @@
           "protocol::qwen::official_api",
           "upstream::qwen::official_api"
         ],
-        "fixtureSuiteId": "qwen_dashscope_openai_fixture",
-        "liveSuiteId": "qwen_dashscope_live",
+        "fixtureSuiteId": "qwen_coding_plan_fixture",
+        "liveSuiteId": "qwen_coding_plan_live",
         "useNoDefaultFeatures": true
       },
       "compilation": {
@@ -5116,7 +6185,7 @@
             "family-anthropic-compatible-official-api": true,
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -5152,8 +6221,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5260,7 +6329,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -5292,8 +6361,471 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "river-official-api",
+      "manifestPath": "manifests/lines/river/official-api.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "river-official-api",
+        "identity": {
+          "serviceProviderKey": "river",
+          "serviceProviderLabel": "River",
+          "providerSurfaceKey": "river-api",
+          "providerSurfaceLabel": "River API",
+          "protocolProfile": "river",
+          "implementationLine": "official_vendor_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_vendor_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "models"
+          ],
+          "supportsModelsEndpoint": true
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/magpie-expansion-2026-11-08.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "river-official-api-verify",
+          "focusedCargoFilters": [
+            "river"
+          ],
+          "fixtureSuiteId": "river_fixture",
+          "liveSuiteId": "river_live_pending",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-river-official-api",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "river-official-api"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/registry.rs",
+          "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+          "platformDeltaModule": "gateway/src/implementation_lines.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "river",
+        "serviceProviderLabel": "River",
+        "providerSurfaceKey": "river-api",
+        "providerSurfaceLabel": "River API",
+        "protocolProfile": "river",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/providers/examples/river.routes.sample.json",
+        "fieldsDocPath": "docs/providers/magpie-expansion-2026-11-08.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/magpie-expansion-2026-11-08.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "river-official-api-verify",
+        "focusedCargoFilters": [
+          "river"
+        ],
+        "fixtureSuiteId": "river_fixture",
+        "liveSuiteId": "river_live_pending",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-river-official-api",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "river-official-api",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/registry.rs",
+        "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+        "platformDeltaModule": "gateway/src/implementation_lines.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "RiverOfficialApi",
+        "canonicalProtocolProfile": "river",
+        "featureName": "line-river-official-api",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sap-aicore-chat",
+      "manifestPath": "manifests/lines/sap/aicore-chat.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "sap-aicore-chat",
+        "identity": {
+          "serviceProviderKey": "sap",
+          "serviceProviderLabel": "SAP AI Core",
+          "providerSurfaceKey": "sap-aicore-chat",
+          "providerSurfaceLabel": "SAP AI Core Azure OpenAI Chat",
+          "protocolProfile": "sap_aicore_chat",
+          "implementationLine": "official_vendor_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_vendor_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation"
+          ],
+          "supportsModelsEndpoint": false
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/sap-aicore-chat-contract-2026-11-10.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "sap-aicore-chat-verify",
+          "focusedCargoFilters": [
+            "sap_aicore"
+          ],
+          "fixtureSuiteId": "sap_aicore_fixture",
+          "liveSuiteId": "sap_aicore_live_pending",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-sap-aicore-chat",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "sap-aicore-chat"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/sap_aicore.rs",
+          "upstreamModule": "gateway/src/protocol/sap_aicore/runtime.rs",
+          "platformDeltaModule": "gateway/src/protocol/sap_aicore/auth.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "sap",
+        "serviceProviderLabel": "SAP AI Core",
+        "providerSurfaceKey": "sap-aicore-chat",
+        "providerSurfaceLabel": "SAP AI Core Azure OpenAI Chat",
+        "protocolProfile": "sap_aicore_chat",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/providers/examples/sap-aicore-chat.routes.sample.json",
+        "fieldsDocPath": "docs/providers/sap-aicore-chat-contract-2026-11-10.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/sap-aicore-chat-contract-2026-11-10.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "sap-aicore-chat-verify",
+        "focusedCargoFilters": [
+          "sap_aicore"
+        ],
+        "fixtureSuiteId": "sap_aicore_fixture",
+        "liveSuiteId": "sap_aicore_live_pending",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-sap-aicore-chat",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "sap-aicore-chat",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/sap_aicore.rs",
+        "upstreamModule": "gateway/src/protocol/sap_aicore/runtime.rs",
+        "platformDeltaModule": "gateway/src/protocol/sap_aicore/auth.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "SapAiCoreChat",
+        "canonicalProtocolProfile": "sap_aicore_chat",
+        "featureName": "line-sap-aicore-chat",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sensenova-token-plan",
+      "manifestPath": "manifests/lines/sensenova/token-plan.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "sensenova-token-plan",
+        "identity": {
+          "serviceProviderKey": "sensenova",
+          "serviceProviderLabel": "SenseNova",
+          "providerSurfaceKey": "sensenova-token-plan",
+          "providerSurfaceLabel": "SenseNova Token Plan Key",
+          "protocolProfile": "sensenova_token_plan",
+          "implementationLine": "official_vendor_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_vendor_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation",
+            "models"
+          ],
+          "supportsModelsEndpoint": true
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/sensenova-token-plan-contract-2026-11-10.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "sensenova-token-plan-verify",
+          "focusedCargoFilters": [
+            "sensenova"
+          ],
+          "fixtureSuiteId": "sensenova_fixture",
+          "liveSuiteId": "sensenova_live_pending",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-sensenova-token-plan",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "sensenova-token-plan"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/sensenova.rs",
+          "upstreamModule": "gateway/src/upstream/openai_compatible_request_plan.rs",
+          "platformDeltaModule": "gateway/src/provider_discovery/model_catalog.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "sensenova",
+        "serviceProviderLabel": "SenseNova",
+        "providerSurfaceKey": "sensenova-token-plan",
+        "providerSurfaceLabel": "SenseNova Token Plan Key",
+        "protocolProfile": "sensenova_token_plan",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/providers/examples/sensenova-token-plan.routes.sample.json",
+        "fieldsDocPath": "docs/providers/sensenova-token-plan-contract-2026-11-10.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/sensenova-token-plan-contract-2026-11-10.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "sensenova-token-plan-verify",
+        "focusedCargoFilters": [
+          "sensenova"
+        ],
+        "fixtureSuiteId": "sensenova_fixture",
+        "liveSuiteId": "sensenova_live_pending",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-sensenova-token-plan",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "sensenova-token-plan",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/sensenova.rs",
+        "upstreamModule": "gateway/src/upstream/openai_compatible_request_plan.rs",
+        "platformDeltaModule": "gateway/src/provider_discovery/model_catalog.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "SenseNovaTokenPlan",
+        "canonicalProtocolProfile": "sensenova_token_plan",
+        "featureName": "line-sensenova-token-plan",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5341,8 +6873,8 @@
             "protocol::suno",
             "upstream::suno",
             "upstream::media_platform_compile_gate_test",
-            "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+            "implementation_lines::tests::compile_checks::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_media_platform_lines"
           ],
           "liveSuiteId": "suno_live",
           "useNoDefaultFeatures": true
@@ -5396,8 +6928,8 @@
           "protocol::suno",
           "upstream::suno",
           "upstream::media_platform_compile_gate_test",
-          "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+          "implementation_lines::tests::compile_checks::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_media_platform_lines"
         ],
         "liveSuiteId": "suno_live",
         "useNoDefaultFeatures": true
@@ -5408,9 +6940,11 @@
         "binaryInclusionGroup": "suno-web-reverse-api",
         "cargo": {
           "lineFeatureDeclared": true,
-          "declaredDependencies": [],
+          "declaredDependencies": [
+            "dep:symphonia"
+          ],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -5443,8 +6977,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5486,9 +7020,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "tavily-search-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "preset::tests::tavily_preset_has_search_adapter_and_path",
-            "implementation_lines::tests::tavily_search_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+            "preset::tests::search_presets::tavily_preset_has_search_adapter_and_path",
+            "implementation_lines::tests::feature_profiles::tavily_search_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
           ],
           "fixtureSuiteId": "tavily_fixture",
           "useNoDefaultFeatures": true
@@ -5538,9 +7072,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "tavily-search-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "preset::tests::tavily_preset_has_search_adapter_and_path",
-          "implementation_lines::tests::tavily_search_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+          "preset::tests::search_presets::tavily_preset_has_search_adapter_and_path",
+          "implementation_lines::tests::feature_profiles::tavily_search_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
         ],
         "fixtureSuiteId": "tavily_fixture",
         "useNoDefaultFeatures": true
@@ -5560,7 +7094,7 @@
           "familyFeaturesDeclared": {
             "family-search-api-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -5591,8 +7125,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5636,8 +7170,8 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "together-openai-aggregator-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
           ],
           "fixtureSuiteId": "together_fixture",
           "liveSuiteId": "together_live",
@@ -5690,8 +7224,8 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "together-openai-aggregator-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_wave4_openai_compatible_lines"
         ],
         "fixtureSuiteId": "together_fixture",
         "liveSuiteId": "together_live",
@@ -5712,7 +7246,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -5748,8 +7282,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5797,8 +7331,8 @@
             "protocol::udio",
             "upstream::udio",
             "upstream::media_platform_compile_gate_test",
-            "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+            "implementation_lines::tests::compile_checks::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_media_platform_lines"
           ],
           "liveSuiteId": "udio_live",
           "useNoDefaultFeatures": true
@@ -5852,8 +7386,8 @@
           "protocol::udio",
           "upstream::udio",
           "upstream::media_platform_compile_gate_test",
-          "implementation_lines::tests::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_media_platform_lines"
+          "implementation_lines::tests::compile_checks::media_web_reverse_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_media_platform_lines"
         ],
         "liveSuiteId": "udio_live",
         "useNoDefaultFeatures": true
@@ -5866,7 +7400,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -5899,8 +7433,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5942,9 +7476,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "websearchapi-search-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "preset::tests::websearchapi_preset_has_search_adapter_and_path",
-            "implementation_lines::tests::websearchapi_search_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+            "preset::tests::search_presets::websearchapi_preset_has_search_adapter_and_path",
+            "implementation_lines::tests::feature_profiles::websearchapi_search_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
           ],
           "fixtureSuiteId": "websearchapi_fixture",
           "useNoDefaultFeatures": true
@@ -5994,9 +7528,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "websearchapi-search-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "preset::tests::websearchapi_preset_has_search_adapter_and_path",
-          "implementation_lines::tests::websearchapi_search_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+          "preset::tests::search_presets::websearchapi_preset_has_search_adapter_and_path",
+          "implementation_lines::tests::feature_profiles::websearchapi_search_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
         ],
         "fixtureSuiteId": "websearchapi_fixture",
         "useNoDefaultFeatures": true
@@ -6016,7 +7550,7 @@
           "familyFeaturesDeclared": {
             "family-search-api-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -6047,8 +7581,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6092,9 +7626,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "xai-openai-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-            "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+            "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
           ],
           "fixtureSuiteId": "xai_fixture",
           "useNoDefaultFeatures": true
@@ -6146,9 +7680,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "xai-openai-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-          "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+          "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
         ],
         "fixtureSuiteId": "xai_fixture",
         "useNoDefaultFeatures": true
@@ -6168,7 +7702,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -6204,8 +7738,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6248,9 +7782,9 @@
           "recommendedCargoTargetDirSlug": "xfyun-native-websocket-official-vendor-api-verify",
           "focusedCargoFilters": [
             "protocol::xfyun_websocket",
-            "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-            "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+            "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
           ],
           "fixtureSuiteId": "xfyun_qwen_ws",
           "useNoDefaultFeatures": true
@@ -6298,9 +7832,9 @@
         "recommendedCargoTargetDirSlug": "xfyun-native-websocket-official-vendor-api-verify",
         "focusedCargoFilters": [
           "protocol::xfyun_websocket",
-          "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-          "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+          "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
         ],
         "fixtureSuiteId": "xfyun_qwen_ws",
         "useNoDefaultFeatures": true
@@ -6313,7 +7847,7 @@
           "lineFeatureDeclared": true,
           "declaredDependencies": [],
           "familyFeaturesDeclared": {},
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -6344,8 +7878,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6389,9 +7923,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "xfyun-openai-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-            "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+            "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+            "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+            "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
           ],
           "fixtureSuiteId": "xfyun_qwen_http",
           "useNoDefaultFeatures": true
@@ -6443,9 +7977,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "xfyun-openai-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "implementation_lines::tests::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
-          "implementation_lines::tests::payload_inference_distinguishes_remaining_unfinished_platform_lines",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
+          "implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines",
+          "implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines",
+          "provider_credential_folder_sync::tests::catalog_text::derive_provider_surface_slug_maps_remaining_unfinished_platform_lines"
         ],
         "fixtureSuiteId": "xfyun_qwen_http",
         "useNoDefaultFeatures": true
@@ -6465,7 +7999,7 @@
           "familyFeaturesDeclared": {
             "family-openai-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -6501,8 +8035,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6544,9 +8078,9 @@
         "verification": {
           "recommendedCargoTargetDirSlug": "you-search-official-vendor-api-verify",
           "focusedCargoFilters": [
-            "preset::tests::you_preset_has_search_adapter_and_custom_auth_header",
-            "implementation_lines::tests::you_search_protocol_profiles_compile_when_feature_enabled",
-            "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+            "preset::tests::search_presets::you_preset_has_search_adapter_and_custom_auth_header",
+            "implementation_lines::tests::feature_profiles::you_search_protocol_profiles_compile_when_feature_enabled",
+            "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
           ],
           "fixtureSuiteId": "you_search_fixture",
           "useNoDefaultFeatures": true
@@ -6596,9 +8130,9 @@
       "verification": {
         "recommendedCargoTargetDirSlug": "you-search-official-vendor-api-verify",
         "focusedCargoFilters": [
-          "preset::tests::you_preset_has_search_adapter_and_custom_auth_header",
-          "implementation_lines::tests::you_search_protocol_profiles_compile_when_feature_enabled",
-          "provider_credential_folder_sync::tests::derive_provider_surface_slug_maps_search_family_lines"
+          "preset::tests::search_presets::you_preset_has_search_adapter_and_custom_auth_header",
+          "implementation_lines::tests::feature_profiles::you_search_protocol_profiles_compile_when_feature_enabled",
+          "provider_credential_folder_sync::tests::catalog_media_search::derive_provider_surface_slug_maps_search_family_lines"
         ],
         "fixtureSuiteId": "you_search_fixture",
         "useNoDefaultFeatures": true
@@ -6618,7 +8152,7 @@
           "familyFeaturesDeclared": {
             "family-search-api-compatible-official-api": true
           },
-          "defaultEnabled": true
+          "defaultEnabled": false
         }
       },
       "implementation": {
@@ -6649,8 +8183,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-07-29T05:19:33Z",
-            "observedAt": "2026-07-29T05:19:33Z",
+            "timestamp": "2026-11-01T22:23:13Z",
+            "observedAt": "2026-11-01T22:23:13Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",

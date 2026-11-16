@@ -1,0 +1,10 @@
+{
+  "providers": [{
+    "id": "sensenova-token-plan",
+    "preset": "sensenova-token-plan",
+    "base_url": "https://token.sensenova.cn/v1",
+    "explicit_credentials_only": true,
+    "credentials": []
+  }],
+  "model_routes": []
+}

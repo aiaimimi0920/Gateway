@@ -13,6 +13,32 @@ use super::*;
 /// contains the base (first credential or provider-level key), and
 /// `credential_pool` stores all credential payloads for round-robin selection.
 pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvider, anyhow::Error> {
+    copilot::validate_declaration(&cfg)?;
+    if cfg.credentials.iter().any(|credential| {
+        credential
+            .token_expires_in_secs
+            .is_some_and(|seconds| !token_expiry_supported(seconds))
+    }) {
+        anyhow::bail!("token_expires_in_secs cannot be represented safely by the runtime clock");
+    }
+    qwen_workspace::validate_declaration(&cfg)?;
+    crate::protocol::agnes::validate_declaration(&cfg)?;
+    crate::protocol::sensenova::validate_declaration(&cfg)?;
+    crate::protocol::commandcode::validate_declaration(&cfg)?;
+    crate::protocol::sap_aicore::validate_declaration(&cfg)?;
+    crate::protocol::minimax::validate_declaration(&cfg)?;
+    luma_mcp::validate_declaration(&cfg)?;
+    luma_agents::validate_declaration(&cfg)?;
+    grok_oauth::validate_declaration(&cfg)?;
+    kiro_oauth::validate_declaration(&cfg)?;
+    kiro_api_key::validate_declaration(&cfg)?;
+    vertex_express::validate_declaration(&cfg)?;
+    vertex_oauth::validate_declaration(&cfg)?;
+    dim_oauth::validate_declaration(&cfg)?;
+    nous_portal::validate_declaration(&cfg)?;
+    lobsterai::validate_declaration(&cfg)?;
+    perplexity_web::validate_declaration(&cfg)?;
+    freebuff_session::validate_declaration(&cfg)?;
     if let Some(policy) = &cfg.request_wait {
         policy.validate()?;
     }
@@ -36,7 +62,25 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
         None,
         cfg.codex_basispoints_enabled,
         None,
+        !qwen_workspace::is_template(&cfg),
     )?;
+    qwen_workspace::validate_parent(&cfg, &payload)?;
+    cloudflare_workers_ai::validate_final(&cfg, &payload)?;
+    crate::protocol::agnes::validate(&payload, payload.canonical_adapter())?;
+    crate::protocol::sensenova::validate(&payload, payload.canonical_adapter())?;
+    crate::protocol::commandcode::validate(&payload, payload.canonical_adapter())?;
+    crate::protocol::sap_aicore::validate(&payload, payload.canonical_adapter())?;
+    crate::protocol::minimax::validate(&payload, payload.canonical_adapter())?;
+    luma_mcp::validate_final(&cfg, &payload)?;
+    luma_agents::validate_final(&cfg, &payload)?;
+    grok_oauth::validate_final(&cfg, &payload)?;
+    kiro_api_key::validate_final(&cfg, &payload)?;
+    vertex_express::validate_final(&cfg, &payload)?;
+    perplexity_web::validate_final(&cfg, &payload)?;
+    // An explicit empty pool is only a template; its base is not an executable account.
+    if cfg.uses_provider_default_account() {
+        crate::upstream::bedrock_auth::validate_configuration(&payload)?;
+    }
 
     // Derive protocol_family from adapter name if not explicitly set.
     let protocol_family = infer_protocol_family(
@@ -105,6 +149,8 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                     Some(&cred_id),
                 )?;
 
+                cred_payload.auth_mode = cred.auth_mode.clone().or(cred_payload.auth_mode);
+
                 if let Some(discovery) = &cred.discovery {
                     discovery.apply(&mut cred_payload)?;
                 }
@@ -115,12 +161,10 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                     .unwrap_or_else(|| cred.supported_models.clone());
                 if let Some(catalog) = &cred.model_catalog {
                     catalog.validate(cfg.preset.as_deref(), &cred_payload.base_url)?;
+                    crate::protocol::commandcode::catalog::configure(&mut cred_payload, catalog);
                     if cred.model_selection.is_none() {
                         catalog.append_models_to(&mut supported_models);
                     }
-                }
-                if let Some(selection) = &cred.model_selection {
-                    supported_models = selection.models()?;
                 }
                 call_flow::configure(
                     &mut cred_payload,
@@ -129,17 +173,58 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                     cred.request_client_profile,
                     cfg.codex_basispoints_enabled,
                     cred.codex_basispoints_enabled,
+                    true,
                 )?;
+                qwen_workspace::validate_final(&cfg, &cred_payload)?;
+                cloudflare_workers_ai::validate_final(&cfg, &cred_payload)?;
+                crate::protocol::agnes::validate(&cred_payload, cred_payload.canonical_adapter())?;
+                crate::protocol::sap_aicore::validate(
+                    &cred_payload,
+                    cred_payload.canonical_adapter(),
+                )?;
+                crate::protocol::sensenova::validate(
+                    &cred_payload,
+                    cred_payload.canonical_adapter(),
+                )?;
+                crate::protocol::commandcode::validate(
+                    &cred_payload,
+                    cred_payload.canonical_adapter(),
+                )?;
+                crate::protocol::minimax::validate(
+                    &cred_payload,
+                    cred_payload.canonical_adapter(),
+                )?;
+                luma_mcp::validate_final(&cfg, &cred_payload)?;
+                luma_agents::validate_final(&cfg, &cred_payload)?;
+                grok_oauth::validate_final(&cfg, &cred_payload)?;
+                perplexity_web::validate_final(&cfg, &cred_payload)?;
+                kiro_oauth::configure(cred, &mut cred_payload)?;
+                kiro_api_key::validate_final(&cfg, &cred_payload)?;
+                vertex_express::validate_final(&cfg, &cred_payload)?;
+                vertex_oauth::configure(cred, &mut cred_payload)?;
+                dim_oauth::configure(cred, &cred_payload)?;
+                nous_portal::configure(cred, &cred_payload)?;
+                lobsterai::configure(cred, &mut cred_payload)?;
+                freebuff_session::validate_final(&cfg, cred, &cred_payload)?;
+                if let Some(selection) = &cred.model_selection {
+                    supported_models = selection.models_for_payload(&cred_payload)?;
+                }
+                crate::upstream::bedrock_auth::validate_configuration(&cred_payload)?;
 
                 // Build OAuth refresh config if refresh_token is provided.
                 let refresh_config = TokenRefreshState::from_credential(cred).map(Arc::new);
 
                 Ok(CompiledCredential {
+                    dim_catalog: cred.dim_catalog.clone(),
                     discovery_required: cred.discovery_job.is_some() && cred.discovery.is_none(),
                     discovery: cred.discovery.clone(),
                     id: cred_id,
                     payload: cred_payload,
-                    enabled: cred.enabled.unwrap_or(true),
+                    enabled: if copilot::is_provider(&cfg) {
+                        copilot::credential_enabled(cred)
+                    } else {
+                        cred.enabled.unwrap_or(true)
+                    },
                     supported_models,
                     explicit_model_selection: cred.model_selection.is_some(),
                     scheduled_probe_enabled: cred.scheduled_probe_enabled,
@@ -153,12 +238,13 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
             .collect::<Result<Vec<_>, anyhow::Error>>()?
     };
 
+    model_identity_validation::validate(&cfg, &payload, &credential_pool)?;
     let mut supported_models = cfg.supported_models;
-    for credential in &cfg.credentials {
-        if let Some(selection) = &credential.model_selection {
-            for model in selection.models()? {
-                if !supported_models.contains(&model) {
-                    supported_models.push(model);
+    for (credential, compiled) in cfg.credentials.iter().zip(&credential_pool) {
+        if credential.model_selection.is_some() {
+            for model in &compiled.supported_models {
+                if !supported_models.contains(model) {
+                    supported_models.push(model.clone());
                 }
             }
         } else if let Some(catalog) = &credential.model_catalog {

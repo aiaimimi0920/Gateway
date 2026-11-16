@@ -7,16 +7,38 @@ use crate::protocol::canonical::TokenUsage;
 
 use super::{drain_parsed_events, parse_sse_line, ParsedEvent, PendingToolCall};
 
-struct TranslatorState {
+pub(super) struct TranslatorState {
     buffer: Vec<u8>,
     model: String,
     response_id: String,
     created: i64,
     usage: Option<TokenUsage>,
-    pending: HashMap<i64, PendingToolCall>,
-    outputs: VecDeque<Vec<u8>>,
+    // Upstream block indexes may be reused; each tool owns a distinct downstream ordinal.
+    pending: HashMap<i64, (usize, PendingToolCall)>,
+    pub(super) outputs: VecDeque<Vec<u8>>,
     finish_seen: bool,
     done_sent: bool,
+    next_tool_index: usize,
+}
+
+impl TranslatorState {
+    pub(super) fn new(model: String) -> Self {
+        Self {
+            buffer: Vec::new(),
+            model,
+            response_id: format!("chatcmpl-{}", uuid::Uuid::new_v4()),
+            created: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64,
+            usage: None,
+            pending: HashMap::new(),
+            outputs: VecDeque::new(),
+            finish_seen: false,
+            done_sent: false,
+            next_tool_index: 0,
+        }
+    }
 }
 
 pub fn translate_accio_sse_to_openai(
@@ -78,20 +100,7 @@ pub fn translate_anthropic_like_stream_to_openai_with_error<E: Send + 'static>(
     inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     model: String,
 ) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
-    let state = TranslatorState {
-        buffer: Vec::new(),
-        model,
-        response_id: format!("chatcmpl-{}", uuid::Uuid::new_v4()),
-        created: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64,
-        usage: None,
-        pending: HashMap::new(),
-        outputs: VecDeque::new(),
-        finish_seen: false,
-        done_sent: false,
-    };
+    let state = TranslatorState::new(model);
 
     futures::stream::unfold(
         (
@@ -141,7 +150,10 @@ pub fn translate_accio_stream(
     translate_anthropic_like_stream_to_openai(inner, model)
 }
 
-fn merge_usage(existing: Option<TokenUsage>, incoming: Option<TokenUsage>) -> Option<TokenUsage> {
+pub(super) fn merge_usage(
+    existing: Option<TokenUsage>,
+    incoming: Option<TokenUsage>,
+) -> Option<TokenUsage> {
     match (existing, incoming) {
         (None, None) => None,
         (Some(current), None) => Some(current),
@@ -237,7 +249,7 @@ fn finish_chunk(
     format!("data: {}\n\n", chunk).into_bytes()
 }
 
-fn translate_events_with_state(
+pub(super) fn translate_events_with_state(
     events: Vec<ParsedEvent>,
     state: &mut TranslatorState,
 ) -> Vec<Vec<u8>> {
@@ -254,22 +266,26 @@ fn translate_events_with_state(
             ParsedEvent::ToolStart { index, id, name } => {
                 state.pending.insert(
                     index,
-                    PendingToolCall {
-                        id,
-                        name,
-                        arguments: String::new(),
-                        announced: false,
-                    },
+                    (
+                        state.next_tool_index,
+                        PendingToolCall {
+                            id,
+                            name,
+                            arguments: String::new(),
+                            announced: false,
+                        },
+                    ),
                 );
+                state.next_tool_index = state.next_tool_index.saturating_add(1);
             }
             ParsedEvent::ToolDelta { index, partial } => {
-                if let Some(call) = state.pending.get_mut(&index) {
+                if let Some((output_index, call)) = state.pending.get_mut(&index) {
                     call.arguments.push_str(&partial);
                     outputs.push(tool_chunk(
                         &state.response_id,
                         &state.model,
                         state.created,
-                        index.max(0) as usize,
+                        *output_index,
                         Some(&call.id),
                         Some(&call.name),
                         &partial,
@@ -279,16 +295,16 @@ fn translate_events_with_state(
                 }
             }
             ParsedEvent::ToolEnd { index } => {
-                if let Some(call) = state.pending.remove(&index) {
+                if let Some((output_index, call)) = state.pending.remove(&index) {
                     if !call.announced {
                         outputs.push(tool_chunk(
                             &state.response_id,
                             &state.model,
                             state.created,
-                            index.max(0) as usize,
+                            output_index,
                             Some(&call.id),
                             Some(&call.name),
-                            "",
+                            &super::normalize_tool_args(&call.arguments),
                             true,
                         ));
                     }
@@ -298,31 +314,38 @@ fn translate_events_with_state(
                 id,
                 name,
                 arguments,
-            } => outputs.push(tool_chunk(
-                &state.response_id,
-                &state.model,
-                state.created,
-                0,
-                Some(&id),
-                Some(&name),
-                &arguments,
-                true,
-            )),
+            } => {
+                outputs.push(tool_chunk(
+                    &state.response_id,
+                    &state.model,
+                    state.created,
+                    state.next_tool_index,
+                    Some(&id),
+                    Some(&name),
+                    &arguments,
+                    true,
+                ));
+                state.next_tool_index = state.next_tool_index.saturating_add(1);
+            }
             ParsedEvent::Finish { reason, usage } => {
                 state.finish_seen = true;
                 state.usage = merge_usage(state.usage.clone(), usage.clone());
                 let mut pending_indexes: Vec<i64> = state.pending.keys().copied().collect();
                 pending_indexes.sort_unstable();
                 for index in pending_indexes {
-                    if let Some(call) = state.pending.remove(&index) {
+                    if let Some((output_index, call)) = state.pending.remove(&index) {
+                        // Already announced deltas must not be appended a second time at Finish.
+                        if call.announced {
+                            continue;
+                        }
                         outputs.push(tool_chunk(
                             &state.response_id,
                             &state.model,
                             state.created,
-                            index.max(0) as usize,
+                            output_index,
                             Some(&call.id),
                             Some(&call.name),
-                            &call.arguments,
+                            &super::normalize_tool_args(&call.arguments),
                             true,
                         ));
                     }

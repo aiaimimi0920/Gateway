@@ -97,10 +97,15 @@ pub fn deserialize_provider_payload(
     payload: &Value,
     adapter_hint: Option<&str>,
 ) -> Result<ProviderAccountPayload, serde_json::Error> {
-    serde_json::from_value(serde_compatible_provider_payload_value(
+    let mut parsed = serde_json::from_value(serde_compatible_provider_payload_value(
         payload,
         adapter_hint,
-    ))
+    ))?;
+    crate::protocol::vertex_oauth::ingress::hydrate(&mut parsed, Some(payload))
+        .map_err(<serde_json::Error as serde::de::Error>::custom)?;
+    crate::protocol::commandcode::catalog::hydrate(&mut parsed, Some(payload))
+        .map_err(<serde_json::Error as serde::de::Error>::custom)?;
+    Ok(parsed)
 }
 
 // ---------------------------------------------------------------------------

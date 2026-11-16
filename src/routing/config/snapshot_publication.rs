@@ -87,7 +87,12 @@ pub(super) fn build_snapshot(
         .map_err(|error| RouteConfigReplaceError::Compilation(error.to_string()))?;
     if let Some(current) = current {
         reuse_unchanged_providers(current, &mut compiled, &fingerprints);
-        refresh_publication::reuse_and_retire(current, &mut compiled, validated.document());
+        refresh_publication::reuse_and_retire(
+            current,
+            &mut compiled,
+            validated.document(),
+            revision.actor() == RevisionActor::CredentialPoolAutomation,
+        );
     }
     Ok(Arc::new(RouteConfigSnapshot::new(
         revision,

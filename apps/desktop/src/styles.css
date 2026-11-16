@@ -11,9 +11,6 @@
 @import "./styles/provider-account-library.css";
 @import "./styles/account-routing-pool-select.css";
 @import "./styles/provider-card-compact.css";
-@import "./styles/provider-pool-policy.css";
-@import "./styles/provider-account-ledger.css";
-@import "./styles/action-controls.css";
 @import "./styles/pilot-dialog.css";
 @import "./styles/entitlement-card.css";
 @import "./styles/entitlement-scope.css";
@@ -30,7 +27,8 @@
 @import "./styles/responsive-base.css";
 @import "./styles/theme-overrides.css";
 @import "./styles/responsive-overrides.css";
-@import "./styles/account-ledger-alignment.css";
 @import "./styles/provider-catalog-responsive.css";
-@import "./styles/console-workspaces.css";
 @import "./styles/auth.css";
+@import "./styles/compact-shell.css";
+@import "./styles/compact-settings.css";
+@import "./styles/desktop-panels.css";

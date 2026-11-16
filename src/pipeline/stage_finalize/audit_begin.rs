@@ -96,6 +96,7 @@ pub fn snapshot_request_audit(ctx: &PipelineContext) -> RequestAuditFinalizeSnap
         route_policy_id: ctx.route_policy_id.clone(),
         provider_account_id: ctx.audited_provider_id(),
         resolved_model: ctx.audited_resolved_model(),
+        lobster_model_resolution: ctx.lobster_model_resolution.clone(),
         model_alias: ctx.selected_model_alias.clone(),
         route_selection_strategy: ctx.route_selection_strategy.clone(),
         selected_provider_label: ctx.selected_provider_label.clone(),

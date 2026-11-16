@@ -156,6 +156,12 @@ pub enum RouteAccountGroupSelectionError {
 /// - **Multi-endpoint**: different base_urls with same or different keys (e.g. 3 AI Hub mirrors)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderCredentialYaml {
+    /// SDK-only identity; never projected into a generic HTTP payload.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub copilot_github_token: Option<String>,
+    /// None inherits the provider's protocol authentication mode, not its quota identity.
+    #[serde(default, alias = "authMode", skip_serializing_if = "Option::is_none")]
+    pub auth_mode: Option<String>,
     /// None inherits the provider; explicit auto restores model-based selection.
     #[serde(
         default,
@@ -230,6 +236,39 @@ pub struct ProviderCredentialYaml {
     pub scheduled_probe_interval_minutes: Option<u64>,
 
     // ── OAuth token refresh ──────────────────────────────────────────────
+    /// Credential-only, non-secret grant snapshot; never a provider-inherited authorization.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grok_oauth: Option<crate::protocol::grok_oauth::AuthorizationContext>,
+    /// Credential-only Luma MCP authority; bearer stays in the existing api_key secret slot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub luma_oauth: Option<crate::protocol::luma_oauth::AuthorizationContext>,
+    /// Credential-only registration; client_secret uses its own nested SecretPatch target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kiro_oauth: Option<crate::protocol::kiro_oauth::AuthorizationContext>,
+    /// Credential-only Full Vertex grant; private client material uses nested SecretPatch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vertex_oauth: Option<crate::protocol::vertex_oauth::AuthorizationContext>,
+    /// Credential-only DIM site, public client and authenticated subject; contains no tokens.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dim_oauth: Option<crate::protocol::dim_oauth::AuthorizationContext>,
+    /// Credential-only Nous refresh-chain snapshot; JWT subject is an unverified hint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nous_portal: Option<crate::protocol::nous_portal::AuthorizationContext>,
+    /// Personal Lobster session binding; no expiry is inferred from this local generation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lobsterai: Option<crate::protocol::lobsterai::AuthorizationContext>,
+    /// Credential-owned directory declarations; does not imply generation support.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lobsterai_catalog: Option<crate::protocol::lobsterai::ModelCatalog>,
+    /// Credential-owned declarations, never a verified-call receipt or a provider-inherited directory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dim_catalog: Option<crate::protocol::dim_oauth::ModelCatalog>,
+    /// Private CLI approval receipt; credential-only, never inherited or inserted into business JSON.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub freebuff_session: Option<crate::protocol::freebuff_login::SessionContext>,
+    /// Opaque Accio rotation material; credential-only, never a business Cookie/header/body.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accio_sgcookie: Option<String>,
     /// OAuth refresh_token for auto-refreshing short-lived access_tokens.
     /// When set, the gateway runs a background task that refreshes the
     /// access_token before it expires. The api_key field holds the initial

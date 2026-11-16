@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Button, CopyButton, Disclosure, Field, Input, Notice, Select, Stack, Toolbar } from "@neuro/ui";
 import type { GatewayApiClient } from "../../api/client";
 import { GatewayApiError } from "../../api/errors";
 import { createChatgptAuthApi, type ChatgptAuthSession } from "../../api/console/chatgpt-auth";
@@ -44,7 +45,7 @@ export function ChatgptOAuthPanel({ kind = "chatgpt", client, managementToken, s
     return () => {
       generation.current += 1;
       const previous = sessionRef.current;
-      if (previous && previous.status !== "succeeded") void api.act(previous.id, "cancel").catch(() => {});
+      if (previous && previous.status !== "succeeded") void api.act(previous.id, "cancel").catch(() => { });
     };
   }, [api, providerId]);
   useEffect(() => {
@@ -88,7 +89,7 @@ export function ChatgptOAuthPanel({ kind = "chatgpt", client, managementToken, s
       const result = action === "create"
         ? await api.create(providerId, group, secretGrant!)
         : await api.act(session!.id, action, secretGrant ?? undefined, action === "complete" ? callbackUrl : undefined);
-      if (generation.current !== current) { if (action === "create") void api.act(result.session.id, "cancel").catch(() => {}); return; }
+      if (generation.current !== current) { if (action === "create") void api.act(result.session.id, "cancel").catch(() => { }); return; }
       update(result.session); setCallbackUrl("");
       if (result.session.status === "succeeded") onSaved();
     } catch (cause) {
@@ -107,34 +108,40 @@ export function ChatgptOAuthPanel({ kind = "chatgpt", client, managementToken, s
     }
   }, [pendingAccess, secretGrant, disabled, busy]);
   const active = session && !["succeeded", "cancelled", "failed"].includes(session.status);
-  return <section className="nt-stack" aria-label={kind === "antigravity" ? "Antigravity OAuth" : t("ChatGPT OAuth 登录", "ChatGPT OAuth sign-in")}>
-    <div className="nt-grid nt-grid--2">
-      {kind === "chatgpt" && <label className="nt-field"><span>{t("订阅分组", "Subscription group")}</span>
-        <select className="nt-select" value={group} disabled={busy || Boolean(active) || Boolean(pendingAccess)} onChange={(event) => setGroup(event.target.value)}>
+  return <section className="n-stack" aria-label={kind === "antigravity" ? "Antigravity OAuth" : t("ChatGPT OAuth 登录", "ChatGPT OAuth sign-in")}>
+    <Stack>
+      {kind === "chatgpt" && <Field label={t("订阅分组", "Subscription group")}>
+        <Select value={group} disabled={busy || Boolean(active) || Boolean(pendingAccess)} onChange={(event) => setGroup(event.target.value)}>
           {CHATGPT_POOL_CATEGORIES.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
-        </select>
-      </label>}
-      <button type="button" className="nt-btn nt-btn--primary" disabled={disabled || busy || Boolean(active) || Boolean(pendingAccess)} onClick={() => void run("create")}>
+        </Select>
+      </Field>}
+      <Button variant={active ? "secondary" : "primary"} disabled={disabled || busy || Boolean(active) || Boolean(pendingAccess)} onClick={() => void run("create")}>
         {kind === "antigravity" ? t("通过 Antigravity 登录", "Sign in with Antigravity") : t("通过 ChatGPT 登录", "Sign in with ChatGPT")}
-      </button>
-    </div>
-    {disabled && <p>{t("请等待当前配置保存完成后登录。", "Wait for the current configuration to finish saving.")}</p>}
-    {pendingAccess && <p role="status">{t("正在恢复保存权限，恢复后会继续保存，无需重新登录。", "Restoring save access; saving will resume without another login.")}</p>}
-    {session && <p role="status">{saving ? t("正在保存到凭证池，请稍候…", "Saving to credential pool; please wait…") : session.message}</p>}
+      </Button>
+    </Stack>
+    {disabled && <Notice role="note">{t("请等待当前配置保存完成后登录。", "Wait for the current configuration to finish saving.")}</Notice>}
+    {pendingAccess && <Notice>{t("正在恢复保存权限，恢复后会继续保存，无需重新登录。", "Restoring save access; saving will resume without another login.")}</Notice>}
+    {session && <Notice tone={session.status === "succeeded" ? "success" : "info"}>{saving ? t("正在保存到凭证池，请稍候…", "Saving to credential pool; please wait…") : session.message}</Notice>}
     {session?.status === "waiting_user" && <>
-      <div className="nt-actions">
+      <Toolbar>
         <ChatgptAuthorizationLink key={session.id} value={session.authorizationUrl} busy={busy} kind={kind} />
-        <button type="button" className="nt-btn nt-btn--secondary" onClick={() => void Promise.resolve().then(() => navigator.clipboard.writeText(session.authorizationUrl)).catch(() => setError(t("复制失败，请手动复制链接。", "Copy failed; copy the link manually.")))}>{t("复制授权链接", "Copy authorization link")}</button>
-      </div>
-      <input className="nt-input" readOnly value={session.authorizationUrl} aria-label={t("授权链接", "Authorization URL")} />
-      <p>{t("授权页面在当前设备的浏览器打开。连接远程 Gateway 时，若回调页面无法访问，请复制地址栏中的完整回调地址并粘贴到下方。", "Authorization opens in this device's browser. With a remote Gateway, if the callback page is unreachable, copy its complete address from the address bar and paste it below.")}</p>
-      <details><summary>{t("未自动返回？粘贴回调地址", "No automatic callback? Paste the callback URL")}</summary>
-        <input className="nt-input" value={callbackUrl} onChange={(event) => setCallbackUrl(event.target.value)} placeholder={kind === "antigravity" ? "http://localhost:51121/oauth-callback?..." : "http://localhost:1455/auth/callback?..."} aria-label={t("回调地址", "Callback URL")} />
-        <button type="button" className="nt-btn nt-btn--secondary" disabled={busy || !callbackUrl} onClick={() => void run("complete")}>{t("完成授权", "Complete authorization")}</button>
-      </details>
+        <CopyButton label={t("复制授权链接", "Copy authorization link")} copiedLabel={t("已复制", "Copied")} errorLabel={t("复制失败", "Copy failed")}
+          onCopy={async () => {
+            try { await navigator.clipboard.writeText(session.authorizationUrl); }
+            catch (cause) { setError(t("复制失败，请手动复制链接。", "Copy failed; copy the link manually.")); throw cause; }
+          }} />
+      </Toolbar>
+      <Field label={t("授权链接", "Authorization URL")}><Input readOnly value={session.authorizationUrl} /></Field>
+      <p className="n-muted">{t("授权页面在当前设备的浏览器打开。连接远程 Gateway 时，若回调页面无法访问，请复制地址栏中的完整回调地址并粘贴到下方。", "Authorization opens in this device's browser. With a remote Gateway, if the callback page is unreachable, copy its complete address from the address bar and paste it below.")}</p>
+      <Disclosure title={t("未自动返回？粘贴回调地址", "No automatic callback? Paste the callback URL")}>
+        <Stack>
+          <Field label={t("回调地址", "Callback URL")}><Input value={callbackUrl} onChange={(event) => setCallbackUrl(event.target.value)} placeholder={kind === "antigravity" ? "http://localhost:51121/oauth-callback?..." : "http://localhost:1455/auth/callback?..."} /></Field>
+          <Button disabled={busy || !callbackUrl} onClick={() => void run("complete")}>{t("完成授权", "Complete authorization")}</Button>
+        </Stack>
+      </Disclosure>
     </>}
-    {session?.status === "ready" && <button type="button" className="nt-btn nt-btn--primary" disabled={disabled || busy || Boolean(pendingAccess)} onClick={() => void run("import")}>{saving ? t("正在保存…", "Saving…") : t("保存到凭证池", "Save to credential pool")}</button>}
-    {active && <button type="button" className="nt-btn nt-btn--secondary" disabled={busy} onClick={() => void run("cancel")}>{t("取消登录", "Cancel login")}</button>}
-    {error && <p role="alert">{error}</p>}
+    {session?.status === "ready" && <Button variant="primary" loading={saving} aria-label={saving ? t("正在保存…", "Saving…") : undefined} disabled={disabled || busy || Boolean(pendingAccess)} onClick={() => void run("import")}>{t("保存到凭证池", "Save to credential pool")}</Button>}
+    {active && <Button disabled={busy} onClick={() => void run("cancel")}>{t("取消登录", "Cancel login")}</Button>}
+    {error && <Notice tone="danger">{error}</Notice>}
   </section>;
 }

@@ -7,35 +7,48 @@ use std::sync::{
 use std::task::Poll;
 
 use bytes::Bytes;
-use crc::{Crc, CRC_32_ISO_HDLC};
 use futures::{stream, StreamExt};
 use neuro_gateway::protocol::bedrock_converse::translate_openai_sse_to_bedrock_eventstream;
 use serde_json::{json, Value};
+#[path = "bedrock_native_outbound_contract/fixture.rs"]
+mod native;
 
 fn sse(frames: &[Value]) -> Vec<u8> {
-    let mut wire = String::from(": heartbeat\r\n\r\ndata: not-json\r\n\r\n");
+    let mut wire = String::from(": heartbeat\r\n\r\n");
     for frame in frames {
         wire.push_str(&format!("data: {frame}\r\n\r\n"));
+    }
+    if !frames.iter().any(|v| {
+        v.pointer("/choices/0/finish_reason")
+            .is_some_and(|v| !v.is_null())
+    }) {
+        let reason = if frames
+            .iter()
+            .any(|v| v.pointer("/choices/0/delta/tool_calls").is_some())
+        {
+            "tool_calls"
+        } else {
+            "stop"
+        };
+        wire.push_str(&format!(
+            "data: {}\r\n\r\n",
+            json!({"choices":[{"delta":{},"finish_reason":reason}]})
+        ));
+    }
+    if !frames.iter().any(|v| v.get("usage").is_some()) {
+        wire.push_str("data: {\"choices\":[],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0}}\r\n\r\n");
     }
     wire.push_str("data: [DONE]\r\n\r\n");
     wire.into_bytes()
 }
 
 fn decode(frame: &Bytes) -> Value {
-    assert!(
-        frame.len() >= 16,
-        "event-stream frame is shorter than its envelope"
-    );
-    let u32_at = |offset| u32::from_be_bytes(frame[offset..offset + 4].try_into().unwrap());
-    assert_eq!(u32_at(0) as usize, frame.len());
-    assert_eq!(u32_at(4), 0, "current bridge emits no event headers");
-    let crc = Crc::<u32>::new(&CRC_32_ISO_HDLC);
-    assert_eq!(u32_at(8), crc.checksum(&frame[..8]));
-    assert_eq!(
-        u32_at(frame.len() - 4),
-        crc.checksum(&frame[..frame.len() - 4])
-    );
-    serde_json::from_slice(&frame[12..frame.len() - 4]).unwrap()
+    let (kind, mut body) = native::decode(frame);
+    if kind == "metadata" {
+        assert!(body["metrics"]["latencyMs"].as_u64().is_some());
+        body.as_object_mut().unwrap().remove("metrics");
+    }
+    json!({kind:body})
 }
 
 async fn payloads(wire: &[u8], chunk_size: usize) -> Vec<Value> {
@@ -59,9 +72,10 @@ async fn text_usage_and_crc_frames_are_independent_of_utf8_chunk_boundaries() {
             "usage": {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5}}),
     ]);
     let expected = vec![
-        json!({"messageStart": {"model": "model"}}),
+        json!({"messageStart": {"role": "assistant"}}),
         json!({"contentBlockDelta": {"contentBlockIndex": 0, "delta": {"text": text}}}),
         json!({"contentBlockDelta": {"contentBlockIndex": 0, "delta": {"text": "!"}}}),
+        json!({"contentBlockStop": {"contentBlockIndex": 0}}),
         json!({"messageStop": {"stopReason": "end_turn"}}),
         json!({"metadata": {"usage": {"inputTokens": 2, "outputTokens": 3, "totalTokens": 5}}}),
     ];
@@ -80,14 +94,16 @@ async fn tool_block_starts_once_and_argument_deltas_keep_their_order() {
         json!({"choices": [{"delta": {}, "finish_reason": "tool_calls"}]}),
     ]);
     let expected = vec![
-        json!({"messageStart": {"model": "model"}}),
-        json!({"contentBlockStart": {"contentBlockIndex": 2,
+        json!({"messageStart": {"role": "assistant"}}),
+        json!({"contentBlockStart": {"contentBlockIndex": 0,
             "start": {"toolUse": {"toolUseId": "call-7", "name": "weather"}}}}),
-        json!({"contentBlockDelta": {"contentBlockIndex": 2,
+        json!({"contentBlockDelta": {"contentBlockIndex": 0,
             "delta": {"toolUse": {"input": "{\"city\":"}}}}),
-        json!({"contentBlockDelta": {"contentBlockIndex": 2,
+        json!({"contentBlockDelta": {"contentBlockIndex": 0,
             "delta": {"toolUse": {"input": "\"Paris\"}"}}}}),
+        json!({"contentBlockStop": {"contentBlockIndex": 0}}),
         json!({"messageStop": {"stopReason": "tool_use"}}),
+        json!({"metadata": {"usage": {"inputTokens":0,"outputTokens":0,"totalTokens":0}}}),
     ];
     for size in [1, 11, wire.len()] {
         assert_eq!(payloads(&wire, size).await, expected, "chunk size {size}");
@@ -111,7 +127,7 @@ async fn upstream_errors_follow_already_queued_output_without_network_io() {
     assert_eq!(frames.len(), 3);
     assert_eq!(
         decode(frames[0].as_ref().unwrap()),
-        json!({"messageStart": {"model": "model"}})
+        json!({"messageStart": {"role": "assistant"}})
     );
     assert_eq!(
         decode(frames[1].as_ref().unwrap())["contentBlockDelta"]["delta"]["text"],
@@ -214,28 +230,31 @@ async fn distinct_tool_calls_cannot_exceed_the_4096_entry_budget() {
 }
 
 #[tokio::test]
-async fn retained_tool_identity_bytes_are_bounded_across_calls() {
-    let name = "n".repeat(2 * 1024 * 1024 + 1);
+async fn retained_tool_identity_and_argument_bytes_are_bounded_across_calls() {
+    let input = "x".repeat(2 * 1024 * 1024 + 1);
     let wire = sse(&[json!({"choices": [{"delta": {"tool_calls": [
-        {"index": 0, "id": "call-0", "function": {"name": name}},
-        {"index": 1, "id": "call-1", "function": {"name": name}}
+        {"index": 0, "id": "call-0", "function": {"name": "weather", "arguments": input}},
+        {"index": 1, "id": "call-1", "function": {"name": "weather", "arguments": input}}
     ]}}]})]);
     expect_terminal_stream_error(wire, "tool state").await;
 }
 
 #[tokio::test]
-async fn replacing_a_tool_identity_releases_its_retained_byte_budget() {
+async fn declared_tool_identity_changes_are_terminal_not_silent_replacements() {
     let wire = sse(&[
         json!({"choices": [{"delta": {"tool_calls": [{"index": 0, "id": "call-0",
-            "function": {"name": "n".repeat(2 * 1024 * 1024)}}]}}]}),
+            "function": {"name": "weather"}}]}}]}),
         json!({"choices": [{"delta": {"tool_calls": [{"index": 0,
             "function": {"name": "short"}}]}}]}),
-        json!({"choices": [{"delta": {"tool_calls": [{"index": 1, "id": "call-1",
-            "function": {"name": "n".repeat(3 * 1024 * 1024)}}]}}]}),
     ]);
-    let events = payloads(&wire, wire.len()).await;
-    assert_eq!(events.len(), 3);
-    assert_eq!(events[2]["contentBlockStart"]["contentBlockIndex"], 1);
+    let events = native::output(&wire, wire.len()).await;
+    assert!(events
+        .last()
+        .unwrap()
+        .as_ref()
+        .unwrap_err()
+        .to_string()
+        .contains("identity changed"));
 }
 
 #[tokio::test]

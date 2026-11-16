@@ -1,4 +1,5 @@
 // Azure deployment names are resource-owned, not entries from the public model catalog.
+import { NeuroProvider } from "@neuro/ui";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
@@ -18,8 +19,10 @@ it("creates an empty azure-api pool while retaining Azure authentication and run
     vendorKey: template.vendorKey, vendorName: template.vendorName, baseUrl, supportedModels: [],
     workflow: defaultCatalogWorkflow(template),
   });
-  expect(result.providers[0]).toMatchObject({ id: "azure-api", preset: "azure-api", base_url: baseUrl,
-    explicit_credentials_only: true, credentials: [], supported_models: [], test_policy: { automaticEnabled: false } });
+  expect(result.providers[0]).toMatchObject({
+    id: "azure-api", preset: "azure-api", base_url: baseUrl,
+    explicit_credentials_only: true, credentials: [], supported_models: [], test_policy: { automaticEnabled: false }
+  });
   expect(result.model_routes).toEqual([]);
   expect(result.providers[0]).not.toHaveProperty("api_key");
   expect(catalogProviderKind(result.providers[0] as Record<string, unknown>)).toBeUndefined();
@@ -30,7 +33,7 @@ it("imports an explicit deployment without sending the Azure key to the OpenAI c
   render(<UiLocaleProvider><CredentialDialog open mode="add" providerOptions={[{ id: "azure-api", label: "Azure" }]}
     existingCredentialIds={[]} locked={false} hasSecretAccess onOpenChange={vi.fn()} onRequestSecretAccess={vi.fn()}
     onSubmit={onSubmit} catalogProviderKind={() => catalogProviderKind({ preset: "azure-api", base_url: baseUrl })}
-    onDiscoverProviderModels={official} onDiscover={generic} /></UiLocaleProvider>);
+    onDiscoverProviderModels={official} onDiscover={generic} /></UiLocaleProvider>, { wrapper: NeuroProvider });
   fireEvent.change(screen.getByLabelText("账号 ID"), { target: { value: "azure-account" } });
   fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-key" } });
   fireEvent.change(screen.getByLabelText("手动模型列表"), { target: { value: "my-deployment" } });

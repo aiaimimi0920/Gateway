@@ -12,6 +12,8 @@ use crate::upstream::client::UpstreamClient;
 use std::collections::HashMap;
 
 mod account_groups;
+#[cfg(feature = "line-commandcode-provider-api")]
+mod commandcode_zdr;
 mod egress;
 mod identity_wait;
 mod latency;

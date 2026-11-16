@@ -93,7 +93,7 @@ fn parse_upload_value(value: &Value) -> Result<ChataibotUpload, GatewayError> {
         Value::String(s) => parse_data_uri_upload(s),
         Value::Object(record) => {
             let mime_type = read_required_map_string(record, &["mimeType", "mime_type"])?;
-            let data = read_required_map_string(record, &["base64", "data"])?;
+            let data = read_required_map_string(record, &["base64", "data", "data_base64"])?;
             if data.starts_with("data:image/") {
                 return parse_data_uri_upload(data);
             }

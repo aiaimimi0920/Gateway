@@ -90,6 +90,15 @@ pub(super) fn request_compatible_wire_protocol_families(
         },
         "grok_compatible" => match endpoint_kind {
             EndpointKind::ChatCompletions => vec![OPENAI_CHAT_FAMILY.to_string()],
+            EndpointKind::Responses if crate::upstream::grok_web::owns_payload(payload) => {
+                vec![OPENAI_CHAT_FAMILY.to_string()]
+            }
+            _ => Vec::new(),
+        },
+        "perplexity_web_compatible" => match endpoint_kind {
+            EndpointKind::ChatCompletions | EndpointKind::Responses => {
+                vec![OPENAI_CHAT_FAMILY.to_string()]
+            }
             _ => Vec::new(),
         },
         "accio_compatible" | "kiro_compatible" => match endpoint_kind {
@@ -154,7 +163,10 @@ pub(super) fn request_compatible_wire_protocol_families(
             _ => Vec::new(),
         },
         "bedrock_converse_compatible" => match endpoint_kind {
-            EndpointKind::ChatCompletions => vec![BEDROCK_CONVERSE_FAMILY.to_string()],
+            // The native planner accepts all three canonical conversational endpoints.
+            EndpointKind::ChatCompletions | EndpointKind::Messages | EndpointKind::Responses => {
+                vec![BEDROCK_CONVERSE_FAMILY.to_string()]
+            }
             _ => Vec::new(),
         },
         "cohere_compatible" => match endpoint_kind {
@@ -286,3 +298,7 @@ pub(super) fn request_compatible_wire_protocol_families(
         )],
     }
 }
+
+#[cfg(test)]
+#[path = "grok_web_tests.rs"]
+mod grok_web_tests;

@@ -112,5 +112,6 @@ pub(crate) fn browser_executor_endpoint_kind_key(endpoint_kind: EndpointKind) ->
         EndpointKind::ResearchList => "research_list",
         EndpointKind::ResearchGet => "research_get",
         EndpointKind::CreditsBalance => "credits_balance",
+        EndpointKind::SystemOne => "systemone",
     }
 }

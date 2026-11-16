@@ -15,6 +15,16 @@ VALIDATOR = GATEWAY_ROOT / "tools" / "validate-gateway-provider-evidence.py"
 SCHEMA = GATEWAY_ROOT / "docs" / "provider-inventory.schema.json"
 
 CANONICAL_PROVIDER_LINE_IDS = {
+    "agnes-official-api",
+    "minimax-m-plan",
+    "sensenova-token-plan",
+    "commandcode-provider-api",
+    "sap-aicore-chat",
+    "cloudflare-workers-ai",
+    "dim-user-oauth",
+    "nous-portal-oauth",
+    "perplexity-web-reverse-api",
+    "river-official-api",
     "accio-web-reverse-api",
     "aistudio-official",
     "aistudio-web-reverse",
@@ -139,9 +149,9 @@ class GatewayProviderInventoryContractTests(unittest.TestCase):
             self.assertEqual(ids, sorted(ids))
             self.assertEqual(len(ids), len(set(ids)))
             self.assertEqual(len(manifest_paths), len(set(manifest_paths)))
-            self.assertEqual(len(lines), 44)
+            self.assertEqual(set(ids), CANONICAL_PROVIDER_LINE_IDS)
             self.assertEqual(
-                payload["evidenceSummary"]["counts"]["metadata_only"], 44
+                payload["evidenceSummary"]["counts"]["metadata_only"], len(CANONICAL_PROVIDER_LINE_IDS)
             )
 
             serialized = first_path.read_text(encoding="utf-8")
@@ -233,7 +243,7 @@ class GatewayProviderInventoryContractTests(unittest.TestCase):
             ["fixture_passed"],
         )
         self.assertEqual(payload["evidenceSummary"]["counts"]["fixture_passed"], 1)
-        self.assertEqual(payload["evidenceSummary"]["counts"]["metadata_only"], 43)
+        self.assertEqual(payload["evidenceSummary"]["counts"]["metadata_only"], len(CANONICAL_PROVIDER_LINE_IDS) - 1)
 
     def test_validator_requires_timestamp_and_classified_failure_for_non_compiled_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:

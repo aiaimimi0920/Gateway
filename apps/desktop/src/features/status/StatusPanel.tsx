@@ -39,20 +39,20 @@ function ProbeCard({
 }) {
   const degraded = isDegradedProbe(probe);
   const ok = (probe?.ok ?? false) && !degraded;
-  const toneClass = degraded
-    ? "nt-badge--warning"
+  const tone = degraded
+    ? "warning"
     : ok
-      ? "nt-badge--success"
-      : "nt-badge--warning";
+      ? "success"
+      : "warning";
   return (
-    <article className="nt-card">
+    <Panel className="gateway-desktop-panel">
       <div className="nt-row nt-row--between">
         <div>
           <h3>{title}</h3>
         </div>
-        <span className={`nt-badge ${toneClass}`}>
+        <Badge tone={tone}>
           {statusLabel(probe)}
-        </span>
+        </Badge>
       </div>
       <dl className="nt-meta-list nt-meta-list--inline">
         <div>
@@ -73,7 +73,7 @@ function ProbeCard({
         </div>
       </dl>
       <pre className="nt-code">{JSON.stringify(probe?.data ?? null, null, 2)}</pre>
-    </article>
+    </Panel>
   );
 }
 
@@ -81,20 +81,20 @@ export function StatusPanel({ state }: StatusPanelProps) {
   const snapshot = state.processSnapshot;
 
   return (
-    <div className="nt-stack">
-      <article className="nt-card nt-card--panel">
+    <div className="gateway-desktop-panels">
+      <Panel className="gateway-desktop-panel">
         <div className="nt-section__head">
           <div>
             <h2>运行状态与准备度</h2>
           </div>
-          <button
-            className="nt-btn nt-btn--primary"
+          <Button
+            variant="primary"
             type="button"
             disabled={state.busy}
             onClick={() => void state.refreshRuntimeSignals()}
           >
             刷新检查
-          </button>
+          </Button>
         </div>
 
         <div className="nt-focus-grid">
@@ -123,8 +123,8 @@ export function StatusPanel({ state }: StatusPanelProps) {
             <strong>{snapshot.shutdownState ?? "-"}</strong>
           </article>
         </div>
-        {snapshot.lastError ? <p className="nt-copy">{snapshot.lastError}</p> : null}
-      </article>
+        {snapshot.lastError ? <Notice tone="danger">{snapshot.lastError}</Notice> : null}
+      </Panel>
 
       <div className="nt-grid nt-grid--2">
         <ProbeCard endpoint="/healthz" title="Liveness" probe={state.healthProbe} />
@@ -133,3 +133,4 @@ export function StatusPanel({ state }: StatusPanelProps) {
     </div>
   );
 }
+import { Badge, Button, Notice, Panel } from "@neuro/ui";

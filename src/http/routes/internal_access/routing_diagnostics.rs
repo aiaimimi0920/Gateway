@@ -50,6 +50,7 @@ pub(super) fn parse_endpoint_kind(raw: &str) -> Result<EndpointKind, GatewayErro
         "research_list" => Ok(EndpointKind::ResearchList),
         "research_get" => Ok(EndpointKind::ResearchGet),
         "credits_balance" => Ok(EndpointKind::CreditsBalance),
+        "systemone" => Ok(EndpointKind::SystemOne),
         other => Err(GatewayError::bad_request(format!(
             "不支持的 endpointKind: {other}"
         ))),

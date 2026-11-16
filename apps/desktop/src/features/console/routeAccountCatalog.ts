@@ -23,6 +23,7 @@ export type RouteManagedAccount = {
   providerId: string;
   providerLabel: string;
   providerPreset: string | null;
+  authMode?: string | null;
   baseUrl: string | null;
   hostLabel: string | null;
   mode: "credential" | "provider-default";
@@ -227,6 +228,7 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
           providerId,
           providerLabel,
           providerPreset,
+          authMode: optionalString(provider, "auth_mode"),
           baseUrl,
           hostLabel: hostLabelFromUrl(baseUrl),
           mode: "credential",
@@ -252,6 +254,7 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
         providerId,
         providerLabel,
         providerPreset,
+        authMode: optionalString(provider, "auth_mode"),
         baseUrl: providerBaseUrl,
         hostLabel: hostLabelFromUrl(providerBaseUrl),
         mode: "provider-default",

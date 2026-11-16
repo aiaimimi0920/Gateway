@@ -3,6 +3,23 @@ use super::*;
 use bytes::Bytes;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[tokio::test]
+#[should_panic(expected = "Agnes test attempted an unisolated native Codex transport")]
+async fn agnes_misdispatch_cannot_create_a_native_network_request() {
+    let payload: ProviderAccountPayload = serde_json::from_value(json!({
+        "adapter":"openai_compatible", "base_url":crate::protocol::agnes::BASE,
+        "auth_mode":crate::protocol::agnes::AUTH_MODE, "api_key":"cpk-synthetic"
+    }))
+    .unwrap();
+    let req = responses::normalize_responses(json!({
+        "model":"agnes-live-text", "input":"hello", "store":false
+    }))
+    .unwrap();
+    let _ = UpstreamClient::new(1)
+        .send_native_codex(&payload, &req, "agnes-live-text", false, None, None)
+        .await;
+}
+
 #[test]
 fn native_codex_oauth_stream_does_not_enter_forced_stream_aggregation() {
     let payload: ProviderAccountPayload = serde_json::from_value(json!({

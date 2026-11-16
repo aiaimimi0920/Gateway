@@ -47,22 +47,47 @@ fn credential<'a>(
         .map(|(_, c)| c)
 }
 
-fn unchanged(a: &ProviderCredentialYaml, b: &ProviderCredentialYaml) -> bool {
+pub(crate) fn same_authorization(a: &ProviderCredentialYaml, b: &ProviderCredentialYaml) -> bool {
     a.api_key == b.api_key
         && a.auth_token == b.auth_token
         && a.refresh_token == b.refresh_token
         && a.refresh_endpoint == b.refresh_endpoint
         && a.refresh_client_id == b.refresh_client_id
+        && a.grok_oauth == b.grok_oauth
+        && a.luma_oauth == b.luma_oauth
+        && a.kiro_oauth == b.kiro_oauth
+        && a.vertex_oauth == b.vertex_oauth
+        && a.dim_oauth == b.dim_oauth
+        && a.nous_portal == b.nous_portal
+        && a.lobsterai == b.lobsterai
+        && a.accio_sgcookie == b.accio_sgcookie
         && a.expires_at == b.expires_at
+        && a.token_expires_in_secs == b.token_expires_in_secs
+        && a.session_auth == b.session_auth
         && a.headers == b.headers
+}
+
+fn same_session_transport(a: Option<&SessionAuthConfig>, b: Option<&SessionAuthConfig>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            a.transport == b.transport
+                && a.primary_cookie_name == b.primary_cookie_name
+                && a.secondary_cookie_name == b.secondary_cookie_name
+                && a.header_name == b.header_name
+        }
+        _ => false,
+    }
 }
 
 pub(super) fn reuse_and_retire(
     current: &RouteConfigSnapshot,
     replacement: &mut RouteConfigInner,
     document: &RouteConfigYaml,
+    persisted_rotation: bool,
 ) {
     let mut retained = HashSet::new();
+    let mut retained_authorizations = HashSet::new();
     for provider in &mut replacement.providers {
         let Some(old_provider) = current
             .compiled()
@@ -87,24 +112,40 @@ pub(super) fn reuse_and_retire(
             ) else {
                 continue;
             };
-            // Preserve routing revocation boundaries, but not unrelated model/label/probe changes.
+            // A document is the configuration anchor, not a replacement for newer runtime material.
             if target.refresh_config.is_some()
-                && unchanged(a, b)
-                && old.payload.api_key == target.payload.api_key
+                && old.payload.adapter == target.payload.adapter
+                && old.payload.auth_mode == target.payload.auth_mode
+                && old.payload.auth_header_name == target.payload.auth_header_name
                 && old.payload.auth_token == target.payload.auth_token
                 && old.payload.headers == target.payload.headers
+                && same_session_transport(
+                    old.payload.session_auth.as_ref(),
+                    target.payload.session_auth.as_ref(),
+                )
+                && ((same_authorization(a, b)
+                    && old.payload.base_url == target.payload.base_url
+                    && old.payload.api_key == target.payload.api_key
+                    && old.payload.session_auth == target.payload.session_auth
+                    && old.payload.expires_at == target.payload.expires_at)
+                    || (persisted_rotation
+                        && refresh.persisted_rotation_matches(
+                            a,
+                            b,
+                            &target.payload.api_key,
+                            &target.payload.base_url,
+                            &old.payload.base_url,
+                        )))
             {
-                // A policy change retires routing ownership, not an in-flight token exchange.
-                // Share its mutex so a replacement owner cannot consume the same refresh token.
-                if let Some(fresh) = target.refresh_config.as_mut().and_then(Arc::get_mut) {
-                    fresh.attempt_lock = refresh.attempt_lock.clone();
-                }
+                retained_authorizations.insert(refresh.authorization_id());
                 if old.enabled == target.enabled
                     && old_provider.credential_pool_auth_policy
                         == provider.credential_pool_auth_policy
                 {
                     target.refresh_config = Some(refresh.clone());
                     retained.insert(Arc::as_ptr(refresh) as usize);
+                } else {
+                    target.refresh_config = Some(Arc::new(refresh.routing_replacement()));
                 }
             }
         }
@@ -114,6 +155,9 @@ pub(super) fn reuse_and_retire(
             if let Some(refresh) = &credential.refresh_config {
                 if !retained.contains(&(Arc::as_ptr(refresh) as usize)) {
                     refresh.retire();
+                }
+                if !retained_authorizations.contains(&refresh.authorization_id()) {
+                    refresh.revoke_authorization();
                 }
             }
         }

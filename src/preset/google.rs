@@ -105,6 +105,15 @@ pub fn vertex_official_api_preset() -> ProviderPreset {
     preset
 }
 
+/// Express uses the shared Gemini encoder but has its own Key audience and no implicit model.
+pub fn vertex_express_api_preset() -> ProviderPreset {
+    let mut preset = gemini_api_preset();
+    preset.id = crate::protocol::vertex_express::PRESET_ID.into();
+    preset.auth_mode = Some(crate::protocol::vertex_express::AUTH_MODE.into());
+    preset.execution_mode = Some(ProviderExecutionMode::DirectHttp);
+    preset
+}
+
 /// Returns the built-in "gemini-web-chat" preset for Gemini Web pure-HTTP replay providers.
 pub fn gemini_web_chat_preset() -> ProviderPreset {
     let mut headers = HashMap::new();

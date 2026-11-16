@@ -58,50 +58,27 @@
   line-height: 1.55;
 }
 
-.nt-card-models summary {
-  display: grid;
-  grid-template-columns: var(--nt-model-columns);
-  gap: 4px;
-  align-items: center;
-  min-height: 28px;
-  padding: 4px 4px 4px 0;
-  cursor: pointer;
-  list-style: none;
-  border-bottom: 1px solid var(--nt-border);
-  border-left: 0;
-  background: var(--nt-color-control);
-  font-weight: 600;
+/* Place the standard disclosure marker beside the domain grid, not in a metric column. */
+.nt-card-models__company > summary {
+  position: relative;
 }
 
-.nt-card-models summary:hover {
-  background: var(--nt-color-control-hover);
+.nt-card-models__company > summary > .n-icon {
+  position: absolute;
+  left: 4px;
 }
 
-/* Surface depth and indentation distinguish hierarchy without a white slab. */
-.nt-card-models details[open] > summary {
-  background: var(--nt-color-control-hover);
-  color: var(--nt-text);
-}
-
-.nt-card-models summary::-webkit-details-marker {
-  display: none;
-}
-
-.nt-card-models details[open] > summary svg {
-  transform: rotate(90deg);
+.nt-card-models__company-row {
+  flex: 1;
+  min-width: 0;
+  padding-right: 4px;
 }
 
 .nt-card-models__company-name {
   display: flex;
   align-items: center;
-  gap: 6px;
   min-width: 0;
-  padding-left: 8px;
-}
-
-.nt-card-models__company-name svg {
-  flex-shrink: 0;
-  color: var(--nt-text-muted);
+  padding-left: 26px;
 }
 
 .nt-card-models__company-label {
@@ -127,11 +104,14 @@
   align-items: center;
   min-height: 26px;
   font-variant-numeric: tabular-nums;
+}
+
+li.nt-card-models__row {
   border-bottom: 1px solid color-mix(in srgb, var(--nt-border) 45%, transparent);
 }
 
-.nt-card-models__row:hover,
-.nt-card-models__row:focus-within {
+li.nt-card-models__row:hover,
+li.nt-card-models__row:focus-within {
   background: var(--nt-color-control-hover);
 }
 
@@ -183,11 +163,6 @@
   min-width: 1px;
   height: 100%;
   border-radius: 3px;
-}
-
-.nt-card-models :is(.nt-card-models__scroll, summary, .nt-card-models__name):focus-visible {
-  outline: 2px solid var(--nt-signal);
-  outline-offset: 2px;
 }
 
 .nt-card-models__empty {

@@ -65,7 +65,7 @@ pub(super) fn validate(document: &RouteConfigYaml, diagnostics: &mut RouteConfig
             ));
         }
         for (path, policy) in policies {
-            if let Some(error) = policy.and_then(|policy| policy.validate().err()) {
+            if let Some(error) = policy.and_then(|policy| policy.validate_structure().err()) {
                 diagnostics.push_error("test_policy_invalid", path, error);
             }
         }

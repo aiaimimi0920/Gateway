@@ -429,6 +429,7 @@ export function buildAccountLedgerSections(
           providerPreset,
           adapter: optionalString(provider, "adapter"),
           protocolProfile: optionalString(provider, "protocol_profile"),
+          authMode: optionalString(provider, "auth_mode"),
           hostLabel: hostLabelFromUrl(optionalString(provider, "base_url")),
           defaultAccountId: defaultAccount?.accountId ?? null,
           manualAddFamily,

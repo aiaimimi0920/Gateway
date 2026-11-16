@@ -4,6 +4,49 @@ const AUTHORIZATION: &str =
     "https://auth.openai.com/oauth/authorize?state=test&code_challenge=test";
 
 #[test]
+fn luma_allows_only_the_mcp_authorization_endpoint() {
+    assert!(allowed(
+        &Url::parse("https://agents.lumalabs.ai/mcp/oauth/authorize?state=synthetic").unwrap()
+    ));
+    for value in [
+        "http://agents.lumalabs.ai/mcp/oauth/authorize",
+        "https://agents.lumalabs.ai:444/mcp/oauth/authorize",
+        "https://agents.lumalabs.ai.evil.invalid/mcp/oauth/authorize",
+        "https://user:secret@agents.lumalabs.ai/mcp/oauth/authorize",
+        "https://agents.lumalabs.ai/mcp/oauth/authorize#private",
+        "https://agents.lumalabs.ai/mcp",
+        "https://auth.lumalabs.ai/oauth2/token",
+        "https://agents.lumalabs.ai/mcp/oauth/%61uthorize",
+    ] {
+        assert!(!allowed(&Url::parse(value).unwrap()), "{value}");
+    }
+}
+
+#[test]
+fn nous_allows_only_the_fixed_device_authorization_origin() {
+    let url = Url::parse("https://portal.nousresearch.com/device?user_code=ABCD").unwrap();
+    assert!(allowed(&url));
+    assert_eq!(
+        browser_command(&url).get_args().last().unwrap(),
+        url.as_str()
+    );
+    for value in [
+        "http://portal.nousresearch.com/device",
+        "https://portal.nousresearch.com:444/device",
+        "https://portal.nousresearch.com.evil.invalid/device",
+        "https://user:secret@portal.nousresearch.com/device",
+        "https://portal.nousresearch.com/device#private",
+    ] {
+        assert!(!allowed(&Url::parse(value).unwrap()), "{value}");
+    }
+    let long = format!(
+        "https://portal.nousresearch.com/device?code={}",
+        "x".repeat(4096)
+    );
+    assert!(!allowed(&Url::parse(&long).unwrap()));
+}
+
+#[test]
 fn allows_only_the_exact_https_authorization_endpoint() {
     assert!(allowed(&Url::parse(AUTHORIZATION).unwrap()));
     assert!(allowed(
@@ -59,6 +102,37 @@ fn antigravity_allows_only_the_official_google_authorization_endpoint() {
     ] {
         assert!(!allowed(&Url::parse(value).unwrap()), "{value}");
     }
+}
+
+#[test]
+fn freebuff_allows_only_the_exact_approval_origin() {
+    for value in [
+        "https://freebuff.com/",
+        "https://freebuff.com/login?code=synthetic",
+        "https://freebuff.com:443/approve?code=synthetic",
+    ] {
+        assert!(allowed(&Url::parse(value).unwrap()), "{value}");
+    }
+    for value in [
+        "http://freebuff.com/login",
+        "https://freebuff.com:444/login",
+        "https://freebuff.com.evil.test/login",
+        "https://freebuff.com./login",
+        "https://www.freebuff.com/login",
+        "https://user:secret@freebuff.com/login",
+        "https://freebuff.com/login#fragment",
+        "https://freebuff.com/login#",
+        "https://codebuff.com/login",
+    ] {
+        assert!(!allowed(&Url::parse(value).unwrap()), "{value}");
+    }
+    let long = format!("https://freebuff.com/login?code={}", "x".repeat(8192));
+    assert!(!allowed(&Url::parse(&long).unwrap()));
+    let url = Url::parse("https://freebuff.com/login?code=synthetic&next=approve").unwrap();
+    assert_eq!(
+        browser_command(&url).get_args().last().unwrap(),
+        url.as_str()
+    );
 }
 
 #[test]

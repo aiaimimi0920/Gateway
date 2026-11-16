@@ -16,6 +16,7 @@ export type RouteManagedAccount = {
   providerId: string;
   providerLabel: string;
   providerPreset: string | null;
+  authMode?: string | null;
   baseUrl: string | null;
   hostLabel: string | null;
   mode: "credential" | "provider-default";

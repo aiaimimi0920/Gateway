@@ -1,0 +1,11 @@
+{
+  "providers": [{
+    "id": "cloudflare",
+    "preset": "cloudflare-workers-ai",
+    "base_url": "https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/v1",
+    "explicit_credentials_only": true,
+    "call_flow": { "call_adapter": "auto", "fingerprint_adapter": "auto", "special_adapter": "auto" },
+    "credentials": [{ "id": "cloudflare-account", "api_key": "replace_with_workers_ai_api_token", "supported_models": ["@cf/openai/gpt-oss-20b"] }]
+  }],
+  "model_routes": [{ "pattern": "@cf/openai/gpt-oss-20b", "provider_ids": ["cloudflare"], "priority": 10, "enabled": true }]
+}

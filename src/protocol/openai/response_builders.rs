@@ -37,11 +37,7 @@ pub fn build_chat_completions_success(
     });
 
     if let Some(u) = usage {
-        response["usage"] = json!({
-            "prompt_tokens": u.prompt_tokens,
-            "completion_tokens": u.completion_tokens,
-            "total_tokens": u.total_tokens,
-        });
+        response["usage"] = chat_usage(u);
     }
 
     response
@@ -90,11 +86,7 @@ pub fn build_chat_completions_stop(
     });
 
     if let Some(u) = usage {
-        chunk["usage"] = json!({
-            "prompt_tokens": u.prompt_tokens,
-            "completion_tokens": u.completion_tokens,
-            "total_tokens": u.total_tokens,
-        });
+        chunk["usage"] = chat_usage(u);
     }
 
     chunk
@@ -180,6 +172,16 @@ pub fn build_legacy_completions_stop(
     chunk
 }
 
+fn chat_usage(usage: &TokenUsage) -> Value {
+    let mut value = json!({"prompt_tokens":usage.prompt_tokens,
+        "completion_tokens":usage.completion_tokens,"total_tokens":usage.total_tokens});
+    // Unknown cache usage remains absent; an explicit upstream zero is still meaningful.
+    if let Some(cached) = usage.cache_read_input_tokens {
+        value["prompt_tokens_details"] = json!({"cached_tokens":cached});
+    }
+    value
+}
+
 fn normalize_openai_wire_finish_reason(value: Option<&str>, has_tool_calls: bool) -> &'static str {
     match value.map(str::trim).filter(|value| !value.is_empty()) {
         Some("completed") => {
@@ -191,6 +193,7 @@ fn normalize_openai_wire_finish_reason(value: Option<&str>, has_tool_calls: bool
         }
         Some("incomplete") | Some("length") | Some("max_tokens") => "length",
         Some("tool_calls") | Some("function_call") | Some("tool_use") => "tool_calls",
+        Some("content_filter") => "content_filter",
         Some("stop") | Some("end_turn") => "stop",
         Some(_) => "stop",
         None => {
@@ -199,6 +202,72 @@ fn normalize_openai_wire_finish_reason(value: Option<&str>, has_tool_calls: bool
             } else {
                 "stop"
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn chat_usage_builders_preserve_known_cache_without_inventing_unknown_usage() {
+        for cached in [None, Some(0), Some(3)] {
+            let usage = TokenUsage {
+                prompt_tokens: 8,
+                completion_tokens: 2,
+                total_tokens: 10,
+                cache_read_input_tokens: cached,
+                cache_creation_input_tokens: None,
+            };
+            for body in [
+                build_chat_completions_success(
+                    "id",
+                    0,
+                    "model",
+                    "OK",
+                    Some(&usage),
+                    &[],
+                    Some("stop"),
+                ),
+                build_chat_completions_stop("id", 0, "model", Some(&usage)),
+            ] {
+                assert_eq!(body["usage"]["total_tokens"], 10);
+                assert_eq!(
+                    body["usage"]
+                        .pointer("/prompt_tokens_details/cached_tokens")
+                        .and_then(Value::as_u64),
+                    cached
+                );
+                assert_eq!(
+                    body["usage"].get("prompt_tokens_details").is_some(),
+                    cached.is_some()
+                );
+            }
+        }
+        assert!(build_chat_completions_stop("id", 0, "model", None)
+            .get("usage")
+            .is_none());
+    }
+    #[test]
+    fn openai_wire_builders_preserve_content_filter_instead_of_claiming_stop() {
+        let chat =
+            build_chat_completions_success("id", 0, "model", "", None, &[], Some("content_filter"));
+        let legacy =
+            build_legacy_completions_success("id", 0, "model", "", None, Some("content_filter"));
+        let stop = build_legacy_completions_stop("id", 0, "model", None, Some("content_filter"));
+        for body in [chat, legacy, stop] {
+            assert_eq!(body["choices"][0]["finish_reason"], "content_filter");
+        }
+        for (input, expected) in [
+            ("stop", "stop"),
+            ("length", "length"),
+            ("tool_calls", "tool_calls"),
+            ("completed", "stop"),
+        ] {
+            assert_eq!(
+                normalize_openai_wire_finish_reason(Some(input), false),
+                expected
+            );
         }
     }
 }

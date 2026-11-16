@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button, Checkbox, EmptyState, MultiSelect } from "@neuro/ui";
 
 import type {
   CredentialGroupModelScope,
@@ -19,12 +20,9 @@ export type { ScopePagerProps };
 
 type TranslateFn = (zh: string, en: string) => string;
 
-/**
- * Both bands page instead of scrolling: the card face is a fixed height and the
- * standing rule is that no card ever grows a scrollbar, so a group with 16
- * providers and 40 models walks through pages at a stable height.
- */
-const PROVIDER_TABS_PER_PAGE = 6;
+// Large provider sets use the standard popup; model rows keep bounded pagination
+// inside the card's existing scrollable face.
+const INLINE_PROVIDER_LIMIT = 6;
 const MODEL_ROWS_PER_PAGE = 3;
 
 export type EntitlementGroupScopeBoardProps = {
@@ -58,7 +56,6 @@ export function EntitlementGroupScopeBoard({
   deselectedProviderIds,
   onDeselectedProviderIdsChange,
 }: EntitlementGroupScopeBoardProps) {
-  const [providerPageState, setProviderPageState] = useState(1);
   const [modelPageState, setModelPageState] = useState(1);
 
   const selectedProviderIds = useMemo(() => {
@@ -94,8 +91,8 @@ export function EntitlementGroupScopeBoard({
           scopedProviderMetrics.length > 0
             ? scopedProviderMetrics.map((entry) => entry.metrics)
             : members
-                .map((member) => member.metrics)
-                .filter((metrics): metrics is ProviderMetricsAccountLike => metrics != null);
+              .map((member) => member.metrics)
+              .filter((metrics): metrics is ProviderMetricsAccountLike => metrics != null);
         return {
           model: scope.model,
           accountsTotal: members.length,
@@ -107,15 +104,6 @@ export function EntitlementGroupScopeBoard({
       .filter((row): row is NonNullable<typeof row> => row != null);
   }, [modelScopes, selectedProviderIds]);
 
-  const providerTotalPages = Math.max(
-    1,
-    Math.ceil(providerScopes.length / PROVIDER_TABS_PER_PAGE),
-  );
-  const providerPage = Math.min(providerPageState, providerTotalPages);
-  const providerPageScopes = providerScopes.slice(
-    (providerPage - 1) * PROVIDER_TABS_PER_PAGE,
-    providerPage * PROVIDER_TABS_PER_PAGE,
-  );
   const modelTotalPages = Math.max(1, Math.ceil(visibleModels.length / MODEL_ROWS_PER_PAGE));
   const modelPage = Math.min(modelPageState, modelTotalPages);
   const modelPageRows = visibleModels.slice(
@@ -134,87 +122,109 @@ export function EntitlementGroupScopeBoard({
     setModelPageState(1);
   };
 
+  const changeProviderValues = (values: string[]) => {
+    const next = new Set(values);
+    // Preserve exclusions for temporarily absent providers, just as a single
+    // inline toggle does; a directory refresh must not silently select them.
+    onDeselectedProviderIdsChange([
+      ...deselectedProviderIds.filter((providerId) => !next.has(providerId)),
+      ...Array.from(selectedProviderIds).filter((providerId) => !next.has(providerId)),
+    ]);
+    setModelPageState(1);
+  };
+  const describeProvider = (scope: CredentialGroupProviderScope) => t(
+    `${scope.accountCount} 个账号，${scope.modelCount} 个模型${scope.providerAccountCount > scope.accountCount
+      ? `（服务商共 ${scope.providerAccountCount} 个账号，用量按服务商账号统计）` : ""}`,
+    `${scope.accountCount} accounts, ${scope.modelCount} models${scope.providerAccountCount > scope.accountCount
+      ? ` (provider has ${scope.providerAccountCount} accounts; usage is measured per provider account)` : ""}`,
+  );
+  const scopeAction = providerScopes.length > 1 ? (
+    <Button
+      compact
+      variant="quiet"
+      aria-label={allSelected ? t("清空", "Clear") : t("全选", "Select all")}
+      onClick={() => {
+        onDeselectedProviderIdsChange(
+          allSelected ? providerScopes.map((scope) => scope.providerId) : [],
+        );
+        setModelPageState(1);
+      }}
+    >
+      <span className="nt-entitlement-scope__action-label" aria-hidden="true">
+        <span style={{ visibility: allSelected ? "visible" : "hidden" }}>{t("清空", "Clear")}</span>
+        <span style={{ visibility: allSelected ? "hidden" : "visible" }}>{t("全选", "Select all")}</span>
+      </span>
+    </Button>
+  ) : null;
+
   return (
     <div className="nt-entitlement-scope" data-entitlement-scope-board={cardKey}>
       <section
         className="nt-entitlement-scope__band"
         aria-label={t(`${label} 服务商范围`, `${label} provider scope`)}
       >
-        <header className="nt-entitlement-scope__band-head">
-          <strong>{t("服务商范围", "Provider scope")}</strong>
-          <span className="nt-entitlement-scope__band-tools">
-            <span className="nt-entitlement-scope__count">
-              {selectedProviderIds.size}/{providerScopes.length}
-            </span>
-            {providerScopes.length > 1 ? (
-              <button
-                className="nt-entitlement-scope__band-action"
-                type="button"
-                onClick={() => {
-                  onDeselectedProviderIdsChange(
-                    allSelected ? providerScopes.map((scope) => scope.providerId) : [],
-                  );
-                  setModelPageState(1);
-                }}
-              >
-                {allSelected ? t("清空", "Clear") : t("全选", "Select all")}
-              </button>
-            ) : null}
-          </span>
-        </header>
-        {providerScopes.length > 0 ? (
-          <>
-            <div
-              className="nt-entitlement-scope__tabs"
-              role="group"
-              aria-label={t("服务商标签，可多选", "Provider tabs, multi-select")}
-            >
-              {providerPageScopes.map((scope) => {
-                const selected = selectedProviderIds.has(scope.providerId);
-                // The group holds a slice of this provider's pool, but upstream
-                // only records traffic per provider account — so the rows below
-                // cover the whole pool. Say so instead of implying the slice.
-                const partialPool = scope.providerAccountCount > scope.accountCount;
-                return (
-                  <button
-                    className="nt-entitlement-scope__tab"
-                    type="button"
-                    key={`${cardKey}:provider:${scope.providerId}`}
-                    data-entitlement-scope-provider={scope.providerId}
-                    data-entitlement-scope-partial={partialPool ? "true" : undefined}
-                    aria-pressed={selected}
-                    title={t(
-                      `${scope.providerLabel}，${scope.accountCount} 个账号，${scope.modelCount} 个模型${
-                        partialPool
-                          ? `（服务商共 ${scope.providerAccountCount} 个账号，用量按服务商账号统计）`
-                          : ""
-                      }`,
-                      `${scope.providerLabel}, ${scope.accountCount} accounts, ${scope.modelCount} models${
-                        partialPool
-                          ? ` (provider has ${scope.providerAccountCount} accounts; usage is measured per provider account)`
-                          : ""
-                      }`,
-                    )}
-                    onClick={() => toggleProvider(scope.providerId)}
-                  >
-                    <span>{scope.providerLabel}</span>
-                    <small>{scope.modelCount}</small>
-                  </button>
-                );
-              })}
-            </div>
-            <ScopePager
-              t={t}
-              page={providerPage}
-              totalPages={providerTotalPages}
-              navLabel={t("服务商范围分页", "Provider scope pagination")}
-              onPage={(next) => setProviderPageState(next)}
+        {providerScopes.length > INLINE_PROVIDER_LIMIT ? (
+          <div className="nt-entitlement-scope__selector-row">
+            <MultiSelect
+              compact
+              className="nt-entitlement-scope__selector"
+              label={t("服务商范围", "Provider scope")}
+              options={providerScopes.map((scope) => ({
+                value: scope.providerId,
+                label: scope.providerLabel,
+                description: scope.providerAccountCount > scope.accountCount ? t(
+                  `组内 ${scope.accountCount}/${scope.providerAccountCount} 个账号，用量按整个服务商统计`,
+                  `${scope.accountCount}/${scope.providerAccountCount} accounts; provider-wide usage`,
+                ) : undefined,
+                meta: t(`${scope.modelCount} 个模型`, `${scope.modelCount} models`),
+              }))}
+              values={Array.from(selectedProviderIds)}
+              onValuesChange={changeProviderValues}
+              formatSummary={(count) => t(`已选 ${count}/${providerScopes.length} 项`, `${count}/${providerScopes.length} selected`)}
+              search={{ label: t("搜索服务商", "Search providers"), emptyMessage: t("未找到服务商", "No providers found") }}
             />
-          </>
+            {scopeAction}
+          </div>
         ) : (
-          <p className="nt-entitlement-scope__empty">
-            {t("暂无服务商，请先挂载账号", "No providers yet, attach accounts first")}
-          </p>
+          <>
+            <header className="nt-entitlement-scope__band-head">
+              <strong>{t("服务商范围", "Provider scope")}</strong>
+              <span className="nt-entitlement-scope__band-tools">
+                <span className="nt-entitlement-scope__count" style={{ minWidth: `${String(providerScopes.length).length * 2 + 1}ch` }}>
+                  {selectedProviderIds.size}/{providerScopes.length}
+                </span>
+                {scopeAction}
+              </span>
+            </header>
+            {providerScopes.length > 0 ? (
+              <div
+                className="nt-entitlement-scope__choices"
+                role="group"
+                aria-label={t("服务商范围，可多选", "Providers, multi-select")}
+              >
+                {providerScopes.map((scope) => {
+                  const selected = selectedProviderIds.has(scope.providerId);
+                  const partialPool = scope.providerAccountCount > scope.accountCount;
+                  return (
+                    <Checkbox
+                      className="nt-entitlement-scope__choice"
+                      key={`${cardKey}:provider:${scope.providerId}`}
+                      data-entitlement-scope-provider={scope.providerId}
+                      data-entitlement-scope-partial={partialPool ? "true" : undefined}
+                      checked={selected}
+                      aria-label={scope.providerLabel}
+                      aria-description={describeProvider(scope)}
+                      title={`${scope.providerLabel}, ${describeProvider(scope)}`}
+                      onChange={() => toggleProvider(scope.providerId)}
+                      label={<><span>{scope.providerLabel}</span><small aria-hidden="true">{scope.modelCount}</small></>}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState compact title={t("暂无服务商，请先挂载账号", "No providers yet, attach accounts first")} />
+            )}
+          </>
         )}
       </section>
 

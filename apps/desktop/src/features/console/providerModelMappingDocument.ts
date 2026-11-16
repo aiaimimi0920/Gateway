@@ -1,6 +1,7 @@
 import { MODEL_COMPANY_RULES } from "./modelDisplayCatalog";
 import { isRecord } from "./routeDocument";
 import type { ConsoleTelemetrySnapshot } from "./telemetry";
+import { modelIdPolicy, validModelId } from "./providerModelId";
 
 export type ProviderModelMappingEntry = { model: string; upstreamModel: string };
 
@@ -23,6 +24,7 @@ export function readProviderModelMappings(provider: Record<string, unknown>): Pr
 export function writeProviderModelMappings(provider: Record<string, unknown>, entries: readonly ProviderModelMappingEntry[]) {
   const mappings = new Map<string, Set<string>>();
   for (const { model, upstreamModel } of entries) {
+    if (!validModelId(model, modelIdPolicy(provider)) || !validModelId(upstreamModel, modelIdPolicy(provider))) throw new Error("映射包含不符合此产品限制的模型 ID。");
     const targets = mappings.get(model) ?? new Set<string>();
     targets.add(upstreamModel);
     mappings.set(model, targets);

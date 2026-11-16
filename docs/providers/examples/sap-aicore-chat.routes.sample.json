@@ -1,0 +1,13 @@
+{
+  "providers": [{
+    "id": "sap-aicore-chat",
+    "preset": "sap-aicore-chat",
+    "base_url": "https://api.ai.prod.eu-central-1.aws.ml.hana.ondemand.com/v2/inference/deployments/replace-with-deployment-id",
+    "headers": { "AI-Resource-Group": "replace-with-resource-group" },
+    "extra_body": { "sap_api_version": "2024-10-21" },
+    "supported_models": ["replace-with-deployment-id"],
+    "explicit_credentials_only": true,
+    "credentials": []
+  }],
+  "model_routes": []
+}

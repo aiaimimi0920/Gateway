@@ -189,7 +189,7 @@ fn frozen_addresses() -> &'static Addresses {
     &ADDRESSES
 }
 
-pub(super) fn configure(builder: ClientBuilder) -> ClientBuilder {
+pub(super) fn configure_auto(builder: ClientBuilder) -> ClientBuilder {
     let addresses = frozen_addresses();
     // macOS 无环境代理时继续委托平台实现；本轮仅验收 Windows/Linux 代理来源合同。
     #[cfg(target_os = "macos")]

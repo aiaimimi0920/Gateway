@@ -12,12 +12,16 @@ use crate::protocol::canonical::{CanonicalRelayRequest, EndpointKind, MessageRol
 
 #[path = "request_budget_capacity.rs"]
 mod capacity;
+#[path = "request_budget_closeout.rs"]
+mod closeout;
 #[path = "request_budget_connect.rs"]
 mod connect;
+pub(crate) use closeout::CLOSEOUT_TIMEOUT;
 #[path = "request_budget_stream.rs"]
 mod stream;
 #[path = "request_budget_wait.rs"]
 mod wait;
+pub(crate) use stream::AdmittedStream;
 pub use stream::BudgetStream;
 
 pub const MAX_REQUEST_ATTEMPTS: u32 = 6;
@@ -35,6 +39,7 @@ struct State {
     attempts: u32,
     stop: Option<&'static str>,
     handed_off: bool,
+    deadline_closeout: bool,
     last_error: Option<GatewayError>,
     rejected_conversation_fallback: bool,
     capacity_retry_available: bool,
@@ -61,6 +66,7 @@ pub fn replay_safe(req: &CanonicalRelayRequest) -> bool {
                 | EndpointKind::AudioSpeech
                 | EndpointKind::AudioTranscriptions
                 | EndpointKind::ResearchCreate
+                | EndpointKind::SystemOne
         )
 }
 
@@ -94,6 +100,7 @@ impl RequestBudget {
             attempts: 0,
             stop: None,
             handed_off: false,
+            deadline_closeout: false,
             last_error: None,
             rejected_conversation_fallback: false,
             capacity_retry_available: max_attempts > 1,
@@ -150,6 +157,10 @@ impl RequestBudget {
     pub fn check(&self) -> Result<(), GatewayError> {
         check_state(&mut self.0.lock())
     }
+    /// Remaining stages of an admitted attempt still obey stop/deadline/handoff, not a new slot.
+    pub(crate) fn check_inflight(&self) -> Result<(), GatewayError> {
+        check_lifetime(&mut self.0.lock())
+    }
 
     /// Called only after successful admission, immediately before polling a real send.
     pub fn begin_attempt(&self) -> Result<(), GatewayError> {
@@ -189,6 +200,10 @@ impl RequestBudget {
         self.0.lock().stop
     }
 
+    pub(crate) fn admission_deadline(&self) -> Option<Instant> {
+        self.0.lock().deadline
+    }
+
     pub async fn run<T>(
         &self,
         future: impl Future<Output = Result<T, GatewayError>>,
@@ -202,7 +217,9 @@ impl RequestBudget {
         let mut future = Box::pin(future);
         let result = tokio::select! {
             biased;
-            _ = async { match deadline { Some(deadline) => sleep_until(deadline).await, None => std::future::pending().await } } => Err(self.stop("deadline")),
+            _ = async { match deadline { Some(deadline) => sleep_until(deadline).await, None => std::future::pending().await } } => {
+                self.closeout_after_deadline(future.as_mut()).await
+            },
             result = future.as_mut() => {
                 if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
                     // Mark the cause before dropping a late stream/transport and its callbacks.
@@ -243,6 +260,14 @@ impl RequestBudget {
 }
 
 fn check_state(state: &mut State) -> Result<(), GatewayError> {
+    check_lifetime(state)?;
+    if state.attempts >= state.max_attempts {
+        state.stop = Some("attempt_limit");
+        return Err(terminal_error("attempt_limit", state.last_error.as_ref()));
+    }
+    Ok(())
+}
+fn check_lifetime(state: &mut State) -> Result<(), GatewayError> {
     if let Some(reason) = state.stop {
         return Err(terminal_error(reason, state.last_error.as_ref()));
     }
@@ -252,21 +277,12 @@ fn check_state(state: &mut State) -> Result<(), GatewayError> {
             state.last_error.as_ref(),
         ));
     }
-    let reason = state.stop.or_else(|| {
-        if state
-            .deadline
-            .is_some_and(|deadline| Instant::now() >= deadline)
-        {
-            Some("deadline")
-        } else if state.attempts >= state.max_attempts {
-            Some("attempt_limit")
-        } else {
-            None
-        }
-    });
-    if let Some(reason) = reason {
-        state.stop = Some(reason);
-        Err(terminal_error(reason, state.last_error.as_ref()))
+    if state
+        .deadline
+        .is_some_and(|deadline| Instant::now() >= deadline)
+    {
+        state.stop = Some("deadline");
+        Err(terminal_error("deadline", state.last_error.as_ref()))
     } else {
         Ok(())
     }

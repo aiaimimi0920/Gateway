@@ -1,3 +1,4 @@
+import { Input, Select } from "@neuro/ui";
 import type { ConsoleAccessKeyBalance } from "../../api/contracts";
 import { useId } from "react";
 import type { AccessKeyDraft, TranslateFn } from "./accessKeysTypes";
@@ -32,9 +33,8 @@ export function AccessKeyQuotaFields({
     <div className="nt-key-quota-fields">
       <label htmlFor={`${id}-mode`}>{t("额度限制", "Quota")}</label>
       <div className="nt-key-quota-controls">
-        <select
+        <Select
           id={`${id}-mode`}
-          className="nt-input"
           value={draft.quotaMode}
           onChange={(event) =>
             onChange({
@@ -74,9 +74,8 @@ export function AccessKeyQuotaFields({
               {t("总花费", "Total spend")}
             </option>
           ) : null}
-        </select>
-        <input
-          className="nt-input"
+        </Select>
+        <Input
           aria-label={cash
             ? t("总花费（USD）", "Total spend (USD)")
             : token

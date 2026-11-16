@@ -102,6 +102,38 @@ aliases: {}
 }
 
 #[test]
+fn legacy_and_strict_expiry_admission_agree_without_requiring_refresh_material() {
+    for lifetime in [
+        None,
+        Some(0),
+        Some(1),
+        Some(100 * 365 * 86400),
+        Some(u64::MAX),
+    ] {
+        let mut candidate = provider_document("provider", "synthetic-key");
+        let credential=serde_json::from_value(json!({"id":"stable-id", "api_key":"synthetic-access", "token_expires_in_secs":lifetime})).unwrap();
+        candidate.providers[0].credentials.push(credential);
+        let strict = validate_route_document(candidate.clone());
+        let path = std::env::temp_dir().join(format!(
+            "gateway-expiry-boundary-{}.yaml",
+            uuid::Uuid::new_v4()
+        ));
+        fs::write(&path, serde_yaml::to_string(&candidate).unwrap()).unwrap();
+        let legacy = RouteConfigStore::load_from_yaml(&path);
+        fs::remove_file(&path).unwrap();
+        let expected = lifetime != Some(u64::MAX);
+        assert_eq!(strict.is_ok(), expected, "strict lifetime={lifetime:?}");
+        assert_eq!(legacy.is_ok(), expected, "legacy lifetime={lifetime:?}");
+        if let Ok(validated) = strict {
+            assert_eq!(
+                validated.document().providers[0].credentials[0].token_expires_in_secs,
+                lifetime
+            );
+        }
+    }
+}
+
+#[test]
 fn very_large_secret_preview_is_bounded_and_does_not_echo_the_value() {
     let huge = "密".repeat(200_000);
     let active = provider_document("provider", &huge);

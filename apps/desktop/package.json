@@ -8,6 +8,7 @@
     "node": ">=22.22.0"
   },
   "scripts": {
+    "ui:sync": "node ../../../../../../NeuroDesign/scripts/sync-consumer.mjs --package @neuro/ui",
     "dev": "cross-env GATEWAY_UI_TARGET=tauri rsbuild dev --port 1425",
     "dev:web": "cross-env GATEWAY_UI_TARGET=web rsbuild dev --port 1425",
     "build": "npm run build:tauri",
@@ -24,6 +25,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
     "@microsoft/fetch-event-source": "^2.0.1",
+    "@neuro/ui": "file:../../../../../../NeuroDesign/packages/react/neuro-ui",
     "@radix-ui/react-alert-dialog": "^1.1.23",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-select": "^2.3.7",
@@ -37,7 +39,7 @@
     "react-dom": "19.2.7",
     "react-hook-form": "^7.82.0",
     "react-router": "8.3.0",
-    "zod": "^4.4.3"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

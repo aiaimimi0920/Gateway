@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "dim-user-oauth",
+  "identity": {
+    "serviceProviderKey": "dim", "serviceProviderLabel": "DIM",
+    "providerSurfaceKey": "dim-user-oauth", "providerSurfaceLabel": "DIM China / Global User OAuth",
+    "protocolProfile": "dim_user_oauth", "implementationLine": "official_api", "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api", "executionMode": "direct_http", "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation", "models"], "supportsModelsEndpoint": true },
+  "credentials": {
+    "materialKinds": ["bearer_token"], "samplePath": "docs/providers/examples/dim-user-oauth.routes.sample.json",
+    "fieldsDocPath": "docs/progress/2026-11-08-dim-local.md"
+  },
+  "docs": { "overviewDocPath": "docs/progress/2026-11-08-dim-local.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "dim-user-oauth-verify", "focusedCargoFilters": ["dim_oauth", "dim_model_routing"],
+    "fixtureSuiteId": "dim_local_fixture", "liveSuiteId": "dim_live_pending_client_registration", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-dim-user-oauth",
+    "familyCommonFeatures": ["family-openai-compatible-official-api", "family-anthropic-compatible-official-api"], "binaryInclusionGroup": "dim-user-oauth"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/dim_oauth.rs", "upstreamModule": "gateway/src/upstream/client",
+    "platformDeltaModule": "gateway/src/console/dim_oauth"
+  }
+}

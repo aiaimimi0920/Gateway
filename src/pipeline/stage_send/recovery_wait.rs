@@ -91,17 +91,56 @@ pub(super) async fn send_cancellable(
     state: &Arc<AppState>,
     candidate: &crate::routing::candidate::RouteCandidate,
     index: usize,
-    attempt: PreparedAttempt,
+    mut attempt: PreparedAttempt,
 ) -> Result<PipelineOutput, AttemptError> {
+    ctx.lobster_model_resolution = None;
     let cancel = ctx.caller_cancel.clone();
     let budget = ctx.request_budget.clone();
+    let mut ticket = crate::protocol::lobsterai::dispatch::Ticket::capture(
+        state,
+        candidate,
+        &attempt.effective_payload,
+    )
+    .map_err(AttemptError::Stop)?;
     // Keep cancellation's generic frame pointer-sized on Windows debug stacks.
     let send = Box::pin(async {
-        if ctx.canonical_req.stream {
+        let prepared = crate::protocol::lobsterai::virtual_model::prepare(
+            &state.upstream_client,
+            &mut attempt.effective_payload,
+            &ctx.canonical_req,
+            &attempt.model,
+            &ctx.req_id.to_string(),
+        )
+        .await;
+        let prepared = async {
+            ctx.lobster_model_resolution = prepared?;
+            if ctx.lobster_model_resolution.is_some() {
+                ticket = crate::protocol::lobsterai::dispatch::Ticket::capture(
+                    state,
+                    candidate,
+                    &attempt.effective_payload,
+                )?;
+                attempt
+                    .provider_attempt_gate
+                    .recheck_send_eligibility()
+                    .await?;
+            }
+            Ok::<(), GatewayError>(())
+        }
+        .await;
+        let result = if let Err(error) = prepared {
+            Err(AttemptError::Stop(error))
+        } else if ctx.canonical_req.stream {
             Box::pin(streaming::send(ctx, state, candidate, index, attempt)).await
         } else {
             Box::pin(buffered::send(ctx, state, candidate, index, attempt)).await
+        };
+        if let (Some(ticket), Err(AttemptError::Next(error) | AttemptError::Stop(error))) =
+            (&ticket, &result)
+        {
+            ticket.observe(state, error);
         }
+        result
     });
     cancellable(cancel, budget, state, send)
         .await

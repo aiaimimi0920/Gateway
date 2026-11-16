@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "minimax-m-plan",
+  "identity": {
+    "serviceProviderKey": "minimax", "serviceProviderLabel": "MiniMax",
+    "providerSurfaceKey": "minimax-m-plan", "providerSurfaceLabel": "MiniMax M Plan Subscription Key",
+    "protocolProfile": "minimax_m_plan", "implementationLine": "official_vendor_api", "adapter": "anthropic_compatible",
+    "sourceKind": "official_vendor_api", "executionMode": "direct_http", "templateFamily": "anthropic_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation"], "supportsModelsEndpoint": false },
+  "credentials": {
+    "materialKinds": ["api_key"], "samplePath": "docs/providers/examples/minimax-m-plan.routes.sample.json",
+    "fieldsDocPath": "docs/providers/minimax-m-plan-contract-2026-11-10.md"
+  },
+  "docs": { "overviewDocPath": "docs/providers/minimax-m-plan-contract-2026-11-10.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "minimax-m-plan-verify", "focusedCargoFilters": ["minimax"],
+    "fixtureSuiteId": "minimax_m_plan_fixture", "liveSuiteId": "minimax_m_plan_live_pending", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-minimax-m-plan",
+    "familyCommonFeatures": ["family-anthropic-compatible-official-api"], "binaryInclusionGroup": "minimax-m-plan"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/minimax.rs", "upstreamModule": "gateway/src/upstream/anthropic_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/protocol/minimax/stream.rs"
+  }
+}

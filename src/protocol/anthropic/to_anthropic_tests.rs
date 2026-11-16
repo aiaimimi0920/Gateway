@@ -66,6 +66,19 @@ async fn collect_translation(
 }
 
 #[tokio::test]
+async fn vertex_express_tools_filter_sse_maps_to_messages_refusal() {
+    let frame = format!(
+        "data: {}\n\ndata: [DONE]\n\n",
+        json!({"choices":[{"index":0,"delta":{},"finish_reason":"content_filter"}]})
+    );
+    let (outputs, error) = collect_translation(vec![Ok(Bytes::from(frame))], 4096).await;
+    assert!(error.is_none());
+    let output = outputs.join("");
+    assert!(output.contains("\"stop_reason\":\"refusal\""), "{output}");
+    assert!(output.contains("event: message_stop"));
+}
+
+#[tokio::test]
 async fn rejects_oversized_unterminated_input_without_terminal_events() {
     let (outputs, error) = collect_translation(vec![Ok(Bytes::from_static(b"123456789"))], 8).await;
 

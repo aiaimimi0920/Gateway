@@ -6,6 +6,7 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
 mod account_cache;
+mod account_selection;
 mod accounts;
 mod canonicalization;
 mod classification;

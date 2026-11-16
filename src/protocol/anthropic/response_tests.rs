@@ -125,3 +125,16 @@ fn builders_preserve_usage_cache_fields_and_delta_wire() {
         })
     );
 }
+
+#[test]
+fn vertex_express_tools_filter_maps_to_messages_refusal_not_natural_completion() {
+    let response = build_messages_success(
+        "msg_filtered",
+        "model",
+        "",
+        None,
+        &[],
+        Some("content_filter"),
+    );
+    assert_eq!(response["stop_reason"], "refusal");
+}

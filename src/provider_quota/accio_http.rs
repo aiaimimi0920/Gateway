@@ -43,11 +43,12 @@ pub(super) async fn fetch_accio_quota_endpoint(
         .map_err(|error| {
             GatewayError::server_error(format!("build accio quota client: {error}"))
         })?;
+    let endpoint = build_absolute_url(payload.base_url.trim_end_matches('/'), path);
+    #[cfg(all(test, feature = "line-accio-web-reverse-api"))]
+    let endpoint = crate::provider_credential_refresh::accio::server_peer::quota_url(&endpoint)
+        .unwrap_or(endpoint);
     let response = client
-        .request(
-            Method::GET,
-            build_absolute_url(payload.base_url.trim_end_matches('/'), path),
-        )
+        .request(Method::GET, endpoint)
         .query(&[
             ("accessToken", access_token),
             ("utdid", utdid),

@@ -65,11 +65,14 @@ pub async fn prepare(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result
     let mut quotes = Vec::new();
     let mut reserved = 0;
     for candidate in &ctx.candidates {
-        if !matches!(
-            candidate.payload.canonical_adapter(),
-            "openai_compatible" | "anthropic_compatible"
-        ) || candidate.resolved_execution_mode
-            != crate::routing::candidate::ProviderExecutionMode::DirectHttp
+        // SDK text has neither billable total usage nor an enforced HTTP output bound.
+        if candidate.payload.auth_mode.as_deref() == Some("copilot_sdk")
+            || !matches!(
+                candidate.payload.canonical_adapter(),
+                "openai_compatible" | "anthropic_compatible"
+            )
+            || candidate.resolved_execution_mode
+                != crate::routing::candidate::ProviderExecutionMode::DirectHttp
         {
             return Err(GatewayError::bad_request(
                 "该上游尚未提供现金结算所需的可核对用量与输出上限",

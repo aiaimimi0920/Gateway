@@ -8,8 +8,7 @@ import type {
 } from "./accountManagementViewModel";
 import type {
   AccountCardGroupOption,
-  AccountCardMenuActionId,
-  AccountCardMenuItem,
+  AccountCardAction,
   AccountsLedgerPilotAccount,
   ProviderAccountCardHandlers,
 } from "./ProviderAccountCard";
@@ -20,12 +19,7 @@ export type EntitlementAccountCardBridge = {
   accountsById: ReadonlyMap<string, AccountsLedgerPilotAccount>;
   groupOptions: AccountCardGroupOption[];
   handlers: ProviderAccountCardHandlers;
-  menuItems?: readonly AccountCardMenuItem[];
-  onMenuAction: (
-    action: AccountCardMenuActionId,
-    providerId: string,
-    account: AccountsLedgerPilotAccount,
-  ) => void;
+  onAccountAction: AccountCardAction;
 };
 
 export type CredentialGroupsWorkspaceProps = {

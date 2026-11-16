@@ -1,5 +1,11 @@
 mod immutable_json;
+mod refresh_cache;
+mod refresh_grants;
+mod transaction_fence;
 mod types;
+
+#[cfg(test)]
+pub(crate) use refresh_cache::REPAIR as REFRESH_CACHE_REPAIR;
 
 #[cfg(test)]
 use immutable_json::json_payloads_equivalent;
@@ -7,7 +13,7 @@ use immutable_json::store_json_if_absent_or_identical;
 use types::serialize_json_canonically;
 pub use types::{
     RouteConfigRedisActivationOutcome, RouteConfigRedisKeys, RouteConfigRedisRevision,
-    RouteConfigRedisStoreError,
+    RouteConfigRedisSettlement, RouteConfigRedisStoreError,
 };
 
 use deadpool_redis::Pool;
@@ -22,29 +28,26 @@ const ACTIVATE_SENTINEL_NONE: &str = "__NONE__";
 const ACTIVATE_LUA: &str = r#"
 local current = redis.call('GET', KEYS[1])
 if not current then current = '' end
-if ARGV[1] == '__NONE__' then
-  if current ~= '' then
-    if current == ARGV[2] then
-      return {'already_active'}
-    end
-    return {'revision_conflict', current}
-  end
-elseif current ~= ARGV[1] then
-  if current == ARGV[2] then
-    return {'already_active'}
-  end
-  return {'revision_conflict', current}
+local stored_transaction = redis.call('GET', KEYS[4])
+if stored_transaction ~= ARGV[4] and stored_transaction ~= ARGV[5] then
+  return {'prepared_transaction_mismatch'}
 end
 local stored_revision = redis.call('GET', KEYS[3])
 if stored_revision ~= ARGV[6] then
   return {'revision_payload_mismatch'}
 end
-local stored_transaction = redis.call('GET', KEYS[4])
 if stored_transaction == ARGV[5] and current == ARGV[2] then
   return {'already_active'}
 end
 if stored_transaction ~= ARGV[4] then
   return {'prepared_transaction_mismatch'}
+end
+if ARGV[1] == '__NONE__' then
+  if current ~= '' then
+    return {'revision_conflict', current}
+  end
+elseif current ~= ARGV[1] then
+  return {'revision_conflict', current}
 end
 redis.call('SET', KEYS[2], ARGV[3])
 if KEYS[5] ~= '' then
@@ -126,8 +129,14 @@ impl RouteConfigRedisStore {
                 "Gateway console Redis CAS expects a RedisActivated transaction record",
             ));
         }
-        if prepared_record.tx_id() != activated_record.tx_id()
-            || prepared_record.new_revision() != activated_record.new_revision()
+        if prepared_record
+            .prepared_identity()
+            .map_err(RouteConfigRedisStoreError::from_persistence)?
+            != activated_record
+                .prepared_identity()
+                .map_err(RouteConfigRedisStoreError::from_persistence)?
+            || prepared_record.new_revision() != revision.metadata().id()
+            || prepared_record.new_yaml_digest() != revision.metadata().yaml_digest()
         {
             return Err(RouteConfigRedisStoreError::invalid_state(
                 "Gateway console CAS transaction identities do not match",

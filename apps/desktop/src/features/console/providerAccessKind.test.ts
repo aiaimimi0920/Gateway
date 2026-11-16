@@ -25,3 +25,16 @@ it("combines kind selection with search and never mutates providers", () => {
   expect(providerPoolEntries(sections, { ...view, query: "missing", accessKinds: ["api"] })).toEqual([]);
   expect(sections.map(({ providerId }) => providerId)).toEqual(["oauth", "api", "web"]);
 });
+it("keeps the native Kiro Key in API despite its shared legacy executor and profile", () => {
+  const key = { providerPreset: "kiro-api-key", adapter: "kiro_compatible", protocolProfile: "kiro", providerLabel: "Renamed" };
+  expect(providerAccessKind(key)).toBe("api");
+  expect(providerAccessLabel(key)).toBe("Renamed-api");
+  expect(providerAccessKind({ ...key, providerPreset: "kiro" })).toBe("oauth");
+});
+it("keeps existing Accio, FreeBuff and Canvas product identities in channel labels", () => {
+  expect(providerAccessLabel({ providerLabel: "accio-oauth", providerPreset: "accio" })).toBe("accio-oauth");
+  expect(providerAccessLabel({ providerLabel: "freebuff-web", providerPreset: "freebuff" })).toBe("freebuff-web");
+  expect(providerAccessLabel({ providerLabel: "gemini-canvas", providerPreset: "gemini-canvas" })).toBe("gemini-canvas");
+  expect(providerAccessLabel({ providerLabel: "renamed-canvas", providerPreset: "gemini-canvas" })).toBe("renamed-canvas-web");
+  expect(providerAccessLabel({ providerLabel: "gemini-canvas", providerPreset: "openai" })).toBe("gemini-canvas-api");
+});

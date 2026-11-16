@@ -33,7 +33,12 @@ See [devtest-build.md](devtest-build.md) for port, override and isolation bounda
 | --- | --- |
 | local/routes.yaml | Local provider and credential bootstrap/export |
 | local/state/console | Active revision, transactions, secret access state and recovery |
+| local/state/console/luma-client-registrations.json | Bounded public Luma MCP registration receipts: durable pre-send uncertainty and confirmed client/redirect; no access tokens; same-owner, same-state-root recovery without automatic registration replay |
 | local/state/runtime.sqlite3, runtime.sqlite3-wal, runtime.sqlite3-shm | Durable refill queue, request history, pricing, credential-model health, local access keys and balances |
+| local/state/runtime.sqlite3 (local_freebuff_device_keys / local_freebuff_registrations / local_freebuff_registration_replacements) | One sealed FreeBuff installation key, exact account/audience receipts and bounded replacement-attempt overlays preserving the previous receipt until confirmed |
+| local/state/runtime.sqlite3 (local_freebuff_session_claims / local_freebuff_session_closeouts) | Sealed exact FreeBuff active claims and final closeout receipts; prepare-before-send, unresolved recovery, exact atomic archive/release and offline bounded history, without automatic repurchase or cleanup |
+| local/state/runtime.sqlite3 (local_freebuff_runs) | 原 claim 绑定的加密 run/client 身份、发送前意图、费用观测/已知累计前缀和 FINISH 接受事实；原 claim/run preimage 原子 CAS，不自动续跑、重放、end 或重买 |
+| local/state/access-key-seal.json | Existing same-root AES seal key, shared by access-key copies and FreeBuff device/registration/session-claim owners; preserve it with the matching database |
 | local/state/refill-locks | Bounded OS lock stripes for cross-process credential delivery |
 | objects | Runtime objects and browser-backed provider material |
 | credentials | Original/imported credential files |
@@ -73,6 +78,42 @@ server catalog/project services retain their server owners.
 Local normal access-key lifecycle and request authorization also use SQLite. See
 [local-access-keys.md](local-access-keys.md) for secret handling, restrictions and
 the shared balance rules and the boundary with server catalog features.
+
+FreeBuff device registration reuses this selected LocalRuntime root and seal, with
+separate-purpose AAD and additive schema-1 tables. It never writes private keys to
+routes, release payloads or a new plaintext file. Missing/corrupt seal or existing
+device material fails closed, including a database containing only FreeBuff rows;
+it does not silently create a replacement key. This same-directory AES seal is not
+an OS vault or protection against access to the complete root. The fixed
+`refill-locks/freebuff-device-registration.lock` uses an OS lifetime guard, not
+deletion of the lock file. Explicit replacement keeps the previous sealed receipt
+until atomic promotion, but uncertain replacements never use it as a signed or
+unsigned fallback. Local status does not generate keys or contact upstream.
+Server mode does not fall back to a local device store.
+See [the management contract](provider-freebuff-login.md#51-本地安装设备的显式注册-api)
+for explicit registration and single-use uncertain-retry confirmation.
+
+The FreeBuff session-claim owner adds a separate schema-1 table and purpose-bound
+sealed receipt in this same root. Its stable provider/credential slot does not
+change when token/origin/client changes: a mismatched original authority blocks
+recovery rather than looking absent. Existing claims are never automatically
+expired, removed, renewed or repurchased. Fixed 256 OS lock stripes cover the
+one-shot send and active observation; a collision returns busy. Session-only
+rows, closeout-only history and run-only records also prevent silently replacing a missing seal.
+Normal saved-account management can explicitly read the offline journal/history
+and end only its exact original claim; final receipt archive and active release
+remain one transaction with the real Grant/revision fence. A read needs no device
+or upstream; an end needs the existing registration and fresh signed catalog.
+History is not active authority. Catalog CLI / Local non-streaming Chat now uses
+the normal request-owned per-purchase approval; other public lanes and Server
+admission storage remain incomplete. See
+[正常管理原claim收尾子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-07-provider-channel-expansion-freebuff-managed-closeout.md).
+
+原 run 记录在同一 schema-1 内 additive 初始化，旧 claim 无 run 时返回缺少事实，而不补造 ID/费用。
+START、模型、FINISH 的原意图必须先持久化；当前未知费用与此前已知累计分开，HTTP 接受不当结算。
+正常管理 claim/history 读取与页面只展示恢复事实，不返回 remote run/client ID、body 或认证材料，
+不生成恢复执行许可。实际进程/跨进程、远端 lease 与未知结果显式对账仍需后续验收；见
+[原 run 持久化子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-freebuff-run-journal.md)。
 
 Local refill workers use the existing authenticated HTTP claim/renew/complete APIs.
 The status response identifies storageBackend=sqlite and streamKey=null. Provider

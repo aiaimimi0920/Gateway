@@ -1,4 +1,4 @@
-import { Play } from "lucide-react";
+import { Badge, Button, Notice, Panel, Stack } from "@neuro/ui";
 import type { ConsoleCredentialProbeResult } from "../../api/contracts";
 import type { AccountsLedgerPilotAccount } from "./accountsLedgerTypes";
 import type { RouteManagedAccount } from "./routeAccountCatalog";
@@ -28,48 +28,33 @@ export function PilotAccountProbePanel({
 }: PilotAccountProbePanelProps) {
   const modelTest = account.providerId === "nvidia" || activePilotManagedAccount?.providerPreset === "nvidia-openai";
   return (
-    <div className="nt-stack">
-      <article className="nt-pilot-dialog__hero">
-        <div className="nt-pilot-dialog__hero-icon">
-          <Play size={20} aria-hidden="true" />
-        </div>
-        <div className="nt-pilot-dialog__hero-copy">
+    <Stack>
+      <Panel className="nt-pilot-identity">
+        <div>
           <strong>{account.displayName}</strong>
-          <div className="nt-ledger-chip-list nt-ledger-chip-list--dense">
-            <span className="nt-chip nt-chip--muted">APIKEY</span>
-            <span className="nt-chip nt-chip--muted">{t("账号", "Account")}</span>
-          </div>
+          <div className="n-row"><Badge>APIKEY</Badge><Badge>{t("账号", "Account")}</Badge></div>
         </div>
-        <span
-          className={
-            account.dispatchEnabled
-              ? "nt-badge nt-badge--success"
-              : "nt-badge nt-badge--warning"
-          }
-        >
-          {account.dispatchEnabled ? "active" : t("暂停", "Paused")}
-        </span>
-      </article>
+        <Badge tone={account.dispatchEnabled ? "success" : "warning"}>
+          {account.dispatchEnabled ? t("启用", "Active") : t("暂停", "Paused")}
+        </Badge>
+      </Panel>
 
-      <div className="nt-pilot-terminal">
+      {account.previewOnly || credentialProbeBusy === account.accountId || activePilotProbeResult ? <Notice>
         {account.previewOnly
           ? t(
-              "演示账号仅展示 UI，不会发起真实连接测试。",
-              "Demo accounts only preview the UI and do not start a real connection test.",
-            )
+            "演示账号仅展示 UI，不会发起真实连接测试。",
+            "Demo accounts only preview the UI and do not start a real connection test.",
+          )
           : credentialProbeBusy === account.accountId
             ? modelTest
               ? t("正在使用此账号调用模型并等待回复（最长 60 秒）...", "Calling the model with this credential and waiting for a reply (up to 60 seconds)...")
               : t("正在测试连接，请稍候...", "Testing connectivity, please wait...")
             : activePilotProbeResult
               ? activePilotProbeResult.message
-              : t(
-                  "准备测试。点击“开始测试”按钮开始...",
-                  'Ready to test. Click "Start test" to begin...',
-                )}
-      </div>
+              : null}
+      </Notice> : null}
 
-      <div className="nt-pilot-dialog__meta">
+      <div className="nt-pilot-probe-meta">
         <span>{modelTest
           ? t("真实模型调用测试：只有收到有效回复才通过", "Model call test: passes only after receiving a valid reply")
           : t("非生成单点测试", "Non-generative single-point test")}</span>
@@ -81,17 +66,13 @@ export function PilotAccountProbePanel({
         </span>
       </div>
 
-      <div className="dialog-actions">
-        <button
-          className="nt-btn nt-btn--secondary"
-          type="button"
+      <div className="n-dialog-actions">
+        <Button wrap
           onClick={closePilotActionDialog}
         >
           {t("关闭", "Close")}
-        </button>
-        <button
-          className="nt-btn nt-btn--primary"
-          type="button"
+        </Button>
+        <Button wrap variant="primary"
           disabled={
             account.previewOnly ||
             !activePilotManagedAccount ||
@@ -102,8 +83,8 @@ export function PilotAccountProbePanel({
           onClick={() => void startPilotProbe()}
         >
           {t("开始测试", "Start test")}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Stack>
   );
 }

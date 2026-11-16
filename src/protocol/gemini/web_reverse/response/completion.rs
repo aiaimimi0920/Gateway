@@ -76,6 +76,9 @@ pub(crate) fn accumulate_complete_media_response(
         .with_code("gemini_web_media_incomplete")
     })?;
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: model.into(),
         text,

@@ -43,52 +43,45 @@ impl RouteConfigCoordinator {
     pub(super) async fn resolve_indeterminate_activation(
         &self,
         guard: &crate::console::WriterLockGuard,
-        tx_id: &str,
-        receipt: &crate::console::YamlReplaceReceipt,
-        expected_revision: &str,
-        revision: &RevisionMetadata,
-        validated: crate::console::document::ValidatedRouteDocument,
+        record: &crate::console::TransactionRecord,
     ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigRuntimeError> {
-        match self.redis.load_active_revision().await {
-            Ok(Some(active)) if active.metadata().id() == revision.id() => {
-                self.finish_commit(guard, tx_id, validated, revision.clone())
-            }
-            Ok(Some(active)) if active.metadata().id() == expected_revision => {
-                self.rollback_yaml_and_abort(
-                    guard,
-                    tx_id,
-                    receipt,
-                    "redis_indeterminate_rolled_back",
-                )?;
-                Err(RouteConfigRuntimeError::indeterminate(
-                    "Gateway console Redis CAS transport became indeterminate and the previous active revision remained authoritative",
-                ))
-            }
-            Ok(None) => {
-                self.rollback_yaml_and_abort(
-                    guard,
-                    tx_id,
-                    receipt,
-                    "redis_indeterminate_no_active_revision",
-                )?;
-                Err(RouteConfigRuntimeError::indeterminate(
-                    "Gateway console Redis CAS transport became indeterminate and Redis still has no authoritative active revision",
-                ))
-            }
-            Ok(Some(active)) => Err(RouteConfigRuntimeError::new(
-                "console_recovery_required",
-                format!(
-                    "Gateway console Redis CAS became indeterminate and Redis now points at unrelated revision '{}'",
-                    active.metadata().id()
-                ),
-            )),
-            Err(error) => Err(RouteConfigRuntimeError::new(
-                "console_recovery_required",
-                format!(
-                    "Gateway console Redis CAS became indeterminate and the authoritative active revision could not be re-read: {}",
-                    error
-                ),
-            )),
+        self.resolve_failed_activation(
+            guard,
+            record,
+            RouteConfigRuntimeError::indeterminate(
+                "Gateway console indeterminate activation was fenced and the transaction revoked",
+            ),
+            None,
+        )
+        .await
+    }
+
+    pub(super) async fn resolve_failed_activation(
+        &self,
+        guard: &crate::console::WriterLockGuard,
+        record: &crate::console::TransactionRecord,
+        failure: RouteConfigRuntimeError,
+        rollback_code: Option<&str>,
+    ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigRuntimeError> {
+        let (outcome, active) = self.fence_and_reload(guard, record).await?;
+        if outcome == super::RouteConfigRedisSettlement::Activated {
+            let active = active.as_ref().ok_or_else(|| {
+                RouteConfigRuntimeError::new(
+                    "console_recovery_required",
+                    "Activated transaction lost its authority",
+                )
+            })?;
+            let (validated, metadata) =
+                super::revision_state::validated_and_metadata_from_active(active, record)?;
+            self.finish_commit(guard, record.tx_id(), validated, metadata)
+        } else {
+            let code = rollback_code.unwrap_or(if active.is_none() {
+                "redis_indeterminate_no_active_revision"
+            } else {
+                "redis_indeterminate_rolled_back"
+            });
+            self.apply_settlement(guard, record, outcome, active.as_ref(), code)?;
+            Err(failure)
         }
     }
 

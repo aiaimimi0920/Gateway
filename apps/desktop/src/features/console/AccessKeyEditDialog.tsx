@@ -1,6 +1,5 @@
-import * as Dialog from "@radix-ui/react-dialog";
+import { Dialog } from "@neuro/ui";
 import { useRef, useState } from "react";
-import { Pencil, X } from "lucide-react";
 import type {
   ConsoleAccessKey,
   ConsoleAccessCatalog,
@@ -29,51 +28,21 @@ export function AccessKeyEditDialog({
   const [draft, setDraft] = useState(() =>
     editAccessKeyDraft(accessKey, catalog),
   );
-  // Capture before the form's autoFocus moves focus into this portal.
-  const trigger = useRef<HTMLElement | null>(
-    document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null,
-  );
+  const nameInput = useRef<HTMLInputElement>(null);
   return (
-    <Dialog.Root
+    <Dialog
+      title={t("编辑 API Key", "Edit API Key")}
+      className="nt-key-dialog nt-key-dialog--structured"
+      closeLabel={t("关闭", "Close")}
+      busy={busy}
+      initialFocusRef={nameInput}
       open
       onOpenChange={(open) => {
         if (!open && !busy) onClose();
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content
-          className="dialog-content nt-key-dialog nt-key-dialog--structured"
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            if (trigger.current?.isConnected) trigger.current.focus();
-          }}
-          onEscapeKeyDown={(event) => {
-            if (busy) event.preventDefault();
-          }}
-          onPointerDownOutside={(event) => {
-            if (busy) event.preventDefault();
-          }}
-        >
-          <div className="nt-key-dialog__head">
-            <Pencil className="nt-key-dialog__icon" size={20} aria-hidden="true" />
-            <Dialog.Title>{t("编辑 API Key", "Edit API Key")}</Dialog.Title>
-            <button
-              type="button"
-              className="nt-icon-action"
-              aria-label={t("关闭", "Close")}
-              disabled={busy}
-              onClick={onClose}
-            >
-              <X size={17} aria-hidden="true" />
-            </button>
-          </div>
-          <Dialog.Description className="nt-visually-hidden">
-            {t("编辑密钥名称、有效期、权益组及额度。", "Edit key name, validity, groups and quota.")}
-          </Dialog.Description>
           <AccessKeyCreateForm
+            nameInputRef={nameInput}
             editing
             draft={draft}
             onChange={setDraft}
@@ -95,8 +64,6 @@ export function AccessKeyEditDialog({
               });
             }}
           />
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    </Dialog>
   );
 }

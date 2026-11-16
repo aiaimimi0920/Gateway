@@ -1,9 +1,10 @@
+import { Badge, DataTable, EmptyState } from "@neuro/ui";
 import type { OperationsWorkspaceProps } from "./operations-contracts";
 import {
   formatCount,
   formatTimestamp,
   formatText,
-  statusBadgeClass,
+  statusTone,
   StatCard,
   Panel,
   BucketList,
@@ -30,7 +31,7 @@ export function OperationsExportPanels({
       >
         {(data) => (
           <>
-            <div className="nt-pilot-stats-overview-grid">
+            <div className="nt-operations-stats">
               <StatCard
                 label={t("限流请求", "Rate-limited")}
                 tone={data.totalRateLimitedRequests > 0 ? "danger" : "emerald"}
@@ -50,7 +51,7 @@ export function OperationsExportPanels({
                 value={formatCount(data.byResolvedModel.length)}
               />
             </div>
-            <div className="nt-console-bucket-grid">
+            <div className="nt-operations-buckets">
               <BucketList
                 buckets={data.byCode}
                 t={t}
@@ -84,7 +85,7 @@ export function OperationsExportPanels({
       >
         {(data) => (
           <>
-            <div className="nt-pilot-stats-overview-grid">
+            <div className="nt-operations-stats">
               <StatCard
                 label={t("导出数", "Exports")}
                 value={formatCount(data.totalExports)}
@@ -105,7 +106,7 @@ export function OperationsExportPanels({
                 value={formatCount(data.totalSampleCount)}
               />
             </div>
-            <dl className="nt-pilot-metric-list">
+            <dl className="nt-operations-metrics">
               <div>
                 <dt>{t("已删除", "Deleted")}</dt>
                 <dd>{formatCount(data.deletedExports)}</dd>
@@ -140,34 +141,28 @@ export function OperationsExportPanels({
       >
         {(rows) =>
           rows.length === 0 ? (
-            <div className="nt-pilot-stats-state" role="status">
-              {t("暂无导出记录", "No exports yet")}
-            </div>
+            <div role="status"><EmptyState compact title={t("暂无导出记录", "No exports yet")} /></div>
           ) : (
-            <div className="nt-table nt-table--exports">
-              <div className="nt-table__head">
-                <span>{t("标签", "Label")}</span>
-                <span>{t("状态", "Status")}</span>
-                <span>{t("样本", "Samples")}</span>
-                <span>{t("生成时间", "Created at")}</span>
-              </div>
-              {rows.slice(0, 20).map((entry) => (
-                <div className="nt-table__row" key={entry.exportId}>
-                  <span title={entry.exportId}>
-                    {formatText(entry.label ?? entry.exportId)}
-                  </span>
-                  <span>
-                    <span className={statusBadgeClass(entry.status)}>
-                      {formatText(entry.status)}
-                    </span>
-                  </span>
-                  <span>{formatCount(entry.sampleCount)}</span>
-                  <span title={formatText(entry.retentionExpiresAt)}>
-                    {formatTimestamp(entry.createdAt)}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <div className="nt-operations-table nt-operations-table--exports"><DataTable label={t("导出记录", "Exports")} rows={rows.slice(0, 20)} getRowKey={(entry) => entry.exportId} columns={[
+              {
+                key: "col-0", header: <>{t("标签", "Label")}</>, width: "34%", rowHeader: true, cell: (entry) => (<span title={entry.exportId}>
+                  {formatText(entry.label ?? entry.exportId)}
+                </span>)
+              },
+              {
+                key: "col-1", header: <>{t("状态", "Status")}</>, width: "20%", cell: (entry) => (<span>
+                  <Badge tone={statusTone(entry.status)}>
+                    {formatText(entry.status)}
+                  </Badge>
+                </span>)
+              },
+              { key: "col-2", header: <>{t("样本", "Samples")}</>, width: "16%", cell: (entry) => (<span>{formatCount(entry.sampleCount)}</span>) },
+              {
+                key: "col-3", header: <>{t("生成时间", "Created at")}</>, width: "30%", cell: (entry) => (<span title={formatText(entry.retentionExpiresAt)}>
+                  {formatTimestamp(entry.createdAt)}
+                </span>)
+              }
+            ]} /></div>
           )
         }
       </Panel>

@@ -40,6 +40,27 @@ pub async fn execute_browser_executor(
     Ok(Json(response))
 }
 
+pub async fn execute_suno_bound_browser_executor(
+    state: State<Arc<AppState>>,
+    token: OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<BrowserExecutorServiceInvocationRequest>,
+) -> Result<Json<BrowserExecutorServiceInvocationResponse>, GatewayError> {
+    assert_browser_executor_access(token.0.as_deref(), &headers)?;
+    if !body.provider.trim().eq_ignore_ascii_case("suno") {
+        return Err(
+            GatewayError::bad_request("This versioned executor accepts only Suno.")
+                .with_code("suno_browser_binding_provider"),
+        );
+    }
+    let response = state
+        .0
+        .upstream_client
+        .execute_browser_executor_service_invocation(body)
+        .await;
+    Ok(Json(response))
+}
+
 fn assert_browser_executor_access(
     bearer_token: Option<&str>,
     headers: &HeaderMap,

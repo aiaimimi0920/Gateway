@@ -141,3 +141,23 @@ async fn handed_off_owner_cannot_retry() {
     assert!(!gate.request_budget.claim_capacity_retry(&capacity()));
     assert_eq!(gate.request_budget.attempts(), 0);
 }
+
+#[tokio::test(start_paused = true)]
+async fn eligibility_recheck_does_not_charge_rate_limits_or_consume_attempts() {
+    let mut gate = gate();
+    gate.local_limits = Some(std::sync::Arc::new(
+        crate::rate_limit::MemoryRateLimitStore::default(),
+    ));
+    gate.rules = vec![crate::rate_limit::RateLimitRule {
+        key: "recheck-once".into(),
+        max_requests: 1,
+        window_seconds: 60,
+        scope: crate::rate_limit::RateLimitScope::AccessKey,
+    }];
+    gate.admit().await.unwrap();
+    gate.recheck_send_eligibility().await.unwrap();
+    gate.recheck_send_eligibility().await.unwrap();
+    assert_eq!(gate.request_budget.attempts(), 0);
+    assert_eq!(gate.admit().await.unwrap_err().http_status, Some(429));
+    assert_eq!(gate.request_budget.attempts(), 0);
+}

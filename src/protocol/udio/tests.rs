@@ -1,3 +1,4 @@
+mod model_binding;
 mod outputs;
 mod requests;
 mod worker_contracts;

@@ -13,6 +13,13 @@
   pointer-events: none;
 }
 
+/* Window hit targets retain host geometry; appearance belongs to IconButton. */
+.gateway-window-action.n-icon-button {
+  width: 46px;
+  height: 100%;
+  min-height: 0;
+}
+
 :root:has(.nt-native-controls) .nt-titlebar__controls {
   padding-right: 186px;
 }

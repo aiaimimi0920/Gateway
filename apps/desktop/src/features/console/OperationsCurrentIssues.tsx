@@ -1,3 +1,4 @@
+import { Button, EmptyState, Notice, Panel as Surface } from "@neuro/ui";
 import type { OperationsWorkspaceProps } from "./operations-contracts";
 import { displayLabel } from "./displayLabel";
 import { DEFAULT_OPERATIONS_LIST_VIEW, requestRowMetadata, selectOperationsRows } from "./operationsListView";
@@ -95,30 +96,31 @@ export function OperationsCurrentIssues({
   const visibleIssues = selectOperationsRows(issues, listView, (issue) => ({ name: issue.title, text: [issue.detail] }));
   return (
     <div className="nt-operations-issues">
-      <article className="nt-pilot-metric-card">
+      <Surface className="nt-operations-card">
         <h3>{t("当前运行异常", "Current runtime issues")}</h3>
         {[readiness.error, pressure.error]
           .filter(Boolean)
           .map((error, index) => (
-            <div
+            <Notice
               key={index}
-              className="nt-alert nt-alert--warning"
-              role="status"
+              tone="warning"
             >
               {error}
-            </div>
+            </Notice>
           ))}
         {visibleIssues.length ? (
           <ul className="nt-operations-issue-list">
             {visibleIssues.map((issue) => (
               <li key={issue.id}>
-                <strong>{issue.title}</strong>
-                <span>{issue.detail}</span>
+                <Notice tone="danger" role="status">
+                  <strong>{issue.title}</strong>
+                  <span>{issue.detail}</span>
+                </Notice>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="nt-copy" role="status">
+          <Notice tone={complete && !issues.length ? "success" : "neutral"}>
             {issues.length
               ? t(`没有匹配的运行异常（共 ${issues.length} 项）`, `No matching runtime issues (${issues.length} total)`)
               : complete
@@ -129,9 +131,9 @@ export function OperationsCurrentIssues({
                     "运行状态不完整，暂时无法判断",
                     "Runtime status is incomplete",
                   )}
-          </p>
+          </Notice>
         )}
-      </article>
+      </Surface>
       <Panel
         t={t}
         state={requests}
@@ -148,54 +150,52 @@ export function OperationsCurrentIssues({
           return (
             <>
               <div className="nt-operations-issues__heading">
-                <span className="nt-copy">
+                <span className="n-muted">
                   {t(
                     `本次查询 ${rows.length} 条，失败 ${failures.length} 条${listView.query.trim() ? `，匹配 ${visibleFailures.length} 条` : ""}`,
                     `${failures.length} failed out of ${rows.length} queried${listView.query.trim() ? `, ${visibleFailures.length} matching` : ""}`,
                   )}
                 </span>
-                <button
-                  type="button"
-                  className="nt-btn nt-btn--outline"
+                <Button compact
                   onClick={onOpenRequests}
                 >
                   {t("查看请求", "View requests")}
-                </button>
+                </Button>
               </div>
               {visibleFailures.length ? (
                 <ul className="nt-operations-failure-list">
                   {visibleFailures.slice(0, 10).map((row) => (
                     <li key={row.id}>
-                      <div>
-                        <strong>
-                          {formatText(row.resolvedModel ?? row.requestedModel)}
-                        </strong>
-                        <span>
-                          {formatTimestamp(row.createdAt)} ·{" "}
-                          {formatMs(row.durationMs)}
-                        </span>
-                      </div>
-                      <p>
-                        {formatText(
-                          row.errorSummary ??
-                          (row.upstreamStatus === null
-                            ? null
-                            : `HTTP ${row.upstreamStatus}`),
-                        )}
-                      </p>
+                      <Notice tone="danger" role="status">
+                        <div>
+                          <strong>
+                            {formatText(row.resolvedModel ?? row.requestedModel)}
+                          </strong>
+                          <span>
+                            {formatTimestamp(row.createdAt)} ·{" "}
+                            {formatMs(row.durationMs)}
+                          </span>
+                        </div>
+                        <p>
+                          {formatText(
+                            row.errorSummary ??
+                            (row.upstreamStatus === null
+                              ? null
+                              : `HTTP ${row.upstreamStatus}`),
+                          )}
+                        </p>
+                      </Notice>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="nt-copy">
-                  {t(
-                    "没有匹配的失败请求",
-                    "No matching failed requests",
-                  )}
-                </p>
+                <EmptyState compact title={t(
+                  "没有匹配的失败请求",
+                  "No matching failed requests",
+                )} />
               )}
               {visibleFailures.length > 10 ? (
-                <span className="nt-copy">
+                <span className="n-muted">
                   {t(
                     "显示前 10 条，完整记录见请求明细",
                     "Showing the first 10; see Request log for all results",

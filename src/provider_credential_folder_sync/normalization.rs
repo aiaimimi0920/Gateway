@@ -11,9 +11,14 @@ mod chataibot;
 mod chatgpt_auth;
 mod chatgpt_web;
 mod codex;
+mod freebuff;
 mod gemini_business;
 mod gemini_canvas;
 mod gemini_web;
+mod kiro;
+mod kiro_fields;
+pub(super) mod kiro_key;
+mod kiro_payload;
 mod qwen_web;
 mod source;
 
@@ -33,6 +38,23 @@ pub(super) fn normalize_import_payload(
     credential_material_kind_hint: Option<&str>,
 ) -> Result<Value, GatewayError> {
     let surface_slug = canonicalize_folder_surface_slug(surface_slug);
+    freebuff::reject_unhandled_receipt(&surface_slug, &raw_payload)?;
+    if surface_slug == crate::protocol::kiro_api_key::PRESET_ID
+        || kiro_key::claims(&provider_account.payload)
+        || kiro_key::claims(&raw_payload)
+    {
+        if surface_slug != crate::protocol::kiro_api_key::PRESET_ID {
+            return Err(crate::protocol::kiro_api_key::invalid());
+        }
+        return kiro_key::normalize(provider_account, raw_payload, credential_material_kind_hint);
+    }
+    if surface_slug == "kiro-compatible" {
+        return kiro::normalize_kiro_import_payload(
+            provider_account,
+            raw_payload,
+            credential_material_kind_hint,
+        );
+    }
     if surface_slug == "codex" {
         return normalize_codex_import_payload(provider_account, raw_payload);
     }

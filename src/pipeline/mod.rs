@@ -26,8 +26,11 @@ use crate::state::AppState;
 use crate::upstream::stream::TrackedStream;
 
 mod attempt_audit;
+mod copilot_dispatch;
+mod copilot_identity;
 mod cpa_scope;
 mod fallback_authorization;
+mod lifecycle;
 pub mod request_budget;
 mod route_health_cache;
 mod runtime_storage;
@@ -143,8 +146,11 @@ pub struct PipelineContext {
     pub selected_adapter: Option<String>,
     /// Protocol profile of the winning candidate.
     pub selected_protocol_profile: Option<String>,
-    /// Resolved model name sent to the upstream.
+    /// Admitted route/billing model; a product may resolve it again before dispatch.
     pub resolved_model: Option<String>,
+    /// Request-local concrete dispatch fact; never substitutes the frozen billing model.
+    pub(crate) lobster_model_resolution:
+        Option<crate::protocol::lobsterai::virtual_model::Selection>,
     /// Model alias that resolved to the winning candidate, when present.
     pub selected_model_alias: Option<String>,
     /// Resolved execution mode of the winning candidate.
@@ -183,7 +189,10 @@ pub struct PipelineContext {
     pub auto_cache_applied: bool,
     /// Canonical usage captured from the upstream before the response is
     /// repacked into the client-facing protocol shape.
-    pub observed_usage: Option<TokenUsage>,
+    /// None means unobserved; Some(None) is authoritative unknown, not a generated wire zero.
+    pub observed_usage: Option<Option<TokenUsage>>,
+    /// None retains legacy unobserved behavior; Some(None) explicitly means no upstream HTTP status.
+    pub observed_upstream_status: Option<Option<u16>>,
 
     // ── Tool injection state ────────────────────────────────────────────
     /// Whether XML tool definitions were injected into the request because
@@ -258,6 +267,7 @@ impl PipelineContext {
             selected_adapter: None,
             selected_protocol_profile: None,
             resolved_model: None,
+            lobster_model_resolution: None,
             selected_model_alias: None,
             selected_execution_mode: None,
             selected_upstream_target_protocol_family: None,
@@ -276,6 +286,7 @@ impl PipelineContext {
             client_has_cache_control: false,
             auto_cache_applied: false,
             observed_usage: None,
+            observed_upstream_status: None,
             tools_were_injected: false,
             credential_source: CredentialSource::default(),
             neuro_user_id: None,
@@ -355,7 +366,7 @@ pub fn run_pipeline(
 ) -> impl std::future::Future<Output = Result<PipelineOutput, GatewayError>> + Send + '_ {
     // All HTTP callers retain only a pointer-sized future, not the full pipeline.
     // Poll in the same task: cancellation still drops the original stage owners.
-    Box::pin(run_pipeline_inner(ctx, state))
+    Box::pin(lifecycle::run(ctx, state))
 }
 
 /// WS disconnect must be observed inside the pipeline so failure settlement
@@ -366,73 +377,7 @@ pub(crate) fn run_pipeline_cancellable(
     cancel: tokio::sync::watch::Receiver<bool>,
 ) -> impl std::future::Future<Output = Result<PipelineOutput, GatewayError>> + Send + '_ {
     ctx.caller_cancel = Some(cancel);
-    Box::pin(run_pipeline_inner(ctx, state))
-}
-
-async fn run_pipeline_inner(
-    mut ctx: PipelineContext,
-    state: &Arc<AppState>,
-) -> Result<PipelineOutput, GatewayError> {
-    // Stage 1 — authenticate
-    if let Err(error) = stage_auth::run(&mut ctx, state).await {
-        stage_finalize::run_failure(&error, &ctx, state).await;
-        return Err(error);
-    }
-    stage_finalize::begin_request_audit(&mut ctx, state).await;
-
-    // Stage 2 — content filter
-    if let Err(error) = stage_filter::run(&mut ctx, state).await {
-        stage_finalize::run_failure(&error, &ctx, state).await;
-        return Err(error);
-    }
-
-    // Stage 3 — route resolution
-    if let Err(error) = stage_route::run(&mut ctx, state).await {
-        stage_finalize::run_failure(&error, &ctx, state).await;
-        return Err(error);
-    }
-
-    // Stage 4 — route-policy request admission
-    if let Err(error) = stage_rate_limit::run(&mut ctx, state).await {
-        stage_finalize::run_failure(&error, &ctx, state).await;
-        return Err(error);
-    }
-
-    // Keep cash SQL/packing state out of the enclosing HTTP future, including non-cash requests.
-    if let Err(error) = Box::pin(crate::cash_billing::admission::prepare(&mut ctx, state)).await {
-        stage_finalize::run_failure(&error, &ctx, state).await;
-        return Err(error);
-    }
-
-    // Stage 5 — upstream dispatch
-    // Keep the large dispatch future out of its enclosing async state machines.
-    // Await it in this task so cancellation still drops the same dispatch owners.
-    let output = match Box::pin(cpa_scope::send(&mut ctx, state)).await {
-        Ok(output) => output,
-        Err(error) => {
-            stage_finalize::run_failure(&error, &ctx, state).await;
-            return Err(error);
-        }
-    };
-
-    // Stage 6 — finalize (best-effort; does not block response)
-    // For JSON responses, clone the body so we don't hold a reference to the
-    // non-Sync PipelineOutput across the finalize await point.
-    // Streaming finalization happens inside the TrackedStream callback.
-    match &output {
-        PipelineOutput::Json(v) => {
-            let json_clone = v.clone();
-            stage_finalize::run(Some(&json_clone), &ctx, state).await;
-        }
-        PipelineOutput::Sse(_) => {
-            stage_finalize::run(None, &ctx, state).await;
-        }
-        PipelineOutput::Binary(_) => {
-            stage_finalize::run_non_json_success(&ctx, state).await;
-        }
-    }
-
-    Ok(output)
+    Box::pin(lifecycle::run(ctx, state))
 }
 
 // ---------------------------------------------------------------------------

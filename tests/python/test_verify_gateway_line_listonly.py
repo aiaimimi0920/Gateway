@@ -39,6 +39,7 @@ class VerifyGatewayLineListOnlyTests(unittest.TestCase):
         self.assertIn("xfyun-native-websocket-official-vendor-api", result.stdout)
         self.assertIn("producer-web-reverse-api", result.stdout)
         self.assertIn("kiro-official-vendor-api", result.stdout)
+        self.assertIn("nous-portal-oauth", result.stdout)
 
     def test_all_mode_reports_every_manifest_without_running_cargo_when_skipped(self):
         repo_root = pathlib.Path(__file__).resolve().parents[2]
@@ -85,7 +86,12 @@ class VerifyGatewayLineListOnlyTests(unittest.TestCase):
 
         self.assertIsNotNone(payload, msg=f"missing JSON payload:\n{result.stdout}")
         self.assertEqual(payload["status"], "pass")
-        self.assertEqual(payload["lineCount"], 44)
+        manifest_ids = {
+            json.loads(path.read_text(encoding="utf-8"))["id"]
+            for path in (repo_root / "manifests/lines").rglob("*.json")
+        }
+        self.assertIn("nous-portal-oauth", manifest_ids)
+        self.assertEqual(payload["lineCount"], len(manifest_ids))
         self.assertIs(payload["cargoSkipped"], True)
 
 

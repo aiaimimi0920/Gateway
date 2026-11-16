@@ -8,7 +8,8 @@ import type { ConsoleRouteDocument } from "../../api/contracts";
 import { useBackgroundDiscoverySync } from "./useBackgroundDiscoverySync";
 import { applyChatgptCatalog, chatgptCatalogResponseSchema, isChatgptCatalogProvider, type ChatgptCatalogInput } from "./chatgptModelCatalog";
 import { nvidiaCatalogResponseSchema, type NvidiaCatalogInput } from "./nvidiaModelCatalog";
-import { applyOfficialCatalog, catalogProviderKind, catalogSources, officialCatalogResponseSchema, type CatalogInput } from "./officialModelCatalog";
+import { applyOfficialCatalog, catalogProviderKind, catalogMatchesProvider, officialCatalogResponseSchema, type CatalogInput } from "./officialModelCatalog";
+import { requireQwenEndpoint } from "./qwenEndpoint";
 
 type Options = {
   editorBusy?: boolean;
@@ -67,9 +68,17 @@ export function useAccountDiscovery(options: Options) {
     const provider = doc.providers.find((p) => isRecord(p) && ("providerId" in input ? p.id === input.providerId
       : Array.isArray(p.credentials) && p.credentials.some((c) => isRecord(c) && c.id === input.credentialId)));
     const kind = isRecord(provider) ? catalogProviderKind(provider) : undefined;
-    if (!kind) throw new Error("此服务商不支持官方模型目录。");
+    if (!kind || !isRecord(provider)) throw new Error("此服务商不支持官方模型目录。");
+    if (kind === "qwen" && "credentialId" in input && (current.current.draftDirty || current.current.editorBusy)) {
+      throw new Error("请先保存当前配置，再使用已保存账号拉取目录；新 Key 可使用显式录入模式。");
+    }
+    const credential = "credentialId" in input && Array.isArray(provider.credentials)
+      ? provider.credentials.find((c) => isRecord(c) && c.id === input.credentialId) : undefined;
+    const base = "providerId" in input && kind === "qwen" ? requireQwenEndpoint(input.accountBaseUrl ?? "")
+      : isRecord(credential) ? credential.base_url ?? provider.base_url : provider.base_url;
+    if (kind !== "qwen" && "accountBaseUrl" in input) throw new Error("此目录不接受动态账号目标。");
     const result = await requestDiscovery(`/v1/internal/gateway/console/${kind}-model-catalog`, officialCatalogResponseSchema, input, signal);
-    if (result.catalog.sourceUrl !== catalogSources[kind]) throw new Error("模型目录与服务商不匹配。");
+    if (!catalogMatchesProvider(provider, base, result.catalog)) throw new Error("模型目录与服务商或账号目标不匹配。");
     return result.catalog;
   };
 

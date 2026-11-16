@@ -36,6 +36,25 @@ fn cleanup_error() -> GatewayError {
 }
 
 #[tokio::test]
+async fn runtime_cleanup_failure_does_not_replace_original_server_failure() {
+    let entered = AtomicBool::new(false);
+    let (release, wait) = oneshot::channel();
+    let cleanup = async {
+        entered.store(true, Ordering::Release);
+        wait.await.unwrap();
+        Err(anyhow::anyhow!("background_fixture"))
+    };
+    let mut result = Box::pin(complete_after_runtime_cleanup(
+        Err(anyhow::anyhow!("server_fixture")),
+        cleanup,
+    ));
+    assert!(result.as_mut().now_or_never().is_none());
+    assert!(entered.load(Ordering::Acquire));
+    release.send(()).unwrap();
+    assert_eq!(result.await.unwrap_err().to_string(), "server_fixture");
+}
+
+#[tokio::test]
 async fn cleanup_failure_after_server_success_is_returned() {
     let error = complete_after_freebuff_cleanup(Ok(()), async { Err(cleanup_error()) })
         .await

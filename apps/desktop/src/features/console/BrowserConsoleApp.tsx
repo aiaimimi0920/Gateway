@@ -1,14 +1,17 @@
 import { configuredStorageSecrets } from "./providerStorageConnection";
 import { configuredHealthSecrets } from "./siteHealthSecretDraft";
 import { useMemo, useState } from "react";
+import { Notice } from "@neuro/ui";
 import { ProviderPoolToolbar } from "./ProviderPoolToolbar";
 import { OperationsToolbar } from "./OperationsToolbar";
 import { DEFAULT_OPERATIONS_LIST_VIEW } from "./operationsListView";
 import { AccessKeyHeaderProvider, AccessKeyHeaderSlot } from "./AccessKeyHeader";
 import { ProviderSiteHealthSettings } from "./ProviderSiteHealthSettings";
+import { QwenProviderEndpointSettings } from "./QwenProviderEndpointSettings";
 import type { ProviderPoolView } from "./providerPoolView";
 import { useConsoleController } from "./useConsoleController";
 import { SettingsHeaderSlot, SettingsNavigationProvider } from "../settings/SettingsNavigation";
+import { ModelNameProvider } from "./ModelDisplayName";
 
 import { buildConsoleRouteFeedback } from "./consoleRouteFeedback";
 import {
@@ -21,7 +24,6 @@ import { ConsoleIndependentWorkspace } from "./ConsoleIndependentWorkspace";
 import { ConsoleGlobalDialogs } from "./ConsoleGlobalDialogs";
 import { ConsoleModelWorkspace } from "./ConsoleModelWorkspace";
 import { type ConsoleApi } from "../../api/console";
-import { NeuroTooltipProvider } from "../../components/ActionTooltip";
 import { AppShell } from "../shell/AppShell";
 import {
   AccountsLedgerWorkspace,
@@ -104,9 +106,7 @@ export type BrowserConsoleAppProps = {
 
 export function BrowserConsoleApp(props: BrowserConsoleAppProps) {
   return (
-    <NeuroTooltipProvider>
-      <SettingsNavigationProvider><BrowserConsoleContent {...props} /></SettingsNavigationProvider>
-    </NeuroTooltipProvider>
+    <SettingsNavigationProvider><BrowserConsoleContent {...props} /></SettingsNavigationProvider>
   );
 }
 
@@ -226,58 +226,60 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
     <AccountsLedgerWorkspace
       t={t}
       poolView={poolView}
-      renderProviderSettings={(section) => <ProviderSiteHealthSettings providerId={section.providerId}
-        providerLabel={section.providerLabel} document={draftDocumentState.document} client={controller.client}
-        managementToken={controller.session.managementToken} locked={editorLocked}
-        draftDirty={draftDirty} onSave={controller.applySiteHealth} t={t}
-        hasSecretAccess={controller.hasSecretAccess} secretAccess={{ busy: controller.session.busy, error: controller.session.error }}
-        requestSecretAccess={() => {
-          controller.setSecretDialogOpen(true);
-          if (controller.session.managementToken) void controller.session.confirmSecretAccess(controller.session.managementToken).catch(() => { });
-        }}
-        configuredSecrets={healthSecrets} pendingSecrets={controller.siteHealthSecretEdits} />}
+      renderProviderSettings={(section) => <><QwenProviderEndpointSettings providerId={section.providerId} providerLabel={section.providerLabel}
+        document={draftDocumentState.document} activeConfig={routeConfig} locked={editorLocked}
+        onApply={controller.applyQwenProviderEndpointDraft} t={t} /><ProviderSiteHealthSettings providerId={section.providerId}
+          providerLabel={section.providerLabel} document={draftDocumentState.document} client={controller.client}
+          managementToken={controller.session.managementToken} locked={editorLocked}
+          draftDirty={draftDirty} onSave={controller.applySiteHealth} t={t}
+          hasSecretAccess={controller.hasSecretAccess} secretAccess={{ busy: controller.session.busy, error: controller.session.error }}
+          requestSecretAccess={() => {
+            controller.setSecretDialogOpen(true);
+            if (controller.session.managementToken) void controller.session.confirmSecretAccess(controller.session.managementToken).catch(() => { });
+          }}
+          configuredSecrets={healthSecrets} pendingSecrets={controller.siteHealthSecretEdits} /></>}
       notice={
         <>
           {draftStructureNotice}
           {providerCredentialInventoryError ? (
-            <div className="nt-alert nt-alert--warning" role="status">
+            <Notice tone="warning">
               <span>
                 {t(
                   `账号库与额度状态暂时不可用：${providerCredentialInventoryError}`,
                   `Account library and quota status is temporarily unavailable: ${providerCredentialInventoryError}`,
                 )}
               </span>
-            </div>
+            </Notice>
           ) : null}
           {credentialPoolAutomationError ? (
-            <div className="nt-alert nt-alert--warning" role="status">
+            <Notice tone="warning">
               <span>
                 {t(
                   `自动补号状态暂时不可用：${credentialPoolAutomationError}`,
                   `Pool automation status is temporarily unavailable: ${credentialPoolAutomationError}`,
                 )}
               </span>
-            </div>
+            </Notice>
           ) : null}
           {credentialRefillError ? (
-            <div className="nt-alert nt-alert--warning" role="status">
+            <Notice tone="warning">
               <span>
                 {t(
                   `补号任务状态暂时不可用：${credentialRefillError}`,
                   `Credential refill task status is temporarily unavailable: ${credentialRefillError}`,
                 )}
               </span>
-            </div>
+            </Notice>
           ) : null}
           {telemetryError ? (
-            <div className="nt-alert nt-alert--warning" role="status">
+            <Notice tone="warning">
               <span>
                 {t(
                   `实时并发、费用与成功率暂时不可用，卡片上的相关数字会显示为“—”：${telemetryError}`,
                   `Live concurrency, cost and success-rate telemetry is temporarily unavailable; those card numbers render as "—": ${telemetryError}`,
                 )}
               </span>
-            </div>
+            </Notice>
           ) : null}
         </>
       }
@@ -371,7 +373,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
       onSetAccountGroup: setAccountRoutingGroup,
       onOpenStats: openPilotStatsDialog,
     },
-    onMenuAction: (
+    onAccountAction: (
       action: string,
       providerId: string,
       account: AccountsLedgerPilotAccount,
@@ -502,7 +504,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
   ) : activeWorkspace === "access" ? <AccessKeyHeaderSlot slot="actions" /> : null;
 
   return (
-    <AccessKeyHeaderProvider>
+    <AccessKeyHeaderProvider><ModelNameProvider document={draftDocumentState.document}>
       <AppShell<ConsoleWorkspaceId>
         productName="Gateway"
         navLabel="Gateway console navigation"
@@ -516,7 +518,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
         headerLeading={activeWorkspace === "accounts" ? <ProviderPoolToolbar value={poolView} onChange={setPoolView} t={t} />
           : activeWorkspace === "groups" ? <ProviderPoolToolbar scope="groups" value={groupPoolView} onChange={setGroupPoolView} t={t} />
             : activeWorkspace === "models" ? <ProviderPoolToolbar scope="models" value={modelPoolView} onChange={setModelPoolView} t={t} />
-              : activeWorkspace === "operations" ? <OperationsToolbar value={operationsView} onChange={setOperationsView} t={t} />
+              : activeWorkspace === "operations" ? null
                 : activeWorkspace === "access" ? <AccessKeyHeaderSlot slot="leading" />
                   : activeWorkspace === "settings" ? <SettingsHeaderSlot /> : undefined}
         headerActions={workspaceHeaderActions}
@@ -528,9 +530,9 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
         beforeStage={
           <>
             {error ? (
-              <div className="nt-alert nt-alert--danger" role="alert">
+              <Notice tone="danger" className="nt-shell-feedback">
                 <span>{error}</span>
-              </div>
+              </Notice>
             ) : null}
           </>
         }
@@ -539,14 +541,14 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
           workspaceContent
         ) : busy && !routeConfig ? (
           // Keep navigation available when route storage is slow or unavailable.
-          <div role="status">{t("正在加载 Gateway 控制台...", "Loading Gateway console...")}</div>
+          <Notice>{t("正在加载 Gateway 控制台...", "Loading Gateway console...")}</Notice>
         ) : routeConfig ? (
           <>
             {activeDiagnosticsFeedback}
             {accountSummaryFeedback}
             <section className="nt-workspace-ops">
               {!mutationSupported ? (
-                <div className="nt-validation-list nt-validation-list--warning">
+                <Notice tone="warning" className="nt-diagnostics-report">
                   <strong>{t("当前实例是只读模式", "This instance is read only")}</strong>
                   <ul>
                     <li>
@@ -556,7 +558,7 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
                       )}
                     </li>
                   </ul>
-                </div>
+                </Notice>
               ) : null}
             </section>
 
@@ -565,6 +567,6 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
         ) : null}
       </AppShell>
       <ConsoleGlobalDialogs controller={controller} />
-    </AccessKeyHeaderProvider>
+    </ModelNameProvider></AccessKeyHeaderProvider>
   );
 }

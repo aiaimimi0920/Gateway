@@ -93,10 +93,10 @@ describe("BrowserConsoleApp", () => {
     const settingsButton = within(utility).getByRole("button", { name: /设置/i });
 
     await user.click(settingsButton);
-    expect(await screen.findByRole("combobox", { name: /^主题$/i })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /界面语言/i })).toBeInTheDocument();
+    expect(await screen.findByRole("radiogroup", { name: /^外观$/i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /^语言$/i })).toBeInTheDocument();
     expect(within(screen.getByRole("tablist", { name: "设置分类" })).getAllByRole("tab").map(tab => tab.textContent))
-      .toEqual(["界面偏好", "管理安全", "诊断与日志"]);
+      .toEqual(["常规", "网络与共享", "隐私", "可观测性", "同步与备份", "关于"]);
     expect(document.querySelector(".nt-hud-strip")).toBeNull();
   });
 
@@ -118,6 +118,8 @@ describe("BrowserConsoleApp", () => {
     await user.click(collapse);
 
     expect(shell).toHaveClass("nt-shell--console-rail-collapsed");
+    expect(document.querySelector(".nt-rail")).toBeNull();
+    expect(consoleNavigation()).toHaveClass("nt-top-nav");
     expect(workspaceButton(/凭据池|Credential pool/i)).toBeInTheDocument();
     const expand = screen.getByRole("button", { name: /展开侧栏|Expand sidebar/i });
     expect(expand).toHaveAttribute("aria-expanded", "false");

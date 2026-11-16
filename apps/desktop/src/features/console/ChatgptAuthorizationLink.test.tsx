@@ -5,6 +5,15 @@ import { ChatgptAuthorizationLink } from "./ChatgptAuthorizationLink";
 vi.mock("../../i18n/UiLocaleProvider", () => ({ useUiLocale: () => ({ t: (zh: string) => zh }) }));
 const valid = "https://auth.openai.com/oauth/authorize?state=test&code_challenge=test";
 
+it("allows only the fixed Grok authorization surface", () => {
+  const view = render(<ChatgptAuthorizationLink kind="grok" value="https://auth.x.ai/oauth2/authorize?state=test" busy={false} />);
+  expect(screen.getByRole("link")).toHaveAttribute("href", "https://auth.x.ai/oauth2/authorize?state=test");
+  for (const value of ["https://auth.x.ai/oauth2/token", "https://auth.x.ai.evil.test/oauth2/authorize", "https://auth.x.ai/oauth2/authorize#", "https://auth.openai.com/oauth/authorize", "javascript:alert(1)"]) {
+    view.rerender(<ChatgptAuthorizationLink kind="grok" value={value} busy={false} />);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  }
+});
+
 it.each([
   "javascript:alert(1)", "file:///tmp/oauth/authorize", "http://auth.openai.com/oauth/authorize",
   "https://auth.openai.com.evil.example/oauth/authorize", "https://auth.openai.com:444/oauth/authorize",

@@ -1,4 +1,5 @@
 import { Copy } from "lucide-react";
+import { IconButton } from "@neuro/ui";
 import { pushAppToast } from "../../components/AppToast";
 import type { TranslateFn } from "./accountsLedgerTypes";
 
@@ -21,10 +22,10 @@ export function ProviderStorageEndpoints({ providerLabel, label, value, t }: Pro
   };
   return <div className="nt-provider-lifecycle__endpoint">
     <span>{label}</span><span className="nt-provider-lifecycle__field-value" title={value || undefined}>{value || "—"}</span>
-    <button className="nt-icon-action" type="button" disabled={!value}
-      aria-label={t(`复制 ${providerLabel} ${label} API`, `Copy ${providerLabel} ${label} API`)}
+    <IconButton compact variant="quiet" disabled={!value}
+      label={t(`复制 ${providerLabel} ${label} API`, `Copy ${providerLabel} ${label} API`)}
       title={t(`复制${label} API`, `Copy ${label} API`)} onClick={() => void copy()}>
       <Copy size={14} aria-hidden="true" />
-    </button>
+    </IconButton>
   </div>;
 }

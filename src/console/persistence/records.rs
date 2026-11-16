@@ -148,6 +148,29 @@ impl TransactionRecord {
         self.error_code.as_deref()
     }
 
+    /// Stable remote gate identity, not a local journal phase transition.
+    /// Backup reservation and creation time belong to Prepared and never change.
+    pub fn prepared_identity(&self) -> Result<Self, PersistenceError> {
+        self.validate()?;
+        let mut identity = self.clone();
+        identity.phase = TransactionPhase::Prepared;
+        identity.updated_at = identity.created_at;
+        identity.abort_code = None;
+        identity.error_code = None;
+        Ok(identity)
+    }
+
+    /// A permanent, deterministic fence; retries must not mint a new timestamp.
+    pub fn revocation_tombstone(&self) -> Result<Self, PersistenceError> {
+        let mut record = self.prepared_identity()?;
+        record.transition(
+            TransactionPhase::Aborted,
+            record.created_at,
+            Some("redis_transaction_revoked"),
+        )?;
+        Ok(record)
+    }
+
     pub fn record_yaml_replaced(
         &mut self,
         receipt: &YamlReplaceReceipt,

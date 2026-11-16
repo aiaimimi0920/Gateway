@@ -135,8 +135,8 @@ describe("API Key editing and copying", () => {
       within(dialog).getByRole("textbox", { name: "名称" }),
       "renamed",
     );
-    await user.click(within(dialog).getByRole("button", { name: "权益组" }));
-    await user.click(within(dialog).getByRole("menuitemcheckbox", { name: /高级组/ }));
+    await user.click(within(dialog).getByRole("button", { name: /^权益组，/ }));
+    await user.click(screen.getByRole("checkbox", { name: /高级组/ }));
     await user.selectOptions(
       within(dialog).getByRole("combobox", { name: "有效期" }),
       "7",

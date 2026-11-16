@@ -14,6 +14,7 @@ pub(super) fn configure(
     credential_profile: Option<RequestClientProfile>,
     basispoints: bool,
     basispoints_override: Option<bool>,
+    prepare_runtime: bool,
 ) -> anyhow::Result<()> {
     payload.request_client_profile = credential_profile.or(profile);
     payload.call_flow = flow.map(|mut flow| {
@@ -41,7 +42,8 @@ pub(super) fn configure(
     )?;
     // No-flow payloads stay byte-for-byte legacy. New flow blocks remain in the
     // payload as typed policy, not hidden in headers or extra_body sent upstream.
-    if payload.call_flow.is_some() {
+    // Only the Qwen configuration owner may defer an abstract parent's prepare; credentials never do.
+    if prepare_runtime && payload.call_flow.is_some() {
         *payload = prepare(payload)?.payload.into_owned();
     }
     Ok(())

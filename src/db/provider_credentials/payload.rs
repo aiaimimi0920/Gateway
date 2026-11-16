@@ -7,8 +7,22 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 use std::borrow::Cow;
 
+#[cfg(feature = "line-accio-web-reverse-api")]
+mod accio_legacy;
+#[cfg(test)]
+mod accio_legacy_tests;
 #[cfg(test)]
 mod call_flow_tests;
+#[cfg(test)]
+mod dim_context_tests;
+#[cfg(test)]
+mod freebuff_context_tests;
+#[cfg(test)]
+mod grok_context_tests;
+#[cfg(test)]
+mod kiro_context_tests;
+#[cfg(test)]
+mod vertex_context_tests;
 
 pub fn merge_provider_account_and_credential_payloads(
     account_payload: &Value,
@@ -17,7 +31,21 @@ pub fn merge_provider_account_and_credential_payloads(
     match (account_payload, credential_payload) {
         (Value::Object(account), Value::Object(credential)) => {
             let mut merged = normalized_policy_keys(account).into_owned();
+            // A grant snapshot belongs to one credential, never inherited or recursively assembled.
+            merged.remove("grok_oauth");
+            merged.remove("luma_oauth");
+            merged.remove("kiro_oauth");
+            merged.remove("vertex_oauth");
+            merged.remove("dim_oauth");
+            merged.remove("nous_portal");
+            merged.remove("dim_catalog");
+            merged.remove("freebuff_session");
             let credential = normalized_policy_keys(credential);
+            // A replacement directory is one snapshot, not a union of old and new model maps.
+            if credential.contains_key("model_catalog") || credential.contains_key("modelCatalog") {
+                merged.remove("model_catalog");
+                merged.remove("modelCatalog");
+            }
             deep_merge_object(&mut merged, &credential);
             apply_credential_fingerprint_override(&mut merged, &credential);
             Value::Object(merged)
@@ -33,6 +61,7 @@ fn normalized_policy_keys(object: &Map<String, Value>) -> Cow<'_, Map<String, Va
     for (name, alias) in [
         ("call_flow", "callFlow"),
         ("request_client_profile", "requestClientProfile"),
+        ("auth_mode", "authMode"),
     ] {
         if object.contains_key(alias) && !object.contains_key(name) {
             let target = normalized.to_mut();
@@ -80,6 +109,7 @@ pub(super) async fn provider_credential_view_from_row(
     row: GatewayProviderCredentialRow,
 ) -> Result<GatewayProviderCredentialView, GatewayError> {
     let payload = read_payload_from_row(&row).await?;
+    let payload = project_imported_payload(payload, &row.source_kind, &row.sync_mode)?;
     Ok(GatewayProviderCredentialView {
         id: row.id,
         provider_account_id: row.provider_account_id,
@@ -101,6 +131,20 @@ pub(super) async fn provider_credential_view_from_row(
         updated_at: format_timestamp(row.updated_at),
         archived_at: row.archived_at.map(format_timestamp),
     })
+}
+
+pub(super) fn project_imported_payload(
+    payload: Value,
+    source_kind: &str,
+    sync_mode: &str,
+) -> Result<Value, GatewayError> {
+    #[cfg(feature = "line-accio-web-reverse-api")]
+    if source_kind == "folder_sync_import" && sync_mode == "folder_sync" {
+        return accio_legacy::project(payload);
+    }
+    #[cfg(not(feature = "line-accio-web-reverse-api"))]
+    let _ = (source_kind, sync_mode);
+    Ok(payload)
 }
 
 async fn read_payload_from_row(row: &GatewayProviderCredentialRow) -> Result<Value, GatewayError> {

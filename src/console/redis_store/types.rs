@@ -180,6 +180,13 @@ pub enum RouteConfigRedisActivationOutcome {
     Unavailable,
 }
 
+/// The exact transaction, not merely its proposed revision, owns this result.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RouteConfigRedisSettlement {
+    Activated,
+    Revoked,
+}
+
 pub(super) fn serialize_json_canonically<T: Serialize>(
     value: &T,
     context: &str,

@@ -48,6 +48,7 @@ pub const GEMINI_WEB_CHAT_FAMILY: &str = "gemini_web_chat";
 pub const GEMINI_CANVAS_WEB_RELAY_FAMILY: &str = "gemini_canvas_web_relay";
 pub const QWEN_WEB_CHAT_FAMILY: &str = "qwen_web_chat";
 pub const SEARCH_API_FAMILY: &str = "search";
+pub const SYSTEMONE_FAMILY: &str = "systemone";
 pub const PERPLEXITY_SEARCH_FAMILY: &str = "perplexity_search";
 pub const TAVILY_SEARCH_FAMILY: &str = "tavily_search";
 pub const EXA_SEARCH_FAMILY: &str = "exa_search";

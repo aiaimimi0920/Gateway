@@ -10,12 +10,35 @@ pub enum ConnectionMode {
     Existing,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionSettings {
     pub mode: ConnectionMode,
     #[serde(default)]
     pub server_url: String,
+    #[serde(default = "default_local_port")]
+    pub local_port: u16,
+}
+
+fn default_local_port() -> u16 {
+    gateway_local_data::devtest::default_api_port()
+}
+impl Default for ConnectionSettings {
+    fn default() -> Self {
+        Self {
+            mode: ConnectionMode::Local,
+            server_url: String::new(),
+            local_port: default_local_port(),
+        }
+    }
+}
+impl ConnectionSettings {
+    pub fn local_url(&self) -> Result<Url, String> {
+        if self.local_port == 0 {
+            return Err("Local port must be between 1 and 65535".into());
+        }
+        console_url(&format!("http://127.0.0.1:{}", self.local_port))
+    }
 }
 
 pub fn console_url(value: &str) -> Result<Url, String> {
@@ -53,9 +76,11 @@ pub fn load(path: &Path) -> Result<ConnectionSettings, String> {
 }
 
 pub fn save(path: &Path, settings: &ConnectionSettings) -> Result<(), String> {
+    settings.local_url()?;
     // Never persist an unused remote draft: it may contain credentials rejected by remote mode.
     let normalized = ConnectionSettings {
         mode: settings.mode.clone(),
+        local_port: settings.local_port,
         server_url: if settings.mode == ConnectionMode::Local {
             String::new()
         } else {
@@ -74,6 +99,21 @@ pub fn save(path: &Path, settings: &ConnectionSettings) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn old_settings_default_port_and_invalid_ports_are_rejected() {
+        let old: ConnectionSettings = serde_json::from_str(r#"{"mode":"local"}"#).unwrap();
+        assert_eq!(old.local_port, default_local_port());
+        let invalid = ConnectionSettings {
+            local_port: 0,
+            ..old
+        };
+        assert!(invalid.local_url().is_err());
+        assert!(serde_json::from_str::<ConnectionSettings>(
+            r#"{"mode":"local","localPort":65536}"#
+        )
+        .is_err());
+    }
 
     #[test]
     fn normalizes_server_addresses_without_accepting_secrets_or_other_schemes() {
@@ -112,6 +152,7 @@ mod tests {
             &ConnectionSettings {
                 mode: ConnectionMode::Local,
                 server_url: "https://user:secret@example.com/?token=private".into(),
+                ..Default::default()
             },
         )
         .unwrap();
@@ -119,9 +160,11 @@ mod tests {
         let remote = ConnectionSettings {
             mode: ConnectionMode::Existing,
             server_url: " https://example.com/ui/ ".into(),
+            local_port: 4400,
         };
         save(&path, &remote).unwrap();
         assert_eq!(load(&path).unwrap().server_url, "https://example.com");
+        assert_eq!(load(&path).unwrap().local_port, 4400);
         assert!(save(
             &path,
             &ConnectionSettings {

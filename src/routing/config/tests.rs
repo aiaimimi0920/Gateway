@@ -19,6 +19,8 @@ mod empty_pools;
 mod flowmusic;
 mod model_selection;
 mod probes;
+#[cfg(feature = "runtime-defaults")]
+mod product_call_flow;
 mod refresh;
 mod rules;
 mod search_tools;

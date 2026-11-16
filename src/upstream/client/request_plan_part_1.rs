@@ -30,8 +30,24 @@ impl UpstreamClient {
         model: &str,
         stream: bool,
     ) -> Result<RequestPlan, GatewayError> {
+        if crate::protocol::lobsterai::owns_payload(payload) {
+            return crate::protocol::lobsterai::runtime::plan(payload, req, model, stream);
+        }
+        crate::protocol::lobsterai::management_boundary::reject_generic(payload)?;
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        if crate::protocol::commandcode::owns_payload(payload) {
+            return crate::protocol::commandcode::runtime::plan(payload, req, model, stream);
+        }
+        if crate::protocol::sap_aicore::owns_payload(payload) {
+            return crate::protocol::sap_aicore::runtime::plan(payload, req, model, stream);
+        }
+        crate::protocol::nous_portal::runtime::validate_request(payload, req)?;
+        crate::protocol::agnes::validate_request(payload, req)?;
+        crate::protocol::sensenova::validate_request(payload, req)?;
+        crate::protocol::minimax::validate_request(payload, req)?;
+        crate::protocol::bedrock_turn::validate_request(payload, req)?;
+        crate::upstream::bedrock_auth::validate_adapter(payload)?;
         if flow.executor == crate::protocol::chatgpt::basispoints::ADAPTER {
             let source = crate::protocol::chatgpt::basispoints::request::source(req, model)?;
             return Ok(RequestPlan {
@@ -66,7 +82,9 @@ impl UpstreamClient {
             }
 
             "openai_compatible" => {
-                if chatgpt_official_api_modular::owns_payload(payload) {
+                if crate::protocol::grok_oauth::business::owns_payload(payload) {
+                    crate::upstream::grok_oauth::build_request_plan(payload, req, model, stream)
+                } else if chatgpt_official_api_modular::owns_payload(payload) {
                     chatgpt_official_api_modular::build_request_plan(payload, req, model, stream)
                 } else if qwen_official_api_modular::owns_payload(payload) {
                     qwen_official_api_modular::build_request_plan(payload, req, model, stream)
@@ -103,6 +121,10 @@ impl UpstreamClient {
                 Err(qwen_web_reverse_modular::unsupported_request_plan_error())
             }
 
+            crate::protocol::perplexity_web::material::ADAPTER => {
+                Err(crate::upstream::perplexity_web::unsupported_request_plan_error())
+            }
+
             "chatgpt_web_reverse_compatible" => {
                 Err(chatgpt_web_reverse_modular::unsupported_request_plan_error())
             }
@@ -122,6 +144,10 @@ impl UpstreamClient {
             "chataibot_compatible" => Err(chataibot_upstream::unsupported_request_plan_error()),
 
             "lumalabs_compatible" => Err(lumalabs::unsupported_request_plan_error()),
+
+            crate::protocol::luma_agents::ADAPTER => {
+                Err(crate::protocol::luma_agents::invalid_request())
+            }
 
             "gemini_canvas_compatible" => Err(gemini_canvas::unsupported_request_plan_error()),
 
@@ -146,11 +172,35 @@ impl UpstreamClient {
             _ => Ok(custom_http_request_plan::build_request_plan(payload, req)),
         }?;
 
+        // Product plans identify the actual response wire after a public endpoint bridge.
+        if (crate::protocol::nous_portal::business::owns_payload(payload)
+            && matches!(
+                req.endpoint_kind,
+                EndpointKind::Responses | EndpointKind::Messages | EndpointKind::Completions
+            ))
+            || (crate::protocol::agnes::owns_payload(payload)
+                && req.endpoint_kind == EndpointKind::Messages)
+            || crate::protocol::sensenova::owns_payload(payload)
+        {
+            plan.response_kind = EndpointKind::ChatCompletions;
+        }
+
         // Merge data-driven provider constraints (e.g. Codex "store": false).
         // Only injects keys NOT already present in the body.
         if let Some(extra) = &payload.extra_body {
             if let Some(Value::Object(map)) = plan.body.as_mut() {
                 for (key, value) in extra {
+                    if payload.canonical_adapter() == "accio_compatible"
+                        && accio_upstream::is_reserved_payload_extra_key(key)
+                    {
+                        continue;
+                    }
+                    if payload.canonical_adapter() == "bedrock_converse_compatible"
+                        && (crate::upstream::bedrock_auth::reserved_extra_key(key)
+                            || matches!(key.as_str(), "modelId" | "stream"))
+                    {
+                        continue;
+                    }
                     if payload.canonical_adapter() == "kiro_compatible"
                         && kiro::is_reserved_payload_extra_key(key)
                     {
@@ -170,6 +220,22 @@ impl UpstreamClient {
             crate::upstream::request_profile::apply_cpa_plan(payload, req, model, &mut plan);
             crate::upstream::request_profile::prepare_cpa_full(payload, req, &mut plan)?;
         }
+        if payload.canonical_adapter() == "bedrock_converse_compatible" {
+            if let Some(body) = &mut plan.body {
+                crate::protocol::bedrock_converse::finish_plan(req, body, model)?;
+            }
+        }
+        crate::protocol::grok_oauth::business::validate_plan(payload, &plan)?;
+        crate::protocol::cloudflare_workers_ai::validate_plan(payload, &plan)?;
+        crate::protocol::kiro_api_key::validate_plan(payload, &plan)?;
+        crate::protocol::kiro_oauth::runtime::validate_plan(payload, &plan)?;
+        crate::protocol::vertex_express::validate_plan(payload, &plan)?;
+        crate::protocol::vertex_oauth::business::validate_plan(payload, &plan)?;
+        crate::protocol::dim_oauth::runtime::validate_plan(payload, &plan)?;
+        crate::protocol::nous_portal::runtime::validate_plan(payload, &plan)?;
+        crate::protocol::agnes::validate_plan(payload, &plan)?;
+        crate::protocol::sensenova::validate_plan(payload, &plan)?;
+        crate::protocol::minimax::prepare_plan(payload, &mut plan)?;
         tracing::debug!(url = %plan.url, "request plan built");
         Ok(plan)
     }

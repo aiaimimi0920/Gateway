@@ -10,6 +10,7 @@ use serde_json::Value;
 use crate::protocol::sse_parse::{parse_sse_line, SseParseState};
 
 use super::observation::{BoundaryRule, ObservationLine, ObservationLines};
+use super::ObservationScope;
 
 struct CompletionSemanticsTappedStream<E> {
     inner: Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
@@ -18,6 +19,7 @@ struct CompletionSemanticsTappedStream<E> {
 
 #[derive(Debug)]
 struct SseCompletionSemanticsCapture {
+    scope: ObservationScope,
     latest_completion_semantics: Arc<Mutex<Option<String>>>,
     lines: ObservationLines,
     parser: SseParseState,
@@ -39,8 +41,39 @@ pub fn tap_sse_completion_semantics_with_error<E: Send + 'static>(
     impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     Arc<Mutex<Option<String>>>,
 ) {
+    tap_completion_mode(inner, ObservationScope::Generic)
+}
+
+/// Do not interpret opaque native extension fields as completion control data.
+pub(crate) fn tap_messages_completion_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+) -> (
+    impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    Arc<Mutex<Option<String>>>,
+) {
+    tap_completion_mode(inner, ObservationScope::Messages)
+}
+
+/// Incomplete Responses retain their specific reason, even when output contains a tool call.
+pub(crate) fn tap_commandcode_responses_completion_with_error<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+) -> (
+    impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    Arc<Mutex<Option<String>>>,
+) {
+    tap_completion_mode(inner, ObservationScope::CommandCodeResponses)
+}
+
+fn tap_completion_mode<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    scope: ObservationScope,
+) -> (
+    impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    Arc<Mutex<Option<String>>>,
+) {
     let latest_completion_semantics = Arc::new(Mutex::new(None));
-    let capture = SseCompletionSemanticsCapture::new(Arc::clone(&latest_completion_semantics));
+    let mut capture = SseCompletionSemanticsCapture::new(Arc::clone(&latest_completion_semantics));
+    capture.scope = scope;
     (
         CompletionSemanticsTappedStream {
             inner: Box::pin(inner),
@@ -77,6 +110,7 @@ impl<E> Stream for CompletionSemanticsTappedStream<E> {
 impl SseCompletionSemanticsCapture {
     fn new(latest_completion_semantics: Arc<Mutex<Option<String>>>) -> Self {
         Self {
+            scope: ObservationScope::Generic,
             latest_completion_semantics,
             lines: ObservationLines::default(),
             parser: SseParseState::new(),
@@ -109,7 +143,31 @@ impl SseCompletionSemanticsCapture {
             return;
         };
 
-        let Some(semantics) = extract_completion_semantics(event_name, &value) else {
+        let semantics = if self.scope == ObservationScope::CommandCodeResponses {
+            matches!(
+                event_name,
+                Some("response.completed" | "response.incomplete")
+            )
+            .then(|| {
+                crate::protocol::commandcode::native_json::observe(
+                    &value["response"],
+                    crate::protocol::canonical::EndpointKind::Responses,
+                )
+                .1
+            })
+        } else if self.scope == ObservationScope::Messages {
+            (event_name == Some("message_delta"))
+                .then(|| value["delta"]["stop_reason"].as_str())
+                .flatten()
+                .and_then(|reason| match reason {
+                    "refusal" => Some("content_filter"),
+                    "model_context_window_exceeded" => Some("length"),
+                    _ => map_completion_reason(reason),
+                })
+        } else {
+            extract_completion_semantics(event_name, &value)
+        };
+        let Some(semantics) = semantics else {
             return;
         };
 
@@ -196,4 +254,27 @@ fn map_completion_reason(value: &str) -> Option<&'static str> {
         }
         _ => "other_provider_reason",
     })
+}
+
+#[test]
+fn commandcode_messages_completion_ignores_extension_control_fields() {
+    for (reason, expected) in [
+        ("end_turn", "stop"),
+        ("pause_turn", "other_provider_reason"),
+        ("refusal", "content_filter"),
+        ("model_context_window_exceeded", "length"),
+    ] {
+        let handle = Arc::new(Mutex::new(None));
+        let mut capture = SseCompletionSemanticsCapture::new(handle.clone());
+        capture.scope = ObservationScope::Messages;
+        capture.process_frame(
+            Some("message_delta"),
+            &serde_json::json!({"delta":{"stop_reason":reason},"status":"incomplete"}).to_string(),
+        );
+        capture.process_frame(
+            Some("provider_trace"),
+            r#"{"status":"completed","output":[{"type":"function_call"}]}"#,
+        );
+        assert_eq!(handle.lock().unwrap().as_deref(), Some(expected));
+    }
 }

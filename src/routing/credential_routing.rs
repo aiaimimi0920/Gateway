@@ -112,6 +112,7 @@ pub fn credential_to_candidate(cred: &CredentialEntry, model: &str) -> Option<Ro
         payload,
         adapter,
         protocol_family,
+        protocol_profile: dim_profile,
         supported_protocol_families,
     } = match super::call_flow::prepare_route_payload(
         payload,
@@ -127,7 +128,9 @@ pub fn credential_to_candidate(cred: &CredentialEntry, model: &str) -> Option<Ro
             return None;
         }
     };
-    let protocol_profile = if payload
+    let protocol_profile = if let Some(profile) = dim_profile {
+        profile
+    } else if payload
         .call_flow
         .is_some_and(|flow| flow.call_adapter.adapter().is_some())
     {
@@ -222,7 +225,7 @@ fn build_raw_payload(
     }
 }
 
-fn adapter_for_provider(provider: &str) -> String {
+pub(crate) fn adapter_for_provider(provider: &str) -> String {
     match provider {
         "anthropic" => "anthropic_compatible".to_string(),
         "grok" => "grok_compatible".to_string(),

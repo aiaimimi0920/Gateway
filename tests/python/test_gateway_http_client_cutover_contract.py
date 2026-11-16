@@ -103,6 +103,13 @@ class GatewayHttpClientCutoverContractTests(unittest.TestCase):
             self.assertNotRegex(text, r"Client::(?:builder|new)\(")
             self.assertEqual(len(re.findall(r"crate::http_client::(?:builder|client)\(", text)), count)
 
+    def test_freebuff_login_uses_proxy_factory_and_explicitly_disables_retries(self):
+        text = (ROOT / "src/protocol/freebuff_login/transport.rs").read_text(encoding="utf-8")
+        self.assertNotRegex(text, r"Client::(?:builder|new)\(")
+        self.assertEqual(text.count("crate::http_client::builder()"), 1)
+        self.assertIn(".retry(rquest::retry::Policy::never())", text)
+        self.assertIn("#[cfg(test)]\n        let builder = builder.no_proxy();", text)
+
 
 if __name__ == "__main__":
     unittest.main()

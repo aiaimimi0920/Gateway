@@ -18,7 +18,7 @@ describe("CredentialGroupsWorkspace", () => {
 
     renderWorkspace(emptyWorkspaceProps({ onAddGroup }));
 
-    expect(screen.getByRole("heading", { name: "No groups yet" })).toBeInTheDocument();
+    expect(screen.getByText("No groups yet").closest(".n-empty")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Create first group" }));
     expect(onAddGroup).toHaveBeenCalledTimes(1);
   });
@@ -122,15 +122,13 @@ describe("CredentialGroupsWorkspace", () => {
       '[data-entitlement-group-card="premium"] .nt-entitlement-group-card__front',
     ) as HTMLElement;
     // Same slot the provider cards use, so both pages expand from the same spot.
-    const toggle = front.querySelector(
-      ".nt-entitlement-group-card__head-actions .nt-entitlement-group-card__library-toggle",
-    ) as HTMLElement;
+    const toggle = within(front).getByRole("button", { name: "Show Premium group accounts" });
 
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(
       within(front).queryByRole("button", { name: "Show Premium group accounts" }),
     ).toBe(toggle);
-    expect(front.querySelectorAll(".nt-entitlement-group-card__action--icon")).toHaveLength(3);
+    expect(front.querySelectorAll('footer button, footer input[role="switch"]')).toHaveLength(3);
     expect(within(front).queryByRole("button", { name: "Premium more actions" })).not.toBeInTheDocument();
 
     await user.click(toggle);
@@ -260,7 +258,7 @@ describe("CredentialGroupsWorkspace", () => {
     expect(front.querySelector('[data-entitlement-group-metric="accounts"]')?.textContent).toBe("1");
     expect(within(front).queryByText("Models")).not.toBeInTheDocument();
     expect(within(front).getByText("premium")).toBeInTheDocument();
-    expect(within(front).getByRole("switch")).toHaveTextContent("Enabled");
+    expect(within(front).getByRole("switch").closest("label")).toHaveTextContent("Enabled");
     for (const label of ["Concurrency", "Upstream cost", "Revenue", "Requests", "Success rate"]) {
       expect(within(front).getByText(label)).toBeInTheDocument();
     }
@@ -268,7 +266,7 @@ describe("CredentialGroupsWorkspace", () => {
     expect(
       within(front).getByText("High-priority routing entitlements"),
     ).toBeInTheDocument();
-    // Providers live on the back, in full, as selectable tabs.
+    // Providers live on the back, in full, as independent choices.
     expect(within(front).queryByText("Managed OpenAI")).not.toBeInTheDocument();
   });
 
@@ -360,10 +358,10 @@ describe("CredentialGroupsWorkspace", () => {
     const back = groupCard.querySelector(".nt-entitlement-group-card__back") as HTMLElement;
     expect(within(back).getByText("Provider scope")).toBeInTheDocument();
     // Every provider starts selected, so the model band opens at full scope.
-    const providerTab = (providerId: string) =>
+    const providerChoice = (providerId: string) =>
       back.querySelector(`[data-entitlement-scope-provider="${providerId}"]`) as HTMLElement;
-    expect(providerTab("managed-openai")).toHaveAttribute("aria-pressed", "true");
-    expect(providerTab("alt-anthropic")).toHaveAttribute("aria-pressed", "true");
+    expect(providerChoice("managed-openai")).toBeChecked();
+    expect(providerChoice("alt-anthropic")).toBeChecked();
 
     const modelRow = (model: string) =>
       back.querySelector(`[data-entitlement-scope-model="${model}"]`) as HTMLElement | null;
@@ -380,9 +378,9 @@ describe("CredentialGroupsWorkspace", () => {
     expect(modelMetric("gpt-5", "success-rate")).toBe("75%");
 
     // Deselecting a provider narrows both the model list and every row's rollup.
-    await user.click(providerTab("alt-anthropic"));
+    await user.click(providerChoice("alt-anthropic"));
 
-    expect(providerTab("alt-anthropic")).toHaveAttribute("aria-pressed", "false");
+    expect(providerChoice("alt-anthropic")).not.toBeChecked();
     expect(modelRow("claude-4.5")).toBeNull();
     expect(modelMetric("gpt-5", "accounts")).toBe("1/1");
     expect(modelMetric("gpt-5", "concurrency")).toBe("3/12");
@@ -403,7 +401,7 @@ describe("CredentialGroupsWorkspace", () => {
     await user.click(within(back).getByRole("button", { name: "Clear" }));
 
     expect(back.querySelector('[data-entitlement-scope-model="gpt-5"]')).toBeNull();
-    expect(within(back).getByText("Select a provider tab to list models")).toBeInTheDocument();
+    expect(within(back).getByText("Select providers to list models")).toBeInTheDocument();
 
     await user.click(within(back).getByRole("button", { name: "Select all" }));
 

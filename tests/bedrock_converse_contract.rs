@@ -31,8 +31,6 @@ fn path_model_system_and_unknown_fields_survive_normalization() {
     assert_eq!(
         pack_bedrock_converse(&request, "upstream-model", true),
         json!({
-            "modelId": "upstream-model",
-            "stream": true,
             "system": [{"text": "first\nsecond"}],
             "messages": [{"role": "user", "content": [{"text": "hello"}]}],
             "inferenceConfig": {"maxTokens": 17},
@@ -47,6 +45,23 @@ fn path_model_system_and_unknown_fields_survive_normalization() {
         default_path("path-model", false),
         "/model/path-model/converse"
     );
+}
+
+#[test]
+fn http_labels_cannot_be_reintroduced_by_canonical_extra_fields() {
+    let mut request = normalize_converse(
+        json!({"messages":[{"role":"user","content":[{"text":"hi"}]}]}),
+        None,
+        true,
+    )
+    .unwrap();
+    request.extra.insert("modelId".into(), json!("other-model"));
+    request.extra.insert("stream".into(), json!(false));
+    for stream in [false, true] {
+        let body = pack_bedrock_converse(&request, "model", stream);
+        assert!(body.get("modelId").is_none());
+        assert!(body.get("stream").is_none());
+    }
 }
 
 #[test]

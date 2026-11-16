@@ -1,4 +1,6 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render as renderUi, screen, waitFor } from "@testing-library/react";
+import { NeuroProvider } from "@neuro/ui";
+import type { ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AccountBillingDialog } from "./AccountBillingDialog";
@@ -12,6 +14,7 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock("./useCashBillingApi", () => ({ useCashBillingApi: () => state }));
 const t = (zh: string) => zh;
+const render = (ui: ReactNode) => renderUi(ui, { wrapper: ({ children }) => <NeuroProvider>{children}</NeuroProvider> });
 const props = {
   providerId: "p",
   accountId: "a",
@@ -23,6 +26,7 @@ const props = {
 beforeEach(() => {
   vi.clearAllMocks();
   state.token = "admin";
+  state.sessionBusy = false;
   state.api.pricing.mockResolvedValue({
     accountBillingMultipliers: { a: "0.800000", b: "2" },
   });
@@ -108,5 +112,44 @@ describe("account billing editor", () => {
     await waitFor(() => expect(screen.getByRole("textbox")).toBeEnabled());
     await user.keyboard("{Escape}");
     await waitFor(() => expect(trigger).toHaveFocus());
+  });
+  it("blocks dismissal and duplicate writes while saving, without losing the loading name", async () => {
+    const pending = deferred<unknown>();
+    state.api.saveMultiplier.mockReturnValueOnce(pending.promise);
+    const user = userEvent.setup();
+    render(<AccountBillingDialog {...props} />);
+    const save = screen.getByRole("button", { name: "保存" });
+    await waitFor(() => expect(save).toBeEnabled());
+    await user.click(save);
+    const saving = screen.getByRole("button", { name: "保存" });
+    expect(saving).toBe(save);
+    expect(saving).toBeDisabled();
+    expect(saving).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("button", { name: "关闭" })).toBeDisabled();
+    await user.keyboard("{Escape}{Enter}");
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect(state.api.saveMultiplier).toHaveBeenCalledOnce();
+    await act(async () => pending.resolve({}));
+    expect(props.onClose).toHaveBeenCalledOnce();
+  });
+  it("does not let locked or unauthenticated editors change account pricing", async () => {
+    const view = render(<AccountBillingDialog {...props} locked />);
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveValue("0.800000"));
+    expect(screen.getByRole("textbox")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "关闭" })).toBeEnabled();
+    state.token = null;
+    view.rerender(<AccountBillingDialog {...props} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("请先登录");
+    expect(screen.getByRole("alert")).toHaveClass("n-notice", "n-tone-danger");
+    expect(state.api.saveMultiplier).not.toHaveBeenCalled();
+  });
+  it("shows an unresolved initial read as information, not a completed value", () => {
+    state.api.pricing.mockReturnValueOnce(deferred<unknown>().promise);
+    render(<AccountBillingDialog {...props} />);
+    expect(screen.getByRole("status")).toHaveTextContent("读取中…");
+    expect(screen.getByRole("status")).toHaveClass("n-notice", "n-tone-info");
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(state.api.saveMultiplier).not.toHaveBeenCalled();
   });
 });

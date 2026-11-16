@@ -13,7 +13,7 @@ reviews a Gateway-owned, sanitized file.
 | `local_present` | The referenced file exists under Gateway. | Review its contents and keep material outside checked-in docs. |
 | `external_legacy_reference` | The historical path is absent or not owned by Gateway. | Use the safe placeholder below; do not copy a sibling project tree. |
 
-Current deterministic baseline: **176 declared references**, **166 unique paths**, **176 external legacy references**, and **0 unclassified references**.
+Current deterministic baseline: **216 declared references**, **186 unique paths**, **175 external legacy references**, and **0 unclassified references**.
 
 `sourceRevision` is the content-addressed identity
 `manifest-source:<sha256>` and does not depend on Git commit history.
@@ -65,6 +65,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/AI-gateway-accio-platform-baseline.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/accio/web_reverse_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
 
+<a id="line-agnes-official-api"></a>
+### agnes-official-api
+
+- Identity: `agnes-ai` / `agnes-api`
+- Capabilities: `conversation`, `models`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/agnes/official-api.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/providers/examples/agnes.routes.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/providers/agnes-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/providers/agnes-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/devtest-build.md` (`local_present`; `file_present_in_gateway`)
+
 <a id="line-aistudio-official"></a>
 ### aistudio-official
 
@@ -83,14 +97,14 @@ python tools/validate-gateway-provider-reference-report.py --as-json
 ### aistudio-web-reverse
 
 - Identity: `aistudio_platform` / `aistudio-web-reverse`
-- Capabilities: `conversation`, `images`, `audio_speech`, `embeddings`, `models`
-- Material kinds: `session_auth`, `browser_state`
+- Capabilities: `conversation`, `images`, `audio_transcriptions`, `audio_speech`, `models`
+- Material kinds: `session_auth`
 - Manifest: `manifests/lines/aistudio/web-reverse.json`
-- Resolution: `0` local present, `4` external legacy, `0` unclassified
+- Resolution: `1` local present, `3` external legacy, `0` unclassified
 - Legacy references:
   - `credentials.samplePath` -> `docs/20-ai-gateway/examples/credentials/aistudio/web_reverse/minimal.raw.sample.json` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `credentials.fieldsDocPath` -> `docs/20-ai-gateway/examples/credentials/aistudio/web_reverse/FIELDS.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
-  - `docs.overviewDocPath` -> `docs/20-ai-gateway/AIStudio Web Reverse基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/aistudio-web-http.md` (`local_present`; `file_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/实现线可选编译与物理隔离规范.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
 
 <a id="line-anthropic-messages-official-model-api"></a>
@@ -191,6 +205,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/ChatGPT官方API与WebReverse双线路基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/chatgpt/web_reverse/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
 
+<a id="line-cloudflare-workers-ai"></a>
+### cloudflare-workers-ai
+
+- Identity: `cloudflare` / `cloudflare-workers-ai`
+- Capabilities: `conversation`, `models`, `embeddings`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/cloudflare/workers-ai.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/providers/examples/cloudflare-workers-ai.routes.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/providers/magpie-expansion-2026-11-08.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/providers/magpie-expansion-2026-11-08.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/devtest-build.md` (`local_present`; `file_present_in_gateway`)
+
 <a id="line-cohere-chat-official-model-api"></a>
 ### cohere-chat-official-model-api
 
@@ -205,6 +233,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/Cohere Chat平台实现线、可选编译与物理隔离基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/cohere/official_model_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
 
+<a id="line-commandcode-provider-api"></a>
+### commandcode-provider-api
+
+- Identity: `commandcode` / `commandcode-api`
+- Capabilities: `conversation`, `models`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/commandcode/provider-api.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/providers/examples/commandcode-api.routes.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/providers/commandcode-chat-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/providers/commandcode-chat-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/devtest-build.md` (`local_present`; `file_present_in_gateway`)
+
 <a id="line-deepseek-openai-official-model-api"></a>
 ### deepseek-openai-official-model-api
 
@@ -218,6 +260,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `credentials.fieldsDocPath` -> `docs/20-ai-gateway/examples/credentials/deepseek/official_model_api/FIELDS.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/DeepSeek平台实现线、可选编译与物理隔离基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/deepseek/official_model_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+
+<a id="line-dim-user-oauth"></a>
+### dim-user-oauth
+
+- Identity: `dim` / `dim-user-oauth`
+- Capabilities: `conversation`, `models`
+- Material kinds: `bearer_token`
+- Manifest: `manifests/lines/dim/user-oauth.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/providers/examples/dim-user-oauth.routes.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/progress/2026-11-08-dim-local.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/progress/2026-11-08-dim-local.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/devtest-build.md` (`local_present`; `file_present_in_gateway`)
 
 <a id="line-exa-search-official-vendor-api"></a>
 ### exa-search-official-vendor-api
@@ -401,6 +457,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/LumaLabs平台实现线、可选编译与物理隔离基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/lumalabs/web_reverse_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
 
+<a id="line-minimax-m-plan"></a>
+### minimax-m-plan
+
+- Identity: `minimax` / `minimax-m-plan`
+- Capabilities: `conversation`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/minimax/m-plan.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/providers/examples/minimax-m-plan.routes.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/providers/minimax-m-plan-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/providers/minimax-m-plan-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/devtest-build.md` (`local_present`; `file_present_in_gateway`)
+
 <a id="line-mistral-openai-official-model-api"></a>
 ### mistral-openai-official-model-api
 
@@ -428,6 +498,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `credentials.fieldsDocPath` -> `docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/FIELDS.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/Muyuan聚合API实现线基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/muyuan/aggregator_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+
+<a id="line-nous-portal-oauth"></a>
+### nous-portal-oauth
+
+- Identity: `nous` / `nous-portal-oauth`
+- Capabilities: `conversation`, `embeddings`, `models`
+- Material kinds: `bearer_token`
+- Manifest: `manifests/lines/nous/portal-oauth.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/providers/examples/nous-portal-oauth.routes.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/providers/nous-contract-2026-11-08.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/providers/nous-contract-2026-11-08.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/devtest-build.md` (`local_present`; `file_present_in_gateway`)
 
 <a id="line-nvidia-openai-official-vendor-api"></a>
 ### nvidia-openai-official-vendor-api
@@ -485,6 +569,20 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/Perplexity Search平台实现线、可选编译与物理隔离基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/perplexity/official_vendor_api/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
 
+<a id="line-perplexity-web-reverse-api"></a>
+### perplexity-web-reverse-api
+
+- Identity: `perplexity_platform` / `perplexity-web`
+- Capabilities: `conversation`
+- Material kinds: `session_auth`
+- Manifest: `manifests/lines/perplexity/web-reverse-api.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/provider-perplexity-web-material.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/provider-perplexity-web.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/provider-perplexity-web.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/provider-perplexity-web.md` (`local_present`; `file_present_in_gateway`)
+
 <a id="line-poe-openai-aggregator-api"></a>
 ### poe-openai-aggregator-api
 
@@ -540,6 +638,48 @@ python tools/validate-gateway-provider-reference-report.py --as-json
   - `credentials.fieldsDocPath` -> `docs/20-ai-gateway/examples/credentials/qwen/web_reverse/FIELDS.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.overviewDocPath` -> `docs/20-ai-gateway/Qwen平台实现线、可选编译与物理隔离基线.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
   - `docs.buildDocPath` -> `docs/20-ai-gateway/examples/credentials/qwen/web_reverse/BUILD.md` (`external_legacy_reference`; `path_not_present_in_gateway`)
+
+<a id="line-river-official-api"></a>
+### river-official-api
+
+- Identity: `river` / `river-api`
+- Capabilities: `conversation`, `models`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/river/official-api.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/providers/examples/river.routes.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/providers/magpie-expansion-2026-11-08.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/providers/magpie-expansion-2026-11-08.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/devtest-build.md` (`local_present`; `file_present_in_gateway`)
+
+<a id="line-sap-aicore-chat"></a>
+### sap-aicore-chat
+
+- Identity: `sap` / `sap-aicore-chat`
+- Capabilities: `conversation`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/sap/aicore-chat.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/providers/examples/sap-aicore-chat.routes.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/providers/sap-aicore-chat-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/providers/sap-aicore-chat-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/devtest-build.md` (`local_present`; `file_present_in_gateway`)
+
+<a id="line-sensenova-token-plan"></a>
+### sensenova-token-plan
+
+- Identity: `sensenova` / `sensenova-token-plan`
+- Capabilities: `conversation`, `models`
+- Material kinds: `api_key`
+- Manifest: `manifests/lines/sensenova/token-plan.json`
+- Resolution: `4` local present, `0` external legacy, `0` unclassified
+- Legacy references:
+  - `credentials.samplePath` -> `docs/providers/examples/sensenova-token-plan.routes.sample.json` (`local_present`; `file_present_in_gateway`)
+  - `credentials.fieldsDocPath` -> `docs/providers/sensenova-token-plan-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.overviewDocPath` -> `docs/providers/sensenova-token-plan-contract-2026-11-10.md` (`local_present`; `file_present_in_gateway`)
+  - `docs.buildDocPath` -> `docs/devtest-build.md` (`local_present`; `file_present_in_gateway`)
 
 <a id="line-suno-web-reverse-api"></a>
 ### suno-web-reverse-api

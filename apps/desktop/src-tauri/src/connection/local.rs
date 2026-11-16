@@ -1,5 +1,5 @@
 use crate::paths::gateway_app_dir;
-use crate::process::{get_gateway_process_snapshot, start_profile};
+use crate::process::{get_gateway_process_snapshot, start_profile, stop_gateway_sidecar};
 use crate::profile::{
     current_executable_directory, GatewayEnvEntry, GatewayProfile, GatewayRuntimeRole,
 };
@@ -86,17 +86,25 @@ fn reserve_api_port(port: u16) -> Result<TcpListener, String> {
     })
 }
 
-pub fn start(app: &AppHandle) -> Result<Url, String> {
+pub fn start(app: &AppHandle, requested_port: u16) -> Result<Url, String> {
     let state = app.state::<GatewayDesktopState>();
     let existing = get_gateway_process_snapshot(state.clone())?;
-    if existing.running {
-        return super::settings::console_url(&format!(
+    if existing.running && existing.port == Some(requested_port) {
+        let url = super::settings::console_url(&format!(
             "http://127.0.0.1:{}",
             existing.port.ok_or("Missing local port")?
-        ));
+        ))?;
+        super::window::wait_for_console(&url, true)?;
+        return Ok(url);
     }
     // A busy default port belongs to somebody else; never adopt or stop it.
-    let reservation = reserve_api_port(gateway_local_data::devtest::default_api_port())?;
+    if requested_port == 0 {
+        return Err("Local port must be between 1 and 65535".into());
+    }
+    let reservation = reserve_api_port(requested_port)?;
+    if existing.running && existing.profile_name.as_deref() != Some("desktop-managed") {
+        return Err("Another managed profile is running; its port was not changed".into());
+    }
     let port = reservation
         .local_addr()
         .map_err(|error| error.to_string())?
@@ -108,14 +116,47 @@ pub fn start(app: &AppHandle) -> Result<Url, String> {
         &gateway_local_data::startup::StartupConfig::config_path()
             .map_err(|error| error.to_string())?,
     )?;
-    drop(reservation);
-    let snapshot = start_profile(&state, profile)?;
-    if !snapshot.running {
-        return Err(snapshot
-            .last_error
-            .unwrap_or_else(|| "Local Gateway failed to start".into()));
+    if existing.running {
+        stop_gateway_sidecar(state.clone())?;
     }
-    super::settings::console_url(&format!("http://127.0.0.1:{port}"))
+    drop(reservation);
+    let result = (|| {
+        let snapshot = start_profile(&state, profile)?;
+        if !snapshot.running {
+            return Err(snapshot
+                .last_error
+                .unwrap_or_else(|| "Local Gateway failed to start".into()));
+        }
+        let url = super::settings::console_url(&format!("http://127.0.0.1:{port}"))?;
+        super::window::wait_for_console(&url, true)?;
+        Ok(url)
+    })();
+    if result.is_err() {
+        restore(app, &existing)?;
+    }
+    result
+}
+
+pub fn restore(
+    app: &AppHandle,
+    previous: &crate::state::GatewayProcessSnapshot,
+) -> Result<(), String> {
+    stop_gateway_sidecar(app.state::<GatewayDesktopState>())?;
+    if previous.running {
+        let port = previous.port.ok_or("Missing previous local port")?;
+        let profile = prepare_profile(
+            &gateway_app_dir()?.join("local"),
+            &current_executable_directory()?,
+            port,
+            &gateway_local_data::startup::StartupConfig::config_path()
+                .map_err(|error| error.to_string())?,
+        )?;
+        let snapshot = start_profile(&app.state::<GatewayDesktopState>(), profile)?;
+        if !snapshot.running {
+            return Err("Could not restore the previous local Gateway".into());
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -1,0 +1,44 @@
+/* Card geometry belongs to the workspace; controls keep the package appearance. */
+.nt-pool-card-actions > :is(.n-button, .n-switch) {
+  width: 100%;
+  min-width: 0;
+}
+
+.nt-pool-card-actions > .n-switch {
+  min-height: 36px;
+  justify-content: flex-start;
+}
+
+.nt-pool-card-actions > .n-switch > span {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.nt-entitlement-group-card__actions--group.nt-pool-card-actions {
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+}
+
+.nt-pool-card-actions__wide {
+  grid-column: 1 / -1;
+}
+
+.nt-pool-card-title {
+  min-width: 0;
+  max-width: 100%;
+  justify-content: start;
+  text-align: left;
+}
+
+.nt-pool-card-title > .n-button-label {
+  display: block;
+  width: 100%;
+}
+
+.nt-pool-card-title__text,
+.nt-pool-card-title__text strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

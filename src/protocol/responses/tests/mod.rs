@@ -59,6 +59,7 @@ async fn collect_stream_output<E: std::fmt::Display + Send + 'static>(
 mod accumulate_tests;
 mod normalize_response_tests;
 mod pack_tests;
+mod terminal_error_tests;
 mod to_openai_chat_tests;
 mod to_responses_order_tests;
 mod to_responses_tests;

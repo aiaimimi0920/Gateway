@@ -1,6 +1,5 @@
 //! Import folder material and retain database/deletion ordering.
-use super::account_cache::HydratedAccountCache;
-use super::accounts::{build_provider_maps, select_provider_account_for_path};
+use super::account_selection::ImportAccountSelection;
 use super::credential_paths::{CredentialPathIndex, SourcePathInterner, SourcePathSet};
 use super::deletion::{
     delete_explicitly_removed_folder_credentials, delete_missing_folder_credentials,
@@ -10,8 +9,7 @@ use super::layout::{
     credential_label_from_path, normalize_relative_path, resolve_import_path_descriptor,
 };
 use super::limits::{
-    PROVIDER_ACCOUNT_INLINE_PAYLOAD_BYTES, PROVIDER_ACCOUNT_ROWS,
-    PROVIDER_CREDENTIAL_METADATA_ROWS, SOURCE_PATH_RETAINED_BYTES,
+    PROVIDER_ACCOUNT_ROWS, PROVIDER_CREDENTIAL_METADATA_ROWS, SOURCE_PATH_RETAINED_BYTES,
 };
 use super::normalization::normalize_import_payload;
 use super::FolderSyncCounters;
@@ -34,14 +32,13 @@ pub(super) async fn import_folder_credentials(
 ) -> Result<(), GatewayError> {
     let provider_accounts =
         db::list_provider_account_import_metadata(pg_pool, PROVIDER_ACCOUNT_ROWS).await?;
-    let provider_maps = build_provider_maps(&provider_accounts);
+    let mut account_selection = ImportAccountSelection::new(provider_accounts);
     let existing_credentials = db::list_provider_credential_import_metadata(
         pg_pool,
         PROVIDER_CREDENTIAL_METADATA_ROWS,
         SOURCE_PATH_RETAINED_BYTES,
     )
     .await?;
-    let mut hydrated_accounts = HydratedAccountCache::new();
     let mut path_interner = SourcePathInterner::new();
     let credential_paths = CredentialPathIndex::new(existing_credentials, &mut path_interner)?;
     let files = collect_json_files(root_dir)?;
@@ -58,8 +55,7 @@ pub(super) async fn import_folder_credentials(
             counters.skipped_count += 1;
             continue;
         };
-        let Some(provider_account_id) =
-            select_provider_account_for_path(&provider_maps, &path_descriptor)
+        let Some(provider_account_id) = account_selection.select(pg_pool, &path_descriptor).await?
         else {
             counters.skipped_count += 1;
             continue;
@@ -71,19 +67,9 @@ pub(super) async fn import_folder_credentials(
             counters.skipped_count += 1;
             continue;
         }
-        let provider_account =
-            if let Some(provider_account) = hydrated_accounts.get(provider_account_id.as_str()) {
-                provider_account
-            } else {
-                let provider_account = db::get_provider_account_for_folder_sync(
-                    pg_pool,
-                    &provider_account_id,
-                    PROVIDER_ACCOUNT_INLINE_PAYLOAD_BYTES,
-                )
-                .await?
-                .ok_or_else(|| GatewayError::not_found("Provider account 不存在"))?;
-                hydrated_accounts.insert(provider_account)
-            };
+        let provider_account = account_selection
+            .hydrate(pg_pool, &provider_account_id)
+            .await?;
         let payload = normalize_import_payload(
             &path_descriptor.provider_surface_slug,
             &provider_account,

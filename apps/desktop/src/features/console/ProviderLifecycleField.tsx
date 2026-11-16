@@ -1,5 +1,6 @@
 import { Check, Pencil, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { IconButton, Input, Notice } from "@neuro/ui";
 import type { TranslateFn } from "./accountsLedgerTypes";
 
 type Props = {
@@ -25,6 +26,7 @@ export function ProviderLifecycleField({ providerLabel, label, value, secret = f
   configured = false, numeric = false, minimum = 0, maximum = Number.MAX_SAFE_INTEGER,
   disabled, discardDraft = false, unavailableReason, description, onSave, onEdit, t,
 }: Props) {
+  const inputId = useId();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [savedSecret, setSavedSecret] = useState(false);
@@ -70,34 +72,35 @@ export function ProviderLifecycleField({ providerLabel, label, value, secret = f
   const display = secret ? (configured || savedSecret ? "••••" : "—") : value || "—";
   return (
     <div className={`nt-provider-lifecycle__field${editing ? " nt-provider-lifecycle__field--editing" : ""}`}>
-      <span className="nt-provider-lifecycle__label" title={description ? `${label}: ${description}` : label}>{label}</span>
+      <label htmlFor={editing ? inputId : undefined} className="nt-provider-lifecycle__label" title={description ? `${label}: ${description}` : label}>{label}</label>
       {editing ? <>
-        <input autoFocus className="nt-input nt-provider-lifecycle__field-input"
+        <Input compact autoFocus id={inputId} className="nt-provider-lifecycle__field-input"
           type={secret ? "password" : numeric ? "number" : "text"}
           autoComplete={secret ? "new-password" : "off"}
           min={numeric ? minimum : undefined} step={numeric ? 1 : undefined}
           inputMode={numeric ? "numeric" : undefined}
           aria-label={`${providerLabel} ${label}`} aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${inputId}-error` : undefined}
           value={draft} disabled={disabled}
           onChange={(event) => { setDraft(event.currentTarget.value); setError(""); }}
           onKeyDown={(event) => {
             if (event.key === "Escape") { event.preventDefault(); close(); }
             if (event.key === "Enter") { event.preventDefault(); save(); }
           }} />
-        <button className="nt-icon-action" type="button" aria-label={t(`保存 ${providerLabel} ${label}`, `Save ${providerLabel} ${label}`)}
-          disabled={disabled || (secret && !draft)} onClick={save}><Check size={14} /></button>
-        <button className="nt-icon-action" type="button" aria-label={t(`取消编辑 ${providerLabel} ${label}`, `Cancel editing ${providerLabel} ${label}`)}
-          onClick={close}><X size={14} /></button>
+        <IconButton compact variant="quiet" label={t(`保存 ${providerLabel} ${label}`, `Save ${providerLabel} ${label}`)}
+          disabled={disabled || (secret && !draft)} onClick={save}><Check size={14} aria-hidden="true" /></IconButton>
+        <IconButton compact variant="quiet" label={t(`取消编辑 ${providerLabel} ${label}`, `Cancel editing ${providerLabel} ${label}`)}
+          onClick={close}><X size={14} aria-hidden="true" /></IconButton>
       </> : <>
         <span className="nt-provider-lifecycle__field-value" title={secret ? undefined : display}>{display}</span>
-        <button ref={editButton} className="nt-icon-action" type="button"
-          aria-label={t(`编辑 ${providerLabel} ${label}`, `Edit ${providerLabel} ${label}`)}
+        <IconButton ref={editButton} compact variant="quiet"
+          label={t(`编辑 ${providerLabel} ${label}`, `Edit ${providerLabel} ${label}`)}
           title={unavailableReason || t("编辑并保存到路由草稿", "Edit in the route draft")}
           disabled={disabled || (!onSave && !onEdit)} onClick={() => { if (onEdit) { onEdit(); return; } setDraft(secret ? "" : value); setError(""); setEditing(true); }}>
-          <Pencil size={14} />
-        </button>
+          <Pencil size={14} aria-hidden="true" />
+        </IconButton>
       </>}
-      {error ? <span role="alert" className="nt-provider-lifecycle__field-error">{error}</span> : null}
+      {error ? <Notice tone="danger" id={`${inputId}-error`} className="nt-provider-lifecycle__field-error">{error}</Notice> : null}
     </div>
   );
 }

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "nous-portal-oauth",
+  "identity": {
+    "serviceProviderKey": "nous",
+    "serviceProviderLabel": "Nous Research",
+    "providerSurfaceKey": "nous-portal-oauth",
+    "providerSurfaceLabel": "Nous Portal Subscription / Welcome OAuth",
+    "protocolProfile": "nous_portal_oauth",
+    "implementationLine": "official_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "official_model_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation", "embeddings", "models"],
+    "supportsModelsEndpoint": true
+  },
+  "credentials": {
+    "materialKinds": ["bearer_token"],
+    "samplePath": "docs/providers/examples/nous-portal-oauth.routes.sample.json",
+    "fieldsDocPath": "docs/providers/nous-contract-2026-11-08.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/providers/nous-contract-2026-11-08.md",
+    "buildDocPath": "docs/devtest-build.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "nous-portal-oauth-verify",
+    "focusedCargoFilters": ["nous_"],
+    "fixtureSuiteId": "nous_local_fixture",
+    "liveSuiteId": "nous_live_pending_client_permission",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-nous-portal-oauth",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "nous-portal-oauth"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/nous_portal.rs",
+    "upstreamModule": "gateway/src/protocol/nous_portal/runtime.rs",
+    "platformDeltaModule": "gateway/src/console/nous_oauth"
+  }
+}

@@ -1,4 +1,5 @@
 mod accumulation;
+mod admission;
 mod diagnostics;
 mod http_errors;
 mod request;

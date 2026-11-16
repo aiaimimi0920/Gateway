@@ -19,6 +19,8 @@ pub fn normalize_converse(
     path_model: Option<String>,
     stream: bool,
 ) -> Result<CanonicalRelayRequest, GatewayError> {
+    super::generation_validation::validate_body(&body)?;
+    super::history::validate_body(&body)?;
     let requested_model = path_model.or_else(|| {
         body.get("modelId")
             .and_then(|value| value.as_str())

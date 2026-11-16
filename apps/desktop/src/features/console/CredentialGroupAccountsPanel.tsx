@@ -1,5 +1,5 @@
 import { Database } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
+import { Badge, EmptyState } from "@neuro/ui";
 
 import type { GroupMemberCandidate } from "./accountManagementViewModel";
 import type {
@@ -8,7 +8,6 @@ import type {
 } from "./credentialGroupsWorkspaceTypes";
 import type { CredentialGroupCardSnapshot } from "./credentialGroupCardSnapshot";
 import {
-  ACCOUNT_CARD_MENU_ITEMS,
   AccountLibraryPager,
   ProviderAccountCard,
   type AccountsLedgerPilotAccount,
@@ -21,9 +20,6 @@ type CredentialGroupAccountsPanelProps = {
   editorLocked: boolean;
   members: GroupMemberCandidate[];
   accountCards?: EntitlementAccountCardBridge;
-  activeMenuKey: string | null;
-  onActiveMenuKeyChange: Dispatch<SetStateAction<string | null>>;
-  registerMenuTrigger: (key: string, node: HTMLButtonElement | null) => void;
 };
 
 export function CredentialGroupAccountsPanel({
@@ -33,9 +29,6 @@ export function CredentialGroupAccountsPanel({
   editorLocked,
   members,
   accountCards,
-  activeMenuKey,
-  onActiveMenuKeyChange,
-  registerMenuTrigger,
 }: CredentialGroupAccountsPanelProps) {
   const { group, label, accountPanelId, selectedProviderIds, providerScopeNarrowed } =
     snapshot;
@@ -46,8 +39,8 @@ export function CredentialGroupAccountsPanel({
   const resolvedAccounts =
     bridge && accountsReady
       ? scopedMembers
-          .map((candidate) => bridge.accountsById.get(candidate.accountId))
-          .filter((account): account is AccountsLedgerPilotAccount => account != null)
+        .map((candidate) => bridge.accountsById.get(candidate.accountId))
+        .filter((account): account is AccountsLedgerPilotAccount => account != null)
       : [];
   const accountCount = providerScopeNarrowed ? scopedMembers.length : group.memberCount;
 
@@ -86,14 +79,7 @@ export function CredentialGroupAccountsPanel({
               editorLocked={editorLocked}
               groupOptions={bridge.groupOptions}
               handlers={bridge.handlers}
-              menu={{
-                keyPrefix: `entitlement-group:${group.rowId}`,
-                activeKey: activeMenuKey,
-                onActiveKeyChange: onActiveMenuKeyChange,
-                registerTrigger: registerMenuTrigger,
-                items: bridge.menuItems ?? ACCOUNT_CARD_MENU_ITEMS,
-                onAction: bridge.onMenuAction,
-              }}
+              onAction={bridge.onAccountAction}
             />
           )}
         />
@@ -106,9 +92,9 @@ export function CredentialGroupAccountsPanel({
                   <strong>{candidate.displayName}</strong>
                   <small>{candidate.accountId}</small>
                 </div>
-                <span className={candidate.enabled ? "nt-badge nt-badge--success" : "nt-badge nt-badge--warning"}>
+                <Badge tone={candidate.enabled ? "success" : "warning"}>
                   {candidate.enabled ? t("已启用", "Enabled") : t("已停用", "Disabled")}
-                </span>
+                </Badge>
               </div>
               <div className="nt-entitlement-account-card__provider">
                 <strong>{candidate.providerLabel}</strong>
@@ -118,17 +104,15 @@ export function CredentialGroupAccountsPanel({
           ))}
         </div>
       ) : accountsReady ? (
-        <p className="nt-empty">
-          {providerScopeNarrowed && members.length > 0
-            ? t(
-                "所选服务商范围内没有账号。",
-                "No accounts fall inside the selected provider scope.",
-              )
-            : t(
-                "这个权益组还没有账号。",
-                "This entitlement group has no accounts yet.",
-              )}
-        </p>
+        <EmptyState title={providerScopeNarrowed && members.length > 0
+          ? t(
+            "所选服务商范围内没有账号。",
+            "No accounts fall inside the selected provider scope.",
+          )
+          : t(
+            "这个权益组还没有账号。",
+            "This entitlement group has no accounts yet.",
+          )} />
       ) : null}
     </section>
   );

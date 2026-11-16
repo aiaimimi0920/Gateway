@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Cable, Minus, Square, X } from "lucide-react";
+import { IconButton } from "@neuro/ui";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import type { SettingsPanelLayout } from "../../platform/desktopSettings";
 import "./DesktopWindowChrome.css";
@@ -48,14 +49,14 @@ export function DesktopWindowChrome() {
   return <>
     <div className="nt-native-auth-drag" data-gateway-drag-region />
     <div className="nt-native-controls" role="group" aria-label={t("窗口操作", "Window controls")}>
-      <button type="button" className="nt-window-control" title={t("连接设置 (Ctrl+Shift+G)", "Connection (Ctrl+Shift+G)")}
-        aria-label={t("连接设置", "Connection settings")} onClick={() => bridge.send("connection")}><Cable size={16} /></button>
-      <button type="button" className="nt-window-control" title={t("最小化", "Minimize")}
-        aria-label={t("最小化", "Minimize")} onClick={() => bridge.send("minimize")}><Minus size={15} /></button>
-      <button type="button" className="nt-window-control" title={t("最大化或还原", "Maximize or restore")}
-        aria-label={t("最大化或还原", "Maximize or restore")} onClick={() => bridge.send("toggle-maximize")}><Square size={13} /></button>
-      <button type="button" className="nt-window-control nt-window-control--close" title={t("关闭", "Close")}
-        aria-label={t("关闭", "Close")} onClick={() => bridge.send("close")}><X size={15} /></button>
+      <IconButton compact variant="quiet" className="gateway-window-action" title={t("连接设置 (Ctrl+Shift+G)", "Connection (Ctrl+Shift+G)")}
+        label={t("连接设置", "Connection settings")} onClick={() => bridge.send("connection")}><Cable size={16} aria-hidden="true" /></IconButton>
+      <IconButton compact variant="quiet" className="gateway-window-action" title={t("最小化", "Minimize")}
+        label={t("最小化", "Minimize")} onClick={() => bridge.send("minimize")}><Minus size={15} aria-hidden="true" /></IconButton>
+      <IconButton compact variant="quiet" className="gateway-window-action" title={t("最大化或还原", "Maximize or restore")}
+        label={t("最大化或还原", "Maximize or restore")} onClick={() => bridge.send("toggle-maximize")}><Square size={13} aria-hidden="true" /></IconButton>
+      <IconButton compact variant="quiet" className="gateway-window-action" title={t("关闭", "Close")}
+        label={t("关闭", "Close")} onClick={() => bridge.send("close")}><X size={15} aria-hidden="true" /></IconButton>
     </div>
   </>;
 }

@@ -37,7 +37,7 @@ describe("Key lifecycle", () => {
     renderWithProviders(<Harness api={api} />);
     const row = (await screen.findByText("delete-me")).closest("tr")!;
     await user.click(within(row).getByRole("button", { name: "删除" }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("历史现金账单保留");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("历史现金账单保留");
     await user.click(screen.getByRole("button", { name: "取消" }));
     expect(api.deleteAccessKey).not.toHaveBeenCalled();
     await user.click(within(row).getByRole("button", { name: "删除" }));
@@ -63,7 +63,7 @@ describe("Key lifecycle", () => {
     await user.click(screen.getByRole("button", { name: "删除" }));
     await user.click(screen.getByRole("button", { name: "确认删除" }));
     expect(
-      await within(screen.getByRole("dialog")).findByRole("alert"),
+      await within(screen.getByRole("alertdialog")).findByRole("alert"),
     ).toHaveTextContent("delete rejected");
     expect(screen.getByText("failed-key", { selector: "td strong" })).toBeInTheDocument();
   });

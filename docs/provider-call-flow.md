@@ -55,7 +55,9 @@ providers:
 - `fingerprint_adapter`：`auto`、`codex_cli`、`claude_cli`、`workbuddy`、`cpa`、
   `cpa_claude_code`、`session`。API 身份能力仍以现有文本接口支持范围为准。
 - `special_adapter`：`auto`（继承 preset 的执行 owner）、`none`、`basispoints`、
-  `gemini_web`、`gemini_canvas`、`chatgpt_web`、`aistudio_web`。
+  `gemini_web`、`gemini_canvas`、`chatgpt_web`、`aistudio_web`、`flowmusic_web`、`flow_web`、
+  `stitch_web`、`antigravity_oauth`、`accio`、`kiro`、`freebuff`、`grok_web`、`qwen_web`、
+  `chataibot_web`、`lumalabs_web`、`suno_web`、`udio_web`。
 
 缺少整个 `call_flow` 时不合成新策略、不额外序列化字段，完全沿旧配置路径。存在时，
 三项策略为准；旧 `adapter/preset/request_client_profile` 保留为兼容投影和原生身份默认值。
@@ -84,6 +86,14 @@ Basispoints 继续校验原生 Codex 地址、编译 feature 和凭据来源。
 canonical 输入，使用 `fingerprint_adapter=auto/session` 的执行器内指纹；不支持的显式 API
 指纹或固定调用格式会报 `Invalid call_flow`，不是悄悄忽略。未知枚举和拼错的策略字段拒绝解析。
 后续可以逐模板扩展允许组合，只有真实适配后才开放编辑项。
+
+Accio、Kiro、FreeBuff、Grok Web、Qwen Web、ChatAIBot、LumaLabs、Suno、Udio 的显式绑定
+复用其现有 preset/adapter，不从认证后缀推断产品，也不新增或迁移凭据。前端的产品 registry
+同时用于创建投影与指纹编辑锁定；即使保存的指纹是 auto 或缺省，明确的专用执行器仍不能被
+API 指纹覆盖。旧无 flow/auto 配置不重写；界面也按已保存 preset 锁定其产品指纹，不从可改
+Provider ID 推断。Codex preset 的可选 Basispoints 不因此被默认启用或锁定。此框架接缝不代表模板、登录/刷新、材料导入、
+worker 消除或真实上游验收已完成；具体状态见
+[分渠道扩展计划](plan/2026-11-02-provider-template-expansion.md)。
 
 固定调用格式会约束请求级协议发现选择，调试强制协议也不能越过这个约束。发现证据仍完整
 保留，包括模型负证据和认证目标绑定；Gemini/Cohere 的 discovery-only 证据不会因此被提升为

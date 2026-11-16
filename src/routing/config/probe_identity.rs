@@ -50,11 +50,27 @@ impl RouteConfigSnapshot {
         {
             return None;
         }
+        let dim_profile = if crate::protocol::dim_oauth::business::owns_payload(&payload) {
+            let credential = provider
+                .credential_pool
+                .iter()
+                .find(|c| c.id == target.credential_id)?;
+            let (_, family) = credential
+                .dim_catalog
+                .as_ref()?
+                .project(&payload, model)
+                .ok()?;
+            Some(crate::protocol::dim_oauth::runtime::protocol_profile(family).to_owned())
+        } else {
+            None
+        };
         Some(RecordCredentialModelSuccessInput {
             provider_account_id: provider.id.clone(),
             provider_credential_id: None, // Console targets come from route config, not DB credentials.
             provider_credential_ref: payload.credential_id.clone(),
-            protocol_profile: Some(effective_protocol_profile(provider, discovery)),
+            protocol_profile: Some(
+                dim_profile.unwrap_or_else(|| effective_protocol_profile(provider, discovery)),
+            ),
             model: model.into(),
         })
     }

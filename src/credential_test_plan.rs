@@ -108,6 +108,6 @@ impl CredentialTestPlan {
         if accounts > 128 {
             return Err("Select a test plan scope containing at most 128 accounts.");
         }
-        self.policy.validate()
+        self.policy.validate_structure()
     }
 }

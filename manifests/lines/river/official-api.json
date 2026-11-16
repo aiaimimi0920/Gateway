@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "river-official-api",
+  "identity": {
+    "serviceProviderKey": "river", "serviceProviderLabel": "River",
+    "providerSurfaceKey": "river-api", "providerSurfaceLabel": "River API",
+    "protocolProfile": "river", "implementationLine": "official_vendor_api", "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api", "executionMode": "direct_http", "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation", "models"], "supportsModelsEndpoint": true },
+  "credentials": {
+    "materialKinds": ["api_key"], "samplePath": "docs/providers/examples/river.routes.sample.json",
+    "fieldsDocPath": "docs/providers/magpie-expansion-2026-11-08.md"
+  },
+  "docs": { "overviewDocPath": "docs/providers/magpie-expansion-2026-11-08.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "river-official-api-verify", "focusedCargoFilters": ["river"],
+    "fixtureSuiteId": "river_fixture", "liveSuiteId": "river_live_pending", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-river-official-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"], "binaryInclusionGroup": "river-official-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/registry.rs", "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/implementation_lines.rs"
+  }
+}

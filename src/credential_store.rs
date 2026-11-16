@@ -122,25 +122,42 @@ pub async fn start_credential_refresh_task(
     cache: CredentialMemoryCache,
     pool: deadpool_redis::Pool,
     interval_secs: u64,
+    shutdown: crate::state::GatewayShutdownHandle,
 ) {
     let mut last_version: i64 = 0;
     let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
 
     loop {
-        interval.tick().await;
+        tokio::select! {
+            biased;
+            _ = shutdown.wait() => break,
+            _ = interval.tick() => {},
+        }
         cache.prune_expired();
 
-        // Check Redis version counter.
-        let current_version: i64 = match pool.get().await {
-            Ok(mut conn) => redis::cmd("GET")
-                .arg(crate::redis::keys::credential_version_key())
-                .query_async(&mut conn)
-                .await
-                .unwrap_or(0),
-            Err(e) => {
-                tracing::debug!("credential refresh: Redis connection error: {}", e);
-                continue;
+        // This Redis operation is read-only; dropping it cannot truncate a credential write.
+        let read_version = async {
+            match pool.get().await {
+                Ok(mut conn) => Some(
+                    redis::cmd("GET")
+                        .arg(crate::redis::keys::credential_version_key())
+                        .query_async(&mut conn)
+                        .await
+                        .unwrap_or(0),
+                ),
+                Err(e) => {
+                    tracing::debug!("credential refresh: Redis connection error: {}", e);
+                    None
+                }
             }
+        };
+        let current_version: Option<i64> = tokio::select! {
+            biased;
+            _ = shutdown.wait() => break,
+            result = read_version => result,
+        };
+        let Some(current_version) = current_version else {
+            continue;
         };
 
         if current_version != last_version && last_version != 0 {

@@ -13,11 +13,13 @@ export const bootstrapStatusSchema: z.ZodType<BootstrapStatus> = z
     needsBootstrap: z.boolean(),
     managementConfigured: z.boolean().optional(),
     environmentOverride: z.boolean().optional(),
+    passwordlessToken: z.string().min(1).optional(),
   })
   .transform((value) => ({
     needsBootstrap: value.needsBootstrap,
     managementConfigured: value.managementConfigured ?? !value.needsBootstrap,
     environmentOverride: value.environmentOverride ?? false,
+    ...(value.passwordlessToken ? { passwordlessToken: value.passwordlessToken } : {}),
   }));
 
 export const managementSessionSchema: z.ZodType<ManagementSession> = z.object({

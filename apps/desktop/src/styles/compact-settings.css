@@ -1,0 +1,81 @@
+/* Owns settings page composition and native slots. Standard controls own their skin. */
+:root { font-family: var(--nt-ui-font, "Bahnschrift", "Segoe UI", "Microsoft YaHei", sans-serif); font-weight: var(--nt-ui-weight, 400); }
+code, pre { font-family: var(--nt-font-mono); font-weight: var(--nt-code-weight, 400); }
+.nt-settings-workspace { min-height: 0; height: auto; user-select: none; -webkit-user-select: none; }
+/* Static settings copy is not selectable; editable fields and copyable values remain usable. */
+.nt-settings-workspace :is(input, textarea, [contenteditable="true"], .nt-settings-address) { user-select: text; -webkit-user-select: text; }
+.nt-settings-workspace .nt-settings-workspace__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--nt-border);
+  border-radius: 6px;
+  background: var(--nt-color-panel);
+  overflow: hidden;
+}
+.nt-settings-workspace .nt-settings-fields { display: contents; }
+.nt-settings-workspace .nt-setting-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(0, auto);
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 12px;
+  min-width: 0;
+  min-height: 51px;
+  padding: 12px 12px 12px 14px;
+  font-size: .8125rem;
+  line-height: 1.4;
+  border-bottom: 1px solid var(--nt-border);
+}
+.nt-setting-identity { min-width: 0; }
+.nt-setting-identity small { display: block; margin-top: 5px; font-size: .6875rem; font-weight: 400; line-height: 1.5; color: var(--nt-text-muted); overflow-wrap: anywhere; }
+.nt-settings-workspace .nt-setting-label, .nt-settings-workspace .nt-setting-row > label { font-weight: 400; white-space: normal; }
+/* Compact settings density is app-scoped; other NeuroDesign consumers keep their defaults. */
+.nt-settings-workspace .n-segmented { gap: 0; padding: 2px; border: 0; }
+.nt-settings-workspace :is([data-setting-id="provider-name"], [data-setting-id="awake"]) .n-segmented { grid-auto-columns: max-content; }
+.nt-settings-workspace .n-segment span { min-height: 22px; padding: 0 10px; font-size: .75rem; font-weight: 400; line-height: 1.4; }
+.nt-settings-workspace .n-button { min-height: 24px; padding: 0 9px; font-size: .75rem; font-weight: 400; line-height: 1.4; }
+.nt-settings-workspace .n-input { min-height: 26px; padding: 2px 8px; font-size: .75rem; line-height: 1.4; }
+.nt-settings-workspace .n-select-trigger svg { width: 12px; height: 12px; }
+.nt-setting-control { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.nt-setting-control > .n-input { width: auto; max-width: 100%; }
+.nt-settings-font { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(72px, auto); align-items: center; gap: 5px 6px; width: 310px; max-width: 100%; min-width: 0; }
+.nt-settings-font > .n-input { width: auto; max-width: 100%; }
+.nt-settings-font > span { grid-column: 1 / -1; min-width: 0; padding: 2px 9px; text-align: left; font-size: .8125rem; line-height: 1.5; }
+.nt-settings-font__code { font-family: var(--nt-font-mono); font-weight: var(--nt-code-weight); }
+.nt-settings-font__ui { font-family: var(--nt-ui-font); font-weight: var(--nt-ui-weight); }
+.nt-settings-unavailable { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.nt-settings-group { flex: 0 0 auto; margin: 0; padding: 10px 18px; border-bottom: 1px solid var(--nt-border); background: var(--nt-color-surface); color: var(--nt-text-muted); font-size: .6875rem; font-weight: 550; }
+.nt-settings-address { max-width: 100%; overflow-wrap: anywhere; }
+.nt-settings-workspace [data-setting-id]:focus { outline: none; }
+.nt-settings-workspace [data-setting-id]:focus-visible { outline: 2px solid var(--nt-signal); outline-offset: -2px; }
+.nt-settings-tabs { align-items: center; overflow: auto hidden; }
+.nt-settings-workspace .nt-settings-feedback-slot { flex: 0 0 auto; }
+.nt-settings-workspace .nt-desktop-settings-slot { min-height: 180px; flex: 0 0 180px; border-bottom: 1px solid var(--nt-border); }
+.nt-settings-workspace .nt-desktop-settings-slot--backend { min-height: 320px; flex-basis: 320px; }
+.nt-settings-workspace .nt-management-keys { display: flex; flex-direction: column; gap: 8px; height: 240px; padding: 12px 18px; border-bottom: 1px solid var(--nt-border); overflow: hidden; }
+.nt-settings-workspace .nt-management-keys__toolbar { flex: 0 0 28px; }
+.nt-settings-workspace .nt-management-keys__heading { font-size: .8125rem; font-weight: 550; }
+.nt-settings-workspace .nt-management-keys__list { flex: 1; min-height: 0; scrollbar-gutter: stable; }
+.nt-settings-workspace .nt-management-keys__row { gap: 8px; font-size: .8125rem; }
+.nt-settings-workspace .nt-management-keys > p { margin: 0; font-size: .75rem; }
+.nt-settings-search { position: relative; width: 180px; max-width: 100%; }
+.nt-settings-search > .n-icon { position: absolute; left: 9px; pointer-events: none; color: var(--n-muted); }
+.nt-titlebar .nt-settings-search .n-input { min-height: 26px; padding: 2px 28px; font-size: .75rem; border-radius: 999px; }
+.nt-titlebar .nt-settings-search > .n-icon-button { position: absolute; right: 3px; }
+.nt-titlebar .nt-settings-search svg { width: 12px; height: 12px; }
+@container settings (max-width: 460px) {
+  .nt-settings-workspace .nt-setting-row { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-inline: 12px; }
+  .nt-setting-control { justify-content: flex-end; }
+  .nt-settings-workspace .nt-management-keys { height: 280px; padding-inline: 12px; }
+}
+.nt-embedded-settings.nt-settings-workspace { min-height: 0; height: 100dvh; }
+.nt-embedded-settings .nt-setting-row { min-height: 51px; }
+.nt-settings-workspace .nt-backend-editor { flex-wrap: wrap; gap: 8px; }
+.nt-settings-workspace .nt-backend-editor .n-input { flex: 1 1 180px; width: 100%; }
+.nt-settings-workspace .nt-backend-actions { gap: 6px; margin-left: auto; }
+.nt-backend-local-address { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.nt-settings-workspace .nt-backend-local-address .n-input { width: 72px; flex: 0 0 72px; }
+.nt-settings-workspace .nt-gateway-log-directory { min-width: 0; flex-wrap: wrap; }
+.nt-settings-workspace .nt-gateway-log-directory .n-input { flex: 1; width: 100%; }

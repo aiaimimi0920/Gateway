@@ -49,6 +49,17 @@
 创建时按 Provider ID 和目标身份绑定，提交时重新解析数组位置；目标改变则拒绝重用，
 owner 删除则丢弃。WebDAV 密码必须同时提供用户名。
 
+`qwen-api` 是普通 workspace API Key 产品，preset 为 `qwen-official-api`，与 Coding Plan/Web 分池。
+创建表单必须显式选择六区之一并填写 workspace，派生地址只读；不默认地域、账号、模型或模型路由。
+账号可继承服务商目标或设置独立目标；继承不会保存为实体 override，未完成 override 不能退回继承。
+更换有效目标必须明确 replace/clear Key；replace/clear 清旧 fetched/目录/协议证据，保留手动模型。本次新材料原生拉取的目录经 dialog-local receipt 绑定后可正常保存，不被清旧证据规则误删。
+普通 Key 的 staged replace 绑定产品、有效目标与 auth；metadata-only keep 保留原 binding，最终提交重新检查，不能随父级草稿变区而重绑。
+普通 Qwen 目录已接正常账号的拉取/刷新：已保存账号只发 `credentialId`；新材料显式传 Key 和经 descriptor 验证的 workspace 目标。存在未保存配置时，不借 active 旧 Key 为草稿拉目录。
+目录必须同时保留 `sourceUrl + accountBaseUrl`；新加坡/香港 shared source 不能代替精确 workspace 绑定。旧目录按 fetched 读取，复制账号不复制目录或将其洗成 manual。错误旧目录阻止普通编辑，不静默删证据。
+已有普通 Qwen 池可在卡片背面使用“Qwen 默认目标”编辑六区/workspace。变更前必须明确确认“固定原目标”：给原继承账号补其旧有效目标，已有 override 不动；旧 Key、目录/fetched、模型、禁用状态和路由保留，不随默认目标迁移。需要迁移某个账号时仍单独编辑并明确 replace/clear Key。
+空 parent 且无继承账号可首次设置目标；未知旧目标不能被固定。具有 provider-default 认证秘密或非显式账号池的旧配置不在此编辑器中迁移。取消/权限撤销丢弃本地输入；打开后 provider 草稿变化则拒绝应用，须关闭重开。应用仅写草稿，沿原自动保存、SecretPatch 和 revision/CAS；失败显示在控制台，不冒称已生效。
+Qwen 仍不提供 generic discovery 或其他产品目录。精确 probe 和完整 pipeline 仍待完成；目录链见 [P14](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-02-provider-channel-expansion-p14.md)，父级默认目标见 [P15](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-02-provider-channel-expansion-p15.md)，均不表示真实验收或蓝色完成标记。
+
 ## Web 服务商的专用账号导入
 
 “添加账号”按已保存的 preset 选择专用控件，不依赖可改的 Provider ID：
@@ -60,6 +71,7 @@ owner 删除则丢弃。WebDAV 密码必须同时提供用户名。
 | `gemini-canvas` | 账号名称（可选）＋ 网页登录／专属网页会话 JSON |
 | `aistudio-web` | 账号名称（可选）＋ 网页登录／专属网页会话 JSON |
 | `flow-web` | 账号名称（可选）＋ Google Flow 网页登录／专属网页会话 JSON；生成未完成，已暂停 |
+| `grok-web / qwen-web / chataibot-web / lumalabs-web / suno-web / udio-web / freebuff-web` | 产品绑定的 Session JSON 粘贴／文件导入；不显示通用 API Key，不冒称 OAuth 登录完成 |
 
 上述 Google Web 模板新建账号不再显示通用 API Key 表单；编辑已有账号仍保留模型选择和已存凭据。
 Canvas 历史 preset 的专用导入入口保持兼容。账号库“手动添加”和全局“添加账号”
@@ -75,6 +87,11 @@ Google Web JSON 支持粘贴或选择文件，再显式导入；要求敏感信�
 目标模板绑定。该分支不启动浏览器、不联网，不把材料解析当账号可用验证。Canvas／
 AI Studio／Flow 只返回 Cookie 对象引用；Gemini Web 沿已有 secret patches 保存，不进入
 普通配置。格式和边界见 [网页会话 JSON 导入](google-web-json-import.md)。
+
+新增七类 Session 入口继续复用普通 revision/SecretPatch 保存链；模型默认留空，媒体测试不按文本 IQ 判定。
+产品字段、Luma realmId、Suno 完整 Cookie、Udio 分片、FreeBuff agentId 与暂存后目标复核见
+[产品 Session 材料合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-session-material-import.md)。
+模板均待真实验收，不新增蓝色登记；Qwen 恢复 seed、各 OAuth 生命周期和 FreeBuff CLI 登录不由手动材料导入替代。
 
 ## NVIDIA 目录与调用证据
 

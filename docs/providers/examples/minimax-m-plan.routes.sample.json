@@ -1,0 +1,21 @@
+{
+  "providers": [
+    {
+      "id": "minimax-international",
+      "preset": "minimax-m-plan",
+      "base_url": "https://api.minimax.io/anthropic",
+      "explicit_credentials_only": true,
+      "credentials": [],
+      "supported_models": []
+    },
+    {
+      "id": "minimax-china",
+      "preset": "minimax-m-plan-cn",
+      "base_url": "https://api.minimax.cn/anthropic",
+      "explicit_credentials_only": true,
+      "credentials": [],
+      "supported_models": []
+    }
+  ],
+  "model_routes": []
+}

@@ -37,7 +37,10 @@ impl CapacityBackoff {
         key: &CircuitKey,
         now: u64,
     ) -> Result<CapacityTicket, GatewayError> {
-        if key.provider.len() > 1024 || key.group.len() > 1024 || key.model.len() > 1024 {
+        if key.provider.len() > 1024
+            || key.group.len() > 1024
+            || key.model.len() > crate::provider_model_id::MAX_MODEL_BYTES
+        {
             return Err(full());
         }
         if !self.entries.contains_key(key) && self.entries.len() >= LIMIT {

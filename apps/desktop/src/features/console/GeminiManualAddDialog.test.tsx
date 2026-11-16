@@ -1,9 +1,12 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { NeuroProvider } from "@neuro/ui";
+import { render as renderUi, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { GeminiManualAddDialog } from "./GeminiManualAddDialog";
+
+const render = (ui: React.ReactNode) => renderUi(ui, { wrapper: NeuroProvider });
 
 function Harness() {
   const [open, setOpen] = useState(false);
@@ -19,7 +22,7 @@ function Harness() {
           busy: true,
         } : null}
         closeGeminiManualAddDialog={() => setOpen(false)}
-        requestGeminiManualAddCompletion={async () => {}}
+        requestGeminiManualAddCompletion={async () => { }}
         t={(_zh, en) => en}
       />
     </>
@@ -57,20 +60,26 @@ describe("Gemini manual auth keyboard lifecycle", () => {
   });
 
   it("shows AI Studio instructions without offering the Canvas completion signal", () => {
-    render(<GeminiManualAddDialog geminiManualAddDialogState={{ targetFamily: "aistudio-web", providerId: "pool", busy: false,
-      session: { id: "session", targetFamily: "aistudio-web", providerId: "pool", status: "waiting_user",
+    render(<GeminiManualAddDialog geminiManualAddDialogState={{
+      targetFamily: "aistudio-web", providerId: "pool", busy: false,
+      session: {
+        id: "session", targetFamily: "aistudio-web", providerId: "pool", status: "waiting_user",
         createdAt: "2026-11-01T00:00:00Z", updatedAt: "2026-11-01T00:00:00Z", generatedDrafts: [],
-        message: "Close the dedicated window after signing in." } }} closeGeminiManualAddDialog={() => {}}
-      requestGeminiManualAddCompletion={async () => {}} t={(_zh, en) => en} />);
+        message: "Close the dedicated window after signing in."
+      }
+    }} closeGeminiManualAddDialog={() => { }}
+      requestGeminiManualAddCompletion={async () => { }} t={(_zh, en) => en} />);
     expect(screen.getByRole("dialog", { name: "AI Studio account import" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Close the dedicated window after signing in.");
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
   it("shows JSON progress without claiming to launch a browser", () => {
-    render(<GeminiManualAddDialog geminiManualAddDialogState={{ targetFamily: "aistudio-web", providerId: "pool", busy: true,
-      importMethod: "json", session: null }} closeGeminiManualAddDialog={() => {}}
-      requestGeminiManualAddCompletion={async () => {}} t={(_zh, en) => en} />);
+    render(<GeminiManualAddDialog geminiManualAddDialogState={{
+      targetFamily: "aistudio-web", providerId: "pool", busy: true,
+      importMethod: "json", session: null
+    }} closeGeminiManualAddDialog={() => { }}
+      requestGeminiManualAddCompletion={async () => { }} t={(_zh, en) => en} />);
     expect(screen.getByRole("status")).toHaveTextContent("Parsing web session JSON.");
     expect(screen.queryByText("Starting the web sign-in helper.")).not.toBeInTheDocument();
   });
@@ -82,7 +91,7 @@ describe("Gemini manual auth keyboard lifecycle", () => {
     await user.click(opener);
     const dismiss = target === "button"
       ? screen.getByRole("button", { name: "Close" })
-      : document.querySelector(".dialog-overlay");
+      : document.querySelector(".n-overlay");
     expect(dismiss).not.toBeNull();
     await user.click(dismiss as Element);
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());

@@ -6,9 +6,12 @@ use std::{path::Path, time::Duration};
 mod access_balances;
 pub mod access_keys;
 mod affinity;
+mod backup;
 mod audit_queries;
 pub mod audits;
 mod finalizers;
+pub(crate) mod freebuff_devices;
+pub(crate) mod freebuff_sessions;
 mod maintenance;
 mod model_identity;
 mod model_routing;
@@ -16,6 +19,8 @@ pub mod model_states;
 mod pressure;
 mod provider_identity;
 mod refill_lock;
+mod secret_seal;
+pub(crate) use finalizers::FinalizerGuard;
 pub use maintenance::spawn_maintenance;
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -27,6 +32,7 @@ pub struct LocalRuntime {
     pub(crate) pool: SqlitePool,
     pub(crate) owner: String,
     key_secrets: access_keys::secrets::KeySecretStore,
+    secret_seal: secret_seal::LocalSecretSeal,
     lock_directory: std::path::PathBuf,
     finalizers: std::sync::Arc<finalizers::Finalizers>,
     affinity: std::sync::Arc<affinity::AffinityCache>,
@@ -80,6 +86,12 @@ impl LocalRuntime {
         }
         // Additive initialization also runs for already released schema-1 databases.
         sqlx::raw_sql(access_keys::SCHEMA).execute(&mut *tx).await?;
+        sqlx::raw_sql(freebuff_devices::SCHEMA)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::raw_sql(freebuff_sessions::SCHEMA)
+            .execute(&mut *tx)
+            .await?;
         sqlx::raw_sql(model_identity::SCHEMA)
             .execute(&mut *tx)
             .await?;
@@ -92,12 +104,12 @@ impl LocalRuntime {
         access_balances::initialize(&mut tx)
             .await
             .map_err(|error| anyhow::anyhow!(error.message))?;
-        let sealed: i64 = sqlx::query_scalar("SELECT count(*) FROM local_access_key_secrets")
+        let sealed: i64 = sqlx::query_scalar("SELECT (SELECT count(*) FROM local_access_key_secrets) + (SELECT count(*) FROM local_freebuff_device_keys) + (SELECT count(*) FROM local_freebuff_registrations) + (SELECT count(*) FROM local_freebuff_registration_replacements) + (SELECT count(*) FROM local_freebuff_session_claims) + (SELECT count(*) FROM local_freebuff_session_closeouts) + (SELECT count(*) FROM local_freebuff_runs)")
             .fetch_one(&mut *tx)
             .await?;
         let secret_directory = directory.to_owned();
-        let key_secrets = tokio::task::spawn_blocking(move || {
-            access_keys::secrets::KeySecretStore::open(&secret_directory, sealed > 0)
+        let secret_seal = tokio::task::spawn_blocking(move || {
+            secret_seal::LocalSecretSeal::open(&secret_directory, sealed > 0)
         })
         .await?;
         tx.commit().await?;
@@ -106,7 +118,8 @@ impl LocalRuntime {
         let runtime = Self {
             pool,
             owner: uuid::Uuid::new_v4().to_string(),
-            key_secrets,
+            key_secrets: access_keys::secrets::KeySecretStore(secret_seal.clone()),
+            secret_seal,
             lock_directory,
             finalizers: Default::default(),
             affinity: Default::default(),

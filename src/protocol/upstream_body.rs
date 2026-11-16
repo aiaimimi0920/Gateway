@@ -27,7 +27,21 @@ pub(crate) async fn collect_bounded_upstream_text(
     response: rquest::Response,
     body_label: &'static str,
 ) -> Result<String, GatewayError> {
-    let body = collect_bounded_upstream_body(response, body_label).await?;
+    collect_bounded_upstream_text_with_limit(
+        response,
+        body_label,
+        MAX_ACCUMULATED_UPSTREAM_BODY_BYTES,
+    )
+    .await
+}
+
+pub(crate) async fn collect_bounded_upstream_text_with_limit(
+    response: rquest::Response,
+    body_label: &'static str,
+    max_bytes: usize,
+) -> Result<String, GatewayError> {
+    let body =
+        collect_bounded_upstream_response_with_limit(response, body_label, None, max_bytes).await?;
     String::from_utf8(body).map_err(|error| {
         GatewayError::server_error(format!(
             "{body_label} was not valid UTF-8: {}",
@@ -75,12 +89,24 @@ async fn collect_bounded_upstream_response(
     body_label: &'static str,
     provider: Option<&str>,
 ) -> Result<Vec<u8>, GatewayError> {
-    if content_length_exceeds_limit(
-        response.content_length(),
+    collect_bounded_upstream_response_with_limit(
+        response,
+        body_label,
+        provider,
         MAX_ACCUMULATED_UPSTREAM_BODY_BYTES,
-    ) {
+    )
+    .await
+}
+
+async fn collect_bounded_upstream_response_with_limit(
+    response: rquest::Response,
+    body_label: &'static str,
+    provider: Option<&str>,
+    max_bytes: usize,
+) -> Result<Vec<u8>, GatewayError> {
+    if content_length_exceeds_limit(response.content_length(), max_bytes) {
         return Err(attach_optional_provider(
-            upstream_body_too_large_error(body_label, MAX_ACCUMULATED_UPSTREAM_BODY_BYTES),
+            upstream_body_too_large_error(body_label, max_bytes),
             provider,
         ));
     }
@@ -88,13 +114,13 @@ async fn collect_bounded_upstream_response(
     collect_bounded_upstream_stream_with_limit_and_provider(
         response.bytes_stream(),
         body_label,
-        MAX_ACCUMULATED_UPSTREAM_BODY_BYTES,
+        max_bytes,
         provider,
     )
     .await
 }
 
-async fn collect_bounded_upstream_stream_with_limit_and_provider<S>(
+pub(crate) async fn collect_bounded_upstream_stream_with_limit_and_provider<S>(
     stream: S,
     body_label: &'static str,
     max_bytes: usize,

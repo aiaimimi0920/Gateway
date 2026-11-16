@@ -1,4 +1,15 @@
 use super::*;
+pub(super) fn browser_executor_remote_request_timeout(
+    default_timeout: Duration,
+    input: &Value,
+) -> Duration {
+    let worker_timeout = input
+        .get("timeoutMs")
+        .and_then(Value::as_u64)
+        .map(Duration::from_millis)
+        .unwrap_or(default_timeout.max(Duration::from_secs(30)));
+    worker_timeout.saturating_add(Duration::from_secs(20))
+}
 
 impl UpstreamClient {
     pub(crate) async fn execute_remote_browser_executor(
@@ -23,14 +34,15 @@ impl UpstreamClient {
         };
 
         let endpoint_kind_key = browser_executor_endpoint_kind_key(endpoint_kind);
-        let no_replay = provider == "gemini_canvas"
-            && matches!(
-                endpoint_kind,
-                EndpointKind::ImagesGenerations
-                    | EndpointKind::ImagesEdits
-                    | EndpointKind::MusicGenerations
-                    | EndpointKind::VideosGenerations
-            );
+        let no_replay = matches!(provider, "udio" | "lumalabs" | "suno")
+            || (provider == "gemini_canvas"
+                && matches!(
+                    endpoint_kind,
+                    EndpointKind::ImagesGenerations
+                        | EndpointKind::ImagesEdits
+                        | EndpointKind::MusicGenerations
+                        | EndpointKind::VideosGenerations
+                ));
         // Once handed to a remote executor, an uncertain response must not create
         // a second local generation. No configured remote still permits local use.
         let response_policy = if no_replay {
@@ -46,7 +58,14 @@ impl UpstreamClient {
             execution_mode: "browser_backed",
             input,
         };
-        let url = format!("{base_url}/v1/internal/browser-executor/execute");
+        // Old executors ignore new input fields. A versioned route prevents them from
+        // dispatching an unbound paid task; never retry the legacy endpoint on 404.
+        let path = if provider == "suno" {
+            "/v1/internal/browser-executor/suno-bound-v1/execute"
+        } else {
+            "/v1/internal/browser-executor/execute"
+        };
+        let url = format!("{base_url}{path}");
         let mut builder = self
             .http
             .request(Method::POST, &url)
@@ -170,7 +189,7 @@ fn protect_remote_generation_error(mut error: GatewayError, no_replay: bool) -> 
     if no_replay {
         error.retryable = false;
         error.fallback_hint = crate::error::FallbackHint::Abort {
-            reason: "A dispatched Gemini media generation must not be replayed locally.".into(),
+            reason: "A dispatched media generation must not be replayed locally.".into(),
         };
     }
     error

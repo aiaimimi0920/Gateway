@@ -122,3 +122,53 @@ Secret Grant 的上下文校验。同 `/probe` 路径的 `GET` 保留兼容，�
 或 `{ includePlans: true, scope? }` 汇总当前池的旧结果和命名计划结果；响应可能包含
 `truncated: true`。`assessment.planId` 只在命名计划结果中出现。旧三段存储键保持
 不变，命名计划追加第四段，无数据库版本升级或凭据迁移。
+
+## Luma Agents 显式媒体单点测试
+
+独立 `lumalabs-api` 账号卡的“测试”使用同一个 provider probe 管理接口，但必须显式
+选择 `image`、`image_edit` 或 `video`、填写提示词/匹配型号，并在每次运行前确认可能
+消耗供应商额度。请求示例：
+
+```json
+{"prompt":"合成媒体测试","model":"uni-1","credentialIds":["exact"],"media":{"operation":"image","confirmCharge":true,"parameters":{}}}
+```
+
+仅接受一个精确账号，不与 scope、testPlan 或 planId 混用；parameters 不能覆盖
+model/prompt/type/n/stream/response_format，其余参数交给该产品的既有 mapper 校验。
+图片编辑必须提供 source；视频可显式设置 `video.duration` 和 `video.resolution`。
+费用确认不保存、不继承、不调度；默认、保存、临时、命名及自动文本计划不会偷偷生成媒体。
+媒体结果没有文本答案或 IQ 评分。成功记录原生 UUID 和 credits，`null` 仍是未知，不能
+视为零或转换为 Token/USD；管理 probe 不扣普通接入 Key 余额。本地关闭/取消不能
+撤销供应商已受理的生成，也不保证退费。正常 Secret Grant、Origin 和精确账号准入
+不变；不新增未认证媒体测试入口。
+
+## ChatAIBot Web 显式图片单点测试
+
+typed `chataibot_web` 账号卡的“测试”进入图片表单，支持已实现模型的生成、单图编辑和
+2–4 图合成；模型来自显式配置或映射，不默认填充账号权益。每次执行都单独确认费用，
+费用授权不保存、不调度；默认及所有文本计划均不隐式生成。复用同一管理接口、精确
+账号和 Secret Grant/Origin 门禁，成功要求普通 sender 已下载并验证图片，不用 job
+metadata 或图片 URL 直接恢复模型健康。
+
+编辑参数用 `images` data URL 数组，不沿用 Luma 的 URL/generation/file source。
+表单仅选择本地小图：最多四张，文件合计 135000 bytes、data URL 合计 180000 字符；
+整个 JSON 请求仍不超过 262144 bytes。普通公共图片入口的预算保持原样。
+
+结果没有文本评分；审计只记验证图数量及未知供应商扣额，不保存图片、签名 URL、
+提示词或估算价格，不扣普通接入 Key 余额。失败/本地取消不自动重提、不保证远端取消
+或退款。完整合同与离线/真实验收边界见
+[ChatAIBot 显式媒体子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-07-provider-channel-expansion-chataibot-media-probe.md)。
+
+## Suno Web 显式基本音乐单点测试
+
+typed `suno_web` 账号卡的“测试”进入音乐表单，只接受一个精确账号、已配置模型或映射别名、提示词及当次费用确认：
+
+```json
+{"prompt":"合成音乐测试","model":"configured-alias","credentialIds":["exact"],"media":{"operation":"music","confirmCharge":true,"parameters":{}}}
+```
+
+本批仅实现既有 mapper 的基本音乐生成；`parameters` 必须为空，不接受 count、延续、challenge token、等待策略、下载或转换覆盖。强制等待完整音乐，普通 sender 已匿名读取并完整验证全部 MP3 才能通过；pending 不是成功。默认、显式文本、保存、临时、命名和自动文本计划都不会隐式生成音乐。
+
+模型列表是显式配置与现有四个兼容映射 ID 的交集，不声明它们是当前平台目录或账号权益。BrowserBacked（含账号和 endpoint override）沿正常绑定 sender 而非静默改成 DirectHttp；[浏览器精确测试与正常网页联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-suno-browser-probe.md)已取得限定离线证据：真实管理 TCP/Grant、取消零调用、逐次重新确认、两首 MP3 全部验证、普通Key/配置/revision保持。远端为合成服务，不表示真实平台或完整渠道验收。
+
+费用确认不保存、不调度、不继承；路由 revision、账号/材料、模型/提示词、草稿状态或管理 Grant 变化会撤销旧确认，关闭或身份变化后不显示迟到结果。结果不返回音频、clip、签名 URL、歌词或文本评分；成功审计只记已验证数量、wire model 和未知供应商扣额，不扣普通接入 Key、不造 Token 或零费用。关闭本地等待不能撤销远端已受理任务，也不保证退费；失败不自动重提、换号或额外收费下载。完整运行范围与剩余边界见[Suno 单点测试子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-suno-probe.md)。

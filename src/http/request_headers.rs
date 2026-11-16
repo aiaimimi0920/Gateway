@@ -1,4 +1,5 @@
 use axum::http::HeaderMap;
+mod commandcode;
 mod session_hints;
 mod workbuddy;
 
@@ -92,6 +93,7 @@ pub fn apply_public_request_headers(
         }
     }
 
+    commandcode::capture(ctx, headers)?;
     session_hints::capture(ctx, headers);
     workbuddy::capture(ctx, headers)
 }

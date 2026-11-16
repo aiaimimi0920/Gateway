@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import {
   act,
   fireEvent,
-  render,
+  render as renderBase,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -10,6 +10,8 @@ import { expect, it, vi } from "vitest";
 import type { GatewayApiClient } from "../../api/client";
 import { SiteHealthWorkspace } from "./SiteHealthWorkspace";
 import { parseRouteDocument } from "./routeDocument";
+import { NeuroProvider } from "@neuro/ui";
+const render = (ui: Parameters<typeof renderBase>[0]) => renderBase(ui, { wrapper: NeuroProvider });
 
 const document = parseRouteDocument(
   JSON.stringify({
@@ -92,8 +94,8 @@ it("cancels manual discovery and rejects late UI updates after a token change", 
   const request = vi.fn().mockImplementation((path: string) =>
     path.endsWith("/refresh")
       ? new Promise((done) => {
-          resolve = done;
-        })
+        resolve = done;
+      })
       : Promise.resolve(report),
   );
   const client = { request } as unknown as GatewayApiClient;

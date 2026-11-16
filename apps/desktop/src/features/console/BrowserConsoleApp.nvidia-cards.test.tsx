@@ -13,18 +13,22 @@ async function setup(configure?: (api: ConsoleApi) => void) {
   const api = createConsoleApi();
   configure?.(api);
   const initial = await api.getRouteConfig("management-secret");
-  vi.mocked(api.getRouteConfig).mockResolvedValue({ routeConfig: {
-    ...initial.routeConfig,
-    document: {
-      providers: [{ id: "nvidia", label: "NVIDIA", preset: "nvidia-openai",
-        supported_models: [model], credentials: [
-          { id: "nv-a", account_name: "NVIDIA A", enabled: true },
-          { id: "nv-b", account_name: "NVIDIA B", enabled: true, supported_models: [model, "deepseek-ai/deepseek-v3.2"] },
-        ] }],
-      model_routes: [], aliases: {}, account_groups: [],
-    },
-    secrets: [],
-  } });
+  vi.mocked(api.getRouteConfig).mockResolvedValue({
+    routeConfig: {
+      ...initial.routeConfig,
+      document: {
+        providers: [{
+          id: "nvidia", label: "NVIDIA", preset: "nvidia-openai",
+          supported_models: [model], credentials: [
+            { id: "nv-a", account_name: "NVIDIA A", enabled: true },
+            { id: "nv-b", account_name: "NVIDIA B", enabled: true, supported_models: [model, "deepseek-ai/deepseek-v3.2"] },
+          ]
+        }],
+        model_routes: [], aliases: {}, account_groups: [],
+      },
+      secrets: [],
+    }
+  });
   await preserveCommittedRouteDocument(api);
   renderWithProviders(<BrowserConsoleApp consoleApi={api} />);
   const user = userEvent.setup();
@@ -38,28 +42,32 @@ describe("NVIDIA card dispatch and models", () => {
 
   it("persists stopping and resuming every credential in one pool click", async () => {
     const { api, user } = await setup();
-    const toggle = () => within(providerCard(/^NVIDIA$/)).getByRole("switch");
+    const toggle = () => within(providerCard(/^NVIDIA-api$/)).getByRole("switch");
     expect(toggle()).toBeChecked();
     await user.click(toggle());
     const stopped = await waitForCommittedRouteDraft(api);
-    expect(stopped.providers[0]).toMatchObject({ credentials: [
-      { id: "nv-a", enabled: false }, { id: "nv-b", enabled: false },
-    ] });
+    expect(stopped.providers[0]).toMatchObject({
+      credentials: [
+        { id: "nv-a", enabled: false }, { id: "nv-b", enabled: false },
+      ]
+    });
     await waitFor(() => expect(toggle()).not.toBeChecked());
     await waitFor(() => expect(toggle()).toBeEnabled());
     const previous = vi.mocked(api.commitRouteConfig).mock.calls.length;
     await user.click(toggle());
     const resumed = await waitForCommittedRouteDraft(api, previous);
-    expect(resumed.providers[0]).toMatchObject({ credentials: [
-      { id: "nv-a", enabled: true }, { id: "nv-b", enabled: true },
-    ] });
+    expect(resumed.providers[0]).toMatchObject({
+      credentials: [
+        { id: "nv-a", enabled: true }, { id: "nv-b", enabled: true },
+      ]
+    });
     await waitFor(() => expect(toggle()).toBeChecked());
     expect(vi.mocked(api.commitRouteConfig).mock.calls).toHaveLength(2);
   }, 10000);
 
   it("shows inherited and credential-specific models on the front faces", async () => {
     const { user } = await setup();
-    const front = providerCard(/^NVIDIA$/).querySelector(".nt-provider-card__front") as HTMLElement;
+    const front = providerCard(/^NVIDIA-api$/).querySelector(".nt-provider-card__front") as HTMLElement;
     for (const summary of front.querySelectorAll(".nt-card-models summary")) await user.click(summary);
     expect(within(front).getByLabelText(model)).toHaveTextContent("nemotron-3-super-120b-a12b");
     expect(within(front).getByLabelText(model)).toBeVisible();
@@ -78,15 +86,19 @@ describe("NVIDIA card dispatch and models", () => {
 
   it("renders observed pool metrics once and never turns estimated costs into income", async () => {
     const { api, user } = await setup((api) => {
-      api.getRuntimePressure = vi.fn().mockResolvedValue({ pressure: {
-        totalRunningRequests: 3, totalProjectConcurrency: 3, totalProviderConcurrency: 3,
-        projects: [], providers: [{ providerAccountId: "nvidia", label: "NVIDIA", status: "active",
-          protocolFamily: "openai", activeConcurrency: 3, concurrencyLimit: 12,
-          concurrencyAvailable: 9, runningRequestCount: 3, breakerOpen: false }],
-      } });
+      api.getRuntimePressure = vi.fn().mockResolvedValue({
+        pressure: {
+          totalRunningRequests: 3, totalProjectConcurrency: 3, totalProviderConcurrency: 3,
+          projects: [], providers: [{
+            providerAccountId: "nvidia", label: "NVIDIA", status: "active",
+            protocolFamily: "openai", activeConcurrency: 3, concurrencyLimit: 12,
+            concurrencyAvailable: 9, runningRequestCount: 3, breakerOpen: false
+          }],
+        }
+      });
       api.getCostOverview = vi.fn().mockResolvedValue({ overview: costOverview() });
     });
-    const card = providerCard(/^NVIDIA$/);
+    const card = providerCard(/^NVIDIA-api$/);
     const metric = (name: string) => card.querySelector(`[data-provider-metric="${name}"]`);
     expect(metric("concurrency")).toHaveTextContent("3/12");
     expect(metric("upstream-cost")).toHaveTextContent("$1.25");
@@ -103,7 +115,7 @@ describe("NVIDIA card dispatch and models", () => {
     await user.click(screen.getByRole("button", { name: /^刷新$/ }));
     await waitFor(() => expect(metric("requests")).toHaveTextContent("48"));
     expect(modelRequests()).toHaveTextContent("48");
-    expect(card.querySelector('[data-model-company="nvidia"]')).toHaveAttribute("open");
+    expect(card.querySelector('[data-model-company="nvidia"] .n-disclosure')).toHaveAttribute("open");
     expect(metric("upstream-cost")).toHaveTextContent("≈$0.0001");
     expect(metric("platform-revenue")).toHaveTextContent("—");
   });
@@ -112,11 +124,13 @@ describe("NVIDIA card dispatch and models", () => {
     const overview = costOverview();
     const bucket = overview.providerBuckets[0];
     if (kind === "unpriced") bucket.estimatedMarketCostMicros = null;
-    if (kind === "partial") bucket.models.push({ ...bucket.models[0], model: "unpriced-model",
-      marketRate: null, estimatedMarketCostMicros: null });
+    if (kind === "partial") bucket.models.push({
+      ...bucket.models[0], model: "unpriced-model",
+      marketRate: null, estimatedMarketCostMicros: null
+    });
     if (kind === "non-usd") bucket.models[0].marketRate!.currency = "CNY";
     await setup((api) => { api.getCostOverview = vi.fn().mockResolvedValue({ overview }); });
-    const card = providerCard(/^NVIDIA$/);
+    const card = providerCard(/^NVIDIA-api$/);
     expect(card.querySelector('[data-provider-metric="upstream-cost"]')).toHaveTextContent("—");
     expect(card.querySelector('[data-provider-metric="platform-revenue"]')).toHaveTextContent("—");
     expect(card.querySelector('[data-provider-metric="requests"]')).toHaveTextContent("47");
@@ -124,15 +138,19 @@ describe("NVIDIA card dispatch and models", () => {
 });
 
 function costOverview(requestCount = 47, costMicros = 1250000): ConsoleCostOverview {
-  return { pricingEditors: [], providerBuckets: [{
-    providerAccountId: "nvidia", label: "NVIDIA", adapter: "openai", protocolFamily: "openai",
-    requestCount, promptTokens: 1000, completionTokens: 2000, totalTokens: 3000,
-    estimatedMarketCostMicros: costMicros, pricedModelCount: 1, unpricedModelCount: 0,
-    lastRequestAt: "2026-09-27T15:00:00Z", models: [{
-      model, requestCount, promptTokens: 1000, completionTokens: 2000, totalTokens: 3000,
-      marketRate: { promptMicrosPer1kTokens: 250000, completionMicrosPer1kTokens: 500000,
-        currency: "USD", configured: true, source: "operator" },
-      estimatedMarketCostMicros: costMicros, lastRequestAt: "2026-09-27T15:00:00Z",
-    }],
-  }] };
+  return {
+    pricingEditors: [], providerBuckets: [{
+      providerAccountId: "nvidia", label: "NVIDIA", adapter: "openai", protocolFamily: "openai",
+      requestCount, promptTokens: 1000, completionTokens: 2000, totalTokens: 3000,
+      estimatedMarketCostMicros: costMicros, pricedModelCount: 1, unpricedModelCount: 0,
+      lastRequestAt: "2026-09-27T15:00:00Z", models: [{
+        model, requestCount, promptTokens: 1000, completionTokens: 2000, totalTokens: 3000,
+        marketRate: {
+          promptMicrosPer1kTokens: 250000, completionMicrosPer1kTokens: 500000,
+          currency: "USD", configured: true, source: "operator"
+        },
+        estimatedMarketCostMicros: costMicros, lastRequestAt: "2026-09-27T15:00:00Z",
+      }],
+    }]
+  };
 }

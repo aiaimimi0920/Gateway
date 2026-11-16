@@ -74,8 +74,11 @@ mod buffered;
 mod chatgpt_policy;
 mod chatgpt_recovery;
 mod chatgpt_stream_recovery;
+#[cfg(all(test, feature = "copilot-sdk-runtime"))]
+mod copilot_tests;
 mod endpoint_policy;
 mod feedback;
+mod freebuff_catalog;
 mod model_health;
 mod model_observation;
 mod pack;
@@ -112,8 +115,7 @@ use qwen_recovery::{
 };
 use selection::{infer_canonical_completion_semantics, set_selected_candidate};
 use tool_bridge::{
-    capture_prompt_cache_telemetry, maybe_apply_xml_tool_response_bridge,
-    should_force_bridge_tool_injection,
+    capture_prompt_cache_telemetry, maybe_apply_xml_tool_response_bridge, use_text_only_tool_bridge,
 };
 
 /// Execute the upstream call with provider fallback.
@@ -150,6 +152,7 @@ async fn run_candidates(
             | EndpointKind::ResearchList
             | EndpointKind::ResearchGet
             | EndpointKind::CreditsBalance
+            | EndpointKind::SystemOne
     ) && ctx.canonical_req.stream
     {
         return Err(GatewayError::bad_request(
@@ -173,6 +176,18 @@ async fn run_candidates(
 
     for (candidate_index, candidate) in candidates.iter().enumerate() {
         ctx.request_budget.check()?;
+        if !ctx.provider_allowed_for_send(&candidate.provider_account_id) {
+            rejected_by_policy = true;
+            continue;
+        }
+        if ctx.has_other_provider_attempt(&candidate.provider_account_id)
+            && !ctx.provider_explicitly_allowed_for_send(&candidate.provider_account_id)
+            && !ctx.fallback_provider_authorized(&candidate.provider_account_id)
+        {
+            rejected_fallback = true;
+            continue;
+        }
+        admission::preflight(ctx, candidate)?;
         let (model, eligibility) =
             match admission::prepare(state, candidate, &ctx.canonical_req).await {
                 Ok(prepared) => prepared,
@@ -201,17 +216,6 @@ async fn run_candidates(
                 }
                 Err(error) => return Err(error),
             };
-        if !ctx.provider_allowed_for_send(&candidate.provider_account_id) {
-            rejected_by_policy = true;
-            continue;
-        }
-        if ctx.has_other_provider_attempt(&candidate.provider_account_id)
-            && !ctx.provider_explicitly_allowed_for_send(&candidate.provider_account_id)
-            && !ctx.fallback_provider_authorized(&candidate.provider_account_id)
-        {
-            rejected_fallback = true;
-            continue;
-        }
         let route_policy_config = ctx.route_policy_config.clone();
         let provider_attempt_gate = super::stage_rate_limit::provider_attempt_gate(
             ctx,
@@ -345,6 +349,7 @@ async fn run_candidates(
         // Keepalive/session refresh may rewrite runtime auth material, but it
         // must not silently change which adapter/protocol send path is used.
         effective_payload.adapter = candidate.adapter.clone();
+        crate::protocol::commandcode::zdr::apply(&mut ctx.request_headers, &mut effective_payload)?;
         let retry_policy = retry_policy_for_request(&ctx.canonical_req, &effective_payload);
 
         let original_tools = ctx.canonical_req.tools.clone();
@@ -352,9 +357,8 @@ async fn run_candidates(
         let original_messages_text = ctx.canonical_req.messages_text();
 
         // ── XML tool injection for models without native tool support ────
-        let text_only_tool_bridge = !effective_payload.is_discovered_native(&ctx.canonical_req)
-            && (tool_inject::needs_tool_injection(&model, &candidate.adapter)
-                || should_force_bridge_tool_injection(&ctx.canonical_req, &candidate.adapter));
+        let text_only_tool_bridge =
+            use_text_only_tool_bridge(&ctx.canonical_req, &effective_payload, &model);
         let has_tool_history = ctx
             .canonical_req
             .messages
@@ -377,6 +381,25 @@ async fn run_candidates(
             return Err(GatewayError::bad_request(
                 "Compact/WebSocket requires a native Codex Responses route without tool conversion",
             ));
+        }
+
+        // A caller's invalid continuation is not an attempted provider failure.
+        admission::validate_continuation(ctx, &effective_payload, &model)?;
+        if candidate.adapter == "freebuff_compatible" {
+            if let Some(target) =
+                freebuff::business_target::read(effective_payload.extra_body.as_ref())?
+            {
+                return Box::pin(freebuff_catalog::send(
+                    ctx,
+                    state,
+                    candidate,
+                    candidate_index,
+                    &model,
+                    target,
+                    provider_attempt_gate,
+                ))
+                .await;
+            }
         }
 
         // Acquire concurrency before admission so a queued/cancelled request does

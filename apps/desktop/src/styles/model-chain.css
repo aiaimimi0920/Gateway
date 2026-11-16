@@ -32,62 +32,34 @@
   color: var(--nt-color-control);
 }
 
+.nt-model-chain__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 .nt-model-chain__label {
   min-width: 0;
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--nt-text-muted);
-  cursor: pointer;
-  text-align: left;
 }
-
-.nt-model-chain__label strong {
+.nt-model-chain__label > span {
   min-width: 0;
-  overflow: hidden;
-  color: inherit;
-  /* Provider names are brand names, not identifiers, so they stay in the body
-     face rather than inheriting the model row's monospace. */
-  font-family: inherit;
-  font-size: 0.72rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
-
-.nt-model-chain__label[aria-pressed="true"] {
-  color: var(--nt-info);
+.nt-model-chain__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
-
-.nt-model-chain__label:hover {
-  color: var(--nt-text);
-}
-
-/* Listed by the route but backed by no account: kept visible so a reorder never
-   silently drops the entry, dimmed so it does not read as dispatchable. */
+/* Detached entries remain reorderable and never pretend to have live accounts. */
 .nt-model-chain__row--detached {
   border-style: dashed;
 }
-
-.nt-model-chain__detached {
-  flex: 0 0 auto;
-  border: 1px solid color-mix(in srgb, var(--nt-warning) 40%, var(--nt-border));
-  border-radius: 999px;
-  padding: 0 6px;
-  color: var(--nt-warning);
-  font-size: 0.6rem;
-  line-height: 15px;
-}
-
 .nt-model-chain__moves {
   display: inline-flex;
-  flex: 0 0 auto;
   align-items: center;
   gap: 2px;
-}
-
-.nt-model-chain__moves .nt-icon-action {
-  width: 20px;
-  height: 20px;
 }
 
 /* The model card's third counter holds a provider name rather than a number, so

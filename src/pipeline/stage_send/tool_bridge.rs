@@ -63,7 +63,26 @@ pub(super) fn maybe_apply_xml_tool_response_bridge(
     true
 }
 
-pub(super) fn should_force_bridge_tool_injection(
+pub(super) fn use_text_only_tool_bridge(
+    req: &crate::protocol::canonical::CanonicalRelayRequest,
+    payload: &crate::routing::candidate::ProviderAccountPayload,
+    model: &str,
+) -> bool {
+    // Typed products declare their wire; opaque model names cannot replace native function calls.
+    !crate::protocol::dim_oauth::business::owns_payload(payload)
+        && !crate::protocol::nous_portal::business::owns_payload(payload)
+        && !crate::protocol::agnes::owns_payload(payload)
+        && !crate::protocol::sensenova::owns_payload(payload)
+        && !crate::protocol::commandcode::owns_payload(payload)
+        && !crate::protocol::lobsterai::owns_payload(payload)
+        && !crate::protocol::sap_aicore::owns_payload(payload)
+        && !crate::protocol::minimax::owns_payload(payload)
+        && !payload.is_discovered_native(req)
+        && (tool_inject::needs_tool_injection(model, &payload.adapter)
+            || should_force_bridge_tool_injection(req, &payload.adapter))
+}
+
+fn should_force_bridge_tool_injection(
     req: &crate::protocol::canonical::CanonicalRelayRequest,
     adapter: &str,
 ) -> bool {

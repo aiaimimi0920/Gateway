@@ -1,25 +1,36 @@
-import { render, screen, within } from "@testing-library/react";
+import { render as renderBase, screen, within } from "@testing-library/react";
+import { NeuroProvider } from "@neuro/ui";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { CredentialTestDialog } from "./CredentialTestDialog";
 import { defaultTestPolicy, testScopeKey } from "./credentialTestPolicyDocument";
 import { pilotSection } from "./AccountsLedgerWorkspace.fixtures";
+const render = (ui: Parameters<typeof renderBase>[0]) => renderBase(ui, { wrapper: NeuroProvider });
 
-const document: ConsoleRouteDocument = { providers: [{ id: "p", label: "Pool", supported_models: ["a"],
-  test_policy: defaultTestPolicy(), credential_identity_categories: [{ id: "free", label: "Free" }, { id: "plus", label: "Plus" }],
-  credentials: [{ id: "one", account_name: "One", credential_identity_category_id: "free" },
+const document: ConsoleRouteDocument = {
+  providers: [{
+    id: "p", label: "Pool", supported_models: ["a"],
+    test_policy: defaultTestPolicy(), credential_identity_categories: [{ id: "free", label: "Free" }, { id: "plus", label: "Plus" }],
+    credentials: [{ id: "one", account_name: "One", credential_identity_category_id: "free" },
     { id: "two", account_name: "Two", credential_identity_category_id: "plus" }],
-}], model_routes: [], aliases: {}, account_groups: [] };
+  }], model_routes: [], aliases: {}, account_groups: []
+};
 function props() {
   const t = (zh: string) => zh;
   const section = pilotSection({ providerId: "p", providerIds: ["p"] });
   const close = vi.fn();
-  return { document, initialTab: "auto" as const, onProbe: vi.fn().mockResolvedValue(undefined), onSave: vi.fn().mockReturnValue(true),
-    probe: { t, section, closePilotActionDialog: close, providerProbeBusy: false, providerProbeError: null,
-      providerProbeResponse: null, draftDirty: false, draftMatchesActiveRevision: true },
-    schedule: { t, section, closePilotActionDialog: close, editorLocked: false, pilotScheduleEnabled: false,
-      setPilotScheduleEnabled: vi.fn(), pilotScheduleIntervalMinutes: "60", setPilotScheduleIntervalMinutes: vi.fn(), applyProviderProbeSchedule: vi.fn() } };
+  return {
+    document, initialTab: "auto" as const, onProbe: vi.fn().mockResolvedValue(undefined), onSave: vi.fn().mockReturnValue(true),
+    probe: {
+      t, section, closePilotActionDialog: close, providerProbeBusy: false, providerProbeError: null,
+      providerProbeResponse: null, draftDirty: false, draftMatchesActiveRevision: true
+    },
+    schedule: {
+      t, section, closePilotActionDialog: close, editorLocked: false, pilotScheduleEnabled: false,
+      setPilotScheduleEnabled: vi.fn(), pilotScheduleIntervalMinutes: "60", setPilotScheduleIntervalMinutes: vi.fn(), applyProviderProbeSchedule: vi.fn()
+    }
+  };
 }
 
 it("uses three radios, reveals multiple subpools, and saves only selected targets", async () => {

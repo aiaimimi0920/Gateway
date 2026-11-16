@@ -25,6 +25,8 @@ pub enum ProtocolFamily {
     DashScopeMultimodal,
     #[serde(rename = "search", alias = "search_api", alias = "linkup")]
     SearchApi,
+    #[serde(rename = "systemone")]
+    SystemOne,
 }
 
 /// Which API endpoint was called.
@@ -48,6 +50,8 @@ pub enum EndpointKind {
     ResearchList,
     ResearchGet,
     CreditsBalance,
+    #[serde(rename = "systemone")]
+    SystemOne,
 }
 
 /// Role in a conversation turn.
@@ -232,6 +236,12 @@ impl CanonicalRelayRequest {
 /// The canonical response produced after relaying to an upstream provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CanonicalRelayResponse {
+    /// Ordered native Bedrock response state; never a cross-provider reasoning alias.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bedrock_turn: Option<super::bedrock_turn::BedrockAssistantTurn>,
+    /// Ordered Google state is source-scoped; flat text/tools remain its compatibility projection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vertex_turn: Option<super::vertex_turn::VertexAssistantTurn>,
     /// Present only when a parser observed the original provider declaration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_declaration: Option<super::model_declaration::ModelDeclaration>,
@@ -239,6 +249,9 @@ pub struct CanonicalRelayResponse {
     pub model: String,
     /// Assembled text content of the response.
     pub text: String,
+    /// Final answer-level sources; no text offsets or verification are implied.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<super::response_sources::ResponseSource>,
     /// Token usage figures, if reported by the upstream.
     pub usage: Option<TokenUsage>,
     /// Any tool calls the model requested.

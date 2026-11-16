@@ -18,8 +18,7 @@
   --nt-shell-rail-width: 52px;
 }
 
-.nt-card,
-.nt-terminal {
+.nt-card {
   position: relative;
   border: 1px solid var(--nt-border);
   background: var(--nt-color-panel);
@@ -66,59 +65,6 @@
   height: var(--nt-shell-titlebar-height);
   gap: 2px;
   padding-right: 2px;
-}
-
-.nt-shell-icon-button,
-.nt-window-control {
-  display: grid;
-  border: 0;
-  padding: 0;
-  place-items: center;
-  background: transparent;
-  color: var(--nt-text-muted);
-  cursor: pointer;
-  transition:
-    background 140ms ease,
-    color 140ms ease;
-}
-
-.nt-shell-icon-button {
-  flex: 0 0 36px;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--nt-radius-md);
-}
-
-.nt-shell-icon-button:hover,
-.nt-window-control:hover {
-  background: var(--nt-hover);
-  color: var(--nt-text);
-}
-
-.nt-shell-icon-button:focus-visible,
-.nt-window-control:focus-visible {
-  outline: 2px solid var(--nt-signal);
-  outline-offset: -2px;
-}
-
-.nt-shell-icon-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.nt-titlebar__back {
-  flex: 0 0 40px;
-  width: 40px;
-}
-
-.nt-window-control {
-  width: 46px;
-  height: 100%;
-}
-
-.nt-window-control--close:hover {
-  background: var(--nt-danger);
-  color: var(--nt-color-focus-surface);
 }
 
 .nt-brand {
@@ -192,33 +138,7 @@
   height: 36px;
   min-height: 36px;
   align-items: center;
-  border: 1px solid transparent;
-  border-radius: var(--nt-radius-md);
   padding: 3px 8px 3px 5px;
-  background: transparent;
-  color: var(--nt-text-muted);
-  text-align: left;
-  cursor: pointer;
-  /* Collapsing glides gap + padding on the same curve as the rail width so the
-     icon travels with the rail instead of snapping ahead of it. */
-  transition:
-    border-color 160ms ease,
-    background 160ms ease,
-    color 160ms ease,
-    gap 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    padding 220ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.nt-rail__item:hover {
-  border-color: color-mix(in srgb, var(--nt-signal) 32%, transparent);
-  background: var(--nt-hover);
-  color: var(--nt-text);
-}
-
-.nt-rail__item--active {
-  border-color: var(--nt-border-strong);
-  background: var(--nt-signal-soft);
-  color: var(--nt-text);
 }
 
 .nt-rail__icon {
@@ -226,13 +146,6 @@
   width: 28px;
   height: 28px;
   place-items: center;
-  color: var(--nt-text-muted);
-  transition: color 160ms ease;
-}
-
-.nt-rail__item:hover .nt-rail__icon,
-.nt-rail__item--active .nt-rail__icon {
-  color: var(--nt-signal);
 }
 
 /* One icon + one label per rail row; the label collapses to zero width when the rail folds. */
@@ -254,10 +167,6 @@
     transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.nt-rail__item span {
-  font-weight: 800;
-}
-
 .nt-rail__utility {
   display: grid;
   gap: 6px;
@@ -272,11 +181,6 @@
   padding-bottom: 4px;
   color: var(--nt-text-muted);
   line-height: 1.5;
-}
-
-.nt-rail__status .nt-chip {
-  padding: 3px 8px;
-  font-size: 0.66rem;
 }
 
 .nt-rail__status .nt-mini-list {
@@ -324,23 +228,4 @@
      its own box and never jumps a pixel on either axis. */
   gap: 0;
   padding: 3px;
-}
-
-.nt-rail__footer {
-  display: grid;
-  gap: 12px;
-  margin-top: auto;
-  border-top: 1px solid color-mix(in srgb, var(--nt-text) 9%, transparent);
-  padding-top: 16px;
-  color: var(--nt-text-muted);
-  line-height: 1.6;
-}
-
-.nt-rail__footer-actions {
-  display: grid;
-  gap: 8px;
-}
-
-.nt-rail__footer-actions .nt-btn {
-  justify-content: center;
 }

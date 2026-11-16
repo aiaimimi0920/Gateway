@@ -1,3 +1,4 @@
+import { NeuroProvider } from "@neuro/ui";
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -6,19 +7,23 @@ import { CredentialDialog, type CredentialDialogProps } from "./CredentialDialog
 import type { WebBrowserCapture } from "./ChatgptWebBrowserImport";
 
 beforeEach(() => localStorage.setItem("gateway-ui-locale", "zh-CN"));
-const raw = JSON.stringify({ authToken: "web-fixture", expiresAt: "2099-01-01T00:00:00Z",
-  cookieHeader: "session=fixture", userAgent: "Browser/1", deviceId: "device", sessionId: "session" });
+const raw = JSON.stringify({
+  authToken: "web-fixture", expiresAt: "2099-01-01T00:00:00Z",
+  cookieHeader: "session=fixture", userAgent: "Browser/1", deviceId: "device", sessionId: "session"
+});
 
 function setup(overrides: Partial<CredentialDialogProps> = {}) {
   const props: CredentialDialogProps = {
     open: true, mode: "add", providerOptions: [{ id: "web", label: "chatgpt-web" }, { id: "codex", label: "codex-oauth" }],
-    existingCredentialIds: [], initialValue: { providerId: "web", credentialId: "web-account", accountName: "", enabled: true,
-      baseUrl: "", supportedModelsText: "gpt-5.4", apiKeyOperation: "replace", apiKeyValue: "" },
+    existingCredentialIds: [], initialValue: {
+      providerId: "web", credentialId: "web-account", accountName: "", enabled: true,
+      baseUrl: "", supportedModelsText: "gpt-5.4", apiKeyOperation: "replace", apiKeyValue: ""
+    },
     locked: false, hasSecretAccess: true, onOpenChange: vi.fn(), onRequestSecretAccess: vi.fn(), onSubmit: vi.fn(),
     supportsWebSession: (id) => id === "web", renderAuthentication: vi.fn(() => <span>OAuth panel</span>),
     onDiscoverChatgptModels: vi.fn(), onDiscoverProviderModels: vi.fn(), ...overrides,
   };
-  const view = render(<UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider>);
+  const view = render(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider></NeuroProvider>);
   return { props, view };
 }
 
@@ -32,8 +37,10 @@ it("uses an independent file import, never OAuth or Codex model discovery", asyn
   fireEvent.change(screen.getByLabelText("网页会话 JSON"), { target: { files: [file] } });
   await screen.findByText("网页会话材料已读取，待保存");
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
-  expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ apiKeyValue: "web-fixture",
-    webSessionMaterial: expect.objectContaining({ cookieHeader: "session=fixture" }) }));
+  expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+    apiKeyValue: "web-fixture",
+    webSessionMaterial: expect.objectContaining({ cookieHeader: "session=fixture" })
+  }));
   expect(props.renderAuthentication).not.toHaveBeenCalled();
   expect(props.onDiscoverChatgptModels).not.toHaveBeenCalled();
   expect(props.onDiscoverProviderModels).not.toHaveBeenCalled();
@@ -69,7 +76,7 @@ it("clears loaded material on secret grant revocation", async () => {
   const { props, view } = setup();
   fireEvent.change(screen.getByLabelText("网页会话 JSON"), { target: { files: [{ size: raw.length, text: () => Promise.resolve(raw) }] } });
   await screen.findByText("网页会话材料已读取，待保存");
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props} hasSecretAccess={false} /></UiLocaleProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} hasSecretAccess={false} /></UiLocaleProvider></NeuroProvider>);
   await waitFor(() => expect(screen.queryByText("网页会话材料已读取，待保存")).not.toBeInTheDocument());
 });
 
@@ -98,11 +105,13 @@ it("preserves captured material across provider-list and reveal-callback refresh
   const { props, view } = setup({ onCaptureWebBrowser: capture });
   fireEvent.click(screen.getByRole("button", { name: "网页登录" }));
   await screen.findByText("已读取账号：Web account");
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props}
-    providerOptions={props.providerOptions.map((option) => ({ ...option }))} onRevealKey={vi.fn()} /></UiLocaleProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props}
+    providerOptions={props.providerOptions.map((option) => ({ ...option }))} onRevealKey={vi.fn()} /></UiLocaleProvider></NeuroProvider>);
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
-  expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ apiKeyValue: "web-fixture",
-    webSessionMaterial: expect.objectContaining({ cookieHeader: "session=fixture" }) }));
+  expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+    apiKeyValue: "web-fixture",
+    webSessionMaterial: expect.objectContaining({ cookieHeader: "session=fixture" })
+  }));
 });
 
 it("keeps native capture alive when editing the local account ID", async () => {
@@ -125,20 +134,20 @@ it("clears the captured session when closing and reopening the dialog", async ()
   const { props, view } = setup({ onCaptureWebBrowser: capture });
   fireEvent.click(screen.getByRole("button", { name: "网页登录" }));
   await screen.findByText("已读取账号：Web account");
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props} open={false} /></UiLocaleProvider>);
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} open={false} /></UiLocaleProvider></NeuroProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider></NeuroProvider>);
   expect(screen.queryByText("已读取账号：Web account")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
   expect(props.onSubmit).not.toHaveBeenCalled();
 });
 
 it("cancels pending capture when the editing target changes", async () => {
-  const capture = vi.fn<WebBrowserCapture>((input) => input.operation === "cancel" ? Promise.resolve({}) : new Promise(() => {}));
+  const capture = vi.fn<WebBrowserCapture>((input) => input.operation === "cancel" ? Promise.resolve({}) : new Promise(() => { }));
   const { props, view } = setup({ onCaptureWebBrowser: capture });
   fireEvent.click(screen.getByRole("button", { name: "网页登录" }));
   const signal = capture.mock.calls[0][1];
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props}
-    initialValue={{ ...props.initialValue!, credentialId: "other-account" }} /></UiLocaleProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props}
+    initialValue={{ ...props.initialValue!, credentialId: "other-account" }} /></UiLocaleProvider></NeuroProvider>);
   expect(signal.aborted).toBe(true);
   expect(screen.getByLabelText("账号 ID")).toHaveValue("other-account");
 });
@@ -171,8 +180,14 @@ it("switching to browser rejects a late file read and clears already loaded mate
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
   expect(props.onSubmit).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "json" } });
-  fireEvent.change(screen.getByLabelText("网页会话 JSON"), { target: { files: [{ size: raw.length,
-    text: () => new Promise<string>((resolve) => { finish = resolve; }) }] } });
+  fireEvent.change(screen.getByLabelText("网页会话 JSON"), {
+    target: {
+      files: [{
+        size: raw.length,
+        text: () => new Promise<string>((resolve) => { finish = resolve; })
+      }]
+    }
+  });
   fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "browser" } });
   await act(async () => { finish(raw); });
   fireEvent.click(screen.getByRole("button", { name: "保存" }));

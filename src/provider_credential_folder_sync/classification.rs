@@ -97,6 +97,13 @@ impl ProviderAccountDescriptor for db::ProviderAccountFolderSyncMetadata {
 pub(super) fn derive_provider_family_slug<A: ProviderAccountDescriptor + ?Sized>(
     provider_account: &A,
 ) -> String {
+    // Static Key and OAuth share a profile/executor, never a folder audience.
+    if provider_account
+        .payload_base_url()
+        .is_some_and(crate::protocol::kiro_api_key::owns_base)
+    {
+        return crate::protocol::kiro_api_key::PRESET_ID.into();
+    }
     let label = provider_account.label().to_ascii_lowercase();
     let adapter = provider_account.adapter().to_ascii_lowercase();
     let protocol_profile = provider_account.protocol_profile().to_ascii_lowercase();
@@ -359,6 +366,12 @@ fn derive_gemini_provider_surface_slug(protocol_profile: &str, label: &str) -> O
 pub(super) fn derive_provider_surface_slug<A: ProviderAccountDescriptor + ?Sized>(
     provider_account: &A,
 ) -> String {
+    if provider_account
+        .payload_base_url()
+        .is_some_and(crate::protocol::kiro_api_key::owns_base)
+    {
+        return crate::protocol::kiro_api_key::PRESET_ID.into();
+    }
     let protocol_profile = provider_account.protocol_profile().to_ascii_lowercase();
     let protocol_family = provider_account.protocol_family().to_ascii_lowercase();
     let service_provider_key = provider_account.service_provider_key().to_ascii_lowercase();

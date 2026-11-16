@@ -232,6 +232,19 @@ impl LocalRuntime {
         model: Option<&str>,
         candidates: &mut Vec<RouteCandidate>,
     ) -> Result<Option<Vec<String>>, GatewayError> {
+        self.authorize_local_candidates_with_metadata(id, model, candidates)
+            .await
+            .map(|(providers, _)| providers)
+    }
+
+    /// SDK callers must check scopes/groups against the same key revision as model/provider grants.
+    /// Return metadata from this transaction, never combine two independently read permission sets.
+    pub(crate) async fn authorize_local_candidates_with_metadata(
+        &self,
+        id: &str,
+        model: Option<&str>,
+        candidates: &mut Vec<RouteCandidate>,
+    ) -> Result<(Option<Vec<String>>, Option<serde_json::Value>), GatewayError> {
         let mut tx = self.pool.begin().await.map_err(storage_error)?;
         let key = read(&mut tx, id).await?;
         ensure_active(&key)?;
@@ -253,7 +266,7 @@ impl LocalRuntime {
             }
         }
         tx.commit().await.map_err(storage_error)?;
-        Ok(policy.provider_ids)
+        Ok((policy.provider_ids, key.metadata))
     }
 }
 

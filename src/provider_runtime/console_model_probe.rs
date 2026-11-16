@@ -1,7 +1,6 @@
 //! Explicit model/search tests require real output from the selected credential.
 use std::time::{Duration, Instant};
 
-use futures::StreamExt;
 use serde_json::{json, Value};
 
 use super::{ProviderPayloadProbeReport, ProviderPayloadProbeStatus};
@@ -31,6 +30,25 @@ pub(crate) async fn probe_console_target_with_request(
         provider.id == target.provider_id && provider.preset.as_deref() == Some("nvidia-openai")
     }) || target.provider_id == "nvidia";
     let point = super::provider_payload_probe_point(&target.payload);
+    let strict_product = crate::protocol::commandcode::owns_payload(&target.payload)
+        || crate::protocol::sensenova::owns_payload(&target.payload)
+        || crate::protocol::agnes::owns_payload(&target.payload)
+        || crate::protocol::minimax::owns_payload(&target.payload)
+        || crate::protocol::nous_portal::business::owns_payload(&target.payload)
+        || crate::protocol::lobsterai::owns_payload(&target.payload);
+    if strict_product && options.is_none() {
+        return (point, report(ProviderPayloadProbeStatus::Unsupported,
+            "This product requires an explicit model test; no discovery or generation was sent."));
+    }
+    if crate::protocol::sap_aicore::owns_payload(&target.payload) && options.is_none() {
+        return (
+            point,
+            report(
+                ProviderPayloadProbeStatus::Unsupported,
+                "SAP AI Core requires an explicit model test; no discovery or generation was sent.",
+            ),
+        );
+    }
     if state.lifecycle.model_circuits.network_blocked() {
         return (
             point,
@@ -49,6 +67,12 @@ pub(crate) async fn probe_console_target_with_request(
             ),
         );
     }
+    let media_product = super::media_probe_request::MediaProbeProduct::for_payload(&target.payload);
+    let media = options.and_then(|request| request.media.as_ref());
+    if media_product.is_some() != media.is_some() {
+        return (point, report(ProviderPayloadProbeStatus::Unsupported,
+            "Media tests require a supported product, explicit operation, charge confirmation and one exact account; text/default tests never generate media."));
+    }
     let codex = snapshot.document().providers.iter().any(|provider| {
         provider.id == target.provider_id
             && provider.preset.as_deref() == Some("chatgpt-codex-oauth-official-api")
@@ -65,8 +89,46 @@ pub(crate) async fn probe_console_target_with_request(
         return super::codex_model_probe::probe(state, target).await;
     }
     let gemini_web = target.payload.canonical_adapter() == "gemini_web_compatible";
+    let accio = target.payload.canonical_adapter() == "accio_compatible";
+    let kiro_key = crate::protocol::kiro_api_key::owns_payload(&target.payload)
+        || crate::protocol::kiro_oauth::runtime::owns_payload(&target.payload);
+    if accio && options.is_none() {
+        return (
+            point,
+            report(
+                ProviderPayloadProbeStatus::Unsupported,
+                "Accio requires an explicit model test; no discovery or generation was sent.",
+            ),
+        );
+    }
     let chatgpt_web = target.payload.canonical_adapter() == "chatgpt_web_reverse_compatible";
     let antigravity = target.payload.adapter == crate::protocol::antigravity::ADAPTER;
+    let perplexity_web =
+        target.payload.adapter == crate::protocol::perplexity_web::material::ADAPTER;
+    let grok_web = crate::upstream::grok_web::owns_payload(&target.payload);
+    let qwen_web = crate::upstream::qwen::web_session::owns_payload(&target.payload);
+    if qwen_web && options.is_none() {
+        return (
+            point,
+            report(
+                ProviderPayloadProbeStatus::Unsupported,
+                "Qwen Web requires an explicit single-turn model test; no generation was sent.",
+            ),
+        );
+    }
+    if grok_web && options.is_none() {
+        return (
+            point,
+            report(
+                ProviderPayloadProbeStatus::Unsupported,
+                "Grok Web requires an explicit single-turn model test; no generation was sent.",
+            ),
+        );
+    }
+    if perplexity_web && options.is_none() {
+        return (point, report(ProviderPayloadProbeStatus::Unsupported,
+            "Perplexity Web requires an explicit single-turn model test; no discovery or generation was sent."));
+    }
     if !nvidia && !codex && !gemini_web && search.is_none() && options.is_none() {
         return (
             point,
@@ -79,6 +141,7 @@ pub(crate) async fn probe_console_target_with_request(
     }
     let cohere = target.payload.canonical_adapter() == "cohere_compatible";
     let anthropic = target.payload.canonical_adapter() == "anthropic_compatible";
+    let bedrock = target.payload.canonical_adapter() == "bedrock_converse_compatible";
     let gemini = matches!(
         target.payload.canonical_adapter(),
         "gemini_api_compatible" | "gemini_api_modular_compatible"
@@ -87,10 +150,17 @@ pub(crate) async fn probe_console_target_with_request(
         && !codex
         && !cohere
         && !anthropic
+        && !bedrock
         && !gemini
         && !gemini_web
         && !chatgpt_web
         && !antigravity
+        && !perplexity_web
+        && !grok_web
+        && !qwen_web
+        && !accio
+        && !kiro_key
+        && media_product.is_none()
         && search.is_none()
         && (target.payload.canonical_adapter() != "openai_compatible"
             || target.payload.bridges_openai_text_endpoint_to_responses(
@@ -128,13 +198,57 @@ pub(crate) async fn probe_console_target_with_request(
         .chain(credential_models.iter().map(String::as_str))
         .collect();
     let requested = options.and_then(|options| options.model.as_deref());
+    if matches!(
+        media_product,
+        Some(
+            super::media_probe_request::MediaProbeProduct::Chataibot
+                | super::media_probe_request::MediaProbeProduct::Suno
+                | super::media_probe_request::MediaProbeProduct::Udio
+                | super::media_probe_request::MediaProbeProduct::LumaWeb
+        )
+    ) && requested.is_some_and(|model| {
+        !configured.contains(&model)
+            && !provider.model_map.contains_key(model)
+            && !provider.model_map_targets.contains_key(model)
+    }) {
+        return (point, report(ProviderPayloadProbeStatus::Unsupported,
+            "Media tests require an explicitly configured model or alias; generation was not sent."));
+    }
+    if strict_product
+        && requested.is_some_and(|model| {
+            !configured.contains(&model)
+                && !provider.model_map.contains_key(model)
+                && !provider.model_map_targets.contains_key(model)
+        })
+    {
+        return (
+            point,
+            report(
+                ProviderPayloadProbeStatus::Unsupported,
+                "This product requires a configured model or alias; call not sent.",
+            ),
+        );
+    }
+    if qwen_web && requested.is_some_and(|model| !configured.contains(&model)) {
+        return (
+            point,
+            report(
+                ProviderPayloadProbeStatus::Unsupported,
+                "Qwen Web model tests require a model configured for this account; call not sent.",
+            ),
+        );
+    }
+    if requested
+        .is_some_and(|model| !crate::provider_model_id::valid_for_payload(model, &target.payload))
+    {
+        return (point, report(ProviderPayloadProbeStatus::Unsupported,
+            "Model identity exceeds this product's limit or uses invalid syntax; call not sent."));
+    }
     let models = requested.map_or(configured, |model| vec![model]);
     let model = models
         .into_iter()
-        .map(str::trim)
         .find(|model| {
-            !model.is_empty()
-                && !model.contains(['*', '?'])
+            crate::provider_model_id::valid_for_payload(model, &target.payload)
                 && (credential_models.is_empty()
                     || credential_models.iter().any(|allowed| allowed == model)
                     || provider
@@ -152,11 +266,16 @@ pub(crate) async fn probe_console_target_with_request(
         })
         .and_then(|model| {
             crate::routing::config::model_for_probe(&provider, &target.credential_id, model)
-        });
+        })
+        .filter(|model| crate::provider_model_id::valid_for_payload(model, &target.payload));
     let Some(model) = model else {
         return ("Model call".into(), report(ProviderPayloadProbeStatus::Unsupported,
             "No configured model is callable by this credential; choose a supported model or configure default_model."));
     };
+    if let Some(product) = media_product {
+        return super::media_model_probe::probe(state, target, &model, options.unwrap(), product)
+            .await;
+    }
     if let Some(kind) = search {
         if !kind.supports_model(&model) {
             return (point, report(ProviderPayloadProbeStatus::Unsupported,
@@ -169,6 +288,45 @@ pub(crate) async fn probe_console_target_with_request(
         return super::search_model_probe::probe(state, target, &model, query, kind).await;
     }
     let prompt = options.map_or("Reply with only OK.", |options| options.prompt.as_str());
+    if crate::protocol::lobsterai::owns_payload(&target.payload) {
+        return super::lobsterai_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if crate::protocol::nous_portal::business::owns_payload(&target.payload) {
+        return super::nous_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if crate::protocol::dim_oauth::business::owns_payload(&target.payload) {
+        return super::dim_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if crate::protocol::sap_aicore::owns_payload(&target.payload) {
+        return super::sap_aicore_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if crate::protocol::commandcode::owns_payload(&target.payload) {
+        return super::commandcode_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if crate::protocol::sensenova::owns_payload(&target.payload) {
+        return super::sensenova_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if crate::protocol::agnes::owns_payload(&target.payload) {
+        return super::agnes_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if qwen_web {
+        return super::qwen_web_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if grok_web {
+        return super::grok_web_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if kiro_key {
+        return super::kiro_api_key_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if accio {
+        return super::accio_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if perplexity_web {
+        return super::perplexity_web_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if crate::protocol::qwen::workspace_api::owns_payload(&target.payload) {
+        return super::qwen_model_probe::probe(state, target, &model, prompt).await;
+    }
     if antigravity {
         return super::antigravity_model_probe::probe(state, target, &model, prompt).await;
     }
@@ -183,6 +341,9 @@ pub(crate) async fn probe_console_target_with_request(
     }
     if anthropic {
         return super::anthropic_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if bedrock {
+        return super::bedrock_model_probe::probe(state, target, &model, prompt).await;
     }
     if gemini || gemini_web {
         return super::gemini_model_probe::probe(state, target, &model, prompt).await;
@@ -215,13 +376,16 @@ pub(crate) async fn probe_console_target_with_request(
     );
     let audit = super::model_probe_recording::begin(state, target, &model, false).await;
     let started = Instant::now();
-    let result = tokio::time::timeout(Duration::from_secs(60), generate(state, target, &plan))
-        .await
-        .unwrap_or_else(|_| ModelProbeResult {
-            status: None,
-            usage: Value::Null,
-            reply: Err("Model call timed out after 60 seconds.".into()),
-        });
+    let result = tokio::time::timeout(
+        Duration::from_secs(60),
+        super::openai_model_probe_response::generate(state, target, &plan),
+    )
+    .await
+    .unwrap_or_else(|_| ModelProbeResult {
+        status: None,
+        usage: Value::Null,
+        reply: Err("Model call timed out after 60 seconds.".into()),
+    });
     let health_recovery = super::model_probe_recording::finish(
         state,
         target,
@@ -254,97 +418,6 @@ pub(crate) async fn probe_console_target_with_request(
             answer,
         },
     )
-}
-
-async fn generate(
-    state: &AppState,
-    target: &CredentialProbeTarget,
-    plan: &crate::upstream::common::RequestPlan,
-) -> ModelProbeResult {
-    let request = crate::upstream::common::build_request_builder_from_plan(
-        state.upstream_client.client(),
-        Duration::from_secs(60),
-        plan,
-        crate::upstream::headers::build_upstream_headers(&target.payload),
-    );
-    let response = match request.send().await {
-        Ok(response) => response,
-        Err(_) => return failed(None, "Cannot reach the NVIDIA model endpoint."),
-    };
-    let status = response.status().as_u16();
-    if !response.status().is_success() {
-        let reason = match status {
-            401 => "Credential authentication rejected",
-            403 => "Credential has no access to this model",
-            404 => "Configured model or generation endpoint was not found",
-            429 => "Upstream rate limit or quota exhausted",
-            _ => "Upstream model request failed",
-        };
-        return failed(Some(status), &format!("HTTP {status}: {reason}."));
-    }
-    // Bound the complete response, not just the preview; never log upstream bodies or keys.
-    let stream = response.bytes_stream();
-    futures::pin_mut!(stream);
-    let mut bytes = Vec::new();
-    loop {
-        match stream.next().await {
-            Some(Ok(chunk)) if bytes.len() + chunk.len() <= 65_536 => {
-                bytes.extend_from_slice(&chunk)
-            }
-            Some(Ok(_)) => return failed(Some(status), "Model response exceeded 64 KiB."),
-            None => break,
-            Some(Err(_)) => return failed(Some(status), "Model response was interrupted."),
-        }
-    }
-    let Ok(body) = serde_json::from_slice::<Value>(&bytes) else {
-        return failed(Some(status), "Model endpoint returned invalid JSON.");
-    };
-    let content = body
-        .pointer("/choices/0/message/content")
-        .and_then(Value::as_str)
-        .map(str::trim);
-    if body.get("error").is_some_and(|value| !value.is_null()) || content.is_none_or(str::is_empty)
-    {
-        return failed(
-            Some(status),
-            "HTTP succeeded but no non-empty assistant reply was returned.",
-        );
-    }
-    if body
-        .pointer("/choices/0/finish_reason")
-        .and_then(Value::as_str)
-        == Some("length")
-    {
-        return failed(
-            Some(status),
-            "Model hit the test token limit before completing its reply.",
-        );
-    }
-    let mut reply = content.unwrap_or_default().to_string();
-    for secret in std::iter::once(target.payload.api_key.as_str())
-        .chain(target.payload.auth_token.as_deref())
-        .chain(target.payload.headers.values().map(String::as_str))
-        .filter(|value| !value.is_empty())
-    {
-        reply = reply.replace(secret, "[redacted]");
-    }
-    let reply = crate::error::sanitize_provider_error_message(&reply)
-        .chars()
-        .take(8192)
-        .collect();
-    ModelProbeResult {
-        status: Some(status),
-        reply: Ok(reply),
-        usage: body.get("usage").cloned().unwrap_or(Value::Null),
-    }
-}
-
-fn failed(status: Option<u16>, message: &str) -> ModelProbeResult {
-    ModelProbeResult {
-        status,
-        reply: Err(message.into()),
-        usage: Value::Null,
-    }
 }
 
 fn report(status: ProviderPayloadProbeStatus, message: &str) -> ProviderPayloadProbeReport {

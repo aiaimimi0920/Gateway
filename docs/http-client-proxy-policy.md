@@ -17,7 +17,29 @@ Profile 名称和 ClientHello 测试不等于完整 JA3/JA4、HTTP/2 SETTINGS �
 提供方的 fingerprint 验收。
 
 代理选择由 `src/http_client/proxy_policy.rs` 维护。它使用客户端公开 API，
-不 fork 依赖，不修改进程环境、Windows 设置或持久化用户代理地址。
+不 fork 依赖，不修改进程环境或 Windows 设置。管理界面可持久化本网关的默认出站策略。
+
+## 管理界面的出站设置
+
+“设置 / 网络 / 代理”提供自动、关闭、自定义。自动沿用下述发现规则；关闭不使用
+默认代理；自定义仅接受无账号密码的 HTTP(S) 代理 origin，不支持 SOCKS、路径或
+查询参数。自定义绕过 localhost、127.0.0.1、::1，不继承环境代理及 NO_PROXY。
+策略保存在 console state 目录的 `outbound-proxy.json`，保存后重启该网关生效，
+响应的 `restartRequired` 标识待生效状态；已有连接池不热切换。
+
+`GET/PUT /v1/internal/gateway/console/proxy/settings` 与
+`POST /v1/internal/gateway/console/proxy/test` 均要求管理权限并遵守远程访问策略。
+测试仅用未保存草稿访问固定 HTTPS 测试站点，不保存设置、不调用模型、不携带
+服务商凭据。测试最多两个并发且有连接/总超时；不能代表每个服务商均可访问。
+
+默认 Rust HTTP、native Codex 和 native Antigravity 传输采用该策略；调用方显式
+指定的代理或 `.no_proxy()` 保持优先。独立浏览器 worker 的代理参数不在此范围。
+桌面连接探测和浏览器访问网关不受此设置控制。
+
+桌面的“网关地址”支持本机端口和远程 HTTP(S) origin；本机端口改变只重启客户端
+持有的 desktop-managed 进程，端口被其他实例占用时拒绝操作，不接管该实例。
+连接成功才保存并打开界面；保存或打开失败尝试恢复先前设置和自有进程。
+旧 connection.json 缺少 localPort 时沿用构建默认端口，不迁移账号数据库。
 
 ## Windows / Linux 来源规则
 

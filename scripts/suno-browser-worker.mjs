@@ -2,43 +2,41 @@ import { chromium } from "playwright-core";
 import process from "node:process";
 import {
   validateInput, normalizeString, normalizeBaseUrl, normalizeLocale, normalizeTimeoutMs,
-  normalizeTargetAssetKind, parseBoolean, extractPrompt, readClips, collectClipIds,
-  clipsTerminal, clipsReadyForTarget, classifyChallengeLikeBody, createError, normalizeError,
+  normalizeTargetAssetKind, parseBoolean, extractPrompt, createError, normalizeError,
 } from "./suno-browser/pure.mjs";
 import {
   resolveBrowserExecutionTarget, releaseEasyBrowserLease, pageLooksChallenged,
-  pageLooksSignedOut, runCreateThroughPageUi, maybeClassifyVideoSubscriptionRequired,
+  pageLooksSignedOut, runCreateThroughPageUi,
   parseCookieHeader, resolveExecutablePath, resolveWorkerPage, dismissKnownBlockingOverlays,
 } from "./suno-browser/browser.mjs";
 
+import { createSunoResponses } from "./suno-browser/responses.mjs";
+import { waitForGeneration } from "./suno-browser/generation.mjs";
+import { boundNativeModel, createNativeModelGate } from "./suno-browser/native-model.mjs";
+
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_WAIT_TIMEOUT_MS = 150_000;
-const DEFAULT_POLL_INTERVAL_MS = 3_000;
 const DEFAULT_LOCALE = "en-US";
 const DEFAULT_NAVIGATION_TIMEOUT_MS = 45_000;
 
 async function main() {
   let browser = null;
   let context = null;
-  let closeBrowser = async () => undefined;
   let easyBrowserLease = null;
-  try {
+  let responses = null;
+  let modelGate = null;
+  async function generate() {
     const raw = await readStdin();
     const input = JSON.parse(raw);
     validateInput(input);
 
     const timeoutMs = normalizeTimeoutMs(input.timeoutMs, DEFAULT_TIMEOUT_MS, 30_000, 30 * 60 * 1000);
+    const deadline = Date.now() + timeoutMs;
     const waitTimeoutMs = normalizeTimeoutMs(
       input.waitTimeoutMs,
       DEFAULT_WAIT_TIMEOUT_MS,
       10_000,
       timeoutMs,
-    );
-    const pollIntervalMs = normalizeTimeoutMs(
-      input.pollIntervalMs,
-      DEFAULT_POLL_INTERVAL_MS,
-      1_000,
-      10_000,
     );
     const waitCompletion = parseBoolean(input.waitCompletion, true);
     const baseUrl = normalizeBaseUrl(input.baseUrl);
@@ -61,7 +59,8 @@ async function main() {
         "Suno browser worker requires a non-empty prompt-compatible field.",
       );
     }
-
+    const targetAssetKind = normalizeTargetAssetKind(input.targetAssetKind);
+    const wireModel = boundNativeModel(input.requestBody);
     const effectiveBrowserTarget = await resolveBrowserExecutionTarget({
       input,
       browserCdpUrl,
@@ -74,7 +73,7 @@ async function main() {
     const cookieHeader = normalizeString(input.cookieHeader);
 
     if (effectiveBrowserTarget.browserCdpUrl) {
-      browser = await chromium.connectOverCDP(effectiveBrowserTarget.browserCdpUrl);
+      browser = await chromium.connectOverCDP(effectiveBrowserTarget.browserCdpUrl, { timeout: navigationTimeoutMs });
       context =
         browser
           .contexts()
@@ -98,7 +97,7 @@ async function main() {
       }
 
       browser = await chromium.launch({
-        executablePath,
+        executablePath, timeout: navigationTimeoutMs,
         headless: parseBoolean(process.env.SUNO_BROWSER_HEADLESS, true),
         args: [
           "--disable-blink-features=AutomationControlled",
@@ -107,9 +106,6 @@ async function main() {
           "--no-default-browser-check",
         ],
       });
-      closeBrowser = async () => {
-        await browser?.close().catch(() => undefined);
-      };
 
       context = await browser.newContext({
         locale,
@@ -146,11 +142,17 @@ async function main() {
       );
     }
 
-    const createOutcome = await runCreateThroughPageUi(page, {
-      prompt,
-      timeoutMs,
+    modelGate = createNativeModelGate(page, baseUrl, wireModel, prompt, reason => responses?.fail(reason));
+    await modelGate.ready;
+    modelGate.check();
+    responses = createSunoResponses(page, baseUrl, undefined, modelGate.admitted);
+    await responses.ready;
+    if (Date.now() >= deadline) throw createError(504, "suno_browser_wait_timeout", "Suno request deadline expired before submission.");
+    const createBody = await runCreateThroughPageUi(page, {
+      prompt, responses, modelGate,
+      timeoutMs: deadline - Date.now(),
     }).catch(async (error) => {
-      if (error?.code === "suno_browser_challenge_required") {
+      if (typeof error?.code === "string" && error.code.startsWith("suno_")) {
         throw error;
       }
       if (await pageLooksChallenged(page)) {
@@ -163,185 +165,60 @@ async function main() {
       throw createError(
         504,
         "suno_browser_generation_failed",
-        `Suno browser worker failed to execute the generate request: ${error.message}`,
+        "Suno browser worker failed to execute the generate request; details omitted.",
       );
     });
 
-    const createStatus = createOutcome.status;
-    const createBodyText = createOutcome.bodyText;
-    if (createStatus < 200 || createStatus >= 300) {
-      const code = classifyChallengeLikeBody(createBodyText)
-        ? "suno_browser_challenge_required"
-        : "suno_browser_generation_failed";
-      throw createError(
-        createStatus,
-        code,
-        `Suno browser generation returned HTTP ${createStatus}.`,
-        createBodyText,
-      );
-    }
-
-    let createBody;
-    try {
-      createBody = JSON.parse(createBodyText);
-    } catch (error) {
-      throw createError(
-        500,
-        "suno_browser_invalid_generation_json",
-        `Suno browser generation returned invalid JSON: ${error.message}`,
-        createBodyText,
-      );
-    }
-
-    let clips = readClips(createBody);
-    const clipIds = collectClipIds(clips);
-    if (!clipIds.length) {
-      throw createError(
-        500,
-        "suno_browser_missing_clip_ids",
-        "Suno browser generation did not return any clip ids.",
-        createBodyText,
-      );
-    }
-
-    const targetAssetKind = normalizeTargetAssetKind(input.targetAssetKind);
-    if (!waitCompletion || clipsReadyForTarget(clips, targetAssetKind)) {
-      printJsonAndExit({
-        ok: true,
-        status: 200,
-        result: {
-          clips,
-          completed: clipsTerminal(clips),
-          message: null,
-        },
-      });
-      return;
-    }
-
-    if (targetAssetKind === "video" && (await maybeClassifyVideoSubscriptionRequired(page))) {
-      throw createError(
-        402,
-        "suno_video_subscription_required",
-        "Suno video generation requires an entitled account on the current Publish -> Animate web flow.",
-      );
-    }
-
-    const waitDeadline = Date.now() + waitTimeoutMs;
-    while (Date.now() < waitDeadline) {
-      const remainingMs = waitDeadline - Date.now();
-      if (remainingMs <= 0) {
-        break;
-      }
-
-      let feedResponse;
-      try {
-        feedResponse = await page.waitForResponse(
-          (response) =>
-            /\/api\/feed\/v3\/?$/.test(response.url()) &&
-            response.request().method().toUpperCase() === "POST",
-          {
-            timeout: Math.max(1_000, Math.min(remainingMs, pollIntervalMs + 5_000)),
-          },
-        );
-      } catch (error) {
-        if (String(error?.message ?? "").toLowerCase().includes("timeout")) {
-          continue;
-        }
-        throw error;
-      }
-
-      const pollOutcome = {
-        status: feedResponse.status(),
-        bodyText: await feedResponse.text(),
-      };
-
-      if (pollOutcome.status < 200 || pollOutcome.status >= 300) {
-        const code = classifyChallengeLikeBody(pollOutcome.bodyText)
-          ? "suno_browser_challenge_required"
-          : "suno_browser_generation_failed";
-        throw createError(
-          pollOutcome.status,
-          code,
-          `Suno browser feed polling returned HTTP ${pollOutcome.status}.`,
-          pollOutcome.bodyText,
-        );
-      }
-
-      let pollBody;
-      try {
-        pollBody = JSON.parse(pollOutcome.bodyText);
-      } catch (error) {
-        throw createError(
-          500,
-          "suno_browser_invalid_generation_json",
-          `Suno browser feed polling returned invalid JSON: ${error.message}`,
-          pollOutcome.bodyText,
-        );
-      }
-
-      const polledClips = readClips(pollBody);
-      const matchedClips = clipIds.length
-        ? polledClips.filter((clip) => clipIds.includes(normalizeString(clip?.id)))
-        : polledClips;
-      if (matchedClips.length) {
-        clips = matchedClips;
-      }
-      if (clipsReadyForTarget(clips, targetAssetKind)) {
-        printJsonAndExit({
-          ok: true,
-          status: 200,
-          result: {
-            clips,
-            completed: true,
-            message: null,
-          },
-        });
-        return;
-      }
-
-      if (targetAssetKind === "video" && clipsTerminal(clips)) {
-        if (await maybeClassifyVideoSubscriptionRequired(page)) {
-          throw createError(
-            402,
-            "suno_video_subscription_required",
-            "Suno video generation requires an entitled account on the current Publish -> Animate web flow.",
-          );
-        }
-        break;
-      }
-    }
-
-    printJsonAndExit({
-      ok: true,
-      status: 200,
-      result: {
-        clips,
-        completed: clipsReadyForTarget(clips, normalizeTargetAssetKind(input.targetAssetKind)),
-        message: "Timed out waiting for Suno clip generation to reach a terminal state.",
-      },
+    const result = await waitForGeneration(page, responses, createBody, {
+      targetAssetKind, waitCompletion, waitTimeoutMs, deadline,
     });
-  } catch (error) {
-    printJsonAndExit({
-      ok: false,
-      error: normalizeError(error),
-    });
-  } finally {
-    await closeBrowser();
-    await releaseEasyBrowserLease(easyBrowserLease).catch(() => undefined);
+    modelGate.check();
+    result.result.wireModel = wireModel;
+    return result;
   }
+  let outcome;
+  try {
+    outcome = await generate();
+  } catch (error) {
+    outcome = { ok: false, error: normalizeError(error) };
+  }
+  // Close an owned browser; for connectOverCDP this disconnects only our connection.
+  // Always attempt lease release even when disconnect/close fails.
+  let cleanupFailed = false;
+  try { await modelGate?.stop(); } catch { cleanupFailed = true; }
+  try { await responses?.stop(); } catch { cleanupFailed = true; }
+  try { await browser?.close(); } catch { cleanupFailed = true; }
+  try { await releaseEasyBrowserLease(easyBrowserLease); } catch { cleanupFailed = true; }
+  if (cleanupFailed) {
+    const message = "Suno browser resource cleanup failed; remote generation may still exist.";
+    if (outcome.ok) {
+      outcome = { ok: false, error: normalizeError(createError(502, "suno_browser_cleanup_failed", message)) };
+    } else {
+      outcome.error.message = `${outcome.error.message} ${message}`;
+    }
+  }
+  return outcome;
 }
 
-function printJsonAndExit(value) {
-  process.stdout.write(`${JSON.stringify(value)}\n`);
-  process.exit(0);
+async function writeJson(value) {
+  // Do not force process.exit(): it bypasses cleanup and can truncate piped stdout.
+  await new Promise((resolve, reject) => {
+    process.stdout.write(`${JSON.stringify(value)}\n`, (error) => error ? reject(error) : resolve());
+  });
 }
 
 async function readStdin() {
   const chunks = [];
+  let bytes = 0;
   for await (const chunk of process.stdin) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    bytes += buffer.length;
+    if (bytes > 1024 * 1024) {
+      throw createError(413, "suno_browser_worker_input_too_large", "Suno worker input exceeds 1 MiB.");
+    }
+    chunks.push(buffer);
   }
   return Buffer.concat(chunks).toString("utf8");
 }
 
-await main();
+await writeJson(await main());

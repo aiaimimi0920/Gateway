@@ -34,7 +34,13 @@ pub(super) fn has_tool_call_opening(text: &str) -> bool {
 ///
 /// Expected format: `data: {"choices":[{"delta":{"content":"..."}}]}`
 /// Returns `None` for `[DONE]`, empty lines, or missing content field.
+#[cfg(test)]
 pub(super) fn extract_sse_content(line: &str) -> Option<String> {
+    let parsed = parse_sse_data(line)?;
+    content_field(&parsed).map(str::to_owned)
+}
+
+fn parse_sse_data(line: &str) -> Option<Value> {
     let data = line
         .strip_prefix("data:")
         .or_else(|| line.strip_prefix("data: "))?;
@@ -42,14 +48,16 @@ pub(super) fn extract_sse_content(line: &str) -> Option<String> {
     if data == "[DONE]" || data.is_empty() {
         return None;
     }
-    let parsed: Value = serde_json::from_str(data).ok()?;
+    serde_json::from_str(data).ok()
+}
+
+fn content_field(parsed: &Value) -> Option<&str> {
     parsed
         .get("choices")?
         .get(0)?
         .get("delta")?
         .get("content")?
         .as_str()
-        .map(|s| s.to_string())
 }
 
 /// Build an SSE chunk that carries OpenAI-format `tool_calls` deltas.
@@ -255,12 +263,14 @@ where
                         Some(Ok(chunk)) => {
                             if let Err(error) = st.capture_chunk(chunk) {
                                 st.fail_and_release();
+                                stream = Box::pin(futures::stream::empty());
                                 return Some((Err(error.into()), (stream, st)));
                             }
                         }
                         Some(Err(e)) => {
                             // Error — forward immediately.
                             st.fail_and_release();
+                            stream = Box::pin(futures::stream::empty());
                             return Some((Err(e), (stream, st)));
                         }
                         None => {
@@ -268,6 +278,7 @@ where
                             st.done = true;
                             if let Err(error) = st.flush_pending_sse_line() {
                                 st.fail_and_release();
+                                stream = Box::pin(futures::stream::empty());
                                 return Some((Err(error.into()), (stream, st)));
                             }
                             break;
@@ -448,8 +459,19 @@ impl ToolDetectorState {
         if line.is_empty() {
             return Ok(());
         }
-        if let Some(content) = extract_sse_content(line) {
-            self.append_content(&content)?;
+        if let Some(parsed) = parse_sse_data(line) {
+            // A native witness cannot survive the detector's buffering or XML rewriting.
+            if parsed.get("gateway_bedrock_event").is_some()
+                || parsed.get("gateway_bedrock_terminal").is_some()
+            {
+                return Err(tool_detection_stream_error(
+                    "native_stream_tool_injection_conflict",
+                    "Bedrock native streaming is incompatible with text/XML tool injection".into(),
+                ));
+            }
+            if let Some(content) = content_field(&parsed) {
+                self.append_content(content)?;
+            }
         }
         Ok(())
     }

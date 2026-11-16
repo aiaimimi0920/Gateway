@@ -3,7 +3,26 @@ import { writeRequestClientProfile, type RequestClientProfile } from "./requestC
 import { writeCatalogWorkflow, type CatalogWorkflow } from "./providerCatalogWorkflow";
 import { writeProviderCallFlow } from "./providerCallFlow";
 import { WEB_CATALOG_TEMPLATES } from "./providerWebCatalog";
+import { webCatalogAnchor } from "./providerSessionCatalog";
 import { writeRecoveryWait, type RecoveryWaitChoice } from "./requestWait";
+import { qwenCatalogBase, type QwenEndpointDraft } from "./qwenEndpoint";
+import { VERTEX_EXPRESS_BASE } from "./vertexExpress";
+import { VERTEX_OAUTH_TEMPLATE, vertexOAuthCatalogBase } from "./vertexOAuthCatalog";
+import type { VertexTarget } from "./vertexOAuth";
+import { validateLumaAgentsProvider } from "./lumaAgents";
+import { LUMA_CATALOG_TEMPLATES, lumaMcpCatalogProvider } from "./lumaMcpCatalog";
+import { KIRO_OAUTH_TEMPLATE, writeKiroOAuthCatalog } from "./kiroOAuthCatalog";
+import { RIVER_TEMPLATE } from "./riverCatalog";
+import { AGNES_TEMPLATE } from "./agnesCatalog";
+import { MINIMAX_TEMPLATES } from "./minimaxCatalog";
+import { SENSENOVA_TEMPLATE } from "./sensenovaCatalog";
+import { COMMANDCODE_TEMPLATE } from "./commandcodeCatalog";
+import { SAP_TEMPLATE, writeSapProvider, type SapTarget } from "./sapAiCore";
+import { CUSTOM_API_TEMPLATE } from "./customApiCatalog";
+import { CLOUDFLARE_TEMPLATE, requireCloudflareBase } from "./cloudflareWorkersAi";
+import { DIM_TEMPLATES, writeDimProvider } from "./dimCatalog";
+import { NOUS_TEMPLATE, writeNousProvider } from "./nousCatalog";
+import { LOBSTERAI_TEMPLATE, writeLobsterAiProvider } from "./lobsteraiCatalog";
 
 export type ProviderCatalogCategory =
   | "mainstream"
@@ -33,6 +52,11 @@ export type ProviderCatalogTemplate = {
 };
 
 export type ProviderCatalogDraft = {
+  sapTarget?: SapTarget;
+  cloudflareAccountId?: string;
+  kiroProfileArn?: string;
+  vertexTarget?: VertexTarget;
+  qwenEndpoint?: QwenEndpointDraft;
   recoveryWait?: RecoveryWaitChoice;
   workflow?: CatalogWorkflow;
   secrets?: Record<string, string>;
@@ -58,6 +82,37 @@ export type ProviderCatalogClassification = {
 };
 
 const STANDARD_CATALOG_TEMPLATES = [
+  {
+    id: "bedrock-api", providerId: "bedrock-api", labelZh: "bedrock-api", labelEn: "bedrock-api",
+    descriptionZh: "AWS Bedrock 原生 Converse；账号内明确 API Key / IAM / 临时 IAM，额度按实际主体和区域归属。",
+    descriptionEn: "Native AWS Bedrock Converse; explicit API Key / IAM / temporary IAM per account, with actual principal and region quota scope.",
+    category: "mainstream", compatibility: "native", preset: "bedrock-converse", vendorKey: "aws-bedrock", vendorName: "AWS Bedrock",
+    baseUrl: "https://bedrock-runtime.us-east-1.amazonaws.com", supportedModels: [],
+  },
+  {
+    id: "qwen-api", providerId: "qwen-api", labelZh: "qwen-api", labelEn: "qwen-api",
+    descriptionZh: "Qwen 普通 API Key；明确选择地域与工作空间，独立于 Coding Plan 和 Web。",
+    descriptionEn: "Ordinary Qwen API Key; explicitly select region and workspace, separate from Coding Plan and Web.",
+    category: "mainstream", compatibility: "openai", preset: "qwen-official-api", vendorKey: "qwen", vendorName: "Qwen",
+    baseUrl: "", supportedModels: [],
+  },
+  {
+    id: "kiro-api-key", providerId: "kiro-api", labelZh: "kiro-api", labelEn: "kiro-api",
+    descriptionZh: "Kiro CLI 原生 Key；固定 US East 兼容通道、手工精确模型，消耗同用户订阅 credits。",
+    descriptionEn: "Native Kiro CLI Key; fixed US East compatibility channel and explicit model IDs, using the same user's subscription credits.",
+    category: "mainstream", compatibility: "native", preset: "kiro-api-key", vendorKey: "kiro-platform", vendorName: "Kiro",
+    baseUrl: "https://runtime.us-east-1.kiro.dev", supportedModels: [],
+  },
+  KIRO_OAUTH_TEMPLATE,
+  {
+    id: "vertex-express-api", providerId: "vertex-express-api", labelZh: "vertex-express-api", labelEn: "vertex-express-api",
+    descriptionZh: "Vertex Express 原生 API Key；固定 global publisher-model 通道、手工精确模型，与 Full Vertex OAuth 分开。",
+    descriptionEn: "Native Vertex Express API Key; fixed global publisher-model channel and exact manual models, separate from full Vertex OAuth.",
+    category: "mainstream", compatibility: "native", preset: "vertex-express-api", vendorKey: "google-vertex-express", vendorName: "Google / Vertex Express",
+    baseUrl: VERTEX_EXPRESS_BASE, supportedModels: [],
+  },
+  VERTEX_OAUTH_TEMPLATE,
+  ...LUMA_CATALOG_TEMPLATES,
   {
     id: "chatgpt", providerId: "codex-oauth",
     labelZh: "codex-oauth", labelEn: "codex-oauth",
@@ -220,6 +275,13 @@ const STANDARD_CATALOG_TEMPLATES = [
     supportedModels: [],
   },
   {
+    id: "grok-oauth", providerId: "grok-oauth", labelZh: "grok-oauth", labelEn: "grok-oauth",
+    descriptionZh: "Grok Build OAuth；需要可用于此集成的客户端，手动回调；与 API Key 和 Web 分池，尚待真实验收。",
+    descriptionEn: "Grok Build OAuth with a permitted client and manual callback. Separate from API Key and Web; live acceptance pending.",
+    category: "mainstream", compatibility: "openai", preset: "grok-oauth", vendorKey: "xai", vendorName: "xAI",
+    baseUrl: "https://cli-chat-proxy.grok.com/v1", supportedModels: [],
+  },
+  {
     id: "perplexity-api",
     providerId: "perplexity-api",
     labelZh: "perplexity-api",
@@ -354,30 +416,22 @@ const STANDARD_CATALOG_TEMPLATES = [
     baseUrl: "https://api.websearchapi.ai",
     supportedModels: ["websearchapi-search", "websearchapi-fetch", "search", "fetch"],
   },
-  {
-    id: "custom-api-provider",
-    providerId: "custom-api",
-    labelZh: "custom-api",
-    labelEn: "custom-api",
-    descriptionZh: "自动识别模型与调用协议。",
-    descriptionEn: "Discover models and API protocol automatically.",
-    category: "third-party-compatible",
-    compatibility: "auto",
-    preset: null,
-    adapter: "openai_compatible",
-    protocolProfile: "openai_compatible_generic",
-    vendorKey: "third-party",
-    vendorName: "Custom API provider",
-    baseUrl: "",
-    supportedModels: [],
-    custom: true,
-  },
+  RIVER_TEMPLATE,
+  AGNES_TEMPLATE,
+  ...MINIMAX_TEMPLATES,
+  SENSENOVA_TEMPLATE,
+  COMMANDCODE_TEMPLATE,
+  SAP_TEMPLATE,
+  CLOUDFLARE_TEMPLATE,
+  ...DIM_TEMPLATES,
+  NOUS_TEMPLATE,
+  LOBSTERAI_TEMPLATE,
+  CUSTOM_API_TEMPLATE,
 ] as const satisfies readonly ProviderCatalogTemplate[];
 
 export const PROVIDER_CATALOG_TEMPLATES: readonly ProviderCatalogTemplate[] = [
-  ...STANDARD_CATALOG_TEMPLATES.flatMap((template) => [template, ...WEB_CATALOG_TEMPLATES.filter((web) =>
-    web.id !== "flowmusic-web" && (web.id === "chatgpt-web" ? template.id === "chatgpt" : template.id === "gemini-api"))]),
-  ...WEB_CATALOG_TEMPLATES.filter((web) => web.id === "flowmusic-web"),
+  ...STANDARD_CATALOG_TEMPLATES.flatMap((template) => [template, ...WEB_CATALOG_TEMPLATES.filter((web) => webCatalogAnchor(web.id) === template.id)]),
+  ...WEB_CATALOG_TEMPLATES.filter((web) => !webCatalogAnchor(web.id)),
 ];
 
 export function providerCatalogClassification(
@@ -404,12 +458,22 @@ export function providerDefinitionFromCatalogDraft(
   template: ProviderCatalogTemplate,
   draft: ProviderCatalogDraft,
 ): Record<string, unknown> {
+  if (template.id === "lumalabs-mcp") return lumaMcpCatalogProvider(draft);
+  if (template.id === "accio-oauth" && draft.baseUrl !== "https://phoenix-gw.alibaba.com") {
+    throw new Error("Accio OAuth 仅支持固定的 https://phoenix-gw.alibaba.com 地址。");
+  }
+  if (template.id === "kiro-api-key" && draft.baseUrl !== template.baseUrl) {
+    throw new Error("Kiro CLI API Key 仅支持固定的 US East runtime 地址。");
+  }
+  if (template.id === "vertex-express-api" && draft.baseUrl !== VERTEX_EXPRESS_BASE) {
+    throw new Error("Vertex Express API Key 仅支持固定的 global publisher-model 地址。");
+  }
   const provider: Record<string, unknown> = {
     id: draft.providerId,
     label: draft.providerLabel,
     vendor_key: draft.vendorKey,
     vendor_name: draft.vendorName,
-    base_url: draft.baseUrl,
+    base_url: template.id === "cloudflare-workers-ai" ? requireCloudflareBase(draft.baseUrl) : template.id === "vertex-oauth" ? vertexOAuthCatalogBase(draft) : template.preset === "qwen-official-api" ? qwenCatalogBase(draft) : draft.baseUrl,
     supported_models: [...draft.supportedModels],
   };
   writeRequestClientProfile(provider, draft.requestClientProfile ?? "auto");
@@ -426,6 +490,8 @@ export function providerDefinitionFromCatalogDraft(
     provider.protocol_profile = "chatgpt_codex_backend";
     provider.credential_identity_categories = CHATGPT_POOL_CATEGORIES.map((category) => ({ ...category }));
   }
+  if (template.id === "vertex-oauth") provider.auth_mode = "vertex_user_oauth";
+  if (template.id === "kiro-oauth") writeKiroOAuthCatalog(provider, draft);
   if (template.id === "flowmusic-web") {
     provider.supported_protocol_families = ["producer_music"];
     provider.execution_mode = "direct_http";
@@ -434,5 +500,10 @@ export function providerDefinitionFromCatalogDraft(
     writeCatalogWorkflow(provider, draft.workflow);
     writeProviderCallFlow(provider, template, draft);
   }
+  if (template.id === "lumalabs-api") validateLumaAgentsProvider(provider);
+  writeDimProvider(provider, template);
+  writeNousProvider(provider, template);
+  writeLobsterAiProvider(provider, template);
+  writeSapProvider(provider, draft);
   return provider;
 }

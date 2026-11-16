@@ -13,6 +13,11 @@ use std::{net::SocketAddr, sync::Arc};
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub enum KeyMutation {
+    SetSlot {
+        slot: usize,
+        enabled: bool,
+        token: Option<String>,
+    },
     Add {
         name: String,
         token: String,
@@ -43,7 +48,9 @@ pub async fn list_management_keys(
     })
     .await
     .map_err(|_| GatewayError::service_unavailable("Management key task failed"))??;
-    Ok(json_with_no_store(serde_json::json!({ "keys": keys })))
+    Ok(json_with_no_store(
+        serde_json::json!({ "keys": keys, "slotsSupported": true }),
+    ))
 }
 
 pub async fn mutate_management_key(
@@ -57,6 +64,17 @@ pub async fn mutate_management_key(
     let token = required_console_management_token(token.as_deref(), &headers)?.to_owned();
     let response = tokio::task::spawn_blocking(move || {
         match body {
+            KeyMutation::SetSlot {
+                slot,
+                enabled,
+                token: replacement,
+            } => state.console_auth.set_management_key_slot(
+                &request,
+                &token,
+                slot,
+                enabled,
+                replacement.as_deref(),
+            )?,
             KeyMutation::Add {
                 name,
                 token: new_token,

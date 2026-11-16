@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { vi } from "vitest";
 
-import { NeuroTooltipProvider } from "../../components/ActionTooltip";
+import { NeuroProvider } from "@neuro/ui";
 import type { CredentialGroupScopeMember } from "./accountManagementViewModel";
 import { CredentialGroupsWorkspace, type CredentialGroupsWorkspaceProps } from "./CredentialGroupsWorkspace";
 import type { AccountsLedgerPilotAccount } from "./ProviderAccountCard";
@@ -39,9 +39,9 @@ const anthropicScopeMember: CredentialGroupScopeMember = {
 
 export function renderWorkspace(props: CredentialGroupsWorkspaceProps) {
   return render(
-    <NeuroTooltipProvider>
+    <NeuroProvider>
       <CredentialGroupsWorkspace {...props} />
-    </NeuroTooltipProvider>,
+    </NeuroProvider>,
   );
 }
 
@@ -219,7 +219,7 @@ export function accountCardBridge(
       onSetAccountGroup: vi.fn(),
       onOpenStats: vi.fn(),
     },
-    onMenuAction: vi.fn(),
+    onAccountAction: vi.fn(),
     ...overrides,
   };
 }

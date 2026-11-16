@@ -4,10 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AccountRoutingPoolSelect } from "./AccountRoutingPoolSelect";
+import { NeuroProvider } from "@neuro/ui";
 
 function Harness(props: { initial?: string; disabled?: boolean; onChange: (value: string) => void }) {
   const [groupId, setGroupId] = useState(props.initial ?? "live");
-  return <AccountRoutingPoolSelect
+  return <NeuroProvider><AccountRoutingPoolSelect
     groupId={groupId}
     options={[
       { value: "all", label: "全部分组" },
@@ -18,7 +19,7 @@ function Harness(props: { initial?: string; disabled?: boolean; onChange: (value
     ungroupedLabel="未分组"
     disabled={props.disabled ?? false}
     onValueChange={(value) => { props.onChange(value); setGroupId(value); }}
-  />;
+  /></NeuroProvider>;
 }
 
 describe("AccountRoutingPoolSelect", () => {
@@ -30,7 +31,7 @@ describe("AccountRoutingPoolSelect", () => {
     expect(trigger.tagName).toBe("BUTTON");
     expect(trigger).toHaveTextContent("Live verified");
     await user.click(trigger);
-    expect(screen.getByRole("listbox")).toHaveClass("nt-account-routing-pool-select__popup");
+    expect(screen.getByRole("listbox")).toHaveClass("n-popup-select");
     expect(screen.getByRole("option", { name: "Live verified" })).toHaveAttribute("data-state", "checked");
     expect(screen.queryByRole("option", { name: "全部分组" })).not.toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();

@@ -5,23 +5,32 @@
 // chat/completions wire format.
 // ---------------------------------------------------------------------------
 
+pub(crate) mod chat_admission;
+pub(crate) mod chat_stream;
+mod chat_stream_state;
 mod normalize;
 mod pack;
 mod response_builders;
 mod response_unpack;
 mod stream_translate;
+pub(crate) mod text_tools_request;
 mod tool_calls;
+mod usage;
+pub(crate) use stream_translate::translate_openai_chat_sse_to_legacy_completions_with_reply_model;
+pub(crate) use usage::parse_embeddings_usage;
 
 pub use normalize::{
     normalize_audio_speech, normalize_audio_transcriptions, normalize_chat_completions,
     normalize_embeddings, normalize_legacy_completions,
 };
 pub use pack::pack_openai;
+pub(crate) use pack::pack_openai_message;
 pub use response_builders::{
     build_chat_completions_delta, build_chat_completions_stop, build_chat_completions_success,
     build_legacy_completions_delta, build_legacy_completions_stop,
     build_legacy_completions_success,
 };
+pub(crate) use response_unpack::unpack_native_chat_response;
 pub use response_unpack::unpack_openai_response;
 pub use stream_translate::{
     translate_openai_chat_sse_to_legacy_completions,
@@ -34,8 +43,6 @@ use response_unpack::map_openai_finish_reason;
 use crate::protocol::canonical::{
     CanonicalMessage, CanonicalToolCall, ContentPart, MessageRole, TokenUsage,
 };
-#[cfg(test)]
-use pack::pack_openai_message;
 #[cfg(test)]
 use serde_json::Value;
 

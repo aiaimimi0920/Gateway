@@ -53,7 +53,9 @@ pub(crate) fn websocket_tls() -> Result<rustls::ClientConfig, &'static str> {
 fn build(timeout: Duration, websocket: bool, session: bool) -> reqwest::Client {
     // Use the same environment/system proxy discovery as the reference CLI;
     // do not mutate the process environment or reuse the browser emulation factory.
-    let (builder, has_custom_ca) = custom_ca::configure(reqwest::Client::builder(), websocket)
+    let base =
+        super::proxy_settings::reqwest(reqwest::Client::builder(), super::proxy_settings::active());
+    let (builder, has_custom_ca) = custom_ca::configure(base, websocket)
         .expect("invalid native Codex custom CA configuration");
     let builder = if websocket {
         // The reference WS dialer leaves TCP_NODELAY at its socket default;

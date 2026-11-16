@@ -1,7 +1,8 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import { EmptyState } from "@neuro/ui";
 
-import { ProviderAccountLibrary } from "./ProviderAccountLibrary";
-import { ProviderLedgerCard } from "./ProviderLedgerCard";
+import { CredentialDirectory } from "./CredentialDirectory";
+import { PROVIDER_ACCESS_KINDS } from "./providerAccessKind";
 import { ProviderRemoveDialog } from "./ProviderRemoveDialog";
 import {
   ProviderLifecycleActionDialog,
@@ -11,17 +12,13 @@ import { ProviderLifecycleBack, type ProviderLifecycleBackOptions } from "./Prov
 import type { AccountsLedgerPilotSection, AccountsLedgerWorkspaceProps } from "./accountsLedgerTypes";
 import { AccountsLedgerTable } from "./AccountsLedgerTable";
 import {
-  ACCOUNT_CARD_MENU_ITEMS,
   CredentialRemoveDialog,
   ProviderAccountCard,
-  useAccountCardMenu,
-  type AccountCardMenuActionId,
+  type AccountCardActionId,
   type AccountsLedgerPilotAccount,
   type PendingCredentialRemoval,
 } from "./ProviderAccountCard";
 import { providerPoolEntries, providerPoolTableRows } from "./providerPoolView";
-import { usePoolScrollLoading } from "./usePoolScrollLoading";
-import { useCenteredPoolGrid } from "./useCenteredPoolGrid";
 
 export type {
   AccountsLedgerPilotAccount,
@@ -30,8 +27,7 @@ export type {
   AccountsLedgerWorkspaceProps,
 } from "./accountsLedgerTypes";
 
-type PilotMenuActionId = AccountCardMenuActionId;
-type ProviderCardSide = "front" | "back";
+
 
 export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
   const {
@@ -78,75 +74,15 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     [pilotSections, poolView.query, poolView.sort, poolView.accessKinds],
   );
   const hasAccounts = totalAccounts > 0;
-  const hasSiteFilter = Boolean(poolView.query.trim()) || (poolView.accessKinds?.length ?? 3) < 3;
+  const hasSiteFilter = Boolean(poolView.query.trim()) || (poolView.accessKinds?.length ?? PROVIDER_ACCESS_KINDS.length) < PROVIDER_ACCESS_KINDS.length;
   const pilotProviderIds = new Set(pilotSections.flatMap((section) => section.providerIds));
   const tableRows = providerPoolTableRows(rows.filter((row) => !pilotProviderIds.has(row.providerId)), poolView);
   const hasVisibleLedgerContent = providerEntries.length > 0 || tableRows.length > 0;
-  const poolFeed = usePoolScrollLoading(providerEntries.length + tableRows.length, poolView);
-  const providerGridRef = useCenteredPoolGrid();
-  const visibleProviders = providerEntries.slice(0, poolFeed.visibleCount);
-  const visibleTableRows = tableRows.slice(0, Math.max(0, poolFeed.visibleCount - providerEntries.length));
-  const [expandedAccountLibraryProviderId, setExpandedAccountLibraryProviderId] = useState<
-    string | null
-  >(null);
-  const pilotMenu = useAccountCardMenu();
-  const {
-    activeMenuKey: activePilotActionMenuKey,
-    setActiveMenuKey: setActivePilotActionMenuKey,
-    registerMenuTrigger,
-  } = pilotMenu;
-  const [poolTargetDrafts, setPoolTargetDrafts] = useState<Record<string, string>>({});
-  const [flippedProviderIds, setFlippedProviderIds] = useState<string[]>([]);
-  const providerFlipButtonRefs = useRef(new Map<string, HTMLButtonElement>());
-  const pendingFlipFocusRef = useRef<{ providerId: string; side: ProviderCardSide } | null>(null);
-  const [providerFlipAnnouncement, setProviderFlipAnnouncement] = useState("");
   const [pendingCredentialRemoval, setPendingCredentialRemoval] =
     useState<PendingCredentialRemoval | null>(null);
   const [pendingProviderRemoval, setPendingProviderRemoval] = useState<AccountsLedgerPilotSection | null>(null);
   const [pendingProviderLifecycleAction, setPendingProviderLifecycleAction] =
     useState<PendingProviderLifecycleAction | null>(null);
-
-  useEffect(() => {
-    const pendingFocus = pendingFlipFocusRef.current;
-    if (!pendingFocus) {
-      return;
-    }
-    pendingFlipFocusRef.current = null;
-    providerFlipButtonRefs.current
-      .get(`${pendingFocus.providerId}:${pendingFocus.side}`)
-      ?.focus({ preventScroll: true });
-  }, [flippedProviderIds]);
-
-  const toggleProviderAccountLibrary = (section: AccountsLedgerPilotSection) => {
-    setExpandedAccountLibraryProviderId((current) =>
-      current === section.providerId ? null : section.providerId,
-    );
-  };
-
-  const toggleProviderFlip = (
-    section: AccountsLedgerPilotSection,
-    nextSide: ProviderCardSide,
-  ) => {
-    pendingFlipFocusRef.current = { providerId: section.providerId, side: nextSide };
-    setProviderFlipAnnouncement(
-      nextSide === "back"
-        ? t(
-            `${section.providerLabel} 卡牌背面已显示`,
-            `${section.providerLabel} card back shown`,
-          )
-        : t(
-            `${section.providerLabel} 卡牌正面已显示`,
-            `${section.providerLabel} card front shown`,
-          ),
-    );
-    setFlippedProviderIds((current) =>
-      nextSide === "back"
-        ? current.includes(section.providerId)
-          ? current
-          : [...current, section.providerId]
-        : current.filter((id) => id !== section.providerId),
-    );
-  };
 
   const requestCredentialRemoval = (
     providerId: string,
@@ -191,16 +127,11 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
     setPendingProviderLifecycleAction(null);
   };
 
-  const pilotMenuItems = ACCOUNT_CARD_MENU_ITEMS;
-
-  const handlePilotMenuAction = (
-    action: PilotMenuActionId,
+  const handleAccountAction = (
+    action: AccountCardActionId,
     providerId: string,
     account: AccountsLedgerPilotAccount,
   ) => {
-    // The menu item unmounts; the dialog must capture the surviving card trigger.
-    if (action === "probe") pilotMenu.menuTriggerRefs.current.get(activePilotActionMenuKey ?? "")?.focus();
-    setActivePilotActionMenuKey(null);
     switch (action) {
       case "discover":
         onRefreshDiscovery?.(providerId, account.accountId);
@@ -218,42 +149,6 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
         break;
     }
   };
-
-  const commitPoolTargetDraft = (
-    policyKey: string,
-    committedValue: number,
-    onCommit: (nextTargetSize: number) => void,
-  ) => {
-    const draftValue = poolTargetDrafts[policyKey];
-    if (draftValue === undefined) {
-      return;
-    }
-
-    const normalized = draftValue.trim();
-    if (normalized.length === 0) {
-      setPoolTargetDrafts((current) => {
-        const next = { ...current };
-        delete next[policyKey];
-        return next;
-      });
-      return;
-    }
-
-    const parsed = Number(normalized);
-    const nextTargetSize =
-      Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : committedValue;
-
-    setPoolTargetDrafts((current) => {
-      const next = { ...current };
-      delete next[policyKey];
-      return next;
-    });
-
-    if (nextTargetSize !== committedValue) {
-      onCommit(nextTargetSize);
-    }
-  };
-
 
   const renderProviderLifecycleBack = (options: ProviderLifecycleBackOptions) => (
     <ProviderLifecycleBack
@@ -299,124 +194,36 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
         onSetAccountGroup,
         onOpenStats,
       }}
-      menu={{
-        keyPrefix: "account-library",
-        activeKey: activePilotActionMenuKey,
-        onActiveKeyChange: setActivePilotActionMenuKey,
-        registerTrigger: registerMenuTrigger,
-        items: pilotMenuItems,
-        onAction: handlePilotMenuAction,
-      }}
-    />
-  );
-
-  const renderProviderAccountLibrary = (
-    section: AccountsLedgerPilotSection,
-    providerAccounts: AccountsLedgerPilotAccount[],
-  ) => (
-    <ProviderAccountLibrary
-      section={section}
-      providerAccounts={providerAccounts}
-      editorLocked={editorLocked}
-      onOpenGeminiManualAdd={onOpenGeminiManualAdd}
-      onAddExplicit={onAddExplicit}
-      renderAccount={(account) => renderProviderAccountCard(section, account)}
-      t={t}
+      onAction={handleAccountAction}
     />
   );
 
   return (
-    <div className="nt-stack" ref={poolFeed.workspaceRef}>
+    <div className="nt-stack">
       {notice}
-      <p className="nt-visually-hidden" role="status" aria-live="polite" aria-atomic="true">
-        {providerFlipAnnouncement}
-      </p>
-      <div className="nt-provider-card-grid" ref={providerGridRef}>
-        {visibleProviders.map(({ section, snapshot }) => {
-          const accountLibraryExpanded =
-            expandedAccountLibraryProviderId === section.providerId;
-          const flipped = flippedProviderIds.includes(section.providerId);
-          const providerAccounts = snapshot.accounts;
-          const providerAvailablePoolCount = snapshot.availablePoolCount;
-          const poolSegments = snapshot.poolSegments;
-          return (
-            <Fragment key={section.providerId}>
-              <ProviderLedgerCard
-                section={section}
-                snapshot={snapshot}
-                t={t}
-                editorLocked={editorLocked}
-                accountLibraryExpanded={accountLibraryExpanded}
-                flipped={flipped}
-                providerModelMappingCount={modelMappingCountByProvider.get(section.providerId) ?? 0}
-                toggleProviderAccountLibrary={toggleProviderAccountLibrary}
-                toggleProviderFlip={toggleProviderFlip}
-                providerFlipButtonRefs={providerFlipButtonRefs}
-                handlers={{
-                  onToggleDispatch,
-                  onOpenProviderSchedule,
-                  onOpenModelMapping,
-                  onRequestProviderRemoval: setPendingProviderRemoval,
-                }}
-              >
-                {() => renderProviderLifecycleBack({
-                  section,
-                  active: flipped,
-                  discardEdits: props.discardLifecycleDrafts,
-                  availableCount: providerAvailablePoolCount,
-                  coolingCount: poolSegments.rateLimited,
-                  invalidCount: poolSegments.invalid,
-                  automation: automationByProvider.get(section.providerId),
-                  refill: refillByProvider.get(section.providerId),
-                })}
-              </ProviderLedgerCard>
-              {accountLibraryExpanded
-                ? renderProviderAccountLibrary(section, providerAccounts)
-                : null}
-            </Fragment>
-          );
-        })}
-      </div>
-
+      <CredentialDirectory entries={providerEntries} props={props}
+        renderAccount={renderProviderAccountCard} onRemove={setPendingProviderRemoval}
+        renderSettings={({ section, snapshot }) => renderProviderLifecycleBack({
+          section, active: true, discardEdits: props.discardLifecycleDrafts,
+          availableCount: snapshot.availablePoolCount,
+          coolingCount: snapshot.poolSegments.rateLimited,
+          invalidCount: snapshot.poolSegments.invalid,
+          automation: automationByProvider.get(section.providerId),
+          refill: refillByProvider.get(section.providerId),
+        })} />
       <AccountsLedgerTable
         t={t}
         editorLocked={editorLocked}
-        rows={visibleTableRows}
+        rows={tableRows}
         onEdit={onEdit}
         onAddExplicit={onAddExplicit}
       />
-      {poolFeed.hasMore ? (
-        <div className="nt-pool-scroll-loader" ref={poolFeed.loaderRef} role="status" aria-live="polite">
-          {poolFeed.automatic ? t("正在加载更多…", "Loading more…") : (
-            <button type="button" className="nt-btn nt-btn--outline" onClick={poolFeed.loadMore}>
-              {t("加载更多", "Load more")}
-            </button>
-          )}
-        </div>
-      ) : null}
-
       {!hasAccounts && !hasVisibleLedgerContent && !hasSiteFilter ? (
-        <article className="nt-card nt-card--panel nt-empty-state">
-          <h2>{t("暂无账号", "No accounts yet")}</h2>
-          <p className="nt-copy">
-            {t(
-              "当前 route-config 里还没有解析出 provider credential。请使用上方的“添加账号”，或在服务商账号库中手动录入账号。",
-              "No provider credentials were found in the current route config. Use Add account above, or add one manually from a provider account library.",
-            )}
-          </p>
-        </article>
+        <EmptyState title={t("暂无账号", "No accounts yet")} />
       ) : null}
 
       {(hasAccounts || hasSiteFilter) && !hasVisibleLedgerContent ? (
-        <article className="nt-card nt-card--panel nt-empty-state">
-          <h2>{hasSiteFilter ? t("没有匹配站点", "No matching sites") : t("没有匹配账号", "No matching accounts")}</h2>
-          <p className="nt-copy">
-            {t(
-              "没有匹配当前搜索或筛选条件的站点。",
-              "No sites match the current search or filters.",
-            )}
-          </p>
-        </article>
+        <EmptyState title={hasSiteFilter ? t("没有匹配站点", "No matching sites") : t("没有匹配账号", "No matching accounts")} />
       ) : null}
 
       <CredentialRemoveDialog

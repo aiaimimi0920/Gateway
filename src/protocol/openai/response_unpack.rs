@@ -1,12 +1,28 @@
 use serde_json::Value;
 
-use super::tool_calls::parse_openai_message_tool_calls;
+use super::tool_calls::{
+    parse_openai_message_tool_calls, parse_openai_message_tool_calls_lossless,
+};
 use crate::error::GatewayError;
 use crate::protocol::canonical::{CanonicalRelayResponse, TokenUsage};
 use crate::protocol::tool_inject;
 
 /// Unpack an OpenAI response JSON body into a [`CanonicalRelayResponse`].
 pub fn unpack_openai_response(body: &Value) -> Result<CanonicalRelayResponse, GatewayError> {
+    unpack_response(body, false)
+}
+
+/// Explicit native Chat products must not repair tool arguments or interpret text as XML tools.
+pub(crate) fn unpack_native_chat_response(
+    body: &Value,
+) -> Result<CanonicalRelayResponse, GatewayError> {
+    unpack_response(body, true)
+}
+
+fn unpack_response(
+    body: &Value,
+    native_tools: bool,
+) -> Result<CanonicalRelayResponse, GatewayError> {
     let model = body
         .get("model")
         .and_then(|v| v.as_str())
@@ -42,8 +58,18 @@ pub fn unpack_openai_response(body: &Value) -> Result<CanonicalRelayResponse, Ga
     let mut finish_reason =
         map_openai_finish_reason(first.get("finish_reason").and_then(|v| v.as_str()));
 
-    let mut tool_calls = parse_openai_message_tool_calls(message);
-    if tool_calls.is_empty()
+    let has_turn = body.get(crate::protocol::vertex_turn::WIRE_FIELD).is_some()
+        || body
+            .get(crate::protocol::bedrock_turn::WIRE_FIELD)
+            .is_some();
+    let mut tool_calls = if has_turn || native_tools {
+        parse_openai_message_tool_calls_lossless(message)
+    } else {
+        parse_openai_message_tool_calls(message)
+    };
+    if !has_turn
+        && !native_tools
+        && tool_calls.is_empty()
         && (text.contains("<tool_calls>")
             || text.contains("<function_calls>")
             || text.contains("<invoke "))
@@ -91,6 +117,9 @@ pub fn unpack_openai_response(body: &Value) -> Result<CanonicalRelayResponse, Ga
         .map(|s| s as u16);
 
     Ok(CanonicalRelayResponse {
+        bedrock_turn: crate::protocol::bedrock_turn::read_response(body, &text, &tool_calls)?,
+        sources: crate::protocol::response_sources::read(body)?.unwrap_or_default(),
+        vertex_turn: crate::protocol::vertex_turn::read_response(body, &text, &tool_calls)?,
         model_declaration: crate::protocol::model_declaration::ModelDeclaration::from_body(body),
         model,
         text,

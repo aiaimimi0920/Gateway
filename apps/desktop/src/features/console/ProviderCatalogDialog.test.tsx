@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { NeuroProvider } from "@neuro/ui";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ComponentProps, useState } from "react";
@@ -12,7 +13,7 @@ function renderDialog(overrides: Partial<ComponentProps<typeof ProviderCatalogDi
     open: true, existingProviderIds: [], existingCredentialIds: [], locked: false, hasSecretAccess: true,
     onOpenChange: vi.fn(), onRequestSecretAccess: vi.fn(), onSubmit: vi.fn(), ...overrides,
   };
-  render(<UiLocaleProvider><ProviderCatalogDialog {...props} /></UiLocaleProvider>);
+  render(<UiLocaleProvider><ProviderCatalogDialog {...props} /></UiLocaleProvider>, { wrapper: NeuroProvider });
   return props;
 }
 describe("ProviderCatalogDialog", () => {
@@ -48,23 +49,25 @@ describe("ProviderCatalogDialog", () => {
         <ProviderCatalogDialog open={open} onOpenChange={setOpen} existingProviderIds={[]} existingCredentialIds={[]}
           locked={false} hasSecretAccess onRequestSecretAccess={vi.fn()} onSubmit={onSubmit} /></UiLocaleProvider>;
     }
-    render(<Harness />); const opener = screen.getByRole("button", { name: "Add provider" });
+    render(<Harness />, { wrapper: NeuroProvider }); const opener = screen.getByRole("button", { name: "Add provider" });
     await user.click(opener); await user.keyboard("{Escape}");
     await waitFor(() => expect(opener).toHaveFocus());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(); expect(onSubmit).not.toHaveBeenCalled();
   });
   it("creates a custom provider without a first account or secret access", async () => {
     const user = userEvent.setup(); const props = renderDialog({ hasSecretAccess: false });
-    await user.click(screen.getByRole("button", { name: "自定义模板" }));
+    await user.click(screen.getByRole("radio", { name: "自定义模板" }));
     await user.click(screen.getByRole("button", { name: "custom-api" }));
     await user.clear(screen.getByLabelText("Provider ID")); await user.type(screen.getByLabelText("Provider ID"), "partner");
     await user.type(screen.getByLabelText("Base URL"), "https://partner.example.test/v1");
     await user.selectOptions(screen.getByLabelText("调用适配器"), "anthropic");
     await user.selectOptions(screen.getByLabelText("指纹适配器"), "claude_cli");
     await user.click(screen.getByRole("button", { name: "添加" }));
-    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ templateId: "custom-api-provider",
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      templateId: "custom-api-provider",
       providerId: "partner", providerLabel: "partner", baseUrl: "https://partner.example.test/v1",
-      requestClientProfile: "claude_cli", workflow: expect.objectContaining({ callAdapter: "anthropic" }) }));
+      requestClientProfile: "claude_cli", workflow: expect.objectContaining({ callAdapter: "anthropic" })
+    }));
     expect(vi.mocked(props.onSubmit).mock.calls[0][0].credentialId).toBeUndefined();
     expect(props.onRequestSecretAccess).not.toHaveBeenCalled();
   });
@@ -134,7 +137,9 @@ describe("ProviderCatalogDialog", () => {
     expect(templateAdaptationComplete("jina")).toBe(true);
     expect([...document.querySelectorAll('[data-adaptation="complete"]')].map((button) => button.textContent))
       .toEqual(["codex-oauth新调用流程已验收", "chatgpt-web新调用流程已验收", "openai-api新调用流程已验收", "anthropic-api新调用流程已验收", "gemini-api新调用流程已验收", "stitch-web新调用流程已验收", "gemini-web新调用流程已验收", "gemini-canvas新调用流程已验收", "aistudio-web新调用流程已验收", "azure-api新调用流程已验收", "cohere-api新调用流程已验收", "groq-api新调用流程已验收", "nvidia-api新调用流程已验收", "deepseek-api新调用流程已验收", "mistral-api新调用流程已验收", "xAI-api新调用流程已验收", "perplexity-api新调用流程已验收", "openrouter-api新调用流程已验收", "poe-api新调用流程已验收", "linkup-api新调用流程已验收", "tavily-api新调用流程已验收", "you-api新调用流程已验收", "exa-api新调用流程已验收", "jina-api新调用流程已验收", "websearchapi-api新调用流程已验收", "flowmusic-web新调用流程已验收"]);
-    for (const text of document.querySelectorAll('[data-adaptation="complete"] span')) {
+    const statusTexts = document.querySelectorAll('[data-adaptation="complete"] .nt-visually-hidden');
+    expect(statusTexts).toHaveLength(document.querySelectorAll('[data-adaptation="complete"]').length);
+    for (const text of statusTexts) {
       expect(text).toHaveClass("nt-visually-hidden");
     }
   });

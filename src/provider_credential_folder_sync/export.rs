@@ -37,7 +37,7 @@ pub(super) async fn export_database_credentials(
             .filter(|value| !value.trim().is_empty())
             .map(str::to_owned)
             .unwrap_or_else(|| default_folder_sync_relative_path(provider_account, &credential));
-        let export_payload = materialize_export_payload(provider_account, &credential.payload);
+        let export_payload = materialize_export_payload(provider_account, &credential.payload)?;
         let serialized = serialize_export_payload(&export_payload, MATERIAL_BYTES)?;
         let (relative, hash, written) = write_export_file(root_dir, &relative, &serialized)?;
         expected_paths.insert(relative.clone());

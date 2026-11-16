@@ -49,7 +49,7 @@ export function selectOperationsRows<T>(
 
 export const requestRowMetadata = (row: ConsoleRequestAudit): RowMetadata => ({
   name: row.resolvedModel ?? row.requestedModel ?? "",
-  text: [row.requestedModel, row.status, row.errorSummary, row.upstreamStatus, row.createdAt],
+  text: [row.id, row.providerAccountId, row.requestedModel, row.status, row.errorSummary, row.upstreamStatus, row.createdAt],
   time: row.createdAt,
 });
 

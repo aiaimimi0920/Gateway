@@ -110,6 +110,7 @@ const BRAND_BY_PRESET: Record<string, string> = {
   udio: "Udio",
   lumalabs: "Luma AI",
   producer: "Producer",
+  "lumalabs-api": "Luma Agents",
   "muyuan-openai": "Muyuan",
 };
 
@@ -212,6 +213,8 @@ export function providerBrandLabel({
     return label ?? prettifyVendorName(vendorName ?? "");
   }
 
+  // Agents is a concrete product, unlike generic presets whose brand can be supplied by the ID.
+  if (preset === "lumalabs-api") return withQualifier(BRAND_BY_PRESET[preset], idQualifier(id, BRAND_BY_PRESET[preset], preset));
   const byId = BRAND_BY_PROVIDER_ID[id.toLowerCase()];
   if (byId) {
     return byId;

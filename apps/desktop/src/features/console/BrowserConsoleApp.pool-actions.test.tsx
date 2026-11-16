@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { BrowserConsoleApp } from "./BrowserConsoleApp";
 import { createConsoleApi } from "./BrowserConsoleApp.api-fixture";
-import { renderWithProviders, waitForConsoleReady, openWorkspace, waitForCommittedRouteDraft, providerCard } from "./BrowserConsoleApp.render-fixture";
+import { renderWithProviders, waitForConsoleReady, openWorkspace, waitForCommittedRouteDraft } from "./BrowserConsoleApp.render-fixture";
 
 it("confirms and automatically saves whole-pool removal with secret/reference preservation", async () => {
   window.localStorage.clear();
@@ -22,7 +22,7 @@ it("confirms and automatically saves whole-pool removal with secret/reference pr
   });
   await waitForConsoleReady();
   await openWorkspace(user, /凭据池/i);
-  const pool = providerCard(/^Delete Pool$/);
+  const pool = await screen.findByRole("article", { name: "Delete Pool 卡牌" });
   await user.click(within(pool).getByRole("button", { name: "删除凭据池" }));
   expect(api.commitRouteConfig).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "取消" }));

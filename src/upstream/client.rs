@@ -7,7 +7,24 @@
 
 use base64::Engine;
 #[cfg(test)]
+mod bedrock_wire_tests;
+mod buffered_response;
+#[cfg(test)]
+mod grok_oauth_test_support;
+#[cfg(all(test, feature = "family-openai-compatible-official-api"))]
+mod grok_oauth_wire_tests;
+#[cfg(test)]
 mod perplexity_contract_tests;
+#[cfg(test)]
+pub(crate) mod vertex_express_test_support;
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+mod vertex_express_wire_tests;
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+mod vertex_oauth_pipeline_tests;
+#[cfg(test)]
+mod vertex_oauth_test_support;
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+mod vertex_oauth_wire_tests;
 use deadpool_redis::Pool as RedisPool;
 use futures::StreamExt;
 use rquest::header::{HeaderMap, HeaderName, HeaderValue};
@@ -323,6 +340,8 @@ pub use crate::upstream::browser_worker_types::{
 /// Thin wrapper around [`rquest::Client`] that knows how to talk to AI
 /// provider APIs.
 pub struct UpstreamClient {
+    pub(crate) lobsterai_http: rquest::Client,
+    pub(crate) sap_aicore: std::sync::Arc<crate::protocol::sap_aicore::auth::TokenCache>,
     pub(crate) freebuff: std::sync::Arc<crate::protocol::freebuff::RunRuntime>,
     pub(crate) http: Client,
     plain_http: Client,
@@ -340,18 +359,8 @@ pub struct UpstreamClient {
     pg_pool: Option<PgPool>,
 }
 
-const BROWSER_EXECUTOR_HTTP_GRACE: Duration = Duration::from_secs(20);
-
 pub(crate) mod native_session;
-
-fn browser_executor_remote_request_timeout(default_timeout: Duration, input: &Value) -> Duration {
-    let worker_timeout = input
-        .get("timeoutMs")
-        .and_then(Value::as_u64)
-        .map(Duration::from_millis)
-        .unwrap_or(default_timeout.max(Duration::from_secs(30)));
-    worker_timeout.saturating_add(BROWSER_EXECUTOR_HTTP_GRACE)
-}
+use browser_executor::browser_executor_remote_request_timeout;
 
 #[path = "client_initialization.rs"]
 mod initialization;
@@ -433,6 +442,28 @@ mod request_plan_part_2;
 #[path = "client/streaming.rs"]
 mod streaming;
 
+#[cfg(all(test, feature = "line-qwen-official-api"))]
+#[path = "client/qwen_pipeline_test_support.rs"]
+mod qwen_pipeline_test_support;
+#[cfg(all(test, feature = "line-qwen-official-api"))]
+#[path = "client/qwen_pipeline_tests.rs"]
+mod qwen_pipeline_tests;
+
+#[cfg(all(test, feature = "line-perplexity-web-reverse-api"))]
+#[path = "client/perplexity_web_dispatch_tests.rs"]
+mod perplexity_web_dispatch_tests;
+
+#[cfg(all(test, feature = "line-perplexity-web-reverse-api"))]
+#[path = "client/perplexity_web_pipeline_tests.rs"]
+mod perplexity_web_pipeline_tests;
+
+#[cfg(all(test, feature = "line-grok-web-reverse-api"))]
+#[path = "client/grok_web_pipeline_tests.rs"]
+mod grok_web_pipeline_tests;
+#[cfg(all(test, feature = "line-qwen-web-reverse"))]
+#[path = "client/qwen_web_pipeline_tests.rs"]
+mod qwen_web_pipeline_tests;
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -457,6 +488,21 @@ mod call_flow_wire_tests;
 #[cfg(test)]
 #[path = "client/deepseek_contract_tests.rs"]
 mod deepseek_contract_tests;
+#[cfg(all(test, feature = "line-kiro-official-vendor-api"))]
+mod kiro_api_key_local_tests;
+#[cfg(all(test, feature = "line-kiro-official-vendor-api"))]
+mod kiro_api_key_pipeline_tests;
+#[cfg(test)]
+pub(crate) mod kiro_api_key_test_support;
+#[cfg(all(test, feature = "line-kiro-official-vendor-api"))]
+mod kiro_api_key_tests;
+#[cfg(all(test, feature = "line-kiro-official-vendor-api"))]
+mod kiro_api_key_wire_tests;
+#[cfg(all(test, feature = "line-kiro-official-vendor-api"))]
+mod kiro_oauth_local_tests;
+#[cfg(test)]
+#[path = "client/kiro_transport_tests.rs"]
+mod kiro_transport_tests;
 #[cfg(test)]
 #[path = "client/mistral_contract_tests.rs"]
 mod mistral_contract_tests;
@@ -467,3 +513,12 @@ mod tests;
 #[path = "client/xai_contract_tests.rs"]
 mod xai_contract_tests;
 pub(crate) use native_codex::websocket::NativeResponsesSocket;
+
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+mod vertex_express_future_tests;
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+mod vertex_express_local_tests;
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+mod vertex_express_pipeline_tests;
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+mod vertex_oauth_local_tests;

@@ -1,10 +1,11 @@
+import { Badge, DataTable, EmptyState } from "@neuro/ui";
 import type { OperationsWorkspaceProps } from "./operations-contracts";
 import {
   formatCount,
   formatTimestamp,
   formatText,
   shortId,
-  statusBadgeClass,
+  statusTone,
   StatCard,
   Panel,
   BucketList,
@@ -31,7 +32,7 @@ export function OperationsRemediationPanels({
       >
         {(data) => (
           <>
-            <div className="nt-pilot-stats-overview-grid">
+            <div className="nt-operations-stats">
               <StatCard
                 label={t("执行次数", "Runs")}
                 value={formatCount(data.totalRuns)}
@@ -52,7 +53,7 @@ export function OperationsRemediationPanels({
                 value={formatCount(data.failureRate.regressedRuns)}
               />
             </div>
-            <dl className="nt-pilot-metric-list">
+            <dl className="nt-operations-metrics">
               <div>
                 <dt>{t("统计窗口", "Window")}</dt>
                 <dd>{`${data.windowMinutes} min`}</dd>
@@ -92,7 +93,7 @@ export function OperationsRemediationPanels({
       >
         {(data) => (
           <>
-            <div className="nt-pilot-stats-overview-grid">
+            <div className="nt-operations-stats">
               <StatCard
                 label={t("队列项", "Queued items")}
                 value={formatCount(data.itemCount)}
@@ -112,42 +113,35 @@ export function OperationsRemediationPanels({
               />
             </div>
             {data.items.length === 0 ? (
-              <div className="nt-pilot-stats-state" role="status">
-                {t("处置队列为空", "Remediation queue is empty")}
-              </div>
+              <div role="status"><EmptyState compact title={t("处置队列为空", "Remediation queue is empty")} /></div>
             ) : (
-              <div className="nt-table nt-table--remediation-queue">
-                <div className="nt-table__head">
-                  <span>{t("动作", "Action")}</span>
-                  <span>{t("事件", "Incident")}</span>
-                  <span>{t("下次执行", "Next run")}</span>
-                  <span>{t("阻塞原因", "Blocked by")}</span>
-                </div>
-                {data.items.map((item) => (
-                  <div
-                    className="nt-table__row"
-                    key={`${item.incident.id}-${item.action.actionKey}`}
-                  >
-                    <span title={item.action.description}>
-                      {formatText(item.action.title || item.action.actionKey)}
-                    </span>
-                    <span title={item.incident.id}>
-                      {formatText(item.incident.code)}
-                    </span>
-                    <span>
-                      {formatTimestamp(item.nextRunDueAt)}
-                      {item.remediationDue ? (
-                        <span className="nt-badge nt-badge--warning">
-                          {t("到期", "Due")}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="nt-copy">
-                      {formatText(item.blockedReason)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <div className="nt-operations-table nt-operations-table--remediation-queue"><DataTable label={t("待处置动作", "Queued remediation")} rows={data.items} getRowKey={(item) => `${item.incident.id}-${item.action.actionKey}`} columns={[
+                {
+                  key: "col-0", header: <>{t("动作", "Action")}</>, width: "30%", rowHeader: true, cell: (item) => (<span title={item.action.description}>
+                    {formatText(item.action.title || item.action.actionKey)}
+                  </span>)
+                },
+                {
+                  key: "col-1", header: <>{t("事件", "Incident")}</>, width: "22%", cell: (item) => (<span title={item.incident.id}>
+                    {formatText(item.incident.code)}
+                  </span>)
+                },
+                {
+                  key: "col-2", header: <>{t("下次执行", "Next run")}</>, width: "24%", cell: (item) => (<span className="n-row">
+                    {formatTimestamp(item.nextRunDueAt)}
+                    {item.remediationDue ? (
+                      <Badge tone="warning">
+                        {t("到期", "Due")}
+                      </Badge>
+                    ) : null}
+                  </span>)
+                },
+                {
+                  key: "col-3", header: <>{t("阻塞原因", "Blocked by")}</>, width: "24%", cell: (item) => (<span className="n-muted">
+                    {formatText(item.blockedReason)}
+                  </span>)
+                }
+              ]} /></div>
             )}
           </>
         )}
@@ -162,39 +156,33 @@ export function OperationsRemediationPanels({
       >
         {(rows) =>
           rows.length === 0 ? (
-            <div className="nt-pilot-stats-state" role="status">
-              {t("暂无处置记录", "No remediation runs yet")}
-            </div>
+            <div role="status"><EmptyState compact title={t("暂无处置记录", "No remediation runs yet")} /></div>
           ) : (
-            <div className="nt-table nt-table--remediation-runs">
-              <div className="nt-table__head">
-                <span>{t("动作", "Action")}</span>
-                <span>{t("状态", "Status")}</span>
-                <span>{t("事件", "Incident")}</span>
-                <span>{t("执行时间", "Executed at")}</span>
-              </div>
-              {rows.map((run) => (
-                <div className="nt-table__row" key={run.id}>
-                  <span title={run.actionKey}>
-                    {formatText(run.title || run.actionKey)}
-                  </span>
-                  <span>
-                    <span className={statusBadgeClass(run.status)}>
-                      {formatText(run.status)}
-                    </span>
-                    {run.dryRun ? (
-                      <span className="nt-chip nt-chip--muted">
-                        {t("演练", "Dry run")}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span title={run.incidentId}>{shortId(run.incidentId)}</span>
-                  <span title={formatText(run.errorSummary)}>
-                    {formatTimestamp(run.completedAt ?? run.createdAt)}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <div className="nt-operations-table nt-operations-table--remediation-runs"><DataTable label={t("处置记录", "Remediation runs")} rows={rows} getRowKey={(run) => run.id} columns={[
+              {
+                key: "col-0", header: <>{t("动作", "Action")}</>, width: "30%", rowHeader: true, cell: (run) => (<span title={run.actionKey}>
+                  {formatText(run.title || run.actionKey)}
+                </span>)
+              },
+              {
+                key: "col-1", header: <>{t("状态", "Status")}</>, width: "24%", cell: (run) => (<span className="n-row">
+                  <Badge tone={statusTone(run.status)}>
+                    {formatText(run.status)}
+                  </Badge>
+                  {run.dryRun ? (
+                    <Badge>
+                      {t("演练", "Dry run")}
+                    </Badge>
+                  ) : null}
+                </span>)
+              },
+              { key: "col-2", header: <>{t("事件", "Incident")}</>, width: "22%", cell: (run) => (<span title={run.incidentId}>{shortId(run.incidentId)}</span>) },
+              {
+                key: "col-3", header: <>{t("执行时间", "Executed at")}</>, width: "24%", cell: (run) => (<span title={formatText(run.errorSummary)}>
+                  {formatTimestamp(run.completedAt ?? run.createdAt)}
+                </span>)
+              }
+            ]} /></div>
           )
         }
       </Panel>

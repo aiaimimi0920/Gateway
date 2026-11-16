@@ -3,7 +3,7 @@
 use crate::http::middleware::body_limit_layer;
 use crate::http::routes::{
     audio, bedrock, cohere, completions, embeddings, gemini, gemini_live, images, messages, models,
-    music, realtime, responses, search, videos,
+    music, realtime, responses, search, systemone, videos,
 };
 use crate::state::AppState;
 use axum::{
@@ -110,6 +110,12 @@ pub(super) fn mount(router: Router<Arc<AppState>>, state: &AppState) -> Router<A
     let image_edit_routes = Router::new()
         .route("/v1/images/edits", post(images::handle_image_edits))
         .layer(body_limit_layer(state.config.max_body_images_edits_bytes));
+
+    let systemone_routes = Router::new()
+        .route("/v1/systemone", post(systemone::handle))
+        .layer(body_limit_layer(
+            state.config.max_body_chat_completions_bytes,
+        ));
 
     let search_routes = Router::new()
         .route("/v1/search", post(search::handle_search))
@@ -239,6 +245,7 @@ pub(super) fn mount(router: Router<Arc<AppState>>, state: &AppState) -> Router<A
         .merge(completions_routes)
         .merge(messages_routes)
         .merge(responses_routes)
+        .merge(systemone_routes)
         .merge(gemini_generate_content_routes)
         .merge(bedrock_converse_routes)
         .merge(cohere_chat_routes)

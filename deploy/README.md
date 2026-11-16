@@ -70,6 +70,16 @@ recreate the volume.
 
 ## Quick Start
 
+The additive Accio DB refresh extension is
+`postgres/initdb/005-gateway-refresh-authority.sql`. It adds authorization
+incarnations/generations and permanent grant evidence; it does not enable the
+Accio background scheduler by itself. Existing databases are not upgraded by
+initdb. Platform-shared deployments require schema-owner migration/ledger review;
+standalone upgrades also require backup and transactional application. Do not
+hand-edit `001`, drop grant history, or treat this extension as runtime auto-DDL.
+See [Accio DB refresh contract](../docs/provider-accio-db-refresh.md) for the
+rollback, secret-access, table-lock and object-publication boundaries.
+
 ### Method 1: One-Click Preparation (Recommended)
 
 ```bash

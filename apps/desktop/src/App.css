@@ -1,0 +1,13 @@
+/* Runtime data composition only; standard components own their appearance. */
+.gateway-runtime-notice { position: relative; z-index: 1; margin: 8px 10px 0; flex-shrink: 0; }
+.gateway-runtime-notice > div { min-width: 0; flex: 1; }
+.gateway-runtime-notice__content { display: flex; align-items: flex-start; gap: 8px; }
+.gateway-runtime-notice__content > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gateway-runtime-summary.nt-hud-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 10px 10px 0; }
+.gateway-runtime-stat { display: grid; align-content: start; gap: 8px; padding: 12px; overflow-wrap: anywhere; }
+.gateway-runtime-stat > span { color: var(--n-muted); font-size: calc(12rem / 16); }
+.gateway-runtime-stat > strong { font-size: calc(14rem / 16); }
+@media (max-width: 760px) {
+  .gateway-runtime-summary.nt-hud-strip { grid-template-columns: minmax(0, 1fr); }
+  .gateway-runtime-stat { grid-template-columns: minmax(70px, .4fr) minmax(0, 1fr); align-items: baseline; padding: 8px 12px; }
+}

@@ -7,8 +7,11 @@ mod catalog_text;
 mod classification;
 mod filesystem;
 mod layout;
+mod normalization_accio_oauth;
 mod normalization_canvas;
 mod normalization_chatgpt;
+mod normalization_kiro;
+mod normalization_kiro_key;
 mod normalization_web;
 
 fn build_test_provider_account(

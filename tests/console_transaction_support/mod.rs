@@ -95,10 +95,59 @@ impl FakeRedisBackend {
     pub fn set_mode(&self, mode: FakeRedisMode) {
         self.state.lock().unwrap().mode = mode;
     }
+
+    pub fn set_activated_transaction(&self, record: &TransactionRecord) {
+        let mut activated = record.prepared_identity().unwrap();
+        activated
+            .transition(
+                TransactionPhase::YamlReplaced,
+                OffsetDateTime::now_utc(),
+                None,
+            )
+            .unwrap();
+        activated
+            .transition(
+                TransactionPhase::RedisActivated,
+                OffsetDateTime::now_utc(),
+                None,
+            )
+            .unwrap();
+        self.state
+            .lock()
+            .unwrap()
+            .transactions
+            .insert(record.tx_id().into(), activated);
+    }
 }
 
 #[async_trait]
 impl RouteConfigRedisBackend for FakeRedisBackend {
+    async fn settle_transaction_locked(
+        &self,
+        _: &neuro_gateway::console::WriterLockGuard,
+        record: &TransactionRecord,
+    ) -> Result<neuro_gateway::console::RouteConfigRedisSettlement, RouteConfigRedisStoreError>
+    {
+        use neuro_gateway::console::RouteConfigRedisSettlement as Settled;
+        let mut state = self.state.lock().unwrap();
+        let tombstone = record.revocation_tombstone().unwrap();
+        if let Some(stored) = state.transactions.get(record.tx_id()) {
+            if stored == &tombstone {
+                return Ok(Settled::Revoked);
+            }
+            assert_eq!(
+                stored.prepared_identity().unwrap(),
+                record.prepared_identity().unwrap()
+            );
+            if stored.phase() == TransactionPhase::RedisActivated {
+                return Ok(Settled::Activated);
+            }
+            assert_eq!(stored.phase(), TransactionPhase::Prepared);
+        }
+        state.transactions.insert(record.tx_id().into(), tombstone);
+        Ok(Settled::Revoked)
+    }
+
     async fn store_revision(
         &self,
         revision: &RouteConfigRedisRevision,
@@ -115,11 +164,13 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
         &self,
         record: &TransactionRecord,
     ) -> Result<(), RouteConfigRedisStoreError> {
-        self.state
-            .lock()
-            .unwrap()
+        let mut state = self.state.lock().unwrap();
+        if let Some(old) = state.transactions.get(record.tx_id()) {
+            assert_eq!(old, record);
+        }
+        state
             .transactions
-            .insert(record.tx_id().to_string(), record.clone());
+            .insert(record.tx_id().into(), record.clone());
         Ok(())
     }
 
@@ -127,16 +178,19 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
         &self,
         _expected_active_revision: Option<&str>,
         revision: &RouteConfigRedisRevision,
-        _prepared_record: &TransactionRecord,
+        prepared_record: &TransactionRecord,
         activated_record: &TransactionRecord,
     ) -> Result<RouteConfigRedisActivationOutcome, RouteConfigRedisStoreError> {
         let mut state = self.state.lock().unwrap();
-        state.transactions.insert(
-            activated_record.tx_id().to_string(),
-            activated_record.clone(),
+        assert_eq!(
+            state.transactions.get(prepared_record.tx_id()),
+            Some(prepared_record)
         );
         match &state.mode {
             FakeRedisMode::Activated => {
+                state
+                    .transactions
+                    .insert(activated_record.tx_id().into(), activated_record.clone());
                 state.active_revision = Some(revision.clone());
                 Ok(RouteConfigRedisActivationOutcome::Activated)
             }
@@ -146,6 +200,9 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
                         actual: None,
                     });
                 }
+                state
+                    .transactions
+                    .insert(activated_record.tx_id().into(), activated_record.clone());
                 state.active_revision = Some(revision.clone());
                 Ok(RouteConfigRedisActivationOutcome::Activated)
             }
@@ -155,6 +212,9 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
                 })
             }
             FakeRedisMode::IndeterminateNewRevision => {
+                state
+                    .transactions
+                    .insert(activated_record.tx_id().into(), activated_record.clone());
                 state.active_revision = Some(revision.clone());
                 Ok(RouteConfigRedisActivationOutcome::Indeterminate)
             }

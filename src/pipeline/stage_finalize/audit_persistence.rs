@@ -8,14 +8,18 @@ pub(super) async fn finalize_request_audit_success(
     usage: Option<TokenUsage>,
     state: &Arc<AppState>,
 ) {
+    let mut trace = build_route_trace_from_ctx(ctx, None);
+    let response_id =
+        super::luma_agents_audit::success(ctx.selected_adapter.as_deref(), body, &mut trace)
+            .or_else(|| extract_response_id(body));
     finalize_request_audit(
         ctx,
         "completed",
-        Some(200),
+        ctx.observed_upstream_status.unwrap_or(Some(200)),
         usage,
         None,
-        Some(build_route_trace_from_ctx(ctx, None)),
-        extract_response_id(body),
+        Some(trace),
+        response_id,
         state,
     )
     .await;
@@ -27,7 +31,8 @@ pub(super) async fn finalize_request_audit_failure(
     state: &Arc<AppState>,
 ) {
     let upstream_status = if ctx.route_attempt_count() > 0 {
-        error.provider_response_status()
+        ctx.observed_upstream_status
+            .unwrap_or_else(|| error.provider_response_status())
     } else {
         None
     };

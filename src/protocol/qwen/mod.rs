@@ -1,3 +1,7 @@
+pub mod workspace_api;
+pub(crate) mod workspace_response;
+pub(crate) mod workspace_stream;
+
 #[cfg(feature = "line-qwen-official-core")]
 pub mod official_api;
 #[cfg(not(feature = "line-qwen-official-core"))]

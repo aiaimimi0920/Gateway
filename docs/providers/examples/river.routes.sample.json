@@ -1,0 +1,11 @@
+{
+  "providers": [{
+    "id": "river",
+    "preset": "river-api",
+    "base_url": "https://api.river.ai/v1",
+    "explicit_credentials_only": true,
+    "call_flow": { "call_adapter": "auto", "fingerprint_adapter": "auto", "special_adapter": "auto" },
+    "credentials": [{ "id": "river-account", "api_key": "rv_replace_with_your_key", "supported_models": ["replace/with-current-account-model"] }]
+  }],
+  "model_routes": [{ "pattern": "replace/with-current-account-model", "provider_ids": ["river"], "priority": 10, "enabled": true }]
+}

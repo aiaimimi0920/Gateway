@@ -11,8 +11,29 @@ use crate::db::map_db_error;
 use crate::error::GatewayError;
 use crate::object_storage::choose_provider_payload_storage_mode;
 use sqlx::types::Json;
-use sqlx::PgPool;
+use sqlx::{FromRow, PgPool, Row};
 use time::OffsetDateTime;
+
+/// Capture the ordinary hydrated view and a short-lived writer CAS under the same row lock.
+/// This is not the permanent refresh authority or a caller-supplied business revision.
+pub(crate) async fn get_provider_credential_for_update(
+    pool: &PgPool,
+    credential_id: &str,
+) -> Result<Option<(String, GatewayProviderCredentialView)>, GatewayError> {
+    let mut transaction = pool.begin().await.map_err(map_db_error)?;
+    let row = sqlx::query("select c.*,xmin::text as snapshot_version from gateway_provider_credentials c where id=$1 for share")
+        .bind(credential_id).fetch_optional(&mut *transaction).await.map_err(map_db_error)?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let snapshot: String = row.try_get("snapshot_version").map_err(map_db_error)?;
+    let view = provider_credential_view_from_row(
+        GatewayProviderCredentialRow::from_row(&row).map_err(map_db_error)?,
+    )
+    .await?;
+    transaction.commit().await.map_err(map_db_error)?;
+    Ok(Some((snapshot, view)))
+}
 
 /// Commit a short-lived import snapshot only while its PostgreSQL row version matches.
 /// The opaque token is run-local metadata, never a durable or ordered business revision.

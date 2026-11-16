@@ -4,7 +4,9 @@ use serde_json::Value;
 use tracing::debug;
 
 use crate::error::GatewayError;
-use crate::protocol::upstream_body::collect_bounded_upstream_text;
+use crate::protocol::upstream_body::{
+    collect_bounded_upstream_text, collect_bounded_upstream_text_with_limit,
+};
 use crate::upstream::browser_executor_helpers::{
     classify_browser_executor_invocation_failure, extract_browser_executor_invocation_success,
     parse_browser_executor_invocation_response_body,
@@ -36,25 +38,36 @@ pub(crate) async fn decode_remote_browser_executor_response(
         );
     }
 
-    let body_text =
-        match collect_bounded_upstream_text(response, "remote browser executor response").await {
-            Ok(body_text) => body_text,
-            Err(error) => {
-                debug!(
-                    provider,
-                    provider_account_id,
-                    endpoint_kind,
-                    status,
-                    response_error_code = error.code.as_deref().unwrap_or("unknown"),
-                    local_fallback_allowed = !policy.forbids_local_fallback(),
-                    "remote browser executor response could not be read safely"
-                );
-                return fallback_or_required_failure(
-                    policy,
-                    "Remote browser executor response could not be read safely.".to_string(),
-                );
-            }
-        };
+    // Udio and Luma Web exchange task metadata, not media bytes. Bound decoded chunks as well
+    // as declared length; other executors retain their existing whole-body contract.
+    let body = if matches!(provider, "udio" | "lumalabs") {
+        collect_bounded_upstream_text_with_limit(
+            response,
+            "remote browser executor response",
+            128 * 1024,
+        )
+        .await
+    } else {
+        collect_bounded_upstream_text(response, "remote browser executor response").await
+    };
+    let body_text = match body {
+        Ok(body_text) => body_text,
+        Err(error) => {
+            debug!(
+                provider,
+                provider_account_id,
+                endpoint_kind,
+                status,
+                response_error_code = error.code.as_deref().unwrap_or("unknown"),
+                local_fallback_allowed = !policy.forbids_local_fallback(),
+                "remote browser executor response could not be read safely"
+            );
+            return fallback_or_required_failure(
+                policy,
+                "Remote browser executor response could not be read safely.".to_string(),
+            );
+        }
+    };
 
     let result = match parse_browser_executor_invocation_response_body(&body_text) {
         Ok(result) => result,
@@ -89,6 +102,10 @@ pub(crate) async fn decode_remote_browser_executor_response(
         result, provider,
     ))
 }
+
+#[cfg(test)]
+#[path = "browser_executor_udio_tests.rs"]
+mod udio_tests;
 
 fn fallback_or_required_failure(
     policy: RequestTimeBrowserPolicy,

@@ -11,10 +11,11 @@ import { resolveUdioAccessToken, parseCookieHeader } from "./udio-browser/auth.m
 import { maybeReadRuntimeState, maybePersistRuntimeState, hasPersistableRuntimeState } from "./udio-browser/storage.mjs";
 import { debugLog } from "./udio-browser/diagnostics.mjs";
 import { safePageUrl, resolveExecutablePath, resolveBorrowedContext, resolveWorkerPage, createWorkerPage, openChallengeSurface } from "./udio-browser/browser.mjs";
-import { requireJsonResponse, isChallengeOutcome, trimBody, normalizeError, extractTrackIds, readSongs, songsReadyForTarget, timeoutMessageForTarget } from "./udio-browser/responses.mjs";
+import { requireJsonResponse, normalizeError } from "./udio-browser/responses.mjs";
 import { runWithChallengeRetries, browserFetch } from "./udio-browser/transport.mjs";
 import { refreshCaptchaToken } from "./udio-browser/captcha.mjs";
-import { submitGenerationThroughPageUi, resolveVercelCheckpointInBorrowedPage } from "./udio-browser/native-flow.mjs";
+import { submitGenerationThroughPageUi } from "./udio-browser/native-flow.mjs";
+import { runGeneration } from "./udio-browser/generation.mjs";
 
 async function main() {
   let browser = null;
@@ -33,6 +34,7 @@ async function main() {
       input.debugLogPath ?? process.env.UDIO_BROWSER_DEBUG_LOG_PATH ?? null,
     );
     const timeoutMs = normalizeTimeoutMs(input.timeoutMs, DEFAULT_TIMEOUT_MS, 30_000, 30 * 60 * 1000);
+    const overallDeadline = Date.now() + timeoutMs;
     const waitTimeoutMs = normalizeTimeoutMs(
       input.waitTimeoutMs,
       DEFAULT_WAIT_TIMEOUT_MS,
@@ -108,6 +110,8 @@ async function main() {
         browser = await chromium.connectOverCDP(browserCdpUrl, {
           timeout: cdpConnectTimeoutMs,
         });
+        // Playwright close disconnects only this CDP client; it does not own the borrowed browser.
+        closeBrowser = async () => { await browser.close(); };
         context = resolveBorrowedContext(browser, baseUrl, browserCdpTargetUrl, referer);
         await debugLog(debugLogPath, "browser_connect_cdp_ready", {
           contextPageCount: context.pages().length,
@@ -134,7 +138,7 @@ async function main() {
           ],
         });
         closeBrowser = async () => {
-          await browser?.close().catch(() => undefined);
+          await browser?.close();
         };
 
         const contextOptions = {
@@ -203,7 +207,6 @@ async function main() {
       });
 
       const requestBody = deepClone(input.requestBody);
-      const overallDeadline = Date.now() + timeoutMs;
       const authToken = await resolveUdioAccessToken(page, baseUrl);
       await debugLog(debugLogPath, "auth_token_resolved", {
         hasAuthToken: Boolean(authToken),
@@ -258,218 +261,30 @@ async function main() {
         await debugLog(debugLogPath, "native_submit_selected", {});
       }
 
-      await debugLog(debugLogPath, "submit_start", {
-        hasCaptchaToken: Boolean(normalizeString(requestBody.captchaToken)),
-        promptLength:
-          normalizeString(requestBody.gen_params?.prompt ?? requestBody.prompt)?.length ?? 0,
+      const headers = { accept: "application/json", origin, referer, ...(authToken ? { authorization: authToken } : {}) };
+      return await runGeneration({
+        deadline: overallDeadline, now: () => Date.now(), waitTimeoutMs, pollIntervalMs, targetAssetKind,
+        waitAudio: parseBoolean(input.waitAudio, true), wait: (ms) => page.waitForTimeout(ms),
+        submit: (remainingMs) => browserCdpUrl
+          ? submitGenerationThroughPageUi(page, { baseUrl, requestBody, timeoutMs: remainingMs })
+          : browserFetch(page, { requestUrl: `${baseUrl}/api/generate-proxy`, method: "POST",
+              headers: { ...headers, "content-type": "application/json" }, bodyText: JSON.stringify(requestBody),
+              timeoutMs: Math.min(remainingMs, 60_000) }),
+        poll: (ids, remainingMs) => browserFetch(page, {
+          requestUrl: `${baseUrl}/api/songs?songIds=${encodeURIComponent(ids.join(","))}&readOnly=false&checkIfReadyToStream=true`,
+          method: "GET", headers, timeoutMs: Math.min(remainingMs, 45_000),
+        }),
       });
-      const submitGeneration = async () => {
-        const outcome = browserCdpUrl
-          ? await submitGenerationThroughPageUi(page, {
-              baseUrl,
-              requestBody,
-              timeoutMs: Math.min(
-                Math.max(60_000, manualChallengeWaitMs + 60_000),
-                Math.max(60_000, overallDeadline - Date.now()),
-              ),
-            })
-          : await browserFetch(page, {
-              requestUrl: `${baseUrl}/api/generate-proxy`,
-              method: "POST",
-              headers: {
-                accept: "application/json, text/plain, */*",
-                "content-type": "application/json",
-                origin,
-                referer,
-                ...(authToken ? { authorization: authToken } : {}),
-              },
-              bodyText: JSON.stringify(requestBody),
-              timeoutMs: Math.min(timeoutMs, 60_000),
-            });
-        await debugLog(debugLogPath, "submit_action_result", {
-          ok: outcome.ok,
-          status: outcome.status,
-          contentType: outcome.contentType,
-          mitigated: outcome.mitigated,
-          transportError: Boolean(outcome.transportError),
-          textLength: String(outcome.text ?? "").length,
-          challengeOutcome: isChallengeOutcome(outcome),
-        });
-        return outcome;
-      };
-      let submitOutcome = await submitGeneration();
-      if (isChallengeOutcome(submitOutcome)) {
-        if (browserCdpUrl) {
-          await debugLog(debugLogPath, "native_checkpoint_start", {
-            status: submitOutcome.status,
-          });
-          await resolveVercelCheckpointInBorrowedPage(page, {
-            baseUrl,
-            referer,
-            timeoutMs: Math.min(
-              Math.max(60_000, manualChallengeWaitMs),
-              Math.max(60_000, overallDeadline - Date.now()),
-            ),
-          });
-          await debugLog(debugLogPath, "native_checkpoint_ready", {});
-        } else {
-          await debugLog(debugLogPath, "submit_challenge_refresh_start", {});
-          delete requestBody.captchaToken;
-          requestBody.captchaToken = await refreshCaptchaToken(page, {
-            baseUrl,
-            referer,
-            navigationTimeoutMs,
-            manualChallengeWaitMs,
-            debugLogPath,
-            allowNavigation: true,
-          });
-          await debugLog(debugLogPath, "captcha_token_ready", {
-            tokenLength: requestBody.captchaToken?.length ?? 0,
-            source: "submit_retry",
-          });
-        }
-        submitOutcome = await submitGeneration();
-        if (isChallengeOutcome(submitOutcome)) {
-          throw Object.assign(
-            new Error(
-              "Udio requires a browser security check or captcha challenge before generation can continue.",
-            ),
-            {
-              status: submitOutcome.status ?? 429,
-              code: "udio_browser_challenge_required",
-              body: trimBody(submitOutcome.text ?? ""),
-            },
-          );
-        }
-      }
-      await debugLog(debugLogPath, "submit_outcome", {
-        ok: submitOutcome.ok,
-        status: submitOutcome.status,
-        contentType: submitOutcome.contentType,
-        mitigated: submitOutcome.mitigated,
-        textLength: String(submitOutcome.text ?? "").length,
-      });
-
-      const submitJson = requireJsonResponse(
-        submitOutcome,
-        "udio_invalid_generation_json",
-        "Udio generation returned invalid JSON.",
-      );
-      const trackIds = extractTrackIds(submitJson);
-      let latestSongs = readSongs(submitJson);
-      await debugLog(debugLogPath, "submit_json_ready", {
-        trackIds,
-        songCount: latestSongs.length,
-      });
-      if (!parseBoolean(input.waitAudio, true)) {
-        await debugLog(debugLogPath, "worker_success_no_wait", {
-          trackIds,
-          completed: songsReadyForTarget(latestSongs, targetAssetKind),
-        });
-        return {
-          ok: true,
-          status: 200,
-          result: {
-            trackIds,
-            songs: latestSongs,
-            completed: songsReadyForTarget(latestSongs, targetAssetKind),
-            message: null,
-          },
-        };
-      }
-
-      const waitDeadline = Date.now() + waitTimeoutMs;
-      while (Date.now() < waitDeadline) {
-        if (songsReadyForTarget(latestSongs, targetAssetKind)) {
-          await debugLog(debugLogPath, "worker_success", {
-            trackIds,
-            completed: true,
-            songCount: latestSongs.length,
-          });
-          return {
-            ok: true,
-            status: 200,
-            result: {
-              trackIds,
-              songs: latestSongs,
-              completed: true,
-              message: null,
-            },
-          };
-        }
-
-        await page.waitForTimeout(Math.min(pollIntervalMs, Math.max(250, waitDeadline - Date.now())));
-        if (Date.now() >= waitDeadline) {
-          break;
-        }
-
-        const idsQuery = encodeURIComponent(trackIds.join(","));
-        await debugLog(debugLogPath, "poll_start", {
-          trackIds,
-          remainingMs: Math.max(0, waitDeadline - Date.now()),
-        });
-        const pollOutcome = await runWithChallengeRetries({
-          page,
-          overallDeadline: waitDeadline,
-          retryIntervalMs: challengeRetryIntervalMs,
-          onChallenge: async () => {
-            await openChallengeSurface(page, baseUrl, referer, navigationTimeoutMs, {
-              allowNavigation: !browserCdpUrl,
-            });
-          },
-          action: () =>
-            browserFetch(page, {
-              requestUrl: `${baseUrl}/api/songs?songIds=${idsQuery}&readOnly=false&checkIfReadyToStream=true`,
-              method: "GET",
-              headers: {
-                accept: "application/json, text/plain, */*",
-                origin,
-                referer,
-                ...(authToken ? { authorization: authToken } : {}),
-              },
-              timeoutMs: Math.min(timeoutMs, 45_000),
-            }),
-        });
-        await debugLog(debugLogPath, "poll_outcome", {
-          ok: pollOutcome.ok,
-          status: pollOutcome.status,
-          contentType: pollOutcome.contentType,
-          textLength: String(pollOutcome.text ?? "").length,
-        });
-        const pollJson = requireJsonResponse(
-          pollOutcome,
-          "udio_invalid_poll_json",
-          "Udio songs polling returned invalid JSON.",
-        );
-        latestSongs = readSongs(pollJson);
-        await debugLog(debugLogPath, "poll_json_ready", {
-          songCount: latestSongs.length,
-          statuses: latestSongs.map((song) => String(song?.status ?? song?.state ?? "")),
-        });
-      }
-
-      await debugLog(debugLogPath, "worker_timeout", {
-        trackIds,
-        completed: songsReadyForTarget(latestSongs, targetAssetKind),
-        songCount: latestSongs.length,
-      });
-      return {
-        ok: true,
-        status: 200,
-        result: {
-          trackIds,
-          songs: latestSongs,
-          completed: songsReadyForTarget(latestSongs, targetAssetKind),
-          message: timeoutMessageForTarget(targetAssetKind),
-        },
-      };
     } finally {
       if (context && runtimeStateObjectKey) {
         await maybePersistRuntimeState(context, runtimeStateObjectKey, storedState, baseUrl).catch(
           () => undefined,
         );
       }
-      await closeBrowser();
+      try { await closeBrowser(); }
+      catch { throw Object.assign(new Error("Udio browser cleanup failed; remote generation may still exist."), {
+        status: 502, code: "udio_browser_cleanup_failed",
+      }); }
     }
   } catch (error) {
     await debugLog(debugLogPath, "worker_error", normalizeError(error));
@@ -482,16 +297,22 @@ async function main() {
 
 async function readStdin() {
   const chunks = [];
+  let bytes = 0;
   for await (const chunk of process.stdin) {
-    chunks.push(Buffer.from(chunk));
+    const buffer = Buffer.from(chunk);
+    bytes += buffer.length;
+    if (bytes > 1024 * 1024) throw Object.assign(new Error("Udio worker input exceeds 1 MiB."), {
+      status: 413, code: "udio_browser_worker_input_too_large",
+    });
+    chunks.push(buffer);
   }
   return Buffer.concat(chunks).toString("utf8");
 }
 
-function printJsonAndExit(value) {
-  process.stdout.write(JSON.stringify(value));
-  process.exit(0);
+async function writeJson(value) {
+  // Await pipe flush; force-exit can truncate JSON and bypass remaining handle cleanup.
+  await new Promise((resolve, reject) => process.stdout.write(`${JSON.stringify(value)}\n`, error => error ? reject(error) : resolve()));
 }
 
 // Emit and terminate only after main's persistence and owned-browser cleanup.
-main().then(printJsonAndExit);
+main().then(writeJson);

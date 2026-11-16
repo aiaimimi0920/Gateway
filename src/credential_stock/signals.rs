@@ -42,7 +42,11 @@ pub async fn start_credential_stock_monitor_task(state: Arc<AppState>) {
     let interval_secs = state.config.credential_stock_monitor_interval_secs.max(15);
     let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
     loop {
-        interval.tick().await;
+        tokio::select! {
+            biased;
+            _ = state.shutdown.wait() => break,
+            _ = interval.tick() => {},
+        }
         if state.lifecycle.is_draining() {
             break;
         }
@@ -87,6 +91,10 @@ pub async fn sweep_credential_stock_signals_once(
     for status in report.policies.iter().filter(|status| {
         status.needs_replenishment && status.policy.signal_enabled && status.policy.enabled
     }) {
+        // Once an event starts, finish published/cooldown markers before stopping.
+        if state.shutdown.is_requested() || state.lifecycle.is_draining() {
+            break;
+        }
         if signal_suppressed_by_cooldown(&status.policy, &status.signal_key) {
             suppressed_signal_count += 1;
             continue;

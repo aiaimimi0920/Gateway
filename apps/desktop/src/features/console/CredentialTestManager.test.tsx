@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render as renderBase, screen, waitFor, within } from "@testing-library/react";
+import { NeuroProvider } from "@neuro/ui";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { expect, it, vi } from "vitest";
@@ -7,14 +8,27 @@ import { CredentialTestManager } from "./CredentialTestManager";
 import { defaultTestPolicy } from "./credentialTestPolicyDocument";
 import { updateTestPlans, type TestPlanChange } from "./credentialTestPlansDocument";
 import { pilotSection } from "./AccountsLedgerWorkspace.fixtures";
+const render = (ui: Parameters<typeof renderBase>[0]) => renderBase(ui, { wrapper: NeuroProvider });
 
-const document: ConsoleRouteDocument = { providers: [{ id: "p", label: "Pool", supported_models: ["a"], credentials: [{ id: "one", account_name: "One" }],
-  test_plans: [{ id: "existing", name: "已保存计划", scopes: [{ kind: "pool" }], policy: defaultTestPolicy() }] }], model_routes: [], aliases: {}, account_groups: [] };
-const response: ConsoleProviderProbeResponse = { result: { providerId: "p", status: "passed", message: "complete", checkedAt: "2026-10-05T00:00:00Z",
-  totalCount: 1, passedCount: 1, failedCount: 0, unsupportedCount: 0, results: [{ providerId: "p", credentialId: "one", probePoint: "matrix",
-    status: "passed", message: "complete", checkedAt: "2026-10-05T00:00:00Z", assessment: { planId: "existing", policySource: "plan:existing", mode: "manual",
-      models: [{ model: "a", callable: true, completedCount: 1, gradedCount: 1, correctCount: 1, score: 100, capabilityLevel: "basic" }],
-      cases: [{ caseId: "connection", name: "连接", model: "a", difficulty: 1, status: "passed", answer: "OK", expectedAnswer: "OK", correct: true, message: "done" }] } }] } };
+const document: ConsoleRouteDocument = {
+  providers: [{
+    id: "p", label: "Pool", supported_models: ["a"], credentials: [{ id: "one", account_name: "One" }],
+    test_plans: [{ id: "existing", name: "已保存计划", scopes: [{ kind: "pool" }], policy: defaultTestPolicy() }]
+  }], model_routes: [], aliases: {}, account_groups: []
+};
+const response: ConsoleProviderProbeResponse = {
+  result: {
+    providerId: "p", status: "passed", message: "complete", checkedAt: "2026-10-05T00:00:00Z",
+    totalCount: 1, passedCount: 1, failedCount: 0, unsupportedCount: 0, results: [{
+      providerId: "p", credentialId: "one", probePoint: "matrix",
+      status: "passed", message: "complete", checkedAt: "2026-10-05T00:00:00Z", assessment: {
+        planId: "existing", policySource: "plan:existing", mode: "manual",
+        models: [{ model: "a", callable: true, completedCount: 1, gradedCount: 1, correctCount: 1, score: 100, capabilityLevel: "basic" }],
+        cases: [{ caseId: "connection", name: "连接", model: "a", difficulty: 1, status: "passed", answer: "OK", expectedAnswer: "OK", correct: true, message: "done" }]
+      }
+    }]
+  }
+};
 function setup(empty = false, sharedResponse: ConsoleProviderProbeResponse | null = null) {
   const onProbe = vi.fn().mockResolvedValue(response);
   const onRead = vi.fn().mockResolvedValue(response);
@@ -27,10 +41,14 @@ function setup(empty = false, sharedResponse: ConsoleProviderProbeResponse | nul
     return <><button onClick={() => setOpen(true)}>凭据池测试</button>{open ? <CredentialTestManager document={doc} initialTab="auto"
       onProbe={onProbe} onLoadResults={onRead} onSave={vi.fn().mockReturnValue(true)}
       onPlanChange={(updates: TestPlanChange[]) => { changes(updates); setDoc(updateTestPlans(doc, updates)); return true; }}
-      probe={{ t, section, closePilotActionDialog: () => { close(); setOpen(false); }, providerProbeBusy: false, providerProbeError: null,
-        providerProbeResponse: sharedResponse, draftDirty: false, draftMatchesActiveRevision: true }}
-      schedule={{ t, section, closePilotActionDialog: close, editorLocked: false, pilotScheduleEnabled: false, setPilotScheduleEnabled: vi.fn(),
-        pilotScheduleIntervalMinutes: "60", setPilotScheduleIntervalMinutes: vi.fn(), applyProviderProbeSchedule: vi.fn() }} /> : null}</>;
+      probe={{
+        t, section, closePilotActionDialog: () => { close(); setOpen(false); }, providerProbeBusy: false, providerProbeError: null,
+        providerProbeResponse: sharedResponse, draftDirty: false, draftMatchesActiveRevision: true
+      }}
+      schedule={{
+        t, section, closePilotActionDialog: close, editorLocked: false, pilotScheduleEnabled: false, setPilotScheduleEnabled: vi.fn(),
+        pilotScheduleIntervalMinutes: "60", setPilotScheduleIntervalMinutes: vi.fn(), applyProviderProbeSchedule: vi.fn()
+      }} /> : null}</>;
   }
   render(<Harness />); return { onProbe, onRead, changes, close };
 }

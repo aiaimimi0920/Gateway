@@ -44,7 +44,7 @@ mod windows {
     }
     fn command() -> Result<String, String> {
         let exe = std::env::current_exe().map_err(|error| error.to_string())?;
-        Ok(format!("\"{}\" --gateway-autostart", exe.display()))
+        crate::startup_arguments::command(&exe, &crate::paths::gateway_app_dir()?)
     }
     fn read() -> Result<Option<String>, String> {
         let mut bytes = 0u32;
@@ -92,7 +92,12 @@ mod windows {
     pub fn enabled() -> Result<bool, String> {
         match read()? {
             None => Ok(false),
-            Some(value) if value.starts_with('"') && value.ends_with("\" --gateway-autostart") => {
+            Some(value)
+                if value.starts_with('"')
+                    && (value.ends_with("\" --gateway-autostart")
+                        || (value.contains("\" --gateway-autostart --gateway-data-dir \"")
+                            && value.ends_with('"'))) =>
+            {
                 Ok(true)
             }
             Some(_) => Err("Gateway autostart belongs to a different installation".into()),

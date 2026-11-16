@@ -1,0 +1,32 @@
+Perplexity Web reference notice
+
+Gateway independently implements the bounded single-turn wire profile documented
+in docs/plan/provider-perplexity-web-contract.md. The HTTP request field layout
+and the ask_text / legacy FINAL / end_of_stream behavior were checked against:
+https://github.com/helallao/perplexity-ai/tree/05e1b65971ddbe0ac4eb0ab13296a8e78f710934
+Files: perplexity/client.py, perplexity/config.py, perplexity/utils.py.
+No account creation, email service, retry library or Python runtime is included.
+The reference license is retained below. It is not vendor authorization to use
+an account, subscription or automated consumer endpoint.
+
+MIT License
+
+Copyright (c) 2023-2026 helallao
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

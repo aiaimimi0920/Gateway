@@ -137,6 +137,7 @@ test("CLI validation preserves exit zero plus structured errors before browser a
     ["[]", "suno_browser_invalid_input"],
     ["{}", "suno_browser_missing_base_url"],
     [JSON.stringify({ baseUrl: "https://suno.fixture.invalid", requestBody: {} }), "suno_browser_missing_prompt"],
+    [JSON.stringify({ baseUrl: "https://suno.fixture.invalid", requestBody: { prompt: "fixture" }, targetAssetKind: "invalid" }), "suno_browser_invalid_target_asset_kind"],
   ];
   for (const [input, code] of cases) {
     const child = spawnSync(process.execPath, [worker], { input, encoding: "utf8", timeout: 10000 });

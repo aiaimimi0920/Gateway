@@ -12,6 +12,12 @@ mod redaction;
 #[path = "console_document_contract/secret_operations.rs"]
 mod secret_operations;
 
+#[path = "console_document_contract/session_material.rs"]
+mod session_material;
+
+#[path = "console_document_contract/perplexity_material.rs"]
+mod perplexity_material;
+
 #[path = "console_document_contract/secret_identity.rs"]
 mod secret_identity;
 

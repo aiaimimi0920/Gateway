@@ -10,18 +10,15 @@ const TARGETS: [&str; 2] = [
 
 pub(crate) fn schedule(state: &Arc<AppState>) {
     let runtime = &state.lifecycle.model_circuits;
-    {
-        let mut network = runtime.network.lock();
-        if network.started || state.shutdown.is_requested() {
-            return;
-        }
-        network.started = true;
-        network.enabled = true;
+    let mut network = runtime.network.lock();
+    if network.started || state.shutdown.is_requested() {
+        return;
     }
     let weak = Arc::downgrade(state);
     let shutdown = state.shutdown.clone();
     let wake = runtime.wake.clone();
-    tokio::spawn(async move {
+    let accepted = state.lifecycle.background_tasks.spawn(
+        crate::runtime::background_tasks::Worker::NetworkProbe, &state.shutdown, async move {
         let client = match crate::http_client::builder()
             .timeout(Duration::from_secs(4))
             .redirect(rquest::redirect::Policy::none())
@@ -42,11 +39,15 @@ pub(crate) fn schedule(state: &Arc<AppState>) {
             }
         };
         loop {
+            if shutdown.is_requested() {
+                return;
+            }
             let Some(state) = weak.upgrade() else {
                 return;
             };
             if let Some(epoch) = state.lifecycle.model_circuits.network_probe_due() {
                 let reachable = tokio::select! {
+                    biased;
                     _=shutdown.wait()=>return,
                     result=probe(&client,&TARGETS)=>result,
                 };
@@ -70,6 +71,11 @@ pub(crate) fn schedule(state: &Arc<AppState>) {
             tokio::select! { _=shutdown.wait()=>return, _=wake.notified()=>{}, _=tokio::time::sleep(Duration::from_secs(15))=>{} }
         }
     });
+    // Admission and the business started flag share the network lock, including restart races.
+    if accepted {
+        network.started = true;
+        network.enabled = true;
+    }
 }
 
 pub(super) async fn probe(client: &rquest::Client, targets: &[&str]) -> bool {

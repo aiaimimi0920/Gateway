@@ -1,0 +1,148 @@
+/* R21 shared shell. Loaded after legacy responsive rules to keep one layout owner. */
+.nt-shell.nt-shell--compact {
+  --nt-shell-rail-width: 212px;
+  --nt-shell-titlebar-height: 46px;
+  grid-template-columns: var(--nt-shell-rail-width) minmax(0, 1fr);
+  grid-template-rows: var(--nt-shell-titlebar-height) minmax(0, 1fr);
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  transition: none;
+}
+body:has(.nt-shell--compact) { overflow: hidden; }
+.nt-shell.nt-shell--compact.nt-shell--rail-collapsed { grid-template-columns: minmax(0, 1fr); }
+.nt-shell.nt-shell--compact .nt-rail {
+  display: flex;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  min-width: 0;
+  overflow: hidden;
+}
+.nt-shell.nt-shell--compact .nt-brand {
+  height: 28px;
+  flex: 0 0 28px;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--nt-border);
+}
+.nt-shell.nt-shell--compact .nt-brand__mark { width: 16px; flex: 0 0 16px; opacity: 1; transform: none; }
+.nt-shell.nt-shell--compact .nt-mark { width: 16px; height: 16px; }
+.nt-shell.nt-shell--compact .nt-brand__name {
+  flex: initial;
+  max-width: none;
+  font-size: .84rem;
+  font-weight: 650;
+  opacity: 1;
+  transform: none;
+}
+.nt-rail__context { display: flex; align-items: center; flex: 0 0 46px; padding-inline: 10px; border-bottom: 1px solid var(--nt-border); }
+.nt-shell.nt-shell--compact .nt-console-rail-toggle { display: inline-flex; }
+.nt-shell.nt-shell--compact .nt-rail__nav { display: grid; grid-column: auto; grid-row: auto; gap: 3px; margin: 10px 8px; overflow: hidden auto; padding: 0; }
+.nt-shell.nt-shell--compact .nt-rail__item {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 8px;
+}
+.nt-shell.nt-shell--compact .nt-rail__icon { width: 16px; height: 16px; flex: 0 0 16px; }
+.nt-shell.nt-shell--compact .nt-rail__icon svg { width: 16px; height: 16px; }
+.nt-shell.nt-shell--compact .nt-rail__label {
+  max-width: none;
+  font-size: .8125rem;
+  font-weight: 400;
+  line-height: 1.2;
+  opacity: 1;
+  transform: none;
+}
+.nt-shell.nt-shell--compact .nt-rail__utility { display: grid; grid-column: auto; grid-row: auto; gap: 6px; margin: auto 8px 8px; padding-top: 8px; border-top: 1px solid var(--nt-border); overflow: auto; }
+.nt-shell.nt-shell--compact .nt-titlebar {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  inset: auto;
+  display: flex;
+  min-width: 0;
+  border-bottom: 1px solid var(--nt-border);
+  background: var(--nt-rail);
+}
+.nt-shell.nt-shell--compact.nt-shell--rail-collapsed .nt-titlebar { grid-column: 1; }
+.nt-shell.nt-shell--compact .nt-titlebar__drag { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; overflow: hidden; padding: 0 16px; }
+.nt-shell.nt-shell--compact .nt-titlebar__drag .nt-brand { border: 0; flex: 0 0 auto; }
+.nt-shell.nt-shell--compact .nt-titlebar__controls { height: var(--nt-shell-titlebar-height); gap: 6px; min-width: 0; max-width: 75%; padding-inline: 12px; overflow-x: auto; }
+.nt-shell--compact .nt-titlebar .n-icon-button, .nt-shell--compact .nt-console-rail-toggle { width: 22px; min-height: 22px; height: 22px; padding: 2px; }
+.nt-shell--compact .nt-titlebar .n-icon-button svg, .nt-shell--compact .nt-console-rail-toggle svg { width: 12px; height: 12px; }
+.nt-page-title { display: flex; align-items: center; gap: 7px; min-width: 0; margin: 0; font-size: .84375rem; font-weight: 600; white-space: nowrap; }
+.nt-page-title__parent { color: var(--nt-text-muted); font-weight: 400; }
+.nt-page-title__separator { color: var(--nt-text-muted); font-weight: 400; opacity: .65; }
+.nt-shell.nt-shell--compact .nt-top-nav { display: flex; align-items: center; gap: 2px; min-width: 0; overflow: auto hidden; scrollbar-width: thin; }
+.nt-shell.nt-shell--compact .nt-top-nav .nt-rail__item { width: auto; min-height: 24px; height: 24px; padding: 0 7px; }
+.nt-shell.nt-shell--compact .nt-top-nav .nt-rail__icon { display: none; }
+.nt-shell.nt-shell--compact .nt-top-utility .nt-rail__item { width: 26px; height: 26px; min-height: 26px; padding: 4px; }
+.nt-shell.nt-shell--compact .nt-top-utility .nt-rail__label { display: none; }
+.nt-shell.nt-shell--compact .nt-board { grid-column: 2; grid-row: 2; min-height: 0; }
+.nt-shell.nt-shell--compact.nt-shell--rail-collapsed .nt-board { grid-column: 1; }
+.nt-shell.nt-shell--compact .nt-board__header { flex: 0 0 auto; min-height: 46px; padding: 6px 10px; gap: 10px; }
+.nt-shell.nt-shell--compact.nt-shell--settings .nt-board__header { flex: 0 0 46px; flex-direction: row; flex-wrap: nowrap; align-items: center; }
+.nt-shell.nt-shell--compact .nt-board__header > :nth-child(2):last-child { flex: 1; }
+.nt-settings-context { color: var(--nt-text-muted); font-size: .8rem; }
+.nt-shell.nt-shell--compact.nt-shell--settings .nt-stage { display: block; padding: 8px 16px; scrollbar-gutter: auto; }
+.nt-shell.nt-shell--compact .nt-stage { overflow: auto; }
+.nt-shell.nt-shell--compact .nt-board__header .nt-settings-tabs { flex: 1; }
+/* Nested settings use neutral luminance levels rather than two competing signal selections. */
+.nt-shell--compact.nt-shell--settings .nt-rail__utility .nt-rail__item[aria-current="page"] {
+  color: var(--n-text);
+  background: color-mix(in srgb, var(--n-text) 12%, var(--nt-rail));
+  border-color: var(--nt-border);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+}
+.nt-shell--compact.nt-shell--settings .nt-rail__utility .nt-rail__item[aria-current="page"] .n-icon { color: inherit; }
+/* The connector belongs to this nested settings list, not every shared TabList. */
+.nt-shell.nt-shell--compact .nt-rail .nt-settings-tabs {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  margin-left: 14px;
+  padding: 0 0 0 10px;
+  border-bottom: 0;
+  border-left: 1px solid var(--nt-border);
+  max-height: 220px;
+  overflow: auto;
+}
+.nt-shell.nt-shell--compact .nt-rail .nt-settings-tabs > button {
+  flex: 0 0 auto;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: .78125rem;
+  font-weight: 400;
+}
+.nt-shell.nt-shell--compact .nt-rail .nt-settings-tabs > button[data-state="active"] {
+  color: var(--n-text);
+  background: color-mix(in srgb, var(--n-text) 6.5%, var(--nt-rail));
+  border-color: transparent;
+  box-shadow: none;
+}
+:root:has(.nt-shell--compact) .nt-native-controls { height: 38px; }
+:root:has(.nt-native-controls) .nt-shell.nt-shell--compact .nt-titlebar__controls { padding-right: 186px; }
+@media (max-width: 760px) {
+  .nt-shell.nt-shell--compact { --nt-shell-rail-width: 184px; }
+  .nt-shell.nt-shell--compact { grid-template-rows: var(--nt-shell-titlebar-height) minmax(0, 1fr); }
+  .nt-shell.nt-shell--compact .nt-titlebar { display: flex; }
+  .nt-shell.nt-shell--compact .nt-titlebar__drag { grid-row: 1; }
+  .nt-shell.nt-shell--compact .nt-titlebar__controls { justify-content: flex-end; max-width: 60%; overflow-x: auto; scrollbar-width: thin; }
+  .nt-shell.nt-shell--compact .nt-titlebar__drag .nt-brand { padding-inline: 8px; }
+  .nt-shell.nt-shell--compact .nt-top-nav .nt-rail__item { padding-inline: 6px; }
+  :root:has(.nt-native-controls) .nt-shell.nt-shell--compact.nt-shell--rail-collapsed .nt-titlebar__drag { padding-right: 186px; }
+  :root:has(.nt-native-controls) .nt-shell.nt-shell--compact .nt-titlebar__controls { padding-right: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-shell.nt-shell--compact * { scroll-behavior: auto; }
+}

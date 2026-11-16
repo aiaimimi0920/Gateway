@@ -1,15 +1,30 @@
 //! Secret wire contracts and route-document transformation orchestration.
 
 mod admission;
+mod bedrock;
 mod classification;
 mod descriptors;
+mod freebuff_session;
+pub(crate) use freebuff_session::business_target_changed as freebuff_business_target_changed;
+#[cfg(test)]
+mod dim_oauth_tests;
+#[cfg(test)]
+mod freebuff_session_tests;
 mod identity;
+mod keep_bindings;
+#[cfg(test)]
+mod lobsterai_tests;
 mod masks;
+#[cfg(test)]
+mod nous_portal_tests;
 mod pointers;
+mod qwen_workspace;
 mod site_health;
 mod storage_connections;
 mod urls;
 mod validation;
+#[cfg(test)]
+mod vertex_oauth_tests;
 
 use admission::{preflight_secret_patch_budget, validate_operation_shape, MAX_SECRET_PATCHES};
 pub(crate) use classification::is_sensitive_key;
@@ -227,6 +242,35 @@ pub fn redact_route_document(
                 credential.refresh_token.as_deref(),
             );
             credential.refresh_token = None;
+            push_optional_string_descriptor(
+                &mut secrets,
+                format!("{credential_path}/accio_sgcookie"),
+                credential.accio_sgcookie.as_deref(),
+            );
+            credential.accio_sgcookie = None;
+            push_optional_string_descriptor(
+                &mut secrets,
+                format!("{credential_path}/copilot_github_token"),
+                credential.copilot_github_token.as_deref(),
+            );
+            credential.copilot_github_token = None;
+            freebuff_session::redact(credential, &credential_path, &mut secrets);
+            if let Some(context) = &mut credential.kiro_oauth {
+                let secret = context.take_client_secret();
+                push_optional_string_descriptor(
+                    &mut secrets,
+                    format!("{credential_path}/kiro_oauth/client_secret"),
+                    secret.as_deref(),
+                );
+            }
+            if let Some(context) = &mut credential.vertex_oauth {
+                let secret = context.take_client_secret();
+                push_optional_string_descriptor(
+                    &mut secrets,
+                    format!("{credential_path}/vertex_oauth/client_secret"),
+                    secret.as_deref(),
+                );
+            }
             if let Some(keepalive) = credential.keepalive.as_mut() {
                 keepalive.service_url = redact_url_value(&keepalive.service_url);
                 push_optional_string_descriptor(
@@ -289,6 +333,7 @@ pub fn resolve_secret_patches(
             SecretPatchError::new("secret_document_invalid", None::<String>, error.to_string())
         })?;
     let mut seen_paths = HashMap::<String, SecretOperation>::new();
+    let mut keep_bindings = keep_bindings::KeepBindings::default();
 
     for patch in patches {
         let parsed = ParsedPointer::parse(&patch.path)?;
@@ -315,7 +360,17 @@ pub fn resolve_secret_patches(
                     &parsed,
                 )?;
                 match value_at(&active_value, &source_path.segments).cloned() {
-                    Some(value) => set_value(&mut draft_value, &parsed.segments, value)?,
+                    Some(value) => {
+                        if !value.is_null() && value.as_str() != Some("") {
+                            keep_bindings.stage(
+                                &active_normalized,
+                                &draft,
+                                source_path,
+                                &parsed,
+                            )?;
+                        }
+                        set_value(&mut draft_value, &parsed.segments, value)?;
+                    }
                     None if target.is_map_value() => {
                         remove_value(&mut draft_value, &parsed.segments)?;
                     }
@@ -375,6 +430,9 @@ pub fn resolve_secret_patches(
     let resolved: RouteConfigYaml = serde_json::from_value(draft_value).map_err(|error| {
         SecretPatchError::new("secret_document_invalid", None::<String>, error.to_string())
     })?;
+    // A replacement can stop inheritance. Check the complete local result, not patch order or
+    // redacted placeholders, before returning anything to compilation/persistence.
+    keep_bindings.validate_all(&active_normalized, &resolved)?;
     Ok(materialize_credential_ids(resolved))
 }
 

@@ -2,6 +2,8 @@
 pub(crate) mod background;
 mod catalogue;
 mod endpoint_candidates;
+mod failure;
+pub use failure::DiscoveryFailure;
 pub mod job;
 pub mod model_catalog;
 mod openrouter;
@@ -186,11 +188,27 @@ impl CredentialDiscovery {
 }
 
 pub async fn discover(url: &str, key: &str) -> anyhow::Result<CredentialDiscovery> {
+    discover_with_models(url, key, &[]).await
+}
+
+/// Caller-supplied model IDs are probe candidates, never evidence of support.
+pub async fn discover_with_models(
+    url: &str,
+    key: &str,
+    models: &[String],
+) -> anyhow::Result<CredentialDiscovery> {
     anyhow::ensure!(
         !key.trim().is_empty() && key.len() <= 16_384 && !key.contains(['\r', '\n']),
         "A valid API key is required."
     );
     // Candidate/page/sample counts bound the job. A whole-job timeout would steal
     // a later request's budget while earlier aliases or protocols were running.
-    transport::discover(url, key).await
+    anyhow::ensure!(
+        models.len() <= 2048
+            && models.iter().all(|m| !m.trim().is_empty()
+                && m.len() <= 256
+                && !m.chars().any(char::is_control)),
+        "Invalid discovery model candidates."
+    );
+    transport::discover(url, key, models).await
 }

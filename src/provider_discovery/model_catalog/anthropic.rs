@@ -68,6 +68,8 @@ pub(super) async fn fetch(
                     return Err(unavailable());
                 }
                 return Ok(ModelCatalog {
+                    account_base_url: None,
+                    supported_endpoints: Default::default(),
                     source_url: ANTHROPIC_SOURCE.into(),
                     models,
                     checked_at: time::OffsetDateTime::now_utc()

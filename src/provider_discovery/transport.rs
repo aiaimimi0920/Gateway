@@ -9,6 +9,10 @@ use serde_json::Value;
 pub(super) fn checked_url(value: &str) -> anyhow::Result<url::Url> {
     let url = url::Url::parse(value).map_err(|_| anyhow::anyhow!("Invalid service URL."))?;
     anyhow::ensure!(
+        !crate::protocol::kiro_api_key::owns_base(value),
+        "Kiro CLI Key does not support generic API discovery."
+    );
+    anyhow::ensure!(
         matches!(url.scheme(), "http" | "https")
             && url.host_str().is_some()
             && url.username().is_empty()
@@ -45,7 +49,11 @@ pub(super) async fn read_json_bounded(
     serde_json::from_slice(&bytes).map_err(|_| anyhow::anyhow!("Discovery returned invalid JSON."))
 }
 
-pub(super) async fn discover(url: &str, key: &str) -> anyhow::Result<CredentialDiscovery> {
+pub(super) async fn discover(
+    url: &str,
+    key: &str,
+    hints: &[String],
+) -> anyhow::Result<CredentialDiscovery> {
     checked_url(url)?;
     let client = crate::http_client::builder()
         .redirect(rquest::redirect::Policy::none())
@@ -53,10 +61,22 @@ pub(super) async fn discover(url: &str, key: &str) -> anyhow::Result<CredentialD
         .build()?;
     // Known OpenRouter endpoints need neither alias scanning nor unrelated protocol probes.
     let is_openrouter = super::openrouter::matches(url);
-    let models = if is_openrouter {
-        super::openrouter::load(&client, key).await?
+    let models = if !hints.is_empty() {
+        let mut models = Vec::new();
+        for model in hints {
+            if !models.contains(model) {
+                models.push(model.clone());
+            }
+        }
+        models
+    } else if is_openrouter {
+        super::openrouter::load(&client, key)
+            .await
+            .map_err(|_| super::DiscoveryFailure::Catalogue)?
     } else {
-        catalogue::load(&client, url, key).await?
+        catalogue::load(&client, url, key)
+            .await
+            .map_err(|_| super::DiscoveryFailure::Catalogue)?
     };
     let candidates = if is_openrouter {
         vec![DiscoveredProtocol::ChatCompletions]
@@ -85,9 +105,10 @@ pub(super) async fn discover(url: &str, key: &str) -> anyhow::Result<CredentialD
         }
         probes.push(probe);
     }
-    let first = protocols
-        .first()
-        .ok_or_else(|| anyhow::anyhow!("No working text protocol found."))?;
+    if protocols.is_empty() {
+        return Err(super::DiscoveryFailure::Protocols(probes).into());
+    }
+    let first = &protocols[0];
     Ok(CredentialDiscovery {
         source_url: url.trim_end_matches('/').into(),
         api_base: first.api_base.clone(),

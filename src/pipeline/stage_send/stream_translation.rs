@@ -35,12 +35,33 @@ pub(super) fn translate(
         };
     let (byte_stream, stream_usage_handle) = if candidate.adapter == "kiro_compatible" {
         (byte_stream, None)
+    } else if crate::protocol::commandcode::messages::selected(&attempt.effective_payload) {
+        let (stream, handle) = crate::upstream::stream::tap_messages_usage_with_error(byte_stream);
+        (Box::pin(stream) as ByteStream, Some(handle))
+    } else if crate::protocol::commandcode::owns_payload(&attempt.effective_payload)
+        && attempt.effective_payload.responses_path.as_deref() == Some("/responses")
+    {
+        let (stream, handle) =
+            crate::upstream::stream::tap_commandcode_responses_usage_with_error(byte_stream);
+        (Box::pin(stream) as ByteStream, Some(handle))
     } else {
         let (tapped_stream, usage_handle) = tap_sse_usage_with_error(byte_stream);
         (Box::pin(tapped_stream) as ByteStream, Some(usage_handle))
     };
 
-    if !tools_were_injected && candidate.payload.is_discovered_native(&ctx.canonical_req) {
+    let byte_stream: ByteStream = if ctx.canonical_req.endpoint_kind != EndpointKind::Messages
+        && crate::protocol::lobsterai::messages::selected(&attempt.effective_payload)
+    {
+        Box::pin(crate::protocol::lobsterai::usage::openai_stream(
+            byte_stream,
+        ))
+    } else {
+        byte_stream
+    };
+    if !tools_were_injected
+        && (candidate.payload.is_discovered_native(&ctx.canonical_req)
+            || crate::protocol::commandcode::messages::selected(&attempt.effective_payload))
+    {
         return (byte_stream, stream_usage_handle);
     }
     let uses_openai_responses_bridge = candidate
@@ -72,243 +93,265 @@ pub(super) fn translate(
     // If the client called /v1/messages (Anthropic native) but
     // the upstream is NOT anthropic_compatible, the stream is in
     // OpenAI SSE format and must be translated to Anthropic SSE.
-    let byte_stream: ByteStream = if candidate.adapter == "kiro_compatible" {
-        if ctx.canonical_req.endpoint_kind == EndpointKind::Messages {
-            debug!(
-                req_id = %ctx.req_id,
-                "translating Kiro event stream to Anthropic SSE format"
-            );
-            Box::pin(
-                kiro::translate_kiro_event_stream_to_anthropic_sse_with_error(
-                    byte_stream,
-                    reply_model.clone(),
-                    ctx.canonical_req.clone(),
-                ),
-            )
-        } else if ctx.canonical_req.endpoint_kind == EndpointKind::Responses {
-            debug!(
-                req_id = %ctx.req_id,
-                "translating Kiro event stream to OpenAI Responses SSE format"
-            );
-            Box::pin(responses::translate_openai_sse_to_responses_with_error(
-                kiro::translate_kiro_event_stream_to_openai_sse_with_error(
-                    byte_stream,
-                    reply_model.clone(),
-                    ctx.canonical_req.clone(),
-                ),
-                reply_model.clone(),
-            ))
-        } else {
-            debug!(
-                req_id = %ctx.req_id,
-                "translating Kiro event stream to OpenAI SSE format"
-            );
-            Box::pin(kiro::translate_kiro_event_stream_to_openai_sse_with_error(
+    let byte_stream: ByteStream =
+        if crate::protocol::kiro_oauth::runtime::owns_payload(&candidate.payload) {
+            crate::upstream::kiro_oauth_runtime::translate(
                 byte_stream,
                 reply_model.clone(),
                 ctx.canonical_req.clone(),
-            ))
-        }
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::ChatCompletions
-        && uses_openai_responses_bridge
-    {
-        debug!(
-            req_id = %ctx.req_id,
-            adapter = %candidate.adapter,
-            "translating OpenAI Responses SSE stream to OpenAI chat SSE format"
-        );
-        let openai_stream = responses::translate_responses_sse_to_openai_chat_with_error(
-            byte_stream,
-            reply_model.clone(),
-        );
-        wrap_injected_openai_stream(
-            Box::pin(openai_stream),
-            tool_detection_placement.after_normalization(),
-            &ctx.req_id,
-            &reply_model,
-            original_tools.clone(),
-            original_tool_choice.clone(),
-            Some(original_messages_text.clone()),
-        )
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::ChatCompletions
-        && candidate.adapter == "anthropic_compatible"
-    {
-        debug!(
-            req_id = %ctx.req_id,
-            adapter = %candidate.adapter,
-            "translating Anthropic SSE stream to OpenAI SSE format"
-        );
-        let openai_stream = accio::translate_anthropic_like_stream_to_openai_with_error(
-            byte_stream,
-            reply_model.clone(),
-        );
-        wrap_injected_openai_stream(
-            Box::pin(openai_stream),
-            tool_detection_placement.after_normalization(),
-            &ctx.req_id,
-            &reply_model,
-            original_tools.clone(),
-            original_tool_choice.clone(),
-            Some(original_messages_text.clone()),
-        )
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::Responses
-        && candidate.adapter == "anthropic_compatible"
-    {
-        debug!(
-            req_id = %ctx.req_id,
-            adapter = %candidate.adapter,
-            "translating Anthropic SSE stream to OpenAI Responses SSE format"
-        );
-        let openai_stream = accio::translate_anthropic_like_stream_to_openai_with_error(
-            byte_stream,
-            reply_model.clone(),
-        );
-        let openai_stream = wrap_injected_openai_stream(
-            Box::pin(openai_stream),
-            tool_detection_placement.after_normalization(),
-            &ctx.req_id,
-            &reply_model,
-            original_tools.clone(),
-            original_tool_choice.clone(),
-            Some(original_messages_text.clone()),
-        );
-        Box::pin(responses::translate_openai_sse_to_responses_with_error(
-            openai_stream,
-            reply_model.clone(),
-        ))
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::Messages
-        && uses_openai_responses_bridge
-    {
-        debug!(
-            req_id = %ctx.req_id,
-            adapter = %candidate.adapter,
-            "translating OpenAI Responses SSE stream to Anthropic SSE format"
-        );
-        let openai_stream = responses::translate_responses_sse_to_openai_chat_with_error(
-            byte_stream,
-            reply_model.clone(),
-        );
-        let openai_stream = wrap_injected_openai_stream(
-            Box::pin(openai_stream),
-            tool_detection_placement.after_normalization(),
-            &ctx.req_id,
-            &reply_model,
-            original_tools.clone(),
-            original_tool_choice.clone(),
-            Some(original_messages_text.clone()),
-        );
-        Box::pin(anthropic::translate_openai_sse_to_anthropic_with_error(
-            openai_stream,
-            reply_model.clone(),
-        ))
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::Messages
-        && candidate.adapter != "anthropic_compatible"
-    {
-        debug!(
-            req_id = %ctx.req_id,
-            adapter = %candidate.adapter,
-            "translating OpenAI SSE stream to Anthropic SSE format"
-        );
-        let openai_stream = wrap_injected_openai_stream(
-            byte_stream,
-            tool_detection_placement.after_normalization(),
-            &ctx.req_id,
-            &reply_model,
-            original_tools.clone(),
-            original_tool_choice.clone(),
-            Some(original_messages_text.clone()),
-        );
-        Box::pin(anthropic::translate_openai_sse_to_anthropic_with_error(
-            openai_stream,
-            reply_model.clone(),
-        ))
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::Completions
-        && uses_openai_responses_bridge
-    {
-        debug!(
-            req_id = %ctx.req_id,
-            adapter = %candidate.adapter,
-            "translating OpenAI Responses SSE stream to legacy completions SSE format"
-        );
-        let openai_stream = responses::translate_responses_sse_to_openai_chat_with_error(
-            byte_stream,
-            reply_model.clone(),
-        );
-        let openai_stream = wrap_injected_openai_stream(
-            Box::pin(openai_stream),
-            tool_detection_placement.after_normalization(),
-            &ctx.req_id,
-            &reply_model,
-            original_tools.clone(),
-            original_tool_choice.clone(),
-            Some(original_messages_text.clone()),
-        );
-        Box::pin(
-            openai::translate_openai_chat_sse_to_legacy_completions_with_error(
-                openai_stream,
-                reply_model.clone(),
-            ),
-        )
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::Completions
-        && candidate.adapter == "anthropic_compatible"
-    {
-        debug!(
-            req_id = %ctx.req_id,
-            adapter = %candidate.adapter,
-            "translating Anthropic SSE stream to legacy completions SSE format"
-        );
-        Box::pin(
-            openai::translate_openai_chat_sse_to_legacy_completions_with_error(
-                accio::translate_anthropic_like_stream_to_openai_with_error(
-                    byte_stream,
-                    reply_model.clone(),
-                ),
-                reply_model.clone(),
-            ),
-        )
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::Completions {
-        debug!(
-            req_id = %ctx.req_id,
-            adapter = %candidate.adapter,
-            "translating OpenAI chat SSE stream to legacy completions SSE format"
-        );
-        Box::pin(
-            openai::translate_openai_chat_sse_to_legacy_completions_with_error(
+            )
+        } else if crate::protocol::kiro_api_key::owns_payload(&candidate.payload) {
+            crate::upstream::kiro_api_key::translate(
                 byte_stream,
                 reply_model.clone(),
-            ),
-        )
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::Responses {
-        debug!(
-            req_id = %ctx.req_id,
-            adapter = %candidate.adapter,
-            "translating stream to OpenAI Responses SSE format"
-        );
-        let openai_stream = if uses_openai_responses_bridge || tools_were_injected {
-            Box::pin(
-                responses::translate_responses_sse_to_openai_chat_with_error(
+                ctx.canonical_req.clone(),
+            )
+        } else if candidate.adapter == "kiro_compatible" {
+            if ctx.canonical_req.endpoint_kind == EndpointKind::Messages {
+                debug!(
+                    req_id = %ctx.req_id,
+                    "translating Kiro event stream to Anthropic SSE format"
+                );
+                Box::pin(
+                    kiro::translate_kiro_event_stream_to_anthropic_sse_with_error(
+                        byte_stream,
+                        reply_model.clone(),
+                        ctx.canonical_req.clone(),
+                    ),
+                )
+            } else if ctx.canonical_req.endpoint_kind == EndpointKind::Responses {
+                debug!(
+                    req_id = %ctx.req_id,
+                    "translating Kiro event stream to OpenAI Responses SSE format"
+                );
+                Box::pin(responses::translate_openai_sse_to_responses_with_error(
+                    kiro::translate_kiro_event_stream_to_openai_sse_with_error(
+                        byte_stream,
+                        reply_model.clone(),
+                        ctx.canonical_req.clone(),
+                    ),
+                    reply_model.clone(),
+                ))
+            } else {
+                debug!(
+                    req_id = %ctx.req_id,
+                    "translating Kiro event stream to OpenAI SSE format"
+                );
+                Box::pin(kiro::translate_kiro_event_stream_to_openai_sse_with_error(
                     byte_stream,
                     reply_model.clone(),
+                    ctx.canonical_req.clone(),
+                ))
+            }
+        } else if ctx.canonical_req.endpoint_kind == EndpointKind::ChatCompletions
+            && uses_openai_responses_bridge
+        {
+            debug!(
+                req_id = %ctx.req_id,
+                adapter = %candidate.adapter,
+                "translating OpenAI Responses SSE stream to OpenAI chat SSE format"
+            );
+            let openai_stream = responses::translate_responses_sse_to_openai_chat_with_error(
+                byte_stream,
+                reply_model.clone(),
+            );
+            wrap_injected_openai_stream(
+                Box::pin(openai_stream),
+                tool_detection_placement.after_normalization(),
+                &ctx.req_id,
+                &reply_model,
+                original_tools.clone(),
+                original_tool_choice.clone(),
+                Some(original_messages_text.clone()),
+            )
+        } else if ctx.canonical_req.endpoint_kind == EndpointKind::ChatCompletions
+            && candidate.adapter == "anthropic_compatible"
+        {
+            debug!(
+                req_id = %ctx.req_id,
+                adapter = %candidate.adapter,
+                "translating Anthropic SSE stream to OpenAI SSE format"
+            );
+            let openai_stream = accio::translate_anthropic_like_stream_to_openai_with_error(
+                byte_stream,
+                reply_model.clone(),
+            );
+            wrap_injected_openai_stream(
+                Box::pin(openai_stream),
+                tool_detection_placement.after_normalization(),
+                &ctx.req_id,
+                &reply_model,
+                original_tools.clone(),
+                original_tool_choice.clone(),
+                Some(original_messages_text.clone()),
+            )
+        } else if ctx.canonical_req.endpoint_kind == EndpointKind::Responses
+            && candidate.adapter == "anthropic_compatible"
+        {
+            debug!(
+                req_id = %ctx.req_id,
+                adapter = %candidate.adapter,
+                "translating Anthropic SSE stream to OpenAI Responses SSE format"
+            );
+            let openai_stream = accio::translate_anthropic_like_stream_to_openai_with_error(
+                byte_stream,
+                reply_model.clone(),
+            );
+            let openai_stream = wrap_injected_openai_stream(
+                Box::pin(openai_stream),
+                tool_detection_placement.after_normalization(),
+                &ctx.req_id,
+                &reply_model,
+                original_tools.clone(),
+                original_tool_choice.clone(),
+                Some(original_messages_text.clone()),
+            );
+            Box::pin(responses::translate_openai_sse_to_responses_with_error(
+                openai_stream,
+                reply_model.clone(),
+            ))
+        } else if ctx.canonical_req.endpoint_kind == EndpointKind::Messages
+            && uses_openai_responses_bridge
+        {
+            debug!(
+                req_id = %ctx.req_id,
+                adapter = %candidate.adapter,
+                "translating OpenAI Responses SSE stream to Anthropic SSE format"
+            );
+            let openai_stream = responses::translate_responses_sse_to_openai_chat_with_error(
+                byte_stream,
+                reply_model.clone(),
+            );
+            let openai_stream = wrap_injected_openai_stream(
+                Box::pin(openai_stream),
+                tool_detection_placement.after_normalization(),
+                &ctx.req_id,
+                &reply_model,
+                original_tools.clone(),
+                original_tool_choice.clone(),
+                Some(original_messages_text.clone()),
+            );
+            Box::pin(anthropic::translate_openai_sse_to_anthropic_with_error(
+                openai_stream,
+                reply_model.clone(),
+            ))
+        } else if ctx.canonical_req.endpoint_kind == EndpointKind::Messages
+            && candidate.adapter != "anthropic_compatible"
+        {
+            debug!(
+                req_id = %ctx.req_id,
+                adapter = %candidate.adapter,
+                "translating OpenAI SSE stream to Anthropic SSE format"
+            );
+            let openai_stream = wrap_injected_openai_stream(
+                byte_stream,
+                tool_detection_placement.after_normalization(),
+                &ctx.req_id,
+                &reply_model,
+                original_tools.clone(),
+                original_tool_choice.clone(),
+                Some(original_messages_text.clone()),
+            );
+            Box::pin(anthropic::translate_openai_sse_to_anthropic_with_error(
+                openai_stream,
+                reply_model.clone(),
+            ))
+        } else if ctx.canonical_req.endpoint_kind == EndpointKind::Completions
+            && uses_openai_responses_bridge
+        {
+            debug!(
+                req_id = %ctx.req_id,
+                adapter = %candidate.adapter,
+                "translating OpenAI Responses SSE stream to legacy completions SSE format"
+            );
+            let openai_stream = responses::translate_responses_sse_to_openai_chat_with_error(
+                byte_stream,
+                reply_model.clone(),
+            );
+            let openai_stream = wrap_injected_openai_stream(
+                Box::pin(openai_stream),
+                tool_detection_placement.after_normalization(),
+                &ctx.req_id,
+                &reply_model,
+                original_tools.clone(),
+                original_tool_choice.clone(),
+                Some(original_messages_text.clone()),
+            );
+            Box::pin(
+                openai::translate_openai_chat_sse_to_legacy_completions_with_error(
+                    openai_stream,
+                    reply_model.clone(),
                 ),
-            ) as ByteStream
+            )
+        } else if ctx.canonical_req.endpoint_kind == EndpointKind::Completions
+            && candidate.adapter == "anthropic_compatible"
+        {
+            debug!(
+                req_id = %ctx.req_id,
+                adapter = %candidate.adapter,
+                "translating Anthropic SSE stream to legacy completions SSE format"
+            );
+            Box::pin(
+                openai::translate_openai_chat_sse_to_legacy_completions_with_error(
+                    accio::translate_anthropic_like_stream_to_openai_with_error(
+                        byte_stream,
+                        reply_model.clone(),
+                    ),
+                    reply_model.clone(),
+                ),
+            )
+        } else if ctx.canonical_req.endpoint_kind == EndpointKind::Completions {
+            debug!(
+                req_id = %ctx.req_id,
+                adapter = %candidate.adapter,
+                "translating OpenAI chat SSE stream to legacy completions SSE format"
+            );
+            if crate::protocol::nous_portal::business::owns_payload(&candidate.payload) {
+                Box::pin(
+                    openai::translate_openai_chat_sse_to_legacy_completions_with_reply_model(
+                        byte_stream,
+                        reply_model.clone(),
+                    ),
+                )
+            } else {
+                Box::pin(
+                    openai::translate_openai_chat_sse_to_legacy_completions_with_error(
+                        byte_stream,
+                        reply_model.clone(),
+                    ),
+                )
+            }
+        } else if ctx.canonical_req.endpoint_kind == EndpointKind::Responses {
+            debug!(
+                req_id = %ctx.req_id,
+                adapter = %candidate.adapter,
+                "translating stream to OpenAI Responses SSE format"
+            );
+            let openai_stream = if uses_openai_responses_bridge || tools_were_injected {
+                Box::pin(
+                    responses::translate_responses_sse_to_openai_chat_with_error(
+                        byte_stream,
+                        reply_model.clone(),
+                    ),
+                ) as ByteStream
+            } else {
+                byte_stream
+            };
+            let openai_stream = wrap_injected_openai_stream(
+                openai_stream,
+                tool_detection_placement.after_normalization(),
+                &ctx.req_id,
+                &reply_model,
+                original_tools.clone(),
+                original_tool_choice.clone(),
+                Some(original_messages_text.clone()),
+            );
+            Box::pin(responses::translate_openai_sse_to_responses_with_error(
+                openai_stream,
+                reply_model.clone(),
+            ))
         } else {
             byte_stream
         };
-        let openai_stream = wrap_injected_openai_stream(
-            openai_stream,
-            tool_detection_placement.after_normalization(),
-            &ctx.req_id,
-            &reply_model,
-            original_tools.clone(),
-            original_tool_choice.clone(),
-            Some(original_messages_text.clone()),
-        );
-        Box::pin(responses::translate_openai_sse_to_responses_with_error(
-            openai_stream,
-            reply_model.clone(),
-        ))
-    } else {
-        byte_stream
-    };
     (byte_stream, stream_usage_handle)
 }

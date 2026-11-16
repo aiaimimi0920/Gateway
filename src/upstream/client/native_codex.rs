@@ -12,6 +12,10 @@ mod tests;
 #[path = "native_codex_profile_tests.rs"]
 mod profile_tests;
 
+#[cfg(test)]
+#[path = "qwen_workspace_tests.rs"]
+mod qwen_workspace_tests;
+
 #[path = "native_codex_profile.rs"]
 mod profile;
 
@@ -28,6 +32,14 @@ impl UpstreamClient {
         model: &str,
     ) -> bool {
         payload.adapter == "openai_compatible"
+            && !crate::protocol::grok_oauth::business::owns_payload(payload)
+            && !crate::protocol::dim_oauth::business::owns_payload(payload)
+            && !crate::protocol::nous_portal::business::owns_payload(payload)
+            && !crate::protocol::agnes::owns_payload(payload)
+            && !crate::protocol::sensenova::owns_payload(payload)
+            && !crate::protocol::commandcode::owns_payload(payload)
+            && !crate::protocol::lobsterai::owns_payload(payload)
+            && !crate::protocol::sap_aicore::owns_payload(payload)
             && payload.resolve_execution_mode(req.endpoint_kind)
                 == ProviderExecutionMode::DirectHttp
             && req.endpoint_kind == EndpointKind::Responses
@@ -53,8 +65,12 @@ impl UpstreamClient {
         extra: Option<&HashMap<String, String>>,
         wire: Option<&NativeRequestWire>,
     ) -> Result<UpstreamStreamingResponse, GatewayError> {
+        if !crate::protocol::lobsterai::owns_payload(payload) {
+            crate::protocol::lobsterai::management_boundary::reject_generic(payload)?;
+        }
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        crate::protocol::bedrock_turn::validate_request(payload, req)?;
         if wire.is_some_and(|w| w.native_session.is_some())
             && !Self::uses_native_codex(payload, req, model)
         {
@@ -93,8 +109,12 @@ impl UpstreamClient {
         extra: Option<&HashMap<String, String>>,
         wire: Option<&NativeRequestWire>,
     ) -> Result<Value, GatewayError> {
+        if !crate::protocol::lobsterai::owns_payload(payload) {
+            crate::protocol::lobsterai::management_boundary::reject_generic(payload)?;
+        }
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        crate::protocol::bedrock_turn::validate_request(payload, req)?;
         if wire.is_some_and(|w| w.compact) && !Self::uses_native_codex(payload, req, model) {
             return Err(compact::unsupported());
         }
@@ -118,6 +138,17 @@ impl UpstreamClient {
         extra: Option<&HashMap<String, String>>,
         wire: Option<&NativeRequestWire>,
     ) -> Result<reqwest::Response, GatewayError> {
+        // Agnes fixtures isolate the profiled transport only. Fail before any
+        // client or connection pool can send if dispatch regresses in a test.
+        #[cfg(test)]
+        assert!(
+            !crate::protocol::agnes::owns_payload(payload)
+                && !crate::protocol::sensenova::owns_payload(payload)
+                && !crate::protocol::commandcode::owns_payload(payload)
+                && !crate::protocol::lobsterai::owns_payload(payload)
+                && !crate::protocol::sap_aicore::owns_payload(payload),
+            "Agnes test attempted an unisolated native Codex transport"
+        );
         let plan = if wire.is_some_and(|w| w.compact) {
             compact::plan(payload, req, model)?
         } else {

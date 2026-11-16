@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
+import { NeuroProvider } from "@neuro/ui";
 import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
 import { CredentialDialog } from "./CredentialDialog";
 import { accountDiscoverySchema, applyAccountDiscovery, type AccountDiscovery } from "./accountDiscovery";
@@ -25,8 +26,10 @@ it("retains the bounded expanded alias attempt history", () => {
 it("preserves extended inventory outcomes without claiming routing readiness", () => {
   const names = ["chat_completions", "responses", "messages", "gemini_generate_content", "gemini_interactions",
     "ollama_chat", "ollama_generate", "cohere_chat", "bedrock_converse", "completions", "dashscope_text", "dashscope_multimodal"];
-  const probes = names.map((protocol) => ({ protocol, routing_ready: false, status: "unconfirmed",
-    attempts: [{ endpoint: "https://fixture.test/v1/models/a:generateContent", model: "a", status: "authentication_required", http_status: 403 }] }));
+  const probes = names.map((protocol) => ({
+    protocol, routing_ready: false, status: "unconfirmed",
+    attempts: [{ endpoint: "https://fixture.test/v1/models/a:generateContent", model: "a", status: "authentication_required", http_status: 403 }]
+  }));
   const parsed = accountDiscoverySchema.parse({ ...discovery, probes });
   expect(parsed.probes).toEqual(probes);
   expect(accountDiscoverySchema.parse({ ...discovery, protocol: "gemini_generate_content" }).protocol).toBe("gemini_generate_content");
@@ -47,9 +50,9 @@ function catalog(onDiscover = vi.fn().mockResolvedValue(discovery)) {
   const onSubmit = vi.fn(); const onOpenChange = vi.fn();
   render(<UiLocaleProvider><ProviderCatalogDialog open existingProviderIds={[]} existingCredentialIds={[]}
     locked={false} hasSecretAccess onOpenChange={onOpenChange} onRequestSecretAccess={vi.fn()}
-    onSubmit={onSubmit} onDiscover={onDiscover} /></UiLocaleProvider>);
-  fireEvent.click(screen.getByRole("button", { name: "自定义模板" }));
-  fireEvent.click(screen.getByRole("button", { name: "custom-api-provider" }));
+    onSubmit={onSubmit} onDiscover={onDiscover} /></UiLocaleProvider>, { wrapper: NeuroProvider });
+  fireEvent.click(screen.getByRole("radio", { name: "自定义模板" }));
+  fireEvent.click(screen.getByRole("button", { name: "custom-api" }));
   fireEvent.change(screen.getByLabelText("Base URL"), { target: { value: discovery.source_url } });
   return { onSubmit, onOpenChange, onDiscover };
 }
@@ -66,7 +69,7 @@ it("submits only the provider immediately without running discovery", async () =
 });
 
 it("does not wait for a slow discovery request before closing creation", () => {
-  const props = catalog(vi.fn(() => new Promise(() => {})));
+  const props = catalog(vi.fn(() => new Promise(() => { })));
   fireEvent.click(screen.getByRole("button", { name: "添加" }));
   expect(props.onSubmit).toHaveBeenCalledTimes(1);
   expect(props.onOpenChange).toHaveBeenCalledWith(false);
@@ -90,7 +93,7 @@ it("adds a key to an existing generic pool using the provider root", async () =>
   render(<UiLocaleProvider><CredentialDialog open mode="add" providerOptions={[{ id: "p", label: "P" }]}
     existingCredentialIds={[]} locked={false} hasSecretAccess onOpenChange={vi.fn()}
     onRequestSecretAccess={vi.fn()} onSubmit={onSubmit} onDiscover={onDiscover}
-    discoveryProvider={() => ({ baseUrl: discovery.source_url })} /></UiLocaleProvider>);
+    discoveryProvider={() => ({ baseUrl: discovery.source_url })} /></UiLocaleProvider>, { wrapper: NeuroProvider });
   fireEvent.change(screen.getByLabelText("账号 ID"), { target: { value: "account-a" } });
   fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-key" } });
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
@@ -99,9 +102,13 @@ it("adds a key to an existing generic pool using the provider root", async () =>
 });
 
 it("refreshes one account without dropping inherited models or route policies", () => {
-  const original = parseRouteDocument(JSON.stringify({ providers: [{ id: "p", supported_models: ["manual"],
-    credentials: [{ id: "a", supported_models: ["old"], discovery_job: { id: "old-job", status: "pending" } }, { id: "inherited" }] }],
-    model_routes: [{ pattern: "model-a", provider_ids: ["other"], enabled: false, priority: 99 }], aliases: {} }));
+  const original = parseRouteDocument(JSON.stringify({
+    providers: [{
+      id: "p", supported_models: ["manual"],
+      credentials: [{ id: "a", supported_models: ["old"], discovery_job: { id: "old-job", status: "pending" } }, { id: "inherited" }]
+    }],
+    model_routes: [{ pattern: "model-a", provider_ids: ["other"], enabled: false, priority: 99 }], aliases: {}
+  }));
   const next = applyAccountDiscovery(original, "p", "a", discovery);
   const provider = next.providers[0] as Record<string, unknown>;
   expect(provider.supported_models).toEqual(["manual", "model-a", "model-b"]);

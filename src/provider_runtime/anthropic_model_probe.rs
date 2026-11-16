@@ -15,7 +15,12 @@ pub(super) async fn probe(
     model: &str,
     prompt: &str,
 ) -> (String, ProviderPayloadProbeReport) {
-    let point = format!("Anthropic Messages model call (model: {model})");
+    let product = if crate::protocol::minimax::owns_payload(&target.payload) {
+        "MiniMax M Plan"
+    } else {
+        "Anthropic"
+    };
+    let point = format!("{product} Messages model call (model: {model})");
     let audit = super::model_probe_recording::begin(state, target, model, false).await;
     let started = Instant::now();
     let result = tokio::time::timeout(
@@ -64,6 +69,9 @@ async fn generate(
     model: &str,
     prompt: &str,
 ) -> ModelProbeResult {
+    if crate::protocol::minimax::owns_payload(&target.payload) {
+        return super::minimax_model_probe::generate(state, target, model, prompt).await;
+    }
     let request = crate::protocol::openai::normalize_chat_completions(
         json!({"model":model,"stream":true,"max_tokens":32,
         "messages":[{"role":"user","content":prompt}]}),

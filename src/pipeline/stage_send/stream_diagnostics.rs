@@ -2,7 +2,12 @@
 use futures::StreamExt;
 use std::{error::Error, sync::Arc};
 
-pub(super) type FailureEvidence = Arc<parking_lot::Mutex<Option<String>>>;
+#[derive(Clone)]
+pub(super) struct Failure {
+    pub message: String,
+    pub classified: Option<crate::error::GatewayError>,
+}
+pub(super) type FailureEvidence = Arc<parking_lot::Mutex<Option<Failure>>>;
 
 pub(super) fn observe(stream: super::ByteStream) -> (super::ByteStream, FailureEvidence) {
     let evidence = Arc::new(parking_lot::Mutex::new(None));
@@ -10,7 +15,7 @@ pub(super) fn observe(stream: super::ByteStream) -> (super::ByteStream, FailureE
     let mut decoder = crate::protocol::stream_decode::BoundedSseDecoder::new(64 * 1024);
     let stream = stream.map(move |result| {
         if let Err(error) = &result {
-            *captured.lock() = Some(describe(error));
+            *captured.lock() = Some(capture(error));
         } else if let Ok(bytes) = &result {
             decoder.push_chunk(bytes.clone());
             while let crate::protocol::stream_decode::DecodeStep::Frame(frame) =
@@ -34,14 +39,40 @@ pub(super) fn observe(stream: super::ByteStream) -> (super::ByteStream, FailureE
                     let message = error
                         .map(|v| v.to_string())
                         .unwrap_or_else(|| kind.to_owned());
-                    *captured.lock() =
-                        Some(crate::error::sanitize_provider_error_message(&message));
+                    *captured.lock() = Some(Failure {
+                        message: crate::error::sanitize_provider_error_message(&message),
+                        classified: None,
+                    });
                 }
             }
         }
         result
     });
     (Box::pin(stream), evidence)
+}
+
+/// Capture endpoint encoder/budget errors without parsing native binary bytes as SSE.
+pub(super) fn observe_errors(
+    stream: super::ByteStream,
+    evidence: FailureEvidence,
+) -> super::ByteStream {
+    Box::pin(stream.map(move |result| {
+        if let Err(error) = &result {
+            *evidence.lock() = Some(capture(error));
+        }
+        result
+    }))
+}
+
+fn capture(error: &super::StreamError<rquest::Error>) -> Failure {
+    let classified = match error {
+        super::StreamError::Protocol(error) => error.gateway_error().cloned(),
+        _ => None,
+    };
+    Failure {
+        message: describe(error),
+        classified,
+    }
 }
 
 fn describe(error: &(dyn Error + 'static)) -> String {

@@ -37,6 +37,10 @@ impl UpstreamClient {
         let request_time_browser_policy = RequestTimeBrowserPolicy::from_env();
 
         Self {
+            lobsterai_http: crate::http_client::builder()
+                .retry(rquest::retry::Policy::never())
+                .build()
+                .expect("failed to build LobsterAI client"),
             wait_native_http: Default::default(),
             wait_http: Default::default(),
             http,
@@ -47,6 +51,9 @@ impl UpstreamClient {
             native_http: crate::http_client::native_codex_client(Duration::from_secs(timeout_secs)),
             native_sessions: Default::default(),
             freebuff: std::sync::Arc::new(crate::protocol::freebuff::RunRuntime::default()),
+            sap_aicore: std::sync::Arc::new(
+                crate::protocol::sap_aicore::auth::TokenCache::default(),
+            ),
             timeout: Duration::from_secs(timeout_secs),
             browser_executor_base_url,
             browser_executor_bearer_token,

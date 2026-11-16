@@ -67,14 +67,24 @@ fn profile_from_hint(value: &str) -> Option<&'static str> {
         "bedrock" | "aws_bedrock" => Some("aws_bedrock"),
         "cohere" => Some("cohere"),
         "groq" => Some("groq"),
+        "river" | "river_api" => Some("river"),
+        "agnes_api" => Some("agnes_api"),
+        "sensenova_token_plan" => Some("sensenova_token_plan"),
+        "commandcode_chat" => Some("commandcode_chat"),
+        "sap_aicore_chat" => Some("sap_aicore_chat"),
+        "minimax_m_plan" | "minimax_m_plan_cn" => Some("minimax_m_plan"),
+        "cloudflare_workers_ai" => Some("cloudflare_workers_ai"),
         "together" => Some("together"),
         "openrouter" => Some("openrouter"),
         "deepseek" => Some("deepseek"),
         "mistral" => Some("mistral"),
         "xai" | "x_ai" => Some("xai"),
+        "grok_oauth" | "grok_build_oauth" => Some("grok_build_oauth"),
         "nvidia" | "nvidia_platform" | "nvidia_nim" => Some("nvidia"),
         "perplexity" | "perplexity_api" | "perplexity_chat" => Some("perplexity_chat"),
         "perplexity_search" => Some("perplexity_search"),
+        "perplexity_web" => Some("perplexity_web"),
+        "lumalabs_agents_api" => Some(crate::protocol::luma_agents::PROFILE),
         "tavily" => Some("tavily"),
         "exa" => Some("exa"),
         "jina" => Some("jina"),
@@ -108,8 +118,16 @@ fn profile_from_hint(value: &str) -> Option<&'static str> {
 }
 
 fn profile_from_base_url(adapter: &str, base_url: &str) -> Option<&'static str> {
+    if adapter.trim() == "openai_compatible"
+        && crate::protocol::cloudflare_workers_ai::Endpoint::parse(base_url).is_some()
+    {
+        return Some("cloudflare_workers_ai");
+    }
     if let Ok(url) = url::Url::parse(base_url) {
         match url.host_str() {
+            Some("api.river.ai") if adapter.trim() == "openai_compatible" => return Some("river"),
+            Some("agents.lumalabs.ai") => return Some(crate::protocol::luma_agents::PROFILE),
+            Some("www.perplexity.ai") => return Some("perplexity_web"),
             Some("s.jina.ai") => return Some("jina"),
             Some("r.jina.ai") => return Some("jina_reader"),
             _ => {}

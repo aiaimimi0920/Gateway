@@ -18,6 +18,16 @@ SCHEMA_PATH = GATEWAY_ROOT / "docs" / "provider-inventory.schema.json"
 # This is an intentionally checked-in contract.  Manifest discovery is used
 # for metadata, but it must never silently redefine the product surface.
 CANONICAL_PROVIDER_LINE_IDS = (
+    "agnes-official-api",
+    "minimax-m-plan",
+    "sensenova-token-plan",
+    "commandcode-provider-api",
+    "sap-aicore-chat",
+    "cloudflare-workers-ai",
+    "dim-user-oauth",
+    "nous-portal-oauth",
+    "perplexity-web-reverse-api",
+    "river-official-api",
     "accio-web-reverse-api",
     "aistudio-official",
     "aistudio-web-reverse",

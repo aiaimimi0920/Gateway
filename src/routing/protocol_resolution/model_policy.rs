@@ -13,6 +13,21 @@ pub fn resolve_supported_wire_protocol_families_for_model(
 ) -> Vec<String> {
     let surface_supported =
         surface_supported_wire_protocol_families(adapter, fallback_protocol_family);
+    resolve_supported_wire_protocol_families_on_surface(
+        payload,
+        model_alias,
+        upstream_model,
+        surface_supported,
+    )
+}
+
+/// Product declarations supply capability; the same explicit allow/block policy still applies.
+pub(crate) fn resolve_supported_wire_protocol_families_on_surface(
+    payload: Option<&Value>,
+    model_alias: Option<&str>,
+    upstream_model: Option<&str>,
+    surface_supported: Vec<String>,
+) -> Vec<String> {
     let Some(payload) = payload else {
         return surface_supported;
     };

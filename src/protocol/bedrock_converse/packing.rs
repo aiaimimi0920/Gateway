@@ -1,21 +1,75 @@
 //! Canonical request packing for the Bedrock Converse wire format.
 
-use crate::protocol::canonical::CanonicalMessage;
+use super::{generation, generation_validation, history, messages, public_history};
+use crate::error::GatewayError;
 use crate::protocol::canonical::CanonicalRelayRequest;
 use crate::protocol::canonical::CanonicalTool;
-use crate::protocol::canonical::ContentPart;
-use crate::protocol::canonical::MessageRole;
 use crate::protocol::tool_choice;
 use serde_json::json;
 use serde_json::Value;
 
-pub fn pack_bedrock_converse(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Value {
+/// Structural compatibility API; network admission uses the fallible packer below.
+pub fn pack_bedrock_converse(req: &CanonicalRelayRequest, _model: &str, _stream: bool) -> Value {
+    let translated = generation::for_target(req);
+    // This legacy API is structural, not admission. On a history conflict it keeps
+    // the canonical projection; it must never restore raw data over policy edits.
+    let original = match history::original_if_unchanged(translated.as_ref()) {
+        Ok(original) => original,
+        Err(_) => None,
+    };
+    pack_prepared(translated.as_ref(), original)
+}
+
+pub fn try_pack_bedrock_converse(
+    req: &CanonicalRelayRequest,
+    model: &str,
+    stream: bool,
+) -> Result<Value, GatewayError> {
+    let mut body = try_pack_for_plan(req, model, stream)?;
+    finish_plan(req, &mut body, model)?;
+    Ok(body)
+}
+
+// Payload defaults and fingerprint transformations run before the public history check.
+pub(crate) fn try_pack_for_plan(
+    req: &CanonicalRelayRequest,
+    _model: &str,
+    _stream: bool,
+) -> Result<Value, GatewayError> {
+    // Check before translation so an alias coalescer cannot hide conflicting caller values.
+    generation_validation::validate_request(req)?;
+    let translated = generation::for_target(req);
+    generation_validation::validate_request(translated.as_ref())?;
+    let original = history::original_if_unchanged(translated.as_ref())?;
+    let body = pack_prepared(translated.as_ref(), original);
+    generation_validation::validate_body(&body)?;
+    history::validate_body(&body)?;
+    Ok(body)
+}
+
+pub(crate) fn finish_plan(
+    req: &CanonicalRelayRequest,
+    body: &mut Value,
+    model: &str,
+) -> Result<(), GatewayError> {
+    public_history::apply(req, body, model)?;
+    generation_validation::validate_body(body)?;
+    history::validate_body(body)
+}
+
+fn pack_prepared(req: &CanonicalRelayRequest, original: Option<&Value>) -> Value {
     let mut body = json!({
-        "modelId": model,
-        "messages": build_messages(req),
+        "messages": match original {
+            Some(original) => original["messages"].clone(),
+            None => json!(messages::build(req)),
+        },
     });
 
-    if let Some(system) = req.system_message().filter(|value| !value.is_empty()) {
+    if let Some(original) = original {
+        if let Some(system) = original.get("system") {
+            body["system"] = system.clone();
+        }
+    } else if let Some(system) = req.system_message().filter(|value| !value.is_empty()) {
         body["system"] = json!([{ "text": system }]);
     }
 
@@ -30,112 +84,24 @@ pub fn pack_bedrock_converse(req: &CanonicalRelayRequest, model: &str, stream: b
         body["toolConfig"] = tool_config;
     }
 
-    if stream {
-        body["stream"] = json!(true);
-    }
-
+    // Model and stream mode belong to the HTTP path, not the AWS JSON document.
     for (key, value) in &req.extra {
+        if matches!(
+            key.as_str(),
+            "modelId"
+                | "stream"
+                | "inferenceConfig"
+                | "gateway_bedrock_history"
+                | "gateway_bedrock_turn"
+        ) || generation::is_alias(key)
+        {
+            continue;
+        }
         body[key] = value.clone();
     }
 
+    generation::apply(req, &mut body);
     body
-}
-
-fn build_messages(req: &CanonicalRelayRequest) -> Vec<Value> {
-    let mut messages = Vec::new();
-    for (index, msg) in req.messages.iter().enumerate() {
-        if msg.role == MessageRole::System {
-            continue;
-        }
-        if let Some(value) = pack_message(req, index, msg) {
-            messages.push(value);
-        }
-    }
-    messages
-}
-
-fn pack_message(
-    req: &CanonicalRelayRequest,
-    index: usize,
-    msg: &CanonicalMessage,
-) -> Option<Value> {
-    match msg.role {
-        MessageRole::System => None,
-        MessageRole::User => Some(json!({
-            "role": "user",
-            "content": pack_content_parts(&msg.content),
-        })),
-        MessageRole::Assistant => {
-            let mut content = pack_content_parts(&msg.content);
-            for tool_call in &msg.tool_calls {
-                content.push(json!({
-                    "toolUse": {
-                        "toolUseId": tool_call.id,
-                        "name": tool_call.name,
-                        "input": tool_call
-                            .arguments
-                            .as_deref()
-                            .and_then(|value| serde_json::from_str::<Value>(value).ok())
-                            .unwrap_or_else(|| json!({})),
-                    }
-                }));
-            }
-            Some(json!({
-                "role": "assistant",
-                "content": content,
-            }))
-        }
-        MessageRole::Tool => {
-            let tool_name = msg
-                .name
-                .clone()
-                .or_else(|| find_tool_name(&req.messages[..index], msg.tool_call_id.as_deref()));
-            let result_value = if msg.content.len() == 1 {
-                match &msg.content[0] {
-                    ContentPart::Json { value } => value.clone(),
-                    _ => serde_json::from_str::<Value>(&msg.text_content())
-                        .unwrap_or_else(|_| json!({ "content": msg.text_content() })),
-                }
-            } else {
-                json!({ "content": msg.text_content() })
-            };
-
-            Some(json!({
-                "role": "user",
-                "content": [{
-                    "toolResult": {
-                        "toolUseId": msg.tool_call_id,
-                        "status": "success",
-                        "content": [{
-                            "json": result_value
-                        }],
-                        "name": tool_name,
-                    }
-                }]
-            }))
-        }
-    }
-}
-
-fn pack_content_parts(parts: &[ContentPart]) -> Vec<Value> {
-    if parts.is_empty() {
-        return vec![json!({"text": ""})];
-    }
-
-    parts
-        .iter()
-        .map(|part| match part {
-            ContentPart::Text { text } => json!({"text": text}),
-            ContentPart::Json { value } => json!({"json": value}),
-            ContentPart::ImageUrl { image_url, .. } => json!({
-                "image": {
-                    "format": guess_image_format(image_url),
-                    "source": { "url": image_url }
-                }
-            }),
-            ContentPart::Raw { value } => value.clone(),
-        })
-        .collect()
 }
 
 fn pack_tool(tool: &CanonicalTool) -> Value {
@@ -155,30 +121,4 @@ fn pack_tool(tool: &CanonicalTool) -> Value {
 
 fn pack_tool_choice(tool_choice: Option<&Value>) -> Option<Value> {
     tool_choice::pack_bedrock_tool_choice(tool_choice)
-}
-
-fn find_tool_name(history: &[CanonicalMessage], tool_call_id: Option<&str>) -> Option<String> {
-    let tool_call_id = tool_call_id?;
-    history.iter().rev().find_map(|message| {
-        message.tool_calls.iter().find_map(|tool_call| {
-            if tool_call.id.as_deref() == Some(tool_call_id) {
-                tool_call.name.clone()
-            } else {
-                None
-            }
-        })
-    })
-}
-
-fn guess_image_format(image_url: &str) -> &'static str {
-    let lower = image_url.to_ascii_lowercase();
-    if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
-        "jpeg"
-    } else if lower.ends_with(".webp") {
-        "webp"
-    } else if lower.ends_with(".gif") {
-        "gif"
-    } else {
-        "png"
-    }
 }

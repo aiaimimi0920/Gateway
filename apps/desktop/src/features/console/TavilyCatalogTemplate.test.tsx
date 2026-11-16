@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
+import { NeuroProvider } from "@neuro/ui";
 import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
 import { PROVIDER_CATALOG_TEMPLATES, type ProviderCatalogDraft } from "./providerCatalog";
 import { addCatalogProvider } from "./providerCatalogCreation";
@@ -14,7 +15,7 @@ it("creates an empty Tavily pool with fixed adapters and search-only ungraded te
   const onSubmit = vi.fn();
   render(<UiLocaleProvider><ProviderCatalogDialog open existingProviderIds={[]} existingCredentialIds={[]}
     locked={false} hasSecretAccess={false} onOpenChange={vi.fn()} onRequestSecretAccess={vi.fn()} onSubmit={onSubmit} />
-  </UiLocaleProvider>);
+  </UiLocaleProvider>, { wrapper: NeuroProvider });
   await user.click(screen.getByRole("button", { name: /^tavily/ }));
   expect(screen.getByLabelText("Base URL")).toHaveValue("https://api.tavily.com");
   for (const label of ["Base URL", "调用适配器", "指纹适配器", "专用适配器"]) {
@@ -30,13 +31,18 @@ it("creates an empty Tavily pool with fixed adapters and search-only ungraded te
   await user.click(screen.getByRole("button", { name: "添加" }));
   const draft = onSubmit.mock.calls[0][0] as ProviderCatalogDraft;
   const result = addCatalogProvider({ providers: [], model_routes: [], aliases: {} }, template, draft);
-  expect(result.providers).toEqual([expect.objectContaining({ id: "tavily-api", preset: "tavily",
+  expect(result.providers).toEqual([expect.objectContaining({
+    id: "tavily-api", preset: "tavily",
     base_url: "https://api.tavily.com", explicit_credentials_only: true, credentials: [],
     supported_models: ["tavily-search", "tavily-fetch", "search", "fetch"], call_flow: { call_adapter: "auto", fingerprint_adapter: "auto", special_adapter: "auto" },
   })]);
   expect(result.providers[0]).not.toHaveProperty("api_key");
-  expect(result.providers[0]).toMatchObject({ test_policy: { modelSelection: "selected", models: ["tavily-search"], cases: [{
-    id: "search", prompt: "Rust programming language official documentation", expectedAnswer: null, enabled: true,
-  }] } });
+  expect(result.providers[0]).toMatchObject({
+    test_policy: {
+      modelSelection: "selected", models: ["tavily-search"], cases: [{
+        id: "search", prompt: "Rust programming language official documentation", expectedAnswer: null, enabled: true,
+      }]
+    }
+  });
   expect(result.model_routes).toEqual(template.supportedModels.map((pattern) => ({ pattern, provider_ids: ["tavily-api"] })));
 });

@@ -3,6 +3,7 @@
 use super::canonicalization::canonicalize_credential_material_kind;
 use super::classification::derive_provider_surface_slug;
 use crate::db;
+use crate::error::GatewayError;
 use crate::protocol::gemini::shared::{
     GEMINI_API_MODULAR_PROFILE, GEMINI_CANVAS_PROGRAM_WEB_REVERSE_MODULAR_PROFILE,
     GEMINI_CANVAS_WEB_REVERSE_MODULAR_PROFILE, GEMINI_WEB_REVERSE_MODULAR_PROFILE,
@@ -12,16 +13,26 @@ use serde_json::Value;
 pub(super) fn materialize_export_payload(
     provider_account: &db::GatewayProviderAccountView,
     payload: &Value,
-) -> Value {
+) -> Result<Value, GatewayError> {
+    // A credential override can change product even when the shared account profile does not.
+    // Require a dedicated static account instead of exporting it under an OAuth surface.
+    if super::normalization::kiro_key::claims(&provider_account.payload)
+        || super::normalization::kiro_key::claims(payload)
+    {
+        return super::normalization::kiro_key::normalize(provider_account, payload.clone(), None);
+    }
     let mut payload_map = payload.as_object().cloned().unwrap_or_default();
     apply_folder_sync_metadata(&mut payload_map, provider_account, None);
-    Value::Object(payload_map)
+    Ok(Value::Object(payload_map))
 }
 
 pub(super) fn derive_credential_material_kind(
     provider_account: &db::GatewayProviderAccountView,
     payload: Option<&Value>,
 ) -> String {
+    if super::normalization::kiro_key::claims(&provider_account.payload) {
+        return "api_key".into();
+    }
     if let Some(raw_map) = payload.and_then(Value::as_object) {
         if let Some(kind) = raw_map
             .get("credentialMaterialKind")

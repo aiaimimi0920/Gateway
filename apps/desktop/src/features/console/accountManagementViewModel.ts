@@ -72,6 +72,7 @@ export type AccountLedgerRow = {
   providerId: string;
   providerLabel: string;
   providerPreset: string | null;
+  authMode?: string | null;
   vendorKey: string;
   vendorLabel: string;
   mode: "credential" | "provider-default";
@@ -319,6 +320,7 @@ export function buildAccountLedgerRows(
       providerId: account.providerId,
       providerLabel: account.providerLabel,
       providerPreset: account.providerPreset,
+      authMode: account.authMode,
       vendorKey: account.vendorKey,
       vendorLabel: account.vendorName,
       mode: account.mode,

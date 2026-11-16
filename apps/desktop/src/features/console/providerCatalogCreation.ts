@@ -1,6 +1,7 @@
 // Provider-only writes are additive and preserve the legacy implicit-default contract.
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
+import { addCatalogFirstAccount } from "./catalogFirstAccount";
 import { providerDefinitionFromCatalogDraft, type ProviderCatalogDraft, type ProviderCatalogTemplate } from "./providerCatalog";
 
 export function addCatalogProvider(document: ConsoleRouteDocument, template: ProviderCatalogTemplate, value: ProviderCatalogDraft): ConsoleRouteDocument {
@@ -17,5 +18,5 @@ export function addCatalogProvider(document: ConsoleRouteDocument, template: Pro
     else if (!isRecord(route) || !Array.isArray(route.provider_ids)) throw new Error(`Invalid model route '${pattern}'.`);
     else if (!route.provider_ids.includes(value.providerId)) route.provider_ids.push(value.providerId);
   }
-  return next;
+  return addCatalogFirstAccount(next, template, value);
 }

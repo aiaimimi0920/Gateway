@@ -3,33 +3,57 @@ import { z } from "zod";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
 import { applyModelSelection, modelSelectionSchema } from "./credentialModelSelection";
+import { isQwenProvider, qwenCatalogEndpoint } from "./qwenEndpoint";
+import { cloudflareEndpoint } from "./cloudflareWorkersAi";
 
 export const catalogSources = { gemini: "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", anthropic: "https://api.anthropic.com/v1/models?limit=1000", openai: "https://api.openai.com/v1/models", nvidia: "https://integrate.api.nvidia.com/v1/models",
   openrouter: "https://openrouter.ai/api/v1/models", poe: "https://api.poe.com/v1/models",
-  groq: "https://api.groq.com/openai/v1/models", cohere: "https://api.cohere.com/v1/models?endpoint=chat&page_size=1000" } as const;
-export type CatalogProviderKind = keyof typeof catalogSources;
+  groq: "https://api.groq.com/openai/v1/models", river: "https://api.river.ai/v1/models", agnes: "https://apihub.agnes-ai.com/v1/models", sensenova: "https://token.sensenova.cn/v1/models", commandcode: "https://api.commandcode.ai/provider/v1/models", cohere: "https://api.cohere.com/v1/models?endpoint=chat&page_size=1000" } as const;
+export type CatalogProviderKind = keyof typeof catalogSources | "qwen" | "cloudflare-workers-ai";
 export const officialCatalogSchema = z.object({
-  sourceUrl: z.enum([catalogSources.gemini, catalogSources.anthropic, catalogSources.openai, catalogSources.nvidia, catalogSources.openrouter, catalogSources.poe, catalogSources.groq, catalogSources.cohere]),
+  sourceUrl: z.string().min(1).max(4096),
+  accountBaseUrl: z.string().min(1).max(4096).optional(),
   checkedAt: z.string().datetime({ offset: true }),
+  supportedEndpoints: z.record(z.string(), z.array(z.enum([
+    "/chat/completions", "/responses", "/messages", "/systemone",
+  ])).min(1).max(4).refine((routes) => new Set(routes).size === routes.length)).optional(),
   models: z.array(z.string().min(1).max(256).refine((id) => id.trim() === id
     && new TextEncoder().encode(id).length <= 256 && !/[\p{Cc}*?]/u.test(id))).min(1).max(2048)
     .refine((models) => new Set(models).size === models.length),
-});
+}).strict().refine((catalog) => {
+  if (catalog.accountBaseUrl === undefined) return Object.values(catalogSources).some((source) => source === catalog.sourceUrl);
+  const endpoint = qwenCatalogEndpoint(catalog.accountBaseUrl) ?? cloudflareEndpoint(catalog.accountBaseUrl);
+  return !!endpoint && endpoint.baseUrl === catalog.accountBaseUrl && endpoint.sourceUrl === catalog.sourceUrl;
+}, "模型目录来源或账号绑定无效。").refine((catalog) => {
+  const endpoints = catalog.supportedEndpoints;
+  if (!endpoints || Object.keys(endpoints).length === 0) return true;
+  return catalog.sourceUrl === catalogSources.commandcode
+    && Object.keys(endpoints).length === catalog.models.length
+    && catalog.models.every((model) => Object.hasOwn(endpoints, model));
+}, "模型协议声明与目录不匹配。");
 export const officialCatalogResponseSchema = z.object({ revision: z.string(), catalog: officialCatalogSchema });
 export type OfficialModelCatalog = z.infer<typeof officialCatalogSchema>;
-export type CatalogInput = { credentialId: string } | { providerId: string; apiKey: string };
+export type CatalogInput = { credentialId: string } | { providerId: string; apiKey: string; accountBaseUrl?: string };
 export type DiscoverProviderModels = (input: CatalogInput, signal?: AbortSignal) => Promise<OfficialModelCatalog>;
 export function officialCatalogBase(kind: CatalogProviderKind, base: string): boolean {
+  if (kind === "qwen") return qwenCatalogEndpoint(base) !== null;
+  if (kind === "cloudflare-workers-ai") return cloudflareEndpoint(base) !== null;
   return (kind === "nvidia" ? ["https://integrate.api.nvidia.com", "https://integrate.api.nvidia.com/v1"]
     : kind === "openai" ? ["https://api.openai.com/v1"]
     : kind === "anthropic" ? ["https://api.anthropic.com"]
     : kind === "gemini" ? ["https://generativelanguage.googleapis.com/v1beta"]
     : kind === "poe" ? ["https://api.poe.com", "https://api.poe.com/v1"]
       : kind === "groq" ? ["https://api.groq.com/openai/v1"]
+        : kind === "river" ? ["https://api.river.ai/v1"]
+        : kind === "agnes" ? ["https://apihub.agnes-ai.com/v1"]
+        : kind === "sensenova" ? ["https://token.sensenova.cn/v1"]
+        : kind === "commandcode" ? ["https://api.commandcode.ai/provider/v1"]
         : kind === "cohere" ? ["https://api.cohere.com"]
       : ["https://openrouter.ai", "https://openrouter.ai/api", "https://openrouter.ai/api/v1"]).includes(base.replace(/\/+$/, ""));
 }
 export function catalogProviderKind(provider: Record<string, unknown>): CatalogProviderKind | undefined {
+  if (isQwenProvider(provider)) return "qwen";
+  if (provider.preset === "cloudflare-workers-ai") return "cloudflare-workers-ai";
   if (provider.preset === "gemini-api") return "gemini";
   if (provider.preset === "anthropic") return "anthropic";
   if (provider.preset === "openai" && typeof provider.base_url === "string"
@@ -37,9 +61,22 @@ export function catalogProviderKind(provider: Record<string, unknown>): CatalogP
   if (provider.preset === "nvidia-openai") return "nvidia";
   if (provider.preset === "poe-openai") return "poe";
   if (provider.preset === "groq-openai") return "groq";
+  if (provider.preset === "river-api") return "river";
+  if (provider.preset === "agnes-api") return "agnes";
+  if (provider.preset === "sensenova-token-plan") return "sensenova";
+  if (provider.preset === "commandcode-api") return "commandcode";
   if (provider.preset === "cohere-chat") return "cohere";
   if (provider.preset === "openrouter-openai" || (provider.preset === "openai"
     && typeof provider.base_url === "string" && officialCatalogBase("openrouter", provider.base_url))) return "openrouter";
+}
+export function catalogMatchesProvider(provider: Record<string, unknown>, base: unknown, catalog: OfficialModelCatalog): boolean {
+  const kind = catalogProviderKind(provider);
+  if (kind === "qwen" || kind === "cloudflare-workers-ai") {
+    const endpoint = typeof base === "string" ? kind === "qwen" ? qwenCatalogEndpoint(base) : cloudflareEndpoint(base) : null;
+    return !!endpoint && endpoint.baseUrl === catalog.accountBaseUrl && endpoint.sourceUrl === catalog.sourceUrl;
+  }
+  return !!kind && catalog.accountBaseUrl === undefined && catalog.sourceUrl === catalogSources[kind]
+    && (base === undefined || typeof base === "string" && officialCatalogBase(kind, base));
 }
 const strings = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 function reconcileModels(existing: unknown, desired: string[]): string[] {
@@ -58,13 +95,12 @@ export function applyOfficialCatalog(document: ConsoleRouteDocument, providerId:
   const catalog = officialCatalogSchema.parse(input);
   const next = structuredClone(document);
   const provider = next.providers.find((entry) => isRecord(entry) && entry.id === providerId);
-  const kind = isRecord(provider) ? catalogProviderKind(provider) : undefined;
-  if (!isRecord(provider) || !kind || catalog.sourceUrl !== catalogSources[kind]) throw new Error("模型目录与服务商不匹配。");
+  if (!isRecord(provider) || !catalogProviderKind(provider)) throw new Error("模型目录与服务商不匹配。");
   const credentials = Array.isArray(provider.credentials) ? provider.credentials.filter(isRecord) : [];
   const credential = credentials.find((entry) => entry.id === credentialId);
   if (!credential) throw new Error("模型目录账号已不存在。");
   const base = credential.base_url ?? provider.base_url;
-  if (typeof base === "string" && !officialCatalogBase(kind, base)) throw new Error("模型目录仅支持官方 API 地址。");
+  if (!catalogMatchesProvider(provider, base, catalog)) throw new Error("模型目录与服务商或账号目标不匹配。");
   const selection = modelSelectionSchema.safeParse(credential.model_selection).data;
   if (selection) {
     delete credential.discovery_job;

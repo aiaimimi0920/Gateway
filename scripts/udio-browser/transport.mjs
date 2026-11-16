@@ -11,6 +11,7 @@ export async function browserFetch(page, args) {
           headers,
           body: typeof bodyText === "string" ? bodyText : undefined,
           credentials: "include",
+          redirect: "error",
           signal: controller.signal,
         });
         let text = "";
@@ -27,8 +28,8 @@ export async function browserFetch(page, args) {
               const { value, done } = await reader.read();
               if (done) { complete = true; break; }
               bytes += value.byteLength;
-              if (bytes > 16 * 1024 * 1024) {
-                throw Object.assign(new Error("Udio browser JSON response exceeds 16 MiB."), { status: 502 });
+              if (bytes > 128 * 1024) {
+                throw Object.assign(new Error("Udio browser JSON response exceeds 128 KiB."), { status: 502 });
               }
               // Fixed blocks bound retained metadata even for one-byte stream chunks.
               let offset = 0;

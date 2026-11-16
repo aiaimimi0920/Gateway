@@ -8,6 +8,21 @@ pub(super) struct TokenResponse {
     pub access_token: String,
     pub refresh_token: Option<String>,
     pub expires_in: Option<u64>,
+    /// Produced only by the dedicated owner, never deserialized from an upstream body.
+    #[serde(skip)]
+    pub grok_oauth: Option<crate::protocol::grok_oauth::AuthorizationContext>,
+    #[serde(skip)]
+    pub absolute_expiry: Option<String>,
+    #[serde(skip)]
+    pub accio_sgcookie: Option<String>,
+    #[serde(skip)]
+    pub vertex_oauth: Option<crate::protocol::vertex_oauth::AuthorizationContext>,
+    #[serde(skip)]
+    pub dim_oauth: Option<crate::protocol::dim_oauth::AuthorizationContext>,
+    #[serde(skip)]
+    pub nous_portal: Option<crate::protocol::nous_portal::AuthorizationContext>,
+    #[serde(skip)]
+    pub lobsterai: Option<crate::protocol::lobsterai::AuthorizationContext>,
 }
 
 pub(super) struct RefreshError {
@@ -24,13 +39,13 @@ impl RefreshError {
     }
 }
 
-pub(super) async fn exchange(
+pub(super) async fn prepare(
     http: &rquest::Client,
     endpoint: &str,
     refresh_token: &str,
     client_id: &str,
     antigravity: bool,
-) -> Result<TokenResponse, RefreshError> {
+) -> Result<rquest::Request, RefreshError> {
     // Identify by adapter, never by an ID coincidence. Config failures are recoverable
     // and must not send a refresh token or mark an existing account permanently invalid.
     let oauth_client = if antigravity {
@@ -73,13 +88,21 @@ pub(super) async fn exchange(
     if let Some(secret) = antigravity_secret {
         form.push(("client_secret", secret));
     }
-    let response = http
-        .post(url.as_str())
+    http.post(url.as_str())
         .default_headers(antigravity_secret.is_none())
         .redirect(rquest::redirect::Policy::none())
         .form(&form)
         .timeout(Duration::from_secs(15))
-        .send()
+        .build()
+        .map_err(|_| RefreshError::transient("oauth_refresh_invalid_request"))
+}
+
+pub(super) async fn execute(
+    http: &rquest::Client,
+    request: rquest::Request,
+) -> Result<TokenResponse, RefreshError> {
+    let response = http
+        .execute(request)
         .await
         .map_err(|_| RefreshError::transient("oauth_refresh_transport_failed"))?;
     let status = response.status();
@@ -124,4 +147,19 @@ pub(super) async fn exchange(
         token.refresh_token = None;
     }
     Ok(token)
+}
+
+#[cfg(test)]
+pub(super) async fn exchange(
+    http: &rquest::Client,
+    endpoint: &str,
+    refresh_token: &str,
+    client_id: &str,
+    antigravity: bool,
+) -> Result<TokenResponse, RefreshError> {
+    execute(
+        http,
+        prepare(http, endpoint, refresh_token, client_id, antigravity).await?,
+    )
+    .await
 }

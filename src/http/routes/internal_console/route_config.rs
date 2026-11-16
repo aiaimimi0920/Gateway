@@ -7,8 +7,8 @@ use super::{
 };
 use crate::console::document::validate_route_document;
 use crate::console::secrets::{
-    redact_route_document, resolve_secret_patches, route_config_request_requires_secret_grant,
-    SecretPatch,
+    freebuff_business_target_changed, redact_route_document, resolve_secret_patches,
+    route_config_request_requires_secret_grant, SecretPatch,
 };
 use crate::console::{AuthenticatedConsoleActor, ConsoleRequestContext};
 use crate::error::GatewayError;
@@ -54,14 +54,6 @@ pub async fn commit_route_config(
         &request,
         required_console_management_token(token.as_deref(), &headers)?,
     )?;
-    verify_route_config_secret_grant_if_required(
-        state.as_ref(),
-        &request,
-        &actor,
-        &headers,
-        &body.document,
-        &body.secret_patches,
-    )?;
     assert_if_match_consistent(&headers, &body.expected_revision)?;
     let _publication = state.lifecycle.health_control.publication.lock().await;
     let runtime = state.route_config_runtime.as_ref().ok_or_else(|| {
@@ -71,6 +63,16 @@ pub async fn commit_route_config(
         .with_code("console_runtime_unavailable")
     })?;
     let active = state.route_config.snapshot();
+    // Check the active audience under the publication lock, not an earlier UI/catalog snapshot.
+    verify_route_config_secret_grant_if_required(
+        state.as_ref(),
+        &request,
+        &actor,
+        &headers,
+        active.document(),
+        &body.document,
+        &body.secret_patches,
+    )?;
     let candidate = resolve_secret_patches(active.document(), body.document, &body.secret_patches)
         .map_err(secret_patch_to_gateway_error)?;
     crate::provider_discovery::job::validate(&candidate)
@@ -111,15 +113,16 @@ pub async fn validate_route_config(
         &request,
         required_console_management_token(token.as_deref(), &headers)?,
     )?;
+    let active = state.route_config.snapshot();
     verify_route_config_secret_grant_if_required(
         state.as_ref(),
         &request,
         &actor,
         &headers,
+        active.document(),
         &body.document,
         &body.secret_patches,
     )?;
-    let active = state.route_config.snapshot();
     let candidate = resolve_secret_patches(active.document(), body.document, &body.secret_patches)
         .map_err(secret_patch_to_gateway_error)?;
     let validated = validate_route_document(candidate).map_err(|diagnostics| {
@@ -145,10 +148,13 @@ fn verify_route_config_secret_grant_if_required(
     request: &ConsoleRequestContext,
     actor: &AuthenticatedConsoleActor,
     headers: &HeaderMap,
+    active: &RouteConfigYaml,
     document: &RouteConfigYaml,
     secret_patches: &[SecretPatch],
 ) -> Result<(), GatewayError> {
-    if !route_config_request_requires_secret_grant(document, secret_patches) {
+    if !route_config_request_requires_secret_grant(document, secret_patches)
+        && !freebuff_business_target_changed(active, document)
+    {
         return Ok(());
     }
     let secret_grant = headers

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
+import { NeuroProvider } from "@neuro/ui";
 import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
 import { PROVIDER_CATALOG_TEMPLATES, type ProviderCatalogDraft } from "./providerCatalog";
 import { addCatalogProvider } from "./providerCatalogCreation";
@@ -16,7 +17,7 @@ it("creates the NVIDIA standard template from its locked UI without importing an
   const onSubmit = vi.fn();
   render(<UiLocaleProvider><ProviderCatalogDialog open existingProviderIds={[]} existingCredentialIds={[]}
     locked={false} hasSecretAccess={false} onOpenChange={vi.fn()} onRequestSecretAccess={vi.fn()} onSubmit={onSubmit} />
-  </UiLocaleProvider>);
+  </UiLocaleProvider>, { wrapper: NeuroProvider });
   await user.click(screen.getByRole("button", { name: /^nvidia/ }));
   expect(screen.getByLabelText("Base URL")).toHaveValue("https://integrate.api.nvidia.com");
   for (const label of ["Base URL", "调用适配器", "指纹适配器", "专用适配器"]) {
@@ -32,7 +33,8 @@ it("creates the NVIDIA standard template from its locked UI without importing an
   const draft = onSubmit.mock.calls[0][0] as ProviderCatalogDraft;
   expect(draft.supportedModels).toEqual([model]);
   const result = addCatalogProvider({ providers: [], model_routes: [], aliases: {} }, template, draft);
-  expect(result.providers).toEqual([expect.objectContaining({ id: "nvidia-acceptance", preset: "nvidia-openai",
+  expect(result.providers).toEqual([expect.objectContaining({
+    id: "nvidia-acceptance", preset: "nvidia-openai",
     base_url: "https://integrate.api.nvidia.com", supported_models: [model],
     explicit_credentials_only: true, credentials: [],
     call_flow: { call_adapter: "auto", fingerprint_adapter: "auto", special_adapter: "auto" },
@@ -45,9 +47,11 @@ it("keeps the previous provider and credentials untouched while adding a separat
   const previous = { id: "existing", credentials: [{ id: "fixture-account", api_key: "fixture-only" }] };
   const document = { providers: [previous], model_routes: [], aliases: {} };
   const before = structuredClone(document);
-  const draft: ProviderCatalogDraft = { templateId: template.id, providerId: "nvidia", providerLabel: "nvidia",
+  const draft: ProviderCatalogDraft = {
+    templateId: template.id, providerId: "nvidia", providerLabel: "nvidia",
     vendorKey: template.vendorKey, vendorName: template.vendorName, baseUrl: template.baseUrl,
-    supportedModels: [...template.supportedModels], workflow: defaultCatalogWorkflow(template) };
+    supportedModels: [...template.supportedModels], workflow: defaultCatalogWorkflow(template)
+  };
   const result = addCatalogProvider(document, template, draft);
   expect(document).toEqual(before);
   expect(result.providers[0]).toEqual(previous);

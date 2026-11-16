@@ -1,0 +1,20 @@
+{
+  "providers": [
+    {
+      "id": "dim-cn-oauth",
+      "preset": "dim-cn-oauth",
+      "base_url": "https://dimagent.cn/v1",
+      "auth_mode": "dim_user_oauth",
+      "explicit_credentials_only": true,
+      "credentials": []
+    },
+    {
+      "id": "dim-global-oauth",
+      "preset": "dim-global-oauth",
+      "base_url": "https://dimagent.com/v1",
+      "auth_mode": "dim_user_oauth",
+      "explicit_credentials_only": true,
+      "credentials": []
+    }
+  ]
+}

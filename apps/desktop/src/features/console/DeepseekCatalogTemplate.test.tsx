@@ -1,4 +1,5 @@
 // 仅使用假凭据验证正常手动导入，禁止测试触发真实上游请求。
+import { NeuroProvider } from "@neuro/ui";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
@@ -19,8 +20,10 @@ it("creates an empty deepseek-api pool with one opt-in model and no automatic te
     vendorKey: template!.vendorKey, vendorName: template!.vendorName, baseUrl: template!.baseUrl,
     supportedModels: [], workflow: defaultCatalogWorkflow(template!),
   });
-  expect(result.providers[0]).toMatchObject({ id: "deepseek-api", preset: "deepseek-api", explicit_credentials_only: true,
-    credentials: [], supported_models: [], test_policy: { automaticEnabled: false, modelSelection: "selected", models: ["deepseek-flash"] } });
+  expect(result.providers[0]).toMatchObject({
+    id: "deepseek-api", preset: "deepseek-api", explicit_credentials_only: true,
+    credentials: [], supported_models: [], test_policy: { automaticEnabled: false, modelSelection: "selected", models: ["deepseek-flash"] }
+  });
   expect(result.model_routes).toEqual([]);
   expect(result.providers[0]).not.toHaveProperty("api_key");
 });
@@ -29,7 +32,7 @@ it("imports only the manually declared model without discovery or probing", () =
   render(<UiLocaleProvider><CredentialDialog open mode="add" providerOptions={[{ id: "deepseek-api", label: "DeepSeek" }]}
     existingCredentialIds={[]} locked={false} hasSecretAccess onOpenChange={vi.fn()} onRequestSecretAccess={vi.fn()}
     onSubmit={onSubmit} catalogProviderKind={() => catalogProviderKind({ preset: "deepseek-api", base_url: "https://api.deepseek.com" })}
-    onDiscoverProviderModels={official} onDiscover={generic} /></UiLocaleProvider>);
+    onDiscoverProviderModels={official} onDiscover={generic} /></UiLocaleProvider>, { wrapper: NeuroProvider });
   fireEvent.change(screen.getByLabelText("账号 ID"), { target: { value: "deepseek-fixture" } });
   fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-key" } });
   fireEvent.change(screen.getByLabelText("手动模型列表"), { target: { value: "deepseek-flash" } });

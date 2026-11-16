@@ -144,13 +144,20 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
             }
         }
         let websocket_transport = provider_uses_websocket_transport(provider);
-        validate_provider_url(
-            &provider.base_url,
-            "provider_base_url_invalid",
-            format!("{provider_path}/base_url"),
-            websocket_transport,
-            &mut diagnostics,
-        );
+        // A Qwen pool may defer its target to each explicit credential; it is not a default account.
+        if !(crate::routing::config::copilot::is_provider(provider) && provider.base_url.is_empty())
+            && !(provider.preset.as_deref() == Some("qwen-official-api")
+                && !provider.uses_provider_default_account()
+                && provider.base_url.is_empty())
+        {
+            validate_provider_url(
+                &provider.base_url,
+                "provider_base_url_invalid",
+                format!("{provider_path}/base_url"),
+                websocket_transport,
+                &mut diagnostics,
+            );
+        }
         if let Some(keepalive) = &provider.keepalive {
             validate_http_url(
                 &keepalive.service_url,
@@ -248,7 +255,7 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
                 );
             }
             if let Some(expires_in_secs) = credential.token_expires_in_secs {
-                if !token_expiry_supported(expires_in_secs) {
+                if !crate::routing::config::token_expiry_supported(expires_in_secs) {
                     diagnostics.push_error(
                         "credential_token_expiry_invalid",
                         format!("{credential_path}/token_expires_in_secs"),
@@ -372,12 +379,6 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
     }
     diagnostics.sort();
     diagnostics
-}
-
-fn token_expiry_supported(seconds: u64) -> bool {
-    let duration = std::time::Duration::from_secs(seconds);
-    std::time::Instant::now().checked_add(duration).is_some()
-        && std::time::SystemTime::now().checked_add(duration).is_some()
 }
 
 fn collect_alias_diagnostics(

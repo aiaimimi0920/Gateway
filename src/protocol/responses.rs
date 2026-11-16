@@ -28,7 +28,7 @@ pub use accumulate::{
 };
 pub use completeness::require_responses_completion;
 pub use normalize::normalize_responses;
-pub use pack::{pack_responses, pack_responses_bridge};
+pub use pack::{pack_responses, pack_responses_bridge, pack_responses_preserving_system};
 use response::normalize_arguments_value;
 pub use response::{build_responses_success, unpack_responses_response};
 pub use to_openai_chat::translate_responses_sse_to_openai_chat_with_error;

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "checkerVersion": 2,
-  "mode": "report",
+  "mode": "ratchet",
   "thresholds": {
     "target": 150,
     "acceptable": 500,
@@ -15,13 +15,13 @@
     "files": 182
   },
   "summary": {
-    "scanned": 2502,
+    "scanned": 2529,
     "hard": 4,
     "mandatory": 8,
     "soft": 2
   },
   "sourceSummary": {
-    "scanned": 2488,
+    "scanned": 2515,
     "hard": 0,
     "mandatory": 0,
     "soft": 0

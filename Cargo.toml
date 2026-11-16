@@ -19,6 +19,8 @@ path = "src/main.rs"
 [features]
 management-ui = ["dep:rust-embed", "dep:mime_guess"]
 cpa-rust-transport = ["dep:gateway-cpa-http-transport"]
+# Runtime ownership only; public Copilot inference is not enabled by this feature.
+copilot-sdk-runtime = ["dep:gateway-copilot-runtime"]
 # Never active in a release build, even when --all-features is supplied.
 dev-protocol-override = []
 default = ["runtime-defaults", "management-ui"]
@@ -44,6 +46,15 @@ runtime-defaults = [
     "line-chatgpt-web-reverse",
     "line-cohere-chat-official-model-api",
     "line-groq-openai-official-vendor-api",
+    "line-river-official-api",
+    "line-agnes-official-api",
+    "line-minimax-m-plan",
+    "line-sensenova-token-plan",
+    "line-commandcode-provider-api",
+    "line-sap-aicore-chat",
+    "line-cloudflare-workers-ai",
+    "line-dim-user-oauth",
+    "line-nous-portal-oauth",
     "line-nvidia-openai-official-vendor-api",
     "line-together-openai-aggregator-api",
     "line-openrouter-openai-aggregator-api",
@@ -59,9 +70,11 @@ runtime-defaults = [
     "line-freebuff-web-reverse-api",
     "line-producer-web-reverse-api",
     "line-grok-web-reverse-api",
+    "line-perplexity-web-reverse-api",
     "line-suno-web-reverse-api",
     "line-udio-web-reverse-api",
     "line-lumalabs-web-reverse-api",
+    "line-lumalabs-agents-official-api",
     "line-perplexity-search-official-vendor-api",
     "line-tavily-search-official-vendor-api",
     "line-exa-search-official-vendor-api",
@@ -95,6 +108,15 @@ line-chatgpt-codex-oauth-official = ["line-chatgpt-official-core", "family-opena
 line-chatgpt-web-reverse = []
 line-cohere-chat-official-model-api = ["family-cohere-chat-official-api"]
 line-groq-openai-official-vendor-api = ["family-openai-compatible-official-api"]
+line-river-official-api = ["family-openai-compatible-official-api"]
+line-agnes-official-api = ["family-openai-compatible-official-api"]
+line-minimax-m-plan = ["family-anthropic-compatible-official-api"]
+line-sensenova-token-plan = ["family-openai-compatible-official-api"]
+line-commandcode-provider-api = ["family-openai-compatible-official-api"]
+line-sap-aicore-chat = ["family-openai-compatible-official-api"]
+line-cloudflare-workers-ai = ["family-openai-compatible-official-api"]
+line-dim-user-oauth = ["family-openai-compatible-official-api", "family-anthropic-compatible-official-api", "line-aistudio-official"]
+line-nous-portal-oauth = ["family-openai-compatible-official-api"]
 line-nvidia-openai-official-vendor-api = ["family-openai-compatible-official-api"]
 line-together-openai-aggregator-api = ["family-openai-compatible-official-api"]
 line-openrouter-openai-aggregator-api = ["family-openai-compatible-official-api"]
@@ -110,9 +132,11 @@ line-xfyun-native-websocket-official-vendor-api = []
 line-freebuff-web-reverse-api = []
 line-producer-web-reverse-api = []
 line-grok-web-reverse-api = []
-line-suno-web-reverse-api = []
+line-perplexity-web-reverse-api = []
+line-suno-web-reverse-api = ["dep:symphonia"]
 line-udio-web-reverse-api = []
 line-lumalabs-web-reverse-api = []
+line-lumalabs-agents-official-api = []
 line-perplexity-search-official-vendor-api = ["family-search-api-compatible-official-api"]
 line-tavily-search-official-vendor-api = ["family-search-api-compatible-official-api"]
 line-exa-search-official-vendor-api = ["family-search-api-compatible-official-api"]
@@ -155,6 +179,7 @@ rustls-native-certs = "0.8"
 
 # HTTP client — wreq with Chrome TLS emulation; retain rquest consumer aliases.
 gateway-cpa-http-transport = { path = "crates/cpa-http-transport", optional = true }
+gateway-copilot-runtime = { path = "crates/gateway-copilot-runtime", optional = true }
 gateway-cpa-claude-profile = { path = "crates/cpa-claude-profile" }
 rquest = { package = "wreq", version = "=0.16.1", default-features = false, features = ["webpki-roots", "tokio-rt", "stream", "json", "form", "query", "charset", "system-proxy", "gzip", "brotli", "deflate", "zstd"] }
 rquest-util = { package = "wreq-util", version = "=0.2.0", default-features = false, features = ["emulation"] }
@@ -218,10 +243,12 @@ aws-credential-types = "1"
 aws-sigv4 = { version = "1", features = ["http1"] }
 aws-smithy-runtime-api = { version = "1", features = ["client"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+# Decode original Suno playback assets in-process; no external encoder/download service.
+symphonia = { version = "=0.5.5", default-features = false, features = ["mp3"], optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-registry = "0.6"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_JobObjects", "Win32_System_Threading"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

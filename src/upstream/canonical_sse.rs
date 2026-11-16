@@ -92,7 +92,7 @@ pub(crate) fn canonical_response_to_openai_sse_bytes(
             } else {
                 "tool_calls"
             });
-    let stop_chunk = json!({
+    let mut stop_chunk = json!({
         "id": response_id,
         "object": "chat.completion.chunk",
         "created": created_at,
@@ -108,6 +108,16 @@ pub(crate) fn canonical_response_to_openai_sse_bytes(
             "total_tokens": usage.total_tokens,
         })).unwrap_or_else(|| json!(null)),
     });
+    if let Some(usage) = &response.usage {
+        if let Some(cached) = usage.cache_read_input_tokens {
+            stop_chunk["usage"]["prompt_tokens_details"] = json!({"cached_tokens":cached});
+        }
+        if let Some(created) = usage.cache_creation_input_tokens {
+            stop_chunk["usage"]["cache_creation_input_tokens"] = json!(created);
+        }
+    }
+    crate::protocol::response_sources::project(&mut stop_chunk, &response.sources);
+    crate::protocol::vertex_turn::project(&mut stop_chunk, response.vertex_turn.as_ref());
     frames.push(bytes::Bytes::from(format_sse_event(
         None,
         &stop_chunk.to_string(),

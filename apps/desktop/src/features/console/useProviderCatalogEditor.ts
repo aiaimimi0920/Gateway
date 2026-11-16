@@ -4,6 +4,8 @@ import { pushAppToast } from "../../components/AppToast";
 import { PROVIDER_CATALOG_TEMPLATES, type ProviderCatalogDraft } from "./providerCatalog";
 import { addCatalogProvider } from "./providerCatalogCreation";
 import { parseRouteDocument } from "./routeDocument";
+import { editQwenProviderEndpoint } from "./qwenProviderEndpoint";
+import type { QwenEndpointDraft } from "./qwenEndpoint";
 
 type ProviderCatalogEditorOptions = {
   editorText: string;
@@ -25,5 +27,11 @@ export function useProviderCatalogEditor({ editorText, replaceEditorDocument, st
       pushAppToast("info", t(`正在保存服务商 ${value.providerId}。`, `Saving provider ${value.providerId}.`));
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   }, [editorText, replaceEditorDocument, stageProviderCreationSecrets, setActiveWorkspace, setError, t]);
-  return { applyProviderCatalogDraft };
+  const applyQwenProviderEndpointDraft = useCallback((providerId: string, expected: string, target: QwenEndpointDraft, preserveInherited: boolean) => {
+    try {
+      const next = editQwenProviderEndpoint(parseRouteDocument(editorText), providerId, expected, target, preserveInherited);
+      replaceEditorDocument(next, true); setError(null); return true;
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return false; }
+  }, [editorText, replaceEditorDocument, setError]);
+  return { applyProviderCatalogDraft, applyQwenProviderEndpointDraft };
 }

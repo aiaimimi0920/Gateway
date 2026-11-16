@@ -41,6 +41,9 @@ fn make_req(protocol: ProtocolFamily, endpoint: EndpointKind) -> CanonicalRelayR
 
 fn make_resp() -> CanonicalRelayResponse {
     CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: "gpt-4o".to_string(),
         text: "Hello!".to_string(),

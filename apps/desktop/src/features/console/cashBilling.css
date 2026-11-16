@@ -1,51 +1,40 @@
-.dialog-content.nt-cash-dialog {
+.n-dialog.nt-cash-dialog {
   width: min(520px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   overflow: auto;
 }
-.dialog-content.nt-cash-dialog--wide {
+.n-dialog.nt-cash-dialog--wide {
   width: min(960px, calc(100vw - 32px));
 }
-.nt-cash-ledger .nt-key-ledger {
+.nt-cash-ledger .n-table {
   min-width: 680px;
-  table-layout: fixed;
 }
-.nt-cash-ledger .nt-key-ledger th:first-child,
-.nt-cash-ledger .nt-key-ledger td:first-child {
-  width: 58%;
-  max-width: none;
-}
-.nt-cash-ledger .nt-key-ledger td {
+.nt-cash-ledger .n-table :is(th, td) {
   vertical-align: top;
 }
 .nt-cash-receipt dt {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.nt-cash-dialog__head,
 .nt-cash-dialog__actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.nt-cash-dialog__actions {
   justify-content: flex-end;
+  gap: 12px;
 }
 .nt-cash-dialog > p {
   overflow-wrap: anywhere;
 }
 .nt-cash-ledger {
-  overflow: auto;
+  min-width: 0;
+}
+.nt-cash-ledger .n-table-scroll {
   max-height: 60dvh;
 }
 .nt-cash-receipt {
   min-width: 220px;
   max-width: 470px;
   margin-top: 8px;
-}
-.nt-cash-receipt summary {
-  cursor: pointer;
 }
 .nt-cash-receipt dl {
   display: grid;

@@ -1,4 +1,5 @@
 // 假凭据只验证正常导入表单，不触发真实请求。
+import { NeuroProvider } from "@neuro/ui";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
@@ -17,8 +18,10 @@ it("creates an empty perplexity-api pool with a single opt-in Sonar model", () =
     vendorKey: template!.vendorKey, vendorName: template!.vendorName, baseUrl: template!.baseUrl,
     supportedModels: [], workflow: defaultCatalogWorkflow(template!),
   });
-  expect(result.providers[0]).toMatchObject({ id: "perplexity-api", preset: "perplexity-api", explicit_credentials_only: true,
-    credentials: [], supported_models: [], test_policy: { automaticEnabled: false, modelSelection: "selected", models: ["sonar"] } });
+  expect(result.providers[0]).toMatchObject({
+    id: "perplexity-api", preset: "perplexity-api", explicit_credentials_only: true,
+    credentials: [], supported_models: [], test_policy: { automaticEnabled: false, modelSelection: "selected", models: ["sonar"] }
+  });
   expect(result.model_routes).toEqual([]);
   expect(result.providers[0]).not.toHaveProperty("api_key");
 });
@@ -26,7 +29,7 @@ it("imports a manually declared account without discovery or automatic probing",
   const onSubmit = vi.fn(); const discover = vi.fn();
   render(<UiLocaleProvider><CredentialDialog open mode="add" providerOptions={[{ id: "perplexity-api", label: "Perplexity" }]}
     existingCredentialIds={[]} locked={false} hasSecretAccess onOpenChange={vi.fn()} onRequestSecretAccess={vi.fn()}
-    onSubmit={onSubmit} onDiscover={discover} onDiscoverProviderModels={discover} /></UiLocaleProvider>);
+    onSubmit={onSubmit} onDiscover={discover} onDiscoverProviderModels={discover} /></UiLocaleProvider>, { wrapper: NeuroProvider });
   fireEvent.change(screen.getByLabelText("账号 ID"), { target: { value: "perplexity-fixture" } });
   fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "pplx-invalid-fixture" } });
   fireEvent.change(screen.getByLabelText("手动模型列表"), { target: { value: "sonar" } });

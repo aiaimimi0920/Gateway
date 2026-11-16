@@ -290,6 +290,24 @@ impl TransactionJournal {
         self.persistence.ensure_guard(guard)?;
         self.load_entries_inner(true)?;
         let entries = self.load_entries_inner(false)?;
+        self.inspect_records_locked(guard, &entries)
+    }
+
+    pub(crate) fn inspect_read_only_locked(
+        &self,
+        guard: &WriterLockGuard,
+    ) -> Result<Vec<TransactionRecord>, PersistenceError> {
+        self.persistence.ensure_guard(guard)?;
+        let entries = self.load_entries_read_only()?;
+        self.inspect_records_locked(guard, &entries)
+    }
+
+    fn inspect_records_locked(
+        &self,
+        guard: &WriterLockGuard,
+        entries: &[JournalEntry],
+    ) -> Result<Vec<TransactionRecord>, PersistenceError> {
+        self.persistence.ensure_guard(guard)?;
         validate_journal_order(&entries)?;
         let mut records = self.load_transactions()?;
         records.sort_by(|left, right| {

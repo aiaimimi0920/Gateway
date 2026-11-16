@@ -65,6 +65,7 @@ pub fn requested_wire_protocol_family(req: &CanonicalRelayRequest) -> Option<Str
         ProtocolFamily::DashScope => Some("dashscope_text"),
         ProtocolFamily::DashScopeMultimodal => Some("dashscope_multimodal"),
         ProtocolFamily::SearchApi => Some(SEARCH_API_FAMILY),
+        ProtocolFamily::SystemOne => Some(crate::protocol::registry::SYSTEMONE_FAMILY),
     }
     .map(str::to_string)
 }
@@ -84,6 +85,7 @@ pub fn surface_supported_wire_protocol_families(
             OPENAI_AUDIO_SPEECH_FAMILY.to_string(),
         ],
         "freebuff_compatible" | "grok_compatible" => vec![OPENAI_CHAT_FAMILY.to_string()],
+        "perplexity_web_compatible" => vec![OPENAI_CHAT_FAMILY.to_string()],
         "accio_compatible" | "kiro_compatible" => vec![OPENAI_RESPONSES_FAMILY.to_string()],
         "chatgpt_web_reverse_compatible" => vec![CHATGPT_WEB_CHAT_FAMILY.to_string()],
         "anthropic_compatible" => vec![ANTHROPIC_MESSAGES_FAMILY.to_string()],

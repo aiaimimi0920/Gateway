@@ -17,20 +17,20 @@ export function ModelsPanel({ state }: ModelsPanelProps) {
     : "尚未请求";
 
   return (
-    <div className="nt-stack">
-      <article className="nt-card nt-card--panel">
+    <div className="gateway-desktop-panels">
+      <Panel className="gateway-desktop-panel">
         <div className="nt-section__head">
           <div>
             <h2>模型目录</h2>
           </div>
-          <button
-            className="nt-btn nt-btn--primary"
+          <Button
+            variant="primary"
             type="button"
             disabled={state.busy}
             onClick={() => void state.refreshModels()}
           >
             读取模型
-          </button>
+          </Button>
         </div>
 
         <div className="nt-focus-grid">
@@ -47,37 +47,24 @@ export function ModelsPanel({ state }: ModelsPanelProps) {
             <strong>{rows.length}</strong>
           </article>
         </div>
-      </article>
+      </Panel>
 
-      <article className="nt-card nt-card--panel">
-        {rows.length === 0 ? (
-          <p className="nt-empty">
-            暂无模型结果。请先启动 Gateway，并确认当前 profile 对应的 route/provider 配置可用。
-          </p>
-        ) : (
-          <div className="nt-table">
-            <div className="nt-table__head">
-              <span>Model ID</span>
-              <span>Object</span>
-              <span>Owner</span>
-            </div>
-            {rows.map((model) => (
-              <div className="nt-table__row" key={model.id}>
-                <strong>{model.id}</strong>
-                <span>{model.object ?? "model"}</span>
-                <span>{model.owned_by ?? model.ownedBy ?? "-"}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
+      <Panel className="gateway-desktop-panel">
+        <DataTable label="模型目录结果" rows={rows} getRowKey={model => model.id}
+          columns={[
+            { key: "id", header: "Model ID", cell: model => <strong>{model.id}</strong> },
+            { key: "object", header: "Object", cell: model => model.object ?? "model" },
+            { key: "owner", header: "Owner", cell: model => model.owned_by ?? model.ownedBy ?? "-" },
+          ]} empty={<EmptyState title="暂无模型结果" />} />
+      </Panel>
 
       {state.modelsProbe?.data ? (
-        <article className="nt-card nt-card--panel">
+        <Panel className="gateway-desktop-panel">
           <h3>原始响应</h3>
           <pre className="nt-code">{JSON.stringify(state.modelsProbe.data, null, 2)}</pre>
-        </article>
+        </Panel>
       ) : null}
     </div>
   );
 }
+import { Button, DataTable, EmptyState, Panel } from "@neuro/ui";

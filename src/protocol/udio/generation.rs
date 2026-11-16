@@ -4,8 +4,8 @@ use super::field_values::{
     read_number_fields, read_number_fields_from_object, read_object_bool, read_object_string,
     read_optional_bool, read_optional_string,
 };
+use super::model_binding::bound_gen_params;
 use super::request_options::prompt_from_request;
-use super::UDIO_DEFAULT_MODEL_TYPE;
 use crate::error::GatewayError;
 use crate::protocol::canonical::CanonicalRelayRequest;
 use serde_json::Map;
@@ -14,7 +14,7 @@ use serde_json::Value;
 
 pub fn build_generate_request(
     req: &CanonicalRelayRequest,
-    _model: &str,
+    model: &str,
 ) -> Result<Value, GatewayError> {
     let body_obj = req
         .raw_body
@@ -35,10 +35,7 @@ pub fn build_generate_request(
     .unwrap_or_default();
     let instrumental = read_optional_bool(body_obj, &["instrumental"]).unwrap_or(false);
 
-    let mut gen_params = body_obj
-        .get("gen_params")
-        .and_then(|value| value.as_object().cloned())
-        .unwrap_or_default();
+    let mut gen_params = bound_gen_params(body_obj, model)?;
     let sampler_options = body_obj
         .get("samplerOptions")
         .or_else(|| body_obj.get("sampler_options"))
@@ -77,17 +74,6 @@ pub fn build_generate_request(
     let negative_prompt = read_optional_string(body_obj, &["negative_prompt", "negativePrompt"])
         .or_else(|| read_object_string(&gen_params, &["negative_prompt"]))
         .or(Some(String::new()));
-    let model_type = read_optional_string(
-        body_obj,
-        &[
-            "model_type",
-            "modelType",
-            "upstream_model_type",
-            "upstreamModelType",
-        ],
-    )
-    .or_else(|| read_object_string(&gen_params, &["model_type"]))
-    .or(Some(UDIO_DEFAULT_MODEL_TYPE.to_string()));
     let use_allegro = read_optional_bool(body_obj, &["use_allegro", "useAllegro"])
         .or_else(|| read_object_bool(&gen_params, &["use_allegro"]))
         .or(Some(true));
@@ -161,7 +147,6 @@ pub fn build_generate_request(
     maybe_insert_number(&mut gen_params, "lyrics_strength", lyrics_strength);
     maybe_insert_number(&mut gen_params, "generation_quality", generation_quality);
     maybe_insert_string(&mut gen_params, "negative_prompt", negative_prompt);
-    maybe_insert_string(&mut gen_params, "model_type", model_type);
     maybe_insert_bool(&mut gen_params, "use_allegro", use_allegro);
     maybe_insert_bool(&mut gen_params, "use_style", use_style);
     maybe_insert_bool(&mut gen_params, "bpm_enabled", bpm_enabled);

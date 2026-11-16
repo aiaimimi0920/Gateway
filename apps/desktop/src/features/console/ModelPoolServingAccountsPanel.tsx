@@ -1,10 +1,9 @@
 import { Database } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
+import { EmptyState } from "@neuro/ui";
 
 import type { EntitlementAccountCardBridge } from "./credentialGroupsWorkspaceTypes";
 import type { ModelPoolProviderLink } from "./modelPoolViewModel";
 import {
-  ACCOUNT_CARD_MENU_ITEMS,
   AccountLibraryPager,
   ProviderAccountCard,
   type AccountsLedgerPilotAccount,
@@ -21,9 +20,6 @@ export type ModelPoolServingAccountsPanelProps = {
   chainNarrowed: boolean;
   accountCards?: EntitlementAccountCardBridge;
   editorLocked: boolean;
-  activeMenuKey: string | null;
-  onActiveMenuKeyChange: Dispatch<SetStateAction<string | null>>;
-  registerMenuTrigger: (key: string, node: HTMLButtonElement | null) => void;
 };
 
 /** Renders the account library attached to an expanded model card. */
@@ -36,15 +32,12 @@ export function ModelPoolServingAccountsPanel({
   chainNarrowed,
   accountCards,
   editorLocked,
-  activeMenuKey,
-  onActiveMenuKeyChange,
-  registerMenuTrigger,
 }: ModelPoolServingAccountsPanelProps) {
   const bridge = accountCards ?? null;
   const resolvedAccounts = bridge
     ? scopedAccountIds
-        .map((accountId) => bridge.accountsById.get(accountId))
-        .filter((account): account is AccountsLedgerPilotAccount => account != null)
+      .map((accountId) => bridge.accountsById.get(accountId))
+      .filter((account): account is AccountsLedgerPilotAccount => account != null)
     : [];
 
   return (
@@ -86,27 +79,18 @@ export function ModelPoolServingAccountsPanel({
               editorLocked={editorLocked}
               groupOptions={bridge.groupOptions}
               handlers={bridge.handlers}
-              menu={{
-                keyPrefix: `model-pool:${model}`,
-                activeKey: activeMenuKey,
-                onActiveKeyChange: onActiveMenuKeyChange,
-                registerTrigger: registerMenuTrigger,
-                items: bridge.menuItems ?? ACCOUNT_CARD_MENU_ITEMS,
-                onAction: bridge.onMenuAction,
-              }}
+              onAction={bridge.onAccountAction}
             />
           )}
         />
       ) : (
         <div className="nt-provider-account-library__pager">
-          <div className="nt-provider-account-library__empty">
-            {chainNarrowed
-              ? t(
-                  "所选服务商范围内没有账号。",
-                  "No accounts fall inside the selected provider scope.",
-                )
-              : t("这个模型还没有可用账号。", "No account serves this model yet.")}
-          </div>
+          <EmptyState title={chainNarrowed
+            ? t(
+              "所选服务商范围内没有账号。",
+              "No accounts fall inside the selected provider scope.",
+            )
+            : t("这个模型还没有可用账号。", "No account serves this model yet.")} />
         </div>
       )}
     </section>

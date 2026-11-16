@@ -31,6 +31,7 @@ pub fn is_reserved_payload_extra_key(key: &str) -> bool {
     matches!(
         normalize_lookup_key(key).as_str(),
         "freebuffagentid"
+            | "freebuffbusiness"
             | "freebuffmodelagentmap"
             | "freebuffrunrotationsecs"
             | "freebuffagentrunspath"
@@ -50,6 +51,7 @@ pub fn build_request_plan(
     model: &str,
     stream: bool,
 ) -> Result<RequestPlan, GatewayError> {
+    super::business_target::reject_legacy_execution(payload)?;
     match req.endpoint_kind {
         EndpointKind::ChatCompletions
         | EndpointKind::Messages
@@ -63,7 +65,7 @@ pub fn build_request_plan(
                 method: Method::POST,
                 url: format!("{}{}", normalize_base_url(&payload.base_url), path),
                 query: Vec::new(),
-                body: Some(openai::pack_openai(req, model, stream)),
+                body: Some(pack_freebuff_body(req, model, stream)),
                 response_kind: EndpointKind::ChatCompletions,
             })
         }
@@ -82,15 +84,44 @@ pub(super) fn build_chat_request_body(
     cost_mode: &str,
     freebuff_instance_id: Option<&str>,
 ) -> Value {
-    let mut body = openai::pack_openai(req, model, stream);
+    let mut body = pack_freebuff_body(req, model, stream);
     sanitize_freebuff_messages(&mut body);
+    apply_runtime_metadata(
+        &mut body,
+        run_id,
+        cost_mode,
+        &generate_client_session_id(),
+        freebuff_instance_id,
+    );
+    body
+}
+
+/// Runtime identity always wins over caller extensions. Catalog execution also uses this on its
+/// final harness body before freezing/signing; it never synthesizes the harness's system prompt.
+pub(super) fn apply_runtime_metadata(
+    body: &mut Value,
+    run_id: &str,
+    cost_mode: &str,
+    client_id: &str,
+    freebuff_instance_id: Option<&str>,
+) {
     let object = body
         .as_object_mut()
         .expect("OpenAI-compatible payload must serialize as an object");
     let metadata = object
         .entry("codebuff_metadata".to_string())
         .or_insert_with(|| Value::Object(Map::new()));
+    if !metadata.is_object() {
+        *metadata = Value::Object(Map::new());
+    }
     if let Some(metadata) = metadata.as_object_mut() {
+        metadata.retain(|key, _| {
+            !key.starts_with("freebuff_")
+                && !matches!(
+                    key.as_str(),
+                    "run_id" | "cost_mode" | "client_id" | "surface"
+                )
+        });
         metadata.insert("run_id".to_string(), Value::String(run_id.to_string()));
         metadata.insert(
             "cost_mode".to_string(),
@@ -98,7 +129,7 @@ pub(super) fn build_chat_request_body(
         );
         metadata.insert(
             "client_id".to_string(),
-            Value::String(generate_client_session_id()),
+            Value::String(client_id.to_string()),
         );
         if let Some(instance_id) = freebuff_instance_id
             .map(str::trim)
@@ -108,7 +139,39 @@ pub(super) fn build_chat_request_body(
                 "freebuff_instance_id".to_string(),
                 Value::String(instance_id.to_string()),
             );
+            if instance_id
+                .strip_prefix("cli:")
+                .is_some_and(|id| !id.is_empty())
+            {
+                metadata.insert("freebuff_multi_session".into(), Value::String("1".into()));
+                metadata.insert("surface".into(), Value::String("cli".into()));
+            }
         }
+    }
+}
+
+fn pack_freebuff_body(req: &CanonicalRelayRequest, model: &str, stream: bool) -> Value {
+    let mut body = openai::pack_openai(req, model, stream);
+    let object = body
+        .as_object_mut()
+        .expect("OpenAI-compatible payload must serialize as an object");
+    // Provider runtime options are not upstream request fields, including when supplied by a caller.
+    object.retain(|key, _| !is_reserved_payload_extra_key(key));
+    if let Some(metadata) = object.get_mut("codebuff_metadata") {
+        // Malformed extension data must not suppress the executor's required run/session envelope.
+        if !metadata.is_object() {
+            *metadata = Value::Object(Map::new());
+        }
+        metadata
+            .as_object_mut()
+            .expect("metadata was normalized to an object")
+            .retain(|key, _| {
+                !key.starts_with("freebuff_")
+                    && !matches!(
+                        key.as_str(),
+                        "run_id" | "cost_mode" | "client_id" | "surface"
+                    )
+            });
     }
     body
 }
@@ -173,7 +236,7 @@ pub(super) fn flatten_freebuff_content_parts(parts: &[Value]) -> Option<String> 
     Some(segments.join("\n"))
 }
 
-fn generate_client_session_id() -> String {
+pub(super) fn generate_client_session_id() -> String {
     const ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
     let mut rng = rand::thread_rng();
     (0..13)

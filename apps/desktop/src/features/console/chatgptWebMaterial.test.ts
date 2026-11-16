@@ -58,12 +58,15 @@ describe("independent ChatGPT Web session import", () => {
     expect(() => applyChatgptWebMaterial(document, "codex", "account", parseChatgptWebMaterial(JSON.stringify(sample())))).toThrow();
   });
 
-  it("replaces an existing lower-case cookie without keeping a stale duplicate", () => {
+  it("clears the original lower-case path before replacing the canonical Cookie", () => {
     const document = routeDocument([{ id: "web", preset: "chatgpt-web-reverse", credentials: [{ id: "account", headers: {} }] }]);
     const result = applyChatgptWebMaterial(document, "web", "account", parseChatgptWebMaterial(JSON.stringify({ ...sample(), timezone: null })));
     const patches = buildCredentialSecretPatches({ activeDocument: document, draftDocument: result.document,
       activeSecrets: [{ path: "/providers/0/credentials/0/headers/cookie", configured: true }], credentialSecretEdits: result.secretEdits });
-    expect(patches.filter((entry) => entry.path.toLowerCase().endsWith("/headers/cookie"))).toHaveLength(1);
+    expect(patches.filter((entry) => entry.path.toLowerCase().endsWith("/headers/cookie"))).toEqual([
+      { path: "/providers/0/credentials/0/headers/cookie", operation: "clear" },
+      { path: "/providers/0/credentials/0/headers/Cookie", operation: "replace", value: "session=web-cookie-fixture" },
+    ]);
   });
 
   it("accepts a worker without sessionId and clears stale session material", () => {

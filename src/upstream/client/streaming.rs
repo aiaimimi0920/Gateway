@@ -1,4 +1,23 @@
 use super::*;
+#[path = "streaming/profiled_sender.rs"]
+mod profiled_sender;
+
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+pub(super) fn vertex_express_unboxed_streaming_size(
+    client: &UpstreamClient,
+    payload: &ProviderAccountPayload,
+    req: &CanonicalRelayRequest,
+) -> usize {
+    super::vertex_express_future_tests::future_size(|| {
+        client.execute_stream_with_provider_account_id_inner(
+            "",
+            payload,
+            req,
+            "gemini-contract",
+            None,
+        )
+    })
+}
 
 impl UpstreamClient {
     pub async fn execute_stream(
@@ -8,8 +27,12 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<UpstreamStreamingResponse, GatewayError> {
+        if !crate::protocol::lobsterai::owns_payload(payload) {
+            crate::protocol::lobsterai::management_boundary::reject_generic(payload)?;
+        }
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        crate::protocol::bedrock_turn::validate_request(payload, req)?;
         if Self::uses_native_claude(payload, req, model) {
             return self
                 .send_native_claude(payload, req, model, extra_headers, None)
@@ -19,7 +42,46 @@ impl UpstreamClient {
             .await
     }
 
-    pub async fn execute_stream_with_provider_account_id(
+    pub fn execute_stream_with_provider_account_id<'a>(
+        &'a self,
+        provider_account_id: &'a str,
+        payload: &'a ProviderAccountPayload,
+        req: &'a CanonicalRelayRequest,
+        model: &'a str,
+        extra_headers: Option<&'a std::collections::HashMap<String, String>>,
+    ) -> std::pin::Pin<
+        Box<
+            impl std::future::Future<Output = Result<UpstreamStreamingResponse, GatewayError>> + 'a,
+        >,
+    > {
+        // These bound Gemini products aggregate; do not nest the large dispatcher.
+        Box::pin(async move {
+            if crate::upstream::vertex_product::for_payload(payload).is_some() {
+                let canonical = self
+                    .execute_with_provider_account_id(
+                        provider_account_id,
+                        payload,
+                        req,
+                        model,
+                        extra_headers,
+                    )
+                    .await?;
+                return Ok(gemini_api_modular::build_fake_openai_sse_bridge(
+                    req, model, &canonical,
+                ));
+            }
+            Box::pin(self.execute_stream_with_provider_account_id_inner(
+                provider_account_id,
+                payload,
+                req,
+                model,
+                extra_headers,
+            ))
+            .await
+        })
+    }
+
+    async fn execute_stream_with_provider_account_id_inner(
         &self,
         provider_account_id: &str,
         payload: &ProviderAccountPayload,
@@ -27,8 +89,48 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<UpstreamStreamingResponse, GatewayError> {
+        if !crate::protocol::lobsterai::owns_payload(payload) {
+            crate::protocol::lobsterai::management_boundary::reject_generic(payload)?;
+        }
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        if crate::protocol::lobsterai::owns_payload(payload) {
+            return crate::protocol::lobsterai::runtime::execute_stream(self, payload, req, model)
+                .await;
+        }
+        if crate::protocol::commandcode::owns_payload(payload) {
+            return crate::protocol::commandcode::runtime::execute_stream(
+                self, payload, req, model,
+            )
+            .await;
+        }
+        if crate::protocol::sap_aicore::owns_payload(payload) {
+            return crate::protocol::sap_aicore::runtime::execute_stream(self, payload, req, model)
+                .await;
+        }
+        crate::protocol::bedrock_turn::validate_request(payload, req)?;
+        if crate::upstream::grok_web::owns_payload(payload) {
+            return crate::upstream::grok_web::execute_stream(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
+        crate::protocol::vertex_express::validate_request(payload, req, model)?;
+        crate::protocol::vertex_oauth::business::validate_request(payload, req, model)?;
+        if flow.executor == crate::protocol::perplexity_web::material::ADAPTER {
+            return crate::upstream::perplexity_web::execute_stream(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
         if matches!(
             flow.executor,
             "stitch_web_compatible" | "antigravity_oauth_compatible"
@@ -78,8 +180,7 @@ impl UpstreamClient {
             );
             return self
                 .execute_qwen_web_stream(payload, req, model, extra_headers)
-                .await
-                .map(UpstreamStreamingResponse::Bytes);
+                .await;
         }
 
         if flow.executor == "chatgpt_web_reverse_compatible" {
@@ -285,10 +386,12 @@ impl UpstreamClient {
             );
         }
 
-        let response = self
-            .send_profiled_plan(payload, &plan, headers)?
-            .send()
-            .await?;
+        let response = crate::upstream::kiro_oauth_runtime::receive_response(
+            payload,
+            self.send_profiled_plan(payload, &plan, headers)?
+                .send()
+                .await,
+        )?;
 
         if !response.status().is_success() {
             return Err(crate::upstream::response_error::classify_response_error(
@@ -311,6 +414,16 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<CanonicalRelayResponse, GatewayError> {
+        if crate::upstream::qwen::web_session::owns_payload(payload) {
+            return crate::upstream::qwen::web_session::execute(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
         qwen_web_reverse_modular::execute(self, payload, req, model, extra_headers).await
     }
 
@@ -320,11 +433,20 @@ impl UpstreamClient {
         req: &CanonicalRelayRequest,
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
-    ) -> Result<
-        std::pin::Pin<Box<dyn futures::Stream<Item = Result<bytes::Bytes, rquest::Error>> + Send>>,
-        GatewayError,
-    > {
-        qwen_web_reverse_modular::execute_stream(self, payload, req, model, extra_headers).await
+    ) -> Result<UpstreamStreamingResponse, GatewayError> {
+        if crate::upstream::qwen::web_session::owns_payload(payload) {
+            return crate::upstream::qwen::web_session::execute_stream(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
+        qwen_web_reverse_modular::execute_stream(self, payload, req, model, extra_headers)
+            .await
+            .map(UpstreamStreamingResponse::Bytes)
     }
 
     pub(crate) fn send_plan(
@@ -344,21 +466,5 @@ impl UpstreamClient {
             &self.http
         };
         build_request_builder_from_plan(http, self.timeout, plan, headers)
-    }
-
-    pub(crate) fn send_profiled_plan(
-        &self,
-        payload: &ProviderAccountPayload,
-        plan: &RequestPlan,
-        mut headers: rquest::header::HeaderMap,
-    ) -> Result<crate::upstream::profiled_request::Pending, GatewayError> {
-        crate::upstream::request_profile::finalize_cpa_full_headers(payload, plan, &mut headers)?;
-        let rust = crate::upstream::cpa_transport::rust_enabled(payload)?;
-        crate::upstream::profiled_request::Pending::new(
-            self.send_plan(plan, headers),
-            &payload.adapter,
-            rust,
-            self.timeout,
-        )
     }
 }

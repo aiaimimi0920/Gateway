@@ -68,7 +68,7 @@ async fn server_cache_failure_retains_original_expected_material_for_retry() {
         refresh_once(
             fixture.runtime.route_config(),
             &client(),
-            None,
+            Some(&fixture.runtime),
             Some(&pool),
             &mut pending,
             Duration::from_secs(300),
@@ -77,7 +77,7 @@ async fn server_cache_failure_retains_original_expected_material_for_retry() {
         .await;
     }
     assert_eq!(mock.count(), 1);
-    let saved = pending.values().next().unwrap();
+    let saved = pending.values().next().unwrap().as_result().unwrap();
     assert_eq!(saved.previous_access, "old-access");
     assert_eq!(saved.previous_refresh, "old-refresh");
     assert_eq!(saved.token.refresh_token.as_deref(), Some("new-refresh"));
@@ -162,14 +162,13 @@ async fn unrelated_provider_edit_during_exchange_preserves_rotated_material() {
 
 #[tokio::test]
 async fn pending_runtime_override_survives_other_provider_setting_commit() {
-    let mock = MockOAuth::new(200, ROTATED, 0).await;
+    let mock = MockOAuth::new(200, ROTATED, 100).await;
     let fixture = LocalFixture::new(&mock.url).await;
-    let persistence =
-        RouteConfigPersistence::new(&fixture.config.state_dir, &fixture.config.routes_file)
-            .unwrap();
-    let guard = persistence.try_writer_lock().unwrap();
     let mut pending = Pending::new();
-    fixture.refresh(&mut pending).await;
+    let (_, guard) = tokio::join!(fixture.refresh(&mut pending), async {
+        mock.wait_called().await;
+        fixture.writer_lock()
+    });
     drop(guard);
     let snapshot = fixture.runtime.route_config().snapshot();
     let mut document = snapshot.document().clone();
@@ -183,7 +182,10 @@ async fn pending_runtime_override_survives_other_provider_setting_commit() {
         .runtime
         .route_config()
         .resolve_candidates(Some("test-model"));
-    assert_eq!(candidates[0].payload.api_key, "new-access");
+    assert_eq!(
+        candidates[0].payload.api_key, "old-access",
+        "pending Result is not yet publishable"
+    );
     fixture.refresh(&mut pending).await;
     assert_eq!(mock.count(), 1);
     assert!(pending.is_empty());
@@ -231,6 +233,7 @@ async fn no_rotation_preserves_refresh_token_and_second_account_is_not_lost() {
     let mut document = snapshot.document().clone();
     let mut second = document.providers[0].credentials[0].clone();
     second.id = Some("second-account".into());
+    second.refresh_token = Some("independent-second-refresh".into());
     document.providers[0].credentials.push(second);
     fixture
         .runtime
@@ -240,9 +243,20 @@ async fn no_rotation_preserves_refresh_token_and_second_account_is_not_lost() {
     fixture.refresh(&mut Pending::new()).await;
     assert_eq!(mock.count(), 2);
     let snapshot = fixture.runtime.route_config().snapshot();
-    for credential in &snapshot.document().providers[0].credentials {
+    for (index, credential) in snapshot.document().providers[0]
+        .credentials
+        .iter()
+        .enumerate()
+    {
         assert_eq!(credential.api_key.as_deref(), Some("new-access"));
-        assert_eq!(credential.refresh_token.as_deref(), Some("old-refresh"));
+        assert_eq!(
+            credential.refresh_token.as_deref(),
+            Some(if index == 0 {
+                "old-refresh"
+            } else {
+                "independent-second-refresh"
+            })
+        );
     }
 }
 

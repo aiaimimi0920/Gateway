@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, VecDeque};
 
 use bytes::Bytes;
 use futures::Stream;
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use super::stream_support::{
     extract_openai_stream_usage, map_openai_finish_reason_to_responses_status, merge_stream_usage,
@@ -15,6 +15,7 @@ use super::to_responses_events::{
     build_response_terminal_event,
 };
 use crate::protocol::canonical::TokenUsage;
+use crate::protocol::response_sources::{self, ResponseSource};
 use crate::protocol::sse_parse::{format_sse_event, SseFrame};
 use crate::protocol::stream_decode::{
     BoundedSseDecoder, DecodeStep, MAX_TRANSLATED_SSE_FRAME_BYTES,
@@ -22,6 +23,8 @@ use crate::protocol::stream_decode::{
 use crate::protocol::stream_error::{ProtocolStreamError, StreamError};
 use crate::protocol::stream_error_legacy::with_transport_error;
 
+mod completed;
+mod perplexity;
 mod tool_calls;
 
 use tool_calls::PendingResponseToolCall;
@@ -88,6 +91,10 @@ where
         response_started: false,
         pending_finish_status: None,
         latest_usage: None,
+        sources: None,
+        perplexity: Default::default(),
+        vertex_turn: Default::default(),
+        bedrock: Default::default(),
         message: None,
         tool_calls: BTreeMap::new(),
         next_output_index: 0,
@@ -111,12 +118,17 @@ where
 
             loop {
                 if let Some(error) = st.failure.take() {
+                    stream = Box::pin(futures::stream::empty());
                     return Some((Err(error.into()), (stream, st, true)));
                 }
                 if let Some(output) = st.outputs.pop_front() {
                     return Some((Ok(Bytes::from(output)), (stream, st, done)));
                 }
                 if st.final_emitted {
+                    // Bedrock can finalize only after observed EOF; an unfold source is not fused.
+                    if st.bedrock.active() {
+                        return None;
+                    }
                     // Protocol completion is not HTTP EOF. Drain in the request's own
                     // lifetime so keep-alive remains reusable; cancellation still drops it.
                     match stream.next().await {
@@ -131,6 +143,7 @@ where
                         continue;
                     }
                     DecodeStep::Error(error) => {
+                        stream = Box::pin(futures::stream::empty());
                         return Some((Err(error.into()), (stream, st, true)));
                     }
                     DecodeStep::NeedInput => {}
@@ -140,12 +153,33 @@ where
                     Some(Ok(chunk)) => {
                         st.decoder.push_chunk(chunk);
                     }
-                    Some(Err(error)) => return Some((Err(error), (stream, st, true))),
+                    Some(Err(error)) => {
+                        stream = Box::pin(futures::stream::empty());
+                        return Some((Err(error), (stream, st, true)));
+                    }
                     None => {
+                        if st.bedrock.active() {
+                            stream = Box::pin(futures::stream::empty());
+                            if let Err(error) = st
+                                .decoder
+                                .finish_strict()
+                                .and_then(|()| st.bedrock.finish())
+                            {
+                                stream = Box::pin(futures::stream::empty());
+                                return Some((Err(error.into()), (stream, st, true)));
+                            }
+                        }
                         if let Some(frame) = st.decoder.flush_pending_frame() {
                             st.handle_frame(frame);
                         }
+                        if let Err(error) = st
+                            .perplexity
+                            .require_terminal(st.pending_finish_status.is_some())
+                        {
+                            st.failure = Some(error);
+                        }
                         if let Some(error) = st.failure.take() {
+                            stream = Box::pin(futures::stream::empty());
                             return Some((Err(error.into()), (stream, st, true)));
                         }
                         st.emit_final_if_needed(None);
@@ -179,6 +213,10 @@ struct OpenAiToResponsesState {
     response_started: bool,
     pending_finish_status: Option<String>,
     latest_usage: Option<TokenUsage>,
+    sources: Option<Vec<ResponseSource>>,
+    perplexity: crate::protocol::perplexity_web::public_snapshot::Relay,
+    vertex_turn: crate::protocol::vertex_turn::wire::TerminalTurn,
+    bedrock: crate::protocol::bedrock_converse::StreamRelay,
     message: Option<PendingResponseMessage>,
     tool_calls: BTreeMap<usize, PendingResponseToolCall>,
     next_output_index: usize,
@@ -193,7 +231,20 @@ impl OpenAiToResponsesState {
             return;
         }
 
-        if self.native_passthrough || frame_is_native_responses(&frame) {
+        let parsed = serde_json::from_str::<Value>(&frame.data).ok();
+        if parsed
+            .as_ref()
+            .is_some_and(|chunk| self.handle_perplexity_snapshot(chunk))
+        {
+            return;
+        }
+        let has_bedrock = parsed.as_ref().is_some_and(|v| {
+            v.get("gateway_bedrock_event").is_some() || v.get("gateway_bedrock_terminal").is_some()
+        });
+        if !self.bedrock.active()
+            && !has_bedrock
+            && (self.native_passthrough || frame_is_native_responses(&frame))
+        {
             self.native_passthrough = true;
             self.outputs
                 .push_back(format_sse_event(frame.event_name.as_deref(), &frame.data).into_bytes());
@@ -204,13 +255,74 @@ impl OpenAiToResponsesState {
         }
 
         if frame.data == "[DONE]" {
+            if let Err(error) = self.bedrock.done().and_then(|()| {
+                self.perplexity
+                    .require_terminal(self.pending_finish_status.is_some())
+            }) {
+                self.failure = Some(error);
+                return;
+            }
             self.emit_final_if_needed(None);
             return;
         }
 
-        let Ok(chunk) = serde_json::from_str::<Value>(&frame.data) else {
+        let Some(chunk) = parsed else {
+            if self.bedrock.active() {
+                self.failure = Some(ProtocolStreamError::invalid_data(
+                    "Invalid Bedrock stream JSON",
+                ));
+            }
             return;
         };
+        match self.bedrock.observe(&chunk) {
+            Ok(Some((_, body))) => {
+                self.ensure_response_started();
+                self.outputs.push_back(
+                    crate::protocol::bedrock_converse::StreamRelay::public_event(&chunk, &body),
+                );
+            }
+            Ok(None) => {}
+            Err(error) => {
+                self.failure = Some(error);
+                return;
+            }
+        }
+
+        // A source-bearing finish freezes the answer even while usage is pending.
+        // Its own final delta is processed below; only later mutations are rejected.
+        let delta = &chunk["choices"][0]["delta"];
+        if self.sources.is_some()
+            && (delta["content"]
+                .as_str()
+                .is_some_and(|text| !text.is_empty())
+                || delta["tool_calls"]
+                    .as_array()
+                    .is_some_and(|calls| !calls.is_empty()))
+        {
+            self.failure = Some(ProtocolStreamError::invalid_data(response_sources::INVALID));
+            return;
+        }
+        if let Err(error) = self.vertex_turn.accept(&chunk) {
+            self.failure = Some(error);
+            return;
+        }
+        // Sources belong to this answer's terminal choice, never an old snapshot.
+        match response_sources::read(&chunk) {
+            Ok(Some(sources))
+                if self.sources.is_none()
+                    && chunk["choices"][0]["finish_reason"]
+                        .as_str()
+                        .and_then(map_openai_finish_reason_to_responses_status)
+                        .is_some() =>
+            {
+                self.sources = Some(sources);
+            }
+            Ok(None) => {}
+            _ => {
+                self.failure = Some(ProtocolStreamError::invalid_data(response_sources::INVALID));
+                return;
+            }
+        }
 
         if let Some(model) = chunk.get("model").and_then(|value| value.as_str()) {
             if !model.trim().is_empty() {
@@ -332,7 +444,7 @@ impl OpenAiToResponsesState {
     }
 
     fn emit_final_if_needed(&mut self, fallback_status: Option<&str>) {
-        if self.final_emitted || self.native_passthrough {
+        if self.final_emitted || self.native_passthrough || self.bedrock.hold_terminal() {
             return;
         }
 
@@ -418,55 +530,6 @@ impl OpenAiToResponsesState {
     fn next_sequence_number(&mut self) -> u64 {
         self.sequence_number = self.sequence_number.saturating_add(1);
         self.sequence_number
-    }
-
-    fn build_completed_response(&self, finish_status: Option<&str>) -> Value {
-        let mut output = Vec::<(usize, Value)>::new();
-
-        if let Some(message) = self.message.as_ref() {
-            output.push((
-                message.output_index,
-                json!({
-                    "id": message.item_id,
-                    "type": "message",
-                    "status": "completed",
-                    "role": "assistant",
-                    "content": [{
-                        "type": "output_text",
-                        "text": message.text,
-                    }],
-                }),
-            ));
-        }
-
-        for tool_call in self.tool_calls.values() {
-            output.push((tool_call.output_index, tool_call.item("completed")));
-        }
-
-        output.sort_by_key(|(output_index, _)| *output_index);
-        let output = output.into_iter().map(|(_, item)| item).collect::<Vec<_>>();
-        let status = finish_status.unwrap_or("completed");
-
-        let mut response = json!({
-            "id": self.response_id,
-            "object": "response",
-            "model": self.model,
-            "output": output,
-            "status": status,
-        });
-
-        if let Some(usage) = self.latest_usage.as_ref() {
-            response["usage"] = json!({
-                "input_tokens": usage.prompt_tokens,
-                "output_tokens": usage.completion_tokens,
-                "total_tokens": usage.total_tokens,
-                "input_tokens_details": {
-                    "cached_tokens": usage.cache_read_input_tokens.unwrap_or(0),
-                },
-            });
-        }
-
-        response
     }
 }
 

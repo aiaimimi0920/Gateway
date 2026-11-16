@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { EmptyState } from "@neuro/ui";
 import type { AccountsLedgerPilotAccount, TranslateFn } from "./accountCardTypes";
 
 export const ACCOUNT_LIBRARY_CARD_WIDTH = 292;
@@ -48,9 +49,7 @@ export function AccountLibraryPager(props: {
         {accounts.map(renderAccount)}
       </div>
       {accounts.length === 0 ? (
-        <div className="nt-provider-account-library__empty">
-          <span>{t("当前账号库为空", "Account library is empty")}</span>
-        </div>
+        <EmptyState title={t("当前账号库为空", "Account library is empty")} />
       ) : null}
     </div>
   );

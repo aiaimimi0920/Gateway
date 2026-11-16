@@ -15,7 +15,8 @@ class SunoBrowserWorkerContractTests(unittest.TestCase):
         self.assertIn('from "./suno-browser/pure.mjs"', source)
         self.assertIn("await resolveWorkerPage(", source)
         self.assertIn("await runCreateThroughPageUi(", source)
-        self.assertIn("clipsReadyForTarget(", source)
+        self.assertIn("await waitForGeneration(", source)
+        self.assertIn('from "./suno-browser/native-model.mjs"', source)
 
     def test_cdp_context_is_not_overwritten_or_closed(self):
         source = WORKER.read_text(encoding="utf-8")
@@ -24,7 +25,7 @@ class SunoBrowserWorkerContractTests(unittest.TestCase):
         self.assertIn(
             "if (cookieHeader && !effectiveBrowserTarget.browserCdpUrl)", source
         )
-        self.assertIn("await closeBrowser();", source)
+        self.assertIn("await browser?.close();", source)
         self.assertIn(
             'candidatePage.url().startsWith("https://suno.com")', source
         )
@@ -53,8 +54,10 @@ class SunoBrowserWorkerContractTests(unittest.TestCase):
         self.assertNotIn("gateway-suno-turnstile-surface", source)
         self.assertNotIn("gateway-suno-turnstile-token", source)
         self.assertNotIn("token_provider:", source)
-        self.assertIn("const createResponsePromise = page.waitForResponse(", source)
-        self.assertIn("await createButton.click()", source)
+        self.assertIn('responses.next("generate", timeoutMs)', source)
+        self.assertIn("await createButton.click({ timeout: timeoutMs })", source)
+        self.assertIn("modelGate.arm()", source)
+        self.assertIn("navigator.serviceWorker?.controller", source)
         self.assertIn("if (await pageLooksChallenged(page))", source)
         self.assertIn(
             '"Complete the visible Suno security check before generation can continue."',

@@ -16,8 +16,19 @@ use crate::state::{
 };
 use crate::upstream::client::UpstreamClient;
 
+#[path = "runtime_background_tasks.rs"]
+pub(crate) mod background_tasks;
+use background_tasks::Worker;
+
+#[path = "runtime_shutdown.rs"]
+mod shutdown;
+
 #[path = "runtime_completion.rs"]
 mod completion;
+
+#[cfg(test)]
+#[path = "runtime_lifecycle_tests.rs"]
+mod lifecycle_tests;
 
 pub async fn run_gateway_runtime(config: Config) -> anyhow::Result<()> {
     let port = config.port;
@@ -173,69 +184,115 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
 }
 
 pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
+    app_state
+        .lifecycle
+        .luma_oauth
+        .spawn(app_state.shutdown.clone());
+    app_state
+        .lifecycle
+        .lobsterai_oauth
+        .spawn(app_state.shutdown.clone());
+    if app_state.shutdown.is_requested() {
+        return;
+    }
+    app_state
+        .lifecycle
+        .nous_oauth
+        .spawn(app_state.shutdown.clone());
+    app_state
+        .lifecycle
+        .dim_oauth
+        .spawn(app_state.shutdown.clone());
+    app_state
+        .lifecycle
+        .freebuff_login
+        .spawn(app_state.shutdown.clone());
+    app_state
+        .lifecycle
+        .vertex_oauth
+        .spawn(app_state.shutdown.clone());
+    app_state
+        .lifecycle
+        .accio_oauth
+        .spawn(app_state.shutdown.clone());
+    app_state
+        .lifecycle
+        .kiro_oauth
+        .spawn(app_state.shutdown.clone());
+    app_state
+        .lifecycle
+        .grok_oauth
+        .spawn(app_state.shutdown.clone());
     crate::token_refresh::spawn(app_state);
     crate::routing::model_circuit::network_probe::schedule(app_state);
     crate::local_runtime::spawn_maintenance(app_state);
-    let state_for_credential_refill = Arc::clone(app_state);
-    tokio::spawn(async move {
-        crate::credential_refill::start_credential_refill_notification_task(
-            state_for_credential_refill,
-        )
-        .await;
-    });
-    let state_for_credential_probe_scheduler = Arc::clone(app_state);
-    tokio::spawn(async move {
+    let tasks = &app_state.lifecycle.background_tasks;
+    tasks.spawn(
+        Worker::CredentialRefill,
+        &app_state.shutdown,
+        crate::credential_refill::start_credential_refill_notification_task(Arc::clone(app_state)),
+    );
+    tasks.spawn(
+        Worker::CredentialProbe,
+        &app_state.shutdown,
         crate::provider_credential_probe_scheduler::start_provider_credential_probe_scheduler(
-            state_for_credential_probe_scheduler,
-        )
-        .await;
-    });
+            Arc::clone(app_state),
+        ),
+    );
     if app_state.local_runtime.is_some() {
         return;
     }
-    let cache_clone = app_state.credential_cache.clone();
-    let pool_clone = app_state.redis_pool.clone();
-    tokio::spawn(async move {
-        crate::credential_store::start_credential_refresh_task(cache_clone, pool_clone, 10).await;
-    });
-
-    let state_for_folder_sync = Arc::clone(app_state);
-    tokio::spawn(async move {
-        crate::provider_credential_folder_sync::start_folder_sync_task(state_for_folder_sync).await;
-    });
-
-    let state_for_credential_refresh = Arc::clone(app_state);
-    tokio::spawn(async move {
-        crate::provider_credential_refresh::start_provider_credential_refresh_task(
-            state_for_credential_refresh,
-        )
-        .await;
-    });
-
-    let state_for_credential_stock = Arc::clone(app_state);
-    tokio::spawn(async move {
-        crate::credential_stock::start_credential_stock_monitor_task(state_for_credential_stock)
-            .await;
-    });
-
-    let state_for_pool_automation = Arc::clone(app_state);
-    tokio::spawn(async move {
-        crate::credential_pool_automation::start_credential_pool_automation_task(
-            state_for_pool_automation,
-        )
-        .await;
-    });
+    crate::provider_credential_refresh::accio::spawn(app_state);
+    tasks.spawn(
+        Worker::CredentialCache,
+        &app_state.shutdown,
+        crate::credential_store::start_credential_refresh_task(
+            app_state.credential_cache.clone(),
+            app_state.redis_pool.clone(),
+            10,
+            app_state.shutdown.clone(),
+        ),
+    );
+    tasks.spawn(
+        Worker::FolderSync,
+        &app_state.shutdown,
+        crate::provider_credential_folder_sync::start_folder_sync_task(Arc::clone(app_state)),
+    );
+    tasks.spawn(
+        Worker::CredentialRefresh,
+        &app_state.shutdown,
+        crate::provider_credential_refresh::start_provider_credential_refresh_task(Arc::clone(
+            app_state,
+        )),
+    );
+    tasks.spawn(
+        Worker::CredentialStock,
+        &app_state.shutdown,
+        crate::credential_stock::start_credential_stock_monitor_task(Arc::clone(app_state)),
+    );
+    tasks.spawn(
+        Worker::PoolAutomation,
+        &app_state.shutdown,
+        crate::credential_pool_automation::start_credential_pool_automation_task(Arc::clone(
+            app_state,
+        )),
+    );
 }
 
 pub async fn run_gateway_server(app_state: Arc<AppState>, port: u16) -> anyhow::Result<()> {
-    let app = crate::http::router::build_router(Arc::clone(&app_state));
+    let result = serve_gateway_http(&app_state, port).await;
+    completion::complete_after_runtime_cleanup(result, shutdown::finish(&app_state)).await
+}
+
+async fn serve_gateway_http(app_state: &Arc<AppState>, port: u16) -> anyhow::Result<()> {
+    let app = crate::http::router::build_router(Arc::clone(app_state));
     let bind_host: std::net::IpAddr = std::env::var("GATEWAY_BIND_HOST")
         .unwrap_or_else(|_| "0.0.0.0".to_string())
         .parse()?;
     let listener = tokio::net::TcpListener::bind((bind_host, port)).await?;
     tracing::info!(port, "Gateway worker listening");
 
-    let shutdown_state = Arc::clone(&app_state);
+    let shutdown_state = Arc::clone(app_state);
     // Preserve SocketAddr extraction while giving native upstream pools the
     // same lifetime as the accepted connection, rather than global state.
     let make_service = tower::service_fn(move |stream: axum::serve::IncomingStream<'_>| {
@@ -254,11 +311,6 @@ pub async fn run_gateway_server(app_state: Arc<AppState>, port: u16) -> anyhow::
         .await?;
 
     tracing::info!(port, "Gateway HTTP server stopped");
-    app_state.shutdown.request("http_server_stopped");
-    crate::token_refresh::join(&app_state).await;
-    if let Some(local) = &app_state.local_runtime {
-        local.close().await;
-    }
     Ok(())
 }
 

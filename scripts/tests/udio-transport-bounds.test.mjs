@@ -66,3 +66,12 @@ test("one-byte and empty browser chunks preserve content without per-chunk reten
   const result = await browserFetch(page, { requestUrl: "https://example.test", timeoutMs: 1000 });
   assert.equal(result.text, "x".repeat(65537));
 });
+
+test("browser metadata accepts exact 128KiB and rejects the next byte", async () => {
+  for (const size of [128 * 1024, 128 * 1024 + 1]) {
+    const { page, calls } = fixture([new Uint8Array(size)]);
+    const result = await browserFetch(page, { requestUrl: "https://example.test", timeoutMs: 1000 });
+    assert.equal(result.ok === true, size === 128 * 1024);
+    assert.equal(calls.includes("cancel"), size > 128 * 1024);
+  }
+});

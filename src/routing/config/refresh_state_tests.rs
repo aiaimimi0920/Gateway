@@ -24,8 +24,11 @@ fn real_expiry_not_full_lifetime_controls_restart_deadline() {
             .refresh_snapshot(std::time::Duration::from_secs(30))
             .is_none());
         let remaining = config
-            .expires_at
+            .authorization
+            .material
             .lock()
+            .expires_at
+            .expect("legacy timed refresh deadline")
             .saturating_duration_since(std::time::Instant::now());
         assert!(remaining.as_secs() <= 120);
         assert!(remaining.as_secs() > 100);
@@ -55,7 +58,7 @@ fn retry_is_exponential_bounded_and_terminal_failure_blocks() {
     for failures in 1..=9 {
         config.record_refresh_failure(0, false);
         assert!(config.refresh_snapshot(std::time::Duration::MAX).is_none());
-        let mut lifecycle = config.lifecycle.lock();
+        let mut lifecycle = config.authorization.material.lock();
         assert_eq!(lifecycle.failures, failures);
         let remaining = lifecycle
             .retry_at
@@ -66,7 +69,7 @@ fn retry_is_exponential_bounded_and_terminal_failure_blocks() {
         lifecycle.retry_at = None;
     }
     config.record_refresh_failure(0, true);
-    config.lifecycle.lock().retry_at = None;
+    config.authorization.material.lock().retry_at = None;
     assert!(config.refresh_snapshot(std::time::Duration::MAX).is_none());
     assert!(state(None)
         .refresh_snapshot(std::time::Duration::MAX)
@@ -90,7 +93,7 @@ fn attempt_lock_is_released_on_cancellation_and_success_clears_backoff() {
             future_rfc3339_after_secs(3600)
         )
         .is_some());
-    let lifecycle = config.lifecycle.lock();
+    let lifecycle = config.authorization.material.lock();
     assert_eq!(lifecycle.failures, 0);
     assert!(lifecycle.retry_at.is_none());
 }

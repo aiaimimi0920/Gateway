@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Notice, Tab, TabList, TabPanel, TabsRoot } from "@neuro/ui";
 import type { OperationsWorkspaceProps } from "./operations-contracts";
 import { databaseOperationsAvailability } from "./operationsAvailability";
 import { OperationsIncidentPanels } from "./OperationsIncidentPanels";
@@ -41,14 +42,14 @@ export function OperationsAnomalyPanels(props: Props) {
   return (
     <div className="nt-operations-anomalies">
       {availability === "unsupported" ? (
-        <p className="nt-copy nt-operations-capability" role="status">
+        <Notice>
           {t(
             "服务端事件处置未启用（需要 PostgreSQL）。当前运行异常请在运行概览查看，请求记录仍可正常排查。",
             "Server incident management is not enabled (requires PostgreSQL). Check Overview for runtime issues; request logs remain available.",
           )}
-        </p>
+        </Notice>
       ) : availability === "unknown" ? (
-        <div className="nt-alert nt-alert--warning" role="status">
+        <Notice tone="warning">
           {operatorSummary.loading
             ? t(
               "正在检查事件处置能力…",
@@ -59,40 +60,36 @@ export function OperationsAnomalyPanels(props: Props) {
               "无法确认事件处置能力",
               "Incident management availability is unknown",
             )}
-        </div>
+        </Notice>
       ) : (
-        <>
-          <div
+        <TabsRoot value={view} onValueChange={setView}>
+          <TabList
             className="nt-operations-view-switch"
-            role="group"
-            aria-label={t("服务端分析", "Server analysis")}
+            label={t("服务端分析", "Server analysis")}
           >
             {tabs.map(([id, label]) => (
-              <button
+              <Tab
                 key={id}
-                type="button"
-                aria-pressed={view === id}
-                className={`nt-btn ${view === id ? "nt-btn--primary" : "nt-btn--outline"}`}
-                onClick={() => setView(id)}
+                value={id}
               >
                 {label}
-              </button>
+              </Tab>
             ))}
-          </div>
-          <div className="nt-operations-server-panels">
-            {view === "incidents" ? (
-              <OperationsIncidentPanels
-                {...props}
-                {...visible}
-                sortedIncidents={visible.incidents.data ?? []}
-              />
-            ) : view === "remediation" ? (
-              <OperationsRemediationPanels {...props} {...visible} />
-            ) : (
-              <OperationsExportPanels {...props} {...visible} />
-            )}
-          </div>
-        </>
+          </TabList>
+          <TabPanel className="nt-operations-server-panels" value="incidents">
+            <OperationsIncidentPanels
+              {...props}
+              {...visible}
+              sortedIncidents={visible.incidents.data ?? []}
+            />
+          </TabPanel>
+          <TabPanel className="nt-operations-server-panels" value="remediation">
+            <OperationsRemediationPanels {...props} {...visible} />
+          </TabPanel>
+          <TabPanel className="nt-operations-server-panels" value="exports">
+            <OperationsExportPanels {...props} {...visible} />
+          </TabPanel>
+        </TabsRoot>
       )}
     </div>
   );

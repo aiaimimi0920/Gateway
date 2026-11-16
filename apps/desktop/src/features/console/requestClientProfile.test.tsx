@@ -1,3 +1,4 @@
+import { NeuroProvider } from "@neuro/ui";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
@@ -39,9 +40,11 @@ it("offers all profiles and honors the editor lock", async () => {
 
 it("serializes the selected profile when creating a provider", () => {
   const template = PROVIDER_CATALOG_TEMPLATES.find((entry) => entry.id === "custom-api-provider")!;
-  const draft = { templateId: template.id, providerId: "relay", providerLabel: "Relay", vendorKey: "relay", vendorName: "Relay",
+  const draft = {
+    templateId: template.id, providerId: "relay", providerLabel: "Relay", vendorKey: "relay", vendorName: "Relay",
     baseUrl: "https://relay.example", supportedModels: [], credentialId: "one", accountName: "One", apiKey: "fixture",
-    requestClientProfile: "workbuddy" as const };
+    requestClientProfile: "workbuddy" as const
+  };
   expect(providerDefinitionFromCatalogDraft(template, draft)).toHaveProperty("request_client_profile", "workbuddy");
 });
 
@@ -50,7 +53,7 @@ it("edits an existing provider from its card without touching the credentials", 
   const onUpdateProviderRequestClientProfile = vi.fn();
   render(<AccountsLedgerWorkspace {...workspaceProps({
     pilotSections: [pilotSection({ requestClientProfile: "cpa" })], onUpdateProviderRequestClientProfile,
-  })} />);
+  })} />, { wrapper: NeuroProvider });
   await user.click(screen.getByRole("button", { name: "翻面查看 Managed OpenAI 详情" }));
   const select = screen.getByRole("combobox", { name: "客户端" });
   expect(select).toHaveValue("cpa");
@@ -63,7 +66,7 @@ it("lazily mounts both half-row controls and preserves them across flips without
   render(<AccountsLedgerWorkspace {...workspaceProps({
     onUpdateProviderRequestClientProfile: vi.fn(),
     renderProviderSettings: () => <button type="button">站点健康</button>,
-  })} />);
+  })} />, { wrapper: NeuroProvider });
   const card = document.querySelector('[data-provider-card="managed-provider"]') as HTMLElement;
   expect(card.querySelector(".nt-provider-lifecycle__client-row")).toBeNull();
   await user.click(within(card).getByRole("button", { name: /翻面查看/ }));
@@ -131,7 +134,7 @@ it("shows the site session profile as a locked card control", async () => {
   const onChange = vi.fn();
   render(<AccountsLedgerWorkspace {...workspaceProps({
     pilotSections: [pilotSection({ requestClientProfile: "session" })], onUpdateProviderRequestClientProfile: onChange,
-  })} />);
+  })} />, { wrapper: NeuroProvider });
   await user.click(screen.getByRole("button", { name: "翻面查看 Managed OpenAI 详情" }));
   const select = screen.getByRole("combobox", { name: "客户端" });
   expect(select).toHaveValue("session");

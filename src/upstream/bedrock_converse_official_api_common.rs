@@ -2,7 +2,6 @@ use rquest::Method;
 use serde_json::Value;
 
 use crate::error::GatewayError;
-use crate::protocol::accio;
 use crate::protocol::bedrock_converse;
 use crate::protocol::canonical::{CanonicalRelayRequest, CanonicalRelayResponse, EndpointKind};
 use crate::routing::candidate::ProviderAccountPayload;
@@ -16,7 +15,16 @@ pub fn build_request_plan(
 ) -> Result<RequestPlan, GatewayError> {
     match req.endpoint_kind {
         EndpointKind::ChatCompletions | EndpointKind::Messages | EndpointKind::Responses => {
+            crate::upstream::bedrock_auth::validate_model_id(model)?;
             let default_path = bedrock_converse::default_path(model, stream);
+            if (crate::upstream::bedrock_auth::explicit_mode(payload)
+                || req.raw_body.get(crate::protocol::bedrock_turn::HISTORY_FIELD).is_some())
+                && payload.chat_completions_path.as_deref().filter(|path| !path.trim().is_empty())
+                    .is_some_and(|path| path != default_path)
+            {
+                return Err(GatewayError::bad_request("Explicit Bedrock authentication cannot override the model endpoint path")
+                    .with_code("bedrock_auth_target"));
+            }
             let path = payload
                 .chat_completions_path
                 .as_deref()
@@ -26,7 +34,7 @@ pub fn build_request_plan(
                 method: Method::POST,
                 url: format!("{}{}", payload.base_url.trim_end_matches('/'), path),
                 query: Vec::new(),
-                body: Some(bedrock_converse::pack_bedrock_converse(req, model, stream)),
+                body: Some(bedrock_converse::try_pack_for_plan(req, model, stream)?),
                 response_kind: EndpointKind::ChatCompletions,
             })
         }
@@ -41,11 +49,25 @@ pub async fn accumulate_stream(
     response: rquest::Response,
     model: &str,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
-    accio::accumulate_accio_stream(response, model).await
+    bedrock_converse::accumulate_bedrock_eventstream(response, model).await
+}
+
+pub(crate) async fn accumulate_for_request(
+    response: rquest::Response,
+    model: &str,
+    plan: &RequestPlan,
+) -> Result<CanonicalRelayResponse, GatewayError> {
+    let body = plan
+        .body
+        .as_ref()
+        .ok_or_else(|| GatewayError::server_error("Missing Bedrock request body."))?;
+    let mut response = accumulate_stream(response, model).await?;
+    crate::protocol::bedrock_turn::continuation::bind_response(&mut response, body, model)?;
+    Ok(response)
 }
 
 pub fn unpack_response(body: &Value) -> Result<CanonicalRelayResponse, GatewayError> {
-    accio::unpack_accio_response(body)
+    bedrock_converse::unpack_bedrock_response(body)
 }
 
 #[cfg(test)]

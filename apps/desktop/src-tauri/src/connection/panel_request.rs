@@ -32,7 +32,7 @@ impl Layout {
             return None;
         }
         let layout: Self = serde_json::from_str(&pairs[0].1).ok()?;
-        (matches!(layout.category.as_str(), "backend" | "desktop")
+        (matches!(layout.category.as_str(), "backend" | "desktop" | "about")
             && matches!(layout.theme.as_str(), "dark" | "light")
             && matches!(layout.locale.as_str(), "zh-CN" | "en-US")
             && layout.width > 0
@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn accepts_only_presentation_metadata() {
-        for category in ["backend", "desktop"] {
+        for category in ["backend", "desktop", "about"] {
             let mut value = valid();
             value["category"] = category.into();
             assert!(Layout::parse(&request(value)).is_some());

@@ -6,13 +6,7 @@ pub(super) fn deserialize_targets<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<HashMap<String, Vec<String>>, D::Error> {
     let mappings = HashMap::<String, Vec<String>>::deserialize(deserializer)?;
-    let valid_name = |name: &str| {
-        !name.is_empty()
-            && name.len() <= 256
-            && name.trim() == name
-            && !name.contains(['*', '?'])
-            && !name.chars().any(char::is_control)
-    };
+    let valid_name = crate::provider_model_id::valid_structure;
     if mappings.len() > 512
         || mappings.iter().any(|(source, targets)| {
             !valid_name(source)
@@ -22,7 +16,7 @@ pub(super) fn deserialize_targets<'de, D: serde::Deserializer<'de>>(
                 || targets.iter().collect::<HashSet<_>>().len() != targets.len()
         })
     {
-        return Err(serde::de::Error::custom("Invalid model_map_targets: exact names (1..256 bytes), 1..32 unique targets, at most 512 mappings."));
+        return Err(serde::de::Error::custom("Invalid model_map_targets: exact names (1..2048 bytes, product-checked at compilation), 1..32 unique targets, at most 512 mappings."));
     }
     Ok(mappings)
 }

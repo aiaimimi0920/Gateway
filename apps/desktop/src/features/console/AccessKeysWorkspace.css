@@ -1,0 +1,114 @@
+/* Access owns domain composition and table bounds; controls use the standard package. */
+.nt-access-workspace,
+.nt-access-sections,
+.nt-access-section__body,
+.nt-access-card {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+.nt-access-workspace {
+  container-type: inline-size;
+}
+
+.nt-access-section {
+  min-width: 0;
+}
+
+.nt-access-section__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font: inherit;
+}
+
+.nt-access-section__title > span {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.nt-access-card > h3 {
+  margin: 0;
+}
+
+.nt-access-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.nt-access-field--wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.nt-access-actions,
+.nt-access-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nt-access-metrics {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+
+.nt-access-metrics > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.nt-access-metrics dt,
+.nt-access-subtext {
+  color: var(--n-muted);
+}
+
+.nt-access-metrics dd {
+  margin: 0;
+}
+
+.nt-access-metrics :is(dt, dd),
+.nt-access-result > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.nt-access-subtext {
+  display: block;
+}
+
+.nt-access-bundle-ledger {
+  min-width: 0;
+}
+
+.nt-access-bundle-ledger .n-table {
+  min-width: 560px;
+}
+
+.nt-access-bundle-ledger .n-table-scroll {
+  max-height: 440px;
+}
+
+.nt-access-secret > div {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nt-access-secret p {
+  margin: 0;
+}
+
+.nt-access-secret__dismiss {
+  justify-self: start;
+}

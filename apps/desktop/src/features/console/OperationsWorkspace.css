@@ -1,166 +1,232 @@
+/* Operations owns metric composition and table bounds, not control skins. */
+.nt-operations {
+  container-type: inline-size;
+  min-width: 0;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.5;
+  display: grid;
+  gap: 12px;
+}
+.nt-operations-status-strip { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--n-line); }
+.nt-operations-status-strip dl { display: flex; flex-wrap: wrap; gap: 10px 26px; margin: 0; }
+.nt-operations-status-strip dl > div { display: flex; gap: 8px; align-items: baseline; }
+.nt-operations-status-strip dt { color: var(--n-muted); }
+.nt-operations-status-strip dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.nt-operations-overview { display: grid; gap: 8px; }
+.nt-operations-period-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.nt-operations-date-range { display: flex; gap: 8px; align-items: center; }
+.nt-operations-filter-spacer { flex: 1; }
+.nt-operations-trend { min-width: 0; padding: 12px 16px; border: 1px solid var(--n-line); border-radius: 8px; background: var(--n-panel); }
+.nt-operations-trend-toolbar { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.nt-operations-chart-empty { height: 260px; display: grid; place-items: center; color: var(--n-muted); }
+.nt-operations-bars { min-height: 260px; max-height: 340px; overflow: auto; display: grid; gap: 12px; align-content: center; padding: 20px 0; }
+.nt-operations-bar-row { display: grid; grid-template-columns: minmax(100px, 24%) minmax(0, 1fr) 70px; align-items: center; gap: 12px; }
+.nt-operations-bar-row > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.nt-operations-bar-row > strong { text-align: right; font-variant-numeric: tabular-nums; }
+.nt-operations-bar-track { height: 12px; background: var(--n-line); border-radius: 2px; overflow: hidden; }
+.nt-operations-bar-track > div { height: 100%; background: var(--n-signal); }
+.nt-operations-dashboard { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--n-line); border-radius: 14px; overflow: hidden; background: var(--n-panel); }
+.nt-operations-dashboard-group { display: grid; gap: 4px; margin: 0; padding: 16px 20px; border-right: 1px solid var(--n-line); align-content: start; }
+.nt-operations-dashboard-group:last-child { border-right: 0; }
+.nt-operations-dashboard-group small { color: var(--n-muted); }
+.nt-operations-dashboard-group > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.nt-operations-dashboard dt, .nt-operations-error-distribution > span, .nt-operations-error-distribution small { color: var(--n-muted); }
+.nt-operations-dashboard dd { margin: 0; font-size: 28px; line-height: 1.4; font-weight: 600; font-variant-numeric: tabular-nums; }
+.nt-operations-error-distribution { display: grid; align-content: start; gap: 14px; padding: 0 18px; }
+.nt-operations-error-track { height: 8px; border-radius: 3px; background: var(--n-line); }
+.nt-operations-request-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; }
+.nt-operations-request-filters > input { width: 240px; }
+@container (max-width: 900px) { .nt-operations-dashboard { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 0; } }
+@container (max-width: 500px) { .nt-operations-dashboard { grid-template-columns: minmax(0, 1fr); } }
+.nt-operations-inline-facts { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--n-line); }
+.nt-operations-dependencies, .nt-operations-inline-metrics { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; }
+.nt-operations-dependencies > span, .nt-operations-inline-metrics > div { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.nt-operations-inline-metrics dt { color: var(--n-muted); }
+.nt-operations-inline-metrics dd { margin: 0; overflow-wrap: anywhere; }
+.nt-operations-load-list { list-style: none; padding: 0; margin: 0; max-height: 180px; overflow: auto; }
+.nt-operations-load-list li { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 5px 0; border-bottom: 1px solid var(--n-line); }
+.nt-operations-inline-breakdown { flex-basis: 100%; }
+.nt-operations-inline-breakdown .nt-operations-metrics { display: flex; flex-wrap: wrap; gap: 0 24px; }
+.nt-operations-inline-breakdown .nt-operations-metrics > div { padding-block: 2px; }
+.nt-operations-inline-breakdown h4 { font-size: 12px; margin: 4px 0; }
+.nt-operations > button, .nt-operations-filters > button { justify-self: start; }
+.nt-operations-query-summary .nt-operations-card { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; border: 0; background: transparent; padding: 4px 0; }
+.nt-operations-query-summary .nt-operations-stats { display: flex; flex-wrap: wrap; gap: 20px; }
+.nt-operations-query-summary .nt-operations-stat { display: flex; align-items: baseline; gap: 8px; }
+.nt-operations-query-summary .nt-operations-stat strong { font-size: 13px; }
+.nt-operations-query-summary .nt-operations-detail { margin-left: auto; }
+.nt-operations .nt-operations-panel { display: grid; gap: 10px; }
+.n-dialog.nt-operations-drawer { top: 0; bottom: 0; left: auto; right: 0; transform: none; width: min(680px, 100vw); max-height: 100dvh; border-radius: 0; padding: 20px; font-size: 12px; scrollbar-gutter: stable; }
+.nt-operations-drawer .nt-operations-live, .nt-operations-drawer .nt-operations-issues { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.nt-operations-drawer .nt-operations-card { padding: 12px; }
+.nt-operations-drawer .nt-operations-card > h3 { font-size: 13px; }
+.nt-operations-drawer .nt-operations-stat strong { font-size: 18px; }
+.nt-operations-drawer .nt-operations-issues { margin-top: 12px; }
+.nt-operations-request-origin { display: grid; gap: 4px; overflow-wrap: anywhere; }
+.nt-request-id { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.nt-request-detail-id { display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }
+.nt-request-detail-fields { margin: 16px 0 0; }
+.nt-request-detail-fields > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--n-line); }
+.nt-request-detail-fields dt { color: var(--n-muted); }
+.nt-request-detail-fields dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
 .nt-operations-live {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 12px;
-}
-
-.nt-operations {
-  container-type: inline-size;
+  gap: 10px;
 }
 
 .nt-operations-live > :last-child {
   grid-column: 1 / -1;
 }
 
-.nt-operations .nt-settings-section__body {
-  gap: 12px;
+.nt-operations-card, .nt-operations-detail__body {
+  display: grid;
+  gap: 10px;
   min-width: 0;
 }
 
-.nt-operations .nt-pilot-metric-card {
-  min-width: 0;
-  padding: 16px;
-}
-
-.nt-operations .nt-pilot-metric-card > h3 {
+.nt-operations-card > h3 {
+  margin: 0;
   font-size: 13px;
+  line-height: 1.5;
   font-weight: 600;
-  color: var(--nt-text-muted);
 }
+.nt-operations .nt-operations-card { padding: 12px; }
+.nt-operations .n-disclosure summary { font-size: 12px; min-height: 30px; padding-block: 5px; }
+.nt-operations .n-empty { min-height: 0; padding: 10px 0; gap: 8px; }
+.nt-operations .n-empty strong { font-size: 12px; font-weight: 400; }
+.nt-operations .n-notice { padding: 8px 10px; font-size: 12px; }
+.nt-operations .n-field { font-size: 12px; }
+.nt-operations .n-table th { height: 32px; }
+.nt-operations .n-table td { height: 40px; }
 
-.nt-operations .nt-pilot-stats-overview-grid {
+.nt-operations-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
-  gap: 0;
-  border: 1px solid var(--nt-border);
-  border-radius: var(--nt-radius-sm);
-  background: var(--nt-slab);
+  gap: 12px;
 }
 
-.nt-operations .nt-pilot-stat-card {
+.nt-operations-stat {
+  display: grid;
+  align-content: start;
   min-width: 0;
-  min-height: 78px;
-  padding: 12px 16px;
-  gap: 6px;
-  border: 0;
-  border-left: 2px solid transparent;
-  border-radius: 0;
-  background: transparent;
-  font-size: 12px;
+  gap: 3px;
 }
 
-.nt-operations .nt-pilot-stat-card--danger {
-  border-left-color: var(--nt-danger);
-}
-
-.nt-operations .nt-pilot-stat-card--danger strong {
-  color: var(--nt-danger);
-}
-
-.nt-operations .nt-pilot-stat-card--emerald strong {
-  color: var(--nt-success);
-}
-
-.nt-operations .nt-pilot-stat-card--blue strong {
-  color: var(--nt-info);
-}
-
-.nt-operations .nt-pilot-stat-card strong {
-  font-size: 22px;
+.nt-operations-stat strong {
+  font-size: 18px;
+  line-height: 1.3;
   overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.nt-operations-stat strong[data-tone="danger"] {
+  color: var(--n-danger);
+}
+
+.nt-operations-stat strong[data-tone="success"] {
+  color: var(--n-success);
+}
+
+.nt-operations-stat strong[data-tone="info"] {
+  color: var(--n-info);
 }
 
 .nt-operations-detail {
   min-width: 0;
-  border-top: 1px solid var(--nt-border);
-  margin-top: 12px;
 }
 
-.nt-operations-detail > summary {
-  padding: 12px 0;
-  color: var(--nt-text-muted);
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.nt-operations-detail > summary:hover,
-.nt-operations-detail[open] > summary {
-  color: var(--nt-text);
-}
-
-.nt-operations-detail > summary:focus-visible {
-  outline: 2px solid var(--nt-signal);
-  outline-offset: 3px;
-}
-
-.nt-operations-detail > summary .nt-badge,
-.nt-operations-detail > summary .nt-copy {
-  margin-left: 12px;
-}
-
-.nt-operations-detail.nt-pilot-metric-card {
-  display: block;
-  margin-top: 0;
-  padding: 0 16px;
-}
-
-.nt-operations-detail__body {
-  display: grid;
-  gap: 12px;
-  padding-bottom: 12px;
-}
-
-.nt-operations .nt-pilot-metric-list {
+.nt-operations-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   column-gap: 24px;
+  margin: 0;
 }
 
-.nt-operations .nt-pilot-metric-list > div {
+.nt-operations-metrics > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   min-width: 0;
   gap: 12px;
+  padding-block: 6px;
 }
 
-.nt-operations .nt-pilot-metric-list dd {
+.nt-operations-metrics dt {
+  color: var(--n-muted);
+}
+
+.nt-operations-metrics dd {
+  margin: 0;
   overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }
 
-.nt-operations .nt-table {
-  gap: 0;
+.nt-operations-buckets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 16px;
+}
+
+.nt-operations-bucket {
+  min-width: 0;
+}
+
+.nt-operations-bucket h4 {
+  margin: 0 0 8px;
+}
+
+.nt-operations-bucket p {
+  margin: 8px 0 0;
+}
+
+.nt-operations-alerts {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nt-operations-table {
+  min-width: 0;
+  --operations-table-width: 650px;
+}
+
+.nt-operations-table .n-table-scroll {
   max-height: 440px;
-  overflow: auto;
-  scrollbar-gutter: stable;
 }
 
-.nt-operations .nt-table__head {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--nt-slab);
-  color: var(--nt-text-muted);
-  font-weight: 600;
+.nt-operations-table .n-table {
+  min-width: var(--operations-table-width);
 }
 
-.nt-operations .nt-table__head,
-.nt-operations .nt-table__row {
-  border: 0;
-  border-bottom: 1px solid var(--nt-border);
-  border-radius: 0;
+.nt-operations-table--pressure {
+  --operations-table-width: 560px;
 }
 
-.nt-operations .nt-table__row {
-  background: transparent;
+.nt-operations-table--pressure-projects {
+  --operations-table-width: 400px;
 }
 
-.nt-operations .nt-table__row:hover {
-  background: var(--nt-hover);
+.nt-operations-table--readiness {
+  --operations-table-width: 380px;
 }
 
-.nt-operations .nt-table__row > .nt-operations-request-model {
+.nt-operations-table--requests {
+  --operations-table-width: 850px;
+}
+
+.nt-operations-table--incidents {
+  --operations-table-width: 800px;
+}
+
+.nt-operations-request-model {
   display: grid;
   gap: 4px;
-  white-space: normal;
   overflow-wrap: anywhere;
 }
 
@@ -169,82 +235,90 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  color: var(--nt-danger);
-  font-size: 12px;
+  color: var(--n-danger);
+  font-size: calc(12rem / 16);
   line-height: 1.5;
 }
 
-/* Preserve column alignment instead of the console's two-column mobile fallback. */
-.nt-operations .nt-table--pressure {
-  --operations-columns: minmax(160px, 1.6fr) minmax(120px, 1fr) 100px 80px;
-  --operations-table-width: 560px;
-}
-
-.nt-operations .nt-table--pressure-projects {
-  --operations-columns: minmax(160px, 1.6fr) 100px 80px;
-  --operations-table-width: 400px;
-}
-
-.nt-operations .nt-table--readiness {
-  --operations-columns: 120px 100px minmax(100px, 1fr);
-  --operations-table-width: 380px;
-}
-
-.nt-operations .nt-table--requests {
-  --operations-columns: 158px minmax(180px, 1.2fr) 118px 92px 92px 84px;
-  --operations-table-width: 850px;
-}
-
-.nt-operations .nt-table--incidents {
-  --operations-columns: minmax(150px, 1.2fr) 90px 110px 158px 184px;
-  --operations-table-width: 800px;
-}
-
-.nt-operations .nt-table--policies,
-.nt-operations .nt-table--alert-queue,
-.nt-operations .nt-table--remediation-queue,
-.nt-operations .nt-table--remediation-runs,
-.nt-operations .nt-table--exports {
-  --operations-columns: minmax(160px, 1.4fr) minmax(110px, 1fr)
-    minmax(120px, 1fr) minmax(158px, 1fr);
-  --operations-table-width: 650px;
-}
-
-.nt-operations.nt-console-table-page .nt-table[class] .nt-table__head,
-.nt-operations.nt-console-table-page .nt-table[class] .nt-table__row {
-  grid-template-columns: var(--operations-columns);
-  min-width: var(--operations-table-width);
-}
-
-.nt-operations .nt-console-field-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-/* Use the workspace width, not the window: the application also has a rail. */
 @container (min-width: 980px) {
   .nt-operations-live {
-    grid-template-columns: 1fr 0.85fr 1.45fr;
+    grid-template-columns: 1fr 1fr 1.5fr;
   }
 
   .nt-operations-live > :last-child {
     grid-column: auto;
   }
 
-  .nt-operations-live .nt-pilot-stats-overview-grid {
+  .nt-operations-live .nt-operations-stats {
     grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   }
-}
 
+}
 @container (max-width: 720px) {
   .nt-operations-live {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .nt-operations .nt-console-field-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .nt-operations .nt-pilot-metric-list {
+  .nt-operations-metrics {
     grid-template-columns: minmax(0, 1fr);
   }
+
 }
+
+/* Magpie-inspired flat workspace: restrained controls and uninterrupted data surfaces. */
+.nt-operations .nt-operations-trend { padding: 14px 20px; border-radius: 14px; }
+.nt-operations .nt-operations-chart-empty { height: 310px; font-size: 14px; }
+.nt-operations .nt-operations-panel { gap: 12px; }
+.nt-operations .nt-operations-card:has(.nt-operations-table--requests) { padding: 0; border-radius: 12px; overflow: hidden; }
+.nt-operations .nt-operations-card:has(.nt-operations-table--requests) > h3 { display: none; }
+.nt-operations .nt-operations-table--requests { --operations-table-width: 1080px; }
+.nt-operations .nt-operations-table--requests td { height: 58px; }
+.nt-operations .nt-operations-table--requests th { background: transparent; }
+.nt-operations .nt-operations-period-row { padding-top: 8px; }
+.nt-operations-chart-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.nt-operations-chart-types { display: flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--n-line); }
+.nt-operations-chart-types button { display: grid; place-items: center; width: 30px; height: 27px; padding: 0; border: 1px solid transparent; border-radius: 5px; color: var(--n-muted); background: transparent; cursor: pointer; }
+.nt-operations-chart-types button[aria-pressed="true"] { color: var(--n-text); background: var(--n-panel); border-color: var(--n-line); box-shadow: 0 1px 3px #0003; }
+.nt-operations-chart-types button:focus-visible { outline: 2px solid var(--n-signal); outline-offset: 2px; }
+.nt-operations-line-chart { height: 310px; display: grid; align-items: center; }
+.nt-operations-line-chart svg { width: 100%; height: 100%; }
+.nt-operations-line-chart text { fill: var(--n-muted); font-size: 12px; }
+.nt-request-ledger-row { cursor: pointer; }
+.nt-request-ledger-row:hover, .nt-request-ledger-row[data-open="true"], .nt-request-ledger-detail { background: color-mix(in srgb, var(--n-muted) 5%, var(--n-panel)); }
+.nt-request-row-toggle { border: 0; padding: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.nt-request-row-toggle:focus-visible { outline: 2px solid var(--n-signal); outline-offset: 4px; }
+.nt-request-account { color: var(--n-muted); border: 1px solid var(--n-line); border-radius: 4px; padding: 1px 6px; width: fit-content; }
+.nt-request-status { white-space: nowrap; }
+.nt-request-status[data-status="failed"] { color: var(--n-danger); }
+.nt-request-status[data-status="completed"] { color: var(--n-success); }
+.nt-request-ledger .nt-request-ledger-detail > td { padding: 16px 20px; white-space: normal; }
+.nt-request-inline-fields { display: grid; gap: 8px; margin: 0; }
+.nt-request-inline-fields > div { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 12px; }
+.nt-request-inline-fields dt { color: var(--n-muted); }
+.nt-request-inline-fields dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.nt-request-inline-id { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; border-top: 1px solid var(--n-line); margin-top: 14px; padding-top: 12px; }
+.nt-request-inline-id code { overflow-wrap: anywhere; }
+/* Magpie 3439204: 22px segment, 2px rail inset, 12px text, 26px picker. */
+.nt-operations .n-segmented { display: inline-flex; gap: 0; padding: 2px; border: 0; border-radius: 7px; }
+.nt-operations .n-segment { flex: none; }
+.nt-operations .n-segment span { box-sizing: border-box; min-height: 22px; height: 22px; padding: 0 10px; font-size: 12px; font-weight: 400; border-radius: 5px; }
+.nt-operations .n-segment input:checked + span { background: var(--n-panel); color: var(--n-text); border-color: var(--n-line); box-shadow: 0 1px 3px #0003; }
+.nt-operations .nt-operations-request-filters { padding: 2px 0; gap: 6px; }
+.nt-operations .nt-operations-request-filters input, .nt-operations .nt-operations-date-range input { min-height: 26px; height: 26px; padding: 0 9px; font-size: 12px; }
+.nt-operations .nt-operations-request-filters button { min-height: 26px; height: 26px; padding: 0 9px; font-size: 12px; }
+.nt-operations .nt-operations-chart-types button { height: 22px; width: 26px; }
+.nt-operations .nt-operations-chart-controls { gap: 10px; }
+.nt-operations .nt-operations-period-row { padding-top: 0; }
+.nt-operations .nt-operations-panel { gap: 10px; }
+/* Reserve the same geometry for bars, lines and empty metrics. */
+.nt-operations-chart-viewport { height: 310px; min-width: 0; overflow: hidden; }
+.nt-operations .nt-operations-chart-viewport > :is(.nt-operations-bars, .nt-operations-line-chart, .nt-operations-chart-empty) { box-sizing: border-box; height: 100%; min-height: 0; max-height: none; }
+.nt-operations-chart-viewport .nt-operations-bars { overflow-y: auto; scrollbar-gutter: stable; }
+.nt-operations-chart-breakdown { flex: none; }
+.nt-operations-series-chart { height: 100%; min-width: 0; display: grid; grid-template-rows: minmax(0, 1fr) 36px; }
+.nt-operations-series-chart svg { width: 100%; height: 100%; min-height: 0; }
+.nt-operations-series-chart text { fill: var(--n-muted); font-size: 12px; }
+.nt-operations-chart-legend { display: flex; gap: 16px; align-items: center; overflow-x: auto; white-space: nowrap; font-size: 11px; }
+.nt-operations-chart-legend > span { display: inline-flex; gap: 6px; align-items: center; }
+.nt-operations-chart-legend i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.nt-operations-chart-legend strong { font-weight: 500; color: var(--n-muted); }

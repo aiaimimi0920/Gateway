@@ -1,6 +1,8 @@
+import { NeuroProvider } from "@neuro/ui";
 import {
   createContext,
   type PropsWithChildren,
+  type CSSProperties,
   useCallback,
   useContext,
   useEffect,
@@ -101,7 +103,9 @@ export function UiThemeProvider({ children, initialMode }: PropsWithChildren<{ i
     [mode, resolved, cycleMode],
   );
 
-  return <UiThemeContext.Provider value={value}>{children}</UiThemeContext.Provider>;
+  return <UiThemeContext.Provider value={value}><NeuroProvider mode={resolved} inheritTypography style={{ height: "100%", minHeight: 0,
+    "--n-font-sans": "var(--nt-ui-font, 'Bahnschrift', 'Segoe UI', 'Microsoft YaHei', sans-serif)",
+    "--n-mono": "var(--nt-font-mono)" } as CSSProperties}>{children}</NeuroProvider></UiThemeContext.Provider>;
 }
 
 export function useUiTheme(): UiThemeContextValue {

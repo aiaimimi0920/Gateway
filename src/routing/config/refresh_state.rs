@@ -2,6 +2,13 @@
 
 use super::*;
 
+/// Validate declared lifetimes before legacy compilation can cap an invalid input.
+pub(crate) fn token_expiry_supported(seconds: u64) -> bool {
+    let duration = std::time::Duration::from_secs(seconds);
+    std::time::Instant::now().checked_add(duration).is_some()
+        && std::time::SystemTime::now().checked_add(duration).is_some()
+}
+
 pub(crate) fn effective_refresh_lifetime_secs(seconds: u64) -> u64 {
     seconds.min(MAX_REFRESH_LIFETIME_SECS)
 }
@@ -51,67 +58,113 @@ pub fn future_rfc3339_after_secs(offset_secs: u64) -> String {
 const MAX_REFRESH_LIFETIME_SECS: u64 = 100 * 365 * 24 * 60 * 60;
 
 impl TokenRefreshState {
+    pub(crate) fn lobster_dispatch_snapshot(
+        &self,
+    ) -> Option<(
+        String,
+        crate::protocol::lobsterai::AuthorizationContext,
+        u64,
+    )> {
+        let state = self.authorization.material.lock();
+        if !self.is_routing_active() || !state.active {
+            return None;
+        }
+        Some((
+            state.api_key_override.clone()?,
+            state.lobsterai.clone()?,
+            state.generation,
+        ))
+    }
+
+    /// Capture alongside the bearer before dispatch; late 401s cannot invalidate a newer generation.
+    pub(crate) fn lobster_dispatch_generation(&self) -> Option<u64> {
+        let state = self.authorization.material.lock();
+        state.lobsterai.as_ref().map(|_| state.generation)
+    }
+    pub(crate) fn reject_lobster_access(&self, generation: u64, access: &str, status: u16) -> bool {
+        let mut state = self.authorization.material.lock();
+        if status != 401
+            || !self.is_routing_active()
+            || !state.active
+            || state.lobsterai.is_none()
+            || state.generation != generation
+            || state.api_key_override.as_deref() != Some(access)
+        {
+            return false;
+        }
+        state.rejected = true;
+        true
+    }
+    pub(crate) fn lobster_recovery_needed(&self) -> bool {
+        let state = self.authorization.material.lock();
+        state.lobsterai.is_some() && !state.recovery_checked
+    }
+    pub(crate) fn confirm_lobster_recovery(&self, generation: u64, recorded: bool) {
+        let mut state = self.authorization.material.lock();
+        if state.active && state.generation == generation && self.is_routing_active() {
+            state.recovery_checked = true;
+            state.rejected |= recorded;
+        }
+    }
+
     pub(super) fn from_credential(cred: &ProviderCredentialYaml) -> Option<Self> {
-        let rt = cred
-            .refresh_token
-            .as_ref()
-            .filter(|s| !s.trim().is_empty())?;
-        let endpoint = cred
-            .refresh_endpoint
-            .as_ref()
-            .filter(|s| !s.trim().is_empty())?;
-        let expiry = cred.expires_at.as_deref().or_else(|| {
-            cred.session_auth
-                .as_ref()
-                .and_then(|s| s.expires_at.as_deref())
-        });
-        let parsed = expiry.and_then(|s| {
-            time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339).ok()
-        });
-        // Missing/invalid absolute expiry is unknown, not a fresh lifetime on every restart.
-        let remaining = parsed
-            .map(|at| {
-                (at - time::OffsetDateTime::now_utc())
-                    .whole_seconds()
-                    .max(0) as u64
-            })
-            .unwrap_or(0);
         Some(Self {
-            refresh_token: parking_lot::Mutex::new(rt.clone()),
-            refresh_endpoint: endpoint.clone(),
-            client_id: cred.refresh_client_id.clone().unwrap_or_default(),
-            expires_in_secs: effective_refresh_lifetime_secs(
-                cred.token_expires_in_secs.unwrap_or(21600),
-            ),
-            expires_at: parking_lot::Mutex::new(safe_refresh_deadline(remaining)),
-            expires_at_iso: parking_lot::Mutex::new(parsed.and_then(|at| {
-                at.format(&time::format_description::well_known::Rfc3339)
-                    .ok()
-            })),
-            api_key_override: parking_lot::Mutex::new(None),
-            attempt_lock: Arc::new(tokio::sync::Mutex::new(())),
-            lifecycle: parking_lot::Mutex::new(RefreshLifecycle {
-                active: true,
-                generation: 0,
-                failures: 0,
-                retry_at: None,
-                reauthorization_required: false,
-            }),
+            authorization: Arc::new(refresh_material::RefreshAuthorization::from_credential(
+                cred,
+            )?),
+            routing_active: std::sync::atomic::AtomicBool::new(true),
         })
     }
 
-    /// The owned guard releases even if shutdown cancels an HTTP refresh future.
-    pub(crate) fn try_refresh_lock(&self) -> Option<tokio::sync::OwnedMutexGuard<()>> {
-        self.attempt_lock.clone().try_lock_owned().ok()
+    pub(super) fn routing_replacement(&self) -> Self {
+        Self {
+            authorization: self.authorization.clone(),
+            routing_active: std::sync::atomic::AtomicBool::new(true),
+        }
     }
 
-    /// Expired access material waits for the existing single-flight worker, never starts a second refresh.
+    pub(crate) fn refresh_endpoint(&self) -> &str {
+        &self.authorization.endpoint
+    }
+
+    #[cfg(test)]
+    pub(crate) fn client_id(&self) -> &str {
+        &self.authorization.client_id
+    }
+
+    /// Cancellation drops the existing owned guard; policy replacements share this same lock.
+    pub(crate) fn try_refresh_lock(&self) -> Option<tokio::sync::OwnedMutexGuard<()>> {
+        if !self.is_routing_active() {
+            return None;
+        }
+        self.authorization
+            .attempt_lock
+            .clone()
+            .try_lock_owned()
+            .ok()
+    }
+
+    pub(crate) fn is_routing_active(&self) -> bool {
+        self.routing_active.load(Ordering::Acquire)
+    }
+
     pub(crate) fn dispatch_readiness(&self) -> Result<(), crate::error::GatewayError> {
-        let lifecycle = self.lifecycle.lock();
-        if *self.expires_at.lock() > std::time::Instant::now() {
+        let state = self.authorization.material.lock();
+        let revoked = !self.is_routing_active() || !state.active;
+        // Fresh shared material never revives an old routing wrapper.
+        let quarantined = (state.nous_portal.is_some() || state.lobsterai.is_some())
+            && state.reauthorization_required;
+        if !revoked
+            && !quarantined
+            && state.recovery_checked
+            && !state.rejected
+            && state
+                .expires_at
+                .is_none_or(|at| at > std::time::Instant::now())
+        {
             return Ok(());
         }
-        let (code, message) = if !lifecycle.active || lifecycle.reauthorization_required {
+        let (code, message) = if revoked || state.reauthorization_required {
             (
                 "oauth_reauthorization_required",
                 "OAuth authorization must be renewed",
@@ -125,103 +178,128 @@ impl TokenRefreshState {
         Err(crate::error::GatewayError::service_unavailable(message).with_code(code))
     }
 
-    pub(crate) fn record_refresh_failure(&self, generation: u64, terminal: bool) {
-        let mut lifecycle = self.lifecycle.lock();
-        if !lifecycle.active || lifecycle.generation != generation {
-            return;
-        }
-        lifecycle.failures = lifecycle.failures.saturating_add(1);
-        lifecycle.reauthorization_required = terminal;
-        let delay = 60u64.saturating_mul(1 << lifecycle.failures.saturating_sub(1).min(6));
-        lifecycle.retry_at = Some(safe_refresh_deadline(delay.min(3600)));
-    }
-
-    /// Check configured material without copying, rewriting, or logging the secret.
-    /// The lifecycle lock follows the same lock order as refresh/retirement.
     pub(super) fn has_active_refresh_material(&self) -> bool {
-        let lifecycle = self.lifecycle.lock();
-        lifecycle.active
-            && !self.refresh_endpoint.trim().is_empty()
-            && !self.refresh_token.lock().trim().is_empty()
-    }
-
-    pub(crate) fn refresh_snapshot(
-        &self,
-        refresh_margin: std::time::Duration,
-    ) -> Option<(u64, String)> {
-        let lifecycle = self.lifecycle.lock();
-        if !lifecycle.active
-            || lifecycle.reauthorization_required
-            || lifecycle
-                .retry_at
-                .is_some_and(|at| at > std::time::Instant::now())
-        {
-            return None;
-        }
-        let expires_at = *self.expires_at.lock();
-        if expires_at.saturating_duration_since(std::time::Instant::now()) > refresh_margin {
-            return None;
-        }
-        let refresh_token = self.refresh_token.lock().clone();
-        Some((lifecycle.generation, refresh_token))
-    }
-
-    pub(crate) fn apply_refresh_if_active(
-        &self,
-        generation: u64,
-        access_token: String,
-        refresh_token: Option<String>,
-        expires_in_secs: u64,
-        expires_at_iso: String,
-    ) -> Option<u64> {
-        let mut lifecycle = self.lifecycle.lock();
-        if !lifecycle.active || lifecycle.generation != generation {
-            return None;
-        }
-
-        *self.api_key_override.lock() = Some(access_token);
-        if let Some(refresh_token) = refresh_token {
-            *self.refresh_token.lock() = refresh_token;
-        }
-        *self.expires_at.lock() = safe_refresh_deadline(expires_in_secs);
-        *self.expires_at_iso.lock() = Some(expires_at_iso);
-        lifecycle.generation = lifecycle.generation.wrapping_add(1);
-        lifecycle.failures = 0;
-        lifecycle.retry_at = None;
-        lifecycle.reauthorization_required = false;
-        Some(lifecycle.generation)
+        let state = self.authorization.material.lock();
+        self.is_routing_active()
+            && state.active
+            && !self.refresh_endpoint().trim().is_empty()
+            && !state.refresh_token.trim().is_empty()
     }
 
     pub(crate) fn retire(&self) {
-        let mut lifecycle = self.lifecycle.lock();
-        lifecycle.active = false;
-        lifecycle.generation = lifecycle.generation.wrapping_add(1);
+        // Serialize retirement with exchange admission; already-issued tickets keep material ownership.
+        let _state = self.authorization.material.lock();
+        self.routing_active.store(false, Ordering::Release);
+    }
+
+    pub(super) fn revoke_authorization(&self) {
+        let mut state = self.authorization.material.lock();
+        state.active = false;
+        state.generation = state.generation.wrapping_add(1);
+    }
+
+    pub(crate) fn runtime_override(&self) -> (Option<String>, Option<String>) {
+        let state = self.authorization.material.lock();
+        (state.api_key_override.clone(), state.expires_at_iso.clone())
+    }
+
+    /// One material lock prevents mixing a rotated bearer with the previous inference host.
+    pub(crate) fn runtime_dispatch_override(
+        &self,
+    ) -> (Option<String>, Option<String>, Option<&'static str>) {
+        let state = self.authorization.material.lock();
+        (
+            state.api_key_override.clone(),
+            state.expires_at_iso.clone(),
+            state
+                .nous_portal
+                .as_ref()
+                .map(|c| c.inference_target().base_url()),
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn refresh_snapshot(&self, margin: std::time::Duration) -> Option<(u64, String)> {
+        let state = self.authorization.material.lock();
+        if !self.is_routing_active()
+            || !state.active
+            || state.reauthorization_required
+            || state
+                .retry_at
+                .is_some_and(|at| at > std::time::Instant::now())
+            || !state.recovery_checked
+            || match state.expires_at {
+                Some(at) => at.saturating_duration_since(std::time::Instant::now()) > margin,
+                None => !state.rejected,
+            }
+        {
+            return None;
+        }
+        Some((state.generation, state.refresh_token.clone()))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn apply_refresh_if_active(
+        &self,
+        generation: u64,
+        access: String,
+        refresh: Option<String>,
+        lifetime: u64,
+        expiry: String,
+    ) -> Option<u64> {
+        if !self.is_routing_active() {
+            return None;
+        }
+        self.authorization.apply(
+            generation,
+            access,
+            refresh,
+            Some(lifetime),
+            Some(expiry),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn record_refresh_failure(&self, generation: u64, terminal: bool) {
+        if self.is_routing_active() {
+            self.authorization.record_failure(generation, terminal);
+        }
     }
 
     #[cfg(test)]
     pub(crate) fn is_active(&self) -> bool {
-        self.lifecycle.lock().active
+        self.is_routing_active()
     }
 
+    #[cfg(test)]
     pub(crate) fn is_generation_active(&self, generation: u64) -> bool {
-        let lifecycle = self.lifecycle.lock();
-        lifecycle.active && lifecycle.generation == generation
+        self.is_routing_active() && self.authorization_is_current(self, generation)
     }
 
-    pub(crate) fn runtime_override(&self) -> (Option<String>, Option<String>) {
-        let _lifecycle = self.lifecycle.lock();
-        (
-            self.api_key_override.lock().clone(),
-            self.expires_at_iso.lock().clone(),
-        )
+    #[cfg(test)]
+    pub(crate) fn authorization_context(
+        &self,
+    ) -> Option<crate::protocol::grok_oauth::AuthorizationContext> {
+        self.authorization.material.lock().grok_oauth.clone()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn force_due(&self) {
+        self.authorization.material.lock().expires_at = Some(std::time::Instant::now());
     }
 }
 
 impl std::fmt::Debug for TokenRefreshState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TokenRefreshState")
-            .field("endpoint", &self.refresh_endpoint)
-            .field("expires_in_secs", &self.expires_in_secs)
-            .finish()
+            .field("endpoint", &self.refresh_endpoint())
+            .field("routing_active", &self.is_routing_active())
+            .finish_non_exhaustive()
     }
 }

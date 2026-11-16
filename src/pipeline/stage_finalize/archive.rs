@@ -2,6 +2,30 @@
 
 use super::*;
 
+#[cfg(test)]
+mod copilot_status_tests {
+    use super::*;
+
+    #[test]
+    fn copilot_sender_archive_input_preserves_explicit_unknown_and_http_observations() {
+        let request = crate::protocol::openai::normalize_chat_completions(json!({
+            "model":"synthetic", "messages":[{"role":"user","content":"hello"}]
+        }))
+        .unwrap();
+        let mut ctx = PipelineContext::new(request, None);
+        for (observed, expected) in [
+            (None, Some(200)),
+            (Some(Some(201)), Some(201)),
+            (Some(None), None),
+        ] {
+            ctx.observed_upstream_status = observed;
+            let input = success_input(&ctx, &json!({"id":"synthetic"}), None);
+            assert_eq!(input.upstream_status, expected);
+            assert!(input.response_payload.unwrap()["usage"].is_null());
+        }
+    }
+}
+
 pub(super) async fn persist_conversation_archive_success(
     ctx: &PipelineContext,
     body: &Value,
@@ -11,7 +35,22 @@ pub(super) async fn persist_conversation_archive_success(
     if !is_conversation_archive_endpoint(ctx.canonical_req.endpoint_kind) {
         return;
     }
-    let input = PersistConversationArchiveInput {
+    let input = success_input(ctx, body, usage);
+    if let Err(error) = persist_conversation_archive(state, input).await {
+        warn!(
+            req_id = %ctx.req_id,
+            error = %error,
+            "failed to persist conversation archive"
+        );
+    }
+}
+
+fn success_input(
+    ctx: &PipelineContext,
+    body: &Value,
+    usage: Option<TokenUsage>,
+) -> PersistConversationArchiveInput {
+    PersistConversationArchiveInput {
         request_audit_id: ctx.request_audit_id.clone(),
         request_id: ctx.req_id.to_string(),
         project_id: ctx
@@ -36,7 +75,7 @@ pub(super) async fn persist_conversation_archive_success(
         requested_model: ctx.canonical_req.requested_model.clone(),
         resolved_model: ctx.audited_resolved_model(),
         status: "completed".to_string(),
-        upstream_status: Some(200),
+        upstream_status: ctx.observed_upstream_status.unwrap_or(Some(200)),
         failure_class: None,
         failure_scope: None,
         request_payload: build_archive_request_payload_from_ctx(ctx),
@@ -47,13 +86,6 @@ pub(super) async fn persist_conversation_archive_success(
         })),
         request_already_truncated: false,
         response_already_truncated: false,
-    };
-    if let Err(error) = persist_conversation_archive(state, input).await {
-        warn!(
-            req_id = %ctx.req_id,
-            error = %error,
-            "failed to persist conversation archive"
-        );
     }
 }
 

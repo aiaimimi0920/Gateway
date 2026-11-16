@@ -7,7 +7,7 @@ import { DesktopBehaviorSettings } from "./DesktopBehaviorSettings";
 import { useDesktopPreferences } from "./useDesktopPreferences";
 import { render } from "@testing-library/react";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-const defaults = { closeBehavior: "exit", retentionDays: 0, logLimitMb: 0, autostart: false, autostartSupported: true } as const;
+const defaults = { closeBehavior: "exit", retentionDays: 0, logLimitMb: 0, autostart: false, autostartSupported: true, sleepMode: "off", sleepSupported: true } as const;
 beforeEach(() => { vi.resetAllMocks(); localStorage.clear(); });
 
 it("persists actual native preferences and does not send unrelated fields", async () => {
@@ -16,7 +16,7 @@ it("persists actual native preferences and does not send unrelated fields", asyn
   await waitFor(() => expect(result.current.value).toEqual(defaults));
   await act(() => result.current.update({ closeBehavior: "tray" }));
   expect(invoke).toHaveBeenLastCalledWith("save_gateway_desktop_preferences", {
-    settings: { closeBehavior: "tray", retentionDays: 0, logLimitMb: 0 }, autostart: false,
+    settings: { closeBehavior: "tray", sleepMode: "off", retentionDays: 0, logLimitMb: 0 }, autostart: false,
   });
   expect(result.current.value?.closeBehavior).toBe("tray");
 });
@@ -25,12 +25,22 @@ it("retains the last confirmed values if native save fails", async () => {
   function TestSettings() { return <DesktopBehaviorSettings preferences={useDesktopPreferences()} />; }
   render(<UiLocaleProvider><TestSettings /></UiLocaleProvider>);
   const user = userEvent.setup();
-  const select = screen.getByRole("combobox", { name: "关闭窗口时" });
+  const select = screen.getByRole("radio", { name: "最小化到托盘" });
   await waitFor(() => expect(select).toBeEnabled());
-  await user.selectOptions(select, "tray");
+  await user.click(select);
   expect(await screen.findByRole("alert")).not.toHaveTextContent("private-system-detail");
-  expect(select).toHaveValue("exit");
-  expect(screen.getByRole("combobox", { name: "开机启动" })).toHaveValue("off");
+  expect(screen.getByRole("radio", { name: "退出程序" })).toBeChecked();
+  for (const radio of screen.getAllByRole("radio", { name: "关闭" })) expect(radio).toBeChecked();
+});
+it("saves the native display-awake mode and confirms it from the backend", async () => {
+  vi.mocked(invoke).mockResolvedValueOnce(defaults).mockResolvedValueOnce({ ...defaults, sleepMode: "display" });
+  const { result } = renderHook(useDesktopPreferences);
+  await waitFor(() => expect(result.current.value).toEqual(defaults));
+  await act(() => result.current.update({ sleepMode: "display" }));
+  expect(invoke).toHaveBeenLastCalledWith("save_gateway_desktop_preferences", {
+    settings: { closeBehavior: "exit", sleepMode: "display", retentionDays: 0, logLimitMb: 0 }, autostart: false,
+  });
+  expect(result.current.value?.sleepMode).toBe("display");
 });
 it("prevents duplicate native writes while a save is pending", async () => {
   let resolve!: (value: unknown) => void;

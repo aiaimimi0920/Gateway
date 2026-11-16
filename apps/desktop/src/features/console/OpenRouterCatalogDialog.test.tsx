@@ -1,3 +1,4 @@
+import { NeuroProvider } from "@neuro/ui";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
@@ -10,21 +11,31 @@ import { buildConsoleTelemetrySnapshot } from "./telemetry";
 import { applyOfficialCatalog, type OfficialModelCatalog } from "./officialModelCatalog";
 import { editModelSources } from "./credentialModelSelection";
 
-const catalog: OfficialModelCatalog = { sourceUrl: "https://openrouter.ai/api/v1/models",
-  checkedAt: "2026-10-26T04:00:00Z", models: ["vendor/one", "vendor/two"] };
-const document = { providers: [{ id: "or", preset: "openrouter-openai", base_url: "https://openrouter.ai/api/v1",
-  supported_models: ["manual", "old"], credentials: [{ id: "one", enabled: false, api_key: null,
-    supported_models: ["manual", "old"], model_catalog: { ...catalog, models: ["old"] } }] }],
+const catalog: OfficialModelCatalog = {
+  sourceUrl: "https://openrouter.ai/api/v1/models",
+  checkedAt: "2026-10-26T04:00:00Z", models: ["vendor/one", "vendor/two"]
+};
+const document = {
+  providers: [{
+    id: "or", preset: "openrouter-openai", base_url: "https://openrouter.ai/api/v1",
+    supported_models: ["manual", "old"], credentials: [{
+      id: "one", enabled: false, api_key: null,
+      supported_models: ["manual", "old"], model_catalog: { ...catalog, models: ["old"] }
+    }]
+  }],
   model_routes: [{ pattern: "old", provider_ids: ["or", "other"], priority: 42 },
-    { pattern: "vendor/two", provider_ids: ["other"], enabled: false, priority: 99 }], aliases: {} };
+  { pattern: "vendor/two", provider_ids: ["other"], enabled: false, priority: 99 }], aliases: {}
+};
 beforeEach(() => localStorage.setItem("gateway-ui-locale", "zh-CN"));
 
 function dialog(mode: "add" | "edit", discover = vi.fn().mockResolvedValue(catalog), initialValue?: CredentialDialogValue) {
   const onSubmit = vi.fn(); const onDiscover = vi.fn();
-  const props = { open: true, mode, providerOptions: [{ id: "or", label: "OpenRouter" }], existingCredentialIds: [],
+  const props = {
+    open: true, mode, providerOptions: [{ id: "or", label: "OpenRouter" }], existingCredentialIds: [],
     locked: false, hasSecretAccess: true, onOpenChange: vi.fn(), onRequestSecretAccess: vi.fn(), onSubmit,
-    catalogProviderKind: () => "openrouter" as const, onDiscoverProviderModels: discover, onDiscover, initialValue };
-  return { ...render(<UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider>), onSubmit, onDiscover, discover };
+    catalogProviderKind: () => "openrouter" as const, onDiscoverProviderModels: discover, onDiscover, initialValue
+  };
+  return { ...render(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider></NeuroProvider>), onSubmit, onDiscover, discover };
 }
 
 it("reads OpenRouter catalog on import and never invokes generic generation discovery", async () => {
@@ -72,13 +83,17 @@ it("cancels an in-flight import when the dialog unmounts", async () => {
 it("persists metadata, manual models and route policy without touching secrets or enabling accounts", () => {
   const initial = credentialDialogValueFromDocument(document, "or", "one")!;
   const replaceEditorDocument = vi.fn(); const setCredentialSecretEdits = vi.fn();
-  const hook = renderHook(() => useCredentialDialogEditor({ editorText: JSON.stringify(document),
+  const hook = renderHook(() => useCredentialDialogEditor({
+    editorText: JSON.stringify(document),
     credentialDialogState: { mode: "edit", initialValue: initial }, setCredentialDialogState: vi.fn(),
-    setCredentialSecretEdits, setError: vi.fn(), replaceEditorDocument, t: (zh) => zh }));
+    setCredentialSecretEdits, setError: vi.fn(), replaceEditorDocument, t: (zh) => zh
+  }));
   act(() => hook.result.current.applyCredentialDialogValue(editModelSources({ ...initial, modelCatalog: catalog }, catalog.models.join("\n"), "manual")));
   const saved = replaceEditorDocument.mock.calls[0][0];
-  expect(saved.providers[0]).toMatchObject({ supported_models: ["manual", ...catalog.models],
-    credentials: [{ id: "one", api_key: null, enabled: false, supported_models: ["manual", ...catalog.models], model_catalog: catalog }] });
+  expect(saved.providers[0]).toMatchObject({
+    supported_models: ["manual", ...catalog.models],
+    credentials: [{ id: "one", api_key: null, enabled: false, supported_models: ["manual", ...catalog.models], model_catalog: catalog }]
+  });
   expect(saved.model_routes).toContainEqual({ pattern: "old", provider_ids: ["other"], priority: 42 });
   expect(saved.model_routes).toContainEqual({ pattern: "vendor/two", provider_ids: ["other", "or"], enabled: false, priority: 99 });
   expect(setCredentialSecretEdits.mock.calls[0][0]([])).toEqual([]);

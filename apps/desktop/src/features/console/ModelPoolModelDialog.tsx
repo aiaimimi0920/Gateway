@@ -1,6 +1,6 @@
-import * as Dialog from "@radix-ui/react-dialog";
+import { Button, Checkbox, Dialog, Field, IconButton, Input, MultiSelect, Notice, type DialogProps } from "@neuro/ui";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 
@@ -27,6 +27,7 @@ export type ModelPoolModelDialogProps = {
   locked: boolean;
   onOpenChange(open: boolean): void;
   onSubmit(value: ModelPoolModelDialogValue): void;
+  resolveReturnFocus?: DialogProps["resolveReturnFocus"];
 };
 
 const EMPTY_VALUE: ModelPoolModelDialogValue = { model: "", providerIds: [] };
@@ -45,16 +46,21 @@ export function ModelPoolModelDialog({
   locked,
   onOpenChange,
   onSubmit,
+  resolveReturnFocus,
 }: ModelPoolModelDialogProps) {
   const { t } = useUiLocale();
   const [value, setValue] = useState<ModelPoolModelDialogValue>(() => initialValue ?? EMPTY_VALUE);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [sessionProviderIds, setSessionProviderIds] = useState(initialValue?.providerIds ?? []);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const formId = useId();
 
   useEffect(() => {
     if (!open) {
       return;
     }
     setValue(initialValue ?? EMPTY_VALUE);
+    setSessionProviderIds(initialValue?.providerIds ?? []);
     setValidationError(null);
   }, [initialValue, open]);
 
@@ -62,6 +68,7 @@ export function ModelPoolModelDialog({
     providerOptions.find((option) => option.id === providerId)?.label ?? providerId;
 
   const toggleProvider = (providerId: string) => {
+    setSessionProviderIds((current) => current.includes(providerId) ? current : [...current, providerId]);
     setValue((current) => ({
       ...current,
       providerIds: current.providerIds.includes(providerId)
@@ -113,137 +120,92 @@ export function ModelPoolModelDialog({
     onOpenChange(false);
   };
 
-  const unselected = providerOptions.filter((option) => !value.providerIds.includes(option.id));
+  // Keep candidates mounted after selection, including temporarily missing providers.
+  const choices = [...providerOptions, ...sessionProviderIds.filter((id) => !providerOptions.some((option) => option.id === id)).map((id) => ({ id, label: id }))];
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content
-          className="dialog-content nt-model-dialog"
-          aria-describedby="model-pool-dialog-description"
-        >
-          <Dialog.Title>
-            {mode === "add" ? t("添加模型", "Add model") : t("编辑模型", "Edit model")}
-          </Dialog.Title>
-          <Dialog.Description id="model-pool-dialog-description">
-            {t(
-              "模型以 model_routes 规则的形式写入草稿：名称即匹配的模型，服务商顺序即调用顺序。",
-              "The model is written to the draft as a model_routes rule: the name is the matched model and the provider order is the dispatch order.",
-            )}
-          </Dialog.Description>
-
-          <form className="nt-stack" onSubmit={submit}>
-            <label className="nt-field">
-              <span>{t("模型名称", "Model name")}</span>
-              <input
-                className="nt-input"
-                value={value.model}
-                disabled={locked}
-                placeholder="deepseek-chat"
-                onChange={(event) => {
-                  const model = event.currentTarget.value;
-                  setValue((current) => ({ ...current, model }));
-                }}
-              />
-            </label>
-
-            <section className="nt-card nt-card--panel nt-model-dialog__chain-panel">
-              <header className="nt-model-dialog__chain-head">
-                <strong>{t("服务商优先级", "Provider priority")}</strong>
-                <span className="nt-model-dialog__chain-count">
-                  {value.providerIds.length}/{providerOptions.length}
-                </span>
-              </header>
-              {value.providerIds.length > 0 ? (
-                <ol className="nt-model-dialog__chain">
-                  {value.providerIds.map((providerId, index) => (
-                    <li className="nt-model-dialog__chain-row" key={`selected:${providerId}`}>
-                      <span className="nt-model-dialog__chain-order" aria-hidden="true">
-                        {index + 1}
-                      </span>
-                      <strong className="nt-model-dialog__chain-label">
-                        {optionLabel(providerId)}
-                      </strong>
-                      <span className="nt-model-dialog__chain-id">{providerId}</span>
-                      <button
-                        className="nt-icon-action"
-                        type="button"
-                        disabled={locked || index === 0}
-                        aria-label={t(
-                          `将 ${optionLabel(providerId)} 上移一位`,
-                          `Move ${optionLabel(providerId)} up one slot`,
-                        )}
-                        onClick={() => moveProvider(providerId, "up")}
-                      >
-                        <ArrowUp size={13} aria-hidden="true" />
-                      </button>
-                      <button
-                        className="nt-icon-action"
-                        type="button"
-                        disabled={locked || index === value.providerIds.length - 1}
-                        aria-label={t(
-                          `将 ${optionLabel(providerId)} 下移一位`,
-                          `Move ${optionLabel(providerId)} down one slot`,
-                        )}
-                        onClick={() => moveProvider(providerId, "down")}
-                      >
-                        <ArrowDown size={13} aria-hidden="true" />
-                      </button>
-                      <button
-                        className="nt-btn nt-btn--outline nt-btn--compact"
-                        type="button"
-                        disabled={locked}
-                        onClick={() => toggleProvider(providerId)}
-                      >
-                        {t("移除", "Remove")}
-                      </button>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="nt-copy">
-                  {t("还没有选择服务商。", "No provider selected yet.")}
-                </p>
-              )}
-              {unselected.length > 0 ? (
-                <div className="nt-model-dialog__pool">
-                  {unselected.map((option) => (
-                    <button
-                      className="nt-btn nt-btn--outline nt-btn--compact"
-                      type="button"
-                      key={`pool:${option.id}`}
-                      disabled={locked}
-                      title={option.id}
-                      onClick={() => toggleProvider(option.id)}
-                    >
-                      + {option.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-
-            {validationError ? (
-              <div className="nt-validation-list nt-validation-list--warning">
-                <strong>{t("请检查输入", "Check the input")}</strong>
-                <ul>
-                  <li>{validationError}</li>
-                </ul>
-              </div>
-            ) : null}
-
-            <div className="dialog-actions">
-              <Dialog.Close asChild>
-                <button type="button">{t("取消", "Cancel")}</button>
-              </Dialog.Close>
-              <button className="nt-btn nt-btn--primary" type="submit" disabled={locked}>
-                {mode === "add" ? t("添加模型", "Add model") : t("保存模型", "Save model")}
-              </button>
-            </div>
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open={open} onOpenChange={onOpenChange} className="nt-model-dialog"
+      title={mode === "add" ? t("添加模型", "Add model") : t("编辑模型", "Edit model")}
+      closeLabel={t("关闭", "Close")} initialFocusRef={nameRef} resolveReturnFocus={resolveReturnFocus}>
+      <form id={formId} className="nt-model-dialog__body" onSubmit={submit}>
+        <Field label={t("模型名称", "Model name")}>
+          <Input ref={nameRef}
+            value={value.model}
+            disabled={locked}
+            placeholder="deepseek-chat"
+            onChange={(event) => {
+              const model = event.currentTarget.value;
+              setValue((current) => ({ ...current, model }));
+            }}
+          />
+        </Field>
+        {choices.length > 6 ? <MultiSelect label={t("服务商", "Providers")} disabled={locked}
+          options={choices.map((option) => ({ value: option.id, label: option.label, description: option.label !== option.id ? option.id : undefined }))}
+          values={value.providerIds} onValuesChange={(providerIds) => {
+            setSessionProviderIds((current) => [...new Set([...current, ...providerIds])]);
+            setValue((current) => ({ ...current, providerIds }));
+          }}
+          formatSummary={(count) => t(`已选 ${count} 项`, `${count} selected`)}
+          search={{ label: t("搜索服务商", "Search providers"), emptyMessage: t("无匹配服务商", "No matching providers") }} />
+          : <fieldset className="nt-model-dialog__choices" disabled={locked}>
+            <legend>{t("服务商", "Providers")}</legend>
+            {choices.map((option) => <Checkbox key={option.id} label={option.label} title={option.id}
+              checked={value.providerIds.includes(option.id)} onChange={() => toggleProvider(option.id)} />)}
+          </fieldset>}
+        <section className="nt-model-dialog__chain-panel" aria-label={t("服务商优先级", "Provider priority")}>
+          <header className="nt-model-dialog__chain-head">
+            <strong>{t("服务商优先级", "Provider priority")}</strong>
+            <span className="nt-model-dialog__chain-count">
+              {value.providerIds.length}/{choices.length}
+            </span>
+          </header>
+          {value.providerIds.length > 0 ? (
+            <ol className="nt-model-dialog__chain">
+              {value.providerIds.map((providerId, index) => (
+                <li className="nt-model-dialog__chain-row" key={`selected:${providerId}`}>
+                  <span className="nt-model-dialog__chain-order" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                  <strong className="nt-model-dialog__chain-label" title={providerId}>
+                    {optionLabel(providerId)}
+                  </strong>
+                  <IconButton variant="quiet" compact
+                    disabled={locked || index === 0}
+                    label={t(
+                      `将 ${optionLabel(providerId)} 上移一位`,
+                      `Move ${optionLabel(providerId)} up one slot`,
+                    )}
+                    onClick={() => moveProvider(providerId, "up")}
+                  >
+                    <ArrowUp size={13} aria-hidden="true" />
+                  </IconButton>
+                  <IconButton variant="quiet" compact
+                    disabled={locked || index === value.providerIds.length - 1}
+                    label={t(
+                      `将 ${optionLabel(providerId)} 下移一位`,
+                      `Move ${optionLabel(providerId)} down one slot`,
+                    )}
+                    onClick={() => moveProvider(providerId, "down")}
+                  >
+                    <ArrowDown size={13} aria-hidden="true" />
+                  </IconButton>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="nt-copy">
+              {t("还没有选择服务商。", "No provider selected yet.")}
+            </p>
+          )}
+        </section>
+        {validationError ? <Notice tone="warning" role="alert">{validationError}</Notice> : null}
+      </form>
+      <div className="n-dialog-actions">
+        <Button onClick={() => onOpenChange(false)}>{t("取消", "Cancel")}</Button>
+        <Button variant="primary" type="submit" form={formId} disabled={locked} wrap>
+          {mode === "add" ? t("添加模型", "Add model") : t("保存模型", "Save model")}
+        </Button>
+      </div>
+    </Dialog>
   );
 }

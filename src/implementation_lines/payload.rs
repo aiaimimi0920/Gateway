@@ -3,6 +3,42 @@ use super::profiles::line_for_adapter;
 use crate::routing::candidate::ProviderAccountPayload;
 
 pub fn line_for_payload(payload: &ProviderAccountPayload) -> Option<RefactoredImplementationLine> {
+    if crate::protocol::commandcode::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::CommandCodeProviderApi);
+    }
+    if crate::protocol::sap_aicore::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::SapAiCoreChat);
+    }
+    if crate::protocol::sensenova::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::SenseNovaTokenPlan);
+    }
+    if crate::protocol::minimax::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::MiniMaxMPlan);
+    }
+    if crate::protocol::agnes::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::AgnesOfficialApi);
+    }
+    if crate::protocol::nous_portal::business::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::NousPortalOauth);
+    }
+    if crate::protocol::dim_oauth::business::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::DimUserOauth);
+    }
+    if crate::protocol::cloudflare_workers_ai::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::CloudflareWorkersAi);
+    }
+    if payload.adapter.trim() == "openai_compatible"
+        && url::Url::parse(&payload.base_url)
+            .is_ok_and(|url| url.host_str() == Some("api.river.ai"))
+    {
+        return Some(RefactoredImplementationLine::RiverOfficialApi);
+    }
+    if crate::protocol::vertex_express::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::GoogleAgentPlatformOfficial);
+    }
+    if crate::protocol::qwen::workspace_api::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::QwenOfficialApi);
+    }
     if let Some(line) = line_for_adapter(payload.adapter.as_str()) {
         return Some(line);
     }

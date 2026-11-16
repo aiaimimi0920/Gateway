@@ -22,10 +22,34 @@ pub(super) async fn accumulate_with_limits(
     req: &CanonicalRelayRequest,
     limits: AccumulationLimits,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
+    accumulate(response, model, req, limits, EventStreamParser::default()).await
+}
+
+pub async fn accumulate_kiro_api_key_stream(
+    response: rquest::Response,
+    model: &str,
+    req: &CanonicalRelayRequest,
+) -> Result<CanonicalRelayResponse, GatewayError> {
+    accumulate(
+        response,
+        model,
+        req,
+        AccumulationLimits::default(),
+        EventStreamParser::for_api_key(),
+    )
+    .await
+}
+
+async fn accumulate(
+    response: rquest::Response,
+    model: &str,
+    req: &CanonicalRelayRequest,
+    limits: AccumulationLimits,
+    mut parser: EventStreamParser,
+) -> Result<CanonicalRelayResponse, GatewayError> {
     use futures::StreamExt;
 
     let tool_name_map = build_tool_name_map(req);
-    let mut parser = EventStreamParser::default();
     let mut content = AccumulatedContent::new(limits);
     let mut prompt_tokens = estimate_request_prompt_tokens(req, model);
     let mut completion_tokens = 0u64;
@@ -99,6 +123,9 @@ pub(super) async fn accumulate_with_limits(
     };
 
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: map_model(model),
         text,

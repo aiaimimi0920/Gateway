@@ -2,7 +2,6 @@
 
 use super::revision_state::{
     current_matches_record_new, current_matches_record_previous, receipt_from_record,
-    redis_kept_previous_revision, redis_revision_matches_record,
     validated_and_metadata_from_active,
 };
 use super::{RouteConfigCoordinator, RouteConfigRuntimeError};
@@ -20,80 +19,22 @@ impl RouteConfigCoordinator {
             .journal
             .inspect_locked(&guard)
             .map_err(RouteConfigRuntimeError::from_persistence)?;
+        for record in &records {
+            match record.phase() {
+                TransactionPhase::Prepared
+                | TransactionPhase::YamlReplaced
+                | TransactionPhase::RedisActivated => {
+                    self.settle_pending_transaction(&guard, record).await?;
+                }
+                TransactionPhase::Committed | TransactionPhase::Aborted => {}
+            }
+        }
+
         let active_revision = self
             .redis
             .load_active_revision()
             .await
             .map_err(RouteConfigRuntimeError::from_redis)?;
-
-        for record in &records {
-            match record.phase() {
-                TransactionPhase::Prepared => {
-                    if redis_revision_matches_record(active_revision.as_ref(), record)? {
-                        self.complete_recovered_commit(
-                            &guard,
-                            record,
-                            active_revision.as_ref(),
-                            record.phase(),
-                        )?;
-                    } else if redis_kept_previous_revision(active_revision.as_ref(), record) {
-                        self.abort_prepared_without_cas(&guard, record)?;
-                    } else {
-                        return Err(RouteConfigRuntimeError::new(
-                            "console_recovery_required",
-                            format!(
-                                "Prepared transaction '{}' disagrees with the authoritative Redis active revision",
-                                record.tx_id()
-                            ),
-                        ));
-                    }
-                }
-                TransactionPhase::YamlReplaced => {
-                    if redis_revision_matches_record(active_revision.as_ref(), record)? {
-                        self.complete_recovered_commit(
-                            &guard,
-                            record,
-                            active_revision.as_ref(),
-                            record.phase(),
-                        )?;
-                    } else if redis_kept_previous_revision(active_revision.as_ref(), record) {
-                        self.rollback_yaml_and_abort(
-                            &guard,
-                            record.tx_id(),
-                            &receipt_from_record(record),
-                            "yaml_replaced_without_redis_activation",
-                        )?;
-                    } else {
-                        return Err(RouteConfigRuntimeError::new(
-                            "console_recovery_required",
-                            format!(
-                                "YamlReplaced transaction '{}' disagrees with the authoritative Redis active revision",
-                                record.tx_id()
-                            ),
-                        ));
-                    }
-                }
-                TransactionPhase::RedisActivated => {
-                    if redis_revision_matches_record(active_revision.as_ref(), record)? {
-                        self.complete_recovered_commit(
-                            &guard,
-                            record,
-                            active_revision.as_ref(),
-                            record.phase(),
-                        )?;
-                    } else {
-                        return Err(RouteConfigRuntimeError::new(
-                            "console_recovery_required",
-                            format!(
-                                "RedisActivated transaction '{}' is ahead of the authoritative Redis active revision",
-                                record.tx_id()
-                            ),
-                        ));
-                    }
-                }
-                TransactionPhase::Committed | TransactionPhase::Aborted => {}
-            }
-        }
 
         if active_revision.is_none() {
             if let Some(record) = records
@@ -110,7 +51,7 @@ impl RouteConfigCoordinator {
         Ok(())
     }
 
-    fn abort_prepared_without_cas(
+    pub(super) fn abort_prepared_without_cas(
         &self,
         guard: &crate::console::WriterLockGuard,
         record: &TransactionRecord,
@@ -139,7 +80,7 @@ impl RouteConfigCoordinator {
         }
     }
 
-    fn complete_recovered_commit(
+    pub(super) fn complete_recovered_commit(
         &self,
         guard: &crate::console::WriterLockGuard,
         record: &TransactionRecord,

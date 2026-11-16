@@ -101,7 +101,7 @@ describe("operations workspace boundaries", () => {
     });
     const { container, rerender } = render(<OperationsWorkspace {...props} listView={{ query: "", sort: "newest" }} />);
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Incident management" }));
-    const codes = () => [...container.querySelectorAll(".nt-table--incidents .nt-table__row")].map((row) => row.firstElementChild?.textContent);
+    const codes = () => within(container).queryAllByRole("rowheader").map((row) => row.textContent);
     expect(codes()).toEqual(["resolved-z", "open-a"]);
     rerender(<OperationsWorkspace {...props} listView={{ query: "OPEN-A", sort: "name" }} />);
     expect(codes()).toEqual(["open-a"]);
@@ -274,11 +274,11 @@ describe("operations workspace boundaries", () => {
     expect(screen.getByText("stale incident data")).toBeVisible();
     expect(
       Array.from(
-        container.querySelectorAll(".nt-table--incidents .nt-table__row"),
-      ).map((row) => row.firstElementChild?.textContent),
+        within(screen.getByRole("table", { name: "Incidents" })).getAllByRole("rowheader"),
+      ).map((row) => row.textContent),
     ).toEqual(["open-new", "open-old", "ack-case", "resolved-case"]);
     const rowFor = (id: string) => {
-      const row = screen.getByText(id).closest(".nt-table__row");
+      const row = screen.getByRole("rowheader", { name: id }).closest("tr");
       if (!(row instanceof HTMLElement))
         throw new Error("Missing incident row");
       return within(row);
@@ -457,7 +457,7 @@ describe("operations workspace boundaries", () => {
       />,
     );
     expect(
-      screen.getAllByText("pressure failed")[0].closest("article"),
+      screen.getAllByText("pressure failed")[0].closest(".n-panel"),
     ).not.toHaveTextContent("No data yet");
     expect(
       screen.queryByText(/Operations data comes straight/),

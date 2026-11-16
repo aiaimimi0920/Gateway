@@ -1,5 +1,6 @@
 import { Database, UserPlus } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { Button, Tab, TabList, TabPanel, TabsRoot } from "@neuro/ui";
 
 import { AccountLibraryPager } from "./AccountLibraryPager";
 import { CHATGPT_POOL_CATEGORIES, isChatgptPool } from "./chatgptPool";
@@ -39,9 +40,9 @@ export function ProviderAccountLibrary({
 }: ProviderAccountLibraryProps) {
   const libraries = isChatgptPool(section.providerPreset, section.protocolProfile)
     ? CHATGPT_POOL_CATEGORIES.map((category) => ({
-        name: category.label,
-        accounts: section.identityCategories.find((entry) => entry.id === category.id)?.accounts ?? [],
-      }))
+      name: category.label,
+      accounts: section.identityCategories.find((entry) => entry.id === category.id)?.accounts ?? [],
+    }))
     : groupAccountsByLibrary(providerAccounts);
   const [selectedLibrary, setSelectedLibrary] = useState<string | null>(null);
   const activeLibrary = libraries.find((library) => library.name === selectedLibrary) ?? libraries[0];
@@ -69,9 +70,7 @@ export function ProviderAccountLibrary({
         </span>
         <div className="nt-provider-account-library__head-actions">
           <span className="nt-provider-account-library__count">{providerAccounts.length}</span>
-          <button
-            className="nt-btn nt-btn--secondary nt-btn--compact"
-            type="button"
+          <Button compact wrap
             disabled={editorLocked}
             onClick={() => {
               if (section.manualAddFamily) {
@@ -85,41 +84,25 @@ export function ProviderAccountLibrary({
             {section.manualAddFamily
               ? t("手动添加", "Add manually")
               : t("手动录入账号", "Add account manually")}
-          </button>
+          </Button>
         </div>
       </header>
       {libraries.length > 0 ? (
-        <div className="nt-provider-account-library__groups">
-          <div className="nt-provider-account-library__tabs" role="tablist" aria-label={t("账号子分组", "Account subgroups")}>
-            {libraries.map((library, index) => (
-              <button key={library.name} id={`${accountLibraryId}-tab-${index}`} type="button" role="tab"
-                aria-selected={library.name === activeLibrary?.name}
-                aria-controls={`${accountLibraryId}-panel`}
-                tabIndex={library.name === activeLibrary?.name ? 0 : -1}
-                onClick={() => setSelectedLibrary(library.name)}
-                onKeyDown={(event) => {
-                  let next = index;
-                  if (event.key === "ArrowRight") next = (index + 1) % libraries.length;
-                  else if (event.key === "ArrowLeft") next = (index + libraries.length - 1) % libraries.length;
-                  else if (event.key === "Home") next = 0;
-                  else if (event.key === "End") next = libraries.length - 1;
-                  else return;
-                  event.preventDefault();
-                  setSelectedLibrary(libraries[next].name);
-                  document.getElementById(`${accountLibraryId}-tab-${next}`)?.focus();
-                }}>
+        <TabsRoot className="nt-provider-account-library__groups" value={activeLibrary?.name ?? ""} onValueChange={setSelectedLibrary}>
+          <TabList label={t("账号子分组", "Account subgroups")}>
+            {libraries.map(library => (
+              <Tab key={library.name} value={library.name}>
                 {library.name} <span>{library.accounts.length}</span>
-              </button>
+              </Tab>
             ))}
-          </div>
+          </TabList>
           {activeLibrary ? (
-            <section id={`${accountLibraryId}-panel`} role="tabpanel"
-              aria-labelledby={`${accountLibraryId}-tab-${libraries.indexOf(activeLibrary)}`}>
+            <TabPanel value={activeLibrary.name}>
               <AccountLibraryPager t={t} libraryKey={`${section.providerId}:${activeLibrary.name}`}
                 accounts={activeLibrary.accounts} maxAccountCount={maxAccountCount} renderAccount={renderAccount} />
-            </section>
+            </TabPanel>
           ) : null}
-        </div>
+        </TabsRoot>
       ) : (
         <AccountLibraryPager t={t} libraryKey={section.providerId}
           accounts={[]} maxAccountCount={0} renderAccount={renderAccount} />

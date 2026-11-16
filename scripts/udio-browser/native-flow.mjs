@@ -1,6 +1,7 @@
-import { DEFAULT_NAVIGATION_TIMEOUT_MS, normalizeString, normalizePathname } from "./request.mjs";
+import { DEFAULT_NAVIGATION_TIMEOUT_MS } from "./request.mjs";
 import { gotoUdio } from "./browser.mjs";
 import { isChallengeOutcome, requireJsonResponse } from "./responses.mjs";
+import { submitNativeGeneration } from "./native-submit.mjs";
 
 export async function resolveVercelCheckpointInBorrowedPage(page, options) {
   const { baseUrl, referer, timeoutMs } = options;
@@ -65,100 +66,7 @@ export async function resolveVercelCheckpointInBorrowedPage(page, options) {
 }
 
 export async function submitGenerationThroughPageUi(page, options) {
-  const { baseUrl, requestBody, timeoutMs } = options;
-  const prompt = normalizeString(requestBody?.gen_params?.prompt ?? requestBody?.prompt);
-  if (!prompt) {
-    throw Object.assign(new Error("Udio native generation requires a non-empty prompt."), {
-      status: 400,
-      code: "udio_browser_missing_prompt",
-    });
-  }
-
-  await page.evaluate(() => {
-    for (const id of [
-      "__udio-hcaptcha-manual-wrapper",
-      "__udio-hcaptcha-manual-container",
-      "__udio-hcaptcha-container",
-    ]) {
-      document.getElementById(id)?.remove();
-    }
-  });
-
-  const promptInput = page.locator("textarea").first();
-  await promptInput.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 30_000) });
-  await promptInput.fill(prompt);
-
-  const createButton = await waitForNativeCreateButton(page, Math.min(timeoutMs, 60_000));
-
-  const responsePromise = page
-    .waitForResponse(
-      (response) => {
-        try {
-          const requestUrl = new URL(response.url());
-          return (
-            requestUrl.origin === baseUrl &&
-            normalizePathname(requestUrl.pathname) === "/api/generate-proxy" &&
-            response.request().method() === "POST"
-          );
-        } catch {
-          return false;
-        }
-      },
-      { timeout: timeoutMs },
-    )
-    .then(
-      (response) => ({ response, error: null }),
-      (error) => ({ response: null, error }),
-    );
-  await createButton.click();
-
-  try {
-    const deadline = Date.now() + timeoutMs;
-    let sawCreateUnavailable = false;
-    let challengeCycleRetries = 0;
-    let responseResult = null;
-    while (Date.now() < deadline) {
-      responseResult = await Promise.race([
-        responsePromise,
-        page.waitForTimeout(Math.min(250, Math.max(50, deadline - Date.now()))).then(() => null),
-      ]);
-      if (responseResult) {
-        break;
-      }
-
-      const availableCreateButton = await findNativeCreateButton(page);
-      if (!availableCreateButton) {
-        sawCreateUnavailable = true;
-        continue;
-      }
-      if (sawCreateUnavailable && challengeCycleRetries < 3) {
-        sawCreateUnavailable = false;
-        challengeCycleRetries += 1;
-        await availableCreateButton.click();
-      }
-    }
-    responseResult ??= await responsePromise;
-    if (responseResult.error) {
-      throw responseResult.error;
-    }
-    const response = responseResult.response;
-    const headers = response.headers();
-    const text = await response.text().catch(() => "");
-    return {
-      ok: response.ok(),
-      status: response.status(),
-      contentType: headers["content-type"] ?? "",
-      mitigated: headers["x-vercel-mitigated"] ?? "",
-      text,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 504,
-      transportError: true,
-      text: typeof error?.message === "string" ? error.message : String(error),
-    };
-  }
+  return submitNativeGeneration(page, options, waitForNativeCreateButton);
 }
 
 export async function waitForNativeCreateButton(page, timeoutMs) {

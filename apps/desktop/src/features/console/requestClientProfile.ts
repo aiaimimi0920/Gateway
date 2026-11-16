@@ -1,4 +1,6 @@
 /** Wire identity is independent of API protocol and selected credentials. */
+import { specialAdapterForPreset, specialAdapterOwnsFingerprint } from "./providerSpecialAdapters";
+
 export const REQUEST_CLIENT_PROFILES = ["auto", "codex_cli", "claude_cli", "workbuddy", "cpa", "cpa_claude_code"] as const;
 export type RequestClientProfile = typeof REQUEST_CLIENT_PROFILES[number];
 /** Session identity is display-only; only the owning executor can change it. */
@@ -10,6 +12,8 @@ export function readRequestClientProfile(value: unknown): RequestClientProfile {
 
 /** Flow is authoritative for new providers; old documents retain their original field. */
 export function readProviderRequestClientProfile(provider: Record<string, unknown>): ProviderRequestClientProfile {
+  const owner = specialAdapterForPreset(provider.preset);
+  if (owner) return owner === "antigravity_oauth" ? "antigravity" : "session";
   const flow = provider[Object.hasOwn(provider, "callFlow") ? "callFlow" : "call_flow"];
   if (flow && typeof flow === "object" && !Array.isArray(flow)) {
     const policy = flow as Record<string, unknown>;
@@ -21,7 +25,7 @@ export function readProviderRequestClientProfile(provider: Record<string, unknow
 
 export function writeRequestClientProfile(provider: Record<string, unknown>, profile: RequestClientProfile): boolean {
   // Reject ambiguous aliases before any write; preserve the document's existing spelling.
-  if (!REQUEST_CLIENT_PROFILES.includes(profile)
+  if (!REQUEST_CLIENT_PROFILES.includes(profile) || specialAdapterForPreset(provider.preset) !== null
     || (Object.hasOwn(provider, "call_flow") && Object.hasOwn(provider, "callFlow"))
     || (Object.hasOwn(provider, "request_client_profile") && Object.hasOwn(provider, "requestClientProfile"))) return false;
   const flowKey = Object.hasOwn(provider, "callFlow") ? "callFlow" : "call_flow";
@@ -41,6 +45,5 @@ export function writeRequestClientProfile(provider: Record<string, unknown>, pro
 
 function ownsSessionFingerprint(flow: Record<string, unknown>): boolean {
   return flow.fingerprint_adapter === "session" || flow.fingerprint_adapter === "antigravity"
-    || flow.special_adapter === "antigravity_oauth"
-    || ["basispoints", "gemini_web", "gemini_canvas", "chatgpt_web", "aistudio_web", "flowmusic_web", "flow_web", "stitch_web"].includes(flow.special_adapter as string);
+    || specialAdapterOwnsFingerprint(flow.special_adapter);
 }

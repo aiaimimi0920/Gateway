@@ -1,14 +1,75 @@
-//! Model tests use the normal audit and credential-health stores in both storage modes.
+//! Model tests use cancellation-safe local audits and the normal credential-health stores.
 use std::time::Duration;
 
 use serde_json::json;
 
 use super::console_model_probe::ModelProbeResult;
-use crate::{db, local_runtime, routing::config::CredentialProbeTarget, state::AppState};
+use super::model_probe_audit::ProbeAudit;
+use crate::{db, routing::config::CredentialProbeTarget, state::AppState};
 
 pub(super) struct Recording {
-    audit: Option<String>,
+    audit: Option<ProbeAudit>,
     health: super::model_probe_health::ProbeHealth,
+    trace: serde_json::Value,
+    response_id: Option<String>,
+}
+
+impl Recording {
+    pub(super) fn lobster_selection(
+        mut self,
+        selection: Option<&crate::protocol::lobsterai::virtual_model::Selection>,
+    ) -> Self {
+        if let Some(selection) = selection {
+            self.trace["upstreamModelResolution"] = selection.trace();
+            self.trace["selectedUpstreamTargetProtocolFamily"] =
+                if selection.model.api_format.as_deref() == Some("anthropic") {
+                    "anthropic_messages".into()
+                } else {
+                    "openai_chat".into()
+                };
+        }
+        self
+    }
+    pub(super) fn media_result(
+        mut self,
+        adapter: &str,
+        model: &str,
+        body: Option<&serde_json::Value>,
+    ) -> Self {
+        if adapter == "lumalabs_compatible" {
+            if body.is_some() {
+                // Validated bytes are not a supplier model receipt; never retain signed URLs.
+                self.trace["lumaWebImage"] = json!({"verified":true,"count":1,
+                    "modelVerified":false,"supplierCharge":null});
+            }
+            return self;
+        }
+        if adapter == "udio_compatible" {
+            if let Some(body) = body {
+                // Only admitted task facts; no song IDs, playback URLs, lyrics or false audio proof.
+                self.trace["udioMusicTask"] = json!({"taskCompleted":true,
+                    "count":body["data"].as_array().expect("completed Udio task metadata").len(),
+                    "audioVerified":false,"supplierCharge":null});
+            }
+            return self;
+        }
+        if adapter == "suno_compatible" {
+            if let Some(body) = body {
+                self.trace["sunoMusic"] = super::suno_media_probe::audit(body, model);
+            }
+            return self;
+        }
+        if adapter == "chataibot_compatible" && body.is_some() {
+            // The ordinary sender has validated one image. Never copy URL, base64, prompt,
+            // arbitrary upstream metadata or legacy estimated costs into this closed audit.
+            self.trace["chataibotImage"] = json!({"verified":true,"count":1,"supplierCharge":null});
+            return self;
+        }
+        self.response_id = body.and_then(|body| {
+            crate::protocol::luma_agents::record_success_audit(Some(adapter), body, &mut self.trace)
+        });
+        self
+    }
 }
 
 pub(super) async fn begin(
@@ -42,6 +103,20 @@ pub(super) async fn begin_search(
     begin_endpoint(state, target, model, ("search", "search", false)).await
 }
 
+pub(super) async fn begin_bedrock(
+    state: &AppState,
+    target: &CredentialProbeTarget,
+    model: &str,
+) -> Recording {
+    begin_endpoint(
+        state,
+        target,
+        model,
+        ("bedrock_converse", "converse_stream", true),
+    )
+    .await
+}
+
 pub(super) async fn begin_fetch(
     state: &AppState,
     target: &CredentialProbeTarget,
@@ -57,9 +132,39 @@ async fn begin_endpoint(
     endpoint: (&str, &str, bool),
 ) -> Recording {
     let health = super::model_probe_health::begin(state, target, model).await;
+    let trace = json!({"realCredentialRef": target.credential_id, "consoleModelProbe": true});
     Recording {
-        audit: begin_audit(state, target, model, endpoint).await,
+        audit: begin_audit(state, target, model, model, endpoint, &trace).await,
         health,
+        trace,
+        response_id: None,
+    }
+}
+
+pub(super) async fn begin_media(
+    state: &AppState,
+    target: &CredentialProbeTarget,
+    model: &str,
+    requested: &str,
+    operation: super::media_probe_request::MediaProbeOperation,
+    family: &str,
+) -> Recording {
+    let health = super::model_probe_health::begin(state, target, model).await;
+    let trace = json!({"realCredentialRef": target.credential_id, "consoleModelProbe": true,
+        "consoleMediaProbe": {"operation": operation, "chargeConfirmed": true}});
+    Recording {
+        audit: begin_audit(
+            state,
+            target,
+            model,
+            requested,
+            (family, operation.endpoint(), false),
+            &trace,
+        )
+        .await,
+        health,
+        trace,
+        response_id: None,
     }
 }
 
@@ -67,8 +172,10 @@ async fn begin_audit(
     state: &AppState,
     target: &CredentialProbeTarget,
     model: &str,
+    requested: &str,
     (family, endpoint, stream): (&str, &str, bool),
-) -> Option<String> {
+    trace: &serde_json::Value,
+) -> Option<ProbeAudit> {
     if state.local_runtime.is_none() && state.pg_pool.is_none() {
         return None;
     }
@@ -83,24 +190,16 @@ async fn begin_audit(
         provider_account_id: Some(target.provider_id.clone()),
         protocol_family: family.into(),
         endpoint_kind: endpoint.into(),
-        requested_model: Some(model.into()),
+        requested_model: Some(requested.into()),
         resolved_model: Some(model.into()),
-        model_alias: None,
+        model_alias: (requested != model).then(|| requested.into()),
         stream,
         route_attempt_count: 1,
         response_id: format!("probe-{}", uuid::Uuid::new_v4()),
         previous_response_id: None,
-        route_trace: Some(
-            json!({"realCredentialRef": target.credential_id, "consoleModelProbe": true}),
-        ),
+        route_trace: Some(trace.clone()),
     };
-    match local_runtime::audits::create(state, input).await {
-        Ok(id) => Some(id),
-        Err(error) => {
-            tracing::warn!(error = %error, "cannot persist model probe audit");
-            None
-        }
-    }
+    ProbeAudit::begin(state, input).await
 }
 
 pub(super) async fn finish(
@@ -111,8 +210,34 @@ pub(super) async fn finish(
     elapsed: Duration,
     result: &ModelProbeResult,
 ) -> db::provider_credential_model_states::recovery::ModelHealthRecovery {
+    let health = finish_audit(target, model, recording, elapsed, result).await;
+    // This remains an owned future: cancelling the probe does not detach a health update.
+    Box::pin(super::model_probe_health::finish(
+        state, target, model, health, result,
+    ))
+    .await
+}
+
+/// Audited task completion need not prove model identity or audio availability.
+pub(super) async fn finish_without_health(
+    target: &CredentialProbeTarget,
+    model: &str,
+    recording: Recording,
+    elapsed: Duration,
+    result: &ModelProbeResult,
+) {
+    let _ = finish_audit(target, model, recording, elapsed, result).await;
+}
+
+async fn finish_audit(
+    target: &CredentialProbeTarget,
+    model: &str,
+    recording: Recording,
+    elapsed: Duration,
+    result: &ModelProbeResult,
+) -> super::model_probe_health::ProbeHealth {
     let passed = result.reply.is_ok();
-    if let Some(id) = recording.audit.as_deref() {
+    if let Some(audit) = recording.audit {
         let input = db::FinalizeRequestAuditInput {
             client_disconnected: false,
             status: if passed { "completed" } else { "failed" }.into(),
@@ -132,8 +257,14 @@ pub(super) async fn finish(
                 .usage
                 .get("total_tokens")
                 .and_then(|value| value.as_u64()),
-            cache_creation_input_tokens: None,
-            cache_read_input_tokens: None,
+            cache_creation_input_tokens: result
+                .usage
+                .get("cache_creation_input_tokens")
+                .and_then(|value| value.as_u64()),
+            cache_read_input_tokens: result
+                .usage
+                .get("cache_read_input_tokens")
+                .and_then(|value| value.as_u64()),
             client_has_cache_control: false,
             auto_cache_applied: false,
             error_summary: result.reply.as_ref().err().cloned(),
@@ -145,14 +276,10 @@ pub(super) async fn finish(
             resolved_model: Some(model.into()),
             model_alias: None,
             route_attempt_count: 1,
-            response_id: None,
-            route_trace: Some(
-                json!({"realCredentialRef": target.credential_id, "consoleModelProbe": true}),
-            ),
+            response_id: recording.response_id,
+            route_trace: Some(recording.trace),
         };
-        if let Err(error) = local_runtime::audits::finalize(state, id, input).await {
-            tracing::warn!(error = %error, "cannot finalize model probe audit");
-        }
+        let _ = audit.finish(input).await;
     }
-    super::model_probe_health::finish(state, target, model, recording.health, result).await
+    recording.health
 }

@@ -4,7 +4,7 @@ use super::test_results::{
 };
 use super::{ConsoleProbeRequest, ProviderPayloadProbeStatus};
 use crate::{
-    credential_test_policy::{exact_model, CredentialTestPolicy, ModelSelection},
+    credential_test_policy::{CredentialTestPolicy, ModelSelection},
     routing::config::CredentialProbeTarget,
     state::AppState,
 };
@@ -43,6 +43,9 @@ pub(crate) fn plan_for_request(
     target: &CredentialProbeTarget,
     request: &ConsoleProbeRequest,
 ) -> Option<(CredentialTestPolicy, String)> {
+    if request.media.is_some() {
+        return None;
+    }
     let saved = state.route_config.snapshot().credential_test_policy(target);
     let Some(temporary) = request.test_plan.as_ref() else {
         return if request.prompt.is_empty() {
@@ -104,7 +107,7 @@ pub(crate) fn models_for_plan(
                 .as_deref()
                 .filter(|_| declared.is_empty()),
         )
-        .filter(|model| exact_model(model))
+        .filter(|model| crate::provider_model_id::valid_structure(model))
         .map(str::to_string)
         .collect();
     models.into_iter().collect()
@@ -126,7 +129,11 @@ pub(crate) async fn run(
     }
     let mut cases = Vec::new();
     let mut measurements = std::collections::HashMap::new();
-    let stopped = if plan.validate().is_err() {
+    let stopped = if plan.validate_for_payload(&target.payload).is_err()
+        || models
+            .iter()
+            .any(|model| !crate::provider_model_id::valid_for_payload(model, &target.payload))
+    {
         Some("Invalid saved test plan.")
     } else if !target.enabled {
         Some("Credential is disabled.")
@@ -180,6 +187,7 @@ pub(crate) async fn run(
                     test_plan: None,
                     scope: None,
                     plan_id: None,
+                    media: None,
                 };
                 let started = Instant::now();
                 let (_, report) =

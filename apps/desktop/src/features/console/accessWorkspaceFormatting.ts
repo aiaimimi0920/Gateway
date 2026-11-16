@@ -1,3 +1,5 @@
+import type { Tone } from "@neuro/ui";
+
 const PLACEHOLDER = "—";
 
 /** Compact local time for key activity; the ledger tooltip retains the full timestamp. */
@@ -30,18 +32,18 @@ export function formatText(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : PLACEHOLDER;
 }
 
-export function statusBadgeClass(status: string | null | undefined): string {
+export function accessStatusTone(status: string | null | undefined): Tone {
   const normalized = (status ?? "").toLowerCase();
   if (normalized === "active" || normalized === "enabled") {
-    return "nt-badge nt-badge--success";
+    return "success";
   }
   if (normalized === "revoked" || normalized === "disabled" || normalized === "expired") {
-    return "nt-badge nt-badge--danger";
+    return "danger";
   }
   if (normalized === "pending" || normalized === "suspended") {
-    return "nt-badge nt-badge--warning";
+    return "warning";
   }
-  return "nt-badge";
+  return "neutral";
 }
 
 export function maskSecret(value: string): string {

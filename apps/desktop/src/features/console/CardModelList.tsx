@@ -1,15 +1,17 @@
-import { ChevronRight } from "lucide-react";
+import { Disclosure } from "@neuro/ui";
 import type { TranslateFn } from "./accountCardTypes";
 import type { CardModelTraffic, CardModelTrafficEntry } from "./cardModelTraffic";
 import { aggregateCardModelTraffic } from "./cardModelTraffic";
 import { AvailabilityHeatmap } from "./AvailabilityHeatmap";
 import { recentAvailabilityWindows } from "./availabilityWindows";
-import { cardModelDisplayName, groupCardModels } from "./modelDisplayCatalog";
+import { groupCardModels } from "./modelDisplayCatalog";
+import { ModelDisplayName } from "./ModelDisplayName";
 import { aggregateSuccessWindows, buildProviderAvailabilityCells, formatAggregateRate } from "./providerCardMetrics";
 import "./CardModelList.css";
 
 /** Catalog visibility and successful retained calls are separate evidence. */
-export function CardModelList({ models, label, traffic, t }: {
+export function CardModelList({ models, label, traffic, t, providerId }: {
+  providerId?: string;
   models: readonly string[];
   label: string;
   traffic?: CardModelTraffic;
@@ -20,7 +22,7 @@ export function CardModelList({ models, label, traffic, t }: {
   const count = groups.reduce((total, group) => total + group.models.length, 0);
   const renderRows = (groupModels: readonly string[]) => (
     <ul>
-      {groupModels.map((model) => <ModelRow key={model} model={model}
+      {groupModels.map((model) => <ModelRow key={model} model={model} providerId={providerId}
         discovered={discovered.has(model)}
         stats={traffic?.models.get(model)} emptyCount={traffic?.emptyRequestCount ?? null}
         t={t} />)}
@@ -40,19 +42,19 @@ export function CardModelList({ models, label, traffic, t }: {
       {count ? (
         <div className="nt-card-models__scroll" tabIndex={0} aria-label={label + t(" 模型列表", " model list")}>
           {groups.map((group) => (
-            <details key={group.id} data-model-company={group.id}>
-              <summary className="nt-card-models__row">
+            <div key={group.id} data-model-company={group.id}>
+              <Disclosure className="nt-card-models__company" title={<span className="nt-card-models__row nt-card-models__company-row">
                 <span className="nt-card-models__company-name" title={`${group.label}(${group.models.length})`}>
-                  <ChevronRight size={12} aria-hidden="true" />
                   <span className="nt-card-models__company-label">
                     <span className="nt-card-models__company-text">{group.label}</span>
                     <span className="nt-card-models__count">({group.models.length})</span>
                   </span>
                 </span>
                 <ModelMetrics label={group.label} stats={aggregateCardModelTraffic(group.models, traffic)} t={t} />
-              </summary>
-              {renderRows(group.models)}
-            </details>
+              </span>}>
+                {renderRows(group.models)}
+              </Disclosure>
+            </div>
           ))}
         </div>
       ) : <span className="nt-card-models__empty">{t("未声明模型", "No models declared")}</span>}
@@ -60,7 +62,8 @@ export function CardModelList({ models, label, traffic, t }: {
   );
 }
 
-function ModelRow({ model, stats, emptyCount, discovered, t }: {
+function ModelRow({ model, stats, emptyCount, discovered, t, providerId }: {
+  providerId?: string;
   model: string;
   stats?: CardModelTrafficEntry;
   emptyCount: number | null;
@@ -69,11 +72,11 @@ function ModelRow({ model, stats, emptyCount, discovered, t }: {
 }) {
   const evidence = (stats?.successCount ?? 0) > 0 ? null
     : (stats?.requestCount ?? 0) > 0 ? t("尚无成功", "No success recorded")
-    : discovered ? t("目录已发现", "Catalog discovered") : t("未验证", "Unverified");
+      : discovered ? t("目录已发现", "Catalog discovered") : t("未验证", "Unverified");
   return (
     <li className="nt-card-models__row" data-card-model={model} title={model}>
       <span className="nt-card-models__name" tabIndex={0} title={evidence ? `${model} · ${evidence}` : model} aria-label={evidence ? `${model} · ${evidence}` : model}>
-        <span className="nt-card-models__model-label" title={model} aria-label={model}>{cardModelDisplayName(model)}</span>
+        <span className="nt-card-models__model-label" title={model} aria-label={model}><ModelDisplayName model={model} providerIds={providerId ? [providerId] : []} /></span>
         {evidence && <span className="nt-card-models__evidence" title={t("保留历史不保证当前权限或可用性。", "Retained history does not guarantee current access or availability.")}>{evidence}</span>}
       </span>
       <ModelMetrics label={model} stats={stats} emptyCount={emptyCount} t={t} />

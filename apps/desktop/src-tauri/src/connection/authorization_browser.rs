@@ -1,4 +1,4 @@
-//! Only explicitly allowlisted official OAuth authorization endpoints may leave the WebView.
+//! Only explicitly allowlisted official authorization/approval surfaces may leave the WebView.
 use std::{
     process::{Command, Stdio},
     sync::{
@@ -9,6 +9,8 @@ use std::{
     time::{Duration, Instant},
 };
 use tauri::{AppHandle, Manager, Url};
+#[path = "authorization_browser_lobster.rs"]
+mod lobster;
 
 #[derive(Default)]
 pub(crate) struct AuthorizationBrowser {
@@ -23,13 +25,21 @@ struct Launch {
 }
 
 fn allowed(url: &Url) -> bool {
+    if url.host_str() == Some("lobsterai.youdao.com") {
+        return lobster::allowed(url);
+    }
     url.as_str().len() <= 8192
         && url.scheme() == "https"
         && matches!(
             (url.host_str(), url.path()),
             (Some("auth.openai.com"), "/oauth/authorize")
                 | (Some("accounts.google.com"), "/o/oauth2/v2/auth")
+                | (Some("dimagent.cn" | "dimagent.com"), "/oauth/authorize")
+                | (Some("agents.lumalabs.ai"), "/mcp/oauth/authorize")
+                | (Some("freebuff.com"), _)
+                | (Some("portal.nousresearch.com"), _)
         )
+        && (url.host_str() != Some("portal.nousresearch.com") || url.as_str().len() <= 4096)
         && url.port_or_known_default() == Some(443)
         && url.username().is_empty()
         && url.password().is_none()

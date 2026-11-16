@@ -15,6 +15,7 @@ import { isAuthenticationError } from "../api/errors";
 import { useGatewayHost } from "../platform/HostProvider";
 import { rotateManagementToken } from "./managementTokenRotation";
 import { useAutomaticSecretAccess } from "./useAutomaticSecretAccess";
+import { devtestManagementToken } from "./devtestManagementSession";
 import {
   clearManagementSession,
   getManagementSessionStorage,
@@ -134,6 +135,7 @@ export function ManagementSessionProvider({
       setBusy(true);
       setPhase("checking");
       setError(null);
+      setSecretGrant(null);
       try {
         const status = await api.getBootstrapStatus();
         if (!isActiveHost()) {
@@ -149,7 +151,8 @@ export function ManagementSessionProvider({
           return;
         }
 
-        const storedToken = readManagementSessionToken(storage, hostEpoch.namespace);
+        const storedToken = status.passwordlessToken ?? devtestManagementToken(hostEpoch.namespace)
+          ?? readManagementSessionToken(storage, hostEpoch.namespace);
         if (!storedToken) {
           setManagementToken(null);
           setSession(null);

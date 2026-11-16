@@ -1,3 +1,5 @@
+pub(crate) mod accio;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -61,7 +63,11 @@ pub async fn start_provider_credential_refresh_task(state: Arc<AppState>) {
 
     let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
     loop {
-        interval.tick().await;
+        tokio::select! {
+            biased;
+            _ = state.shutdown.wait() => break,
+            _ = interval.tick() => {},
+        }
         match sweep_provider_credentials_once(&state).await {
             Ok(summary) => {
                 debug!(
@@ -98,6 +104,10 @@ pub async fn sweep_provider_credentials_once(
     let mut summary = ProviderCredentialRefreshSweepSummary::default();
 
     for credential in credentials {
+        // A refresh may rotate its token. Drain persistence and lock release, never abort it.
+        if state.shutdown.is_requested() {
+            break;
+        }
         summary.scanned_count += 1;
         let account = match account_cache.get(&credential.provider_account_id) {
             Some(account) => account.clone(),

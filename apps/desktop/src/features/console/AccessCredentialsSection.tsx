@@ -1,4 +1,5 @@
-import { ShieldCheck, UserRoundCheck } from "lucide-react";
+import { UserRoundCheck } from "lucide-react";
+import { Badge, Button, Field, Input, Notice, Panel } from "@neuro/ui";
 
 import {
   ACCESS_DEFAULT_CREDENTIAL_DRAFT,
@@ -11,7 +12,7 @@ import {
   formatText,
   formatTimestamp,
   PLACEHOLDER,
-  statusBadgeClass,
+  accessStatusTone,
 } from "./accessWorkspaceFormatting";
 
 type AccessCredentialsSectionProps = Pick<
@@ -67,75 +68,63 @@ export function AccessCredentialsSection({
       open={open}
       title={t("用户凭据", "User credentials")}
     >
-      <article className="nt-pilot-metric-card">
+      <Panel className="nt-access-card">
         <h3>{t("签发凭据", "Issue a credential")}</h3>
-        <div className="nt-console-field-grid">
-          <label className="nt-field">
-            <span>{t("用户 ID", "User id")}</span>
-            <input
-              className="nt-input"
+        <div className="nt-access-fields">
+          <Field label={t("用户 ID", "User id")}>
+            <Input
               onChange={(event) => patchCredential({ userId: event.target.value })}
               value={credentialDraft.userId}
             />
-          </label>
-          <label className="nt-field">
-            <span>{t("项目 ID", "Project id")}</span>
-            <input
-              className="nt-input"
+          </Field>
+          <Field label={t("项目 ID", "Project id")}>
+            <Input
               onChange={(event) => patchCredential({ projectId: event.target.value })}
               placeholder={t("可选", "Optional")}
               value={credentialDraft.projectId}
             />
-          </label>
-          <label className="nt-field">
-            <span>{t("凭据类型", "Credential type")}</span>
-            <input
-              className="nt-input"
+          </Field>
+          <Field label={t("凭据类型", "Credential type")}>
+            <Input
               onChange={(event) => patchCredential({ credentialType: event.target.value })}
               value={credentialDraft.credentialType}
             />
-          </label>
-          <label className="nt-field">
-            <span>{t("有效天数", "Duration (days)")}</span>
-            <input
-              className="nt-input"
+          </Field>
+          <Field label={t("有效天数", "Duration (days)")}>
+            <Input
               inputMode="numeric"
               onChange={(event) => patchCredential({ durationDays: event.target.value })}
               value={credentialDraft.durationDays}
             />
-          </label>
-          <label className="nt-field nt-field--wide">
-            <span>{t("授权范围", "Scopes")}</span>
-            <input
-              className="nt-input"
+          </Field>
+          <div className="nt-access-field--wide"><Field label={t("授权范围", "Scopes")}>
+            <Input
               onChange={(event) => patchCredential({ scope: event.target.value })}
               placeholder="chat.completions, responses"
               value={credentialDraft.scope}
             />
-          </label>
+          </Field></div>
         </div>
-        <div className="nt-console-form-actions">
-          <button
-            className="nt-btn nt-btn--primary"
+        <div className="nt-access-actions">
+          <Button variant="primary" loading={issuingCredential}
             disabled={
               editorLocked || issuingCredential || credentialDraft.userId.trim().length === 0
             }
             onClick={onIssueCredential}
             type="button"
           >
-            {issuingCredential ? t("签发中…", "Issuing…") : t("签发", "Issue")}
-          </button>
-          <button
-            className="nt-btn nt-btn--secondary"
+            {t("签发", "Issue")}
+          </Button>
+          <Button
             disabled={editorLocked}
             onClick={() => onCredentialDraftChange({ ...ACCESS_DEFAULT_CREDENTIAL_DRAFT })}
             type="button"
           >
             {t("重置", "Reset")}
-          </button>
+          </Button>
         </div>
         {lastIssuedCredential ? (
-          <dl className="nt-pilot-metric-list">
+          <dl className="nt-access-metrics">
             <div>
               <dt>{t("凭据 ID", "Credential id")}</dt>
               <dd>{formatText(lastIssuedCredential.id)}</dd>
@@ -158,42 +147,36 @@ export function AccessCredentialsSection({
             </div>
           </dl>
         ) : null}
-      </article>
+      </Panel>
 
-      <article className="nt-pilot-metric-card">
+      <Panel className="nt-access-card">
         <h3>{t("校验与吊销", "Verify and revoke")}</h3>
-        <div className="nt-console-field-grid">
-          <label className="nt-field nt-field--wide">
-            <span>{t("凭据明文", "Credential key")}</span>
-            <input
-              className="nt-input"
+        <div className="nt-access-fields">
+          <div className="nt-access-field--wide"><Field label={t("凭据明文", "Credential key")}>
+            <Input
               onChange={(event) => patchVerify({ credentialKey: event.target.value })}
               value={verifyDraft.credentialKey}
             />
-          </label>
-          <label className="nt-field">
-            <span>{t("校验范围", "Scope to check")}</span>
-            <input
-              className="nt-input"
+          </Field></div>
+          <Field label={t("校验范围", "Scope to check")}>
+            <Input
               onChange={(event) => patchVerify({ scope: event.target.value })}
               placeholder={t("可选，单个范围", "Optional, single scope")}
               value={verifyDraft.scope}
             />
-          </label>
+          </Field>
         </div>
-        <div className="nt-console-form-actions">
-          <button
-            className="nt-btn nt-btn--primary"
+        <div className="nt-access-actions">
+          <Button variant="primary" loading={credentialBusy}
             disabled={
               editorLocked || credentialBusy || verifyDraft.credentialKey.trim().length === 0
             }
             onClick={onVerifyCredential}
             type="button"
           >
-            {credentialBusy ? t("处理中…", "Working…") : t("校验", "Verify")}
-          </button>
-          <button
-            className="nt-btn nt-btn--outline"
+            {t("校验", "Verify")}
+          </Button>
+          <Button
             disabled={
               editorLocked || credentialBusy || verifyDraft.credentialKey.trim().length === 0
             }
@@ -201,37 +184,30 @@ export function AccessCredentialsSection({
             type="button"
           >
             {t("吊销", "Revoke")}
-          </button>
+          </Button>
         </div>
         {verification.error ? (
-          <div className="nt-alert nt-alert--warning" role="status">
+          <Notice tone="warning">
             {verification.error}
-          </div>
+          </Notice>
         ) : null}
         {credentialNotice ? (
-          <div className="nt-alert nt-alert--success" role="status">
+          <Notice tone="success">
             {credentialNotice}
-          </div>
+          </Notice>
         ) : null}
         {verification.data ? (
           <>
-            <div className="nt-console-chip-row">
-              <span
-                className={
-                  verification.data.valid
-                    ? "nt-badge nt-badge--success"
-                    : "nt-badge nt-badge--danger"
-                }
-              >
-                <ShieldCheck size={13} aria-hidden="true" />
+            <div className="nt-access-result">
+              <Badge tone={verification.data.valid ? "success" : "danger"}>
                 {verification.data.valid ? t("有效", "Valid") : t("无效", "Invalid")}
-              </span>
-              <span className="nt-chip nt-chip--muted">
+              </Badge>
+              <span>
                 {formatText(verification.data.reason)}
               </span>
             </div>
             {verification.data.credential ? (
-              <dl className="nt-pilot-metric-list">
+              <dl className="nt-access-metrics">
                 <div>
                   <dt>{t("用户", "User")}</dt>
                   <dd>{formatText(verification.data.credential.userId)}</dd>
@@ -243,9 +219,9 @@ export function AccessCredentialsSection({
                 <div>
                   <dt>{t("状态", "Status")}</dt>
                   <dd>
-                    <span className={statusBadgeClass(verification.data.credential.status)}>
+                    <Badge tone={accessStatusTone(verification.data.credential.status)}>
                       {formatText(verification.data.credential.status)}
-                    </span>
+                    </Badge>
                   </dd>
                 </div>
                 <div>
@@ -264,7 +240,7 @@ export function AccessCredentialsSection({
             ) : null}
           </>
         ) : null}
-      </article>
+      </Panel>
     </Section>
   );
 }

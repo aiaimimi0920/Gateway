@@ -1,0 +1,25 @@
+[package]
+name = "gateway-copilot-runtime"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98.0"
+publish = false
+license = "MIT"
+description = "Explicit, isolated Copilot SDK process ownership for Neuro Gateway"
+
+[features]
+test-fixture = ["dep:serde_json"]
+
+[dependencies]
+github-copilot-sdk = { version = "=1.0.31", default-features = false, features = ["runtime"] }
+thiserror = "1"
+serde_json = { version = "1", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt", "time"] }
+serde_json = "1"
+
+[[bin]]
+name = "synthetic-runtime"
+path = "tests/fixtures/synthetic_runtime.rs"
+required-features = ["test-fixture"]

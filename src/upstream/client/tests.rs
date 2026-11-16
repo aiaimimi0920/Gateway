@@ -1,4 +1,10 @@
 use super::*;
+#[cfg(feature = "line-cloudflare-workers-ai")]
+#[path = "cloudflare_wire_tests.rs"]
+pub(crate) mod cloudflare_wire_tests;
+#[cfg(feature = "line-river-official-api")]
+#[path = "river_wire_tests.rs"]
+mod river_wire_tests;
 use crate::protocol::canonical::{CanonicalMessage, ContentPart, MessageRole, ProtocolFamily};
 use serde_json::json;
 use std::collections::HashMap;
@@ -124,6 +130,10 @@ fn single_response_executor_base_url(
 #[path = "tests/fallback.rs"]
 mod fallback;
 
+#[cfg(feature = "line-kiro-official-vendor-api")]
+#[path = "tests/kiro_oauth_runtime.rs"]
+mod kiro_oauth_runtime;
+
 #[path = "tests/continuation.rs"]
 mod continuation;
 
@@ -132,3 +142,52 @@ mod browser_executor;
 
 #[path = "tests/provider_input.rs"]
 mod provider_input;
+
+#[cfg(feature = "line-udio-web-reverse-api")]
+#[path = "tests/udio_executor.rs"]
+mod udio_executor;
+
+#[cfg(feature = "line-udio-web-reverse-api")]
+#[path = "tests/udio_assets.rs"]
+mod udio_assets;
+
+#[cfg(feature = "line-suno-web-reverse-api")]
+#[path = "tests/suno_pipeline.rs"]
+mod suno_pipeline;
+
+#[cfg(feature = "line-suno-web-reverse-api")]
+#[path = "tests/suno_probe.rs"]
+mod suno_probe;
+
+#[cfg(feature = "line-suno-web-reverse-api")]
+#[path = "tests/suno_executor.rs"]
+mod suno_executor;
+
+// Media-probe fixtures use the upstream-private loopback asset boundary.
+#[cfg(feature = "line-suno-web-reverse-api")]
+#[path = "../../provider_runtime/suno_media_probe/tests.rs"]
+mod suno_media_probe;
+
+#[cfg(feature = "line-lumalabs-web-reverse-api")]
+#[path = "tests/lumalabs_executor.rs"]
+mod lumalabs_executor;
+
+#[cfg(feature = "line-lumalabs-web-reverse-api")]
+#[path = "tests/lumalabs_pipeline.rs"]
+mod lumalabs_pipeline;
+
+#[cfg(feature = "line-lumalabs-web-reverse-api")]
+#[path = "tests/lumalabs_probe.rs"]
+mod lumalabs_probe;
+
+#[cfg(feature = "line-udio-web-reverse-api")]
+#[path = "tests/udio_results.rs"]
+mod udio_results;
+
+#[cfg(feature = "line-udio-web-reverse-api")]
+#[path = "tests/udio_pipeline.rs"]
+mod udio_pipeline;
+
+#[cfg(feature = "line-udio-web-reverse-api")]
+#[path = "tests/udio_probe.rs"]
+mod udio_probe;

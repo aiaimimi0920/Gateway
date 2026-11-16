@@ -56,6 +56,9 @@ pub fn build_generate_content_success(
 
 pub fn parse_response(body: &Value, model: &str) -> Result<CanonicalRelayResponse, GatewayError> {
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: model.to_string(),
         text: body

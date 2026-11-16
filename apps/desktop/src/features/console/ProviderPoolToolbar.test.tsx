@@ -4,11 +4,12 @@ import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import { ProviderPoolToolbar } from "./ProviderPoolToolbar";
 import type { ProviderPoolView } from "./providerPoolView";
+import { NeuroProvider } from "@neuro/ui";
 
 function Harness({ scope = "sites" }: { scope?: "sites" | "groups" | "models" }) {
   const [value, onChange] = useState<ProviderPoolView>({ query: "", sort: "default" });
-  return <><ProviderPoolToolbar value={value} onChange={onChange} t={(zh) => zh} scope={scope} />
-    <output>{JSON.stringify(value.accessKinds)}</output></>;
+  return <NeuroProvider><ProviderPoolToolbar value={value} onChange={onChange} t={(zh) => zh} scope={scope} />
+    <output>{JSON.stringify(value.accessKinds)}</output></NeuroProvider>;
 }
 it("supports multiple selections, one selection, no selection and keyboard changes", async () => {
   render(<Harness />);

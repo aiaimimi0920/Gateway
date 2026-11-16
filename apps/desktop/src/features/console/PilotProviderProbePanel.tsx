@@ -1,4 +1,4 @@
-import { Play } from "lucide-react";
+import { Button, Notice, Panel, Stack } from "@neuro/ui";
 import type { ConsoleProviderProbeResponse } from "../../api/contracts";
 import type { AccountsLedgerPilotSection } from "./accountsLedgerTypes";
 
@@ -29,12 +29,9 @@ export function PilotProviderProbePanel({
 }: PilotProviderProbePanelProps) {
   const modelTest = section.providerId === "nvidia" || section.providerPreset === "nvidia-openai";
   return (
-    <div className="nt-stack">
-      {!manualTest ? <article className="nt-pilot-dialog__hero">
-        <div className="nt-pilot-dialog__hero-icon">
-          <Play size={20} aria-hidden="true" />
-        </div>
-        <div className="nt-pilot-dialog__hero-copy">
+    <Stack>
+      {!manualTest ? <Panel>
+        <div className="n-stack">
           <strong>{section.providerLabel}</strong>
           <span>
             {modelTest ? t(
@@ -46,41 +43,41 @@ export function PilotProviderProbePanel({
             )}
           </span>
         </div>
-      </article> : null}
+      </Panel> : null}
 
       {providerProbeBusy ? (
-        <div className="nt-pilot-stats-state" role="status">
+        <Notice>
           {t("正在逐个测试服务商账号...", "Testing provider accounts one by one...")}
-        </div>
+        </Notice>
       ) : null}
       {providerProbeError ? (
-        <div className="nt-banner nt-banner--danger" role="alert">
+        <Notice tone="danger">
           {providerProbeError}
-        </div>
+        </Notice>
       ) : null}
       {providerProbeResponse ? (
         <>
           <div className="nt-pilot-stats-overview-grid">
-            <article className="nt-pilot-stat-card">
+            <Panel className="nt-pilot-stat">
               <span>{t("账号总数", "Accounts")}</span>
               <strong>{providerProbeResponse.result.totalCount}</strong>
-            </article>
-            <article className="nt-pilot-stat-card nt-pilot-stat-card--emerald">
+            </Panel>
+            <Panel className="nt-pilot-stat">
               <span>{t("通过", "Passed")}</span>
               <strong>{providerProbeResponse.result.passedCount}</strong>
-            </article>
-            <article className="nt-pilot-stat-card nt-pilot-stat-card--danger">
+            </Panel>
+            <Panel className="nt-pilot-stat">
               <span>{t("失败", "Failed")}</span>
               <strong>{providerProbeResponse.result.failedCount}</strong>
-            </article>
-            <article className="nt-pilot-stat-card nt-pilot-stat-card--blue">
+            </Panel>
+            <Panel className="nt-pilot-stat">
               <span>{t("不支持", "Unsupported")}</span>
               <strong>{providerProbeResponse.result.unsupportedCount}</strong>
-            </article>
+            </Panel>
           </div>
           <div className="nt-stack">
             {providerProbeResponse.result.results.map((result) => (
-              <article className="nt-pilot-metric-card" key={result.credentialId}>
+              <Panel className="nt-pilot-metric" key={result.credentialId}>
                 <h3>{result.credentialId}</h3>
                 <dl className="nt-pilot-metric-list">
                   <div>
@@ -96,31 +93,27 @@ export function PilotProviderProbePanel({
                     <dd>{result.message}</dd>
                   </div>
                 </dl>
-              </article>
+              </Panel>
             ))}
           </div>
         </>
       ) : null}
 
-      <div className="dialog-actions">
-        <button
-          className="nt-btn nt-btn--secondary"
-          type="button"
+      <div className="n-dialog-actions">
+        <Button wrap
           onClick={closePilotActionDialog}
         >
           {t("关闭", "Close")}
-        </button>
-        <button
-          className="nt-btn nt-btn--primary"
-          type="button"
+        </Button>
+        <Button wrap variant="primary"
           disabled={providerProbeBusy || draftDirty || !draftMatchesActiveRevision}
           onClick={() => void startProviderProbe()}
         >
           {providerProbeBusy
             ? t("测试中...", "Testing...")
             : manualTest ? t("测试所选账号", "Test selected accounts") : t("测试全部账号", "Test all accounts")}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Stack>
   );
 }

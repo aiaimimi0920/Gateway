@@ -1,4 +1,5 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render as renderBase, screen, waitFor, within } from "@testing-library/react";
+import { NeuroProvider } from "@neuro/ui";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { expect, it, vi } from "vitest";
@@ -7,10 +8,15 @@ import { ProviderModelMappingDialog } from "./ProviderModelMappingDialog";
 import { ProviderTestDialog } from "./ProviderTestDialog";
 import { pilotSection, pilotAccount } from "./AccountsLedgerWorkspace.fixtures";
 import type { ConsoleRouteDocument } from "../../api/contracts";
+const render = (ui: Parameters<typeof renderBase>[0]) => renderBase(ui, { wrapper: NeuroProvider });
 
-const testDocument: ConsoleRouteDocument = { providers: [{ id: "managed-provider", supported_models: ["a", "b"], credentials: [
-  { id: "one", account_name: "One" }, { id: "two", account_name: "Two" },
-] }], model_routes: [], aliases: {}, account_groups: [] };
+const testDocument: ConsoleRouteDocument = {
+  providers: [{
+    id: "managed-provider", supported_models: ["a", "b"], credentials: [
+      { id: "one", account_name: "One" }, { id: "two", account_name: "Two" },
+    ]
+  }], model_routes: [], aliases: {}, account_groups: []
+};
 
 it("autosaves multiple targets and closes without an extra write", async () => {
   const user = userEvent.setup();
@@ -36,11 +42,15 @@ it("uses one configuration panel and sends custom prompt only after explicit run
   const t = (zh: string) => zh;
   const section = pilotSection({ directAccounts: [pilotAccount({ accountId: "one", supportedModels: ["b"] }), pilotAccount({ accountId: "two" })] });
   render(<ProviderTestDialog document={testDocument} initialTab="auto" onProbe={onProbe} onSave={apply}
-    probe={{ t, section, closePilotActionDialog: close, providerProbeBusy: false, providerProbeError: null,
-      providerProbeResponse: null, draftDirty: false, draftMatchesActiveRevision: true }}
-    schedule={{ t, section, closePilotActionDialog: close, editorLocked: false,
+    probe={{
+      t, section, closePilotActionDialog: close, providerProbeBusy: false, providerProbeError: null,
+      providerProbeResponse: null, draftDirty: false, draftMatchesActiveRevision: true
+    }}
+    schedule={{
+      t, section, closePilotActionDialog: close, editorLocked: false,
       pilotScheduleEnabled: false, setPilotScheduleEnabled: vi.fn(), pilotScheduleIntervalMinutes: "60",
-      setPilotScheduleIntervalMinutes: vi.fn(), applyProviderProbeSchedule: apply }} />);
+      setPilotScheduleIntervalMinutes: vi.fn(), applyProviderProbeSchedule: apply
+    }} />);
   expect(screen.queryByRole("tab")).not.toBeInTheDocument();
   expect(screen.queryByText("测试账户")).not.toBeInTheDocument();
   const dialog = screen.getByRole("dialog", { name: `测试 · ${section.providerLabel}` });
@@ -58,13 +68,20 @@ it("uses one configuration panel and sends custom prompt only after explicit run
   await user.type(screen.getByRole("textbox", { name: "添加测试模型" }), "a");
   await user.click(screen.getByRole("button", { name: "添加模型" }));
   await user.click(screen.getByRole("button", { name: "运行测试" }));
-  expect(onProbe).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ scope: { kind: "pool" }, credentialIds: ["one", "two"],
-    testPlan: expect.objectContaining({ models: ["a"], modelSelection: "selected", cases: expect.arrayContaining([
-      expect.objectContaining({ prompt: "Hello from manual test", enabled: true }),
-    ]) }) }), "managed-provider");
+  expect(onProbe).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    scope: { kind: "pool" }, credentialIds: ["one", "two"],
+    testPlan: expect.objectContaining({
+      models: ["a"], modelSelection: "selected", cases: expect.arrayContaining([
+        expect.objectContaining({ prompt: "Hello from manual test", enabled: true }),
+      ])
+    })
+  }), "managed-provider");
   await user.type(screen.getByRole("textbox", { name: "添加测试模型" }), "*");
+  expect(screen.getByRole("button", { name: "添加模型" })).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "添加模型" }));
-  expect(screen.getByRole("button", { name: "运行测试" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "运行测试" })).toBeEnabled();
+  expect(screen.queryByRole("checkbox", { name: "*" })).not.toBeInTheDocument();
+  expect(onProbe).toHaveBeenCalledTimes(1);
   expect(apply).not.toHaveBeenCalled();
   await user.keyboard("{Escape}");
   expect(close).toHaveBeenCalled();
@@ -78,12 +95,16 @@ it("keeps compact schedule controls, validation and explicit saving", async () =
   const section = pilotSection();
   function Schedule() {
     return <ProviderTestDialog document={testDocument} initialTab="auto" onProbe={vi.fn()} onSave={(scope, policy) => { apply({ scope, policy }); return true; }}
-      probe={{ t, section, closePilotActionDialog: close, providerProbeBusy: false,
-        providerProbeError: null, providerProbeResponse: null, draftDirty: false, draftMatchesActiveRevision: true }}
-      schedule={{ t, section, closePilotActionDialog: close, editorLocked: false,
+      probe={{
+        t, section, closePilotActionDialog: close, providerProbeBusy: false,
+        providerProbeError: null, providerProbeResponse: null, draftDirty: false, draftMatchesActiveRevision: true
+      }}
+      schedule={{
+        t, section, closePilotActionDialog: close, editorLocked: false,
         pilotScheduleEnabled: false, setPilotScheduleEnabled: vi.fn(),
         pilotScheduleIntervalMinutes: "60", setPilotScheduleIntervalMinutes: vi.fn(),
-        applyProviderProbeSchedule: vi.fn() }} />;
+        applyProviderProbeSchedule: vi.fn()
+      }} />;
   }
   render(<Schedule />);
   await user.click(screen.getByRole("checkbox", { name: "启用自动测试" }));

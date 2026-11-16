@@ -33,6 +33,18 @@ impl RouteConfigCoordinator {
         message: Option<String>,
         actor: RevisionActor,
     ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigRuntimeError> {
+        self.commit_with_refresh(expected_revision, document, message, actor, None)
+            .await
+    }
+
+    pub(super) async fn commit_with_refresh(
+        &self,
+        expected_revision: &str,
+        document: RouteConfigYaml,
+        message: Option<String>,
+        actor: RevisionActor,
+        refresh: Option<super::refresh_authority::RefreshAdmission<'_>>,
+    ) -> Result<Arc<RouteConfigSnapshot>, RouteConfigRuntimeError> {
         let validated = validate_route_document(document).map_err(|diagnostics| {
             RouteConfigRuntimeError::new("console_route_validation_failed", diagnostics.to_string())
         })?;
@@ -87,6 +99,15 @@ impl RouteConfigCoordinator {
                     expected_revision,
                     active.metadata().id()
                 )));
+            }
+            None if refresh
+                .as_ref()
+                .is_some_and(|admission| admission.require_existing_authority) =>
+            {
+                return Err(RouteConfigRuntimeError::new(
+                    "console_recovery_required",
+                    "Worker refresh cannot bootstrap configuration authority",
+                ));
             }
             None => None,
         };
@@ -147,6 +168,15 @@ impl RouteConfigCoordinator {
             OffsetDateTime::now_utc(),
         )
         .map_err(RouteConfigRuntimeError::from_persistence)?;
+        if let Some(admission) = refresh {
+            self.record_refresh_intent_locked(
+                &guard,
+                admission.ticket,
+                &prepared,
+                &revision,
+                validated.document(),
+            )?;
+        }
         self.journal
             .persist_locked(&guard, &prepared)
             .map_err(RouteConfigRuntimeError::from_persistence)?;
@@ -207,64 +237,34 @@ impl RouteConfigCoordinator {
                 self.finish_commit(&guard, prepared.tx_id(), validated, revision)
             }
             RouteConfigRedisActivationOutcome::RevisionConflict { actual } => {
-                self.rollback_yaml_and_abort(
-                    &guard,
-                    prepared.tx_id(),
-                    &receipt,
-                    "redis_revision_conflict",
-                )?;
-                Err(RouteConfigRuntimeError::revision_conflict(format!(
+                self.resolve_failed_activation(&guard, &yaml_replaced,
+                    RouteConfigRuntimeError::revision_conflict(format!(
                     "Gateway console Redis active revision conflict: expected '{}', actual '{}'",
                     expected_revision,
                     actual.unwrap_or_else(|| "<none>".to_string())
-                )))
+                )), Some("redis_revision_conflict")).await
             }
             RouteConfigRedisActivationOutcome::PreparedTransactionMismatch => {
-                self.rollback_yaml_and_abort(
-                    &guard,
-                    prepared.tx_id(),
-                    &receipt,
-                    "redis_prepared_transaction_mismatch",
-                )?;
-                Err(RouteConfigRuntimeError::new(
+                self.resolve_failed_activation(&guard, &yaml_replaced, RouteConfigRuntimeError::new(
                     "console_redis_invalid_state",
                     "Gateway console Redis prepared transaction did not match the local transaction record",
-                ))
+                ), Some("redis_prepared_transaction_mismatch")).await
             }
             RouteConfigRedisActivationOutcome::RevisionPayloadMismatch => {
-                self.rollback_yaml_and_abort(
-                    &guard,
-                    prepared.tx_id(),
-                    &receipt,
-                    "redis_revision_payload_mismatch",
-                )?;
-                Err(RouteConfigRuntimeError::new(
+                self.resolve_failed_activation(&guard, &yaml_replaced, RouteConfigRuntimeError::new(
                     "console_redis_invalid_state",
                     "Gateway console Redis immutable revision payload did not match the candidate revision",
-                ))
+                ), Some("redis_revision_payload_mismatch")).await
             }
             RouteConfigRedisActivationOutcome::Unavailable => {
-                self.rollback_yaml_and_abort(
-                    &guard,
-                    prepared.tx_id(),
-                    &receipt,
-                    "redis_unavailable",
-                )?;
-                Err(RouteConfigRuntimeError::new(
+                self.resolve_failed_activation(&guard, &yaml_replaced, RouteConfigRuntimeError::new(
                     "console_redis_unavailable",
                     "Gateway console Redis CAS could not start because Redis was unavailable",
-                ))
+                ), Some("redis_unavailable")).await
             }
             RouteConfigRedisActivationOutcome::Indeterminate => {
-                self.resolve_indeterminate_activation(
-                    &guard,
-                    prepared.tx_id(),
-                    &receipt,
-                    expected_revision,
-                    &revision,
-                    validated,
-                )
-                .await
+                self.resolve_indeterminate_activation(&guard, &yaml_replaced)
+                    .await
             }
         }
     }

@@ -47,6 +47,7 @@ impl FreeBuffRuntimeConfig {
         payload: &ProviderAccountPayload,
         model: &str,
     ) -> Result<Self, GatewayError> {
+        super::business_target::reject_legacy_execution(payload)?;
         if payload.api_key.trim().is_empty() {
             return Err(GatewayError::unauthorized(
                 "FreeBuff provider requires a non-empty auth token",
@@ -242,19 +243,19 @@ pub(super) fn read_payload_object<'a>(
 }
 
 pub(super) fn credential_subject_id(payload: &ProviderAccountPayload) -> String {
-    if let Some(credential_id) = payload
+    let credential_id = payload
         .credential_id
         .as_deref()
         .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        return format!("cred:{credential_id}");
-    }
-
+        .unwrap_or_default();
+    let base_url = normalize_base_url(&payload.base_url);
+    // A stable account ID does not identify its current authorization or upstream target.
+    // Length framing prevents tuple ambiguity; these process-local keys contain no raw secrets.
     let mut hasher = Sha256::new();
-    hasher.update(payload.base_url.trim().as_bytes());
-    hasher.update(b":");
-    hasher.update(payload.api_key.trim().as_bytes());
-    let digest = hasher.finalize();
-    format!("payload:{}", hex::encode(&digest[..12]))
+    hasher.update(b"freebuff-credential-subject-v2");
+    for field in [base_url.as_str(), payload.api_key.trim(), credential_id] {
+        hasher.update((field.len() as u64).to_le_bytes());
+        hasher.update(field.as_bytes());
+    }
+    format!("subject:{}", hex::encode(hasher.finalize()))
 }

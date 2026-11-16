@@ -83,6 +83,23 @@ pub fn translate_accio_stream(
     futures::stream::empty()
 }
 
+pub fn translate_accio_stream_with_error<E: Send + 'static>(
+    _inner: impl Stream<Item = Result<Bytes, crate::protocol::stream_error::StreamError<E>>>
+        + Send
+        + 'static,
+    _model: String,
+) -> impl Stream<Item = Result<Bytes, crate::protocol::stream_error::StreamError<E>>> + Send + 'static
+{
+    futures::stream::once(async {
+        Err(
+            crate::protocol::stream_error::ProtocolStreamError::invalid_data(
+                "Accio response translation requested for a compiled-out line",
+            )
+            .into(),
+        )
+    })
+}
+
 fn value_to_string(value: &Value) -> Option<String> {
     match value {
         Value::String(text) => Some(text.clone()),
@@ -108,7 +125,7 @@ fn map_finish_reason(value: Option<&str>) -> Option<String> {
     }
     Some(
         match value {
-            "end_turn" | "stop" | "stop_sequence" | "complete" | "COMPLETE" => "stop",
+            "end_turn" | "stop" | "STOP" | "stop_sequence" | "complete" | "COMPLETE" => "stop",
             "tool_use" | "tool_call" | "TOOL_CALL" | "function_call" => "tool_calls",
             "max_tokens" | "length" | "MAX_TOKENS" => "length",
             other => other,
@@ -142,7 +159,7 @@ fn usage_from_value(value: Option<&Value>) -> Option<TokenUsage> {
         .or_else(|| usage.get("totalTokens"))
         .or_else(|| usage.get("total_tokens"))
         .and_then(|v| v.as_u64())
-        .unwrap_or(prompt_tokens + completion_tokens);
+        .unwrap_or_else(|| prompt_tokens.saturating_add(completion_tokens));
 
     if prompt_tokens == 0 && completion_tokens == 0 && total_tokens == 0 {
         None
@@ -211,7 +228,7 @@ fn classify_accio_provider_error(code: &str, message: &str) -> GatewayError {
     let err = if code == "5015" || lower.contains("user not activated") {
         GatewayError {
             kind: ErrorKind::ServiceUnavailable,
-            message: format!("Accio account unavailable: {}", message.trim()),
+            message: "Accio account unavailable: user not activated.".into(),
             code: None,
             http_status: Some(503),
             retryable: false,
@@ -223,10 +240,14 @@ fn classify_accio_provider_error(code: &str, message: &str) -> GatewayError {
             native_transport: None,
         }
     } else {
-        GatewayError::server_error(format!("Accio upstream error: {}", message.trim()))
+        GatewayError::server_error("Accio upstream returned a business error.")
     };
-    err.with_code(code.to_string())
-        .with_provider("accio_compatible")
+    err.with_code(if code == "5015" {
+        "5015"
+    } else {
+        "accio_upstream_error"
+    })
+    .with_provider("accio_compatible")
 }
 
 #[cfg(test)]

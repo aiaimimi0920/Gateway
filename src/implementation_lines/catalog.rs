@@ -15,6 +15,15 @@ pub const LINE_CHATGPT_WEB_REVERSE_FEATURE: &str = "line-chatgpt-web-reverse";
 pub const LINE_COHERE_CHAT_OFFICIAL_MODEL_API_FEATURE: &str = "line-cohere-chat-official-model-api";
 pub const LINE_GROQ_OPENAI_OFFICIAL_VENDOR_API_FEATURE: &str =
     "line-groq-openai-official-vendor-api";
+pub const LINE_RIVER_OFFICIAL_API_FEATURE: &str = "line-river-official-api";
+pub const LINE_AGNES_OFFICIAL_API_FEATURE: &str = "line-agnes-official-api";
+pub const LINE_MINIMAX_M_PLAN_FEATURE: &str = "line-minimax-m-plan";
+pub const LINE_SENSENOVA_TOKEN_PLAN_FEATURE: &str = "line-sensenova-token-plan";
+pub const LINE_COMMANDCODE_PROVIDER_API_FEATURE: &str = "line-commandcode-provider-api";
+pub const LINE_SAP_AICORE_CHAT_FEATURE: &str = "line-sap-aicore-chat";
+pub const LINE_CLOUDFLARE_WORKERS_AI_FEATURE: &str = "line-cloudflare-workers-ai";
+pub const LINE_DIM_USER_OAUTH_FEATURE: &str = "line-dim-user-oauth";
+pub const LINE_NOUS_PORTAL_OAUTH_FEATURE: &str = "line-nous-portal-oauth";
 pub const LINE_NVIDIA_OPENAI_OFFICIAL_VENDOR_API_FEATURE: &str =
     "line-nvidia-openai-official-vendor-api";
 pub const LINE_TOGETHER_OPENAI_AGGREGATOR_API_FEATURE: &str = "line-together-openai-aggregator-api";
@@ -38,9 +47,11 @@ pub const LINE_XFYUN_NATIVE_WEBSOCKET_OFFICIAL_VENDOR_API_FEATURE: &str =
 pub const LINE_FREEBUFF_WEB_REVERSE_API_FEATURE: &str = "line-freebuff-web-reverse-api";
 pub const LINE_PRODUCER_WEB_REVERSE_API_FEATURE: &str = "line-producer-web-reverse-api";
 pub const LINE_GROK_WEB_REVERSE_API_FEATURE: &str = "line-grok-web-reverse-api";
+pub const LINE_PERPLEXITY_WEB_REVERSE_API_FEATURE: &str = "line-perplexity-web-reverse-api";
 pub const LINE_SUNO_WEB_REVERSE_API_FEATURE: &str = "line-suno-web-reverse-api";
 pub const LINE_UDIO_WEB_REVERSE_API_FEATURE: &str = "line-udio-web-reverse-api";
 pub const LINE_LUMALABS_WEB_REVERSE_API_FEATURE: &str = "line-lumalabs-web-reverse-api";
+pub const LINE_LUMALABS_AGENTS_OFFICIAL_API_FEATURE: &str = "line-lumalabs-agents-official-api";
 pub const LINE_PERPLEXITY_SEARCH_OFFICIAL_VENDOR_API_FEATURE: &str =
     "line-perplexity-search-official-vendor-api";
 pub const LINE_TAVILY_SEARCH_OFFICIAL_VENDOR_API_FEATURE: &str =
@@ -84,6 +95,15 @@ pub enum RefactoredImplementationLine {
     ChatGptWebReverse,
     CohereChatOfficialModelApi,
     GroqOpenAiOfficialVendorApi,
+    RiverOfficialApi,
+    AgnesOfficialApi,
+    MiniMaxMPlan,
+    SenseNovaTokenPlan,
+    CommandCodeProviderApi,
+    SapAiCoreChat,
+    CloudflareWorkersAi,
+    DimUserOauth,
+    NousPortalOauth,
     NvidiaOpenAiOfficialVendorApi,
     TogetherOpenAiAggregatorApi,
     OpenRouterOpenAiAggregatorApi,
@@ -99,9 +119,11 @@ pub enum RefactoredImplementationLine {
     FreeBuffWebReverseApi,
     ProducerWebReverseApi,
     GrokWebReverseApi,
+    PerplexityWebReverseApi,
     SunoWebReverseApi,
     UdioWebReverseApi,
     LumaLabsWebReverseApi,
+    LumaLabsAgentsOfficialApi,
     PerplexitySearchOfficialVendorApi,
     TavilySearchOfficialVendorApi,
     ExaSearchOfficialVendorApi,
@@ -132,6 +154,15 @@ impl RefactoredImplementationLine {
             Self::ChatGptWebReverse => "chatgpt_web_reverse",
             Self::CohereChatOfficialModelApi => "cohere",
             Self::GroqOpenAiOfficialVendorApi => "groq",
+            Self::RiverOfficialApi => "river",
+            Self::AgnesOfficialApi => "agnes_api",
+            Self::MiniMaxMPlan => "minimax_m_plan",
+            Self::SenseNovaTokenPlan => "sensenova_token_plan",
+            Self::CommandCodeProviderApi => "commandcode_chat",
+            Self::SapAiCoreChat => "sap_aicore_chat",
+            Self::CloudflareWorkersAi => "cloudflare_workers_ai",
+            Self::DimUserOauth => "dim_user_oauth",
+            Self::NousPortalOauth => "nous_portal_oauth",
             Self::NvidiaOpenAiOfficialVendorApi => "nvidia",
             Self::TogetherOpenAiAggregatorApi => "together",
             Self::OpenRouterOpenAiAggregatorApi => "openrouter",
@@ -147,9 +178,11 @@ impl RefactoredImplementationLine {
             Self::FreeBuffWebReverseApi => "freebuff",
             Self::ProducerWebReverseApi => "producer",
             Self::GrokWebReverseApi => "grok_web",
+            Self::PerplexityWebReverseApi => "perplexity_web",
             Self::SunoWebReverseApi => "suno",
             Self::UdioWebReverseApi => "udio",
             Self::LumaLabsWebReverseApi => "lumalabs",
+            Self::LumaLabsAgentsOfficialApi => "lumalabs_agents_api",
             Self::PerplexitySearchOfficialVendorApi => "perplexity_search",
             Self::TavilySearchOfficialVendorApi => "tavily",
             Self::ExaSearchOfficialVendorApi => "exa",
@@ -184,6 +217,15 @@ impl RefactoredImplementationLine {
             Self::ChatGptWebReverse => LINE_CHATGPT_WEB_REVERSE_FEATURE,
             Self::CohereChatOfficialModelApi => LINE_COHERE_CHAT_OFFICIAL_MODEL_API_FEATURE,
             Self::GroqOpenAiOfficialVendorApi => LINE_GROQ_OPENAI_OFFICIAL_VENDOR_API_FEATURE,
+            Self::RiverOfficialApi => LINE_RIVER_OFFICIAL_API_FEATURE,
+            Self::AgnesOfficialApi => LINE_AGNES_OFFICIAL_API_FEATURE,
+            Self::MiniMaxMPlan => LINE_MINIMAX_M_PLAN_FEATURE,
+            Self::SenseNovaTokenPlan => LINE_SENSENOVA_TOKEN_PLAN_FEATURE,
+            Self::CommandCodeProviderApi => LINE_COMMANDCODE_PROVIDER_API_FEATURE,
+            Self::SapAiCoreChat => LINE_SAP_AICORE_CHAT_FEATURE,
+            Self::CloudflareWorkersAi => LINE_CLOUDFLARE_WORKERS_AI_FEATURE,
+            Self::DimUserOauth => LINE_DIM_USER_OAUTH_FEATURE,
+            Self::NousPortalOauth => LINE_NOUS_PORTAL_OAUTH_FEATURE,
             Self::NvidiaOpenAiOfficialVendorApi => LINE_NVIDIA_OPENAI_OFFICIAL_VENDOR_API_FEATURE,
             Self::TogetherOpenAiAggregatorApi => LINE_TOGETHER_OPENAI_AGGREGATOR_API_FEATURE,
             Self::OpenRouterOpenAiAggregatorApi => LINE_OPENROUTER_OPENAI_AGGREGATOR_API_FEATURE,
@@ -215,9 +257,11 @@ impl RefactoredImplementationLine {
                 LINE_WEBSEARCHAPI_SEARCH_OFFICIAL_VENDOR_API_FEATURE
             }
             Self::GrokWebReverseApi => LINE_GROK_WEB_REVERSE_API_FEATURE,
+            Self::PerplexityWebReverseApi => LINE_PERPLEXITY_WEB_REVERSE_API_FEATURE,
             Self::SunoWebReverseApi => LINE_SUNO_WEB_REVERSE_API_FEATURE,
             Self::UdioWebReverseApi => LINE_UDIO_WEB_REVERSE_API_FEATURE,
             Self::LumaLabsWebReverseApi => LINE_LUMALABS_WEB_REVERSE_API_FEATURE,
+            Self::LumaLabsAgentsOfficialApi => LINE_LUMALABS_AGENTS_OFFICIAL_API_FEATURE,
             Self::QwenOfficialApi => LINE_QWEN_OFFICIAL_API_FEATURE,
             Self::QwenWebReverse => LINE_QWEN_WEB_REVERSE_FEATURE,
             Self::ChataibotWebReverse => LINE_CHATAIBOT_WEB_REVERSE_FEATURE,
@@ -254,6 +298,15 @@ impl RefactoredImplementationLine {
             Self::GroqOpenAiOfficialVendorApi => {
                 cfg!(feature = "line-groq-openai-official-vendor-api")
             }
+            Self::RiverOfficialApi => cfg!(feature = "line-river-official-api"),
+            Self::AgnesOfficialApi => cfg!(feature = "line-agnes-official-api"),
+            Self::MiniMaxMPlan => cfg!(feature = "line-minimax-m-plan"),
+            Self::SenseNovaTokenPlan => cfg!(feature = "line-sensenova-token-plan"),
+            Self::CommandCodeProviderApi => cfg!(feature = "line-commandcode-provider-api"),
+            Self::SapAiCoreChat => cfg!(feature = "line-sap-aicore-chat"),
+            Self::CloudflareWorkersAi => cfg!(feature = "line-cloudflare-workers-ai"),
+            Self::DimUserOauth => cfg!(feature = "line-dim-user-oauth"),
+            Self::NousPortalOauth => cfg!(feature = "line-nous-portal-oauth"),
             Self::NvidiaOpenAiOfficialVendorApi => {
                 cfg!(feature = "line-nvidia-openai-official-vendor-api")
             }
@@ -293,9 +346,11 @@ impl RefactoredImplementationLine {
             Self::FreeBuffWebReverseApi => cfg!(feature = "line-freebuff-web-reverse-api"),
             Self::ProducerWebReverseApi => cfg!(feature = "line-producer-web-reverse-api"),
             Self::GrokWebReverseApi => cfg!(feature = "line-grok-web-reverse-api"),
+            Self::PerplexityWebReverseApi => cfg!(feature = "line-perplexity-web-reverse-api"),
             Self::SunoWebReverseApi => cfg!(feature = "line-suno-web-reverse-api"),
             Self::UdioWebReverseApi => cfg!(feature = "line-udio-web-reverse-api"),
             Self::LumaLabsWebReverseApi => cfg!(feature = "line-lumalabs-web-reverse-api"),
+            Self::LumaLabsAgentsOfficialApi => cfg!(feature = "line-lumalabs-agents-official-api"),
             Self::PerplexitySearchOfficialVendorApi => {
                 cfg!(feature = "line-perplexity-search-official-vendor-api")
             }

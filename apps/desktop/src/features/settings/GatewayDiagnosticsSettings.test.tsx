@@ -24,17 +24,17 @@ it.each([false, true])("uses the same backend settings and downloads in desktop=
   api.export.mockResolvedValue({ fileName: "gateway-logs.log", mimeType: "text/plain;charset=utf-8", content: "server-b log", truncated: false });
   renderWithProviders(<ConsoleSettingsWorkspace />);
   const user = userEvent.setup();
-  await user.click(screen.getByRole("tab", { name: "诊断与日志" }));
-  const directory = screen.getByRole("textbox", { name: "日志目录" });
+  await user.click(screen.getByRole("tab", { name: "可观测性" }));
+  const directory = screen.getByRole("textbox", { name: "日志保存位置" });
   await waitFor(() => expect(directory).toHaveValue("/server-b/logs"));
   expect(screen.queryByText(/日志策略在此 Gateway 下次启动时生效/)).not.toBeInTheDocument();
   expect(showSettings).not.toHaveBeenCalled();
   expect(api.load).toHaveBeenCalledWith("management-secret", expect.any(AbortSignal));
   api.save.mockResolvedValue({ ...settings, retentionDays: 30 });
-  await user.selectOptions(screen.getByRole("combobox", { name: "日志保留时间" }), "30");
+  await user.selectOptions(screen.getByRole("combobox", { name: "日志保留天数" }), "30");
   expect(api.save).toHaveBeenCalledWith("management-secret", { retentionDays: 30, logLimitMb: 100 }, expect.any(AbortSignal));
-  await waitFor(() => expect(screen.getByRole("combobox", { name: "日志保留时间" })).toHaveValue("30"));
-  const logsRow = screen.getByText("运行日志").closest(".nt-setting-row") as HTMLElement;
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "日志保留天数" })).toHaveValue("30"));
+  const logsRow = screen.getByText("导出运行日志").closest(".nt-setting-row") as HTMLElement;
   await user.click(within(logsRow).getByRole("button", { name: "导出" }));
   expect(api.export).toHaveBeenCalledWith("management-secret", "logs", expect.any(AbortSignal));
   expect(downloadGatewayExport).toHaveBeenCalledWith(expect.objectContaining({ content: "server-b log" }));
@@ -61,7 +61,7 @@ it("does not download a stale response after a backend switch", async () => {
 it("retains confirmed policy and hides private server errors when saving fails", async () => {
   api.save.mockRejectedValue(new Error("secret-private-path"));
   renderWithProviders(<GatewayDiagnosticsSettings />);
-  const select = screen.getByRole("combobox", { name: "日志保留时间" });
+  const select = screen.getByRole("combobox", { name: "日志保留天数" });
   await waitFor(() => expect(select).toBeEnabled());
   await userEvent.setup().selectOptions(select, "30");
   expect(await screen.findByRole("alert")).not.toHaveTextContent("secret-private-path");

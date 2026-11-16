@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { NeuroTooltipProvider } from "../../components/ActionTooltip";
+import { NeuroProvider } from "@neuro/ui";
 import {
   CredentialGroupsWorkspace,
   type CredentialGroupsWorkspaceProps,
@@ -91,9 +91,9 @@ function workspaceProps(
 
 function renderWorkspace(props: CredentialGroupsWorkspaceProps) {
   const view = render(
-    <NeuroTooltipProvider>
+    <NeuroProvider>
       <CredentialGroupsWorkspace {...props} />
-    </NeuroTooltipProvider>,
+    </NeuroProvider>,
   );
   const card = document.querySelector('[data-entitlement-group-card="premium"]') as HTMLElement;
   return { ...view, card };
@@ -138,7 +138,7 @@ describe("CredentialGroupsWorkspace actions", () => {
       "Group billing multiplier must be a number greater than or equal to 0.",
     );
 
-    fireEvent.click(within(detail).getByRole("checkbox", { name: "Premium enabled state" }));
+    fireEvent.click(within(detail).getByRole("switch", { name: "Premium enabled state" }));
     fireEvent.click(within(detail).getByRole("button", { name: "Remove group" }));
     expect(props.onToggleEnabled).toHaveBeenLastCalledWith("row-premium", false);
     expect(props.onRemoveGroup).toHaveBeenLastCalledWith("row-premium");
@@ -171,13 +171,13 @@ describe("CredentialGroupsWorkspace actions", () => {
     const edit = within(card).getByRole("button", { name: "Edit" });
     const remove = within(card).getByRole("button", { name: "Delete" });
     fireEvent.click(edit);
-    rerender(<NeuroTooltipProvider><CredentialGroupsWorkspace {...props} editorLocked /></NeuroTooltipProvider>);
+    rerender(<NeuroProvider><CredentialGroupsWorkspace {...props} editorLocked /></NeuroProvider>);
     const detail = screen.getByRole("dialog", { name: "Edit entitlement group" });
 
     expect(toggle).toBeDisabled();
     expect(edit).toBeDisabled();
     expect(remove).toBeDisabled();
-    expect(within(detail).getByRole("checkbox", { name: "Premium enabled state" })).toBeDisabled();
+    expect(within(detail).getByRole("switch", { name: "Premium enabled state" })).toBeDisabled();
     expect(within(detail).getByRole("button", { name: "Remove group" })).toBeDisabled();
     expect(within(detail).getByLabelText("Group ID")).toBeDisabled();
     expect(within(detail).getByLabelText("Group name")).toBeDisabled();
@@ -203,7 +203,7 @@ describe("CredentialGroupsWorkspace actions", () => {
       selectedGroupRowId: "reloaded-row",
       selectedGroup: { ...props.selectedGroup!, id: "reloaded-row", name: "Saved Premium" },
     };
-    rerender(<NeuroTooltipProvider><CredentialGroupsWorkspace {...replacement} /></NeuroTooltipProvider>);
+    rerender(<NeuroProvider><CredentialGroupsWorkspace {...replacement} /></NeuroProvider>);
 
     expect(screen.getByRole("dialog")).toBe(dialog);
     expect(name).toHaveFocus();
@@ -219,8 +219,8 @@ describe("CredentialGroupsWorkspace actions", () => {
     const props = workspaceProps();
     const { card, rerender } = renderWorkspace(props);
     await user.click(within(card).getByRole("button", { name: "Edit" }));
-    rerender(<NeuroTooltipProvider><CredentialGroupsWorkspace {...props}
-      groups={[]} selectedGroup={null} selectedGroupRowId={null} /></NeuroTooltipProvider>);
+    rerender(<NeuroProvider><CredentialGroupsWorkspace {...props}
+      groups={[]} selectedGroup={null} selectedGroupRowId={null} /></NeuroProvider>);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await waitFor(() => expect(document.body).not.toHaveAttribute("data-scroll-locked"));
     expect(screen.getByRole("button", { name: "Create first group" })).toBeInTheDocument();

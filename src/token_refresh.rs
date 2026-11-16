@@ -1,19 +1,32 @@
 //! Expiry-driven OAuth maintenance, independent of model probes and inference traffic.
+mod accio;
+mod cache_target;
+mod dim;
+mod grant;
+mod grok;
+mod kiro;
+mod lobsterai;
+mod nous;
 mod persistence;
-mod server_cache;
+mod projection;
+mod received;
+pub(crate) mod server_cache;
 #[cfg(test)]
 mod tests;
 mod transport;
+mod vertex;
 
 use crate::console::RouteConfigRuntime;
 use crate::routing::config::{
     effective_refresh_lifetime_secs, future_rfc3339_after_secs, RouteConfigStore,
 };
 use crate::state::AppState;
-use persistence::PendingRefresh;
+pub(crate) use persistence::PendingRefresh;
+pub(crate) use projection::is_refresh_projection;
+use received::PendingWrite;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-type Pending = HashMap<(String, String), PendingRefresh>;
+type Pending = HashMap<(String, String), PendingWrite>;
 
 pub(crate) fn spawn(state: &Arc<AppState>) {
     let mut task = state.lifecycle.oauth_refresh_task.lock();
@@ -44,10 +57,7 @@ pub async fn start_token_refresh_task(state: Arc<AppState>, check_secs: u64, mar
         refresh_once(
             &state.route_config,
             state.upstream_client.client(),
-            state
-                .local_runtime
-                .as_ref()
-                .and(state.route_config_runtime.as_deref()),
+            state.route_config_runtime.as_deref(),
             state.local_runtime.is_none().then_some(&state.redis_pool),
             &mut pending,
             Duration::from_secs(margin_secs),
@@ -56,34 +66,43 @@ pub async fn start_token_refresh_task(state: Arc<AppState>, check_secs: u64, mar
         .await;
         tokio::select! {
             _ = state.shutdown.wait() => break,
+            _ = state.lifecycle.oauth_refresh_wake.notified() => {}
             _ = tokio::time::sleep(Duration::from_secs(check_secs.max(1))) => {}
         }
     }
-    // Normal shutdown waits for the in-flight exchange/commit, then one final disk-only flush.
+    // Normal shutdown waits for the in-flight exchange/commit, then one persistence-only flush.
     if let Some(runtime) = state
         .local_runtime
         .as_ref()
         .and(state.route_config_runtime.as_deref())
     {
-        for refresh in pending.values() {
-            if !refresh.persist(runtime).await {
-                tracing::error!(provider = %refresh.provider, cred_id = %refresh.credential,
-                    "OAuth refreshed material could not be persisted before shutdown");
+        for refresh in pending.values_mut() {
+            if !refresh.write_to(Some(runtime), None).await {
+                let (provider, credential) = refresh.identity();
+                tracing::error!(
+                    provider,
+                    cred_id = credential,
+                    "OAuth refreshed material could not be persisted before shutdown"
+                );
             }
         }
     } else if state.local_runtime.is_none() {
+        let runtime = state.route_config_runtime.as_deref();
         let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
-        for refresh in pending.values() {
-            if !refresh.is_current(&state.route_config) {
-                continue;
-            }
+        for refresh in pending.values_mut() {
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
             if !matches!(
-                tokio::time::timeout(remaining, refresh.write_to(None, Some(&state.redis_pool)))
-                    .await,
+                tokio::time::timeout(
+                    remaining,
+                    refresh.write_to(runtime, Some(&state.redis_pool))
+                )
+                .await,
                 Ok(true)
             ) {
-                tracing::error!(cred_id = %refresh.credential, "OAuth cache material not persisted before shutdown");
+                tracing::error!(
+                    cred_id = refresh.identity().1,
+                    "OAuth cache material not persisted before shutdown"
+                );
             }
         }
     }
@@ -92,19 +111,48 @@ pub async fn start_token_refresh_task(state: Arc<AppState>, check_secs: u64, mar
 async fn refresh_once(
     store: &RouteConfigStore,
     http: &rquest::Client,
-    local: Option<&RouteConfigRuntime>,
+    runtime: Option<&RouteConfigRuntime>,
     redis: Option<&deadpool_redis::Pool>,
     pending: &mut Pending,
     margin: Duration,
     shutdown: Option<&crate::state::GatewayShutdownHandle>,
 ) {
+    if shutdown.is_some_and(|handle| handle.is_requested()) {
+        return;
+    }
+    // Successful production startup supplies this owner in every storage/runtime role.
+    let Some(runtime) = runtime else { return };
     let keys: Vec<_> = pending.keys().cloned().collect();
     for key in keys {
         if shutdown.is_some_and(|s| s.is_requested()) {
             return;
         }
-        if !pending[&key].is_current(store) || pending[&key].write_to(local, redis).await {
+        if pending
+            .get_mut(&key)
+            .unwrap()
+            .write_to(Some(runtime), redis)
+            .await
+        {
             pending.remove(&key);
+        }
+    }
+    if runtime.coordinator().is_none() {
+        // Result storage obligations are flushed even while authority recovery is unavailable.
+        if !persistence::prepare_worker_authority(runtime).await {
+            return;
+        }
+    }
+    if redis.is_some() {
+        if !matches!(
+            tokio::time::timeout(
+                persistence::authority_budget(),
+                runtime.repair_refresh_cache()
+            )
+            .await,
+            Ok(Ok(()))
+        ) {
+            tracing::warn!("OAuth cache publication recovery pending; new exchanges deferred");
+            return;
         }
     }
     let targets = store.snapshot().oauth_refresh_targets();
@@ -112,7 +160,7 @@ async fn refresh_once(
         if shutdown.is_some_and(|s| s.is_requested()) {
             return;
         }
-        // Each local commit can replace the provider snapshot. Re-pin before the next credential.
+        // Each authority commit can replace the provider snapshot. Re-pin before the next credential.
         let snapshot = store.snapshot();
         let Some((provider, cred)) = snapshot.oauth_refresh_target(&key.0, &key.1) else {
             continue;
@@ -123,69 +171,119 @@ async fn refresh_once(
         let Some(config) = &cred.refresh_config else {
             continue;
         };
-        let Some(_guard) = config.try_refresh_lock() else {
+        if config.lobster_dispatch_generation().is_some() {
+            // The current Server cache owner requires an expiry; never consume a Lobster grant there.
+            if redis.is_some()
+                || !lobsterai::recover(runtime, &snapshot, &provider.id, &cred.id, config).await
+            {
+                continue;
+            }
+        }
+
+        let Some(attempt) = config.begin_refresh(margin, &cred.payload.api_key) else {
             continue;
         };
-        let Some((generation, refresh_token)) = config.refresh_snapshot(margin) else {
+        let prepared = match grant::Prepared::new(http, &attempt, &cred.payload).await {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                attempt.record_failure(error.terminal);
+                tracing::warn!(provider = %provider.id, cred_id = %cred.id, code = error.code,
+                    "OAuth refresh preparation failed before grant reservation");
+                continue;
+            }
+        };
+        let Some(original) =
+            persistence::credential(snapshot.document(), &provider.id, &cred.id).cloned()
+        else {
             continue;
         };
-        let previous_access = config
-            .runtime_override()
-            .0
-            .unwrap_or_else(|| cred.payload.api_key.clone());
-        let result = transport::exchange(
-            http,
-            &config.refresh_endpoint,
-            &refresh_token,
-            &config.client_id,
-            cred.payload.adapter == crate::protocol::antigravity::ADAPTER,
-        )
-        .await;
+        let Some((request, reservation)) =
+            grant::reserve(runtime, &snapshot, &provider.id, &cred.id, &attempt).await
+        else {
+            continue;
+        };
+        use crate::console::refresh_grants::GrantReservation;
+        let (record, result, saved_expiry) = match reservation {
+            GrantReservation::Reserved(record) => (record, prepared.execute(http).await, None),
+            GrantReservation::Existing(record) => {
+                if let Some(tokens) = lobsterai::replay(&record, &request) {
+                    (record, Ok(grant::Outcome::Lobster(tokens)), None)
+                } else if let Some((token, expiry)) = grant::replay(&record, &request) {
+                    (record, Ok(grant::Outcome::Token(token)), Some(expiry))
+                } else if let Some(crate::console::refresh_grants::GrantReceipt::NousPortal {
+                    tokens,
+                }) = record
+                    .receipt_for(&request)
+                    .filter(|_| attempt.nous_portal.is_some())
+                {
+                    let tokens = tokens.clone();
+                    (record, Ok(grant::Outcome::Nous(tokens)), None)
+                } else {
+                    tracing::warn!(provider = %provider.id, cred_id = %cred.id,
+                        "OAuth grant has permanent evidence; automatic re-exchange is blocked");
+                    if attempt.lobsterai.is_some() {
+                        attempt.record_failure(true);
+                    }
+                    continue;
+                }
+            }
+            GrantReservation::Blocked | GrantReservation::Stale | GrantReservation::Contended => {
+                continue;
+            }
+        };
         match result {
-            Ok(mut token) => {
+            Ok(grant::Outcome::Lobster(tokens)) => {
+                let mut received = PendingWrite::received_lobster(
+                    config.clone(),
+                    attempt,
+                    original,
+                    request,
+                    record,
+                    tokens,
+                );
+                if !received.write_to(Some(runtime), redis).await {
+                    pending.insert(key, received);
+                }
+            }
+            Ok(grant::Outcome::Nous(tokens)) => {
+                let mut received = PendingWrite::received(
+                    config.clone(),
+                    attempt,
+                    original,
+                    request,
+                    record,
+                    tokens,
+                );
+                if !received.write_to(Some(runtime), redis).await {
+                    pending.insert(key, received);
+                }
+            }
+            Ok(grant::Outcome::Token(mut token)) => {
                 let lifetime = effective_refresh_lifetime_secs(token.expires_in.unwrap_or(21600));
                 token.expires_in = Some(lifetime);
-                let expires_at = future_rfc3339_after_secs(lifetime);
-                let original =
-                    persistence::credential(snapshot.document(), &provider.id, &cred.id).cloned();
-                let Some(original) = original else {
-                    continue;
-                };
-                let refreshed = PendingRefresh {
-                    provider: provider.id.clone(),
-                    credential: cred.id.clone(),
+                let expires_at = saved_expiry
+                    .or_else(|| token.absolute_expiry.clone())
+                    .unwrap_or_else(|| future_rfc3339_after_secs(lifetime));
+                let mut refreshed = PendingWrite::Result(Box::new(PendingRefresh::received(
+                    config.clone(),
+                    attempt,
                     original,
+                    request,
+                    record,
                     token,
                     expires_at,
-                    previous_access,
-                    previous_refresh: refresh_token,
-                };
-                if !refreshed.is_current(store) {
-                    continue;
-                }
-                let applied = config.apply_refresh_if_active(
-                    generation,
-                    refreshed.token.access_token.clone(),
-                    refreshed.token.refresh_token.clone(),
-                    lifetime,
-                    refreshed.expires_at.clone(),
-                );
-                // A routing-policy change retires the old owner, but need not discard
-                // rotated material for the same authorization. The local commit CAS
-                // retains the new policy and rechecks the original credential.
-                if applied.is_none() && local.is_none() {
-                    continue;
-                }
-                if !refreshed.write_to(local, redis).await {
+                )));
+                if !refreshed.write_to(Some(runtime), redis).await {
                     pending.insert(key, refreshed);
                 }
                 tracing::info!(provider = %provider.id, cred_id = %cred.id,
-                        expires_in_secs = lifetime, "OAuth token refreshed");
+                        expires_in_secs = lifetime, "OAuth refresh result accepted");
             }
             Err(error) => {
-                config.record_refresh_failure(generation, error.terminal);
+                attempt.record_failure(error.terminal);
                 tracing::warn!(provider = %provider.id, cred_id = %cred.id, code = error.code,
-                        reauthorization_required = error.terminal, "OAuth token refresh failed");
+                        reauthorization_required = error.terminal, grant_replay_blocked = true,
+                        "OAuth token refresh failed");
             }
         }
     }

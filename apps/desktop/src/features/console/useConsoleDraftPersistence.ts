@@ -9,6 +9,7 @@ type RouteData = ReturnType<typeof useConsoleRouteData>;
 type ActionIdentity = ReturnType<typeof useConsoleActionIdentity>;
 type ConsoleDraftPersistenceOptions = {
   managementToken: string | null;
+  secretGrant: string | null;
   editorLocked: boolean;
   selectedGroupIdInvalid: boolean;
   selectedGroupBillingInvalid: boolean;
@@ -33,6 +34,7 @@ type ConsoleDraftPersistenceOptions = {
 
 export function useConsoleDraftPersistence({
   managementToken,
+  secretGrant,
   editorLocked,
   selectedGroupIdInvalid,
   selectedGroupBillingInvalid,
@@ -138,9 +140,13 @@ export function useConsoleDraftPersistence({
   // any more, so a settled draft commits itself. The signature ref makes each
   // draft state commit at most once: a rejected commit surfaces through
   // `error` and waits for the next edit instead of retrying in a loop.
-  const autosaveSignature = `${editorText}\u0000${commitMessage}\u0000${JSON.stringify(secretPatches)}`;
+  const changesSecrets = secretPatches.some(patch => patch.operation !== "keep");
+  // A newly confirmed grant permits one retry of the same rejected secret edit.
+  // Other failures still wait for an edit; never loop on network/server errors.
+  const autosaveSignature = `${editorText}\u0000${commitMessage}\u0000${JSON.stringify(secretPatches)}\u0000${changesSecrets ? secretGrant ?? "" : ""}`;
   const autosaveReady =
     !editorLocked &&
+    (!changesSecrets || Boolean(secretGrant)) &&
     draftDirty &&
     !draftDocumentState.invalid &&
     incompleteAccountGroupDraftCount === 0 &&

@@ -1,5 +1,9 @@
 #![recursion_limit = "256"]
 
+// Unit tests reuse the same synthetic management fixture as integration contracts.
+#[cfg(test)]
+extern crate self as neuro_gateway;
+
 pub mod access_balance;
 pub mod access_control;
 pub mod access_key_groups;
@@ -42,6 +46,7 @@ pub mod provider_discovery;
 pub mod provider_failure;
 pub mod provider_health_state;
 pub(crate) mod provider_identity;
+pub(crate) mod provider_model_id;
 pub mod provider_quota;
 pub mod provider_runtime;
 pub mod rate_limit;

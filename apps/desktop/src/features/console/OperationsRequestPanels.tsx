@@ -1,316 +1,57 @@
-import type {
-  OperationsWorkspaceProps,
-  OperationsRequestFilterDraft,
-} from "./operations-contracts";
-import { OperationsRequestFilters } from "./OperationsRequestFilters";
-import { databaseOperationsAvailability } from "./operationsAvailability";
-import {
-  PLACEHOLDER,
-  formatCount,
-  formatUsd,
-  formatRate,
-  formatMs,
-  formatTimestamp,
-  formatText,
-  statusBadgeClass,
-  StatCard,
-  Panel,
-} from "./OperationsPrimitives";
+import { OperationsRequestTable, requestOrigin } from "./OperationsRequestTable";
+import { useState, type ReactNode } from "react";
+import { Button, Input, SegmentedControl } from "@neuro/ui";
+import { OperationsTrend } from "./OperationsTrend";
+import { OperationsStatusStrip } from "./OperationsStatusStrip";
+import type { OperationsWorkspaceProps, OperationsRequestFilterDraft } from "./operations-contracts";
+import { Panel } from "./OperationsPrimitives";
+import { operationsPreviewData } from "./operationsPreviewData";
 
-type Props = Pick<
-  OperationsWorkspaceProps,
-  | "t"
-  | "operatorSummary"
-  | "editorLocked"
-  | "requests"
-  | "requestSummary"
-  | "usageSummary"
-  | "promptCache"
-  | "requestFilters"
-  | "onRequestFiltersChange"
-  | "onApplyRequestFilters"
-> & {
-  patchFilters: (patch: Partial<OperationsRequestFilterDraft>) => void;
-};
+type Props = Pick<OperationsWorkspaceProps,
+  "t" | "operatorSummary" | "editorLocked" | "requests" | "requestSummary" |
+  "usageSummary" | "promptCache" | "requestFilters" | "onRequestFiltersChange" | "onApplyRequestFilters"
+> & { patchFilters: (patch: Partial<OperationsRequestFilterDraft>) => void; summary?: ReactNode };
 
-export function OperationsRequestPanels({
-  t,
-  operatorSummary,
-  editorLocked,
-  requests,
-  requestSummary,
-  usageSummary,
-  promptCache,
-  requestFilters,
-  onRequestFiltersChange,
-  onApplyRequestFilters,
-  patchFilters,
-}: Props) {
-  return (
-    <>
-      <OperationsRequestFilters
-        t={t}
-        editorLocked={editorLocked}
-        requests={requests}
-        requestFilters={requestFilters}
-        onRequestFiltersChange={onRequestFiltersChange}
-        onApplyRequestFilters={onApplyRequestFilters}
-        patchFilters={patchFilters}
-      />
-
-      <Panel
-        state={requestSummary}
-        t={t}
-        title={t("请求汇总", "Request summary")}
-      >
-        {(data) => (
-          <>
-            <div className="nt-pilot-stats-overview-grid">
-              <StatCard
-                label={t("总请求", "Requests")}
-                value={formatCount(data.totalRequests)}
-              />
-              <StatCard
-                label={t("成功", "Completed")}
-                tone="emerald"
-                value={formatCount(data.completedCount)}
-                hint={
-                  data.totalRequests > 0
-                    ? formatRate(data.completedCount / data.totalRequests)
-                    : undefined
-                }
-              />
-              <StatCard
-                label={t("失败", "Failed")}
-                tone={data.failedCount > 0 ? "danger" : "default"}
-                value={formatCount(data.failedCount)}
-              />
-              <StatCard
-                label={t("进行中", "Running")}
-                tone="blue"
-                value={formatCount(data.runningCount)}
-              />
-            </div>
-            <details className="nt-operations-detail">
-              <summary>
-                {t("回退与错误分布", "Fallback & error breakdown")}
-              </summary>
-              <div className="nt-operations-detail__body">
-                <dl className="nt-pilot-metric-list">
-                  <div>
-                    <dt>{t("已取消", "Cancelled")}</dt>
-                    <dd>{formatCount(data.cancelledCount)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("可回退失败", "Fallback-eligible failures")}</dt>
-                    <dd>{formatCount(data.fallbackEligibleFailures)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("回退耗尽失败", "Fallback-exhausted failures")}</dt>
-                    <dd>{formatCount(data.fallbackExhaustedFailures)}</dd>
-                  </div>
-                </dl>
-                {data.byErrorCode.length > 0 ? (
-                  <div className="nt-console-bucket-group">
-                    <h4>{t("错误码分布", "By error code")}</h4>
-                    <dl className="nt-pilot-metric-list">
-                      {data.byErrorCode.slice(0, 8).map((bucket) => (
-                        <div key={bucket.value}>
-                          <dt title={bucket.value}>
-                            {formatText(bucket.value)}
-                          </dt>
-                          <dd>{formatCount(bucket.count)}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                ) : null}
-              </div>
-            </details>
-          </>
-        )}
-      </Panel>
-
-      <Panel
-        emptyLabel={t("没有匹配的请求", "No matching requests")}
-        state={requests}
-        t={t}
-        title={t("请求列表", "Requests")}
-      >
-        {(rows) =>
-          rows.length === 0 ? (
-            <div className="nt-pilot-stats-state" role="status">
-              {t("没有匹配的请求", "No matching requests")}
-            </div>
-          ) : (
-            <div className="nt-table nt-table--requests">
-              <div className="nt-table__head">
-                <span>{t("时间", "Time")}</span>
-                <span>{t("模型", "Model")}</span>
-                <span>{t("状态", "Status")}</span>
-                <span>{t("耗时", "Duration")}</span>
-                <span>{t("Tokens", "Tokens")}</span>
-                <span>{t("上游", "Upstream")}</span>
-              </div>
-              {rows.map((row) => (
-                <div className="nt-table__row" key={row.id}>
-                  <span>{formatTimestamp(row.createdAt)}</span>
-                  <span
-                    className="nt-operations-request-model"
-                    title={formatText(row.requestedModel)}
-                  >
-                    <span>
-                      {formatText(row.resolvedModel ?? row.requestedModel)}
-                    </span>
-                    {row.errorSummary ? (
-                      <small title={row.errorSummary}>{row.errorSummary}</small>
-                    ) : null}
-                  </span>
-                  <span>
-                    <span className={statusBadgeClass(row.status)}>
-                      {formatText(row.status)}
-                    </span>
-                    {row.stream ? (
-                      <span className="nt-chip nt-chip--muted">
-                        {t("流式", "Stream")}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span>{formatMs(row.durationMs)}</span>
-                  <span>{formatCount(row.totalTokens)}</span>
-                  <span title={formatText(row.errorSummary)}>
-                    {row.upstreamStatus === null
-                      ? PLACEHOLDER
-                      : row.upstreamStatus}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )
-        }
-      </Panel>
-
-      {databaseOperationsAvailability(operatorSummary) === "available" ? (
-        <>
-          <Panel
-            collapsed={
-              !usageSummary.data?.alerts.length &&
-              !usageSummary.data?.archiveFailureCount
-            }
-            state={usageSummary}
-            t={t}
-            title={t("用量归档", "Usage archive")}
-          >
-            {(data) => (
-              <>
-                <div className="nt-pilot-stats-overview-grid">
-                  <StatCard
-                    label={t("队列深度", "Queue depth")}
-                    /* -1 means the queue could not be read, not an empty queue. */
-                    value={
-                      data.queueDepth < 0
-                        ? PLACEHOLDER
-                        : formatCount(data.queueDepth)
-                    }
-                    hint={
-                      data.queueDepth < 0
-                        ? t("Redis 不可用", "Redis unavailable")
-                        : undefined
-                    }
-                  />
-                  <StatCard
-                    label={t("近期请求", "Recent requests")}
-                    value={formatCount(data.recentRequestCount)}
-                  />
-                  <StatCard
-                    label={t("近期失败", "Recent failures")}
-                    tone={data.recentFailureCount > 0 ? "danger" : "default"}
-                    value={formatCount(data.recentFailureCount)}
-                  />
-                  <StatCard
-                    label={t("近期 Tokens", "Recent tokens")}
-                    tone="blue"
-                    value={formatCount(data.recentTotalTokens)}
-                  />
-                </div>
-                <dl className="nt-pilot-metric-list">
-                  <div>
-                    <dt>{t("归档失败数", "Archive failures")}</dt>
-                    <dd>{formatCount(data.archiveFailureCount)}</dd>
-                  </div>
-                </dl>
-                {data.alerts.length > 0 ? (
-                  <ul className="nt-validation-list nt-validation-list--warning">
-                    {data.alerts.map((alert) => (
-                      <li key={`${alert.code}-${alert.message}`}>
-                        <strong>{alert.severity}</strong> {alert.message}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </>
-            )}
-          </Panel>
-
-          <Panel
-            collapsed
-            state={promptCache}
-            t={t}
-            title={t("提示缓存", "Prompt cache")}
-          >
-            {(data) => (
-              <>
-                <div className="nt-pilot-stats-overview-grid">
-                  <StatCard
-                    label={t("命中率", "Hit rate")}
-                    tone="emerald"
-                    value={formatRate(data.cacheHitRate)}
-                  />
-                  <StatCard
-                    label={t("命中请求", "Cache hits")}
-                    value={formatCount(data.cacheHitRequests)}
-                  />
-                  <StatCard
-                    label={t("节省 Tokens", "Tokens saved")}
-                    value={formatCount(data.totalTokensSaved)}
-                  />
-                  <StatCard
-                    label={t("预估节省成本", "Estimated savings")}
-                    tone="blue"
-                    value={formatUsd(data.estimatedCostSavedUsd)}
-                  />
-                </div>
-                <dl className="nt-pilot-metric-list">
-                  <div>
-                    <dt>{t("样本请求", "Sampled requests")}</dt>
-                    <dd>{formatCount(data.totalRequests)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("缓存写入请求", "Cache-creation requests")}</dt>
-                    <dd>{formatCount(data.cacheCreationRequests)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("客户端标注", "Client-marked")}</dt>
-                    <dd>{formatCount(data.clientMarkedRequests)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("网关自动标注", "Auto-applied")}</dt>
-                    <dd>{formatCount(data.autoAppliedRequests)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("缓存指令覆盖率", "Cache-control coverage")}</dt>
-                    <dd>{formatRate(data.cacheControlCoverageRate)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("输入价格 / 百万", "Input price / M")}</dt>
-                    <dd>{formatUsd(data.inputPricePerMillion)}</dd>
-                  </div>
-                </dl>
-              </>
-            )}
-          </Panel>
-        </>
-      ) : null}
-    </>
-  );
+/** Show query-scoped outcomes, not internal routing, storage or cache diagnostics. */
+export function OperationsRequestPanels(props: Props) {
+  const { t } = props;
+  const [samples] = useState(() => new URLSearchParams(window.location.search).get("operationsDemo") === "1" ? operationsPreviewData() : null);
+  const requests = samples ? { ...props.requests, data: samples, loading: false, error: null } : props.requests;
+  const [model, setModel] = useState("__all");
+  const [provider, setProvider] = useState("__all");
+  const [requestId, setRequestId] = useState("");
+  const [period, setPeriod] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const visible = (requests.data ?? []).filter(row => {
+    const time = Date.parse(row.createdAt);
+    const start = period === "today" ? new Date().setHours(0, 0, 0, 0) : period === "custom" ? (from ? new Date(from + "T00:00:00").getTime() : -Infinity) : period === "all" ? -Infinity : Date.now() - Number(period) * 86400000;
+    const end = period === "custom" && to ? new Date(to + "T23:59:59.999").getTime() : Infinity;
+    return (period === "all" || (time >= start && time <= end)) &&
+      (status === "all" || (status === "failed" ? row.status === "failed" : row.status === "completed" && Number(row.routeTrace?.routeAttemptCount) > 1)) &&
+      (model === "__all" || (row.resolvedModel ?? row.requestedModel) === model) && (provider === "__all" || requestOrigin(row).provider === provider) &&
+      [row.id, row.requestedModel, row.resolvedModel, requestOrigin(row).provider, row.sessionId].some(value => value?.toLowerCase().includes(requestId.trim().toLowerCase()));
+  });
+  return <>
+    {samples && <small className="n-muted">{t("演示数据 · 仅用于界面预览，不计入真实请求", "Demo data · visual preview only, excluded from real requests")}</small>}
+    <div className="nt-operations-period-row">
+      <SegmentedControl name="operations-period" hideLabel label={t("时间范围", "Time range")} value={period} onValueChange={setPeriod} options={[
+        {value: "today", label: t("今天", "Today")}, {value: "7", label: t("7 天", "7 days")}, {value: "30", label: t("30 天", "30 days")}, {value: "all", label: t("全部", "All")}, {value: "custom", label: t("自定义", "Custom")},
+      ]} />
+      {period === "custom" && <div className="nt-operations-date-range"><Input compact type="date" aria-label={t("开始日期", "Start date")} value={from} onChange={event => setFrom(event.target.value)} /><span>—</span><Input compact type="date" aria-label={t("结束日期", "End date")} value={to} onChange={event => setTo(event.target.value)} /></div>}
+    </div>
+    <div className="nt-operations-request-filters">
+      <SegmentedControl name="operations-status" hideLabel label={t("请求状态", "Request status")} value={status} onValueChange={setStatus} options={[{value: "all", label: t("全部", "All")}, {value: "failed", label: t("失败", "Failed")}, {value: "retry", label: t("重试后成功", "Succeeded after retry")}]} />
+      <div className="nt-operations-filter-spacer" />
+      <Input compact aria-label={t("请求 ID", "Request ID")} placeholder={t("搜索模型、服务商、请求 ID", "Search model, provider, request ID")} value={requestId} onChange={event => setRequestId(event.target.value)} />
+      <Button compact onClick={() => {setModel("__all"); setProvider("__all"); setRequestId(""); setStatus("all"); setPeriod("all"); setFrom(""); setTo("");}}>{t("重置", "Reset")}</Button>
+    </div>
+    <OperationsStatusStrip rows={visible} t={t} />
+    <OperationsTrend rows={visible} t={t} />
+    <small className="n-muted">{t(`已加载记录：${visible.length} / ${requests.data?.length ?? 0}`, `Loaded records: ${visible.length} / ${requests.data?.length ?? 0}`)}</small>
+    <Panel emptyLabel={t("没有匹配的请求", "No matching requests")} state={requests} t={t} title={t("请求列表", "Requests")}>
+      {() => <OperationsRequestTable rows={visible} t={t} />}
+    </Panel>
+  </>;
 }

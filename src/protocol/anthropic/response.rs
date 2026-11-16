@@ -73,6 +73,9 @@ pub fn unpack_anthropic_response(body: &Value) -> Result<CanonicalRelayResponse,
         .map(|s| s as u16);
 
     Ok(CanonicalRelayResponse {
+        bedrock_turn: crate::protocol::bedrock_turn::read_response(body, &text, &tool_calls)?,
+        sources: Vec::new(),
+        vertex_turn: crate::protocol::vertex_turn::read_response(body, &text, &tool_calls)?,
         model_declaration: crate::protocol::model_declaration::ModelDeclaration::from_body(body),
         model,
         text,
@@ -203,6 +206,7 @@ fn map_anthropic_stop_reason(
     }) {
         "tool_calls" | "function_call" => "tool_use",
         "length" => "max_tokens",
+        "content_filter" | "refusal" => "refusal",
         _ => "end_turn",
     }
 }

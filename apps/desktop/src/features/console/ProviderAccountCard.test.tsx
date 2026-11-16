@@ -2,12 +2,10 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { NeuroTooltipProvider } from "../../components/ActionTooltip";
+import { NeuroProvider } from "@neuro/ui";
 import {
-  ACCOUNT_CARD_MENU_ITEMS,
   ProviderAccountCard,
-  useAccountCardMenu,
-  type AccountCardMenuActionId,
+  type AccountCardActionId,
   type AccountsLedgerPilotAccount,
   type ProviderAccountCardHandlers,
 } from "./ProviderAccountCard";
@@ -18,9 +16,9 @@ beforeAll(() => {
   vi.stubGlobal(
     "ResizeObserver",
     class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
+      observe() { }
+      unobserve() { }
+      disconnect() { }
     },
   );
 });
@@ -59,31 +57,23 @@ function account(
 function CardHarness(props: {
   account: AccountsLedgerPilotAccount;
   handlers: ProviderAccountCardHandlers;
-  onMenuAction?: (
-    action: AccountCardMenuActionId,
+  onAccountAction?: (
+    action: AccountCardActionId,
     providerId: string,
     account: AccountsLedgerPilotAccount,
   ) => void;
 }) {
-  const menu = useAccountCardMenu();
   return (
-    <NeuroTooltipProvider>
+    <NeuroProvider>
       <ProviderAccountCard
         t={t}
         account={props.account}
         editorLocked={false}
         groupOptions={[]}
         handlers={props.handlers}
-        menu={{
-          keyPrefix: "test",
-          activeKey: menu.activeMenuKey,
-          onActiveKeyChange: menu.setActiveMenuKey,
-          registerTrigger: menu.registerMenuTrigger,
-          items: ACCOUNT_CARD_MENU_ITEMS,
-          onAction: props.onMenuAction ?? vi.fn(),
-        }}
+        onAction={props.onAccountAction ?? vi.fn()}
       />
-    </NeuroTooltipProvider>
+    </NeuroProvider>
   );
 }
 
@@ -103,8 +93,8 @@ function handlers(
 
 describe("ProviderAccountCard", () => {
   it("keeps discovery inside the account editor rather than the card", () => {
-    const onMenuAction = vi.fn();
-    const view = render(<CardHarness account={account({ discoverySupported: true })} handlers={handlers()} onMenuAction={onMenuAction} />);
+    const onAccountAction = vi.fn();
+    const view = render(<CardHarness account={account({ discoverySupported: true })} handlers={handlers()} onAccountAction={onAccountAction} />);
     expect(screen.queryByRole("button", { name: "刷新模型和协议 Account 1" })).not.toBeInTheDocument();
     view.rerender(<CardHarness account={account({ discoverySupported: false })} handlers={handlers()} />);
     expect(screen.queryByRole("button", { name: "刷新模型和协议 Account 1" })).not.toBeInTheDocument();
@@ -129,17 +119,17 @@ describe("ProviderAccountCard", () => {
 
   it("exposes four direct actions and an independent header edit button", async () => {
     const user = userEvent.setup();
-    const onMenuAction = vi.fn();
+    const onAccountAction = vi.fn();
     const onEdit = vi.fn();
-    render(<CardHarness account={account()} handlers={handlers({ onEdit })} onMenuAction={onMenuAction} />);
+    render(<CardHarness account={account()} handlers={handlers({ onEdit })} onAccountAction={onAccountAction} />);
     const footer = screen.getByRole("switch").closest("footer")!;
-    expect(footer.querySelectorAll("button")).toHaveLength(4);
+    expect(footer.querySelectorAll('button, input[role="switch"]')).toHaveLength(4);
     expect(screen.queryByRole("button", { name: "更多操作 account-1" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "查看 Account 1 统计" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "测试账号 Account 1" }));
-    expect(onMenuAction).toHaveBeenCalledWith("probe", "provider-1", expect.objectContaining({ accountId: "account-1" }));
+    expect(onAccountAction).toHaveBeenCalledWith("probe", "provider-1", expect.objectContaining({ accountId: "account-1" }));
     await user.click(screen.getByRole("button", { name: "模型映射 Account 1" }));
-    expect(onMenuAction).toHaveBeenCalledWith("model-mapping", "provider-1", expect.objectContaining({ accountId: "account-1" }));
+    expect(onAccountAction).toHaveBeenCalledWith("model-mapping", "provider-1", expect.objectContaining({ accountId: "account-1" }));
     await user.click(screen.getByRole("button", { name: "编辑账号 Account 1" }));
     expect(onEdit).toHaveBeenCalledWith("provider-1", "account-1");
   });

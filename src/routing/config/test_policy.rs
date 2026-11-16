@@ -19,7 +19,9 @@ impl RouteConfigSnapshot {
                         scheduled.target.provider_id != target.provider_id
                             || scheduled.target.credential_id != target.credential_id
                     });
-                    if policy.automatic_enabled && policy.validate().is_ok() {
+                    if policy.automatic_enabled
+                        && policy.validate_for_payload(&target.payload).is_ok()
+                    {
                         legacy.push(ScheduledCredentialProbeTarget {
                             plan_id: None,
                             target,

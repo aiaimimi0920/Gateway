@@ -1,8 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { render as renderBase, screen } from "@testing-library/react";
+import { NeuroProvider } from "@neuro/ui";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
 import { ProviderModelMappingDialog } from "./ProviderModelMappingDialog";
+const render = (ui: Parameters<typeof renderBase>[0]) => renderBase(ui, { wrapper: NeuroProvider });
 
 it("adds and deletes custom mappings inline without a save button or mount-time writes", async () => {
   const user = userEvent.setup();
@@ -51,9 +53,11 @@ it("rejects invalid or over-limit edits without autosaving and exposes persisten
     initialEntries={Array.from({ length: 32 }, (_, i) => ({ model: "a", upstreamModel: `target-${i}` }))}
     saveError="Persistence failed" onOpenChange={vi.fn()} onSubmit={onSubmit} /></UiLocaleProvider>);
   expect(screen.getByRole("alert")).toHaveTextContent("Persistence failed");
+  await user.click(screen.getByRole("button", { name: /映射目标/ }));
   await user.click(screen.getByRole("checkbox", { name: "extra" }));
   expect(screen.getByRole("alert")).toHaveTextContent("最多关联 32");
   expect(screen.getByRole("checkbox", { name: "extra" })).not.toBeChecked();
+  await user.keyboard("{Escape}");
   await user.type(screen.getByRole("textbox", { name: "自定义映射模型" }), "bad*");
   await user.click(screen.getByRole("button", { name: "添加映射模型" }));
   expect(screen.getByRole("alert")).toHaveTextContent("不含通配符");

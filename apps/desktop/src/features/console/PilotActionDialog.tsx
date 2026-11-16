@@ -1,10 +1,21 @@
-import { X } from "lucide-react";
+import { Dialog } from "@neuro/ui";
 import type { ConsoleCredentialProbeResult, ConsoleProviderProbeResponse, ConsoleRouteDocument, CredentialTestPolicy, CredentialTestScope } from "../../api/contracts";
 import type { AccountsLedgerPilotAccount, AccountsLedgerPilotSection } from "./AccountsLedgerWorkspace";
 import type { RouteManagedAccount } from "./routeAccountCatalog";
 import type { buildPilotStatsView } from "./pilotStatsView";
 import { PilotAccountProbePanel } from "./PilotAccountProbePanel";
 import { PilotAccountStatsPanel } from "./PilotAccountStatsPanel";
+import { LumaMediaProbeDialog } from "./LumaMediaProbeDialog";
+import { ChataibotMediaProbeDialog } from "./ChataibotMediaProbeDialog";
+import { SunoMediaProbeDialog } from "./SunoMediaProbeDialog";
+import { UdioMediaProbeDialog } from "./UdioMediaProbeDialog";
+import { LumalabsMediaProbeDialog } from "./LumalabsMediaProbeDialog";
+import { isLumalabsMediaProvider } from "./lumalabsProbeModels";
+import { isUdioMediaProvider } from "./udioProbeModels";
+import { isSunoMediaProvider } from "./sunoProbeModels";
+import { isChataibotMediaProvider } from "./chataibotProbeModels";
+import { isLumaAgentsProvider } from "./lumaAgents";
+import { isRecord } from "./routeDocument";
 
 
 import { ProviderTestDialog } from "./ProviderTestDialog";
@@ -14,23 +25,23 @@ import type { TestProbeAction, TestResultLoader } from "./useCredentialTestRuns"
 
 export type PilotActionDialogState =
   | {
-      kind: "probe";
-      providerId: string;
-      account: AccountsLedgerPilotAccount;
-    }
+    kind: "probe";
+    providerId: string;
+    account: AccountsLedgerPilotAccount;
+  }
   | {
-      kind: "stats";
-      providerId: string;
-      account: AccountsLedgerPilotAccount;
-    }
+    kind: "stats";
+    providerId: string;
+    account: AccountsLedgerPilotAccount;
+  }
   | {
-      kind: "provider-probe";
-      section: AccountsLedgerPilotSection;
-    }
+    kind: "provider-probe";
+    section: AccountsLedgerPilotSection;
+  }
   | {
-      kind: "provider-schedule";
-      section: AccountsLedgerPilotSection;
-    };
+    kind: "provider-schedule";
+    section: AccountsLedgerPilotSection;
+  };
 
 function pilotActionDialogTitle(
   dialog: PilotActionDialogState,
@@ -57,6 +68,8 @@ type PilotActionDialogProps = {
   activePilotProbeResult: Pick<ConsoleCredentialProbeResult, "message" | "probePoint"> | null;
   draftDirty: boolean;
   draftMatchesActiveRevision: boolean;
+  activeRevision?: string | null;
+  authorizationContext?: string | null;
   startPilotProbe: () => Promise<void>;
   providerProbeBusy: boolean;
   providerProbeError: string | null;
@@ -88,6 +101,8 @@ export function PilotActionDialog({
   activePilotProbeResult,
   draftDirty,
   draftMatchesActiveRevision,
+  activeRevision,
+  authorizationContext,
   startPilotProbe,
   providerProbeBusy,
   providerProbeError,
@@ -112,6 +127,36 @@ export function PilotActionDialog({
     ? accountPilotSections?.find((section) => section.providerIds.includes(pilotActionDialog.providerId))
     : pilotActionDialog?.kind === "provider-probe" || pilotActionDialog?.kind === "provider-schedule" ? pilotActionDialog.section : null;
   if (testSection && pilotActionDialog) {
+    if (pilotActionDialog.kind === "probe" && isLumalabsMediaProvider(testPolicyDocument?.providers.find(provider => isRecord(provider) && provider.id === pilotActionDialog.providerId))) {
+      return <LumalabsMediaProbeDialog key={JSON.stringify([pilotActionDialog.providerId, pilotActionDialog.account.accountId])}
+        document={testPolicyDocument ?? null} providerId={pilotActionDialog.providerId} credentialId={pilotActionDialog.account.accountId}
+        t={t} onProbe={startProviderProbe} onClose={closePilotActionDialog} locked={editorLocked || providerProbeBusy}
+        activeRevision={activeRevision ?? null} authorizationContext={authorizationContext ?? null} draftReady={!draftDirty && draftMatchesActiveRevision} error={providerProbeError} />;
+    }
+    if (pilotActionDialog.kind === "probe" && isUdioMediaProvider(testPolicyDocument?.providers.find(provider => isRecord(provider) && provider.id === pilotActionDialog.providerId))) {
+      return <UdioMediaProbeDialog key={JSON.stringify([pilotActionDialog.providerId, pilotActionDialog.account.accountId])}
+        document={testPolicyDocument ?? null} providerId={pilotActionDialog.providerId} credentialId={pilotActionDialog.account.accountId}
+        t={t} onProbe={startProviderProbe} onClose={closePilotActionDialog} locked={editorLocked || providerProbeBusy}
+        activeRevision={activeRevision ?? null} authorizationContext={authorizationContext ?? null} draftReady={!draftDirty && draftMatchesActiveRevision} error={providerProbeError} />;
+    }
+    if (pilotActionDialog.kind === "probe" && isSunoMediaProvider(testPolicyDocument?.providers.find(provider => isRecord(provider) && provider.id === pilotActionDialog.providerId))) {
+      return <SunoMediaProbeDialog key={JSON.stringify([pilotActionDialog.providerId, pilotActionDialog.account.accountId])}
+        document={testPolicyDocument ?? null} providerId={pilotActionDialog.providerId} credentialId={pilotActionDialog.account.accountId}
+        t={t} onProbe={startProviderProbe} onClose={closePilotActionDialog} locked={editorLocked || providerProbeBusy}
+        activeRevision={activeRevision ?? null} authorizationContext={authorizationContext ?? null} draftReady={!draftDirty && draftMatchesActiveRevision} error={providerProbeError} />;
+    }
+    if (pilotActionDialog.kind === "probe" && isLumaAgentsProvider(testPolicyDocument?.providers.find(provider => isRecord(provider) && provider.id === pilotActionDialog.providerId))) {
+      return <LumaMediaProbeDialog key={JSON.stringify([pilotActionDialog.providerId, pilotActionDialog.account.accountId])}
+        document={testPolicyDocument ?? null} providerId={pilotActionDialog.providerId} credentialId={pilotActionDialog.account.accountId}
+        t={t} onProbe={startProviderProbe} onClose={closePilotActionDialog} locked={editorLocked || providerProbeBusy}
+        draftReady={!draftDirty && draftMatchesActiveRevision} error={providerProbeError} />;
+    }
+    if (pilotActionDialog.kind === "probe" && isChataibotMediaProvider(testPolicyDocument?.providers.find(provider => isRecord(provider) && provider.id === pilotActionDialog.providerId))) {
+      return <ChataibotMediaProbeDialog key={JSON.stringify([pilotActionDialog.providerId, pilotActionDialog.account.accountId])}
+        document={testPolicyDocument ?? null} providerId={pilotActionDialog.providerId} credentialId={pilotActionDialog.account.accountId}
+        t={t} onProbe={startProviderProbe} onClose={closePilotActionDialog} locked={editorLocked || providerProbeBusy}
+        draftReady={!draftDirty && draftMatchesActiveRevision} error={providerProbeError} />;
+    }
     const TestDialog = pilotActionDialog.kind === "probe" ? ProviderTestDialog : CredentialTestManager;
     return <TestDialog key={pilotActionDialog.kind === "probe" ? JSON.stringify([pilotActionDialog.providerId, pilotActionDialog.account.accountId]) : testSection.providerId}
       onPlanChange={applyTestPlanChanges}
@@ -120,63 +165,49 @@ export function PilotActionDialog({
       scopeLocked={pilotActionDialog.kind === "probe"}
       document={testPolicyDocument ?? null} onSave={applyTestPolicy} onLoadResults={loadProviderProbeResults}
       onProbe={startProviderProbe}
-      probe={{ t, section: testSection, closePilotActionDialog, providerProbeBusy,
-        providerProbeError, providerProbeResponse, draftDirty, draftMatchesActiveRevision }}
-      schedule={{ t, section: testSection, closePilotActionDialog, editorLocked,
+      probe={{
+        t, section: testSection, closePilotActionDialog, providerProbeBusy,
+        providerProbeError, providerProbeResponse, draftDirty, draftMatchesActiveRevision
+      }}
+      schedule={{
+        t, section: testSection, closePilotActionDialog, editorLocked,
         pilotScheduleEnabled, setPilotScheduleEnabled, pilotScheduleIntervalMinutes,
-        setPilotScheduleIntervalMinutes, applyProviderProbeSchedule }} />;
+        setPilotScheduleIntervalMinutes, applyProviderProbeSchedule
+      }} />;
   }
   return (pilotActionDialog ? (
-        <>
-          <div className="dialog-overlay" onClick={closePilotActionDialog} />
-          <section
-            className="dialog-content nt-pilot-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label={pilotActionDialogTitle(pilotActionDialog, t)}
-          >
-            <div className="nt-pilot-dialog__header">
-              <h2>{pilotActionDialogTitle(pilotActionDialog, t)}</h2>
-              <button
-                className="nt-icon-close"
-                type="button"
-                aria-label={t("关闭", "Close")}
-                onClick={closePilotActionDialog}
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
-            </div>
+    <Dialog open title={pilotActionDialogTitle(pilotActionDialog, t)} closeLabel={t("关闭弹窗", "Close dialog")}
+      className="nt-pilot-dialog" onOpenChange={(open) => { if (!open) closePilotActionDialog(); }}>
 
-            {pilotActionDialog.kind === "probe" ? (
-              <PilotAccountProbePanel
-                t={t}
-                account={pilotActionDialog.account}
-                closePilotActionDialog={closePilotActionDialog}
-                credentialProbeBusy={credentialProbeBusy}
-                activePilotManagedAccount={activePilotManagedAccount}
-                activePilotProbeResult={activePilotProbeResult}
-                draftDirty={draftDirty}
-                draftMatchesActiveRevision={draftMatchesActiveRevision}
-                startPilotProbe={startPilotProbe}
-              />
-            ) : null}
+      {pilotActionDialog.kind === "probe" ? (
+        <PilotAccountProbePanel
+          t={t}
+          account={pilotActionDialog.account}
+          closePilotActionDialog={closePilotActionDialog}
+          credentialProbeBusy={credentialProbeBusy}
+          activePilotManagedAccount={activePilotManagedAccount}
+          activePilotProbeResult={activePilotProbeResult}
+          draftDirty={draftDirty}
+          draftMatchesActiveRevision={draftMatchesActiveRevision}
+          startPilotProbe={startPilotProbe}
+        />
+      ) : null}
 
-            {pilotActionDialog.kind === "stats" ? (
-              <PilotAccountStatsPanel
-                t={t}
-                account={pilotActionDialog.account}
-                closePilotActionDialog={closePilotActionDialog}
-                telemetryError={telemetryError}
-                activePilotStatsView={activePilotStatsView}
-                editorLocked={editorLocked}
-                pilotScheduleEnabled={pilotScheduleEnabled}
-                setPilotScheduleEnabled={setPilotScheduleEnabled}
-                pilotScheduleIntervalMinutes={pilotScheduleIntervalMinutes}
-                setPilotScheduleIntervalMinutes={setPilotScheduleIntervalMinutes}
-                applyPilotProbeSchedule={applyPilotProbeSchedule}
-              />
-            ) : null}
-          </section>
-        </>
-      ) : null);
+      {pilotActionDialog.kind === "stats" ? (
+        <PilotAccountStatsPanel
+          t={t}
+          account={pilotActionDialog.account}
+          closePilotActionDialog={closePilotActionDialog}
+          telemetryError={telemetryError}
+          activePilotStatsView={activePilotStatsView}
+          editorLocked={editorLocked}
+          pilotScheduleEnabled={pilotScheduleEnabled}
+          setPilotScheduleEnabled={setPilotScheduleEnabled}
+          pilotScheduleIntervalMinutes={pilotScheduleIntervalMinutes}
+          setPilotScheduleIntervalMinutes={setPilotScheduleIntervalMinutes}
+          applyPilotProbeSchedule={applyPilotProbeSchedule}
+        />
+      ) : null}
+    </Dialog>
+  ) : null);
 }

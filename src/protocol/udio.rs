@@ -2,6 +2,7 @@
 
 mod field_values;
 mod generation;
+mod model_binding;
 mod outputs;
 mod request_options;
 mod songs;

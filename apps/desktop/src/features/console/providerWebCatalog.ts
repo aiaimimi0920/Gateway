@@ -1,7 +1,11 @@
 import type { ProviderCatalogTemplate } from "./providerCatalog";
+import { SESSION_CATALOG_TEMPLATES } from "./providerSessionCatalog";
 
 // These presets already exist in Rust; exposing them does not assert new-flow acceptance.
 export const WEB_CATALOG_TEMPLATES: readonly ProviderCatalogTemplate[] = [
+  { id: "accio-oauth", providerId: "accio-oauth", labelZh: "accio-oauth", labelEn: "accio-oauth",
+    descriptionZh: "", descriptionEn: "", category: "mainstream", compatibility: "native",
+    preset: "accio", vendorKey: "accio_platform", vendorName: "Accio", baseUrl: "https://phoenix-gw.alibaba.com", supportedModels: [] },
   { id: "antigravity-oauth", providerId: "antigravity-oauth", labelZh: "antigravity-oauth", labelEn: "antigravity-oauth",
     descriptionZh: "", descriptionEn: "", category: "mainstream", compatibility: "native",
     preset: "antigravity-oauth", vendorKey: "antigravity_platform", vendorName: "Antigravity", baseUrl: "https://daily-cloudcode-pa.googleapis.com/v1internal", supportedModels: [] },
@@ -26,4 +30,5 @@ export const WEB_CATALOG_TEMPLATES: readonly ProviderCatalogTemplate[] = [
   { id: "flowmusic-web", providerId: "flowmusic-web", labelZh: "flowmusic-web", labelEn: "flowmusic-web",
     descriptionZh: "", descriptionEn: "", category: "mainstream", compatibility: "native",
     preset: "producer", vendorKey: "producer_platform", vendorName: "FlowMusic", baseUrl: "https://www.flowmusic.app", supportedModels: ["producer:standard"] },
+  ...SESSION_CATALOG_TEMPLATES,
 ];

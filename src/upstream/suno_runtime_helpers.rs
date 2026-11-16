@@ -224,8 +224,11 @@ pub(crate) fn prepare_suno_execution_plan(
             return Err(unsupported_suno_media_generation_endpoint_error());
         }
     };
-    let request_timeout =
-        default_timeout.max(Duration::from_secs(if browser_backed { 300 } else { 240 }));
+    let request_timeout = if browser_backed {
+        default_timeout.max(Duration::from_secs(300))
+    } else {
+        default_timeout
+    };
 
     Ok(PreparedSunoExecutionPlan {
         missing_challenge_token: !suno::has_challenge_token(req),

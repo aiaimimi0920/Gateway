@@ -1,7 +1,7 @@
 //! Streaming dispatch, selected-state capture and terminal callback ownership.
 use super::*;
-#[path = "stream_diagnostics.rs"]
-mod diagnostics;
+#[path = "stream_terminal.rs"]
+pub(super) mod terminal;
 
 pub(super) async fn send(
     ctx: &mut PipelineContext,
@@ -10,6 +10,11 @@ pub(super) async fn send(
     candidate_index: usize,
     attempt: PreparedAttempt,
 ) -> Result<PipelineOutput, AttemptError> {
+    if attempt.effective_payload.auth_mode.as_deref() == Some("copilot_sdk") {
+        return Err(AttemptError::Stop(
+            super::super::copilot_dispatch::unavailable(),
+        ));
+    }
     let mut stream_retry_policy = attempt.retry_policy.clone();
     let capacity_retry_allowed = stream_retry_policy.max_retries > 0;
     let terminal_gate = attempt.provider_attempt_gate.clone();
@@ -159,29 +164,6 @@ pub(super) async fn send(
                 (byte_stream, stream_usage_handle)
             };
 
-            let (byte_stream, stream_completion_semantics_handle) =
-                if is_conversation_endpoint(ctx.canonical_req.endpoint_kind) {
-                    let (tapped_stream, completion_semantics_handle) =
-                        tap_sse_completion_semantics_with_error(byte_stream);
-                    (
-                        Box::pin(tapped_stream) as ByteStream,
-                        Some(completion_semantics_handle),
-                    )
-                } else {
-                    (byte_stream, None)
-                };
-
-            let (byte_stream, stream_archive_handle) =
-                if is_conversation_endpoint(ctx.canonical_req.endpoint_kind) {
-                    let (tapped_stream, archive_handle) = tap_stream_archive_with_error(
-                        byte_stream,
-                        crate::conversation_archive::CONVERSATION_ARCHIVE_MAX_RESPONSE_BYTES,
-                    );
-                    (Box::pin(tapped_stream) as ByteStream, Some(archive_handle))
-                } else {
-                    (byte_stream, None)
-                };
-
             // Save winning candidate info to ctx.
             let projected_access = ctx
                 .projected_access_candidates
@@ -198,202 +180,33 @@ pub(super) async fn send(
             // Do NOT call controller.on_success() here — the
             // TrackedStream callback will call it when the stream
             // finishes successfully, avoiding a double-success report.
-            drop(permit);
+            // This product used to aggregate before headers; its new live source still generates
+            // after handoff. Transfer capacity to the existing terminal owner, not a detached task.
+            let permit = if candidate.adapter == "perplexity_web_compatible" {
+                Some(permit)
+            } else {
+                drop(permit);
+                None
+            };
 
-            // Clone the controller Arc so the callback can notify on
-            // stream completion.
-            let ctrl_for_cb = Arc::clone(&controller);
-            let provider_id = candidate.provider_account_id.clone();
-            let state_for_cb = Arc::clone(state);
-            let route_policy_for_cb = route_policy_config.clone();
-            let resolved_model_for_cb = model.clone();
-            let audit_snapshot = crate::pipeline::stage_finalize::snapshot_request_audit(ctx);
-            let failure_finalize_snapshot =
-                crate::pipeline::stage_finalize::FailureFinalizeSnapshot {
-                    request_id: ctx.req_id.to_string(),
-                    credential_id: ctx
-                        .quota_credential_id
-                        .clone()
-                        .or_else(|| ctx.credential_ref.clone()),
-                    project_id: ctx
-                        .session
-                        .as_ref()
-                        .map(|session| session.project_id.clone()),
-                    user_id: ctx.neuro_user_id.clone().or_else(|| {
-                        ctx.session
-                            .as_ref()
-                            .and_then(|session| session.user_id.clone())
-                    }),
-                    model: Some(model.clone()),
-                    provider: Some(candidate.adapter.clone()),
-                    started_at: ctx.started_at,
-                    pre_deducted_tokens: ctx.quota_pre_deducted_tokens,
-                    request_audit: audit_snapshot.clone(),
-                };
-
-            let provider_credential_id_for_cb = candidate.provider_credential_id.clone();
-            let budget_for_cb = ctx.request_budget.clone();
-            let latency_key =
-                crate::routing::latency::LatencyKey::for_request(candidate, &ctx.canonical_req);
-            let (observed_stream, failure_evidence) =
-                diagnostics::observe(Box::pin(ctx.request_budget.constrain_stream(byte_stream)));
-            let mut tracked = TrackedStream::new_with_started_at_and_error(
-                observed_stream,
-                stream_started_at,
-                move |metrics, success| {
-                    let evidenced_failure = failure_evidence.lock().is_some();
-                    let success = success && !evidenced_failure;
-                    if success
-                        && metrics.termination
-                            == Some(crate::upstream::stream::StreamTermination::Completed)
-                    {
-                        if let (Some(key), Some(ms)) = (latency_key, metrics.first_token_latency_ms)
-                        {
-                            state_for_cb
-                                .routing_latency
-                                .record(key, std::time::Duration::from_millis(ms));
-                        }
-                    }
-                    observe_provider_stream_metric(
-                        global_gateway_metrics(),
-                        &provider_id,
-                        &resolved_model_for_cb,
-                        &metrics,
-                        success,
-                    );
-                    if let Some(lease_handle) = freebuff_lease_handle {
-                        tokio::spawn(async move {
-                            if success {
-                                lease_handle.release().await;
-                            } else {
-                                lease_handle
-                                    .invalidate("freebuff stream terminated before completion")
-                                    .await;
-                            }
-                        });
-                    }
-                    if success {
-                        terminal_gate.finish_success();
-                        state_for_cb.lifecycle.smart_routing.outcome(
-                            &provider_id,
-                            audit_snapshot
-                                .requested_model
-                                .as_deref()
-                                .unwrap_or_default(),
-                            true,
-                        );
-                        ctrl_for_cb.on_success();
-                        spawn_record_provider_success(
-                            Arc::clone(&state_for_cb),
-                            provider_id.clone(),
-                            provider_credential_id_for_cb.clone(),
-                        );
-                        let state_for_audit = Arc::clone(&state_for_cb);
-                        let audit_snapshot = audit_snapshot.clone();
-                        let usage = stream_usage_handle.as_ref().and_then(snapshot_tapped_usage);
-                        let canonical_completion_semantics = stream_completion_semantics_handle
-                            .as_ref()
-                            .and_then(snapshot_tapped_completion_semantics);
-                        let archive_snapshot =
-                            stream_archive_handle.as_ref().map(snapshot_tapped_archive);
-                        let finalizer = state_for_audit
-                            .local_runtime
-                            .as_ref()
-                            .map(|local| local.track_finalizer());
-                        tokio::spawn(async move {
-                            let _finalizer = finalizer;
-                            crate::pipeline::stage_finalize::run_stream_success(
-                                audit_snapshot,
-                                usage,
-                                canonical_completion_semantics,
-                                archive_snapshot
-                                    .as_ref()
-                                    .map(|snapshot| snapshot.text.clone()),
-                                archive_snapshot
-                                    .as_ref()
-                                    .map(|snapshot| snapshot.truncated)
-                                    .unwrap_or(false),
-                                &state_for_audit,
-                            )
-                            .await;
-                        });
-                    } else {
-                        let upstream_failed = budget_for_cb.stopped_reason().is_none()
-                            && (evidenced_failure
-                                || metrics.termination
-                                    == Some(
-                                        crate::upstream::stream::StreamTermination::Interrupted,
-                                    ));
-                        let cause =
-                            crate::pipeline::stage_finalize::StreamFailureCause::from_observation(
-                                budget_for_cb.stopped_reason(),
-                                upstream_failed,
-                            );
-                        let failure_message =
-                            failure_evidence.lock().clone().unwrap_or_else(|| {
-                                format!(
-                                    "stream terminated before completion ({:?}); termination_reason={}",
-                                    metrics.termination, cause.label()
-                                )
-                            });
-                        warn!(req_id = %failure_finalize_snapshot.request_id,
-                            provider = %provider_id, error = %failure_message,
-                            chunks = metrics.chunk_count, bytes = metrics.total_bytes,
-                            duration_ms = metrics.total_duration_ms, "stream failed after handoff");
-                        // A local deadline or caller cancellation still finalizes/refunds,
-                        // but must not poison provider health or reduce its capacity.
-                        if upstream_failed {
-                            terminal_gate.finish_stream_failure();
-                            terminal_gate.release_failed_sticky();
-                            state_for_cb.lifecycle.smart_routing.outcome(
-                                &provider_id,
-                                audit_snapshot
-                                    .requested_model
-                                    .as_deref()
-                                    .unwrap_or_default(),
-                                false,
-                            );
-                            ctrl_for_cb.on_failure(FailureKind::General);
-                            spawn_record_provider_failure(
-                                audit_snapshot.started_at,
-                                Arc::clone(&state_for_cb),
-                                provider_id.clone(),
-                                provider_credential_id_for_cb.clone(),
-                                route_policy_for_cb.clone(),
-                                failure_message.clone(),
-                            );
-                        }
-                        terminal_gate.finish_neutral();
-                        let state_for_finalize = Arc::clone(&state_for_cb);
-                        let finalizer = state_for_finalize
-                            .local_runtime
-                            .as_ref()
-                            .map(|local| local.track_finalizer());
-                        tokio::spawn(async move {
-                            let _finalizer = finalizer;
-                            crate::pipeline::stage_finalize::run_stream_failure(
-                                failure_finalize_snapshot,
-                                &state_for_finalize,
-                                &failure_message,
-                                cause,
-                            )
-                            .await;
-                        });
-                    }
-                    tracing::debug!(
-                        provider = %provider_id,
-                        chunks = metrics.chunk_count,
-                        bytes = metrics.total_bytes,
-                        duration_ms = metrics.total_duration_ms,
-                        success,
-                        "stream completed"
-                    );
+            let mut tracked = terminal::track(
+                ctx,
+                state,
+                candidate,
+                terminal::Owner {
+                    stream: byte_stream,
+                    permit,
+                    usage: stream_usage_handle,
+                    native_semantics: None,
+                    model,
+                    route_policy_config,
+                    controller,
+                    gate: terminal_gate,
+                    started_at: stream_started_at,
+                    legacy_lease: freebuff_lease_handle,
+                    terminal: None,
                 },
             );
-
-            if ctx.canonical_req.endpoint_kind == EndpointKind::Responses {
-                tracked = tracked.with_responses_terminal();
-            }
             tracked.native_response_metadata = response_metadata;
             return Ok(PipelineOutput::Sse(tracked));
         }

@@ -22,6 +22,7 @@ pub(crate) struct BoundedSseDecoder {
     pending_frame_bytes: usize,
     max_frame_bytes: usize,
     first_line: bool,
+    strict_utf8: bool,
 }
 
 impl BoundedSseDecoder {
@@ -35,7 +36,29 @@ impl BoundedSseDecoder {
             pending_frame_bytes: 0,
             max_frame_bytes,
             first_line: true,
+            strict_utf8: false,
         }
+    }
+
+    pub(crate) fn new_strict(max_frame_bytes: usize) -> Self {
+        Self {
+            strict_utf8: true,
+            ..Self::new(max_frame_bytes)
+        }
+    }
+
+    /// Strict endpoint encoders must not silently discard a truncated final event.
+    pub(crate) fn finish_strict(&self) -> Result<(), ProtocolStreamError> {
+        if !self.input.is_empty()
+            || !self.line.is_empty()
+            || self.has_data
+            || self.event_name.is_some()
+        {
+            return Err(stream_decode_error(
+                "translated SSE ended with an incomplete frame".into(),
+            ));
+        }
+        Ok(())
     }
 
     pub(crate) fn push_chunk(&mut self, chunk: Bytes) {
@@ -130,6 +153,9 @@ impl BoundedSseDecoder {
         let frame_boundary = content.is_empty();
         let result = match std::str::from_utf8(content) {
             Ok(line) => self.parse_line(line),
+            Err(_) if self.strict_utf8 => Err(stream_decode_error(
+                "translated SSE line is not UTF-8".into(),
+            )),
             Err(_) => Ok(None),
         };
         if line.capacity() <= MAX_RETAINED_LINE_CAPACITY_BYTES {
@@ -337,6 +363,22 @@ mod tests {
             .expect("parsed fields before the unfinished line should flush");
         assert_eq!(frame.event_name.as_deref(), Some("update"));
         assert_eq!(frame.data, "a");
+    }
+
+    #[test]
+    fn strict_endpoints_reject_truncated_frames_and_invalid_utf8_without_changing_legacy_mode() {
+        let mut decoder = BoundedSseDecoder::new_strict(64);
+        decoder.push_chunk(Bytes::from_static(b"data:a\n"));
+        assert!(matches!(decoder.decode_next(), DecodeStep::NeedInput));
+        assert!(decoder.finish_strict().is_err());
+        decoder.push_chunk(Bytes::from_static(b"\n"));
+        assert_eq!(expect_frame(decoder.decode_next()).data, "a");
+        assert!(decoder.finish_strict().is_ok());
+        decoder.push_chunk(Bytes::from_static(b"data:\xff\n\n"));
+        assert!(expect_error(decoder.decode_next()).contains("UTF-8"));
+        let mut legacy = BoundedSseDecoder::new(64);
+        legacy.push_chunk(Bytes::from_static(b"data:\xff\ndata:ok\n\n"));
+        assert_eq!(expect_frame(legacy.decode_next()).data, "ok");
     }
 
     #[test]

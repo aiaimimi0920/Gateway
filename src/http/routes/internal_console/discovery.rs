@@ -18,6 +18,8 @@ pub struct DiscoveryRequest {
     pub base_url: Option<String>,
     pub api_key: Option<String>,
     pub credential_id: Option<String>,
+    #[serde(default)]
+    pub models: Vec<String>,
 }
 
 pub async fn discover_account(
@@ -43,10 +45,17 @@ pub async fn discover_account(
         .try_acquire()
         .map_err(|_| GatewayError::conflict("Discovery is busy; try again shortly."))?;
     let snapshot = state.route_config.snapshot();
-    let (base, key) = if let Some(id) = body.credential_id {
+    let (base, key, models) = if let Some(id) = body.credential_id {
         let target = snapshot
             .select_credential_probe_target(&id)
             .ok_or_else(|| GatewayError::not_found("Credential not found."))?;
+        crate::protocol::lobsterai::management_boundary::reject_generic(&target.payload)?;
+        if crate::protocol::commandcode::owns_payload(&target.payload) {
+            return Err(crate::protocol::commandcode::invalid());
+        }
+        if crate::protocol::sap_aicore::owns_payload(&target.payload) {
+            return Err(crate::protocol::sap_aicore::invalid());
+        }
         let provider = snapshot
             .document()
             .providers
@@ -70,16 +79,35 @@ pub async fn discover_account(
                 .unwrap_or(&provider.base_url)
                 .to_owned(),
             target.payload.api_key,
+            if !body.models.is_empty() {
+                body.models
+            } else if !cred.supported_models.is_empty() {
+                cred.supported_models.clone()
+            } else {
+                provider.supported_models.clone()
+            },
         )
     } else {
         (
             body.base_url.unwrap_or_default(),
             body.api_key.unwrap_or_default(),
+            body.models,
         )
     };
-    let discovery = crate::provider_discovery::discover(base.trim(), key.trim()).await
-        .map_err(|_| GatewayError::bad_request("自动识别失败：未确认可用的模型目录和生成协议。请检查地址、密钥、认证方式及上游额度；超时不代表协议不支持，原配置未更改。")
-            .with_code("provider_discovery_failed"))?;
+    let discovery =
+        crate::provider_discovery::discover_with_models(base.trim(), key.trim(), &models)
+            .await
+            .map_err(|error| {
+                GatewayError::bad_request(
+                    error
+                        .downcast_ref::<crate::provider_discovery::DiscoveryFailure>()
+                        .map(ToString::to_string)
+                        .unwrap_or_else(|| {
+                            "自动识别失败：请检查地址、密钥及模型 ID 格式；原配置未更改。".into()
+                        }),
+                )
+                .with_code("provider_discovery_failed")
+            })?;
     // Re-authenticate after the bounded network operation in case access was revoked.
     state
         .console_auth

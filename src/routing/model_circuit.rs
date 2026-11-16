@@ -124,7 +124,7 @@ impl ModelCircuits {
         keys.iter().any(|key| {
             key.provider.len() > 1024
                 || key.group.len() > 1024
-                || key.model.len() > 1024
+                || key.model.len() > crate::provider_model_id::MAX_MODEL_BYTES
                 || (key.group.starts_with("balance:")
                     && entries.get(key).is_some_and(|e| !e.available(self.now())))
         })
@@ -139,7 +139,10 @@ impl ModelCircuits {
         if self.network_blocked() {
             return false;
         }
-        if key.provider.len() > 1024 || key.group.len() > 1024 || key.model.len() > 1024 {
+        if key.provider.len() > 1024
+            || key.group.len() > 1024
+            || key.model.len() > crate::provider_model_id::MAX_MODEL_BYTES
+        {
             return false;
         }
         self.entries
@@ -149,7 +152,9 @@ impl ModelCircuits {
     }
     fn acquire_at(&self, keys: &[CircuitKey], now: u64) -> Result<Vec<Ticket>, ()> {
         if keys.iter().any(|key| {
-            key.provider.len() > 1024 || key.group.len() > 1024 || key.model.len() > 1024
+            key.provider.len() > 1024
+                || key.group.len() > 1024
+                || key.model.len() > crate::provider_model_id::MAX_MODEL_BYTES
         }) {
             return Err(());
         }

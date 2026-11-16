@@ -1,20 +1,32 @@
 import { useEffect, useState } from "react";
+import { Button, ButtonLink, Notice } from "@neuro/ui";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
+import { kiroAuthorizationUrl } from "./kiroAuthorizationUrl";
+import { lobsteraiAuthorizationUrl } from "./lobsteraiAuthorizationUrl";
 
-function authorizationUrl(value: string, kind: "chatgpt" | "antigravity"): string | null {
+type AuthorizationKind = "chatgpt" | "antigravity" | "vertex" | "grok" | "grok-device" | "accio" | "kiro" | "freebuff" | "dim-china" | "dim-global" | "nous" | "lobsterai" | "luma";
+function authorizationUrl(value: string, kind: AuthorizationKind): string | null {
+  if (kind === "lobsterai") return lobsteraiAuthorizationUrl(value);
+  if (kind === "kiro") return kiroAuthorizationUrl(value);
   if (value.length > 8192) return null;
   try {
     const url = new URL(value);
     // Never turn an arbitrary server-supplied URL into an executable link.
-    const origin = kind === "antigravity" ? "https://accounts.google.com" : "https://auth.openai.com";
-    const path = kind === "antigravity" ? "/o/oauth2/v2/auth" : "/oauth/authorize";
-    if (url.href.length > 8192 || url.origin !== origin || url.pathname !== path
+    const google = kind === "antigravity" || kind === "vertex";
+    const origin = kind === "dim-china" ? "https://dimagent.cn" : kind === "dim-global" ? "https://dimagent.com" : kind === "grok" ? "https://auth.x.ai" : google ? "https://accounts.google.com" : "https://auth.openai.com";
+    const path = kind === "grok" ? "/oauth2/authorize" : google ? "/o/oauth2/v2/auth" : "/oauth/authorize";
+    const allowed = kind === "luma" ? url.origin === "https://agents.lumalabs.ai" && url.pathname === "/mcp/oauth/authorize"
+      : kind === "grok-device" ? ["https://auth.x.ai", "https://accounts.x.ai"].includes(url.origin) : kind === "accio"
+      ? ["https://www.accio-ai.com", "https://zh.accio.com"].includes(url.origin) && url.pathname === "/login"
+      : kind === "nous" ? url.origin === "https://portal.nousresearch.com" && value.length <= 4096 && !/[\x00-\x20]/.test(value)
+      : kind === "freebuff" ? url.origin === "https://freebuff.com" : url.origin === origin && url.pathname === path;
+    if (url.href.length > 8192 || !allowed
       || url.username || url.password || url.href.includes("#")) return null;
     return url.href;
   } catch { return null; }
 }
 
-export function ChatgptAuthorizationLink({ value, busy, kind = "chatgpt" }: { value: string; busy: boolean; kind?: "chatgpt" | "antigravity" }) {
+export function ChatgptAuthorizationLink({ value, busy, kind = "chatgpt" }: { value: string; busy: boolean; kind?: AuthorizationKind }) {
   const { t } = useUiLocale();
   const [failed, setFailed] = useState(false);
   const href = authorizationUrl(value, kind);
@@ -26,10 +38,10 @@ export function ChatgptAuthorizationLink({ value, busy, kind = "chatgpt" }: { va
   const label = t("打开授权页面", "Open authorization page");
   return <>
     {href && !busy
-      ? <a className="nt-btn nt-btn--secondary" href={href} target="_blank" rel="noopener noreferrer"
-          onClick={() => setFailed(false)}>{label}</a>
-      : <button type="button" className="nt-btn nt-btn--secondary" disabled>{label}</button>}
-    {!href && <p role="alert">{t("授权链接无效，请重新登录。", "Invalid authorization URL. Sign in again.")}</p>}
-    {failed && <p role="alert">{t("无法打开浏览器，请复制授权链接后手动打开。", "Cannot open the browser. Copy the authorization link and open it manually.")}</p>}
+      ? <ButtonLink href={href} target="_blank" rel="noopener noreferrer"
+        onClick={() => setFailed(false)}>{label}</ButtonLink>
+      : <Button disabled>{label}</Button>}
+    {!href && <Notice tone="danger">{t("授权链接无效，请重新登录。", "Invalid authorization URL. Sign in again.")}</Notice>}
+    {failed && <Notice tone="danger">{t("无法打开浏览器，请复制授权链接后手动打开。", "Cannot open the browser. Copy the authorization link and open it manually.")}</Notice>}
   </>;
 }

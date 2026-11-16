@@ -83,7 +83,7 @@ describe("BrowserConsoleApp", () => {
 
     const cards = screen.getByRole("region", { name: /权益组卡牌/i });
     expect(within(cards).queryByRole("button", { name: /更多操作/i })).not.toBeInTheDocument();
-    const edit = within(cards).getByRole("button", { name: /^编辑$/i });
+    const edit = within(screen.getByRole("article", { name: "VIP 分组 权益组卡牌" })).getByRole("button", { name: /^编辑$/i });
     await user.click(edit);
 
     expect(groupCardToggle).toHaveAttribute("aria-expanded", "false");
@@ -104,11 +104,18 @@ describe("BrowserConsoleApp", () => {
         billing_multiplier: 1.5,
         provider_credential_ids: ["acc-prod-1"],
       }),
+      {
+        id: "default",
+        name: "default",
+        billing_multiplier: 1,
+        enabled: true,
+        provider_credential_ids: ["acc-prod-2"],
+      },
     ]);
     expect(screen.getByRole("dialog", { name: "编辑权益组" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("分组名称")).toBeEnabled());
     await user.keyboard("{Escape}");
-    await waitFor(() => expect(screen.getByRole("button", { name: /^编辑$/i })).toHaveFocus());
+    await waitFor(() => expect(within(screen.getByRole("article", { name: "Updated VIP 权益组卡牌" })).getByRole("button", { name: /^编辑$/i })).toHaveFocus());
   }, 10_000);
 
   it("reassigns an account routing pool from the account-card dropdown", async () => {
@@ -295,19 +302,21 @@ describe("BrowserConsoleApp", () => {
     ]));
   }, 10_000);
 
-  it("opens the same form from the empty state and cancels without creating or saving", async () => {
+  it("cancels creation without changing the derived default group or saving", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
     await waitForConsoleReady();
     await openWorkspace(user, /权益组/i);
-    const trigger = screen.getByRole("button", { name: /创建第一个分组/i });
+    expect(screen.getByRole("article", { name: "default 权益组卡牌" })).toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: /^添加分组$/i });
     await user.click(trigger);
     await user.type(screen.getByLabelText(/分组 ID/i), "cancelled-group");
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
-    expect(document.querySelector('[data-entitlement-group-card]')).toBeNull();
+    expect(screen.getByRole("article", { name: "default 权益组卡牌" })).toBeInTheDocument();
+    expect(document.querySelector('[data-entitlement-group-card="cancelled-group"]')).toBeNull();
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1300)); });
     expect(consoleApi.commitRouteConfig).not.toHaveBeenCalled();
   });

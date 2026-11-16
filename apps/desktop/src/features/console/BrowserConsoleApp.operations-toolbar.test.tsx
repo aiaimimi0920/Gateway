@@ -21,10 +21,10 @@ it("places functional operations search/sort in the shell without submitting ser
   await waitForConsoleReady();
   await openWorkspace(user, /^运维$/);
   expect(await screen.findByText("本次查询 2 条，失败 2 条")).toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: /^运维$/ })).not.toBeInTheDocument();
+  expect(screen.getAllByRole("heading", { name: /^运维$/, level: 1 })).toHaveLength(1);
   expect(screen.queryByText(/先看运行状态|基础运维|概况采集于/)).not.toBeInTheDocument();
   const search = screen.getByRole("searchbox", { name: "搜索运维记录" });
-  expect(search.closest(".nt-board__header")).not.toBeNull();
+  expect(search.closest(".nt-titlebar__controls")).not.toBeNull();
   expect(search).toHaveAttribute("maxLength", "256");
   const initialCalls = vi.mocked(api.listRequestAudits).mock.calls.length;
   await user.type(search, "ALPHA");
@@ -35,7 +35,7 @@ it("places functional operations search/sort in the shell without submitting ser
   expect(screen.getByText("Alpha")).toBeVisible();
   expect(screen.queryByText("Beta")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "清除运维搜索" }));
-  const models = () => [...document.querySelectorAll(".nt-table--requests .nt-operations-request-model > span")].map((node) => node.textContent);
+  const models = () => within(screen.getByRole("table", { name: "请求列表" })).getAllByRole("rowheader").map((node) => node.querySelector(".nt-operations-request-model > span")?.textContent);
   expect(models()).toEqual(["Beta", "Alpha"]);
   await user.click(screen.getByRole("combobox", { name: "运维排序" }));
   await user.click(screen.getByRole("option", { name: "时间降序" }));

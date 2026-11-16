@@ -57,6 +57,9 @@ pub fn accumulate_response(
     }
     let finish_reason = state.finish_reason(saw_done)?;
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: model.to_string(),
         text: state.text.trim().to_string(),

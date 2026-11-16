@@ -1,4 +1,4 @@
-import { chromium } from "playwright-core";
+import { chromium, errors } from "playwright-core";
 import { executeLumaOperation } from "./lumalabs-session/browser-operation.mjs";
 import { existsSync } from "node:fs";
 
@@ -23,7 +23,8 @@ const LINUX_EDGE_PATHS = [
 ];
 
 async function main() {
-  try {
+  let browser = null;
+  async function generate() {
     const raw = await readStdin();
     const input = JSON.parse(raw);
     validateInput(input);
@@ -38,8 +39,15 @@ async function main() {
     }
 
     const timeoutMs = normalizeTimeoutMs(input.timeoutMs);
-    const browser = await chromium.launch({
+    const deadline = Date.now() + timeoutMs;
+    const remaining = () => {
+      if (Date.now() >= deadline) throw Object.assign(new Error("Luma Web deadline expired."),
+        { code: "lumalabs_browser_timeout" });
+      return deadline - Date.now();
+    };
+    browser = await chromium.launch({
       executablePath,
+      timeout: remaining(),
       headless: true,
       args: [
         "--disable-blink-features=AutomationControlled",
@@ -49,95 +57,98 @@ async function main() {
       ],
     });
 
-    try {
-      const locale = normalizeString(input.locale) ?? DEFAULT_LOCALE;
-      const baseUrl = normalizeBaseUrl(input.baseUrl);
-      const realmId = input.realmId.trim();
-      const boardUrl = `${baseUrl}/board/${realmId}`;
-      const context = await browser.newContext({
-        locale,
-        userAgent: normalizeString(input.userAgent) ?? undefined,
-        extraHTTPHeaders: {
-          "x-client-capabilities":
-            normalizeString(input.clientCapabilities) ?? DEFAULT_CLIENT_CAPABILITIES,
-        },
-      });
-
-      await context.addCookies([
-        {
-          name: "wos-session",
-          value: input.sessionToken,
-          url: `${baseUrl}/`,
-          httpOnly: true,
-          secure: true,
-          sameSite: "Lax",
-        },
-        {
-          name: "_geo",
-          value: normalizeString(input.geo) ?? DEFAULT_GEO,
-          url: `${baseUrl}/`,
-          secure: true,
-          sameSite: "Lax",
-        },
-        {
-          name: "user-logged-in",
-          value: "true",
-          url: `${baseUrl}/`,
-          secure: true,
-          sameSite: "Lax",
-        },
-      ]);
-
-      const page = await context.newPage();
-      await page.goto(boardUrl, {
-        waitUntil: "domcontentloaded",
-        timeout: timeoutMs,
-      });
-
-      const finalUrl = page.url();
-      if (!finalUrl.includes(`/board/${realmId}`)) {
-        printJsonAndExit({
-          ok: false,
-          error: {
-            code: "lumalabs_browser_auth_redirect",
-            message: `LumaLabs board navigation redirected to ${finalUrl}.`,
-            stage: "board",
-            status: 401,
-          },
-        });
-      }
-
-      const result = await page.evaluate(
-        executeLumaOperation,
-        {
-          realmId,
-          mediaOperation: normalizeString(input.mediaOperation),
-          artifactField: normalizeString(input.artifactField) ?? "image",
-          locale,
-          actionBody: input.actionBody,
-          autoDiscoverActionType: Boolean(input.autoDiscoverActionType),
-          timeoutMs,
-          clientCapabilities:
-            normalizeString(input.clientCapabilities) ?? DEFAULT_CLIENT_CAPABILITIES,
-        },
-      );
-
-      printJsonAndExit(result);
-    } finally {
-      await browser.close().catch(() => {});
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    printJsonAndExit({
-      ok: false,
-      error: {
-        code: "lumalabs_browser_worker_failed",
-        message,
-        stage: "worker",
-        status: 500,
+    const locale = normalizeString(input.locale) ?? DEFAULT_LOCALE;
+    const baseUrl = normalizeBaseUrl(input.baseUrl);
+    const realmId = input.realmId.trim();
+    const boardUrl = `${baseUrl}/board/${realmId}`;
+    const context = await browser.newContext({
+      locale,
+      userAgent: normalizeString(input.userAgent) ?? undefined,
+      extraHTTPHeaders: {
+        "x-client-capabilities":
+          normalizeString(input.clientCapabilities) ?? DEFAULT_CLIENT_CAPABILITIES,
       },
     });
+
+    await context.addCookies([
+      {
+        name: "wos-session",
+        value: input.sessionToken,
+        url: `${baseUrl}/`,
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax",
+      },
+      {
+        name: "_geo",
+        value: normalizeString(input.geo) ?? DEFAULT_GEO,
+        url: `${baseUrl}/`,
+        secure: true,
+        sameSite: "Lax",
+      },
+      {
+        name: "user-logged-in",
+        value: "true",
+        url: `${baseUrl}/`,
+        secure: true,
+        sameSite: "Lax",
+      },
+    ]);
+
+    const page = await context.newPage();
+    await page.goto(boardUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: remaining(),
+    });
+
+    const finalUrl = new URL(page.url());
+    const expectedUrl = new URL(boardUrl);
+    if (finalUrl.origin !== expectedUrl.origin || finalUrl.pathname !== expectedUrl.pathname) {
+      return {
+        ok: false,
+        error: {
+          code: "lumalabs_browser_auth_redirect",
+          message: "LumaLabs board navigation did not reach the authenticated board.",
+          stage: "board",
+          status: 401,
+        },
+      };
+    }
+
+    return await page.evaluate(executeLumaOperation, {
+      realmId,
+      mediaOperation: normalizeString(input.mediaOperation),
+      artifactField: normalizeString(input.artifactField) ?? "image",
+      locale,
+      actionBody: input.actionBody,
+      autoDiscoverActionType: Boolean(input.autoDiscoverActionType),
+      timeoutMs: remaining(),
+      clientCapabilities:
+        normalizeString(input.clientCapabilities) ?? DEFAULT_CLIENT_CAPABILITIES,
+    });
   }
+  let result;
+  try { result = await generate(); }
+  catch (error) {
+    if (error?.code === "lumalabs_browser_timeout" || error instanceof errors.TimeoutError) {
+      result = workerFailure("lumalabs_browser_timeout", "LumaLabs browser request deadline expired.", 504);
+    } else {
+      result = workerFailure(error?.code === "lumalabs_browser_worker_input_too_large"
+        ? error.code : "lumalabs_browser_worker_failed", "LumaLabs browser worker execution failed; details omitted.");
+    }
+  }
+  // JSON business failures use exit 0 too: a nonzero OS exit is an execution failure.
+  // Never emit success until the owned browser has actually finished closing.
+  if (browser) {
+    try { await browser.close(); }
+    catch { result = workerFailure("lumalabs_browser_cleanup_failed", "LumaLabs browser cleanup failed."); }
+  }
+  await new Promise((resolve, reject) => process.stdout.write(`${JSON.stringify(result)}\n`,
+    (error) => error ? reject(error) : resolve()));
+}
+
+function workerFailure(code, message, status = 500) {
+  return { ok: false, error: { code, message, stage: "worker", status } };
 }
 
 function validateInput(input) {
@@ -165,7 +176,7 @@ function normalizeTimeoutMs(value) {
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return DEFAULT_TIMEOUT_MS;
   }
-  return Math.max(5_000, Math.min(parsed, 300_000));
+  return Math.max(1, Math.min(parsed, 30 * 60 * 1000));
 }
 
 function normalizeString(value) {
@@ -194,21 +205,18 @@ function resolveExecutablePath(explicitPath) {
   return paths.find((entry) => existsSync(entry)) ?? null;
 }
 
-function readStdin() {
-  return new Promise((resolve, reject) => {
-    let buffer = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => {
-      buffer += chunk;
-    });
-    process.stdin.on("end", () => resolve(buffer));
-    process.stdin.on("error", reject);
-  });
+async function readStdin() {
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of process.stdin) {
+    total += chunk.length;
+    if (total > 1024 * 1024) {
+      throw Object.assign(new Error("Worker input exceeded 1 MiB."),
+        { code: "lumalabs_browser_worker_input_too_large" });
+    }
+    chunks.push(chunk);
+  }
+  return new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, total));
 }
 
-function printJsonAndExit(payload) {
-  process.stdout.write(`${JSON.stringify(payload)}\n`);
-  process.exit(payload?.ok ? 0 : 1);
-}
-
-main();
+main().catch(() => { process.exitCode = 1; });

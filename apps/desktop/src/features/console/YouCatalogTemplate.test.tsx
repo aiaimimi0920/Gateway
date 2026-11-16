@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
+import { NeuroProvider } from "@neuro/ui";
 import { ProviderCatalogDialog } from "./ProviderCatalogDialog";
 import { PROVIDER_CATALOG_TEMPLATES, type ProviderCatalogDraft } from "./providerCatalog";
 import { addCatalogProvider } from "./providerCatalogCreation";
@@ -14,7 +15,7 @@ it("creates an empty You search pool with fixed adapters and an ungraded search 
   const onSubmit = vi.fn();
   render(<UiLocaleProvider><ProviderCatalogDialog open existingProviderIds={[]} existingCredentialIds={[]}
     locked={false} hasSecretAccess={false} onOpenChange={vi.fn()} onRequestSecretAccess={vi.fn()} onSubmit={onSubmit} />
-  </UiLocaleProvider>);
+  </UiLocaleProvider>, { wrapper: NeuroProvider });
   await user.click(screen.getByRole("button", { name: /^you/ }));
   expect(screen.getByLabelText("Base URL")).toHaveValue("https://ydc-index.io");
   for (const label of ["Base URL", "调用适配器", "指纹适配器", "专用适配器"]) {
@@ -30,13 +31,18 @@ it("creates an empty You search pool with fixed adapters and an ungraded search 
   await user.click(screen.getByRole("button", { name: "添加" }));
   const draft = onSubmit.mock.calls[0][0] as ProviderCatalogDraft;
   const result = addCatalogProvider({ providers: [], model_routes: [], aliases: {} }, template, draft);
-  expect(result.providers).toEqual([expect.objectContaining({ id: "you-api", preset: "you",
+  expect(result.providers).toEqual([expect.objectContaining({
+    id: "you-api", preset: "you",
     base_url: "https://ydc-index.io", explicit_credentials_only: true, credentials: [],
     supported_models: ["you-search", "you-fetch", "search", "fetch"], call_flow: { call_adapter: "auto", fingerprint_adapter: "auto", special_adapter: "auto" },
   })]);
   expect(result.providers[0]).not.toHaveProperty("api_key");
-  expect(result.providers[0]).toMatchObject({ test_policy: { modelSelection: "selected", models: ["you-search"], cases: [{
-    id: "search", prompt: "Rust programming language official documentation", expectedAnswer: null, enabled: true,
-  }] } });
+  expect(result.providers[0]).toMatchObject({
+    test_policy: {
+      modelSelection: "selected", models: ["you-search"], cases: [{
+        id: "search", prompt: "Rust programming language official documentation", expectedAnswer: null, enabled: true,
+      }]
+    }
+  });
   expect(result.model_routes).toEqual(template.supportedModels.map((pattern) => ({ pattern, provider_ids: ["you-api"] })));
 });

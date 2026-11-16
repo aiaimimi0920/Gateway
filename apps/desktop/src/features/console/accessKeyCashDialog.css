@@ -1,25 +1,14 @@
-.dialog-content.nt-cash-dialog.nt-cash-dialog--key-bills {
+.n-dialog.nt-cash-dialog--key-bills {
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 0;
   overflow: hidden;
 }
-.nt-cash-dialog--key-bills .nt-cash-dialog__head {
-  padding: 18px 20px 8px;
-}
-.nt-cash-dialog--key-bills .nt-cash-dialog__head h2 {
-  margin: 0;
-  font-size: 1.05rem;
-}
-.nt-cash-dialog--key-bills > p {
-  margin: 0;
-  padding: 0 20px 14px;
-  font-size: 0.82rem;
-  border-bottom: 1px solid var(--nt-border);
+.nt-cash-dialog--key-bills > .n-dialog-title,
+.nt-cash-dialog--key-bills > .n-dialog-description {
+  flex-shrink: 0;
 }
 .nt-key-bills-body {
-  padding: 16px 20px;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -42,27 +31,11 @@
 }
 .nt-key-bills-footer {
   flex-shrink: 0;
-  padding: 14px 20px;
+  padding-top: 14px;
+  margin-top: 16px;
   border-top: 1px solid var(--nt-border);
-  background: var(--nt-slab);
 }
-.nt-cash-dialog--key-bills .nt-key-ledger th:first-child,
-.nt-cash-dialog--key-bills .nt-key-ledger td:first-child {
-  width: 44%;
-}
-.nt-cash-dialog--key-bills .nt-key-ledger td:nth-child(n+3),
-.nt-cash-dialog--key-bills .nt-key-ledger th:nth-child(n+3) {
+.nt-cash-dialog--key-bills .n-table :is(th, td):nth-child(n+3) {
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-.nt-key-bill-status {
-  white-space: nowrap;
-  color: var(--nt-text-muted);
-}
-.nt-key-bill-status--settled {
-  color: var(--nt-success);
-}
-.nt-key-bill-status--reserved,
-.nt-key-bill-status--unresolved {
-  color: var(--nt-warning);
 }

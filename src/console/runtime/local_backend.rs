@@ -97,8 +97,133 @@ impl LocalRouteConfigBackend {
 
 #[async_trait]
 impl RouteConfigRedisBackend for LocalRouteConfigBackend {
+    async fn load_refresh_grant_locked(
+        &self,
+        guard: &super::super::WriterLockGuard,
+        locator: &crate::console::refresh_grants::GrantLocator,
+    ) -> Result<Option<crate::console::refresh_grants::GrantRecord>, RouteConfigRedisStoreError>
+    {
+        self.persistence
+            .load_refresh_grant_locked(guard, locator)
+            .map_err(RouteConfigRedisStoreError::from_persistence)
+    }
+    async fn mark_refresh_grant_published_locked(
+        &self,
+        guard: &super::super::WriterLockGuard,
+        revision: &RouteConfigRedisRevision,
+        record: &crate::console::refresh_grants::GrantRecord,
+    ) -> Result<crate::console::refresh_grants::GrantRecord, RouteConfigRedisStoreError> {
+        self.persistence
+            .mark_refresh_grant_published_locked(guard, revision, record)
+            .map_err(RouteConfigRedisStoreError::from_persistence)
+    }
+    async fn find_refresh_grant(
+        &self,
+        request: &crate::console::refresh_grants::GrantRequest,
+    ) -> Result<Option<crate::console::refresh_grants::GrantRecord>, RouteConfigRedisStoreError>
+    {
+        let guard = self
+            .persistence
+            .try_writer_lock()
+            .map_err(RouteConfigRedisStoreError::from_persistence)?;
+        self.persistence
+            .find_refresh_grant_locked(&guard, request)
+            .map_err(RouteConfigRedisStoreError::from_persistence)
+    }
+
+    async fn load_refresh_grant(
+        &self,
+        locator: &crate::console::refresh_grants::GrantLocator,
+    ) -> Result<Option<crate::console::refresh_grants::GrantRecord>, RouteConfigRedisStoreError>
+    {
+        let guard = self
+            .persistence
+            .try_writer_lock()
+            .map_err(RouteConfigRedisStoreError::from_persistence)?;
+        self.persistence
+            .load_refresh_grant_locked(&guard, locator)
+            .map_err(RouteConfigRedisStoreError::from_persistence)
+    }
+
+    async fn reserve_refresh_grant(
+        &self,
+        revision: &RouteConfigRedisRevision,
+        request: &crate::console::refresh_grants::GrantRequest,
+    ) -> Result<crate::console::refresh_grants::GrantReservation, RouteConfigRedisStoreError> {
+        let guard = self
+            .persistence
+            .try_writer_lock()
+            .map_err(RouteConfigRedisStoreError::from_persistence)?;
+        self.persistence
+            .reserve_refresh_grant_locked(&guard, revision, request)
+            .map_err(RouteConfigRedisStoreError::from_persistence)
+    }
+
+    async fn store_refresh_grant_receipt(
+        &self,
+        record: &crate::console::refresh_grants::GrantRecord,
+        receipt: &crate::console::refresh_grants::GrantReceipt,
+    ) -> Result<crate::console::refresh_grants::GrantRecord, RouteConfigRedisStoreError> {
+        let guard = self
+            .persistence
+            .try_writer_lock()
+            .map_err(RouteConfigRedisStoreError::from_persistence)?;
+        self.persistence
+            .store_refresh_grant_receipt_locked(&guard, record, receipt)
+            .map_err(RouteConfigRedisStoreError::from_persistence)
+    }
+
+    async fn store_refresh_grant_result(
+        &self,
+        record: &crate::console::refresh_grants::GrantRecord,
+        result: &crate::console::refresh_grants::GrantResult,
+    ) -> Result<crate::console::refresh_grants::GrantRecord, RouteConfigRedisStoreError> {
+        let guard = self
+            .persistence
+            .try_writer_lock()
+            .map_err(RouteConfigRedisStoreError::from_persistence)?;
+        self.persistence
+            .store_refresh_grant_result_locked(&guard, record, result)
+            .map_err(RouteConfigRedisStoreError::from_persistence)
+    }
+
+    async fn mark_refresh_grant_published(
+        &self,
+        revision: &RouteConfigRedisRevision,
+        record: &crate::console::refresh_grants::GrantRecord,
+    ) -> Result<crate::console::refresh_grants::GrantRecord, RouteConfigRedisStoreError> {
+        let guard = self
+            .persistence
+            .try_writer_lock()
+            .map_err(RouteConfigRedisStoreError::from_persistence)?;
+        self.persistence
+            .mark_refresh_grant_published_locked(&guard, revision, record)
+            .map_err(RouteConfigRedisStoreError::from_persistence)
+    }
+
     fn active_source(&self) -> ActiveConfigSource {
         ActiveConfigSource::Recovered
+    }
+
+    async fn settle_transaction_locked(
+        &self,
+        guard: &WriterLockGuard,
+        record: &TransactionRecord,
+    ) -> Result<super::RouteConfigRedisSettlement, RouteConfigRedisStoreError> {
+        self.persistence
+            .ensure_guard(guard)
+            .map_err(RouteConfigRedisStoreError::from_persistence)?;
+        // No network actor survives cancellation: pointer reads/writes are
+        // synchronous under this same writer guard. Do not invent a remote gate.
+        let active = self
+            .persistence
+            .local_active_revision()
+            .map_err(RouteConfigRedisStoreError::from_persistence)?;
+        Ok(if active.as_deref() == Some(record.new_revision()) {
+            super::RouteConfigRedisSettlement::Activated
+        } else {
+            super::RouteConfigRedisSettlement::Revoked
+        })
     }
 
     async fn store_revision(

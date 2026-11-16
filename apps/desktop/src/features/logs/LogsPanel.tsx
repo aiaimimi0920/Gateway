@@ -10,52 +10,49 @@ export function LogsPanel({ state }: LogsPanelProps) {
   const currentLogPath = state.logTail.path ?? state.processSnapshot.logPath ?? null;
 
   return (
-    <div className="nt-stack">
-      <article className="nt-card nt-card--panel">
+    <div className="gateway-desktop-panels">
+      <Panel className="gateway-desktop-panel">
         <div className="nt-section__head">
           <div>
             <h2>最近启动日志</h2>
           </div>
           <div className="nt-actions">
-            <button
-              className="nt-btn nt-btn--secondary"
+            <Button
+              variant="secondary"
               type="button"
               disabled={state.busy}
               onClick={() => void state.copyDiagnostics()}
             >
               复制诊断
-            </button>
-            <button
-              className="nt-btn nt-btn--outline"
+            </Button>
+            <Button
+              variant="quiet"
               type="button"
               disabled={state.busy || !currentLogPath}
               onClick={() => void state.copyCurrentLogPath()}
             >
               复制日志路径
-            </button>
-            <button
-              className="nt-btn nt-btn--outline"
+            </Button>
+            <Button
+              variant="quiet"
               type="button"
               disabled={state.busy || !state.isTauriAvailable}
               onClick={() => void state.openLogDirectory()}
             >
               打开日志目录
-            </button>
-            <button
-              className="nt-btn nt-btn--primary"
+            </Button>
+            <Button
+              variant="primary"
               type="button"
               disabled={state.busy || !state.isTauriAvailable}
               onClick={() => void state.refreshLogs()}
             >
               刷新日志
-            </button>
+            </Button>
           </div>
         </div>
         {browserPreviewMode ? (
-          <p className="nt-copy">
-            当前是浏览器预览模式。日志面板会显示说明文本，但真实 sidecar 日志读取需要 Tauri
-            本地命令。
-          </p>
+          <Notice tone="warning">浏览器预览不能读取本地 sidecar 日志。</Notice>
         ) : null}
         <dl className="nt-meta-list nt-meta-list--inline">
           <div>
@@ -67,34 +64,32 @@ export function LogsPanel({ state }: LogsPanelProps) {
             <dd>{lines.length}</dd>
           </div>
         </dl>
-      </article>
+      </Panel>
 
       {state.diagnosticsReportText ? (
-        <article className="nt-card nt-card--panel nt-diagnostics-report">
+        <Panel className="gateway-desktop-panel">
           <div className="nt-section__head">
             <div>
               <h3>脱敏诊断文本</h3>
             </div>
           </div>
-          <p className="nt-copy">
-            如果系统剪贴板不可用或复制失败，可以从这里手动复制当前生成的诊断文本。
-          </p>
           <pre className="nt-code">{state.diagnosticsReportText}</pre>
-        </article>
+        </Panel>
       ) : null}
 
-      <article className="nt-terminal">
+      <Panel className="gateway-desktop-terminal" aria-label="启动日志内容">
         {lines.length === 0 ? (
-          <p className="nt-empty">暂无日志。启动 Gateway sidecar 后会显示当前 UI 管理实例的输出。</p>
+          <EmptyState title="暂无日志" />
         ) : (
           lines.map((line, index) => (
-            <div className="nt-terminal__line" key={`${index}-${line}`}>
+            <div className="gateway-desktop-terminal__line" key={`${index}-${line}`}>
               <span>{String(index + 1).padStart(3, "0")}</span>
               <code>{line}</code>
             </div>
           ))
         )}
-      </article>
+      </Panel>
     </div>
   );
 }
+import { Button, EmptyState, Notice, Panel } from "@neuro/ui";

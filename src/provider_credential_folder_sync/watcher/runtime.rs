@@ -209,6 +209,9 @@ async fn run_folder_sync_task(
         }
     }
 
+    if state.shutdown.is_requested() {
+        return;
+    }
     let (result, shutting_down) = run_sync_and_drain(
         state,
         run_folder_sync_once(state, FolderSyncDirection::Both),

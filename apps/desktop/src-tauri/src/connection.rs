@@ -59,12 +59,22 @@ pub async fn connect_gateway(
 }
 
 fn connect(app: &AppHandle, settings: ConnectionSettings) -> Result<String, String> {
+    settings.local_url()?;
     let connection = app.state::<ConnectionState>();
     let _guard = connection
         .busy
         .try_lock()
         .map_err(|_| "A Gateway connection is already in progress")?;
     let is_local = settings.mode == ConnectionMode::Local;
+    let previous_process =
+        crate::process::get_gateway_process_snapshot(app.state::<GatewayDesktopState>())?;
+    let path = gateway_app_dir()?.join("connection.json");
+    let previous_settings = settings::load(&path)?;
+    let previous_origin = connection
+        .origin
+        .lock()
+        .map_err(|_| "Connection lock poisoned")?
+        .clone();
     let remote = if is_local {
         None
     } else {
@@ -75,18 +85,45 @@ fn connect(app: &AppHandle, settings: ConnectionSettings) -> Result<String, Stri
         window::wait_for_console(&url, false)?;
         url
     } else {
-        local::start(app)?
+        local::start(app, settings.local_port)?
     };
-    if is_local {
-        window::wait_for_console(&url, true)?;
-    }
-    settings::save(&gateway_app_dir()?.join("connection.json"), &settings)?;
     let address = url.to_string();
-    window::open(app, url)?;
+    let applied = settings::save(&path, &settings).and_then(|_| window::open(app, url));
+    if let Err(error) = applied {
+        let restore_settings = settings::save(&path, &previous_settings);
+        let restore_process = if is_local
+            && (!previous_process.running || previous_process.port != Some(settings.local_port))
+        {
+            local::restore(app, &previous_process)
+        } else {
+            Ok(())
+        };
+        if let Some(origin) = previous_origin {
+            let _ = settings::console_url(&origin).and_then(|url| window::open(app, url));
+        } else {
+            window::show_settings(app);
+        }
+        if restore_settings.is_err() || restore_process.is_err() {
+            return Err(
+                "Connection failed and recovery needs attention; open connection settings".into(),
+            );
+        }
+        return Err(error);
+    }
     if !is_local {
         stop_gateway_sidecar(app.state::<GatewayDesktopState>())?;
     }
+    crate::updates::handoff::acknowledge(&gateway_app_dir()?)?;
     Ok(address)
+}
+
+// A remote server is not part of the update transaction; only local settings must start.
+pub(crate) fn acknowledge_external_update() -> Result<(), String> {
+    let root = gateway_app_dir()?;
+    if settings::load(&root.join("connection.json"))?.mode == ConnectionMode::Existing {
+        crate::updates::handoff::acknowledge(&root)?;
+    }
+    Ok(())
 }
 
 pub fn handle_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
@@ -119,10 +156,7 @@ pub async fn test_gateway_connection(
 ) -> Result<String, String> {
     require_settings_window(&window)?;
     let url = if settings.mode == ConnectionMode::Local {
-        settings::console_url(&format!(
-            "http://127.0.0.1:{}",
-            gateway_local_data::devtest::default_api_port()
-        ))?
+        settings.local_url()?
     } else {
         settings::console_url(&settings.server_url)?
     };

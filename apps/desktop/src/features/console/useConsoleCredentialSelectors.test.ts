@@ -35,6 +35,7 @@ it("keeps every catalog template's canonical name in account provider options", 
   const providers = PROVIDER_CATALOG_TEMPLATES.map((template) => ({
     id: template.providerId, label: template.labelZh, preset: template.preset,
     adapter: template.adapter, protocol_profile: template.protocolProfile,
+    ...(template.id === "vertex-oauth" ? { auth_mode: "vertex_user_oauth" } : {}),
   }));
   const document = parseRouteDocument(JSON.stringify({ providers, model_routes: [], aliases: {} }));
   const before = JSON.stringify(document);

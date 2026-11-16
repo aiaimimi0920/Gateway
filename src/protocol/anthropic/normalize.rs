@@ -77,6 +77,8 @@ pub fn normalize_messages(body: Value) -> Result<CanonicalRelayRequest, GatewayE
     // NOTE: max_tokens is NOT listed here because pack_anthropic reads it from
     // extra.  Listing it would silently discard the parameter.
     const KNOWN_FIELDS: &[&str] = &[
+        "gateway_vertex_history",
+        "gateway_bedrock_history",
         "model",
         "messages",
         "system",
@@ -330,12 +332,27 @@ fn parse_anthropic_content_block(part: &Value) -> Result<Option<ContentPart>, Ga
             }
         }
         "image" => {
-            let url = part
-                .get("source")
-                .and_then(|s| s.get("url"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+            let source = part.get("source");
+            let url = if source.and_then(|s| s.get("type")).and_then(Value::as_str)
+                == Some("base64")
+            {
+                let media_type = source
+                    .and_then(|s| s.get("media_type"))
+                    .and_then(Value::as_str)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| GatewayError::bad_request("Base64 image requires media_type"))?;
+                let data = source
+                    .and_then(|s| s.get("data"))
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| GatewayError::bad_request("Base64 image requires data"))?;
+                format!("data:{media_type};base64,{data}")
+            } else {
+                source
+                    .and_then(|s| s.get("url"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string()
+            };
             ContentPart::ImageUrl {
                 image_url: url,
                 detail: None,

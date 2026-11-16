@@ -69,6 +69,7 @@ pub(crate) fn build_suno_browser_executor_service_result(
         "clips": result.clips,
         "completed": result.completed,
         "message": result.message,
+        "wireModel": result.wire_model,
     })
 }
 

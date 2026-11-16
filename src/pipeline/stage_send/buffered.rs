@@ -9,6 +9,10 @@ pub(super) async fn send(
     candidate_index: usize,
     attempt: PreparedAttempt,
 ) -> Result<PipelineOutput, AttemptError> {
+    if attempt.effective_payload.auth_mode.as_deref() == Some("copilot_sdk") {
+        crate::protocol::copilot::single_turn(&ctx.canonical_req, &attempt.model)
+            .map_err(AttemptError::Stop)?;
+    }
     if attempt.tools_were_injected
         && ctx.canonical_req.endpoint_kind == EndpointKind::Responses
         && candidate.adapter == "anthropic_compatible"
@@ -132,9 +136,17 @@ pub(super) async fn send(
     }
 
     // Keep product reasoning and custom-tool fields intact for native Responses clients.
-    let native_text = !tools_were_injected
+    // SDK text owns its dispatch even when the generic OpenAI adapter prefers native Responses.
+    let native_text = payload.auth_mode.as_deref() != Some("copilot_sdk")
+        && !tools_were_injected
         && (UpstreamClient::uses_native_codex(&payload, &canonical_req, &model)
             || payload.is_discovered_native(&canonical_req)
+            || crate::protocol::commandcode::native_json::selected(&payload, &canonical_req)
+            || (crate::protocol::minimax::owns_payload(&payload)
+                && canonical_req.endpoint_kind == EndpointKind::Messages)
+            // Preserve Agnes response status/details without entering Codex transport.
+            || (crate::protocol::agnes::owns_payload(&payload)
+                && canonical_req.endpoint_kind == EndpointKind::Responses)
             || (payload.adapter == crate::protocol::chatgpt::basispoints::ADAPTER
                 && canonical_req.endpoint_kind == EndpointKind::Responses));
     if expects_json_passthrough(&ctx.canonical_req) || native_text {
@@ -177,11 +189,18 @@ pub(super) async fn send(
             .await;
 
         match result {
-            Ok(json_resp) => {
+            Ok(mut json_resp) => {
                 let declaration =
                     crate::protocol::model_declaration::ModelDeclaration::from_body(&json_resp);
                 model_observation::buffered(ctx, candidate, &model, declaration.as_ref());
-                if native_text {
+                if crate::protocol::commandcode::native_json::selected(&payload, &canonical_req) {
+                    let (usage, completion) = crate::protocol::commandcode::native_json::observe(
+                        &json_resp,
+                        canonical_req.endpoint_kind,
+                    );
+                    ctx.observed_usage = Some(usage);
+                    ctx.canonical_completion_semantics = Some(completion.into());
+                } else if native_text {
                     let observed = if crate::protocol::dashscope::is_dashscope(&ctx.canonical_req) {
                         crate::protocol::dashscope::response::observe_native(&json_resp, &model)
                     } else {
@@ -196,7 +215,7 @@ pub(super) async fn send(
                         }
                     };
                     if let Ok(observed) = observed {
-                        ctx.observed_usage = observed.usage.clone();
+                        ctx.observed_usage = observed.usage.clone().map(Some);
                         ctx.canonical_completion_semantics =
                             infer_canonical_completion_semantics(&ctx.canonical_req, &observed)
                                 .map(str::to_string);
@@ -222,6 +241,11 @@ pub(super) async fn send(
                     tools_were_injected,
                 );
 
+                if crate::protocol::commandcode::native_json::selected(&payload, &canonical_req) {
+                    // Observe the real model first; only the public projection uses the caller alias.
+                    json_resp["model"] =
+                        pack::caller_visible_reply_model(&canonical_req, &model).into();
+                }
                 return Ok(PipelineOutput::Json(json_resp));
             }
             Err(e) => {
@@ -254,7 +278,26 @@ pub(super) async fn send(
         }
     }
 
-    let result = if candidate.adapter == "qwen_web_compatible" {
+    let result = if payload.auth_mode.as_deref() == Some("copilot_sdk") {
+        // SDK failures and cancellation have no upstream HTTP response either.
+        ctx.observed_upstream_status = Some(None);
+        super::super::copilot_dispatch::execute(
+            state,
+            ctx,
+            candidate,
+            &model,
+            &provider_attempt_gate,
+            |observation| {
+                observe_provider_attempt_metric(
+                    global_gateway_metrics().as_ref(),
+                    &candidate.provider_account_id,
+                    &model,
+                    observation,
+                )
+            },
+        )
+        .await
+    } else if candidate.adapter == "qwen_web_compatible" {
         execute_qwen_web_nonstream_with_recovery(
             state,
             candidate,
@@ -334,7 +377,10 @@ pub(super) async fn send(
             model_observation::buffered(
                 ctx,
                 candidate,
-                &model,
+                &crate::protocol::lobsterai::virtual_model::observed_model(
+                    payload.as_ref(),
+                    &model,
+                ),
                 canonical_resp.model_declaration.as_ref(),
             );
             controller.on_success();
@@ -347,7 +393,10 @@ pub(super) async fn send(
 
             // If we injected tools, parse XML tool calls from the
             // response text and convert to standard tool_calls format.
-            if !original_tools.is_empty() {
+            if !original_tools.is_empty()
+                && !crate::protocol::dim_oauth::business::owns_payload(payload.as_ref())
+                && !crate::protocol::nous_portal::business::owns_payload(payload.as_ref())
+            {
                 maybe_apply_xml_tool_response_bridge(
                     &ctx.req_id,
                     &mut canonical_resp,
@@ -373,10 +422,20 @@ pub(super) async fn send(
             ctx.canonical_completion_semantics =
                 infer_canonical_completion_semantics(&ctx.canonical_req, &canonical_resp)
                     .map(str::to_string);
-            ctx.observed_usage = canonical_resp.usage.clone();
+            ctx.observed_usage = Some(canonical_resp.usage.clone());
+            ctx.observed_upstream_status = upstream_status_observation(
+                payload.auth_mode.as_deref(),
+                canonical_resp.upstream_status,
+            );
 
             // Pack the response back into the wire format matching
             // the original protocol family.
+            if ctx.canonical_req.endpoint_kind != EndpointKind::Messages {
+                canonical_resp.usage = crate::protocol::lobsterai::virtual_model::chat_usage(
+                    ctx.lobster_model_resolution.as_ref(),
+                    canonical_resp.usage.take(),
+                );
+            }
             let json_resp = pack_response(&ctx.canonical_req, &canonical_resp);
             return Ok(PipelineOutput::Json(json_resp));
         }
@@ -407,5 +466,17 @@ pub(super) async fn send(
                 return Err(AttemptError::Stop(e));
             }
         }
+    }
+}
+
+pub(super) fn upstream_status_observation(
+    auth_mode: Option<&str>,
+    status: Option<u16>,
+) -> Option<Option<u16>> {
+    // Legacy HTTP adapters may omit status. Only a known non-HTTP execution proves explicit absence.
+    if auth_mode == Some("copilot_sdk") {
+        Some(status)
+    } else {
+        status.map(Some)
     }
 }

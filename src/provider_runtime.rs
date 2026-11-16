@@ -1,21 +1,56 @@
+mod accio_model_probe;
 #[path = "provider_account_probe.rs"]
 mod account_probe;
+mod agnes_model_probe;
 mod anthropic_model_probe;
 mod antigravity_model_probe;
+mod bedrock_model_probe;
 mod chatgpt_web_model_probe;
 mod codex_model_probe;
 mod cohere_model_probe;
+mod commandcode_model_probe;
 mod console_model_probe;
 mod console_probe;
 mod console_probe_request;
+#[cfg(feature = "copilot-sdk-runtime")]
+pub use gateway_copilot_runtime as copilot;
+mod dim_model_probe;
 mod gemini_model_probe;
+mod grok_web_model_probe;
+#[cfg(all(test, feature = "line-grok-web-reverse-api"))]
+mod grok_web_model_probe_tests;
 mod http_probe;
+mod kiro_api_key_model_probe;
+#[cfg(all(test, feature = "line-kiro-official-vendor-api"))]
+mod kiro_api_key_probe_tests;
+#[cfg(all(test, feature = "line-kiro-official-vendor-api"))]
+mod kiro_oauth_runtime_probe_tests;
+mod lobsterai_model_probe;
+mod lumalabs_media_probe;
 mod management;
+mod media_model_probe;
+mod media_probe_request;
+mod minimax_model_probe;
+mod model_probe_audit;
 mod model_probe_health;
 mod model_probe_recording;
+mod nous_model_probe;
+mod openai_model_probe_response;
+mod perplexity_web_model_probe;
+#[cfg(all(test, feature = "line-perplexity-web-reverse-api"))]
+mod perplexity_web_model_probe_tests;
 mod probe_lock;
+mod qwen_model_probe;
+#[cfg(all(test, feature = "line-qwen-official-api"))]
+mod qwen_model_probe_tests;
+mod qwen_web_model_probe;
+#[cfg(all(test, feature = "line-qwen-web-reverse"))]
+mod qwen_web_probe_tests;
 mod recording;
+mod sap_aicore_model_probe;
 mod search_model_probe;
+mod sensenova_model_probe;
+mod suno_media_probe;
 pub(crate) mod test_execution;
 pub mod test_measurement;
 pub mod test_quota;
@@ -23,6 +58,9 @@ pub mod test_results;
 pub(crate) mod test_store;
 #[cfg(test)]
 mod tests;
+mod udio_media_probe;
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+mod vertex_express_probe_tests;
 
 pub use account_probe::probe_provider_account_payload;
 pub(crate) use console_model_probe::probe_console_target;

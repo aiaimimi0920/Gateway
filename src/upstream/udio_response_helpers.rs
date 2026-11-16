@@ -101,10 +101,11 @@ pub(crate) fn prepare_udio_execution_context(
     payload: &ProviderAccountPayload,
     req: &crate::protocol::canonical::CanonicalRelayRequest,
     model: &str,
-    extra_headers: Option<&std::collections::HashMap<String, String>>,
+    _extra_headers: Option<&std::collections::HashMap<String, String>>,
     default_timeout: Duration,
 ) -> Result<PreparedUdioExecutionContext, GatewayError> {
-    let headers = crate::upstream::headers::build_upstream_headers_with(payload, extra_headers);
+    // Cookie, UA, origin and locale belong to the selected Web account, not the public caller.
+    let headers = crate::upstream::headers::build_upstream_headers_with(payload, None);
     let generation_plan = prepare_udio_generation_plan(
         req,
         model,

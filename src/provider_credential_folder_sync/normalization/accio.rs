@@ -7,6 +7,7 @@ use super::source::{
 use crate::db;
 use crate::error::GatewayError;
 use crate::implementation_lines;
+use crate::protocol::accio_oauth::{import_access as access, ImportMaterial};
 use serde_json::Value;
 
 pub(super) fn normalize_accio_import_payload(
@@ -28,19 +29,9 @@ pub(super) fn normalize_accio_import_payload(
         .or_else(|| raw_map.get("extra_body"))
         .and_then(Value::as_object);
 
-    let access_token = read_optional_object_string(
-        raw_map,
-        &["accessToken", "access_token", "apiKey", "api_key"],
-    )
-    .or_else(|| {
-        nested_extra_body.and_then(|extra| {
-            read_optional_object_string(extra, &["accessToken", "access_token", "token"])
-        })
-    });
-    if access_token.is_none() {
+    let Some(access_token) = access(raw_map)? else {
         return Ok(raw_payload);
-    }
-    let access_token = access_token.unwrap_or_default();
+    };
     let utdid = read_optional_object_string(raw_map, &["utdid", "x-utdid"])
         .or_else(|| {
             nested_headers
@@ -63,6 +54,7 @@ pub(super) fn normalize_accio_import_payload(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .unwrap_or("https://phoenix-gw.alibaba.com");
+    let material = ImportMaterial::parse(raw_map, &utdid, base_url)?;
     let version = provider_account
         .payload
         .get("headers")
@@ -95,30 +87,11 @@ pub(super) fn normalize_accio_import_payload(
         .or_else(|| provider_account.payload.get("responses_path").cloned())
         .unwrap_or_else(|| Value::String("/api/adk/llm/generateContent".to_string()));
 
-    let refresh_token = raw_map
-        .get("refreshToken")
-        .or_else(|| raw_map.get("refresh_token"))
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-        .or_else(|| {
-            nested_extra_body.and_then(|extra| {
-                read_optional_object_string(extra, &["refreshToken", "refresh_token"])
-            })
-        });
     let cookie_header =
         read_optional_object_string(raw_map, &["cookie", "cookieHeader"]).or_else(|| {
             nested_headers
                 .and_then(|headers| read_optional_object_string(headers, &["Cookie", "cookie"]))
         });
-    let expires_at = raw_map
-        .get("expiresAt")
-        .or_else(|| raw_map.get("expires_at"))
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string);
     let account_name =
         read_optional_object_string(raw_map, &["accountName", "email", "name", "id"]);
     let credential_material_key = raw_map
@@ -235,15 +208,9 @@ pub(super) fn normalize_accio_import_payload(
     }
 
     let mut extra_body = serde_json::Map::new();
-    extra_body.insert("token".to_string(), Value::String(access_token.to_string()));
-    extra_body.insert(
-        "accessToken".to_string(),
-        Value::String(access_token.to_string()),
-    );
     extra_body.insert("empid".to_string(), Value::String(empid));
     extra_body.insert("tenant".to_string(), Value::String(tenant));
     extra_body.insert("iaiTag".to_string(), Value::String(iai_tag));
-    extra_body.insert("utdid".to_string(), Value::String(utdid.to_string()));
     extra_body.insert("version".to_string(), Value::String(version.to_string()));
 
     let mut payload = serde_json::Map::new();
@@ -256,12 +223,8 @@ pub(super) fn normalize_accio_import_payload(
     payload.insert("responsesPath".to_string(), responses_path);
     payload.insert("headers".to_string(), Value::Object(headers));
     payload.insert("extraBody".to_string(), Value::Object(extra_body));
-    if let Some(refresh_token) = refresh_token {
-        payload.insert("refreshToken".to_string(), Value::String(refresh_token));
-    }
-    if let Some(expires_at) = expires_at {
-        payload.insert("expiresAt".to_string(), Value::String(expires_at));
-    }
+    // Keep refresh-only material outside the normal business body/header projection.
+    material.apply(&mut payload);
     if let Some(account_name) = account_name {
         payload.insert("accountName".to_string(), Value::String(account_name));
     }

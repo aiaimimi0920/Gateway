@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Button, Field, Input, Notice, Panel } from "@neuro/ui";
 import { LanguageToggleButton } from "../../i18n/LanguageToggleButton";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 
@@ -33,11 +34,9 @@ export function BootstrapPage({ busy, error, onSubmit }: BootstrapPageProps) {
       <div className="auth-page__toolbar">
         <LanguageToggleButton />
       </div>
-      <form className="auth-panel" onSubmit={(event) => void submit(event)}>
+      <Panel className="auth-panel"><form className="auth-form" onSubmit={(event) => void submit(event)}>
         <h1 id="bootstrap-title">{t("初始化管理员", "Set up administrator")}</h1>
-        <p>{t("为这个本地 Gateway 实例创建管理密钥。", "Create the management token for this local Gateway instance.")}</p>
-        <label htmlFor="bootstrap-token">{t("管理密钥", "Management token")}</label>
-        <input
+        <Field label={t("管理密钥", "Management token")}><Input
           id="bootstrap-token"
           name="management-token"
           type="password"
@@ -45,9 +44,8 @@ export function BootstrapPage({ busy, error, onSubmit }: BootstrapPageProps) {
           value={token}
           onChange={(event) => setToken(event.currentTarget.value)}
           required
-        />
-        <label htmlFor="bootstrap-confirmation">{t("确认管理密钥", "Confirm management token")}</label>
-        <input
+        /></Field>
+        <Field label={t("确认管理密钥", "Confirm management token")}><Input
           id="bootstrap-confirmation"
           name="management-token-confirmation"
           type="password"
@@ -55,14 +53,10 @@ export function BootstrapPage({ busy, error, onSubmit }: BootstrapPageProps) {
           value={confirmation}
           onChange={(event) => setConfirmation(event.currentTarget.value)}
           required
-        />
-        {(localError || error) && <p role="alert">{localError ?? error}</p>}
-        <button type="submit" disabled={busy}>
-          {busy
-            ? t("创建管理员中...", "Creating administrator...")
-            : t("创建管理员", "Create administrator")}
-        </button>
-      </form>
+        /></Field>
+        {(localError || error) && <Notice tone="danger">{localError ?? error}</Notice>}
+        <Button variant="primary" type="submit" loading={busy}>{t("创建管理员", "Create administrator")}</Button>
+      </form></Panel>
     </main>
   );
 }

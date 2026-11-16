@@ -44,8 +44,10 @@ mod archive;
 mod audit_begin;
 mod audit_persistence;
 mod buffered;
+mod cancelled;
 mod credential_model;
 mod failure;
+mod luma_agents_audit;
 mod quota;
 mod route_trace;
 mod stream_failure;
@@ -54,6 +56,7 @@ mod timestamps;
 
 pub use audit_begin::{begin_request_audit, snapshot_request_audit};
 pub use buffered::{run, run_non_json_success};
+pub(super) use cancelled::run_cancelled;
 pub use failure::{run_failure, run_stream_failure};
 pub use stream_failure::StreamFailureCause;
 pub use streaming::run_stream_success;
@@ -106,6 +109,8 @@ pub struct RequestAuditFinalizeSnapshot {
     pub route_policy_id: Option<String>,
     pub provider_account_id: Option<String>,
     pub resolved_model: Option<String>,
+    pub(crate) lobster_model_resolution:
+        Option<crate::protocol::lobsterai::virtual_model::Selection>,
     pub model_alias: Option<String>,
     pub route_selection_strategy: Option<String>,
     pub selected_provider_label: Option<String>,

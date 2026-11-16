@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Badge, Button, IconButton, Notice, Panel } from "@neuro/ui";
 import {
   Activity,
   Boxes,
@@ -7,6 +8,7 @@ import {
   ScrollText,
   Settings,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { ApiTestPanel } from "./features/api-test/ApiTestPanel";
 import { ConfigPanel } from "./features/config/ConfigPanel";
@@ -18,6 +20,7 @@ import { AppShell, type ShellNavItem } from "./features/shell/AppShell";
 import { StatusPanel } from "./features/status/StatusPanel";
 import type { GatewayDesktopState, SectionId } from "./lib/types";
 import { useGatewayDesktopState } from "./state/useGatewayDesktopState";
+import "./App.css";
 
 type LauncherSectionId = SectionId | "settings";
 
@@ -81,9 +84,9 @@ function App() {
       onToggleRailCollapsed={() => setRailCollapsed((current) => !current)}
       railFooter={
         <div className="nt-rail__status">
-          <div className={running ? "nt-chip nt-chip--online" : "nt-chip"}>
+          <Badge tone={running ? "success" : "neutral"}>
             {running ? "RUNNING" : "STANDBY"}
-          </div>
+          </Badge>
           <dl className="nt-mini-list">
             <div>
               <dt>Profile</dt>
@@ -107,9 +110,9 @@ function App() {
       showLocaleToggle
       headerActions={
         <>
-          <button
-            className={running ? "nt-btn nt-btn--outline" : "nt-btn nt-btn--primary"}
-            type="button"
+          <Button
+            variant={running ? "secondary" : "primary"}
+            loading={gatewayState.busy}
             disabled={
               gatewayState.busy ||
               !gatewayState.isTauriAvailable ||
@@ -118,47 +121,49 @@ function App() {
             onClick={() => void (running ? gatewayState.stopGateway() : gatewayState.startGateway())}
           >
             {running ? "停止 Gateway" : "启动 Gateway"}
-          </button>
+          </Button>
           {gatewayState.startWillSaveDraftProfile ? (
-            <span className="nt-start-save-hint">启动会先保存当前草稿</span>
+            <Badge tone="warning">启动会先保存当前草稿</Badge>
           ) : null}
         </>
       }
       beforeStage={
         <>
           {browserPreviewMode ? (
-            <div className="nt-alert nt-alert--warning">
+            <Notice tone="warning" className="gateway-runtime-notice">
               <span>
                 当前处于浏览器预览模式：可以查看界面、测试 HTTP 面板，但本地 sidecar 启停、profile
                 持久化和日志读取需要在 Tauri 桌面运行时中使用。
               </span>
-            </div>
+            </Notice>
           ) : null}
 
-          <section className="nt-hud-strip" aria-label="Gateway desktop summary">
-            <article className="nt-card nt-card--stat">
+          <section className="nt-hud-strip gateway-runtime-summary" aria-label="Gateway desktop summary">
+            <Panel className="gateway-runtime-stat">
               <span>Runtime</span>
               <strong>{gatewayState.runtimeInfo?.gatewayMode ?? "headless-first"}</strong>
-            </article>
-            <article className="nt-card nt-card--stat">
+            </Panel>
+            <Panel className="gateway-runtime-stat">
               <span>Health</span>
               <strong>{gatewayState.healthProbe?.ok ? "OK" : "CHECK"}</strong>
-            </article>
-            <article className="nt-card nt-card--stat">
+            </Panel>
+            <Panel className="gateway-runtime-stat">
               <span>Ready</span>
               <strong>
                 {readinessDegraded ? "DEGRADED" : gatewayState.readyProbe?.ok ? "READY" : "PENDING"}
               </strong>
-            </article>
+            </Panel>
           </section>
 
           {gatewayState.notice ? (
-            <div className={`nt-alert nt-alert--${gatewayState.notice.tone}`}>
-              <span>{gatewayState.notice.message}</span>
-              <button type="button" onClick={gatewayState.clearNotice}>
-                dismiss
-              </button>
-            </div>
+            <Notice tone={gatewayState.notice.tone} className="gateway-runtime-notice">
+              <div className="gateway-runtime-notice__content">
+                <span>{gatewayState.notice.message}</span>
+                <IconButton compact variant="quiet" label="关闭提示" onClick={gatewayState.clearNotice}>
+                  <X size={16} aria-hidden="true" />
+                </IconButton>
+              </div>
+            </Notice>
           ) : null}
         </>
       }

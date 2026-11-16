@@ -14,8 +14,12 @@ pub(crate) fn schedule(state: &Arc<AppState>) {
     let weak = Arc::downgrade(state);
     let shutdown = state.shutdown.clone();
     let wake = worker.wake.clone();
-    tokio::spawn(async move {
+    state.lifecycle.background_tasks.spawn(
+        crate::runtime::background_tasks::Worker::SiteHealth, &state.shutdown, async move {
         loop {
+            if shutdown.is_requested() {
+                return;
+            }
             let Some(state) = weak.upgrade() else {
                 return;
             };
@@ -54,7 +58,7 @@ pub(crate) fn schedule(state: &Arc<AppState>) {
                         || super::super::now().saturating_sub(s.checked_at) >= interval
                 });
                 if due {
-                    tokio::select! { _=shutdown.wait()=>return, _=refresh_plan(&state, &id, profile.as_deref(), false)=>{} }
+                    tokio::select! { biased; _=shutdown.wait()=>return, _=refresh_plan(&state, &id, profile.as_deref(), false)=>{} }
                 }
             }
             drop(state);

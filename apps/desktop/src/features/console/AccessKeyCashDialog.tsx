@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Badge, Button, DataTable, EmptyState, Notice, Select, type TableColumn } from "@neuro/ui";
 import type { ConsoleAccessKey } from "../../api/contracts";
 import { CashDialog } from "./CashDialog";
 import { CashReceiptDetails } from "./CashReceiptDetails";
@@ -52,6 +53,35 @@ export function AccessKeyCashDialog({
   const filtered = (rows ?? []).filter((row) => filter === "all" || row.status === filter);
   const totalPages = Math.max(1, Math.ceil(filtered.length / 10));
   const currentPage = Math.min(page, totalPages);
+  const columns: TableColumn<CashReceipt>[] = [
+    {
+      key: "details",
+      header: t("时间 / 明细", "Time / details"),
+      width: "44%",
+      rowHeader: true,
+      cell: (receipt) => <>
+        {formatTimestamp(receipt.createdAt)}
+        <CashReceiptDetails receipt={receipt} t={t} />
+      </>,
+    },
+    {
+      key: "status",
+      header: t("状态", "Status"),
+      cell: (receipt) => <Badge tone={receipt.status === "settled" ? "success" : receipt.status === "released" ? "neutral" : "warning"}>
+        {status[receipt.status]}
+      </Badge>,
+    },
+    {
+      key: "reserved",
+      header: t("预占金额", "Reserved amount"),
+      cell: (receipt) => formatCashMicros(receipt.reservedMicros),
+    },
+    {
+      key: "settled",
+      header: t("结算金额", "Settled amount"),
+      cell: (receipt) => receipt.amountMicros === null ? "—" : formatCashMicros(receipt.amountMicros),
+    },
+  ];
   return (
     <CashDialog
       wide
@@ -62,83 +92,56 @@ export function AccessKeyCashDialog({
       t={t}
     >
       <div className="nt-key-bills-body">
-      {!token ? (
-        <p role="alert">
-          {t("请先登录管理会话。", "Sign in to the management session.")}
-        </p>
-      ) : null}
-      {error ? (
-        <div className="nt-alert nt-alert--danger" role="alert">
-          {error}
-        </div>
-      ) : null}
-      {token && !rows && !error ? (
-        <p role="status">{t("读取中…", "Loading…")}</p>
-      ) : null}
-      {token && rows?.length === 0 ? (
-        <p role="status">{t("暂无现金账单记录", "No cash billing records")}</p>
-      ) : null}
-      {token && rows && rows.length > 0 ? <>
-        <div className="nt-key-bills-toolbar">
-          <span>{t(`最近 ${rows.length} 条 · USD`, `Latest ${rows.length} · USD`)}</span>
-          <select className="nt-input" aria-label={t("账单状态", "Bill status")} value={filter}
-            onChange={(event) => { setFilter(event.target.value as typeof filter); setPage(1); }}>
-            <option value="all">{t("全部状态", "All statuses")}</option>
-            {Object.entries(status).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </div>
-        <div
-          className="nt-cash-ledger"
-          tabIndex={0}
-          role="region"
-          aria-label={t("最近 100 条账单", "Latest 100 bills")}
-        >
-          <table className="nt-key-ledger">
-            <thead>
-              <tr>
-                <th>{t("时间 / 明细", "Time / details")}</th>
-                <th>{t("状态", "Status")}</th>
-                <th>{t("预占金额", "Reserved amount")}</th>
-                <th>{t("结算金额", "Settled amount")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.slice((currentPage - 1) * 10, currentPage * 10).map((receipt) => (
-                <tr key={receipt.requestId}>
-                  <td>
-                    {formatTimestamp(receipt.createdAt)}
-                    <CashReceiptDetails receipt={receipt} t={t} />
-                  </td>
-                  <td><span className={`nt-key-bill-status nt-key-bill-status--${receipt.status}`}>{status[receipt.status]}</span></td>
-                  <td>{formatCashMicros(receipt.reservedMicros)}</td>
-                  <td>
-                    {receipt.amountMicros === null
-                      ? "—"
-                      : formatCashMicros(receipt.amountMicros)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && <p role="status">{t("没有此状态的账单", "No bills with this status")}</p>}
-        </div>
-        <ScopePager t={t} page={currentPage} totalPages={totalPages} onPage={setPage}
-          navLabel={t("账单分页", "Bills pagination")} />
-      </> : null}
-      {error ? (
-        <button
-          type="button"
-          className="nt-btn nt-btn--outline"
-          disabled={!token}
-          onClick={() => setRetry(retry + 1)}
-        >
-          {t("重试", "Retry")}
-        </button>
-      ) : null}
+        {!token ? (
+          <Notice tone="danger">
+            {t("请先登录管理会话。", "Sign in to the management session.")}
+          </Notice>
+        ) : null}
+        {error ? (
+          <Notice tone="danger">
+            {error}
+          </Notice>
+        ) : null}
+        {token && !rows && !error ? (
+          <Notice>{t("读取中…", "Loading…")}</Notice>
+        ) : null}
+        {token && rows?.length === 0 ? (
+          <div role="status"><EmptyState title={t("暂无现金账单记录", "No cash billing records")} /></div>
+        ) : null}
+        {token && rows && rows.length > 0 ? <>
+          <div className="nt-key-bills-toolbar">
+            <span>{t(`最近 ${rows.length} 条 · USD`, `Latest ${rows.length} · USD`)}</span>
+            <Select compact aria-label={t("账单状态", "Bill status")} value={filter}
+              onChange={(event) => { setFilter(event.target.value as typeof filter); setPage(1); }}>
+              <option value="all">{t("全部状态", "All statuses")}</option>
+              {Object.entries(status).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </Select>
+          </div>
+          <div className="nt-cash-ledger">
+            <DataTable
+              label={t("最近 100 条账单", "Latest 100 bills")}
+              rows={filtered.slice((currentPage - 1) * 10, currentPage * 10)}
+              columns={columns}
+              getRowKey={(receipt) => receipt.requestId}
+              empty={<div role="status"><EmptyState title={t("没有此状态的账单", "No bills with this status")} /></div>}
+            />
+          </div>
+          <ScopePager t={t} page={currentPage} totalPages={totalPages} onPage={setPage}
+            navLabel={t("账单分页", "Bills pagination")} />
+        </> : null}
+        {error ? (
+          <Button
+            type="button"
+            disabled={!token}
+            onClick={() => setRetry(retry + 1)}
+          >
+            {t("重试", "Retry")}
+          </Button>
+        ) : null}
       </div>
       <footer className="nt-key-bills-footer">
         <span>{t("仅展示最近 100 条记录，不代表全部历史账单。", "Shows up to 100 recent records, not the complete billing history.")}</span>
-        <button type="button" className="nt-btn nt-btn--outline" onClick={onClose}>{t("完成", "Done")}</button>
+        <Button onClick={onClose}>{t("完成", "Done")}</Button>
       </footer>
     </CashDialog>
   );

@@ -32,6 +32,7 @@ pub(super) fn accumulate_qwen_web_body(
     body: &str,
     model: &str,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
+    super::admission::validate(body)?;
     let mut parser = SseParseState::new();
     let mut text = String::new();
     let mut reported_model = model.to_string();
@@ -106,6 +107,9 @@ pub(super) fn accumulate_qwen_web_body(
     }
 
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: reported_model,
         text,

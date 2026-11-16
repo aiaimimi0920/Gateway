@@ -18,6 +18,7 @@ pub mod azure_openai;
 #[cfg(not(feature = "line-azure-openai-official-vendor-api"))]
 #[path = "azure_openai_disabled.rs"]
 pub mod azure_openai;
+pub(crate) mod bedrock_auth;
 #[cfg(feature = "family-bedrock-converse-official-api")]
 pub mod bedrock_converse_official_api_common;
 #[cfg(not(feature = "family-bedrock-converse-official-api"))]
@@ -90,6 +91,8 @@ pub mod grok;
 #[cfg(not(feature = "line-grok-web-reverse-api"))]
 #[path = "grok_disabled.rs"]
 pub mod grok;
+pub mod grok_oauth;
+pub(crate) mod grok_web;
 mod header_map_helpers;
 pub mod headers;
 #[cfg(feature = "family-search-api-compatible-official-api")]
@@ -99,6 +102,9 @@ pub mod kiro;
 #[cfg(not(feature = "line-kiro-official-vendor-api"))]
 #[path = "kiro_disabled.rs"]
 pub mod kiro;
+pub mod kiro_api_key;
+pub mod kiro_oauth_runtime;
+pub(crate) mod luma_agents;
 #[cfg(feature = "line-lumalabs-web-reverse-api")]
 pub mod lumalabs;
 #[cfg(not(feature = "line-lumalabs-web-reverse-api"))]
@@ -114,9 +120,23 @@ pub mod openai_compatible_common;
 #[cfg(feature = "family-openai-compatible-official-api")]
 pub mod openai_compatible_official_api_common;
 pub mod openai_compatible_request_plan;
+pub mod perplexity_web;
 mod producer_browser_worker_io;
 mod producer_browser_worker_process;
+#[cfg(any(
+    feature = "line-chataibot-web-reverse",
+    feature = "line-lumalabs-web-reverse-api",
+    feature = "line-lumalabs-agents-official-api",
+    feature = "line-udio-web-reverse-api",
+    feature = "line-suno-web-reverse-api"
+))]
+mod public_assets;
 pub mod stitch_web;
+pub mod vertex_express;
+mod vertex_history;
+pub(crate) mod vertex_oauth;
+mod vertex_product;
+mod vertex_response;
 pub(crate) use producer_browser_worker_process::{
     execute_console_browser_worker, execute_producer_browser_worker_process,
     PreparedProducerBrowserWorkerLaunch,

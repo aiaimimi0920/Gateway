@@ -10,18 +10,19 @@ describe("route-independent console navigation", () => {
 
   it.each([
     { navigation: /Gateway console navigation/i, label: /^运维$/, content: /^运行概览$/ },
-    { navigation: /Gateway console navigation/i, label: /^密钥$/, content: /^新建 Key$/ },
-    { navigation: /辅助导航/i, label: /^设置$/, content: /^界面语言$/ },
-  ])("keeps $label reachable while the initial route request is pending or fails", async ({ navigation, label, content }) => {
+    { navigation: /Gateway console navigation/i, label: /^密钥$/, content: /^新建密钥$/ },
+    { navigation: /辅助导航/i, label: /^设置$/, content: /^语言$/, role: "combobox" as const },
+  ])("keeps $label reachable while the initial route request is pending or fails", async ({ navigation, label, content, role }) => {
     const api = createConsoleApi();
     const request = deferred<Awaited<ReturnType<typeof api.getRouteConfig>>>();
     vi.mocked(api.getRouteConfig).mockReturnValue(request.promise);
     const user = userEvent.setup();
+    const findContent = () => role ? screen.findByRole(role, { name: content }) : screen.findByText(content);
     renderWithProviders(<BrowserConsoleApp consoleApi={api} />);
-    expect(await screen.findByText("正在加载 Gateway 控制台...")).toBeInTheDocument();
+    expect((await screen.findByText("正在加载 Gateway 控制台...")).closest('[role="status"]')).toHaveClass("n-notice");
     const nav = screen.getByRole("navigation", { name: navigation });
     await user.click(within(nav).getByRole("button", { name: label }));
-    expect(await screen.findByText(content)).toBeInTheDocument();
+    expect(await findContent()).toBeInTheDocument();
     if (label.test("运维")) {
       expect(screen.queryByRole("heading", { name: /^运维$/ })).not.toBeInTheDocument();
       expect(screen.getByRole("searchbox", { name: "搜索运维记录" })).toBeInTheDocument();
@@ -35,7 +36,7 @@ describe("route-independent console navigation", () => {
       expect(document.querySelector(".nt-console-toolbar")).not.toBeInTheDocument();
     }
     await act(async () => request.reject(new Error("route storage unavailable")));
-    expect(screen.getByText(content)).toBeInTheDocument();
+    expect(await findContent()).toBeInTheDocument();
     expect(screen.getByText("route storage unavailable")).toBeInTheDocument();
     expect(api.commitRouteConfig).not.toHaveBeenCalled();
   });

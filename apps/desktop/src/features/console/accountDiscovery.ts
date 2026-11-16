@@ -18,7 +18,7 @@ export const accountDiscoverySchema = z.object({
   })).max(12).optional(),
 });
 export type AccountDiscovery = z.infer<typeof accountDiscoverySchema>;
-export type DiscoveryInput = { baseUrl?: string; apiKey?: string; credentialId?: string };
+export type DiscoveryInput = { baseUrl?: string; apiKey?: string; credentialId?: string; models?: string[] };
 export type DiscoverAccount = (input: DiscoveryInput, signal?: AbortSignal) => Promise<AccountDiscovery>;
 export const discoveryResponseSchema = z.object({ discovery: accountDiscoverySchema, revision: z.string() });
 

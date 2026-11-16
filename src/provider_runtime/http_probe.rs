@@ -131,6 +131,25 @@ pub(super) enum ProbeExpectation {
     AllowClientErrors,
 }
 
+#[cfg(test)]
+#[tokio::test]
+async fn luma_mcp_generic_probe_is_rejected_before_send() {
+    let payload = serde_json::from_value(serde_json::json!({
+        "adapter":"lumalabs_mcp_readonly","base_url":"http://127.0.0.1:1",
+        "api_key":"synthetic"}))
+    .unwrap();
+    let error = send_probe_request(
+        &rquest::Client::new(),
+        Method::GET,
+        "http://127.0.0.1:1/probe".into(),
+        &payload,
+        ProbeExpectation::HttpOk,
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.code.as_deref(), Some("luma_mcp_management_only"));
+}
+
 pub(super) async fn send_probe_request(
     client: &rquest::Client,
     method: Method,
@@ -138,6 +157,26 @@ pub(super) async fn send_probe_request(
     payload: &ProviderAccountPayload,
     expectation: ProbeExpectation,
 ) -> Result<(), GatewayError> {
+    crate::protocol::lobsterai::management_boundary::reject_generic(payload)?;
+    crate::protocol::luma_mcp::boundary::reject_generic(payload)?;
+    if crate::protocol::commandcode::owns_payload(payload) {
+        return Err(crate::protocol::commandcode::invalid());
+    }
+    if crate::protocol::sap_aicore::owns_payload(payload) {
+        return Err(crate::protocol::sap_aicore::invalid());
+    }
+    if crate::protocol::kiro_oauth::runtime::owns_payload(payload) {
+        return Err(crate::protocol::kiro_oauth::runtime::invalid());
+    }
+    if crate::protocol::kiro_api_key::owns_payload(payload) {
+        return Err(crate::protocol::kiro_api_key::invalid());
+    }
+    if crate::protocol::grok_oauth::business::owns_payload(payload) {
+        return Err(crate::protocol::grok_oauth::business::invalid());
+    }
+    if crate::protocol::vertex_express::owns_payload(payload) {
+        return Err(crate::protocol::vertex_express::invalid());
+    }
     let response = client
         .request(method, url)
         .headers(build_upstream_headers(payload))
@@ -169,5 +208,76 @@ pub(super) fn build_absolute_url(base_url: &str, path: &str) -> String {
         format!("{base_url}{path}")
     } else {
         format!("{base_url}/{path}")
+    }
+}
+
+#[cfg(test)]
+mod grok_oauth_tests {
+    use super::*;
+    #[tokio::test]
+    async fn commandcode_generic_probe_rejects_before_network() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let payload: ProviderAccountPayload = serde_json::from_value(serde_json::json!({
+            "adapter":"openai_compatible","base_url":base,"api_key":"synthetic-commandcode",
+            "auth_mode":crate::protocol::commandcode::AUTH_MODE}))
+        .unwrap();
+        let client = rquest::Client::builder().no_proxy().build().unwrap();
+        let error = send_probe_request(
+            &client,
+            Method::GET,
+            base,
+            &payload,
+            ProbeExpectation::HttpOk,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error.code.as_deref(), Some("invalid_commandcode_chat"));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), listener.accept())
+                .await
+                .is_err()
+        );
+    }
+    #[tokio::test]
+    async fn grok_oauth_generic_probes_never_send_a_token_or_report_connectivity_success() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let payload: ProviderAccountPayload = serde_json::from_value(serde_json::json!({
+            "adapter":"openai_compatible","base_url":base,"api_key":"synthetic-build-only",
+            "auth_mode":crate::protocol::grok_oauth::business::AUTH_MODE,
+        }))
+        .unwrap();
+        let client = rquest::Client::builder().no_proxy().build().unwrap();
+        for policy in [ProbePolicy::Legacy, ProbePolicy::Strict] {
+            assert!(probe_known_http_payload(&client, &payload, policy)
+                .await
+                .unwrap()
+                .is_err());
+        }
+        assert!(send_probe_request(
+            &client,
+            Method::POST,
+            base.clone(),
+            &payload,
+            ProbeExpectation::HttpOk
+        )
+        .await
+        .is_err());
+        let report =
+            crate::provider_runtime::probe_provider_payload_for_console(&client, &payload).await;
+        assert!(matches!(
+            report.status,
+            crate::provider_runtime::ProviderPayloadProbeStatus::Unsupported
+        ));
+        assert!(
+            crate::provider_runtime::provider_payload_probe_point(&payload)
+                .starts_with("Grok Build")
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), listener.accept())
+                .await
+                .is_err()
+        );
     }
 }

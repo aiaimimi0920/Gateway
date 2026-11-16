@@ -29,7 +29,8 @@ pub(super) fn expects_json_passthrough(
         | EndpointKind::ResearchCreate
         | EndpointKind::ResearchList
         | EndpointKind::ResearchGet
-        | EndpointKind::CreditsBalance => true,
+        | EndpointKind::CreditsBalance
+        | EndpointKind::SystemOne => true,
         EndpointKind::AudioTranscriptions => !matches!(
             req.raw_body
                 .get("response_format")

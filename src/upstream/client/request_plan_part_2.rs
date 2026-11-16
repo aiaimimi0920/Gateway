@@ -1,7 +1,38 @@
 use super::*;
 
+#[cfg(all(test, feature = "line-google-agent-platform-official"))]
+pub(super) fn vertex_express_unboxed_buffered_size(
+    client: &UpstreamClient,
+    payload: &ProviderAccountPayload,
+    req: &CanonicalRelayRequest,
+) -> usize {
+    super::vertex_express_future_tests::future_size(|| {
+        client.execute_with_provider_account_id_inner("", payload, req, "gemini-contract", None)
+    })
+}
+
 impl UpstreamClient {
-    pub async fn execute_with_provider_account_id(
+    pub fn execute_with_provider_account_id<'a>(
+        &'a self,
+        provider_account_id: &'a str,
+        payload: &'a ProviderAccountPayload,
+        req: &'a CanonicalRelayRequest,
+        model: &'a str,
+        extra_headers: Option<&'a std::collections::HashMap<String, String>>,
+    ) -> std::pin::Pin<
+        Box<impl std::future::Future<Output = Result<CanonicalRelayResponse, GatewayError>> + 'a>,
+    > {
+        // Construct the multi-provider future outside callers' poll frames. No task or cancellation owner changes.
+        Box::pin(self.execute_with_provider_account_id_inner(
+            provider_account_id,
+            payload,
+            req,
+            model,
+            extra_headers,
+        ))
+    }
+
+    async fn execute_with_provider_account_id_inner(
         &self,
         provider_account_id: &str,
         payload: &ProviderAccountPayload,
@@ -9,8 +40,42 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<CanonicalRelayResponse, GatewayError> {
+        if crate::protocol::lobsterai::owns_payload(payload) {
+            return crate::protocol::lobsterai::runtime::execute(self, payload, req, model).await;
+        }
+        crate::protocol::lobsterai::management_boundary::reject_generic(payload)?;
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        if crate::protocol::commandcode::owns_payload(payload) {
+            return crate::protocol::commandcode::runtime::execute(self, payload, req, model).await;
+        }
+        if crate::protocol::sap_aicore::owns_payload(payload) {
+            return crate::protocol::sap_aicore::runtime::execute(self, payload, req, model).await;
+        }
+        crate::protocol::bedrock_turn::validate_request(payload, req)?;
+        if crate::upstream::grok_web::owns_payload(payload) {
+            return crate::upstream::grok_web::execute(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
+        crate::protocol::vertex_express::validate_request(payload, req, model)?;
+        crate::protocol::vertex_oauth::business::validate_request(payload, req, model)?;
+        if flow.executor == crate::protocol::perplexity_web::material::ADAPTER {
+            // Product-owned Cookie/UA only; caller headers are intentionally not forwarded.
+            return crate::upstream::perplexity_web::execute(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
         if flow.executor == crate::protocol::antigravity::ADAPTER {
             return crate::upstream::antigravity::execute(
                 &self.http,
@@ -248,7 +313,8 @@ impl UpstreamClient {
                 extra_headers,
             )?;
             let provider = context.provider;
-            let plan = context.plan;
+            let plan =
+                crate::upstream::vertex_history::prepare_plan(payload, req, context.plan, model)?;
             let headers = context.headers;
 
             debug!(
@@ -258,10 +324,13 @@ impl UpstreamClient {
                 "sending upstream request (gemini api: forced streaming + accumulate)"
             );
 
+            let request = self.send_profiled_plan(payload, &plan, headers)?.send();
+            if let Some(contract) = crate::upstream::vertex_product::for_payload(payload) {
+                let verified = Box::pin(contract.read(request)).await?;
+                return contract.project(verified, model);
+            }
             return gemini_api_modular::execute_forced_streaming_accumulate(
-                self.send_profiled_plan(payload, &plan, headers)?.send(),
-                provider,
-                model,
+                request, provider, model,
             )
             .await;
         }
@@ -294,11 +363,7 @@ impl UpstreamClient {
 
         if payload.adapter == "bedrock_converse_compatible" {
             let plan = Self::build_request_plan(payload, req, model, true)?;
-            let headers = sign_bedrock_runtime_headers_if_needed(
-                payload,
-                &plan,
-                build_inference_headers(payload, req, model, extra_headers),
-            )?;
+            let headers = build_inference_headers(payload, req, model, extra_headers);
             let provider = &payload.adapter;
 
             debug!(url = %plan.url, model, adapter = %payload.adapter, "sending upstream request (bedrock converse: forced streaming + accumulate)");
@@ -317,7 +382,7 @@ impl UpstreamClient {
                 .await);
             }
 
-            return bedrock_converse_common::accumulate_stream(response, model).await;
+            return bedrock_converse_common::accumulate_for_request(response, model, &plan).await;
         }
 
         if payload.adapter == "cohere_compatible" {
@@ -380,10 +445,12 @@ impl UpstreamClient {
 
             debug!(url = %plan.url, model, "sending upstream request (kiro: forced streaming + accumulate)");
 
-            let response = self
-                .send_profiled_plan(payload, &plan, headers)?
-                .send()
-                .await?;
+            let response = crate::upstream::kiro_oauth_runtime::receive_response(
+                payload,
+                self.send_profiled_plan(payload, &plan, headers)?
+                    .send()
+                    .await,
+            )?;
 
             if !response.status().is_success() {
                 return Err(crate::upstream::response_error::classify_response_error(
@@ -394,10 +461,17 @@ impl UpstreamClient {
                 .await);
             }
 
-            return kiro_upstream::accumulate_stream(response, model, req).await;
+            return if crate::protocol::kiro_oauth::runtime::owns_payload(payload) {
+                crate::upstream::kiro_oauth_runtime::accumulate(response, model, req).await
+            } else if crate::protocol::kiro_api_key::owns_payload(payload) {
+                crate::upstream::kiro_api_key::accumulate(response, model, req).await
+            } else {
+                kiro_upstream::accumulate_stream(response, model, req).await
+            };
         }
 
         if anthropic_messages_upstream::owns_payload(payload)
+            && !crate::protocol::minimax::owns_payload(payload)
             && payload.request_client_profile
                 != Some(crate::protocol::request_profile::RequestClientProfile::CpaClaudeCode)
         {
@@ -456,35 +530,6 @@ impl UpstreamClient {
             .await);
         }
 
-        let body: Value = response
-            .json()
-            .await
-            .map_err(|e| classify_network_error(&e, Some(provider.as_str())))?;
-
-        let canonical = match payload.adapter.as_str() {
-            "dashscope_compatible" | "dashscope_multimodal_compatible" => {
-                crate::protocol::dashscope::response::unpack(&body, model)
-            }
-            "anthropic_compatible" if anthropic_messages_upstream::owns_payload(payload) => {
-                anthropic_messages_upstream::unpack_response(&body)
-                    .or_else(|_| accio::unpack_accio_response(&body))
-            }
-            "bedrock_converse_compatible" => bedrock_converse_common::unpack_response(&body)
-                .or_else(|_| openai::unpack_openai_response(&body))
-                .or_else(|_| responses::unpack_responses_response(&body)),
-            "cohere_compatible" => cohere_chat_common::unpack_response(&body)
-                .or_else(|_| openai::unpack_openai_response(&body))
-                .or_else(|_| responses::unpack_responses_response(&body)),
-            _ if req.endpoint_kind == EndpointKind::Responses => {
-                responses::unpack_responses_response(&body)
-                    .or_else(|_| openai::unpack_openai_response(&body))
-                    .or_else(|_| accio::unpack_accio_response(&body))
-            }
-            _ => openai::unpack_openai_response(&body)
-                .or_else(|_| responses::unpack_responses_response(&body))
-                .or_else(|_| accio::unpack_accio_response(&body)),
-        }?;
-
-        Ok(canonical)
+        super::buffered_response::read(response, payload, req, model, &provider).await
     }
 }

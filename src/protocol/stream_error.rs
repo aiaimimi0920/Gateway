@@ -6,13 +6,17 @@ use std::fmt;
 #[derive(Debug)]
 pub struct ProtocolStreamError {
     source: serde_json::Error,
+    classified: Option<Box<crate::error::GatewayError>>,
 }
 
 impl ProtocolStreamError {
     pub(crate) fn is_upstream_failure(&self) -> bool {
-        self.source
-            .to_string()
-            .starts_with("responses_stream_upstream_error:")
+        let message = self.source.to_string();
+        self.classified.is_some()
+            || message.starts_with("responses_stream_upstream_error:")
+            || message.starts_with("bedrock_stream_upstream_error:")
+            || message.starts_with("accio_stream_upstream_error:")
+            || message.starts_with("kiro_api_key_stream_upstream_error:")
     }
     pub(crate) fn invalid_data(message: impl Into<String>) -> Self {
         Self::from(serde_json::Error::io(std::io::Error::new(
@@ -20,11 +24,28 @@ impl ProtocolStreamError {
             message.into(),
         )))
     }
+
+    /// Provider owners may attach a safe classification without impersonating a transport error.
+    pub(crate) fn classified(
+        message: impl Into<String>,
+        error: crate::error::GatewayError,
+    ) -> Self {
+        let mut result = Self::invalid_data(message);
+        result.classified = Some(Box::new(error));
+        result
+    }
+
+    pub(crate) fn gateway_error(&self) -> Option<&crate::error::GatewayError> {
+        self.classified.as_deref()
+    }
 }
 
 impl From<serde_json::Error> for ProtocolStreamError {
     fn from(source: serde_json::Error) -> Self {
-        Self { source }
+        Self {
+            source,
+            classified: None,
+        }
     }
 }
 

@@ -1,0 +1,42 @@
+/* Shared compact layout for model routing and entitlement membership. */
+.nt-pool-directory { min-width: 0; display: grid; gap: 12px; font-size: 12px; }
+.nt-directory-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.nt-directory-toolbar h2 { font-size: 20px; font-weight: 550; margin: 0 0 6px; }
+.nt-directory-toolbar p { margin: 0; }
+.nt-directory-toolbar input { width: 250px; max-width: 100%; }
+.nt-directory-surface { border: 1px solid var(--n-line); border-radius: 9px; background: var(--n-panel); overflow-x: auto; }
+.nt-directory-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 640px; }
+.nt-directory-table th { text-align: left; font-size: 11px; font-weight: 400; color: var(--n-muted); height: 34px; }
+.nt-directory-table th, .nt-directory-table td { padding: 8px 16px; border-bottom: 1px solid var(--n-line); }
+.nt-directory-table td { height: 48px; overflow-wrap: anywhere; }
+.nt-directory-table > tbody > tr:last-child > td { border-bottom: 0; }
+.nt-directory-model-row:hover, .nt-directory-model-row[data-expanded="true"] { background: color-mix(in srgb, var(--n-muted) 5%, transparent); }
+.nt-directory-model-name { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; color: var(--n-text); cursor: pointer; padding: 5px 0; font: inherit; width: 100%; text-align: left; }
+.nt-directory-model-name svg { flex: none; color: var(--n-muted); }
+.nt-directory-model-name span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 550; }
+.nt-directory-secondary { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--n-muted); font-size: 11px; margin-top: 3px; }
+.nt-directory-expanded > td { padding: 16px 24px; background: color-mix(in srgb, var(--n-muted) 4%, var(--n-panel)); }
+.nt-directory-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nt-directory-actions > button { min-height: 26px; height: 26px; border: 1px solid var(--n-line); border-radius: 5px; background: var(--n-control); color: var(--n-text); font: inherit; cursor: pointer; }
+.nt-directory-actions > button:disabled { opacity: .4; cursor: default; }
+.nt-priority-table th:first-child { width: 100px; }
+.nt-priority-table th:last-child { width: 100px; }
+.nt-priority-table { margin-bottom: 12px; }
+.nt-priority-table td { height: 38px; }
+.nt-priority-table tr[data-drop-target="true"] td { box-shadow: inset 0 2px var(--n-signal); }
+.nt-priority-grip { display: inline-flex; vertical-align: middle; align-items: center; justify-content: center; width: 25px; height: 25px; margin-right: 8px; border: 0; background: transparent; color: var(--n-muted); cursor: grab; touch-action: none; user-select: none; }
+.nt-priority-grip:active { cursor: grabbing; }
+.nt-priority-grip:disabled { opacity: .35; cursor: default; }
+.nt-directory-model-name:focus-visible, .nt-priority-grip:focus-visible, .nt-directory-actions button:focus-visible { outline: 2px solid var(--n-signal); outline-offset: 2px; }
+.nt-group-directory { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 22px; align-items: start; }
+.nt-group-directory-nav { display: grid; gap: 5px; max-height: 70vh; overflow-y: auto; padding-right: 16px; border-right: 1px solid var(--n-line); }
+.nt-group-directory-nav button { display: grid; gap: 4px; padding: 11px 12px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--n-text); text-align: left; cursor: pointer; }
+.nt-group-directory-nav button[aria-current="true"] { border-color: var(--n-signal-line); background: var(--n-signal-soft); }
+.nt-group-directory-nav small { color: var(--n-muted); }
+.nt-group-directory-body { min-width: 0; }
+.nt-group-directory-body > .nt-directory-toolbar { margin-top: 12px; }
+.nt-directory-state { color: var(--n-muted); font-size: 11px; }
+.nt-directory-state[data-enabled="true"] { color: var(--n-success); }
+.nt-pool-directory .n-segment span { min-height: 22px; height: 22px; padding: 0 10px; font-size: 12px; }
+@media (max-width: 900px) { .nt-group-directory { grid-template-columns: 150px minmax(0, 1fr); gap: 14px; } }
+@media (max-width: 640px) { .nt-group-directory { grid-template-columns: minmax(0, 1fr); } .nt-group-directory-nav { display: flex; max-height: 130px; border-right: 0; border-bottom: 1px solid var(--n-line); padding-bottom: 10px; } .nt-group-directory-nav button { flex: none; } }

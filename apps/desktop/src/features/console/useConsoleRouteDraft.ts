@@ -12,6 +12,7 @@ import { useSiteHealthDraft } from "./useSiteHealthDraft";
 import { buildSiteHealthSecretPatches, siteHealthSecretEditError } from "./siteHealthSecretDraft";
 import { captureProviderCreationSecrets, providerCreationSecretPatches, type ProviderCreationSecret } from "./providerCreationSecrets";
 import type { ProviderCatalogDraft } from "./providerCatalog";
+import { catalogFirstAccountSecret } from "./catalogFirstAccount";
 
 export const ACCOUNT_GROUP_ID_REQUIRED_ERROR_ZH = "分组 ID 必须填写。";
 export const ACCOUNT_GROUP_ID_REQUIRED_ERROR_EN = "Group ID is required.";
@@ -52,8 +53,11 @@ export function useConsoleRouteDraft({
   const [creationSecrets, setCreationSecrets] = useState<ProviderCreationSecret[]>([]);
   const stageProviderCreationSecrets = useCallback((document: ConsoleRouteDocument, value: ProviderCatalogDraft) => {
     const edits = captureProviderCreationSecrets(document, value.providerId, value.secrets ?? {});
-    if (edits.length && !hasSecretAccess) throw new Error("保存认证信息需要敏感信息权限。");
+    const credentialEdit = catalogFirstAccountSecret(value);
+    if ((edits.length || credentialEdit) && !hasSecretAccess) throw new Error("保存认证信息需要敏感信息权限。");
+    if (credentialEdit) buildCredentialSecretPatches({ activeDocument: document, draftDocument: document, activeSecrets: [], credentialSecretEdits: [credentialEdit] });
     setCreationSecrets((current) => [...current.filter((edit) => edit.providerId !== value.providerId), ...edits]);
+    if (credentialEdit) setCredentialSecretEdits(current => [...current, credentialEdit]);
   }, [hasSecretAccess]);
 
 
@@ -107,6 +111,7 @@ export function useConsoleRouteDraft({
       activeSecrets: routeConfig.routeConfig.secrets,
       activeSecretPatches,
       credentialSecretEdits,
+      strictSessionBindings: false,
     }), storageConnectionEdits), siteHealthSecretEdits), ...providerCreationSecretPatches(secretPatchDraftDocument, creationSecrets, false)];
   }, [activeSecretPatches, credentialSecretEdits, storageConnectionEdits, siteHealthSecretEdits, creationSecrets, routeConfig, secretPatchDraftDocument]);
 
@@ -171,6 +176,9 @@ export function useConsoleRouteDraft({
       if (!routeConfig) {
         throw new Error("Route configuration is not loaded yet.");
       }
+      // Validate against the final request document, including explicit secretPatchOverride callers.
+      buildCredentialSecretPatches({ activeDocument: routeConfig.routeConfig.document, draftDocument: document,
+        activeSecrets: routeConfig.routeConfig.secrets, credentialSecretEdits });
       providerCreationSecretPatches(document, creationSecrets);
       const connectionError = storageConnectionEditError(document, storageConnectionEdits);
       if (connectionError) throw new Error(connectionError);
@@ -203,7 +211,7 @@ export function useConsoleRouteDraft({
         ...(message ? { message } : {}),
       };
     },
-    [commitMessage, hasSecretAccess, routeConfig, secretPatches, storageConnectionEdits, siteHealthSecretEdits, creationSecrets, t],
+    [commitMessage, hasSecretAccess, routeConfig, secretPatches, credentialSecretEdits, storageConnectionEdits, siteHealthSecretEdits, creationSecrets, t],
   );
 
   const parseDraft = useCallback((): ConsoleRouteConfigCommitRequest => {

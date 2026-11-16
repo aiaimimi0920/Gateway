@@ -37,7 +37,7 @@ test("serialized operation preserves the signature error contract and clears its
   assert.equal(result.ok, false);
   assert.equal(result.error.code, "lumalabs_signature_failed");
   assert.equal(result.error.status, 401);
-  assert.equal(result.error.body, "private response");
+  assert.ok(!JSON.stringify(result).includes("private response"));
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /\/signature$/);
   assert.equal(calls[0].init.credentials, "include");
@@ -56,9 +56,7 @@ test("deadline aborts the request and maps a timeout error", async () => {
   assert.equal(signal.aborted, true);
 });
 
-const jsonResponse = (body, status = 200) => ({
-  ok: status < 400, status, text: async () => JSON.stringify(body),
-});
+const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), { status });
 
 function protocol({ signature, action, frames, menus, actionStatus = 200, menusStatus = 200 } = {}) {
   const calls = [];
@@ -70,10 +68,11 @@ function protocol({ signature, action, frames, menus, actionStatus = 200, menusS
       ws_token: "fixture-ws", cdn_url: "https://cdn.example.test/", query_params: "?fixture=1",
     });
     if (url.includes("/events/stream/")) return {
-      ok: true, status: 200,
+      ok: true, status: 200, headers: new Headers({"content-type":"text/event-stream"}),
       body: { getReader: () => ({
         read: async () => chunks.length ? { done: false, value: chunks.shift() } : { done: true },
         cancel: async () => { cancelled = true; },
+        releaseLock: () => {},
       }) },
     };
     if (url.includes("/menus.json")) return jsonResponse(menus ?? {}, menusStatus);
@@ -88,13 +87,14 @@ function protocol({ signature, action, frames, menus, actionStatus = 200, menusS
 test("split SSE chunks select the matching completed artifact and cancel the reader", async () => {
   const event = `data: ${JSON.stringify({ items: [
     { artifact: { id: "other", object_ref: "wrong.png", state: "completed" } },
-    { artifact: { id: "output-1", object_ref: "/right.png", state: "finalizing" } },
+    { artifact: { id: "output-1", object_ref: "/right.png", state: "completed" } },
   ] })}\n\n`;
   const fixture = protocol({ frames: ["data: keepalive\n\n", event.slice(0, 40), event.slice(40)] });
   const result = await runInBrowser(fixture.fetch);
   assert.deepEqual(result, {
     ok: true, signedUrl: "https://cdn.example.test/right.png?fixture=1", outputId: "output-1",
     resolvedActionType: "create_image_uni_1", actionId: "action-1",
+    realmId: "realm-1", mediaOperation: "image", artifactField: "image", state: "completed",
   });
   assert.equal(fixture.wasCancelled(), true);
   assert.deepEqual(fixture.calls.map(({ url }) => new URL(url).pathname), [
@@ -137,3 +137,36 @@ test("missing output id preserves the action-stage error", async () => {
   assert.equal(result.error.code, "lumalabs_missing_output_id");
   assert.equal(result.error.stage, "action");
 });
+
+for (const mediaOperation of ["image", "video", "audio"]) {
+  test(`${mediaOperation} discovery rejects a nonempty menu without a matching action before POST`, async () => {
+    const fixture = protocol({ menus: { menus: [{ type: "action", id: "delete_board" }] } });
+    const result = await runInBrowser(fixture.fetch, { mediaOperation, autoDiscoverActionType: true });
+    assert.equal(fixture.calls.filter(({ init }) => init.method === "POST").length, 0);
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "lumalabs_action_unavailable");
+    assert.equal(result.error.stage, "action_discovery");
+    assert.equal(fixture.wasCancelled(), true);
+    assert.ok(fixture.calls.every(({ init }) => init.signal.aborted));
+  });
+}
+
+test("explicit action bypasses optional discovery", async () => {
+  const fixture = protocol();
+  await runInBrowser(fixture.fetch, { actionBody: { type: "configured_action" } });
+  assert.ok(!fixture.calls.some(({ url }) => url.includes("/menus.json")));
+  assert.equal(JSON.parse(fixture.calls.at(-1).init.body).type, "configured_action");
+});
+
+for (const [ids, expected] of [
+  [[], "old"],
+  [["old", "create_image_uni_1"], "old"],
+  [["create_image_fixture"], "create_image_fixture"],
+]) {
+  test(`discovery preserves existing selection policy: ${JSON.stringify(ids)}`, async () => {
+    const fixture = protocol({ menus: { menus: ids.map((id) => ({ type: "action", id })) } });
+    await runInBrowser(fixture.fetch, { actionBody: { type: "old" }, autoDiscoverActionType: true });
+    assert.equal(JSON.parse(fixture.calls.at(-1).init.body).type, expected);
+    assert.equal(fixture.wasCancelled(), true);
+  });
+}

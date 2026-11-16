@@ -179,6 +179,17 @@ pub fn kiro_preset() -> ProviderPreset {
     }
 }
 
+/// Static native CLI Key: no IDE session context, implicit model or OAuth refresh.
+pub fn kiro_api_key_preset() -> ProviderPreset {
+    let mut preset = kiro_preset();
+    preset.id = crate::protocol::kiro_api_key::PRESET_ID.into();
+    preset.auth_mode = Some(crate::protocol::kiro_api_key::AUTH_MODE.into());
+    preset.responses_path = Some("/".into());
+    preset.session_auth = None;
+    preset.default_model = None;
+    preset
+}
+
 /// Returns the built-in "freebuff" preset for FreeBuff's run-backed chat API.
 pub fn freebuff_preset() -> ProviderPreset {
     ProviderPreset {

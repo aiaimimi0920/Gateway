@@ -40,5 +40,6 @@ it("stores prototype-named model mapping keys as serializable own data", () => {
     entries.map(({ model, upstreamModel }) => [model, upstreamModel]),
   ));
   expect(provider.model_map).toEqual({ old: "obsolete" });
-  expect(closeMapping).toHaveBeenCalledWith(null);
+  // Explicit edits autosave without closing the mapping session.
+  expect(closeMapping).not.toHaveBeenCalled();
 });

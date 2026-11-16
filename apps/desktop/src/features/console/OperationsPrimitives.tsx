@@ -1,12 +1,8 @@
-import { ChevronDown } from "lucide-react";
-import type { ReactNode } from "react";
-import type {
-  ConsoleDependencyReadiness,
-  ConsoleSummaryBucket,
-} from "../../api/contracts";
+import { Badge, Disclosure, EmptyState, Notice, Panel as Surface, type Tone } from "@neuro/ui";
+import { useEffect, useState, type ReactNode } from "react";
+import type { ConsoleSummaryBucket } from "../../api/contracts";
 import type {
   OperationsPanelState,
-  OperationsSectionId,
   TranslateFn,
 } from "./operations-contracts";
 
@@ -66,28 +62,28 @@ export function averageDurationMs(sum: number, count: number): number | null {
   return count > 0 ? sum / count : null;
 }
 
-export function severityBadgeClass(
+export function severityTone(
   severity: string | null | undefined,
-): string {
+): Tone {
   const normalized = (severity ?? "").toLowerCase();
   if (
     normalized === "critical" ||
     normalized === "fatal" ||
     normalized === "high"
   ) {
-    return "nt-badge nt-badge--danger";
+    return "danger";
   }
   if (
     normalized === "warning" ||
     normalized === "medium" ||
     normalized === "warn"
   ) {
-    return "nt-badge nt-badge--warning";
+    return "warning";
   }
-  return "nt-badge";
+  return "neutral";
 }
 
-export function statusBadgeClass(status: string | null | undefined): string {
+export function statusTone(status: string | null | undefined): Tone {
   const normalized = (status ?? "").toLowerCase();
   if (
     normalized === "resolved" ||
@@ -96,14 +92,14 @@ export function statusBadgeClass(status: string | null | undefined): string {
     normalized === "completed" ||
     normalized === "active"
   ) {
-    return "nt-badge nt-badge--success";
+    return "success";
   }
   if (
     normalized === "failed" ||
     normalized === "error" ||
     normalized === "open"
   ) {
-    return "nt-badge nt-badge--danger";
+    return "danger";
   }
   if (
     normalized === "acknowledged" ||
@@ -111,9 +107,9 @@ export function statusBadgeClass(status: string | null | undefined): string {
     normalized === "queued" ||
     normalized === "running"
   ) {
-    return "nt-badge nt-badge--warning";
+    return "warning";
   }
-  return "nt-badge";
+  return "neutral";
 }
 
 type StatTone = "default" | "emerald" | "danger" | "blue";
@@ -129,12 +125,12 @@ export function StatCard({
   hint?: string;
   tone?: StatTone;
 }) {
-  const toneClass = tone === "default" ? "" : ` nt-pilot-stat-card--${tone}`;
+  const valueTone = { default: "neutral", emerald: "success", danger: "danger", blue: "info" } as const;
   return (
-    <article className={`nt-pilot-stat-card${toneClass}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {hint ? <small>{hint}</small> : null}
+    <article className="nt-operations-stat">
+      <span className="n-muted">{label}</span>
+      <strong data-tone={valueTone[tone]}>{value}</strong>
+      {hint ? <small className="n-muted">{hint}</small> : null}
     </article>
   );
 }
@@ -162,43 +158,40 @@ export function Panel<T>({
   const body = (
     <>
       {state.error ? (
-        <div className="nt-alert nt-alert--warning" role="status">
+        <Notice tone="warning">
           {state.error}
-        </div>
+        </Notice>
       ) : null}
       {state.loading && state.data === null ? (
-        <div className="nt-pilot-stats-state" role="status">
+        <Notice>
           {t("正在读取…", "Loading…")}
-        </div>
+        </Notice>
       ) : state.data === null && !state.error ? (
-        <div className="nt-pilot-stats-state" role="status">
-          {emptyLabel ?? t("暂无数据", "No data yet")}
-        </div>
+        <div role="status"><EmptyState compact title={emptyLabel ?? t("暂无数据", "No data yet")} /></div>
       ) : state.data !== null ? (
         children(state.data)
       ) : null}
     </>
   );
   return collapsed ? (
-    <details className="nt-pilot-metric-card nt-operations-detail">
-      <summary>
-        <span>{title}</span>
-        {state.error ? (
-          <span className="nt-badge nt-badge--danger">
-            {t("读取失败", "Read failed")}
-          </span>
-        ) : null}
-        {state.loading ? (
-          <span className="nt-copy">{t("读取中…", "Loading…")}</span>
-        ) : null}
-      </summary>
+    <Disclosure className="nt-operations-detail" title={<span className="n-row">
+      <span>{title}</span>
+      {state.error ? (
+        <Badge tone="danger">
+          {t("读取失败", "Read failed")}
+        </Badge>
+      ) : null}
+      {state.loading ? (
+        <span className="n-muted">{t("读取中…", "Loading…")}</span>
+      ) : null}
+    </span>}>
       <div className="nt-operations-detail__body">{body}</div>
-    </details>
+    </Disclosure>
   ) : (
-    <article className="nt-pilot-metric-card">
+    <Surface className="nt-operations-card">
       <h3>{title}</h3>
       {body}
-    </article>
+    </Surface>
   );
 }
 
@@ -216,9 +209,9 @@ export function BucketList({
     return null;
   }
   return (
-    <div className="nt-console-bucket-group">
+    <div className="nt-operations-bucket">
       <h4>{title}</h4>
-      <dl className="nt-pilot-metric-list">
+      <dl className="nt-operations-metrics">
         {buckets.slice(0, 8).map((bucket) => (
           <div key={bucket.key}>
             <dt title={bucket.key}>{formatText(bucket.key)}</dt>
@@ -227,7 +220,7 @@ export function BucketList({
         ))}
       </dl>
       {buckets.length > 8 ? (
-        <p className="nt-pilot-stats-note">
+        <p className="n-muted">
           {t(
             `另有 ${buckets.length - 8} 项未显示`,
             `${buckets.length - 8} more not shown`,
@@ -238,94 +231,21 @@ export function BucketList({
   );
 }
 
-export function DependencyRow({
-  t,
-  name,
-  dependency,
-}: {
-  t: TranslateFn;
-  name: string;
-  dependency: ConsoleDependencyReadiness;
-}) {
-  const stateClass = dependency.ready
-    ? "nt-badge nt-badge--success"
-    : dependency.configured
-      ? "nt-badge nt-badge--danger"
-      : "nt-chip nt-chip--muted";
-  const stateLabel = dependency.ready
-    ? t("就绪", "Ready")
-    : dependency.configured
-      ? t("异常", "Failing")
-      : t("未配置", "Unconfigured");
-  const notes: string[] = [];
-  if (dependency.required) {
-    notes.push(t("必需", "Required"));
-  }
-  if (dependency.timedOut) {
-    notes.push(t("检查超时", "Check timed out"));
-  }
-  if (dependency.driver) {
-    notes.push(dependency.driver);
-  }
-  return (
-    <div className="nt-table__row">
-      <span>{name}</span>
-      <span>
-        <span className={stateClass}>{stateLabel}</span>
-      </span>
-      <span className="nt-copy">
-        {notes.length > 0 ? notes.join(" · ") : PLACEHOLDER}
-      </span>
-    </div>
-  );
-}
-
-export function Section({
-  id,
+/** Telemetry transitions reopen diagnostics; an unchanged warning still allows manual collapse. */
+export function DiagnosticDisclosure({
+  active,
   title,
-  icon,
-  status,
-  open,
-  onToggle,
   children,
 }: {
-  id: OperationsSectionId;
+  active: boolean;
   title: string;
-  icon: ReactNode;
-  status?: ReactNode;
-  open: boolean;
-  onToggle: (id: OperationsSectionId) => void;
   children: ReactNode;
 }) {
-  const bodyId = `nt-operations-section-${id}`;
+  const [open, setOpen] = useState(active);
+  useEffect(() => setOpen(active), [active]);
   return (
-    <section
-      className={`nt-settings-section${open ? " nt-settings-section--open" : ""}`}
-      data-section={id}
-    >
-      <h2 className="nt-settings-section__heading">
-        <button
-          aria-controls={bodyId}
-          aria-expanded={open}
-          className="nt-settings-section__trigger"
-          onClick={() => onToggle(id)}
-          type="button"
-        >
-          <span className="nt-settings-section__icon" aria-hidden="true">
-            {icon}
-          </span>
-          <span>{title}</span>
-          {status}
-          <span className="nt-settings-section__chevron" aria-hidden="true">
-            <ChevronDown size={18} />
-          </span>
-        </button>
-      </h2>
-      {open ? (
-        <div className="nt-settings-section__body" id={bodyId}>
-          {children}
-        </div>
-      ) : null}
-    </section>
+    <Disclosure className="nt-operations-detail" title={title} open={open} onOpenChange={setOpen}>
+      {children}
+    </Disclosure>
   );
 }

@@ -6,6 +6,77 @@ use crate::upstream::common::RequestPlan;
 use rquest::Method;
 use serde_json::json;
 
+/// These fields belong to credential material, never to caller or generic body extras.
+pub fn is_reserved_payload_extra_key(key: &str) -> bool {
+    matches!(
+        key,
+        "token"
+            | "accessToken"
+            | "access_token"
+            | "apiKey"
+            | "api_key"
+            | "refreshToken"
+            | "refresh_token"
+            | "sgcookie"
+            | "utdid"
+            | "x-utdid"
+    )
+}
+
+fn body_token(payload: &ProviderAccountPayload) -> Result<&str, GatewayError> {
+    if !payload.api_key.trim().is_empty() {
+        // Runtime refresh overrides only api_key; old extra_body copies may be stale or malformed.
+        return Ok(&payload.api_key);
+    }
+    let mut selected = None;
+    for key in ["token", "accessToken"] {
+        let Some(value) = payload.extra_body.as_ref().and_then(|extra| extra.get(key)) else {
+            continue;
+        };
+        let value = value
+            .as_str()
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| {
+                GatewayError::bad_request("Accio credential body token must be a nonempty string")
+                    .with_code("accio_invalid_body_token")
+            })?;
+        if selected.is_some_and(|previous| previous != value) {
+            return Err(
+                GatewayError::bad_request("Accio credential body token aliases disagree")
+                    .with_code("accio_ambiguous_body_token"),
+            );
+        }
+        selected = Some(value);
+    }
+    selected.ok_or_else(|| {
+        GatewayError::bad_request("Accio credential body token is required")
+            .with_code("accio_missing_body_token")
+    })
+}
+
+fn bind_credentials(
+    payload: &ProviderAccountPayload,
+    body: &mut serde_json::Map<String, serde_json::Value>,
+) -> Result<(), GatewayError> {
+    let token = body_token(payload)?;
+    // Match the existing header owner's source and precedence; never invent a device identifier.
+    let utdid = payload
+        .headers
+        .get("utdid")
+        .or_else(|| payload.headers.get("x-utdid"))
+        .filter(|value| {
+            !value.trim().is_empty() && rquest::header::HeaderValue::from_str(value).is_ok()
+        })
+        .ok_or_else(|| {
+            GatewayError::bad_request("Accio credential requires a valid utdid header")
+                .with_code("accio_invalid_utdid")
+        })?;
+    body.retain(|key, _| !is_reserved_payload_extra_key(key));
+    body.insert("token".into(), json!(token));
+    body.insert("utdid".into(), json!(utdid));
+    Ok(())
+}
+
 pub fn unsupported_request_plan_error() -> GatewayError {
     GatewayError::bad_request(
         "Accio adapters use the dedicated web_reverse_api replay line and are not supported by the generic planner when that line is unavailable.",
@@ -30,21 +101,15 @@ pub fn build_request_plan(
         body: Some(accio::pack_accio(req, model, stream)),
         response_kind: req.endpoint_kind,
     };
-    if let Some(serde_json::Value::Object(body)) = plan.body.as_mut() {
-        if let Some(utdid) = payload
-            .headers
-            .get("utdid")
-            .or_else(|| payload.headers.get("x-utdid"))
-            .map(String::as_str)
-            .filter(|value| !value.trim().is_empty())
-        {
-            body.entry("utdid".to_string())
-                .or_insert_with(|| json!(utdid));
-        }
-        let version = super::headers::effective_version(payload);
-        body.entry("version".to_string())
-            .or_insert_with(|| json!(version));
-    }
+    let body = plan
+        .body
+        .as_mut()
+        .and_then(serde_json::Value::as_object_mut)
+        .expect("Accio packer always returns an object");
+    bind_credentials(payload, body)?;
+    let version = super::headers::effective_version(payload);
+    body.entry("version".to_string())
+        .or_insert_with(|| json!(version));
     Ok(plan)
 }
 
@@ -71,7 +136,7 @@ mod tests {
             execution_mode: None,
             endpoint_execution_modes: None,
             default_model: None,
-            headers: HashMap::new(),
+            headers: HashMap::from([("utdid".into(), "synthetic-device".into())]),
             auth_mode: Some("bearer".to_string()),
             anthropic_version: None,
             beta_headers: None,

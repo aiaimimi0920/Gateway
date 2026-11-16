@@ -1,0 +1,85 @@
+import type { ReactNode } from "react";
+import type { AccountDiscovery, DiscoverAccount } from "./accountDiscovery";
+import type { DiscoverChatgptModels } from "./chatgptModelCatalog";
+import type { DiscoverProviderModels, OfficialModelCatalog, CatalogProviderKind } from "./officialModelCatalog";
+import type { BedrockMaterial } from "./bedrockMaterial";
+import type { ChatgptWebMaterial } from "./chatgptWebMaterial";
+import type { ProviderSessionMaterial } from "./providerSessionMaterial";
+import type { SessionProduct } from "./providerSessionProducts";
+import type { WebBrowserCapture } from "./ChatgptWebBrowserImport";
+import type { QwenEndpointDraft } from "./qwenEndpoint";
+import type { FreebuffBusinessTarget } from "./freebuffBusiness";
+import type { DimModelCatalog } from "./dimModelCatalog";
+import type { LobsterAiModelCatalog } from "./lobsteraiModelCatalog";
+
+export type CredentialDialogMode = "add" | "edit";
+export type CredentialApiKeyOperation = "keep" | "replace" | "clear";
+
+export type CredentialDialogValue = {
+  dimCatalog?: DimModelCatalog;
+  lobsteraiCatalog?: LobsterAiModelCatalog;
+  freebuffBusiness?: FreebuffBusinessTarget;
+  qwenEndpoint?: QwenEndpointDraft;
+  bedrockMaterial?: BedrockMaterial;
+  sessionMaterial?: ProviderSessionMaterial;
+  webSessionMaterial?: ChatgptWebMaterial;
+  chatgptAccountId?: string;
+  chatgptGroup?: string;
+  codexBasispointsEnabled?: boolean;
+  commandcodeZdr?: "inherit" | "required";
+  discoveryStatus?: string;
+  discovery?: AccountDiscovery;
+  modelCatalog?: OfficialModelCatalog;
+  providerId: string;
+  credentialId: string;
+  accountName: string;
+  enabled: boolean;
+  baseUrl: string;
+  supportedModelsText: string;
+  fetchedModelsText?: string;
+  manualModelsText?: string;
+  apiKeyOperation: CredentialApiKeyOperation;
+  apiKeyValue: string;
+};
+
+export type CredentialDialogProviderOption = {
+  id: string;
+  label: string;
+};
+
+export type CredentialDialogProps = {
+  modelPolicy?: (providerId: string) => import("./providerModelId").ModelIdPolicy | undefined;
+  sapProvider?: (providerId: string) => Record<string, unknown> | undefined;
+  lumaAgentsProvider?: (providerId: string) => Record<string, unknown> | undefined;
+  vertexOAuthProvider?: (providerId: string) => Record<string, unknown> | undefined;
+  vertexExpressProvider?: (providerId: string) => Record<string, unknown> | undefined;
+  qwenProvider?: (providerId: string) => Record<string, unknown> | undefined;
+  bedrockProvider?: (providerId: string) => Record<string, unknown> | undefined;
+  sessionProduct?: (providerId: string) => SessionProduct | undefined;
+  onCaptureWebBrowser?: WebBrowserCapture;
+  supportsWebSession?: (providerId: string) => boolean;
+  managedWebProvider?: (providerId: string) => boolean;
+  supportsBasispoints?: (providerId: string) => boolean;
+  open: boolean;
+  mode: CredentialDialogMode;
+  providerOptions: CredentialDialogProviderOption[];
+  existingCredentialIds: string[];
+  initialValue?: CredentialDialogValue | null;
+  locked: boolean;
+  hasSecretAccess: boolean;
+  onOpenChange(open: boolean): void;
+  onRequestSecretAccess(): void;
+  onSubmit(value: CredentialDialogValue): void;
+  renderAuthentication?: (providerId: string, onActivityChange: (active: boolean) => void) => ReactNode;
+  renderReauthentication?: (providerId: string, credentialId: string, onActivityChange: (active: boolean) => void) => ReactNode;
+  renderStoredAccountTools?: (providerId: string, credentialId: string, disabled: boolean,
+    apply: (update: (current: CredentialDialogValue) => CredentialDialogValue) => boolean) => ReactNode;
+  reauthenticationOnly?: (providerId: string) => boolean;
+  manualAuthentication?: (providerId: string) => { oauthLabel: string; manualLabel: string; secretLabel: string; note: string } | undefined;
+  discoveryProvider?: (providerId: string) => { baseUrl: string } | null;
+  onDiscover?: DiscoverAccount;
+  onDiscoverChatgptModels?: DiscoverChatgptModels;
+  onDiscoverProviderModels?: DiscoverProviderModels;
+  catalogProviderKind?: (providerId: string) => CatalogProviderKind | undefined;
+  onRevealKey?: (signal: AbortSignal) => Promise<string>;
+};

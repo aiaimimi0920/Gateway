@@ -88,6 +88,9 @@ pub fn unpack(body: &Value) -> Result<CanonicalRelayResponse, GatewayError> {
         return Err(invalid());
     }
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: body["model"].as_str().unwrap_or("unknown").into(),
         text,

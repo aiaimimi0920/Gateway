@@ -121,6 +121,7 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                     mut payload,
                     adapter,
                     protocol_family,
+                    protocol_profile,
                     supported_protocol_families,
                 }) = prepare_route_payload(
                     payload,
@@ -156,7 +157,8 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                         label: format!("{} / {}", provider_row.label, credential.label),
                         payload,
                         protocol_family,
-                        protocol_profile: provider_row.protocol_profile.clone(),
+                        protocol_profile: protocol_profile
+                            .unwrap_or_else(|| provider_row.protocol_profile.clone()),
                         supported_protocol_families,
                         adapter,
                         model_alias: Some(requested_model.to_string()),
@@ -205,6 +207,7 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                 mut payload,
                 adapter,
                 protocol_family,
+                protocol_profile,
                 supported_protocol_families,
             }) = prepare_route_payload(
                 payload,
@@ -235,7 +238,8 @@ pub(crate) async fn resolve_access_key_route_context_with_reservation(
                     label: provider_row.label.clone(),
                     payload,
                     protocol_family,
-                    protocol_profile: provider_row.protocol_profile.clone(),
+                    protocol_profile: protocol_profile
+                        .unwrap_or_else(|| provider_row.protocol_profile.clone()),
                     supported_protocol_families,
                     adapter,
                     model_alias: Some(requested_model.to_string()),

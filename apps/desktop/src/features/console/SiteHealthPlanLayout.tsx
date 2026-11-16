@@ -1,7 +1,6 @@
-import * as AlertDialog from "@radix-ui/react-alert-dialog";
-import * as Tabs from "@radix-ui/react-tabs";
+import { Button, ConfirmDialog, IconButton, Switch, Tab, TabList, TabPanel, TabsRoot } from "@neuro/ui";
 import { Plus, Trash2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { RouteAccountGroup } from "./routeAccountCatalog";
 import { probePolicySchema, type SiteHealthConfig } from "./siteHealth";
 import "./SiteHealthPlanLayout.css";
@@ -37,6 +36,7 @@ export function SiteHealthPlanLayout({
   t,
 }: Props) {
   const [confirm, setConfirm] = useState(false);
+  const frame = useRef<HTMLDivElement | null>(null);
   const selected = config.profiles.find((p) => p.id === selectedId);
   const assigned = new Set(config.profiles.flatMap((p) => p.account_group_ids));
   const free = groups.filter((g) => !assigned.has(g.id));
@@ -66,7 +66,7 @@ export function SiteHealthPlanLayout({
     onSelect(id);
   };
   return (
-    <Tabs.Root
+    <TabsRoot ref={frame}
       className="nt-health-plan-layout"
       value={selectedId === null ? "legacy" : `plan:${selectedId}`}
       onValueChange={(id) => {
@@ -76,17 +76,16 @@ export function SiteHealthPlanLayout({
     >
       <div className="nt-health-plan-bar">
         <div className="nt-health-plan-scroll">
-          <Tabs.List
-            aria-label={t("检测方案", "Detection plans")}
-            className="nt-health-plan-tabs"
+          <TabList
+            label={t("检测方案", "Detection plans")}
           >
             {!config.profiles.length && (
-              <Tabs.Trigger value="legacy" className="nt-health-plan-tab">
+              <Tab value="legacy">
                 {t("默认方案", "Default plan")}
-              </Tabs.Trigger>
+              </Tab>
             )}
             {config.profiles.map((p) => (
-              <Tabs.Trigger
+              <Tab
                 key={p.id}
                 value={`plan:${p.id}`}
                 data-profile-id={p.id}
@@ -99,19 +98,17 @@ export function SiteHealthPlanLayout({
                     : t("已停用", "Paused")
                 }
               >
-                {p.name}
-                <small className="nt-health-plan-state">
+                <span>{p.name}</span>
+                <small className="n-muted">
                   {p.policy.enabled
                     ? t("已启用", "Enabled")
                     : t("已停用", "Paused")}
                 </small>
-              </Tabs.Trigger>
+              </Tab>
             ))}
-          </Tabs.List>
-          <button
-            type="button"
-            className="nt-icon-action nt-health-add-plan"
-            aria-label={t("新增检测方案", "Add plan")}
+          </TabList>
+          <IconButton compact
+            label={t("新增检测方案", "Add plan")}
             disabled={
               locked ||
               config.profiles.length >= 16 ||
@@ -120,22 +117,17 @@ export function SiteHealthPlanLayout({
             }
             onClick={add}
           >
-            <Plus size={16} />
-          </button>
+            <Plus size={16} aria-hidden="true" />
+          </IconButton>
         </div>
-        <label className="nt-health-enable">
-          <span>{t("启用此方案", "Enable this plan")}</span>
-          <input
-            type="checkbox"
-            role="switch"
-            aria-label={t("启用此方案", "Enable this plan")}
-            checked={enabled}
-            disabled={locked}
-            onChange={(event) => onEnable(event.target.checked)}
-          />
-        </label>
+        <Switch
+          label={t("启用此方案", "Enable this plan")}
+          checked={enabled}
+          disabled={locked}
+          onChange={(event) => onEnable(event.target.checked)}
+        />
       </div>
-      <Tabs.Content
+      <TabPanel
         value={selectedId === null ? "legacy" : `plan:${selectedId}`}
         className="nt-health-plan-body"
         aria-label={t("当前检测方案", "Current detection plan")}
@@ -152,59 +144,43 @@ export function SiteHealthPlanLayout({
         >
           {report}
         </section>
-      </Tabs.Content>
+      </TabPanel>
       <footer className="nt-health-plan-footer">
-        <AlertDialog.Root open={confirm} onOpenChange={setConfirm}>
-          <AlertDialog.Trigger asChild>
-            <button
-              type="button"
-              className="nt-btn nt-btn--outline nt-health-remove"
-              disabled={locked || !selected}
-              aria-label={t("删除当前方案", "Remove current plan")}
-            >
-              <Trash2 size={15} />
-              {t("删除方案", "Remove plan")}
-            </button>
-          </AlertDialog.Trigger>
-          <AlertDialog.Portal>
-            <AlertDialog.Overlay className="dialog-overlay" />
-            <AlertDialog.Content className="dialog-content nt-health-confirm">
-              <AlertDialog.Title>
-                {t("删除检测方案？", "Remove detection plan?")}
-              </AlertDialog.Title>
-              <AlertDialog.Description>
-                {t(
-                  `删除「${selected?.name ?? ""}」及其监控密钥；删除最后一个方案将关闭本站监控。保存后生效，不会删除服务商或凭证。`,
-                  `Remove “${selected?.name ?? ""}” and its monitoring token. Removing the last plan disables monitoring. Applies on save; providers and credentials are not removed.`,
-                )}
-              </AlertDialog.Description>
-              <div className="dialog-actions">
-                <AlertDialog.Cancel className="nt-btn nt-btn--outline">
-                  {t("取消", "Cancel")}
-                </AlertDialog.Cancel>
-                <AlertDialog.Action
-                  className="nt-btn nt-btn--outline nt-health-remove"
-                  disabled={locked}
-                  onClick={() => {
-                    const profiles = config.profiles.filter(
-                      (p) => p.id !== selectedId,
-                    );
-                    onChange({
-                      ...config,
-                      profiles,
-                      enabled: profiles.length ? config.enabled : false,
-                    });
-                    onSelect(profiles[0]?.id ?? null);
-                  }}
-                >
-                  {t("确认删除方案", "Confirm removal")}
-                </AlertDialog.Action>
-              </div>
-            </AlertDialog.Content>
-          </AlertDialog.Portal>
-        </AlertDialog.Root>
+        <Button wrap variant="danger"
+          disabled={locked || !selected}
+          aria-label={t("删除当前方案", "Remove current plan")}
+          onClick={() => setConfirm(true)}
+        >
+          <Trash2 size={15} aria-hidden="true" />
+          {t("删除方案", "Remove plan")}
+        </Button>
+        <ConfirmDialog open={confirm} onOpenChange={setConfirm}
+          title={t("删除检测方案？", "Remove detection plan?")}
+          description={t(
+            `删除「${selected?.name ?? ""}」及其监控密钥；删除最后一个方案将关闭本站监控。保存后生效，不会删除服务商或凭证。`,
+            `Remove “${selected?.name ?? ""}” and its monitoring token. Removing the last plan disables monitoring. Applies on save; providers and credentials are not removed.`,
+          )}
+          cancelLabel={t("取消", "Cancel")} confirmLabel={t("确认删除方案", "Confirm removal")}
+          confirmDisabled={locked || !selected}
+          resolveReturnFocus={(target) => target?.isConnected && !target.matches(":disabled") ? target
+            : frame.current?.querySelector<HTMLButtonElement>('[role="tab"][data-state="active"]:not(:disabled)')
+            ?? frame.current?.closest('[role="dialog"]')?.querySelector<HTMLButtonElement>('button:not(:disabled)') ?? null}
+          onConfirm={() => {
+            if (locked || !selected) return;
+            const profiles = config.profiles.filter(
+              (p) => p.id !== selectedId,
+            );
+            onChange({
+              ...config,
+              profiles,
+              enabled: profiles.length ? config.enabled : false,
+            });
+            onSelect(profiles[0]?.id ?? null);
+            setConfirm(false);
+          }}
+        />
         <div className="nt-health-plan-actions">{actions}</div>
       </footer>
-    </Tabs.Root>
+    </TabsRoot>
   );
 }

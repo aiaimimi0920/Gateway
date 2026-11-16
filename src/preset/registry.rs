@@ -20,6 +20,8 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
         suno_preset(),
         udio_preset(),
     ];
+    #[cfg(feature = "family-openai-compatible-official-api")]
+    presets.push(grok_oauth_preset());
     #[cfg(feature = "line-chataibot-web-reverse")]
     {
         presets.push(chataibot_preset());
@@ -28,6 +30,10 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     {
         presets.push(grok_preset());
     }
+    #[cfg(feature = "line-perplexity-web-reverse-api")]
+    presets.push(perplexity_web_preset());
+    #[cfg(feature = "line-lumalabs-agents-official-api")]
+    presets.push(lumalabs_agents_api_preset());
     #[cfg(feature = "line-perplexity-search-official-vendor-api")]
     {
         presets.push(perplexity_search_preset());
@@ -70,6 +76,7 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     #[cfg(feature = "line-kiro-official-vendor-api")]
     {
         presets.push(kiro_preset());
+        presets.push(kiro_api_key_preset());
     }
     #[cfg(feature = "line-azure-openai-official-vendor-api")]
     {
@@ -104,6 +111,24 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     {
         presets.push(groq_openai_preset());
     }
+    #[cfg(feature = "line-river-official-api")]
+    presets.push(river_api_preset());
+    #[cfg(feature = "line-agnes-official-api")]
+    presets.push(agnes_api_preset());
+    #[cfg(feature = "line-sensenova-token-plan")]
+    presets.push(sensenova_token_plan_preset());
+    #[cfg(feature = "line-commandcode-provider-api")]
+    presets.push(commandcode_api_preset());
+    #[cfg(feature = "line-sap-aicore-chat")]
+    presets.push(sap_aicore_chat_preset());
+    #[cfg(feature = "line-minimax-m-plan")]
+    presets.extend([minimax_m_plan_preset(false), minimax_m_plan_preset(true)]);
+    #[cfg(feature = "line-cloudflare-workers-ai")]
+    presets.push(cloudflare_workers_ai_preset());
+    #[cfg(feature = "line-dim-user-oauth")]
+    presets.extend([dim_oauth_preset(false), dim_oauth_preset(true)]);
+    #[cfg(feature = "line-nous-portal-oauth")]
+    presets.push(nous_portal_oauth_preset());
     #[cfg(feature = "line-nvidia-openai-official-vendor-api")]
     {
         presets.push(nvidia_openai_preset());
@@ -134,6 +159,7 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     }
     #[cfg(feature = "line-qwen-official-api")]
     {
+        presets.push(qwen_official_api_preset());
         presets.push(qwen_coding_plan_openai_preset());
         presets.push(qwen_coding_plan_anthropic_preset());
     }
@@ -153,6 +179,7 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
         presets.push(google_agent_platform_official_api_preset());
         presets.push(vertex_gemini_preset());
         presets.push(vertex_official_api_preset());
+        presets.push(vertex_express_api_preset());
     }
     #[cfg(feature = "line-gemini-web-reverse")]
     {

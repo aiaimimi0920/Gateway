@@ -132,6 +132,29 @@ async fn usage_after_finish_is_retained_until_done() {
 }
 
 #[tokio::test]
+async fn explicit_reply_model_does_not_change_generic_upstream_model_contract() {
+    let input = b"data: {\"model\":\"upstream-model\",\"choices\":[{\"delta\":{\"content\":\"hi\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+    let output = super::translate_openai_chat_sse_to_legacy_completions_with_reply_model(
+        futures::stream::iter([Ok::<_, StreamError<std::io::Error>>(Bytes::from_static(
+            input,
+        ))]),
+        "public-model".into(),
+    )
+    .collect::<Vec<_>>()
+    .await;
+    assert_eq!(output.len(), 3);
+    assert_eq!(
+        output_json(output[0].as_ref().unwrap())["model"],
+        "public-model"
+    );
+    assert_eq!(
+        output_json(output[1].as_ref().unwrap())["model"],
+        "public-model"
+    );
+    assert_eq!(output_data(output[2].as_ref().unwrap()), "[DONE]");
+}
+
+#[tokio::test]
 async fn eof_after_finish_without_done_emits_one_final_chunk_and_done() {
     let input = concat!(
         "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"},\"finish_reason\":\"stop\"}]}\n\n"

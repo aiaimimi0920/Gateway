@@ -52,6 +52,16 @@ impl TransactionJournal {
         Ok(())
     }
 
+    pub(super) fn load_entries_read_only(&self) -> Result<Vec<JournalEntry>, PersistenceError> {
+        let (entries, tail_offset, file_len, missing_final_lf) = self.scan_journal()?;
+        if tail_offset < file_len || missing_final_lf {
+            return Err(PersistenceError::recovery_required(
+                "Read-only journal inspection cannot repair an incomplete tail",
+            ));
+        }
+        Ok(entries)
+    }
+
     pub(super) fn load_entries_inner(
         &self,
         repair_tail: bool,

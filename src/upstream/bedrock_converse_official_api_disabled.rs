@@ -27,6 +27,14 @@ pub async fn accumulate_stream(
     Err(compiled_out_error())
 }
 
+pub(crate) async fn accumulate_for_request(
+    _response: rquest::Response,
+    _model: &str,
+    _plan: &RequestPlan,
+) -> Result<CanonicalRelayResponse, GatewayError> {
+    Err(compiled_out_error())
+}
+
 pub fn unpack_response(_body: &Value) -> Result<CanonicalRelayResponse, GatewayError> {
     Err(compiled_out_error())
 }

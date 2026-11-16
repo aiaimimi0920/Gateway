@@ -9,12 +9,27 @@ use rquest::Method;
 use serde_json::Value;
 use std::time::Duration;
 use time::OffsetDateTime;
+
+#[cfg(test)]
+#[tokio::test]
+async fn luma_mcp_generic_balance_override_is_rejected_before_send() {
+    let payload = serde_json::from_value(serde_json::json!({
+        "adapter":"lumalabs_mcp_readonly","base_url":"http://127.0.0.1:1",
+        "api_key":"synthetic","balance_path":"http://127.0.0.1:1/balance"}))
+    .unwrap();
+    let error = fetch_generic_balance_snapshot(1, "account", Some("credential"), &payload)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code.as_deref(), Some("luma_mcp_management_only"));
+}
+
 pub(super) async fn fetch_generic_balance_snapshot(
     timeout_secs: u64,
     provider_account_id: &str,
     provider_credential_id: Option<&str>,
     payload: &ProviderAccountPayload,
 ) -> Result<GatewayProviderQuotaView, GatewayError> {
+    crate::protocol::luma_mcp::boundary::reject_generic(payload)?;
     let path = payload
         .balance_path
         .as_deref()

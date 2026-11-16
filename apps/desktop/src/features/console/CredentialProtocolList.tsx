@@ -1,3 +1,4 @@
+import { Disclosure, EmptyState } from "@neuro/ui";
 import type { AccountDiscovery } from "./accountDiscovery";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 
@@ -13,9 +14,9 @@ export function CredentialProtocolList({ discovery }: { discovery?: AccountDisco
   const { t } = useUiLocale();
   const protocols = discovery?.protocols?.length ? discovery.protocols : discovery ? [discovery] : [];
   return <div className="nt-credential-protocol-list">
-    {protocols.length ? protocols.map((entry) => <details key={entry.protocol}>
-      <summary>{names[entry.protocol]} <span>{t(`${entry.verified_models.length} 个已验证模型`, `${entry.verified_models.length} verified models`)}</span></summary>
+    {protocols.length ? protocols.map((entry) => <Disclosure key={entry.protocol}
+      title={<span>{names[entry.protocol]} <span className="n-muted">{t(`${entry.verified_models.length} 个已验证模型`, `${entry.verified_models.length} verified models`)}</span></span>}>
       <ul>{entry.verified_models.map((model) => <li key={model}>{model}</li>)}</ul>
-    </details>) : <span>{t("暂无协议识别结果", "No discovered protocols")}</span>}
+    </Disclosure>) : <EmptyState title={t("暂无协议识别结果", "No discovered protocols")} />}
   </div>;
 }

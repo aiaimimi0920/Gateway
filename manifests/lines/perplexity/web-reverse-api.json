@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "perplexity-web-reverse-api",
+  "identity": {
+    "serviceProviderKey": "perplexity_platform",
+    "serviceProviderLabel": "Perplexity Web",
+    "providerSurfaceKey": "perplexity-web",
+    "providerSurfaceLabel": "Perplexity consumption-site single-turn text",
+    "protocolProfile": "perplexity_web",
+    "implementationLine": "web_reverse_api",
+    "adapter": "perplexity_web_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "direct_http_replay"
+  },
+  "capabilities": { "families": ["conversation"], "supportsModelsEndpoint": false },
+  "credentials": {
+    "materialKinds": ["session_auth"],
+    "samplePath": "docs/provider-perplexity-web-material.sample.json",
+    "fieldsDocPath": "docs/provider-perplexity-web.md"
+  },
+  "docs": { "overviewDocPath": "docs/provider-perplexity-web.md", "buildDocPath": "docs/provider-perplexity-web.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "perplexity-web-reverse-api-verify",
+    "focusedCargoFilters": ["perplexity_web"],
+    "fixtureSuiteId": "perplexity_web_fixture",
+    "liveSuiteId": "perplexity_web_live",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "binary_exclusion",
+    "lineFeature": "line-perplexity-web-reverse-api",
+    "binaryInclusionGroup": "perplexity-web-reverse-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/perplexity_web",
+    "upstreamModule": "gateway/src/upstream/perplexity_web",
+    "platformDeltaModule": "gateway/src/protocol/perplexity_web/request.rs"
+  }
+}

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { ActionTooltip, NeuroTooltipProvider } from "./ActionTooltip";
+import { ActionTooltip, NeuroProvider } from "@neuro/ui";
 
 beforeAll(() => {
   vi.stubGlobal(
@@ -24,13 +24,13 @@ describe("ActionTooltip", () => {
     const user = userEvent.setup();
 
     render(
-      <NeuroTooltipProvider>
+      <NeuroProvider>
         <ActionTooltip label="Edit account Alpha">
           <button type="button" aria-label="Edit account Alpha">
             Edit
           </button>
         </ActionTooltip>
-      </NeuroTooltipProvider>,
+      </NeuroProvider>,
     );
 
     const trigger = screen.getByRole("button", { name: "Edit account Alpha" });

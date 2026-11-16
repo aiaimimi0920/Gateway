@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Disclosure } from "@neuro/ui";
 
 import {
   type AccessSectionId,
@@ -10,6 +11,7 @@ import { AccessAffinitySection } from "./AccessAffinitySection";
 import { AccessCredentialsSection } from "./AccessCredentialsSection";
 import { AccessWorkspaceHeader } from "./AccessWorkspaceHeader";
 import { useAccessKeysViewModel } from "./useAccessKeysViewModel";
+import "./AccessKeysWorkspace.css";
 
 export {
   ACCESS_DEFAULT_AFFINITY_DRAFT,
@@ -101,7 +103,7 @@ export function AccessKeysWorkspace({
   } = useAccessKeysViewModel(catalog, keyDraft, bundleDraft, affinityDraft);
 
   return (
-    <div className="nt-settings-page nt-console-page nt-console-table-page">
+    <div className="nt-access-workspace">
       <AccessWorkspaceHeader
         notice={notice}
         onDismissSecret={onDismissSecret}
@@ -130,9 +132,8 @@ export function AccessKeysWorkspace({
         t={t}
       />
       {catalog.data?.storageMode !== "local" ? (
-        <details className="nt-key-advanced">
-          <summary>{t("高级管理", "Advanced management")}</summary>
-          <div className="nt-settings-accordion">
+        <Disclosure className="nt-access-advanced" title={t("高级管理", "Advanced management")}>
+          <div className="nt-access-sections">
             <AccessBundlesSection
               bundleDraft={bundleDraft}
               bundleFormIncomplete={bundleFormIncomplete}
@@ -187,7 +188,7 @@ export function AccessKeysWorkspace({
               verifyDraft={verifyDraft}
             />
           </div>
-        </details>
+        </Disclosure>
       ) : null}
     </div>
   );

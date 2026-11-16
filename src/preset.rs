@@ -19,39 +19,55 @@ use crate::credential_runtime::{KeepaliveConfig, SessionAuthConfig};
 use crate::routing::candidate::{ProviderAccountPayload, ProviderExecutionMode};
 
 mod antigravity;
+mod dim_oauth;
 mod flow;
 mod google;
+mod grok_oauth;
+mod luma_agents;
 mod media;
 mod native_api;
+mod nous_portal;
 mod openai;
+mod perplexity_web;
 mod qwen;
 mod registry;
 mod search;
 mod session_chat;
 mod stitch;
+#[cfg(test)]
+mod vertex_express_tests;
 
 pub use antigravity::antigravity_oauth_preset;
+pub use dim_oauth::dim_oauth_preset;
 pub use flow::flow_web_preset;
 pub use google::{
     aistudio_official_api_preset, aistudio_web_reverse_preset, gemini_api_modular_preset,
     gemini_api_preset, gemini_business_preset, gemini_canvas_browser_relay_preset,
     gemini_canvas_chat_preset, gemini_canvas_preset, gemini_canvas_program_relay_preset,
     gemini_web_chat_modular_preset, gemini_web_chat_preset,
-    google_agent_platform_official_api_preset, google_agent_platform_preset, vertex_gemini_preset,
-    vertex_official_api_preset,
+    google_agent_platform_official_api_preset, google_agent_platform_preset,
+    vertex_express_api_preset, vertex_gemini_preset, vertex_official_api_preset,
 };
+pub use grok_oauth::grok_oauth_preset;
+pub use luma_agents::lumalabs_agents_api_preset;
 pub use media::{chataibot_preset, lumalabs_preset, producer_preset, suno_preset, udio_preset};
 pub use native_api::{
-    anthropic_preset, bedrock_converse_preset, cohere_chat_preset, xfyun_websocket_preset,
+    anthropic_preset, bedrock_converse_preset, cohere_chat_preset, minimax_m_plan_preset,
+    xfyun_websocket_preset,
 };
+pub use nous_portal::nous_portal_oauth_preset;
 pub use openai::{
-    azure_openai_preset, chatgpt_codex_oauth_official_api_preset, codex_preset,
-    deepseek_openai_preset, groq_openai_preset, longcat_openai_preset, mistral_openai_preset,
-    nvidia_openai_preset, openai_preset, openrouter_openai_preset, perplexity_preset,
-    poe_openai_preset, together_openai_preset, xai_openai_preset, xfyun_preset,
+    agnes_api_preset, azure_openai_preset, chatgpt_codex_oauth_official_api_preset,
+    cloudflare_workers_ai_preset, codex_preset, commandcode_api_preset, deepseek_openai_preset,
+    groq_openai_preset, longcat_openai_preset, mistral_openai_preset, nvidia_openai_preset,
+    openai_preset, openrouter_openai_preset, perplexity_preset, poe_openai_preset,
+    river_api_preset, sap_aicore_chat_preset, sensenova_token_plan_preset, together_openai_preset,
+    xai_openai_preset, xfyun_preset,
 };
+pub use perplexity_web::perplexity_web_preset;
 pub use qwen::{
-    qwen_coding_plan_anthropic_preset, qwen_coding_plan_openai_preset, qwen_web_chat_preset,
+    qwen_coding_plan_anthropic_preset, qwen_coding_plan_openai_preset, qwen_official_api_preset,
+    qwen_web_chat_preset,
 };
 pub use registry::{builtin_presets, get_builtin_preset};
 pub use search::{
@@ -59,7 +75,8 @@ pub use search::{
     perplexity_search_preset, tavily_preset, websearchapi_preset, you_preset,
 };
 pub use session_chat::{
-    accio_preset, chatgpt_web_reverse_preset, freebuff_preset, grok_preset, kiro_preset,
+    accio_preset, chatgpt_web_reverse_preset, freebuff_preset, grok_preset, kiro_api_key_preset,
+    kiro_preset,
 };
 pub use stitch::stitch_web_preset;
 

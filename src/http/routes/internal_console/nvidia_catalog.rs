@@ -130,6 +130,48 @@ pub async fn read_groq_model_catalog(
     .await
 }
 
+pub async fn read_river_model_catalog(
+    State(state): State<Arc<AppState>>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<CatalogRequest>,
+) -> Result<Response, GatewayError> {
+    read_catalog(
+        CatalogProvider::River,
+        state,
+        connect_info,
+        token,
+        headers,
+        body,
+    )
+    .await
+}
+
+pub async fn read_agnes_model_catalog(
+    State(state): State<Arc<AppState>>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<CatalogRequest>,
+) -> Result<Response, GatewayError> {
+    if !cfg!(feature = "line-agnes-official-api") {
+        return Err(
+            GatewayError::conflict("Agnes implementation line was compiled out.")
+                .with_code("gateway_provider_line_compiled_out"),
+        );
+    }
+    read_catalog(
+        CatalogProvider::Agnes,
+        state,
+        connect_info,
+        token,
+        headers,
+        body,
+    )
+    .await
+}
+
 pub async fn read_cohere_model_catalog(
     State(state): State<Arc<AppState>>,
     connect_info: Option<ConnectInfo<SocketAddr>>,
@@ -237,4 +279,51 @@ async fn read_catalog(
     Ok(json_with_no_store(
         serde_json::json!({"revision":snapshot.revision().id(), "catalog":catalog}),
     ))
+}
+pub async fn read_sensenova_model_catalog(
+    State(state): State<Arc<AppState>>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<CatalogRequest>,
+) -> Result<Response, GatewayError> {
+    if !cfg!(feature = "line-sensenova-token-plan") {
+        return Err(
+            GatewayError::conflict("SenseNova implementation line was compiled out.")
+                .with_code("gateway_provider_line_compiled_out"),
+        );
+    }
+    read_catalog(
+        CatalogProvider::SenseNova,
+        state,
+        connect_info,
+        token,
+        headers,
+        body,
+    )
+    .await
+}
+
+pub async fn read_commandcode_model_catalog(
+    State(state): State<Arc<AppState>>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<CatalogRequest>,
+) -> Result<Response, GatewayError> {
+    if !cfg!(feature = "line-commandcode-provider-api") {
+        return Err(
+            GatewayError::conflict("CommandCode implementation line was compiled out.")
+                .with_code("gateway_provider_line_compiled_out"),
+        );
+    }
+    read_catalog(
+        CatalogProvider::CommandCode,
+        state,
+        connect_info,
+        token,
+        headers,
+        body,
+    )
+    .await
 }

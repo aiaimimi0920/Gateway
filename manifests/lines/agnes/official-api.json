@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "agnes-official-api",
+  "identity": {
+    "serviceProviderKey": "agnes-ai", "serviceProviderLabel": "Agnes AI",
+    "providerSurfaceKey": "agnes-api", "providerSurfaceLabel": "Agnes AI International API",
+    "protocolProfile": "agnes_api", "implementationLine": "official_vendor_api", "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api", "executionMode": "direct_http", "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation", "models"], "supportsModelsEndpoint": true },
+  "credentials": {
+    "materialKinds": ["api_key"], "samplePath": "docs/providers/examples/agnes.routes.sample.json",
+    "fieldsDocPath": "docs/providers/agnes-contract-2026-11-10.md"
+  },
+  "docs": { "overviewDocPath": "docs/providers/agnes-contract-2026-11-10.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "agnes-official-api-verify", "focusedCargoFilters": ["agnes"],
+    "fixtureSuiteId": "agnes_fixture", "liveSuiteId": "agnes_live_pending", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-agnes-official-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"], "binaryInclusionGroup": "agnes-official-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/agnes.rs", "upstreamModule": "gateway/src/upstream/openai_compatible_request_plan.rs",
+    "platformDeltaModule": "gateway/src/provider_discovery/model_catalog.rs"
+  }
+}

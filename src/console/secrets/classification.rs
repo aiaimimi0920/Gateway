@@ -16,6 +16,7 @@ pub(crate) fn is_sensitive_key(key: &str) -> bool {
             | "apikey"
             | "appkey"
             | "accesskey"
+            | "awsaccesskeyid"
             | "secretkey"
             | "privatekey"
             | "token"

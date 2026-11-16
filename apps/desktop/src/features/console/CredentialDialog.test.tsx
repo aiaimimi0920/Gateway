@@ -1,3 +1,4 @@
+import { NeuroProvider } from "@neuro/ui";
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -17,19 +18,23 @@ beforeEach(() => localStorage.setItem("gateway-ui-locale", "zh-CN"));
 function setup(overrides: Partial<CredentialDialogProps> = {}) {
   const props: CredentialDialogProps = {
     open: true, mode: "edit", providerOptions: [{ id: "pool", label: "Pool" }], existingCredentialIds: ["account"],
-    initialValue: { providerId: "pool", credentialId: "account", accountName: "Account", enabled: false,
-      baseUrl: "", supportedModelsText: "", apiKeyOperation: "keep", apiKeyValue: "", discovery },
+    initialValue: {
+      providerId: "pool", credentialId: "account", accountName: "Account", enabled: false,
+      baseUrl: "", supportedModelsText: "", apiKeyOperation: "keep", apiKeyValue: "", discovery
+    },
     locked: false, hasSecretAccess: true, onOpenChange: vi.fn(), onRequestSecretAccess: vi.fn(), onSubmit: vi.fn(),
     discoveryProvider: () => ({ baseUrl: discovery.source_url }), onDiscover: vi.fn().mockResolvedValue(discovery),
     onRevealKey: vi.fn().mockResolvedValue("fixture-secret"), ...overrides,
   };
-  const view = render(<UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider>);
+  const view = render(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider></NeuroProvider>);
   return { props, view };
 }
 
 it("uses only the OAuth save flow for OAuth account creation", () => {
-  const { props } = setup({ mode: "add", initialValue: null,
-    renderAuthentication: () => <button type="button">保存到凭证池</button> });
+  const { props } = setup({
+    mode: "add", initialValue: null,
+    renderAuthentication: () => <button type="button">保存到凭证池</button>
+  });
   expect(screen.getByRole("button", { name: "保存到凭证池" })).toBeEnabled();
   expect(screen.queryByRole("button", { name: /^保存$/ })).not.toBeInTheDocument();
   expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
@@ -39,10 +44,14 @@ it("uses only the OAuth save flow for OAuth account creation", () => {
 });
 
 it("imports an existing Codex token only with explicit account identity and secret access", async () => {
-  const { props } = setup({ mode: "add", initialValue: null, supportsBasispoints: () => true,
+  const { props } = setup({
+    mode: "add", initialValue: null, supportsBasispoints: () => true,
     discoveryProvider: () => null, renderAuthentication: () => <button type="button">保存到凭证池</button>,
-    onDiscoverChatgptModels: vi.fn().mockResolvedValue({ clientVersion: "0.155.1", checkedAt: "now",
-      models: [{ slug: "fixture-model", visibility: "list", supported_in_api: true }] }) });
+    onDiscoverChatgptModels: vi.fn().mockResolvedValue({
+      clientVersion: "0.155.1", checkedAt: "now",
+      models: [{ slug: "fixture-model", visibility: "list", supported_in_api: true }]
+    })
+  });
   fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "token" } });
   expect(screen.queryByRole("button", { name: "保存到凭证池" })).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("账号 ID"), { target: { value: "codex-import" } });
@@ -59,8 +68,10 @@ it("imports an existing Codex token only with explicit account identity and secr
 });
 
 it("clears imported token material when switching back to OAuth", () => {
-  setup({ mode: "add", initialValue: null, supportsBasispoints: () => true,
-    renderAuthentication: () => <button type="button">保存到凭证池</button> });
+  setup({
+    mode: "add", initialValue: null, supportsBasispoints: () => true,
+    renderAuthentication: () => <button type="button">保存到凭证池</button>
+  });
   fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "token" } });
   fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "fixture-access-token" } });
   fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "oauth" } });
@@ -70,10 +81,12 @@ it("clears imported token material when switching back to OAuth", () => {
 });
 
 it("rejects a cleared imported token and never carries it to another provider", () => {
-  const { props } = setup({ mode: "add", initialValue: null, existingCredentialIds: [],
+  const { props } = setup({
+    mode: "add", initialValue: null, existingCredentialIds: [],
     providerOptions: [{ id: "pool", label: "Pool" }, { id: "other", label: "Other" }],
     supportsBasispoints: (id) => id === "pool", discoveryProvider: () => null,
-    renderAuthentication: (id) => id === "pool" ? <span>OAuth</span> : null });
+    renderAuthentication: (id) => id === "pool" ? <span>OAuth</span> : null
+  });
   fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "pool" } });
   fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "token" } });
   fireEvent.change(screen.getByLabelText("ChatGPT Account ID"), { target: { value: "fixture-account" } });
@@ -91,8 +104,10 @@ it("rejects a cleared imported token and never carries it to another provider", 
 });
 
 it("does not submit an imported token without secret access", () => {
-  const { props } = setup({ mode: "add", initialValue: null, hasSecretAccess: false,
-    supportsBasispoints: () => true, renderAuthentication: () => <span>OAuth</span> });
+  const { props } = setup({
+    mode: "add", initialValue: null, hasSecretAccess: false,
+    supportsBasispoints: () => true, renderAuthentication: () => <span>OAuth</span>
+  });
   fireEvent.change(screen.getByLabelText("录入方式"), { target: { value: "token" } });
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
   expect(props.onRequestSecretAccess).toHaveBeenCalled();
@@ -104,7 +119,7 @@ it.each(["basispoints", "native", "inherit"])("saves optional Codex channel %s w
   fireEvent.change(screen.getByLabelText("Codex 调用通道"), { target: { value: channel } });
   fireEvent.click(screen.getByRole("button", { name: "保存" }));
   expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-    apiKeyOperation:"keep", codexBasispointsEnabled: channel === "inherit" ? undefined : channel === "basispoints",
+    apiKeyOperation: "keep", codexBasispointsEnabled: channel === "inherit" ? undefined : channel === "basispoints",
   }));
 });
 
@@ -162,6 +177,18 @@ it("refreshes stored credentials without revealing secrets and preserves results
   expect(props.onRevealKey).not.toHaveBeenCalled();
 });
 
+it("passes configured models to stored-account protocol discovery", async () => {
+  const { props } = setup({ initialValue: {
+    providerId: "pool", credentialId: "account", accountName: "Account", enabled: true,
+    baseUrl: "", supportedModelsText: "known-text-model", apiKeyOperation: "keep", apiKeyValue: "", discovery,
+  } });
+  fireEvent.click(screen.getByRole("button", { name: "刷新协议" }));
+  await waitFor(() => expect(props.onDiscover).toHaveBeenCalledWith(
+    { credentialId: "account", models: ["known-text-model"] }, expect.any(AbortSignal),
+  ));
+  expect(props.onRevealKey).not.toHaveBeenCalled();
+});
+
 it("requires secret access and discards reveals after close", async () => {
   const denied = setup({ hasSecretAccess: false });
   fireEvent.click(screen.getByRole("button", { name: "显示 API Key" }));
@@ -171,8 +198,8 @@ it("requires secret access and discards reveals after close", async () => {
   let resolve!: (key: string) => void;
   const { view, props } = setup({ onRevealKey: vi.fn(() => new Promise<string>((done) => { resolve = done; })) });
   fireEvent.click(screen.getByRole("button", { name: "显示 API Key" }));
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props} open={false} /></UiLocaleProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} open={false} /></UiLocaleProvider></NeuroProvider>);
   await act(async () => resolve("late-secret"));
-  view.rerender(<UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider>);
+  view.rerender(<NeuroProvider><UiLocaleProvider><CredentialDialog {...props} /></UiLocaleProvider></NeuroProvider>);
   expect(screen.getByLabelText("API Key")).toHaveValue("");
 });

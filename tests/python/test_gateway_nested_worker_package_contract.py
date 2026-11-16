@@ -34,6 +34,17 @@ class GatewayNestedWorkerPackageContractTests(unittest.TestCase):
             "scripts/qwen-web-session/credentials.mjs",
             "scripts/suno-browser/browser.mjs",
             "scripts/suno-browser/pure.mjs",
+            "scripts/suno-browser/clip-state.mjs",
+            "scripts/suno-browser/generation.mjs",
+            "scripts/suno-browser/responses.mjs",
+            "scripts/suno-browser/native-model.mjs",
+            "scripts/udio-browser/request.mjs",
+            "scripts/udio-browser/responses.mjs",
+            "scripts/udio-browser/browser.mjs",
+            "scripts/udio-browser/generation.mjs",
+            "scripts/udio-browser/native-flow.mjs",
+            "scripts/udio-browser/native-submit.mjs",
+            "scripts/udio-browser/native-model.mjs",
             "scripts/gemini-canvas-browser-pool.mjs",
             "scripts/gemini-canvas-connected-client.js",
             "scripts/gemini-canvas-browser-pool-resources.mjs",
@@ -251,6 +262,29 @@ class GatewayNestedWorkerPackageContractTests(unittest.TestCase):
                 cwd=root, capture_output=True, text=True, encoding="utf-8", timeout=15,
             )
             self.assertEqual(capture_import.returncode, 0, msg=capture_import.stderr)
+
+            suno_import = subprocess.run(
+                [shutil.which("node") or "node", "--input-type=module", "-e",
+                 "for (const [file, name] of [['responses.mjs','createSunoResponses'],"
+                 "['generation.mjs','waitForGeneration'],['clip-state.mjs','snapshot'],"
+                 "['native-model.mjs','createNativeModelGate']]) {"
+                 "const module = await import(new URL(file, process.argv[1]));"
+                 "if (typeof module[name] !== 'function') process.exit(1);}",
+                 (destination / "scripts/suno-browser").as_uri() + "/"],
+                cwd=root, capture_output=True, text=True, encoding="utf-8", timeout=15,
+            )
+            self.assertEqual(suno_import.returncode, 0, msg=suno_import.stderr)
+
+            udio_import = subprocess.run(
+                [shutil.which("node") or "node", "--input-type=module", "-e",
+                 "for (const [file, name] of [['generation.mjs','runGeneration'],"
+                 "['native-flow.mjs','submitGenerationThroughPageUi']]) {"
+                 "const module = await import(new URL(file, process.argv[1]));"
+                 "if (typeof module[name] !== 'function') process.exit(1);}",
+                 (destination / "scripts/udio-browser").as_uri() + "/"],
+                cwd=root, capture_output=True, text=True, encoding="utf-8", timeout=15,
+            )
+            self.assertEqual(udio_import.returncode, 0, msg=udio_import.stderr)
 
             if os.name == "nt":
                 helper_check = subprocess.run(

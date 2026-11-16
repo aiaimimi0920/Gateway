@@ -23,38 +23,6 @@
   gap: 14px;
 }
 
-.nt-provider-account-library__group {
-  display: grid;
-  min-width: 0;
-  gap: 7px;
-}
-
-.nt-provider-account-library__group-head {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  border-left: 2px solid var(--nt-info);
-  padding-left: 8px;
-}
-
-.nt-provider-account-library__group-head strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--nt-text);
-  font-size: 0.76rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nt-provider-account-library__group-head span {
-  flex: 0 0 auto;
-  color: var(--nt-text-muted);
-  font-family: var(--nt-font-mono);
-  font-size: 0.64rem;
-}
-
 .nt-provider-account-library__pager {
   min-width: 0;
   height: calc(var(--nt-provider-account-card-height, 216px) * var(--nt-account-library-visible-rows, 1)
@@ -65,10 +33,9 @@
   overscroll-behavior-y: contain;
 }
 
-.nt-provider-account-library__pager > .nt-provider-account-library__empty {
+.nt-provider-account-library__pager > .n-empty {
   height: 100%;
   box-sizing: border-box;
-  justify-content: center;
 }
 
 .nt-provider-account-library__head {
@@ -184,69 +151,6 @@
 .nt-provider-account-card__identity strong {
   color: var(--nt-text);
   font-size: 0.76rem;
-}
-
-.nt-provider-account-card__state {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-}
-
-.nt-provider-account-card__state .nt-badge {
-  max-width: 78px;
-  overflow: hidden;
-  padding: 3px 5px;
-  font-size: 0.6rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nt-provider-account-card__verification {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  flex: 0 0 22px;
-  border: 1px solid var(--nt-border);
-  border-radius: var(--nt-radius-sm);
-  color: var(--nt-text-muted);
-}
-
-.nt-provider-account-card__stats {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  flex: 0 0 22px;
-  border: 1px solid var(--nt-border);
-  border-radius: var(--nt-radius-sm);
-  padding: 0;
-  background: var(--nt-color-control);
-  color: var(--nt-info);
-  cursor: pointer;
-}
-
-.nt-provider-account-card__stats:hover {
-  border-color: color-mix(in srgb, var(--nt-info) 46%, var(--nt-border));
-  background: var(--nt-color-control-hover);
-}
-
-.nt-provider-account-card__stats:focus-visible {
-  outline: 2px solid var(--nt-signal);
-  outline-offset: 2px;
-}
-
-.nt-provider-account-card__verification--verified {
-  border-color: color-mix(in srgb, var(--nt-success) 44%, var(--nt-border));
-  color: var(--nt-success);
-}
-
-.nt-provider-account-card__verification--failed,
-.nt-provider-account-card__verification--blocked {
-  border-color: color-mix(in srgb, var(--nt-danger) 42%, var(--nt-border));
-  color: var(--nt-danger);
 }
 
 .nt-provider-account-card__metrics {
@@ -405,20 +309,6 @@
   gap: 4px;
 }
 
-.nt-provider-account-library__page-input {
-  width: 42px;
-  min-height: 26px;
-  padding: 3px 5px;
-  font-family: var(--nt-font-mono);
-  font-size: 0.68rem;
-  text-align: center;
-}
-
-.nt-provider-account-library__page-count {
-  min-width: 24px;
-  font-family: var(--nt-font-mono);
-}
-
 .nt-provider-account-card__groups {
   display: flex;
   min-width: 0;
@@ -427,17 +317,6 @@
   gap: 4px;
 }
 
-.nt-provider-account-card__groups .nt-chip {
-  min-width: 0;
-  max-width: 88px;
-  overflow: hidden;
-  padding: 2px 5px;
-  font-size: 0.58rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nt-provider-account-card__muted,
 .nt-provider-account-card__recent {
   color: var(--nt-text-muted);
   font-size: 0.62rem;
@@ -463,44 +342,4 @@
   align-self: end;
   padding: 6px 0 0;
   background: transparent;
-}
-.nt-provider-account-card__actions > .nt-btn { grid-column: 1 / -1; width: 100%; }
-.nt-provider-account-library__tabs {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--nt-border);
-}
-.nt-provider-account-library__tabs button {
-  flex: 0 0 auto;
-  padding: 6px 10px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--nt-text-muted);
-  cursor: pointer;
-}
-.nt-provider-account-library__tabs button[aria-selected="true"] {
-  color: var(--nt-text);
-  border-bottom-color: var(--nt-warning);
-  background: var(--nt-color-control);
-}
-.nt-provider-account-library__tabs button:focus-visible { outline: 2px solid var(--nt-warning); outline-offset: -2px; }
-.nt-provider-account-library__tabs span { margin-left: 6px; font-family: var(--nt-font-mono); }
-
-.nt-provider-account-library__empty {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border: 1px dashed var(--nt-border);
-  border-radius: var(--nt-radius-sm);
-  padding: 9px;
-  color: var(--nt-text-muted);
-  font-size: 0.7rem;
-}
-
-.nt-credential-remove-dialog {
-  width: min(520px, calc(100vw - 32px));
 }

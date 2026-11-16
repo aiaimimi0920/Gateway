@@ -419,6 +419,29 @@ struct FakeRedisBackend {
 
 #[async_trait]
 impl RouteConfigRedisBackend for FakeRedisBackend {
+    async fn settle_transaction_locked(
+        &self,
+        _: &neuro_gateway::console::WriterLockGuard,
+        record: &neuro_gateway::console::TransactionRecord,
+    ) -> Result<neuro_gateway::console::RouteConfigRedisSettlement, RouteConfigRedisStoreError>
+    {
+        use neuro_gateway::console::{RouteConfigRedisSettlement as Settled, TransactionPhase};
+        let mut state = self.state.lock().unwrap();
+        let tombstone = record.revocation_tombstone().unwrap();
+        if let Some(stored) = state.transactions.get(record.tx_id()) {
+            assert_eq!(
+                stored.prepared_identity().unwrap(),
+                record.prepared_identity().unwrap()
+            );
+            if stored.phase() == TransactionPhase::RedisActivated {
+                return Ok(Settled::Activated);
+            }
+            assert!(stored == &tombstone || stored == &record.prepared_identity().unwrap());
+        }
+        state.transactions.insert(record.tx_id().into(), tombstone);
+        Ok(Settled::Revoked)
+    }
+
     async fn store_revision(
         &self,
         revision: &RouteConfigRedisRevision,
@@ -433,8 +456,15 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
 
     async fn store_prepared_transaction(
         &self,
-        _record: &neuro_gateway::console::TransactionRecord,
+        record: &neuro_gateway::console::TransactionRecord,
     ) -> Result<(), RouteConfigRedisStoreError> {
+        let mut state = self.state.lock().unwrap();
+        if let Some(old) = state.transactions.get(record.tx_id()) {
+            assert_eq!(old, record);
+        }
+        state
+            .transactions
+            .insert(record.tx_id().into(), record.clone());
         Ok(())
     }
 
@@ -443,7 +473,7 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
         _expected_active_revision: Option<&str>,
         revision: &RouteConfigRedisRevision,
         _prepared_record: &neuro_gateway::console::TransactionRecord,
-        _activated_record: &neuro_gateway::console::TransactionRecord,
+        activated_record: &neuro_gateway::console::TransactionRecord,
     ) -> Result<RouteConfigRedisActivationOutcome, RouteConfigRedisStoreError> {
         if self
             .fail_next_activation
@@ -453,7 +483,11 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
                 .store(true, std::sync::atomic::Ordering::SeqCst);
             return Ok(RouteConfigRedisActivationOutcome::Unavailable);
         }
-        self.state.lock().unwrap().active_revision = Some(revision.clone());
+        let mut state = self.state.lock().unwrap();
+        state.active_revision = Some(revision.clone());
+        state
+            .transactions
+            .insert(activated_record.tx_id().into(), activated_record.clone());
         Ok(RouteConfigRedisActivationOutcome::Activated)
     }
 
@@ -466,6 +500,7 @@ impl RouteConfigRedisBackend for FakeRedisBackend {
 
 #[derive(Clone, Debug, Default)]
 struct FakeRedisState {
+    transactions: BTreeMap<String, neuro_gateway::console::TransactionRecord>,
     revisions: BTreeMap<String, RouteConfigRedisRevision>,
     active_revision: Option<RouteConfigRedisRevision>,
 }

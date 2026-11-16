@@ -121,7 +121,7 @@ fn infer_canonical_conversation_semantics(
         ProtocolFamily::GeminiGenerateContent => Some("parts_turns"),
         ProtocolFamily::CohereChat => Some("messages_turns"),
         ProtocolFamily::DashScope | ProtocolFamily::DashScopeMultimodal => Some("messages_turns"),
-        ProtocolFamily::SearchApi => None,
+        ProtocolFamily::SearchApi | ProtocolFamily::SystemOne => None,
     }
 }
 
@@ -249,6 +249,20 @@ pub(super) fn set_selected_candidate(
         tools_were_injected,
     )
     .map(|value| value.to_string());
+    if crate::protocol::lobsterai::owns_payload(&candidate.payload) {
+        let family = if ctx
+            .lobster_model_resolution
+            .as_ref()
+            .is_some_and(|s| s.model.api_format.as_deref() == Some("anthropic"))
+        {
+            "anthropic_messages"
+        } else {
+            "openai_chat"
+        };
+        ctx.selected_upstream_target_protocol_family = Some(family.into());
+        ctx.selected_upstream_target_conversation_family = Some(family.into());
+        ctx.selected_upstream_target_tool_family = Some(family.into());
+    }
     ctx.tool_strategy =
         infer_tool_strategy(&ctx.canonical_req, tools_were_injected).map(str::to_string);
     ctx.canonical_tool_choice_semantics =

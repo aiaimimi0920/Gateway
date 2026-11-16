@@ -1,4 +1,4 @@
-import * as Tabs from "@radix-ui/react-tabs";
+import { TabPanel, TabsRoot } from "@neuro/ui";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRef, useState } from "react";
@@ -16,7 +16,7 @@ function Navigation({
   const [section, setSection] = useState<OperationsSectionId>("live");
   const ref = useRef<HTMLButtonElement>(null);
   return (
-    <Tabs.Root
+    <TabsRoot
       value={section}
       onValueChange={(value) => setSection(value as OperationsSectionId)}
     >
@@ -27,11 +27,11 @@ function Navigation({
         requestsTabRef={ref}
       />
       {(["live", "requests", "anomalies"] as const).map((id) => (
-        <Tabs.Content key={id} value={id}>
+        <TabPanel key={id} value={id}>
           {id} panel
-        </Tabs.Content>
+        </TabPanel>
       ))}
-    </Tabs.Root>
+    </TabsRoot>
   );
 }
 

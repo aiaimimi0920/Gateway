@@ -145,11 +145,15 @@ fn run(root: &Path, current: u32, migrations: &[Migration]) -> io::Result<File> 
         .create(true)
         .truncate(false)
         .open(root.join("storage-use.lock"))?;
-    let upgrading = stored < current;
+    let has_pending = crate::restore::pending(root)?;
+    let upgrading = stored < current || has_pending;
     if upgrading {
         usage.try_lock().map_err(|_| {
             io::Error::other("Close other Gateway instances before upgrading local data")
         })?;
+    }
+    if has_pending {
+        crate::restore::apply_pending(root)?;
     }
     while stored < current {
         let step = migrations

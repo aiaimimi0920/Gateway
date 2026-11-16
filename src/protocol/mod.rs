@@ -4,12 +4,15 @@ pub mod accio;
 #[cfg(not(feature = "line-accio-web-reverse-api"))]
 #[path = "accio_disabled.rs"]
 pub mod accio;
+pub mod accio_oauth;
+pub mod agnes;
 pub mod aistudio_web;
 pub mod anthropic;
 pub mod anthropic_messages;
 pub mod antigravity;
 pub mod azure_openai;
 pub mod bedrock_converse;
+pub mod bedrock_turn;
 pub mod call_flow;
 pub mod canonical;
 #[cfg(test)]
@@ -22,10 +25,15 @@ pub mod chataibot;
 pub mod chataibot;
 pub mod chatgpt;
 pub mod claude_wire;
+pub mod cloudflare_workers_ai;
 pub mod codex_wire;
 pub mod cohere;
+pub mod commandcode;
+pub mod copilot;
 pub mod dashscope;
+pub mod dim_oauth;
 pub mod freebuff;
+pub mod freebuff_login;
 pub mod gemini;
 pub mod gemini_api;
 pub mod gemini_business;
@@ -37,32 +45,50 @@ pub mod grok;
 #[cfg(not(feature = "line-grok-web-reverse-api"))]
 #[path = "grok_disabled.rs"]
 pub mod grok;
+pub mod grok_oauth;
 pub mod hooks;
 #[cfg(feature = "line-kiro-official-vendor-api")]
 pub mod kiro;
 #[cfg(not(feature = "line-kiro-official-vendor-api"))]
 #[path = "kiro_disabled.rs"]
 pub mod kiro;
+pub mod kiro_api_key;
+pub mod kiro_oauth;
+pub mod lobsterai;
+pub(crate) mod loopback_callback;
+pub mod luma_agents;
+pub mod luma_mcp;
+pub mod luma_oauth;
 #[cfg(feature = "line-lumalabs-web-reverse-api")]
 pub mod lumalabs;
 #[cfg(not(feature = "line-lumalabs-web-reverse-api"))]
 #[path = "lumalabs_disabled.rs"]
 pub mod lumalabs;
+pub mod minimax;
 pub mod model_declaration;
+pub mod nous_portal;
 pub mod openai;
 mod openai_tool_wire;
 mod output_format;
+pub mod perplexity_web;
 pub mod producer;
 pub mod qwen;
 pub mod qwen_web;
 pub mod registry;
 pub mod request_profile;
+pub mod response_sources;
+#[cfg(test)]
+mod response_sources_stream_tests;
+#[cfg(test)]
+mod response_sources_tests;
 pub mod responses;
+pub mod sap_aicore;
 #[cfg(feature = "family-search-api-compatible-official-api")]
 pub mod search_api;
 #[cfg(not(feature = "family-search-api-compatible-official-api"))]
 #[path = "search_api_disabled.rs"]
 pub mod search_api;
+pub mod sensenova;
 pub mod sse_parse;
 pub(crate) mod stream_decode;
 pub mod stream_error;
@@ -83,7 +109,11 @@ pub mod udio;
 #[cfg(not(feature = "line-udio-web-reverse-api"))]
 #[path = "udio_disabled.rs"]
 pub mod udio;
+pub(crate) mod unique_json;
 pub(crate) mod upstream_body;
+pub mod vertex_express;
+pub mod vertex_oauth;
+pub mod vertex_turn;
 pub mod workbuddy_wire;
 pub mod xfyun_websocket;
 

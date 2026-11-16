@@ -28,7 +28,11 @@ pub async fn start_provider_credential_probe_scheduler(state: Arc<AppState>) {
     );
     let mut interval = tokio::time::interval(Duration::from_secs(SCHEDULER_TICK_SECS));
     loop {
-        interval.tick().await;
+        tokio::select! {
+            biased;
+            _ = state.shutdown.wait() => break,
+            _ = interval.tick() => {},
+        }
         match sweep_scheduled_provider_credentials_once(state.as_ref()).await {
             Ok(summary) => debug!(
                 scheduled = summary.scheduled_count,
@@ -60,7 +64,8 @@ pub async fn sweep_scheduled_provider_credentials_once(
 
     for scheduled in targets {
         // Never consume another account's interval after the shared round is exhausted or stale.
-        if !budget.available()
+        if state.shutdown.is_requested()
+            || !budget.available()
             || !budget.matches(state)
             || summary.due_count >= 128
             || state.lifecycle.model_circuits.network_blocked()
@@ -173,3 +178,13 @@ mod tests {
         );
     }
 }
+
+#[cfg(all(
+    test,
+    feature = "line-commandcode-provider-api",
+    feature = "line-sap-aicore-chat"
+))]
+mod products_tests;
+
+#[cfg(all(test, feature = "line-nous-portal-oauth"))]
+mod nous_tests;

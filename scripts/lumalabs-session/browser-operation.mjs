@@ -14,13 +14,16 @@ export async function executeLumaOperation({
   const menusUrl = `${window.location.origin}/api/vespa/realms/${realmId}/menus.json?v=1`;
   const signatureUrl = `${window.location.origin}/api/vespa/realms/${realmId}/signature`;
   const clientContext = `id=${crypto.randomUUID()},name=web,locale=${locale}`;
-  const eventsController = new AbortController();
-  const actionController = new AbortController();
-  const signatureController = new AbortController();
+  const controller = new AbortController();
+  let timedOut = false;
+  let reader;
+  let resourceLimit;
+  const failure = (code, message, stage = "browser_fetch", status = 500, extra = {}) => ({
+    ok: false, error: { code, message, stage, status, ...extra },
+  });
   const timeoutId = setTimeout(() => {
-    eventsController.abort("timeout");
-    actionController.abort("timeout");
-    signatureController.abort("timeout");
+    timedOut = true;
+    controller.abort();
   }, timeoutMs);
 
   const buildSignedUrlFromObjectRef = (objectRef, signature) => {
@@ -67,7 +70,7 @@ export async function executeLumaOperation({
       artifact.id === outputId &&
       typeof artifact.object_ref === "string" &&
       artifact.object_ref.trim() &&
-      ["finalizing", "completed"].includes(String(artifact.state ?? "").toLowerCase())
+      artifact.state === "completed"
     ) {
       return artifact.object_ref.trim();
     }
@@ -180,7 +183,31 @@ export async function executeLumaOperation({
       }
     }
 
-    return current ?? actionIds[0] ?? null;
+    // A populated menu cannot authorize an unrelated action or an absent default.
+    return null;
+  };
+
+  // Metadata is untrusted decoded bytes, including optional menu discovery.
+  const readMetadata = async (response) => {
+    if (!response.body) return "";
+    const source = response.body.getReader();
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    let total = 0;
+    let text = "";
+    try {
+      while (true) {
+        const { done, value } = await source.read();
+        if (done) return text + decoder.decode();
+        total += value.byteLength;
+        if (total > 128 * 1024) {
+          resourceLimit = "lumalabs_browser_metadata_limit";
+          throw new Error("Metadata budget exceeded.");
+        }
+        text += decoder.decode(value, { stream: true });
+      }
+    } finally {
+      try { await source.cancel(); } finally { source.releaseLock(); }
+    }
   };
 
   const resolveActionBody = async () => {
@@ -203,8 +230,10 @@ export async function executeLumaOperation({
       };
     }
 
+    const original = { actionBody: nextActionBody, resolvedActionType: currentActionType };
+    let menusResponse;
     try {
-      const menusResponse = await fetch(menusUrl, {
+      menusResponse = await fetch(menusUrl, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -212,22 +241,22 @@ export async function executeLumaOperation({
           "x-client-capabilities": clientCapabilities,
           "x-client-context": clientContext,
         },
-        signal: actionController.signal,
+        signal: controller.signal,
       });
-      const menusText = await menusResponse.text().catch(() => "");
-      if (!menusResponse.ok || !menusText) {
-        return {
-          actionBody: nextActionBody,
-          resolvedActionType: currentActionType,
-        };
-      }
-
+    } catch {
+      return original; // Discovery transport remains best-effort, unlike reader safety.
+    }
+    if (!menusResponse.ok) return original;
+    const menusText = await readMetadata(menusResponse);
+    if (!menusText) return original;
+    try {
       const menusJson = JSON.parse(menusText);
       const discoveredActionType = selectActionTypeFromMenus(
         menusJson,
         operation,
         currentActionType,
       );
+      if (!discoveredActionType) return null;
       if (discoveredActionType && discoveredActionType !== currentActionType) {
         nextActionBody.type = discoveredActionType;
         return {
@@ -236,236 +265,126 @@ export async function executeLumaOperation({
         };
       }
     } catch {
-      // Auto discovery is best-effort only; keep the caller/platform default.
+      // Invalid optional menu JSON keeps the caller/platform default.
     }
-
-    return {
-      actionBody: nextActionBody,
-      resolvedActionType: currentActionType,
-    };
+    return original;
   };
 
-  const extractSignedUrl = (outputId, payload, signature) => {
-    const frames = payload.split(/\n\n+/);
-    for (const frame of frames) {
-      const lines = frame.split("\n");
-      for (const line of lines) {
-        if (!line.startsWith("data:")) {
-          continue;
-        }
-        const dataText = line.slice(5).trim();
-        if (!dataText) {
-          continue;
-        }
-        try {
-          const parsed = JSON.parse(dataText);
-          const objectRef = findCompletedArtifactObjectRef(outputId, parsed);
-          if (objectRef) {
-            return buildSignedUrlFromObjectRef(objectRef, signature);
-          }
-        } catch {
-          // Ignore non-JSON SSE frames such as `data:` keepalive payloads.
-        }
-      }
-    }
-    return null;
+  const extractSignedUrl = (outputId, frame, signature) => {
+    const data = frame.split(/\r\n|\r|\n/).filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, "")).join("\n");
+    if (!data) return null;
+    let parsed;
+    try { parsed = JSON.parse(data); }
+    catch { return null; } // Ignore non-JSON keepalive frames, not partial events.
+    const objectRef = findCompletedArtifactObjectRef(outputId, parsed);
+    return objectRef ? buildSignedUrlFromObjectRef(objectRef, signature) : null;
   };
 
   try {
     const signatureResponse = await fetch(signatureUrl, {
-      method: "GET",
-      credentials: "include",
+      method: "GET", credentials: "include",
       headers: {
         accept: "application/json, text/plain, */*",
-        "x-client-capabilities": clientCapabilities,
-        "x-client-context": clientContext,
+        "x-client-capabilities": clientCapabilities, "x-client-context": clientContext,
       },
-      signal: signatureController.signal,
+      signal: controller.signal,
     });
-    const signatureText = await signatureResponse.text().catch(() => "");
     if (!signatureResponse.ok) {
-      return {
-        ok: false,
-        error: {
-          code: "lumalabs_signature_failed",
-          message: "LumaLabs signature request failed.",
-          stage: "signature",
-          status: signatureResponse.status,
-          body: signatureText,
-        },
-      };
+      return failure("lumalabs_signature_failed", "LumaLabs signature request failed.", "signature", signatureResponse.status);
     }
-
+    const signatureText = await readMetadata(signatureResponse);
     let signatureJson;
-    try {
-      signatureJson = JSON.parse(signatureText);
-    } catch {
-      return {
-        ok: false,
-        error: {
-          code: "lumalabs_invalid_signature_response",
-          message: "LumaLabs signature response was not valid JSON.",
-          stage: "signature",
-          status: signatureResponse.status,
-          body: signatureText,
-        },
-      };
+    try { signatureJson = JSON.parse(signatureText); }
+    catch {
+      return failure("lumalabs_invalid_signature_response", "LumaLabs signature response was not valid JSON.", "signature");
     }
-
-    const wsToken =
-      typeof signatureJson?.ws_token === "string" && signatureJson.ws_token.trim()
-        ? signatureJson.ws_token.trim()
-        : null;
+    const wsToken = typeof signatureJson?.ws_token === "string" ? signatureJson.ws_token.trim() : "";
     if (!wsToken) {
-      return {
-        ok: false,
-        error: {
-          code: "lumalabs_missing_ws_token",
-          message: "LumaLabs signature response did not include ws_token.",
-          stage: "signature",
-          status: signatureResponse.status,
-          body: signatureText,
-        },
-      };
+      return failure("lumalabs_missing_ws_token", "LumaLabs signature response did not include ws_token.", "signature");
     }
-
     const eventsResponse = await fetch(eventUrl, {
-      method: "GET",
-      credentials: "include",
-      headers: {
-        accept: "text/event-stream",
-        authorization: `Bearer ${wsToken}`,
-      },
-      signal: eventsController.signal,
+      method: "GET", credentials: "include",
+      headers: { accept: "text/event-stream", authorization: `Bearer ${wsToken}` },
+      signal: controller.signal,
     });
-    if (!eventsResponse.ok || !eventsResponse.body) {
-      const bodyText = await eventsResponse.text().catch(() => "");
-      return {
-        ok: false,
-        error: {
-          code: "lumalabs_events_stream_failed",
-          message: "LumaLabs events stream request failed.",
-          stage: "events",
-          status: eventsResponse.status,
-          body: bodyText,
-        },
-      };
+    if (eventsResponse.body) reader = eventsResponse.body.getReader();
+    if (!eventsResponse.ok || !reader ||
+        eventsResponse.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "text/event-stream") {
+      return failure("lumalabs_events_stream_failed", "LumaLabs events stream request failed.", "events", eventsResponse.status);
     }
-
     const resolvedAction = await resolveActionBody();
+    if (!resolvedAction) {
+      return failure("lumalabs_action_unavailable", "LumaLabs menu did not offer an action for this operation.", "action_discovery", 502);
+    }
     const actionResponse = await fetch(actionUrl, {
-      method: "POST",
-      credentials: "include",
+      method: "POST", credentials: "include",
       headers: {
-        accept: "application/json, text/plain, */*",
-        "content-type": "application/json",
-        "x-client-capabilities": clientCapabilities,
-        "x-client-context": clientContext,
+        accept: "application/json, text/plain, */*", "content-type": "application/json",
+        "x-client-capabilities": clientCapabilities, "x-client-context": clientContext,
       },
-      body: JSON.stringify(resolvedAction.actionBody),
-      signal: actionController.signal,
+      body: JSON.stringify(resolvedAction.actionBody), signal: controller.signal,
     });
-    const actionText = await actionResponse.text();
     if (!actionResponse.ok) {
-      return {
-        ok: false,
-        error: {
-          code: "lumalabs_action_failed",
-          message: "LumaLabs action request failed.",
-          stage: "action",
-          status: actionResponse.status,
-          body: actionText,
-          resolvedActionType: resolvedAction.resolvedActionType,
-        },
-      };
+      return failure("lumalabs_action_failed", "LumaLabs action request failed.", "action", actionResponse.status,
+        { resolvedActionType: resolvedAction.resolvedActionType });
     }
-
+    const actionText = await readMetadata(actionResponse);
     let actionJson;
-    try {
-      actionJson = JSON.parse(actionText);
-    } catch {
-      return {
-        ok: false,
-        error: {
-          code: "lumalabs_invalid_action_response",
-          message: "LumaLabs action response was not valid JSON.",
-          stage: "action",
-          status: actionResponse.status,
-          body: actionText,
-        },
-      };
+    try { actionJson = JSON.parse(actionText); }
+    catch {
+      return failure("lumalabs_invalid_action_response", "LumaLabs action response was not valid JSON.", "action");
     }
-
-    const outputId = actionJson?.output_artifacts?.[artifactField]?.[0];
-    if (!outputId || typeof outputId !== "string") {
-      return {
-        ok: false,
-        error: {
-          code: "lumalabs_missing_output_id",
-          message: `LumaLabs action response did not include output_artifacts.${artifactField}[0].`,
-          stage: "action",
-          status: actionResponse.status,
-          body: actionText,
-        },
-      };
+    const outputIds = actionJson?.output_artifacts?.[artifactField];
+    if (!Array.isArray(outputIds) || outputIds.length !== 1 ||
+        typeof outputIds[0] !== "string" || !outputIds[0].trim() || outputIds[0] !== outputIds[0].trim()) {
+      return failure("lumalabs_missing_output_id", "LumaLabs action did not identify exactly one output.", "action");
     }
-
-    const reader = eventsResponse.body.getReader();
-    const decoder = new TextDecoder();
+    const outputId = outputIds[0];
+    const decoder = new TextDecoder("utf-8", { fatal: true });
     let buffer = "";
-
+    let total = 0;
     while (true) {
       const { done, value } = await reader.read();
-      if (done) {
-        break;
+      if (done) { decoder.decode(); break; }
+      total += value.byteLength;
+      if (total > 2 * 1024 * 1024) {
+        return failure("lumalabs_browser_events_limit", "LumaLabs events exceeded the cumulative byte budget.", "events_wait");
       }
       buffer += decoder.decode(value, { stream: true });
-      const signedUrl = extractSignedUrl(outputId, buffer, signatureJson);
-      if (signedUrl) {
-        try {
-          await reader.cancel();
-        } catch {
-          // Ignore cancellation errors on a finished SSE stream.
+      // Only a terminated LF/CRLF/CR frame can announce completion; never parse a tail early.
+      let boundary;
+      while ((boundary = /\r\n\r\n|\n\n|\r\r/.exec(buffer))) {
+        const frame = buffer.slice(0, boundary.index);
+        buffer = buffer.slice(boundary.index + boundary[0].length);
+        const signedUrl = extractSignedUrl(outputId, frame, signatureJson);
+        if (signedUrl) {
+          return {
+            ok: true, signedUrl, outputId, realmId, mediaOperation, artifactField, state: "completed",
+            resolvedActionType: resolvedAction.resolvedActionType,
+            actionId: typeof actionJson?.action?.id === "string" && actionJson.action.id.trim()
+              ? actionJson.action.id.trim() : null,
+          };
         }
-        return {
-          ok: true,
-          signedUrl,
-          outputId,
-          resolvedActionType: resolvedAction.resolvedActionType,
-          actionId:
-            typeof actionJson?.action?.id === "string" && actionJson.action.id.trim()
-              ? actionJson.action.id.trim()
-              : null,
-        };
-      }
-      if (buffer.length > 2_000_000) {
-        buffer = buffer.slice(-250_000);
       }
     }
-
-    return {
-      ok: false,
-      error: {
-        code: "lumalabs_missing_signed_url",
-        message: `LumaLabs events stream closed before output ${outputId} produced a signed URL.`,
-        stage: "events_wait",
-        status: 500,
-      },
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const aborted =
-      message.includes("aborted") || message.includes("timeout") || message.includes("AbortError");
-    return {
-      ok: false,
-      error: {
-        code: aborted ? "lumalabs_browser_timeout" : "lumalabs_browser_fetch_failed",
-        message,
-        stage: "browser_fetch",
-        status: aborted ? 504 : 500,
-      },
-    };
+    return failure("lumalabs_missing_signed_url", "LumaLabs stream closed before the original output completed.", "events_wait");
+  } catch {
+    return failure(resourceLimit ?? (timedOut ? "lumalabs_browser_timeout" : "lumalabs_browser_fetch_failed"),
+      timedOut ? "LumaLabs browser deadline expired." : "LumaLabs browser request failed; details omitted.",
+      "browser_fetch", timedOut ? 504 : 500);
   } finally {
+    // Cancel before abort: aborting a live Fetch reader first can itself reject cancel().
+    let cleanupFailed = false;
+    if (reader) {
+      try { await reader.cancel(); } catch { cleanupFailed = true; }
+      try { reader.releaseLock(); } catch { cleanupFailed = true; }
+    }
+    controller.abort();
     clearTimeout(timeoutId);
+    if (timedOut) return failure("lumalabs_browser_timeout", "LumaLabs browser deadline expired.", "browser_fetch", 504);
+    if (cleanupFailed) {
+      return failure("lumalabs_events_cleanup_failed", "LumaLabs events cleanup failed.", "events");
+    }
   }
 }

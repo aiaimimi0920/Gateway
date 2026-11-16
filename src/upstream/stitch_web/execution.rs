@@ -114,7 +114,10 @@ pub async fn execute(
             if state.get(2).and_then(serde_json::Value::as_u64) == Some(3) {
                 let screens = http.rpc(wire::SCREENS, &json!([project]), &source).await?;
                 return Ok(CanonicalRelayResponse {
+                    sources: Vec::new(),
                     model: model.into(),
+                    bedrock_turn: None,
+                    vertex_turn: None,
                     model_declaration: None,
                     text: result::manifest(&project, &screens)?,
                     usage: None,

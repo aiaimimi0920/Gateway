@@ -8,29 +8,50 @@ use rquest::header::HeaderMap;
 use std::time::SystemTime;
 
 use crate::error::GatewayError;
-use crate::protocol::kiro;
 use crate::routing::candidate::ProviderAccountPayload;
 use crate::upstream::common::{insert_header_map_value, RequestPlan};
 use crate::upstream::openai_compatible_common::decode_raw_request_body;
 
-#[derive(Clone, Debug)]
-struct BedrockRuntimeSigningCredentials {
-    access_key_id: String,
-    secret_access_key: String,
-    session_token: Option<String>,
-    region: String,
-}
+#[cfg(test)]
+#[path = "bedrock_auth_tests.rs"]
+mod auth_contract_tests;
+#[cfg(test)]
+#[path = "bedrock_target_tests.rs"]
+mod target_tests;
 
 pub(crate) fn sign_bedrock_runtime_headers_if_needed(
     payload: &ProviderAccountPayload,
     plan: &RequestPlan,
     mut headers: HeaderMap,
 ) -> Result<HeaderMap, GatewayError> {
-    let Some(credentials) = bedrock_runtime_signing_credentials_from_payload(payload) else {
+    crate::upstream::bedrock_auth::validate_adapter(payload)?;
+    if payload.canonical_adapter() != "bedrock_converse_compatible" {
         return Ok(headers);
+    }
+    use crate::upstream::bedrock_auth::{resolve, Authentication};
+    let authentication = resolve(payload, plan)?;
+    if matches!(authentication, Authentication::Legacy) {
+        return Ok(headers);
+    }
+    // These values belong to this signing operation, not configured or forwarded headers.
+    for name in [
+        "authorization",
+        "x-amz-date",
+        "x-amz-security-token",
+        "x-amz-content-sha256",
+        "host",
+        "content-length",
+    ] {
+        headers.remove(name);
+    }
+    let credentials = match authentication {
+        Authentication::Bearer(key) => {
+            insert_header_map_value(&mut headers, "authorization", &format!("Bearer {key}"));
+            return Ok(headers);
+        }
+        Authentication::SigV4(credentials) => credentials,
+        Authentication::Legacy => unreachable!(),
     };
-
-    headers.remove("authorization");
 
     let mut request_url = url::Url::parse(&plan.url).map_err(|error| {
         GatewayError::server_error(format!("invalid bedrock request url: {error}"))
@@ -54,13 +75,16 @@ pub(crate) fn sign_bedrock_runtime_headers_if_needed(
         .filter(|(name, _)| !name.eq_ignore_ascii_case("authorization"))
         .collect();
 
-    let host = request_url
+    let mut host = request_url
         .host_str()
         .ok_or_else(|| {
             GatewayError::server_error("bedrock request url missing host")
                 .with_code("bedrock_sigv4_missing_host")
         })?
         .to_string();
+    if let Some(port) = request_url.port() {
+        host.push_str(&format!(":{port}"));
+    }
     if !signable_headers
         .iter()
         .any(|(name, _)| name.eq_ignore_ascii_case("host"))
@@ -126,56 +150,6 @@ pub(crate) fn sign_bedrock_runtime_headers_if_needed(
     }
 
     Ok(headers)
-}
-
-fn bedrock_runtime_signing_credentials_from_payload(
-    payload: &ProviderAccountPayload,
-) -> Option<BedrockRuntimeSigningCredentials> {
-    let access_key_id = kiro::read_payload_string(
-        payload.extra_body.as_ref(),
-        &["awsAccessKeyId", "aws_access_key_id"],
-    )?;
-    let secret_access_key = kiro::read_payload_string(
-        payload.extra_body.as_ref(),
-        &["awsSecretAccessKey", "aws_secret_access_key"],
-    )?;
-    let session_token = kiro::read_payload_string(
-        payload.extra_body.as_ref(),
-        &["awsSessionToken", "aws_session_token"],
-    );
-    let region = kiro::read_payload_string(
-        payload.extra_body.as_ref(),
-        &["awsRegion", "aws_region", "region"],
-    )
-    .or_else(|| infer_bedrock_region_from_base_url(&payload.base_url))?;
-
-    Some(BedrockRuntimeSigningCredentials {
-        access_key_id,
-        secret_access_key,
-        session_token,
-        region,
-    })
-}
-
-fn infer_bedrock_region_from_base_url(base_url: &str) -> Option<String> {
-    let host = url::Url::parse(base_url).ok()?.host_str()?.to_string();
-    let prefixes = [
-        "bedrock-runtime.",
-        "bedrock-runtime-fips.",
-        "bedrock.",
-        "bedrock-fips.",
-    ];
-    for prefix in prefixes {
-        if let Some(rest) = host.strip_prefix(prefix) {
-            let region = rest
-                .split('.')
-                .next()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())?;
-            return Some(region.to_string());
-        }
-    }
-    None
 }
 
 #[cfg(test)]

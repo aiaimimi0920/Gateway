@@ -80,6 +80,7 @@ impl ConsoleAuthRuntime {
             needs_bootstrap,
             management_configured: environment_override || admin_present,
             environment_override,
+            passwordless_token: self.passwordless_token()?,
         })
     }
 
@@ -153,7 +154,11 @@ impl ConsoleAuthRuntime {
     ) -> Result<SecretGrantView, GatewayError> {
         let actor = self.authenticate_management_token(request, current_token)?;
         let confirmation_token = normalize_token(confirmation_token)?;
-        self.verify_plaintext_token(&confirmation_token)?;
+        if current_token != confirmation_token
+            || !self.is_passwordless_token(&confirmation_token)?
+        {
+            self.verify_plaintext_token(&confirmation_token)?;
+        }
         let now = OffsetDateTime::now_utc();
         let expires_at = now + time::Duration::seconds(self.secret_grant_ttl_secs as i64);
         let grant = format!("grant-{}", uuid::Uuid::new_v4());
@@ -261,7 +266,9 @@ impl ConsoleAuthRuntime {
             ));
         }
         let token = normalize_token(token)?;
-        self.verify_plaintext_token(&token)?;
+        if !self.is_passwordless_token(&token)? {
+            self.verify_plaintext_token(&token)?;
+        }
         let token_fingerprint = token_fingerprint(&token);
         let secret_access_granted = self.has_active_secret_grant(
             &token_fingerprint,

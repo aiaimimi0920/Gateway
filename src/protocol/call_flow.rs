@@ -1,6 +1,8 @@
 //! Three independent selections. Legacy documents omit this block entirely.
 mod preparation;
 #[cfg(test)]
+mod product_tests;
+#[cfg(test)]
 mod tests;
 
 use super::request_profile::RequestClientProfile;
@@ -110,6 +112,16 @@ pub enum SpecialAdapter {
     FlowWeb,
     StitchWeb,
     AntigravityOauth,
+    Accio,
+    Kiro,
+    Freebuff,
+    GrokWeb,
+    QwenWeb,
+    PerplexityWeb,
+    ChataibotWeb,
+    LumalabsWeb,
+    SunoWeb,
+    UdioWeb,
 }
 
 impl SpecialAdapter {
@@ -125,6 +137,16 @@ impl SpecialAdapter {
             Self::FlowWeb => Some("flow_web_compatible"),
             Self::StitchWeb => Some("stitch_web_compatible"),
             Self::AntigravityOauth => Some(crate::protocol::antigravity::ADAPTER),
+            Self::Accio => Some("accio_compatible"),
+            Self::Kiro => Some("kiro_compatible"),
+            Self::Freebuff => Some("freebuff_compatible"),
+            Self::GrokWeb => Some("grok_compatible"),
+            Self::QwenWeb => Some("qwen_web_compatible"),
+            Self::PerplexityWeb => Some(crate::protocol::perplexity_web::material::ADAPTER),
+            Self::ChataibotWeb => Some("chataibot_compatible"),
+            Self::LumalabsWeb => Some("lumalabs_compatible"),
+            Self::SunoWeb => Some("suno_compatible"),
+            Self::UdioWeb => Some("udio_compatible"),
         }
     }
 }

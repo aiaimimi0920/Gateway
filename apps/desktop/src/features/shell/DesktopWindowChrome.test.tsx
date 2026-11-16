@@ -25,6 +25,7 @@ describe("desktop window chrome", () => {
       ["最大化或还原", "toggle-maximize"], ["关闭", "close"],
     ]) {
       await userEvent.click(screen.getByRole("button", { name: label }));
+      expect(screen.getByRole("button", { name: label })).toHaveClass("n-icon-button");
       expect(send).toHaveBeenLastCalledWith(action);
     }
   });

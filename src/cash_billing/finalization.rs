@@ -93,7 +93,10 @@ pub async fn success(ctx: &PipelineContext, usage: Option<TokenUsage>, state: &A
             provider,
             credential,
             model: ctx.resolved_model.clone().unwrap_or_default(),
-            usage,
+            usage: crate::protocol::lobsterai::virtual_model::chat_usage(
+                ctx.lobster_model_resolution.as_ref(),
+                usage,
+            ),
         },
         state,
     )
@@ -116,7 +119,10 @@ pub async fn stream_success(
             provider,
             credential,
             model: snapshot.resolved_model.clone().unwrap_or_default(),
-            usage,
+            usage: crate::protocol::lobsterai::virtual_model::chat_usage(
+                snapshot.lobster_model_resolution.as_ref(),
+                usage,
+            ),
         },
         state,
     )

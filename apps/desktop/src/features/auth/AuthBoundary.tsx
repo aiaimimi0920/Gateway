@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Notice, Panel } from "@neuro/ui";
 import { useManagementSession } from "../../session/useManagementSession";
 import { LanguageToggleButton } from "../../i18n/LanguageToggleButton";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
@@ -16,13 +17,13 @@ export function AuthBoundary({ children }: AuthBoundaryProps) {
 
   if (session.phase === "checking") {
     return (
-      <main className="auth-page auth-page--status" role="status">
+      <main className="auth-page auth-page--status">
         <div className="auth-page__toolbar">
           <LanguageToggleButton />
         </div>
-        <section className="auth-panel">
-          <p>{t("正在检查 Gateway 管理员初始化状态...", "Checking Gateway administrator setup...")}</p>
-        </section>
+        <Panel className="auth-panel">
+          <Notice>{t("正在检查 Gateway 管理员初始化状态...", "Checking Gateway administrator setup...")}</Notice>
+        </Panel>
       </main>
     );
   }

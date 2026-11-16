@@ -128,9 +128,14 @@ pub fn unpack_responses_response(body: &Value) -> Result<CanonicalRelayResponse,
     }
 
     let usage = body.get("usage").and_then(|usage| {
-        let prompt_tokens = usage.get("input_tokens").and_then(|value| value.as_u64())?;
+        // Compatible Responses providers can report Chat usage names; native fields win.
+        let prompt_tokens = usage
+            .get("input_tokens")
+            .or_else(|| usage.get("prompt_tokens"))
+            .and_then(|value| value.as_u64())?;
         let completion_tokens = usage
             .get("output_tokens")
+            .or_else(|| usage.get("completion_tokens"))
             .and_then(|value| value.as_u64())?;
         Some(TokenUsage {
             prompt_tokens,
@@ -142,6 +147,7 @@ pub fn unpack_responses_response(body: &Value) -> Result<CanonicalRelayResponse,
             cache_creation_input_tokens: None,
             cache_read_input_tokens: usage
                 .get("input_tokens_details")
+                .or_else(|| usage.get("prompt_tokens_details"))
                 .and_then(|details| details.get("cached_tokens"))
                 .and_then(|value| value.as_u64()),
         })
@@ -150,6 +156,17 @@ pub fn unpack_responses_response(body: &Value) -> Result<CanonicalRelayResponse,
     let has_tool_calls = !tool_calls.is_empty();
 
     Ok(CanonicalRelayResponse {
+        bedrock_turn: crate::protocol::bedrock_turn::read_response(
+            body,
+            &text_parts.join(""),
+            &tool_calls,
+        )?,
+        sources: crate::protocol::response_sources::read(body)?.unwrap_or_default(),
+        vertex_turn: crate::protocol::vertex_turn::read_response(
+            body,
+            &text_parts.join(""),
+            &tool_calls,
+        )?,
         model_declaration: crate::protocol::model_declaration::ModelDeclaration::from_body(body),
         model,
         text: text_parts.join(""),

@@ -331,6 +331,8 @@ async fn startup_recovery_commits_prepared_transaction_when_redis_already_points
         true,
     );
     let staged = stage_transaction(&harness, &new, TransactionPhase::Prepared);
+    // Matching revision alone is not proof this transaction activated.
+    harness.backend.set_activated_transaction(&staged.record);
     harness
         .backend
         .set_active_revision(staged.redis_revision.clone());
@@ -367,6 +369,7 @@ async fn startup_recovery_finishes_redis_activated_transaction_and_repairs_yaml(
         true,
     );
     let staged = stage_transaction(&harness, &new, TransactionPhase::RedisActivated);
+    harness.backend.set_activated_transaction(&staged.record);
     harness
         .backend
         .set_active_revision(staged.redis_revision.clone());

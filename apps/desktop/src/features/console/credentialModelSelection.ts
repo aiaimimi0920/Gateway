@@ -3,23 +3,24 @@ import { z } from "zod";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import type { CredentialDialogValue } from "./CredentialDialog";
 import { isRecord } from "./routeDocument";
+import { modelIdPolicy, validModelId, type ModelIdPolicy } from "./providerModelId";
 
-const modelId = z.string().min(1).refine((id) => id.trim() === id
-  && new TextEncoder().encode(id).length <= 256 && !/[\p{Cc}*?]/u.test(id), "模型 ID 无效。");
-export const modelSelectionSchema = z.object({
-  fetched: z.array(modelId).max(2048), manual: z.array(modelId).max(2048),
-});
+export function modelSelectionSchemaFor(policy: ModelIdPolicy = "standard") {
+  const modelId = z.string().refine((id) => validModelId(id, policy), "模型 ID 无效。");
+  return z.object({ fetched: z.array(modelId).max(2048), manual: z.array(modelId).max(2048) });
+}
+export const modelSelectionSchema = modelSelectionSchemaFor();
 export type ModelSelection = z.infer<typeof modelSelectionSchema>;
 export const modelTextIds = (text: string): string[] => [...new Set(text.split(/\r?\n|,/).map((id) => id.trim()).filter(Boolean))];
 export const selectedModels = (selection: ModelSelection): string[] => [...new Set([...selection.manual, ...selection.fetched])];
-export function dialogModelSelection(value: CredentialDialogValue): ModelSelection | undefined {
+export function dialogModelSelection(value: CredentialDialogValue, policy: ModelIdPolicy = "standard"): ModelSelection | undefined {
   if (value.fetchedModelsText === undefined && value.manualModelsText === undefined) return undefined;
-  return modelSelectionSchema.parse({ fetched: modelTextIds(value.fetchedModelsText ?? ""), manual: modelTextIds(value.manualModelsText ?? "") });
+  return modelSelectionSchemaFor(policy).parse({ fetched: modelTextIds(value.fetchedModelsText ?? ""), manual: modelTextIds(value.manualModelsText ?? "") });
 }
 export function withModelEditors(value: CredentialDialogValue): CredentialDialogValue {
   if (value.fetchedModelsText !== undefined || value.manualModelsText !== undefined) return value;
   const models = modelTextIds(value.supportedModelsText);
-  const discovered = new Set(value.modelCatalog?.models ?? value.discovery?.models ?? []);
+  const discovered = new Set(value.lobsteraiCatalog?.models.map((m) => m.modelId) ?? value.dimCatalog?.models.map((m) => m.id) ?? value.modelCatalog?.models ?? value.discovery?.models ?? []);
   return editModelSources(value, models.filter((id) => discovered.has(id)).join("\n"), models.filter((id) => !discovered.has(id)).join("\n"));
 }
 export function editModelSources(value: CredentialDialogValue, fetched: string, manual: string): CredentialDialogValue {
@@ -31,14 +32,14 @@ const strings = (value: unknown): string[] => Array.isArray(value) ? value.filte
 /** Reconcile only this account's ownership; never enable an existing disabled route. */
 export function applyModelSelection(document: ConsoleRouteDocument, providerId: string, credentialId: string,
   input: ModelSelection): ConsoleRouteDocument {
-  const selection = modelSelectionSchema.parse(input);
-  const models = selectedModels(selection);
   const next = structuredClone(document);
   const provider = next.providers.find((entry) => isRecord(entry) && entry.id === providerId);
   if (!isRecord(provider)) throw new Error("服务商已不存在。");
   const credentials = Array.isArray(provider.credentials) ? provider.credentials.filter(isRecord) : [];
   const credential = credentials.find((entry) => entry.id === credentialId);
   if (!credential) throw new Error("账号已不存在。");
+  const selection = modelSelectionSchemaFor(modelIdPolicy(provider, credential)).parse(input);
+  const models = selectedModels(selection);
   const previous = new Set(strings(credential.supported_models));
   credential.model_selection = selection;
   credential.supported_models = models;

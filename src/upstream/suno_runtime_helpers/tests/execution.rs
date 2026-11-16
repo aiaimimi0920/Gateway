@@ -77,7 +77,7 @@ fn prepare_suno_execution_plan_reads_image_contract() {
     assert!(!prepared.wait_completion);
     assert_eq!(prepared.wait_timeout, Duration::from_secs(10));
     assert_eq!(prepared.poll_interval, Duration::from_millis(1_000));
-    assert_eq!(prepared.request_timeout, Duration::from_secs(240));
+    assert_eq!(prepared.request_timeout, Duration::from_secs(30));
     assert_eq!(prepared.target_asset_kind, "image");
 }
 
@@ -131,7 +131,7 @@ fn prepare_suno_execution_context_reads_http_contract() {
     assert_eq!(prepared.execution_plan.target_asset_kind, "image");
     assert_eq!(
         prepared.execution_plan.request_timeout,
-        Duration::from_secs(240)
+        Duration::from_secs(30)
     );
     assert_eq!(
         prepared

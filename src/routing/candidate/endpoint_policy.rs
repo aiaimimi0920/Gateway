@@ -61,6 +61,16 @@ impl ProviderAccountPayload {
     }
 
     pub fn bridges_openai_text_endpoint_to_responses(&self, endpoint_kind: EndpointKind) -> bool {
+        if crate::protocol::qwen::workspace_api::owns_payload(self)
+            || crate::protocol::nous_portal::business::owns_payload(self)
+            || crate::protocol::sensenova::owns_payload(self)
+            || crate::protocol::commandcode::owns_payload(self)
+            || crate::protocol::lobsterai::owns_payload(self)
+            || crate::protocol::sap_aicore::owns_payload(self)
+            || crate::protocol::agnes::owns_payload(self)
+        {
+            return false;
+        }
         if self.canonical_adapter() != "openai_compatible" || self.responses_path.is_none() {
             return false;
         }
@@ -79,6 +89,18 @@ impl ProviderAccountPayload {
         &self,
         endpoint_kind: EndpointKind,
     ) -> bool {
+        if crate::protocol::commandcode::owns_payload(self) && self.responses_path.is_some() {
+            return false;
+        }
+        if crate::protocol::qwen::workspace_api::owns_payload(self)
+            || crate::protocol::nous_portal::business::owns_payload(self)
+            || crate::protocol::sensenova::owns_payload(self)
+            || crate::protocol::commandcode::owns_payload(self)
+            || crate::protocol::lobsterai::owns_payload(self)
+            || crate::protocol::sap_aicore::owns_payload(self)
+        {
+            return endpoint_kind == EndpointKind::Responses;
+        }
         if self.canonical_adapter() != "openai_compatible" {
             return false;
         }
@@ -113,6 +135,7 @@ impl ProviderAccountPayload {
             | EndpointKind::ResearchList
             | EndpointKind::ResearchGet => self.research_path.is_some(),
             EndpointKind::CreditsBalance => self.balance_path.is_some(),
+            EndpointKind::SystemOne => crate::protocol::commandcode::owns_payload(self),
             EndpointKind::ChatCompletions
             | EndpointKind::Completions
             | EndpointKind::Embeddings
@@ -185,6 +208,7 @@ fn endpoint_kind_key(endpoint_kind: EndpointKind) -> &'static str {
         EndpointKind::ResearchList => "research_list",
         EndpointKind::ResearchGet => "research_get",
         EndpointKind::CreditsBalance => "credits_balance",
+        EndpointKind::SystemOne => "systemone",
     }
 }
 

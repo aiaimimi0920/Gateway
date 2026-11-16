@@ -4,7 +4,7 @@ import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
-import { NeuroTooltipProvider } from "../../components/ActionTooltip";
+import { NeuroProvider } from "@neuro/ui";
 import { buildRouteAccountCatalog } from "./routeAccountCatalog";
 import { AccountGroupDialog } from "./AccountGroupDialog";
 import { type AccountGroupCreateValue } from "./accountGroupDraft";
@@ -12,11 +12,11 @@ import { type AccountGroupCreateValue } from "./accountGroupDraft";
 function renderDialog(onSubmit = vi.fn((_value: AccountGroupCreateValue) => true), locked = false, accounts = buildRouteAccountCatalog({ providers: [], model_routes: [], aliases: {} }).accounts) {
   function Harness() {
     const [open, setOpen] = useState(false);
-    return <UiLocaleProvider><NeuroTooltipProvider>
+    return <UiLocaleProvider><NeuroProvider>
       <button onClick={() => setOpen(true)}>添加分组</button>
       <AccountGroupDialog open={open} locked={locked} accounts={accounts} existingGroupIds={["existing"]}
         onOpenChange={setOpen} onSubmit={onSubmit} />
-    </NeuroTooltipProvider></UiLocaleProvider>;
+    </NeuroProvider></UiLocaleProvider>;
   }
   render(<Harness />);
   return onSubmit;
@@ -89,7 +89,7 @@ describe("AccountGroupDialog", () => {
     fireEvent.change(screen.getByLabelText("计费倍率"), { target: { value: "1e-2" } });
     await user.type(screen.getByLabelText("分组名称"), " Team ");
     await user.type(screen.getByLabelText("描述"), " Description ");
-    await user.click(screen.getByRole("checkbox", { name: "Team 启用状态" }));
+    await user.click(screen.getByRole("switch", { name: "Team 启用状态" }));
     await user.click(screen.getByRole("button", { name: "创建分组" }));
     expect(onSubmit).toHaveBeenCalledExactlyOnceWith({
       groupId: "new-group", name: "Team", description: "Description",

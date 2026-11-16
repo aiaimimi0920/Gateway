@@ -5,7 +5,7 @@ import { providerAccessKind, providerAccessLabel, type ProviderAccessKind } from
 
 export type ProviderPoolSort = "default" | "name" | "name-desc" | "available" | "success" | "requests";
 export type ProviderPoolView = { query: string; sort: ProviderPoolSort; accessKinds?: readonly ProviderAccessKind[] };
-type Site = { providerId: string; providerLabel: string; vendorLabel: string; hostLabel: string | null; providerPreset: string | null };
+type Site = { providerId: string; providerLabel: string; vendorLabel: string; hostLabel: string | null; providerPreset: string | null; authMode?: string | null };
 type RankedSite = { site: Site; index: number; available: number; success: number | null; requests: number | null };
 
 /** Filter public site metadata only; credentials and account contents are not search inputs. */

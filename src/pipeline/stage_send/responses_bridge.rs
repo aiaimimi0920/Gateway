@@ -123,7 +123,7 @@ pub(super) async fn send(
                     ctx.canonical_completion_semantics =
                         infer_canonical_completion_semantics(&ctx.canonical_req, &canonical_resp)
                             .map(str::to_string);
-                    ctx.observed_usage = canonical_resp.usage.clone();
+                    ctx.observed_usage = Some(canonical_resp.usage.clone());
 
                     let json_resp = pack_response(&ctx.canonical_req, &canonical_resp);
                     return Ok(PipelineOutput::Json(json_resp));

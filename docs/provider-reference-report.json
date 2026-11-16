@@ -1,26 +1,26 @@
 {
   "$schema": "provider-reference-report.schema.json",
   "schemaVersion": "gateway-provider-reference-report/v1",
-  "generatedAt": "2026-10-24T11:06:43Z",
-  "sourceRevision": "manifest-source:30ea61475d6d2adfa8e7332b6a00ba8feca18738f2b4960229a158eadc48983a",
-  "sourceFingerprint": "30ea61475d6d2adfa8e7332b6a00ba8feca18738f2b4960229a158eadc48983a",
+  "generatedAt": "2026-11-01T22:23:13Z",
+  "sourceRevision": "manifest-source:725d31271e171a7957463ccfb959bfdbf8251485d6ea27164ae506188a99226f",
+  "sourceFingerprint": "725d31271e171a7957463ccfb959bfdbf8251485d6ea27164ae506188a99226f",
   "guidePath": "docs/provider-reference-guide.md",
   "summary": {
-    "lineCount": 44,
-    "declaredReferenceCount": 176,
-    "uniqueReferenceCount": 166,
-    "localPresentReferenceCount": 0,
-    "externalLegacyReferenceCount": 176,
+    "lineCount": 54,
+    "declaredReferenceCount": 216,
+    "uniqueReferenceCount": 186,
+    "localPresentReferenceCount": 41,
+    "externalLegacyReferenceCount": 175,
     "unclassifiedReferenceCount": 0,
     "statusCounts": {
-      "local_present": 0,
-      "external_legacy_reference": 176
+      "local_present": 41,
+      "external_legacy_reference": 175
     },
     "fieldCounts": {
-      "credentials.samplePath": 44,
-      "credentials.fieldsDocPath": 44,
-      "docs.overviewDocPath": 44,
-      "docs.buildDocPath": 44
+      "credentials.samplePath": 54,
+      "credentials.fieldsDocPath": 54,
+      "docs.overviewDocPath": 54,
+      "docs.buildDocPath": 54
     }
   },
   "lines": [
@@ -108,6 +108,93 @@
         "unclassifiedReferenceCount": 0,
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-accio-web-reverse-api"
+      }
+    },
+    {
+      "id": "agnes-official-api",
+      "identity": {
+        "serviceProviderKey": "agnes-ai",
+        "serviceProviderLabel": "Agnes AI",
+        "providerSurfaceKey": "agnes-api",
+        "providerSurfaceLabel": "Agnes AI International API",
+        "protocolProfile": "agnes_api",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/agnes/official-api.json",
+      "legacyReferences": [
+        {
+          "lineId": "agnes-official-api",
+          "manifestPath": "manifests/lines/agnes/official-api.json",
+          "field": "credentials.samplePath",
+          "path": "docs/providers/examples/agnes.routes.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-agnes-official-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "agnes-official-api",
+          "manifestPath": "manifests/lines/agnes/official-api.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/providers/agnes-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-agnes-official-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "agnes-official-api",
+          "manifestPath": "manifests/lines/agnes/official-api.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/providers/agnes-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-agnes-official-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "agnes-official-api",
+          "manifestPath": "manifests/lines/agnes/official-api.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/devtest-build.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-agnes-official-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-agnes-official-api"
       }
     },
     {
@@ -210,21 +297,20 @@
         "implementationLine": "web_reverse",
         "adapter": "aistudio_web_reverse_compatible",
         "sourceKind": "web_reverse_api",
-        "executionMode": "browser_backed"
+        "executionMode": "direct_http"
       },
       "capabilities": {
         "families": [
           "conversation",
           "images",
+          "audio_transcriptions",
           "audio_speech",
-          "embeddings",
           "models"
         ],
         "supportsModelsEndpoint": true
       },
       "materialKinds": [
-        "session_auth",
-        "browser_state"
+        "session_auth"
       ],
       "manifestPath": "manifests/lines/aistudio/web-reverse.json",
       "legacyReferences": [
@@ -258,13 +344,13 @@
           "lineId": "aistudio-web-reverse",
           "manifestPath": "manifests/lines/aistudio/web-reverse.json",
           "field": "docs.overviewDocPath",
-          "path": "docs/20-ai-gateway/AIStudio Web Reverse基线.md",
-          "status": "external_legacy_reference",
+          "path": "docs/aistudio-web-http.md",
+          "status": "local_present",
           "resolution": {
-            "reason": "path_not_present_in_gateway",
+            "reason": "file_present_in_gateway",
             "guidePath": "docs/provider-reference-guide.md",
             "guideAnchor": "#line-aistudio-web-reverse",
-            "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+            "action": "use_gateway_owned_file_after_review"
           }
         },
         {
@@ -282,8 +368,8 @@
         }
       ],
       "resolution": {
-        "localPresentReferenceCount": 0,
-        "externalLegacyReferenceCount": 4,
+        "localPresentReferenceCount": 1,
+        "externalLegacyReferenceCount": 3,
         "unclassifiedReferenceCount": 0,
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-aistudio-web-reverse"
@@ -903,6 +989,94 @@
       }
     },
     {
+      "id": "cloudflare-workers-ai",
+      "identity": {
+        "serviceProviderKey": "cloudflare",
+        "serviceProviderLabel": "Cloudflare",
+        "providerSurfaceKey": "cloudflare-workers-ai",
+        "providerSurfaceLabel": "Workers AI",
+        "protocolProfile": "cloudflare_workers_ai",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models",
+          "embeddings"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+      "legacyReferences": [
+        {
+          "lineId": "cloudflare-workers-ai",
+          "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+          "field": "credentials.samplePath",
+          "path": "docs/providers/examples/cloudflare-workers-ai.routes.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-cloudflare-workers-ai",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "cloudflare-workers-ai",
+          "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/providers/magpie-expansion-2026-11-08.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-cloudflare-workers-ai",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "cloudflare-workers-ai",
+          "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/providers/magpie-expansion-2026-11-08.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-cloudflare-workers-ai",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "cloudflare-workers-ai",
+          "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/devtest-build.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-cloudflare-workers-ai",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-cloudflare-workers-ai"
+      }
+    },
+    {
       "id": "cohere-chat-official-model-api",
       "identity": {
         "serviceProviderKey": "cohere_platform",
@@ -990,6 +1164,93 @@
       }
     },
     {
+      "id": "commandcode-provider-api",
+      "identity": {
+        "serviceProviderKey": "commandcode",
+        "serviceProviderLabel": "Command Code",
+        "providerSurfaceKey": "commandcode-api",
+        "providerSurfaceLabel": "Command Code Provider API Chat",
+        "protocolProfile": "commandcode_chat",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/commandcode/provider-api.json",
+      "legacyReferences": [
+        {
+          "lineId": "commandcode-provider-api",
+          "manifestPath": "manifests/lines/commandcode/provider-api.json",
+          "field": "credentials.samplePath",
+          "path": "docs/providers/examples/commandcode-api.routes.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-commandcode-provider-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "commandcode-provider-api",
+          "manifestPath": "manifests/lines/commandcode/provider-api.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/providers/commandcode-chat-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-commandcode-provider-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "commandcode-provider-api",
+          "manifestPath": "manifests/lines/commandcode/provider-api.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/providers/commandcode-chat-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-commandcode-provider-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "commandcode-provider-api",
+          "manifestPath": "manifests/lines/commandcode/provider-api.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/devtest-build.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-commandcode-provider-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-commandcode-provider-api"
+      }
+    },
+    {
       "id": "deepseek-openai-official-model-api",
       "identity": {
         "serviceProviderKey": "deepseek_platform",
@@ -1074,6 +1335,93 @@
         "unclassifiedReferenceCount": 0,
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-deepseek-openai-official-model-api"
+      }
+    },
+    {
+      "id": "dim-user-oauth",
+      "identity": {
+        "serviceProviderKey": "dim",
+        "serviceProviderLabel": "DIM",
+        "providerSurfaceKey": "dim-user-oauth",
+        "providerSurfaceLabel": "DIM China / Global User OAuth",
+        "protocolProfile": "dim_user_oauth",
+        "implementationLine": "official_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "materialKinds": [
+        "bearer_token"
+      ],
+      "manifestPath": "manifests/lines/dim/user-oauth.json",
+      "legacyReferences": [
+        {
+          "lineId": "dim-user-oauth",
+          "manifestPath": "manifests/lines/dim/user-oauth.json",
+          "field": "credentials.samplePath",
+          "path": "docs/providers/examples/dim-user-oauth.routes.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-dim-user-oauth",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "dim-user-oauth",
+          "manifestPath": "manifests/lines/dim/user-oauth.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/progress/2026-11-08-dim-local.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-dim-user-oauth",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "dim-user-oauth",
+          "manifestPath": "manifests/lines/dim/user-oauth.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/progress/2026-11-08-dim-local.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-dim-user-oauth",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "dim-user-oauth",
+          "manifestPath": "manifests/lines/dim/user-oauth.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/devtest-build.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-dim-user-oauth",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-dim-user-oauth"
       }
     },
     {
@@ -2206,6 +2554,92 @@
       }
     },
     {
+      "id": "minimax-m-plan",
+      "identity": {
+        "serviceProviderKey": "minimax",
+        "serviceProviderLabel": "MiniMax",
+        "providerSurfaceKey": "minimax-m-plan",
+        "providerSurfaceLabel": "MiniMax M Plan Subscription Key",
+        "protocolProfile": "minimax_m_plan",
+        "implementationLine": "official_vendor_api",
+        "adapter": "anthropic_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "anthropic_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/minimax/m-plan.json",
+      "legacyReferences": [
+        {
+          "lineId": "minimax-m-plan",
+          "manifestPath": "manifests/lines/minimax/m-plan.json",
+          "field": "credentials.samplePath",
+          "path": "docs/providers/examples/minimax-m-plan.routes.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-minimax-m-plan",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "minimax-m-plan",
+          "manifestPath": "manifests/lines/minimax/m-plan.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/providers/minimax-m-plan-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-minimax-m-plan",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "minimax-m-plan",
+          "manifestPath": "manifests/lines/minimax/m-plan.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/providers/minimax-m-plan-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-minimax-m-plan",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "minimax-m-plan",
+          "manifestPath": "manifests/lines/minimax/m-plan.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/devtest-build.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-minimax-m-plan",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-minimax-m-plan"
+      }
+    },
+    {
       "id": "mistral-openai-official-model-api",
       "identity": {
         "serviceProviderKey": "mistral_platform",
@@ -2377,6 +2811,94 @@
         "unclassifiedReferenceCount": 0,
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-muyuan-openai-aggregator-api"
+      }
+    },
+    {
+      "id": "nous-portal-oauth",
+      "identity": {
+        "serviceProviderKey": "nous",
+        "serviceProviderLabel": "Nous Research",
+        "providerSurfaceKey": "nous-portal-oauth",
+        "providerSurfaceLabel": "Nous Portal Subscription / Welcome OAuth",
+        "protocolProfile": "nous_portal_oauth",
+        "implementationLine": "official_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_model_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "embeddings",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "materialKinds": [
+        "bearer_token"
+      ],
+      "manifestPath": "manifests/lines/nous/portal-oauth.json",
+      "legacyReferences": [
+        {
+          "lineId": "nous-portal-oauth",
+          "manifestPath": "manifests/lines/nous/portal-oauth.json",
+          "field": "credentials.samplePath",
+          "path": "docs/providers/examples/nous-portal-oauth.routes.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-nous-portal-oauth",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "nous-portal-oauth",
+          "manifestPath": "manifests/lines/nous/portal-oauth.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/providers/nous-contract-2026-11-08.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-nous-portal-oauth",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "nous-portal-oauth",
+          "manifestPath": "manifests/lines/nous/portal-oauth.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/providers/nous-contract-2026-11-08.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-nous-portal-oauth",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "nous-portal-oauth",
+          "manifestPath": "manifests/lines/nous/portal-oauth.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/devtest-build.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-nous-portal-oauth",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-nous-portal-oauth"
       }
     },
     {
@@ -2726,6 +3248,91 @@
       }
     },
     {
+      "id": "perplexity-web-reverse-api",
+      "identity": {
+        "serviceProviderKey": "perplexity_platform",
+        "serviceProviderLabel": "Perplexity Web",
+        "providerSurfaceKey": "perplexity-web",
+        "providerSurfaceLabel": "Perplexity consumption-site single-turn text",
+        "protocolProfile": "perplexity_web",
+        "implementationLine": "web_reverse_api",
+        "adapter": "perplexity_web_compatible",
+        "sourceKind": "web_reverse_api",
+        "executionMode": "direct_http_replay"
+      },
+      "capabilities": {
+        "families": [
+          "conversation"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "materialKinds": [
+        "session_auth"
+      ],
+      "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+      "legacyReferences": [
+        {
+          "lineId": "perplexity-web-reverse-api",
+          "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+          "field": "credentials.samplePath",
+          "path": "docs/provider-perplexity-web-material.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-perplexity-web-reverse-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "perplexity-web-reverse-api",
+          "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/provider-perplexity-web.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-perplexity-web-reverse-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "perplexity-web-reverse-api",
+          "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/provider-perplexity-web.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-perplexity-web-reverse-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "perplexity-web-reverse-api",
+          "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/provider-perplexity-web.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-perplexity-web-reverse-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-perplexity-web-reverse-api"
+      }
+    },
+    {
       "id": "poe-openai-aggregator-api",
       "identity": {
         "serviceProviderKey": "poe_platform",
@@ -3072,6 +3679,266 @@
         "unclassifiedReferenceCount": 0,
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-qwen-web-reverse"
+      }
+    },
+    {
+      "id": "river-official-api",
+      "identity": {
+        "serviceProviderKey": "river",
+        "serviceProviderLabel": "River",
+        "providerSurfaceKey": "river-api",
+        "providerSurfaceLabel": "River API",
+        "protocolProfile": "river",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/river/official-api.json",
+      "legacyReferences": [
+        {
+          "lineId": "river-official-api",
+          "manifestPath": "manifests/lines/river/official-api.json",
+          "field": "credentials.samplePath",
+          "path": "docs/providers/examples/river.routes.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-river-official-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "river-official-api",
+          "manifestPath": "manifests/lines/river/official-api.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/providers/magpie-expansion-2026-11-08.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-river-official-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "river-official-api",
+          "manifestPath": "manifests/lines/river/official-api.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/providers/magpie-expansion-2026-11-08.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-river-official-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "river-official-api",
+          "manifestPath": "manifests/lines/river/official-api.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/devtest-build.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-river-official-api",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-river-official-api"
+      }
+    },
+    {
+      "id": "sap-aicore-chat",
+      "identity": {
+        "serviceProviderKey": "sap",
+        "serviceProviderLabel": "SAP AI Core",
+        "providerSurfaceKey": "sap-aicore-chat",
+        "providerSurfaceLabel": "SAP AI Core Azure OpenAI Chat",
+        "protocolProfile": "sap_aicore_chat",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/sap/aicore-chat.json",
+      "legacyReferences": [
+        {
+          "lineId": "sap-aicore-chat",
+          "manifestPath": "manifests/lines/sap/aicore-chat.json",
+          "field": "credentials.samplePath",
+          "path": "docs/providers/examples/sap-aicore-chat.routes.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-sap-aicore-chat",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "sap-aicore-chat",
+          "manifestPath": "manifests/lines/sap/aicore-chat.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/providers/sap-aicore-chat-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-sap-aicore-chat",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "sap-aicore-chat",
+          "manifestPath": "manifests/lines/sap/aicore-chat.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/providers/sap-aicore-chat-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-sap-aicore-chat",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "sap-aicore-chat",
+          "manifestPath": "manifests/lines/sap/aicore-chat.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/devtest-build.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-sap-aicore-chat",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sap-aicore-chat"
+      }
+    },
+    {
+      "id": "sensenova-token-plan",
+      "identity": {
+        "serviceProviderKey": "sensenova",
+        "serviceProviderLabel": "SenseNova",
+        "providerSurfaceKey": "sensenova-token-plan",
+        "providerSurfaceLabel": "SenseNova Token Plan Key",
+        "protocolProfile": "sensenova_token_plan",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation",
+          "models"
+        ],
+        "supportsModelsEndpoint": true
+      },
+      "materialKinds": [
+        "api_key"
+      ],
+      "manifestPath": "manifests/lines/sensenova/token-plan.json",
+      "legacyReferences": [
+        {
+          "lineId": "sensenova-token-plan",
+          "manifestPath": "manifests/lines/sensenova/token-plan.json",
+          "field": "credentials.samplePath",
+          "path": "docs/providers/examples/sensenova-token-plan.routes.sample.json",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-sensenova-token-plan",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "sensenova-token-plan",
+          "manifestPath": "manifests/lines/sensenova/token-plan.json",
+          "field": "credentials.fieldsDocPath",
+          "path": "docs/providers/sensenova-token-plan-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-sensenova-token-plan",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "sensenova-token-plan",
+          "manifestPath": "manifests/lines/sensenova/token-plan.json",
+          "field": "docs.overviewDocPath",
+          "path": "docs/providers/sensenova-token-plan-contract-2026-11-10.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-sensenova-token-plan",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        },
+        {
+          "lineId": "sensenova-token-plan",
+          "manifestPath": "manifests/lines/sensenova/token-plan.json",
+          "field": "docs.buildDocPath",
+          "path": "docs/devtest-build.md",
+          "status": "local_present",
+          "resolution": {
+            "reason": "file_present_in_gateway",
+            "guidePath": "docs/provider-reference-guide.md",
+            "guideAnchor": "#line-sensenova-token-plan",
+            "action": "use_gateway_owned_file_after_review"
+          }
+        }
+      ],
+      "resolution": {
+        "localPresentReferenceCount": 4,
+        "externalLegacyReferenceCount": 0,
+        "unclassifiedReferenceCount": 0,
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sensenova-token-plan"
       }
     },
     {
@@ -3908,6 +4775,58 @@
       }
     },
     {
+      "lineId": "agnes-official-api",
+      "manifestPath": "manifests/lines/agnes/official-api.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/providers/agnes-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-agnes-official-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "agnes-official-api",
+      "manifestPath": "manifests/lines/agnes/official-api.json",
+      "field": "credentials.samplePath",
+      "path": "docs/providers/examples/agnes.routes.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-agnes-official-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "agnes-official-api",
+      "manifestPath": "manifests/lines/agnes/official-api.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-agnes-official-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "agnes-official-api",
+      "manifestPath": "manifests/lines/agnes/official-api.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/providers/agnes-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-agnes-official-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
       "lineId": "aistudio-official",
       "manifestPath": "manifests/lines/aistudio/official.json",
       "field": "credentials.fieldsDocPath",
@@ -4002,13 +4921,13 @@
       "lineId": "aistudio-web-reverse",
       "manifestPath": "manifests/lines/aistudio/web-reverse.json",
       "field": "docs.overviewDocPath",
-      "path": "docs/20-ai-gateway/AIStudio Web Reverse基线.md",
-      "status": "external_legacy_reference",
+      "path": "docs/aistudio-web-http.md",
+      "status": "local_present",
       "resolution": {
-        "reason": "path_not_present_in_gateway",
+        "reason": "file_present_in_gateway",
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-aistudio-web-reverse",
-        "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+        "action": "use_gateway_owned_file_after_review"
       }
     },
     {
@@ -4376,6 +5295,58 @@
       }
     },
     {
+      "lineId": "cloudflare-workers-ai",
+      "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/providers/magpie-expansion-2026-11-08.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-cloudflare-workers-ai",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "cloudflare-workers-ai",
+      "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+      "field": "credentials.samplePath",
+      "path": "docs/providers/examples/cloudflare-workers-ai.routes.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-cloudflare-workers-ai",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "cloudflare-workers-ai",
+      "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-cloudflare-workers-ai",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "cloudflare-workers-ai",
+      "manifestPath": "manifests/lines/cloudflare/workers-ai.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/providers/magpie-expansion-2026-11-08.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-cloudflare-workers-ai",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
       "lineId": "cohere-chat-official-model-api",
       "manifestPath": "manifests/lines/cohere/official-model-api.json",
       "field": "credentials.fieldsDocPath",
@@ -4428,6 +5399,58 @@
       }
     },
     {
+      "lineId": "commandcode-provider-api",
+      "manifestPath": "manifests/lines/commandcode/provider-api.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/providers/commandcode-chat-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-commandcode-provider-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "commandcode-provider-api",
+      "manifestPath": "manifests/lines/commandcode/provider-api.json",
+      "field": "credentials.samplePath",
+      "path": "docs/providers/examples/commandcode-api.routes.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-commandcode-provider-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "commandcode-provider-api",
+      "manifestPath": "manifests/lines/commandcode/provider-api.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-commandcode-provider-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "commandcode-provider-api",
+      "manifestPath": "manifests/lines/commandcode/provider-api.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/providers/commandcode-chat-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-commandcode-provider-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
       "lineId": "deepseek-openai-official-model-api",
       "manifestPath": "manifests/lines/deepseek/official-model-api.json",
       "field": "credentials.fieldsDocPath",
@@ -4477,6 +5500,58 @@
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-deepseek-openai-official-model-api",
         "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "dim-user-oauth",
+      "manifestPath": "manifests/lines/dim/user-oauth.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/progress/2026-11-08-dim-local.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-dim-user-oauth",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "dim-user-oauth",
+      "manifestPath": "manifests/lines/dim/user-oauth.json",
+      "field": "credentials.samplePath",
+      "path": "docs/providers/examples/dim-user-oauth.routes.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-dim-user-oauth",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "dim-user-oauth",
+      "manifestPath": "manifests/lines/dim/user-oauth.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-dim-user-oauth",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "dim-user-oauth",
+      "manifestPath": "manifests/lines/dim/user-oauth.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/progress/2026-11-08-dim-local.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-dim-user-oauth",
+        "action": "use_gateway_owned_file_after_review"
       }
     },
     {
@@ -5156,6 +6231,58 @@
       }
     },
     {
+      "lineId": "minimax-m-plan",
+      "manifestPath": "manifests/lines/minimax/m-plan.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/providers/minimax-m-plan-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-minimax-m-plan",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "minimax-m-plan",
+      "manifestPath": "manifests/lines/minimax/m-plan.json",
+      "field": "credentials.samplePath",
+      "path": "docs/providers/examples/minimax-m-plan.routes.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-minimax-m-plan",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "minimax-m-plan",
+      "manifestPath": "manifests/lines/minimax/m-plan.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-minimax-m-plan",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "minimax-m-plan",
+      "manifestPath": "manifests/lines/minimax/m-plan.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/providers/minimax-m-plan-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-minimax-m-plan",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
       "lineId": "mistral-openai-official-model-api",
       "manifestPath": "manifests/lines/mistral/official-model-api.json",
       "field": "credentials.fieldsDocPath",
@@ -5257,6 +6384,58 @@
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-muyuan-openai-aggregator-api",
         "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "nous-portal-oauth",
+      "manifestPath": "manifests/lines/nous/portal-oauth.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/providers/nous-contract-2026-11-08.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-nous-portal-oauth",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "nous-portal-oauth",
+      "manifestPath": "manifests/lines/nous/portal-oauth.json",
+      "field": "credentials.samplePath",
+      "path": "docs/providers/examples/nous-portal-oauth.routes.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-nous-portal-oauth",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "nous-portal-oauth",
+      "manifestPath": "manifests/lines/nous/portal-oauth.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-nous-portal-oauth",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "nous-portal-oauth",
+      "manifestPath": "manifests/lines/nous/portal-oauth.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/providers/nous-contract-2026-11-08.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-nous-portal-oauth",
+        "action": "use_gateway_owned_file_after_review"
       }
     },
     {
@@ -5468,6 +6647,58 @@
       }
     },
     {
+      "lineId": "perplexity-web-reverse-api",
+      "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/provider-perplexity-web.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-perplexity-web-reverse-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "perplexity-web-reverse-api",
+      "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+      "field": "credentials.samplePath",
+      "path": "docs/provider-perplexity-web-material.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-perplexity-web-reverse-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "perplexity-web-reverse-api",
+      "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/provider-perplexity-web.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-perplexity-web-reverse-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "perplexity-web-reverse-api",
+      "manifestPath": "manifests/lines/perplexity/web-reverse-api.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/provider-perplexity-web.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-perplexity-web-reverse-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
       "lineId": "poe-openai-aggregator-api",
       "manifestPath": "manifests/lines/poe/aggregator-api.json",
       "field": "credentials.fieldsDocPath",
@@ -5673,6 +6904,162 @@
         "guidePath": "docs/provider-reference-guide.md",
         "guideAnchor": "#line-qwen-web-reverse",
         "action": "use_local_placeholder_template_and_keep_material_out_of_gateway_docs"
+      }
+    },
+    {
+      "lineId": "river-official-api",
+      "manifestPath": "manifests/lines/river/official-api.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/providers/magpie-expansion-2026-11-08.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-river-official-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "river-official-api",
+      "manifestPath": "manifests/lines/river/official-api.json",
+      "field": "credentials.samplePath",
+      "path": "docs/providers/examples/river.routes.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-river-official-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "river-official-api",
+      "manifestPath": "manifests/lines/river/official-api.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-river-official-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "river-official-api",
+      "manifestPath": "manifests/lines/river/official-api.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/providers/magpie-expansion-2026-11-08.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-river-official-api",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "sap-aicore-chat",
+      "manifestPath": "manifests/lines/sap/aicore-chat.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/providers/sap-aicore-chat-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sap-aicore-chat",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "sap-aicore-chat",
+      "manifestPath": "manifests/lines/sap/aicore-chat.json",
+      "field": "credentials.samplePath",
+      "path": "docs/providers/examples/sap-aicore-chat.routes.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sap-aicore-chat",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "sap-aicore-chat",
+      "manifestPath": "manifests/lines/sap/aicore-chat.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sap-aicore-chat",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "sap-aicore-chat",
+      "manifestPath": "manifests/lines/sap/aicore-chat.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/providers/sap-aicore-chat-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sap-aicore-chat",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "sensenova-token-plan",
+      "manifestPath": "manifests/lines/sensenova/token-plan.json",
+      "field": "credentials.fieldsDocPath",
+      "path": "docs/providers/sensenova-token-plan-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sensenova-token-plan",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "sensenova-token-plan",
+      "manifestPath": "manifests/lines/sensenova/token-plan.json",
+      "field": "credentials.samplePath",
+      "path": "docs/providers/examples/sensenova-token-plan.routes.sample.json",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sensenova-token-plan",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "sensenova-token-plan",
+      "manifestPath": "manifests/lines/sensenova/token-plan.json",
+      "field": "docs.buildDocPath",
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sensenova-token-plan",
+        "action": "use_gateway_owned_file_after_review"
+      }
+    },
+    {
+      "lineId": "sensenova-token-plan",
+      "manifestPath": "manifests/lines/sensenova/token-plan.json",
+      "field": "docs.overviewDocPath",
+      "path": "docs/providers/sensenova-token-plan-contract-2026-11-10.md",
+      "status": "local_present",
+      "resolution": {
+        "reason": "file_present_in_gateway",
+        "guidePath": "docs/provider-reference-guide.md",
+        "guideAnchor": "#line-sensenova-token-plan",
+        "action": "use_gateway_owned_file_after_review"
       }
     },
     {
@@ -6152,17 +7539,6 @@
       "declarations": [
         {
           "lineId": "accio-web-reverse-api",
-          "field": "docs.overviewDocPath"
-        }
-      ]
-    },
-    {
-      "path": "docs/20-ai-gateway/AIStudio Web Reverse基线.md",
-      "status": "external_legacy_reference",
-      "declarationCount": 1,
-      "declarations": [
-        {
-          "lineId": "aistudio-web-reverse",
           "field": "docs.overviewDocPath"
         }
       ]
@@ -8007,6 +9383,317 @@
         },
         {
           "lineId": "google-agent-platform-official",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/aistudio-web-http.md",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "aistudio-web-reverse",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/devtest-build.md",
+      "status": "local_present",
+      "declarationCount": 9,
+      "declarations": [
+        {
+          "lineId": "agnes-official-api",
+          "field": "docs.buildDocPath"
+        },
+        {
+          "lineId": "cloudflare-workers-ai",
+          "field": "docs.buildDocPath"
+        },
+        {
+          "lineId": "commandcode-provider-api",
+          "field": "docs.buildDocPath"
+        },
+        {
+          "lineId": "dim-user-oauth",
+          "field": "docs.buildDocPath"
+        },
+        {
+          "lineId": "minimax-m-plan",
+          "field": "docs.buildDocPath"
+        },
+        {
+          "lineId": "nous-portal-oauth",
+          "field": "docs.buildDocPath"
+        },
+        {
+          "lineId": "river-official-api",
+          "field": "docs.buildDocPath"
+        },
+        {
+          "lineId": "sap-aicore-chat",
+          "field": "docs.buildDocPath"
+        },
+        {
+          "lineId": "sensenova-token-plan",
+          "field": "docs.buildDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/progress/2026-11-08-dim-local.md",
+      "status": "local_present",
+      "declarationCount": 2,
+      "declarations": [
+        {
+          "lineId": "dim-user-oauth",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "dim-user-oauth",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/provider-perplexity-web-material.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "perplexity-web-reverse-api",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/provider-perplexity-web.md",
+      "status": "local_present",
+      "declarationCount": 3,
+      "declarations": [
+        {
+          "lineId": "perplexity-web-reverse-api",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "perplexity-web-reverse-api",
+          "field": "docs.buildDocPath"
+        },
+        {
+          "lineId": "perplexity-web-reverse-api",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/agnes-contract-2026-11-10.md",
+      "status": "local_present",
+      "declarationCount": 2,
+      "declarations": [
+        {
+          "lineId": "agnes-official-api",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "agnes-official-api",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/commandcode-chat-contract-2026-11-10.md",
+      "status": "local_present",
+      "declarationCount": 2,
+      "declarations": [
+        {
+          "lineId": "commandcode-provider-api",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "commandcode-provider-api",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/examples/agnes.routes.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "agnes-official-api",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/examples/cloudflare-workers-ai.routes.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "cloudflare-workers-ai",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/examples/commandcode-api.routes.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "commandcode-provider-api",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/examples/dim-user-oauth.routes.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "dim-user-oauth",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/examples/minimax-m-plan.routes.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "minimax-m-plan",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/examples/nous-portal-oauth.routes.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "nous-portal-oauth",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/examples/river.routes.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "river-official-api",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/examples/sap-aicore-chat.routes.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "sap-aicore-chat",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/examples/sensenova-token-plan.routes.sample.json",
+      "status": "local_present",
+      "declarationCount": 1,
+      "declarations": [
+        {
+          "lineId": "sensenova-token-plan",
+          "field": "credentials.samplePath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/magpie-expansion-2026-11-08.md",
+      "status": "local_present",
+      "declarationCount": 4,
+      "declarations": [
+        {
+          "lineId": "cloudflare-workers-ai",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "cloudflare-workers-ai",
+          "field": "docs.overviewDocPath"
+        },
+        {
+          "lineId": "river-official-api",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "river-official-api",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/minimax-m-plan-contract-2026-11-10.md",
+      "status": "local_present",
+      "declarationCount": 2,
+      "declarations": [
+        {
+          "lineId": "minimax-m-plan",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "minimax-m-plan",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/nous-contract-2026-11-08.md",
+      "status": "local_present",
+      "declarationCount": 2,
+      "declarations": [
+        {
+          "lineId": "nous-portal-oauth",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "nous-portal-oauth",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/sap-aicore-chat-contract-2026-11-10.md",
+      "status": "local_present",
+      "declarationCount": 2,
+      "declarations": [
+        {
+          "lineId": "sap-aicore-chat",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "sap-aicore-chat",
+          "field": "docs.overviewDocPath"
+        }
+      ]
+    },
+    {
+      "path": "docs/providers/sensenova-token-plan-contract-2026-11-10.md",
+      "status": "local_present",
+      "declarationCount": 2,
+      "declarations": [
+        {
+          "lineId": "sensenova-token-plan",
+          "field": "credentials.fieldsDocPath"
+        },
+        {
+          "lineId": "sensenova-token-plan",
           "field": "docs.overviewDocPath"
         }
       ]

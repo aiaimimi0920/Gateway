@@ -7,23 +7,57 @@ use futures::Stream;
 
 use super::{
     push_anthropic_events, push_anthropic_finish, push_kiro_stream_error, push_openai_events,
-    push_openai_finish, EventStreamParser, TranslatorState,
+    push_openai_finish, EventStreamParser, KiroEvent, TranslatorState,
 };
+use crate::{error::GatewayError, protocol::stream_error::ProtocolStreamError};
 
 pub(super) fn translate_kiro_stream_with_error<E: Send + 'static>(
     inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     state: TranslatorState,
     anthropic: bool,
 ) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
+    translate(inner, state, anthropic, None)
+}
+
+pub(super) fn translate_kiro_key_stream<E: From<ProtocolStreamError> + Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    state: TranslatorState,
+    anthropic: bool,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
+    // Domain failure survives the Responses bridge; a plain Chat error object does not.
+    translate(
+        inner,
+        state,
+        anthropic,
+        Some(|_| {
+            ProtocolStreamError::invalid_data(
+                "kiro_api_key_stream_upstream_error: Kiro CLI Key stream failed.",
+            )
+            .into()
+        }),
+    )
+}
+
+fn translate<E: Send + 'static>(
+    inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    state: TranslatorState,
+    anthropic: bool,
+    key_error: Option<fn(GatewayError) -> E>,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
     futures::stream::unfold(
         (
             Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
-            EventStreamParser::default(),
+            if key_error.is_some() {
+                EventStreamParser::for_api_key()
+            } else {
+                EventStreamParser::default()
+            },
             state,
             anthropic,
             false,
+            key_error,
         ),
-        |(mut stream, mut parser, mut state, anthropic, mut done)| async move {
+        |(mut stream, mut parser, mut state, anthropic, mut done, key_error)| async move {
             use futures::StreamExt;
             loop {
                 if done {
@@ -37,17 +71,28 @@ pub(super) fn translate_kiro_stream_with_error<E: Send + 'static>(
                 if let Some(output) = state.outputs.pop_front() {
                     return Some((
                         Ok(Bytes::from(output)),
-                        (stream, parser, state, anthropic, done),
+                        (stream, parser, state, anthropic, done, key_error),
                     ));
                 }
 
-                match parser.next_event() {
-                    Ok(Some(event)) => {
-                        if let Err(error) = state.admit(&event, anthropic) {
-                            push_kiro_stream_error(&mut state, error, anthropic);
-                            done = true;
-                            continue;
+                let event = parser.next_event().and_then(|event| {
+                    if let Some(event) = &event {
+                        state.admit(event, anthropic)?;
+                        let provider_failure = match event {
+                            KiroEvent::Error { .. } => true,
+                            KiroEvent::Exception { exception_type, .. } => {
+                                exception_type != "ContentLengthExceededException"
+                            }
+                            _ => false,
+                        };
+                        if key_error.is_some() && provider_failure {
+                            return Err(GatewayError::server_error("Kiro Key provider failure"));
                         }
+                    }
+                    Ok(event)
+                });
+                match event {
+                    Ok(Some(event)) => {
                         let terminal_error = if anthropic {
                             push_anthropic_events(&mut state, event)
                         } else {
@@ -60,6 +105,20 @@ pub(super) fn translate_kiro_stream_with_error<E: Send + 'static>(
                     }
                     Ok(None) => {}
                     Err(error) => {
+                        if let Some(convert) = key_error {
+                            release_inputs(&mut parser, &mut state);
+                            return Some((
+                                Err(convert(error)),
+                                (
+                                    Box::pin(futures::stream::empty()),
+                                    parser,
+                                    state,
+                                    anthropic,
+                                    true,
+                                    key_error,
+                                ),
+                            ));
+                        }
                         push_kiro_stream_error(&mut state, error, anthropic);
                         done = true;
                         continue;
@@ -69,6 +128,20 @@ pub(super) fn translate_kiro_stream_with_error<E: Send + 'static>(
                 match stream.next().await {
                     Some(Ok(chunk)) => {
                         if let Err(error) = parser.push(chunk) {
+                            if let Some(convert) = key_error {
+                                release_inputs(&mut parser, &mut state);
+                                return Some((
+                                    Err(convert(error)),
+                                    (
+                                        Box::pin(futures::stream::empty()),
+                                        parser,
+                                        state,
+                                        anthropic,
+                                        true,
+                                        key_error,
+                                    ),
+                                ));
+                            }
                             push_kiro_stream_error(&mut state, error, anthropic);
                             done = true;
                         }
@@ -76,10 +149,27 @@ pub(super) fn translate_kiro_stream_with_error<E: Send + 'static>(
                     Some(Err(error)) => {
                         stream = Box::pin(futures::stream::empty());
                         release_inputs(&mut parser, &mut state);
-                        return Some((Err(error), (stream, parser, state, anthropic, true)));
+                        return Some((
+                            Err(error),
+                            (stream, parser, state, anthropic, true, key_error),
+                        ));
                     }
                     None => {
                         if let Err(error) = parser.finish() {
+                            if let Some(convert) = key_error {
+                                release_inputs(&mut parser, &mut state);
+                                return Some((
+                                    Err(convert(error)),
+                                    (
+                                        Box::pin(futures::stream::empty()),
+                                        parser,
+                                        state,
+                                        anthropic,
+                                        true,
+                                        key_error,
+                                    ),
+                                ));
+                            }
                             push_kiro_stream_error(&mut state, error, anthropic);
                             done = true;
                             continue;

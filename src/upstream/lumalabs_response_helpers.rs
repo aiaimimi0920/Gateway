@@ -1,5 +1,8 @@
 //! LumaLabs execution plans, browser input ownership and response dispatch.
 
+mod image_request;
+// Legacy pure-envelope assertions are not an asset-admission path in production.
+#[cfg(test)]
 mod media_outputs;
 mod worker_results;
 
@@ -15,6 +18,7 @@ pub(crate) use worker_results::{
     parse_lumalabs_remote_browser_executor_signed_url, resolve_lumalabs_browser_worker_result,
 };
 
+#[cfg(test)]
 #[allow(unused_imports)]
 pub(crate) use media_outputs::{
     build_lumalabs_downloaded_image_response, classify_lumalabs_media_fetch_error,
@@ -61,16 +65,7 @@ pub(crate) fn prepare_lumalabs_media_plan(
     }
 
     if operation == crate::protocol::lumalabs::LumalabsMediaOperation::Image {
-        let has_input_images = req.raw_body.get("image").is_some()
-            || req
-                .raw_body
-                .get("images")
-                .and_then(|value| value.as_array())
-                .map(|values| !values.is_empty())
-                .unwrap_or(false);
-        if has_input_images || req.raw_body.get("mask").is_some() {
-            return Err(crate::protocol::lumalabs::unsupported_image_inputs_error());
-        }
+        image_request::validate(req)?;
     }
 
     let runtime = crate::protocol::lumalabs::runtime_from_payload(payload)?;

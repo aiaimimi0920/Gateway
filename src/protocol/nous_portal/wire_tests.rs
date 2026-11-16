@@ -1,0 +1,184 @@
+//! Ordinary Local Keys exercise Portal Chat conversion and the actual profiled HTTP sender.
+use crate::{access_balance::AccessBalanceStore, db, http::router::build_router, state::AppState};
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
+use http_body_util::BodyExt;
+use serde_json::{json, Value};
+use std::{sync::Arc, time::Duration};
+use tower::ServiceExt;
+mod boundaries;
+mod embeddings;
+mod fixture;
+mod legacy;
+#[path = "../dim_oauth/pipeline_tests/native.rs"]
+mod native;
+#[path = "../dim_oauth/pipeline_tests/peer.rs"]
+mod peer;
+mod probe;
+mod probe_management;
+#[path = "../../upstream/client/vertex_express_pipeline_tool_wire.rs"]
+mod public_wire;
+#[path = "../../../tests/console_contract_support/mod.rs"]
+mod support;
+use super::InferenceTarget;
+use fixture::Fixture;
+const TARGETS: [InferenceTarget; 2] = [InferenceTarget::Subscription, InferenceTarget::Welcome];
+const MODEL: &str = "public-nous";
+const UPSTREAM_MODEL: &str = "org/model";
+const ENDPOINTS: [&str; 3] = ["chat/completions", "messages", "responses"];
+
+fn body(endpoint: &str, stream: bool) -> Value {
+    match endpoint {
+        "completions" => json!({"model":MODEL,"prompt":"合成问题","stream":stream}),
+        "responses" => json!({"model":MODEL,"input":"合成问题","stream":stream}),
+        "messages" => {
+            json!({"model":MODEL,"max_tokens":32,"messages":[{"role":"user","content":"合成问题"}],"stream":stream})
+        }
+        _ => {
+            json!({"model":MODEL,"messages":[{"role":"user","content":"合成问题"}],"stream":stream})
+        }
+    }
+}
+async fn drain(body: Body) -> String {
+    let bytes = tokio::time::timeout(Duration::from_secs(10), body.collect())
+        .await
+        .unwrap()
+        .unwrap()
+        .to_bytes();
+    String::from_utf8(bytes.to_vec()).unwrap()
+}
+fn assert_identity(row: &db::GatewayRequestAuditView) {
+    assert_eq!(row.requested_model.as_deref(), Some(MODEL));
+    assert_eq!(row.resolved_model.as_deref(), Some(UPSTREAM_MODEL));
+    assert_eq!(row.provider_account_id.as_deref(), Some("nous-public"));
+    assert_eq!(
+        row.route_trace.as_ref().unwrap()["realCredentialRef"],
+        "exact"
+    );
+    let saved = serde_json::to_string(row).unwrap();
+    assert!(!saved.contains(&fixture::access("exact")) && !saved.contains("caller-secret"));
+}
+fn assert_wire(server: &peer::Peer, count: usize) {
+    let calls = server.calls.lock().unwrap();
+    assert_eq!(calls.len(), count, "do not replay unknown consumption");
+    for (path, headers, raw) in calls.iter() {
+        assert_eq!(path, "/v1/chat/completions");
+        assert_eq!(
+            headers["authorization"],
+            format!("Bearer {}", fixture::access("exact"))
+        );
+        assert_eq!(headers["user-agent"], "NeuroGateway/NousPortal");
+        for name in [
+            "cookie",
+            "x-api-key",
+            "x-goog-api-key",
+            "x-management-token",
+            "originator",
+            "chatgpt-account-id",
+        ] {
+            assert!(!headers.contains_key(name), "unexpected {name}");
+        }
+        assert_eq!(raw["model"], UPSTREAM_MODEL);
+        assert!(raw["messages"].is_array() && raw.get("input").is_none());
+        assert!(!raw.to_string().contains("nous-refresh"));
+    }
+}
+#[tokio::test]
+async fn nous_public_three_endpoints_json_and_live_sse() {
+    Box::pin(async {
+        for target in TARGETS {
+            for endpoint in ENDPOINTS {
+                for stream in [false, true] {
+                    let peer = peer::Peer::new("chat", false, false, 200).await;
+                    let fixture = Box::pin(Fixture::with_target(&peer, target)).await;
+                    super::test_support::origin(peer.origin.clone(), async {
+                        let response = fixture.open(endpoint, body(endpoint, stream)).await;
+                        let status = response.status();
+                        let text = drain(response.into_body()).await;
+                        assert_eq!(status, StatusCode::OK, "{endpoint}/{stream}: {text}");
+                        assert!(text.contains("合成答案"), "{text}");
+                        if stream {
+                            assert!(
+                                text.contains(match endpoint {
+                                    "messages" => "message_stop",
+                                    "responses" => "response.completed",
+                                    _ => "[DONE]",
+                                }),
+                                "{text}"
+                            );
+                        }
+                        let rows = fixture.audits(1).await;
+                        assert_identity(&rows[0]);
+                        assert_eq!(rows[0].status, "completed");
+                        assert_eq!(
+                            (
+                                rows[0].prompt_tokens,
+                                rows[0].completion_tokens,
+                                rows[0].total_tokens
+                            ),
+                            (Some(2), Some(3), Some(5))
+                        );
+                        assert_eq!(fixture.remaining().await, 1);
+                        assert_wire(&peer, 1);
+                    })
+                    .await;
+                    fixture.finish().await;
+                    peer.stop().await;
+                }
+            }
+        }
+    })
+    .await;
+}
+#[tokio::test]
+async fn nous_public_tools_three_endpoints_json_sse_two_turns() {
+    Box::pin(async {
+        for target in TARGETS {
+            for endpoint in ENDPOINTS {
+                for stream in [false, true] {
+                    let peer = peer::Peer::new("chat", true, false, 200).await;
+                    let fixture = Box::pin(Fixture::with_target(&peer, target)).await;
+                    super::test_support::origin(peer.origin.clone(), async {
+                        let mut first = public_wire::request_body(endpoint, stream);
+                        first["model"] = json!(MODEL);
+                        let response = fixture.open(endpoint, first).await;
+                        let status = response.status();
+                        let text = drain(response.into_body()).await;
+                        assert_eq!(status, StatusCode::OK, "{endpoint}/{stream}: {text}");
+                        let calls = public_wire::calls(&text, endpoint, stream);
+                        assert_eq!(calls.len(), 2, "{endpoint}/{stream}: {text}");
+                        assert_ne!(calls[0].id, calls[1].id);
+                        for call in &calls {
+                            assert!(!call.id.is_empty());
+                            assert_eq!(call.name, "lookup");
+                            assert_eq!(call.args, native::args());
+                        }
+                        assert_eq!(fixture.audits(1).await[0].status, "completed");
+                        assert_eq!(fixture.remaining().await, 1);
+                        let mut next = public_wire::followup(endpoint, stream, &calls);
+                        next["model"] = json!(MODEL);
+                        let response = fixture.open(endpoint, next).await;
+                        let status = response.status();
+                        let text = drain(response.into_body()).await;
+                        assert_eq!(status, StatusCode::OK, "{endpoint}/{stream}: {text}");
+                        assert!(text.contains("合成答案"), "{text}");
+                        for row in fixture.audits(2).await {
+                            assert_identity(&row);
+                            assert_eq!(row.status, "completed");
+                            assert_eq!(row.total_tokens, Some(5));
+                        }
+                        assert_eq!(fixture.remaining().await, 0);
+                        assert_wire(&peer, 2);
+                        native::assert_tools(&peer.calls.lock().unwrap(), "chat", &calls);
+                    })
+                    .await;
+                    fixture.finish().await;
+                    peer.stop().await;
+                }
+            }
+        }
+    })
+    .await;
+}

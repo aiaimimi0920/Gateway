@@ -50,6 +50,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         crate::protocol::canonical::EndpointKind::ResearchList => ("/v1/research", "GET"),
         crate::protocol::canonical::EndpointKind::ResearchGet => ("/v1/research/:id", "GET"),
         crate::protocol::canonical::EndpointKind::CreditsBalance => ("/v1/credits/balance", "GET"),
+        crate::protocol::canonical::EndpointKind::SystemOne => ("/v1/systemone", "POST"),
     };
 
     let auth_req = AuthRequest {

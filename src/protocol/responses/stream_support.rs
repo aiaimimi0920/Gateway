@@ -3,7 +3,7 @@ use serde_json::Value;
 use crate::protocol::canonical::TokenUsage;
 
 pub(super) fn extract_openai_stream_usage(chunk: &Value) -> Option<TokenUsage> {
-    let usage = chunk.get("usage")?;
+    let usage = chunk.get("usage")?.as_object()?;
     let prompt_tokens = usage
         .get("prompt_tokens")
         .and_then(|value| value.as_u64())

@@ -213,6 +213,8 @@ pub(crate) struct SunoBrowserWorkerSuccess {
     pub(crate) clips: Vec<suno::SunoClip>,
     pub(crate) completed: bool,
     pub(crate) message: Option<String>,
+    #[serde(default, rename = "wireModel")]
+    pub(crate) wire_model: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]

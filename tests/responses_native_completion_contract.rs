@@ -160,16 +160,22 @@ async fn native_incomplete_is_valid_but_failure_or_invalid_json_is_not() {
             .iter()
             .all(Result::is_ok)
     );
-    for wire in [
-        "event: response.failed\ndata: {\"type\":\"response.failed\",\"message\":\"private-marker\"}\n\n",
-        "event: response.completed\ndata: {invalid}\n\n",
-        "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"failed\"}}\n\n",
+    for (wire, code, transparent) in [
+        ("event: response.failed\ndata: {\"type\":\"response.failed\",\"message\":\"private-marker\"}\n\n", "responses_stream_upstream_error", true),
+        ("event: response.completed\ndata: {invalid}\n\n", "responses_stream_parse_failed", false),
+        ("event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"failed\"}}\n\n", "responses_stream_parse_failed", false),
     ] {
         let items = require_responses_completion(stream::iter(vec![Ok::<_, Error>(Bytes::copy_from_slice(wire.as_bytes()))]))
             .collect::<Vec<_>>().await;
-        assert_eq!(items.len(), 1);
-        let error = items[0].as_ref().unwrap_err();
+        assert_eq!(items.len(), if transparent { 2 } else { 1 });
+        if transparent {
+            // Native upstream failure bytes remain transparent, unlike a local parse failure.
+            assert_eq!(items[0].as_ref().unwrap().as_ref(), wire.as_bytes());
+        }
+        assert_eq!(items.iter().filter(|item| item.is_err()).count(), 1);
+        let error = items.last().unwrap().as_ref().unwrap_err();
         assert!(matches!(error, Error::Protocol(_)));
+        assert!(error.to_string().contains(code));
         assert!(!error.to_string().contains("private-marker"));
     }
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 export type DesktopPreferences = {
   closeBehavior: "tray" | "exit"; retentionDays: number; logLimitMb: number;
   autostart: boolean; autostartSupported: boolean;
+  sleepMode: "off" | "system" | "display"; sleepSupported: boolean;
 };
 export function useDesktopPreferences() {
   const [value, setValue] = useState<DesktopPreferences | null>(null);
@@ -24,7 +25,7 @@ export function useDesktopPreferences() {
     inFlight.current = true; setPending(true); setFailed(false);
     try {
       const saved = await invoke<DesktopPreferences>("save_gateway_desktop_preferences", {
-        settings: { closeBehavior: next.closeBehavior, retentionDays: next.retentionDays, logLimitMb: next.logLimitMb }, autostart: next.autostart,
+        settings: { closeBehavior: next.closeBehavior, sleepMode: next.sleepMode, retentionDays: next.retentionDays, logLimitMb: next.logLimitMb }, autostart: next.autostart,
       });
       if (mounted.current) setValue(saved);
     } catch { if (mounted.current) setFailed(true); }

@@ -418,6 +418,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
   });
   const { autosavePending } = useConsoleDraftPersistence({
     managementToken,
+    secretGrant: session.secretGrant?.grant ?? null,
     editorLocked,
     selectedGroupIdInvalid: groupSelection.selectedGroupIdInvalid,
     selectedGroupBillingInvalid: groupSelection.selectedGroupBillingInvalid,

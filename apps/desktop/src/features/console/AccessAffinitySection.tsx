@@ -1,4 +1,5 @@
 import { Link2 } from "lucide-react";
+import { Button, EmptyState, Field, Input, Notice, Panel } from "@neuro/ui";
 
 import type {
   ConsoleAccessStickyAffinity,
@@ -64,71 +65,57 @@ export function AccessAffinitySection({
       open={open}
       title={t("会话粘性与项目密钥", "Affinity and project keys")}
     >
-      <article className="nt-pilot-metric-card">
+      <Panel className="nt-access-card">
         <h3>{t("会话粘性", "Sticky affinity")}</h3>
-        <p className="nt-pilot-stats-note">
-          {t(
-            "粘性记录只存放在 Redis，因此未配置 PostgreSQL 时依然可用。",
-            "Affinity lives in Redis only, so it stays usable without PostgreSQL.",
-          )}
-        </p>
-        <div className="nt-console-field-grid">
-          <label className="nt-field">
-            <span>{t("访问密钥 ID", "Access key id")}</span>
-            <input
-              className="nt-input"
+        <div className="nt-access-fields">
+          <Field label={t("访问密钥 ID", "Access key id")}>
+            <Input
               onChange={(event) => patchAffinity({ accessKeyId: event.target.value })}
               value={affinityDraft.accessKeyId}
             />
-          </label>
-          <label className="nt-field">
-            <span>{t("模型", "Model")}</span>
-            <input
-              className="nt-input"
+          </Field>
+          <Field label={t("模型", "Model")}>
+            <Input
               onChange={(event) => patchAffinity({ model: event.target.value })}
               value={affinityDraft.model}
             />
-          </label>
-          <label className="nt-field">
-            <span>{t("会话键", "Session key")}</span>
-            <input
-              className="nt-input"
+          </Field>
+          <Field label={t("会话键", "Session key")}>
+            <Input
               onChange={(event) => patchAffinity({ explicitSessionKey: event.target.value })}
               placeholder={t("可选", "Optional")}
               value={affinityDraft.explicitSessionKey}
             />
-          </label>
+          </Field>
         </div>
-        <div className="nt-console-form-actions">
-          <button
-            className="nt-btn nt-btn--primary"
+        <div className="nt-access-actions">
+          <Button variant="primary" loading={affinity.loading}
             disabled={editorLocked || affinity.loading || affinityFormIncomplete}
             onClick={onInspectAffinity}
             type="button"
           >
-            {affinity.loading ? t("查询中…", "Querying…") : t("查询粘性", "Inspect")}
-          </button>
-          <button
-            className="nt-btn nt-btn--outline"
+            {t("查询粘性", "Inspect")}
+          </Button>
+          <Button
             disabled={editorLocked || affinity.loading || affinityFormIncomplete}
             onClick={onResetAffinity}
             type="button"
           >
             {t("清除粘性", "Reset")}
-          </button>
+          </Button>
         </div>
         {affinity.error ? (
-          <div className="nt-alert nt-alert--warning" role="status">
+          <Notice tone="warning">
             {affinity.error}
-          </div>
+          </Notice>
         ) : null}
         {affinityNotice ? (
-          <div className="nt-alert nt-alert--success" role="status">
+          <Notice tone="success">
             {affinityNotice}
-          </div>
+          </Notice>
         ) : null}
         {affinity.data ? (
-          <dl className="nt-pilot-metric-list">
+          <dl className="nt-access-metrics">
             <div>
               <dt>{t("作用域", "Scope")}</dt>
               <dd>{formatText(affinity.data.scope)}</dd>
@@ -151,56 +138,49 @@ export function AccessAffinitySection({
             </div>
           </dl>
         ) : (
-          <div className="nt-pilot-stats-state" role="status">
-            {t("尚无粘性记录", "No affinity recorded")}
+          <div role="status">
+            <EmptyState title={t("尚无粘性记录", "No affinity recorded")} />
           </div>
         )}
-      </article>
+      </Panel>
 
-      <article className="nt-pilot-metric-card">
+      <Panel className="nt-access-card">
         <h3>{t("轮换项目 API 密钥", "Rotate project API key")}</h3>
-        <div className="nt-console-field-grid">
-          <label className="nt-field">
-            <span>{t("项目 ID", "Project id")}</span>
-            <input
-              className="nt-input"
+        <div className="nt-access-fields">
+          <Field label={t("项目 ID", "Project id")}>
+            <Input
               onChange={(event) => patchRotation({ projectId: event.target.value })}
               value={rotationDraft.projectId}
             />
-          </label>
-          <label className="nt-field">
-            <span>{t("密钥名称", "Key name")}</span>
-            <input
-              className="nt-input"
+          </Field>
+          <Field label={t("密钥名称", "Key name")}>
+            <Input
               onChange={(event) => patchRotation({ name: event.target.value })}
               placeholder={t("可选", "Optional")}
               value={rotationDraft.name}
             />
-          </label>
-          <label className="nt-field">
-            <span>{t("操作人 ID", "Actor user id")}</span>
-            <input
-              className="nt-input"
+          </Field>
+          <Field label={t("操作人 ID", "Actor user id")}>
+            <Input
               onChange={(event) => patchRotation({ actorUserId: event.target.value })}
               placeholder={t("可选", "Optional")}
               value={rotationDraft.actorUserId}
             />
-          </label>
+          </Field>
         </div>
-        <div className="nt-console-form-actions">
-          <button
-            className="nt-btn nt-btn--primary"
+        <div className="nt-access-actions">
+          <Button variant="primary" loading={rotatingApiAccess}
             disabled={
               editorLocked || rotatingApiAccess || rotationDraft.projectId.trim().length === 0
             }
             onClick={onRotateApiAccess}
             type="button"
           >
-            {rotatingApiAccess ? t("轮换中…", "Rotating…") : t("轮换", "Rotate")}
-          </button>
+            {t("轮换", "Rotate")}
+          </Button>
         </div>
         {lastRotation ? (
-          <dl className="nt-pilot-metric-list">
+          <dl className="nt-access-metrics">
             <div>
               <dt>{t("项目", "Project")}</dt>
               <dd>{formatText(lastRotation.projectId)}</dd>
@@ -211,7 +191,7 @@ export function AccessAffinitySection({
             </div>
           </dl>
         ) : null}
-      </article>
+      </Panel>
     </Section>
   );
 }

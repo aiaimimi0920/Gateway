@@ -1,3 +1,5 @@
+import { Badge, DataTable, Disclosure, EmptyState } from "@neuro/ui";
+import type { ConsoleDependencyReadiness } from "../../api/contracts";
 import type { OperationsWorkspaceProps } from "./operations-contracts";
 import { displayLabel } from "./displayLabel";
 import { DEFAULT_OPERATIONS_LIST_VIEW, selectOperationsRows } from "./operationsListView";
@@ -7,10 +9,11 @@ import {
   formatTimestamp,
   formatText,
   averageDurationMs,
-  statusBadgeClass,
+  statusTone,
   StatCard,
   Panel,
-  DependencyRow,
+  DiagnosticDisclosure,
+  PLACEHOLDER,
 } from "./OperationsPrimitives";
 
 type Props = Pick<
@@ -33,112 +36,10 @@ export function OperationsLivePanels({
   }));
   return (
     <div className="nt-operations-live">
-      <Panel state={pressure} t={t} title={t("实时压力", "Runtime pressure")}>
-        {(data) => (
-          <>
-            <div className="nt-pilot-stats-overview-grid">
-              <StatCard
-                label={t("进行中请求", "Running requests")}
-                tone="blue"
-                value={formatCount(data.totalRunningRequests)}
-              />
-              <StatCard
-                label={t("熔断账号", "Open breakers")}
-                tone={
-                  data.providers.some((provider) => provider.breakerOpen)
-                    ? "danger"
-                    : "default"
-                }
-                value={formatCount(
-                  data.providers.filter((provider) => provider.breakerOpen)
-                    .length,
-                )}
-              />
-            </div>
-            <details
-              className="nt-operations-detail"
-              open={data.providers.some((provider) => provider.breakerOpen)}
-            >
-              <summary>{t("账号与项目负载", "Account & project load")}</summary>
-              <div className="nt-operations-detail__body">
-                <dl className="nt-pilot-metric-list">
-                  <div>
-                    <dt>{t("项目并发", "Project concurrency")}</dt>
-                    <dd>{formatCount(data.totalProjectConcurrency)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("服务商并发", "Provider concurrency")}</dt>
-                    <dd>{formatCount(data.totalProviderConcurrency)}</dd>
-                  </div>
-                </dl>
-                {providers.length === 0 ? (
-                  <div className="nt-pilot-stats-state" role="status">
-                    {data.providers.length ? t("没有匹配的服务商账号", "No matching provider accounts") : t("暂无活跃服务商账号", "No active provider accounts")}
-                  </div>
-                ) : (
-                  <div className="nt-table nt-table--pressure">
-                    <div className="nt-table__head">
-                      <span>{t("服务商账号", "Provider account")}</span>
-                      <span>{t("状态", "Status")}</span>
-                      <span>{t("并发", "Concurrency")}</span>
-                      <span>{t("进行中", "Running")}</span>
-                    </div>
-                    {providers.map((provider) => (
-                      <div
-                        className="nt-table__row"
-                        key={provider.providerAccountId}
-                      >
-                        <span title={provider.providerAccountId}>
-                          {displayLabel(formatText(provider.label))}
-                        </span>
-                        <span>
-                          <span className={statusBadgeClass(provider.status)}>
-                            {formatText(provider.status)}
-                          </span>
-                          {provider.breakerOpen ? (
-                            <span className="nt-badge nt-badge--danger">
-                              {t("熔断", "Breaker")}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span>
-                          {provider.concurrencyLimit === null
-                            ? formatCount(provider.activeConcurrency)
-                            : `${provider.activeConcurrency} / ${provider.concurrencyLimit}`}
-                        </span>
-                        <span>{formatCount(provider.runningRequestCount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {projects.length > 0 ? (
-                  <div className="nt-table nt-table--pressure-projects">
-                    <div className="nt-table__head">
-                      <span>{t("项目", "Project")}</span>
-                      <span>{t("并发", "Concurrency")}</span>
-                      <span>{t("进行中", "Running")}</span>
-                    </div>
-                    {projects.map((project) => (
-                      <div className="nt-table__row" key={project.projectId}>
-                        <span title={project.projectId}>
-                          {formatText(project.displayName)}
-                        </span>
-                        <span>{formatCount(project.activeConcurrency)}</span>
-                        <span>{formatCount(project.runningRequestCount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </details>
-          </>
-        )}
-      </Panel>
-
       <Panel state={readiness} t={t} title={t("服务状态", "Service status")}>
         {(data) => (
           <>
-            <div className="nt-pilot-stats-overview-grid">
+            <div className="nt-operations-stats">
               <StatCard
                 label={t("整体状态", "Overall")}
                 tone={data.ok ? "emerald" : "danger"}
@@ -155,50 +56,29 @@ export function OperationsLivePanels({
                 />
               ) : null}
             </div>
-            <details
-              className="nt-operations-detail"
-              open={!data.ok || data.draining}
+            <DiagnosticDisclosure
+              title={t("依赖与配置检查", "Dependency & configuration checks")}
+              active={!data.ok || data.draining}
             >
-              <summary>
-                {t("依赖与配置检查", "Dependency & configuration checks")}
-              </summary>
               <div className="nt-operations-detail__body">
-                <div className="nt-table nt-table--readiness">
-                  <div className="nt-table__head">
-                    <span>{t("依赖", "Dependency")}</span>
-                    <span>{t("状态", "State")}</span>
-                    <span>{t("说明", "Detail")}</span>
-                  </div>
-                  {data.dependencies.sqlite ? (
-                    <DependencyRow
-                      dependency={data.dependencies.sqlite}
-                      name="SQLite"
-                      t={t}
-                    />
-                  ) : null}
-                  {data.dependencies.postgresql.configured ||
-                    data.dependencies.postgresql.required ? (
-                    <DependencyRow
-                      dependency={data.dependencies.postgresql}
-                      name="PostgreSQL"
-                      t={t}
-                    />
-                  ) : null}
-                  {data.dependencies.redis.configured ||
-                    data.dependencies.redis.required ? (
-                    <DependencyRow
-                      dependency={data.dependencies.redis}
-                      name="Redis"
-                      t={t}
-                    />
-                  ) : null}
-                  <DependencyRow
-                    dependency={data.dependencies.objectStorage}
-                    name={t("对象存储", "Object storage")}
-                    t={t}
-                  />
+                <div className="nt-operations-table nt-operations-table--readiness">
+                  <DataTable label={t("依赖状态", "Dependency state")}
+                    rows={dependencyRows(data.dependencies, t)} getRowKey={row => row.id}
+                    columns={[
+                      { key: "name", header: t("依赖", "Dependency"), rowHeader: true, width: "30%", cell: row => row.name },
+                      {
+                        key: "state", header: t("状态", "State"), width: "30%", cell: ({ dependency }) =>
+                          <Badge tone={dependency.ready ? "success" : dependency.configured ? "danger" : "neutral"}>
+                            {dependency.ready ? t("就绪", "Ready") : dependency.configured ? t("异常", "Failing") : t("未配置", "Unconfigured")}
+                          </Badge>
+                      },
+                      {
+                        key: "notes", header: t("说明", "Detail"), width: "40%", cell: ({ dependency }) =>
+                          [dependency.required ? t("必需", "Required") : null, dependency.timedOut ? t("检查超时", "Check timed out") : null, dependency.driver].filter(Boolean).join(" · ") || PLACEHOLDER
+                      },
+                    ]} />
                 </div>
-                <dl className="nt-pilot-metric-list">
+                <dl className="nt-operations-metrics">
                   <div>
                     <dt>{t("API 密钥密文", "API key secret")}</dt>
                     <dd>
@@ -217,7 +97,92 @@ export function OperationsLivePanels({
                   </div>
                 </dl>
               </div>
-            </details>
+            </DiagnosticDisclosure>
+          </>
+        )}
+      </Panel>
+
+      <Panel state={pressure} t={t} title={t("实时压力", "Runtime pressure")}>
+        {(data) => (
+          <>
+            <div className="nt-operations-stats">
+              <StatCard
+                label={t("进行中请求", "Running requests")}
+                tone="blue"
+                value={formatCount(data.totalRunningRequests)}
+              />
+              <StatCard
+                label={t("熔断账号", "Open breakers")}
+                tone={
+                  data.providers.some((provider) => provider.breakerOpen)
+                    ? "danger"
+                    : "default"
+                }
+                value={formatCount(
+                  data.providers.filter((provider) => provider.breakerOpen)
+                    .length,
+                )}
+              />
+            </div>
+            <DiagnosticDisclosure
+              title={t("账号与项目负载", "Account & project load")}
+              active={data.providers.some((provider) => provider.breakerOpen)}
+            >
+              <div className="nt-operations-detail__body">
+                <dl className="nt-operations-metrics">
+                  <div>
+                    <dt>{t("项目并发", "Project concurrency")}</dt>
+                    <dd>{formatCount(data.totalProjectConcurrency)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("服务商并发", "Provider concurrency")}</dt>
+                    <dd>{formatCount(data.totalProviderConcurrency)}</dd>
+                  </div>
+                </dl>
+                {providers.length === 0 ? (
+                  <div role="status"><EmptyState compact title={data.providers.length ? t("没有匹配的服务商账号", "No matching provider accounts") : t("暂无活跃服务商账号", "No active provider accounts")} /></div>
+                ) : (
+                  <div className="nt-operations-table nt-operations-table--pressure"><DataTable label={t("服务商账号负载", "Provider account load")} rows={providers} getRowKey={(provider) => provider.providerAccountId} columns={[
+                    {
+                      key: "col-0", header: <>{t("服务商账号", "Provider account")}</>, width: "30%", rowHeader: true, cell: (provider) => (<span title={provider.providerAccountId}>
+                        {displayLabel(formatText(provider.label))}
+                      </span>)
+                    },
+                    {
+                      key: "col-1", header: <>{t("状态", "Status")}</>, width: "30%", cell: (provider) => (<span className="n-row">
+                        <Badge tone={statusTone(provider.status)}>
+                          {formatText(provider.status)}
+                        </Badge>
+                        {provider.breakerOpen ? (
+                          <Badge tone="danger">
+                            {t("熔断", "Breaker")}
+                          </Badge>
+                        ) : null}
+                      </span>)
+                    },
+                    {
+                      key: "col-2", header: <>{t("并发", "Concurrency")}</>, width: "24%", cell: (provider) => (<span>
+                        {provider.concurrencyLimit === null
+                          ? formatCount(provider.activeConcurrency)
+                          : `${provider.activeConcurrency} / ${provider.concurrencyLimit}`}
+                      </span>)
+                    },
+                    { key: "col-3", header: <>{t("进行中", "Running")}</>, width: "16%", cell: (provider) => (<span>{formatCount(provider.runningRequestCount)}</span>) }
+                  ]} /></div>
+                )}
+                {projects.length > 0 ? (
+                  <div className="nt-operations-table nt-operations-table--pressure-projects"><DataTable label={t("项目负载", "Project load")} rows={projects} getRowKey={(project) => project.projectId} columns={[
+                    {
+                      key: "col-0", header: <>{t("项目", "Project")}</>, width: "50%", rowHeader: true, cell: (project) => (<span title={project.projectId}>
+                        {formatText(project.displayName)}
+                      </span>)
+                    },
+                    { key: "col-1", header: <>{t("并发", "Concurrency")}</>, width: "25%", cell: (project) => (<span>{formatCount(project.activeConcurrency)}</span>) },
+                    { key: "col-2", header: <>{t("进行中", "Running")}</>, width: "25%", cell: (project) => (<span>{formatCount(project.runningRequestCount)}</span>) }
+                  ]} /></div>
+                ) : null}
+              </div>
+            </DiagnosticDisclosure>
           </>
         )}
       </Panel>
@@ -229,7 +194,7 @@ export function OperationsLivePanels({
       >
         {(data) => (
           <>
-            <div className="nt-pilot-stats-overview-grid">
+            <div className="nt-operations-stats">
               <StatCard
                 label={t("累计请求", "Requests total")}
                 value={formatCount(data.requestMetrics.requestsTotal)}
@@ -253,9 +218,8 @@ export function OperationsLivePanels({
                 )}
               />
             </div>
-            <details className="nt-operations-detail">
-              <summary>{t("运行诊断", "Runtime diagnostics")}</summary>
-              <dl className="nt-pilot-metric-list">
+            <Disclosure className="nt-operations-detail" title={t("运行诊断", "Runtime diagnostics")}>
+              <dl className="nt-operations-metrics">
                 <div>
                   <dt>{t("版本", "Version")}</dt>
                   <dd>
@@ -310,10 +274,20 @@ export function OperationsLivePanels({
                   <dd>{formatCount(data.routing.routeCount)}</dd>
                 </div>
               </dl>
-            </details>
+            </Disclosure>
           </>
         )}
       </Panel>
     </div>
   );
+}
+function dependencyRows(dependencies: NonNullable<OperationsWorkspaceProps["readiness"]["data"]>["dependencies"], t: OperationsWorkspaceProps["t"]) {
+  const rows: { id: string; name: string; dependency: ConsoleDependencyReadiness }[] = [];
+  if (dependencies.sqlite) rows.push({ id: "sqlite", name: "SQLite", dependency: dependencies.sqlite });
+  for (const [id, name] of [["postgresql", "PostgreSQL"], ["redis", "Redis"]] as const) {
+    const dependency = dependencies[id];
+    if (dependency.configured || dependency.required) rows.push({ id, name, dependency });
+  }
+  rows.push({ id: "object-storage", name: t("对象存储", "Object storage"), dependency: dependencies.objectStorage });
+  return rows;
 }

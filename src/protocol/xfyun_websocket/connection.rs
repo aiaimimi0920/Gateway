@@ -51,6 +51,9 @@ pub async fn execute_nonstream(
     }
 
     Ok(CanonicalRelayResponse {
+        sources: Vec::new(),
+        bedrock_turn: None,
+        vertex_turn: None,
         model_declaration: None,
         model: model.to_string(),
         text,

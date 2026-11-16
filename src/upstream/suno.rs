@@ -1,11 +1,7 @@
-use std::process::Stdio;
 use std::time::Duration;
 
 use rquest::Method;
 use serde_json::Value;
-use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
-use tokio::time::sleep;
 
 use crate::error::{classify_network_error, GatewayError};
 use crate::protocol::canonical::{CanonicalRelayRequest, EndpointKind};
@@ -17,17 +13,23 @@ use crate::upstream::client::UpstreamClient;
 use crate::upstream::suno_response_helpers::{
     build_suno_browser_executor_service_result, build_suno_downloaded_images_response,
     build_suno_non_image_generation_response, ensure_successful_suno_media_fetch_status,
-    materialize_suno_downloaded_image, parse_suno_browser_worker_verified_output,
-    parse_suno_challenge_probe_verified_response, parse_suno_feed_http_clips_response,
-    parse_suno_generation_http_poll_seed, parse_suno_remote_browser_worker_verified_result,
+    materialize_suno_downloaded_image, parse_suno_remote_browser_worker_verified_result,
     resolve_suno_image_generation_plan,
 };
 use crate::upstream::suno_runtime_helpers::{
     build_suno_browser_executor_payload, build_suno_browser_worker_input,
-    build_suno_challenge_check_plan, build_suno_feed_poll_plan, build_suno_generate_plan,
     prepare_suno_browser_executor_service_input, prepare_suno_execution_context,
     unsupported_request_plan_error,
 };
+
+mod assets;
+mod browser_binding;
+mod browser_worker;
+mod direct;
+mod direct_state;
+#[cfg(test)]
+mod tests;
+mod transport;
 
 pub(crate) fn request_plan_unsupported_error() -> GatewayError {
     unsupported_request_plan_error()
@@ -39,6 +41,7 @@ impl UpstreamClient {
         input: &Value,
     ) -> Result<Value, GatewayError> {
         let prepared = prepare_suno_browser_executor_service_input(input)?;
+        let expected_model = browser_binding::worker_model(&prepared.request_body)?;
         let result = self
             .execute_suno_browser_worker(
                 "suno_compatible",
@@ -52,6 +55,7 @@ impl UpstreamClient {
                 prepared.timeout,
             )
             .await?;
+        browser_binding::verify(&result, expected_model)?;
         Ok(build_suno_browser_executor_service_result(&result))
     }
 
@@ -62,121 +66,31 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<Value, GatewayError> {
-        let provider = "suno_compatible";
         let prepared =
             prepare_suno_execution_context(payload, req, extra_headers, false, self.timeout)?;
-
-        let challenge_plan = build_suno_challenge_check_plan(&prepared.base_url, req.endpoint_kind);
-        let challenge_response = self
-            .send_plan(&challenge_plan, prepared.runtime_headers.clone())
-            .timeout(prepared.execution_plan.request_timeout)
-            .send()
+        // One owner bounds challenge, submission, polling and finalization. Cancellation
+        // drops the in-flight request; it cannot cancel a generation already accepted remotely.
+        let deadline = tokio::time::Instant::now()
+            + prepared
+                .execution_plan
+                .request_timeout
+                .min(prepared.execution_plan.wait_timeout);
+        tokio::time::timeout_at(deadline, async {
+            let (clips, completed) = direct::run(self, &prepared, req, model, deadline).await?;
+            self.finalize_suno_media_response(
+                req,
+                model,
+                &prepared.prompt,
+                &clips,
+                completed,
+                None,
+                deadline.saturating_duration_since(tokio::time::Instant::now()),
+            )
             .await
-            .map_err(|error| classify_network_error(&error, Some(provider)))?;
-        let challenge_status = challenge_response.status().as_u16();
-        let challenge_headers = challenge_response.headers().clone();
-        let challenge_body_text = challenge_response
-            .text()
-            .await
-            .map_err(|error| classify_network_error(&error, Some(provider)))?;
-        parse_suno_challenge_probe_verified_response(
-            challenge_status,
-            &challenge_headers,
-            &challenge_body_text,
-            prepared.execution_plan.missing_challenge_token,
-        )?;
-
-        let send_plan = build_suno_generate_plan(
-            &prepared.base_url,
-            req,
-            model,
-            prepared.user_tier.as_deref(),
-        )?;
-
-        let send_response = self
-            .send_plan(&send_plan, prepared.runtime_headers.clone())
-            .timeout(prepared.execution_plan.request_timeout)
-            .send()
-            .await
-            .map_err(|error| classify_network_error(&error, Some(provider)))?;
-        let send_status = send_response.status().as_u16();
-        let send_headers = send_response.headers().clone();
-        let send_body_text = send_response
-            .text()
-            .await
-            .map_err(|error| classify_network_error(&error, Some(provider)))?;
-        let (initial_clips, clip_ids) = parse_suno_generation_http_poll_seed(
-            send_status,
-            &send_headers,
-            &send_body_text,
-            prepared.execution_plan.missing_challenge_token,
-        )?;
-        let initial_clips_ready = suno::clips_ready_for_endpoint(req.endpoint_kind, &initial_clips);
-        if !prepared.execution_plan.wait_completion || initial_clips_ready {
-            return self
-                .finalize_suno_media_response(
-                    req,
-                    model,
-                    &prepared.prompt,
-                    &initial_clips,
-                    initial_clips_ready,
-                    None,
-                    prepared.execution_plan.request_timeout,
-                )
-                .await;
-        }
-        let wait_deadline = std::time::Instant::now() + prepared.execution_plan.wait_timeout;
-        let mut latest_clips = initial_clips;
-
-        while std::time::Instant::now() < wait_deadline {
-            sleep(prepared.execution_plan.poll_interval).await;
-
-            let response = self
-                .send_plan(
-                    &build_suno_feed_poll_plan(&prepared.base_url, req.endpoint_kind, &clip_ids),
-                    prepared.runtime_headers.clone(),
-                )
-                .timeout(prepared.execution_plan.request_timeout)
-                .send()
-                .await
-                .map_err(|error| classify_network_error(&error, Some(provider)))?;
-            let status = response.status().as_u16();
-            let headers = response.headers().clone();
-            let body_text = response
-                .text()
-                .await
-                .map_err(|error| classify_network_error(&error, Some(provider)))?;
-            latest_clips = parse_suno_feed_http_clips_response(
-                status,
-                &headers,
-                &body_text,
-                prepared.execution_plan.missing_challenge_token,
-            )?;
-            if suno::clips_ready_for_endpoint(req.endpoint_kind, &latest_clips) {
-                return self
-                    .finalize_suno_media_response(
-                        req,
-                        model,
-                        &prepared.prompt,
-                        &latest_clips,
-                        true,
-                        None,
-                        prepared.execution_plan.request_timeout,
-                    )
-                    .await;
-            }
-        }
-
-        self.finalize_suno_media_response(
-            req,
-            model,
-            &prepared.prompt,
-            &latest_clips,
-            false,
-            Some("Timed out waiting for Suno clip generation to reach a terminal state."),
-            prepared.execution_plan.request_timeout,
-        )
+        })
         .await
+        .map_err(|_| transport::timeout())?
+        .map_err(transport::no_replay)
     }
 
     pub(crate) async fn execute_suno_browser_backed(
@@ -188,53 +102,64 @@ impl UpstreamClient {
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<Value, GatewayError> {
         let provider = "suno_compatible";
+        let browser_request = browser_binding::prepare(req, model)?;
+        let expected_model = browser_binding::worker_model(&browser_request.raw_body)?;
         let prepared =
             prepare_suno_execution_context(payload, req, extra_headers, true, self.timeout)?;
 
-        let worker_result = if let Some(result) = self
-            .execute_remote_browser_executor(
-                "suno",
-                provider_account_id,
-                req.endpoint_kind,
-                build_suno_browser_executor_payload(
-                    &prepared.base_url,
+        let deadline = tokio::time::Instant::now() + prepared.execution_plan.request_timeout;
+        // Admission/queue, local or remote worker and finalization share the same budget.
+        // A worker may already have submitted a paid generation: never replay on error.
+        tokio::time::timeout_at(deadline, async {
+            let worker_result = if let Some(result) = self
+                .execute_remote_browser_executor(
+                    "suno",
+                    provider_account_id,
+                    req.endpoint_kind,
+                    build_suno_browser_executor_payload(
+                        &prepared.base_url,
+                        &prepared.runtime_headers,
+                        &browser_request,
+                        prepared.execution_plan.target_asset_kind,
+                        prepared.execution_plan.wait_timeout,
+                        prepared.execution_plan.poll_interval,
+                        prepared.execution_plan.request_timeout,
+                        std::env::var("SUNO_BROWSER_EXECUTABLE_PATH").ok(),
+                    ),
+                )
+                .await?
+            {
+                parse_suno_remote_browser_worker_verified_result(result)?
+            } else {
+                self.execute_suno_browser_worker(
+                    provider,
+                    payload.base_url.trim_end_matches('/'),
                     &prepared.runtime_headers,
-                    req,
+                    &browser_request.raw_body,
                     prepared.execution_plan.target_asset_kind,
+                    prepared.execution_plan.wait_completion,
                     prepared.execution_plan.wait_timeout,
                     prepared.execution_plan.poll_interval,
                     prepared.execution_plan.request_timeout,
-                    std::env::var("SUNO_BROWSER_EXECUTABLE_PATH").ok(),
-                ),
-            )
-            .await?
-        {
-            parse_suno_remote_browser_worker_verified_result(result)?
-        } else {
-            self.execute_suno_browser_worker(
-                provider,
-                payload.base_url.trim_end_matches('/'),
-                &prepared.runtime_headers,
-                &req.raw_body,
-                prepared.execution_plan.target_asset_kind,
-                prepared.execution_plan.wait_completion,
-                prepared.execution_plan.wait_timeout,
-                prepared.execution_plan.poll_interval,
-                prepared.execution_plan.request_timeout,
-            )
-            .await?
-        };
+                )
+                .await?
+            };
+            browser_binding::verify(&worker_result, expected_model)?;
 
-        self.finalize_suno_media_response(
-            req,
-            model,
-            &prepared.prompt,
-            &worker_result.clips,
-            worker_result.completed,
-            worker_result.message.as_deref(),
-            prepared.execution_plan.request_timeout,
-        )
+            self.finalize_suno_media_response(
+                req,
+                model,
+                &prepared.prompt,
+                &worker_result.clips,
+                worker_result.completed,
+                worker_result.message.as_deref(),
+                deadline.saturating_duration_since(tokio::time::Instant::now()),
+            )
+            .await
+        })
         .await
+        .map_err(|_| browser_worker::timeout_error())?
+        .map_err(transport::no_replay)
     }
 
     async fn finalize_suno_media_response(
@@ -287,7 +212,10 @@ impl UpstreamClient {
                 }
                 build_suno_downloaded_images_response(req, prompt, &images)
             }
-            EndpointKind::VideosGenerations | EndpointKind::MusicGenerations => {
+            EndpointKind::MusicGenerations => {
+                if completed {
+                    assets::verify(clips, tokio::time::Instant::now() + request_timeout).await?;
+                }
                 build_suno_non_image_generation_response(
                     req.endpoint_kind,
                     model,
@@ -297,13 +225,21 @@ impl UpstreamClient {
                     message,
                 )
             }
+            EndpointKind::VideosGenerations => build_suno_non_image_generation_response(
+                req.endpoint_kind,
+                model,
+                prompt,
+                clips,
+                completed,
+                message,
+            ),
             _ => Err(suno::unsupported_media_endpoint_error()),
         }
     }
 
     async fn execute_suno_browser_worker(
         &self,
-        provider: &str,
+        _provider: &str,
         base_url: &str,
         headers: &rquest::header::HeaderMap,
         request_body: &Value,
@@ -329,35 +265,15 @@ impl UpstreamClient {
             suno::browser_worker_input_serialize_error(error.to_string().as_str())
         })?;
 
-        let mut child = Command::new(
-            std::env::var("SUNO_BROWSER_NODE_BIN").unwrap_or_else(|_| "node".to_string()),
+        browser_worker::run(
+            crate::upstream::PreparedProducerBrowserWorkerLaunch {
+                node_bin: std::env::var("SUNO_BROWSER_NODE_BIN")
+                    .unwrap_or_else(|_| "node".to_string()),
+                script_path,
+                stdin_json,
+            },
+            timeout,
         )
-        .arg(&script_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| {
-            suno::browser_worker_spawn_failed_error(
-                script_path.as_path(),
-                error.to_string().as_str(),
-            )
-        })?;
-
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(&stdin_json)
-                .await
-                .map_err(|error| suno::browser_worker_stdin_error(error.to_string().as_str()))?;
-        }
-
-        let output = tokio::time::timeout(timeout, child.wait_with_output())
-            .await
-            .map_err(|_| suno::browser_worker_timeout_error())?
-            .map_err(|error| suno::browser_worker_wait_failed_error(error.to_string().as_str()))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        parse_suno_browser_worker_verified_output(&stdout, &stderr, provider)
+        .await
     }
 }

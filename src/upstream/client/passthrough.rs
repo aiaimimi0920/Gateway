@@ -10,8 +10,29 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<Value, GatewayError> {
+        crate::protocol::lobsterai::management_boundary::reject_generic(payload)?;
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        crate::protocol::bedrock_turn::validate_request(payload, req)?;
+        if crate::protocol::commandcode::owns_payload(payload) {
+            return crate::protocol::commandcode::native_json::execute(self, payload, req, model)
+                .await;
+        }
+        if flow.executor == crate::protocol::luma_agents::ADAPTER {
+            return crate::upstream::luma_agents::execute(
+                &self.http,
+                self.timeout,
+                payload,
+                req,
+                model,
+            )
+            .await;
+        }
+        crate::protocol::vertex_express::validate_request(payload, req, model)?;
+        crate::protocol::vertex_oauth::business::validate_request(payload, req, model)?;
+        if flow.executor == crate::protocol::perplexity_web::material::ADAPTER {
+            return Err(crate::upstream::perplexity_web::unsupported_request_plan_error());
+        }
         if payload.adapter == "flow_web_compatible" {
             return Err(crate::upstream::flow_web::generation_unavailable());
         }
@@ -216,7 +237,9 @@ impl UpstreamClient {
             .await);
         }
 
-        let body: Value = if payload.canonical_adapter() == "search_api_compatible"
+        let body: Value = if crate::protocol::minimax::owns_payload(payload) {
+            crate::protocol::minimax::read_json(response).await?
+        } else if payload.canonical_adapter() == "search_api_compatible"
             && req.endpoint_kind == EndpointKind::Fetch
         {
             crate::upstream::search_fetch_response::read_json(response, payload, req).await?
@@ -232,6 +255,8 @@ impl UpstreamClient {
         ) {
             crate::protocol::dashscope::response::observe_native(&body, model)?;
         }
+        crate::protocol::agnes::validate_json_response(payload, req, &body)?;
+        crate::protocol::minimax::validate_json_response(payload, &body)?;
         Ok(body)
     }
 
@@ -260,8 +285,15 @@ impl UpstreamClient {
         model: &str,
         extra_headers: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<BinaryUpstreamResponse, GatewayError> {
+        crate::protocol::lobsterai::management_boundary::reject_generic(payload)?;
         let flow = crate::protocol::call_flow::prepare(payload)?;
         let payload = flow.payload.as_ref();
+        crate::protocol::bedrock_turn::validate_request(payload, req)?;
+        crate::protocol::vertex_express::validate_request(payload, req, model)?;
+        crate::protocol::vertex_oauth::business::validate_request(payload, req, model)?;
+        if flow.executor == crate::protocol::perplexity_web::material::ADAPTER {
+            return Err(crate::upstream::perplexity_web::unsupported_request_plan_error());
+        }
         if gemini_api_modular::is_official_adapter(payload.adapter.as_str())
             && req.endpoint_kind == EndpointKind::AudioSpeech
         {

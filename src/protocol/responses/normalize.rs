@@ -193,6 +193,25 @@ fn normalize_responses_input_item(item: &Value) -> Result<Vec<CanonicalMessage>,
 
 fn parse_responses_content_part(part: &Value) -> Option<ContentPart> {
     match part.get("type").and_then(|value| value.as_str()) {
+        Some("input_image")
+            if part.get("image_url").is_some_and(Value::is_string)
+                && part.get("detail").is_none_or(Value::is_string)
+                && part.as_object().is_some_and(|o| {
+                    o.keys()
+                        .all(|key| matches!(key.as_str(), "type" | "image_url" | "detail"))
+                }) =>
+        {
+            Some(ContentPart::ImageUrl {
+                image_url: part["image_url"]
+                    .as_str()
+                    .expect("checked image URL")
+                    .to_owned(),
+                detail: part
+                    .get("detail")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+            })
+        }
         Some("input_text") | Some("output_text") | Some("text") => part
             .get("text")
             .and_then(|value| value.as_str())

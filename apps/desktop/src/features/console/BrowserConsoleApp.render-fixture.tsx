@@ -6,6 +6,7 @@ import type { ConsoleApi } from "../../api/console";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { AppToastViewport } from "../../components/AppToast";
 import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
+import { UiThemeProvider } from "../../theme/UiThemeProvider";
 import { HostProvider } from "../../platform/HostProvider";
 import { createBrowserHost } from "../../platform/browserHost";
 import {
@@ -72,14 +73,14 @@ export function renderWithProviders(
 ) {
   const host = createBrowserHost();
   const renderTree = (nextOverrides: SessionOverrides) => (
-    <UiLocaleProvider>
+    <UiThemeProvider><UiLocaleProvider>
       <HostProvider adapter={host}>
         <ManagementSessionContext.Provider value={sessionValue(nextOverrides)}>
           {children}
           <AppToastViewport />
         </ManagementSessionContext.Provider>
       </HostProvider>
-    </UiLocaleProvider>
+    </UiLocaleProvider></UiThemeProvider>
   );
   const result = render(renderTree(overrides));
   return {

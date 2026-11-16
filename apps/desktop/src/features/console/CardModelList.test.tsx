@@ -14,10 +14,14 @@ const displayModel = "nemotron-3-super-120b-a12b";
 const t = (_zh: string, en: string) => en;
 
 function stats(total: number, success: number): ConsoleRequestAuditProviderStats {
-  const windows = [{ label: "01:00", bucketStart: "2026-09-27T01:00:00Z", totalRequests: total,
-    successCount: success, failureCount: total - success }];
-  const common = { totalRequests: total, completedCount: success, failedCount: total - success,
-    cancelledCount: 0, runningCount: 0, lastRequestAt: null, windows };
+  const windows = [{
+    label: "01:00", bucketStart: "2026-09-27T01:00:00Z", totalRequests: total,
+    successCount: success, failureCount: total - success
+  }];
+  const common = {
+    totalRequests: total, completedCount: success, failedCount: total - success,
+    cancelledCount: 0, runningCount: 0, lastRequestAt: null, windows
+  };
   return { ...common, providerAccountId: "nv", models: [{ ...common, model }] };
 }
 
@@ -144,9 +148,9 @@ describe("release-ranked callable models", () => {
     expect(css).toMatch(/\.nt-card-models__row\s*\{[^}]*grid-template-columns: var\(--nt-model-columns\);/);
     expect(css).toContain("--nt-model-columns: minmax(0, 1fr) 40px 42px 40px;");
     expect(css).not.toContain("--nt-color-focus-surface");
-    expect(css).toMatch(/\.nt-card-models summary\s*\{[^}]*border-left: 0;/);
+    expect(css).not.toMatch(/\.nt-card-models summary\s*\{/);
     expect(css).not.toContain("border-left-color");
-    expect(css).toMatch(/details\[open\] > summary\s*\{[^}]*background: var\(--nt-color-control-hover\);/);
+    expect(css).not.toContain("details[open] > summary");
   });
 
   it("has no ambiguous alias or company entries in the release catalogue", () => {
@@ -158,16 +162,20 @@ describe("release-ranked callable models", () => {
   });
 
   it("keeps credential/model attribution, unknown telemetry and zero observed traffic distinct", () => {
-    const summary = { ...stats(4, 3), providerAccounts: [stats(4, 3)],
+    const summary = {
+      ...stats(4, 3), providerAccounts: [stats(4, 3)],
       credentials: [{ ...stats(1, 1), credentialRef: "a" }, { ...stats(3, 2), credentialRef: "b" }],
       retainedModelTotals: [
         { providerAccountId: "nv", credentialRef: "a", model, requestCount: 100, successCount: 90 },
         { providerAccountId: "nv", credentialRef: "b", model, requestCount: 300, successCount: 200 },
         { providerAccountId: "nv", credentialRef: null, model, requestCount: 10, successCount: 0 },
         { providerAccountId: "other", credentialRef: "a", model, requestCount: 9, successCount: 9 },
-      ] };
-    const snapshot = buildConsoleTelemetrySnapshot({ pressure: null, costOverview: null,
-      credentialModelStates: [], credentialInventory: null, requestAuditSummary: summary });
+      ]
+    };
+    const snapshot = buildConsoleTelemetrySnapshot({
+      pressure: null, costOverview: null,
+      credentialModelStates: [], credentialInventory: null, requestAuditSummary: summary
+    });
     expect(credentialCardModelTraffic(snapshot, "nv", "a").models.get(model)).toMatchObject({ requestCount: 100, successCount: 90 });
     expect(credentialCardModelTraffic(snapshot, "nv", "b").models.get(model)).toMatchObject({ requestCount: 300, successCount: 200 });
     expect(credentialCardModelTraffic(snapshot, "another-provider", "a").models.size).toBe(0);
@@ -200,8 +208,10 @@ describe("release-ranked callable models", () => {
     const user = userEvent.setup();
     render(<CardModelList models={[model, "local-custom"]} label="pool" t={t} traffic={{
       emptyRequestCount: 0,
-      models: new Map([[model, { requestCount: 100, successCount: 90,
-        successWindows: [{ label: "01:00", success: 3, requests: 4 }] }]]),
+      models: new Map([[model, {
+        requestCount: 100, successCount: 90,
+        successWindows: [{ label: "01:00", success: 3, requests: 4 }]
+      }]]),
     }} />);
     expect(screen.getByText(displayModel)).not.toBeVisible();
     expect(screen.getByText("local-custom")).not.toBeVisible();
@@ -232,13 +242,17 @@ describe("release-ranked callable models", () => {
   it("keeps hours from different days distinct and orders recent quality across midnight", () => {
     const source = stats(4, 3);
     source.models[0].windows = ["2026-10-03T23:00:00Z", "2026-10-04T00:00:00Z",
-      "2026-10-04T23:00:00Z"].map((bucketStart) => ({ ...source.windows[0], bucketStart,
-        label: bucketStart.slice(11, 16) }));
-    const snapshot = buildConsoleTelemetrySnapshot({ pressure: null, costOverview: null,
+      "2026-10-04T23:00:00Z"].map((bucketStart) => ({
+        ...source.windows[0], bucketStart,
+        label: bucketStart.slice(11, 16)
+      }));
+    const snapshot = buildConsoleTelemetrySnapshot({
+      pressure: null, costOverview: null,
       credentialModelStates: [], credentialInventory: null, requestAuditSummary: {
         ...source, providerAccounts: [source], credentials: [{ ...source, credentialRef: "a" }],
         retainedModelTotals: [],
-      } });
+      }
+    });
     for (const traffic of [providerCardModelTraffic(snapshot, ["nv"]), credentialCardModelTraffic(snapshot, "nv", "a")]) {
       expect(traffic.models.get(model)?.successWindows.map((window) => window.label))
         .toEqual(source.models[0].windows.map((window) => window.bucketStart));
@@ -249,18 +263,20 @@ describe("release-ranked callable models", () => {
     const models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
     const user = userEvent.setup();
     const { container } = render(<CardModelList models={[...models, model]} label="pool"
-      t={(zh) => zh} traffic={{ emptyRequestCount: 0, models: new Map([
-        [models[0], { requestCount: 10, successCount: 10, successWindows: [{ label: "01:00", success: 2, requests: 2 }] }],
-        [models[1], { requestCount: 90, successCount: 45, successWindows: [{ label: "01:00", success: 1, requests: 2 }] }],
-        [model, { requestCount: 500, successCount: 500, successWindows: [] }],
-      ]) }} />);
+      t={(zh) => zh} traffic={{
+        emptyRequestCount: 0, models: new Map([
+          [models[0], { requestCount: 10, successCount: 10, successWindows: [{ label: "01:00", success: 2, requests: 2 }] }],
+          [models[1], { requestCount: 90, successCount: 45, successWindows: [{ label: "01:00", success: 1, requests: 2 }] }],
+          [model, { requestCount: 500, successCount: 500, successWindows: [] }],
+        ])
+      }} />);
     const heading = container.querySelector(".nt-card-models__heading")!;
     expect([...heading.children].slice(1).map((element) => element.textContent)).toEqual(["调用数", "热度图", "成功率"]);
     expect(heading.querySelector("br")).toBeNull();
-    const group = container.querySelector('[data-model-company="openai"]')!;
+    const group = container.querySelector('[data-model-company="openai"] details')!;
     const summary = group.querySelector("summary")!;
     expect(summary.querySelector(".nt-card-models__company-name")).toHaveTextContent("OpenAI(2)");
-    expect(summary.querySelectorAll(":scope > [data-model-metric]")).toHaveLength(3);
+    expect(summary.querySelectorAll(".nt-card-models__company-row > [data-model-metric]")).toHaveLength(3);
     expect(summary.querySelector('[data-model-metric="requests"]')).toHaveTextContent("100");
     expect(summary.querySelector('[data-model-metric="success-rate"]')).toHaveTextContent("55%");
     expect(summary.querySelector('[data-model-metric="quality"]')).not.toHaveAttribute("title");
@@ -275,9 +291,11 @@ describe("release-ranked callable models", () => {
   it("does not turn partial company telemetry into complete totals or success", () => {
     const models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
     const { container } = render(<CardModelList models={models} label="pool" t={t}
-      traffic={{ emptyRequestCount: null, models: new Map([[models[0], {
-        requestCount: 10, successCount: 8, successWindows: [],
-      }]]) }} />);
+      traffic={{
+        emptyRequestCount: null, models: new Map([[models[0], {
+          requestCount: 10, successCount: 8, successWindows: [],
+        }]])
+      }} />);
     const summary = container.querySelector("summary")!;
     expect(summary.querySelector('[data-model-metric="requests"]')).toHaveTextContent("—");
     expect(summary.querySelector('[data-model-metric="success-rate"]')).toHaveTextContent("—");

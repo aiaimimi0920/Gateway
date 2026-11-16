@@ -4,9 +4,10 @@ import { isRecord } from "./routeDocument";
 import { displayLabel } from "./displayLabel";
 import { readPilotIdentityCategories } from "./pilotPoolPolicy";
 import { iqExtraCases } from "./credentialIqBank";
+import { modelIdPolicy, validModelId, type ModelIdPolicy } from "./providerModelId";
 
 export type TestScopeOption = { key: string; label: string; scope: CredentialTestScope };
-export type TestAccount = { id: string; name: string; category: string | null; models: string[]; enabled: boolean };
+export type TestAccount = { id: string; name: string; category: string | null; models: string[]; enabled: boolean; modelPolicy: ModelIdPolicy };
 export const testScopeKey = (scope: CredentialTestScope) => JSON.stringify([scope.providerId, scope.kind, "id" in scope ? scope.id : ""]);
 
 export function defaultTestPolicy(): CredentialTestPolicy {
@@ -18,9 +19,8 @@ export function defaultTestPolicy(): CredentialTestPolicy {
   ] };
 }
 
-function stringModels(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((model): model is string => typeof model === "string" && model.length > 0
-    && model.trim() === model && new TextEncoder().encode(model).length <= 256 && !/[*?\u0000-\u001f\u007f-\u009f]/u.test(model)) : [];
+function stringModels(value: unknown, modelPolicy: ModelIdPolicy): string[] {
+  return Array.isArray(value) ? value.filter((model): model is string => typeof model === "string" && validModelId(model, modelPolicy)) : [];
 }
 function policy(value: unknown): CredentialTestPolicy | null {
   return isRecord(value) && Array.isArray(value.cases) && Array.isArray(value.models)
@@ -32,14 +32,17 @@ export function testProviderContext(document: ConsoleRouteDocument | null, provi
   if (!isRecord(provider)) return null;
   const label = displayLabel(typeof provider.label === "string" ? provider.label : providerId);
   const credentials = Array.isArray(provider.credentials) ? provider.credentials.filter(isRecord) : [];
-  const declared = stringModels(provider.supported_models);
-  const poolModels = declared.length ? declared : stringModels([provider.default_model]);
+  const declared = stringModels(provider.supported_models, modelIdPolicy(provider));
+  const poolModels = declared.length ? declared : stringModels([provider.default_model], modelIdPolicy(provider));
   const accounts: TestAccount[] = credentials.length ? credentials.map((credential, index) => ({
     id: String(credential.id ?? `${providerId}-cred-${index}`), name: String(credential.account_name ?? credential.id ?? `${providerId}-cred-${index}`),
     category: typeof credential.credential_identity_category_id === "string" ? credential.credential_identity_category_id : null,
-    models: stringModels(credential.supported_models).length ? stringModels(credential.supported_models) : poolModels,
+    modelPolicy: modelIdPolicy(provider, credential),
+    models: Array.isArray(credential.supported_models) && credential.supported_models.length
+      ? stringModels(credential.supported_models, modelIdPolicy(provider, credential))
+      : poolModels.filter((model) => validModelId(model, modelIdPolicy(provider, credential))),
     enabled: credential.enabled !== false,
-  })) : provider.explicit_credentials_only === true ? [] : [{ id: `${providerId}::default`, name: label, category: null, models: poolModels, enabled: true }];
+  })) : provider.explicit_credentials_only === true ? [] : [{ id: `${providerId}::default`, name: label, category: null, models: poolModels, enabled: true, modelPolicy: modelIdPolicy(provider) }];
   const categories = readPilotIdentityCategories(provider, providerId, label);
   const options: TestScopeOption[] = [
     { scope: { kind: "pool" as const, providerId }, label: `凭据池 · ${label}`, key: "" },
@@ -84,6 +87,9 @@ export function updateTestPolicies(document: ConsoleRouteDocument, scopes: Crede
 function assignTestPolicy(next: ConsoleRouteDocument, scope: CredentialTestScope, nextPolicy: CredentialTestPolicy | null) {
   const context = testProviderContext(next, scope.providerId);
   if (!context) throw new Error("Test policy provider was not found.");
+  if (scope.kind !== "pool" && !validModelId(scope.id)) throw new Error("Invalid test policy scope ID.");
+  const error = nextPolicy && testPolicyError(nextPolicy, testScopeModelPolicy(next, [scope]));
+  if (error) throw new Error(error);
   const { provider, credentials } = context;
   let owner = provider;
   let field = "test_policy";
@@ -105,11 +111,24 @@ export function parentTestPolicy(document: ConsoleRouteDocument | null, scope: C
   return document ? readTestPolicy(updateTestPolicy(document, scope, null), scope).policy : defaultTestPolicy();
 }
 
-export function testPolicyError(plan: CredentialTestPolicy): string | null {
+export function testScopeModelPolicy(document: ConsoleRouteDocument | null, scopes: CredentialTestScope[]): ModelIdPolicy {
+  const policies = scopes.flatMap((scope): ModelIdPolicy[] => {
+    // Product selection does not need to re-parse every account's full model catalogue.
+    const provider = document?.providers.find((entry) => isRecord(entry) && entry.id === scope.providerId);
+    if (!isRecord(provider)) return ["standard"];
+    const credentials = Array.isArray(provider.credentials) ? provider.credentials.filter(isRecord) : [];
+    const accounts = credentials.filter((account, index) => scope.kind === "pool" || (scope.kind === "account"
+      ? String(account.id ?? `${scope.providerId}-cred-${index}`) === scope.id : account.credential_identity_category_id === scope.id));
+    return accounts.length ? accounts.map((account) => modelIdPolicy(provider, account)) : [modelIdPolicy(provider)];
+  });
+  return policies.length && policies.every((policy) => policy === policies[0]) ? policies[0] : "standard";
+}
+
+export function testPolicyError(plan: CredentialTestPolicy, modelPolicy: ModelIdPolicy = "standard"): string | null {
   const bytes = (text: string) => new TextEncoder().encode(text).length;
   const exact = (text: string) => text.length > 0 && text.trim() === text && bytes(text) <= 256 && !/[*?\u0000-\u001f\u007f-\u009f]/u.test(text);
   if (!Number.isInteger(plan.intervalMinutes) || plan.intervalMinutes < 1 || plan.intervalMinutes > 10_080) return "间隔须为 1–10080 分钟的整数。";
-  if (plan.models.length > 128 || plan.models.some((model) => !exact(model)) || new Set(plan.models).size !== plan.models.length || (plan.modelSelection === "selected" && plan.models.length === 0)) return "请选择全部模型或至少一个精确模型；最多 128 个，不接受通配符。";
+  if (plan.models.length > 128 || plan.models.some((model) => !validModelId(model, modelPolicy)) || new Set(plan.models).size !== plan.models.length || (plan.modelSelection === "selected" && plan.models.length === 0)) return "请选择符合此产品字节上限和语法的精确模型；最多 128 个，不接受通配符。";
   if (plan.cases.length > 16 || plan.cases.length === 0 || !plan.cases.some((item) => item.enabled) || new Set(plan.cases.map((item) => item.id)).size !== plan.cases.length) return "请选择至少一个测试用例；最多保留 16 个不同用例。";
   if (plan.cases.some((item) => !exact(item.id) || !item.name.trim() || bytes(item.name) > 256 || !item.prompt.trim() || bytes(item.prompt) > 8192 || ![1, 2, 3].includes(item.difficulty) || (item.expectedAnswer != null && (!item.expectedAnswer.trim() || bytes(item.expectedAnswer) > 4096)))) return "用例提示词须为 1–8192 字节，标准答案为 1–4096 字节，难度为 1–3。";
   if (plan.modelSelection === "selected" && plan.models.length * plan.cases.filter((item) => item.enabled).length > 128) return "每账户一轮最多 128 个模型×用例组合。";

@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useMemo, useState } from "react";
 
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import { accountGroupCreateValidation, type AccountGroupCreateValue } from "./accountGroupDraft";
@@ -30,7 +30,6 @@ export function AccountGroupDialog({
   const [mode, setMode] = useState<"all" | "members" | "ungrouped">("all");
   const [attempted, setAttempted] = useState(false);
   const [submissionFailed, setSubmissionFailed] = useState(false);
-  const returnFocusRef = useRef<HTMLElement | null>(null);
   const draftId = useId();
   const candidates = useMemo(() => buildGroupMemberCandidates(accounts, {
     selectedCredentialIds: memberIds, query, mode,
@@ -85,9 +84,7 @@ export function AccountGroupDialog({
     }}
     onUpdateField={(_, field, next) => { if (!locked) setValue((current) => ({ ...current, [field]: next })); }}
     onToggleEnabled={(_, enabled) => { if (!locked) setValue((current) => ({ ...current, enabled })); }}
-    onRemoveGroup={() => {}}
-    onCaptureFocus={() => { returnFocusRef.current = document.activeElement as HTMLElement; }}
-    onRestoreFocus={() => { if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus(); }}
+    onRemoveGroup={() => { }}
     onClose={() => onOpenChange(false)} onCreate={submit}
   />;
 }

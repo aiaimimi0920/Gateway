@@ -1,23 +1,34 @@
-import { render, screen } from "@testing-library/react";
+import { render as renderBase, screen } from "@testing-library/react";
+import { NeuroProvider } from "@neuro/ui";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { CredentialTestDialog } from "./CredentialTestDialog";
 import { defaultTestPolicy, testScopeKey } from "./credentialTestPolicyDocument";
 import { pilotAccount, pilotSection } from "./AccountsLedgerWorkspace.fixtures";
+const render = (ui: Parameters<typeof renderBase>[0]) => renderBase(ui, { wrapper: NeuroProvider });
 
-const document: ConsoleRouteDocument = { providers: [{ id: "managed-provider", supported_models: ["a", "b"],
-  test_policy: { ...defaultTestPolicy(), intervalMinutes: 30 },
-  credentials: [{ id: "one", test_policy: { ...defaultTestPolicy(), intervalMinutes: 15, modelSelection: "selected", models: ["a"] } }, { id: "two" }],
-}], model_routes: [], aliases: {}, account_groups: [] };
+const document: ConsoleRouteDocument = {
+  providers: [{
+    id: "managed-provider", supported_models: ["a", "b"],
+    test_policy: { ...defaultTestPolicy(), intervalMinutes: 30 },
+    credentials: [{ id: "one", test_policy: { ...defaultTestPolicy(), intervalMinutes: 15, modelSelection: "selected", models: ["a"] } }, { id: "two" }],
+  }], model_routes: [], aliases: {}, account_groups: []
+};
 function props() {
   const t = (zh: string) => zh;
   const section = pilotSection({ directAccounts: [pilotAccount({ accountId: "one" }), pilotAccount({ accountId: "two" })] });
-  return { document, initialTab: "auto" as const, onProbe: vi.fn().mockResolvedValue(undefined), onSave: vi.fn().mockReturnValue(true),
-    probe: { t, section, closePilotActionDialog: vi.fn(), providerProbeBusy: false, providerProbeError: null,
-      providerProbeResponse: null, draftDirty: false, draftMatchesActiveRevision: true },
-    schedule: { t, section, closePilotActionDialog: vi.fn(), editorLocked: false, pilotScheduleEnabled: false,
-      setPilotScheduleEnabled: vi.fn(), pilotScheduleIntervalMinutes: "60", setPilotScheduleIntervalMinutes: vi.fn(), applyProviderProbeSchedule: vi.fn() } };
+  return {
+    document, initialTab: "auto" as const, onProbe: vi.fn().mockResolvedValue(undefined), onSave: vi.fn().mockReturnValue(true),
+    probe: {
+      t, section, closePilotActionDialog: vi.fn(), providerProbeBusy: false, providerProbeError: null,
+      providerProbeResponse: null, draftDirty: false, draftMatchesActiveRevision: true
+    },
+    schedule: {
+      t, section, closePilotActionDialog: vi.fn(), editorLocked: false, pilotScheduleEnabled: false,
+      setPilotScheduleEnabled: vi.fn(), pilotScheduleIntervalMinutes: "60", setPilotScheduleIntervalMinutes: vi.fn(), applyProviderProbeSchedule: vi.fn()
+    }
+  };
 }
 
 it("keeps the same form, partial models/cases and temporary input across modes and telemetry", async () => {
@@ -61,5 +72,22 @@ it("does not load results or send calls inside the configuration editor", () => 
   expect(first).not.toHaveBeenCalled();
   view.rerender(<CredentialTestDialog {...p} onLoadResults={authorized} />);
   expect(authorized).not.toHaveBeenCalled();
+  expect(p.onProbe).not.toHaveBeenCalled();
+});
+
+it("keeps the feedback slot, preserves error priority and omits empty notices", async () => {
+  const p = props();
+  const view = render(<CredentialTestDialog {...p} />);
+  const slot = view.container.ownerDocument.querySelector(".nt-test-footer-status");
+  expect(slot).toBeInTheDocument();
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "保存策略" }));
+  expect(screen.getByRole("status")).toHaveTextContent("已更新");
+  expect(screen.getByRole("status")).toHaveClass("n-notice", "n-tone-success");
+  view.rerender(<CredentialTestDialog {...p} probe={{ ...p.probe, providerProbeError: "probe failed" }} />);
+  expect(screen.getByRole("alert")).toHaveTextContent("probe failed");
+  expect(view.container.ownerDocument.querySelector(".nt-test-footer-status")).toBe(slot);
+  view.rerender(<CredentialTestDialog {...p} embedded probe={{ ...p.probe, providerProbeError: "probe failed" }} />);
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   expect(p.onProbe).not.toHaveBeenCalled();
 });

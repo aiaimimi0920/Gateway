@@ -78,7 +78,10 @@ impl ConsoleAuthRuntime {
             .iter()
             .find(|key| key.id == id)
             .ok_or_else(|| GatewayError::not_found("Management key not found"))?;
-        if ring.verify(self, current.trim())? == id {
+        if ring
+            .verify(self, current.trim())
+            .is_ok_and(|matched| matched == id)
+        {
             return Ok(Some(current.trim().into()));
         }
         key.sealed_token

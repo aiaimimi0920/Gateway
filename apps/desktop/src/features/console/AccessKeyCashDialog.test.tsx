@@ -1,4 +1,6 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render as renderUi, screen, waitFor, within } from "@testing-library/react";
+import { NeuroProvider } from "@neuro/ui";
+import type { ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AccessKeyCashDialog } from "./AccessKeyCashDialog";
@@ -12,6 +14,7 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock("./useCashBillingApi", () => ({ useCashBillingApi: () => state }));
 const t = (zh: string) => zh;
+const render = (ui: ReactNode) => renderUi(ui, { wrapper: ({ children }) => <NeuroProvider>{children}</NeuroProvider> });
 const quote = {
   providerAccountId: "p",
   credentialId: "a",
@@ -93,9 +96,9 @@ describe("Key cash bills", () => {
     ]);
     render(<AccessKeyCashDialog {...props} />);
     const unknown = (await screen.findByText("待核对", { selector: "td span" })).closest("tr")!;
-    expect(within(unknown).getAllByRole("cell")[3]).toHaveTextContent("—");
+    expect(within(unknown).getAllByRole("cell")[2]).toHaveTextContent(/^—$/);
     const released = screen.getByText("已释放", { selector: "td span" }).closest("tr")!;
-    expect(within(released).getAllByRole("cell")[3]).toHaveTextContent(/^0$/);
+    expect(within(released).getAllByRole("cell")[2]).toHaveTextContent(/^0$/);
     expect(screen.getByText("已预占", { selector: "td span" })).toBeInTheDocument();
   });
   it("distinguishes loading, failure and a successfully read empty ledger", async () => {
@@ -123,5 +126,48 @@ describe("Key cash bills", () => {
     expect(signal.aborted).toBe(true);
     expect(state.api.ledger).toHaveBeenCalledOnce();
     expect(screen.getByRole("alert")).toHaveTextContent("请先登录");
+  });
+  it("uses standard rows, status and disclosures without refetching or replacing retained receipts", async () => {
+    const user = userEvent.setup();
+    render(<AccessKeyCashDialog {...props} />);
+    const table = await screen.findByRole("table", { name: "最近 100 条账单" });
+    expect(table).toHaveClass("n-table");
+    expect(table.querySelectorAll('thead th[scope="col"]')).toHaveLength(4);
+    const row = table.querySelector<HTMLTableRowElement>('[data-row-key="r1"]')!;
+    expect(within(row).getByRole("rowheader")).toBeInTheDocument();
+    expect(within(row).getByText("已结算")).toHaveClass("n-badge", "n-tone-success");
+    const details = row.querySelector("details")!;
+    const summary = details.querySelector("summary")!;
+    expect(details).toHaveClass("n-disclosure");
+    await user.click(summary);
+    expect(details).toHaveAttribute("open");
+    await user.selectOptions(screen.getByRole("combobox", { name: "账单状态" }), "settled");
+    expect(table.querySelector('[data-row-key="r1"]')).toBe(row);
+    expect(row.querySelector("summary")).toBe(summary);
+    expect(details).toHaveAttribute("open");
+    expect(state.api.ledger).toHaveBeenCalledOnce();
+    expect(document.querySelector(".nt-key-ledger, .nt-key-bill-status")).toBeNull();
+  });
+  it("preserves the empty-filter status and the recent-history boundary", async () => {
+    const user = userEvent.setup();
+    render(<AccessKeyCashDialog {...props} />);
+    await screen.findByRole("table");
+    await user.selectOptions(screen.getByRole("combobox", { name: "账单状态" }), "released");
+    expect(screen.getByRole("status")).toHaveTextContent("没有此状态的账单");
+    expect(screen.getByText("没有此状态的账单").closest(".n-empty")).toBeInTheDocument();
+    expect(screen.getByText("仅展示最近 100 条记录，不代表全部历史账单。")).toBeInTheDocument();
+    expect(state.api.ledger).toHaveBeenCalledOnce();
+  });
+  it("aborts a pending read on close and ignores its late result", async () => {
+    const pending = deferred<CashReceipt[]>();
+    state.api.ledger.mockReturnValueOnce(pending.promise);
+    const view = render(<AccessKeyCashDialog {...props} />);
+    const signal = state.api.ledger.mock.calls[0][2] as AbortSignal;
+    view.unmount();
+    expect(signal.aborted).toBe(true);
+    await act(async () => pending.resolve([receipt]));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.querySelector(".n-overlay")).toBeNull();
+    expect(document.body).not.toHaveAttribute("data-scroll-locked");
   });
 });

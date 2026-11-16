@@ -4,8 +4,16 @@ import type { CredentialDialogValue } from "./CredentialDialog";
 import { optionalString, readStringArray } from "./routeAccountCatalog";
 import { isRecord } from "./routeDocument";
 import { accountDiscoverySchema } from "./accountDiscovery";
-import { officialCatalogSchema } from "./officialModelCatalog";
-import { modelSelectionSchema, withModelEditors } from "./credentialModelSelection";
+import { officialCatalogSchema, catalogMatchesProvider } from "./officialModelCatalog";
+import { modelSelectionSchemaFor, withModelEditors } from "./credentialModelSelection";
+import { modelIdPolicy } from "./providerModelId";
+import { bedrockMaterialDraft, isBedrockProvider } from "./bedrockMaterial";
+import { isQwenProvider } from "./qwenEndpoint";
+import { dimModelCatalogSchema, savedDimBinding, dimCatalogMatches } from "./dimModelCatalog";
+import { dimSite } from "./dimCatalog";
+import { lobsteraiModelCatalogSchema, savedLobsterAiBinding } from "./lobsteraiModelCatalog";
+import { isLobsterAiProvider } from "./lobsteraiCatalog";
+import { commandcodeZdrDraft } from "./commandcodeZdr";
 
 export type ProviderDraftRow = {
   id: string;
@@ -86,20 +94,31 @@ export function credentialDialogValueFromDocument(
   if (!isRecord(credential)) {
     return null;
   }
-  const selection = modelSelectionSchema.safeParse(credential.model_selection).data;
+  const selection = modelSelectionSchemaFor(modelIdPolicy(provider, credential)).safeParse(credential.model_selection).data;
   const discovery = accountDiscoverySchema.safeParse(credential.discovery).data;
   const modelCatalog = officialCatalogSchema.safeParse(credential.model_catalog).data;
+  const dimCatalog = dimModelCatalogSchema.safeParse(credential.dim_catalog).data;
+  const lobsteraiCatalog = lobsteraiModelCatalogSchema.safeParse(credential.lobsterai_catalog).data;
+  if (isLobsterAiProvider(provider) && credential.lobsterai_catalog != null && (!lobsteraiCatalog || !savedLobsterAiBinding(provider, credentialId))) return null;
+  const dimBinding = savedDimBinding(provider, credentialId);
+  if (dimSite(provider) && credential.dim_catalog != null && (!dimCatalog || !dimBinding || !dimCatalogMatches(dimCatalog, dimBinding))) return null;
+  if (isQwenProvider(provider) && credential.model_catalog != null
+    && (!modelCatalog || !catalogMatchesProvider(provider, credential.base_url ?? provider.base_url, modelCatalog))) return null;
   const declared = readStringArray(credential.supported_models);
   // Legacy empty lists inherit provider models; opening the editor must not silently revoke them.
   const effective = selection ? [...selection.manual, ...selection.fetched]
     : [...(discovery?.models ?? (declared.length ? declared : readStringArray(provider.supported_models))), ...(modelCatalog?.models ?? [])];
   return withModelEditors({
+    ...(isBedrockProvider(provider) ? { bedrockMaterial: bedrockMaterialDraft(provider, credential) } : {}),
     providerId,
     credentialId,
     chatgptGroup: optionalString(credential, "credential_identity_category_id") ?? undefined,
     codexBasispointsEnabled: typeof credential.codex_basispoints_enabled === "boolean" ? credential.codex_basispoints_enabled : undefined,
+    commandcodeZdr: commandcodeZdrDraft(provider, credential),
     discovery,
     modelCatalog,
+    dimCatalog,
+    lobsteraiCatalog,
     discoveryStatus: isRecord(credential.discovery_job) ? optionalString(credential.discovery_job, "status") ?? undefined : undefined,
     accountName: optionalString(credential, "account_name") ?? "",
     enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
@@ -117,17 +136,23 @@ export function duplicateCredentialDialogValue(
   account: AccountsLedgerPilotAccount,
 ): CredentialDialogValue {
   const copiedValue = credentialDialogValueFromDocument(document, providerId, account.accountId);
+  const provider = document.providers.find((entry) => isRecord(entry) && entry.id === providerId);
+  // A duplicate has no Key; another account's fetched directory is not manual authorization.
+  const models = isRecord(provider) && isQwenProvider(provider)
+    ? copiedValue?.manualModelsText ?? "" : copiedValue?.supportedModelsText ?? "";
   return {
     providerId,
     credentialId: `${account.accountId}-copy`,
+    bedrockMaterial: copiedValue?.bedrockMaterial,
     chatgptGroup: copiedValue?.chatgptGroup,
     accountName: "",
     enabled: account.enabled,
     codexBasispointsEnabled: copiedValue?.codexBasispointsEnabled,
+    commandcodeZdr: copiedValue?.commandcodeZdr,
     baseUrl: copiedValue?.baseUrl ?? "",
-    supportedModelsText: copiedValue?.supportedModelsText ?? "",
+    supportedModelsText: models,
     fetchedModelsText: "",
-    manualModelsText: copiedValue?.supportedModelsText ?? "",
+    manualModelsText: models,
     apiKeyOperation: "replace",
     apiKeyValue: "",
   };

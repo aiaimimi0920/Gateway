@@ -64,6 +64,8 @@ pub struct ConsoleBootstrapStatus {
     pub needs_bootstrap: bool,
     pub management_configured: bool,
     pub environment_override: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub passwordless_token: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]

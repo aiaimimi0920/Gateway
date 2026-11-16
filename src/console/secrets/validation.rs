@@ -82,6 +82,11 @@ pub(super) fn ensure_document_is_redacted(
         ensure_extra_body_redacted(&provider.extra_body, &format!("{provider_path}/extra_body"))?;
         for (credential_index, credential) in provider.credentials.iter().enumerate() {
             let credential_path = format!("{provider_path}/credentials/{credential_index}");
+            super::freebuff_session::ensure_redacted(credential, &credential_path)?;
+            ensure_absent_option(
+                credential.copilot_github_token.as_deref(),
+                &format!("{credential_path}/copilot_github_token"),
+            )?;
             if let Some(base_url) = &credential.base_url {
                 ensure_url_redacted(base_url, &format!("{credential_path}/base_url"))?;
             }
@@ -102,6 +107,24 @@ pub(super) fn ensure_document_is_redacted(
             ensure_absent_option(
                 credential.refresh_token.as_deref(),
                 &format!("{credential_path}/refresh_token"),
+            )?;
+            ensure_absent_option(
+                credential.accio_sgcookie.as_deref(),
+                &format!("{credential_path}/accio_sgcookie"),
+            )?;
+            ensure_absent_option(
+                credential
+                    .kiro_oauth
+                    .as_ref()
+                    .and_then(|context| context.client_secret()),
+                &format!("{credential_path}/kiro_oauth/client_secret"),
+            )?;
+            ensure_absent_option(
+                credential
+                    .vertex_oauth
+                    .as_ref()
+                    .and_then(|context| context.client_secret()),
+                &format!("{credential_path}/vertex_oauth/client_secret"),
             )?;
             if let Some(keepalive) = &credential.keepalive {
                 ensure_url_redacted(

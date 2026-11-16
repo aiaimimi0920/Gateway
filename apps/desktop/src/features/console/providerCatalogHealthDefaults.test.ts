@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import { PROVIDER_CATALOG_TEMPLATES, type ProviderCatalogTemplate } from "./providerCatalog";
 import { addCatalogProvider } from "./providerCatalogCreation";
 import { catalogHealthAdapter, defaultCatalogWorkflow } from "./providerCatalogWorkflow";
+import { vertexTargetBase } from "./vertexOAuth";
 
 function create(template: ProviderCatalogTemplate, enabled?: boolean) {
   const workflow = defaultCatalogWorkflow(template);
+  const vertexTarget = template.id === "vertex-oauth" ? { project: "synthetic-project", location: "global" } : undefined;
+  const baseUrl = vertexTarget ? vertexTargetBase(vertexTarget)! : template.preset === "qwen-official-api"
+    ? "https://synthetic-workspace.cn-beijing.maas.aliyuncs.com/compatible-mode/v1" : template.baseUrl;
   if (enabled !== undefined) workflow.health.enabled = enabled;
   return addCatalogProvider({ providers: [], model_routes: [], aliases: {} }, template, {
     templateId: template.id, providerId: template.providerId, providerLabel: template.labelEn,
-    vendorKey: template.vendorKey, vendorName: template.vendorName, baseUrl: template.baseUrl,
+    vendorKey: template.vendorKey, vendorName: template.vendorName, baseUrl, vertexTarget,
     supportedModels: [...template.supportedModels], workflow,
   }).providers[0];
 }

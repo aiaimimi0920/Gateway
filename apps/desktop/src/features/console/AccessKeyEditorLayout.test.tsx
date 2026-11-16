@@ -19,10 +19,10 @@ describe("compact key editor", () => {
     expect(view.queryByText(/已选.*可多选|决定此密钥|不设密钥额度上限|请填写有效的总额度上限|填写累计总上限/)).not.toBeInTheDocument();
     const input = view.getByRole("spinbutton", { name: "额度上限" });
     expect(input).toBeDisabled();
-    await user.click(view.getByRole("button", { name: "权益组" }));
+    await user.click(view.getByRole("button", { name: /^权益组，/ }));
     await user.keyboard("{Escape}");
     expect(dialog).toBeInTheDocument();
-    expect(view.getByRole("button", { name: "权益组" })).toHaveAttribute("aria-expanded", "false");
+    expect(view.getByRole("button", { name: /^权益组，/ })).toHaveAttribute("aria-expanded", "false");
     const quota = view.getByRole("combobox", { name: "额度限制" });
     const save = view.getByRole("button", { name: "保存" });
     for (const [mode, label] of [["message_prepaid", "总请求次数"], ["token_prepaid", "总 Token 额度"], ["cash_prepaid", "总花费（USD）"]]) {
@@ -53,13 +53,13 @@ describe("compact key editor", () => {
     await screen.findByText("codex");
     await user.click(screen.getByRole("button", { name: "编辑" }));
     const view = within(screen.getByRole("dialog"));
-    const group = view.getByRole("button", { name: "权益组" });
+    const group = view.getByRole("button", { name: /^权益组，/ });
     const save = view.getByRole("button", { name: "保存" });
     await user.click(group);
-    await user.click(view.getByRole("menuitemcheckbox", { name: /基础组/ }));
+    await user.click(screen.getByRole("checkbox", { name: /基础组/ }));
     expect(group).toHaveTextContent("选择权益组");
     expect(save).toBeDisabled();
-    await user.click(view.getByRole("menuitemcheckbox", { name: /高级组/ }));
+    await user.click(screen.getByRole("checkbox", { name: /高级组/ }));
     await user.click(save);
     expect(await view.findByRole("alert")).toHaveTextContent("save rejected");
     expect(group).toHaveTextContent("高级组");

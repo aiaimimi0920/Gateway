@@ -116,11 +116,6 @@
   font-size: 0.74rem;
 }
 
-.nt-entitlement-account-card__head .nt-badge {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .nt-entitlement-group-card:hover {
     transform: translateY(-2px);
@@ -134,25 +129,4 @@
   .nt-entitlement-group-card--expanded:hover {
     transform: none;
   }
-}
-
-.nt-ledger-toolbar--groups {
-  grid-template-columns: minmax(240px, 1.4fr) minmax(180px, 0.8fr);
-}
-
-.nt-group-member-row {
-  display: grid;
-  grid-template-columns:
-    minmax(220px, 1.3fr)
-    minmax(160px, 1fr)
-    minmax(110px, 0.8fr)
-    minmax(180px, 1.1fr)
-    minmax(120px, 0.8fr);
-  gap: 12px;
-  align-items: start;
-  min-width: 0;
-  border: 1px solid var(--nt-border);
-  border-radius: var(--nt-radius-md);
-  padding: 14px;
-  background: var(--nt-color-control);
 }

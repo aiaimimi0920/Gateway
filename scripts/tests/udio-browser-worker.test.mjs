@@ -37,12 +37,12 @@ test("request validation rejects shape, base URL, body, asset kind and missing a
 test("asset readiness requires requested assets, not readyToStream flags", () => {
   assert.equal(api.songsReadyForTarget([], "audio"), false);
   assert.equal(api.songsReadyForTarget([{ readyToStream: true }], "audio"), false);
-  assert.equal(api.songsReadyForTarget([{ audio_url: "synthetic" }], "audio"), true);
-  assert.equal(api.songsReadyForTarget([{ cover_art_url: "synthetic" }], "image"), true);
-  assert.equal(api.songsReadyForTarget([{ videoPath: "synthetic" }], "video"), true);
+  assert.equal(api.songsReadyForTarget([{ audio_url: "synthetic", finished: true }], "audio"), true);
+  assert.equal(api.songsReadyForTarget([{ cover_art_url: "synthetic", finished: true }], "image"), true);
+  assert.equal(api.songsReadyForTarget([{ videoPath: "synthetic", finished: true }], "video"), true);
   assert.equal(api.songsReadyForTarget([{ audio_url: "synthetic" }, {}], "audio"), false);
-  assert.equal(JSON.stringify(api.extractTrackIds({ track_ids: [" a ", ""] })), '["a"]');
-  assert.equal(JSON.stringify(api.extractTrackIds({ songs: [{ id: " b " }] })), '["b"]');
+  assert.throws(() => api.extractTrackIds({ track_ids: [" a ", ""] }), /identity/);
+  assert.throws(() => api.extractTrackIds({ songs: [{ id: " b " }] }), /identity/);
   assert.throws(() => api.extractTrackIds({}), (error) => error.code === "udio_missing_track_ids");
 });
 
@@ -147,12 +147,12 @@ for (const [scenario, ok, expectedCalls] of [
   ["owned-success", true, ["persist", "close"]],
   ["owned-request-error", false, ["persist", "close"]],
   ["persist-error", true, ["persist", "close"]],
-  ["borrowed-success", true, ["persist"]],
-  ["borrowed-lookalike", true, ["persist"]],
-  ["borrowed-missing", false, []],
+  ["borrowed-success", true, ["persist", "close"]],
+  ["borrowed-lookalike", true, ["persist", "close"]],
+  ["borrowed-missing", false, ["close"]],
   ["launch-error", false, []],
   ["context-error", false, ["close"]],
-  ["close-error", true, ["persist", "close"]],
+  ["close-error", false, ["persist", "close"]],
 ]) {
 test("CLI cleanup before exit: " + scenario, async (t) => {
   const root = await io.mkdtemp(path.join(os.tmpdir(), "udio-lifecycle-contract-"));
@@ -166,14 +166,14 @@ test("CLI cleanup before exit: " + scenario, async (t) => {
     const marker = ${JSON.stringify(marker)};
     const scenario = ${JSON.stringify(scenario)};
     const bindings = {};
-    for (const name of ["request", "responses", "auth", "storage", "browser", "transport", "diagnostics", "captcha", "native-flow"]) {
+    for (const name of ["request", "responses", "auth", "storage", "browser", "transport", "diagnostics", "captcha", "native-flow", "generation"]) {
       Object.assign(bindings, await import(new URL("./udio-browser/" + name + ".mjs", pathToFileURL(entry))));
     }
     const calls = [];
     const record = (name) => { calls.push(name); writeFileSync(marker, JSON.stringify(calls)); };
     const context = { pages: () => [{ url: () => "https://www.udio.com/create" }] };
     const outcome = { ok: true, status: 200,
-      text: '{"track_ids":["synthetic"],"songs":[{"audio_url":"synthetic"}]}' };
+      text: '{"track_ids":["synthetic"],"songs":[{"id":"synthetic","audio_url":"synthetic","finished":true}]}' };
     const browser = {
       contexts: () => {
         const unrelated = { pages: () => [{ url: () => "https://www.udio.com.attacker.test/create" }] };

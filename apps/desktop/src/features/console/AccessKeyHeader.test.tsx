@@ -16,7 +16,7 @@ it("places key controls in shell slots, copies the host URL and restores create 
   const header = within(screen.getByRole("banner", { name: "Key page header" }));
   expect(screen.queryByText("生效密钥")).not.toBeInTheDocument();
   expect(screen.queryByText("Base URL")).not.toBeInTheDocument();
-  expect(screen.queryByRole("combobox", { name: "密钥状态" })).not.toBeInTheDocument();
+  expect(header.getByRole("combobox", { name: "密钥状态" })).toBeVisible();
   expect(screen.queryByRole("button", { name: "刷新密钥" })).not.toBeInTheDocument();
   expect(header.getByRole("combobox", { name: "密钥排序" })).toBeVisible();
   await user.type(header.getByRole("searchbox", { name: "搜索密钥" }), "beta");
@@ -24,13 +24,15 @@ it("places key controls in shell slots, copies the host URL and restores create 
   expect(screen.getByText("beta")).toBeVisible();
   await user.click(header.getByRole("button", { name: "清除密钥搜索" }));
   expect(screen.getByText("alpha")).toBeVisible();
-  const copy = header.getByRole("button", { name: "复制" });
+  await user.click(header.getByRole("button", { name: "接入地址" }));
+  const copy = within(screen.getByRole("dialog", { name: "接入地址" })).getByRole("button", { name: "复制" });
   await user.click(copy);
   expect(await navigator.clipboard.readText()).toBe("https://gateway.test/v1");
-  expect(copy.querySelector("span:not(.nt-visually-hidden)")).toHaveTextContent(/^复制$/);
-  expect(copy.querySelector(".lucide-check")).not.toBeNull();
-  expect(copy.querySelector(".nt-visually-hidden")).toHaveTextContent("已复制");
-  const create = header.getByRole("button", { name: "新建 Key" });
+  expect(copy.querySelector(".n-copy-rest")).toHaveTextContent(/^复制$/);
+  expect(copy).toHaveAttribute("data-copy-state", "copied");
+  expect(within(copy).getByRole("status")).toHaveTextContent("已复制");
+  await user.keyboard("{Escape}");
+  const create = header.getByRole("button", { name: "新建密钥" });
   await user.click(create);
   expect(screen.getByRole("dialog")).toBeVisible();
   await user.keyboard("{Escape}");
@@ -43,4 +45,17 @@ it("sorts by creation time or public name without changing the source", () => {
     expect([...keys].sort((a, b) => compareAccessKeys(a, b, sort))[0].displayName).toBe(first);
   }
   expect(keys[0].displayName).toBe("beta");
+});
+
+it("filters derived key status without changing key lifecycle", async () => {
+  const { api } = fixture([key("enabled"), key("disabled", { status: "disabled" }), key("expired", { expiresAt: "2020-01-01T00:00:00Z" })]);
+  const user = userEvent.setup();
+  renderWithProviders(<Harness api={api} />);
+  await screen.findByText("enabled");
+  await user.click(screen.getByRole("combobox", { name: "密钥状态" }));
+  await user.click(screen.getByRole("option", { name: "已过期" }));
+  expect(screen.getByText("expired")).toBeVisible();
+  expect(screen.queryByText("enabled")).not.toBeInTheDocument();
+  expect(screen.queryByText("disabled")).not.toBeInTheDocument();
+  expect(api.setAccessKeyEnabled).not.toHaveBeenCalled();
 });
