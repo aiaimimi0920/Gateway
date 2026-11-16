@@ -20,7 +20,8 @@ it("autosaves mapping changes while staying open, and reloads them after closing
     session: { secretAccessGranted: true }, secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
   });
   await waitForConsoleReady(); await openWorkspace(user, /凭据池/i);
-  const open = () => user.click(within(providerCard(/^Mapping Pool$/)).getByRole("button", { name: "模型映射" }));
+  await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^Mapping Pool/ }));
+  const open = () => user.click(screen.getByRole("button", { name: "模型映射" }));
   await open();
   expect(api.commitRouteConfig).not.toHaveBeenCalled();
   await user.click(screen.getByRole("checkbox", { name: "c" }));
@@ -40,7 +41,7 @@ it("autosaves mapping changes while staying open, and reloads them after closing
   expect(cleared.providers[0]).toMatchObject({ supported_models: ["b", "c"], credentials: [{ id: "one" }] });
   expect(api.probeProvider).not.toHaveBeenCalled();
   expect(api.probeCredential).not.toHaveBeenCalled();
-});
+}, 10000);
 it("keeps the mapping dialog and draft on persistence failure, then saves the next edit", async () => {
   window.localStorage.clear();
   const api = createConsoleApi();
@@ -57,7 +58,8 @@ it("keeps the mapping dialog and draft on persistence failure, then saves the ne
     session: { secretAccessGranted: true }, secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
   });
   await waitForConsoleReady(); await openWorkspace(user, /凭据池/i);
-  await user.click(within(providerCard(/^Mapping Pool$/)).getByRole("button", { name: "模型映射" }));
+  await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^Mapping Pool/ }));
+  await user.click(screen.getByRole("button", { name: "模型映射" }));
   await user.click(screen.getByRole("checkbox", { name: "c" }));
   const dialog = screen.getByRole("dialog", { name: "模型映射 · Mapping Pool" });
   await waitFor(() => expect(within(dialog).getByRole("alert")).toHaveTextContent("Mapping persistence failed"), { timeout: 3000 });

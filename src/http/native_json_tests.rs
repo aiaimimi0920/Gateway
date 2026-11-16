@@ -76,6 +76,30 @@ async fn native_json_rejects_ambiguous_invalid_oversized_or_untyped_requests() {
 }
 
 #[tokio::test]
+async fn native_json_preserves_outer_streaming_limit_status() {
+    let body = Body::from_stream(futures::stream::iter([
+        Ok::<_, std::io::Error>(Bytes::from_static(b"                ")),
+        Ok(Bytes::from_static(b"{}")),
+    ]));
+    let response = app()
+        .layer(tower_http::limit::RequestBodyLimitLayer::new(16))
+        .oneshot(
+            HttpRequest::post("/")
+                .header("content-type", "application/json")
+                .body(body)
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = axum::body::to_bytes(response.into_body(), 1024)
+        .await
+        .unwrap();
+    let error: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(error["error"]["code"], "request_too_large");
+}
+
+#[tokio::test]
 async fn native_json_retains_optional_codex_metadata_header_order() {
     let request = HttpRequest::post("/")
         .header("x-openai-subagent", "collab_spawn")

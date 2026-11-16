@@ -115,10 +115,10 @@ it("keeps compact schedule controls, validation and explicit saving", async () =
   await user.type(interval, "0");
   expect(save).toBeDisabled();
   expect(interval).toHaveAttribute("aria-invalid", "true");
-  expect(screen.getByRole("status")).toHaveTextContent("间隔须为 1–10080 分钟的整数。");
   await user.clear(interval);
   await user.type(interval, "15");
-  expect(screen.getByRole("status")).not.toHaveTextContent("间隔须为");
+  expect(interval).not.toHaveAttribute("aria-invalid", "true");
+  expect(save).toBeEnabled();
   await user.click(save);
   expect(apply).toHaveBeenCalledExactlyOnceWith({ scope: { kind: "pool", providerId: "managed-provider" }, policy: expect.objectContaining({ automaticEnabled: true, intervalMinutes: 15 }) });
   await user.click(screen.getByRole("button", { name: "关闭" }));

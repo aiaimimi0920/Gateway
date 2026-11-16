@@ -3,17 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  automationProvider,
-  card,
   pilotAccount,
   pilotSection,
-  refillDemand,
   renderWorkspace,
   workspaceProps,
 } from "./AccountsLedgerWorkspace.fixtures";
 
 describe("AccountsLedgerWorkspace account library", () => {
-  it("attaches an account library after its provider card without resizing the provider card", async () => {
+  it("opens account-scoped statistics and returns to the selected provider list", async () => {
     const user = userEvent.setup();
     renderWorkspace(
       workspaceProps({
@@ -39,38 +36,20 @@ describe("AccountsLedgerWorkspace account library", () => {
       }),
     );
 
-    const providerCard = card("managed-provider");
-    const showLibrary = within(providerCard).getByRole("button", {
-      name: "显示 Managed OpenAI 账号库",
-    });
-    const flip = within(providerCard).getByRole("button", {
-      name: /翻面查看 Managed OpenAI 详情/,
-    });
-    expect(showLibrary).toHaveAttribute("aria-expanded", "false");
-    expect(
-      showLibrary.compareDocumentPosition(flip) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
-
-    await user.click(showLibrary);
-
-    const library = screen.getByRole("region", { name: "Managed OpenAI 账号库" });
-    expect(
-      within(providerCard).getByRole("button", { name: "收起 Managed OpenAI 账号库" }),
-    ).toHaveAttribute("aria-expanded", "true");
-    const providerStack = providerCard.closest("[data-provider-card-stack]");
-    expect(providerStack).not.toHaveClass("nt-provider-card-stack--expanded");
-    expect(providerStack?.nextElementSibling).toBe(library);
-    expect(library).toHaveClass("nt-provider-account-library--attached");
-    expect(providerCard.contains(library)).toBe(false);
-    expect(library.querySelectorAll("[data-account-card]")).toHaveLength(2);
-    expect(library.querySelector('[data-account-card="acct-1"]')).toHaveTextContent("Account 1");
-    expect(library.querySelector('[data-account-card="acct-1"]')).toHaveTextContent("2/4");
-    expect(library.querySelector('[data-account-card="acct-1"]')).toHaveTextContent("75%");
-
-    await user.click(
-      within(providerCard).getByRole("button", { name: "收起 Managed OpenAI 账号库" }),
-    );
-    expect(screen.queryByRole("region", { name: "Managed OpenAI 账号库" })).not.toBeInTheDocument();
+    const provider = within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ });
+    await user.click(provider);
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(3);
+    await user.click(screen.getByRole("button", { name: "Account 1" }));
+    const statistics = screen.getByRole("region", { name: "Account 1 统计" });
+    expect(statistics).toHaveTextContent("2/4");
+    expect(statistics).toHaveTextContent("75%");
+    expect(statistics).toHaveTextContent("≈$1.25");
+    expect(statistics).toHaveTextContent("$2.50");
+    expect(screen.queryByRole("region", { name: "Managed OpenAI 统计" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "← 返回账号列表" }));
+    expect(provider).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { name: "Managed OpenAI" })).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(3);
   });
 
   it("separates source-path account libraries from independently assigned routing pools", async () => {
@@ -101,37 +80,36 @@ describe("AccountsLedgerWorkspace account library", () => {
       }),
     );
 
-    await user.click(
-      within(card("managed-provider")).getByRole("button", {
-        name: "显示 Managed OpenAI 账号库",
-      }),
-    );
-
-    const freeLibrary = screen.getByRole("tabpanel");
-    expect(within(freeLibrary).getByText("free@example.com")).toBeInTheDocument();
-    expect(screen.queryByText("plus@example.com")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "plus 1" }));
-    const plusLibrary = screen.getByRole("tabpanel");
-    expect(within(plusLibrary).getByText("plus@example.com")).toBeInTheDocument();
-    expect(screen.queryByText("free@example.com")).not.toBeInTheDocument();
-    expect(within(plusLibrary).getByRole("combobox", { name: "调整 plus@example.com 分组池" })).toHaveTextContent("青铜级别服务");
-    await user.keyboard("{ArrowLeft}");
-    expect(screen.getByRole("tab", { name: "free 1" })).toHaveAttribute("aria-selected", "true");
+    // Source libraries no longer partition the directory; routing membership remains account-scoped.
+    expect(within(screen.getByRole("table")).getByText("free@example.com")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("plus@example.com")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "plus@example.com" }));
+    await user.click(screen.getByRole("button", { name: "账号配置" }));
+    expect(screen.getByRole("combobox", { name: "调整 plus@example.com 分组池" })).toHaveTextContent("青铜级别服务");
+    expect(screen.queryByRole("combobox", { name: "调整 free@example.com 分组池" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "← 返回账号列表" }));
+    await user.click(screen.getByRole("button", { name: "free@example.com" }));
+    await user.click(screen.getByRole("button", { name: "账号配置" }));
+    expect(screen.getByRole("combobox", { name: "调整 free@example.com 分组池" })).toHaveTextContent("青铜级别服务");
   });
 
-  it("renders all accounts in a two-row scroll viewport without pagination", async () => {
+  it("pages the account directory without dropping accounts and resets the page on search", async () => {
     const user = userEvent.setup();
-    const accounts = Array.from({ length: 18 }, (_, index) => pilotAccount({
+    const accounts = Array.from({ length: 21 }, (_, index) => pilotAccount({
       accountId: `acct-${index + 1}`, displayName: `account-${index + 1}@example.com`, libraryName: "free",
     }));
     renderWorkspace(workspaceProps({ pilotSections: [pilotSection({ directAccounts: accounts })] }));
-    await user.click(within(card("managed-provider")).getByRole("button", { name: "显示 Managed OpenAI 账号库" }));
-    const library = screen.getByRole("tabpanel");
-    const grid = library.querySelector("[data-account-library-rows]");
-    expect(grid).toHaveAttribute("data-account-library-rows", "2");
-    expect(grid?.querySelectorAll("[data-account-card]")).toHaveLength(18);
-    expect(within(library).getByRole("region", { name: "账号库滚动区域" })).toHaveAttribute("tabindex", "0");
-    expect(screen.queryByRole("button", { name: "下一页" })).not.toBeInTheDocument();
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ }));
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(21);
+    expect(screen.getByRole("button", { name: "account-20@example.com" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "account-21@example.com" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "下一页" }));
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "account-21@example.com" })).toBeInTheDocument();
+    await user.type(screen.getByRole("searchbox", { name: "搜索账号" }), "account-1@");
+    expect(screen.getByRole("button", { name: "account-1@example.com" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "上一页" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
   });
 
   it("shows account quota, provider aggregate quota, and hides the strip when quota is missing", async () => {
@@ -179,24 +157,22 @@ describe("AccountsLedgerWorkspace account library", () => {
       }),
     );
 
-    const providerQuota = card("managed-provider").querySelector('[data-quota-scope="provider"]');
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ }));
+    const providerQuota = screen.getByRole("region", { name: "Managed OpenAI 统计" }).querySelector('[data-quota-scope="provider"]');
     expect(providerQuota).toHaveTextContent("75%");
     expect(providerQuota).toHaveTextContent("≈$3.50");
 
-    await user.click(
-      within(card("managed-provider")).getByRole("button", {
-        name: "显示 Managed OpenAI 账号库",
-      }),
-    );
-    const quotaCard = document.querySelector('[data-account-card="quota-1"]');
-    const emptyCard = document.querySelector('[data-account-card="quota-none"]');
+    await user.click(screen.getByRole("button", { name: "quota@example.com" }));
+    const quotaCard = screen.getByRole("region", { name: "quota@example.com 统计" });
     expect(quotaCard?.querySelector('[data-quota-scope="account"]')).toHaveTextContent("75%");
     expect(quotaCard?.querySelector('[data-quota-scope="account"]')).toHaveTextContent("≈$3.50");
     expect(quotaCard?.querySelectorAll("[data-quota-window]")).toHaveLength(1);
-    expect(emptyCard?.querySelector('[data-quota-scope="account"]')).toBeNull();
     expect(quotaCard?.querySelector('[aria-label="容量"]')).toBeNull();
     expect(quotaCard?.querySelector(".nt-provider-account-card__provider-icon")).toBeNull();
     expect(quotaCard?.querySelector("code")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "← 返回账号列表" }));
+    await user.click(screen.getByRole("button", { name: "empty@example.com" }));
+    expect(screen.getByRole("region", { name: "empty@example.com 统计" }).querySelector('[data-quota-scope="account"]')).toBeNull();
   });
 
   it("shows one provider account library at a time", async () => {
@@ -210,25 +186,20 @@ describe("AccountsLedgerWorkspace account library", () => {
             providerIds: ["poe"],
             providerLabel: "Poe",
             providerPreset: "poe-openai",
-            directAccounts: [pilotAccount({ providerId: "poe", accountId: "poe-1" })],
+            directAccounts: [pilotAccount({ providerId: "poe", accountId: "poe-1", displayName: "Poe account" })],
           }),
         ],
       }),
     );
 
-    await user.click(
-      within(card("managed-provider")).getByRole("button", {
-        name: "显示 Managed OpenAI 账号库",
-      }),
-    );
-    await user.click(
-      within(card("poe")).getByRole("button", {
-        name: "显示 Poe 账号库",
-      }),
-    );
-
-    expect(screen.queryByRole("region", { name: "Managed OpenAI 账号库" })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Poe 账号库" })).toBeInTheDocument();
+    const directory = within(screen.getByRole("navigation", { name: "服务商目录" }));
+    await user.click(directory.getByRole("button", { name: /Managed OpenAI/ }));
+    expect(screen.getByRole("button", { name: "Account 1" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Poe account" })).not.toBeInTheDocument();
+    await user.click(directory.getByRole("button", { name: /Poe/ }));
+    expect(screen.getByRole("heading", { name: "Poe" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Account 1" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Poe account" })).toBeInTheDocument();
   });
 
   it("renders a categorized account only once when category data overlaps", async () => {
@@ -265,14 +236,9 @@ describe("AccountsLedgerWorkspace account library", () => {
       }),
     );
 
-    await user.click(
-      within(card("managed-provider")).getByRole("button", {
-        name: "显示 Managed OpenAI 账号库",
-      }),
-    );
-
-    const library = screen.getByRole("region", { name: "Managed OpenAI 账号库" });
-    expect(library.querySelectorAll('[data-account-card="shared-account"]')).toHaveLength(1);
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ }));
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Account 1" })).toHaveLength(1);
   });
 
   it("routes account card actions through the existing account callbacks", async () => {
@@ -300,12 +266,9 @@ describe("AccountsLedgerWorkspace account library", () => {
       }),
     );
 
-    await user.click(
-      within(card("managed-provider")).getByRole("button", {
-        name: "显示 Managed OpenAI 账号库",
-      }),
-    );
-    const library = screen.getByRole("region", { name: "Managed OpenAI 账号库" });
+    await user.click(screen.getByRole("button", { name: "Account 1" }));
+    await user.click(screen.getByRole("button", { name: "账号配置" }));
+    const library = document.querySelector(".nt-credential-account-settings") as HTMLElement;
 
     await user.click(within(library).getByRole("combobox", { name: "调整 Account 1 分组池" }));
     await user.click(screen.getByRole("option", { name: "青铜级别服务" }));
@@ -325,7 +288,7 @@ describe("AccountsLedgerWorkspace account library", () => {
     expect(onRemove).toHaveBeenCalledWith("managed-provider", "acct-1", "Account 1");
   });
 
-  it("offers account creation when an expanded account library is empty", async () => {
+  it("offers account creation for an empty provider directory", async () => {
     const user = userEvent.setup();
     const onAddExplicit = vi.fn();
     renderWorkspace(
@@ -335,14 +298,9 @@ describe("AccountsLedgerWorkspace account library", () => {
       }),
     );
 
-    await user.click(
-      within(card("managed-provider")).getByRole("button", {
-        name: "显示 Managed OpenAI 账号库",
-      }),
-    );
-    const library = screen.getByRole("region", { name: "Managed OpenAI 账号库" });
-    expect(within(library).getByText("当前账号库为空")).toBeInTheDocument();
-    await user.click(within(library).getByRole("button", { name: "手动录入账号" }));
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ }));
+    expect(screen.getByText("尚未添加账号")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "添加账号" }));
     expect(onAddExplicit).toHaveBeenCalledWith("managed-provider");
   });
 
@@ -353,9 +311,10 @@ describe("AccountsLedgerWorkspace account library", () => {
     expect(
       screen.queryByRole("article", { name: /Managed OpenAI 账号明细/ }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Managed OpenAI-api$/ }));
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ }));
 
-    expect(screen.getByRole("region", { name: "Managed OpenAI 账号库" })).toBeInTheDocument();
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Account 1" })).toBeInTheDocument();
     expect(
       screen.queryByRole("article", { name: /Managed OpenAI 账号明细/ }),
     ).not.toBeInTheDocument();

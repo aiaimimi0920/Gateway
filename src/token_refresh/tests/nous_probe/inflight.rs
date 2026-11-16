@@ -74,8 +74,12 @@ async fn handler(State(reply): State<Reply>, request: Request<Body>) -> Response
     } else {
         b"synthetic-inflight-auth-error".to_vec()
     };
-    let body = if first {
-        // Hold the response body, not the handler: dropping the client must release it.
+    let body = if first && status != 200 {
+        // Error probes finish on headers; hold those until rotation is published.
+        reply.release.acquire().await.unwrap().forget();
+        Body::from(bytes)
+    } else if first {
+        // Hold the success body: cancellation must release it without a permit.
         let closed = Closed(reply.closed);
         Body::from_stream(futures::stream::once(async move {
             let _closed = closed;

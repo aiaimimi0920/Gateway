@@ -31,7 +31,7 @@ it("uses access-qualified account options without rewriting source labels or IDs
   expect(JSON.stringify(document)).toBe(before);
 });
 
-it("keeps every catalog template's canonical name in account provider options", () => {
+it("keeps every catalog provider identity and a nonempty display label without rewriting config", () => {
   const providers = PROVIDER_CATALOG_TEMPLATES.map((template) => ({
     id: template.providerId, label: template.labelZh, preset: template.preset,
     adapter: template.adapter, protocol_profile: template.protocolProfile,
@@ -44,9 +44,10 @@ it("keeps every catalog template's canonical name in account provider options", 
     draftDocumentState: { document, invalid: false },
     draftAccountCatalog: { groups: [], accounts: [], providerBuckets: [], ungroupedCount: 0 },
   }));
-  expect(result.current.credentialProviderOptions).toEqual(
-    PROVIDER_CATALOG_TEMPLATES.map((template) => ({ id: template.providerId, label: template.providerId })),
+  expect(result.current.credentialProviderOptions.map(option => option.id)).toEqual(
+    PROVIDER_CATALOG_TEMPLATES.map((template) => template.providerId),
   );
+  expect(result.current.credentialProviderOptions.every(option => option.label.trim().length > 0)).toBe(true);
   expect(JSON.stringify(document)).toBe(before);
 });
 

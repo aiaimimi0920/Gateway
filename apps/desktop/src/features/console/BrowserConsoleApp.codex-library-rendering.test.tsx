@@ -46,15 +46,15 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^codex$/i }));
-    const accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-    expect(within(accountLibrary).getByText("当前账号库为空")).toBeInTheDocument();
-    expect(accountLibrary.querySelectorAll("[data-account-card]")).toHaveLength(0);
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /codex/i }));
+    const accountLibrary = screen.getByRole("table");
+    expect(screen.getByText("尚未添加账号")).toBeVisible();
+    expect(within(accountLibrary).getAllByRole("row")).toHaveLength(1);
     expect(within(accountLibrary).queryByRole("switch")).not.toBeInTheDocument();
     expect(consoleApi.commitRouteConfig).not.toHaveBeenCalled();
   });
 
-  it("renders codex account libraries as cards without the legacy detail table", async () => {
+  it("renders configured Codex categories together in the account directory", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
     const initialResponse = await consoleApi.getRouteConfig("management-secret");
@@ -89,10 +89,10 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^codex$/i }));
-    const accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-      expect(accountLibrary.querySelectorAll("[data-account-card]")).toHaveLength(3);
-    expect(within(accountLibrary).queryByRole("table")).not.toBeInTheDocument();
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /codex/i }));
+    const accountLibrary = screen.getByRole("table");
+    expect(within(accountLibrary).getAllByRole("row")).toHaveLength(4);
+    for (const name of ["Card A", "Card B", "Card C"]) expect(within(accountLibrary).getByRole("button", { name })).toBeVisible();
     expect(screen.queryByRole("region", { name: /codex 账号明细/i })).not.toBeInTheDocument();
   });
 
@@ -126,9 +126,9 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /codex/i }));
 
-    expect(screen.getByRole("region", { name: /^codex 账号库$/i })).toBeInTheDocument();
+    expect(screen.getByRole("table")).toBeVisible();
     expect(screen.queryByRole("spinbutton", { name: /Plus 目标号池容量/i })).not.toBeInTheDocument();
     expect(document.querySelector(".nt-provider-subtab-row")).toBeNull();
   });
@@ -164,7 +164,7 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /codex/i }));
     expect(screen.queryByRole("button", { name: /添加账号类别/i })).not.toBeInTheDocument();
     expect(prompt).not.toHaveBeenCalled();
   });
@@ -205,20 +205,15 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^codex$/i }));
-    const accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-    expect(accountLibrary.querySelectorAll("[data-account-card]")).toHaveLength(1);
-    const card = accountLibrary.querySelector('[data-account-card="codex-configured-1"]');
-    expect(card).not.toBeNull();
-    expect(within(card as HTMLElement).getByText("Configured Codex account")).toBeInTheDocument();
-    expect(accountLibrary.querySelector('[data-account-card*="demo"]')).toBeNull();
-    expect(within(card as HTMLElement).getByRole("switch", {
-      name: /调度 codex-configured-1|Dispatch codex-configured-1/i,
-    })).toBeEnabled();
-    expect(within(accountLibrary).queryByRole("table")).not.toBeInTheDocument();
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /codex/i }));
+    const accountLibrary = screen.getByRole("table");
+    expect(within(accountLibrary).getAllByRole("row")).toHaveLength(2);
+    expect(within(accountLibrary).getByRole("button", { name: "Configured Codex account" })).toBeVisible();
+    expect(within(accountLibrary).getByRole("switch", { name: "调度 Configured Codex account" })).toBeEnabled();
+    expect(within(accountLibrary).queryByText(/demo/i)).not.toBeInTheDocument();
   });
 
-  it("removes the old accounts filter controls from the ledger workspace", async () => {
+  it("filters account enabled state locally without changing the route draft", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
 
@@ -274,10 +269,14 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
 
-    expect(screen.getByRole("button", { name: /^Managed OpenAI$/i })).toBeInTheDocument();
-    expect(screen.queryByText("acc-prod-1")).not.toBeInTheDocument();
-    expect(screen.queryByText("acc-prod-2")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/凭证分组/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/服务商/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "生产账号 A" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "生产账号 B" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "已启用" }));
+    expect(screen.getByRole("button", { name: "生产账号 A" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "生产账号 B" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "已停用" }));
+    expect(screen.getByRole("button", { name: "生产账号 B" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "生产账号 A" })).not.toBeInTheDocument();
+    expect(consoleApi.commitRouteConfig).not.toHaveBeenCalled();
   });
 });

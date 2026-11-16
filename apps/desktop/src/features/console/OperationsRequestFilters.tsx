@@ -30,6 +30,8 @@ export function OperationsRequestFilters({
   patchFilters,
 }: Props) {
   const statusOptionsId = useId();
+  // Dialog portals leave the form subtree; retain native Enter submission ownership.
+  const filterFormId = useId();
   const fields = [
     {
       key: "projectId",
@@ -59,6 +61,7 @@ export function OperationsRequestFilters({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   return (
     <Panel><form
+      id={filterFormId}
       className="nt-operations-filters"
       aria-label={t("请求筛选", "Request filters")}
       onSubmit={(event) => {
@@ -122,6 +125,7 @@ export function OperationsRequestFilters({
           {fields.map(({ key, label, placeholder }) => (
             <Field label={label} key={key}>
               <Input compact
+                form={filterFormId}
                 value={requestFilters[key]}
                 placeholder={placeholder}
                 onChange={(event) =>

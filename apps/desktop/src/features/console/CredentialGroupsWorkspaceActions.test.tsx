@@ -95,7 +95,7 @@ function renderWorkspace(props: CredentialGroupsWorkspaceProps) {
       <CredentialGroupsWorkspace {...props} />
     </NeuroProvider>,
   );
-  const card = document.querySelector('[data-entitlement-group-card="premium"]') as HTMLElement;
+  const card = screen.getByRole("region", { name: "Credential group administration" });
   return { ...view, card };
 }
 
@@ -106,13 +106,13 @@ describe("CredentialGroupsWorkspace actions", () => {
       selectedGroupBillingInvalid: true,
     });
     const { card } = renderWorkspace(props);
+    expect(within(screen.getByRole("navigation", { name: "Entitlement groups" })).getByRole("button", { name: /Premium/ })).toHaveAttribute("aria-current", "true");
 
-    fireEvent.click(within(card).getByRole("switch", { name: "Premium enabled state" }));
-    fireEvent.click(within(card).getByRole("button", { name: "Delete" }));
-    fireEvent.click(within(card).getByRole("button", { name: "Edit" }));
+    fireEvent.click(within(card).getByRole("switch", { name: "Premium enabled" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Delete group" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Edit group" }));
     const detail = screen.getByRole("dialog", { name: "Edit entitlement group" });
     expect(props.onToggleEnabled).toHaveBeenCalledWith("row-premium", false);
-    expect(props.onSelectGroup).toHaveBeenLastCalledWith("row-premium");
     expect(props.onRemoveGroup).toHaveBeenCalledWith("row-premium");
 
     const fields = [
@@ -148,7 +148,7 @@ describe("CredentialGroupsWorkspace actions", () => {
     const user = userEvent.setup();
     const props = workspaceProps();
     const { card } = renderWorkspace(props);
-    fireEvent.click(within(card).getByRole("button", { name: "Edit" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Edit group" }));
     const detail = screen.getByRole("dialog", { name: "Edit entitlement group" });
 
     fireEvent.change(within(detail).getByLabelText("Filter candidate accounts"), {
@@ -167,9 +167,9 @@ describe("CredentialGroupsWorkspace actions", () => {
   it("locks every mutating card, editor, and membership control", () => {
     const props = workspaceProps();
     const { card, rerender } = renderWorkspace(props);
-    const toggle = within(card).getByRole("switch", { name: "Premium enabled state" });
-    const edit = within(card).getByRole("button", { name: "Edit" });
-    const remove = within(card).getByRole("button", { name: "Delete" });
+    const toggle = within(card).getByRole("switch", { name: "Premium enabled" });
+    const edit = within(card).getByRole("button", { name: "Edit group" });
+    const remove = within(card).getByRole("button", { name: "Delete group" });
     fireEvent.click(edit);
     rerender(<NeuroProvider><CredentialGroupsWorkspace {...props} editorLocked /></NeuroProvider>);
     const detail = screen.getByRole("dialog", { name: "Edit entitlement group" });
@@ -194,7 +194,7 @@ describe("CredentialGroupsWorkspace actions", () => {
     const user = userEvent.setup();
     const props = workspaceProps();
     const { card, rerender } = renderWorkspace(props);
-    await user.click(within(card).getByRole("button", { name: "Edit" }));
+    await user.click(within(card).getByRole("button", { name: "Edit group" }));
     const dialog = screen.getByRole("dialog");
     const name = within(dialog).getByLabelText("Group name");
     const replacement = {
@@ -211,14 +211,14 @@ describe("CredentialGroupsWorkspace actions", () => {
     fireEvent.change(name, { target: { value: "Next edit" } });
     expect(props.onUpdateField).toHaveBeenLastCalledWith("reloaded-row", "name", "Next edit");
     await user.keyboard("{Escape}");
-    await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Edit group" })).toHaveFocus());
   });
 
   it("closes when the edited group is removed instead of editing another group", async () => {
     const user = userEvent.setup();
     const props = workspaceProps();
     const { card, rerender } = renderWorkspace(props);
-    await user.click(within(card).getByRole("button", { name: "Edit" }));
+    await user.click(within(card).getByRole("button", { name: "Edit group" }));
     rerender(<NeuroProvider><CredentialGroupsWorkspace {...props}
       groups={[]} selectedGroup={null} selectedGroupRowId={null} /></NeuroProvider>);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

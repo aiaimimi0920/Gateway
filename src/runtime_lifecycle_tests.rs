@@ -31,9 +31,16 @@ async fn local_state() -> Arc<AppState> {
 
 #[tokio::test]
 async fn binding_failure_requests_shutdown_and_closes_local_storage() {
-    let occupied = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let host = std::env::var("GATEWAY_BIND_HOST").unwrap_or_else(|_| "0.0.0.0".into());
+    let occupied = tokio::net::TcpListener::bind((host.as_str(), 0))
+        .await
+        .unwrap();
     let state = local_state().await;
-    let result = run_gateway_server(state.clone(), occupied.local_addr().unwrap().port()).await;
+    let result = tokio::time::timeout(
+        Duration::from_secs(5),
+        run_gateway_server(state.clone(), occupied.local_addr().unwrap().port()),
+    )
+    .await;
     let requested = state.shutdown.is_requested();
     let closed = state.local_runtime.as_ref().unwrap().pool.is_closed();
     // Even the red test releases its synthetic resources before making assertions.
@@ -41,7 +48,9 @@ async fn binding_failure_requests_shutdown_and_closes_local_storage() {
     if !closed {
         state.local_runtime.as_ref().unwrap().close().await;
     }
-    assert!(result.is_err());
+    assert!(result
+        .expect("binding failure must finish promptly")
+        .is_err());
     assert!(requested, "bind error bypassed runtime shutdown");
     assert!(closed, "bind error bypassed local close");
 }
@@ -59,7 +68,11 @@ async fn successful_http_exit_closes_local_storage() {
 
 #[tokio::test]
 async fn normal_background_bootstrap_is_deduplicated_and_binding_failure_joins_every_worker() {
-    let occupied = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    // Windows can bind wildcard and loopback listeners to the same port.
+    let host = std::env::var("GATEWAY_BIND_HOST").unwrap_or_else(|_| "0.0.0.0".into());
+    let occupied = tokio::net::TcpListener::bind((host.as_str(), 0))
+        .await
+        .unwrap();
     let state = local_state().await;
     spawn_background_tasks(&state);
     spawn_background_tasks(&state);
@@ -81,7 +94,10 @@ async fn normal_background_bootstrap_is_deduplicated_and_binding_failure_joins_e
 
 #[tokio::test]
 async fn binding_failure_drains_admitted_write_and_preserves_bind_error_before_local_retirement() {
-    let occupied = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let host = std::env::var("GATEWAY_BIND_HOST").unwrap_or_else(|_| "0.0.0.0".into());
+    let occupied = tokio::net::TcpListener::bind((host.as_str(), 0))
+        .await
+        .unwrap();
     let state = local_state().await;
     let local = state.local_runtime.as_ref().unwrap().clone();
     let old_owner = local.owner.clone();

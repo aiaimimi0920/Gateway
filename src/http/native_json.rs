@@ -72,13 +72,20 @@ impl<S: Send + Sync> FromRequest<S> for NativeJson {
             .cloned();
         // Bytes uses axum's configured body limit and the outer RequestBodyLimitLayer.
         let body = Bytes::from_request(req, state).await.map_err(|rejection| {
-            let status = rejection.status().as_u16();
-            let mut error = GatewayError::bad_request(if status == 413 {
+            // An outer streaming limit is wrapped as a body-read error by axum.
+            // Preserve its typed cause rather than mistaking it for malformed JSON.
+            let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&rejection);
+            let mut oversized = rejection.status().as_u16() == 413;
+            while let Some(current) = cause {
+                oversized |= current.is::<http_body_util::LengthLimitError>();
+                cause = current.source();
+            }
+            let mut error = GatewayError::bad_request(if oversized {
                 "Request body too large".to_owned()
             } else {
                 format!("Invalid JSON body: {}", rejection.body_text())
             });
-            if status == 413 {
+            if oversized {
                 error.http_status = Some(413);
                 error.code = Some("request_too_large".into());
             }

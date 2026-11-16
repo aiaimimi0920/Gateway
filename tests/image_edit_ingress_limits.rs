@@ -131,7 +131,7 @@ async fn error_body(response: axum::response::Response) -> Value {
 }
 
 #[tokio::test]
-async fn image_edit_json_routes_keep_the_extractor_default_ceiling() {
+async fn image_edit_json_routes_use_configured_limit_instead_of_axum_default() {
     let app = app(4 * 1024 * 1024);
     for path in ROUTES {
         for streamed in [false, true] {
@@ -142,30 +142,20 @@ async fn image_edit_json_routes_keep_the_extractor_default_ceiling() {
                     .oneshot(request(path, "application/json", json_body(size), streamed))
                     .await
                     .unwrap();
-                let expected_status = if oversized {
-                    StatusCode::PAYLOAD_TOO_LARGE
-                } else {
-                    StatusCode::BAD_REQUEST
-                };
                 assert_eq!(
                     response.status(),
-                    expected_status,
+                    StatusCode::BAD_REQUEST,
                     "{path} streamed={streamed}"
                 );
                 let error = error_body(response).await;
-                let expected_code = if oversized {
-                    "request_too_large"
-                } else {
-                    "missing_required_field"
-                };
-                assert_eq!(error["error"]["code"], expected_code);
+                assert_eq!(error["error"]["code"], "missing_required_field");
             }
         }
     }
 }
 
 #[tokio::test]
-async fn image_edit_multipart_limits_preserve_chunk_sensitive_error_context() {
+async fn image_edit_multipart_above_axum_default_reaches_semantic_validation() {
     let app = app(4 * 1024 * 1024);
     let content_type = format!("multipart/form-data; boundary={BOUNDARY}");
     for path in ROUTES {
@@ -182,29 +172,12 @@ async fn image_edit_multipart_limits_preserve_chunk_sensitive_error_context() {
                         .unwrap();
                     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
                     let error = error_body(response).await;
-                    if oversized {
-                        let prefix = if !streamed {
-                            "Invalid multipart image edit body:"
-                        } else if field == "prompt" {
-                            "Invalid prompt field:"
-                        } else {
-                            "Invalid uploaded image data:"
-                        };
-                        assert!(
-                            error["error"]["message"]
-                                .as_str()
-                                .unwrap()
-                                .starts_with(prefix),
-                            "{path} streamed={streamed} field={field}: {error}"
-                        );
+                    let code = if field == "prompt" {
+                        "missing_input_image"
                     } else {
-                        let code = if field == "prompt" {
-                            "missing_input_image"
-                        } else {
-                            "missing_required_field"
-                        };
-                        assert_eq!(error["error"]["code"], code);
-                    }
+                        "missing_required_field"
+                    };
+                    assert_eq!(error["error"]["code"], code);
                 }
             }
         }
@@ -212,22 +185,23 @@ async fn image_edit_multipart_limits_preserve_chunk_sensitive_error_context() {
 }
 
 #[tokio::test]
-async fn image_edit_configured_route_cap_remains_enforced_below_default() {
-    let limit = 64 * 1024;
-    let app = app(limit);
-    for path in ROUTES {
-        for streamed in [false, true] {
-            let response = app
-                .clone()
-                .oneshot(request(
-                    path,
-                    "application/json",
-                    json_body(limit + 1),
-                    streamed,
-                ))
-                .await
-                .unwrap();
-            assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+async fn image_edit_configured_route_cap_remains_enforced_below_and_above_default() {
+    for limit in [64 * 1024, 3 * 1024 * 1024] {
+        let app = app(limit);
+        for path in ROUTES {
+            for streamed in [false, true] {
+                let response = app
+                    .clone()
+                    .oneshot(request(
+                        path,
+                        "application/json",
+                        json_body(limit + 1),
+                        streamed,
+                    ))
+                    .await
+                    .unwrap();
+                assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+            }
         }
     }
 }

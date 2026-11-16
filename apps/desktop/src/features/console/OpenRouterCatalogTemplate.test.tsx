@@ -26,6 +26,8 @@ it("creates an empty OpenRouter pool with the canonical official URL and locked 
   expect(screen.getByLabelText("调用适配器")).toHaveValue("OpenAI API");
   expect(screen.getByLabelText("指纹适配器")).toHaveValue("自动");
   expect(screen.getByLabelText("专用适配器")).toHaveValue("无（标准 API）");
+  expect(screen.getByRole("checkbox", { name: "同时添加首个账号" })).toBeChecked();
+  await user.click(screen.getByRole("checkbox", { name: "同时添加首个账号" }));
   expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
   await user.click(screen.getByRole("tab", { name: "站点健康" }));
   expect(screen.getByLabelText("适配器")).toHaveValue("openrouter-status");

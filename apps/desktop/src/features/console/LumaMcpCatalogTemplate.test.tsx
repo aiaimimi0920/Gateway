@@ -56,7 +56,7 @@ it("adds an empty pool from the normal directory without secret access or unsupp
   fireEvent.click(screen.getByRole("button", { name: /^lumalabs-mcp/ }));
   expect(screen.getByLabelText("Base URL")).toHaveValue("https://agents.lumalabs.ai/mcp");
   expect(screen.getByLabelText("Base URL")).toHaveAttribute("readonly");
-  expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["基础与账号"]);
   fireEvent.click(screen.getByRole("button", { name: "添加" }));
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ templateId: "lumalabs-mcp", providerId: "lumalabs-mcp-oauth-2" }));
   expect(submit.mock.calls[0][0].workflow.driverId).toBe("");

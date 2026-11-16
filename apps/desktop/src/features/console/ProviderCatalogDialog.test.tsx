@@ -56,10 +56,13 @@ describe("ProviderCatalogDialog", () => {
   });
   it("creates a custom provider without a first account or secret access", async () => {
     const user = userEvent.setup(); const props = renderDialog({ hasSecretAccess: false });
-    await user.click(screen.getByRole("radio", { name: "自定义模板" }));
+    await user.click(screen.getByRole("button", { name: "自定义" }));
     await user.click(screen.getByRole("button", { name: "custom-api" }));
+    await user.click(screen.getByRole("checkbox", { name: "同时添加首个账号" }));
     await user.clear(screen.getByLabelText("Provider ID")); await user.type(screen.getByLabelText("Provider ID"), "partner");
+    await user.clear(screen.getByLabelText("名称")); await user.type(screen.getByLabelText("名称"), "partner");
     await user.type(screen.getByLabelText("Base URL"), "https://partner.example.test/v1");
+    await user.click(screen.getByRole("tab", { name: "调用配置" }));
     await user.selectOptions(screen.getByLabelText("调用适配器"), "anthropic");
     await user.selectOptions(screen.getByLabelText("指纹适配器"), "claude_cli");
     await user.click(screen.getByRole("button", { name: "添加" }));
@@ -76,6 +79,12 @@ describe("ProviderCatalogDialog", () => {
     await user.click(screen.getByRole("button", { name: new RegExp(`^${id}(?:\\s*新调用流程已验收)?$`) }));
     expect(screen.getByLabelText("Provider ID")).toHaveValue(`${id}-3`);
     expect(screen.getByLabelText("Base URL")).toHaveAttribute("readonly");
+    if (id === "openai-api") {
+      expect(screen.getByRole("checkbox", { name: "同时添加首个账号" })).toBeChecked();
+      expect(screen.getByLabelText("API Key")).toBeVisible();
+      await user.click(screen.getByRole("checkbox", { name: "同时添加首个账号" }));
+    }
+    await user.click(screen.getByRole("tab", { name: "调用配置" }));
     for (const name of ["调用适配器", "指纹适配器", "专用适配器"]) expect(screen.getByLabelText(name)).toHaveAttribute("readonly");
     if (id === "openai-api") expect(screen.getByLabelText("调用适配器")).toHaveValue("OpenAI API");
     expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
@@ -97,7 +106,7 @@ describe("ProviderCatalogDialog", () => {
   });
   it("supports keyboard tab navigation and keeps the draft on inventory refresh", async () => {
     const user = userEvent.setup(); renderDialog();
-    await user.click(screen.getByRole("tab", { name: "调用流程" })); await user.keyboard("{ArrowRight}");
+    await user.click(screen.getByRole("tab", { name: "调用配置" })); await user.keyboard("{ArrowRight}");
     expect(screen.getByRole("tab", { name: "模型映射" })).toHaveFocus();
     await user.keyboard("{End}"); expect(screen.getByRole("tab", { name: "站点健康" })).toHaveFocus();
     expect(screen.getByRole("tab", { name: "站点健康" })).toHaveAttribute("aria-selected", "true");

@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NeuroProvider } from "@neuro/ui";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,13 +17,15 @@ describe("standard lifecycle controls", () => {
     const user = userEvent.setup();
     const props = workspaceProps();
     const { rerender } = render(<NeuroProvider><AccountsLedgerWorkspace {...props} /></NeuroProvider>);
-    await user.click(screen.getByRole("button", { name: "翻面查看 Managed OpenAI 详情" }));
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^Managed OpenAI/ }));
+    await user.click(screen.getByRole("button", { name: "服务商设置" }));
     const opener = screen.getByRole("switch", { name: "Managed OpenAI 彻底删除模式" });
     await user.click(opener);
     rerender(<NeuroProvider><AccountsLedgerWorkspace {...props} editorLocked /></NeuroProvider>);
     expect(opener).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "取消" }));
-    expect(screen.getByRole("button", { name: "翻回 Managed OpenAI 卡牌正面" })).toHaveFocus();
+    expect(screen.getByRole("dialog", { name: "服务商设置" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "取消" })).not.toBeInTheDocument();
     expect(props.onToggleProviderPermanentDelete).not.toHaveBeenCalled();
   });
 
@@ -32,7 +34,8 @@ describe("standard lifecycle controls", () => {
     const onToggleProviderAutoRefill = vi.fn();
     const props = workspaceProps({ onToggleProviderAutoRefill });
     const { rerender } = render(<NeuroProvider><AccountsLedgerWorkspace {...props} /></NeuroProvider>);
-    await user.click(screen.getByRole("button", { name: "翻面查看 Managed OpenAI 详情" }));
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^Managed OpenAI/ }));
+    await user.click(screen.getByRole("button", { name: "服务商设置" }));
     const toggle = screen.getByRole("switch", { name: "Managed OpenAI 自动补号" });
     expect(toggle.tagName).toBe("INPUT");
     expect(toggle.closest("label")).toHaveClass("n-switch");

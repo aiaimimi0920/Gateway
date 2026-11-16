@@ -1,4 +1,6 @@
 //! The public route selector must admit implemented host operations, not legacy program edits.
+// Match the library limit when compiling the full ingress future in this test crate.
+#![recursion_limit = "256"]
 use neuro_gateway::{
     protocol::{canonical::EndpointKind, gemini_business, registry::*},
     routing::{
@@ -8,14 +10,8 @@ use neuro_gateway::{
 };
 use serde_json::json;
 
-#[path = "gemini_canvas_host_ingress_contract/documents.rs"]
-mod documents;
-#[path = "console_contract_support/mod.rs"]
-mod support;
-#[path = "gemini_canvas_host_ingress_contract/transcription_http.rs"]
-mod transcription_http;
-#[path = "gemini_canvas_host_ingress_contract/transcription_transport.rs"]
-mod transcription_transport;
+// Real HTTP ingress contracts run in the library test target, where Canvas's
+// test-only loopback origin is enabled. Production origin admission stays strict.
 
 fn candidate(adapter: &str) -> RouteCandidate {
     let payload: ProviderAccountPayload = serde_json::from_value(json!({

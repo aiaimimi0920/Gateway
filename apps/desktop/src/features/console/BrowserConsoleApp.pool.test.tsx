@@ -14,7 +14,7 @@ import {
   waitForConsoleReady,
   openWorkspace,
   waitForCommittedRouteDraft,
-  flipProviderCard,
+  openProviderSettings,
 } from "./BrowserConsoleApp.render-fixture";
 
 describe("BrowserConsoleApp", () => {
@@ -92,7 +92,7 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
 
-    const providerRow = await flipProviderCard(user, /^Managed OpenAI$/i);
+    const providerRow = await openProviderSettings(user, /Managed OpenAI/i);
     expect(within(providerRow).getByText(/^可用池$/)).toBeInTheDocument();
     expect(within(providerRow).getByText(/^补号$/)).toBeInTheDocument();
     expect(within(providerRow).getByText(/^删除（\d+）$/)).toBeInTheDocument();
@@ -107,8 +107,8 @@ describe("BrowserConsoleApp", () => {
     });
 
     expect(targetInput).toHaveValue(100);
-    expect(autoRefillSwitch).toHaveAttribute("aria-checked", "false");
-    expect(autoPruneSwitch).toHaveAttribute("aria-checked", "false");
+    expect(autoRefillSwitch).not.toBeChecked();
+    expect(autoPruneSwitch).not.toBeChecked();
 
     await user.clear(targetInput);
     await user.type(targetInput, "80");
@@ -117,8 +117,8 @@ describe("BrowserConsoleApp", () => {
     await user.click(autoPruneSwitch);
 
     expect(within(providerRow).getByText("80")).toBeInTheDocument();
-    expect(autoRefillSwitch).toHaveAttribute("aria-checked", "true");
-    expect(autoPruneSwitch).toHaveAttribute("aria-checked", "true");
+    expect(autoRefillSwitch).toBeChecked();
+    expect(autoPruneSwitch).toBeChecked();
 
     const draft = JSON.stringify(await waitForCommittedRouteDraft(consoleApi));
     expect(draft).toContain('"pool_target_size":80');
@@ -214,7 +214,7 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await flipProviderCard(user, /^Managed OpenAI$/i);
+    await openProviderSettings(user, /Managed OpenAI/i);
     const refillSwitch = screen.getByRole("switch", {
       name: /Managed OpenAI 自动补号|Managed OpenAI auto refill/i,
     });
@@ -232,10 +232,10 @@ describe("BrowserConsoleApp", () => {
     await user.click(refillSwitch);
     await user.click(pruneSwitch);
 
-    expect(refillSwitch).toHaveAttribute("aria-checked", "true");
-    expect(pruneSwitch).toHaveAttribute("aria-checked", "false");
+    expect(refillSwitch).toBeChecked();
+    expect(pruneSwitch).not.toBeChecked();
     expect(
-      screen.getByRole("status", { name: /尚未配置受信任的自动剔号驱动器/i }),
+      screen.getByText(/尚未配置受信任的自动剔号驱动器/i),
     ).toBeInTheDocument();
 
     const draft = JSON.stringify(await waitForCommittedRouteDraft(consoleApi));
@@ -329,7 +329,7 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await flipProviderCard(user, /^Managed OpenAI$/i);
+    await openProviderSettings(user, /Managed OpenAI/i);
     const requestButton = screen.getByRole("button", { name: /Managed OpenAI 手动补号|Manually refill Managed OpenAI/i });
     await user.click(requestButton);
 
@@ -340,13 +340,13 @@ describe("BrowserConsoleApp", () => {
       ),
     );
     expect(
-      screen.getByRole("status", { name: /主动补号任务已投递|user-requested refill task was published/i }),
+      await screen.findByText(/主动补号任务已投递|user-requested refill task was published/i),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Managed OpenAI 手动补号|Manually refill Managed OpenAI/i }));
     await waitFor(() => expect(consoleApi.requestCredentialRefill).toHaveBeenCalledTimes(2));
     expect(
-      screen.getByRole("status", { name: /已有未完成的补号任务|already has an outstanding refill task/i }),
+      await screen.findByText(/已有未完成的补号任务|already has an outstanding refill task/i),
     ).toBeInTheDocument();
   });
 
@@ -415,7 +415,7 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await flipProviderCard(user, /^Managed OpenAI$/i);
+    await openProviderSettings(user, /Managed OpenAI/i);
     await user.click(screen.getByRole("button", { name: /Managed OpenAI 手动删除失效号|Manually delete invalid Managed OpenAI credentials/i }));
     await waitFor(() =>
       expect(consoleApi.previewCredentialPrune).toHaveBeenCalledWith(

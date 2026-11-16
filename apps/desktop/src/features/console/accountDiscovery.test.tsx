@@ -51,8 +51,10 @@ function catalog(onDiscover = vi.fn().mockResolvedValue(discovery)) {
   render(<UiLocaleProvider><ProviderCatalogDialog open existingProviderIds={[]} existingCredentialIds={[]}
     locked={false} hasSecretAccess onOpenChange={onOpenChange} onRequestSecretAccess={vi.fn()}
     onSubmit={onSubmit} onDiscover={onDiscover} /></UiLocaleProvider>, { wrapper: NeuroProvider });
-  fireEvent.click(screen.getByRole("radio", { name: "自定义模板" }));
+  fireEvent.click(screen.getByRole("button", { name: "自定义" }));
   fireEvent.click(screen.getByRole("button", { name: "custom-api" }));
+  fireEvent.change(screen.getByLabelText("名称"), { target: { value: "Fixture" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: "同时添加首个账号" }));
   fireEvent.change(screen.getByLabelText("Base URL"), { target: { value: discovery.source_url } });
   return { onSubmit, onOpenChange, onDiscover };
 }

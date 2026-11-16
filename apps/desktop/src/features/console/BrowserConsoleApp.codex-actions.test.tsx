@@ -14,7 +14,6 @@ import {
   waitForConsoleReady,
   openWorkspace,
   waitForCommittedRouteDraft,
-  providerCard,
 } from "./BrowserConsoleApp.render-fixture";
 
 async function useCodexProbeResult(api: ReturnType<typeof createConsoleApi>) {
@@ -61,7 +60,7 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
 
-    expect(screen.getByRole("button", { name: /^codex$/i })).toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^codex/i })).toBeInTheDocument();
     expect(screen.queryByText("Free")).not.toBeInTheDocument();
     expect(screen.queryByText("Plus")).not.toBeInTheDocument();
     expect(screen.queryByRole("table", { name: /账号台账表/i })).not.toBeInTheDocument();
@@ -115,26 +114,14 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^codex/i }));
 
-    const providerRow = screen.getByRole("button", { name: /^codex$/i }).closest(".nt-provider-tree-item");
-    expect(providerRow).not.toBeNull();
-    expect(within(providerRow as HTMLElement).queryByText("32 req")).not.toBeInTheDocument();
-
-    const accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-    const freeLibrary = within(accountLibrary).getByRole("tabpanel");
-    const freeCard = freeLibrary.querySelector('[data-account-card="codex-free-1"]');
+    await user.click(screen.getByRole("button", { name: "Codex Free 1" }));
+    await user.click(screen.getByRole("button", { name: "账号配置" }));
+    const freeCard = document.querySelector('[data-account-card="codex-free-1"]');
     expect(freeCard).not.toBeNull();
-    expect(within(freeCard as HTMLElement).getByText("Codex Free 1")).toBeInTheDocument();
-    expect(
-      within(freeCard as HTMLElement).getByRole("combobox", { name: /调整 Codex Free 1 分组池/i }),
-    ).toHaveAttribute("data-group-id", "vip-users");
-    expect(within(freeCard as HTMLElement).queryByText("容量")).not.toBeInTheDocument();
-    expect(within(freeCard as HTMLElement).queryByText("2 分钟前")).not.toBeInTheDocument();
-    expect(
-      within(freeCard as HTMLElement).getByRole("switch", { name: /调度 codex-free-1|Dispatch codex-free-1/i }),
-    ).toHaveAttribute("aria-checked", "true");
-    expect(within(accountLibrary).queryByRole("table")).not.toBeInTheDocument();
+    expect(within(freeCard as HTMLElement).getByRole("combobox", { name: /调整 Codex Free 1 分组池/i })).toHaveAttribute("data-group-id", "vip-users");
+    expect(within(freeCard as HTMLElement).getByRole("switch", { name: /调度 codex-free-1|Dispatch codex-free-1/i })).toBeChecked();
   });
 
   it("toggles codex dispatch to pause an explicit credential in the draft", async () => {
@@ -174,22 +161,12 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^codex$/i }));
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^codex/i }));
 
-    const providerRow = screen.getByRole("button", { name: /^codex$/i }).closest(".nt-provider-tree-item");
-    expect(providerRow).not.toBeNull();
-    const accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-    const freeCard = accountLibrary.querySelector('[data-account-card="codex-free-1"]');
-    expect(freeCard).not.toBeNull();
-    const dispatchSwitch = within(freeCard as HTMLElement).getByRole("switch", {
-      name: /调度 codex-free-1|Dispatch codex-free-1/i,
-    });
-
-    expect(dispatchSwitch).toHaveAttribute("aria-checked", "true");
+    const dispatchSwitch = screen.getByRole("switch", { name: "调度 Codex Free 1" });
+    expect(dispatchSwitch).toBeChecked();
     await user.click(dispatchSwitch);
-    expect(dispatchSwitch).toHaveAttribute("aria-checked", "false");
-
-    expect(within(freeCard as HTMLElement).queryByText("暂停")).not.toBeInTheDocument();
+    expect(dispatchSwitch).not.toBeChecked();
 
     const draft = JSON.stringify(await waitForCommittedRouteDraft(consoleApi));
     expect(draft).toContain('"id":"codex-free-1"');
@@ -236,9 +213,9 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /显示 codex 账号库/i }));
-
-    const accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
+    await user.click(screen.getByRole("button", { name: "Codex Free 1" }));
+    await user.click(screen.getByRole("button", { name: "账号配置" }));
+    const accountLibrary = document.querySelector('[data-account-card="codex-free-1"]') as HTMLElement;
     const moreButton = within(accountLibrary).getByRole("button", { name: /测试账号 Codex Free 1/i });
     expect(within(accountLibrary).queryByRole("button", { name: /更多操作/ })).not.toBeInTheDocument();
     await user.click(moreButton);
@@ -314,8 +291,8 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    const provider = providerCard(/^codex$/i);
-    const moreButton = within(provider).getByRole("button", {
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^codex/i }));
+    const moreButton = screen.getByRole("button", {
       name: /^测试$|^Test$/i,
     });
 

@@ -31,6 +31,8 @@ it("creates only an empty Gemini pool with locked official adapters and a bounde
   await user.click(screen.getByRole("button", { name: /^gemini-api(?:\s*新调用流程已验收)?$/ }));
   expect(screen.getByLabelText("Base URL")).toHaveValue("https://generativelanguage.googleapis.com/v1beta");
   for (const label of ["Base URL", "调用适配器", "指纹适配器", "专用适配器"]) expect(screen.getByLabelText(label)).toHaveAttribute("readonly");
+  expect(screen.getByRole("checkbox", { name: "同时添加首个账号" })).toBeChecked();
+  await user.click(screen.getByRole("checkbox", { name: "同时添加首个账号" }));
   expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "添加" }));
   const result = addCatalogProvider({ providers: [], model_routes: [], aliases: {} }, template, onSubmit.mock.calls[0][0] as ProviderCatalogDraft);

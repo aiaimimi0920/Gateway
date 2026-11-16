@@ -15,9 +15,11 @@ describe("Key lifecycle", () => {
     expect(
       screen.queryByRole("button", { name: "吊销" }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "停用" }));
+    await user.click(screen.getByRole("button", { name: "更多操作" }));
+    await user.click(screen.getByRole("menuitem", { name: "停用" }));
     await user.click(screen.getByRole("button", { name: "确认停用" }));
-    await user.click(await screen.findByRole("button", { name: "启用" }));
+    await user.click(await screen.findByRole("button", { name: "更多操作" }));
+    await user.click(screen.getByRole("menuitem", { name: "启用" }));
     await user.click(screen.getByRole("button", { name: "确认启用" }));
     await waitFor(() =>
       expect(api.setAccessKeyEnabled).toHaveBeenLastCalledWith(
@@ -36,11 +38,13 @@ describe("Key lifecycle", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness api={api} />);
     const row = (await screen.findByText("delete-me")).closest("tr")!;
-    await user.click(within(row).getByRole("button", { name: "删除" }));
+    await user.click(within(row).getByRole("button", { name: "更多操作" }));
+    await user.click(screen.getByRole("menuitem", { name: "删除" }));
     expect(screen.getByRole("alertdialog")).toHaveTextContent("历史现金账单保留");
     await user.click(screen.getByRole("button", { name: "取消" }));
     expect(api.deleteAccessKey).not.toHaveBeenCalled();
-    await user.click(within(row).getByRole("button", { name: "删除" }));
+    await user.click(within(row).getByRole("button", { name: "更多操作" }));
+    await user.click(screen.getByRole("menuitem", { name: "删除" }));
     await user.click(screen.getByRole("button", { name: "确认删除" }));
     await waitFor(() =>
       expect(screen.queryByText("delete-me")).not.toBeInTheDocument(),
@@ -60,7 +64,8 @@ describe("Key lifecycle", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness api={api} />);
     await screen.findByText("failed-key");
-    await user.click(screen.getByRole("button", { name: "删除" }));
+    await user.click(screen.getByRole("button", { name: "更多操作" }));
+    await user.click(screen.getByRole("menuitem", { name: "删除" }));
     await user.click(screen.getByRole("button", { name: "确认删除" }));
     expect(
       await within(screen.getByRole("alertdialog")).findByRole("alert"),
@@ -70,13 +75,15 @@ describe("Key lifecycle", () => {
 
   it("cannot revive revoked keys and locks destructive actions in read-only mode", async () => {
     const { api } = fixture([key("revoked", { status: "revoked" })]);
+    const user = userEvent.setup();
     const view = renderWithProviders(<Harness api={api} />);
     await screen.findByText("revoked");
-    expect(screen.getByRole("button", { name: "停用" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "删除" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "更多操作" }));
+    expect(screen.getByRole("menuitem", { name: "停用" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitem", { name: "删除" })).not.toHaveAttribute("aria-disabled", "true");
     view.unmount();
     renderWithProviders(<Harness api={api} locked />);
     await screen.findByText("revoked");
-    expect(screen.getByRole("button", { name: "删除" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "更多操作" })).toBeDisabled();
   });
 });

@@ -1,4 +1,4 @@
-//! Multipart ingress, real local routing/auth and selected-worker transport.
+//! Multipart ingress, real local routing/auth and selected-account HTTP transport.
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -19,7 +19,7 @@ fn multipart(audio: &[u8], format: &str, duplicate: bool) -> Vec<u8> {
     bytes
 }
 
-pub(super) async fn exercise(audio: &[u8]) {
+pub(super) async fn exercise(audio: &[u8], base: &str) {
     let root = std::env::temp_dir().join(format!("gateway-transcription-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&root).unwrap();
     let mut config = super::support::test_config();
@@ -28,20 +28,7 @@ pub(super) async fn exercise(audio: &[u8]) {
     config.console.routes_file = root.join("routes.yaml");
     std::fs::write(
         &config.console.routes_file,
-        r#"
-providers:
-  - id: fixture-provider
-    preset: gemini-canvas-browser-relay
-    base_url: https://gemini.google.com
-    supported_models: [gemini-3-flash-preview]
-    credentials:
-      - id: fixture-credential
-        api_key: ""
-        runtime_state_object_key: fixture/selected-session.json
-model_routes:
-  - pattern: gemini-3-flash-preview
-    provider_ids: [fixture-provider]
-"#,
+        super::http_fixture::route_document(base),
     )
     .unwrap();
     let state = Box::pin(neuro_gateway::runtime::build_app_state(config))

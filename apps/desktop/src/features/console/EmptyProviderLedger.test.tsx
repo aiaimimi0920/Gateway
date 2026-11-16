@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { NeuroProvider } from "@neuro/ui";
@@ -31,9 +31,10 @@ it("shows the newly created empty provider and lets its account library add the 
     rows: [], onAddExplicit
   })} /></NeuroProvider>);
   expect(screen.queryByRole("heading", { name: "暂无账号" })).not.toBeInTheDocument();
-  expect(screen.getByRole("switch", { name: "nvidia 调度开关" })).toBeDisabled();
-  await userEvent.setup().click(screen.getByRole("button", { name: "显示 nvidia 账号库" }));
-  await userEvent.setup().click(screen.getByRole("button", { name: "手动录入账号" }));
+  const user = userEvent.setup();
+  await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^nvidia/ }));
+  expect(screen.getByRole("switch", { name: "服务商调度" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "添加账号" }));
   expect(onAddExplicit).toHaveBeenCalledExactlyOnceWith("nvidia");
 });
 

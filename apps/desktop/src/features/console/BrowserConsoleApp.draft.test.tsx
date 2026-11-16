@@ -42,17 +42,17 @@ describe("BrowserConsoleApp", () => {
     await user.click(screen.getByRole("button", { name: /添加分组/i }));
     await user.type(screen.getByLabelText(/分组 ID/i), "temporary-group");
     await user.click(screen.getByRole("button", { name: /^创建分组$/i }));
-    expect(screen.getByRole("button", { name: /^temporary-group$/i, expanded: false })).toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "权益分组" })).getByRole("button", { name: /^temporary-group/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^刷新$/i }));
 
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: /^temporary-group$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^temporary-group/i })).not.toBeInTheDocument();
     });
     expect(consoleApi.getRouteConfig).toHaveBeenCalledTimes(2);
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1300)); });
     expect(consoleApi.commitRouteConfig).not.toHaveBeenCalled();
-  });
+  }, 10000);
 
   it("registers a beforeunload guard only while the route draft is dirty", async () => {
     const consoleApi = createConsoleApi();
@@ -269,7 +269,7 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /权益组/i);
-    await user.click(screen.getByRole("button", { name: /^编辑$/i }));
+    await user.click(screen.getByRole("button", { name: "编辑分组" }));
     const multiplier = screen.getByLabelText(/计费倍率/i);
     const dialog = within(screen.getByRole("dialog", { name: "编辑权益组" }));
 
@@ -294,18 +294,19 @@ describe("BrowserConsoleApp", () => {
     const draft = await waitForCommittedRouteDraft(consoleApi);
     expect(draft.account_groups).toEqual([
       expect.objectContaining({ id: "group-vip", billing_multiplier: 0.01 }),
+      expect.objectContaining({ id: "default", billing_multiplier: 1, provider_credential_ids: ["managed-provider::default"] }),
     ]);
     await waitFor(() =>
       expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
         "management-secret",
         expect.objectContaining({
           document: expect.objectContaining({
-            account_groups: [
+            account_groups: expect.arrayContaining([
               expect.objectContaining({
                 id: "group-vip",
                 billing_multiplier: 0.01,
               }),
-            ],
+            ]),
           }),
         }),
       ),

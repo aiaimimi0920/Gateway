@@ -33,7 +33,10 @@ async fn assert_large_usage(openai: bool, explicit_total: bool) {
     let usage = observe_usage(value).await;
     assert_eq!(usage.prompt_tokens, u64::MAX);
     assert_eq!(usage.completion_tokens, 1);
-    assert_eq!(usage.total_tokens, u64::MAX);
+    assert_eq!(
+        usage.total_tokens,
+        if explicit_total { 17 } else { u64::MAX }
+    );
 }
 
 #[tokio::test]
@@ -57,7 +60,7 @@ async fn anthropic_explicit_total_avoids_overflow_in_fallback_arithmetic() {
 }
 
 #[tokio::test]
-async fn normal_usage_and_cache_details_keep_their_existing_merge_contract() {
+async fn reported_usage_total_and_cache_details_are_preserved() {
     let usage = observe_usage(json!({
         "prompt_tokens": 8, "completion_tokens": 5, "total_tokens": 99,
         "cache_creation_input_tokens": 2, "prompt_tokens_details": { "cached_tokens": 3 }
@@ -65,7 +68,7 @@ async fn normal_usage_and_cache_details_keep_their_existing_merge_contract() {
     .await;
     assert_eq!(usage.prompt_tokens, 8);
     assert_eq!(usage.completion_tokens, 5);
-    assert_eq!(usage.total_tokens, 13);
+    assert_eq!(usage.total_tokens, 99);
     assert_eq!(usage.cache_creation_input_tokens, Some(2));
     assert_eq!(usage.cache_read_input_tokens, Some(3));
 }

@@ -18,7 +18,7 @@ GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 class GatewayStandaloneSourceStateTests(GatewayRepositoryTextFixture, unittest.TestCase):
     def test_release_artifacts_are_excluded_from_source_fingerprints(self):
         scripts = {
-            "build": GATEWAY_ROOT / "tools/build-gateway-release.ps1",
+            "build": GATEWAY_ROOT / "tools/package-release/source-provenance.ps1",
             "package": GATEWAY_ROOT / "tools/package-release/source-provenance.ps1",
         }
         for name, path in scripts.items():
@@ -32,7 +32,7 @@ class GatewayStandaloneSourceStateTests(GatewayRepositoryTextFixture, unittest.T
 
     def test_source_fingerprints_follow_git_ignore_rules(self):
         scripts = {
-            "build": GATEWAY_ROOT / "tools/build-gateway-release.ps1",
+            "build": GATEWAY_ROOT / "tools/package-release/source-provenance.ps1",
             "package": GATEWAY_ROOT / "tools/package-release/source-provenance.ps1",
         }
         git_file_list = "ls-files --cached --others --exclude-standard"
@@ -57,7 +57,10 @@ class GatewayStandaloneSourceStateTests(GatewayRepositoryTextFixture, unittest.T
         )
 
         self.assertIn('Join-Path $PSScriptRoot ".."', script)
-        self.assertIn("cargo build --locked --release --bin gateway", script)
+        self.assertIn('@("build", "--locked", "--release", "--bin", "gateway",', script)
+        self.assertIn('-Command "cargo"', script)
+        self.assertIn('-WorkingDirectory $repoRoot', script)
+        self.assertIn('. (Join-Path $PSScriptRoot "package-release/source-provenance.ps1")', script)
         self.assertNotIn('Join-Path $PSScriptRoot "..\\.."', script)
         self.assertNotIn("Gateway/Cargo.toml", script)
         self.assertNotIn('"Gateway\\target', script)
@@ -66,9 +69,7 @@ class GatewayStandaloneSourceStateTests(GatewayRepositoryTextFixture, unittest.T
         script = (GATEWAY_ROOT / "tools/build-gateway-release.ps1").read_text(
             encoding="utf-8"
         )
-        function_start = script.index("function Get-RelativeUnixPath")
-        function_end = script.index("function Get-SourceTreeState", function_start)
-        function_text = script[function_start:function_end]
+        function_text = self._powershell_function_block(script, "Get-RelativeUnixPath")
 
         with tempfile.TemporaryDirectory(dir=GATEWAY_ROOT) as temp_dir:
             probe = pathlib.Path(temp_dir) / "probe-relative-root.ps1"
@@ -146,6 +147,7 @@ class GatewayStandaloneSourceStateTests(GatewayRepositoryTextFixture, unittest.T
         build_script = (GATEWAY_ROOT / "tools/build-gateway-release.ps1").read_text(
             encoding="utf-8"
         )
+        build_script += "\n" + (GATEWAY_ROOT / "tools/package-release/source-provenance.ps1").read_text(encoding="utf-8")
         package_script = (
             GATEWAY_ROOT / "tools/package-gateway-release.ps1"
         ).read_text(encoding="utf-8")
@@ -219,6 +221,9 @@ class GatewayStandaloneSourceStateTests(GatewayRepositoryTextFixture, unittest.T
                     (
                         self._powershell_function_block(
                             build_script, "Get-RelativeUnixPath"
+                        ),
+                        self._powershell_function_block(
+                            build_script, "Get-GitRepositoryRoot"
                         ),
                         self._powershell_function_block(
                             build_script, "Get-SourceTreeState"

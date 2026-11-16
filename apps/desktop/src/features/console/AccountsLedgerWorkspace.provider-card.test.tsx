@@ -3,8 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  automationProvider,
-  card,
   pilotAccount,
   pilotSection,
   refillDemand,
@@ -12,6 +10,15 @@ import {
   workspaceProps,
 } from "./AccountsLedgerWorkspace.fixtures";
 
+async function chooseProvider(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ }));
+}
+
+async function openSettings(user: ReturnType<typeof userEvent.setup>) {
+  await chooseProvider(user);
+  await user.click(screen.getByRole("button", { name: "服务商设置" }));
+  return screen.getByRole("dialog", { name: "服务商设置" });
+}
 
 describe("AccountsLedgerWorkspace heading", () => {
   it("leaves the page title and its actions to the shell header", () => {
@@ -28,202 +35,21 @@ describe("AccountsLedgerWorkspace heading", () => {
 });
 
 describe("AccountsLedgerWorkspace provider cards", () => {
-  it("renders one card per provider with its category tint and pool capacity", () => {
-    renderWorkspace(
-      workspaceProps({
-        pilotSections: [
-          pilotSection(),
-          pilotSection({
-            providerId: "suno",
-            providerIds: ["suno"],
-            providerLabel: "Suno",
-            providerPreset: "suno",
-            hostLabel: "studio-api-prod.suno.com",
-            directAccounts: [pilotAccount({ providerId: "suno", accountId: "suno-1" })],
-          }),
-          pilotSection({
-            providerId: "custom-openai",
-            providerIds: ["custom-openai"],
-            providerLabel: "Custom OpenAI",
-            providerPreset: null,
-            adapter: "openai_compatible",
-            protocolProfile: "openai_compatible_generic",
-            directAccounts: [
-              pilotAccount({ providerId: "custom-openai", accountId: "custom-1" }),
-            ],
-          }),
-        ],
-      }),
-    );
-
-    expect(card("managed-provider").dataset.providerCategory).toBe("mainstream");
-    expect(card("suno").dataset.providerCategory).toBe("media");
-    expect(card("custom-openai").dataset.providerCategory).toBe("third-party-compatible");
-    const managedFront = card("managed-provider").querySelector(".nt-provider-card__front");
-    const sunoFront = card("suno").querySelector(".nt-provider-card__front");
-    expect(managedFront).not.toBeNull();
-    expect(sunoFront).not.toBeNull();
-    expect(managedFront?.querySelector('[data-provider-icon="openai"]')).not.toBeNull();
-    expect(sunoFront?.querySelector('[data-provider-icon="suno"]')).not.toBeNull();
-    expect(within(managedFront as HTMLElement).getByText("1/30")).toBeInTheDocument();
-    // No history must not render a fabricated success rate.
-    expect(managedFront?.querySelector('[data-provider-availability-scope="provider"]')).toBeNull();
-  });
-
-  it("keeps lifecycle controls off the front and restores focus across a card flip", async () => {
+  it("selects a provider before exposing its lifecycle controls", async () => {
     const user = userEvent.setup();
     renderWorkspace(workspaceProps());
-
-    const providerCard = card("managed-provider");
-    const cardInner = providerCard.querySelector(".nt-provider-card__inner");
-    const cardFront = providerCard.querySelector(".nt-provider-card__front");
-    const cardBack = providerCard.querySelector(".nt-provider-card__back");
-    const flipButton = within(providerCard).getByRole("button", {
-      name: /翻面查看 Managed OpenAI 详情/,
-    });
-
-    expect(cardInner).not.toBeNull();
-    expect(cardFront).toHaveAttribute("aria-hidden", "false");
-    expect(cardFront).not.toHaveAttribute("inert");
-    expect(cardBack).toHaveAttribute("aria-hidden", "true");
-    expect(cardBack).toHaveAttribute("inert");
-    expect(providerCard).toHaveAttribute("data-provider-card-side", "front");
-    expect(
-      screen.queryByRole("switch", { name: /Managed OpenAI 自动补号/ }),
-    ).not.toBeInTheDocument();
-    expect(flipButton).toHaveAttribute("aria-pressed", "false");
-    expect(flipButton.querySelector(".lucide-gallery-horizontal-end")).not.toBeNull();
-    expect(
-      screen.queryByRole("region", { name: /Managed OpenAI 账号生命周期/ }),
-    ).not.toBeInTheDocument();
-
-    flipButton.focus();
-    const focus = vi.spyOn(HTMLElement.prototype, "focus");
-    await user.keyboard("{Enter}");
-
-    expect(providerCard).toHaveAttribute("data-provider-card-side", "back");
-    expect(cardFront).toHaveAttribute("aria-hidden", "true");
-    expect(cardFront).toHaveAttribute("inert");
-    expect(cardBack).toHaveAttribute("aria-hidden", "false");
-    expect(cardBack).not.toHaveAttribute("inert");
-    expect(screen.getByRole("switch", { name: /Managed OpenAI 自动补号/ })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /编辑 Managed OpenAI 最大可用池/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /Managed OpenAI 账号生命周期/ })).toBeInTheDocument();
-    expect(screen.getByText("可用池")).toBeInTheDocument();
-    expect(screen.getByText("冷却池")).toBeInTheDocument();
-    expect(screen.getByText("失效池")).toBeInTheDocument();
-    expect(
-      screen.queryByText(
-        "/v1/internal/gateway/credential-pool-refill/providers/managed-provider/tasks/claim",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("api.openai.com")).not.toBeInTheDocument();
-    expect(screen.queryByText("openai")).not.toBeInTheDocument();
-    expect(screen.queryByText("最近 2 分钟前")).not.toBeInTheDocument();
-
-    const returnButton = within(card("managed-provider")).getByRole("button", {
-      name: /翻回 Managed OpenAI 卡牌正面/,
-    });
-    expect(returnButton).toHaveAttribute("aria-pressed", "true");
-    expect(returnButton.querySelector(".lucide-gallery-horizontal-end")).not.toBeNull();
-    expect(returnButton).toHaveFocus();
-    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
-    expect(screen.getByRole("status")).toHaveTextContent("Managed OpenAI 卡牌背面已显示");
-
-    await user.keyboard(" ");
-
-    expect(providerCard).toHaveAttribute("data-provider-card-side", "front");
-    expect(
-      screen.queryByRole("switch", { name: /Managed OpenAI 自动补号/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(card("managed-provider")).getByRole("button", {
-        name: /翻面查看 Managed OpenAI 详情/,
-      }),
-    ).toHaveFocus();
-    expect(screen.getByRole("status")).toHaveTextContent("Managed OpenAI 卡牌正面已显示");
-    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
-    focus.mockRestore();
-  });
-
-  it("flips each card independently", async () => {
-    const user = userEvent.setup();
-    renderWorkspace(
-      workspaceProps({
-        pilotSections: [
-          pilotSection(),
-          pilotSection({
-            providerId: "poe",
-            providerIds: ["poe"],
-            providerLabel: "Poe",
-            providerPreset: "poe-openai",
-            directAccounts: [pilotAccount({ providerId: "poe", accountId: "poe-1" })],
-          }),
-        ],
-      }),
-    );
-
-    await user.click(
-      within(card("managed-provider")).getByRole("button", { name: /翻面查看 Managed OpenAI 详情/ }),
-    );
-
-    expect(card("managed-provider").className).toContain("nt-provider-card--flipped");
-    expect(card("poe").className).not.toContain("nt-provider-card--flipped");
-    expect(within(card("poe")).getByRole("button", { name: /翻面查看 Poe 详情/ })).toBeInTheDocument();
-  });
-
-  it("renders one-line provider totals and provider-level availability cells", () => {
-    renderWorkspace(
-      workspaceProps({
-        pilotSections: [
-          pilotSection({
-            poolTargetSize: 5,
-            directAccounts: [
-              pilotAccount({
-                accountId: "available",
-                concurrencyUsed: 2,
-                concurrencyTotal: 4,
-                upstreamCost: 1.25,
-                userCost: 2.5,
-                successWindows: [{ label: "10:00", success: 3, requests: 4 }],
-              }),
-              pilotAccount({
-                accountId: "recovering",
-                statusLabel: "限流等待恢复",
-                concurrencyUsed: 1,
-                concurrencyTotal: 2,
-                upstreamCost: 0.75,
-                userCost: 1.5,
-                successWindows: [{ label: "10:00", success: 1, requests: 2 }],
-              }),
-              pilotAccount({ accountId: "invalid", statusLabel: "失效", dispatchEnabled: false }),
-            ],
-          }),
-        ],
-      }),
-    );
-
-    const providerCard = card("managed-provider");
-    expect(within(providerCard).getByRole("img", { name: /可用 1，待恢复 1，失效 1，待观测 0，剩余 2/ })).toBeInTheDocument();
-    expect(within(providerCard).getByText("3/6")).toBeInTheDocument();
-    expect(within(providerCard).getByText("≈$2.00")).toBeInTheDocument();
-    expect(within(providerCard).getByText("$4.00")).toBeInTheDocument();
-    expect(providerCard.querySelector('[data-provider-metric="requests"]')).toHaveTextContent("36");
-    expect(providerCard.querySelector('[data-provider-metric="success-rate"]')).toHaveTextContent(
-      "66.7%",
-    );
-    expect(providerCard.querySelectorAll('[data-provider-availability-cell="mixed"]')).toHaveLength(1);
-    expect(providerCard.querySelectorAll('[data-provider-availability-cell="failure"]')).toHaveLength(0);
-    expect(
-      within(providerCard).getByRole("group", {
-        name: /最近窗口的调用成功率，所有模型聚合，4\/6 次成功，66\.7%/,
-      }),
-    ).not.toHaveAttribute("title");
-    expect(
-      providerCard.querySelector('[data-provider-availability-window="10:00"]'),
-    ).toHaveAttribute("title", "时间：10:00–10:30；调用 6 次；成功率 66.7%");
+    expect(screen.queryByRole("button", { name: "服务商设置" })).not.toBeInTheDocument();
+    await chooseProvider(user);
+    expect(screen.getByRole("heading", { name: "Managed OpenAI" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Managed OpenAI 统计" })).toHaveTextContent("1 / 30");
+    expect(screen.queryByRole("switch", { name: /自动补号/ })).not.toBeInTheDocument();
+    const opener = screen.getByRole("button", { name: "服务商设置" });
+    await user.click(opener);
+    expect(screen.getByRole("dialog", { name: "服务商设置" })).toBeVisible();
+    expect(screen.getByRole("switch", { name: /Managed OpenAI 自动补号/ })).toBeVisible();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 
   it("edits lifecycle policy and confirms delete or purge actions inside the app", async () => {
@@ -247,11 +73,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
       }),
     );
 
-    await user.click(
-      within(card("managed-provider")).getByRole("button", {
-        name: /翻面查看 Managed OpenAI 详情/,
-      }),
-    );
+    await openSettings(user);
 
     await user.click(screen.getByRole("button", { name: /编辑 Managed OpenAI 最大可用池/ }));
     const targetInput = screen.getByRole("spinbutton", { name: /Managed OpenAI 最大可用池/ });
@@ -292,7 +114,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
         ...refillDemand(), archivePurgeSupported: false, archivePurgeUnsupportedReason: "Conditional delete is unverified",
       }]])
     }));
-    await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
+    await openSettings(user);
     const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
     expect(trigger).toBeDisabled();
     expect(trigger).toHaveTextContent("受限");
@@ -310,7 +132,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
         archivePurgeSupported: false, archivePurgeUnsupportedReason: "Conditional delete is unverified",
       }]])
     }));
-    await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
+    await openSettings(user);
     const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
     expect(trigger).toBeDisabled();
     expect(trigger).toHaveTextContent("清空（不可用）");
@@ -321,7 +143,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
   it("cannot open purge confirmation against an uncommitted archive path", async () => {
     const user = userEvent.setup();
     renderWorkspace(workspaceProps({ lifecycleActionsLocked: true }));
-    await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
+    await openSettings(user);
     const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
     expect(trigger).toBeDisabled();
     await user.click(trigger);
@@ -332,7 +154,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     const user = userEvent.setup();
     const onPurgeProviderArchive = vi.fn();
     renderWorkspace(workspaceProps({ onPurgeProviderArchive }));
-    await user.click(within(card("managed-provider")).getByRole("button", { name: /翻面查看/ }));
+    await openSettings(user);
     const trigger = screen.getByRole("button", { name: /Managed OpenAI 手动清空账号归档/ });
     await user.click(trigger);
     await user.click(screen.getByRole("button", { name: "取消" }));
@@ -348,12 +170,7 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     const onUpdateProviderStoragePassword = vi.fn(() => true);
     renderWorkspace(workspaceProps({ onUpdateProviderStoragePassword }));
 
-    const providerCard = card("managed-provider");
-    await user.click(
-      within(providerCard).getByRole("button", {
-        name: /翻面查看 Managed OpenAI 详情/,
-      }),
-    );
+    const providerCard = await openSettings(user);
 
     expect(providerCard.querySelectorAll(".nt-provider-lifecycle__group")).toHaveLength(3);
     expect(providerCard.querySelector(".nt-provider-lifecycle__endpoint a")).toBeNull();
@@ -396,10 +213,12 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     const onRemoveProvider = vi.fn();
     const onRemove = vi.fn();
     renderWorkspace(workspaceProps({ onToggleDispatch, onRemoveProvider, onRemove }));
-    await user.click(screen.getByRole("switch", { name: /Managed OpenAI 调度开关/ }));
+    await chooseProvider(user);
+    await user.click(screen.getByRole("switch", { name: "服务商调度" }));
     expect(onToggleDispatch).toHaveBeenCalledWith("managed-provider", "acct-1", false);
     expect(screen.queryByRole("button", { name: "编辑" })).not.toBeInTheDocument();
-    const remove = screen.getByRole("button", { name: "删除凭据池" });
+    await user.click(screen.getByLabelText("更多操作"));
+    const remove = screen.getByRole("button", { name: "删除服务商" });
     await user.click(remove);
     expect(screen.getByRole("alertdialog", { name: "确认删除凭据池" })).toBeInTheDocument();
     expect(onRemoveProvider).not.toHaveBeenCalled();
@@ -420,14 +239,14 @@ describe("AccountsLedgerWorkspace provider cards", () => {
     const onOpenProviderSchedule = vi.fn();
     const onOpenModelMapping = vi.fn();
     renderWorkspace(workspaceProps({ pilotSections: [section], onOpenProviderSchedule, onOpenModelMapping }));
-    const footer = screen.getByRole("button", { name: "测试" }).closest("footer")!;
-    expect(Array.from(footer.querySelectorAll('button, input[role="switch"]')).map((control) => control.getAttribute("aria-label")))
-      .toEqual(["Managed OpenAI 调度开关", "测试", "模型映射", "删除凭据池"]);
+    await chooseProvider(user);
+    expect(screen.getByRole("switch", { name: "服务商调度" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "测试" }));
     expect(onOpenProviderSchedule).toHaveBeenCalledWith(section);
     await user.click(screen.getByRole("button", { name: "模型映射" }));
     expect(onOpenModelMapping).toHaveBeenCalledWith(section);
-    expect(screen.getByRole("button", { name: "删除凭据池" })).toBeEnabled();
+    await user.click(screen.getByLabelText("更多操作"));
+    expect(screen.getByRole("button", { name: "删除服务商" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: /Managed OpenAI 更多操作/ })).not.toBeInTheDocument();
   });
 });

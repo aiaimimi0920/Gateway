@@ -1,7 +1,7 @@
 //! Shared EXE data ownership. No backend or desktop framework dependency.
 pub mod devtest;
-pub mod schema;
 pub mod restore;
+pub mod schema;
 pub mod startup;
 
 use std::env;

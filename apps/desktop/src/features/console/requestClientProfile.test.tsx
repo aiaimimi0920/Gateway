@@ -8,6 +8,12 @@ import { providerDefinitionFromCatalogDraft, PROVIDER_CATALOG_TEMPLATES } from "
 import { AccountsLedgerWorkspace } from "./AccountsLedgerWorkspace";
 import { pilotSection, workspaceProps } from "./AccountsLedgerWorkspace.fixtures";
 
+async function openSettings(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ }));
+  await user.click(screen.getByRole("button", { name: "服务商设置" }));
+  return screen.getByRole("dialog", { name: "服务商设置" });
+}
+
 it("defaults legacy values and preserves credentials and independent provider settings", () => {
   expect(readRequestClientProfile(undefined)).toBe("auto");
   expect(readRequestClientProfile("unknown")).toBe("auto");
@@ -54,39 +60,34 @@ it("edits an existing provider from its card without touching the credentials", 
   render(<AccountsLedgerWorkspace {...workspaceProps({
     pilotSections: [pilotSection({ requestClientProfile: "cpa" })], onUpdateProviderRequestClientProfile,
   })} />, { wrapper: NeuroProvider });
-  await user.click(screen.getByRole("button", { name: "翻面查看 Managed OpenAI 详情" }));
+  await openSettings(user);
   const select = screen.getByRole("combobox", { name: "客户端" });
   expect(select).toHaveValue("cpa");
   await user.selectOptions(select, "codex_cli");
   expect(onUpdateProviderRequestClientProfile).toHaveBeenCalledExactlyOnceWith("managed-provider", "codex_cli");
 });
 
-it("lazily mounts both half-row controls and preserves them across flips without exposing the inactive face", async () => {
+it("mounts client and site controls inside settings and removes them on close", async () => {
   const user = userEvent.setup();
   render(<AccountsLedgerWorkspace {...workspaceProps({
     onUpdateProviderRequestClientProfile: vi.fn(),
     renderProviderSettings: () => <button type="button">站点健康</button>,
   })} />, { wrapper: NeuroProvider });
-  const card = document.querySelector('[data-provider-card="managed-provider"]') as HTMLElement;
-  expect(card.querySelector(".nt-provider-lifecycle__client-row")).toBeNull();
-  await user.click(within(card).getByRole("button", { name: /翻面查看/ }));
-  const row = card.querySelector(".nt-provider-lifecycle__client-row") as HTMLElement;
+  expect(screen.queryByRole("combobox", { name: "客户端" })).not.toBeInTheDocument();
+  const dialog = await openSettings(user);
+  const row = dialog.querySelector(".nt-provider-lifecycle__client-row") as HTMLElement;
   const client = within(row).getByRole("combobox");
   const health = within(row).getByRole("button");
   expect(row.children).toHaveLength(2);
   expect(row.children[0]).toContainElement(client);
   expect(row.children[1]).toContainElement(health);
-  for (let turn = 0; turn < 2; turn++) {
-    expect(screen.getByRole("combobox", { name: "客户端" })).toBe(client);
-    expect(screen.getByRole("button", { name: "站点健康" })).toBe(health);
-    expect(client).toBeEnabled();
-    await user.click(within(card).getByRole("button", { name: /翻回/ }));
-    expect(card.querySelector(".nt-provider-lifecycle__client-row")).toBe(row);
-    expect(row).toContainElement(health);
-    expect(client).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "站点健康" })).not.toBeInTheDocument();
-    await user.click(within(card).getByRole("button", { name: /翻面查看/ }));
-  }
+  expect(client).toBeEnabled();
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("combobox", { name: "客户端" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "站点健康" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "服务商设置" }));
+  expect(screen.getByRole("combobox", { name: "客户端" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "站点健康" })).toBeVisible();
 });
 
 it("round-trips supported camelCase policy fields without creating duplicate aliases", () => {
@@ -135,7 +136,7 @@ it("shows the site session profile as a locked card control", async () => {
   render(<AccountsLedgerWorkspace {...workspaceProps({
     pilotSections: [pilotSection({ requestClientProfile: "session" })], onUpdateProviderRequestClientProfile: onChange,
   })} />, { wrapper: NeuroProvider });
-  await user.click(screen.getByRole("button", { name: "翻面查看 Managed OpenAI 详情" }));
+  await openSettings(user);
   const select = screen.getByRole("combobox", { name: "客户端" });
   expect(select).toHaveValue("session");
   expect(select).toBeDisabled();

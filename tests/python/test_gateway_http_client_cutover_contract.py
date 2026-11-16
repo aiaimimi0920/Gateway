@@ -94,12 +94,15 @@ class GatewayHttpClientCutoverContractTests(unittest.TestCase):
             "provider_quota/generic_balance.rs": 1,
             "provider_runtime/http_probe.rs": 1,
             "splitter/service.rs": 2,
-            "upstream/client_initialization.rs": 2,
+            "upstream/client_initialization.rs": 3,
             "keepalive/chatgpt_web/mod.rs": 1,
             "keepalive/qwen_web/signin.rs": 1,
         }
         for file, count in owners.items():
             text = (ROOT / "src" / file).read_text(encoding="utf-8")
+            if file == "provider_runtime/http_probe.rs":
+                # Local no-proxy test clients are not production default clients.
+                text = text.split("#[cfg(test)]", 1)[0]
             self.assertNotRegex(text, r"Client::(?:builder|new)\(")
             self.assertEqual(len(re.findall(r"crate::http_client::(?:builder|client)\(", text)), count)
 

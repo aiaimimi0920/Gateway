@@ -193,9 +193,13 @@ fn ensure_successful_producer_video_final_status_rejects_terminal_contract() {
     assert_eq!(error.http_status, Some(500));
     assert_eq!(error.provider_name.as_deref(), Some("producer_compatible"));
     assert_eq!(error.code.as_deref(), Some("producer_http_video_failed"));
+    let encoded = error
+        .message
+        .strip_prefix("Producer video job entered terminal status 'failed'. status payload: ")
+        .expect("terminal error must identify its status and payload");
     assert_eq!(
-        error.message,
-        "Producer video job entered terminal status 'failed'. status payload: {\"reason\":\"upstream\",\"status\":\"failed\"}"
+        serde_json::from_str::<serde_json::Value>(encoded).unwrap(),
+        payload
     );
 }
 

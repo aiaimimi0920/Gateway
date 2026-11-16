@@ -29,7 +29,9 @@ class UdioBrowserWorkerContractTests(unittest.TestCase):
         self.assertIn("borrowedContext: true", source)
         self.assertIn("if (borrowedContext && !existingPage)", source)
         self.assertIn("if (!borrowedContext && (!existingPage", source)
-        self.assertIn("allowNavigation: !browserCdpUrl", source)
+        owned_flow = source.split('if (!browserCdpUrl) {', 1)[1].split('} else {', 1)[0]
+        self.assertIn('allowNavigation: true', owned_flow)
+        self.assertEqual(source.count('allowNavigation: true'), owned_flow.count('allowNavigation: true'))
 
     def test_runtime_state_is_not_overwritten_by_static_cookie_material(self):
         source = WORKER.read_text(encoding="utf-8")
@@ -52,7 +54,7 @@ class UdioBrowserWorkerContractTests(unittest.TestCase):
         resolve_index = source.index(
             "const authToken = await resolveUdioAccessToken(page, baseUrl);"
         )
-        submit_index = source.index("let submitOutcome = await submitGeneration()")
+        submit_index = source.index("return await runGeneration({")
         authorization_index = source.index(
             "...(authToken ? { authorization: authToken } : {}),"
         )
@@ -64,14 +66,15 @@ class UdioBrowserWorkerContractTests(unittest.TestCase):
         self.assertLess(resolve_index, submit_index)
         self.assertGreater(authorization_index, captcha_probe_index)
         self.assertLess(authorization_index, submit_index)
-        authorization_occurrences = source.count(
-            "...(authToken ? { authorization: authToken } : {}),"
-        )
-        self.assertGreaterEqual(authorization_occurrences, 3)
+        self.assertIn('const headers = { accept: "application/json", origin, referer, ...(authToken ? { authorization: authToken } : {}) }', source)
+        self.assertIn('headers: { ...headers, "content-type": "application/json" }', source)
+        self.assertIn('method: "GET", headers, timeoutMs:', source)
         self.assertIn("cookies = await context.cookies().catch(() => [])", source)
         self.assertIn('session.send("Network.getAllCookies")', source)
         self.assertIn("delete requestBody.captchaToken", source)
-        self.assertEqual(source.count("submitOutcome = await submitGeneration()"), 2)
+        generation = read_sources("generation")
+        self.assertEqual(generation.count("await submit(remaining())"), 1)
+        self.assertIn("Generation was not replayed", generation)
 
     def test_manual_captcha_uses_one_bounded_wait_window(self):
         source = read_sources("captcha")
@@ -89,44 +92,25 @@ class UdioBrowserWorkerContractTests(unittest.TestCase):
         self.assertIn('"error-callback": () =>', source)
 
     def test_cdp_generation_uses_the_native_create_flow(self):
-        source = read_sources("entry", "native-flow", "responses")
-
-        helper_index = source.index("async function submitGenerationThroughPageUi")
-        response_index = source.index(".waitForResponse", helper_index)
-        fill_index = source.index("await promptInput.fill(prompt)", helper_index)
-        click_index = source.index("await createButton.click()", helper_index)
-
-        self.assertIn('page.locator("textarea").first()', source[helper_index:])
-        self.assertIn(
-            'page.getByRole("button", { name: "Create", exact: true })',
-            source[helper_index:],
-        )
-        self.assertIn('normalizePathname(requestUrl.pathname) === "/api/generate-proxy"', source)
-        self.assertIn('response.request().method() === "POST"', source)
-        self.assertLess(fill_index, response_index)
-        self.assertLess(response_index, click_index)
-        self.assertIn("? await submitGenerationThroughPageUi(page", source)
-        self.assertIn("await waitForNativeCreateButton(page", source)
-        self.assertIn("const availableCreateButton = await findNativeCreateButton(page)", source)
-        self.assertIn("if (sawCreateUnavailable && challengeCycleRetries < 3)", source)
-        self.assertIn("await availableCreateButton.click()", source)
-        self.assertIn("await resolveVercelCheckpointInBorrowedPage(page", source)
-        self.assertIn('const checkpointUrl = `${baseUrl}/api/users/current`', source)
-        self.assertIn('await debugLog(debugLogPath, "native_checkpoint_ready", {})', source)
-        self.assertNotIn('"native_submit_challenge_retry"', source)
-        self.assertIn("while (Date.now() < deadline)", source)
-        self.assertIn("const waitDeadline = Date.now() + waitTimeoutMs", source)
-        self.assertIn(
-            "songs.every((song) => songHasTargetAsset(song, targetAssetKind))",
-            source,
-        )
-        self.assertNotIn("song?.readyToStream === true", source)
-        self.assertNotIn("song?.ready_to_stream === true", source)
-        self.assertNotIn(
-            "const waitDeadline = Math.min(overallDeadline, Date.now() + waitTimeoutMs)",
-            source,
-        )
-        self.assertIn("await browserFetch(page", source)
+        entry = read_sources("entry")
+        flow = read_sources("native-flow")
+        native = read_sources("native-submit")
+        generation = read_sources("generation")
+        self.assertIn("? submitGenerationThroughPageUi(page", entry)
+        self.assertIn("submitNativeGeneration(page", flow)
+        self.assertIn('page.locator("textarea").first()', native)
+        self.assertIn('page.getByRole("button", { name: "Create", exact: true })', flow)
+        self.assertIn('value.request().method().toUpperCase() !== "POST"', native)
+        self.assertIn('url.origin === origin', native)
+        self.assertIn('pageOnly: true, failOnBodyError: true, bodyBytes: 128 * 1024', native)
+        self.assertLess(native.index("await capture.ready"), native.index("await input.fill"))
+        self.assertLess(native.index("gate.arm()"), native.index("await button.click"))
+        self.assertEqual(native.count("await button.click"), 1)
+        self.assertIn("await gate?.stop()", native)
+        self.assertIn("await capture?.stop()", native)
+        self.assertIn("const until = Math.min(deadline, now() + waitTimeoutMs)", generation)
+        self.assertIn("songs.length === trackIds.length && songsReadyForTarget", generation)
+        self.assertIn("!trackIds.includes(song.id)", generation)
 
 
 if __name__ == "__main__":

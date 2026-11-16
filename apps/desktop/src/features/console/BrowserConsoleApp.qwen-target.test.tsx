@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { BrowserConsoleApp } from "./BrowserConsoleApp";
 import { createConsoleApi, preserveCommittedRouteDocument } from "./BrowserConsoleApp.api-fixture";
-import { renderWithProviders, waitForConsoleReady, openWorkspace, flipProviderCard, waitForCommittedRouteDraft } from "./BrowserConsoleApp.render-fixture";
+import { renderWithProviders, waitForConsoleReady, openWorkspace, openProviderSettings, waitForCommittedRouteDraft } from "./BrowserConsoleApp.render-fixture";
 
 const base = "https://workspace-a.cn-beijing.maas.aliyuncs.com/compatible-mode/v1";
 const override = base.replace("workspace-a", "account-b");
@@ -19,7 +19,7 @@ async function setup() {
   await preserveCommittedRouteDocument(api);
   const user = userEvent.setup(); renderWithProviders(<BrowserConsoleApp consoleApi={api} />);
   await waitForConsoleReady(); await openWorkspace(user, /凭据池/i);
-  const back = await flipProviderCard(user, /^Qwen Ordinary-api$/);
+  const back = await openProviderSettings(user, /Qwen Ordinary/);
   await user.click(within(back).getByRole("button", { name: "Qwen 默认目标" }));
   return { api, user };
 }

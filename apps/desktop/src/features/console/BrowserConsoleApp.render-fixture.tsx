@@ -129,17 +129,12 @@ export function providerCard(name: RegExp) {
   return card as HTMLElement;
 }
 
-/**
- * Pool policy and aggregated detail live on the card back face, so tests must
- * flip the card before those controls exist. The front title button disappears
- * once flipped, so hold onto the card element instead of re-querying by name.
- */
-export async function flipProviderCard(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
-  const card = providerCard(name);
-  await user.click(within(card).getByRole("button", { name: /翻面查看|Flip .* for details/i }));
-  const back = card.querySelector(".nt-provider-card__back-body");
-  expect(back).not.toBeNull();
-  return back as HTMLElement;
+/** Open the current directory settings dialog without bypassing provider selection. */
+export async function openProviderSettings(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
+  const directory = within(screen.getByRole("navigation", { name: "服务商目录" }));
+  await user.click(directory.getByRole("button", { name }));
+  await user.click(screen.getByRole("button", { name: "服务商设置" }));
+  return screen.getByRole("dialog", { name: "服务商设置" });
 }
 
 export function providerAccountLibrary(name: RegExp) {

@@ -63,7 +63,7 @@ export function OperationsRequestTable({ rows, t }: { rows: ConsoleRequestAudit[
           </td></tr>}
         </Fragment>;
       })}
-      {!rows.length && <tr><td colSpan={headers.length} className="n-muted">{t("没有匹配的请求", "No matching requests")}</td></tr>}
+      {!rows.length && <tr><td colSpan={headers.length} className="n-muted"><span role="status" aria-live="polite">{t("没有匹配的请求", "No matching requests")}</span></td></tr>}
       </tbody>
     </table></div>
   </div>;

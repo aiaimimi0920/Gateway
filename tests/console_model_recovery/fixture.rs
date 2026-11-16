@@ -122,6 +122,20 @@ impl Fixture {
         self.local.model_failure(self.failure()).await.unwrap();
     }
 
+    pub async fn make_model_storage_unavailable(&self) {
+        use sqlx::Connection;
+        let options = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(self.directory.join("runtime.sqlite3"));
+        let mut connection = sqlx::SqliteConnection::connect_with(&options)
+            .await
+            .unwrap();
+        sqlx::query("ALTER TABLE credential_model_states RENAME TO unavailable_model_states")
+            .execute(&mut connection)
+            .await
+            .unwrap();
+        connection.close().await.unwrap();
+    }
+
     pub async fn finish(self) {
         self.server.abort();
         let _ = self.server.await;

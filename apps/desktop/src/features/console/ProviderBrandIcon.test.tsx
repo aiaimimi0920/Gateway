@@ -1,7 +1,6 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { card, pilotSection, renderWorkspace, workspaceProps } from "./AccountsLedgerWorkspace.fixtures";
 import { ProviderBrandIcon } from "./ProviderBrandIcon";
 import { providerBrandAssets } from "./providerBrandAssets";
 import { providerCardVisual } from "./providerCardVisual";
@@ -30,20 +29,16 @@ describe("provider trademark icons", () => {
     expect(container.textContent).toBe("C");
   });
 
-  it.each(brands)("renders the bundled %s trademark on both card faces", (id, preset, label, key) => {
-    renderWorkspace(workspaceProps({ pilotSections: [pilotSection({
-      providerId: id, providerIds: [id], providerPreset: preset,
-      providerLabel: label, vendorLabel: label,
-    })] }));
-    for (const side of ["front", "back"]) {
-      const icon = card(id).querySelector(`.nt-provider-card__${side} [data-provider-icon]`);
-      expect(icon).toHaveAttribute("data-provider-icon", key);
-      const mark = icon?.querySelector("img");
-      expect(mark).not.toBeNull();
-      expect(mark).toHaveAttribute("alt", "");
-      expect(mark?.getAttribute("src")).not.toMatch(/^https?:/);
-      expect(icon?.textContent).toBe("");
-    }
+  it.each(brands)("resolves and renders the bundled %s trademark", (id, preset, label, key) => {
+    const visual = providerCardVisual({ providerId: id, providerPreset: preset, providerLabel: label });
+    const { container } = render(<ProviderBrandIcon iconKey={visual.iconKey} fallback={visual.iconLabel} />);
+    const icon = container.querySelector("[data-provider-icon]");
+    expect(icon).toHaveAttribute("data-provider-icon", key);
+    const mark = icon?.querySelector("img");
+    expect(mark).not.toBeNull();
+    expect(mark).toHaveAttribute("alt", "");
+    expect(mark?.getAttribute("src")).not.toMatch(/^https?:/);
+    expect(icon?.textContent).toBe("");
   });
 
   it.each([

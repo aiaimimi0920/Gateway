@@ -20,7 +20,8 @@ it("opens the pool plan list and autosaves a named plan without rewriting an acc
     session: { secretAccessGranted: true }, secretGrant: { grant: "grant-1", expiresAt: "2099-01-01T00:00:00Z" },
   });
   await waitForConsoleReady(); await openWorkspace(user, /凭据池/i);
-  await user.click(within(providerCard(/^Plan Pool$/)).getByRole("button", { name: "测试" }));
+  await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^Plan Pool/ }));
+  await user.click(screen.getByRole("button", { name: "测试" }));
   expect(screen.getByRole("tab", { name: "测试" })).toBeInTheDocument();
   expect(screen.queryByRole("textbox", { name: "计划名称" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "添加" }));

@@ -4,6 +4,10 @@
 #[cfg(test)]
 extern crate self as neuro_gateway;
 
+#[cfg(test)]
+#[path = "../tests/gemini_canvas_host_ingress_contract/http_contract.rs"]
+mod canvas_http_ingress_contract;
+
 pub mod access_balance;
 pub mod access_control;
 pub mod access_key_groups;

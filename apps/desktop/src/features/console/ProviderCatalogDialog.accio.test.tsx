@@ -18,5 +18,5 @@ it("exposes the real Accio template with a unique ID, immutable target and no fi
     templateId: "accio-oauth", providerId: "accio-oauth-3",
     supportedModels: [], secrets: {}, workflow: expect.objectContaining({ specialAdapter: "accio" })
   }));
-  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("credentialId"); expect(onRequestSecretAccess).not.toHaveBeenCalled();
+  expect(onSubmit.mock.calls[0][0].credentialId).toBeUndefined(); expect(onRequestSecretAccess).not.toHaveBeenCalled();
 });

@@ -24,7 +24,10 @@ class GatewayDesktopProductContractTests(unittest.TestCase):
         self.assertIn("GATEWAY_RUNTIME_ROLE", validation_text)
         self.assertIn("GATEWAY_MANAGEMENT_TOKEN", validation_text)
         self.assertIn("runtimeRole", templates_text)
-        self.assertIn("gatewayManagementToken", config_text)
+        self.assertIn('<ProfileFields profile={profile} errors={validation.fieldErrors} onChange={patchProfile}', config_text)
+        fields = self.read("src/features/config/ProfileFields.tsx")
+        self.assertIn("profile.gatewayManagementToken", fields)
+        self.assertIn('type="password"', fields)
 
     def test_path_check_surfaces_dependency_preflight_and_shutdown_state(self):
         types_text = self.read("src/lib/types.ts")
@@ -36,7 +39,8 @@ class GatewayDesktopProductContractTests(unittest.TestCase):
         self.assertIn("preflightOk", types_text)
         self.assertIn("redis", types_text)
         self.assertIn("database", types_text)
-        self.assertIn("preflightMessages", config_text)
+        self.assertIn('<ProfilePathResults result={state.pathCheck}', config_text)
+        self.assertIn("result.preflightMessages", self.read("src/features/config/ProfilePathResults.tsx"))
         self.assertIn("shutdownState", types_text)
         self.assertIn("shutdownState", status_text)
         self.assertIn('snapshot.shutdownState === "forced"', state_text)

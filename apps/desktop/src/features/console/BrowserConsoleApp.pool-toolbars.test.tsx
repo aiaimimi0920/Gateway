@@ -13,12 +13,12 @@ it("replaces group/model headings with independent search/sort controls without 
   renderWithProviders(<BrowserConsoleApp consoleApi={api} />);
   await waitForConsoleReady();
   await openWorkspace(user, /权益组/i);
-  expect(screen.queryByRole("heading", { name: "权益组" })).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "权益组", level: 1 })).toBeVisible();
   await user.type(screen.getByRole("searchbox", { name: "搜索权益池" }), "premium");
   await user.click(screen.getByRole("combobox", { name: "权益池排序" }));
   await user.click(screen.getByRole("option", { name: "调用次数最多" }));
   await openWorkspace(user, /模型池/i);
-  expect(screen.queryByRole("heading", { name: "模型池" })).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "模型池", level: 1 })).toBeVisible();
   expect(screen.getByRole("searchbox", { name: "搜索模型" })).toHaveValue("");
   await user.type(screen.getByRole("searchbox", { name: "搜索模型" }), "gemini");
   await user.click(screen.getByRole("combobox", { name: "模型排序" }));

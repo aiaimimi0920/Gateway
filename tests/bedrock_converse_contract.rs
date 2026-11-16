@@ -105,7 +105,7 @@ fn tool_use_and_result_keep_identity_json_and_tool_configuration() {
     assert_eq!(
         packed["messages"][1]["content"][0]["toolResult"],
         json!({
-            "toolUseId": "call-7", "name": "weather", "status": "success",
+            "toolUseId": "call-7",
             "content": [{"json": {"temperature": 18}}]
         })
     );

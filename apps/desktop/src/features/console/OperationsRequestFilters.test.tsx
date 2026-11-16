@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderNeuro as render } from "../../test/renderNeuro";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -40,12 +41,12 @@ describe("operations request filter form", () => {
     const apply = vi.fn();
     const user = userEvent.setup();
     render(<Filters apply={apply} />);
-    expect(screen.getByLabelText("Project")).not.toBeVisible();
-    await user.click(screen.getByText("More filters"));
-    await user.type(screen.getByLabelText("Project"), "project-a");
+    expect(screen.queryByLabelText("Project")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Status"), "custom-status");
-    expect(screen.getByLabelText("Project")).toHaveValue("project-a");
     expect(screen.getByLabelText("Status")).toHaveValue("custom-status");
+    await user.click(screen.getByRole("button", { name: "More filters" }));
+    await user.type(screen.getByLabelText("Project"), "project-a");
+    expect(screen.getByLabelText("Project")).toHaveValue("project-a");
     expect(apply).not.toHaveBeenCalled();
     await user.clear(screen.getByLabelText("Project"));
     expect(screen.getByLabelText("Project")).toBeVisible();
@@ -54,7 +55,7 @@ describe("operations request filter form", () => {
     expect(apply).toHaveBeenCalledOnce();
   });
 
-  it("reveals populated advanced fields and resets the draft without issuing a query", async () => {
+  it("counts populated advanced fields and resets the draft without issuing a query", async () => {
     const apply = vi.fn();
     const user = userEvent.setup();
     render(
@@ -67,14 +68,15 @@ describe("operations request filter form", () => {
         }}
       />,
     );
-    expect(screen.getByLabelText("Error code")).toBeVisible();
-    expect(
-      screen.getByText("More filters").closest("summary"),
-    ).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: /More filters/ })).toHaveTextContent("2");
+    await user.click(screen.getByRole("button", { name: /More filters/ }));
+    expect(screen.getByLabelText("Error code")).toHaveValue("upstream_error");
+    await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Reset" }));
+    expect(screen.getByLabelText("Limit")).toHaveValue("100");
+    await user.click(screen.getByRole("button", { name: /More filters/ }));
     expect(screen.getByLabelText("Error code")).toHaveValue("");
     expect(screen.getByLabelText("Provider account")).toHaveValue("");
-    expect(screen.getByLabelText("Limit")).toHaveValue("100");
     expect(apply).not.toHaveBeenCalled();
   });
 

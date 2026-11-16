@@ -3,16 +3,19 @@ import { PROVIDER_CATALOG_TEMPLATES, type ProviderCatalogTemplate } from "./prov
 import { addCatalogProvider } from "./providerCatalogCreation";
 import { catalogHealthAdapter, defaultCatalogWorkflow } from "./providerCatalogWorkflow";
 import { vertexTargetBase } from "./vertexOAuth";
+import { sapBase } from "./sapAiCoreTestFixtures";
 
 function create(template: ProviderCatalogTemplate, enabled?: boolean) {
   const workflow = defaultCatalogWorkflow(template);
+  const kiroProfileArn = template.id === "kiro-oauth" ? "arn:aws:codewhisperer:us-east-1:123456789012:profile/synthetic" : undefined;
+  const sapTarget = template.id === "sap-aicore-chat" ? { resourceGroup: "group-a", apiVersion: "2024-10-21" } : undefined;
   const vertexTarget = template.id === "vertex-oauth" ? { project: "synthetic-project", location: "global" } : undefined;
-  const baseUrl = vertexTarget ? vertexTargetBase(vertexTarget)! : template.preset === "qwen-official-api"
+  const baseUrl = template.id === "cloudflare-workers-ai" ? "https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef/ai/v1" : kiroProfileArn ? "https://runtime.us-east-1.kiro.dev" : sapTarget ? sapBase : vertexTarget ? vertexTargetBase(vertexTarget)! : template.preset === "qwen-official-api"
     ? "https://synthetic-workspace.cn-beijing.maas.aliyuncs.com/compatible-mode/v1" : template.baseUrl;
   if (enabled !== undefined) workflow.health.enabled = enabled;
   return addCatalogProvider({ providers: [], model_routes: [], aliases: {} }, template, {
     templateId: template.id, providerId: template.providerId, providerLabel: template.labelEn,
-    vendorKey: template.vendorKey, vendorName: template.vendorName, baseUrl, vertexTarget,
+    vendorKey: template.vendorKey, vendorName: template.vendorName, baseUrl, vertexTarget, kiroProfileArn, sapTarget,
     supportedModels: [...template.supportedModels], workflow,
   }).providers[0];
 }

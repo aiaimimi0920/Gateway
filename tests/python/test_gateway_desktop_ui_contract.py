@@ -3,7 +3,7 @@ import re
 import unittest
 from pathlib import Path
 
-from gateway_desktop_source import read_styles
+from gateway_desktop_source import read_styles, read_neuro_ui
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -107,24 +107,27 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         styles = DESKTOP_ROOT / "src" / "styles.css"
         self.assertTrue(styles.exists(), "Gateway desktop styles.css must exist")
         css = read_styles(styles)
+        shared_css = read_neuro_ui(DESKTOP_ROOT, "styles.css")
+        for token in ["--n-yellow: #d9ff38", "--n-green: #22c55e", "--n-blue: #06b6d4", "--n-red: #f43f5e"]:
+            self.assertIn(token, shared_css)
+        self.assertIn('import "@neuro/ui/styles.css"', (DESKTOP_ROOT / "src/main.tsx").read_text(encoding="utf-8"))
         for required in [
-            "--nt-color-signal-yellow: #d9ff38",
-            "--nt-color-signal-green: #22c55e",
-            "--nt-color-info-blue: #06b6d4",
-            "--nt-color-danger-red: #f43f5e",
-            "--nt-signal: var(--nt-color-signal-yellow)",
-            "--nt-cyan: var(--nt-color-info-blue)",
-            "--nt-graphite: var(--nt-color-background)",
-            "--nt-canvas: var(--nt-color-background)",
+            "--nt-color-background: var(--n-bg)",
+            "--nt-signal: var(--n-signal)",
+            "--nt-success: var(--n-success)",
+            "--nt-info: var(--n-info)",
+            "--nt-danger: var(--n-danger)",
         ]:
             self.assertIn(required, css)
-        for selector in [".nt-shell", ".nt-rail", ".nt-board", ".nt-btn", ".nt-input", ".nt-brand__name"]:
+        for selector in [".nt-shell", ".nt-rail", ".nt-board", ".nt-brand__name"]:
             self.assertIn(selector, css)
+        for selector in [".n-button", ".n-input"]:
+            self.assertIn(selector, shared_css)
         shell = (DESKTOP_ROOT / "src/features/shell/AppShell.tsx").read_text(encoding="utf-8")
         self.assertIn('className="nt-brand__name"', shell)
         self.assertNotIn("linear-gradient(135deg, #8b5cf6, #d946ef", css)
 
-    def test_browser_console_uses_global_top_right_dismissible_toasts(self):
+    def test_browser_console_uses_shared_theme_scoped_dismissible_toasts(self):
         toast_file = DESKTOP_ROOT / "src" / "components" / "AppToast.tsx"
         toast_test_file = DESKTOP_ROOT / "src" / "components" / "AppToast.test.tsx"
         main_file = DESKTOP_ROOT / "src" / "main.tsx"
@@ -135,18 +138,20 @@ class GatewayDesktopUiContractTests(unittest.TestCase):
         main_text = main_file.read_text(encoding="utf-8")
         css = read_styles(styles_file)
 
-        self.assertIn("createPortal", toast_text)
-        self.assertIn("document.body", toast_text)
-        self.assertIn("TOAST_LIFETIME_MS", toast_text)
-        self.assertIn("onClick={dismiss}", toast_text)
-        self.assertIn('role={role}', toast_text)
+        shared = read_neuro_ui(DESKTOP_ROOT, "feedback.tsx")
+        shared_css = read_neuro_ui(DESKTOP_ROOT, "styles.css")
+        self.assertIn('<ToastViewport entries={notifications} onRemove={remove}', toast_text)
+        self.assertIn('createPortal', shared)
+        self.assertIn('const { portal } = useNeuroTheme()', shared)
+        self.assertIn('tone === "danger" ? 5200', shared)
+        self.assertIn('onClick={dismissItem}', shared)
+        self.assertIn('role={tone === "danger" ? "alert" : "status"}', shared)
+        self.assertIn('aria-live={tone === "danger" ? "assertive" : "polite"}', shared)
         self.assertIn("<AppToastViewport />", main_text)
-        self.assertIn(".nt-toast-viewport", css)
-        self.assertIn("position: fixed", css)
-        self.assertIn("top: 64px", css)
-        self.assertIn("right: 18px", css)
+        self.assertIn(".n-toast-stack", shared_css)
+        self.assertIn("position: fixed", shared_css)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
-        self.assertIn("portals the notification viewport to the document body", toast_test_text)
+        self.assertIn("portals the notification viewport inside the current theme", toast_test_text)
         self.assertIn("preserves the longer error lifetime", toast_test_text)
 
     def test_account_ledger_filters_orphans_and_wires_trusted_pool_automation(self):

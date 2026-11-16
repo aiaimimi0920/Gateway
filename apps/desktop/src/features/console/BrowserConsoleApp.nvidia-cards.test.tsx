@@ -5,7 +5,7 @@ import { BrowserConsoleApp } from "./BrowserConsoleApp";
 import type { ConsoleApi } from "../../api/console";
 import type { ConsoleCostOverview } from "../../api/contracts";
 import { createConsoleApi, preserveCommittedRouteDocument } from "./BrowserConsoleApp.api-fixture";
-import { openWorkspace, providerCard, renderWithProviders, waitForCommittedRouteDraft, waitForConsoleReady } from "./BrowserConsoleApp.render-fixture";
+import { openWorkspace, renderWithProviders, waitForCommittedRouteDraft, waitForConsoleReady } from "./BrowserConsoleApp.render-fixture";
 
 const model = "nvidia/nemotron-3-super-120b-a12b";
 
@@ -34,6 +34,7 @@ async function setup(configure?: (api: ConsoleApi) => void) {
   const user = userEvent.setup();
   await waitForConsoleReady();
   await openWorkspace(user, /凭据池/i);
+  await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^NVIDIA/ }));
   return { api, user };
 }
 
@@ -42,7 +43,7 @@ describe("NVIDIA card dispatch and models", () => {
 
   it("persists stopping and resuming every credential in one pool click", async () => {
     const { api, user } = await setup();
-    const toggle = () => within(providerCard(/^NVIDIA-api$/)).getByRole("switch");
+    const toggle = () => screen.getByRole("switch", { name: "服务商调度" });
     expect(toggle()).toBeChecked();
     await user.click(toggle());
     const stopped = await waitForCommittedRouteDraft(api);
@@ -67,21 +68,22 @@ describe("NVIDIA card dispatch and models", () => {
 
   it("shows inherited and credential-specific models on the front faces", async () => {
     const { user } = await setup();
-    const front = providerCard(/^NVIDIA-api$/).querySelector(".nt-provider-card__front") as HTMLElement;
-    for (const summary of front.querySelectorAll(".nt-card-models summary")) await user.click(summary);
-    expect(within(front).getByLabelText(model)).toHaveTextContent("nemotron-3-super-120b-a12b");
-    expect(within(front).getByLabelText(model)).toBeVisible();
-    expect(within(front).getByText("deepseek-v3.2")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: /^显示 NVIDIA 账号库$/ }));
-    const a = screen.getByRole("article", { name: "NVIDIA A 账号" });
-    const b = screen.getByRole("article", { name: "NVIDIA B 账号" });
-    for (const card of [a, b]) {
-      for (const summary of card.querySelectorAll(".nt-card-models summary")) await user.click(summary);
-    }
-    expect(within(a).getByLabelText(model)).toBeVisible();
-    expect(within(a).queryByText("deepseek-v3.2")).not.toBeInTheDocument();
-    expect(within(b).getByLabelText(model)).toBeVisible();
-    expect(within(b).getByText("deepseek-v3.2")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "模型" }));
+    const expandModels = async () => {
+      for (const summary of document.querySelectorAll(".nt-card-models details:not([open]) > summary")) await user.click(summary);
+    };
+    await expandModels();
+    expect(screen.getByLabelText(model)).toBeVisible();
+    expect(screen.getByText("deepseek-v3.2")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "账号" }));
+    await user.click(screen.getByRole("button", { name: "NVIDIA A" }));
+    await expandModels();
+    expect(screen.getByLabelText(model)).toBeVisible();
+    expect(screen.queryByText("deepseek-v3.2")).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox", { name: "切换账号" }), "nvidia:nv-b");
+    await expandModels();
+    expect(screen.getByLabelText(model)).toBeVisible();
+    expect(screen.getByText("deepseek-v3.2")).toBeVisible();
   });
 
   it("renders observed pool metrics once and never turns estimated costs into income", async () => {
@@ -98,26 +100,21 @@ describe("NVIDIA card dispatch and models", () => {
       });
       api.getCostOverview = vi.fn().mockResolvedValue({ overview: costOverview() });
     });
-    const card = providerCard(/^NVIDIA-api$/);
-    const metric = (name: string) => card.querySelector(`[data-provider-metric="${name}"]`);
-    expect(metric("concurrency")).toHaveTextContent("3/12");
-    expect(metric("upstream-cost")).toHaveTextContent("$1.25");
-    expect(metric("requests")).toHaveTextContent("47");
-    await user.click(card.querySelector('[data-model-company="nvidia"] summary')!);
-    const modelRequests = () => card.querySelector(`[data-card-model="${model}"] [data-model-metric="requests"]`);
+    const metric = (label: string) => within(screen.getByRole("region", { name: "NVIDIA 统计" })).getByText(label).parentElement;
+    expect(metric("并发")).toHaveTextContent("3/12");
+    expect(metric("上游费用估算")).toHaveTextContent("≈$1.25");
+    expect(metric("请求数")).toHaveTextContent("47");
+    expect(metric("平台收入")).toHaveTextContent("—");
+    await user.click(screen.getByRole("button", { name: "模型" }));
+    await user.click(document.querySelector('[data-model-company="nvidia"] summary')!);
+    const modelRequests = () => document.querySelector(`[data-card-model="${model}"] [data-model-metric="requests"]`);
     expect(modelRequests()).toHaveTextContent("47");
-    expect(metric("platform-revenue")).toHaveTextContent("—");
-    expect(within(card).queryByText("已配置 / 目标")).not.toBeInTheDocument();
-    const pool = card.querySelector(".nt-provider-card__pool")!;
-    expect(pool.firstElementChild).toHaveClass("nt-provider-card__pool-bar");
-    expect(pool.lastElementChild).toHaveClass("nt-provider-card__pool-value");
     vi.mocked(api.getCostOverview!).mockResolvedValue({ overview: costOverview(48, 100) });
     await user.click(screen.getByRole("button", { name: /^刷新$/ }));
-    await waitFor(() => expect(metric("requests")).toHaveTextContent("48"));
+    await waitFor(() => expect(metric("请求数")).toHaveTextContent("48"));
     expect(modelRequests()).toHaveTextContent("48");
-    expect(card.querySelector('[data-model-company="nvidia"] .n-disclosure')).toHaveAttribute("open");
-    expect(metric("upstream-cost")).toHaveTextContent("≈$0.0001");
-    expect(metric("platform-revenue")).toHaveTextContent("—");
+    expect(metric("上游费用估算")).toHaveTextContent("≈$0.0001");
+    expect(metric("平台收入")).toHaveTextContent("—");
   });
 
   it.each(["unpriced", "partial", "non-usd"])("does not present %s usage as a complete USD cost", async (kind) => {
@@ -130,10 +127,10 @@ describe("NVIDIA card dispatch and models", () => {
     });
     if (kind === "non-usd") bucket.models[0].marketRate!.currency = "CNY";
     await setup((api) => { api.getCostOverview = vi.fn().mockResolvedValue({ overview }); });
-    const card = providerCard(/^NVIDIA-api$/);
-    expect(card.querySelector('[data-provider-metric="upstream-cost"]')).toHaveTextContent("—");
-    expect(card.querySelector('[data-provider-metric="platform-revenue"]')).toHaveTextContent("—");
-    expect(card.querySelector('[data-provider-metric="requests"]')).toHaveTextContent("47");
+    const metric = (label: string) => within(screen.getByRole("region", { name: "NVIDIA 统计" })).getByText(label).parentElement;
+    expect(metric("上游费用估算")).toHaveTextContent("—");
+    expect(metric("平台收入")).toHaveTextContent("—");
+    expect(metric("请求数")).toHaveTextContent("47");
   });
 });
 

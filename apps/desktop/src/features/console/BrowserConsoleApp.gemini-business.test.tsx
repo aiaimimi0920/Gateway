@@ -99,12 +99,8 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^Gemini Business-web$/i }));
-
-    const businessArticle = providerAccountLibrary(/Gemini Business 账号库/i);
-    await user.click(
-      within(businessArticle).getByRole("button", { name: /手动添加|Manual add/i }),
-    );
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^Gemini Business/i }));
+    await user.click(within(document.querySelector(".nt-credential-directory__head") as HTMLElement).getByRole("button", { name: "添加账号" }));
 
     await waitFor(() =>
       expect(consoleApi.createGeminiAuthSession).toHaveBeenCalledWith("management-secret", {

@@ -53,8 +53,9 @@ describe("standard shell controls", () => {
     const title = screen.getByRole("heading", { name: /设置\s*常规/ });
     expect(title.closest("header")).toBe(screen.getByRole("combobox", { name: "查找设置" }).closest("header"));
     expect(title.closest("header")).toBe(screen.getByRole("button", { name: "刷新" }).closest("header"));
-    await user.click(screen.getByRole("tab", { name: "隐私" }));
-    expect(screen.getByRole("heading", { name: /设置\s*隐私/ })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "隐私" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "同步与备份" }));
+    expect(screen.getByRole("heading", { name: /设置\s*同步与备份/ })).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "关于" }));
     expect(screen.getByRole("heading", { name: /设置\s*关于/ })).toBeInTheDocument();
     expect(document.querySelector(".nt-board__header")).toBeNull();

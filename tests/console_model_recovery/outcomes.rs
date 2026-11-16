@@ -115,7 +115,9 @@ async fn storage_failure_does_not_turn_a_real_reply_into_confirmed_recovery() {
     let probe = fixture.probe();
     let close = async {
         entered(&fixture).await;
-        fixture.local.close().await;
+        // Inject storage loss, not graceful shutdown: close() deliberately waits
+        // for this in-flight probe's finalizer before retiring the runtime.
+        fixture.make_model_storage_unavailable().await;
         fixture.gate.release.add_permits(1);
     };
     let (report, ()) = tokio::join!(probe, close);

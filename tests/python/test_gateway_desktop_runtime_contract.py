@@ -97,10 +97,14 @@ class GatewayDesktopRuntimeContractTests(unittest.TestCase):
         self.assertIn("canStartGateway: boolean", types_text)
         self.assertIn("validateGatewayProfile(draftProfile)", state_hook_text)
         self.assertIn("state.profileValidation.errors.length", config_text)
-        self.assertIn("aria-invalid", config_text)
+        self.assertIn('errors={validation.fieldErrors}', config_text)
+        fields = config_file.with_name("ProfileFields.tsx").read_text(encoding="utf-8")
+        self.assertIn('error={errors.port}', fields)
+        behavior_tests = config_file.with_name("ConfigPanel.test.tsx").read_text(encoding="utf-8")
+        self.assertIn('aria-invalid', behavior_tests)
         self.assertIn("!state.canSaveProfile", config_text)
         self.assertIn("!state.canStartGateway", launcher_text)
-        self.assertIn(".nt-validation-list", styles_text)
+        self.assertIn('<Notice tone="danger">', config_text)
 
     def test_desktop_profile_validation_reports_extra_env_errors_by_row(self):
         validation_file = DESKTOP_ROOT / "src" / "lib" / "profileValidation.ts"
@@ -114,9 +118,10 @@ class GatewayDesktopRuntimeContractTests(unittest.TestCase):
         self.assertIn("extraEnvErrors: Record<number, string>", types_text)
         self.assertIn("pushExtraEnvError", validation_text)
         self.assertIn("validation.extraEnvErrors[index]", validation_text)
-        self.assertIn("const envRowError = validation.extraEnvErrors[index]", config_text)
-        self.assertIn("aria-invalid={Boolean(envRowError)}", config_text)
-        self.assertIn("{envRowError ? <small>{envRowError}</small> : null}", config_text)
+        self.assertIn('<ProfileEnvironmentFields entries={profile.extraEnv} errors={validation.extraEnvErrors}', config_text)
+        env_fields = config_file.with_name("ProfileEnvironmentFields.tsx").read_text(encoding="utf-8")
+        self.assertIn('error={errors[index]}', env_fields)
+        self.assertIn('entries.map((entry, index)', env_fields)
         self.assertNotIn("error.includes(entry.key)", config_text)
 
     def test_desktop_profile_import_export_uses_sanitized_json_transfer(self):
@@ -190,8 +195,11 @@ class GatewayDesktopRuntimeContractTests(unittest.TestCase):
         self.assertIn("setPathCheck", state_hook_text)
         self.assertIn("state.checkProfilePaths", config_text)
         self.assertIn("检查路径", config_text)
-        self.assertIn("renderPathCheckItem", config_text)
-        self.assertIn("nt-path-check", styles_text)
+        self.assertIn('<ProfilePathResults result={state.pathCheck}', config_text)
+        path_results = config_file.with_name("ProfilePathResults.tsx").read_text(encoding="utf-8")
+        self.assertIn("function PathResult", path_results)
+        self.assertIn("item.resolvedPath", path_results)
+        self.assertIn("gateway-path-result", styles_text)
 
     def test_desktop_profile_edits_invalidate_stale_path_check(self):
         state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayProfileState.ts"
@@ -234,7 +242,8 @@ class GatewayDesktopRuntimeContractTests(unittest.TestCase):
         self.assertIn("Profile 快速模板", config_text)
         self.assertIn("state.applyProfileTemplate", config_text)
         self.assertIn("nt-template-grid", styles_text)
-        self.assertIn("nt-template-card", styles_text)
+        self.assertIn("gateway-profile-template", config_text)
+        self.assertIn(".gateway-profile-template.n-button", styles_text)
 
     def test_tauri_profile_validation_rejects_invalid_paths_and_env_keys(self):
         profile_file = DESKTOP_ROOT / "src-tauri" / "src" / "profile.rs"

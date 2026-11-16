@@ -7,19 +7,20 @@ import { CredentialGroupEditDialog } from "./CredentialGroupEditDialog";
 import { populatedWorkspaceProps } from "./CredentialGroupsWorkspace.fixtures";
 import { AccountsLedgerWorkspace } from "./AccountsLedgerWorkspace";
 import { workspaceProps } from "./AccountsLedgerWorkspace.fixtures";
-import { resolveProviderCardDialogFocus } from "./providerCardDialogFocus";
 
 describe("account workspace standard controls", () => {
-  it("keeps the real card flip target used when a running action disables its opener", () => {
+  it("preserves the settings dialog and disables editing during a background lock", () => {
     const props = workspaceProps();
     const { rerender } = render(<NeuroProvider><AccountsLedgerWorkspace {...props} /></NeuroProvider>);
-    fireEvent.click(screen.getByRole("button", { name: "翻面查看 Managed OpenAI 详情" }));
+    fireEvent.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^Managed OpenAI/ }));
+    fireEvent.click(screen.getByRole("button", { name: "服务商设置" }));
     const opener = screen.getByRole("button", { name: "编辑 Managed OpenAI 最大可用池" });
     rerender(<NeuroProvider><AccountsLedgerWorkspace {...props} editorLocked /></NeuroProvider>);
     expect(opener).toBeDisabled();
-    const flip = screen.getByRole("button", { name: "翻回 Managed OpenAI 卡牌正面" });
-    expect(flip).toHaveClass("n-icon-button");
-    expect(resolveProviderCardDialogFocus(opener)).toBe(flip);
+    expect(screen.getByRole("button", { name: "编辑 Managed OpenAI 最大可用池" })).toBe(opener);
+    expect(screen.getByRole("dialog", { name: "服务商设置" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("keeps member row, operation node, and focus across selection and refreshed draft IDs", () => {

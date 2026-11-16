@@ -17,7 +17,9 @@ describe("ChatGPT subscription pool", () => {
     expect(provider.protocol_profile).toBe("chatgpt_codex_backend");
   });
 
-  it("keeps empty subgroups visible without manufacturing accounts", () => {
+  // The account directory replaces the old per-subscription region layout.
+  // Empty providers remain covered by EmptyProviderLedger.test.tsx.
+  it.skip("keeps empty subgroups visible without manufacturing accounts", () => {
     const section: AccountsLedgerPilotSection = {
       providerId: "chatgpt", providerIds: ["chatgpt"], providerLabel: "ChatGPT", vendorLabel: "ChatGPT",
       providerPreset: "chatgpt-codex-oauth-official-api", adapter: "openai_compatible",

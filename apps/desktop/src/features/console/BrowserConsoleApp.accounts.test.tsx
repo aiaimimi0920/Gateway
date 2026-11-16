@@ -94,13 +94,12 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
 
-    await user.click(screen.getByRole("button", { name: /^Managed OpenAI$/i }));
-
-    const providerPanel = screen.getByRole("region", { name: /^Managed OpenAI 账号库$/i });
-    const summaryAccount = providerPanel.querySelector('[data-account-card="acc-prod-1"]');
+    await user.click(screen.getByRole("button", { name: "生产账号 A" }));
+    await user.click(screen.getByRole("button", { name: "账号配置" }));
+    const summaryAccount = document.querySelector('[data-account-card="acc-prod-1"]');
     expect(summaryAccount).not.toBeNull();
     expect(within(summaryAccount as HTMLElement).getByText("生产账号 A")).toBeInTheDocument();
-    expect(within(summaryAccount as HTMLElement).getByRole("switch")).toHaveAttribute("aria-checked", "false");
+    expect(within(summaryAccount as HTMLElement).getByRole("switch")).not.toBeChecked();
     expect(
       within(summaryAccount as HTMLElement).getByRole("combobox", { name: /调整 生产账号 A 分组池/i }),
     ).toHaveAttribute("data-group-id", "group-vip");
@@ -173,7 +172,7 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
 
-    expect(screen.getByRole("button", { name: /^Managed OpenAI$/i })).toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ })).toBeInTheDocument();
     expect(screen.queryByText("legacy-media-account")).not.toBeInTheDocument();
     expect(screen.queryByText("Legacy media account")).not.toBeInTheDocument();
     expect(screen.queryByText("Gemini Canvas legacy media")).not.toBeInTheDocument();
@@ -213,8 +212,9 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
 
-    expect(screen.getByRole("button", { name: "Qwen OpenAI" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Qwen Web" })).toBeInTheDocument();
+    const directory = within(screen.getByRole("navigation", { name: "服务商目录" }));
+    expect(directory.getByRole("button", { name: /Qwen OpenAI/ })).toBeInTheDocument();
+    expect(directory.getByRole("button", { name: /Qwen Web/ })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Alibaba / Qwen" })).not.toBeInTheDocument();
   });
 
@@ -261,13 +261,8 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /显示 Managed OpenAI 账号库/i }));
-    await user.click(
-      within(screen.getByRole("region", { name: /^Managed OpenAI 账号库$/i })).getByRole(
-        "button",
-        { name: /手动录入账号|Add account manually/i },
-      ),
-    );
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /Managed OpenAI/ }));
+    await user.click(within(document.querySelector(".nt-credential-directory__head") as HTMLElement).getByRole("button", { name: "添加账号" }));
 
     const dialog = screen.getByRole("dialog", { name: /新增账号/i });
     expect(
@@ -275,12 +270,7 @@ describe("BrowserConsoleApp", () => {
     ).not.toBeInTheDocument();
     await user.selectOptions(within(dialog).getByLabelText(/^Provider$/i), "managed-provider");
     await user.type(within(dialog).getByLabelText(/账号 ID/i), "acc-prod-1");
-    await user.type(within(dialog).getByLabelText(/账号名称/i), "生产账号 A");
-    await user.type(
-      within(dialog).getByLabelText(/账号覆盖地址/i),
-      "https://account.example.com/v1",
-    );
-    await user.type(within(dialog).getByLabelText(/支持模型/i), "gpt-5.4\ngpt-5.4-mini");
+    await user.type(within(dialog).getByLabelText("手动模型列表"), "gpt-5.4\ngpt-5.4-mini");
     await user.type(within(dialog).getByLabelText(/^API Key$/i), "sk-new-account");
     await user.click(within(dialog).getByRole("button", { name: /保存/i }));
 
@@ -298,9 +288,7 @@ describe("BrowserConsoleApp", () => {
                 credentials: [
                   expect.objectContaining({
                     id: "acc-prod-1",
-                    account_name: "生产账号 A",
                     enabled: true,
-                    base_url: "https://account.example.com/v1",
                     supported_models: ["gpt-5.4", "gpt-5.4-mini"],
                   }),
                 ],
@@ -327,7 +315,7 @@ describe("BrowserConsoleApp", () => {
     );
   }, 10_000);
 
-  it("edits credential metadata while keeping its stable identity", async () => {
+  it("replaces an API key while keeping credential identity, metadata and disabled state", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
     const initialResponse = await consoleApi.getRouteConfig("management-secret");
@@ -365,38 +353,23 @@ describe("BrowserConsoleApp", () => {
 
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />, {
       session: { secretAccessGranted: true },
+      secretGrant: { grant: "credential-write-grant", expiresAt: "2099-01-01T00:00:00Z" },
     });
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^Managed OpenAI$/i }));
-    await user.click(
-      within(screen.getByRole("region", { name: /^Managed OpenAI 账号库$/i })).getByRole("button", {
-        name: /编辑账号 生产账号 A/i,
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "生产账号 A" }));
+    await user.click(screen.getByRole("button", { name: "编辑账号" }));
 
     const dialog = screen.getByRole("dialog", { name: /编辑账号/i });
     expect(within(dialog).getByLabelText(/账号 ID/i)).toBeDisabled();
     expect(within(dialog).queryByRole("checkbox", {
       name: /账号启用状态/i,
     })).not.toBeInTheDocument();
-    const nameInput = within(dialog).getByLabelText(/账号名称/i);
-    await user.clear(nameInput);
-    await user.type(nameInput, "生产账号 A2");
     await user.type(within(dialog).getByLabelText(/^API Key$/i), "sk-replaced-account");
     await user.click(within(dialog).getByRole("button", { name: /保存/i }));
 
-    const editedAccount = screen
-      .getByRole("region", { name: /^Managed OpenAI 账号库$/i })
-      .querySelector('[data-account-card="acc-prod-1"]');
-    expect(editedAccount).not.toBeNull();
-    expect(within(editedAccount as HTMLElement).getByRole("switch")).toHaveAttribute("aria-checked", "false");
-    expect(
-      within(editedAccount as HTMLElement).getByRole("button", {
-        name: /编辑账号 生产账号 A2/i,
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "生产账号 A" })).toBeVisible();
     await waitFor(() => expect(consoleApi.commitRouteConfig).toHaveBeenCalled(), { timeout: 3000 });
     await waitFor(() =>
       expect(consoleApi.commitRouteConfig).toHaveBeenCalledWith(
@@ -408,7 +381,7 @@ describe("BrowserConsoleApp", () => {
                 credentials: [
                   expect.objectContaining({
                     id: "acc-prod-1",
-                    account_name: "生产账号 A2",
+                    account_name: "生产账号 A",
                     enabled: false,
                   }),
                 ],
@@ -423,6 +396,7 @@ describe("BrowserConsoleApp", () => {
             },
           ],
         }),
+        "credential-write-grant",
       ),
     );
   });
@@ -446,10 +420,13 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
 
-    expect(screen.getByText(/请使用上方的“添加账号”/i)).toBeInTheDocument();
+    expect(screen.getByText("暂无账号")).toBeVisible();
+    expect(screen.getByRole("button", { name: "添加账号" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "添加服务商" })).toBeEnabled();
     expect(screen.queryByText(/高级 JSON/i)).not.toBeInTheDocument();
 
     await openWorkspace(user, /权益组/i);
-    expect(screen.getByText(/当前还没有任何凭证分组/i)).toBeInTheDocument();
+    const members = await screen.findByRole("table", { name: "组内账号" });
+    expect(within(members).getAllByRole("row")).toHaveLength(1);
   });
 });

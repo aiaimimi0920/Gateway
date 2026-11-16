@@ -96,7 +96,7 @@ describe("BrowserConsoleApp", () => {
     expect(await screen.findByRole("radiogroup", { name: /^外观$/i })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /^语言$/i })).toBeInTheDocument();
     expect(within(screen.getByRole("tablist", { name: "设置分类" })).getAllByRole("tab").map(tab => tab.textContent))
-      .toEqual(["常规", "网络与共享", "隐私", "可观测性", "同步与备份", "关于"]);
+      .toEqual(["常规", "网络与共享", "可观测性", "同步与备份", "关于"]);
     expect(document.querySelector(".nt-hud-strip")).toBeNull();
   });
 
@@ -142,7 +142,7 @@ describe("BrowserConsoleApp", () => {
     expect(screen.queryByRole("heading", { name: /账号台账/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/统一查看 Gateway 当前可路由账号与启用状态/i)).not.toBeInTheDocument();
     expect(screen.queryByText("账号总数")).not.toBeInTheDocument();
-    expect(screen.queryByRole("searchbox", { name: /搜索账号/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: /搜索账号/i })).toBeVisible();
     expect(screen.queryByText(/^当前显示$/)).not.toBeInTheDocument();
   });
 
@@ -203,35 +203,21 @@ describe("BrowserConsoleApp", () => {
     expect(screen.queryByRole("heading", { name: /账号台账/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/统一查看 Gateway 当前可路由账号与启用状态/i)).not.toBeInTheDocument();
     expect(screen.queryByText("账号总数")).not.toBeInTheDocument();
-    expect(screen.queryByRole("searchbox", { name: /搜索账号/i })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/凭证分组/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/服务商/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole("table", { name: /账号台账表/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Managed OpenAI$/i })).toBeInTheDocument();
-    expect(screen.queryByText("生产账号 A")).not.toBeInTheDocument();
-    expect(screen.queryByText("生产账号 B")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /^Managed OpenAI$/i }));
-
-    const providerLibrary = screen.getByRole("region", { name: /^Managed OpenAI 账号库$/i });
-    const firstCard = providerLibrary.querySelector('[data-account-card="acc-prod-1"]');
-    const secondCard = providerLibrary.querySelector('[data-account-card="acc-prod-2"]');
-
-    expect(firstCard).not.toBeNull();
-    expect(secondCard).not.toBeNull();
-    expect(within(firstCard as HTMLElement).getByText("生产账号 A")).toBeInTheDocument();
-    expect(
-      within(firstCard as HTMLElement).getByRole("combobox", { name: /调整 生产账号 A 分组池/i }),
-    ).toHaveAttribute("data-group-id", "group-vip");
-    expect(within(firstCard as HTMLElement).getByRole("switch", { name: /调度 acc-prod-1/i })).toHaveAttribute("aria-checked", "true");
-    expect(
-      within(secondCard as HTMLElement).getByRole("combobox", { name: /调整 生产账号 B 分组池/i }),
-    ).toHaveAttribute("data-group-id", "default");
-    expect(within(secondCard as HTMLElement).getByRole("switch", { name: /调度 acc-prod-2/i })).toHaveAttribute("aria-checked", "true");
-    expect(within(providerLibrary).queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: /Managed OpenAI 账号明细/i })).not.toBeInTheDocument();
-    expect(within(firstCard as HTMLElement).getByRole("button", { name: /测试账号 生产账号 A|Test account 生产账号 A/i })).toBeInTheDocument();
-    expect(within(firstCard as HTMLElement).getByRole("button", { name: /删除账号 生产账号 A|Delete account 生产账号 A/i })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: /搜索账号/i })).toBeVisible();
+    const directory = within(screen.getByRole("navigation", { name: "服务商目录" }));
+    await user.click(directory.getByRole("button", { name: /^Managed OpenAI/ }));
+    expect(screen.getByRole("button", { name: "生产账号 A" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "生产账号 B" })).toBeVisible();
+    for (const [name, id, groupId] of [["生产账号 A", "acc-prod-1", "group-vip"], ["生产账号 B", "acc-prod-2", "default"]]) {
+      await user.click(screen.getByRole("button", { name }));
+      await user.click(screen.getByRole("button", { name: "账号配置" }));
+      const card = within(screen.getByRole("article", { name: `${name} 账号` }));
+      expect(card.getByRole("combobox", { name: `调整 ${name} 分组池` })).toHaveAttribute("data-group-id", groupId);
+      expect(card.getByRole("switch", { name: `调度 ${id}` })).toBeChecked();
+      expect(card.getByRole("button", { name: `测试账号 ${name}` })).toBeEnabled();
+      expect(card.getByRole("button", { name: `删除账号 ${name}` })).toBeEnabled();
+      await user.click(screen.getByRole("button", { name: "← 返回账号列表" }));
+    }
   });
 
 });

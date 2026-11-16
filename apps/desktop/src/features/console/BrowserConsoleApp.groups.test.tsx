@@ -76,17 +76,13 @@ describe("BrowserConsoleApp", () => {
     await waitForConsoleReady();
     await openWorkspace(user, /权益组/i);
 
-    expect(screen.getByRole("region", { name: /权益组卡牌/i })).toBeInTheDocument();
-    const groupCardToggle = screen.getByRole("button", { name: /^VIP 分组$/i, expanded: false });
-    expect(groupCardToggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("region", { name: /VIP 分组 组内账号/i })).not.toBeInTheDocument();
-
-    const cards = screen.getByRole("region", { name: /权益组卡牌/i });
-    expect(within(cards).queryByRole("button", { name: /更多操作/i })).not.toBeInTheDocument();
-    const edit = within(screen.getByRole("article", { name: "VIP 分组 权益组卡牌" })).getByRole("button", { name: /^编辑$/i });
+    const groupCardToggle = within(screen.getByRole("navigation", { name: "权益分组" })).getByRole("button", { name: /VIP 分组/ });
+    await user.click(groupCardToggle);
+    expect(groupCardToggle).toHaveAttribute("aria-current", "true");
+    const edit = screen.getByRole("button", { name: "编辑分组" });
     await user.click(edit);
 
-    expect(groupCardToggle).toHaveAttribute("aria-expanded", "false");
+    expect(groupCardToggle).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("dialog", { name: "编辑权益组" })).toBeInTheDocument();
     expect(document.querySelector(".nt-group-admin__detail")).toBeNull();
     expect(screen.getByRole("textbox", { name: /分组 ID/i })).toHaveValue("group-vip");
@@ -115,7 +111,8 @@ describe("BrowserConsoleApp", () => {
     expect(screen.getByRole("dialog", { name: "编辑权益组" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("分组名称")).toBeEnabled());
     await user.keyboard("{Escape}");
-    await waitFor(() => expect(within(screen.getByRole("article", { name: "Updated VIP 权益组卡牌" })).getByRole("button", { name: /^编辑$/i })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("button", { name: "编辑分组" })).toHaveFocus());
+    expect(screen.getByRole("heading", { name: "Updated VIP" })).toBeVisible();
   }, 10_000);
 
   it("reassigns an account routing pool from the account-card dropdown", async () => {
@@ -162,8 +159,9 @@ describe("BrowserConsoleApp", () => {
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /显示 Managed OpenAI 账号库/i }));
-    const accountLibrary = screen.getByRole("region", { name: /^Managed OpenAI 账号库$/i });
+    await user.click(screen.getByRole("button", { name: "生产账号 A" }));
+    await user.click(screen.getByRole("button", { name: "账号配置" }));
+    const accountLibrary = document.querySelector(".nt-credential-account-settings") as HTMLElement;
     const commitCallCount = vi.mocked(consoleApi.commitRouteConfig).mock.calls.length;
     await user.click(within(accountLibrary).getByRole("combobox", { name: /调整 生产账号 A 分组池/i }));
     await user.click(screen.getByRole("option", { name: "白银级别服务" }));
@@ -248,9 +246,9 @@ describe("BrowserConsoleApp", () => {
     expect(consoleApi.commitRouteConfig).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: /^创建分组$/i }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    const groupCard = screen.getByRole("article", { name: "Team B 权益组卡牌" });
-    await waitFor(() => expect(within(groupCard).getByRole("button", { name: /^编辑$/i })).toBeEnabled());
-    await user.click(within(groupCard).getByRole("button", { name: /^编辑$/i }));
+    await user.click(within(screen.getByRole("navigation", { name: "权益分组" })).getByRole("button", { name: /Team B/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "编辑分组" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "编辑分组" }));
     await user.type(screen.getByRole("searchbox", { name: /筛选候选账号/i }), "生产账号 B");
     expect(screen.getByRole("button", { name: /移除.*生产账号 B/i })).toBeInTheDocument();
 
@@ -308,15 +306,15 @@ describe("BrowserConsoleApp", () => {
     renderWithProviders(<BrowserConsoleApp consoleApi={consoleApi} />);
     await waitForConsoleReady();
     await openWorkspace(user, /权益组/i);
-    expect(screen.getByRole("article", { name: "default 权益组卡牌" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "default" })).toBeVisible();
     const trigger = screen.getByRole("button", { name: /^添加分组$/i });
     await user.click(trigger);
     await user.type(screen.getByLabelText(/分组 ID/i), "cancelled-group");
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
-    expect(screen.getByRole("article", { name: "default 权益组卡牌" })).toBeInTheDocument();
-    expect(document.querySelector('[data-entitlement-group-card="cancelled-group"]')).toBeNull();
+    expect(screen.getByRole("heading", { name: "default" })).toBeVisible();
+    expect(within(screen.getByRole("navigation", { name: "权益分组" })).queryByRole("button", { name: /cancelled-group/ })).not.toBeInTheDocument();
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1300)); });
     expect(consoleApi.commitRouteConfig).not.toHaveBeenCalled();
   });

@@ -58,6 +58,19 @@ fn responses_reply(model: &str) -> Value {
 
 #[tokio::test]
 async fn request_client_profiles_reach_buffered_and_sse_transports() {
+    // This executable has one test. Opt in before the static CPA client starts;
+    // production transports must continue to reject non-TLS remote targets.
+    struct RestoreHttpOptIn(Option<std::ffi::OsString>);
+    impl Drop for RestoreHttpOptIn {
+        fn drop(&mut self) {
+            match &self.0 {
+                Some(value) => std::env::set_var("GATEWAY_CPA_TEST_HTTP", value),
+                None => std::env::remove_var("GATEWAY_CPA_TEST_HTTP"),
+            }
+        }
+    }
+    let _restore = RestoreHttpOptIn(std::env::var_os("GATEWAY_CPA_TEST_HTTP"));
+    std::env::set_var("GATEWAY_CPA_TEST_HTTP", "1");
     let captured = Captured::default();
     let app = Router::new()
         .route("/v1/responses", post(receive))

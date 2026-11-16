@@ -31,6 +31,8 @@ it("creates only an empty Poe pool with locked official adapters and a bounded o
   expect(screen.getByLabelText("调用适配器")).toHaveValue("OpenAI API");
   expect(screen.getByLabelText("指纹适配器")).toHaveValue("自动");
   expect(screen.getByLabelText("专用适配器")).toHaveValue("无（标准 API）");
+  expect(screen.getByRole("checkbox", { name: "同时添加首个账号" })).toBeChecked();
+  await user.click(screen.getByRole("checkbox", { name: "同时添加首个账号" }));
   expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "添加" }));
   const draft = onSubmit.mock.calls[0][0] as ProviderCatalogDraft;

@@ -38,7 +38,8 @@ class GatewayDesktopWorkbenchContractTests(unittest.TestCase):
         self.assertIn("首次启动引导", launcher_text)
         self.assertIn("state.onboardingSteps.map", launcher_text)
         self.assertIn("nt-onboarding-list", styles_text)
-        self.assertIn("nt-onboarding-step", styles_text)
+        self.assertIn("gateway-onboarding-step", styles_text)
+        self.assertIn('className="gateway-onboarding-step"', launcher_text)
 
     def test_desktop_profile_dirty_state_warns_about_unsaved_changes(self):
         profile_state_file = DESKTOP_ROOT / "src" / "lib" / "profileState.ts"
@@ -70,8 +71,8 @@ class GatewayDesktopWorkbenchContractTests(unittest.TestCase):
         self.assertIn("hasUnsavedProfileChanges", onboarding_text)
         self.assertIn("未保存变更", config_text)
         self.assertIn("state.hasUnsavedProfileChanges", config_text)
-        self.assertIn("Unsaved changes", launcher_text)
-        self.assertIn("nt-dirty-badge", styles_text)
+        self.assertIn('state.hasUnsavedProfileChanges', launcher_text)
+        self.assertIn('<Badge tone="warning">未保存变更</Badge>', launcher_text)
 
     def test_desktop_start_button_explains_unsaved_profile_auto_save(self):
         types_file = DESKTOP_ROOT / "src" / "lib" / "types.ts"
@@ -93,7 +94,7 @@ class GatewayDesktopWorkbenchContractTests(unittest.TestCase):
         self.assertIn("gatewayState.startWillSaveDraftProfile", app_text)
         self.assertIn("启动会先保存当前草稿", launcher_text)
         self.assertIn("state.startWillSaveDraftProfile", launcher_text)
-        self.assertIn("nt-start-save-hint", styles_text)
+        self.assertIn('<Notice>启动会先保存当前草稿。</Notice>', launcher_text)
 
     def test_desktop_api_test_result_is_invalidated_when_inputs_or_profile_change(self):
         state_hook_file = DESKTOP_ROOT / "src" / "state" / "useGatewayDesktopState.ts"
@@ -265,7 +266,7 @@ class GatewayDesktopWorkbenchContractTests(unittest.TestCase):
         self.assertIn("!navigator.clipboard?.writeText", state_hook_text)
         self.assertIn("诊断信息已生成在日志面板", state_hook_text)
         self.assertIn("state.diagnosticsReportText", logs_text)
-        self.assertIn("nt-diagnostics-report", logs_text)
+        self.assertIn('<pre className="nt-code">{state.diagnosticsReportText}</pre>', logs_text)
         self.assertIn("脱敏诊断文本", logs_text)
 
     def test_browser_preview_disables_local_runtime_actions(self):

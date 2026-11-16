@@ -22,6 +22,7 @@ pub(super) async fn normalize(
         &attempt.effective_payload,
         model,
     );
+    let native_events = matches!(&stream_response, UpstreamStreamingResponse::NativeEvents(_));
     let needs_completion = matches!(&stream_response, UpstreamStreamingResponse::Native(_))
         || (matches!(&stream_response, UpstreamStreamingResponse::Http(_))
             && attempt.effective_payload.canonical_adapter() == "openai_compatible"
@@ -274,7 +275,9 @@ pub(super) async fn normalize(
     let sap = crate::protocol::sap_aicore::owns_payload(&attempt.effective_payload);
     let commandcode = crate::protocol::commandcode::owns_payload(&attempt.effective_payload);
     let lobsterai = crate::protocol::lobsterai::owns_payload(&attempt.effective_payload);
-    let byte_stream = if !qwen_workspace
+    // Native event transports own failure forwarding and terminal settlement.
+    let byte_stream = if !native_events
+        && !qwen_workspace
         && !sensenova
         && !sap
         && !commandcode

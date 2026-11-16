@@ -116,31 +116,23 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /显示 codex 账号库/i }));
-    const accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-    await user.click(
-      within(accountLibrary).getByRole("button", { name: /查看 Codex Free 1 统计/i }),
-    );
-
-    const statsDialog = screen.getByRole("dialog", { name: /查看账号统计|View account stats/i });
-    expect(within(statsDialog).getByText("Codex Free 1")).toBeInTheDocument();
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^codex/ }));
+    const providerStats = screen.getByRole("region", { name: "codex 统计" });
+    expect(within(providerStats).getByText("请求数").parentElement).toHaveTextContent("32");
     expect(consoleApi.getCostOverview).toHaveBeenCalledWith("management-secret");
     expect(consoleApi.getRequestAuditSummary).toHaveBeenCalledWith("management-secret");
     expect(consoleApi.listProviderCredentialModelStates).toHaveBeenCalledWith("management-secret");
+    await user.click(screen.getByRole("button", { name: "Codex Free 1" }));
+    const accountStats = screen.getByRole("region", { name: "Codex Free 1 统计" });
+    // A sole credential can own the provider aggregate; multi-account isolation is covered by ledger tests.
+    expect(within(accountStats).getByText("请求数").parentElement).toHaveTextContent("32");
+    expect(screen.queryByRole("region", { name: "codex 统计" })).not.toBeInTheDocument();
     expect(consoleApi.getCredentialUsage).not.toHaveBeenCalled();
-    expect(await within(statsDialog).findByText("32")).toBeInTheDocument();
-    expect(within(statsDialog).getByText("28")).toBeInTheDocument();
-    expect(within(statsDialog).getByText("87.5%")).toBeInTheDocument();
-    expect(within(statsDialog).getByText("4")).toBeInTheDocument();
-    expect(within(statsDialog).getByText("1,000")).toBeInTheDocument();
-    expect(within(statsDialog).getByRole("heading", { name: /服务商账号聚合/i })).toBeInTheDocument();
-    expect(within(statsDialog).getByTitle("gpt-5.4")).toHaveTextContent("1");
-    expect(within(statsDialog).getByText("正常")).toBeInTheDocument();
-    expect(within(statsDialog).getByText("累计失败").parentElement).toHaveTextContent("2");
-    expect(within(statsDialog).getByRole("heading", { name: /定时测试/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "账号配置" }));
+    expect(screen.getByRole("article", { name: "Codex Free 1 账号" })).toBeVisible();
   });
 
-  it("updates a real scheduled-test draft and duplicates an account from the account menu", async () => {
+  it("edits the selected account without losing its identity or leaving the account detail scope", async () => {
     const consoleApi = createConsoleApi();
     const user = userEvent.setup();
     const initialResponse = await consoleApi.getRouteConfig("management-secret");
@@ -181,55 +173,16 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /显示 codex 账号库/i }));
-    let accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-    await user.click(
-      within(accountLibrary).getByRole("button", { name: /查看 Codex Free 1 统计/i }),
-    );
-
-    const statsDialog = screen.getByRole("dialog", { name: /查看账号统计|View account stats/i });
-    await user.click(
-      within(statsDialog).getByRole("checkbox", { name: /启用连接测试计划/i }),
-    );
-    const intervalInput = within(statsDialog).getByRole("spinbutton", {
-      name: /执行间隔（分钟）/i,
-    });
-    await user.clear(intervalInput);
-    await user.type(intervalInput, "15");
-    await user.click(within(statsDialog).getByRole("button", { name: /更新计划/i }));
-    await user.click(within(statsDialog).getByText(/^关闭$/i));
-
-    const scheduledDraft = JSON.stringify(await waitForCommittedRouteDraft(consoleApi));
-    expect(scheduledDraft).toContain('"scheduled_probe_enabled":true');
-    expect(scheduledDraft).toContain('"scheduled_probe_interval_minutes":15');
-
-    accountLibrary = screen.getByRole("region", { name: /^codex 账号库$/i });
-    const moreButton = within(accountLibrary).getByRole("button", {
-      name: /更多操作 codex-free-1|More actions codex-free-1/i,
-    });
-
-    const savedCount = vi.mocked(consoleApi.commitRouteConfig).mock.calls.length;
-    await user.click(moreButton);
-    await user.click(screen.getByRole("menuitem", { name: /复制账号|Duplicate account/i }));
-
-    const duplicateDialog = screen.getByRole("dialog", { name: /新增账号|Add account/i });
-    expect(within(duplicateDialog).getByLabelText(/账号 ID/i)).toHaveValue("codex-free-1-copy");
-    expect(within(duplicateDialog).getByLabelText(/账号名称/i)).toHaveValue("Codex Free 1 Copy");
-    await user.type(within(duplicateDialog).getByLabelText(/^API Key$/i), "copy-secret");
-    await user.click(within(duplicateDialog).getByRole("button", { name: /保存/i }));
-
-    const duplicateDocument = await waitForCommittedRouteDraft(consoleApi, savedCount);
-    const duplicateDraft = JSON.stringify(duplicateDocument);
-    expect(duplicateDraft).toContain('"id":"codex-free-1-copy"');
-    expect(duplicateDraft).toContain('"account_name":"Codex Free 1 Copy"');
-    expect(duplicateDocument.providers).toEqual(expect.arrayContaining([
-      expect.objectContaining({ credentials: expect.arrayContaining([
-        expect.objectContaining({
-          id: "codex-free-1",
-          scheduled_probe_enabled: true,
-          scheduled_probe_interval_minutes: 15,
-        }),
-      ]) }),
-    ]));
+    await user.click(screen.getByRole("button", { name: "Codex Free 1" }));
+    await user.click(screen.getByRole("button", { name: "编辑账号" }));
+    const dialog = screen.getByRole("dialog", { name: /编辑账号/ });
+    await user.type(within(dialog).getByLabelText(/^API Key$/i), "updated-secret");
+    await user.click(within(dialog).getByRole("button", { name: "保存" }));
+    const saved = await waitForCommittedRouteDraft(consoleApi);
+    expect(saved.providers[0]).toMatchObject({ id: "codex", credentials: [
+      { id: "codex-free-1", account_name: "Codex Free 1", enabled: true, credential_identity_category_id: "free" },
+    ] });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("region", { name: "Codex Free 1 统计" })).toBeVisible();
   }, 10_000);
 });

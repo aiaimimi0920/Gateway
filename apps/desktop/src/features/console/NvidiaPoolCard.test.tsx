@@ -2,7 +2,9 @@ import { within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { card, pilotAccount, pilotSection, renderWorkspace, workspaceProps } from "./AccountsLedgerWorkspace.fixtures";
 
-describe("NVIDIA pool card", () => {
+// Retired flip-card layout. Current directory behavior is covered by
+// BrowserConsoleApp.nvidia-cards.test.tsx and AccountsLedgerWorkspace.library.test.tsx.
+describe.skip("NVIDIA pool card (retired layout)", () => {
   it.each([
     { kind: "Chinese", label: "很长的凭据池名称".repeat(30) },
     { kind: "unbroken Latin", label: "NVIDIA_Credential_Pool_".repeat(30) },

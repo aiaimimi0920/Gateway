@@ -44,8 +44,8 @@ it("replaces the right-side pool title with site search/sort while retaining nav
   await waitForConsoleReady();
   await openWorkspace(user, /凭据池/i);
   expect(
-    screen.queryByRole("heading", { name: "凭据池" }),
-  ).not.toBeInTheDocument();
+    screen.getByRole("heading", { name: "凭据池", level: 1 }),
+  ).toBeVisible();
   expect(
     screen.queryByRole("button", { name: "站点健康" }),
   ).not.toBeInTheDocument();
@@ -54,35 +54,28 @@ it("replaces the right-side pool title with site search/sort while retaining nav
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /添加账号/ })).toBeInTheDocument();
   const search = screen.getByRole("searchbox", { name: "搜索站点" });
-  for (const name of ["oauth", "api", "web"]) expect(screen.getByRole("checkbox", { name })).toBeChecked();
-  await user.click(screen.getByRole("checkbox", { name: "api" }));
-  expect(screen.queryByRole("button", { name: "Beta-api" })).not.toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "没有匹配站点" })).toBeInTheDocument();
-  await user.click(screen.getByRole("checkbox", { name: "api" }));
+  await user.click(screen.getByRole("button", { name: "OAuth 授权" }));
+  expect(within(screen.getByRole("navigation", { name: "服务商目录" })).queryByRole("button", { name: /^Beta/ })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "API Key" }));
   await user.type(search, "BETA.EXAMPLE");
-  expect(screen.getByRole("button", { name: "Beta-api" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^BetaAPI Key/ })).toBeInTheDocument();
   expect(
-    screen.queryByRole("button", { name: "Alpha-api" }),
+    screen.queryByRole("button", { name: /^AlphaAPI Key/ }),
   ).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "清除站点搜索" }));
   await user.click(screen.getByRole("combobox", { name: "站点排序" }));
   await user.click(screen.getByRole("option", { name: "名称升序" }));
   expect(
-    [...document.querySelectorAll("[data-provider-card-stack]")].map((card) =>
-      card.getAttribute("data-provider-card-stack"),
-    ),
-  ).toEqual(["alpha", "beta"]);
+    within(screen.getByRole("navigation", { name: "服务商目录" })).getAllByRole("button").slice(1).map(button => button.textContent),
+  ).toEqual(["AlphaAPI Key1", "BetaAPI Key1"]);
   await user.type(search, "missing.example");
-  expect(
-    screen.getByRole("heading", { name: "没有匹配站点" }),
-  ).toBeInTheDocument();
+  expect(within(screen.getByRole("navigation", { name: "服务商目录" })).getAllByRole("button")).toHaveLength(1);
+  expect(screen.getByText("尚未添加账号")).toBeVisible();
   expect(api.commitRouteConfig).not.toHaveBeenCalled();
   await user.clear(search);
-  await user.click(screen.getByRole("button", { name: "翻面查看 Alpha 详情" }));
-  const card = document.querySelector(
-    '[data-provider-card="alpha"]',
-  ) as HTMLElement;
-  await user.click(within(card).getByRole("button", { name: "站点健康" }));
+  await user.click(screen.getByRole("button", { name: /^AlphaAPI Key/ }));
+  await user.click(screen.getByRole("button", { name: "服务商设置" }));
+  await user.click(within(screen.getByRole("dialog", { name: "服务商设置" })).getByRole("button", { name: "站点健康" }));
   expect(
     screen.getByRole("dialog", { name: "Alpha · 站点健康" }),
   ).toBeInTheDocument();

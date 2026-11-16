@@ -159,12 +159,8 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^gemini-canvas-web$/i }));
-
-    const canvasArticle = providerAccountLibrary(/gemini-canvas 账号库/i);
-    await user.click(
-      within(canvasArticle).getByRole("button", { name: /手动添加|Manual add/i }),
-    );
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^gemini-canvas/i }));
+    await user.click(within(document.querySelector(".nt-credential-directory__head") as HTMLElement).getByRole("button", { name: "添加账号" }));
 
     await waitFor(() =>
       expect(consoleApi.createGeminiAuthSession).toHaveBeenCalledWith("management-secret", {
@@ -342,12 +338,8 @@ describe("BrowserConsoleApp", () => {
 
     await waitForConsoleReady();
     await openWorkspace(user, /凭据池/i);
-    await user.click(screen.getByRole("button", { name: /^gemini-canvas-web$/i }));
-
-    const canvasArticle = providerAccountLibrary(/gemini-canvas 账号库/i);
-    await user.click(
-      within(canvasArticle).getByRole("button", { name: /手动添加|Manual add/i }),
-    );
+    await user.click(within(screen.getByRole("navigation", { name: "服务商目录" })).getByRole("button", { name: /^gemini-canvas/i }));
+    await user.click(within(document.querySelector(".nt-credential-directory__head") as HTMLElement).getByRole("button", { name: "添加账号" }));
 
     const dialog = screen.getByRole("dialog", { name: /Gemini 手动添加|Gemini manual add/i });
     const continueButton = within(dialog).getByRole("button", {

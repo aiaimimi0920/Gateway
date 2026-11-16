@@ -26,6 +26,8 @@ it("creates the NVIDIA standard template from its locked UI without importing an
   expect(screen.getByLabelText("调用适配器")).toHaveValue("OpenAI API");
   expect(screen.getByLabelText("指纹适配器")).toHaveValue("自动");
   expect(screen.getByLabelText("专用适配器")).toHaveValue("无（标准 API）");
+  expect(screen.getByRole("checkbox", { name: "同时添加首个账号" })).toBeChecked();
+  await user.click(screen.getByRole("checkbox", { name: "同时添加首个账号" }));
   expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
   await user.clear(screen.getByLabelText("Provider ID"));
   await user.type(screen.getByLabelText("Provider ID"), "nvidia-acceptance");

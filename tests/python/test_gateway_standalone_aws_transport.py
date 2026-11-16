@@ -37,6 +37,7 @@ class GatewayAwsTransportTests(unittest.TestCase):
             {
                 "src/object_storage/configuration.rs": 1,
                 "src/credential_pool_storage/s3.rs": 1,
+                "src/console/backup/remote/s3.rs": 1,
                 "src/object_storage/tests/s3.rs": 1,
                 "src/object_storage/listing/tests.rs": 1,
             },

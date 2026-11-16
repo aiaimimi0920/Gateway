@@ -11,7 +11,7 @@ import { ProviderModelMappingDialog } from "./ProviderModelMappingDialog";
 
 const t = (_zh: string, en: string) => en;
 beforeEach(() => localStorage.setItem("gateway-ui-locale", "en-US"));
-it("reserves the search-clear node and preserves canonical access-type selection", async () => {
+it("reserves the search-clear node without duplicating directory access filters", async () => {
   function Toolbar() {
     const [value, setValue] = useState<ComponentProps<typeof ProviderPoolToolbar>["value"]>({ query: "", sort: "default" });
     return <ProviderPoolToolbar value={value} onChange={setValue} t={t} />;
@@ -23,7 +23,7 @@ it("reserves the search-clear node and preserves canonical access-type selection
   expect(screen.getByRole("button", { name: "Clear site search" })).toBe(clear);
   await user.click(clear);
   expect(clear).toBeDisabled(); expect(screen.getByRole("searchbox")).toHaveValue("");
-  expect(screen.getAllByRole("checkbox")).toHaveLength(3);
+  expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
 });
 
 it("keeps per-row scope nodes, unknown exclusions and page boundaries while forwarding exact moves", async () => {
