@@ -3,7 +3,9 @@ use crate::protocol::canonical::{CanonicalRelayRequest, EndpointKind};
 use crate::protocol::{openai, responses};
 use crate::routing::candidate::ProviderAccountPayload;
 use crate::upstream::common::{merge_model_and_stream_into_body, RequestPlan};
-use crate::upstream::openai_compatible_common::build_audio_transcription_request_body;
+use crate::upstream::openai_compatible_common::{
+    build_audio_transcription_request_body, preserve_vibe_chat_wire_fields,
+};
 use rquest::Method;
 
 pub fn build_request_plan(
@@ -126,6 +128,7 @@ pub fn build_request_plan(
         }
     };
 
+    preserve_vibe_chat_wire_fields(payload, req, use_responses_bridge, &mut body);
     crate::upstream::request_profile::apply_body(payload, req, model, &mut body);
     if (req.endpoint_kind == EndpointKind::Responses && !use_chat_bridge_for_responses)
         || use_responses_bridge

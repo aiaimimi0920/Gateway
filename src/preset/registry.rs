@@ -160,6 +160,8 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     #[cfg(feature = "line-mistral-openai-official-model-api")]
     {
         presets.push(mistral_openai_preset());
+        presets.push(super::openai::mistral_studio_preset());
+        presets.push(super::openai::mistral_vibe_preset());
     }
     #[cfg(feature = "line-qwen-official-api")]
     {

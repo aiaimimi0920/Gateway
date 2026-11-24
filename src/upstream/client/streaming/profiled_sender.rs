@@ -1,6 +1,9 @@
 //! One final transport boundary shared by buffered and streaming requests.
 use super::*;
 
+#[path = "mistral_vibe_wire.rs"]
+mod mistral_vibe_wire;
+
 impl UpstreamClient {
     pub(crate) fn send_profiled_plan(
         &self,
@@ -15,6 +18,11 @@ impl UpstreamClient {
             return Err(crate::protocol::sap_aicore::invalid());
         }
         crate::upstream::request_profile::finalize_cpa_full_headers(payload, plan, &mut headers)?;
+        crate::upstream::openai_compatible_common::finalize_vibe_affinity(
+            payload,
+            plan,
+            &mut headers,
+        );
         // Sign only after the final fingerprint/header mutations, for buffered and stream alike.
         let headers = sign_bedrock_runtime_headers_if_needed(payload, plan, headers)?;
         let mut headers = headers;
@@ -93,6 +101,7 @@ impl UpstreamClient {
             .sensenova_fixture_http
             .as_ref()
             .filter(|_| crate::protocol::sensenova::owns_payload(payload));
+        let vibe_wire = mistral_vibe_wire::matches(payload, plan);
         let builder = if let Some(http) = fixture {
             if !super::super::sensenova_fixture::synthetic_key(&payload.api_key) {
                 return Err(GatewayError::bad_request(
@@ -101,10 +110,16 @@ impl UpstreamClient {
                 .with_code("sensenova_fixture_key_invalid"));
             }
             build_request_builder_from_plan(http, self.timeout, plan, headers)
+        } else if vibe_wire {
+            let body = mistral_vibe_wire::body(plan)?;
+            let headers = mistral_vibe_wire::framing(headers);
+            self.send_plan_with_body(plan, headers, Some(body))
         } else {
             self.send_plan(plan, headers)
         };
-        let builder = if crate::protocol::nous_portal::business::owns_payload(payload)
+        let builder = if vibe_wire {
+            mistral_vibe_wire::envelope(builder)
+        } else if crate::protocol::nous_portal::business::owns_payload(payload)
             || crate::protocol::agnes::owns_payload(payload)
             || crate::protocol::luma_inference::owns_payload(payload)
             || crate::protocol::sensenova::owns_payload(payload)
@@ -114,7 +129,8 @@ impl UpstreamClient {
             builder
                 .default_headers(false)
                 .redirect(rquest::redirect::Policy::none())
-        } else if payload.canonical_adapter() == "bedrock_converse_compatible"
+        } else if crate::preset::is_mistral_vibe_wire(payload)
+            || payload.canonical_adapter() == "bedrock_converse_compatible"
             || payload.canonical_adapter() == "kiro_compatible"
             || crate::protocol::qwen::workspace_api::owns_payload(payload)
             || crate::protocol::cloudflare_workers_ai::owns_payload(payload)

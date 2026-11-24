@@ -18,6 +18,7 @@ it("hides Qwen DashScope in the template UI while retaining neighboring provider
   render(<UiLocaleProvider><ProviderCatalogDialog open existingProviderIds={[]} existingCredentialIds={[]}
     locked={false} hasSecretAccess={false} onOpenChange={vi.fn()} onRequestSecretAccess={vi.fn()} onSubmit={vi.fn()} /></UiLocaleProvider>, { wrapper: NeuroProvider });
   expect(screen.queryByRole("button", { name: /^qwen-dashscope-openai/i })).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /^mistral-api(?:\s*新调用流程已验收)?$/ })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^mistral-studio-api(?:\s*新调用流程已验收)?$/ })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "mistral-vibe-api" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /^xAI-api(?:\s*新调用流程已验收)?$/ })).toBeInTheDocument();
 });

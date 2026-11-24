@@ -14,7 +14,7 @@ use axum::{
 
 use crate::error::GatewayError;
 use crate::http::extractors::{JsonBody, OptionalBearerToken};
-use crate::http::request_headers::apply_public_request_headers;
+use crate::http::request_headers::{apply_public_request_headers, capture_vibe_affinity};
 use crate::http::sse::into_sse_response;
 use crate::pipeline::{run_pipeline, PipelineContext, PipelineOutput};
 use crate::protocol::canonical::EndpointKind;
@@ -42,6 +42,7 @@ pub async fn handle_chat_completions(
         state.console_auth.as_ref(),
         &[],
     )?;
+    capture_vibe_affinity(&mut ctx, &headers);
     ctx.query_params = query_params;
 
     match run_pipeline(ctx, &state).await? {

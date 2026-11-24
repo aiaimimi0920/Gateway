@@ -92,7 +92,7 @@ export const TEMPLATE_ADAPTATION_RECEIPTS: readonly TemplateAdaptationReceipt[] 
   acceptanceBasis: "documentation-and-local-tests",
 }, {
   // 用户无有效账号：仅官方文档与本地合同验收，不代表真实生成已通过。
-  templateId: "mistral-api",
+  templateId: "mistral-studio-api",
   evidencePath: "docs/progress/2026-10-27-mistral-api-template-review.md",
   verifiedAt: "2026-10-27T12:20:59Z",
   flowVersion: 1,

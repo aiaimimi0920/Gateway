@@ -145,8 +145,9 @@ pub(super) fn build_base_payload(
         let mut compiled = compile_provider_account(&preset, &overrides);
         // Preset fallback identity is not an operator override. An explicitly
         // native Codex lane can retain the caller's software identity instead.
-        if cfg.request_client_profile
-            == Some(crate::protocol::request_profile::RequestClientProfile::CodexCli)
+        if preset_id != "mistral-vibe-api"
+            && cfg.request_client_profile
+                == Some(crate::protocol::request_profile::RequestClientProfile::CodexCli)
         {
             compiled.headers.retain(|name, _| {
                 !matches!(

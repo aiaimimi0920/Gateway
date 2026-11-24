@@ -19,6 +19,19 @@ pub(crate) const INTERNAL_GATEWAY_HEADER_DENYLIST: &[&str] = &[
     "x-gateway-routing-order",
 ];
 const INTERNAL_API_KEY_HEADER: &str = "x-internal-api-key";
+pub(crate) const VIBE_AFFINITY_CONTEXT: &str = "x-gateway-mistral-vibe-affinity";
+
+pub(crate) fn capture_vibe_affinity(ctx: &mut PipelineContext, headers: &HeaderMap) {
+    if let Some(id) = headers
+        .get("x-affinity")
+        .and_then(|value| value.to_str().ok())
+    {
+        if id.len() == 36 && uuid::Uuid::parse_str(id).is_ok() {
+            ctx.request_headers
+                .insert(VIBE_AFFINITY_CONTEXT.into(), id.into());
+        }
+    }
+}
 
 pub fn apply_public_request_headers(
     ctx: &mut PipelineContext,
@@ -148,6 +161,7 @@ fn trusted_account_group_value(headers: &HeaderMap) -> Option<String> {
 
 pub(crate) fn is_internal_gateway_header(name: &str) -> bool {
     name.eq_ignore_ascii_case(super::debug_protocol::HEADER)
+        || name.eq_ignore_ascii_case(VIBE_AFFINITY_CONTEXT)
         || name
             .get(..14)
             .is_some_and(|prefix| prefix.eq_ignore_ascii_case("x-gateway-cpa-"))

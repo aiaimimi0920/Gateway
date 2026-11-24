@@ -255,6 +255,10 @@ pub fn compile_provider_account(
     for (k, v) in &account.headers {
         headers.insert(k.clone(), v.clone());
     }
+    if let Some(user_agent) = openai::mistral_vibe_user_agent(&preset.id, &account.base_url) {
+        headers.retain(|name, _| !name.eq_ignore_ascii_case("user-agent"));
+        headers.insert("User-Agent".to_string(), user_agent.to_string());
+    }
 
     // Extra body: preset as base, account overrides on top
     let mut extra_body = preset.extra_body.clone();
@@ -342,6 +346,18 @@ pub fn compile_provider_account(
             .or_else(|| preset.session_auth.clone()),
         keepalive: account.keepalive.clone(),
     }
+}
+
+pub(crate) use openai::is_mistral_official_base;
+
+pub(crate) const MISTRAL_VIBE_USER_AGENT: &str = "mistral-client-python/Mistral-Vibe/3.1.4";
+
+pub(crate) fn is_mistral_vibe_wire(payload: &ProviderAccountPayload) -> bool {
+    is_mistral_official_base(&payload.base_url)
+        && payload
+            .headers
+            .get("User-Agent")
+            .is_some_and(|value| value == MISTRAL_VIBE_USER_AGENT)
 }
 
 #[cfg(test)]

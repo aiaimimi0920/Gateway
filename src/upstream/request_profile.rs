@@ -26,6 +26,12 @@ pub(crate) use workbuddy::order as order_workbuddy_headers;
 pub(crate) use workbuddy_transport::apply as apply_workbuddy_transport;
 
 pub(crate) fn applies(payload: &ProviderAccountPayload, req: &CanonicalRelayRequest) -> bool {
+    // Mistral Studio is standard HTTP; Vibe owns its UA through its preset.
+    if payload.canonical_adapter() == "openai_compatible"
+        && crate::preset::is_mistral_official_base(&payload.base_url)
+    {
+        return false;
+    }
     // Basispoints canonicalizes to OpenAI for routing, not for product-specific wire identity.
     payload.adapter != crate::protocol::chatgpt::basispoints::ADAPTER
         && !crate::protocol::grok_oauth::business::owns_payload(payload)

@@ -43,6 +43,16 @@ pub(crate) fn build_request_builder_from_plan(
     plan: &RequestPlan,
     headers: HeaderMap,
 ) -> RequestBuilder {
+    build_request_builder_with_body(http, timeout, plan, headers, None)
+}
+
+pub(crate) fn build_request_builder_with_body(
+    http: &Client,
+    timeout: Duration,
+    plan: &RequestPlan,
+    headers: HeaderMap,
+    prepared_json: Option<Vec<u8>>,
+) -> RequestBuilder {
     // A software profile must not acquire unrelated Chrome identity from the pool.
     // This only controls default HTTP headers, not TLS, credentials or routing.
     let workbuddy = crate::upstream::request_profile::is_workbuddy_identity(&headers);
@@ -76,7 +86,9 @@ pub(crate) fn build_request_builder_from_plan(
         builder = builder.query(&plan.query);
     }
 
-    if let Some(body) = &plan.body {
+    if let Some(bytes) = prepared_json {
+        builder = builder.body(bytes);
+    } else if let Some(body) = &plan.body {
         if let Some((content_type, bytes)) = decode_raw_request_body(body) {
             builder = builder
                 .header(rquest::header::CONTENT_TYPE, content_type)

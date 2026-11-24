@@ -93,9 +93,8 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         "deepseek" | "deepseek-api" | "deepseek-openai" | "deepseek_openai" => {
             Some(RefactoredImplementationLine::DeepSeekOpenAiOfficialModelApi)
         }
-        "mistral" | "mistral-api" | "mistral_openai" => {
-            Some(RefactoredImplementationLine::MistralOpenAiOfficialModelApi)
-        }
+        "mistral" | "mistral-api" | "mistral-studio-api" | "mistral-vibe-api"
+        | "mistral_openai" => Some(RefactoredImplementationLine::MistralOpenAiOfficialModelApi),
         "xai" | "xai-api" | "xai_openai" => {
             Some(RefactoredImplementationLine::XaiOpenAiOfficialVendorApi)
         }

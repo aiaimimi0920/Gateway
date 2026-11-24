@@ -103,7 +103,7 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "poe-openai" => "poe",
         "longcat-openai" => "longcat",
         "deepseek-api" => "deepseek",
-        "mistral-api" => "mistral",
+        "mistral-api" | "mistral-studio-api" | "mistral-vibe-api" => "mistral",
         "xai-api" => "xai",
         "grok-oauth" => "grok_build_oauth",
         "nvidia-openai" => "nvidia",

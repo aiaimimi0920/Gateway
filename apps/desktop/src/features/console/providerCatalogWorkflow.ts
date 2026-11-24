@@ -38,7 +38,7 @@ const HEALTH_ADAPTERS: Record<string, SiteHealthConfig["adapter"]> = {
   "chatgpt-codex-oauth-official-api": "openai-status", anthropic: "anthropic-status", "gemini-api": "gemini-status",
   "azure-api": "azure-status", "cohere-chat": "cohere-status", "groq-openai": "groq-status",
   "nvidia-openai": "nvidia-status", "together-openai": "together-status", "deepseek-api": "deepseek-status",
-  "mistral-api": "mistral-status", "xai-api": "xai-status",
+  "mistral-api": "mistral-status", "mistral-studio-api": "mistral-status", "xai-api": "xai-status",
   "perplexity-api": "perplexity-status", "openrouter-openai": "openrouter-status", "poe-openai": "poe-status",
   linkup: "linkup-status", tavily: "tavily-status", you: "you-status", exa: "exa-status",
   jina: "jina-status",
@@ -64,8 +64,9 @@ export function defaultCatalogWorkflow(template: ProviderCatalogTemplate): Catal
     testPolicy.cases = [{ id: "music", name: "音乐生成", prompt: "Generate a short original instrumental music track with gentle piano and no vocals.", expectedAnswer: null, difficulty: 1, enabled: true }];
   }
   // 仅保留文档示例作为用户主动测试的单模型目标，不批量探测目录。
-  if (["mistral-api", "xai-api", "deepseek-api", "perplexity-api"].includes(template.id)) {
+  if (["mistral-studio-api", "mistral-vibe-api", "xai-api", "deepseek-api", "perplexity-api"].includes(template.id)) {
     testPolicy.modelSelection = "selected"; testPolicy.models = [template.id === "perplexity-api" ? "sonar" : template.id === "deepseek-api" ? "deepseek-flash" : template.id === "xai-api" ? "grok-4.7" : "mistral-large-latest"];
+    if (template.id === "mistral-vibe-api") testPolicy.models = [];
     testPolicy.cases = [{ id: "connection", name: "连通", prompt: "Reply with only OK.", expectedAnswer: null, difficulty: 1, enabled: true }];
   }
   // Catalog access does not imply credit or model access; never probe the full directory.

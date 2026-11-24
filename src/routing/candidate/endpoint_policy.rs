@@ -111,7 +111,7 @@ impl ProviderAccountPayload {
 
         matches!(endpoint_kind, EndpointKind::Responses)
             && self.responses_path.is_none()
-            && self.chat_completions_path.is_some()
+            && (self.chat_completions_path.is_some() || crate::preset::is_mistral_vibe_wire(self))
     }
 
     pub fn prefers_forced_streaming_responses(&self, endpoint_kind: EndpointKind) -> bool {

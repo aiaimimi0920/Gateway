@@ -1,11 +1,87 @@
 use base64::Engine;
+use rquest::header::{HeaderMap, HeaderValue};
 use serde_json::{json, Value};
 
 use crate::error::GatewayError;
-use crate::protocol::canonical::CanonicalRelayRequest;
+use crate::protocol::canonical::{CanonicalRelayRequest, EndpointKind};
+use crate::routing::candidate::ProviderAccountPayload;
+use crate::upstream::common::RequestPlan;
 
 const RAW_REQUEST_BODY_BASE64_KEY: &str = "__gateway_raw_body_base64";
 const RAW_REQUEST_BODY_CONTENT_TYPE_KEY: &str = "__gateway_raw_body_content_type";
+
+pub(super) fn finalize_vibe_affinity(
+    payload: &ProviderAccountPayload,
+    plan: &RequestPlan,
+    headers: &mut HeaderMap,
+) {
+    if !crate::preset::is_mistral_vibe_wire(payload) {
+        return;
+    }
+    let explicit = headers.remove("x-affinity");
+    if plan.method != rquest::Method::POST
+        || plan.url != "https://api.mistral.ai/v1/chat/completions"
+    {
+        return;
+    }
+    fn session_header(id: &str) -> Option<HeaderValue> {
+        if id.len() == 36 && uuid::Uuid::parse_str(id).is_ok() {
+            HeaderValue::from_str(id).ok()
+        } else {
+            None
+        }
+    }
+    // A real CLI header takes precedence because subagents may use the root
+    // session for affinity. For a body-only request, reuse the supplied session.
+    let value = explicit
+        .as_ref()
+        .and_then(|header| header.to_str().ok())
+        .and_then(session_header)
+        .or_else(|| {
+            let metadata = plan.body.as_ref()?.get("metadata")?;
+            ["root_session_id", "session_id"]
+                .iter()
+                .find_map(|key| metadata.get(*key)?.as_str().and_then(session_header))
+        });
+    if let Some(value) = value {
+        headers.insert("x-affinity", value);
+    }
+}
+
+pub(super) fn preserve_vibe_chat_wire_fields(
+    payload: &ProviderAccountPayload,
+    req: &CanonicalRelayRequest,
+    use_responses_bridge: bool,
+    body: &mut Value,
+) {
+    if use_responses_bridge
+        || !crate::preset::is_mistral_vibe_wire(payload)
+        || !(req.endpoint_kind == EndpointKind::ChatCompletions
+            || payload.bridges_openai_responses_to_chat_completions(req.endpoint_kind))
+    {
+        return;
+    }
+    let Some(fields) = body.as_object_mut() else {
+        return;
+    };
+    if !req.extra.contains_key("stream_options") {
+        fields.remove("stream_options");
+    }
+    if req.endpoint_kind != EndpointKind::ChatCompletions {
+        return;
+    }
+    // Preserve native key order only when the canonical packer made no
+    // semantic changes. Routing, sanitization and operator overrides still win.
+    for key in ["messages", "tools"] {
+        if let Some(raw) = req.raw_body.get(key) {
+            if let Some(packed) = fields.get_mut(key) {
+                if *packed == *raw {
+                    *packed = raw.clone();
+                }
+            }
+        }
+    }
+}
 
 pub fn build_audio_transcription_request_body(
     req: &CanonicalRelayRequest,

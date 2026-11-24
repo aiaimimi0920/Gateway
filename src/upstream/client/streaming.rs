@@ -460,6 +460,15 @@ impl UpstreamClient {
         plan: &RequestPlan,
         headers: rquest::header::HeaderMap,
     ) -> RequestBuilder {
+        self.send_plan_with_body(plan, headers, None)
+    }
+
+    fn send_plan_with_body(
+        &self,
+        plan: &RequestPlan,
+        headers: rquest::header::HeaderMap,
+        prepared_body: Option<Vec<u8>>,
+    ) -> RequestBuilder {
         let http = if crate::request_wait::transport::managed() {
             self.wait_http.get_or_init(|| {
                 crate::http_client::builder()
@@ -471,6 +480,12 @@ impl UpstreamClient {
         } else {
             &self.http
         };
-        build_request_builder_from_plan(http, self.timeout, plan, headers)
+        crate::upstream::common::build_request_builder_with_body(
+            http,
+            self.timeout,
+            plan,
+            headers,
+            prepared_body,
+        )
     }
 }

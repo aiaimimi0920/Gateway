@@ -181,6 +181,27 @@ pub fn mistral_openai_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("mistral-api")
 }
 
+pub fn mistral_studio_preset() -> ProviderPreset {
+    generic_openai_compatible_profile_preset("mistral-studio-api")
+}
+
+pub fn mistral_vibe_preset() -> ProviderPreset {
+    generic_openai_compatible_profile_preset("mistral-vibe-api")
+}
+
+pub(super) fn mistral_vibe_user_agent(preset_id: &str, base_url: &str) -> Option<&'static str> {
+    // Vibe 3.1.4's Mistral SDK adds this prefix on the actual HTTP request.
+    (preset_id == "mistral-vibe-api" && is_mistral_official_base(base_url))
+        .then_some(crate::preset::MISTRAL_VIBE_USER_AGENT)
+}
+
+pub(crate) fn is_mistral_official_base(base_url: &str) -> bool {
+    matches!(
+        base_url,
+        "https://api.mistral.ai/v1" | "https://api.mistral.ai/v1/"
+    )
+}
+
 /// Returns the built-in "xai-api" preset for xAI's official OpenAI-compatible API.
 pub fn xai_openai_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("xai-api")

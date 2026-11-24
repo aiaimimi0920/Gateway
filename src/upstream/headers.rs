@@ -82,6 +82,22 @@ pub fn build_inference_headers(
     }
     let mut headers = build_upstream_headers_with(payload, extra_headers);
     crate::upstream::request_profile::apply_headers(&mut headers, payload, req, model);
+    if crate::preset::is_mistral_vibe_wire(payload) {
+        if let Some(value) = extra_headers
+            .and_then(|extra| extra.get(crate::http::request_headers::VIBE_AFFINITY_CONTEXT))
+            .and_then(|value| HeaderValue::from_str(value).ok())
+        {
+            headers.insert("x-affinity", value);
+        }
+        headers.insert(
+            rquest::header::ACCEPT,
+            HeaderValue::from_static(if req.stream {
+                "text/event-stream"
+            } else {
+                "application/json"
+            }),
+        );
+    }
     headers
 }
 
