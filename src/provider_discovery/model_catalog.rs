@@ -15,6 +15,7 @@ pub const POE_SOURCE: &str = "https://api.poe.com/v1/models";
 pub const GROQ_SOURCE: &str = "https://api.groq.com/openai/v1/models";
 pub const RIVER_SOURCE: &str = "https://api.river.ai/v1/models";
 pub const COHERE_SOURCE: &str = "https://api.cohere.com/v1/models?endpoint=chat&page_size=1000";
+pub const MISTRAL_SOURCE: &str = "https://api.mistral.ai/v1/models";
 const LIMIT: usize = 2 * 1024 * 1024;
 mod anthropic;
 mod cloudflare;
@@ -40,6 +41,7 @@ pub enum CatalogProvider {
     SenseNova,
     CommandCode,
     Cohere,
+    Mistral { vibe: bool },
 }
 
 impl CatalogProvider {
@@ -57,6 +59,7 @@ impl CatalogProvider {
             Self::SenseNova => crate::protocol::sensenova::SOURCE,
             Self::CommandCode => crate::protocol::commandcode::SOURCE,
             Self::Cohere => COHERE_SOURCE,
+            Self::Mistral { .. } => MISTRAL_SOURCE,
         }
     }
 
@@ -90,6 +93,12 @@ impl CatalogProvider {
             Self::Cohere => {
                 preset == Some("cohere-chat")
                     && base.trim_end_matches('/') == "https://api.cohere.com"
+            }
+            Self::Mistral { .. } => {
+                matches!(
+                    preset,
+                    Some("mistral-api" | "mistral-studio-api" | "mistral-vibe-api")
+                ) && base.trim_end_matches('/') == "https://api.mistral.ai/v1"
             }
             Self::Groq => {
                 preset == Some("groq-openai")
@@ -131,7 +140,8 @@ impl CatalogProvider {
             | Self::SenseNova
             | Self::CommandCode
             | Self::Agnes
-            | Self::Cohere => LIMIT,
+            | Self::Cohere
+            | Self::Mistral { .. } => LIMIT,
             Self::OpenRouter => 8 * 1024 * 1024,
         }
     }
@@ -194,7 +204,8 @@ impl ModelCatalog {
                         CatalogProvider::Agnes,
                         CatalogProvider::SenseNova,
                         CatalogProvider::CommandCode,
-                        CatalogProvider::Cohere
+                        CatalogProvider::Cohere,
+                        CatalogProvider::Mistral { vibe: false },
                     ]
                     .iter()
                     .any(|kind| kind.accepts(preset, base) && self.source_url == kind.source())),
@@ -325,6 +336,14 @@ async fn fetch_from(
         } else {
             request.bearer_auth(key)
         };
+        let request = if matches!(kind, CatalogProvider::Mistral { vibe: true }) {
+            request.header(
+                rquest::header::USER_AGENT,
+                crate::preset::MISTRAL_VIBE_USER_AGENT,
+            )
+        } else {
+            request
+        };
         let response = request
             .timeout(Duration::from_secs(25))
             .send()
@@ -357,6 +376,12 @@ async fn fetch_from(
         let mut models = Vec::new();
         let mut supported_endpoints = std::collections::BTreeMap::new();
         for item in data {
+            // The Gateway Mistral presets use Chat, not FIM, OCR, ASR or embeddings.
+            if matches!(kind, CatalogProvider::Mistral { .. })
+                && item["capabilities"]["completion_chat"].as_bool() != Some(true)
+            {
+                continue;
+            }
             if matches!(kind, CatalogProvider::CommandCode)
                 && !item["supported_endpoints"]
                     .as_array()

@@ -68,6 +68,8 @@ pub(super) fn preserve_vibe_chat_wire_fields(
         fields.remove("stream_options");
     }
     if req.endpoint_kind != EndpointKind::ChatCompletions {
+        // Codex sets Responses `store: false`; the Vibe Chat service rejects `store`.
+        fields.remove("store");
         return;
     }
     // Preserve native key order only when the canonical packer made no

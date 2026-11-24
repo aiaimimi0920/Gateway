@@ -190,6 +190,24 @@ pub async fn read_cohere_model_catalog(
     .await
 }
 
+pub async fn read_mistral_model_catalog(
+    State(state): State<Arc<AppState>>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
+    OptionalBearerToken(token): OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<CatalogRequest>,
+) -> Result<Response, GatewayError> {
+    read_catalog(
+        CatalogProvider::Mistral { vibe: false },
+        state,
+        connect_info,
+        token,
+        headers,
+        body,
+    )
+    .await
+}
+
 pub async fn read_gemini_model_catalog(
     State(state): State<Arc<AppState>>,
     connect_info: Option<ConnectInfo<SocketAddr>>,
@@ -237,7 +255,7 @@ async fn read_catalog(
             "Catalog requires an explicit matching account at its official API origin",
         )
     };
-    let key = if let Some(id) = body.credential_id {
+    let (key, preset) = if let Some(id) = body.credential_id {
         if body.provider_id.is_some() || body.api_key.is_some() {
             return Err(invalid());
         }
@@ -256,7 +274,7 @@ async fn read_catalog(
         if !kind.accepts(provider.preset.as_deref(), &target.payload.base_url) {
             return Err(invalid());
         }
-        target.payload.api_key
+        (target.payload.api_key, provider.preset.as_deref())
     } else {
         let provider = snapshot
             .document()
@@ -267,11 +285,18 @@ async fn read_catalog(
         if !kind.accepts(provider.preset.as_deref(), &provider.base_url) {
             return Err(invalid());
         }
-        body.api_key.unwrap_or_default()
+        (body.api_key.unwrap_or_default(), provider.preset.as_deref())
     };
     if key.is_empty() || key.len() > 16384 || !key.bytes().all(|b| b.is_ascii_graphic()) {
         return Err(GatewayError::bad_request("Invalid catalog API key"));
     }
+    let kind = if matches!(kind, CatalogProvider::Mistral { .. }) {
+        CatalogProvider::Mistral {
+            vibe: preset == Some("mistral-vibe-api"),
+        }
+    } else {
+        kind
+    };
     let catalog = match (kind, &state.upstream_client.sensenova_fixture_http) {
         (CatalogProvider::SenseNova, Some(client)) => {
             model_catalog::fetch_sensenova_fixture(client, &key).await?

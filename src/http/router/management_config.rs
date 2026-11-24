@@ -264,6 +264,10 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
         post(internal_console::read_cohere_model_catalog),
     )
     .route(
+        "/v1/internal/gateway/console/mistral-model-catalog",
+        post(internal_console::read_mistral_model_catalog),
+    )
+    .route(
         "/v1/internal/gateway/console/qwen-model-catalog",
         post(internal_console::read_qwen_model_catalog),
     )

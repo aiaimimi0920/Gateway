@@ -223,7 +223,7 @@ export function useCredentialDialog({
     }
     const catalogKind = sap || bedrock || qwen || vertex || lumaAgents ? undefined : catalogProviderKind?.(providerId);
     if (catalogKind && value.apiKeyOperation !== "clear") {
-      if (!value.modelCatalog && !submission.supportedModelsText && mode === "add") {
+      if (catalogKind !== "mistral" && !value.modelCatalog && !submission.supportedModelsText && mode === "add") {
         if (submission.baseUrl && !officialCatalogBase(catalogKind, submission.baseUrl)) { setValidationError("模型目录仅支持官方 API 地址。"); return; }
         if (!onDiscoverProviderModels) { setValidationError("模型目录服务不可用，请重新连接后重试。"); return; }
         void official.run({ providerId, apiKey: submission.apiKeyValue }, (modelCatalog) => {

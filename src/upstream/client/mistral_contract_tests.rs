@@ -90,7 +90,7 @@ fn mistral_contract_vibe_preserves_explicit_stream_options() {
 fn mistral_contract_vibe_responses_uses_official_chat_bridge() {
     let vibe = payload("mistral-vibe-api", "https://api.mistral.ai/v1");
     let req = crate::protocol::responses::normalize_responses(json!({
-        "model":"mistral-large-latest", "stream":true,
+        "model":"mistral-large-latest", "stream":true, "store":false,
         "instructions":"fixture instructions", "input":"Reply OK"
     }))
     .unwrap();
@@ -99,6 +99,7 @@ fn mistral_contract_vibe_responses_uses_official_chat_bridge() {
     assert_eq!(plan.url, "https://api.mistral.ai/v1/chat/completions");
     let body = plan.body.unwrap();
     assert!(body["messages"].is_array());
+    assert!(body.get("store").is_none());
     assert!(body.get("stream_options").is_none());
     assert!(!body.to_string().contains("session_id"));
 }

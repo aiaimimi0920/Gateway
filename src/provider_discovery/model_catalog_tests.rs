@@ -10,6 +10,56 @@ use std::sync::{
 };
 
 #[tokio::test]
+async fn mistral_catalog_reads_chat_models_with_product_bound_headers() {
+    let app = Router::new().route(
+        "/v1/models",
+        get(|headers: HeaderMap| async move {
+            let vibe = headers["authorization"] == "Bearer fixture-vibe";
+            assert!(vibe || headers["authorization"] == "Bearer fixture-studio");
+            assert_eq!(
+                headers
+                    .get("user-agent")
+                    .and_then(|value| value.to_str().ok()),
+                vibe.then_some(crate::preset::MISTRAL_VIBE_USER_AGENT)
+            );
+            assert!(!headers.contains_key("x-affinity"));
+            Json(serde_json::json!({"data":[
+                {"id":"mistral-medium-3.5","capabilities":{"completion_chat":true}},
+                {"id":"mistral-embed","capabilities":{"completion_chat":false,"embeddings":true}},
+                {"id":"unknown-capability"},
+                {"id":"mistral-medium-3.5","capabilities":{"completion_chat":true}}
+            ]}))
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let client = rquest::Client::builder().no_proxy().build().unwrap();
+    for (vibe, key, preset) in [
+        (false, "fixture-studio", "mistral-studio-api"),
+        (true, "fixture-vibe", "mistral-vibe-api"),
+    ] {
+        let catalog = fetch_from(
+            &client,
+            &format!("http://{address}/v1/models"),
+            key,
+            CatalogProvider::Mistral { vibe },
+        )
+        .await
+        .unwrap();
+        assert_eq!(catalog.models, ["mistral-medium-3.5"]);
+        assert_eq!(catalog.source_url, MISTRAL_SOURCE);
+        assert!(catalog
+            .validate(Some(preset), "https://api.mistral.ai/v1/")
+            .is_ok());
+        assert!(catalog
+            .validate(Some(preset), "https://api.mistral.ai.example/v1")
+            .is_err());
+    }
+    task.abort();
+}
+
+#[tokio::test]
 async fn catalog_get_is_bounded_and_never_follows_redirects_or_generates() {
     let posts = Arc::new(AtomicUsize::new(0));
     let posted = posts.clone();

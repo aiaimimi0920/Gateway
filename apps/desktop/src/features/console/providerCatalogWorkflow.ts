@@ -63,10 +63,12 @@ export function defaultCatalogWorkflow(template: ProviderCatalogTemplate): Catal
     testPolicy.modelSelection = "selected"; testPolicy.models = ["producer:standard"];
     testPolicy.cases = [{ id: "music", name: "音乐生成", prompt: "Generate a short original instrumental music track with gentle piano and no vocals.", expectedAnswer: null, difficulty: 1, enabled: true }];
   }
-  // 仅保留文档示例作为用户主动测试的单模型目标，不批量探测目录。
   if (["mistral-studio-api", "mistral-vibe-api", "xai-api", "deepseek-api", "perplexity-api"].includes(template.id)) {
-    testPolicy.modelSelection = "selected"; testPolicy.models = [template.id === "perplexity-api" ? "sonar" : template.id === "deepseek-api" ? "deepseek-flash" : template.id === "xai-api" ? "grok-4.7" : "mistral-large-latest"];
-    if (template.id === "mistral-vibe-api") testPolicy.models = [];
+    // Vibe 没有预设可调用模型，保留默认的「全部配置模型」与关闭自动测试。
+    if (template.id !== "mistral-vibe-api") {
+      testPolicy.modelSelection = "selected";
+      testPolicy.models = [template.id === "perplexity-api" ? "sonar" : template.id === "deepseek-api" ? "deepseek-flash" : template.id === "xai-api" ? "grok-4.7" : "mistral-large-latest"];
+    }
     testPolicy.cases = [{ id: "connection", name: "连通", prompt: "Reply with only OK.", expectedAnswer: null, difficulty: 1, enabled: true }];
   }
   // Catalog access does not imply credit or model access; never probe the full directory.

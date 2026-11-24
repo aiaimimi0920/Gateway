@@ -7,7 +7,7 @@ import { isQwenProvider, qwenCatalogEndpoint } from "./qwenEndpoint";
 import { cloudflareEndpoint } from "./cloudflareWorkersAi";
 
 export const catalogSources = { gemini: "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", anthropic: "https://api.anthropic.com/v1/models?limit=1000", openai: "https://api.openai.com/v1/models", nvidia: "https://integrate.api.nvidia.com/v1/models",
-  openrouter: "https://openrouter.ai/api/v1/models", poe: "https://api.poe.com/v1/models",
+  openrouter: "https://openrouter.ai/api/v1/models", poe: "https://api.poe.com/v1/models", mistral: "https://api.mistral.ai/v1/models",
   groq: "https://api.groq.com/openai/v1/models", river: "https://api.river.ai/v1/models", agnes: "https://apihub.agnes-ai.com/v1/models", sensenova: "https://token.sensenova.cn/v1/models", commandcode: "https://api.commandcode.ai/provider/v1/models", cohere: "https://api.cohere.com/v1/models?endpoint=chat&page_size=1000" } as const;
 export type CatalogProviderKind = keyof typeof catalogSources | "qwen" | "cloudflare-workers-ai";
 export const officialCatalogSchema = z.object({
@@ -38,6 +38,7 @@ export type DiscoverProviderModels = (input: CatalogInput, signal?: AbortSignal)
 export function officialCatalogBase(kind: CatalogProviderKind, base: string): boolean {
   if (kind === "qwen") return qwenCatalogEndpoint(base) !== null;
   if (kind === "cloudflare-workers-ai") return cloudflareEndpoint(base) !== null;
+  if (kind === "mistral") return base.replace(/\/+$/, "") === "https://api.mistral.ai/v1";
   return (kind === "nvidia" ? ["https://integrate.api.nvidia.com", "https://integrate.api.nvidia.com/v1"]
     : kind === "openai" ? ["https://api.openai.com/v1"]
     : kind === "anthropic" ? ["https://api.anthropic.com"]
@@ -66,6 +67,7 @@ export function catalogProviderKind(provider: Record<string, unknown>): CatalogP
   if (provider.preset === "sensenova-token-plan") return "sensenova";
   if (provider.preset === "commandcode-api") return "commandcode";
   if (provider.preset === "cohere-chat") return "cohere";
+  if (["mistral-api", "mistral-studio-api", "mistral-vibe-api"].some((preset) => preset === provider.preset)) return "mistral";
   if (provider.preset === "openrouter-openai" || (provider.preset === "openai"
     && typeof provider.base_url === "string" && officialCatalogBase("openrouter", provider.base_url))) return "openrouter";
 }
