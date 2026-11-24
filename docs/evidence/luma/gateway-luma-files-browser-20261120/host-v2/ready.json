@@ -1,0 +1,10 @@
+{
+  "origin": "http://127.0.0.1:53154",
+  "pid": 14708,
+  "storageMode": "local",
+  "provider": "luma-pipeline",
+  "credential": "exact",
+  "syntheticOnly": true,
+  "scenario": "luma-files-normal-main-v1",
+  "revision": "r0-d5fb051f6211"
+}

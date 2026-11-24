@@ -40,6 +40,7 @@ pub(super) fn destination(
         "grok_oauth": credential.and_then(|c| c.grok_oauth.as_ref()),
         "luma_oauth": credential.and_then(|c| c.luma_oauth.as_ref()),
         "kiro_oauth": credential.and_then(|c| c.kiro_oauth.as_ref()),
+        "quick_oauth": credential.and_then(|c| c.quick_oauth.as_ref()),
         "kiro_runtime_profile": kiro_runtime_profile(provider, credential),
         "vertex_oauth": credential.and_then(|c| c.vertex_oauth.as_ref()),
         "dim_oauth": credential.and_then(|c| c.dim_oauth.as_ref()),

@@ -19,42 +19,47 @@ async fn luma_agents_probe_management_exact_account_has_native_audit_without_tex
         ])
         .await;
         let fixture = Box::pin(Fixture::new(&server, 5)).await;
-        let grant = grant_console_secret_access(&fixture.state).await;
-        within(&server.origin, async {
-            let response = send_console_json(
-                &fixture.state,
-                Method::POST,
-                ENDPOINT,
-                options("image", IMAGE),
-                Some(&grant),
-                None,
-            )
-            .await;
-            assert_eq!(response.status(), StatusCode::OK);
-            let body = parse_json(response).await;
-            let results = body["result"]["results"].as_array().unwrap();
-            assert_eq!(results.len(), 1, "{body}");
-            assert_eq!(results[0]["credentialId"], "exact");
-            assert_eq!(results[0]["status"], "passed", "{body}");
-            assert!(results[0]["assessment"].is_null());
-            let row = fixture.audit().await;
-            assert_eq!(row.requested_model.as_deref(), Some(IMAGE));
-            assert_eq!(row.resolved_model.as_deref(), Some("uni-1"));
-            assert_eq!(row.model_alias.as_deref(), Some(IMAGE));
-            assert_eq!(row.response_id, ID);
-            let trace = row.route_trace.as_ref().unwrap();
-            assert_eq!(
-                trace["consoleMediaProbe"],
-                json!({"operation":"image", "chargeConfirmed":true})
-            );
-            assert!(
-                row.access_key_id.is_none()
-                    && row.prompt_tokens.is_none()
-                    && row.total_tokens.is_none()
-            );
-            assert_eq!(fixture.balance().await.remaining_messages, Some(2));
-            assert_eq!(server.calls().len(), 3);
-        })
+        let grant = Box::pin(grant_console_secret_access(&fixture.state)).await;
+        // Match the real HTTP task boundary: the large router future is heap-owned,
+        // rather than embedded again in the fixture's default-stack async frame.
+        within(
+            &server.origin,
+            Box::pin(async {
+                let response = Box::pin(send_console_json(
+                    &fixture.state,
+                    Method::POST,
+                    ENDPOINT,
+                    options("image", IMAGE),
+                    Some(&grant),
+                    None,
+                ))
+                .await;
+                assert_eq!(response.status(), StatusCode::OK);
+                let body = parse_json(response).await;
+                let results = body["result"]["results"].as_array().unwrap();
+                assert_eq!(results.len(), 1, "{body}");
+                assert_eq!(results[0]["credentialId"], "exact");
+                assert_eq!(results[0]["status"], "passed", "{body}");
+                assert!(results[0]["assessment"].is_null());
+                let row = fixture.audit().await;
+                assert_eq!(row.requested_model.as_deref(), Some(IMAGE));
+                assert_eq!(row.resolved_model.as_deref(), Some("uni-1"));
+                assert_eq!(row.model_alias.as_deref(), Some(IMAGE));
+                assert_eq!(row.response_id, ID);
+                let trace = row.route_trace.as_ref().unwrap();
+                assert_eq!(
+                    trace["consoleMediaProbe"],
+                    json!({"operation":"image", "chargeConfirmed":true})
+                );
+                assert!(
+                    row.access_key_id.is_none()
+                        && row.prompt_tokens.is_none()
+                        && row.total_tokens.is_none()
+                );
+                assert_eq!(fixture.balance().await.remaining_messages, Some(2));
+                assert_eq!(server.calls().len(), 3);
+            }),
+        )
         .await;
         fixture.finish().await;
         server.stop().await;

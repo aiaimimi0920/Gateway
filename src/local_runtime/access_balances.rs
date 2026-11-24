@@ -75,13 +75,14 @@ pub(super) async fn create(
     Ok(())
 }
 
-pub(super) async fn cleanup(tx: &mut Transaction<'_, Sqlite>) -> Result<(), GatewayError> {
+pub(crate) async fn cleanup(tx: &mut Transaction<'_, Sqlite>) -> Result<(), GatewayError> {
     // Dead-instance reservations retain their debit, but no longer keep deleted keys alive.
     sqlx::query("DELETE FROM local_balance_inflight WHERE pending = 0 OR owner NOT IN (SELECT id FROM runtime_instances)")
         .execute(&mut **tx).await.map_err(storage_error)?;
     sqlx::query(
         "DELETE FROM local_balance_keys WHERE key_id NOT IN (SELECT id FROM local_access_keys)
-        AND account_id NOT IN (SELECT account_id FROM local_balance_inflight)",
+        AND account_id NOT IN (SELECT account_id FROM local_balance_inflight)
+        AND account_id NOT IN (SELECT account_ref FROM gateway_sap_response_balance_holds WHERE open = 1)",
     )
     .execute(&mut **tx)
     .await
@@ -111,7 +112,8 @@ async fn ensure_mode_change(
 ) -> Result<(), GatewayError> {
     if old != new {
         let pending: i64 = sqlx::query_scalar(
-            "SELECT coalesce(sum(pending),0) FROM local_balance_inflight WHERE account_id = ?",
+            "SELECT coalesce((SELECT sum(pending) FROM local_balance_inflight WHERE account_id = $1),0)
+                + (SELECT count(*) FROM gateway_sap_response_balance_holds WHERE account_ref = $1 AND open = 1)",
         )
         .bind(account)
         .fetch_one(&mut **tx)
@@ -147,6 +149,49 @@ pub(super) async fn set_key_quota(
     }
     sqlx::query("UPDATE local_balance_accounts SET payload = ? WHERE id = ?")
         .bind(encode(&balance)?)
+        .bind(account)
+        .execute(&mut **tx)
+        .await
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+pub(crate) async fn lock(
+    tx: &mut Transaction<'_, Sqlite>,
+    id: &str,
+    operation: Mutation,
+) -> Result<(String, GatewayAccessKeyBalanceView), GatewayError> {
+    let row: Option<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT a.id, a.payload, key.payload
+            FROM local_balance_accounts a JOIN local_balance_keys k ON k.account_id = a.id
+            LEFT JOIN local_access_keys key ON key.id = k.key_id WHERE k.key_id = ?",
+    )
+    .bind(id)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(storage_error)?;
+    let (account, payload, key) =
+        row.ok_or_else(|| GatewayError::not_found("Access key not found"))?;
+    if operation != Mutation::Finalize {
+        let key: GatewayAccessKeyView = serde_json::from_str(
+            &key.ok_or_else(|| GatewayError::not_found("Access key not found"))?,
+        )
+        .map_err(|_| GatewayError::server_error("Invalid local access key"))?;
+        if operation == Mutation::Reserve {
+            super::access_keys::policy::ensure_active(&key)?;
+        }
+    }
+    let current = decode(id, &payload)?;
+    Ok((account, current))
+}
+
+pub(crate) async fn write_balance(
+    tx: &mut Transaction<'_, Sqlite>,
+    account: &str,
+    balance: &GatewayAccessKeyBalanceView,
+) -> Result<(), GatewayError> {
+    sqlx::query("UPDATE local_balance_accounts SET payload = ? WHERE id = ?")
+        .bind(encode(balance)?)
         .bind(account)
         .execute(&mut **tx)
         .await
@@ -190,27 +235,7 @@ impl LocalRuntime {
             .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(storage_error)?;
-        let row: Option<(String, String, Option<String>)> = sqlx::query_as(
-            "SELECT a.id, a.payload, key.payload
-            FROM local_balance_accounts a JOIN local_balance_keys k ON k.account_id = a.id
-            LEFT JOIN local_access_keys key ON key.id = k.key_id WHERE k.key_id = ?",
-        )
-        .bind(id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(storage_error)?;
-        let (account, payload, key) =
-            row.ok_or_else(|| GatewayError::not_found("Access key not found"))?;
-        if operation != Mutation::Finalize {
-            let key: GatewayAccessKeyView = serde_json::from_str(
-                &key.ok_or_else(|| GatewayError::not_found("Access key not found"))?,
-            )
-            .map_err(|_| GatewayError::server_error("Invalid local access key"))?;
-            if operation == Mutation::Reserve {
-                super::access_keys::policy::ensure_active(&key)?;
-            }
-        }
-        let current = decode(id, &payload)?;
+        let (account, current) = lock(&mut tx, id, operation).await?;
         let mode = current.balance_mode.clone();
         let (balance, result, pending_delta) = change(Some(current))?;
         ensure_mode_change(&mut tx, &account, &mode, &balance.balance_mode).await?;
@@ -227,12 +252,7 @@ impl LocalRuntime {
             .await
             .map_err(storage_error)?;
         }
-        sqlx::query("UPDATE local_balance_accounts SET payload = ? WHERE id = ?")
-            .bind(encode(&balance)?)
-            .bind(account)
-            .execute(&mut *tx)
-            .await
-            .map_err(storage_error)?;
+        write_balance(&mut tx, &account, &balance).await?;
         if operation == Mutation::Finalize {
             cleanup(&mut tx).await?;
         }

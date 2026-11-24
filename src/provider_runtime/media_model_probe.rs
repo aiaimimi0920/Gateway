@@ -43,7 +43,7 @@ pub(super) async fn probe(
         return super::udio_media_probe::probe(state, target, model, request, media, canonical)
             .await;
     }
-    let audit = super::model_probe_recording::begin_media(
+    let mut audit = super::model_probe_recording::begin_media(
         state,
         target,
         model,
@@ -65,23 +65,30 @@ pub(super) async fn probe(
     } else {
         ProviderExecutionMode::DirectHttp
     };
-    let output = state
-        .upstream_client
-        .execute_json_passthrough(
+    let luma_audit = if target.payload.canonical_adapter() == crate::protocol::luma_agents::ADAPTER
+    {
+        audit.luma_generation_audit(state, target)
+    } else {
+        None
+    };
+    let output = crate::protocol::luma_agents::generation_audit::within(
+        luma_audit,
+        state.upstream_client.execute_json_passthrough(
             &target.provider_id,
             execution_mode,
             &target.payload,
             &canonical,
             model,
             None,
-        )
-        .await
-        .and_then(|body| {
-            if matches!(product, MediaProbeProduct::Suno) {
-                super::suno_media_probe::completed(&body)?;
-            }
-            Ok(body)
-        });
+        ),
+    )
+    .await
+    .and_then(|body| {
+        if matches!(product, MediaProbeProduct::Suno) {
+            super::suno_media_probe::completed(&body)?;
+        }
+        Ok(body)
+    });
     let result = match &output {
         Ok(_) if matches!(product, MediaProbeProduct::LumaWeb) => ModelProbeResult {
             status: Some(200), usage: Value::Null,
@@ -117,11 +124,10 @@ pub(super) async fn probe(
             )),
         },
     };
-    let audit = audit.media_result(
-        target.payload.canonical_adapter(),
-        model,
-        output.as_ref().ok(),
-    );
+    let audit = match &output {
+        Ok(body) => audit.media_result(target.payload.canonical_adapter(), model, Some(body)),
+        Err(error) => audit.media_failure(target.payload.canonical_adapter(), error),
+    };
     if matches!(product, MediaProbeProduct::LumaWeb) {
         super::model_probe_recording::finish_without_health(
             target,

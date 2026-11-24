@@ -1,0 +1,886 @@
+Usage and credits | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Menu
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Getting started
+Quickstart
+Models
+Videos
+Overview
+Migration guide
+Generation
+Editing
+Reframing
+Images
+Overview
+Generation
+Editing
+Layering
+Prompting guide
+Files
+Overview
+Deletion
+Generation deletion
+LLM Inference
+LLM Inference
+Reference
+Pricing
+Usage and credits
+Rate limits and headers
+Error handling
+FAQ
+Changelog
+Auto
+Light
+Dark
+lumalabs.ai
+On this page
+Overview
+Your balance
+What you spent
+What each grouping counts
+The summary
+By model
+By end user
+By session
+By API key
+By tenant
+By session metadata
+What one generation cost
+Credits and dollars
+Next steps
+On this page
+Overview
+Your balance
+What you spent
+What each grouping counts
+The summary
+By model
+By end user
+By session
+By API key
+By tenant
+By session metadata
+What one generation cost
+Credits and dollars
+Next steps
+Reference
+Usage and credits
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+Usage and credits
+Read your credit balance and what you spent with GET /v1/credits and GET /v1/usage, and convert credits to dollars.
+The API charges in
+credits
+. Two endpoints tell you where they went:
+GET /v1/credits
+for what is left, and
+GET /v1/usage
+for what you spent. Both take your API key, the same one you generate with.
+Your balance
+Section titled “Your balance”
+Terminal window
+curl
+-s
+"https://agents.lumalabs.ai/v1/credits"
+\
+-H
+"Authorization: Bearer
+$LUMA_API_KEY
+"
+{
+"balance_credits"
+:
+49512
+}
+balance_credits
+is your team’s whole balance: every credit granted or bought, less everything spent,
+less the credits held right now for generations still running
+. A hold becomes a charge or is released when the generation finishes. To convert it to dollars, see
+Credits and dollars
+.
+What you spent
+Section titled “What you spent”
+GET /v1/usage
+reports
+settled
+charges only. A generation still running is not in it until it finishes.
+Parameter
+Meaning
+group_by
+model
+,
+user
+,
+session
+,
+api_key
+,
+tenant_id
+or
+metadata
+. Omit it for the summary.
+start
+,
+end
+An explicit window, ISO-8601.
+start
+is inclusive and required with
+end
+;
+end
+is exclusive and defaults to now; a time without an offset is UTC. At most 92 days. Omit both for the default window below.
+user_id
+With
+group_by=session
+: keep one end user’s sessions.
+tenant_id
+With
+group_by=tenant_id
+or
+group_by=metadata
+: keep one tenant.
+metadata.KEY=VALUE
+With
+group_by=tenant_id
+or
+group_by=metadata
+. Repeatable, and every one must match: keep sessions carrying those tags.
+metadata_key
+Required with
+group_by=metadata
+: the session
+metadata
+key to group by.
+A
+tenant_id
+or
+metadata.KEY
+filter on a grouping it cannot narrow is
+422
+, not ignored.
+Every response echoes its window as
+period_start
+and
+period_end
+, and says where the window came from in
+period_source
+:
+period_source
+Window
+subscription
+Your current billing period, when you omit
+start
+and
+end
+.
+calendar_month
+The current calendar month in UTC, when you omit
+start
+and
+end
+and your plan has no period end, as on Pay-as-you-go.
+explicit
+The
+start
+and
+end
+you passed.
+The
+calendar_month
+default is rolling out. Until it reaches your account, a plan with no period end, such as Pay-as-you-go, reads
+"period_source": "subscription"
+with
+"period_end": "9999-12-31T23:59:59+00:00"
+, and a team with no plan gets
+402
+instead of a window. The examples on this page show the default once it is on.
+What each grouping counts
+Section titled “What each grouping counts”
+“Direct generations” are
+POST /v1/generations
+calls and Scenes boards made with your API key outside an agent session. “Model turns” and “GPU jobs” are what an agent session spends: the agent’s reasoning, and the generations it dispatches.
+group_by
+One row per
+Direct generations
+Model turns
+GPU jobs
+(omitted)
+one summary
+yes
+no
+no
+model
+model and action
+yes
+no
+no
+user
+user_id
+sent on a direct generation
+yes
+no
+no
+session
+session, the 100 highest-spending
+yes
+no
+no
+api_key
+API key
+yes
+yes
+yes
+tenant_id
+tenant_id
+the session’s workspace was created with
+yes
+yes
+yes
+metadata
+value of one session
+metadata
+tag
+yes
+yes
+yes
+For agent session spend, group by
+api_key
+,
+tenant_id
+or
+metadata
+; the other groupings read
+0
+for a month of agent sessions and nothing else. App sessions are in none of them: read those from
+GET /v1/apps/{slug}/usage
+.
+The summary
+Section titled “The summary”
+Terminal window
+curl
+-s
+"https://agents.lumalabs.ai/v1/usage"
+\
+-H
+"Authorization: Bearer
+$LUMA_API_KEY
+"
+{
+"period_start"
+:
+"2026-10-01T00:00:00+00:00"
+,
+"period_end"
+:
+"2026-11-01T00:00:00+00:00"
+,
+"period_source"
+:
+"calendar_month"
+,
+"plan_slug"
+:
+"api-paygo"
+,
+"included_credits"
+:
+0
+,
+"overage_rate"
+:
+null
+,
+"total_credits_used"
+:
+31
+,
+"included_credits_remaining"
+:
+49602
+,
+"overage_credits"
+:
+0
+,
+"total_generations"
+:
+2
+,
+"total_sessions"
+:
+2
+}
+total_credits_used
+and
+total_generations
+count
+POST /v1/generations
+and Scenes boards made with the API. Spend in the Luma app or over MCP is not in them.
+plan_slug
+,
+included_credits
+,
+overage_rate
+and
+included_credits_remaining
+describe your plan for the current billing period. They are
+null
+when you pass
+start
+or
+end
+, and when your team has no plan. On Pay-as-you-go they cover your whole open-ended plan, not just the calendar month the window reports.
+overage_rate
+is the price of a credit past your allowance, in
+USD per credit, as a decimal string
+. It is
+null
+whenever overage is not billed for your team, which includes Pay-as-you-go.
+included_credits_remaining
+and
+overage_credits
+are measured across your whole team, every Luma surface included, so they do not reconcile with
+total_credits_used
+.
+By model
+Section titled “By model”
+One row per model and action.
+action
+is
+Generate
+,
+Modify
+,
+Extend
+or
+Reframe
+, so one model can appear on several rows, each at its own rate.
+Terminal window
+curl
+-s
+"https://agents.lumalabs.ai/v1/usage?group_by=model"
+\
+-H
+"Authorization: Bearer
+$LUMA_API_KEY
+"
+{
+"period_start"
+:
+"2026-10-01T00:00:00+00:00"
+,
+"period_end"
+:
+"2026-11-01T00:00:00+00:00"
+,
+"period_source"
+:
+"calendar_month"
+,
+"groups"
+: [
+{
+"model"
+:
+"uni-1"
+,
+"action"
+:
+"Generate"
+,
+"count"
+:
+1
+,
+"total_credits"
+:
+14
+},
+{
+"model"
+:
+"uni-1-max"
+,
+"action"
+:
+"Generate"
+,
+"count"
+:
+1
+,
+"total_credits"
+:
+17
+}
+]
+}
+By end user
+Section titled “By end user”
+One row per
+user_id
+you sent on
+POST /v1/generations
+. Agent sessions are not counted here, whatever
+user_id
+their token carries. Send a stable
+user_id
+on every request you want attributed: a generation sent without one groups under the id of the user who created the API key, and spend with no end user at all, such as a Scenes board sent without
+user_id
+from a key with no creating user, groups under
+"user_id": null
+. Until the calendar-month default above reaches your account, that row reads
+"user_id": "(no user)"
+instead.
+Terminal window
+curl
+-s
+"https://agents.lumalabs.ai/v1/usage?group_by=user"
+\
+-H
+"Authorization: Bearer
+$LUMA_API_KEY
+"
+{
+"period_start"
+:
+"2026-10-01T00:00:00+00:00"
+,
+"period_end"
+:
+"2026-11-01T00:00:00+00:00"
+,
+"period_source"
+:
+"calendar_month"
+,
+"groups"
+: [
+{
+"user_id"
+:
+"advertiser-4417"
+,
+"sessions"
+:
+1
+,
+"total_credits"
+:
+14
+},
+{
+"user_id"
+:
+"advertiser-9001"
+,
+"sessions"
+:
+1
+,
+"total_credits"
+:
+17
+}
+]
+}
+By session
+Section titled “By session”
+The 100 highest-spending sessions, most expensive first. Add
+user_id
+to keep one end user’s.
+Terminal window
+curl
+-s
+"https://agents.lumalabs.ai/v1/usage?group_by=session&user_id=advertiser-4417"
+\
+-H
+"Authorization: Bearer
+$LUMA_API_KEY
+"
+{
+"period_start"
+:
+"2026-10-01T00:00:00+00:00"
+,
+"period_end"
+:
+"2026-11-01T00:00:00+00:00"
+,
+"period_source"
+:
+"calendar_month"
+,
+"groups"
+: [
+{
+"session_id"
+:
+"a4b8c2d6-3f1e-4a9b-8c7d-6e5f4a3b2c30"
+,
+"total_credits"
+:
+14
+,
+"generation_count"
+:
+1
+}
+]
+}
+By API key
+Section titled “By API key”
+One row per key, with the
+name
+and
+metadata
+you gave it. This grouping also counts spend from agent sessions opened with the key, so it can be larger than the summary.
+Terminal window
+curl
+-s
+"https://agents.lumalabs.ai/v1/usage?group_by=api_key"
+\
+-H
+"Authorization: Bearer
+$LUMA_API_KEY
+"
+{
+"period_start"
+:
+"2026-10-01T00:00:00+00:00"
+,
+"period_end"
+:
+"2026-11-01T00:00:00+00:00"
+,
+"period_source"
+:
+"calendar_month"
+,
+"groups"
+: [
+{
+"api_key_id"
+:
+"5e55a9e0-0000-4000-8000-000000000003"
+,
+"name"
+:
+"production"
+,
+"metadata"
+: {
+"env"
+:
+"prod"
+},
+"sessions"
+:
+5
+,
+"total_credits"
+:
+398
+}
+]
+}
+By tenant
+Section titled “By tenant”
+One row per
+tenant_id
+your session tokens’ workspaces were created with, across direct generations, model turns and GPU jobs. Spend in a session the agent started for you, such as a delegated sub-agent, counts under the root session, and
+sessions
+counts root sessions. Direct generations and sessions without a tenant group under
+null
+. Tenant partitioning has to be enabled for your account before a token can carry a
+tenant_id
+; until then every row reads
+null
+, so group by a
+metadata
+tag instead.
+Terminal window
+curl
+-s
+"https://agents.lumalabs.ai/v1/usage?group_by=tenant_id"
+\
+-H
+"Authorization: Bearer
+$LUMA_API_KEY
+"
+{
+"period_start"
+:
+"2026-10-01T00:00:00+00:00"
+,
+"period_end"
+:
+"2026-11-01T00:00:00+00:00"
+,
+"period_source"
+:
+"calendar_month"
+,
+"groups"
+: [
+{
+"tenant_id"
+:
+"acme"
+,
+"sessions"
+:
+1
+,
+"total_credits"
+:
+284
+},
+{
+"tenant_id"
+:
+"globex"
+,
+"sessions"
+:
+1
+,
+"total_credits"
+:
+74
+},
+{
+"tenant_id"
+:
+null
+,
+"sessions"
+:
+2
+,
+"total_credits"
+:
+31
+}
+],
+"unattributed_credits"
+:
+9
+}
+unattributed_credits
+is spend on your API keys whose session has since been deleted, so it cannot be grouped. The
+tenant_id
+and
+metadata
+filters do not narrow it.
+By session metadata
+Section titled “By session metadata”
+One row per value of one
+metadata
+tag you set on
+POST /v1/sessions
+, counted the same way as by tenant. Sessions without the tag group under
+null
+.
+Terminal window
+curl
+-s
+"https://agents.lumalabs.ai/v1/usage?group_by=metadata&metadata_key=campaign"
+\
+-H
+"Authorization: Bearer
+$LUMA_API_KEY
+"
+{
+"period_start"
+:
+"2026-10-01T00:00:00+00:00"
+,
+"period_end"
+:
+"2026-11-01T00:00:00+00:00"
+,
+"period_source"
+:
+"calendar_month"
+,
+"metadata_key"
+:
+"campaign"
+,
+"groups"
+: [
+{
+"value"
+:
+"spring-launch"
+,
+"sessions"
+:
+1
+,
+"total_credits"
+:
+284
+},
+{
+"value"
+:
+"holiday"
+,
+"sessions"
+:
+1
+,
+"total_credits"
+:
+74
+},
+{
+"value"
+:
+null
+,
+"sessions"
+:
+2
+,
+"total_credits"
+:
+31
+}
+],
+"unattributed_credits"
+:
+9
+}
+Info
+If either endpoint answers
+501
+, usage reporting is switched off where you
+are calling it. Enterprise teams that need usage by subteam, project or board
+use the
+Admin API
+.
+What one generation cost
+Section titled “What one generation cost”
+GET /v1/generations/{generation_id}
+reports what that one generation was actually charged, in
+usage.credits_charged
+. It is the charge billing posted: not an estimate, not the credits held while the generation ran, and not a price from
+Pricing
+.
+Terminal window
+curl
+-s
+"https://agents.lumalabs.ai/v1/generations/d290f1ee-6c54-4b01-90e6-d701748f0851"
+\
+-H
+"Authorization: Bearer
+$LUMA_API_KEY
+"
+The
+usage
+field of that response reads one of four ways:
+usage
+Means
+{"credits_charged": 14}
+Billing settled the generation and charged 14 credits.
+{"credits_charged": 0}
+Billing settled the generation and charged nothing, for example a failure.
+{"credits_charged": null}
+Billing has not settled the generation yet, or could not confirm its charge.
+null
+Usage reporting is not switched on yet.
+Billing settles separately from the generation.
+A generation can reach
+completed
+or
+failed
+before its charge is settled, so
+credits_charged
+can still be
+null
+on a finished generation. Keep polling the same endpoint after the generation finishes, at a modest interval that grows between attempts, and stop at a cutoff you choose. There is no guaranteed time for the value to arrive.
+0
+means billing settled the generation and charged nothing.
+Like any number here, it reflects what was posted when you read it.
+null
+is never a zero.
+Some generations stay
+null
+: ones settled before this field existed that were not charged, and ones whose charge billing could not confirm. If a value is still
+null
+at your cutoff, record it as unknown rather than as free.
+A generation newly created by
+POST /v1/generations
+reports
+credits_charged: null
+, since nothing has been charged yet. When
+POST
+returns a generation that already exists instead of creating one, its
+usage
+is what
+GET
+would return.
+usage
+itself is
+null
+while usage reporting is switched off. It is switched on for every API client at once, and polling does not change it.
+To total charges across many generations, use
+What you spent
+instead of adding these up.
+Credits and dollars
+Section titled “Credits and dollars”
+Every figure the API returns is in credits. To convert, multiply by your rate in
+USD per credit
+:
+If
+GET /v1/usage
+returns a non-null
+overage_rate
+, that is your rate
+for credits past your allowance. It is a decimal string; parse it as a decimal, not a float, if you bill on it.
+Otherwise, your plan or contract sets your rate.
+If you do not know it, ask your Luma contact. Do not assume a default rate.
+dollars = credits × rate
+.
+Pricing
+quotes a price per generation; do not divide it by a generation’s credits to get a rate, because credits are whole numbers and the division does not come out to your rate.
+Next steps
+Section titled “Next steps”
+Pricing
+— Per-generation prices and Provisioned Throughput plans
+Rate limits
+— Default limits and request behavior
+FAQ
+— Common billing questions
+Previous
+Pricing
+Pay-as-you-go and Provisioned Throughput pricing for the Luma Agents API — image (uni-1, uni-1-max) and video (Ray 3.2).
+Next
+Rate limits and headers
+How rate limiting works, what headers mean, and how to handle every response scenario.

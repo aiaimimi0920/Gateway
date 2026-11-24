@@ -1,0 +1,124 @@
+{
+  "capturedAt": "2026-11-20T10:19:40.088656+00:00",
+  "scope": "model list and describe only; no business session, refresh or generation",
+  "status": "passed",
+  "revisionUnchanged": true,
+  "modelCount": 18,
+  "descriptionCount": 18,
+  "requests": [
+    {
+      "path": "route-config",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "session/confirm-secret-access",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "luma-mcp-models",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "route-config",
+      "status": 200,
+      "noStore": true
+    }
+  ],
+  "sha256": {
+    "models.json": "209a399eed5df788c9aa79fcf21a0ff6c7b4099d063462a49da6c0f5d540f0ec",
+    "model-descriptions.json": "adc138a977f9d876b7f6621d635625f2068cdc0fc1ed0ab9a5e269cb32b51e8b"
+  }
+}

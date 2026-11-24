@@ -1,0 +1,369 @@
+{
+  "status": "passed",
+  "capturedAt": "2026-11-20T10:46:15.640995+00:00",
+  "scope": "Local MCP 18-model creation; synthetic execution only. One explicitly authorized OAuth refresh and real read-only list/describe.",
+  "tests": {
+    "rust": {
+      "passed": 20,
+      "failed": 0,
+      "filteredOut": 6428,
+      "testSeconds": 19.89,
+      "commandSeconds": 965.02
+    },
+    "frontend": {
+      "passed": 36
+    },
+    "python": {
+      "passed": 3
+    },
+    "effectiveLineChecker": {
+      "passed": 31
+    },
+    "browser": {
+      "status": "passed",
+      "syntheticCalls": 9,
+      "browserClosed": true,
+      "previewServerExited": true
+    }
+  },
+  "boundaries": [
+    "No live media generation or charges",
+    "No new EXE/package",
+    "No Server/Redis/process-kill acceptance",
+    "No Web wire capture",
+    "No task recovery across configuration revisions",
+    "No run interaction or layer layout implementation"
+  ],
+  "sourceSnapshotNote": "Rust compilation began before rustfmt-only module declaration reordering in creation_tests.rs; no semantic Rust changes after compilation began.",
+  "checks": [
+    {
+      "check": "rust",
+      "result": "checks/rust/result.json",
+      "exitCode": 0
+    },
+    {
+      "check": "ui",
+      "result": "checks/ui/result.json",
+      "exitCode": 0
+    },
+    {
+      "check": "typecheck",
+      "result": "checks/typecheck/result.json",
+      "exitCode": 0
+    },
+    {
+      "check": "capture-tests",
+      "result": "checks/capture-tests/result.json",
+      "exitCode": 0
+    },
+    {
+      "check": "browser-run",
+      "result": "checks/browser-run/result.json",
+      "exitCode": 0
+    },
+    {
+      "check": "preview-server",
+      "result": "checks/preview-server/result.json",
+      "exitCode": 0
+    },
+    {
+      "check": "line-checker-tests",
+      "result": "checks/line-checker-tests/result.json",
+      "exitCode": 0
+    },
+    {
+      "check": "ratchet",
+      "result": "checks/ratchet/result.json",
+      "exitCode": 0
+    },
+    {
+      "check": "format-final",
+      "result": "checks/format-final/result.json",
+      "exitCode": 0
+    },
+    {
+      "check": "diff-final",
+      "result": "checks/diff-final/result.json",
+      "exitCode": 0
+    }
+  ],
+  "sources": [
+    {
+      "path": "src/protocol/luma_mcp/creation.rs",
+      "utf8NoBom": true,
+      "sha256": "a10b2749a7107de7f4de4cf3c76072e4f25eb96ac4c564078dd22351743f1d75"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation/options.rs",
+      "utf8NoBom": true,
+      "sha256": "915275151e799f175f8cd2d6142e424452a1de189b7866086e2424b05dbc9d68"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation/video.rs",
+      "utf8NoBom": true,
+      "sha256": "613386debb8a4a1248a1606392119d37ff43cc8b5da5920241d82bc4774db45a"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation/profiles.rs",
+      "utf8NoBom": true,
+      "sha256": "5b8c1dcc64a8338727a1b80492def957f026a16083507c577270740f628832c6"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation/image_parameters.rs",
+      "utf8NoBom": true,
+      "sha256": "ce38d456730cf5c616a68b02269e365f06f98a9ad4e2dbd028dabbf636c56b03"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation_tests.rs",
+      "utf8NoBom": true,
+      "sha256": "6b830a1f3b3d688d8b849e0505229f8e0023ac336fd39632e425df5d86bb4903"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation_model_tests.rs",
+      "utf8NoBom": true,
+      "sha256": "ba747f87389373330ebd5d990735ddb0acf099914736b162baec3b8ae5679848"
+    },
+    {
+      "path": "apps/desktop/src/features/console/lumaMcpCreationDraft.ts",
+      "utf8NoBom": true,
+      "sha256": "c8e3c3f13659ed77055ddbcef3722d03e3e0df0321d8dbff996756193ff6c17e"
+    },
+    {
+      "path": "apps/desktop/src/features/console/lumaMcpCreationModels.ts",
+      "utf8NoBom": true,
+      "sha256": "376927b7374735375d28ea8cb2ea7976d929c33297e2546346d0a1d12f3db991"
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationOptions.tsx",
+      "utf8NoBom": true,
+      "sha256": "5c282f4c88d880cfc5fe3e4acee3314c0974c637a6afc19215b0ebf218a80e7f"
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpImageParameters.tsx",
+      "utf8NoBom": true,
+      "sha256": "e0e248d5940315e0a5a6dcdb60d9dd787421e2161bf15a2aa6a077d790ba3cac"
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationModels.test.tsx",
+      "utf8NoBom": true,
+      "sha256": "6b3e0fd054e2fdc5a7bfb1ba450610dc51050358a52d926a7f3206ee2f39e470"
+    },
+    {
+      "path": "tools/luma/capture-mcp-models.py",
+      "utf8NoBom": true,
+      "sha256": "e11a0ba01037ab08c5f5e793faa0bb8aa233f7ecd17c1abf800e7dabd2754bcf"
+    },
+    {
+      "path": "tools/luma/mcp-creation-preview-check.mjs",
+      "utf8NoBom": true,
+      "sha256": "8e3b5dcb508eb47a4c03de0a3a3c9f2b205cd66d92837f2e5d3cff4d17bdad7d"
+    },
+    {
+      "path": "tools/luma/mcp-models-preview-flow.mjs",
+      "utf8NoBom": true,
+      "sha256": "b4344ba9637d6214bd55b83347bd71459b3e7fe8bc0b8e35652dbd1eb4a6400f"
+    },
+    {
+      "path": "tests/python/test_luma_model_capture.py",
+      "utf8NoBom": true,
+      "sha256": "bb306b3b94e06efd2a9a1ffea2febfc62c6bae22c80cf0d7acb5b66f090c5b4c"
+    },
+    {
+      "path": "manifests/luma-mcp-creation-models.json",
+      "utf8NoBom": true,
+      "sha256": "e6d411a4b7c68f00e02f9a6f3c555b27796d1bbf94ee693e6dd21132da214ddb"
+    },
+    {
+      "path": "tools/luma/README.md",
+      "utf8NoBom": true,
+      "sha256": "12fd69b9e015df3c1219a2d98cf3aa48b5e0e35e43c9843d1c270cd8b678fff4"
+    },
+    {
+      "path": "docs/progress/2026-11-20-luma-mcp-models.md",
+      "utf8NoBom": true,
+      "sha256": "79078de4f4dabefa37305f3d2f2bbcd4bbc70012849e8888243b537e871c8d41"
+    },
+    {
+      "path": "docs/providers/luma-development-status.md",
+      "utf8NoBom": true,
+      "sha256": "26df8f8b53ded4b5ea379d507d07d2dffdf71f887d969b2814ceda6b622fdd34"
+    },
+    {
+      "path": "docs/provider-luma-channel-contract.md",
+      "utf8NoBom": true,
+      "sha256": "bb75e91be9fd0d2933b7b5cd18060789bd97f5cd20eb66e92ebe90342f0c2e55"
+    },
+    {
+      "path": "docs/evidence/luma/README.md",
+      "utf8NoBom": true,
+      "sha256": "786eb70520f5244fd2b434371f15c5fd7778379ce55068851b42922974bbf634"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "after.json",
+      "bytes": 1549,
+      "sha256": "947bf610cee0b5fe0808f2ffe3e13cb74a68503e7cf7805972ef80b7bf3204b4"
+    },
+    {
+      "path": "before.json",
+      "bytes": 486,
+      "sha256": "8064a96373e87bd2047852c8eb0815c6d3e71cd26df8cdc1eda5ef0ea2551df9"
+    },
+    {
+      "path": "browser/hdr-model-narrow.png",
+      "bytes": 25997,
+      "sha256": "010919e9d6babf04c7985457d1052312cc1a38e02e2096c495789429d7529c25"
+    },
+    {
+      "path": "browser/nano-model-wide.png",
+      "bytes": 48966,
+      "sha256": "741a461b8bee90ffa63aa891ab0389e6d49bf17830151252792bf3c0cc816527"
+    },
+    {
+      "path": "browser/result.json",
+      "bytes": 5160,
+      "sha256": "dfa4c3353cfbca41cdd645dde9e28997e24b74f1a685e8cbc714cbebe74a6c13"
+    },
+    {
+      "path": "browser/seedream-model-narrow.png",
+      "bytes": 25005,
+      "sha256": "d6c9fe27ea14f42830a9f0bd06463b6799aebe3c9494f5218f5fb13b206853f7"
+    },
+    {
+      "path": "browser/seedream.ax.txt",
+      "bytes": 1474,
+      "sha256": "bc5c5fa2f6fe57f5f6b9b688d6edbbafa0f2eb26cf124c1fddc7a854398dc207"
+    },
+    {
+      "path": "checks/browser-run/command.log",
+      "bytes": 138,
+      "sha256": "173047aef5775b69fc84da4af8a86822363d0eed8d9a17ac3386ff86dc0c5fa9"
+    },
+    {
+      "path": "checks/browser-run/result.json",
+      "bytes": 436,
+      "sha256": "1b51a1ac9de194f0892ecb2396e77aac4c06205a6128a7fbd80bb0030e2a4a19"
+    },
+    {
+      "path": "checks/capture-tests/command.log",
+      "bytes": 576,
+      "sha256": "c278d6a7024bd805fd0deee9ca9333c792d90cecf00446d03e3412ff9481c802"
+    },
+    {
+      "path": "checks/capture-tests/result.json",
+      "bytes": 342,
+      "sha256": "6d2e0e606770bc69a7eff777598e767d4c265e1740fbc6d532834191fa454f53"
+    },
+    {
+      "path": "checks/diff-final/command.log",
+      "bytes": 569,
+      "sha256": "d51c52a1cfcd65108d22fd2a0e9062e5110672350e25b1f904a22a6eb367184d"
+    },
+    {
+      "path": "checks/diff-final/result.json",
+      "bytes": 234,
+      "sha256": "d168383139ce6516bd4c14f13b82a5194e13bf2f6513a71995b6a5c7bf62b6ff"
+    },
+    {
+      "path": "checks/format-final/command.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "checks/format-final/result.json",
+      "bytes": 346,
+      "sha256": "6195c62cc2c388513648c21b2bf3e53863085f9a760f15c17a84adacdd6d3a3a"
+    },
+    {
+      "path": "checks/line-checker-tests/command.log",
+      "bytes": 6287,
+      "sha256": "df6767258d4d1836ba11f8f0d7a1ba3a5d582b6b0bac3a44d9f60f7316fa6b0c"
+    },
+    {
+      "path": "checks/line-checker-tests/result.json",
+      "bytes": 282,
+      "sha256": "0037983d62174dd0ec4c9a652d81605574177bf7cb977e381058dc8288b37bd7"
+    },
+    {
+      "path": "checks/preview-server/command.log",
+      "bytes": 90,
+      "sha256": "22ccb02a3a861757ed195ef4763b05919aa314f0d5ef168568ba8f59ee41c759"
+    },
+    {
+      "path": "checks/preview-server/result.json",
+      "bytes": 441,
+      "sha256": "1a2eb34e612041a94d1e8009971ef84252c1f248c4df00efcb24b9e58a6400ad"
+    },
+    {
+      "path": "checks/ratchet/command.log",
+      "bytes": 273,
+      "sha256": "1675d669a299000480c9e7d87812c97d56c3d193804bb5ea919a37647778b169"
+    },
+    {
+      "path": "checks/ratchet/result.json",
+      "bytes": 284,
+      "sha256": "1e2ced99357e799e548f80907f668be09fcf2fd980f1a826faa9928195283418"
+    },
+    {
+      "path": "checks/rust/command.log",
+      "bytes": 28240,
+      "sha256": "7837e6b913f6147f7898fa01b326846181fbda55b439dcf708c89850c772c57e"
+    },
+    {
+      "path": "checks/rust/result.json",
+      "bytes": 429,
+      "sha256": "0d39adfc2a8bd562bfe12f445aa90792da72554989a56f4af6c75e025cd95244"
+    },
+    {
+      "path": "checks/typecheck/command.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "checks/typecheck/result.json",
+      "bytes": 327,
+      "sha256": "7737c23c6da45b6ccd725a976e4aaeabef6b4b06d7973be2e7cab5b6f77099a5"
+    },
+    {
+      "path": "checks/ui/command.log",
+      "bytes": 518,
+      "sha256": "77d6bc92a980f812805f2eff47000eeb5c99ff7167bf8ba37fa8259cb291e0ff"
+    },
+    {
+      "path": "checks/ui/result.json",
+      "bytes": 558,
+      "sha256": "42f08f1e3582297fc2091b1ee89671653c5df518c7f69f2e9020708cb4ffe466"
+    },
+    {
+      "path": "contracts/model-descriptions.json",
+      "bytes": 38188,
+      "sha256": "adc138a977f9d876b7f6621d635625f2068cdc0fc1ed0ab9a5e269cb32b51e8b"
+    },
+    {
+      "path": "contracts/models.json",
+      "bytes": 51140,
+      "sha256": "209a399eed5df788c9aa79fcf21a0ff6c7b4099d063462a49da6c0f5d540f0ec"
+    },
+    {
+      "path": "contracts/refresh-verification.json",
+      "bytes": 242,
+      "sha256": "132e91ac16725631c629d2757d58017e1fdc75e567aa44f85a5d5eb842c794a6"
+    },
+    {
+      "path": "contracts/verification.json",
+      "bytes": 2553,
+      "sha256": "72b53c303608779b6a07a5a8be422191fc82de22fb3210f64beac1bd49e9f297"
+    },
+    {
+      "path": "encoding-and-source.json",
+      "bytes": 3900,
+      "sha256": "0ef4ea09385b9fc02b99deb20463f9138deccaa9357dd7c5ad1ec7cb20b94165"
+    },
+    {
+      "path": "scoped.diff",
+      "bytes": 75954,
+      "sha256": "f9bab33f7dc314f689624240ab9881dc0aec5c4708dde74a0570721962425eaa"
+    }
+  ]
+}

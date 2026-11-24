@@ -96,7 +96,7 @@ impl LocalRuntime {
     pub async fn finalize_audit(
         &self,
         id: &str,
-        input: FinalizeRequestAuditInput,
+        mut input: FinalizeRequestAuditInput,
     ) -> Result<(), GatewayError> {
         let mut tx = self
             .pool
@@ -137,6 +137,7 @@ impl LocalRuntime {
             row.provider_account_id = input.provider_account_id.or(row.provider_account_id);
             row.resolved_model = input.resolved_model.or(row.resolved_model);
             row.model_alias = input.model_alias.or(row.model_alias);
+            crate::luma_reconciliation::preserve(row.route_trace.as_ref(), &mut input.route_trace);
             row.route_trace = input.route_trace.or(row.route_trace);
             row.response_id = input.response_id.unwrap_or(row.response_id);
             row.updated_at = timestamp();

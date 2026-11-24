@@ -14,9 +14,16 @@ pub(super) struct Decoder {
     input: Bytes,
     frame: Vec<u8>,
     length: Option<usize>,
+    strict_json: bool,
 }
 
 impl Decoder {
+    pub fn strict_json() -> Self {
+        Self {
+            strict_json: true,
+            ..Self::default()
+        }
+    }
     pub fn push(&mut self, input: Bytes) {
         debug_assert!(self.input.is_empty());
         self.input = input;
@@ -63,7 +70,12 @@ impl Decoder {
                 return Err(invalid("message CRC mismatch"));
             }
             let headers_end = 12 + number(&frame[4..8]);
-            return headers::parse(&frame[12..headers_end], &frame[headers_end..end]).map(Some);
+            return headers::parse(
+                &frame[12..headers_end],
+                &frame[headers_end..end],
+                self.strict_json,
+            )
+            .map(Some);
         }
         Ok(None)
     }

@@ -119,6 +119,12 @@ Gateway 本地 realtime bridge 使用同一 HTTP 推理链路；这里没有新�
 媒体、搜索、向量、管理/配额探测不自动套用。Basispoints、Kiro、浏览器逆向等产品专用通道
 保留各自协议和请求参数，不被通用 CLI 指纹覆盖。
 
+控制台显式触发的通用模型目录及协议发现按目标格式选择身份：OpenAI Chat、Responses、
+Completions 使用 Codex CLI，Messages 使用 Claude CLI，模型名称不参与选择。
+每个 Codex 探测请求创建独立随机 `x-codex-window-id`，供要求 Codex 请求上下文的中转站识别；
+不读取用户安装或会话标识，不将该字段添加到普通推理请求。身份不代表协议可用，仍须收到
+对应协议的有效生成回答才能记录支持。参考 [sub2api 探测兼容修复](https://github.com/Wei-Shaw/sub2api/pull/4696)。
+
 切换套件不会改变路由或站点、授予 OAuth scope、自动启用 fast/1m/redact beta、
 绕过服务商权限限制或保证模型质量。若服务商依赖完整官方客户端业务语义，仍需该通道的专用适配。
 

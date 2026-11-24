@@ -1,0 +1,713 @@
+--- a/src/http/routes/internal_console/luma_mcp/creation.rs
++++ b/src/http/routes/internal_console/luma_mcp/creation.rs
+@@ -1,5 +1,6 @@
+ //! Explicit saved-account creation. Durable task admission precedes every billable operation.
+ mod execute;
++mod identity;
+ mod store;
+ mod workspace;
+ use super::{authorize, no_store, resolve, revision_changed, Input};
+@@ -82,12 +83,19 @@
+         }
+         let request = input.request.as_ref().ok_or_else(invalid)?;
+         request.validate().map_err(|_| invalid())?;
+-        store::prepare(&local, &target, request).await?
++        store::prepare(
++            &local,
++            &target,
++            request,
++            state.route_config_runtime.as_deref(),
++        )
++        .await?
+     } else {
+         store::load(
+             &local,
+             input.task_id.as_deref().ok_or_else(invalid)?,
+             &target,
++            state.route_config_runtime.as_deref(),
+         )
+         .await?
+     };
+--- a/src/http/routes/internal_console/luma_mcp/creation/store.rs
++++ b/src/http/routes/internal_console/luma_mcp/creation/store.rs
+@@ -1,6 +1,8 @@
+ //! Local creation journal reuses audit rows; CAS leases fence overlapping operations and crash recovery.
+ use super::*;
+-use crate::{db::CreateRequestAuditInput, local_runtime::LocalRuntime};
++use crate::{
++    console::RouteConfigRuntime, db::CreateRequestAuditInput, local_runtime::LocalRuntime,
++};
+ use sha2::{Digest, Sha256};
+ 
+ #[derive(Clone, Debug, serde::Serialize, Deserialize)]
+@@ -38,8 +40,9 @@
+     local: &LocalRuntime,
+     target: &super::super::Input,
+     request: &flow::Request,
++    runtime: Option<&RouteConfigRuntime>,
+ ) -> Result<Task, GatewayError> {
+-    let workspace_binding = super::workspace::bind(local, target, request).await?;
++    let workspace_binding = super::workspace::bind(local, target, request, runtime).await?;
+     let task = Task {
+         id: format!("luma-mcp-{}", uuid::Uuid::new_v4()),
+         provider_id: target.provider_id.clone(),
+@@ -94,6 +97,7 @@
+     local: &LocalRuntime,
+     id: &str,
+     target: &super::super::Input,
++    runtime: Option<&RouteConfigRuntime>,
+ ) -> Result<Task, GatewayError> {
+     if !id.starts_with("luma-mcp-") || uuid::Uuid::parse_str(&id[9..]).is_err() {
+         return Err(invalid());
+@@ -104,10 +108,10 @@
+     if task.id != id
+         || task.provider_id != target.provider_id
+         || task.credential_id != target.credential_id
+-        || task.revision != target.expected_revision
+     {
+         return Err(invalid());
+     }
++    super::identity::verify(runtime, &task.revision, target).await?;
+     Ok(task)
+ }
+ pub(super) async fn save(local: &LocalRuntime, task: &mut Task) -> Result<(), GatewayError> {
+@@ -170,7 +174,7 @@
+             options: None,
+             reuse: None,
+         };
+-        let mut stale = prepare(&local, &target, &request).await.unwrap();
++        let mut stale = prepare(&local, &target, &request, None).await.unwrap();
+         let mut winner = stale.clone();
+         winner.state = "completed".into();
+         save(&local, &mut winner).await.unwrap();
+@@ -178,7 +182,7 @@
+         assert_eq!(stale.version, 0);
+         assert!(save(&local, &mut stale).await.is_err());
+         assert_eq!(
+-            load(&local, &winner.id, &target).await.unwrap().state,
++            load(&local, &winner.id, &target, None).await.unwrap().state,
+             "completed"
+         );
+         let (status, payload): (String, String) =
+--- a/src/http/routes/internal_console/luma_mcp/creation/workspace.rs
++++ b/src/http/routes/internal_console/luma_mcp/creation/workspace.rs
+@@ -1,6 +1,6 @@
+ //! Bind selected assets to one original account and workspace before creating a new audit row.
+ use super::{flow, invalid, store, GatewayError};
+-use crate::local_runtime::LocalRuntime;
++use crate::{console::RouteConfigRuntime, local_runtime::LocalRuntime};
+ use serde::{Deserialize, Serialize};
+ 
+ #[derive(Clone, Debug, Deserialize, Serialize)]
+@@ -14,12 +14,13 @@
+     local: &LocalRuntime,
+     target: &super::super::Input,
+     request: &flow::Request,
++    runtime: Option<&RouteConfigRuntime>,
+ ) -> Result<Option<Binding>, GatewayError> {
+     let Some(reuse) = &request.reuse else {
+         return Ok(None);
+     };
+-    // load enforces provider, credential and revision ownership, including recovered historical tasks.
+-    let source = store::load(local, &reuse.task_id, target).await?;
++    // Reuse requires the same account proof as reads, including published OAuth rotations.
++    let source = store::load(local, &reuse.task_id, target, runtime).await?;
+     let workspace = source.workspace_id.as_ref().ok_or_else(invalid)?;
+     let selected = reuse.assets(request.kind).map_err(|_| invalid())?;
+     for (id, kind) in selected {
+--- a/src/protocol/luma_mcp/creation_tests.rs
++++ b/src/protocol/luma_mcp/creation_tests.rs
+@@ -11,6 +11,8 @@
+ mod model_tests;
+ #[path = "creation_options_tests.rs"]
+ mod options_tests;
++#[path = "creation_recovery_tests.rs"]
++mod recovery_tests;
+ #[path = "creation_reuse_tests.rs"]
+ mod reuse_tests;
+ #[path = "../../../tests/console_contract_support/mod.rs"]
+--- a/apps/desktop/src/features/console/LumaMcpCreationPanel.tsx
++++ b/apps/desktop/src/features/console/LumaMcpCreationPanel.tsx
+@@ -28,9 +28,10 @@
+   const [error, setError] = useState(false);
+   const [submitted, setSubmitted] = useState(false);
+   useEffect(() => {
+-    setTask(null); setId(""); setConfirmed(false); setBusy(false); setError(false); setSubmitted(false);
++    setTask(null); setConfirmed(false); setBusy(false); setError(false); setSubmitted(false);
+     return () => { pending.current?.abort(); pending.current = null; };
+   }, [scope]);
++  useEffect(() => { setId(""); }, [props.client, props.managementToken, props.providerId, props.credentialId]);
+   useEffect(() => { setDraft(newMcpDraft()); },
+     [props.client, props.managementToken, props.providerId, props.credentialId, props.expectedRevision]);
+   useEffect(() => { setConfirmed(false); }, [draft, prompt, budget]);
+@@ -58,7 +59,8 @@
+       if (controller.signal.aborted || current.current !== scope) return;
+       const result = response.task;
+       if (response.revision !== scope.revision || response.providerId !== scope.providerId || response.credentialId !== scope.credentialId
+-        || result.revision !== scope.revision || result.providerId !== scope.providerId || result.credentialId !== scope.credentialId
++        || (action === "prepare" && result.revision !== scope.revision)
++        || result.providerId !== scope.providerId || result.credentialId !== scope.credentialId
+         || (action !== "prepare" && result.id !== id.trim())) throw new Error("binding");
+       setTask(result); setId(result.id);
+       // An explicit read proving no dispatch occurred allows the original saved request to be submitted.
+--- a/src/protocol/luma_mcp/creation_reuse_tests.rs
++++ b/src/protocol/luma_mcp/creation_reuse_tests.rs
+@@ -1,7 +1,7 @@
+ //! Workspace reuse crosses the real management route, durable journal and fixed MCP wire.
+ use super::*;
+ 
+-fn source_replies(kind: &str) -> Vec<Value> {
++pub(super) fn source_replies(kind: &str) -> Vec<Value> {
+     vec![
+         opened(),
+         started(),
+@@ -16,7 +16,7 @@
+         usage(false),
+     ]
+ }
+-async fn source(f: &Fixture, kind: &str) -> String {
++pub(super) async fn source(f: &Fixture, kind: &str) -> String {
+     let mut prepare = f.command("prepare", None);
+     prepare["request"]["kind"] = json!(kind);
+     let (status, body) = f.send(prepare).await;
+@@ -34,20 +34,20 @@
+     );
+     id.into()
+ }
+-fn input(kind: &str, source: &str, gpt: bool) -> Value {
++pub(super) fn input(kind: &str, source: &str, gpt: bool) -> Value {
+     json!({"kind":kind,"prompt":"continue with this asset","budgetCredits":13,
+         "options":if gpt { json!({"model":"openai_gpt_image_2"}) } else { json!({"operation":"edit"}) },
+         "reuse":{"taskId":source,"sourceAssetId":if gpt {Value::Null} else {json!("artifact:a1")},
+             "referenceAssetIds":if gpt || kind == "image" {json!(["a2"])} else {json!([])}}})
+ }
+-async fn prepare(f: &Fixture, request: &Value) -> String {
++pub(super) async fn prepare(f: &Fixture, request: &Value) -> String {
+     let mut command = f.command("prepare", None);
+     command["request"] = request.clone();
+     let (status, body) = f.send(command).await;
+     assert_eq!(status, 200, "{body}");
+     body["task"]["id"].as_str().unwrap().into()
+ }
+-async fn start(f: &Fixture, id: &str, request: &Value) -> Value {
++pub(super) async fn start(f: &Fixture, id: &str, request: &Value) -> Value {
+     let mut command = f.command("start", Some(id));
+     command["request"] = request.clone();
+     let (status, body) = f.send(command).await;
+@@ -195,7 +195,10 @@
+             .unwrap();
+         let mut command = f.command("prepare", None);
+         command["request"] = input("image", &id, false);
+-        assert_eq!(f.send(command).await.0, 400);
++        assert_eq!(
++            f.send(command).await.0,
++            if path == "revision" { 409 } else { 400 }
++        );
+         sqlx::query("UPDATE request_audits SET payload = ? WHERE id = ?")
+             .bind(original)
+             .bind(&id)
+--- a/src/http/routes/internal_console/luma_mcp/creation/identity.rs
++++ b/src/http/routes/internal_console/luma_mcp/creation/identity.rs
+@@ -0,0 +1,102 @@
++//! Recover task access from archived credentials and published refresh evidence, never client IDs alone.
++use super::{super::Input, GatewayError};
++use crate::{
++    console::{
++        refresh_grants::{GrantPhase, GrantRequest},
++        RouteConfigRedisRevision, RouteConfigRuntime,
++    },
++    routing::config::{ProviderCredentialYaml, RouteConfigYaml},
++};
++use std::collections::HashSet;
++
++pub(super) async fn verify(
++    runtime: Option<&RouteConfigRuntime>,
++    original_revision: &str,
++    target: &Input,
++) -> Result<(), GatewayError> {
++    if original_revision == target.expected_revision {
++        return Ok(());
++    }
++    let runtime = runtime.ok_or_else(unavailable)?;
++    let owner = runtime.coordinator().cloned().ok_or_else(unavailable)?;
++    let revision = original_revision.to_owned();
++    // Archives contain secrets; keep them in memory and off the async executor's file-I/O path.
++    let archive = tokio::task::spawn_blocking(move || owner.load_revision(&revision))
++        .await
++        .map_err(|_| unavailable())?
++        .map_err(|_| unavailable())?
++        .ok_or_else(unavailable)?;
++    let original =
++        RouteConfigRedisRevision::new(archive.metadata().clone(), archive.document().clone())
++            .map_err(|_| unavailable())?;
++    let current = runtime.route_config().snapshot();
++    if current.revision().id() != target.expected_revision {
++        return Err(super::revision_changed());
++    }
++    let old = credential(original.document(), target)?;
++    let new = credential(current.document(), target)?;
++    // Policy/name edits do not change the account. Include the actual secrets and full OAuth context.
++    if old.api_key == new.api_key
++        && old.refresh_token == new.refresh_token
++        && old.luma_oauth == new.luma_oauth
++    {
++        return Ok(());
++    }
++    let current =
++        RouteConfigRedisRevision::new(current.revision().clone(), current.document().clone())
++            .map_err(|_| unavailable())?;
++    let mut prior =
++        GrantRequest::from_revision(&original, &target.provider_id, &target.credential_id)
++            .map_err(|_| unavailable())?;
++    let next = GrantRequest::from_revision(&current, &target.provider_id, &target.credential_id)
++        .map_err(|_| unavailable())?;
++    let mut visited = HashSet::new();
++    // Follow at most 32 persisted rotations; no refresh request, token write or background retry.
++    for _ in 0..32 {
++        if !visited.insert(prior.material_id()) {
++            return Err(unavailable());
++        }
++        let record = runtime
++            .find_refresh_grant(&prior)
++            .await
++            .map_err(|_| unavailable())?
++            .ok_or_else(unavailable)?;
++        if record.phase() != GrantPhase::Published
++            || record.provider_id() != target.provider_id
++            || record.credential_id() != target.credential_id
++            || !record.original().equivalent(&prior.material)
++        {
++            return Err(unavailable());
++        }
++        let result = record.result().ok_or_else(unavailable)?;
++        if result.material.equivalent(&next.material) {
++            return Ok(());
++        }
++        prior.material = result.material.clone();
++    }
++    Err(unavailable())
++}
++
++fn credential<'a>(
++    document: &'a RouteConfigYaml,
++    target: &Input,
++) -> Result<&'a ProviderCredentialYaml, GatewayError> {
++    document
++        .providers
++        .iter()
++        .find(|p| p.id == target.provider_id && crate::routing::config::luma_mcp::is_provider(p))
++        .and_then(|p| {
++            p.credentials
++                .iter()
++                .find(|c| c.id.as_deref() == Some(target.credential_id.as_str()))
++        })
++        .filter(|c| c.luma_oauth.is_some() && c.api_key.as_ref().is_some_and(|key| !key.is_empty()))
++        .ok_or_else(unavailable)
++}
++
++fn unavailable() -> GatewayError {
++    GatewayError::conflict(
++        "The original Luma account continuity could not be verified; keep the task ID.",
++    )
++    .with_code("luma_mcp_task_identity_unverified")
++}
+--- a/src/protocol/luma_mcp/creation_recovery_tests.rs
++++ b/src/protocol/luma_mcp/creation_recovery_tests.rs
+@@ -0,0 +1,189 @@
++//! Recovery must prove account continuity before any saved-task read, cleanup or workspace reuse.
++use super::*;
++#[path = "creation_recovery_fixture.rs"]
++mod fixture;
++use fixture::{commit, offline, refresh, restart, unpublished_successor};
++
++#[tokio::test]
++async fn luma_mcp_creation_recovery_policy_edit_keeps_old_task_and_current_revision_fence() {
++    let f = Fixture::new(vec![
++        opened(),
++        started(),
++        progress("running", true, json!([])),
++        usage(true),
++        json!({"status":"cancelled","run_id":"r1","session_id":"s1"}),
++        usage(false),
++        json!({"status":"ended","session_id":"s1"}),
++        usage(false),
++    ])
++    .await;
++    let task = f.act("prepare", None).await;
++    let id = task["id"].as_str().unwrap();
++    let stale = f.command("start", Some(id));
++    commit(&f, |d| {
++        d.providers[0].credentials[1].account_name = Some("unrelated name".into())
++    })
++    .await;
++    assert_eq!(f.send(stale).await.0, 409);
++    assert!(f.peer.calls.lock().unwrap().is_empty());
++    let running = f.act("start", Some(id)).await;
++    assert_eq!(running["revision"], task["revision"]);
++    assert_eq!(running["state"], "running");
++    assert_eq!(f.send(f.command("start", Some(id))).await.0, 409);
++    assert_eq!(f.act("read", Some(id)).await["runId"], "r1");
++    assert_eq!(f.act("cancel", Some(id)).await["state"], "cancelled");
++    assert_eq!(f.act("end", Some(id)).await["ended"], true);
++    assert_eq!(
++        f.peer
++            .calls
++            .lock()
++            .unwrap()
++            .iter()
++            .filter(|(_, v)| v["params"]["name"] == "luma_generate_image")
++            .count(),
++        1
++    );
++    f.close().await;
++}
++
++#[tokio::test]
++async fn luma_mcp_creation_recovery_published_rotations_restart_and_workspace_reuse() {
++    let mut values = reuse_tests::source_replies("image");
++    values.extend([
++        opened(),
++        started(),
++        json!({"status":"ended","session_id":"s1"}),
++        usage(false),
++    ]);
++    let mut f = Fixture::new(values).await;
++    offline(&f).await;
++    let task = f.act("prepare", None).await;
++    let id = task["id"].as_str().unwrap().to_owned();
++    f.act("start", Some(&id)).await;
++    refresh(&f, 1).await;
++    commit(&f, |d| {
++        d.providers[0].credentials[0].account_name = Some("same account".into())
++    })
++    .await;
++    refresh(&f, 2).await;
++    restart(&mut f).await;
++    let before = f.peer.calls.lock().unwrap().len();
++    let done = f.act("read", Some(&id)).await;
++    assert_eq!(done["state"], "completed");
++    assert_eq!(done["revision"], task["revision"]);
++    assert_eq!(done["usage"]["credits"], 9);
++    let request = reuse_tests::input("image", &id, true);
++    let child = reuse_tests::prepare(&f, &request).await;
++    let next = reuse_tests::start(&f, &child, &request).await;
++    assert_eq!(next["workspaceBinding"]["key"], id);
++    assert_ne!(next["revision"], task["revision"]);
++    assert_eq!(f.act("end", Some(&id)).await["ended"], true);
++    let calls = f.peer.calls.lock().unwrap().clone();
++    assert!(calls[before..]
++        .iter()
++        .all(|(headers, _)| headers["authorization"] == "Bearer rotation-2"));
++    assert_eq!(
++        calls
++            .iter()
++            .filter(|(_, v)| v["params"]["name"] == "luma_generate_image")
++            .count(),
++        2
++    );
++    f.close().await;
++}
++
++#[tokio::test]
++async fn luma_mcp_creation_recovery_rejects_replaced_account_and_missing_archive_without_dispatch()
++{
++    let f = Fixture::new(reuse_tests::source_replies("image")).await;
++    let id = reuse_tests::source(&f, "image").await;
++    let before = f.peer.calls.lock().unwrap().len();
++    // Same credential ID and OAuth client are not evidence of the same account.
++    commit(&f, |d| {
++        d.providers[0].credentials[0].api_key = Some("different-account".into())
++    })
++    .await;
++    for action in ["read", "cancel", "end", "start"] {
++        let (status, body) = f.send(f.command(action, Some(&id))).await;
++        assert_eq!(status, 409, "{body}");
++        assert_eq!(body["error"]["code"], "luma_mcp_task_identity_unverified");
++        assert!(!body.to_string().contains("different-account"));
++    }
++    let mut reuse = f.command("prepare", None);
++    reuse["request"] = reuse_tests::input("image", &id, true);
++    assert_eq!(f.send(reuse).await.0, 409);
++    sqlx::query("UPDATE request_audits SET payload = json_set(payload, '$.routeTrace.lumaMcpCreation.revision', 'missing') WHERE id = ?")
++        .bind(&id).execute(&f.state.local_runtime.as_ref().unwrap().pool).await.unwrap();
++    assert_eq!(f.send(f.command("read", Some(&id))).await.0, 409);
++    assert_eq!(f.peer.calls.lock().unwrap().len(), before);
++    f.close().await;
++}
++
++#[tokio::test]
++async fn luma_mcp_creation_recovery_requires_published_refresh_evidence() {
++    let f = Fixture::new(vec![]).await;
++    offline(&f).await;
++    let task = f.act("prepare", None).await;
++    unpublished_successor(&f).await;
++    let (status, body) = f.send(f.command("read", task["id"].as_str())).await;
++    assert_eq!(status, 409, "{body}");
++    assert_eq!(body["error"]["code"], "luma_mcp_task_identity_unverified");
++    assert!(f.peer.calls.lock().unwrap().is_empty());
++    f.close().await;
++}
++
++#[tokio::test]
++async fn luma_mcp_creation_recovery_unconfirmed_submission_never_replays_after_revision_change() {
++    let mut f = Fixture::new(vec![
++        opened(),
++        json!({"invalid":"lost receipt"}),
++        usage(true),
++        json!({"status":"ended","session_id":"s1"}),
++        usage(false),
++    ])
++    .await;
++    let task = f.act("prepare", None).await;
++    let id = task["id"].as_str().unwrap().to_owned();
++    assert_eq!(f.act("start", Some(&id)).await["state"], "unconfirmed");
++    commit(&f, |d| {
++        d.providers[0].credentials[0].account_name = Some("renamed".into())
++    })
++    .await;
++    restart(&mut f).await;
++    assert_eq!(f.act("read", Some(&id)).await["state"], "unconfirmed");
++    assert_eq!(f.send(f.command("start", Some(&id))).await.0, 409);
++    assert_eq!(f.act("end", Some(&id)).await["ended"], true);
++    assert_eq!(
++        f.peer
++            .calls
++            .lock()
++            .unwrap()
++            .iter()
++            .filter(|(_, v)| v["params"]["name"] == "luma_generate_image")
++            .count(),
++        1
++    );
++    f.close().await;
++}
++
++#[tokio::test]
++async fn luma_mcp_creation_recovery_account_change_during_open_blocks_generation() {
++    let mut responses = replies(vec![opened()]);
++    responses[2].delay = std::time::Duration::from_millis(300);
++    let f = Fixture::with_replies(responses).await;
++    let task = f.act("prepare", None).await;
++    let id = task["id"].as_str().unwrap();
++    let operation = f.send(f.command("start", Some(id)));
++    let change = async {
++        f.peer.wait_calls(3).await;
++        commit(&f, |d| {
++            d.providers[0].credentials[0].api_key = Some("replacement-during-open".into())
++        })
++        .await;
++    };
++    let (result, ()) = tokio::join!(operation, change);
++    assert_eq!(result.0, 409);
++    assert_eq!(f.peer.calls.lock().unwrap().len(), 3);
++    assert_eq!(f.send(f.command("read", Some(id))).await.0, 409);
++    f.close().await;
++}
+--- a/src/protocol/luma_mcp/creation_recovery_fixture.rs
++++ b/src/protocol/luma_mcp/creation_recovery_fixture.rs
+@@ -0,0 +1,127 @@
++//! Real local configuration commits and explicit refresh routes against a disposable OAuth peer.
++use super::*;
++use crate::routing::config::RouteConfigYaml;
++
++pub(super) async fn commit(f: &Fixture, edit: impl FnOnce(&mut RouteConfigYaml)) {
++    let snapshot = f.state.route_config.snapshot();
++    let mut document = snapshot.document().clone();
++    edit(&mut document);
++    f.state
++        .route_config_runtime
++        .as_ref()
++        .unwrap()
++        .commit_document(snapshot.revision().id(), document, None)
++        .await
++        .unwrap();
++}
++
++pub(super) async fn offline(f: &Fixture) {
++    commit(f, |document| {
++        let c = &mut document.providers[0].credentials[0];
++        c.refresh_token = Some("synthetic-refresh".into());
++        let mut context = serde_json::to_value(c.luma_oauth.as_ref().unwrap()).unwrap();
++        context["offline_access"] = json!(true);
++        c.luma_oauth = Some(serde_json::from_value(context).unwrap());
++    })
++    .await;
++}
++
++pub(super) async fn restart(f: &mut Fixture) {
++    browser_fixture::close(&f.state).await;
++    f.state = browser_fixture::state(&f.root).await;
++    f.grant = support::grant_console_secret_access(&f.state).await;
++}
++
++pub(super) async fn refresh(f: &Fixture, index: u32) {
++    use std::sync::atomic::{AtomicUsize, Ordering};
++    use std::time::Duration;
++    let snapshot = f.state.route_config.snapshot();
++    let old_refresh = snapshot.document().providers[0].credentials[0]
++        .refresh_token
++        .clone()
++        .unwrap();
++    let count = Arc::new(AtomicUsize::new(0));
++    let seen = count.clone();
++    let app = axum::Router::new().route("/token", axum::routing::post(
++        move |axum::Form(form): axum::Form<std::collections::HashMap<String, String>>| {
++            assert_eq!(form["refresh_token"], old_refresh);
++            assert_eq!(form["grant_type"], "refresh_token");
++            seen.fetch_add(1, Ordering::SeqCst);
++            async move { axum::Json(json!({"access_token":format!("rotation-{index}"),
++                "refresh_token":format!("refresh-{index}"),"token_type":"Bearer","expires_in":3600})) }
++        }));
++    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
++    let endpoint = format!("http://{}/token", listener.local_addr().unwrap());
++    let server = tokio::spawn(async move {
++        axum::serve(listener, app).await.unwrap();
++    });
++    crate::protocol::luma_oauth::test_support::ENDPOINT.scope(endpoint, async {
++        let path = "/v1/internal/gateway/console/luma-refresh-sessions";
++        let response = support::send_console_json(&f.state, Method::POST, path,
++            json!({"providerId":"luma-mcp","credentialId":"saved-mcp","expectedRevision":snapshot.revision().id()}),
++            Some(&f.grant), None).await;
++        let status = response.status();
++        let body = support::parse_json(response).await;
++        assert_eq!(status, 200, "refresh {index}: {body}");
++        let path = format!("{path}/{}", body["session"]["id"].as_str().unwrap());
++        let response = support::send_console_json(&f.state, Method::POST, &format!("{path}/import"),
++            json!({"expectedRevision":snapshot.revision().id()}), Some(&f.grant), None).await;
++        assert_eq!(response.status(), 200);
++        tokio::time::timeout(Duration::from_secs(10), async {
++            loop {
++                let response = support::send_console_json(&f.state, Method::GET, &path, Value::Null, None, None).await;
++                assert_eq!(response.status(), 200);
++                let body = support::parse_json(response).await;
++                match body["session"]["status"].as_str().unwrap() {
++                    "succeeded" => break,
++                    "importing" => tokio::time::sleep(Duration::from_millis(10)).await,
++                    _ => panic!("refresh did not complete: {body}"),
++                }
++            }
++        }).await.unwrap();
++        // Runtime shutdown owns registry closure; the next explicit rotation still needs it.
++    }).await;
++    assert_eq!(count.load(Ordering::SeqCst), 1);
++    server.abort();
++    assert!(server.await.unwrap_err().is_cancelled());
++}
++
++pub(super) async fn unpublished_successor(f: &Fixture) {
++    use crate::console::{
++        refresh_grants::{GrantReceipt, GrantRequest, GrantReservation},
++        RouteConfigRedisRevision,
++    };
++    let runtime = f.state.route_config_runtime.as_ref().unwrap();
++    let snapshot = f.state.route_config.snapshot();
++    let original =
++        RouteConfigRedisRevision::new(snapshot.revision().clone(), snapshot.document().clone())
++            .unwrap();
++    let request = GrantRequest::from_revision(&original, "luma-mcp", "saved-mcp").unwrap();
++    let sending = match runtime
++        .reserve_refresh_grant(&original, &request)
++        .await
++        .unwrap()
++    {
++        GrantReservation::Reserved(record) => record,
++        other => panic!("expected reservation, got {other:?}"),
++    };
++    let tokens = crate::protocol::luma_oauth::ReceivedRefresh::capture(
++        br#"{"access_token":"unpublished-access","refresh_token":"unpublished-refresh","token_type":"Bearer","expires_in":3600}"#,
++        time::OffsetDateTime::now_utc(), request.material.luma_oauth.as_ref().unwrap(), &request.material.refresh).unwrap();
++    let result = request.result_with_luma(&tokens).unwrap();
++    let receipt = runtime
++        .store_refresh_grant_receipt(&sending, &GrantReceipt::LumaOauth { tokens })
++        .await
++        .unwrap();
++    runtime
++        .store_refresh_grant_result(&receipt, &result)
++        .await
++        .unwrap();
++    commit(f, |document| {
++        let c = &mut document.providers[0].credentials[0];
++        c.api_key = Some(result.material.access.clone());
++        c.refresh_token = Some(result.material.refresh.clone());
++        c.luma_oauth = result.material.luma_oauth.clone();
++    })
++    .await;
++}
+--- a/apps/desktop/src/features/console/LumaMcpCreationRecovery.test.tsx
++++ b/apps/desktop/src/features/console/LumaMcpCreationRecovery.test.tsx
+@@ -0,0 +1,75 @@
++import { act, fireEvent, render, screen } from "@testing-library/react";
++import { expect, it, vi } from "vitest";
++import type { GatewayApiClient, GatewayApiRequestOptions } from "../../api/client";
++import type { LumaOAuthProps } from "./useLumaOAuth";
++import { LumaMcpCreationPanel } from "./LumaMcpCreationPanel";
++
++vi.mock("../../i18n/UiLocaleProvider", () => ({ useUiLocale: () => ({ t: (zh: string) => zh }) }));
++const task = { id: "luma-mcp-existing", providerId: "mcp", credentialId: "saved", revision: "original",
++  kind: "image", budgetCredits: 20, state: "running", sessionId: "s1", runId: "r1", ended: false,
++  leaseUntil: 0, error: null, assets: [], usage: null };
++const response = { revision: "original", providerId: "mcp", credentialId: "saved", task };
++function fixture() {
++  const request = vi.fn(async (_path: string, schema, _options?: GatewayApiRequestOptions) => schema.parse(response));
++  const props: LumaOAuthProps = { client: { request } as GatewayApiClient, managementToken: "owner", secretGrant: "grant",
++    providerId: "mcp", credentialId: "saved", expectedRevision: "original", operations: new Map(), disabled: false,
++    onRequestSecretAccess: vi.fn(), onSaved: vi.fn() };
++  return { request, props };
++}
++const click = async (name: string) => { await act(async () => fireEvent.click(screen.getByRole("button", { name }))); };
++const identify = () => fireEvent.change(screen.getByLabelText("任务 ID"), { target: { value: task.id } });
++
++it("keeps the task ID on revision change and explicitly reads the original task under the current account", async () => {
++  const f = fixture(); const view = render(<LumaMcpCreationPanel {...f.props} />);
++  identify(); await click("查询结果与费用");
++  expect(screen.getByText("生成中")).toBeInTheDocument();
++  view.rerender(<LumaMcpCreationPanel {...f.props} expectedRevision="refreshed" />);
++  expect(screen.getByLabelText("任务 ID")).toHaveValue(task.id);
++  expect(screen.queryByText("生成中")).not.toBeInTheDocument();
++  expect(f.request).toHaveBeenCalledTimes(1);
++  f.request.mockResolvedValue({ ...response, revision: "refreshed" });
++  await click("查询结果与费用"); await click("取消生成"); await click("结束会话");
++  expect(f.request.mock.calls.slice(1).map(call => call[2]?.body)).toEqual(["read", "cancel", "end"].map(action => ({
++    action, expectedRevision: "refreshed", providerId: "mcp", credentialId: "saved", taskId: task.id,
++  })));
++  expect(screen.queryByText("操作未确认。请保留任务 ID，查询原任务后再操作。")).not.toBeInTheDocument();
++  expect(screen.queryByRole("button", { name: "提交生成" })).not.toBeInTheDocument();
++});
++
++it("preserves the typed ID across secret consent but clears it on account change", async () => {
++  const f = fixture(); const view = render(<LumaMcpCreationPanel {...f.props} secretGrant={null} />);
++  identify(); await click("查询结果与费用");
++  expect(f.props.onRequestSecretAccess).toHaveBeenCalledOnce();
++  expect(f.request).not.toHaveBeenCalled();
++  view.rerender(<LumaMcpCreationPanel {...f.props} />);
++  expect(screen.getByLabelText("任务 ID")).toHaveValue(task.id);
++  expect(f.request).not.toHaveBeenCalled(); await click("查询结果与费用");
++  view.rerender(<LumaMcpCreationPanel {...f.props} credentialId="different" />);
++  expect(screen.getByLabelText("任务 ID")).toHaveValue("");
++  expect(screen.queryByText("生成中")).not.toBeInTheDocument();
++});
++
++it("rejects stale envelope revisions and foreign task bindings while retaining the requested ID", async () => {
++  for (const value of [response, { ...response, revision: "current", task: { ...task, credentialId: "different" } },
++    { ...response, revision: "current", task: { ...task, id: "different-task" } }]) {
++    const f = fixture(); f.request.mockResolvedValue(value);
++    const view = render(<LumaMcpCreationPanel {...f.props} expectedRevision="current" />);
++    identify(); await click("查询结果与费用");
++    expect(screen.getByText("操作未确认。请保留任务 ID，查询原任务后再操作。")).toBeInTheDocument();
++    expect(screen.getByLabelText("任务 ID")).toHaveValue(task.id);
++    expect(screen.queryByText("生成中")).not.toBeInTheDocument(); view.unmount();
++  }
++});
++
++it("discards an in-flight result after a configuration update without automatic retry", async () => {
++  const f = fixture(); let finish!: (value: unknown) => void;
++  f.request.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
++  const view = render(<LumaMcpCreationPanel {...f.props} />);
++  identify(); await click("查询结果与费用");
++  view.rerender(<LumaMcpCreationPanel {...f.props} expectedRevision="current" />);
++  expect(f.request.mock.calls[0][2]?.signal?.aborted).toBe(true);
++  await act(async () => finish(response));
++  expect(screen.getByLabelText("任务 ID")).toHaveValue(task.id);
++  expect(screen.queryByText("生成中")).not.toBeInTheDocument();
++  expect(f.request).toHaveBeenCalledTimes(1);
++});

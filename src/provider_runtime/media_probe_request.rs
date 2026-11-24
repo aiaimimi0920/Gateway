@@ -51,14 +51,17 @@ pub(crate) enum MediaProbeOperation {
     Image,
     ImageEdit,
     Video,
+    VideoReframe,
+    VideoEdit,
+    Layering,
     Music,
 }
 impl MediaProbeOperation {
     pub(super) fn endpoint(self) -> &'static str {
         match self {
-            Self::Image => "images_generations",
+            Self::Image | Self::Layering => "images_generations",
             Self::ImageEdit => "images_edits",
-            Self::Video => "videos_generations",
+            Self::Video | Self::VideoReframe | Self::VideoEdit => "videos_generations",
             Self::Music => "music_generations",
         }
     }
@@ -114,7 +117,7 @@ impl MediaProbeRequest {
         body.insert("prompt".into(), Value::String(request.prompt.clone()));
         // The ordinary sender still downloads and validates every asset, but this probe does not
         // return or base64-copy media into its text result/audit.
-        let body = Value::Object(body);
+        let mut body = Value::Object(body);
         if let MediaProbeProduct::Chataibot = product {
             if !matches!(
                 self.operation,
@@ -151,6 +154,18 @@ impl MediaProbeRequest {
             }
             MediaProbeOperation::Video => {
                 crate::protocol::gemini_canvas::normalize_video_generations(body)
+            }
+            MediaProbeOperation::VideoReframe => {
+                body["type"] = Value::String("video_reframe".into());
+                crate::protocol::gemini_canvas::normalize_video_generations(body)
+            }
+            MediaProbeOperation::VideoEdit => {
+                body["type"] = Value::String("video_edit".into());
+                crate::protocol::gemini_canvas::normalize_video_generations(body)
+            }
+            MediaProbeOperation::Layering => {
+                body["type"] = Value::String("layering".into());
+                crate::protocol::luma_agents::normalize_layering(body)
             }
             MediaProbeOperation::Music => {
                 return Err(crate::protocol::luma_agents::invalid_request())

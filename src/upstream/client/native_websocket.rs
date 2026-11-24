@@ -55,7 +55,7 @@ pub(super) async fn send(
         None => body.to_string(),
     };
     plan.method = Method::GET;
-    let builder = client.native_request(payload, req, model, extra, Some(wire), &plan)?;
+    let (builder, _) = client.native_request(payload, req, model, extra, Some(wire), &plan)?;
     let request = builder
         .try_clone()
         .ok_or_else(|| GatewayError::server_error("Cannot prepare WS handshake"))?

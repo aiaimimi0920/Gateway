@@ -1,0 +1,13 @@
+{
+  "args": [
+    "cargo",
+    "fmt",
+    "--all",
+    "--",
+    "--check"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T17:06:17.226442+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 23.78
+}

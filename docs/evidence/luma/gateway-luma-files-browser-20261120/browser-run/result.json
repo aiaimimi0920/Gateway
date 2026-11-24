@@ -1,0 +1,16 @@
+{
+  "args": [
+    "node",
+    "tools/luma/files-browser-check.mjs",
+    "--host",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-files-browser-20261120/host",
+    "--ui",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-files-browser-20261120/main-web",
+    "--output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-files-browser-20261120/browser"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T19:15:28.057370+00:00",
+  "exitCode": 1,
+  "elapsedSeconds": 17.99
+}

@@ -91,13 +91,23 @@ impl Policy {
 pub struct SmartRouting {
     policy: std::sync::OnceLock<Result<Policy, String>>,
     availability: Mutex<HashMap<(String, String), (f64, Instant)>>,
-    sticky: Mutex<HashMap<String, (String, String, Instant, uuid::Uuid)>>,
+    sticky: Mutex<HashMap<String, Sticky>>,
+}
+#[derive(Debug)]
+struct Sticky {
+    model: String,
+    provider: String,
+    credential: Option<String>,
+    at: Instant,
+    request: uuid::Uuid,
 }
 const LIMIT: usize = 4096;
 impl SmartRouting {
     pub(crate) fn reset_provider(&self, provider: &str) {
         self.availability.lock().retain(|(id, _), _| id != provider);
-        self.sticky.lock().retain(|_, (_, id, _, _)| id != provider);
+        self.sticky
+            .lock()
+            .retain(|_, entry| entry.provider != provider);
     }
     pub fn policy(&self) -> Result<&Policy, String> {
         self.policy
@@ -126,27 +136,49 @@ impl SmartRouting {
         provider: &str,
         request: uuid::Uuid,
     ) {
+        self.begin_account_request(scope, model, provider, None, request);
+    }
+    /// Capture the admitted concrete account before sending, without retaining its secrets.
+    pub fn begin_account_request(
+        &self,
+        scope: Option<&str>,
+        model: &str,
+        provider: &str,
+        credential: Option<&str>,
+        request: uuid::Uuid,
+    ) {
         let Some(scope) = scope else { return };
         let mut map = self.sticky.lock();
         if map.len() >= LIMIT && !map.contains_key(scope) {
-            if let Some(key) = map.iter().min_by_key(|(_, v)| v.2).map(|(k, _)| k.clone()) {
+            if let Some(key) = map.iter().min_by_key(|(_, v)| v.at).map(|(k, _)| k.clone()) {
                 map.remove(&key);
             }
         }
         map.insert(
             scope.to_owned(),
-            (
-                model.to_owned(),
-                provider.to_owned(),
-                Instant::now(),
+            Sticky {
+                model: model.to_owned(),
+                provider: provider.to_owned(),
+                credential: credential.map(str::to_owned),
+                at: Instant::now(),
                 request,
-            ),
+            },
         );
     }
     pub fn sticky(&self, scope: Option<&str>, model: &str) -> Option<String> {
         let map = self.sticky.lock();
-        let (last_model, provider, at, _) = map.get(scope?)?;
-        (last_model == model && at.elapsed() < Duration::from_secs(3600)).then(|| provider.clone())
+        let entry = map.get(scope?)?;
+        (entry.model == model && entry.at.elapsed() < Duration::from_secs(3600))
+            .then(|| entry.provider.clone())
+    }
+    /// Provider and account are read atomically from the same session/model record.
+    pub fn sticky_account(&self, scope: Option<&str>, model: &str) -> Option<(String, String)> {
+        let map = self.sticky.lock();
+        let entry = map.get(scope?)?;
+        if entry.model != model || entry.at.elapsed() >= Duration::from_secs(3600) {
+            return None;
+        }
+        Some((entry.provider.clone(), entry.credential.clone()?))
     }
     pub fn score(&self, provider: &str, model: &str) -> f64 {
         self.availability
@@ -166,10 +198,9 @@ impl SmartRouting {
     ) {
         let Some(scope) = scope else { return };
         let mut map = self.sticky.lock();
-        if map
-            .get(scope)
-            .is_some_and(|(m, p, _, r)| m == model && p == provider && *r == request)
-        {
+        if map.get(scope).is_some_and(|entry| {
+            entry.model == model && entry.provider == provider && entry.request == request
+        }) {
             map.remove(scope);
         }
     }

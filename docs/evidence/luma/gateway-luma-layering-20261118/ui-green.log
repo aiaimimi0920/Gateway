@@ -1,0 +1,13 @@
+
+> gateway-ui@0.1.0 test
+> vitest --run src/features/console/LumaAgentsMediaProbe.test.tsx
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  03:39:23
+   Duration  27.60s (transform 2.66s, setup 1.03s, import 4.18s, tests 18.91s, environment 2.83s)
+

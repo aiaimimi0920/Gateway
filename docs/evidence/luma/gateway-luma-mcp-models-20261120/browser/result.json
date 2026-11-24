@@ -1,0 +1,181 @@
+{
+  "status": "passed",
+  "browserClosed": true,
+  "calls": [
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "prepare",
+        "request": {
+          "kind": "image",
+          "prompt": "A blue circle",
+          "budgetCredits": 50,
+          "options": {
+            "model": "google_nano_banana_2",
+            "operation": "generate",
+            "aspectRatio": "8:1",
+            "parameters": {
+              "resolution": "512",
+              "thinkingLevel": "high",
+              "enableSearch": false,
+              "temperature": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "start",
+        "taskId": "luma-mcp-d773f022-daf5-49fd-a071-8d52b69ebaaf",
+        "request": {
+          "kind": "image",
+          "prompt": "A blue circle",
+          "budgetCredits": 50,
+          "options": {
+            "model": "google_nano_banana_2",
+            "operation": "generate",
+            "aspectRatio": "8:1",
+            "parameters": {
+              "resolution": "512",
+              "thinkingLevel": "high",
+              "enableSearch": false,
+              "temperature": 0
+            }
+          }
+        },
+        "chargeConfirmed": true
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "read",
+        "taskId": "luma-mcp-d773f022-daf5-49fd-a071-8d52b69ebaaf"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "prepare",
+        "request": {
+          "kind": "image",
+          "prompt": "A blue circle",
+          "budgetCredits": 50,
+          "options": {
+            "model": "bytedance_seedream_5_flash",
+            "operation": "generate",
+            "parameters": {
+              "outputFormat": "png",
+              "size": "1536x1024"
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "start",
+        "taskId": "luma-mcp-4b2dcf88-ff86-462d-95c6-041cd60315f7",
+        "request": {
+          "kind": "image",
+          "prompt": "A blue circle",
+          "budgetCredits": 50,
+          "options": {
+            "model": "bytedance_seedream_5_flash",
+            "operation": "generate",
+            "parameters": {
+              "outputFormat": "png",
+              "size": "1536x1024"
+            }
+          }
+        },
+        "chargeConfirmed": true
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "read",
+        "taskId": "luma-mcp-4b2dcf88-ff86-462d-95c6-041cd60315f7"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "prepare",
+        "request": {
+          "kind": "video",
+          "prompt": "A blue circle",
+          "budgetCredits": 50,
+          "options": {
+            "model": "luma_ray3_14_hdr",
+            "operation": "generate",
+            "video": {
+              "resolution": "1080p"
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "start",
+        "taskId": "luma-mcp-9b68b8e7-a1d0-49d2-823a-67ba7ac274a1",
+        "request": {
+          "kind": "video",
+          "prompt": "A blue circle",
+          "budgetCredits": 50,
+          "options": {
+            "model": "luma_ray3_14_hdr",
+            "operation": "generate",
+            "video": {
+              "resolution": "1080p"
+            }
+          }
+        },
+        "chargeConfirmed": true
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "read",
+        "taskId": "luma-mcp-9b68b8e7-a1d0-49d2-823a-67ba7ac274a1"
+      }
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "scope": "synthetic component preview only; Rust management transport tested separately"
+}

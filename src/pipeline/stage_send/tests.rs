@@ -6,6 +6,7 @@ use crate::protocol::canonical::{
 use crate::routing::candidate::{ProviderAccountPayload, ProviderExecutionMode, RouteCandidate};
 use std::collections::HashMap;
 
+mod admission;
 mod dispatch;
 mod metrics;
 mod packing;

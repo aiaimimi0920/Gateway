@@ -8,7 +8,11 @@ fn job_for(state: &str, kind: &str, model: &str, credits: Value) -> Value {
     let mut value = job(state);
     value["type"] = json!(kind);
     value["model"] = json!(model);
-    value["usage"]["credits_charged"] = credits;
+    value["usage"] = if credits.is_null() {
+        Value::Null
+    } else {
+        json!({"credits_charged":credits})
+    };
     if kind == "video" && state == "completed" {
         value["output"][0]["type"] = json!("video");
     }

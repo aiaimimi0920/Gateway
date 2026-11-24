@@ -1,0 +1,127 @@
+[
+  {
+    "path": "src/protocol/luma_agents.rs",
+    "effectiveLines": 131,
+    "sha256": "79272e77287698ed8b4a228547c239aa46b152183fe45e676c1ff51b9b4388bd"
+  },
+  {
+    "path": "src/protocol/luma_agents/file_upload.rs",
+    "effectiveLines": 50,
+    "sha256": "7a6b1cc7636dc6b37864ffe7b238bf2c7981182a22a39b3d8b23f340a10198ca"
+  },
+  {
+    "path": "src/protocol/luma_agents/files.rs",
+    "effectiveLines": 119,
+    "sha256": "afce47e4bcf82d23c046e02677fc74c11752d874deacbf19763693fe11ec1be0"
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_files.rs",
+    "effectiveLines": 128,
+    "sha256": "a35e2939f9f66d2b22aa27ac352cb9e8e031128b267738e3a29e9d5d8bdebbb4"
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_files/upload.rs",
+    "effectiveLines": 77,
+    "sha256": "1b37c45a7123047164e8512bc2231a580055980e37ba84a6ff0ddfffc2055957"
+  },
+  {
+    "path": "src/upstream/public_assets.rs",
+    "effectiveLines": 154,
+    "sha256": "69068edc97ae5b41bf7c30487afbd456b5e4b8fd27bed432067e17f36f6b3280"
+  },
+  {
+    "path": "src/upstream/public_assets/upload.rs",
+    "effectiveLines": 40,
+    "sha256": "28196002c63987c334a4670c92bac5cb9940f3dbfd1706de31aa485272381be7"
+  },
+  {
+    "path": "src/upstream/luma_agents.rs",
+    "effectiveLines": 115,
+    "sha256": "95c8e522800497659b7d568bec9c6646ed0ac5d34ce95918037d5eecbfe93658"
+  },
+  {
+    "path": "src/upstream/luma_agents/files.rs",
+    "effectiveLines": 148,
+    "sha256": "44061ac88abbf5e0e75d8ee008873d90b19517aadb468f923ac98ad942534ac5"
+  },
+  {
+    "path": "src/upstream/luma_agents/files_output.rs",
+    "effectiveLines": 135,
+    "sha256": "7f311f0f5e235e3f33b7a0d67b5cf87f421046d35b9ba2e81a4cd6d5661ee4ad"
+  },
+  {
+    "path": "src/upstream/luma_agents/files_upload.rs",
+    "effectiveLines": 132,
+    "sha256": "b680dd45a427a384d93c7a984c92d60788fa2267bbdb5ac4529f06236ae26053"
+  },
+  {
+    "path": "src/upstream/luma_agents/files_upload_tests.rs",
+    "effectiveLines": 188,
+    "sha256": "291047bc1a5127eabdda97ae5fab5db22a78071e58385a07e18029922c5ae6d8"
+  },
+  {
+    "path": "src/upstream/luma_agents/files_upload_management_tests.rs",
+    "effectiveLines": 124,
+    "sha256": "aa6209e8e0656595cc441631d232218ebbf954716ea7c0ff0eb86bfcd7eb3339"
+  },
+  {
+    "path": "src/upstream/luma_agents/test_support.rs",
+    "effectiveLines": 225,
+    "sha256": "7e75e67c47ce3c3677eec2aff0dd26423bdedbc35f3a9026b26496207bbf6c6b"
+  },
+  {
+    "path": "apps/desktop/src/api/client.ts",
+    "effectiveLines": 129,
+    "sha256": "6108e42153ffc3334c21de98bad2919b83893c5ce4f9384f252814ba80a7a227"
+  },
+  {
+    "path": "apps/desktop/src/api/client.multipart.test.ts",
+    "effectiveLines": 22,
+    "sha256": "9a7a4ba84049773a8f4c14b6cf4c25c7e9cb611692de6410f3c077e305868bed"
+  },
+  {
+    "path": "apps/desktop/src/api/console/luma-files.ts",
+    "effectiveLines": 24,
+    "sha256": "af5815a15b350ad08cc46d78ef016d9dada0923da8300a30903c006ae741707a"
+  },
+  {
+    "path": "apps/desktop/src/features/console/useLumaFiles.ts",
+    "effectiveLines": 92,
+    "sha256": "a89a56e6486c3b772f44c8055fc8d847e2e554114972fbab8b9a9ebf66fcfe25"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaFilesPanel.tsx",
+    "effectiveLines": 65,
+    "sha256": "7cdc81ddeec38c8eead1f626903359c5fd162dd6258506017ebfb26adb895064"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaFilesPanel.test.tsx",
+    "effectiveLines": 99,
+    "sha256": "dc95fea692dced9702a6fb43bc14c5bc450e5c34f67dd9f3948ad16b22072407"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaFilesPanel.upload.test.tsx",
+    "effectiveLines": 63,
+    "sha256": "9921e8345aa93aa78d174e0408e0657a5a87770d1c46ef08e5f700d465308a04"
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaFileUpload.ts",
+    "effectiveLines": 23,
+    "sha256": "0d49d4e9e071cb39f2ff8d06bd4a9f99b56dcab7bffeac147e51ad73b18a2f85"
+  },
+  {
+    "path": "tools/luma/fetch-contracts.py",
+    "effectiveLines": 71,
+    "sha256": "ff18eeffc4cba59dbb02a0e6dd9f047b237e69456f23fd0be17c95f7447abe23"
+  },
+  {
+    "path": "src/http/router.rs",
+    "effectiveLines": 60,
+    "sha256": "dd9679384573636f54ecdb157d369c015b662ec238770cc7801499a53afa3711"
+  },
+  {
+    "path": "src/http/router/management_config.rs",
+    "effectiveLines": 488,
+    "sha256": "34eb64f38e245ba877fecc4cbabd08a705c35524b0c340e36d7979b36e00eb50"
+  }
+]

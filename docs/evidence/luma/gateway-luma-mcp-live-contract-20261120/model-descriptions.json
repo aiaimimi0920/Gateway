@@ -1,0 +1,119 @@
+{
+  "capturedAt": "2026-11-20T06:35:14.095184+00:00",
+  "results": [
+    {
+      "model": "luma_uni_1",
+      "type": "image",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "media_roles": [],
+      "guidance": "Luma Uni-1.1 — strong general-purpose image model. Peaks at cinematic realism, manga/anime/webtoon, and sketch-to-image.\nUni-1.1 is the Uni-1 family superset of the old Uni-1.\n\nStrengths:\n- Luma Uni-1 model for text-to-image generation\n- Supports 12 aspect ratios (1:1, 4:5, 1:2, 1:3, 9:16, 3:4, 2:3, 3:2, 4:3, 16:9, 2:1, 3:1)\n- Seed support for reproducibility\n- Supports up to 9 reference images for style/content guidance\n- When references are provided, describe what to borrow from each IMAGE in the prompt\n\nWeaknesses:\n- For transforming/editing an existing image (same scene, targeted changes), use type='image_edit' instead\n\nMULTI-REFERENCE Prompt Format (when using 2+ input images):\n- Explicitly label each image's role: 'Image 1 (woman in red dress): use as character reference'\n- Specify reference TYPE for each: style reference, character reference, pose reference, composition reference\n- Format: 'Use image 1 (brief description) as [TYPE] reference. Use image 2 (brief description) as [TYPE] reference.'\n- Example: 'Use image 1 (man in suit) as character reference. Use image 2 (neon city) as background/style reference. Place character in scene.'\n- For style transfer: 'Apply style from image 1 (watercolor painting) to image 2 (photo of cat)'\n- For character consistency: 'Use image 1 (woman with curly hair) as character. Recreate pose from image 2.'\n- Be explicit about what comes from which reference - don't assume the model knows."
+    },
+    {
+      "model": "luma_ray3_2",
+      "type": "video",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "media_roles": [],
+      "guidance": "Ray 3.2 create-video model (text-to-video + multi-keyframe image-to-video).\nDefault is 720p resolution. Use 1080p only if the user explicitly requests high resolution.\nDefault is 5s duration. 10s is supported AND works with keyframes (unlike Ray 3.14, where 10s is text-to-video only).\n\nKEYFRAMES (multi-keyframe image-to-video):\n- Keyframes are OPTIONAL. With no keyframes, a first frame is generated from the prompt and animated — Ray 3.2's image-to-video is far stronger than raw text-to-video, so prompt-only requests route through a generated first frame automatically.\n- Use up to 64 image keyframes, each pinned to an output-frame position via keyframe_indexes.\n- Output grid is duration × 24fps + 1 (5s → indexes 0–120, 10s → 0–240); keyframe_indexes must be unique and in range.\n\nNO LOOP: this model has no loop control.\n\nHDR OPTIONS:\n- hdr=True: HDR output with expanded dynamic range\n- exr_export=True (requires HDR): HDR+EXR ZIP for professional color grading\n\nPROMPTING (REQUIRED) — T2V rules:\n- Mid-action verbs: 'running' not 'begins to run'\n- Include secondary consequences: wind in hair, fabric movement, reflections\n- NO: 'vibrant', 'whimsical', 'hyper-realistic' (these degrade quality)\n- Default to cinematic style unless user specifies otherwise\n- If using keyframe image: describe only what CHANGES, don't redescribe static elements"
+    },
+    {
+      "model": "openai_gpt_image_2",
+      "type": "image",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "1K",
+              "2K",
+              "4K"
+            ],
+            "description": "1K, 2K, or 4K. Higher is more expensive.",
+            "default": "2K"
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "description": "low=fast, medium=balanced, high=best quality.",
+            "default": "medium"
+          },
+          "output_format": {
+            "type": "string",
+            "enum": [
+              "png",
+              "jpeg",
+              "webp"
+            ],
+            "description": "png=lossless (supports transparency), jpeg=smaller file, webp=modern compression.",
+            "default": "png"
+          },
+          "background": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "transparent",
+              "opaque"
+            ],
+            "description": "Each option carries its own description.\nOptions: auto: Model decides; transparent: RGBA cutout for compositing (png/webp); opaque: Solid background.",
+            "default": "auto"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "media_roles": [
+        "reference"
+      ],
+      "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nGPT Image 2 — prior OpenAI image generation model.\n\nStrengths:\n- OpenAI's GPT Image 2\n- Up to 16 reference images\n- Non-celebrity face copy-paste — exact identity with no drift\n- 10 aspect ratios from 3:1 (ultrawide) to 1:3 (ultra-tall) at 1K/2K/4K, snapping to the nearest supported ratio with no deviation cap — safe for any source image shape (unlike GPT Image 1.5)\n\nWeaknesses:\n- Native transparent backgrounds live on openai_gpt_image_2_5_sunburst / openai_gpt_image_2_5_flare / openai_gpt_image_1_5\n- Slow and resource-intensive\n\nIMAGE EDIT Prompt Style (CRITICAL):\n- Write DIRECT COMMANDS, not descriptions. Say 'Change X to Y' not 'The image should have X changed to Y'.\n- Be TERSE: 'Remove background' not 'Please remove the background from this image to create a cleaner look'.\n- State WHAT TO CHANGE and WHAT TO KEEP explicitly: 'Change hair to blonde, keep face and pose'.\n- NO flowery language, NO justifications, NO explanations of why.\n- BAD: 'Transform this beautiful image by artistically changing the background to create a more dramatic atmosphere'\n- GOOD: 'Change background to sunset beach. Keep subject unchanged.'\n- When preserving elements: List them explicitly: 'Keep: lighting, pose, expression. Change: outfit to red dress'\n\nMULTI-REFERENCE Prompt Format (when using 2+ input images):\n- Explicitly label each image's role: 'Image 1 (woman in red dress): use as character reference'\n- Specify reference TYPE for each: style reference, character reference, pose reference, composition reference\n- Format: 'Use image 1 (brief description) as [TYPE] reference. Use image 2 (brief description) as [TYPE] reference.'\n- Example: 'Use image 1 (man in suit) as character reference. Use image 2 (neon city) as background/style reference. Place character in scene.'\n- For style transfer: 'Apply style from image 1 (watercolor painting) to image 2 (photo of cat)'\n- For character consistency: 'Use image 1 (woman with curly hair) as character. Recreate pose from image 2.'\n- Be explicit about what comes from which reference - don't assume the model knows."
+    }
+  ],
+  "calls": [
+    {
+      "path": "/route-config",
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/session/confirm-secret-access",
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/luma-mcp-models",
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/luma-mcp-models",
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/luma-mcp-models",
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/route-config",
+      "status": 200,
+      "cacheControl": "no-store"
+    }
+  ],
+  "status": "passed",
+  "generationCalls": 0,
+  "configWrites": 0
+}

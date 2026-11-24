@@ -11,12 +11,39 @@ use std::{
 };
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
+mod internal_postgres;
+use internal_postgres::InternalStore;
+
+/// Only dedicated product senders may opt into the required Server audit.
+#[derive(Clone, Copy)]
+pub(super) enum InternalProbeProduct {
+    CommandCode,
+    SenseNovaTokenPlan,
+    SapAiCore,
+}
+
+impl InternalProbeProduct {
+    fn label(self) -> &'static str {
+        match self {
+            Self::CommandCode => "commandcode",
+            Self::SenseNovaTokenPlan => "sensenova_token_plan",
+            Self::SapAiCore => "sap_aicore",
+        }
+    }
+}
+
 const AUDIT_SLOTS: usize = 32;
 static ADMISSION: OnceLock<Arc<Semaphore>> = OnceLock::new();
+fn admission() -> Arc<Semaphore> {
+    ADMISSION
+        .get_or_init(|| Arc::new(Semaphore::new(AUDIT_SLOTS)))
+        .clone()
+}
 #[derive(Clone)]
 enum Store {
     Local(LocalRuntime),
     Server(sqlx::PgPool),
+    Internal(InternalStore),
 }
 impl Store {
     fn from_state(state: &AppState) -> Option<Self> {
@@ -30,6 +57,7 @@ impl Store {
         match self {
             Self::Local(local) => local.create_audit(input).await,
             Self::Server(pool) => db::create_request_audit(pool, input).await,
+            Self::Internal(store) => store.create(input).await,
         }
     }
     async fn finalize(
@@ -40,6 +68,7 @@ impl Store {
         match self {
             Self::Local(local) => local.finalize_audit(id, input).await,
             Self::Server(pool) => db::finalize_request_audit(pool, id, input).await,
+            Self::Internal(store) => store.finalize(id, input).await,
         }
     }
 }
@@ -50,6 +79,9 @@ struct Pending {
     model: Option<String>,
     route_trace: Option<serde_json::Value>,
     started: Instant,
+    luma_generation: Option<crate::protocol::luma_agents::generation_audit::GenerationAudit>,
+    sap: Option<crate::protocol::sap_aicore::probe_evidence::ProbeEvidence>,
+    attempts: u32,
 }
 struct Lifetime {
     _permit: OwnedSemaphorePermit,
@@ -64,14 +96,28 @@ impl ProbeAudit {
         state: &AppState,
         input: db::CreateRequestAuditInput,
     ) -> Option<Self> {
-        Self::begin_with_limit(
-            state,
-            input,
-            ADMISSION
-                .get_or_init(|| Arc::new(Semaphore::new(AUDIT_SLOTS)))
-                .clone(),
-        )
-        .await
+        Self::begin_with_limit(state, input, admission()).await
+    }
+
+    pub(super) async fn begin_server_internal(
+        state: &AppState,
+        product: InternalProbeProduct,
+        credential_id: &str,
+        input: db::CreateRequestAuditInput,
+    ) -> Result<Self, GatewayError> {
+        let pool = state
+            .pg_pool
+            .clone()
+            .ok_or_else(internal_postgres::unavailable)?;
+        let store = Store::Internal(InternalStore::new(
+            pool,
+            product,
+            &state.config.console.redis_namespace,
+            credential_id,
+        ));
+        Self::begin_with_store(store, input, admission())
+            .await
+            .ok_or_else(internal_postgres::unavailable)
     }
     async fn begin_with_limit(
         state: &AppState,
@@ -79,11 +125,18 @@ impl ProbeAudit {
         limit: Arc<Semaphore>,
     ) -> Option<Self> {
         let store = Store::from_state(state)?;
+        Self::begin_with_store(store, input, limit).await
+    }
+    async fn begin_with_store(
+        store: Store,
+        input: db::CreateRequestAuditInput,
+        limit: Arc<Semaphore>,
+    ) -> Option<Self> {
         // Acquire before spawning. An abandoned caller cannot queue an unbounded detached storage task.
         let permit = limit.acquire_owned().await.ok()?;
         let drain = match &store {
             Store::Local(local) => Some(local.track_finalizer()),
-            Store::Server(_) => None,
+            Store::Server(_) | Store::Internal(_) => None,
         };
         let lifetime = Lifetime {
             _permit: permit,
@@ -112,6 +165,9 @@ impl ProbeAudit {
                     model: input.resolved_model,
                     route_trace: input.route_trace,
                     started,
+                    luma_generation: None,
+                    sap: None,
+                    attempts: input.route_attempt_count,
                 }),
                 lifetime: Some(lifetime),
             };
@@ -128,6 +184,40 @@ impl ProbeAudit {
                 None
             }
         }
+    }
+    pub(super) fn luma_generation_audit(
+        &mut self,
+        state: &AppState,
+        target: &crate::routing::config::CredentialProbeTarget,
+    ) -> crate::protocol::luma_agents::generation_audit::GenerationAudit {
+        let pending = self.pending.as_mut().expect("active probe audit");
+        pending
+            .luma_generation
+            .get_or_insert_with(|| {
+                crate::protocol::luma_agents::generation_audit::GenerationAudit::durable(
+                    crate::luma_reconciliation::Checkpoint::new(
+                        state,
+                        &pending.id,
+                        &target.provider_id,
+                        &target.credential_id,
+                        &target.payload,
+                    ),
+                )
+            })
+            .clone()
+    }
+    pub(super) fn attach_sap(
+        &mut self,
+        evidence: crate::protocol::sap_aicore::probe_evidence::ProbeEvidence,
+    ) {
+        self.pending.as_mut().expect("active SAP probe audit").sap = Some(evidence);
+    }
+    pub(super) fn record_luma_generation(&self, trace: &mut serde_json::Value) -> Option<String> {
+        self.pending
+            .as_ref()?
+            .luma_generation
+            .as_ref()?
+            .record(trace)
     }
     pub(super) async fn finish(
         mut self,
@@ -180,7 +270,12 @@ impl Drop for ProbeAudit {
 }
 impl Pending {
     fn cancelled(&self) -> db::FinalizeRequestAuditInput {
-        db::FinalizeRequestAuditInput {
+        let mut trace = self.route_trace.clone();
+        let response_id = self
+            .luma_generation
+            .as_ref()
+            .and_then(|audit| audit.record(trace.get_or_insert_with(|| serde_json::json!({}))));
+        let mut input = db::FinalizeRequestAuditInput {
             status: "cancelled".into(),
             client_disconnected: false,
             upstream_status: None,
@@ -200,16 +295,20 @@ impl Pending {
             provider_account_id: self.provider.clone(),
             resolved_model: self.model.clone(),
             model_alias: None,
-            route_attempt_count: 1,
-            response_id: None,
-            route_trace: self.route_trace.clone(),
+            route_attempt_count: self.attempts,
+            response_id,
+            route_trace: trace,
+        };
+        if let Some(evidence) = &self.sap {
+            evidence.project(&mut input);
         }
+        input
     }
 }
 
 #[cfg(test)]
 #[path = "model_probe_audit_test_support.rs"]
-mod test_support;
+pub(crate) mod test_support;
 #[cfg(test)]
 #[path = "model_probe_audit_tests.rs"]
 mod tests;

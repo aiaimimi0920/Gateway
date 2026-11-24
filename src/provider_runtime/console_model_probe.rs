@@ -33,9 +33,11 @@ pub(crate) async fn probe_console_target_with_request(
     let strict_product = crate::protocol::commandcode::owns_payload(&target.payload)
         || crate::protocol::sensenova::owns_payload(&target.payload)
         || crate::protocol::agnes::owns_payload(&target.payload)
+        || crate::protocol::luma_inference::owns_payload(&target.payload)
         || crate::protocol::minimax::owns_payload(&target.payload)
         || crate::protocol::nous_portal::business::owns_payload(&target.payload)
-        || crate::protocol::lobsterai::owns_payload(&target.payload);
+        || crate::protocol::lobsterai::owns_payload(&target.payload)
+        || crate::protocol::quick_oauth::owns_payload(&target.payload);
     if strict_product && options.is_none() {
         return (point, report(ProviderPayloadProbeStatus::Unsupported,
             "This product requires an explicit model test; no discovery or generation was sent."));
@@ -288,8 +290,14 @@ pub(crate) async fn probe_console_target_with_request(
         return super::search_model_probe::probe(state, target, &model, query, kind).await;
     }
     let prompt = options.map_or("Reply with only OK.", |options| options.prompt.as_str());
+    if crate::protocol::luma_inference::owns_payload(&target.payload) {
+        return super::luma_inference_model_probe::probe(state, target, &model, prompt).await;
+    }
     if crate::protocol::lobsterai::owns_payload(&target.payload) {
         return super::lobsterai_model_probe::probe(state, target, &model, prompt).await;
+    }
+    if crate::protocol::quick_oauth::owns_payload(&target.payload) {
+        return super::quick_model_probe::probe(state, target, &model, prompt).await;
     }
     if crate::protocol::nous_portal::business::owns_payload(&target.payload) {
         return super::nous_model_probe::probe(state, target, &model, prompt).await;

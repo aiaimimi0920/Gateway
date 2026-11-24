@@ -1,0 +1,1869 @@
+--- before/src/protocol/luma_mcp/creation.rs
++++ after/src/protocol/luma_mcp/creation.rs
+@@ -1,6 +1,8 @@
+ //! Fixed creation tools. Business sessions outlive individual MCP transport connections.
+ mod facts;
++mod image_parameters;
+ mod options;
++mod profiles;
+ mod reuse;
+ mod video;
+ mod wire;
+--- before/src/protocol/luma_mcp/creation/options.rs
++++ after/src/protocol/luma_mcp/creation/options.rs
+@@ -1,4 +1,5 @@
+ //! Typed options from the captured MCP contract; never forward arbitrary tool arguments.
++use super::{image_parameters::ImageParameters, profiles};
+ use super::{reuse, Kind, McpError, Reuse};
+ use serde::{Deserialize, Serialize};
+ use serde_json::{json, Map, Value};
+@@ -19,14 +20,6 @@
+     pub video: Option<super::video::Controls>,
+ }
+ 
+-#[derive(Clone, Debug, Deserialize, Serialize)]
+-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+-pub(crate) struct ImageParameters {
+-    pub resolution: Option<String>,
+-    pub quality: Option<String>,
+-    pub output_format: Option<String>,
+-    pub background: Option<String>,
+-}
+ impl Options {
+     pub(crate) fn model(&self, kind: Kind) -> &str {
+         self.model.as_deref().unwrap_or(kind.model())
+@@ -48,12 +41,11 @@
+     ) -> Result<Map<String, Value>, McpError> {
+         let operation = self.operation(kind)?;
+         let model = self.model(kind);
+-        if !matches!(
+-            (kind, model),
+-            (Kind::Image, "luma_uni_1" | "openai_gpt_image_2") | (Kind::Video, "luma_ray3_2")
+-        ) {
++        let profile = profiles::get(model)?;
++        if profile.kind != kind.name() {
+             return Err(McpError::Unsupported);
+         }
++        profile.ratio(self.aspect_ratio.as_deref())?;
+         let mut body = Map::new();
+         body.insert("model".into(), json!(model));
+         body.insert("type".into(), json!(operation));
+@@ -68,12 +60,9 @@
+             {
+                 return Err(McpError::InvalidResponse);
+             }
+-            choice(
+-                &mut body,
+-                "aspect_ratio",
+-                &self.aspect_ratio,
+-                &["9:16", "3:4", "1:1", "4:3", "16:9", "21:9"],
+-            )?;
++            if let Some(ratio) = &self.aspect_ratio {
++                body.insert("aspect_ratio".into(), json!(ratio));
++            }
+             source(
+                 &mut body,
+                 &self.source_url,
+@@ -81,11 +70,11 @@
+                 &self.source_media_type,
+                 reuse.and_then(|r| r.source_asset_id.as_deref()),
+             )?;
+-            let video = self
+-                .video
+-                .clone()
+-                .unwrap_or_default()
+-                .pack(operation, self.aspect_ratio.as_deref())?;
++            let video = self.video.clone().unwrap_or_default().pack(
++                model,
++                operation,
++                self.aspect_ratio.as_deref(),
++            )?;
+             if !video.is_empty() {
+                 body.insert("video".into(), Value::Object(video));
+             }
+@@ -102,14 +91,9 @@
+         if self.video.is_some() || self.source_media_type.is_some() {
+             return Err(McpError::InvalidResponse);
+         }
+-        let third_party = model == "openai_gpt_image_2";
+-        let max_refs = if third_party {
+-            16
+-        } else if operation == "image_edit" {
+-            8
+-        } else {
+-            9
+-        };
++        let third_party = model != "luma_uni_1";
++        let max_refs = profiles::get(model)?.max_references
++            - usize::from(!third_party && operation == "image_edit");
+         let mut references = reuse
+             .map(Reuse::references)
+             .transpose()?
+@@ -123,17 +107,11 @@
+         if references.len() > max_refs {
+             return Err(McpError::Limit);
+         }
+-        choice(
+-            body,
+-            "aspect_ratio",
+-            &self.aspect_ratio,
+-            &[
+-                "1:1", "4:5", "1:2", "1:3", "9:16", "3:4", "2:3", "3:2", "4:3", "16:9", "2:1",
+-                "3:1",
+-            ],
+-        )?;
++        if let Some(ratio) = &self.aspect_ratio {
++            body.insert("aspect_ratio".into(), json!(ratio));
++        }
+         if third_party {
+-            // GPT accepts reference-role medias, not native source/image_ref or native edit mode.
++            // Described third-party images accept reference-role medias, not native edit mode.
+             if operation != "image"
+                 || self.source_url.is_some()
+                 || reuse.is_some_and(|r| r.source_asset_id.is_some())
+@@ -143,37 +121,7 @@
+                 return Err(McpError::InvalidResponse);
+             }
+             if let Some(params) = &self.parameters {
+-                let mut values = Map::new();
+-                choice(
+-                    &mut values,
+-                    "resolution",
+-                    &params.resolution,
+-                    &["1K", "2K", "4K"],
+-                )?;
+-                choice(
+-                    &mut values,
+-                    "quality",
+-                    &params.quality,
+-                    &["low", "medium", "high"],
+-                )?;
+-                choice(
+-                    &mut values,
+-                    "output_format",
+-                    &params.output_format,
+-                    &["png", "jpeg", "webp"],
+-                )?;
+-                choice(
+-                    &mut values,
+-                    "background",
+-                    &params.background,
+-                    &["auto", "transparent", "opaque"],
+-                )?;
+-                if params.background.as_deref() == Some("transparent")
+-                    && params.output_format.as_deref() == Some("jpeg")
+-                {
+-                    return Err(McpError::InvalidResponse);
+-                }
+-                body.insert("parameters".into(), Value::Object(values));
++                body.insert("parameters".into(), params.pack(model, references.len())?);
+             }
+             let medias = references
+                 .into_iter()
+--- before/src/protocol/luma_mcp/creation/video.rs
++++ after/src/protocol/luma_mcp/creation/video.rs
+@@ -1,4 +1,4 @@
+-//! Ray 3.2 controls. Unsupported exports never silently become ordinary video outputs.
++//! Ray controls. Unsupported exports and model switches never become ordinary outputs.
+ use super::{
+     options::{choice, media},
+     McpError,
+@@ -18,6 +18,8 @@
+     pub keyframes: Vec<Keyframe>,
+     pub edit: Option<Edit>,
+     pub source_position: Option<Position>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub loop_video: Option<bool>,
+ }
+ #[derive(Clone, Debug, Deserialize, Serialize)]
+ #[serde(deny_unknown_fields)]
+@@ -42,6 +44,7 @@
+ impl Controls {
+     pub(crate) fn pack(
+         &self,
++        model: &str,
+         operation: &str,
+         ratio: Option<&str>,
+     ) -> Result<Map<String, Value>, McpError> {
+@@ -56,6 +59,27 @@
+         let anchors = self.start_frame_url.is_some()
+             || self.end_frame_url.is_some()
+             || !self.keyframes.is_empty();
++        if model != "luma_ray3_2" && !self.keyframes.is_empty()
++            || self.loop_video.is_some() && (model != "luma_ray3_14" || operation != "video")
++            || model == "luma_ray3_14_hdr"
++                && (operation != "video"
++                    || self.hdr == Some(false)
++                    || self.duration.as_deref() == Some("10s")
++                    || matches!(self.resolution.as_deref(), Some("360p" | "540p")))
++            || model == "luma_ray3_14"
++                && operation == "video"
++                && (self.hdr == Some(true)
++                    || self.duration.as_deref() == Some("10s")
++                        && (anchors || self.loop_video == Some(true)))
++        {
++            return Err(McpError::InvalidResponse);
++        }
++        if let Some(value) = self.loop_video {
++            body.insert("loop".into(), json!(value));
++        }
++        if model == "luma_ray3_14_hdr" {
++            body.insert("hdr".into(), json!(true));
++        }
+         if self.hdr == Some(true) && matches!(self.resolution.as_deref(), Some("360p" | "540p")) {
+             return Err(McpError::InvalidResponse);
+         }
+--- before/src/protocol/luma_mcp/creation/profiles.rs
++++ after/src/protocol/luma_mcp/creation/profiles.rs
+@@ -0,0 +1,57 @@
++//! Reviewed model snapshot shared with the form; live discovery never changes write admission.
++use super::McpError;
++use serde::Deserialize;
++use serde_json::{Map, Value};
++use std::{collections::HashMap, sync::OnceLock};
++
++#[derive(Deserialize)]
++#[serde(rename_all = "camelCase")]
++pub(super) struct Profile {
++    pub kind: String,
++    pub ratios: Vec<String>,
++    pub max_references: usize,
++    pub parameters: Map<String, Value>,
++}
++pub(super) fn get(model: &str) -> Result<&'static Profile, McpError> {
++    static PROFILES: OnceLock<HashMap<String, Profile>> = OnceLock::new();
++    PROFILES
++        .get_or_init(|| {
++            serde_json::from_str(include_str!(
++                "../../../../manifests/luma-mcp-creation-models.json"
++            ))
++            .expect("reviewed Luma model profiles")
++        })
++        .get(model)
++        .ok_or(McpError::Unsupported)
++}
++impl Profile {
++    pub(super) fn ratio(&self, value: Option<&str>) -> Result<(), McpError> {
++        if value.is_some_and(|v| !self.ratios.iter().any(|ratio| ratio == v)) {
++            return Err(McpError::InvalidResponse);
++        }
++        Ok(())
++    }
++    pub(super) fn parameters(&self, values: &Map<String, Value>) -> Result<(), McpError> {
++        for (key, value) in values {
++            let schema = self.parameters.get(key).ok_or(McpError::InvalidResponse)?;
++            let valid = match schema["type"].as_str() {
++                Some("string") => value.as_str().is_some_and(|s| s.len() <= 32),
++                Some("boolean") => value.is_boolean(),
++                Some("number") => value.as_f64().is_some_and(|n| {
++                    n.is_finite()
++                        && schema["minimum"].as_f64().is_none_or(|min| n >= min)
++                        && schema["maximum"].as_f64().is_none_or(|max| n <= max)
++                }),
++                _ => false,
++            };
++            if !valid
++                || schema["enum"]
++                    .as_array()
++                    .is_some_and(|choices| !choices.contains(value))
++            {
++                return Err(McpError::InvalidResponse);
++            }
++        }
++        Ok(())
++    }
++}
+--- before/src/protocol/luma_mcp/creation/image_parameters.rs
++++ after/src/protocol/luma_mcp/creation/image_parameters.rs
+@@ -0,0 +1,89 @@
++//! Model-specific image options and combinations that the upstream would otherwise ignore.
++use super::{profiles, McpError};
++use serde::{Deserialize, Serialize};
++use serde_json::{json, Map, Value};
++
++#[derive(Clone, Debug, Deserialize, Serialize)]
++#[serde(rename_all = "camelCase", deny_unknown_fields)]
++pub(crate) struct ImageParameters {
++    pub resolution: Option<String>,
++    pub quality: Option<String>,
++    pub output_format: Option<String>,
++    pub background: Option<String>,
++    // Omit new empty fields to retain hashes of previously prepared requests.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub size: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub thinking_level: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub enable_search: Option<bool>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub temperature: Option<f64>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub magic_prompt: Option<String>,
++}
++impl ImageParameters {
++    pub(super) fn pack(&self, model: &str, references: usize) -> Result<Value, McpError> {
++        let mut values = Map::new();
++        for (key, value) in [
++            ("resolution", &self.resolution),
++            ("quality", &self.quality),
++            ("output_format", &self.output_format),
++            ("background", &self.background),
++            ("size", &self.size),
++            ("thinking_level", &self.thinking_level),
++            ("magic_prompt", &self.magic_prompt),
++        ] {
++            if let Some(value) = value {
++                values.insert(key.into(), json!(value));
++            }
++        }
++        if let Some(value) = self.enable_search {
++            values.insert("enable_search".into(), json!(value));
++        }
++        if let Some(value) = self.temperature {
++            if !value.is_finite() {
++                return Err(McpError::InvalidResponse);
++            }
++            values.insert("temperature".into(), json!(value));
++        }
++        profiles::get(model)?.parameters(&values)?;
++        if self.background.as_deref() == Some("transparent")
++            && self.output_format.as_deref() == Some("jpeg")
++            || references > 0 && self.magic_prompt.is_some()
++            || model == "ideogram_4_6"
++                && self.quality.as_deref() == Some("very_low")
++                && self
++                    .size
++                    .as_deref()
++                    .is_some_and(|s| s.starts_with("4096") || s.ends_with("4096"))
++            || model == "bytedance_seedream_5_flash"
++                && self.size.as_deref().is_some_and(|s| !valid_size(s))
++        {
++            return Err(McpError::InvalidResponse);
++        }
++        Ok(Value::Object(values))
++    }
++}
++fn valid_size(size: &str) -> bool {
++    if ["1K", "1.5K", "2K"].contains(&size) {
++        return true;
++    }
++    let Some((width, height)) = size.split_once('x') else {
++        return false;
++    };
++    if ![width, height]
++        .iter()
++        .all(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
++    {
++        return false;
++    }
++    let (Ok(width), Ok(height)) = (width.parse::<u64>(), height.parse::<u64>()) else {
++        return false;
++    };
++    width
++        .checked_mul(height)
++        .is_some_and(|pixels| (921_600..=4_624_220).contains(&pixels))
++        && width <= height.saturating_mul(16)
++        && height <= width.saturating_mul(16)
++}
+--- before/src/protocol/luma_mcp/creation_tests.rs
++++ after/src/protocol/luma_mcp/creation_tests.rs
+@@ -7,6 +7,8 @@
+ use axum::http::Method;
+ use serde_json::{json, Value};
+ use std::sync::Arc;
++#[path = "creation_model_tests.rs"]
++mod model_tests;
+ #[path = "creation_options_tests.rs"]
+ mod options_tests;
+ #[path = "creation_reuse_tests.rs"]
+--- before/src/protocol/luma_mcp/creation_model_tests.rs
++++ after/src/protocol/luma_mcp/creation_model_tests.rs
+@@ -0,0 +1,284 @@
++//! New models traverse normal admission and the synthetic supplier; no live generation.
++use super::*;
++
++fn packed(model: &str, kind: &str, extra: Value) -> Result<Value, super::super::McpError> {
++    let mut options = json!({"model":model});
++    options
++        .as_object_mut()
++        .unwrap()
++        .extend(extra.as_object().unwrap().clone());
++    let request: creation::Request = serde_json::from_value(
++        json!({"kind":kind,"prompt":"test","budgetCredits":50,"options":options}),
++    )
++    .unwrap();
++    request.validate()?;
++    Ok(request.generate("task", "s1")?.1)
++}
++
++#[test]
++fn luma_mcp_creation_profiles_match_captured_model_contracts() {
++    let profiles: Value = serde_json::from_str(include_str!(
++        "../../../manifests/luma-mcp-creation-models.json"
++    ))
++    .unwrap();
++    let catalog: Value = serde_json::from_str(include_str!(
++        "../../../docs/evidence/luma/gateway-luma-mcp-models-20261120/contracts/models.json"
++    ))
++    .unwrap();
++    let descriptions: Vec<Value> = serde_json::from_str(include_str!("../../../docs/evidence/luma/gateway-luma-mcp-models-20261120/contracts/model-descriptions.json")).unwrap();
++    assert_eq!(profiles.as_object().unwrap().len(), 18);
++    for row in catalog["models"].as_array().unwrap() {
++        let id = row["id"].as_str().unwrap();
++        let profile = &profiles[id];
++        assert_eq!(profile["kind"], row["modality"]);
++        assert_eq!(profile["ratios"], row["capabilities"]["aspect_ratios"]);
++        assert_eq!(
++            profile["maxReferences"].as_u64(),
++            Some(row["capabilities"]["max_references"].as_u64().unwrap_or(0))
++        );
++        let description = descriptions.iter().find(|d| d["model"] == id).unwrap();
++        assert_eq!(
++            profile["parameters"].as_object().unwrap().len(),
++            description["parameters"]["properties"]
++                .as_object()
++                .unwrap()
++                .len()
++        );
++        for (key, rules) in profile["parameters"].as_object().unwrap() {
++            for (property, value) in rules.as_object().unwrap() {
++                assert_eq!(
++                    value,
++                    &description["parameters"]["properties"][key][property]
++                );
++            }
++        }
++        if row["modality"] == "image" && id != "luma_uni_1" {
++            assert_eq!(description["media_roles"], json!(["reference"]));
++        }
++    }
++}
++
++#[tokio::test]
++async fn luma_mcp_creation_all_catalog_models_keep_selected_model_and_one_dispatch() {
++    let catalog: Value = serde_json::from_str(include_str!(
++        "../../../manifests/luma-mcp-creation-models.json"
++    ))
++    .unwrap();
++    for (model, profile) in catalog.as_object().unwrap() {
++        let kind = profile["kind"].as_str().unwrap();
++        let f = Fixture::new(vec![
++            opened(),
++            started(),
++            progress("completed", false, json!([])),
++            usage(false),
++        ])
++        .await;
++        let request = json!({"kind":kind,"prompt":"a blue circle","budgetCredits":50,"options":{"model":model}});
++        let mut prepare = f.command("prepare", None);
++        prepare["request"] = request.clone();
++        let (status, response) = f.send(prepare).await;
++        assert_eq!(status, 200, "{model}: {response}");
++        assert!(f.peer.calls.lock().unwrap().is_empty());
++        let id = response["task"]["id"].as_str().unwrap();
++        let mut start = f.command("start", Some(id));
++        start["request"] = request;
++        let (status, response) = f.send(start.clone()).await;
++        assert_eq!(status, 200, "{model}: {response}");
++        assert_eq!(response["task"]["requestedModel"], *model);
++        assert_eq!(f.send(start).await.0, 409);
++        assert_eq!(f.act("read", Some(id)).await["state"], "completed");
++        {
++            let calls = f.peer.calls.lock().unwrap();
++            let generated: Vec<_> = calls
++                .iter()
++                .filter(|(_, v)| {
++                    matches!(
++                        v["params"]["name"].as_str(),
++                        Some("luma_generate_image" | "luma_generate_video")
++                    )
++                })
++                .collect();
++            assert_eq!(generated.len(), 1);
++            assert_eq!(generated[0].1["params"]["arguments"]["model"], *model);
++        }
++        f.close().await;
++    }
++}
++
++#[test]
++fn luma_mcp_creation_models_pack_parameters_references_and_video_variants() {
++    for (model, parameters) in [
++        (
++            "bytedance_seedream_5_flash",
++            json!({"size":"1536x1024","outputFormat":"png"}),
++        ),
++        (
++            "google_nano_banana_2",
++            json!({"resolution":"512","thinkingLevel":"high","enableSearch":false,"temperature":0.0}),
++        ),
++        (
++            "google_nano_banana_2_1",
++            json!({"resolution":"4K","enableSearch":true}),
++        ),
++        (
++            "ideogram_4_6",
++            json!({"quality":"very_low","size":"2048x2048","background":"transparent"}),
++        ),
++        (
++            "openai_gpt_image_2_5_flare",
++            json!({"quality":"max","background":"transparent","outputFormat":"webp"}),
++        ),
++    ] {
++        let body = packed(
++            model,
++            "image",
++            json!({"parameters":parameters,"referenceUrls":["https://example.com/ref"]}),
++        )
++        .unwrap();
++        assert_eq!(
++            body["medias"],
++            json!([{"url":"https://example.com/ref","role":"reference"}])
++        );
++        for (key, value) in parameters.as_object().unwrap() {
++            let wire = match key.as_str() {
++                "outputFormat" => "output_format",
++                "thinkingLevel" => "thinking_level",
++                "enableSearch" => "enable_search",
++                _ => key,
++            };
++            assert_eq!(&body["parameters"][wire], value);
++        }
++        assert!(body.get("source").is_none());
++    }
++    assert_eq!(
++        packed("luma_ray3_14_hdr", "video", json!({})).unwrap()["video"]["hdr"],
++        true
++    );
++    assert_eq!(
++        packed(
++            "luma_ray3_14",
++            "video",
++            json!({"video":{"duration":"5s","loopVideo":true}})
++        )
++        .unwrap()["video"]["loop"],
++        true
++    );
++    assert!(packed("luma_ray3_14", "video", json!({"video":{"duration":"10s"}})).is_ok());
++    assert!(packed(
++        "ideogram_vector",
++        "image",
++        json!({"aspectRatio":"16x9","parameters":{"quality":"high"}})
++    )
++    .is_ok());
++}
++
++#[test]
++fn luma_mcp_creation_models_reject_ignored_or_changed_parameters() {
++    for (model, kind, options) in [
++        (
++            "bytedance_seedream",
++            "image",
++            json!({"referenceUrls":vec!["https://example.com/ref";6]}),
++        ),
++        (
++            "bytedance_seedream_5_flash",
++            "image",
++            json!({"aspectRatio":"16:9"}),
++        ),
++        (
++            "bytedance_seedream_5_flash",
++            "image",
++            json!({"parameters":{"size":"100x100"}}),
++        ),
++        (
++            "bytedance_seedream_5_flash",
++            "image",
++            json!({"parameters":{"size":"999999999999999999x1000"}}),
++        ),
++        (
++            "bytedance_seedream_5_pro",
++            "image",
++            json!({"parameters":{"resolution":"4K"}}),
++        ),
++        (
++            "google_nano_banana_2_lite",
++            "image",
++            json!({"parameters":{"resolution":"2K"}}),
++        ),
++        (
++            "google_nano_banana_2_1",
++            "image",
++            json!({"parameters":{"temperature":1.0}}),
++        ),
++        (
++            "google_nano_banana_2",
++            "image",
++            json!({"parameters":{"temperature":2.1}}),
++        ),
++        (
++            "ideogram_4_6",
++            "image",
++            json!({"parameters":{"quality":"very_low","size":"2304x4096"}}),
++        ),
++        (
++            "ideogram_4_5",
++            "image",
++            json!({"parameters":{"magicPrompt":"on"},"referenceUrls":["https://example.com/ref"]}),
++        ),
++        (
++            "openai_gpt_image_1_5",
++            "image",
++            json!({"aspectRatio":"16:9"}),
++        ),
++        (
++            "openai_gpt_image_2_5_sunburst",
++            "image",
++            json!({"parameters":{"background":"transparent","outputFormat":"jpeg"}}),
++        ),
++        (
++            "luma_ray3_14",
++            "video",
++            json!({"video":{"duration":"10s","startFrameUrl":"https://example.com/ref"}}),
++        ),
++        (
++            "luma_ray3_14",
++            "video",
++            json!({"video":{"duration":"10s","loopVideo":true}}),
++        ),
++        ("luma_ray3_14", "video", json!({"video":{"hdr":true}})),
++        (
++            "luma_ray3_14_hdr",
++            "video",
++            json!({"video":{"duration":"10s"}}),
++        ),
++        ("luma_ray3_14_hdr", "video", json!({"video":{"hdr":false}})),
++        (
++            "luma_ray3_14_hdr",
++            "video",
++            json!({"video":{"resolution":"540p"}}),
++        ),
++        ("luma_ray3_2", "video", json!({"video":{"loopVideo":true}})),
++    ] {
++        assert!(
++            packed(model, kind, options.clone()).is_err(),
++            "{model}: {options}"
++        );
++    }
++}
++
++#[test]
++fn luma_mcp_creation_models_preserve_prepared_parameter_serialization() {
++    let request: creation::Request =
++        serde_json::from_value(json!({"kind":"image","prompt":"test","budgetCredits":50,
++        "options":{"model":"openai_gpt_image_2","parameters":{"quality":"high"}}}))
++        .unwrap();
++    let value = serde_json::to_value(request).unwrap();
++    assert_eq!(
++        value["options"]["parameters"],
++        json!({"resolution":null,"quality":"high","outputFormat":null,"background":null})
++    );
++    let request: creation::Request = serde_json::from_value(json!({"kind":"video","prompt":"test","budgetCredits":50,"options":{"video":{"duration":"5s"}}})).unwrap();
++    assert!(serde_json::to_value(request).unwrap()["options"]["video"]
++        .get("loopVideo")
++        .is_none());
++}
+--- before/apps/desktop/src/features/console/lumaMcpCreationDraft.ts
++++ after/apps/desktop/src/features/console/lumaMcpCreationDraft.ts
+@@ -1,17 +1,20 @@
+-// Structured fields for the three models with archived, account-specific parameter contracts.
+-export type McpModel = "luma_uni_1" | "openai_gpt_image_2" | "luma_ray3_2";
++// Structured fields preserve exact model selection and omit unselected options.
++import { imageParameterFields, imageParameterNames, isMcpVideo, mcpModels, validMcpSize, type McpModel } from "./lumaMcpCreationModels";
++export type { McpModel } from "./lumaMcpCreationModels";
+ export type McpDraft = {
+   model: McpModel; operation: "generate" | "edit" | "reframe"; ratio: string; source: string; sourceType: string;
+   references: string; style: string; format: string; quality: string; imageResolution: string; background: string;
+   resolution: string; duration: string; hdr: string; strength: string; autoControls: string;
+   startFrame: string; endFrame: string; keyframes: string; position: string;
+   reuseEnabled: boolean; reuseTask: string; sourceAsset: string; referenceAssets: string;
++  size: string; thinkingLevel: string; enableSearch: string; temperature: string; magicPrompt: string; loopVideo: string;
+ };
+ export const newMcpDraft = (model: McpModel = "luma_uni_1", operation: McpDraft["operation"] = "generate"): McpDraft => ({
+   model, operation, ratio: "", source: "", sourceType: "video/mp4", references: "", style: "", format: "",
+   quality: "", imageResolution: "", background: "", resolution: "", duration: "", hdr: "", strength: "",
+   autoControls: "", startFrame: "", endFrame: "", keyframes: "", position: "",
+   reuseEnabled: false, reuseTask: "", sourceAsset: "", referenceAssets: "",
++  size: "", thinkingLevel: "", enableSearch: "", temperature: "", magicPrompt: "", loopVideo: "",
+ });
+ const lines = (value: string) => value.split(/\r?\n/).map(v => v.trim()).filter(Boolean);
+ export function publicMediaUrl(value: string) {
+@@ -22,8 +25,8 @@
+   } catch { return false; }
+ }
+ export function mcpDraftOptions(draft: McpDraft) {
+-  const video = draft.model === "luma_ray3_2";
+-  const gpt = draft.model === "openai_gpt_image_2";
++  const video = isMcpVideo(draft.model), profile = mcpModels[draft.model];
++  const thirdParty = !video && draft.model !== "luma_uni_1";
+   const references = lines(draft.references);
+   const assetReferences = draft.reuseEnabled ? lines(draft.referenceAssets) : [];
+   const sourceAsset = draft.reuseEnabled ? draft.sourceAsset.trim() : "";
+@@ -34,13 +37,35 @@
+   });
+   const parts = draft.position.trim() ? draft.position.split(",").map(v => v.trim() ? Number(v) : NaN) : [];
+   const urls = [...references, ...keyframes.map(frame => frame.url), ...[draft.source, draft.startFrame, draft.endFrame].filter(Boolean)];
+-  const valid = urls.every(publicMediaUrl) && (draft.operation === "generate" || !!(draft.reuseEnabled ? sourceAsset : draft.source))
++  const parameters: Record<string, string | boolean | number> = {};
++  let parametersValid = true;
++  for (const [key, field] of Object.entries(imageParameterFields)) {
++    const raw = draft[field];
++    if (!raw || !thirdParty) continue;
++    const schema = profile.parameters[key];
++    const value = schema?.type === "boolean" ? raw === "true" : schema?.type === "number" ? Number(raw) : raw;
++    parametersValid &&= !!schema && (!schema.enum || schema.enum.includes(raw))
++      && (schema.type !== "boolean" || ["false", "true"].includes(raw))
++      && (schema.type !== "number" || raw.trim().length > 0 && typeof value === "number" && Number.isFinite(value)
++        && value >= (schema.minimum ?? -Infinity) && value <= (schema.maximum ?? Infinity));
++    parameters[imageParameterNames[key as keyof typeof imageParameterNames]] = value;
++  }
++  const anchors = !!(draft.startFrame || draft.endFrame || keyframes.length);
++  const valid = parametersValid && (!draft.ratio || profile.ratios.includes(draft.ratio))
++    && (!thirdParty || draft.operation === "generate")
++    && (draft.model !== "luma_ray3_14_hdr" || draft.operation === "generate" && draft.hdr !== "false"
++      && draft.duration !== "10s" && !["360p", "540p"].includes(draft.resolution))
++    && (draft.model === "luma_ray3_2" || !keyframes.length)
++    && (!draft.loopVideo || draft.model === "luma_ray3_14" && draft.operation === "generate")
++    && !(draft.model === "luma_ray3_14" && draft.operation === "generate"
++      && (draft.hdr === "true" || draft.duration === "10s" && (anchors || draft.loopVideo === "true")))
++    && urls.every(publicMediaUrl) && (draft.operation === "generate" || !!(draft.reuseEnabled ? sourceAsset : draft.source))
+     && (!draft.reuseEnabled || /^luma-mcp-[0-9a-f-]{36}$/i.test(draft.reuseTask.trim()) && assets.length > 0
+       && !draft.source && assets.every(id => /^(artifact:)?[A-Za-z0-9_-]+$/.test(id) && id.length <= 64)
+       && new Set(assets.map(id => id.replace(/^artifact:/, ""))).size === assets.length)
+     && (!video || draft.reuseEnabled || draft.operation === "generate" || ["video/mp4", "video/webm", "video/quicktime"].includes(draft.sourceType))
+     && (draft.operation !== "reframe" || !!draft.ratio)
+-    && references.length + assetReferences.length <= (gpt ? 16 : draft.operation === "edit" ? 8 : 9)
++    && references.length + assetReferences.length <= profile.maxReferences - (draft.model === "luma_uni_1" && draft.operation === "edit" ? 1 : 0)
+     && keyframes.length <= 64 && new Set(keyframes.map(f => f.index)).size === keyframes.length
+     && keyframes.every(f => Number.isInteger(f.index) && f.index >= 0 && f.index <= (draft.duration === "10s" ? 240 : 120))
+     && !(keyframes.length && (draft.startFrame || draft.endFrame))
+@@ -48,11 +73,10 @@
+       && parts.slice(2).every(n => n > 0 && n <= 2))
+     && !(draft.hdr === "true" && ["360p", "540p"].includes(draft.resolution))
+     && !(draft.operation === "reframe" && draft.resolution === "1080p" && ["9:16", "3:4"].includes(draft.ratio))
+-    && !(gpt && draft.background === "transparent" && draft.format === "jpeg");
+-  const parameters = {
+-    ...(draft.imageResolution ? { resolution: draft.imageResolution } : {}), ...(draft.quality ? { quality: draft.quality } : {}),
+-    ...(draft.format ? { outputFormat: draft.format } : {}), ...(draft.background ? { background: draft.background } : {}),
+-  };
++    && !(thirdParty && draft.background === "transparent" && draft.format === "jpeg")
++    && !(draft.magicPrompt && references.length + assetReferences.length > 0)
++    && !(draft.model === "ideogram_4_6" && draft.quality === "very_low" && draft.size.includes("4096"))
++    && !(draft.model === "bytedance_seedream_5_flash" && draft.size && !validMcpSize(draft.size));
+   const edit = { ...(draft.strength ? { strength: draft.strength } : {}),
+     ...(draft.autoControls ? { autoControls: draft.autoControls === "true" } : {}) };
+   const controls = {
+@@ -60,6 +84,7 @@
+     ...(draft.hdr ? { hdr: draft.hdr === "true" } : {}), ...(draft.startFrame ? { startFrameUrl: draft.startFrame } : {}),
+     ...(draft.endFrame ? { endFrameUrl: draft.endFrame } : {}), ...(keyframes.length ? { keyframes } : {}),
+     ...(Object.keys(edit).length ? { edit } : {}),
++    ...(draft.loopVideo ? { loopVideo: draft.loopVideo === "true" } : {}),
+     ...(parts.length === 4 ? { sourcePosition: { x: parts[0], y: parts[1], width: parts[2], height: parts[3] } } : {}),
+   };
+   const options = {
+@@ -67,13 +92,13 @@
+     ...(draft.ratio ? { aspectRatio: draft.ratio } : {}),
+     ...(draft.source ? { sourceUrl: draft.source, ...(video ? { sourceMediaType: draft.sourceType } : {}) } : {}),
+     ...(references.length ? { referenceUrls: references } : {}),
+-    ...(!video && !gpt && draft.style ? { style: draft.style } : {}),
+-    ...(!video && !gpt && draft.format ? { outputFormat: draft.format } : {}),
+-    ...(gpt && Object.keys(parameters).length ? { parameters } : {}),
++    ...(!video && !thirdParty && draft.style ? { style: draft.style } : {}),
++    ...(!video && !thirdParty && draft.format ? { outputFormat: draft.format } : {}),
++    ...(thirdParty && Object.keys(parameters).length ? { parameters } : {}),
+     ...(video && Object.keys(controls).length ? { video: controls } : {}),
+   };
+   // Default options are omitted so pre-existing prepared tasks keep their original digest.
+-  const defaults = draft.operation === "generate" && draft.model !== "openai_gpt_image_2" && Object.keys(options).length === 2;
++  const defaults = draft.operation === "generate" && ["luma_uni_1", "luma_ray3_2"].includes(draft.model) && Object.keys(options).length === 2;
+   const reuse = draft.reuseEnabled ? { taskId: draft.reuseTask.trim(),
+     ...(sourceAsset ? { sourceAssetId: sourceAsset } : {}), referenceAssetIds: assetReferences } : undefined;
+   return { valid, kind: video ? "video" as const : "image" as const, options: defaults ? undefined : options, reuse };
+--- before/apps/desktop/src/features/console/lumaMcpCreationModels.ts
++++ after/apps/desktop/src/features/console/lumaMcpCreationModels.ts
+@@ -0,0 +1,24 @@
++// Reviewed 2026-11-20 list/describe snapshot; shared with Rust write admission.
++import profiles from "../../../../../manifests/luma-mcp-creation-models.json";
++export type McpModel = keyof typeof profiles;
++export type ModelParameter = { type: string; enum?: string[]; minimum?: number; maximum?: number };
++export type ModelProfile = {
++  label: string; kind: string; ratios: string[]; maxReferences: number; parameters: Record<string, ModelParameter>;
++};
++export const mcpModels = profiles as Record<McpModel, ModelProfile>;
++export const isMcpVideo = (model: McpModel) => mcpModels[model].kind === "video";
++export const imageParameterFields = {
++  resolution: "imageResolution", quality: "quality", output_format: "format", background: "background",
++  size: "size", thinking_level: "thinkingLevel", enable_search: "enableSearch", temperature: "temperature", magic_prompt: "magicPrompt",
++} as const;
++export const imageParameterNames = {
++  resolution: "resolution", quality: "quality", output_format: "outputFormat", background: "background",
++  size: "size", thinking_level: "thinkingLevel", enable_search: "enableSearch", temperature: "temperature", magic_prompt: "magicPrompt",
++} as const;
++export function validMcpSize(size: string) {
++  if (["1K", "1.5K", "2K"].includes(size)) return true;
++  if (!/^\d+x\d+$/.test(size) || size.length > 32) return false;
++  const [width, height] = size.split("x").map(Number);
++  return Number.isSafeInteger(width * height) && width * height >= 921600 && width * height <= 4624220
++    && width <= height * 16 && height <= width * 16;
++}
+--- before/apps/desktop/src/features/console/LumaMcpCreationOptions.tsx
++++ after/apps/desktop/src/features/console/LumaMcpCreationOptions.tsx
+@@ -1,13 +1,16 @@
+ import { Checkbox, Field, Input, Select, Textarea } from "@neuro/ui";
+ import { useUiLocale } from "../../i18n/UiLocaleProvider";
+ import { newMcpDraft, type McpDraft, type McpModel } from "./lumaMcpCreationDraft";
++import { isMcpVideo, mcpModels } from "./lumaMcpCreationModels";
++import { LumaMcpImageParameters } from "./LumaMcpImageParameters";
+ 
+ export function LumaMcpCreationOptions({ draft, disabled, onChange }: {
+   draft: McpDraft; disabled: boolean; onChange: (value: McpDraft) => void;
+ }) {
+   const { t } = useUiLocale();
+-  const video = draft.model === "luma_ray3_2";
+-  const gpt = draft.model === "openai_gpt_image_2";
++  const video = isMcpVideo(draft.model), profile = mcpModels[draft.model];
++  const thirdParty = !video && draft.model !== "luma_uni_1";
++  const hdrModel = draft.model === "luma_ray3_14_hdr";
+   const edit = draft.operation === "edit";
+   const reframe = draft.operation === "reframe";
+   const update = (key: keyof McpDraft, value: string) => onChange({ ...draft, [key]: value });
+@@ -20,11 +23,11 @@
+   return <>
+     <Field label={t("创作模型", "Creation model")}><Select value={draft.model} disabled={disabled}
+       onChange={e => onChange({ ...newMcpDraft(e.target.value as McpModel),
+-        ...(draft.reuseEnabled && draft.operation === "generate" && !video && e.target.value !== "luma_ray3_2"
++        ...(draft.reuseEnabled && draft.operation === "generate" && !video && !isMcpVideo(e.target.value as McpModel)
+           ? { reuseEnabled: true, reuseTask: draft.reuseTask, referenceAssets: draft.referenceAssets } : {}) })}>
+-      <option value="luma_uni_1">UNI-1</option><option value="openai_gpt_image_2">GPT Image 2</option><option value="luma_ray3_2">Ray 3.2</option>
++      {(Object.entries(mcpModels) as [McpModel, typeof profile][]).map(([id, model]) => <option key={id} value={id}>{model.label}</option>)}
+     </Select></Field>
+-    {!gpt && <Field label={t("创作操作", "Creation operation")}><Select value={draft.operation} disabled={disabled}
++    {!thirdParty && !hdrModel && <Field label={t("创作操作", "Creation operation")}><Select value={draft.operation} disabled={disabled}
+       onChange={e => onChange(newMcpDraft(draft.model, e.target.value as McpDraft["operation"]))}>
+       <option value="generate">{t("生成", "Generate")}</option><option value="edit">{t("编辑", "Edit")}</option>
+       {video && <option value="reframe">{t("扩画", "Reframe")}</option>}
+@@ -40,28 +43,24 @@
+     </>}
+     {(edit || reframe) && !draft.reuseEnabled && input("source", t("源素材 URL", "Source URL"), "https://…")}
+     {video && (edit || reframe) && !draft.reuseEnabled && select("sourceType", t("源视频类型", "Source video MIME type"), ["video/mp4", "video/webm", "video/quicktime"])}
+-    {!edit && select("ratio", t("画面比例", "Aspect ratio"), video ? ["9:16", "3:4", "1:1", "4:3", "16:9", "21:9"]
+-      : ["1:1", "4:5", "1:2", "1:3", "9:16", "3:4", "2:3", "3:2", "4:3", "16:9", "2:1", "3:1"])}
++    {!edit && profile.ratios.length > 0 && select("ratio", t("画面比例", "Aspect ratio"), profile.ratios)}
+     {!video && <>
+       <Field label={t("参考图片 URL（每行一个）", "Reference image URLs (one per line)")}><Textarea value={draft.references}
+         disabled={disabled} maxLength={24576} onChange={e => update("references", e.target.value)} /></Field>
+-      {!gpt && select("style", t("图片风格", "Image style"), ["auto", "manga"])}
+-      {select("format", t("图片格式", "Image format"), gpt ? ["png", "jpeg", "webp"] : ["png", "jpeg"])}
+-      {gpt && <>
+-        {select("imageResolution", t("图片分辨率", "Image resolution"), ["1K", "2K", "4K"])}
+-        {select("quality", t("图片质量", "Image quality"), ["low", "medium", "high"])}
+-        {select("background", t("图片背景", "Image background"), ["auto", "transparent", "opaque"])}
+-      </>}
++      {!thirdParty && <>{select("style", t("图片风格", "Image style"), ["auto", "manga"])}
++        {select("format", t("图片格式", "Image format"), ["png", "jpeg"])}</>}
++      {thirdParty && <LumaMcpImageParameters draft={draft} disabled={disabled} onChange={onChange} />}
+     </>}
+     {video && <>
+-      {select("resolution", t("视频分辨率", "Video resolution"), ["360p", "540p", "720p", "1080p"])}
+-      {!edit && select("duration", t("视频时长", "Video duration"), ["5s", "10s"])}
+-      {!reframe && select("hdr", "HDR", ["false", "true"])}
++      {select("resolution", t("视频分辨率", "Video resolution"), hdrModel ? ["720p", "1080p"] : ["360p", "540p", "720p", "1080p"])}
++      {!edit && select("duration", t("视频时长", "Video duration"), hdrModel ? ["5s"] : ["5s", "10s"])}
++      {!reframe && !hdrModel && (draft.model === "luma_ray3_2" || edit) && select("hdr", "HDR", ["false", "true"])}
++      {draft.model === "luma_ray3_14" && !edit && !reframe && select("loopVideo", t("循环视频", "Loop video"), ["false", "true"])}
+       {!reframe && input("startFrame", t("起始帧 URL", "Start frame URL"), "https://…")}
+       {!edit && !reframe && <>
+         {input("endFrame", t("结束帧 URL", "End frame URL"), "https://…")}
+-        <Field label={t("关键帧（每行：帧序号 URL）", "Keyframes (one index and URL per line)")}><Textarea value={draft.keyframes}
+-          disabled={disabled} maxLength={24576} placeholder="0 https://…" onChange={e => update("keyframes", e.target.value)} /></Field>
++        {draft.model === "luma_ray3_2" && <Field label={t("关键帧（每行：帧序号 URL）", "Keyframes (one index and URL per line)")}><Textarea value={draft.keyframes}
++          disabled={disabled} maxLength={24576} placeholder="0 https://…" onChange={e => update("keyframes", e.target.value)} /></Field>}
+       </>}
+       {edit && <>
+         {select("strength", t("重绘强度", "Edit strength"), ["adhere_1", "adhere_2", "adhere_3", "flex_1", "flex_2", "flex_3", "reimagine_1", "reimagine_2", "reimagine_3"])}
+--- before/apps/desktop/src/features/console/LumaMcpImageParameters.tsx
++++ after/apps/desktop/src/features/console/LumaMcpImageParameters.tsx
+@@ -0,0 +1,29 @@
++import { Field, Input, Select } from "@neuro/ui";
++import { useUiLocale } from "../../i18n/UiLocaleProvider";
++import type { McpDraft } from "./lumaMcpCreationDraft";
++import { imageParameterFields, mcpModels } from "./lumaMcpCreationModels";
++
++export function LumaMcpImageParameters({ draft, disabled, onChange }: {
++  draft: McpDraft; disabled: boolean; onChange: (value: McpDraft) => void;
++}) {
++  const { t } = useUiLocale();
++  const labels: Record<keyof typeof imageParameterFields, string> = {
++    resolution: t("图片分辨率", "Image resolution"), quality: t("图片质量", "Image quality"),
++    output_format: t("图片格式", "Image format"), background: t("图片背景", "Image background"),
++    size: t("图片尺寸", "Image size"), thinking_level: t("推理程度", "Thinking level"),
++    enable_search: t("搜索增强", "Search grounding"), temperature: t("温度", "Temperature"),
++    magic_prompt: t("提示词增强", "Magic prompt"),
++  };
++  return <>{Object.entries(mcpModels[draft.model].parameters).map(([name, schema]) => {
++    const key = name as keyof typeof imageParameterFields, field = imageParameterFields[key];
++    const values = schema.enum ?? (schema.type === "boolean" ? ["false", "true"] : null);
++    return <Field key={key} label={labels[key]}>{values
++      ? <Select value={draft[field]} disabled={disabled} onChange={e => onChange({ ...draft, [field]: e.target.value })}>
++        <option value="">{t("默认", "Default")}</option>{values.map(value => <option key={value} value={value}>{value}</option>)}
++      </Select>
++      : <Input value={draft[field]} disabled={disabled} type={schema.type === "number" ? "number" : "text"}
++        min={schema.minimum} max={schema.maximum} step={schema.type === "number" ? "any" : undefined}
++        maxLength={32} placeholder={key === "size" ? "1K / 1.5K / 2K / 1536x1024" : undefined}
++        onChange={e => onChange({ ...draft, [field]: e.target.value })} />}</Field>;
++  })}</>;
++}
+--- before/apps/desktop/src/features/console/LumaMcpCreationModels.test.tsx
++++ after/apps/desktop/src/features/console/LumaMcpCreationModels.test.tsx
+@@ -0,0 +1,71 @@
++import { act, fireEvent, render, screen } from "@testing-library/react";
++import { expect, it, vi } from "vitest";
++import type { GatewayApiClient } from "../../api/client";
++import { LumaMcpCreationPanel } from "./LumaMcpCreationPanel";
++import { mcpDraftOptions, newMcpDraft } from "./lumaMcpCreationDraft";
++import { mcpModels, type McpModel } from "./lumaMcpCreationModels";
++
++vi.mock("../../i18n/UiLocaleProvider", () => ({ useUiLocale: () => ({ t: (zh: string) => zh }) }));
++const change = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
++function fixture() {
++  const request = vi.fn(async () => { throw new Error("synthetic"); });
++  render(<LumaMcpCreationPanel client={{ request } as unknown as GatewayApiClient} managementToken="owner"
++    secretGrant="grant" providerId="mcp" credentialId="saved" expectedRevision="r1" disabled={false}
++    onRequestSecretAccess={vi.fn()} />);
++  change("提示词", "A blue circle"); change("会话预算上限（credits）", "50");
++  return request;
++}
++it.each(Object.keys(mcpModels) as McpModel[])("preserves explicitly selected model %s", model => {
++  const result = mcpDraftOptions(newMcpDraft(model));
++  expect(result.valid).toBe(true);
++  expect(result.kind).toBe(mcpModels[model].kind);
++  if (["luma_uni_1", "luma_ray3_2"].includes(model)) expect(result.options).toBeUndefined();
++  else expect(result.options?.model).toBe(model);
++});
++it("exposes only supported Nano Banana options and sends explicit false and zero", async () => {
++  const request = fixture(); change("创作模型", "google_nano_banana_2");
++  expect(screen.queryByLabelText("图片背景")).not.toBeInTheDocument();
++  change("图片分辨率", "512"); change("画面比例", "8:1");
++  change("搜索增强", "false"); change("温度", "0"); change("推理程度", "high");
++  await act(async () => fireEvent.click(screen.getByRole("button", { name: "准备任务" })));
++  expect(request).toHaveBeenCalledOnce();
++  expect(request.mock.calls[0]).toEqual(expect.arrayContaining([expect.objectContaining({ body: expect.objectContaining({
++    action: "prepare", request: expect.objectContaining({ options: {
++      model: "google_nano_banana_2", operation: "generate", aspectRatio: "8:1",
++      parameters: { resolution: "512", enableSearch: false, temperature: 0, thinkingLevel: "high" },
++    } }),
++  }) })]));
++});
++it("validates Flash dimensions and clears its fields when switching to a different model", () => {
++  fixture(); change("创作模型", "bytedance_seedream_5_flash");
++  expect(screen.queryByLabelText("画面比例")).not.toBeInTheDocument();
++  change("图片尺寸", "100x100"); expect(screen.getByRole("button", { name: "准备任务" })).toBeDisabled();
++  change("图片尺寸", "1536x1024"); expect(screen.getByRole("button", { name: "准备任务" })).toBeEnabled();
++  change("创作模型", "google_nano_banana_2_lite");
++  expect(screen.queryByLabelText("图片尺寸")).not.toBeInTheDocument();
++  expect(screen.getByLabelText("图片分辨率").textContent).toBe("默认1K");
++});
++it("requires compatible Ideogram quality, size and ordered reference inputs", () => {
++  fixture(); change("创作模型", "ideogram_4_6"); change("图片质量", "very_low"); change("图片尺寸", "4096x4096");
++  expect(screen.getByRole("button", { name: "准备任务" })).toBeDisabled();
++  change("图片尺寸", "2048x2048"); change("提示词增强", "on");
++  change("参考图片 URL（每行一个）", "https://example.com/ref");
++  expect(screen.getByRole("button", { name: "准备任务" })).toBeDisabled();
++  change("提示词增强", ""); expect(screen.getByRole("button", { name: "准备任务" })).toBeEnabled();
++});
++it("keeps HDR and legacy Ray frame combinations explicit", () => {
++  fixture(); change("创作模型", "luma_ray3_14_hdr");
++  expect(screen.queryByLabelText("创作操作")).not.toBeInTheDocument();
++  expect(screen.getByLabelText("视频时长").textContent).toBe("默认5s");
++  expect(screen.getByLabelText("视频分辨率").textContent).toBe("默认720p1080p");
++  change("创作模型", "luma_ray3_14"); change("视频时长", "10s");
++  change("起始帧 URL", "https://example.com/start");
++  expect(screen.getByRole("button", { name: "准备任务" })).toBeDisabled();
++  change("视频时长", "5s"); expect(screen.getByRole("button", { name: "准备任务" })).toBeEnabled();
++  expect(screen.queryByLabelText("关键帧（每行：帧序号 URL）")).not.toBeInTheDocument();
++});
++it("counts URL and saved-asset references together using each model limit", () => {
++  const result = mcpDraftOptions({ ...newMcpDraft("openai_gpt_image_1_5"), reuseEnabled: true,
++    reuseTask: "luma-mcp-11111111-1111-4111-8111-111111111111", referenceAssets: "a1\na2\na3\na4", references: "https://example.com/ref" });
++  expect(result.valid).toBe(false);
++});
+--- before/tools/luma/capture-mcp-models.py
++++ after/tools/luma/capture-mcp-models.py
+@@ -0,0 +1,125 @@
++"""Capture saved-account model contracts through existing read-only management APIs."""
++import argparse
++import datetime
++import hashlib
++import json
++import os
++from pathlib import Path
++import urllib.error
++import urllib.parse
++import urllib.request
++
++
++class NoRedirect(urllib.request.HTTPRedirectHandler):
++    def redirect_request(self, req, fp, code, msg, headers, newurl):
++        return None
++
++
++def failure_detail(error):
++    # Only fixed local error identifiers are printable; supplier prose stays private.
++    allowed_codes = {"luma_mcp_material_unavailable", "luma_mcp_management_only",
++                     "luma_model_query_invalid", "console_revision_conflict",
++                     "luma_mcp_catalog_failed"}
++    allowed_messages = {"luma_oauth_expired", "luma_oauth_invalid_input"}
++    try:
++        body = json.loads(error.read(64 * 1024))
++        detail = body.get("error", {})
++        if not isinstance(detail, dict):
++            return ""
++        parts = [detail[key] for key, allowed in
++                 (("code", allowed_codes), ("message", allowed_messages))
++                 if isinstance(detail.get(key), str) and detail[key] in allowed]
++        return " (" + ", ".join(parts) + ")" if parts else ""
++    except (ValueError, AttributeError):
++        return ""
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--origin", default="http://127.0.0.1:4200")
++    parser.add_argument("--provider", required=True)
++    parser.add_argument("--credential")
++    parser.add_argument("--output", type=Path, required=True)
++    args = parser.parse_args()
++    origin = urllib.parse.urlsplit(args.origin)
++    if (origin.scheme != "http" or origin.hostname != "127.0.0.1"
++            or origin.username or origin.password or origin.path not in ("", "/")
++            or origin.query or origin.fragment or not origin.port):
++        raise SystemExit("Only an explicit loopback Gateway origin is supported.")
++    token = os.environ.get("GATEWAY_LUMA_MANAGEMENT_TOKEN", "")
++    if not token:
++        raise SystemExit("Set GATEWAY_LUMA_MANAGEMENT_TOKEN; never pass secrets in arguments.")
++    args.output.mkdir(parents=True, exist_ok=False)
++    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
++    headers = {"x-management-token": token, "Content-Type": "application/json", "Origin": args.origin}
++    receipts = []
++
++    def call(path, body=None):
++        request = urllib.request.Request(args.origin.rstrip("/") + "/v1/internal/gateway/console/" + path,
++                                         data=None if body is None else json.dumps(body).encode(), headers=headers)
++        try:
++            with opener.open(request, timeout=40) as response:
++                raw = response.read(8 * 1024 * 1024 + 1)
++                if len(raw) > 8 * 1024 * 1024:
++                    raise RuntimeError("Management response exceeded the capture limit.")
++                receipts.append({"path": path, "status": response.status,
++                                 "noStore": "no-store" in response.headers.get("Cache-Control", "")})
++                return json.loads(raw)
++        except urllib.error.HTTPError as error:
++            detail = failure_detail(error)
++            raise RuntimeError(f"Management {path} returned HTTP {error.code}{detail}.") from None
++
++    initial = call("route-config")["routeConfig"]
++    providers = [p for p in initial["document"]["providers"] if p["id"] == args.provider]
++    if len(providers) != 1:
++        raise RuntimeError("Expected one saved provider.")
++    candidates = [c for c in providers[0]["credentials"]
++                  if c.get("luma_oauth") and (not args.credential or c.get("id") == args.credential)]
++    if len(candidates) != 1:
++        raise RuntimeError("Select exactly one saved MCP credential with --credential.")
++    credential = candidates[0]["id"]
++    revision = initial["revision"]["id"]
++    headers["x-secret-grant"] = call("session/confirm-secret-access", {"token": token})["grant"]
++    binding = {"providerId": args.provider, "credentialId": credential, "expectedRevision": revision}
++
++    def models(action, **query):
++        response = call("luma-mcp-models", {**binding, "action": action, **query})
++        if (response["revision"] != revision or response["providerId"] != args.provider
++                or response["credentialId"] != credential):
++            raise RuntimeError("Saved account or revision changed during capture.")
++        return response["result"]
++
++    catalog = models("list")
++    descriptions = []
++    for model in catalog["models"]:
++        if model["modality"] not in ("image", "video"):
++            continue
++        descriptions.append(models("describe", model=model["id"], type=model["modality"]))
++        print(json.dumps({"model": model["id"], "status": "captured"}), flush=True)
++    final = call("route-config")["routeConfig"]
++    if final["revision"]["id"] != revision:
++        raise RuntimeError("Revision changed during capture; results are not published.")
++    documents = {"models.json": catalog, "model-descriptions.json": descriptions}
++    identities = [token, headers["x-secret-grant"], credential]
++    hashes = {}
++    for name, document in documents.items():
++        text = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
++        if any(value and value in text for value in identities):
++            raise RuntimeError("Account material appeared in model data; export refused.")
++        raw = text.encode("utf-8")
++        (args.output / name).write_bytes(raw)
++        hashes[name] = hashlib.sha256(raw).hexdigest()
++    receipt = {"capturedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
++               "scope": "model list and describe only; no business session, refresh or generation",
++               "status": "passed", "revisionUnchanged": True, "modelCount": len(catalog["models"]),
++               "descriptionCount": len(descriptions), "requests": receipts, "sha256": hashes}
++    (args.output / "verification.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
++
++
++if __name__ == "__main__":
++    try:
++        main()
++    except (RuntimeError, OSError, ValueError, KeyError) as error:
++        # Avoid traceback locals, URLs with query strings and untrusted response excerpts.
++        raise SystemExit(f"Capture failed ({type(error).__name__}): {error}" if isinstance(error, RuntimeError)
++                         else f"Capture failed ({type(error).__name__}).") from None
+--- before/tools/luma/mcp-creation-preview-check.mjs
++++ after/tools/luma/mcp-creation-preview-check.mjs
+@@ -4,8 +4,10 @@
+ import { createRequire } from "node:module";
+ import path from "node:path";
+ import { parseArgs } from "node:util";
++import { checkModelProfiles } from "./mcp-models-preview-flow.mjs";
+ 
+-const { values } = parseArgs({ options: { origin: { type: "string" }, output: { type: "string" }, reuse: { type: "boolean" } } });
++const { values } = parseArgs({ options: { origin: { type: "string" }, output: { type: "string" }, reuse: { type: "boolean" }, models: { type: "boolean" } } });
++if (values.reuse && values.models) throw new Error("Select --reuse or --models, not both.");
+ if (!values.origin || !values.output) throw new Error("Use --origin http://127.0.0.1:<port> --output <new-directory>");
+ const origin = new URL(values.origin);
+ assert.equal(origin.protocol, "http:"); assert.equal(origin.hostname, "127.0.0.1"); assert.ok(origin.port);
+@@ -31,6 +33,9 @@
+   const field = name => dialog.getByLabel(name, { exact: true });
+   const click = name => dialog.getByRole("button", { name, exact: true }).click();
+   assert.equal(await page.evaluate(() => window.syntheticRequests.length), 0);
++  if (values.models) {
++    calls = await checkModelProfiles(page, dialog, output);
++  } else {
+   await field("创作模型").selectOption("openai_gpt_image_2");
+   await field("图片分辨率").selectOption("4K"); await field("图片质量").selectOption("high");
+   await field("图片格式").selectOption("webp");
+@@ -112,6 +117,7 @@
+   assert.equal(calls[3].body.request.options.sourceMediaType, "video/webm");
+   assert.equal(calls[3].body.request.options.parameters, undefined);
+   }
++  }
+   assert.deepEqual(errors, []); assert.deepEqual(external, []);
+   status = "passed";
+ } catch (error) {
+--- before/tools/luma/mcp-models-preview-flow.mjs
++++ after/tools/luma/mcp-models-preview-flow.mjs
+@@ -0,0 +1,60 @@
++// New model controls on the real form; uses the existing no-network synthetic client.
++import assert from "node:assert/strict";
++import { writeFile } from "node:fs/promises";
++import path from "node:path";
++
++export async function checkModelProfiles(page, dialog, output) {
++  const field = name => dialog.getByLabel(name, { exact: true });
++  const button = name => dialog.getByRole("button", { name, exact: true });
++  assert.equal(await field("创作模型").locator("option").count(), 18);
++  await field("提示词").fill("A blue circle");
++  await field("会话预算上限（credits）").fill("50");
++  await field("创作模型").selectOption("google_nano_banana_2");
++  await field("图片分辨率").selectOption("512");
++  await field("画面比例").selectOption("8:1");
++  await field("推理程度").selectOption("high");
++  await field("搜索增强").selectOption("false");
++  await field("温度").fill("0");
++  await field("创作模型").scrollIntoViewIfNeeded();
++  await page.screenshot({ path: path.join(output, "nano-model-wide.png") });
++  const generate = async () => {
++    await button("准备任务").click();
++    assert.equal(await button("提交生成").isEnabled(), false);
++    await field("确认使用此 Luma 账号的 credits 生成").check();
++    await button("提交生成").click();
++    await button("查询结果与费用").click();
++    await dialog.getByText("会话费用：9 credits · 已结算", { exact: true }).waitFor();
++  };
++  await generate(); await button("另一任务").click();
++  await field("创作模型").selectOption("bytedance_seedream_5_flash");
++  assert.equal(await field("画面比例").count(), 0);
++  await field("图片尺寸").fill("100x100");
++  assert.equal(await button("准备任务").isEnabled(), false);
++  await field("图片尺寸").fill("1536x1024");
++  await field("图片格式").selectOption("png");
++  await page.setViewportSize({ width: 390, height: 844 });
++  for (const label of ["创作模型", "图片尺寸", "图片格式"]) {
++    await field(label).scrollIntoViewIfNeeded();
++    const box = await field(label).boundingBox();
++    assert.ok(box && box.x >= 0 && box.x + box.width <= 390, label);
++  }
++  await page.screenshot({ path: path.join(output, "seedream-model-narrow.png") });
++  await writeFile(path.join(output, "seedream.ax.txt"), await dialog.ariaSnapshot());
++  await generate(); await button("另一任务").click();
++  await field("创作模型").selectOption("luma_ray3_14_hdr");
++  assert.deepEqual(await field("视频时长").locator("option").allTextContents(), ["默认", "5s"]);
++  assert.deepEqual(await field("视频分辨率").locator("option").allTextContents(), ["默认", "720p", "1080p"]);
++  assert.equal(await field("创作操作").count(), 0);
++  await field("视频分辨率").selectOption("1080p");
++  await field("创作模型").scrollIntoViewIfNeeded();
++  await page.screenshot({ path: path.join(output, "hdr-model-narrow.png") });
++  await generate();
++  const calls = await page.evaluate(() => window.syntheticRequests);
++  assert.deepEqual(calls.map(c => c.body.action), Array(3).fill(["prepare", "start", "read"]).flat());
++  for (const index of [0, 3, 6]) assert.deepEqual(calls[index].body.request, calls[index + 1].body.request);
++  assert.deepEqual(calls[0].body.request.options.parameters, { resolution: "512", thinkingLevel: "high", enableSearch: false, temperature: 0 });
++  assert.deepEqual(calls[3].body.request.options.parameters, { size: "1536x1024", outputFormat: "png" });
++  assert.equal(calls[6].body.request.options.model, "luma_ray3_14_hdr");
++  assert.equal(calls[6].body.request.kind, "video");
++  return calls;
++}
+--- before/tests/python/test_luma_model_capture.py
++++ after/tests/python/test_luma_model_capture.py
+@@ -0,0 +1,39 @@
++"""The model capture utility must never print untrusted HTTP error material."""
++import importlib.util
++import io
++import json
++from pathlib import Path
++import unittest
++import urllib.error
++
++SCRIPT = Path(__file__).resolve().parents[2] / "tools/luma/capture-mcp-models.py"
++spec = importlib.util.spec_from_file_location("luma_model_capture", SCRIPT)
++capture = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(capture)
++
++
++class ModelCaptureErrors(unittest.TestCase):
++    def detail(self, value):
++        raw = json.dumps(value).encode("utf-8")
++        error = urllib.error.HTTPError("http://127.0.0.1/", 400, "private", {}, io.BytesIO(raw))
++        return capture.failure_detail(error)
++
++    def test_fixed_expiry_identifiers_remain_diagnosable(self):
++        self.assertEqual(self.detail({"error": {"code": "luma_mcp_material_unavailable",
++            "message": "luma_oauth_expired"}}),
++            " (luma_mcp_material_unavailable, luma_oauth_expired)")
++
++    def test_supplier_prose_and_unknown_identifiers_are_not_printed(self):
++        self.assertEqual(self.detail({"error": {"code": "secret-bearer", "message": "private-token"}}), "")
++        self.assertEqual(self.detail({"error": {"code": "luma_mcp_catalog_failed", "message": "private-token"}}),
++                         " (luma_mcp_catalog_failed)")
++
++    def test_malformed_and_wrong_type_errors_are_silent(self):
++        for value in [[], None, {"error": "private-token"}, {"error": {"code": ["private-token"]}}]:
++            self.assertEqual(self.detail(value), "")
++        error = urllib.error.HTTPError("http://127.0.0.1/", 400, "private", {}, io.BytesIO(b"not json"))
++        self.assertEqual(capture.failure_detail(error), "")
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- before/manifests/luma-mcp-creation-models.json
++++ after/manifests/luma-mcp-creation-models.json
+@@ -0,0 +1,612 @@
++{
++  "bytedance_seedream": {
++    "label": "Seedream",
++    "kind": "image",
++    "ratios": [
++      "9:21",
++      "9:16",
++      "2:3",
++      "3:4",
++      "1:1",
++      "4:3",
++      "3:2",
++      "16:9",
++      "21:9"
++    ],
++    "maxReferences": 5,
++    "parameters": {
++      "resolution": {
++        "type": "string",
++        "enum": [
++          "1K",
++          "2K",
++          "4K"
++        ]
++      }
++    }
++  },
++  "bytedance_seedream_5_flash": {
++    "label": "Seedream 5 Flash",
++    "kind": "image",
++    "ratios": [],
++    "maxReferences": 10,
++    "parameters": {
++      "size": {
++        "type": "string"
++      },
++      "output_format": {
++        "type": "string",
++        "enum": [
++          "jpeg",
++          "png"
++        ]
++      }
++    }
++  },
++  "bytedance_seedream_5_pro": {
++    "label": "Seedream 5 Pro",
++    "kind": "image",
++    "ratios": [
++      "9:21",
++      "9:16",
++      "2:3",
++      "3:4",
++      "1:1",
++      "4:3",
++      "3:2",
++      "16:9",
++      "21:9"
++    ],
++    "maxReferences": 10,
++    "parameters": {
++      "resolution": {
++        "type": "string",
++        "enum": [
++          "1K",
++          "2K"
++        ]
++      },
++      "output_format": {
++        "type": "string",
++        "enum": [
++          "jpeg",
++          "png"
++        ]
++      }
++    }
++  },
++  "google_nano_banana_2": {
++    "label": "Nano Banana 2",
++    "kind": "image",
++    "ratios": [
++      "8:1",
++      "4:1",
++      "21:9",
++      "16:9",
++      "3:2",
++      "4:3",
++      "5:4",
++      "1:1",
++      "4:5",
++      "3:4",
++      "2:3",
++      "9:16",
++      "1:4",
++      "1:8"
++    ],
++    "maxReferences": 14,
++    "parameters": {
++      "resolution": {
++        "type": "string",
++        "enum": [
++          "512",
++          "1K",
++          "2K",
++          "4K"
++        ]
++      },
++      "thinking_level": {
++        "type": "string",
++        "enum": [
++          "minimal",
++          "high"
++        ]
++      },
++      "enable_search": {
++        "type": "boolean"
++      },
++      "temperature": {
++        "type": "number",
++        "minimum": 0.0,
++        "maximum": 2.0
++      }
++    }
++  },
++  "google_nano_banana_2_1": {
++    "label": "Nano Banana 2.1",
++    "kind": "image",
++    "ratios": [
++      "8:1",
++      "4:1",
++      "21:9",
++      "16:9",
++      "3:2",
++      "4:3",
++      "5:4",
++      "1:1",
++      "4:5",
++      "3:4",
++      "2:3",
++      "9:16",
++      "1:4",
++      "1:8"
++    ],
++    "maxReferences": 14,
++    "parameters": {
++      "resolution": {
++        "type": "string",
++        "enum": [
++          "1K",
++          "2K",
++          "4K"
++        ]
++      },
++      "thinking_level": {
++        "type": "string",
++        "enum": [
++          "minimal",
++          "high"
++        ]
++      },
++      "enable_search": {
++        "type": "boolean"
++      }
++    }
++  },
++  "google_nano_banana_2_lite": {
++    "label": "Nano Banana 2 Lite",
++    "kind": "image",
++    "ratios": [
++      "8:1",
++      "4:1",
++      "21:9",
++      "16:9",
++      "3:2",
++      "4:3",
++      "5:4",
++      "1:1",
++      "4:5",
++      "3:4",
++      "2:3",
++      "9:16",
++      "1:4",
++      "1:8"
++    ],
++    "maxReferences": 14,
++    "parameters": {
++      "resolution": {
++        "type": "string",
++        "enum": [
++          "1K"
++        ]
++      },
++      "thinking_level": {
++        "type": "string",
++        "enum": [
++          "minimal",
++          "high"
++        ]
++      },
++      "enable_search": {
++        "type": "boolean"
++      },
++      "temperature": {
++        "type": "number",
++        "minimum": 0.0,
++        "maximum": 2.0
++      }
++    }
++  },
++  "google_nano_banana_pro": {
++    "label": "Nano Banana Pro",
++    "kind": "image",
++    "ratios": [
++      "21:9",
++      "16:9",
++      "3:2",
++      "4:3",
++      "1:1",
++      "3:4",
++      "2:3",
++      "9:16"
++    ],
++    "maxReferences": 14,
++    "parameters": {
++      "resolution": {
++        "type": "string",
++        "enum": [
++          "1K",
++          "2K",
++          "4K"
++        ]
++      }
++    }
++  },
++  "ideogram_4_5": {
++    "label": "Ideogram 4.5",
++    "kind": "image",
++    "ratios": [],
++    "maxReferences": 5,
++    "parameters": {
++      "quality": {
++        "type": "string",
++        "enum": [
++          "low",
++          "medium",
++          "high"
++        ]
++      },
++      "size": {
++        "type": "string",
++        "enum": [
++          "auto",
++          "1024x1024",
++          "2048x2048",
++          "2560x1440",
++          "1440x2560"
++        ]
++      },
++      "magic_prompt": {
++        "type": "string",
++        "enum": [
++          "auto",
++          "on",
++          "off"
++        ]
++      }
++    }
++  },
++  "ideogram_4_6": {
++    "label": "Ideogram 4.6",
++    "kind": "image",
++    "ratios": [],
++    "maxReferences": 5,
++    "parameters": {
++      "quality": {
++        "type": "string",
++        "enum": [
++          "very_low",
++          "low",
++          "medium",
++          "high"
++        ]
++      },
++      "size": {
++        "type": "string",
++        "enum": [
++          "auto",
++          "1024x1024",
++          "2048x2048",
++          "2560x1440",
++          "1440x2560",
++          "4096x4096",
++          "4096x2304",
++          "2304x4096"
++        ]
++      },
++      "magic_prompt": {
++        "type": "string",
++        "enum": [
++          "auto",
++          "on",
++          "off"
++        ]
++      },
++      "background": {
++        "type": "string",
++        "enum": [
++          "auto",
++          "transparent",
++          "opaque"
++        ]
++      }
++    }
++  },
++  "ideogram_vector": {
++    "label": "Ideogram Vector",
++    "kind": "image",
++    "ratios": [
++      "auto",
++      "1x1",
++      "1x2",
++      "2x1",
++      "1x3",
++      "3x1",
++      "1x4",
++      "4x1",
++      "2x3",
++      "3x2",
++      "3x4",
++      "4x3",
++      "4x5",
++      "5x4",
++      "9x16",
++      "16x9",
++      "10x16",
++      "16x10"
++    ],
++    "maxReferences": 5,
++    "parameters": {
++      "quality": {
++        "type": "string",
++        "enum": [
++          "low",
++          "medium",
++          "high"
++        ]
++      }
++    }
++  },
++  "luma_ray3_14": {
++    "label": "Ray 3.14",
++    "kind": "video",
++    "ratios": [
++      "9:16",
++      "3:4",
++      "1:1",
++      "4:3",
++      "16:9",
++      "21:9",
++      "4:5"
++    ],
++    "maxReferences": 0,
++    "parameters": {}
++  },
++  "luma_ray3_14_hdr": {
++    "label": "Ray 3.14 HDR",
++    "kind": "video",
++    "ratios": [
++      "9:16",
++      "3:4",
++      "1:1",
++      "4:3",
++      "16:9",
++      "21:9"
++    ],
++    "maxReferences": 0,
++    "parameters": {}
++  },
++  "luma_ray3_2": {
++    "label": "Ray 3.2",
++    "kind": "video",
++    "ratios": [
++      "9:16",
++      "3:4",
++      "1:1",
++      "4:3",
++      "16:9",
++      "21:9"
++    ],
++    "maxReferences": 0,
++    "parameters": {}
++  },
++  "luma_uni_1": {
++    "label": "UNI-1",
++    "kind": "image",
++    "ratios": [
++      "3:1",
++      "2:1",
++      "16:9",
++      "3:2",
++      "4:3",
++      "1:1",
++      "4:5",
++      "3:4",
++      "2:3",
++      "9:16",
++      "1:2",
++      "1:3"
++    ],
++    "maxReferences": 9,
++    "parameters": {}
++  },
++  "openai_gpt_image_1_5": {
++    "label": "GPT Image 1.5",
++    "kind": "image",
++    "ratios": [
++      "3:2",
++      "1:1",
++      "2:3"
++    ],
++    "maxReferences": 4,
++    "parameters": {
++      "quality": {
++        "type": "string",
++        "enum": [
++          "low",
++          "medium",
++          "high"
++        ]
++      },
++      "background": {
++        "type": "string",
++        "enum": [
++          "auto",
++          "transparent",
++          "opaque"
++        ]
++      },
++      "output_format": {
++        "type": "string",
++        "enum": [
++          "png",
++          "jpeg",
++          "webp"
++        ]
++      }
++    }
++  },
++  "openai_gpt_image_2": {
++    "label": "GPT Image 2",
++    "kind": "image",
++    "ratios": [
++      "3:1",
++      "21:9",
++      "16:9",
++      "3:2",
++      "4:3",
++      "6:5",
++      "1:1",
++      "4:5",
++      "3:4",
++      "2:3",
++      "9:16",
++      "1:3"
++    ],
++    "maxReferences": 16,
++    "parameters": {
++      "resolution": {
++        "type": "string",
++        "enum": [
++          "1K",
++          "2K",
++          "4K"
++        ]
++      },
++      "quality": {
++        "type": "string",
++        "enum": [
++          "low",
++          "medium",
++          "high"
++        ]
++      },
++      "output_format": {
++        "type": "string",
++        "enum": [
++          "png",
++          "jpeg",
++          "webp"
++        ]
++      },
++      "background": {
++        "type": "string",
++        "enum": [
++          "auto",
++          "transparent",
++          "opaque"
++        ]
++      }
++    }
++  },
++  "openai_gpt_image_2_5_flare": {
++    "label": "GPT Image 2.5 Flare",
++    "kind": "image",
++    "ratios": [
++      "3:1",
++      "21:9",
++      "16:9",
++      "3:2",
++      "4:3",
++      "6:5",
++      "1:1",
++      "4:5",
++      "3:4",
++      "2:3",
++      "9:16",
++      "1:3"
++    ],
++    "maxReferences": 16,
++    "parameters": {
++      "resolution": {
++        "type": "string",
++        "enum": [
++          "1K",
++          "2K",
++          "4K"
++        ]
++      },
++      "quality": {
++        "type": "string",
++        "enum": [
++          "low",
++          "medium",
++          "high",
++          "xhigh",
++          "max"
++        ]
++      },
++      "background": {
++        "type": "string",
++        "enum": [
++          "auto",
++          "transparent",
++          "opaque"
++        ]
++      },
++      "output_format": {
++        "type": "string",
++        "enum": [
++          "png",
++          "jpeg",
++          "webp"
++        ]
++      }
++    }
++  },
++  "openai_gpt_image_2_5_sunburst": {
++    "label": "GPT Image 2.5 Sunburst",
++    "kind": "image",
++    "ratios": [
++      "3:1",
++      "21:9",
++      "16:9",
++      "3:2",
++      "4:3",
++      "6:5",
++      "1:1",
++      "4:5",
++      "3:4",
++      "2:3",
++      "9:16",
++      "1:3"
++    ],
++    "maxReferences": 16,
++    "parameters": {
++      "resolution": {
++        "type": "string",
++        "enum": [
++          "1K",
++          "2K",
++          "4K"
++        ]
++      },
++      "quality": {
++        "type": "string",
++        "enum": [
++          "low",
++          "medium",
++          "high",
++          "xhigh",
++          "max"
++        ]
++      },
++      "background": {
++        "type": "string",
++        "enum": [
++          "auto",
++          "transparent",
++          "opaque"
++        ]
++      },
++      "output_format": {
++        "type": "string",
++        "enum": [
++          "png",
++          "jpeg",
++          "webp"
++        ]
++      }
++    }
++  }
++}

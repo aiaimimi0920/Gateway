@@ -1,0 +1,42 @@
+[
+  {
+    "file": "src/http/routes/internal_console/luma_mcp/creation.rs",
+    "sha256": "da78316956b6ea0d2cc5f611fce687f537acb2c75415937cb4ec57e835e45d1e"
+  },
+  {
+    "file": "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+    "sha256": "f2ab0423290b9d8dcd5b95a26fa5ef2783af33eaa27de3fb4870f3b378768b61"
+  },
+  {
+    "file": "src/http/routes/internal_console/luma_mcp/creation/workspace.rs",
+    "sha256": "54afa7d7716651f5e51623a9c9a0e368a873f67560377eee90fa068052a12981"
+  },
+  {
+    "file": "src/protocol/luma_mcp/creation_tests.rs",
+    "sha256": "1f33cc1a4dfb28f43209d025cd5399a345130b575e0e12d7bd003e04a8ecfef8"
+  },
+  {
+    "file": "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx",
+    "sha256": "d38a9d66ed95b7a0fa3a7fe646febed8e09c131fe56ec902bf1e1ed8058d0fbe"
+  },
+  {
+    "file": "src/protocol/luma_mcp/creation_reuse_tests.rs",
+    "sha256": "abc79d0c5a4a0a041a0a931520d81e7ed4805cdf6b9f6447d174ed04608faaf5"
+  },
+  {
+    "file": "src/http/routes/internal_console/luma_mcp/creation/identity.rs",
+    "sha256": "5783ea6574eb9f01c2ea4e03d0590a823808b44c1f9dc61dc38c44c4861a5185"
+  },
+  {
+    "file": "src/protocol/luma_mcp/creation_recovery_tests.rs",
+    "sha256": "3b2305b5fc26f3c6f2c4b60d5dc605340324f95014c6bc3a4caa0c3d4adb8c1d"
+  },
+  {
+    "file": "src/protocol/luma_mcp/creation_recovery_fixture.rs",
+    "sha256": "bac093f63b86852bd204dfed5f25569a997ef35c04e594942e9822cc1b25853c"
+  },
+  {
+    "file": "apps/desktop/src/features/console/LumaMcpCreationRecovery.test.tsx",
+    "sha256": "510c4a171b457e30f52b6307346fa663bde76fb0b2fb64a80ae7ca60d9efe70d"
+  }
+]

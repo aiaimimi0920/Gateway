@@ -1,20 +1,50 @@
 //! Model tests use cancellation-safe local audits and the normal credential-health stores.
 use std::time::Duration;
+pub(super) mod sap;
 
 use serde_json::json;
 
 use super::console_model_probe::ModelProbeResult;
-use super::model_probe_audit::ProbeAudit;
-use crate::{db, routing::config::CredentialProbeTarget, state::AppState};
+use super::{
+    model_probe_audit::{InternalProbeProduct, ProbeAudit},
+    ProviderPayloadProbeReport, ProviderPayloadProbeStatus,
+};
+use crate::{
+    config::GatewayStorageMode, db, error::GatewayError, routing::config::CredentialProbeTarget,
+    state::AppState,
+};
 
 pub(super) struct Recording {
     audit: Option<ProbeAudit>,
     health: super::model_probe_health::ProbeHealth,
     trace: serde_json::Value,
     response_id: Option<String>,
+    sap: Option<crate::protocol::sap_aicore::probe_evidence::ProbeEvidence>,
 }
 
 impl Recording {
+    pub(super) fn luma_generation_audit(
+        &mut self,
+        state: &AppState,
+        target: &CredentialProbeTarget,
+    ) -> Option<crate::protocol::luma_agents::generation_audit::GenerationAudit> {
+        self.audit
+            .as_mut()
+            .map(|audit| audit.luma_generation_audit(state, target))
+    }
+    pub(super) fn media_failure(
+        mut self,
+        adapter: &str,
+        error: &crate::error::GatewayError,
+    ) -> Self {
+        if adapter == crate::protocol::luma_agents::ADAPTER {
+            self.response_id =
+                crate::protocol::luma_agents::record_failure_audit(error, &mut self.trace)
+                    .or_else(|| self.audit.as_ref()?.record_luma_generation(&mut self.trace));
+        }
+        self
+    }
+
     pub(super) fn lobster_selection(
         mut self,
         selection: Option<&crate::protocol::lobsterai::virtual_model::Selection>,
@@ -95,6 +125,66 @@ pub(super) async fn begin(
     .await
 }
 
+pub(super) enum InternalAuditFailure {
+    Admission,
+    Finalization,
+}
+
+impl InternalAuditFailure {
+    pub(super) fn report(self, point: String) -> (String, ProviderPayloadProbeReport) {
+        let message = match self {
+            Self::Admission => "Internal model probe audit unavailable; no request was sent.",
+            Self::Finalization => {
+                "Internal model probe audit could not be finalized; request was not replayed."
+            }
+        };
+        (
+            point,
+            ProviderPayloadProbeReport {
+                health_recovery: Some(db::provider_credential_model_states::recovery::ModelHealthRecovery::StorageFailed),
+                status: ProviderPayloadProbeStatus::Failed,
+                message: message.into(),
+                answer: None,
+            },
+        )
+    }
+}
+
+pub(super) async fn begin_internal(
+    state: &AppState,
+    product: InternalProbeProduct,
+    target: &CredentialProbeTarget,
+    model: &str,
+) -> Result<Recording, InternalAuditFailure> {
+    if !requires_server_audit(state) {
+        return Ok(begin(state, target, model, false).await);
+    }
+    let health = super::model_probe_health::begin(state, target, model).await;
+    let trace = json!({"realCredentialRef": target.credential_id, "consoleModelProbe": true});
+    let input = audit_input(
+        target,
+        model,
+        model,
+        ("openai", "chat_completions", false),
+        &trace,
+    );
+    // A Server probe has no public caller. Persist its internal admission before sending.
+    let audit = ProbeAudit::begin_server_internal(state, product, &target.credential_id, input)
+        .await
+        .map_err(|_| InternalAuditFailure::Admission)?;
+    Ok(Recording {
+        audit: Some(audit),
+        health,
+        trace,
+        response_id: None,
+        sap: None,
+    })
+}
+
+fn requires_server_audit(state: &AppState) -> bool {
+    state.local_runtime.is_none() && state.config.storage_mode == GatewayStorageMode::Server
+}
+
 pub(super) async fn begin_search(
     state: &AppState,
     target: &CredentialProbeTarget,
@@ -138,6 +228,7 @@ async fn begin_endpoint(
         health,
         trace,
         response_id: None,
+        sap: None,
     }
 }
 
@@ -165,6 +256,7 @@ pub(super) async fn begin_media(
         health,
         trace,
         response_id: None,
+        sap: None,
     }
 }
 
@@ -179,7 +271,21 @@ async fn begin_audit(
     if state.local_runtime.is_none() && state.pg_pool.is_none() {
         return None;
     }
-    let input = db::CreateRequestAuditInput {
+    ProbeAudit::begin(
+        state,
+        audit_input(target, model, requested, (family, endpoint, stream), trace),
+    )
+    .await
+}
+
+fn audit_input(
+    target: &CredentialProbeTarget,
+    model: &str,
+    requested: &str,
+    (family, endpoint, stream): (&str, &str, bool),
+    trace: &serde_json::Value,
+) -> db::CreateRequestAuditInput {
+    db::CreateRequestAuditInput {
         project_id: "console-model-probe".into(),
         api_key_id: None,
         user_credential_id: None,
@@ -198,8 +304,7 @@ async fn begin_audit(
         response_id: format!("probe-{}", uuid::Uuid::new_v4()),
         previous_response_id: None,
         route_trace: Some(trace.clone()),
-    };
-    ProbeAudit::begin(state, input).await
+    }
 }
 
 pub(super) async fn finish(
@@ -210,12 +315,31 @@ pub(super) async fn finish(
     elapsed: Duration,
     result: &ModelProbeResult,
 ) -> db::provider_credential_model_states::recovery::ModelHealthRecovery {
-    let health = finish_audit(target, model, recording, elapsed, result).await;
+    let (health, _) = finish_audit(target, model, recording, elapsed, result).await;
     // This remains an owned future: cancelling the probe does not detach a health update.
     Box::pin(super::model_probe_health::finish(
         state, target, model, health, result,
     ))
     .await
+}
+
+pub(super) async fn finish_internal(
+    state: &AppState,
+    target: &CredentialProbeTarget,
+    model: &str,
+    recording: Recording,
+    elapsed: Duration,
+    result: &ModelProbeResult,
+) -> Result<db::provider_credential_model_states::recovery::ModelHealthRecovery, InternalAuditFailure>
+{
+    let (health, stored) = finish_audit(target, model, recording, elapsed, result).await;
+    if requires_server_audit(state) {
+        stored.map_err(|_| InternalAuditFailure::Finalization)?;
+    }
+    Ok(Box::pin(super::model_probe_health::finish(
+        state, target, model, health, result,
+    ))
+    .await)
 }
 
 /// Audited task completion need not prove model identity or audio availability.
@@ -235,10 +359,13 @@ async fn finish_audit(
     recording: Recording,
     elapsed: Duration,
     result: &ModelProbeResult,
-) -> super::model_probe_health::ProbeHealth {
+) -> (
+    super::model_probe_health::ProbeHealth,
+    Result<(), GatewayError>,
+) {
     let passed = result.reply.is_ok();
-    if let Some(audit) = recording.audit {
-        let input = db::FinalizeRequestAuditInput {
+    let stored = if let Some(audit) = recording.audit {
+        let mut input = db::FinalizeRequestAuditInput {
             client_disconnected: false,
             status: if passed { "completed" } else { "failed" }.into(),
             upstream_status: result.status,
@@ -279,7 +406,12 @@ async fn finish_audit(
             response_id: recording.response_id,
             route_trace: Some(recording.trace),
         };
-        let _ = audit.finish(input).await;
-    }
-    recording.health
+        if let Some(evidence) = &recording.sap {
+            evidence.project(&mut input);
+        }
+        audit.finish(input).await
+    } else {
+        Ok(())
+    };
+    (recording.health, stored)
 }

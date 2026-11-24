@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+
+ Test Files  2 passed (2)
+      Tests  24 passed (24)
+   Start at  06:56:13
+   Duration  6.30s (transform 261ms, setup 821ms, import 1.18s, tests 913ms, environment 2.89s)
+

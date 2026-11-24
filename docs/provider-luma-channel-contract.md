@@ -1,20 +1,47 @@
-# Luma 渠道合同：App Web、OAuth/MCP 与 Agents REST
+# Luma 渠道合同：App Web、OAuth/MCP、Agents REST 与 LLM Inference
 
-最新增量（2026-11-14）：[模型浏览入口回执](progress/2026-11-14-provider-channel-expansion-luma-model-browser.md)。正常已保存账号可显式读取模型列表／详情，固定两项只读 tools/call；已通过本地协议、管理、UI 和 Web devtest 包验证。此前“完全没有 tools/call／模型发现”的历史描述由此限域更新；真实账号模型读取与创作任务仍未验收。
+最新源码增量（2026-11-20）：[MCP 任务恢复](progress/2026-11-20-luma-mcp-recovery.md)保留旧任务 revision，通过原配置归档和已发布的显式刷新记录核对当前账号。Local 的旧任务查询／取消／结束及素材复用可跨无关配置变更和已证明的 token 轮换；换账号、缺记录或未发布刷新结果仍拒绝，未知提交不重放。没有再次刷新真实账号或收费生成；分层布局、run 交互及 Server 身份仍未关闭。
+
+最新源码增量（2026-11-20）：[MCP 全目录模型](progress/2026-11-20-luma-mcp-models.md)取得全部 18 项模型详情，创作扩至 15 个图片／3 个视频模型。共享配置约束每个模型的参数、比例和参考数量；新接 Seedream、Nano Banana、Ideogram、GPT Image 1.5／2.5 与 Ray 3.14／HDR，沿用费用确认、持久任务及素材复用。用户批准的一次 OAuth 刷新保存成功，没有收费生成或重新出包。分层布局、run 交互、Server 身份和配置变更恢复仍未接。
+
+最新源码增量（2026-11-20）：[MCP 素材复用](progress/2026-11-20-luma-mcp-workspace.md)接入同账号／revision 已保存任务的 ready 素材：UNI-1 编辑／参考图、GPT Image 2 reference medias、Ray 3.2 重绘／扩画。新的任务在原工作区打开独立会话，使用自己的预算／幂等键；返回工作区不匹配时不生成。旧任务和请求摘要兼容，连续复用保留根工作区。当前包不含此增量，没有执行真实收费生成。
+
+最新源码增量（2026-11-20）：[MCP 参数与编辑操作](progress/2026-11-20-luma-mcp-options.md)接入 UNI-1 图片编辑／参考图、GPT Image 2 参数、Ray 3.2 重绘／扩画／关键帧，复用原显式费用确认和持久任务。三种模型之外的目录模型、分层布局、run 交互、Server 与真实业务仍单独待完成。下文“第三方参数／编辑未接”按本段限域更新。
+
+最新源码增量（2026-11-20）：[显式 MCP 创作](progress/2026-11-20-luma-mcp-creation.md)接入 Local 模式 UNI-1 图片／Ray 3.2 视频、持久任务、同 run 查询、取消／结束、ready 资产链接和会话费用。原 read-only profile 仍禁止通用推理；真实收费生成继续暂停，当前 EXE 尚不含此次新增代码。下文早期“创作未接”描述按此限域更新。
+
+最新增量（2026-11-20）：用户完成新 MCP 账号保存后，[真实只读验收](progress/2026-11-20-luma-mcp-live-contract.md)取得当前 26 项完整输入／输出 schema，正常管理 API 返回 18 个模型，并成功读取 UNI-1／Ray 3.2／GPT Image 2 参数。合同、模型参数与回执已归档到仓库；不再等待 MCP 账号或生成输出 schema。尚未接通创作、业务取消、资产和费用链，Web 当前协议仍独立待验，没有收费生成。
+
+最新增量（2026-11-20）：[任务查询与审计展示](progress/2026-11-20-provider-channel-expansion-luma-task-lookup.md)接入运维记录中的任务 ID／费用事实，以及已保存 Agents 账号内按 UUID 的单次显式状态／credits 查询。可在取消或原截止后手工读取同一任务，不回填历史审计、不改账本、不重提生成；自动追账、进程恢复与 cash 仍未关闭。后续[正常网页联合验收](progress/2026-11-20-provider-channel-expansion-luma-task-browser.md)已通过真实管理 TCP／合成上游的六次显式查询、供应商错误隔离与宽窄屏，原取消审计和余额不变。
+
+当前接手入口：[剩余工作与验收边界](providers/luma-development-status.md)、[仓库开发工具](../tools/luma/README.md)、[长期证据归档](evidence/luma/README.md)。本页按时间保留历史增量；下方早期临时来源目录本次已不存在，不能作为当前可打开的证据入口。
+
+最新增量（2026-11-20）：[Files 签名上传](progress/2026-11-20-provider-channel-expansion-luma-presigned-files.md)接入 ≤64 MiB 的 presign/PUT/complete 与 TTL/user_id。前述小文件历史限制由本子批限域扩展；64 MiB 以上、真实供应商摄取／复用／删除、MCP 创作及完整费用恢复仍未关闭。
+
+最新增量（2026-11-20）：[取消审计事实保留](progress/2026-11-20-provider-channel-expansion-luma-cancellation.md)将当前进程中已验证的 UUID／模型／操作／状态／credits 接入原公共和管理取消审计，超时及资产失败同样保留；额外 `mediaVerified` 区分供应商完成与本地媒体验证。取消仍停止原 future、不重提、不将未知记为零，普通 Key 退款不变。下方历史“取消中未上交 receipt”缺口由此限域更新；截止后追账、强制崩溃／跨进程恢复、cash 和真实账号仍未关闭。
+
+最新增量（2026-11-20）：[Files 小文件管理](progress/2026-11-20-provider-channel-expansion-luma-files.md)已接正常 Agents 账号内的 ≤8 MiB 上传、分页、状态查询、确认删除与 ready ID 复制；大文件预签名和真实账号链仍未验。此前[图片分层](progress/2026-11-18-provider-channel-expansion-luma-layering.md)补齐字体数字精确保留与后端回归；[视频参数界面](progress/2026-11-19-provider-channel-expansion-luma-video-controls.md)接扩画位置、重绘 HDR／conditioning／guide frames，并绑定逐次费用确认。独立 [LLM Inference](providers/lumalabs-inference-contract.md)使用 inference 域名、独立 Key 与 token 后付费，不共用 Agents／Web／MCP 材料。真实生成／账单、MCP 创作与完整交付仍未关闭。
+
+最新操作增量（2026-11-17）：Agents REST [视频扩画](progress/2026-11-17-provider-channel-expansion-luma-video-reframe.md)与[视频重绘](progress/2026-11-17-provider-channel-expansion-luma-video-edit.md)已接公共视频入口的显式 `video_reframe`／`video_edit` 与正常账号媒体测试表单。重绘仅 Ray 3.2，单源视频，支持自动／九档强度；API 另提供细粒度 conditioning、guide frames 与有限 HDR。两种操作沿原任务／资产／费用链执行，不开放 App/MCP 创作；真实源视频、供应商生成／费用及播放仍待验收，未开放参数见各子批。
+
+最新增量（2026-11-17）：Agents REST [晚到扣费补查](progress/2026-11-17-provider-channel-expansion-luma-agents-settlement.md)在媒体验证后有界读取同一任务的实际 credits，并进入原公共结果和审计；[失败任务费用审计](progress/2026-11-17-provider-channel-expansion-luma-failure-audit.md)进一步保留正常 failed 终态的已验证任务 ID 与实际费用，接入原公共请求及管理 probe 审计。截止或查询失败仍记未知，失败不改成成功、不改变原本地退款；取消中未上交 receipt、截止后/跨进程追账仍未完成。它不读取 App/MCP 用量，不换算 USD，不代表真实账号或新包验收。
+
+2026-11-14：[模型浏览入口回执](progress/2026-11-14-provider-channel-expansion-luma-model-browser.md)。正常已保存账号可显式读取模型列表／详情，固定两项只读 tools/call；已通过本地协议、管理、UI 和 Web devtest 包验证。此前“完全没有 tools/call／模型发现”的历史描述由此限域更新；真实账号模型读取与创作任务仍未验收。
 
 核实日期：2026-11-07（Asia/Shanghai）。本页只冻结有来源的渠道身份与后续开发边界，
 不把营销模型名称、旧 wire、匿名 discovery 或离线测试当作真实账号生成成功。
 
-## 1. 三个不能混同的执行 surface
+## 1. 四个不能混同的执行 surface
 
 | 渠道 | 身份与受众 | 额度证据 | 当前处理 |
 | --- | --- | --- | --- |
 | App board Web | `lumalabs-web` / `lumalabs`；现有 `wos-session`、realm、board worker | 与开发者 REST `unknown` | 保留现有入口；当前 board wire/会话仍需合法的新证据 |
-| 官方 OAuth/MCP | 候选 `lumalabs-oauth`；`https://agents.lumalabs.ai/mcp`，普通 Luma 登录并选择 team | 官方明确同 team App credits、相同费率、无独立套餐；只在该维度 `shared` | 新发现待接，不新增空模板、不替换 board 或 REST、不自动合池 |
+| 官方 OAuth/MCP | `lumalabs-mcp` / `lumalabs_mcp_readonly`；`https://agents.lumalabs.ai/mcp`，普通 Luma 登录并选择 team | 官方明确同 team App credits、相同费率、无独立套餐；只在该维度 `shared` | 正常授权/显式刷新、空池/工具目录及模型读取入口已接；创作未接，不自动合池 |
 | Agents REST Key | `lumalabs-api`；`luma-api-*`，`https://agents.lumalabs.ai/v1` | 同 client 多 Key 共享；与 Web `unknown` | 独立 sender/模板保留；不拿此渠道成功证明另两者 |
+| LLM Inference Key | `lumalabs-inference-api`；`https://inference.lumalabs.ai/v1`，独立销售开通 Key | 官方明确独立 token 后付费；不使用 Agents credits | 独立模板／文本 Chat 与无状态桥接，真实账号／账单待验；见[合同](providers/lumalabs-inference-contract.md) |
 
 旧 `api.lumalabs.ai/dream-machine/v1` 是另一个历史 surface，既不替代 App，也不证明
-当前 Agents REST 与 Web 的额度关系。当前累计新增模板仍为 16。
+当前 Agents REST 与 Web 的额度关系。2026-11-07 的累计新增模板为 16；2026-11-19 另增独立 Inference 模板，不改变历史统计或整卡完成数。
 
 ## 2. 本轮联网来源与证据
 
@@ -266,4 +293,12 @@ GET 在内存缺失时按原 id／owner 读取；新界面准备操作按 owner�
 
 有限投影仅更新原 credential 的 access、refresh、Luma context，保留 disabled 与其他策略；复用正常秘密保存、原事务 journal 和 publication locator。未启用定时刷新、推理或通用 refresh_config。两种后端的持锁恢复接口避免本地锁重入；只读 Luma 不需要推理缓存修复。
 
-当前完成标准仅为上述本地完整流程。真实新账号授权／刷新、当前源码的原生运行、远端 Server、跨机器、MCP 创作业务及其他 Luma surface 仍须分别验收；不得用目录读取或本地测试将整个模块标为完成。
+随后同日真实验收已追加在上述完整流程回执：正常注册/授权/保存、一次显式刷新、前后 26 项目录及同目录正常原生重启通过。真实模型读取、强制崩溃、远端 Server、跨机器、MCP 创作及覆盖后续源码的新包仍须分别验收；不得用目录读取或本地测试将整个模块标为完成。
+
+## 22. 当前目录合同快照
+
+2026-11-20 接续核实[官方插件仓库](https://github.com/lumalabs/luma-plugins/tree/e02d83de796d56525ef64376fd812b1f2cce036b)：该 commit 的完整 tree 只有连接配置、说明、license 与图标，没有工具 schema 或生成实现；其 `luma/.mcp.json` 仍指向固定官方 resource。公开连接指南也未提供生成结果的完整合同，不能把旧 API Key 版 `luma-api-mcp` 的 Photon/Ray2 合同当成本渠道的 OAuth 工具合同。
+
+当前目录读取保留 `annotations` 对象，与输入／输出 schema 一起作为不可信数据；仍受原分页、工具数与响应总量限制，不据 hints 自动执行或重试。正常已保存账号面板增加显式 JSON 导出，复用成功结果的账号／授权／revision 范围，记录浏览器读取完成的 UTC 时间。导出只保存目录字段及固定协议元数据，不包含连接身份和 transport；既不额外访问上游，也不保存秘密、写配置或执行工具。缺省 annotations 为 null，旧服务端响应仍可读取。
+
+快照是规范化目录，未保留顶层 `_meta`、额外扩展或原始传输字节；其中供应商 schema／说明保持原文，归档前仍需检查。即使目录包含输出 schema，仍须核实会话隔离、等待／取消、资产与费用的业务语义。具体使用见 [持续开发入口](../tools/luma/README.md#保存-mcp-当前工具合同)，本批验证见[目录快照子批](progress/2026-11-20-provider-channel-expansion-luma-mcp-snapshot.md)。

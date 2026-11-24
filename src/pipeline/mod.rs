@@ -41,6 +41,7 @@ pub mod stage_rate_limit;
 pub mod stage_route;
 mod stage_route_health;
 pub mod stage_send;
+pub(crate) mod stored_responses;
 
 // ---------------------------------------------------------------------------
 // CredentialSource
@@ -101,6 +102,8 @@ pub struct PipelineContext {
     pub session: Option<AuthenticatedSession>,
     /// Ordered list of provider candidates; populated by stage_route.
     pub candidates: Vec<RouteCandidate>,
+    /// Rejected authorized accounts are diagnostics, never actual sends or fallback grants.
+    pub rejected_candidates: Vec<crate::routing::config::RejectedCandidate>,
     /// Unified projected access rows aligned with `candidates` order when
     /// access-catalog routing is active.
     pub projected_access_candidates: Vec<crate::db::ProjectedPlatformAccessRow>,
@@ -133,6 +136,7 @@ pub struct PipelineContext {
     pub attempted_provider_ids: Arc<Mutex<Vec<String>>>,
     /// Last admitted send, including failed candidates; never a synthetic winner.
     last_provider_attempt: attempt_audit::LastAttempt,
+    luma_generation_audit: Option<crate::protocol::luma_agents::generation_audit::GenerationAudit>,
 
     // ── Provider selection info (populated by stage_send) ─────────────────
     /// Provider account ID of the winning candidate.
@@ -246,6 +250,7 @@ impl PipelineContext {
             client_session_hints: HashMap::new(),
             session: None,
             candidates: vec![],
+            rejected_candidates: vec![],
             projected_access_candidates: vec![],
             credential_ref: None,
             quota_credential_id: None,
@@ -261,6 +266,7 @@ impl PipelineContext {
             route_attempt_count: Arc::new(AtomicU32::new(0)),
             attempted_provider_ids: Arc::new(Mutex::new(Vec::new())),
             last_provider_attempt: Default::default(),
+            luma_generation_audit: None,
             selected_provider_id: None,
             selected_provider_credential_id: None,
             selected_provider_label: None,

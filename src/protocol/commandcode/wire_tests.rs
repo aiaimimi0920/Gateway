@@ -10,6 +10,7 @@ use std::{sync::Arc, time::Duration};
 use tower::ServiceExt;
 mod boundaries;
 mod catalog_restart;
+mod chat_images;
 mod fixture;
 mod management;
 #[path = "../dim_oauth/pipeline_tests/native.rs"]
@@ -29,6 +30,7 @@ mod probe_management;
 mod public_wire;
 mod response_contract;
 mod server;
+mod server_probe_audit;
 mod server_scheduler;
 mod stream_failures;
 #[path = "../../../tests/console_contract_support/mod.rs"]

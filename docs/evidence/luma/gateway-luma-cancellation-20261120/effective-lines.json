@@ -1,0 +1,87 @@
+[
+  {
+    "path": "src/protocol/luma_agents.rs",
+    "before": 129,
+    "after": 130
+  },
+  {
+    "path": "src/upstream/luma_agents.rs",
+    "before": 105,
+    "after": 109
+  },
+  {
+    "path": "src/upstream/luma_agents/generation.rs",
+    "before": 210,
+    "after": 232
+  },
+  {
+    "path": "src/upstream/luma_agents/settlement.rs",
+    "before": 76,
+    "after": 80
+  },
+  {
+    "path": "src/pipeline/mod.rs",
+    "before": 368,
+    "after": 370
+  },
+  {
+    "path": "src/pipeline/lifecycle.rs",
+    "before": 216,
+    "after": 216
+  },
+  {
+    "path": "src/pipeline/stage_finalize/audit_persistence.rs",
+    "before": 203,
+    "after": 204
+  },
+  {
+    "path": "src/pipeline/stage_finalize/cancelled.rs",
+    "before": 34,
+    "after": 38
+  },
+  {
+    "path": "src/provider_runtime/model_probe_audit.rs",
+    "before": 206,
+    "after": 230
+  },
+  {
+    "path": "src/provider_runtime/model_probe_recording.rs",
+    "before": 275,
+    "after": 281
+  },
+  {
+    "path": "src/provider_runtime/media_model_probe.rs",
+    "before": 159,
+    "after": 166
+  },
+  {
+    "path": "src/upstream/luma_agents/pipeline_failures.rs",
+    "before": 196,
+    "after": 203
+  },
+  {
+    "path": "src/upstream/luma_agents/probe_failure_tests.rs",
+    "before": 159,
+    "after": 162
+  },
+  {
+    "path": "src/pipeline/stage_send/recovery_wait.rs",
+    "before": 323,
+    "after": 328
+  },
+  {
+    "path": "src/protocol/luma_agents/generation_audit.rs",
+    "before": null,
+    "after": 68
+  },
+  {
+    "path": "src/upstream/luma_agents/cancellation_audit_tests.rs",
+    "before": null,
+    "after": 225
+  },
+  {
+    "path": "src/upstream/luma_agents/observation_tests.rs",
+    "before": null,
+    "after": 128
+  }
+]

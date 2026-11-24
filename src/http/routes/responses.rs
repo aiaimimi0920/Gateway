@@ -24,6 +24,8 @@ use crate::state::AppState;
 
 mod websocket;
 pub(crate) use websocket::handle_websocket;
+mod stored;
+pub(crate) use stored::{handle_public_create, handle_stored_operation};
 
 /// POST /v1/responses
 ///
@@ -50,7 +52,11 @@ pub async fn handle_responses(
     .await?;
     let mut ctx = prepare_context(body, token, query_params, &headers, &state)?;
     ctx.native_wire = Some(Arc::new(wire));
-    match run_pipeline(ctx, &state).await? {
+    respond(run_pipeline(ctx, &state).await?)
+}
+
+fn respond(output: PipelineOutput) -> Result<Response, GatewayError> {
+    match output {
         PipelineOutput::Json(v) => Ok(Json(v).into_response()),
         PipelineOutput::Sse(mut stream) => {
             let metadata = std::mem::take(&mut stream.native_response_metadata);

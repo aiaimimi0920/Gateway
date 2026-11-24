@@ -1,13 +1,21 @@
 [CmdletBinding()]
 param(
     [ValidateSet("api", "web", "desktop")][string]$Edition = "desktop",
-    [ValidateRange(1, 32)][int]$Jobs = [Math]::Max(1, [Math]::Min(4, [Environment]::ProcessorCount)),
+    [ValidateRange(1, 32)][int]$Jobs = [Math]::Max(1, [Math]::Min(6, [Environment]::ProcessorCount)),
     [switch]$DryRun
 )
 # Separate Cargo profiles preserve release artifacts and let Cargo own safe reuse.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+if (-not $PSBoundParameters.ContainsKey("Jobs") -and -not $DryRun) {
+    try {
+        $freeGb = [double](Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).FreePhysicalMemory / 1MB
+        $extRustc = @(Get-CimInstance Win32_Process -Filter "Name = 'rustc.exe'" -ErrorAction SilentlyContinue |
+            Where-Object { [string]$_.CommandLine -and ([string]$_.CommandLine).IndexOf($root, [StringComparison]::OrdinalIgnoreCase) -lt 0 })
+        if ($extRustc.Count -gt 0 -or $freeGb -lt 6.0) { $Jobs = [Math]::Max(2, [Math]::Min(3, $Jobs)) }
+    } catch { }
+}
 . (Join-Path $PSScriptRoot "release-editions.ps1")
 . (Join-Path $PSScriptRoot "package-release/artifact-copy.ps1")
 . (Join-Path $PSScriptRoot "package-release/source-provenance.ps1")
@@ -17,6 +25,27 @@ function Get-RelativeUnixPath([string]$BasePath, [string]$Path) {
     if ($full.TrimEnd('\', '/').Equals($base.TrimEnd('\', '/'), [StringComparison]::OrdinalIgnoreCase)) { return "." }
     if (-not $full.StartsWith($base, [StringComparison]::OrdinalIgnoreCase)) { throw "Path outside source root: $full" }
     return $full.Substring($base.Length).Replace('\', '/')
+}
+function Get-DesktopFrontendDigest([string]$DesktopRoot) {
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $sb = [System.Text.StringBuilder]::new()
+    foreach ($rel in @("package.json", "package-lock.json", "rsbuild.config.ts", "tsconfig.json")) {
+        $fp = Join-Path $DesktopRoot $rel
+        if (Test-Path -LiteralPath $fp) {
+            $it = Get-Item -LiteralPath $fp
+            [void]$sb.AppendLine("$rel|$($it.Length)|$($it.LastWriteTimeUtc.Ticks)")
+        }
+    }
+    foreach ($dir in @("public", "src", "tools")) {
+        $dp = Join-Path $DesktopRoot $dir
+        if (Test-Path -LiteralPath $dp) {
+            foreach ($f in (Get-ChildItem -LiteralPath $dp -Recurse -File | Sort-Object FullName)) {
+                [void]$sb.AppendLine("$($f.FullName.Substring($DesktopRoot.Length))|$($f.Length)|$($f.LastWriteTimeUtc.Ticks)")
+            }
+        }
+    }
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($sb.ToString())
+    return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace("-", "").ToLowerInvariant()
 }
 $layout = Get-GatewayEditionLayout -Root $root -Edition $Edition -BuildKind devtest
 $cargo = @("build", "--locked", "--profile", "devtest", "--bin", "gateway", "--jobs", "$Jobs", "--target-dir", "target")
@@ -45,7 +74,6 @@ $settings = @{
 }
 $previous = @{}
 foreach ($key in $settings.Keys) { $previous[$key] = [Environment]::GetEnvironmentVariable($key, "Process") }
-# Reject ambient redirection/optimization overrides: the recorded profile must be real.
 foreach ($name in @("CARGO_TARGET_DIR", "CARGO_BUILD_TARGET", "RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS")) {
     if ([Environment]::GetEnvironmentVariable($name, "Process")) { throw "Unset $name before this reproducible devtest build." }
 }
@@ -54,20 +82,34 @@ $before = Get-SourceTreeState -Root $root
 Push-Location -LiteralPath $root
 try {
     foreach ($key in $settings.Keys) { [Environment]::SetEnvironmentVariable($key, $settings[$key], "Process") }
-    # Reuse installed lockfile dependencies; never run npm ci (which deletes node_modules).
-    if ($layout.WebUi) {
+    $uiDigest = $null
+    if ($layout.WebUi -or $layout.DesktopUi) {
         if (-not (Test-Path "$root/apps/desktop/node_modules")) { throw "Install the locked desktop dependencies first." }
-        Invoke-Step "npm" @("run", "build:web", "--prefix", "apps/desktop")
+        $uiDigest = Get-DesktopFrontendDigest -DesktopRoot "$root/apps/desktop"
+        New-Item -ItemType Directory -Path "$root/target" -Force | Out-Null
+    }
+    if ($layout.WebUi) {
+        $webStamp = "$root/target/.devtest-web-ui.digest"
+        if ((Test-Path "$root/apps/desktop/dist/.gateway-web-ready") -and (Test-Path $webStamp) -and ((Get-Content $webStamp -Raw).Trim() -eq $uiDigest)) {
+            Write-Host "[gateway-devtest] reusing unchanged web UI bundle ($($uiDigest.Substring(0, 12)))"
+        } else {
+            Invoke-Step "npm" @("run", "build:web", "--prefix", "apps/desktop")
+            [IO.File]::WriteAllText($webStamp, $uiDigest, [Text.UTF8Encoding]::new($false))
+        }
     }
     Invoke-Step "cargo" $cargo
     if ($layout.DesktopUi) {
-        # Tauri CLI has no custom-profile flag in the installed version. Build the
-        # configured assets explicitly, then use its normal Rust build.rs/custom protocol.
         $tauri = Get-Content "$root/apps/desktop/src-tauri/tauri.conf.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($tauri.build.beforeBuildCommand -ne "npm run build:tauri" -or $tauri.build.frontendDist -ne "../dist/tauri") {
             throw "Tauri asset contract changed; update devtest builder before proceeding."
         }
-        Invoke-Step "npm" @("run", "build:tauri", "--prefix", "apps/desktop")
+        $tauriStamp = "$root/target/.devtest-tauri-ui.digest"
+        if ((Test-Path "$root/apps/desktop/dist/tauri/index.html") -and (Test-Path $tauriStamp) -and ((Get-Content $tauriStamp -Raw).Trim() -eq $uiDigest)) {
+            Write-Host "[gateway-devtest] reusing unchanged tauri UI bundle ($($uiDigest.Substring(0, 12)))"
+        } else {
+            Invoke-Step "npm" @("run", "build:tauri", "--prefix", "apps/desktop")
+            [IO.File]::WriteAllText($tauriStamp, $uiDigest, [Text.UTF8Encoding]::new($false))
+        }
         Invoke-Step "cargo" @("build", "--locked", "--profile", "devtest", "--manifest-path", "apps/desktop/src-tauri/Cargo.toml", "--features", "tauri/custom-protocol", "--jobs", "$Jobs", "--target-dir", "apps/desktop/src-tauri/target")
     }
     $after = Get-SourceTreeState -Root $root
@@ -78,7 +120,7 @@ try {
     $records = @(foreach ($path in $layout.ArtifactPaths) {
         $file = Get-Item -LiteralPath $path
         [ordered]@{ path = Get-RelativeUnixPath -BasePath $root -Path $path; bytes = $file.Length
-            sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() }
+            sha256 = Get-FastFileSha256Hex -LiteralPath $path }
     })
     $receipt = [ordered]@{
         schemaVersion = 1; app = "Gateway"; edition = $Edition; buildKind = "devtest"

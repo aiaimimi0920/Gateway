@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "wire": {
+    "posts": 18,
+    "deletes": 6,
+    "exactAccount": true,
+    "sessionIsolation": true,
+    "fixedReadOnlyTools": true
+  },
+  "revisionUnchanged": true,
+  "accountsUnchanged": true,
+  "scope": "normal main UI and real management TCP; synthetic read-only MCP; no OAuth refresh or generation"
+}

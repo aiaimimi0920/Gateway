@@ -1,0 +1,87 @@
+{
+  "capturedAt": "2026-11-20T08:16:47.416099+00:00",
+  "scope": "Local saved MCP account, explicit UNI-1 image / Ray 3.2 video creation; synthetic upstream only",
+  "checks": {
+    "rustMcp": {
+      "passed": 36,
+      "failed": 0,
+      "ignored": 1
+    },
+    "assetNeighbor": {
+      "passed": 1
+    },
+    "ui": {
+      "passed": 34
+    },
+    "typecheck": "passed",
+    "webBuild": "passed",
+    "featureOffCompile": "passed",
+    "rustfmt": "passed",
+    "utf8NoBom": "passed",
+    "effectiveCheckerTests": 31,
+    "ratchet": "passed"
+  },
+  "notExecuted": [
+    "real paid generation",
+    "real remote business cancellation",
+    "normal browser creation end-to-end",
+    "OS process kill",
+    "Server/PG/Redis creation",
+    "new native package"
+  ],
+  "priorFailures": {
+    "rust": "undeclared tempfile in test fixture",
+    "rust-r2": "28 passed, 4 cleanup-prefix assertions failed, 1 ignored",
+    "ui": "Windows npm command launch failed; npm.cmd used subsequently"
+  },
+  "files": {
+    "src/http_client.rs": "a26edae1d33804b463e3db7a5bd40c961891d5a599e512fee43118ffcf904cfe",
+    "src/http_client/public_asset_url.rs": "ca635c3d34f344f181b0d6431d279ba89c638d1f2433a4a089499c444abb33e6",
+    "src/upstream/public_assets.rs": "8fb562e8d8bdfdf6f50b523e5fb7613047175984351611b5bf5a145c1e7f0915",
+    "src/protocol/luma_mcp.rs": "1784e7b11baf0691b0a9f02013eb646f5625f354707b615936e5f822072e6d00",
+    "src/protocol/luma_mcp/models.rs": "79bdcfb311a26eeaea6bec25bbe21c5ee2ff422dff8cf18e315697581a6e99bd",
+    "src/protocol/luma_mcp/creation.rs": "09ea7126fb7899c15ba27f323a765c0bedf4c14c986c52cd08421daa8f6fcaa4",
+    "src/protocol/luma_mcp/creation/facts.rs": "783312996b3f605929f4454cd839dfb12674b2a23d1c5244701c004effa140f1",
+    "src/protocol/luma_mcp/creation/wire.rs": "151371eb3179db813f56410718a58bd1a5f59794231a99789d3888872e16d777",
+    "src/protocol/luma_mcp/creation_tests.rs": "a9303ab152cec9055864592e788e6c629e99add1b504f70fa630fd7dd358d1e0",
+    "src/http/routes/internal_console/luma_mcp.rs": "313b59ccd9d4fd77d220418637b201bd12fbd2c79f89ae48fb4f49aab10f1508",
+    "src/http/routes/internal_console/luma_mcp/creation.rs": "d48f5e9fb06b85fcf690255fe13fcd9cabe2a3898c460f9b382cc7d0fb319001",
+    "src/http/routes/internal_console/luma_mcp/creation/execute.rs": "e1b49fbe92d1792100cca3321570646c9f5af8c6ad17c0bb8a6c244b61e76de9",
+    "src/http/routes/internal_console/luma_mcp/creation/store.rs": "9a7db6399c7ad4603bca6d99468145ecdab744b3de8d2854b3a5c86d7dbbf9b9",
+    "apps/desktop/src/api/console/luma-creation.ts": "3f6a7d8977faf01a30f81fee1c7e4277c034767f142b47b51dc14df27cde7250",
+    "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx": "4b621637dd92d671cdd3c507bb663e00a700c2ab360dcaaa1c1be692d2745630",
+    "apps/desktop/src/features/console/LumaMcpCreationPanel.test.tsx": "23cd271aee3ca48dfae5f7eb166a7c2cf3c172e5934b455a4a80abab3e1a0e8c",
+    "apps/desktop/src/features/console/LumaMcpCreationFacts.tsx": "79883e1b7edfbe18f014a83f7507810917e678e8c7b8e5b6d60ae4464e278ed2",
+    "apps/desktop/src/features/console/LumaOAuthPanel.tsx": "0f2a437cd544e83ebf9298233148909be3ab6598e28993620f576c49bc27829e",
+    "apps/desktop/src/features/console/LumaOAuthPanel.test.tsx": "13248eca8991d2bbd5b56586b5d15296be83f6e5731470c11d8dedd5d7224443",
+    "apps/desktop/src/features/console/lumaMcpCatalog.ts": "88e4fb940cac4697855684947974181b2170339494fb62c845c3fd81593773ff",
+    "apps/desktop/src/features/console/OperationsLumaTask.tsx": "bc01dfea4cb60526025315bddfd6a44760fa8ae2c7c20df9d46a315621dd2d28",
+    "apps/desktop/src/features/console/OperationsRequestTable.tsx": "467281092d9bdf6809af350d5333fb1ee958c1588e52cc25ddfa4f429e137b55"
+  },
+  "receipts": {
+    "assets-neighbor-command.log": "ed1551259a587a48bbb9f50d845a2841674ddab323c17359f3d613245daa9501",
+    "assets-neighbor-result.json": "2cd51e8509c9110c06b463fed67af1adee83d8352dfa51b09061842dcae1980f",
+    "build-ui-command.log": "b704a455afc5a87b592e464e16b34e8add5c51e7b1f027cb690b37860e3b1a52",
+    "build-ui-result.json": "ad6b851b17cea1ae2953e30ecde6a9e58936f4b26aaa5c90fb6481c8e966c700",
+    "effective-tests-command.log": "a4376a6756c8ec9e75356b513299ff71342384e85e8446f5a37e110355fd048c",
+    "effective-tests-result.json": "3e54c18ab9cbf25fc42c7c273bbe46742e39cd045862d5dd1dac26ebfe6284b0",
+    "feature-off-command.log": "7bab0750da7ead5e688aedb5674153e09a7050c3f0238e028f00cb36714255e0",
+    "feature-off-result.json": "bd5e904cffc9cf80c659aff15f28c20ffd191e7dca4f022df038c82bd64a77fa",
+    "formatter-command.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "formatter-result.json": "2cbe916e789cbb8cff3be5c98a94c93f651d9207525fdbe80df4f0aa64ef5278",
+    "ratchet-final-command.log": "a07404d0afef71d1c8aec793b71accc6390d5afcd91a965423107381b82d7c88",
+    "ratchet-final-result.json": "366e3f00fea584f47a486cd2cd3c4b0d75df6624a03d9b34faddcaf2b1eb6965",
+    "rust-command.log": "1fed6a195aa04d8b770808e35529ec54589b96ca8a07ecae2dbe811a17d135a6",
+    "rust-final-command.log": "d310db88c1bca32f12604097b5e3d545f3ef632cf009bdbec9c6c9bf0fe578ff",
+    "rust-final-result.json": "67792b5a4fb0bbfd51c2e67f14bec4a9225ba5d224725a53c3a45abc5930027a",
+    "rust-r2-command.log": "b1d44f7e383217de4eaa8d6b52e200db777210c3dbaf76abed7b426f8caf220e",
+    "rust-r2-result.json": "a62e725d6d7bc528a7ecd147f875843b4ea14ebcf68023cfc7f1df6c40946905",
+    "rust-result.json": "588134871649f3d290d6b05c8d62ea1bf0e3b684b2cc0ba6a5a85423d0cc0a66",
+    "typecheck-r2-command.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typecheck-r2-result.json": "6f45a565b525e0135aef123bf7ce881979cfcc9ad08826de5c07bbc4f0bd53ec",
+    "ui-command.log": "9105e93535890fe0f1957221478545b91d2f4311a58cce50c0958bbc182c732e",
+    "ui-r3-command.log": "66d7a06c3ffc997f5ceaa6b8b5c7991cc720a034db845b75879a8a0c79a3eb29",
+    "ui-r3-result.json": "b11bbd27045059b851344ba1067e02584e9eb331675f5718938cbb60f9124617",
+    "ui-result.json": "615bcd39a4f308e6c0473ad7ad44f4d109803c834d07dad84a5bca919030d0a3"
+  }
+}

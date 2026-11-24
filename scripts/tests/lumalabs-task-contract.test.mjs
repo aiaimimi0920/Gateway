@@ -22,6 +22,26 @@ test("Luma only consumes a complete SSE event and accepts CRLF framing", async (
   const complete = await run({frames:[event("completed").replaceAll("\n","\r\n")]});
   assert.equal(complete.result.state,"completed");
 });
+test("Luma accepts mixed SSE line endings, including a split CRLF", async () => {
+  const completed = event("completed").trimEnd();
+  for (const frames of [
+    [`${completed}\n\r`, "\n"],
+    [`${completed}\r`, "\n\r"],
+  ]) {
+    const { result, calls, readers } = await run({ frames });
+    assert.equal(result.outputId, "output-1", JSON.stringify(result));
+    assert.equal(result.state, "completed");
+    assert.equal(calls.filter(({ init }) => init.method === "POST").length, 1);
+    const source = readers.find(({ kind }) => kind === "events");
+    assert.equal(source.cancelled, 1);
+    assert.equal(source.released, 1);
+  }
+});
+test("Luma does not count a split CRLF as an empty line", async () => {
+  const { result } = await run({ frames: [`${event("completed").trimEnd()}\r`, "", "\n"] });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "lumalabs_missing_signed_url");
+});
 test("Luma releases the subscribed stream when action submission fails", async () => {
   const {result,readers,signals} = await run({actionStatus:429});
   assert.equal(result.error.code,"lumalabs_action_failed");

@@ -151,7 +151,7 @@ pub mod qwen;
 mod request_profile;
 pub(crate) use request_profile::context as request_identity_context;
 pub(crate) mod request_time_browser_policy;
-mod response_error;
+pub(crate) mod response_error;
 mod response_preview_helpers;
 pub(crate) mod response_types;
 pub(crate) mod search_fetch_request;

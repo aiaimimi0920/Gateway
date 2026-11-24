@@ -1,0 +1,16 @@
+{
+  "args": [
+    "rustfmt",
+    "--edition",
+    "2021",
+    "--config",
+    "skip_children=true",
+    "--check",
+    "src/http/router.rs",
+    "src/http/router/management_config.rs"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T18:04:51.665724+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 0.3
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "quick-oauth",
+  "identity": {
+    "serviceProviderKey": "amazon-quick",
+    "serviceProviderLabel": "Amazon Quick",
+    "providerSurfaceKey": "quick-oauth",
+    "providerSurfaceLabel": "Amazon Quick Social OAuth",
+    "protocolProfile": "quick_oauth",
+    "implementationLine": "web_reverse_api",
+    "adapter": "openai_compatible",
+    "sourceKind": "web_reverse_api",
+    "executionMode": "direct_http",
+    "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": {
+    "families": ["conversation"],
+    "supportsModelsEndpoint": false
+  },
+  "credentials": {
+    "materialKinds": ["bearer_token"],
+    "fieldsDocPath": "docs/providers/quick-oauth-contract.md"
+  },
+  "docs": {
+    "overviewDocPath": "docs/providers/quick-oauth-contract.md",
+    "buildDocPath": "docs/devtest-build.md"
+  },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "quick-oauth-verify",
+    "focusedCargoFilters": ["quick_oauth"],
+    "fixtureSuiteId": "quick_oauth_local_fixture",
+    "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate",
+    "lineFeature": "line-quick-oauth",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"],
+    "binaryInclusionGroup": "quick-oauth"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/quick_oauth.rs",
+    "upstreamModule": "gateway/src/protocol/quick_oauth/runtime.rs",
+    "platformDeltaModule": "gateway/src/console/quick_oauth"
+  }
+}

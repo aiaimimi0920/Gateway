@@ -340,6 +340,8 @@ pub use crate::upstream::browser_worker_types::{
 /// Thin wrapper around [`rquest::Client`] that knows how to talk to AI
 /// provider APIs.
 pub struct UpstreamClient {
+    pub(crate) luma_web_sessions:
+        std::sync::Arc<std::sync::OnceLock<crate::luma_web_session::SessionStore>>,
     pub(crate) lobsterai_http: rquest::Client,
     pub(crate) sap_aicore: std::sync::Arc<crate::protocol::sap_aicore::auth::TokenCache>,
     pub(crate) freebuff: std::sync::Arc<crate::protocol::freebuff::RunRuntime>,
@@ -349,6 +351,8 @@ pub struct UpstreamClient {
     native_http: reqwest::Client,
     wait_native_http: std::sync::OnceLock<reqwest::Client>,
     wait_http: std::sync::OnceLock<Client>,
+    pub(crate) sensenova_fixture_http: Option<Client>,
+    pub(crate) commandcode_fixture_http: Option<Client>,
     pub(crate) native_sessions:
         std::sync::Arc<crate::http_client::native_cookie_sessions::NativeCookieSessions>,
     pub(crate) timeout: Duration,
@@ -359,7 +363,9 @@ pub struct UpstreamClient {
     pg_pool: Option<PgPool>,
 }
 
+pub(crate) mod commandcode_fixture;
 pub(crate) mod native_session;
+pub(crate) mod sensenova_fixture;
 use browser_executor::browser_executor_remote_request_timeout;
 
 #[path = "client_initialization.rs"]

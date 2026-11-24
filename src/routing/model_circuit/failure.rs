@@ -24,7 +24,9 @@ pub(crate) fn failure_outcome(error: &GatewayError) -> super::Outcome {
         return super::Outcome::ChannelUnavailable(error.upstream_retry_after_ms.unwrap_or(0));
     }
     failure_delay(error).map_or(super::Outcome::Neutral, |delay| {
-        if matches!(error.kind, ErrorKind::Network | ErrorKind::Timeout)
+        if error.http_status == Some(429) || error.kind == ErrorKind::RateLimit {
+            super::Outcome::RateLimited(delay)
+        } else if matches!(error.kind, ErrorKind::Network | ErrorKind::Timeout)
             || super::health_control::is_transport_message(&error.message)
         {
             super::Outcome::TransportFailure(delay)
@@ -35,7 +37,8 @@ pub(crate) fn failure_outcome(error: &GatewayError) -> super::Outcome {
 }
 
 pub(crate) fn failure_delay(error: &GatewayError) -> Option<u64> {
-    if error.request_budget_stop_reason().is_some()
+    if crate::protocol::sap_aicore::errors::neutral(error)
+        || error.request_budget_stop_reason().is_some()
         || error.kind == ErrorKind::ModelCapacity
         || matches!(
             error.code.as_deref(),
@@ -63,12 +66,7 @@ pub(crate) fn failure_delay(error: &GatewayError) -> Option<u64> {
         return Some(error.upstream_retry_after_ms.unwrap_or(0));
     }
     if error.http_status == Some(429) || error.kind == ErrorKind::RateLimit {
-        return Some(
-            error
-                .upstream_retry_after_ms
-                .unwrap_or(120_000)
-                .max(120_000),
-        );
+        return Some(error.upstream_retry_after_ms.unwrap_or(30_000));
     }
     if error.code.as_deref() == Some("upstream_html_diagnostic") && error.http_status == Some(403) {
         return Some(0);
@@ -108,7 +106,7 @@ mod tests {
             assert_eq!(failure_delay(&error), None);
         }
         let rate_limit = crate::error::classify_upstream_error(429, "Too many requests", None);
-        assert_eq!(failure_delay(&rate_limit), Some(120_000));
+        assert_eq!(failure_delay(&rate_limit), Some(30_000));
     }
 
     #[test]

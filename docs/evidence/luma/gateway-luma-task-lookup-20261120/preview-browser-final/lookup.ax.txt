@@ -1,0 +1,21 @@
+- dialog "合成任务查询":
+  - heading "合成任务查询" [level=2]
+  - button "关闭"
+  - region "Luma 任务查询":
+    - text: 待查询任务 ID
+    - textbox "待查询任务 ID": d290f1ee-6c54-4b01-90e6-d701748f0851
+    - button "查询任务与费用"
+    - text: Luma 任务 ID
+    - textbox "Luma 任务 ID": d290f1ee-6c54-4b01-90e6-d701748f0851
+    - button "复制 Luma 任务 ID":
+      - text: 复制 Luma 任务 ID
+      - status
+    - term: 供应商任务状态
+    - definition: 已完成
+    - term: 任务模型
+    - definition: uni-1
+    - term: 任务类型
+    - definition: image
+    - term: 供应商实际扣费（credits）
+    - definition: "12.5"
+  - button "关闭"

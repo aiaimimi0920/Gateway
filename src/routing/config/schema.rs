@@ -245,6 +245,9 @@ pub struct ProviderCredentialYaml {
     /// Credential-only registration; client_secret uses its own nested SecretPatch target.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kiro_oauth: Option<crate::protocol::kiro_oauth::AuthorizationContext>,
+    /// Credential-only Amazon Quick IAM Identity Center registration and tenant target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quick_oauth: Option<crate::protocol::quick_oauth::AuthorizationContext>,
     /// Credential-only Full Vertex grant; private client material uses nested SecretPatch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vertex_oauth: Option<crate::protocol::vertex_oauth::AuthorizationContext>,

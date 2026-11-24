@@ -2,6 +2,47 @@
 
 use super::*;
 
+/// The receipt owns settlement. Audits must not publish usage or invoke ordinary finalizers.
+pub(in crate::pipeline) async fn finish_stored_response_audit(
+    ctx: &PipelineContext,
+    result: &Result<Value, crate::error::GatewayError>,
+    operation: &str,
+    disconnected: bool,
+    receipt_id: Option<&str>,
+    state: &Arc<AppState>,
+) {
+    let error = result.as_ref().err();
+    let mut trace = build_route_trace_from_ctx(ctx, error);
+    trace["storedResponseOperation"] = json!(operation);
+    trace["storedResponseId"] =
+        json!(receipt_id.or_else(|| result.as_ref().ok().and_then(|body| body["id"].as_str())));
+    trace["callerDisconnected"] = json!(disconnected);
+    let usage = if operation == "create" {
+        result
+            .as_ref()
+            .ok()
+            .and_then(|body| parse_upstream_usage(body, "sap_aicore"))
+    } else {
+        None
+    };
+    finalize_request_audit(
+        ctx,
+        if result.is_ok() {
+            "completed"
+        } else {
+            "failed"
+        },
+        ctx.observed_upstream_status
+            .unwrap_or_else(|| result.is_ok().then_some(200)),
+        usage,
+        error.map(|err| err.message.clone()),
+        Some(trace),
+        None, // One receipt ID can have many operation audits.
+        state,
+    )
+    .await;
+}
+
 pub(super) async fn finalize_request_audit_success(
     ctx: &PipelineContext,
     body: &Value,
@@ -37,14 +78,17 @@ pub(super) async fn finalize_request_audit_failure(
         None
     };
 
+    let mut trace = build_route_trace_from_ctx(ctx, Some(error));
+    let response_id = crate::protocol::luma_agents::record_failure_audit(error, &mut trace)
+        .or_else(|| ctx.luma_generation_audit.as_ref()?.record(&mut trace));
     finalize_request_audit(
         ctx,
         StreamFailureCause::from_observation(ctx.request_budget.stopped_reason(), true).status(),
         upstream_status,
         None,
         Some(error.message.clone()),
-        Some(build_route_trace_from_ctx(ctx, Some(error))),
-        None,
+        Some(trace),
+        response_id,
         state,
     )
     .await;
@@ -68,7 +112,7 @@ pub(super) async fn finalize_request_audit_failure_snapshot(
     finalize_request_audit_from_snapshot(
         &snapshot.request_audit,
         cause.status(),
-        None,
+        snapshot.request_audit.observed_upstream_status.flatten(),
         None,
         error_summary.map(str::to_string),
         Some(trace),

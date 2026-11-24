@@ -1,0 +1,82 @@
+{
+  "scope": "Package and isolated startup of five completed Luma gaps; read-only renewal investigation",
+  "build": {
+    "args": [
+      "powershell.exe",
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "tools/package-gateway-devtest.ps1",
+      "-Edition",
+      "desktop",
+      "-Jobs",
+      "4",
+      "-VersionId",
+      "gateway-devtest-20261121-luma-complete-gaps"
+    ],
+    "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+    "startedAt": "2026-11-21T11:37:24.850817+00:00",
+    "exitCode": 0,
+    "elapsedSeconds": 1194.94
+  },
+  "smokeCommand": {
+    "args": [
+      "powershell.exe",
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "tools/luma/check-desktop.ps1",
+      "-ReleaseDir",
+      "C:/Users/Public/nas_home/AI/GameEditor/Neuro/release/Gateway/gateway-devtest-20261121-luma-complete-gaps",
+      "-Output",
+      "C:/Users/Public/nas_home/AI/GameEditor/linshi/luma-gaps-delivery-20261121/desktop-smoke"
+    ],
+    "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+    "startedAt": "2026-11-21T12:04:22.530524+00:00",
+    "exitCode": 0,
+    "elapsedSeconds": 71.55
+  },
+  "packaged": true,
+  "deployed": false,
+  "reusedFunctionalEvidence": "../gateway-luma-explicit-gaps-20261121/verification.json",
+  "reusedSourceSha256": {
+    "src/console/secrets.rs": "051380aa016d467aed393979cef287391e4f2a5361c6707613e14581b4609d65",
+    "src/console/secrets/keep_bindings.rs": "97a7ae359f8d2084a75af8aa3a1a165f8e4ce2b94de7c6601f4ca55e44db28e3",
+    "src/console/secrets/luma_web.rs": "a864a594bba027efc238030dce90f0e6244aa888652a3518a72280486c930ab2",
+    "src/console/secrets/luma_web_tests.rs": "78dabf701ef890327e075b0ec7d242e3d8e0e73d559e3239211e2ded6c5e0e60",
+    "src/protocol/luma_mcp/creation.rs": "e25e632ebe49b912569f835b415a9b711e8e48891df6ff3b38d890d976b30726",
+    "src/protocol/luma_mcp/creation/review.rs": "1b8d1ad67885355289a346dfe487e5d84e3c33d9fc96325048c6766aed64f594",
+    "src/protocol/luma_mcp/creation/questions.rs": "d64b2045798fc9c111c9560334bfa1932abde0a9b9564a2da479c6b02a0955ed",
+    "src/protocol/luma_mcp/creation_review_tests.rs": "e5308e26c91c730ae383725eceab82784cee517097c8f1be68246c23a6c94f8b",
+    "src/protocol/luma_mcp/creation_question_tests.rs": "6223bf586c50d120a52484014d217d80984186a5bcc0c481777427a7a7f9c695",
+    "src/http/routes/internal_console/luma_mcp/creation/review.rs": "1abe4c7714c2994badf745ed7f273150e71f9800f991c1af4cdb86a45480e411",
+    "apps/desktop/src/features/console/LumaMcpCreationReview.tsx": "739056a77616f22ee1f4c68e386c393e4477c18f745eb30e1b08edbd6cc2a891",
+    "apps/desktop/src/features/console/LumaMcpCreationReview.test.tsx": "8d1e2f180fcc103e3aab00f04a7318636d7616d30f4d0f3e2a57ea0baee035d8"
+  },
+  "allReusedSourceHashesMatch": true,
+  "reusedRust": {
+    "passed": 58,
+    "failed": 0,
+    "ignored": 4
+  },
+  "reusedUi": {
+    "passed": 24,
+    "failed": 0
+  },
+  "newGenerations": 0,
+  "creditWaiverUnchanged": true,
+  "existingRuntimePreserved": {
+    "uiPid": 24600,
+    "backendPid": 6620
+  },
+  "remainingImplementationItems": [
+    "MCP layering output contract",
+    "Web automatic session renewal and durable rotation publication"
+  ],
+  "sourceReadbackAttempt": {
+    "first": "failed: helper invoked without its Get-RelativeUnixPath dependency; cancelled",
+    "corrected": "passed with the exact build-entry helper; fingerprint matches package"
+  }
+}

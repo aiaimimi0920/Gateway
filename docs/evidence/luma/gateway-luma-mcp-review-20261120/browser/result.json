@@ -1,0 +1,77 @@
+{
+  "status": "passed",
+  "browserClosed": true,
+  "calls": [
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "prepare",
+        "request": {
+          "kind": "image",
+          "prompt": "A blue circle",
+          "budgetCredits": 20
+        }
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "start",
+        "taskId": "luma-mcp-e5fd6bad-1aba-4af1-839d-df5bc2b69a2f",
+        "request": {
+          "kind": "image",
+          "prompt": "A blue circle",
+          "budgetCredits": 20
+        },
+        "chargeConfirmed": true
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "read",
+        "taskId": "luma-mcp-e5fd6bad-1aba-4af1-839d-df5bc2b69a2f"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "respond",
+        "taskId": "luma-mcp-e5fd6bad-1aba-4af1-839d-df5bc2b69a2f",
+        "chargeConfirmed": true,
+        "answer": {
+          "invocationId": "review-1",
+          "fingerprint": "synthetic-review-1",
+          "result": {
+            "decision": "accept"
+          }
+        }
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "read",
+        "taskId": "luma-mcp-e5fd6bad-1aba-4af1-839d-df5bc2b69a2f"
+      }
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "scope": "synthetic component preview only; Rust management transport tested separately"
+}

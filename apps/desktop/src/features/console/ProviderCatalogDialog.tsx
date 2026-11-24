@@ -6,6 +6,7 @@ import { PROVIDER_CATALOG_TEMPLATES, providerDefinitionFromCatalogDraft, type Pr
 import { ProviderCatalogDirectory, type CatalogCategoryFilter } from "./ProviderCatalogDirectory";
 import { ProviderCatalogForm } from "./ProviderCatalogForm";
 import type { DiscoverAccount } from "./accountDiscovery";
+import type { DiscoverSapDeployments } from "../../api/sapAiCoreDeployments";
 import { availableCatalogId } from "./providerCatalogIdentity";
 import { catalogWorkflowError, compatibleCatalogDrivers, defaultCatalogWorkflow } from "./providerCatalogWorkflow";
 import { qwenCatalogBase } from "./qwenEndpoint";
@@ -26,6 +27,7 @@ export type ProviderCatalogDialogProps = {
   onRequestSecretAccess(): void;
   onSubmit(value: ProviderCatalogDraft): void;
   onDiscover?: DiscoverAccount;
+  onDiscoverSapDeployments?: DiscoverSapDeployments;
 };
 export type CatalogTab = "basics" | "request" | "mapping" | "tests" | "pool" | "health";
 
@@ -48,7 +50,7 @@ function validUrl(value: string): boolean {
 }
 
 export function ProviderCatalogDialog({ open, existingProviderIds, existingCredentialIds, locked, hasSecretAccess, drivers = [],
-  onOpenChange, onRequestSecretAccess, onSubmit }: ProviderCatalogDialogProps) {
+  onOpenChange, onRequestSecretAccess, onSubmit, onDiscoverSapDeployments }: ProviderCatalogDialogProps) {
   const { t } = useUiLocale();
   const wasOpen = useRef(false);
   const first = PROVIDER_CATALOG_TEMPLATES[0];
@@ -80,6 +82,7 @@ export function ProviderCatalogDialog({ open, existingProviderIds, existingCrede
     if (selectedTemplate.id === "kiro-api-key" && baseUrl !== selectedTemplate.baseUrl) return fail(t("Kiro CLI API Key 仅支持固定的 US East runtime 地址。", "Kiro CLI API Key requires its fixed US East runtime endpoint."));
     if (selectedTemplate.id === "vertex-express-api" && baseUrl !== selectedTemplate.baseUrl) return fail(t("Vertex Express API Key 仅支持固定的 global publisher-model 地址。", "Vertex Express API Key requires its fixed global publisher-model endpoint."));
     if (selectedTemplate.id === "lumalabs-api" && baseUrl !== selectedTemplate.baseUrl) return fail(t("Luma Agents 仅支持固定官方地址。", "Luma Agents requires its fixed official endpoint."));
+    if (selectedTemplate.id === "quick-oauth" && baseUrl !== selectedTemplate.baseUrl) return fail(t("Amazon Quick 仅支持固定的 https://quick.aws.com 地址。", "Amazon Quick requires its fixed https://quick.aws.com endpoint."));
     const workflow = draft.workflow!;
     const error = catalogWorkflowError(workflow, draft.secrets);
     if (error) return fail(error);
@@ -109,7 +112,8 @@ export function ProviderCatalogDialog({ open, existingProviderIds, existingCrede
           setDraft(draftFromTemplate(template, existingProviderIds)); setTab("basics"); setValidationError(null);
         }} />
       <ProviderCatalogForm t={t} selectedTemplate={selectedTemplate} draft={draft} setDraft={setDraft}
-        tab={tab} setTab={setTab} locked={locked} drivers={drivers} validationError={validationError} />
+        tab={tab} setTab={setTab} locked={locked} drivers={drivers} validationError={validationError}
+        discoverSapDeployments={open ? onDiscoverSapDeployments : undefined} hasSecretAccess={hasSecretAccess} onRequestSecretAccess={onRequestSecretAccess} />
     </form>
   </Dialog>;
 }

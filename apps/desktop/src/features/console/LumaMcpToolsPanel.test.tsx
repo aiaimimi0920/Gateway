@@ -34,6 +34,15 @@ it("asks for consent without replaying the read when a grant arrives", async () 
   view.rerender(<LumaOAuthPanel {...f.props} />); expect(f.request).not.toHaveBeenCalled();
   await read(); expect(f.request).toHaveBeenCalledOnce();
 });
+it("handles rejected consent without sending or exposing the rejection", async () => {
+  const f = fixture(); f.props.onRequestSecretAccess = vi.fn().mockRejectedValue(new Error("private-consent-error"));
+  render(<LumaOAuthPanel {...f.props} secretGrant={null} />); await read();
+  expect(f.props.onRequestSecretAccess).toHaveBeenCalledOnce();
+  expect(f.request).not.toHaveBeenCalled();
+  expect(screen.getByText(/工具目录读取失败/)).toBeInTheDocument();
+  expect(screen.queryByText(/private-consent-error/)).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "读取工具目录" })).toBeEnabled();
+});
 it("rejects mismatched response binding and never displays upstream error bodies", async () => {
   const f = fixture(); f.request.mockResolvedValueOnce({ ...response, credentialId: "other" });
   render(<LumaOAuthPanel {...f.props} />); await read();

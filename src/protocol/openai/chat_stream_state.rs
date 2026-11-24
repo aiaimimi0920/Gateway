@@ -34,11 +34,13 @@ pub(super) struct Admission {
     done: bool,
     usage_seen: bool,
     either_terminal: bool,
+    reply_model: Option<String>,
 }
 impl Admission {
-    pub(super) fn new(either_terminal: bool) -> Self {
+    pub(super) fn new(either_terminal: bool, reply_model: Option<String>) -> Self {
         Self {
             either_terminal,
+            reply_model,
             ..Self::default()
         }
     }
@@ -118,6 +120,9 @@ impl Admission {
             // All downstream observers must choose Chat counters, not the optional Responses alias branch.
             usage.remove("input_tokens");
             usage.remove("output_tokens");
+        }
+        if let Some(model) = &self.reply_model {
+            super::chat_stream_model::set_model(value.as_object_mut().ok_or_else(invalid)?, model);
         }
         let mut terminal = value.clone();
         let choices = value

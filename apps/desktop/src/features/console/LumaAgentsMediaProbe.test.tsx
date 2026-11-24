@@ -1,5 +1,5 @@
 import { NeuroProvider } from "@neuro/ui";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
@@ -19,6 +19,37 @@ function props(): ComponentProps<typeof PilotActionDialog> {
     pilotScheduleIntervalMinutes:"60",setPilotScheduleIntervalMinutes:vi.fn(),applyProviderProbeSchedule:vi.fn(),telemetryError:null,
     activePilotStatsView:null,applyPilotProbeSchedule:vi.fn() };
 }
+it("confirms layering with an empty optional prompt, exact uni-1 and selected layer resolution",async()=>{
+  const user=userEvent.setup(),p=props();render(<PilotActionDialog {...p}/>,{wrapper:NeuroProvider});
+  await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"layering");
+  expect(screen.getByRole("combobox",{name:"模型"})).toHaveValue("uni-1");
+  expect(screen.queryByRole("combobox",{name:"时长"})).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox",{name:"分层指引（可选）"})).toHaveValue("");
+  expect(screen.getByRole("button",{name:"运行测试"})).toBeDisabled();
+  await user.type(screen.getByRole("textbox",{name:"源图片引用"}),"https://images.example.test/source.png");
+  await user.selectOptions(screen.getByRole("combobox",{name:"图层分辨率"}),"2k");
+  await user.click(screen.getByRole("button",{name:"运行测试"}));expect(p.startProviderProbe).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button",{name:"确认生成"}));
+  expect(p.startProviderProbe).toHaveBeenCalledWith({prompt:"",model:"uni-1",credentialIds:["exact"],
+    media:{operation:"layering",confirmCharge:true,parameters:{source:{url:"https://images.example.test/source.png"},layering:{resolution:"2k"}}}},"luma");
+});
+it("layering clears old sources, rejects overlong guidance and does not substitute another image model",async()=>{
+  const user=userEvent.setup(),p=props();const view=render(<PilotActionDialog {...p}/>,{wrapper:NeuroProvider});
+  await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"image_edit");
+  await user.type(screen.getByRole("textbox",{name:"源图片引用"}),"https://images.example.test/old.png");
+  await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"layering");
+  expect(screen.getByRole("textbox",{name:"源图片引用"})).toHaveValue("");
+  await user.type(screen.getByRole("textbox",{name:"源图片引用"}),"https://images.example.test/source.png");
+  fireEvent.change(screen.getByRole("textbox",{name:"分层指引（可选）"}),{target:{value:"分".repeat(501)}});
+  expect(screen.getByRole("button",{name:"运行测试"})).toBeDisabled();
+  fireEvent.change(screen.getByRole("textbox",{name:"分层指引（可选）"}),{target:{value:""}});
+  expect(screen.getByRole("button",{name:"运行测试"})).toBeEnabled();
+  const provider=p.testPolicyDocument!.providers[0] as Record<string,unknown>;
+  provider.credentials=[{id:"exact",supported_models:["uni-1-max"]}];
+  view.rerender(<PilotActionDialog {...p}/>);
+  expect(screen.getByRole("combobox",{name:"模型"})).toHaveValue("");
+  expect(screen.getByRole("button",{name:"运行测试"})).toBeDisabled();expect(p.startProviderProbe).not.toHaveBeenCalled();
+});
 it("opens the normal exact-account media form without invoking, saving or scheduling a generation", async()=>{
   const p=props();render(<PilotActionDialog {...p}/>,{wrapper:NeuroProvider});
   expect(screen.getByRole("combobox",{name:"操作"})).toBeInTheDocument();
@@ -61,6 +92,65 @@ it("requires an edit source and submits only that explicit source",async()=>{
   await user.click(screen.getByRole("button",{name:"运行测试"}));await user.click(screen.getByRole("button",{name:"确认生成"}));
   expect(p.startProviderProbe).toHaveBeenCalledWith(expect.objectContaining({media:{operation:"image_edit",confirmCharge:true,parameters:{source:{url:"https://images.example.test/source.png"}}}}),"luma");
 });
+it("requires a video source and confirms reframe with its ratio and exact video model",async()=>{
+  const user=userEvent.setup(),p=props();render(<PilotActionDialog {...p}/>,{wrapper:NeuroProvider});
+  await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"video_reframe");
+  expect(screen.getByRole("combobox",{name:"模型"})).toHaveValue("ray-3.2");
+  await user.type(screen.getByRole("textbox",{name:"提示词"}),"扩展为宽屏");
+  expect(screen.getByRole("button",{name:"运行测试"})).toBeDisabled();
+  await user.type(screen.getByRole("textbox",{name:"源视频引用"}),"https://media.example.test/source.mp4");
+  await user.selectOptions(screen.getByRole("combobox",{name:"目标比例"}),"21:9");
+  await user.click(screen.getByRole("button",{name:"运行测试"}));
+  expect(p.startProviderProbe).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button",{name:"确认生成"}));
+  expect(p.startProviderProbe).toHaveBeenCalledWith({prompt:"扩展为宽屏",model:"ray-3.2",credentialIds:["exact"],
+    media:{operation:"video_reframe",confirmCharge:true,parameters:{source:{url:"https://media.example.test/source.mp4",media_type:"video/mp4"},aspect_ratio:"21:9",video:{duration:"5s",resolution:"360p"}}}},"luma");
+});
+it("blocks vertical 1080p reframe and discards image source when switching operations",async()=>{
+  const user=userEvent.setup(),p=props();render(<PilotActionDialog {...p}/>,{wrapper:NeuroProvider});
+  await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"image_edit");
+  await user.type(screen.getByRole("textbox",{name:"源图片引用"}),"https://images.example.test/private.png");
+  await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"video_reframe");
+  expect(screen.getByRole("textbox",{name:"源视频引用"})).toHaveValue("");
+  await user.type(screen.getByRole("textbox",{name:"提示词"}),"扩画");
+  await user.type(screen.getByRole("textbox",{name:"源视频引用"}),"https://media.example.test/source.mp4");
+  await user.selectOptions(screen.getByRole("combobox",{name:"目标比例"}),"9:16");
+  await user.selectOptions(screen.getByRole("combobox",{name:"分辨率"}),"1080p");
+  expect(screen.getByRole("button",{name:"运行测试"})).toBeDisabled();
+  expect(screen.getByText("竖向扩画暂不支持 1080p。")).toBeInTheDocument();
+  await user.selectOptions(screen.getByRole("combobox",{name:"分辨率"}),"720p");
+  expect(screen.getByRole("button",{name:"运行测试"})).toBeEnabled();
+  expect(p.startProviderProbe).not.toHaveBeenCalled();
+});
+it("confirms an exact-account video edit with automatic conditioning and no ignored size controls",async()=>{
+  const user=userEvent.setup(),p=props();render(<PilotActionDialog {...p}/>,{wrapper:NeuroProvider});
+  await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"video_edit");
+  expect(screen.getByRole("combobox",{name:"模型"})).toHaveValue("ray-3.2");
+  expect(screen.queryByRole("combobox",{name:"时长"})).not.toBeInTheDocument();
+  expect(screen.queryByRole("combobox",{name:"目标比例"})).not.toBeInTheDocument();
+  await user.type(screen.getByRole("textbox",{name:"提示词"}),"重绘为胶片风格");
+  expect(screen.getByRole("button",{name:"运行测试"})).toBeDisabled();
+  await user.type(screen.getByRole("textbox",{name:"源视频引用"}),"https://media.example.test/input.mp4");
+  await user.selectOptions(screen.getByRole("combobox",{name:"分辨率"}),"720p");
+  await user.click(screen.getByRole("button",{name:"运行测试"}));expect(p.startProviderProbe).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button",{name:"确认生成"}));
+  expect(p.startProviderProbe).toHaveBeenCalledWith({prompt:"重绘为胶片风格",model:"ray-3.2",credentialIds:["exact"],
+    media:{operation:"video_edit",confirmCharge:true,parameters:{source:{url:"https://media.example.test/input.mp4",media_type:"video/mp4"},video:{resolution:"720p",edit:{auto_controls:true}}}}},"luma");
+});
+it("uses a manual edit strength and clears previous reframe source on operation changes",async()=>{
+  const user=userEvent.setup(),p=props();render(<PilotActionDialog {...p}/>,{wrapper:NeuroProvider});
+  await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"video_reframe");
+  await user.type(screen.getByRole("textbox",{name:"源视频引用"}),"https://media.example.test/old.mp4");
+  await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"video_edit");
+  expect(screen.getByRole("textbox",{name:"源视频引用"})).toHaveValue("");
+  await user.selectOptions(screen.getByRole("combobox",{name:"源视频类型"}),"generation_id");
+  await user.type(screen.getByRole("textbox",{name:"源视频引用"}),"d290f1ee-6c54-4b01-90e6-d701748f0851");
+  await user.selectOptions(screen.getByRole("combobox",{name:"重绘强度"}),"flex_2");
+  await user.type(screen.getByRole("textbox",{name:"提示词"}),"风格重绘");
+  await user.click(screen.getByRole("button",{name:"运行测试"}));await user.click(screen.getByRole("button",{name:"确认生成"}));
+  expect(p.startProviderProbe).toHaveBeenCalledWith(expect.objectContaining({media:{operation:"video_edit",confirmCharge:true,
+    parameters:{source:{generation_id:"d290f1ee-6c54-4b01-90e6-d701748f0851"},video:{resolution:"360p",edit:{strength:"flex_2"}}}}}),"luma");
+});
 it("invalidates a pending fee confirmation after the target configuration changes",async()=>{
   const user=userEvent.setup(),p=props();const view=render(<PilotActionDialog {...p}/>,{wrapper:NeuroProvider});
   await user.type(screen.getByRole("textbox",{name:"提示词"}),"合成");await user.click(screen.getByRole("button",{name:"运行测试"}));
@@ -90,4 +180,14 @@ it("supports bounded URL, generation/file and inline source values without fetch
   for(const value of ["http://x.test/a","https://user:pass@x.test/a","https://x.test/a#secret"])expect(mediaProbeSource({kind:"url",value,mime:"image/png"})).toBeNull();
   expect(mediaProbeSource({kind:"data",value:"x".repeat(180001),mime:"image/png"})).toBeNull();
   expect(mediaProbeSource({kind:"generation_id",value:"../other",mime:"image/png"})).toBeNull();
+});
+it("keeps video MIME on URL and inline sources without changing image or ID projection",()=>{
+  const url="https://media.example.test/source.mp4",id="d290f1ee-6c54-4b01-90e6-d701748f0851";
+  expect(mediaProbeSource({kind:"url",value:url,mime:"video/mp4"},"video")).toEqual({url,media_type:"video/mp4"});
+  expect(mediaProbeSource({kind:"data",value:"YQ==",mime:"video/webm"},"video")).toEqual({data:"YQ==",media_type:"video/webm"});
+  expect(mediaProbeSource({kind:"generation_id",value:id,mime:"video/mp4"},"video")).toEqual({generation_id:id});
+  expect(mediaProbeSource({kind:"file_id",value:id,mime:"video/mp4"},"video")).toEqual({file_id:id});
+  for(const mime of ["image/png","video/*","video/","video/mp4\r\nsecret:x"])
+    expect(mediaProbeSource({kind:"url",value:url,mime},"video")).toBeNull();
+  expect(mediaProbeSource({kind:"data",value:"YQ==",mime:"video/mp4"})).toBeNull();
 });

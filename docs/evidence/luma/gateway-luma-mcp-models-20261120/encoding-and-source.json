@@ -1,0 +1,112 @@
+[
+  {
+    "path": "src/protocol/luma_mcp/creation.rs",
+    "utf8NoBom": true,
+    "sha256": "a10b2749a7107de7f4de4cf3c76072e4f25eb96ac4c564078dd22351743f1d75"
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/options.rs",
+    "utf8NoBom": true,
+    "sha256": "915275151e799f175f8cd2d6142e424452a1de189b7866086e2424b05dbc9d68"
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/video.rs",
+    "utf8NoBom": true,
+    "sha256": "613386debb8a4a1248a1606392119d37ff43cc8b5da5920241d82bc4774db45a"
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/profiles.rs",
+    "utf8NoBom": true,
+    "sha256": "5b8c1dcc64a8338727a1b80492def957f026a16083507c577270740f628832c6"
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/image_parameters.rs",
+    "utf8NoBom": true,
+    "sha256": "ce38d456730cf5c616a68b02269e365f06f98a9ad4e2dbd028dabbf636c56b03"
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation_tests.rs",
+    "utf8NoBom": true,
+    "sha256": "6b830a1f3b3d688d8b849e0505229f8e0023ac336fd39632e425df5d86bb4903"
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation_model_tests.rs",
+    "utf8NoBom": true,
+    "sha256": "ba747f87389373330ebd5d990735ddb0acf099914736b162baec3b8ae5679848"
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaMcpCreationDraft.ts",
+    "utf8NoBom": true,
+    "sha256": "c8e3c3f13659ed77055ddbcef3722d03e3e0df0321d8dbff996756193ff6c17e"
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaMcpCreationModels.ts",
+    "utf8NoBom": true,
+    "sha256": "376927b7374735375d28ea8cb2ea7976d929c33297e2546346d0a1d12f3db991"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationOptions.tsx",
+    "utf8NoBom": true,
+    "sha256": "5c282f4c88d880cfc5fe3e4acee3314c0974c637a6afc19215b0ebf218a80e7f"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpImageParameters.tsx",
+    "utf8NoBom": true,
+    "sha256": "e0e248d5940315e0a5a6dcdb60d9dd787421e2161bf15a2aa6a077d790ba3cac"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationModels.test.tsx",
+    "utf8NoBom": true,
+    "sha256": "6b3e0fd054e2fdc5a7bfb1ba450610dc51050358a52d926a7f3206ee2f39e470"
+  },
+  {
+    "path": "tools/luma/capture-mcp-models.py",
+    "utf8NoBom": true,
+    "sha256": "e11a0ba01037ab08c5f5e793faa0bb8aa233f7ecd17c1abf800e7dabd2754bcf"
+  },
+  {
+    "path": "tools/luma/mcp-creation-preview-check.mjs",
+    "utf8NoBom": true,
+    "sha256": "8e3b5dcb508eb47a4c03de0a3a3c9f2b205cd66d92837f2e5d3cff4d17bdad7d"
+  },
+  {
+    "path": "tools/luma/mcp-models-preview-flow.mjs",
+    "utf8NoBom": true,
+    "sha256": "b4344ba9637d6214bd55b83347bd71459b3e7fe8bc0b8e35652dbd1eb4a6400f"
+  },
+  {
+    "path": "tests/python/test_luma_model_capture.py",
+    "utf8NoBom": true,
+    "sha256": "bb306b3b94e06efd2a9a1ffea2febfc62c6bae22c80cf0d7acb5b66f090c5b4c"
+  },
+  {
+    "path": "manifests/luma-mcp-creation-models.json",
+    "utf8NoBom": true,
+    "sha256": "e6d411a4b7c68f00e02f9a6f3c555b27796d1bbf94ee693e6dd21132da214ddb"
+  },
+  {
+    "path": "tools/luma/README.md",
+    "utf8NoBom": true,
+    "sha256": "12fd69b9e015df3c1219a2d98cf3aa48b5e0e35e43c9843d1c270cd8b678fff4"
+  },
+  {
+    "path": "docs/progress/2026-11-20-luma-mcp-models.md",
+    "utf8NoBom": true,
+    "sha256": "79078de4f4dabefa37305f3d2f2bbcd4bbc70012849e8888243b537e871c8d41"
+  },
+  {
+    "path": "docs/providers/luma-development-status.md",
+    "utf8NoBom": true,
+    "sha256": "26df8f8b53ded4b5ea379d507d07d2dffdf71f887d969b2814ceda6b622fdd34"
+  },
+  {
+    "path": "docs/provider-luma-channel-contract.md",
+    "utf8NoBom": true,
+    "sha256": "bb75e91be9fd0d2933b7b5cd18060789bd97f5cd20eb66e92ebe90342f0c2e55"
+  },
+  {
+    "path": "docs/evidence/luma/README.md",
+    "utf8NoBom": true,
+    "sha256": "786eb70520f5244fd2b434371f15c5fd7778379ce55068851b42922974bbf634"
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "args": [
+    "rustfmt",
+    "--edition",
+    "2021",
+    "--config",
+    "skip_children=true",
+    "--check",
+    "src/protocol/luma_agents.rs",
+    "src/protocol/luma_agents/file_upload.rs",
+    "src/protocol/luma_agents/files.rs",
+    "src/http/routes/internal_console/luma_files.rs",
+    "src/http/routes/internal_console/luma_files/upload.rs",
+    "src/upstream/public_assets.rs",
+    "src/upstream/public_assets/upload.rs",
+    "src/upstream/luma_agents.rs",
+    "src/upstream/luma_agents/files.rs",
+    "src/upstream/luma_agents/files_output.rs",
+    "src/upstream/luma_agents/files_upload.rs",
+    "src/upstream/luma_agents/files_upload_tests.rs",
+    "src/upstream/luma_agents/files_upload_management_tests.rs",
+    "src/upstream/luma_agents/test_support.rs"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T17:58:38.694768+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 0.33
+}

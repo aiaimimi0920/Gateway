@@ -41,6 +41,7 @@ pub use normalization::normalize_route_policy_config;
 pub use policies::{
     find_active_route_policy_for_rate_limits, list_route_policies, save_route_policy,
 };
+pub(crate) use providers::read_hosted_luma_payload;
 
 use aliases::fetch_alias_rows;
 use model_filters::{

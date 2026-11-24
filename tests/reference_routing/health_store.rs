@@ -70,7 +70,7 @@ pub async fn contract(store: HealthStore<'_>, candidate: RouteCandidate) {
 async fn identity_contract(store: &HealthStore<'_>, mut candidate: RouteCandidate) {
     use time::{format_description::well_known::Rfc3339, OffsetDateTime};
     for (index, hint, expected) in [
-        (0, None, Some(300)),
+        (0, None, Some(30)),
         (1, Some(0), Some(0)),
         (2, Some(1), Some(1)),
         (3, Some(1_001), Some(2)),

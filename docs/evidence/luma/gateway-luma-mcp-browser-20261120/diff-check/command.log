@@ -1,0 +1,4 @@
+warning: in the working copy of 'apps/desktop/src/features/console/CredentialAccountFields.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/desktop/src/features/console/useCredentialDialog.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/plan/provider-luma-agents-contract.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/provider-luma-channel-contract.md', CRLF will be replaced by LF the next time Git touches it

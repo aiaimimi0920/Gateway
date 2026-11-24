@@ -77,7 +77,9 @@ v4 按生产授权合同补齐配置后通过，没有放宽鉴权或访问表�
 这证明双 EXE 的管理可见性、真实 Key 鉴权/授权、现金提前拒绝、共享余额和正常退出；
 不证明包内成功上游生成或调度 worker 周期。合成生成与 Redis 槽的源码测试结果以上节回执为准。
 
-## 自动调度周期补验（执行中）
+## 自动调度周期补验（11 月 14 日历史记录）
+
+2026-11-21 已完成重新执行，当前结果见 [Server 自动探测与审计复核](2026-11-21-commandcode-server-scheduler.md)。以下保留当时的执行状态。
 
 新增 `src/protocol/commandcode/wire_tests/server_scheduler.rs` 的 opt-in 用例
 `commandcode_server_scheduler_two_workers_real_ticks_and_restart`。复用 Server 配置夹具，

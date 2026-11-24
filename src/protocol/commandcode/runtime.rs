@@ -60,14 +60,14 @@ pub(super) async fn send(
     let plan = plan(payload, req, model, stream)?;
     let mut headers = rquest::header::HeaderMap::new();
     finalize_headers(payload, &plan, &mut headers)?;
+    let http = crate::upstream::client::commandcode_fixture::select(client, payload, &plan.url)?;
     #[cfg(test)]
     let url = super::test_support::transport_plan(payload, &plan)
         .unwrap()
         .url;
     #[cfg(not(test))]
     let url = plan.url;
-    let response = client
-        .client()
+    let response = http
         .post(url)
         .query(&plan.query)
         .json(&plan.body)

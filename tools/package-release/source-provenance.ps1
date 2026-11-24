@@ -58,12 +58,105 @@ function Get-GitRepositoryRoot {
 function Get-SourceTreeState {
     param([Parameter(Mandatory = $true)][string]$Root)
 
+    if (-not ("GatewaySourceProvenanceHasher" -as [type])) {
+        Add-Type -Language CSharp -TypeDefinition @"
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+
+public static class GatewaySourceProvenanceHasher {
+    private static string ToLowerHex(byte[] bytes) {
+        char[] c = new char[bytes.Length * 2];
+        const string hex = "0123456789abcdef";
+        for (int i = 0; i < bytes.Length; i++) {
+            byte b = bytes[i];
+            c[i * 2] = hex[b >> 4];
+            c[i * 2 + 1] = hex[b & 0x0F];
+        }
+        return new string(c);
+    }
+
+    public static string HashFileHex(string path) {
+        using (var sha = SHA256.Create())
+        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 65536, FileOptions.SequentialScan)) {
+            return ToLowerHex(sha.ComputeHash(fs));
+        }
+    }
+
+    public static Tuple<string, int> ComputeFingerprint(
+        string root,
+        string gitRoot,
+        string[] candidatePaths,
+        bool pathsAreGitRelative,
+        string[] excludedDirs,
+        string[] excludedRootDirs
+    ) {
+        string rootTrimmed = Path.GetFullPath(root).TrimEnd('\\', '/');
+        string rootPrefix = rootTrimmed + Path.DirectorySeparatorChar;
+        var dirSet = new HashSet<string>(excludedDirs ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+        var rootDirSet = new HashSet<string>(excludedRootDirs ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+        var work = new List<KeyValuePair<string, string>>(candidatePaths != null ? candidatePaths.Length : 0);
+
+        if (candidatePaths != null) {
+            foreach (string raw in candidatePaths) {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                string fullPath = pathsAreGitRelative
+                    ? Path.GetFullPath(Path.Combine(gitRoot, raw))
+                    : Path.GetFullPath(raw);
+                if (!File.Exists(fullPath)) continue;
+                string relative;
+                if (string.Equals(fullPath.TrimEnd('\\', '/'), rootTrimmed, StringComparison.OrdinalIgnoreCase)) {
+                    relative = ".";
+                } else if (fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase)) {
+                    relative = fullPath.Substring(rootPrefix.Length).Replace('\\', '/');
+                } else {
+                    continue;
+                }
+                string[] parts = relative.Split('/');
+                bool skip = false;
+                for (int i = 0; i < parts.Length; i++) {
+                    string p = parts[i];
+                    if (dirSet.Contains(p) || (i == 0 && rootDirSet.Contains(p)) || p.StartsWith("tmp-", StringComparison.OrdinalIgnoreCase)) {
+                        skip = true;
+                        break;
+                    }
+                }
+                if (!skip) {
+                    work.Add(new KeyValuePair<string, string>(fullPath, relative));
+                }
+            }
+        }
+
+        string[] records = new string[work.Count];
+        var opts = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Math.Min(6, Environment.ProcessorCount)) };
+        Parallel.For(0, work.Count, opts, idx => {
+            var item = work[idx];
+            long len = new FileInfo(item.Key).Length;
+            string digest = HashFileHex(item.Key);
+            records[idx] = string.Concat(item.Value, "\t", len.ToString(), "\t", digest, "\n");
+        });
+
+        Array.Sort(records, StringComparer.Ordinal);
+        string payload = string.Concat(records);
+        using (var sha = SHA256.Create()) {
+            byte[] fp = sha.ComputeHash(Encoding.UTF8.GetBytes(payload));
+            return Tuple.Create(ToLowerHex(fp), records.Length);
+        }
+    }
+}
+"@
+    }
+
     $excludedDirectoryNames = @(".git", "target", "node_modules", ".runtime", "output")
     $excludedRootDirectoryNames = @("release")
     $gitRoot = Get-GitRepositoryRoot -Root $Root
     $gitCommand = Get-Command "git" -ErrorAction SilentlyContinue
     $algorithm = "sha256-file-list-v1"
-    $files = @()
+    $fingerprint = $null
+    $fileCount = 0
     if ($null -ne $gitRoot) {
         if ($null -eq $gitCommand) {
             throw "Unable to enumerate Gateway source files with Git because git is unavailable."
@@ -73,54 +166,54 @@ function Get-SourceTreeState {
         if ($LASTEXITCODE -ne 0) {
             throw "Unable to enumerate Gateway source files with Git."
         }
-        $files = @(
-            foreach ($gitPath in $gitPaths) {
-                if ([string]::IsNullOrWhiteSpace($gitPath)) {
-                    continue
-                }
-                $fullPath = Join-Path $gitRoot $gitPath
-                if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
-                    Get-Item -LiteralPath $fullPath -Force
-                }
-            }
-        )
         $algorithm = "sha256-git-source-list-v2"
+        $computed = [GatewaySourceProvenanceHasher]::ComputeFingerprint(
+            $Root,
+            $gitRoot,
+            [string[]]$gitPaths,
+            $true,
+            [string[]]$excludedDirectoryNames,
+            [string[]]$excludedRootDirectoryNames
+        )
+        $fingerprint = $computed.Item1
+        $fileCount = [int]$computed.Item2
     } else {
         $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force)
-    }
-    $records = [System.Collections.Generic.List[string]]::new()
-    foreach ($file in $files) {
-        $relative = Get-RelativeUnixPath -BasePath $Root -Path $file.FullName
-        $skip = $false
-        $parts = @($relative -split "/")
-        for ($index = 0; $index -lt $parts.Count; $index++) {
-            $part = $parts[$index]
-            $lowerPart = $part.ToLowerInvariant()
-            if (($excludedDirectoryNames -contains $lowerPart) -or
-                (($index -eq 0) -and ($excludedRootDirectoryNames -contains $lowerPart)) -or
-                $part.StartsWith("tmp-", [System.StringComparison]::OrdinalIgnoreCase)) {
-                $skip = $true
-                break
+        $records = [System.Collections.Generic.List[string]]::new()
+        foreach ($file in $files) {
+            $relative = Get-RelativeUnixPath -BasePath $Root -Path $file.FullName
+            $skip = $false
+            $parts = @($relative -split "/")
+            for ($index = 0; $index -lt $parts.Count; $index++) {
+                $part = $parts[$index]
+                $lowerPart = $part.ToLowerInvariant()
+                if (($excludedDirectoryNames -contains $lowerPart) -or
+                    (($index -eq 0) -and ($excludedRootDirectoryNames -contains $lowerPart)) -or
+                    $part.StartsWith("tmp-", [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $skip = $true
+                    break
+                }
             }
-        }
-        if ($skip) {
-            continue
+            if ($skip) {
+                continue
+            }
+
+            $digest = [GatewaySourceProvenanceHasher]::HashFileHex($file.FullName)
+            $records.Add("$relative`t$($file.Length)`t$digest`n") | Out-Null
         }
 
-        $digest = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-        $records.Add("$relative`t$($file.Length)`t$digest`n") | Out-Null
+        $sortedRecords = $records.ToArray()
+        [Array]::Sort($sortedRecords, [System.StringComparer]::Ordinal)
+        $fingerprintPayload = [string]::Concat($sortedRecords)
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $fingerprintBytes = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($fingerprintPayload))
+        } finally {
+            $sha256.Dispose()
+        }
+        $fingerprint = ([System.BitConverter]::ToString($fingerprintBytes)).Replace("-", "").ToLowerInvariant()
+        $fileCount = $sortedRecords.Count
     }
-
-    $sortedRecords = $records.ToArray()
-    [Array]::Sort($sortedRecords, [System.StringComparer]::Ordinal)
-    $fingerprintPayload = [string]::Concat($sortedRecords)
-    $sha256 = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        $fingerprintBytes = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($fingerprintPayload))
-    } finally {
-        $sha256.Dispose()
-    }
-    $fingerprint = ([System.BitConverter]::ToString($fingerprintBytes)).Replace("-", "").ToLowerInvariant()
 
     $dirty = $null
     if ($null -ne $gitRoot -and $null -ne $gitCommand) {
@@ -134,7 +227,7 @@ function Get-SourceTreeState {
     return [pscustomobject]@{
         algorithm = $algorithm
         fingerprint = $fingerprint
-        fileCount = $sortedRecords.Count
+        fileCount = $fileCount
         dirty = $dirty
     }
 }
@@ -205,7 +298,17 @@ function Assert-BuildProvenance {
             throw "Required Gateway build artifact is missing: $artifactPath"
         }
         $artifact = Get-Item -LiteralPath $artifactPath
-        $actualHash = (Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $stream = [System.IO.File]::Open($artifactPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+            try {
+                $actualHash = ([System.BitConverter]::ToString($sha.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+            } finally {
+                $stream.Dispose()
+            }
+        } finally {
+            $sha.Dispose()
+        }
         if ([int64]$matchingRecords[0].bytes -ne [int64]$artifact.Length -or
             [string]$matchingRecords[0].sha256 -ne $actualHash) {
             throw "Gateway build artifact no longer matches build provenance: $relativePath"

@@ -89,6 +89,7 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "groq-openai" => "groq",
         "river-api" => "river",
         "agnes-api" => "agnes_api",
+        "lumalabs-inference-api" => "lumalabs_inference",
         "sensenova-token-plan" => "sensenova_token_plan",
         "commandcode-api" => "commandcode_chat",
         "sap-aicore-chat" => "sap_aicore_chat",
@@ -96,6 +97,7 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "cloudflare-workers-ai" => "cloudflare_workers_ai",
         "dim-cn-oauth" | "dim-global-oauth" => "dim_user_oauth",
         "nous-portal-oauth" => "nous_portal_oauth",
+        "quick-oauth" => "quick_oauth",
         "together-openai" => "together",
         "openrouter-openai" => "openrouter",
         "poe-openai" => "poe",
@@ -227,6 +229,7 @@ pub fn default_protocol_family_for_profile(profile: &str, adapter: &str) -> Stri
     match canonicalize_protocol_profile_key(profile).as_str() {
         "dim_user_oauth_chat" => OPENAI_CHAT_FAMILY.to_string(),
         "nous_portal_oauth" => OPENAI_CHAT_FAMILY.to_string(),
+        "quick_oauth" => OPENAI_CHAT_FAMILY.to_string(),
         "dim_user_oauth_responses" => OPENAI_RESPONSES_FAMILY.to_string(),
         "dim_user_oauth_messages" => "anthropic_messages".to_string(),
         "dim_user_oauth_gemini" => GEMINI_GENERATE_CONTENT_FAMILY.to_string(),

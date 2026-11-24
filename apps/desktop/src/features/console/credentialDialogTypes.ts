@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { AccountDiscovery, DiscoverAccount } from "./accountDiscovery";
+import type { AccountDiscovery, DiscoverAccount, DiscoverAccountModels } from "./accountDiscovery";
 import type { DiscoverChatgptModels } from "./chatgptModelCatalog";
 import type { DiscoverProviderModels, OfficialModelCatalog, CatalogProviderKind } from "./officialModelCatalog";
 import type { BedrockMaterial } from "./bedrockMaterial";
@@ -48,6 +48,7 @@ export type CredentialDialogProviderOption = {
 };
 
 export type CredentialDialogProps = {
+  lumaInferenceProvider?: (providerId: string) => Record<string, unknown> | undefined;
   modelPolicy?: (providerId: string) => import("./providerModelId").ModelIdPolicy | undefined;
   sapProvider?: (providerId: string) => Record<string, unknown> | undefined;
   lumaAgentsProvider?: (providerId: string) => Record<string, unknown> | undefined;
@@ -78,6 +79,7 @@ export type CredentialDialogProps = {
   manualAuthentication?: (providerId: string) => { oauthLabel: string; manualLabel: string; secretLabel: string; note: string } | undefined;
   discoveryProvider?: (providerId: string) => { baseUrl: string } | null;
   onDiscover?: DiscoverAccount;
+  onDiscoverAccountModels?: DiscoverAccountModels;
   onDiscoverChatgptModels?: DiscoverChatgptModels;
   onDiscoverProviderModels?: DiscoverProviderModels;
   catalogProviderKind?: (providerId: string) => CatalogProviderKind | undefined;

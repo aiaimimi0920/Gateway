@@ -107,6 +107,23 @@ it("never treats generic protocol discovery as a directory-only fetch", () => {
   expect(onDiscover).not.toHaveBeenCalled();
 });
 
+it("fetches a custom account directory without protocol calls and preserves manual models", async () => {
+  const onDiscover = vi.fn();
+  const onDiscoverAccountModels = vi.fn().mockResolvedValue({ models: ["catalog-model"] });
+  const { props } = setup({ catalogProviderKind: () => undefined,
+    discoveryProvider: () => ({ baseUrl: "https://fixture.test" }), onDiscover, onDiscoverAccountModels,
+    mode: "edit", initialValue: { providerId: "custom", credentialId: "account", accountName: "",
+      baseUrl: "", enabled: true, apiKeyOperation: "keep", apiKeyValue: "", supportedModelsText: "manual" } });
+  fireEvent.click(screen.getByRole("button", { name: "拉取模型" }));
+  await waitFor(() => expect(screen.getByLabelText("拉取模型列表")).toHaveValue("catalog-model"));
+  expect(screen.getByLabelText("手动模型列表")).toHaveValue("manual");
+  expect(onDiscoverAccountModels).toHaveBeenCalledWith({ credentialId: "account" }, expect.any(AbortSignal));
+  expect(onDiscover).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ supportedModelsText: "manual\ncatalog-model" }));
+  expect(vi.mocked(props.onSubmit).mock.calls[0][0].discovery).toBeUndefined();
+});
+
 it("fences late directory responses after closing and clears sources on reopen", async () => {
   let resolve!: (value: typeof catalog) => void;
   const { props, view } = setup({

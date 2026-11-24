@@ -67,6 +67,7 @@ pub(super) fn validate_declaration(p: &ProviderConfigYaml) -> anyhow::Result<()>
                 && c.model_catalog.is_none()
                 && c.grok_oauth.is_none()
                 && c.kiro_oauth.is_none()
+                && c.quick_oauth.is_none()
                 && c.vertex_oauth.is_none()
                 && c.dim_oauth.is_none()
                 && c.nous_portal.is_none()

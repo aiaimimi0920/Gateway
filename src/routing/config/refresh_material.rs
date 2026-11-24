@@ -19,6 +19,7 @@ pub(super) struct RefreshMaterial {
     pub api_key_override: Option<String>,
     pub grok_oauth: Option<AuthorizationContext>,
     pub kiro_oauth: Option<crate::protocol::kiro_oauth::AuthorizationContext>,
+    pub quick_oauth: Option<crate::protocol::quick_oauth::AuthorizationContext>,
     pub vertex_oauth: Option<crate::protocol::vertex_oauth::AuthorizationContext>,
     pub dim_oauth: Option<crate::protocol::dim_oauth::AuthorizationContext>,
     pub nous_portal: Option<crate::protocol::nous_portal::AuthorizationContext>,
@@ -95,6 +96,9 @@ impl RefreshAuthorization {
         } else if let Some(context) = &cred.kiro_oauth {
             context.validate().ok()?;
             (context.token_endpoint(), context.client_id().to_owned())
+        } else if let Some(context) = &cred.quick_oauth {
+            context.validate().ok()?;
+            (context.token_endpoint(), context.client_id().to_owned())
         } else {
             (
                 cred.refresh_endpoint
@@ -121,6 +125,7 @@ impl RefreshAuthorization {
                 api_key_override: cred.lobsterai.as_ref().and(cred.api_key.clone()),
                 grok_oauth: cred.grok_oauth.clone(),
                 kiro_oauth: cred.kiro_oauth.clone(),
+                quick_oauth: cred.quick_oauth.clone(),
                 vertex_oauth: cred.vertex_oauth.clone(),
                 dim_oauth: cred.dim_oauth.clone(),
                 nous_portal: cred.nous_portal.clone(),

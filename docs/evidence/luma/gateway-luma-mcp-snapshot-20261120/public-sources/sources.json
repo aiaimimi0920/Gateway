@@ -1,0 +1,34 @@
+[
+  {
+    "file": "plugin-tree.json",
+    "url": "https://api.github.com/repos/lumalabs/luma-plugins/git/trees/e02d83de796d56525ef64376fd812b1f2cce036b?recursive=1",
+    "fetchedAt": "2026-11-19T22:58:15.368237+00:00",
+    "status": 200,
+    "bytes": 2876,
+    "sha256": "2916705d0235ba3f8df80bb41acc55aa0a93b1d546f0a6b866d4a5a9dc01ba43"
+  },
+  {
+    "file": "plugin-readme.md",
+    "url": "https://raw.githubusercontent.com/lumalabs/luma-plugins/e02d83de796d56525ef64376fd812b1f2cce036b/luma/README.md",
+    "fetchedAt": "2026-11-19T22:58:16.471216+00:00",
+    "status": 200,
+    "bytes": 2093,
+    "sha256": "a800a4b22a45e2cf8ef5c97835398355f49cf32576c4439a8a3427e439556df7"
+  },
+  {
+    "file": "plugin-mcp.json",
+    "url": "https://raw.githubusercontent.com/lumalabs/luma-plugins/e02d83de796d56525ef64376fd812b1f2cce036b/luma/.mcp.json",
+    "fetchedAt": "2026-11-19T22:58:17.610135+00:00",
+    "status": 200,
+    "bytes": 138,
+    "sha256": "d61c21e5ec46b699b4fa37037882b94f08a1675c7c30398c1c7495b630797b46"
+  },
+  {
+    "file": "plugin-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/lumalabs/luma-plugins/e02d83de796d56525ef64376fd812b1f2cce036b/luma/LICENSE",
+    "fetchedAt": "2026-11-19T23:07:25.684664+00:00",
+    "status": 200,
+    "bytes": 423,
+    "sha256": "f716be0c946e936d857452a4a3ebb94d4118d8c9bbf5994de63169c928f988b4"
+  }
+]

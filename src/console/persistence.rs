@@ -6,6 +6,7 @@ mod file_io;
 mod first_save;
 mod local_active;
 mod luma_registration;
+mod luma_web_session;
 mod paths;
 mod platform;
 mod records;

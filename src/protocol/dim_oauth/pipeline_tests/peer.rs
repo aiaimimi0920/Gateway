@@ -15,6 +15,7 @@ struct Reply {
     calls: Arc<Mutex<Calls>>,
     closed: Arc<AtomicUsize>,
     raw: Option<Vec<u8>>,
+    followup: Option<Vec<u8>>,
 }
 pub(super) struct Peer {
     pub origin: String,
@@ -24,10 +25,14 @@ pub(super) struct Peer {
 }
 impl Peer {
     pub async fn new(family: &'static str, tools: bool, hold: bool, status: u16) -> Self {
-        Self::serve(family, tools, hold, status, None).await
+        Self::serve(family, tools, hold, status, None, None).await
     }
     pub async fn raw(bytes: Vec<u8>) -> Self {
-        Self::serve("gemini", false, false, 200, Some(bytes)).await
+        Self::serve("gemini", false, false, 200, Some(bytes), None).await
+    }
+    #[allow(dead_code)] // Shared fixture: not every provider suite needs a second reply.
+    pub async fn raw_then(first: Vec<u8>, followup: Vec<u8>) -> Self {
+        Self::serve("chat", false, false, 200, Some(first), Some(followup)).await
     }
     async fn serve(
         family: &'static str,
@@ -35,6 +40,7 @@ impl Peer {
         hold: bool,
         status: u16,
         raw: Option<Vec<u8>>,
+        followup: Option<Vec<u8>>,
     ) -> Self {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -48,6 +54,7 @@ impl Peer {
             calls: calls.clone(),
             closed: closed.clone(),
             raw,
+            followup,
         });
         let task = Some(tokio::spawn(async move {
             axum::serve(listener, app).await.unwrap()
@@ -119,7 +126,7 @@ async fn handler(State(reply): State<Reply>, request: Request<Body>) -> Response
         ));
         calls.len() == 1
     };
-    let bytes = if let Some(raw) = reply.raw {
+    let bytes = if let Some(raw) = (if first { None } else { reply.followup }).or(reply.raw) {
         raw
     } else if reply.status == 200 {
         native::reply(reply.family, reply.tools && first, stream, !reply.hold)

@@ -74,9 +74,7 @@ pub(super) async fn discover(
             .await
             .map_err(|_| super::DiscoveryFailure::Catalogue)?
     } else {
-        catalogue::load(&client, url, key)
-            .await
-            .map_err(|_| super::DiscoveryFailure::Catalogue)?
+        catalogue::load(&client, url, key).await?
     };
     let candidates = if is_openrouter {
         vec![DiscoveredProtocol::ChatCompletions]
@@ -156,13 +154,38 @@ async fn probe_protocol(
                         let status = response.status().as_u16();
                         attempt.http_status = Some(status);
                         attempt.status = match status {
-                            401 | 403 => "authentication_required",
+                            401 => "authentication_required",
+                            403 => "access_denied",
                             404 | 405 => "not_found",
                             429 => "rate_limited",
                             200..=299 => "invalid_response",
                             _ => "rejected",
                         }
                         .into();
+                        if status == 403 {
+                            match super::failure::rejected(response).await {
+                                super::DiscoveryFailure::CatalogueHttp {
+                                    client_restricted: true,
+                                    ..
+                                } => {
+                                    attempt.status = "client_restricted".into();
+                                    *report.attempts.last_mut().unwrap() = attempt;
+                                    return None;
+                                }
+                                super::DiscoveryFailure::CatalogueHttp {
+                                    site_blocked: true,
+                                    ..
+                                } => {
+                                    attempt.status = "site_access_denied".into();
+                                    *report.attempts.last_mut().unwrap() = attempt;
+                                    return None;
+                                }
+                                _ => {
+                                    *report.attempts.last_mut().unwrap() = attempt;
+                                    continue;
+                                }
+                            }
+                        }
                         if (200..300).contains(&status) {
                             match read_json(response).await {
                                 Ok(body) if registry::has_reply(protocol, &body) => {

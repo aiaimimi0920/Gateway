@@ -106,12 +106,16 @@ impl UpstreamClient {
                 }
             }
         }
-        let builder = connection
-            .session_client(self.timeout)
+        let (http, generation) = connection.session_client(self.timeout);
+        let builder = http
             .get("https://chatgpt.com/backend-api/wham/settings/user")
             .headers(headers)
             .timeout(std::time::Duration::from_secs(10));
-        let response = self.send_native_session(builder, payload, scope).await?;
+        let response = self.send_native_session(builder, payload, scope).await;
+        if let Err(error) = &response {
+            connection.recover_after_send(generation, error);
+        }
+        let response = response?;
         let status = response.status().as_u16();
         let mut stream = response.bytes_stream();
         let mut body = Vec::new();

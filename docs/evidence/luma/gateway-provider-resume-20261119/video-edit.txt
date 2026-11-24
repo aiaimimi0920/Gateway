@@ -1,0 +1,1272 @@
+Video editing | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Menu
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Getting started
+Quickstart
+Models
+Videos
+Overview
+Migration guide
+Generation
+Editing
+Reframing
+Images
+Overview
+Generation
+Editing
+Layering
+Prompting guide
+Files
+Overview
+Deletion
+Generation deletion
+LLM Inference
+LLM Inference
+Reference
+Pricing
+Usage and credits
+Rate limits and headers
+Error handling
+FAQ
+Changelog
+Auto
+Light
+Dark
+lumalabs.ai
+On this page
+Overview
+When to use video editing
+Basic request
+Referencing the source video
+Edit controls — video.edit
+auto_controls
+strength
+controls — per-signal conditioning
+Keyframes — the control surface for edits
+Multiple keyframes — video.edit.keyframes (recommended)
+Single guide frame — video.start_frame
+HDR on edits
+Aspect ratio on edits
+Validation rules
+Response
+Pricing
+Next steps
+On this page
+Overview
+When to use video editing
+Basic request
+Referencing the source video
+Edit controls — video.edit
+auto_controls
+strength
+controls — per-signal conditioning
+Keyframes — the control surface for edits
+Multiple keyframes — video.edit.keyframes (recommended)
+Single guide frame — video.start_frame
+HDR on edits
+Aspect ratio on edits
+Validation rules
+Response
+Pricing
+Next steps
+Videos
+Editing
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+Video editing
+Edit existing videos with Ray 3.2 — source.generation_id, source URLs and inline video, strength, auto-controls, per-signal conditioning controls, and single- or multi-keyframe guide frames.
+Modify existing videos with natural-language prompts using
+ray-3.2
+. This guide covers every parameter for
+type: "video_edit"
+requests. For generating new videos from text or anchor images, see
+Video generation
+.
+Info
+A video edit re-renders a previous video generation under a new prompt. Output
+settings like
+resolution
+and
+duration
+live under
+video
+; the conditioning
+that controls how much the edit preserves the source lives under
+video.edit
+.
+Tip
+Keyframes are the secret to a great edit.
+Ray 3.2’s video-to-video model
+is at its strongest when you pin the look you want at specific moments and let
+it carry that intent across the clip. The prompt sets overall direction;
+keyframes
+(
+video.edit.keyframes
+) steer it precisely — locking
+composition, characters, and styling at the frames that matter. For anything
+beyond a quick restyle, reach for
+keyframes
+first. The
+Luma
+Playground
+is a useful reference UI
+for seeing how keyframes shape an edit before you wire them into the API.
+When to use video editing
+Section titled “When to use video editing”
+Scenario
+Use
+Why
+Restyle an existing video while preserving its motion
+video_edit
+with
+source.generation_id
+Re-renders the source under a new prompt
+Edit a local/private video file
+video_edit
+with
+source.url
+or
+source.data
+(+
+source.media_type
+)
+References a hosted video URL or uploads inline base64 video when you do not have a prior generation
+Precisely direct how the edit evolves over the clip
+video_edit
+with
+video.edit.keyframes
++
+keyframe_indexes
+Pin guide images at chosen source-frame positions — the strongest lever on Ray 3.2 edit quality.
+See below
+Generate a new video that opens from an anchor image
+video
++
+video.start_frame
+This is not an edit — it’s a generation seeded by an image. See
+Video generation
+Basic request
+Section titled “Basic request”
+auto_controls: true
+lets the model derive the conditioning schedule from the source video — the recommended default. Reference a previous video by passing that completed generation’s top-level
+id
+as
+source.generation_id
+.
+Python
+TypeScript
+Go
+cURL
+from
+luma_agents
+import
+Luma
+client
+=
+Luma()
+# The source is a previous completed video generation.
+previous
+=
+client.generations.get(
+"generation-id"
+)
+generation
+=
+client.generations.create(
+model
+=
+"ray-3.2"
+,
+type
+=
+"video_edit"
+,
+prompt
+=
+"Transform the scene into moonlit 35mm film footage"
+,
+source
+=
+{
+"generation_id"
+: previous.id},
+video
+=
+{
+"resolution"
+:
+"720p"
+,
+"edit"
+: {
+"auto_controls"
+:
+True
+,
+},
+},
+)
+import
+Luma
+from
+"luma-agents"
+;
+const
+client
+=
+new
+Luma
+();
+// The source is a previous completed video generation.
+const
+previous
+=
+await
+client.generations.
+get
+(
+"generation-id"
+);
+const
+generation
+=
+await
+client.generations.
+create
+({
+model:
+"ray-3.2"
+,
+type:
+"video_edit"
+,
+prompt:
+"Transform the scene into moonlit 35mm film footage"
+,
+source: { generation_id: previous.id },
+video: {
+resolution:
+"720p"
+,
+edit: {
+auto_controls:
+true
+,
+},
+},
+});
+// The source is a previous completed video generation.
+previous, err
+:=
+client.Generations.
+Get
+(ctx,
+"generation-id"
+)
+if
+err
+!=
+nil
+{
+return
+err
+}
+generation, err
+:=
+client.Generations.
+New
+(ctx,
+lumaagents
+.
+GenerationNewParams
+{
+Model:         lumaagents.
+F
+(lumaagents.ModelRay3_2),
+Type:          lumaagents.
+F
+(lumaagents.GenerationNewParamsTypeVideoEdit),
+Prompt:        lumaagents.
+F
+(
+"Transform the scene into moonlit 35mm film footage"
+),
+Source: lumaagents.
+F
+(
+lumaagents
+.
+ImageRefParam
+{
+GenerationID: lumaagents.
+F
+(previous.ID),
+}),
+Video: lumaagents.
+F
+(
+lumaagents
+.
+VideoOptionsParam
+{
+Resolution: lumaagents.
+F
+(lumaagents.VideoResolution720p),
+Edit: lumaagents.
+F
+(
+lumaagents
+.
+VideoEditOptionsParam
+{
+AutoControls: lumaagents.
+F
+(
+true
+),
+}),
+}),
+})
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/generations
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"model": "ray-3.2",
+"type": "video_edit",
+"prompt": "Transform the scene into moonlit 35mm film footage",
+"source": { "generation_id": "d290f1ee-6c54-4b01-90e6-d701748f0851" },
+"video": {
+"resolution": "720p",
+"edit": {
+"auto_controls": true
+}
+}
+}'
+Referencing the source video
+Section titled “Referencing the source video”
+A
+video_edit
+request needs exactly one source video. Provide it three ways:
+1. A prior Luma generation
+— pass the completed generation’s top-level
+id
+as
+source.generation_id
+. It must be completed, belong to the same client, and have a video output:
+{
+"source"
+: {
+"generation_id"
+:
+"d290f1ee-6c54-4b01-90e6-d701748f0851"
+}
+}
+2. A hosted video URL
+— pass a publicly reachable URL as
+source.url
+, with a
+video/*
+source.media_type
+such as
+"video/mp4"
+:
+{
+"source"
+: {
+"url"
+:
+"https://example.com/source.mp4"
+,
+"media_type"
+:
+"video/mp4"
+}
+}
+3. Inline base64 video
+— pass the encoded bytes as
+source.data
+, with a
+video/*
+source.media_type
+:
+{
+"source"
+: {
+"data"
+:
+"AAAAIGZ0eXBtcDQy..."
+,
+"media_type"
+:
+"video/mp4"
+}
+}
+4. An uploaded file
+— a video uploaded via the
+Files API
+, referenced by its
+file_id
+(the MIME type is recorded at upload, so no
+source.media_type
+is needed):
+{
+"source"
+: {
+"file_id"
+:
+"a1b2c3d4-e5f6-7890-abcd-ef0123456789"
+}
+}
+Note
+source.url
+and
+source.data
+both require a
+video/*
+source.media_type
+(such as
+"video/mp4"
+) — the route uses the MIME prefix to choose the video
+ingest path before fetching any bytes, so a missing or non-
+video/*
+value is
+rejected. Source videos must be 18 seconds or shorter.
+Tip
+Use inline
+source.data
+only for small media files. For anything larger,
+reference a prior
+source.generation_id
+or host the file and pass
+source.url
+instead of inlining.
+image_ref
+is rejected on
+type: "video_edit"
+; guide the edit through the prompt, optional
+video.start_frame
+, and
+video.edit
+.
+Edit controls —
+video.edit
+Section titled “Edit controls — video.edit”
+The
+video.edit
+object carries the video-to-video conditioning. It has three conditioning fields —
+strength
+,
+auto_controls
+, and
+controls
+— plus two multi-keyframe anchoring fields,
+keyframes
+and
+keyframe_indexes
+(see
+Keyframes — the control surface for edits
+below).
+auto_controls
+Section titled “auto_controls”
+Boolean. When
+true
+, the model derives the full conditioning schedule from the source video — the recommended default. When omitted, supplying
+strength
+or
+controls
+implies manual mode.
+Tip
+Start with
+auto_controls: true
+. Reach for
+strength
+or
+controls
+only when
+you need finer control than auto mode gives you.
+controls
+cannot be combined
+with
+auto_controls: true
+.
+strength
+Section titled “strength”
+A preservation-vs-reimagination preset (
+VideoEditStrength
+). Nine values across three bands; lower numbers within each band are lighter, higher numbers stronger. Supplying
+strength
+implies manual mode unless
+auto_controls
+is explicitly set.
+Wire value
+Band
+Behaviour
+adhere_1
+Adhere
+Closely preserves source motion, composition, and structure
+adhere_2
+Adhere
+adhere_3
+Adhere
+Strongest adherence in the band
+flex_1
+Flex
+Balanced — preserves motion, lets the prompt reshape style and content
+flex_2
+Flex
+Common default for most edits
+flex_3
+Flex
+reimagine_1
+Reimagine
+The prompt drives most of the output; source provides loose grounding
+reimagine_2
+Reimagine
+reimagine_3
+Reimagine
+Strongest reimagining
+{
+"video"
+: {
+"edit"
+: {
+"strength"
+:
+"flex_2"
+} } }
+controls
+— per-signal conditioning
+Section titled “controls — per-signal conditioning”
+For workflows that need finer control than
+strength
+, set
+video.edit.controls
+with per-signal objects. Each control has an
+enabled
+flag plus its own tuning parameter; omit a field to use the model default.
+controls
+cannot be combined with
+auto_controls: true
+.
+Control
+Fields
+Notes
+pose
+enabled
+(boolean),
+strength
+(
+precise
+/
+coarse
+)
+Pose / skeleton conditioning
+depth
+enabled
+(boolean),
+blur
+(float 0–1)
+Depth / scene-geometry conditioning. Higher
+blur
+allows more geometric freedom
+normals
+enabled
+(boolean),
+augmentation
+(float 0–1)
+Surface-normals conditioning. Higher
+augmentation
+allows more reinterpretation of surface geometry
+trajectory
+enabled
+(boolean),
+sparsity
+(float 0–1)
+Motion-trajectory conditioning. Higher
+sparsity
+uses fewer motion anchors
+face
+enabled
+(boolean)
+Face-identity conditioning
+Python
+TypeScript
+Go
+cURL
+generation
+=
+client.generations.create(
+model
+=
+"ray-3.2"
+,
+type
+=
+"video_edit"
+,
+prompt
+=
+"Transform the scene into moonlit 35mm film footage"
+,
+source
+=
+{
+"generation_id"
+:
+"d290f1ee-6c54-4b01-90e6-d701748f0851"
+},
+video
+=
+{
+"resolution"
+:
+"720p"
+,
+"edit"
+: {
+"controls"
+: {
+"pose"
+: {
+"enabled"
+:
+True
+,
+"strength"
+:
+"precise"
+},
+"depth"
+: {
+"enabled"
+:
+True
+,
+"blur"
+:
+0.2
+},
+"face"
+: {
+"enabled"
+:
+True
+},
+},
+},
+},
+)
+const
+generation
+=
+await
+client.generations.
+create
+({
+model:
+"ray-3.2"
+,
+type:
+"video_edit"
+,
+prompt:
+"Transform the scene into moonlit 35mm film footage"
+,
+source: { generation_id:
+"d290f1ee-6c54-4b01-90e6-d701748f0851"
+},
+video: {
+resolution:
+"720p"
+,
+edit: {
+controls: {
+pose: { enabled:
+true
+, strength:
+"precise"
+},
+depth: { enabled:
+true
+, blur:
+0.2
+},
+face: { enabled:
+true
+},
+},
+},
+},
+});
+generation, err
+:=
+client.Generations.
+New
+(ctx,
+lumaagents
+.
+GenerationNewParams
+{
+Model:         lumaagents.
+F
+(lumaagents.ModelRay3_2),
+Type:          lumaagents.
+F
+(lumaagents.GenerationNewParamsTypeVideoEdit),
+Prompt:        lumaagents.
+F
+(
+"Transform the scene into moonlit 35mm film footage"
+),
+Source: lumaagents.
+F
+(
+lumaagents
+.
+ImageRefParam
+{
+GenerationID: lumaagents.
+F
+(
+"d290f1ee-6c54-4b01-90e6-d701748f0851"
+),
+}),
+Video: lumaagents.
+F
+(
+lumaagents
+.
+VideoOptionsParam
+{
+Resolution: lumaagents.
+F
+(lumaagents.VideoResolution720p),
+Edit: lumaagents.
+F
+(
+lumaagents
+.
+VideoEditOptionsParam
+{
+Controls: lumaagents.
+F
+(
+lumaagents
+.
+AdvancedControlsParam
+{
+Pose:  lumaagents.
+F
+(
+lumaagents
+.
+PoseControlParam
+{Enabled: lumaagents.
+F
+(
+true
+), Strength: lumaagents.
+F
+(lumaagents.PoseControlStrengthPrecise)}),
+Depth: lumaagents.
+F
+(
+lumaagents
+.
+DepthControlParam
+{Enabled: lumaagents.
+F
+(
+true
+), Blur: lumaagents.
+F
+(
+0.2
+)}),
+Face:  lumaagents.
+F
+(
+lumaagents
+.
+FaceControlParam
+{Enabled: lumaagents.
+F
+(
+true
+)}),
+}),
+}),
+}),
+})
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/generations
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"model": "ray-3.2",
+"type": "video_edit",
+"prompt": "Transform the scene into moonlit 35mm film footage",
+"source": { "generation_id": "d290f1ee-6c54-4b01-90e6-d701748f0851" },
+"video": {
+"resolution": "720p",
+"edit": {
+"controls": {
+"pose": {"enabled": true, "strength": "precise"},
+"depth": {"enabled": true, "blur": 0.2},
+"face": {"enabled": true}
+}
+}
+}
+}'
+Keyframes — the control surface for edits
+Section titled “Keyframes — the control surface for edits”
+Prompt and
+video.edit
+controls set the overall character of an edit;
+keyframes are how you direct it precisely.
+This is where Ray 3.2 edits go from “restyled” to exactly what you intended: pin a guide image at a chosen source frame, and the model honors that look at that moment, then interpolates the frames in between. The more intent you pin — the opening beat, a mid-clip moment, the final frame — the more faithfully the edit tracks your vision. For most non-trivial edits, keyframes are the single biggest lever on output quality.
+You can anchor an edit two mutually exclusive ways: a multi-keyframe set (recommended), or a single guide frame.
+Tip
+Keyframing is a complex feature. The
+Luma
+Playground
+is a helpful reference UI
+for exploring how guide frames and their positions affect an edit.
+Multiple keyframes —
+video.edit.keyframes
+(recommended)
+Section titled “Multiple keyframes — video.edit.keyframes (recommended)”
+Pin guide-frame images at arbitrary positions in the source video’s frame grid using two parallel arrays under
+video.edit
+:
+keyframes
+— a list of guide-frame images (up to 64), each taking the same
+ImageRef
+shape as
+source
+/
+image_ref[]
+(a
+url
+, inline
+data
+, a
+generation_id
+, or a
+file_id
+).
+keyframe_indexes
+— a parallel list of non-negative, unique frame positions in the source video’s frame grid where each
+keyframes[i]
+is anchored.
+The two arrays must be the same length, and you provide both or neither — one without the other is a
+400
+. The example below pins three beats across the clip — opening, middle, and close — so the edit holds the look you set at each:
+Python
+TypeScript
+cURL
+generation
+=
+client.generations.create(
+model
+=
+"ray-3.2"
+,
+type
+=
+"video_edit"
+,
+prompt
+=
+"Transform the scene into moonlit 35mm film footage"
+,
+source
+=
+{
+"generation_id"
+:
+"d290f1ee-6c54-4b01-90e6-d701748f0851"
+},
+video
+=
+{
+"resolution"
+:
+"720p"
+,
+"edit"
+: {
+"keyframes"
+: [
+{
+"url"
+:
+"https://example.com/open-moonlit.jpg"
+},
+{
+"url"
+:
+"https://example.com/mid-moonlit.jpg"
+},
+{
+"url"
+:
+"https://example.com/close-moonlit.jpg"
+},
+],
+"keyframe_indexes"
+: [
+0
+,
+45
+,
+90
+],
+},
+},
+)
+const
+generation
+=
+await
+client.generations.
+create
+({
+model:
+"ray-3.2"
+,
+type:
+"video_edit"
+,
+prompt:
+"Transform the scene into moonlit 35mm film footage"
+,
+source: { generation_id:
+"d290f1ee-6c54-4b01-90e6-d701748f0851"
+},
+video: {
+resolution:
+"720p"
+,
+edit: {
+keyframes: [
+{ url:
+"https://example.com/open-moonlit.jpg"
+},
+{ url:
+"https://example.com/mid-moonlit.jpg"
+},
+{ url:
+"https://example.com/close-moonlit.jpg"
+},
+],
+keyframe_indexes: [
+0
+,
+45
+,
+90
+],
+},
+},
+});
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/generations
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"model": "ray-3.2",
+"type": "video_edit",
+"prompt": "Transform the scene into moonlit 35mm film footage",
+"source": { "generation_id": "d290f1ee-6c54-4b01-90e6-d701748f0851" },
+"video": {
+"resolution": "720p",
+"edit": {
+"keyframes": [
+{ "url": "https://example.com/open-moonlit.jpg" },
+{ "url": "https://example.com/mid-moonlit.jpg" },
+{ "url": "https://example.com/close-moonlit.jpg" }
+],
+"keyframe_indexes": [0, 45, 90]
+}
+}
+}'
+Note
+Each
+keyframes[i]
+may be a
+url
+, inline
+data
+, a
+generation_id
+, or a
+file_id
+— the same shape as
+source
+. Indexes are positions
+in the
+source
+video’s frame grid, must be unique, and must stay within the
+source’s length.
+Single guide frame —
+video.start_frame
+Section titled “Single guide frame — video.start_frame”
+For a quick edit anchored only at the first frame,
+video.start_frame
+takes a single guide frame (an
+ImageRef
+). It’s the one-anchor shorthand:
+start_frame: X
+is equivalent to
+keyframes: [X], keyframe_indexes: [0]
+, so the two are mutually exclusive — setting both on the same request is a
+400
+.
+end_frame
+is generation-only and rejected on edits. Reach for the multi-keyframe form above whenever you want control past the opening frame.
+HDR on edits
+Section titled “HDR on edits”
+video.hdr
+and
+video.exr_export
+apply to edits the same way they do to generation.
+Note
+HDR requires
+720p
+or
+1080p
+(not
+540p
+);
+exr_export
+requires
+hdr:   true
+. HDR edits bill at a higher rate.
+Aspect ratio on edits
+Section titled “Aspect ratio on edits”
+The output preserves the source video’s aspect ratio. Setting
+aspect_ratio
+on a
+video_edit
+request is silently ignored — same behaviour as on image edits.
+Validation rules
+Section titled “Validation rules”
+Rule
+Constraint
+model
+Must be
+ray-3.2
+type
+Must be
+"video_edit"
+prompt
+Required, 1–6,000 characters
+source
+Required. Provide exactly one of
+source.generation_id
+,
+source.url
+, or
+source.data
+source.generation_id
+UUID of a prior completed video generation owned by the same client. No upload size limit — references stored media
+source.url
+Publicly reachable video URL. Requires
+source.media_type
+set to a
+video/*
+MIME (e.g.
+"video/mp4"
+). Max 200 MB, ≤18s
+source.data
+Inline base64 video. Requires
+source.media_type
+set to a
+video/*
+MIME. Max 200 MB, ≤18s
+image_ref
+Rejected on
+video_edit
+video.resolution
+One of
+360p
+,
+540p
+,
+720p
+,
+1080p
+, or omitted (defaults
+720p
+).
+360p
+is the draft tier;
+360p
+/
+540p
+rejected with
+hdr: true
+video.loop
+Rejected on
+video_edit
+— create-only
+video.end_frame
+Rejected on
+video_edit
+— generation-only
+video.start_frame
+Optional single guide frame (
+ImageRef
+). Mutually exclusive with
+video.edit.keyframes
+video.edit.strength
+One of the 9
+VideoEditStrength
+values, or omitted
+video.edit.auto_controls
+Boolean. Cannot combine with
+video.edit.controls
+video.edit.controls
+Per-signal objects (
+pose
+,
+depth
+,
+normals
+,
+trajectory
+,
+face
+). Cannot combine with
+auto_controls: true
+video.edit.keyframes
+Up to 64 guide-frame
+ImageRef
+s. Provide with
+keyframe_indexes
+(same length). Mutually exclusive with
+video.start_frame
+video.edit.keyframe_indexes
+Parallel list of non-negative, unique source-frame positions; same length as
+keyframes
+video.hdr
+/
+exr_export
+hdr
+requires
+720p
+/
+1080p
+;
+exr_export
+requires
+hdr: true
+aspect_ratio
+Silently ignored — derived from source
+See
+Error handling
+for the exact
+detail
+strings rejected requests produce.
+Response
+Section titled “Response”
+A successful submit returns HTTP 201 with the same envelope shape used for video generations. Poll
+GET /v1/generations/{id}
+until
+state
+is
+completed
+or
+failed
+. On
+completed
+,
+output[].url
+carries the presigned MP4 URL with a 1-hour expiry. Keep the generation’s top-level
+id
+for any further edits or reframes.
+Pricing
+Section titled “Pricing”
+Ray 3.2 video edits are priced by duration (separate 5s and 10s rates) at the video-edit tier, which differs from the generation tier. See
+Pricing —
+ray-3.2
+per-video pricing
+.
+Next steps
+Section titled “Next steps”
+Video generation
+— Generate new videos from text or anchor images
+Video reframing
+— Reframe an existing video to a new aspect ratio
+Models
+— Capability matrix for every model
+Pricing
+— Per-video pricing for Ray 3.2 video
+Error handling
+— Every error code with troubleshooting steps
+API Reference
+— Complete endpoint specifications
+Previous
+Generation
+Generate videos with Ray 3.2 — text-to-video, image-to-video, multi-keyframe i2v, resolution, duration, looping, and HDR.
+Next
+Reframing
+Reframe existing Ray 3.2 videos to a new aspect ratio with video_reframe.

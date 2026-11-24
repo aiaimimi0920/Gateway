@@ -4,7 +4,19 @@ use crate::routing::smart::{tier, Dimension, Order};
 use sha2::{Digest, Sha256};
 
 pub(crate) fn session_scope(ctx: &PipelineContext) -> Option<String> {
-    let session = ctx.canonical_req.explicit_session_key.as_deref()?.trim();
+    // These labels were bounded and disambiguated at the HTTP trust boundary.
+    // A request ID is not a conversation; never use x-client-request-id here.
+    let session = [
+        "session-id",
+        "session_id",
+        "x-http-session-id",
+        "x-session-id",
+        "x-session-affinity",
+    ]
+    .iter()
+    .find_map(|name| ctx.client_session_hints.get(*name).map(String::as_str))
+    .or(ctx.canonical_req.explicit_session_key.as_deref())?
+    .trim();
     if session.is_empty() {
         return None;
     }
@@ -18,6 +30,19 @@ pub(crate) fn session_scope(ctx: &PipelineContext) -> Option<String> {
         session
     ]);
     Some(format!("{:x}", Sha256::digest(key.to_string().as_bytes())))
+}
+
+pub(crate) fn preferred_account(
+    ctx: &PipelineContext,
+    state: &AppState,
+) -> Option<(String, String)> {
+    state.lifecycle.smart_routing.sticky_account(
+        session_scope(ctx).as_deref(),
+        ctx.canonical_req
+            .requested_model
+            .as_deref()
+            .unwrap_or_default(),
+    )
 }
 
 pub(super) async fn apply(
@@ -64,6 +89,7 @@ pub(super) async fn apply(
         .as_deref()
         .unwrap_or_default();
     let sticky = runtime.sticky(session_scope(ctx).as_deref(), model);
+    let account = preferred_account(ctx, state);
     let now = time::OffsetDateTime::now_utc().unix_timestamp();
     let snapshot = state.route_config.snapshot();
     let mut scored = Vec::new();
@@ -120,7 +146,18 @@ pub(super) async fn apply(
         scored.push((
             index,
             blocked,
-            sticky.as_deref() == Some(&candidate.provider_account_id),
+            if account.as_ref().is_some_and(|(provider, credential)| {
+                provider == &candidate.provider_account_id
+                    && Some(credential.as_str())
+                        == candidate
+                            .provider_credential_id
+                            .as_deref()
+                            .or(candidate.payload.credential_id.as_deref())
+            }) {
+                2u8
+            } else {
+                u8::from(sticky.as_deref() == Some(&candidate.provider_account_id))
+            },
             tier(runtime.score(&candidate.provider_account_id, model)),
             tier(intelligence),
             price,

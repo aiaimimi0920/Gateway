@@ -1,0 +1,14 @@
+test_staged_package_has_deterministic_gateway_layout_and_metadata (test_gateway_package_layout_contract.GatewayPackageLayoutContractTests.test_staged_package_has_deterministic_gateway_layout_and_metadata) ... FAIL
+
+======================================================================
+FAIL: test_staged_package_has_deterministic_gateway_layout_and_metadata (test_gateway_package_layout_contract.GatewayPackageLayoutContractTests.test_staged_package_has_deterministic_gateway_layout_and_metadata)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\tests\python\test_gateway_package_layout_contract.py", line 65, in test_staged_package_has_deterministic_gateway_layout_and_metadata
+    self.assertTrue(required_files.issubset(actual_files), required_files - actual_files)
+AssertionError: False is not true : {'deploy/postgres/initdb/004-gateway-key-cash.sql', 'deploy/postgres/initdb/005-gateway-refresh-authority.sql', 'deploy/postgres/initdb/006-gateway-luma-mcp-creation.sql'}
+
+----------------------------------------------------------------------
+Ran 1 test in 6.306s
+
+FAILED (failures=1)

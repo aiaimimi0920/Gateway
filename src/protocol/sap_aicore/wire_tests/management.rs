@@ -111,6 +111,10 @@ async fn binding() {
             "/document/providers/0/base_url",
             json!(super::super::test_support::BASE.replace("deployment1", "deployment2")),
         ),
+        (
+            "/document/providers/0/base_url",
+            json!(super::super::test_support::azure_base()),
+        ),
         ("/document/providers/0/preset", json!("openai")),
     ] {
         let mut body = original.clone();

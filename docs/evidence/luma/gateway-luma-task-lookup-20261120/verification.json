@@ -1,0 +1,363 @@
+{
+  "recordedAt": "2026-11-19T22:05:02.887434+00:00",
+  "status": "passed within stated local scope",
+  "scope": "Luma Agents explicit single-task state/charge lookup and operations audit facts",
+  "behavior": [
+    "One upstream GET per explicit lookup; no generation, retry, asset download or polling",
+    "Saved enabled account, management grant/origin and revision binding",
+    "Unknown credits remain null; zero and positive actual charges stay distinct",
+    "Historical audit and local balance are not rewritten; supplier completion and local media verification stay separate",
+    "Account/scope change, close and stop fence late frontend results"
+  ],
+  "backend": {
+    "passed": 123,
+    "failed": 0,
+    "ignored": 2,
+    "newTaskLookupPassed": 6,
+    "boundary": "Synthetic transport and real management router in isolated LocalRuntime; no real supplier account",
+    "ignoredReason": "Files and media-probe browser hosts require separate explicit fixture launches"
+  },
+  "frontend": {
+    "passed": 32,
+    "files": 4,
+    "normalMainBuild": "passed",
+    "typecheck": "passed"
+  },
+  "browser": {
+    "status": "passed",
+    "scope": "synthetic component preview only; Rust management transport tested separately",
+    "explicitQueries": 3,
+    "credits": [
+      null,
+      0,
+      12.5
+    ],
+    "viewports": [
+      "1440x1000",
+      "390x844"
+    ],
+    "closeReopenClears": true,
+    "browserClosed": true,
+    "externalRequests": 0,
+    "pageErrors": 0,
+    "visualReview": "Final screenshots inspected; preview fixture CSS imports corrected before final capture"
+  },
+  "productionCheck": "passed",
+  "featureOffCheck": "passed",
+  "staticChecks": {
+    "formatter": "passed",
+    "checkerTestsPassed": 31,
+    "effectiveLineRatchet": "passed",
+    "maxScopedEffectiveLines": 489,
+    "newQueryTestEffectiveLines": 273,
+    "baselineChanged": false,
+    "nodeSyntax": "passed",
+    "gitDiffWhitespace": "passed"
+  },
+  "source": {
+    "snapshot": "source-verified.json",
+    "fileCount": 20,
+    "allMatchFinalSnapshot": true,
+    "utf8NoBom": true,
+    "boundary": "Scoped hashes only, not a whole-tree freeze; inherited dirty work retained"
+  },
+  "publicContract": {
+    "url": "https://docs.agents.lumalabs.ai/guides/usage/",
+    "status": 200,
+    "sources": "public-contracts/sources.json",
+    "failedProbe": "An unconfirmed retrieve-document URL returned 404 and was not used as contract evidence"
+  },
+  "resources": {
+    "receipt": "resource-preview-final.json",
+    "previewPortsClosed": [
+      4452,
+      4453
+    ],
+    "scopedBrowserResiduals": 0
+  },
+  "commands": {
+    "rust-agents": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_agents",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:37:58.563327+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 1122.02,
+      "receipt": "rust-agents/result.json",
+      "log": "rust-agents/command.log"
+    },
+    "production-check": {
+      "args": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:56:41.193228+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 107.97,
+      "receipt": "production-check/result.json",
+      "log": "production-check/command.log"
+    },
+    "feature-off": {
+      "args": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "-j",
+        "4"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:58:29.262354+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 101.16,
+      "receipt": "feature-off/result.json",
+      "log": "feature-off/command.log"
+    },
+    "frontend-final": {
+      "args": [
+        "npm.cmd",
+        "--prefix",
+        "apps/desktop",
+        "run",
+        "test",
+        "--",
+        "run",
+        "src/features/console/LumaTaskPanel.test.tsx",
+        "src/features/console/OperationsLumaTask.test.tsx",
+        "src/features/console/ConsoleGlobalDialogs.luma-agents.test.tsx",
+        "src/features/console/OperationsRequestAttribution.test.tsx",
+        "--maxWorkers=1"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:44:57.106157+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 21.14,
+      "receipt": "frontend-final/result.json",
+      "log": "frontend-final/command.log"
+    },
+    "typecheck-final": {
+      "args": [
+        "node",
+        "apps/desktop/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "-p",
+        "apps/desktop/tsconfig.json"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:44:57.110165+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 30.81,
+      "receipt": "typecheck-final/result.json",
+      "log": "typecheck-final/command.log"
+    },
+    "typecheck-preview-final": {
+      "args": [
+        "node",
+        "apps/desktop/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "-p",
+        "apps/desktop/tsconfig.json"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:51:45.538460+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 30.89,
+      "receipt": "typecheck-preview-final/result.json",
+      "log": "typecheck-preview-final/command.log"
+    },
+    "main-build-final": {
+      "args": [
+        "node",
+        "tools/luma/build-ui.mjs",
+        "--output",
+        "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-task-lookup-20261120/main-web-final"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:44:57.133461+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 2.53,
+      "receipt": "main-build-final/result.json",
+      "log": "main-build-final/command.log"
+    },
+    "checker-tests": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "test:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:46:28.966674+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 1.92,
+      "receipt": "checker-tests/result.json",
+      "log": "checker-tests/command.log"
+    },
+    "ratchet-final": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "check:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T22:02:32.652693+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 12.67,
+      "receipt": "ratchet-final/result.json",
+      "log": "ratchet-final/command.log"
+    },
+    "formatter": {
+      "args": [
+        "rustfmt",
+        "--check",
+        "--edition",
+        "2021",
+        "--config",
+        "skip_children=true",
+        "src/upstream/luma_agents.rs",
+        "src/upstream/luma_agents/generation.rs",
+        "src/upstream/luma_agents/task_lookup.rs",
+        "src/upstream/luma_agents/task_lookup_tests.rs",
+        "src/http/routes/internal_console.rs",
+        "src/http/routes/internal_console/luma_tasks.rs",
+        "src/http/router/management_config.rs"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:51:18.577337+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 0.34,
+      "receipt": "formatter/result.json",
+      "log": "formatter/command.log"
+    },
+    "node-syntax-final": {
+      "args": [
+        "node",
+        "--check",
+        "tools/luma/task-preview-check.mjs"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T22:02:32.233983+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 0.61,
+      "receipt": "node-syntax-final/result.json",
+      "log": "node-syntax-final/command.log"
+    },
+    "diff-check-final": {
+      "args": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T22:02:32.291514+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 0.94,
+      "receipt": "diff-check-final/result.json",
+      "log": "diff-check-final/command.log"
+    },
+    "preview-browser-run-final": {
+      "args": [
+        "node",
+        "tools/luma/task-preview-check.mjs",
+        "--origin",
+        "http://127.0.0.1:4453",
+        "--output",
+        "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-task-lookup-20261120/preview-browser-final"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:48:02.073607+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 9.36,
+      "receipt": "preview-browser-run-final/result.json",
+      "log": "preview-browser-run-final/command.log"
+    },
+    "preview-host": {
+      "args": [
+        "node",
+        "tools/luma/build-ui.mjs",
+        "--preview",
+        "--output",
+        "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-task-lookup-20261120/preview",
+        "--port",
+        "4452",
+        "--lifetime-seconds",
+        "300"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:43:03.968384+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 301.48,
+      "receipt": "preview-host/result.json",
+      "log": "preview-host/command.log"
+    },
+    "preview-host-v2": {
+      "args": [
+        "node",
+        "tools/luma/build-ui.mjs",
+        "--preview",
+        "--output",
+        "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-task-lookup-20261120/preview-v2",
+        "--port",
+        "4453",
+        "--lifetime-seconds",
+        "120"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-19T21:47:51.468558+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 121.31,
+      "receipt": "preview-host-v2/result.json",
+      "log": "preview-host-v2/command.log"
+    }
+  },
+  "notVerified": [
+    "Normal main-to-management-TCP browser integration for this new lookup",
+    "Real supplier business, credentials, entitlement or billing",
+    "New native EXE or package",
+    "Automatic reconciliation, audit backfill, crash/cross-process recovery and cash settlement",
+    "MCP creative flow and current Web protocol"
+  ],
+  "persistentEntrypoints": [
+    "tools/luma/task-preview-check.mjs",
+    "tools/luma/run-check.py",
+    "tools/luma/build-ui.mjs",
+    "apps/desktop/e2e/fixtures/luma-task-preview.tsx",
+    "src/upstream/luma_agents/task_lookup_tests.rs",
+    "apps/desktop/src/features/console/LumaTaskPanel.test.tsx",
+    "apps/desktop/src/features/console/OperationsLumaTask.test.tsx"
+  ],
+  "delivery": {
+    "committed": false,
+    "pushed": false,
+    "realInstanceModified": false,
+    "runtimeDataArchived": false
+  }
+}

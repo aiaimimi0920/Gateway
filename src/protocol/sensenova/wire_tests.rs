@@ -9,10 +9,16 @@ use serde_json::{json, Value};
 use std::{sync::Arc, time::Duration};
 use tower::ServiceExt;
 mod boundaries;
+mod chat_images;
+mod chat_media_admission;
+mod chat_reasoning;
 mod fixture;
+mod local_restart;
 mod management;
 #[path = "../dim_oauth/pipeline_tests/native.rs"]
 mod native;
+mod native_messages;
+mod native_responses;
 #[path = "../dim_oauth/pipeline_tests/peer.rs"]
 mod peer;
 mod probe;
@@ -20,6 +26,9 @@ mod probe_management;
 #[path = "../../upstream/client/vertex_express_pipeline_tool_wire.rs"]
 mod public_wire;
 mod response_contract;
+mod server_audit;
+mod server_fixture;
+mod server_hosted;
 mod stream_failures;
 #[path = "../../../tests/console_contract_support/mod.rs"]
 mod support;
@@ -28,8 +37,12 @@ const MODEL: &str = "public-sensenova";
 const UPSTREAM_MODEL: &str = "sensenova-6.8-flash-lite";
 const KEY: &str = "cpk-synthetic-sensenova";
 const ENDPOINTS: [&str; 3] = ["chat/completions", "messages", "responses"];
-fn family(_endpoint: &str) -> &'static str {
-    "chat"
+fn family(endpoint: &str) -> &'static str {
+    match endpoint {
+        "messages" => "messages",
+        "responses" => "responses",
+        _ => "chat",
+    }
 }
 fn body(endpoint: &str, stream: bool) -> Value {
     match endpoint {
@@ -61,11 +74,12 @@ fn assert_identity(row: &db::GatewayRequestAuditView) {
     let saved = serde_json::to_string(row).unwrap();
     assert!(!saved.contains(KEY) && !saved.contains("caller-secret"));
 }
-fn assert_wire(peer: &peer::Peer, count: usize, _endpoint: &str) {
+fn assert_wire(peer: &peer::Peer, count: usize, endpoint: &str) {
     let calls = peer.calls.lock().unwrap();
     assert_eq!(calls.len(), count, "no replay");
     for (path, headers, raw) in calls.iter() {
-        assert_eq!(path, "/v1/chat/completions");
+        let expected = format!("/v1/{endpoint}");
+        assert_eq!(path, &expected);
         assert_eq!(headers["authorization"], format!("Bearer {KEY}"));
         assert_eq!(headers["user-agent"], "NeuroGateway/SenseNova");
         for name in [
@@ -96,6 +110,16 @@ async fn sensenova_public_text_json_sse_and_account_billing() {
                     assert_eq!(status, StatusCode::OK, "{endpoint}/{stream}: {text}");
                     assert!(text.contains("合成答案"), "{text}");
                     if stream {
+                        if endpoint == "chat/completions" {
+                            let frames: Vec<Value> = text
+                                .lines()
+                                .filter_map(|line| line.strip_prefix("data: "))
+                                .filter(|data| *data != "[DONE]")
+                                .map(|data| serde_json::from_str(data).unwrap())
+                                .collect();
+                            assert!(!frames.is_empty());
+                            assert!(frames.iter().all(|frame| frame["model"] == MODEL), "{text}");
+                        }
                         assert!(
                             text.contains(match endpoint {
                                 "messages" => "message_stop",

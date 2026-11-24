@@ -1,0 +1,22 @@
+{
+  "capturedAt": "2026-11-19T20:13:05.560312+00:00",
+  "scope": "Files harness final inputs; full compile-period source snapshot retained separately",
+  "files": [
+    {
+      "path": "src/upstream/luma_agents.rs",
+      "sha256": "dc35ed0ca4b0d9ffdfa60adbe5810f275737c3b3d1d0bf4f613bd2c69b6d2b08"
+    },
+    {
+      "path": "src/upstream/luma_agents/files_browser_host.rs",
+      "sha256": "440b09cb7462e8cfb0938d5d8c434f68a5f18470239bdc97849bf9f948d301de"
+    },
+    {
+      "path": "tools/luma/files-browser-check.mjs",
+      "sha256": "4cc848694976e8b0bc63e904b68b3af76656d98b391dea049f18dc2a7c879c89"
+    },
+    {
+      "path": "tools/luma/normal-main-server.mjs",
+      "sha256": "bdf6a021d9225e942ae0abca8df2c312b075da3fd88227f373206da2e8b5be8b"
+    }
+  ]
+}

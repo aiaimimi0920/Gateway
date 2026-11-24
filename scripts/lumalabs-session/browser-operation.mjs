@@ -271,7 +271,7 @@ export async function executeLumaOperation({
   };
 
   const extractSignedUrl = (outputId, frame, signature) => {
-    const data = frame.split(/\r\n|\r|\n/).filter((line) => line.startsWith("data:"))
+    const data = frame.split("\n").filter((line) => line.startsWith("data:"))
       .map((line) => line.slice(5).replace(/^ /, "")).join("\n");
     if (!data) return null;
     let parsed;
@@ -317,14 +317,24 @@ export async function executeLumaOperation({
     if (!resolvedAction) {
       return failure("lumalabs_action_unavailable", "LumaLabs menu did not offer an action for this operation.", "action_discovery", 502);
     }
+    // Fetch must not follow redirects that can resend this billable POST.
     const actionResponse = await fetch(actionUrl, {
-      method: "POST", credentials: "include",
+      method: "POST", credentials: "include", redirect: "manual",
       headers: {
         accept: "application/json, text/plain, */*", "content-type": "application/json",
         "x-client-capabilities": clientCapabilities, "x-client-context": clientContext,
       },
       body: JSON.stringify(resolvedAction.actionBody), signal: controller.signal,
     });
+    if (actionResponse.type === "opaqueredirect") {
+      return failure("lumalabs_action_redirect", "LumaLabs redirected the action; submission is unconfirmed and was not replayed.", "action", 502);
+    }
+    if (actionResponse.status === 402) {
+      // Preserve the actionable refusal without reading private balance or payment details.
+      return failure("lumalabs_action_payment_required",
+        "LumaLabs declined the action: payment or additional credits are required.",
+        "action", 402, { resolvedActionType: resolvedAction.resolvedActionType });
+    }
     if (!actionResponse.ok) {
       return failure("lumalabs_action_failed", "LumaLabs action request failed.", "action", actionResponse.status,
         { resolvedActionType: resolvedAction.resolvedActionType });
@@ -343,6 +353,8 @@ export async function executeLumaOperation({
     const outputId = outputIds[0];
     const decoder = new TextDecoder("utf-8", { fatal: true });
     let buffer = "";
+    let searchFrom = 0;
+    let previousChunkEndedWithCr = false;
     let total = 0;
     while (true) {
       const { done, value } = await reader.read();
@@ -351,12 +363,17 @@ export async function executeLumaOperation({
       if (total > 2 * 1024 * 1024) {
         return failure("lumalabs_browser_events_limit", "LumaLabs events exceeded the cumulative byte budget.", "events_wait");
       }
-      buffer += decoder.decode(value, { stream: true });
-      // Only a terminated LF/CRLF/CR frame can announce completion; never parse a tail early.
+      let chunk = decoder.decode(value, { stream: true });
+      if (!chunk) continue;
+      // A CR already terminates its line; a following LF is the rest of the same ending.
+      if (previousChunkEndedWithCr && chunk.startsWith("\n")) chunk = chunk.slice(1);
+      previousChunkEndedWithCr = chunk.endsWith("\r");
+      buffer += chunk.replace(/\r\n?/g, "\n");
+      let frameStart = 0;
       let boundary;
-      while ((boundary = /\r\n\r\n|\n\n|\r\r/.exec(buffer))) {
-        const frame = buffer.slice(0, boundary.index);
-        buffer = buffer.slice(boundary.index + boundary[0].length);
+      while ((boundary = buffer.indexOf("\n\n", searchFrom)) !== -1) {
+        const frame = buffer.slice(frameStart, boundary);
+        frameStart = searchFrom = boundary + 2;
         const signedUrl = extractSignedUrl(outputId, frame, signatureJson);
         if (signedUrl) {
           return {
@@ -367,6 +384,9 @@ export async function executeLumaOperation({
           };
         }
       }
+      buffer = buffer.slice(frameStart);
+      // Only the last buffered character can join a delimiter in the next chunk.
+      searchFrom = Math.max(0, buffer.length - 1);
     }
     return failure("lumalabs_missing_signed_url", "LumaLabs stream closed before the original output completed.", "events_wait");
   } catch {

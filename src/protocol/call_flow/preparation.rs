@@ -32,6 +32,7 @@ pub fn is_api_adapter(adapter: &str) -> bool {
 pub fn prepare(payload: &ProviderAccountPayload) -> Result<PreparedCallFlow<'_>, GatewayError> {
     crate::protocol::luma_mcp::boundary::reject_generic(payload)?;
     crate::protocol::agnes::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::luma_inference::validate(payload, payload.canonical_adapter())?;
     crate::protocol::sensenova::validate(payload, payload.canonical_adapter())?;
     crate::protocol::commandcode::validate(payload, payload.canonical_adapter())?;
     crate::protocol::sap_aicore::validate(payload, payload.canonical_adapter())?;

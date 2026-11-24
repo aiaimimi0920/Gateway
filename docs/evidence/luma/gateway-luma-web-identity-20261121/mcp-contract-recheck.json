@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-21",
+  "initialDirectCatalogHttpStatus": 401,
+  "initialManagementErrorCode": "luma_mcp_material_unavailable",
+  "normalManagementRefresh": "succeeded and saved",
+  "managementCatalogHttpStatus": 200,
+  "managementModelsHttpStatus": 200,
+  "toolCount": 26,
+  "changedToolsAgainst20261120": [],
+  "mcpLayerLayoutSchemaPresent": false,
+  "teamBalanceBeforeCredits": 5,
+  "teamBalanceAfterCredits": 5,
+  "documentedLayering1kPriceCredits": 75,
+  "documentedLayering2kPriceCredits": 105,
+  "priceSource": "https://docs.agents.lumalabs.ai/guides/images/layering/",
+  "singleInspection": {
+    "sessionBudgetCredits": 5,
+    "source": "synthetic geometric PNG, no private image",
+    "generationCalls": 1,
+    "result": "JSON-RPC error; original error detail was not retained by the one-time inspection helper",
+    "runIdReceived": false,
+    "failureCauseConfirmed": false,
+    "resubmitted": false,
+    "reconciliation": {
+      "sessionEvents": 0,
+      "sessionTotalCredits": 0,
+      "unresolvedEventCount": 0,
+      "usageJobs": 0
+    },
+    "closeRequested": true,
+    "closeReplyStatus": "closing",
+    "closeConfirmationBlockedByHttpStatus": 401,
+    "finalSessionClosureConfirmed": false
+  },
+  "acceptance": "deferred under the user's insufficient-credit allowance: current balance is below documented minimum; not passed, not implemented",
+  "secretsArchived": false
+}

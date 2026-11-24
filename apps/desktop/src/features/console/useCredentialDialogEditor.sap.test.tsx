@@ -57,3 +57,21 @@ it.each(["{bad", "{}", sapKey.replace("synthetic.authentication.eu10", "evil.aut
   expect(h.result.current.document.providers[0]).toMatchObject({ credentials: [] });
   h.unmount();
 });
+
+it("stages X.509 as a protected Service Key, rejecting mixed auth and mismatched cert tenants", () => {
+  const h = setup();
+  const { clientsecret: _secret, ...identity } = JSON.parse(sapKey);
+  const x509 = { ...identity, certUrl: identity.url.replace(".authentication.", ".authentication.cert."),
+    certificate: "-----BEGIN CERTIFICATE-----\nsynthetic-certificate", key: "-----BEGIN RSA PRIVATE KEY-----\nsynthetic-private-key" };
+  for (const invalid of [{ ...x509, clientsecret: _secret }, { ...x509, url: identity.url.replace("synthetic.", "other.") }]) {
+    act(() => h.result.current.editor.applyCredentialDialogValue({ ...sapDraft, apiKeyValue: JSON.stringify(invalid) }));
+    expect(h.error).toHaveBeenLastCalledWith(expect.any(String));
+    expect(h.patches()).toEqual([]);
+  }
+  const raw = JSON.stringify(x509);
+  act(() => h.result.current.editor.applyCredentialDialogValue({ ...sapDraft, apiKeyValue: raw }));
+  expect(h.error).toHaveBeenLastCalledWith(null);
+  expect(h.patches()).toEqual([{ path: "/providers/0/credentials/0/api_key", operation: "replace", value: raw }]);
+  expect(JSON.stringify(h.result.current.document)).not.toMatch(/synthetic-private-key|synthetic-certificate/);
+  h.unmount();
+});

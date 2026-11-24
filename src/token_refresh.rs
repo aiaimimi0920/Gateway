@@ -9,6 +9,7 @@ mod lobsterai;
 mod nous;
 mod persistence;
 mod projection;
+mod quick;
 mod received;
 pub(crate) mod server_cache;
 #[cfg(test)]
@@ -64,6 +65,8 @@ pub async fn start_token_refresh_task(state: Arc<AppState>, check_secs: u64, mar
             Some(&state.shutdown),
         )
         .await;
+        #[cfg(feature = "line-lumalabs-web-reverse-api")]
+        crate::luma_web_session::maintenance::check(&state).await;
         tokio::select! {
             _ = state.shutdown.wait() => break,
             _ = state.lifecycle.oauth_refresh_wake.notified() => {}
@@ -71,6 +74,9 @@ pub async fn start_token_refresh_task(state: Arc<AppState>, check_secs: u64, mar
         }
     }
     // Normal shutdown waits for the in-flight exchange/commit, then one persistence-only flush.
+    if let Some(store) = state.upstream_client.luma_web_sessions.get() {
+        store.flush_pending().await;
+    }
     if let Some(runtime) = state
         .local_runtime
         .as_ref()

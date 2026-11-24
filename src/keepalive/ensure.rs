@@ -42,6 +42,10 @@ pub async fn ensure_payload_ready(
     if payload.adapter.trim() == "qwen_web_compatible" {
         return ensure_qwen_web_payload_ready(redis_pool, pg_pool, payload, model, false).await;
     }
+    // Luma's dispatch owner loads and persists Cookie rotation; the legacy steward would discard it.
+    if payload.adapter.trim() == "lumalabs_compatible" {
+        return Ok(payload.clone());
+    }
 
     let Some(keepalive) = payload.keepalive.as_ref() else {
         return Ok(payload.clone());

@@ -20,6 +20,8 @@ pub(crate) struct GrantMaterial {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) kiro_oauth: Option<crate::protocol::kiro_oauth::AuthorizationContext>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) quick_oauth: Option<crate::protocol::quick_oauth::AuthorizationContext>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) vertex_oauth: Option<crate::protocol::vertex_oauth::AuthorizationContext>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) dim_oauth: Option<crate::protocol::dim_oauth::AuthorizationContext>,
@@ -39,7 +41,8 @@ impl GrantMaterial {
         let derived_endpoint = c
             .kiro_oauth
             .as_ref()
-            .map(|context| context.token_endpoint());
+            .map(|context| context.token_endpoint())
+            .or_else(|| c.quick_oauth.as_ref().map(|context| context.token_endpoint()));
         let (endpoint, client) = if let Some(context) = &c.luma_oauth {
             (
                 crate::protocol::luma_oauth::TOKEN_ENDPOINT,
@@ -72,6 +75,11 @@ impl GrantMaterial {
                 derived_endpoint.as_deref().ok_or_else(invalid)?,
                 context.client_id(),
             )
+        } else if let Some(context) = &c.quick_oauth {
+            (
+                derived_endpoint.as_deref().ok_or_else(invalid)?,
+                context.client_id(),
+            )
         } else {
             (
                 c.refresh_endpoint.as_deref().ok_or_else(invalid)?,
@@ -93,6 +101,7 @@ impl GrantMaterial {
             },
             accio_sgcookie: c.accio_sgcookie.clone(),
             kiro_oauth: c.kiro_oauth.clone(),
+            quick_oauth: c.quick_oauth.clone(),
             vertex_oauth: c.vertex_oauth.clone(),
             dim_oauth: c.dim_oauth.clone(),
             nous_portal: c.nous_portal.clone(),
@@ -114,6 +123,7 @@ impl GrantMaterial {
                 || self.expires_at.is_some()
                 || self.context.is_some()
                 || self.kiro_oauth.is_some()
+                || self.quick_oauth.is_some()
                 || self.vertex_oauth.is_some()
                 || self.dim_oauth.is_some()
                 || self.nous_portal.is_some()
@@ -170,12 +180,30 @@ impl GrantMaterial {
         if let Some(context) = &self.kiro_oauth {
             if context.validate().is_err()
                 || self.context.is_some()
+                || self.quick_oauth.is_some()
                 || self.accio_sgcookie.is_some()
                 || self.endpoint != context.token_endpoint()
                 || self.client != context.client_id()
                 || !self.access.is_empty()
                     && !crate::protocol::kiro_oauth::business::valid_token(&self.access)
                 || !crate::protocol::kiro_oauth::business::valid_token(&self.refresh)
+            {
+                return Err(invalid());
+            }
+        }
+        if let Some(context) = &self.quick_oauth {
+            if context.validate().is_err()
+                || self.context.is_some()
+                || self.kiro_oauth.is_some()
+                || self.vertex_oauth.is_some()
+                || self.dim_oauth.is_some()
+                || self.nous_portal.is_some()
+                || self.accio_sgcookie.is_some()
+                || self.endpoint != context.token_endpoint()
+                || self.client != context.client_id()
+                || !self.access.is_empty()
+                    && !crate::protocol::quick_oauth::valid_token(&self.access)
+                || !crate::protocol::quick_oauth::valid_token(&self.refresh)
             {
                 return Err(invalid());
             }
@@ -198,6 +226,7 @@ impl GrantMaterial {
             if context.validate().is_err()
                 || self.context.is_some()
                 || self.kiro_oauth.is_some()
+                || self.quick_oauth.is_some()
                 || self.vertex_oauth.is_some()
                 || self.accio_sgcookie.is_some()
                 || self.endpoint != context.token_endpoint()
@@ -214,6 +243,7 @@ impl GrantMaterial {
                 || self.client != context.client_id()
                 || self.context.is_some()
                 || self.kiro_oauth.is_some()
+                || self.quick_oauth.is_some()
                 || self.vertex_oauth.is_some()
                 || self.dim_oauth.is_some()
                 || self.accio_sgcookie.is_some()
@@ -249,6 +279,7 @@ impl GrantMaterial {
             && self.endpoint == next.endpoint
             && self.client == next.client
             && self.kiro_oauth == next.kiro_oauth
+            && self.quick_oauth == next.quick_oauth
             && match (&self.lobsterai, &next.lobsterai) {
                 (None, None) => true,
                 (Some(old), Some(new)) => old.permits_rotation(new),
@@ -285,6 +316,7 @@ impl GrantMaterial {
             && self.refresh == other.refresh
             && self.context == other.context
             && self.kiro_oauth == other.kiro_oauth
+            && self.quick_oauth == other.quick_oauth
             && self.vertex_oauth == other.vertex_oauth
             && self.dim_oauth == other.dim_oauth
             && self.nous_portal == other.nous_portal
@@ -353,6 +385,12 @@ impl GrantMaterial {
                 .as_array_mut()
                 .expect("material identity is an array")
                 .push(serde_json::json!({"kiroOauth":context}));
+        }
+        if let Some(context) = &self.quick_oauth {
+            value
+                .as_array_mut()
+                .expect("material identity is an array")
+                .push(serde_json::json!({"quickOauth":context}));
         }
         if let Some(context) = &self.vertex_oauth {
             value

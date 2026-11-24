@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { ConsoleApi } from "../../api/console";
 import type {
   ConsoleRouteConfigResponse, ConsoleAccountGroupSummaryResponse,
@@ -58,7 +58,12 @@ export function useConsoleRouteData({ api, managementToken, t, invalidateCredent
 
   translationRef.current = t;
 
-  const [routeConfig, setRouteConfig] = useState<ConsoleRouteConfigResponse | null>(null);
+  const [routeConfig, setRouteConfigState] = useState<ConsoleRouteConfigResponse | null>(null);
+  const publication = useRef(0);
+  const setRouteConfig: Dispatch<SetStateAction<ConsoleRouteConfigResponse | null>> = useCallback(value => {
+    publication.current += 1;
+    setRouteConfigState(value);
+  }, []);
 
   const [accountGroupSummary, setAccountGroupSummary] =
     useState<ConsoleAccountGroupSummaryResponse["summary"] | null>(null);
@@ -116,6 +121,7 @@ export function useConsoleRouteData({ api, managementToken, t, invalidateCredent
     return refreshSingleFlightRef.current!.run(api, managementToken, async () => {
       if (!mounted.current || lifecycle !== refreshLifecycle.current) return;
       const requestId = refreshRequestIdRef.current + 1;
+      const startedPublication = publication.current;
       refreshRequestIdRef.current = requestId;
       setBusy(true);
       invalidateCredentialProbes();
@@ -225,7 +231,8 @@ export function useConsoleRouteData({ api, managementToken, t, invalidateCredent
         if (requestId !== refreshRequestIdRef.current) {
           return;
         }
-        setRouteConfig({ ...nextRouteConfig });
+        // A GET started before a successful commit must not restore its older revision.
+        if (startedPublication === publication.current) setRouteConfigState({ ...nextRouteConfig });
         setAccountGroupSummary(nextAccountGroupSummary.summary);
         setAccountGroupSummaryError(nextAccountGroupSummary.error);
         setProviderCredentialInventory(nextProviderCredentialInventory.response);

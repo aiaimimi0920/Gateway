@@ -3,11 +3,13 @@ import { pushAppToast } from "../../components/AppToast";
 import type { useConsoleRouteDraft } from "./useConsoleRouteDraft";
 import type { useConsoleRouteData } from "./useConsoleRouteData";
 import type { useConsoleActionIdentity } from "./useConsoleActionIdentity";
+import { commitRouteDraft } from "./commitRouteDraft";
 
 type RouteDraft = ReturnType<typeof useConsoleRouteDraft>;
 type RouteData = ReturnType<typeof useConsoleRouteData>;
 type ActionIdentity = ReturnType<typeof useConsoleActionIdentity>;
 type ConsoleDraftPersistenceOptions = {
+  routeConfig: RouteData["routeConfig"];
   managementToken: string | null;
   secretGrant: string | null;
   editorLocked: boolean;
@@ -33,6 +35,7 @@ type ConsoleDraftPersistenceOptions = {
 };
 
 export function useConsoleDraftPersistence({
+  routeConfig,
   managementToken,
   secretGrant,
   editorLocked,
@@ -58,6 +61,7 @@ export function useConsoleDraftPersistence({
 }: ConsoleDraftPersistenceOptions) {
   /** The draft state autosave has already committed, so it commits it once. */
   const autosaveSignatureRef = useRef<string | null>(null);
+  const saving = useRef<ReturnType<ActionIdentity["beginConsoleActionRequest"]> | null>(null);
 
   // Persistence also owns the navigation guard until the same draft is saved.
   useEffect(() => {
@@ -72,23 +76,19 @@ export function useConsoleDraftPersistence({
 
   const handleSave = useCallback(
     async (options?: { silent?: boolean }) => {
+      if (saving.current && isConsoleActionRequestCurrent(saving.current)) return;
       if (!managementToken) {
         setError(t("当前没有可用的 Gateway 管理密钥。", "Gateway management token is unavailable."));
         return;
       }
       const actionRequest = beginConsoleActionRequest(managementToken);
+      saving.current = actionRequest;
       setActionBusy("save");
       setError(null);
       try {
         const draft = parseDraft();
-        const result = actionRequest.secretGrant
-          ? await actionRequest.api.commitRouteConfig(
-              actionRequest.managementToken,
-              draft,
-              actionRequest.secretGrant,
-            )
-          : await actionRequest.api.commitRouteConfig(actionRequest.managementToken, draft);
-        if (!isConsoleActionRequestCurrent(actionRequest)) {
+        const result = await commitRouteDraft(actionRequest, routeConfig, draft, () => isConsoleActionRequestCurrent(actionRequest));
+        if (!result || !isConsoleActionRequestCurrent(actionRequest)) {
           return;
         }
         setRouteConfig({ routeConfig: result.routeConfig });
@@ -116,8 +116,9 @@ export function useConsoleDraftPersistence({
         }
         setError(cause instanceof Error ? cause.message : String(cause));
       } finally {
-        if (actionRequest.generation === consoleActionGenerationRef.current) {
-          setActionBusy(null);
+        if (saving.current === actionRequest) {
+          saving.current = null;
+          if (actionRequest.generation === consoleActionGenerationRef.current) setActionBusy(null);
         }
       }
     },
@@ -129,6 +130,7 @@ export function useConsoleDraftPersistence({
       isConsoleActionRequestCurrent,
       managementToken,
       parseDraft,
+      routeConfig,
       refresh,
       setActionBusy,
       setError,
@@ -165,5 +167,5 @@ export function useConsoleDraftPersistence({
     return () => window.clearTimeout(timer);
   }, [autosaveReady, autosaveSignature, handleSave]);
 
-  return { autosavePending };
+  return { autosavePending, retrySave: handleSave };
 }

@@ -23,6 +23,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
     }
     qwen_workspace::validate_declaration(&cfg)?;
     crate::protocol::agnes::validate_declaration(&cfg)?;
+    crate::protocol::luma_inference::config::validate(&cfg)?;
     crate::protocol::sensenova::validate_declaration(&cfg)?;
     crate::protocol::commandcode::validate_declaration(&cfg)?;
     crate::protocol::sap_aicore::validate_declaration(&cfg)?;
@@ -31,6 +32,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
     luma_agents::validate_declaration(&cfg)?;
     grok_oauth::validate_declaration(&cfg)?;
     kiro_oauth::validate_declaration(&cfg)?;
+    quick_oauth::validate_declaration(&cfg)?;
     kiro_api_key::validate_declaration(&cfg)?;
     vertex_express::validate_declaration(&cfg)?;
     vertex_oauth::validate_declaration(&cfg)?;
@@ -67,6 +69,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
     qwen_workspace::validate_parent(&cfg, &payload)?;
     cloudflare_workers_ai::validate_final(&cfg, &payload)?;
     crate::protocol::agnes::validate(&payload, payload.canonical_adapter())?;
+    crate::protocol::luma_inference::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::sensenova::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::commandcode::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::sap_aicore::validate(&payload, payload.canonical_adapter())?;
@@ -178,6 +181,10 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                 qwen_workspace::validate_final(&cfg, &cred_payload)?;
                 cloudflare_workers_ai::validate_final(&cfg, &cred_payload)?;
                 crate::protocol::agnes::validate(&cred_payload, cred_payload.canonical_adapter())?;
+                crate::protocol::luma_inference::validate(
+                    &cred_payload,
+                    cred_payload.canonical_adapter(),
+                )?;
                 crate::protocol::sap_aicore::validate(
                     &cred_payload,
                     cred_payload.canonical_adapter(),
@@ -199,6 +206,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                 grok_oauth::validate_final(&cfg, &cred_payload)?;
                 perplexity_web::validate_final(&cfg, &cred_payload)?;
                 kiro_oauth::configure(cred, &mut cred_payload)?;
+                quick_oauth::configure(cred, &mut cred_payload)?;
                 kiro_api_key::validate_final(&cfg, &cred_payload)?;
                 vertex_express::validate_final(&cfg, &cred_payload)?;
                 vertex_oauth::configure(cred, &mut cred_payload)?;

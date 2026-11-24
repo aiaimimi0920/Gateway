@@ -1,0 +1,648 @@
+Video reframing | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Menu
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Getting started
+Quickstart
+Models
+Videos
+Overview
+Migration guide
+Generation
+Editing
+Reframing
+Images
+Overview
+Generation
+Editing
+Layering
+Prompting guide
+Files
+Overview
+Deletion
+Generation deletion
+LLM Inference
+LLM Inference
+Reference
+Pricing
+Usage and credits
+Rate limits and headers
+Error handling
+FAQ
+Changelog
+Auto
+Light
+Dark
+lumalabs.ai
+On this page
+Overview
+Basic request
+Source video
+Parameters
+prompt (required)
+aspect_ratio (required)
+video.duration
+video.resolution
+video.source_position
+Validation rules
+Response
+Pricing
+Next steps
+On this page
+Overview
+Basic request
+Source video
+Parameters
+prompt (required)
+aspect_ratio (required)
+video.duration
+video.resolution
+video.source_position
+Validation rules
+Response
+Pricing
+Next steps
+Videos
+Reframing
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+Video reframing
+Reframe existing Ray 3.2 videos to a new aspect ratio with video_reframe.
+type: "video_reframe"
+outpaints an existing video to a new target aspect ratio. The source video content is preserved frame-for-frame, and Ray 3.2 fills the newly exposed canvas area around it.
+Info
+Use
+video_reframe
+when you want the same clip in a different shape, such as
+portrait to widescreen. Use
+video_edit
+when you
+want to restyle or reinterpret the video content.
+Basic request
+Section titled “Basic request”
+Reference a previous completed video generation with
+source.generation_id
+, then set the target
+aspect_ratio
+:
+Python
+TypeScript
+Go
+cURL
+from
+luma_agents
+import
+Luma
+client
+=
+Luma()
+previous
+=
+client.generations.get(
+"generation-id"
+)
+generation
+=
+client.generations.create(
+model
+=
+"ray-3.2"
+,
+type
+=
+"video_reframe"
+,
+prompt
+=
+"Extend the scene into cinematic widescreen"
+,
+aspect_ratio
+=
+"21:9"
+,
+source
+=
+{
+"generation_id"
+: previous.id},
+video
+=
+{
+"resolution"
+:
+"720p"
+,
+},
+)
+import
+Luma
+from
+"luma-agents"
+;
+const
+client
+=
+new
+Luma
+();
+const
+previous
+=
+await
+client.generations.
+get
+(
+"generation-id"
+);
+const
+generation
+=
+await
+client.generations.
+create
+({
+model:
+"ray-3.2"
+,
+type:
+"video_reframe"
+,
+prompt:
+"Extend the scene into cinematic widescreen"
+,
+aspect_ratio:
+"21:9"
+,
+source: { generation_id: previous.id },
+video: {
+resolution:
+"720p"
+,
+},
+});
+previous, err
+:=
+client.Generations.
+Get
+(ctx,
+"generation-id"
+)
+if
+err
+!=
+nil
+{
+return
+err
+}
+generation, err
+:=
+client.Generations.
+New
+(ctx,
+lumaagents
+.
+GenerationNewParams
+{
+Model:       lumaagents.
+F
+(lumaagents.ModelRay3_2),
+Type:        lumaagents.
+F
+(lumaagents.GenerationNewParamsTypeVideoReframe),
+Prompt:      lumaagents.
+F
+(
+"Extend the scene into cinematic widescreen"
+),
+AspectRatio: lumaagents.
+F
+(lumaagents.GenerationNewParamsAspectRatio21_9),
+Source: lumaagents.
+F
+(
+lumaagents
+.
+ImageRefParam
+{
+GenerationID: lumaagents.
+F
+(previous.ID),
+}),
+Video: lumaagents.
+F
+(
+lumaagents
+.
+VideoOptionsParam
+{
+Resolution: lumaagents.
+F
+(lumaagents.VideoResolution720p),
+}),
+})
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/generations
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"model": "ray-3.2",
+"type": "video_reframe",
+"prompt": "Extend the scene into cinematic widescreen",
+"aspect_ratio": "21:9",
+"source": { "generation_id": "d290f1ee-6c54-4b01-90e6-d701748f0851" },
+"video": {
+"resolution": "720p"
+}
+}'
+Source video
+Section titled “Source video”
+Reframe needs exactly one source video, provided several ways.
+A prior Luma generation
+— the completed generation’s top-level
+id
+:
+{
+"source"
+: {
+"generation_id"
+:
+"d290f1ee-6c54-4b01-90e6-d701748f0851"
+}
+}
+A hosted video URL
+— with a
+video/*
+source.media_type
+:
+{
+"source"
+: {
+"url"
+:
+"https://example.com/source.mp4"
+,
+"media_type"
+:
+"video/mp4"
+}
+}
+Inline base64 video
+— with a
+video/*
+source.media_type
+:
+{
+"source"
+: {
+"data"
+:
+"AAAAIGZ0eXBtcDQy..."
+,
+"media_type"
+:
+"video/mp4"
+}
+}
+An uploaded file
+— a video uploaded via the
+Files API
+, by its
+file_id
+(no
+media_type
+needed — it’s recorded at upload):
+{
+"source"
+: {
+"file_id"
+:
+"a1b2c3d4-e5f6-7890-abcd-ef0123456789"
+}
+}
+Note
+source.url
+and
+source.data
+both require a
+video/*
+source.media_type
+(such as
+"video/mp4"
+); a missing or non-video MIME is rejected. Source
+videos must be 10 seconds or shorter.
+Tip
+Use inline
+source.data
+only for small media files. For anything larger,
+reference a prior
+source.generation_id
+or host the file and pass
+source.url
+instead of inlining.
+Parameters
+Section titled “Parameters”
+prompt
+(required)
+Section titled “prompt (required)”
+A text description of how the new canvas area should be filled, 1-6,000 characters.
+aspect_ratio
+(required)
+Section titled “aspect_ratio (required)”
+The target aspect ratio. Use one of the six Ray 3.2 video ratios:
+Value
+Orientation
+9:16
+Standard portrait
+3:4
+Portrait
+1:1
+Square
+4:3
+Classic landscape
+16:9
+Standard widescreen
+21:9
+Cinematic ultrawide
+video.duration
+Section titled “video.duration”
+Output duration. Defaults to
+5s
+.
+Value
+Notes
+5s
+Default
+10s
+Maximum reframe output length
+Reframe cannot produce output longer than 10s, and the source video is capped at
+the same 10s ceiling. To reframe a longer clip, split it into ≤10s segments and
+reframe each one.
+video.resolution
+Section titled “video.resolution”
+Output resolution. Defaults to
+720p
+; accepts
+360p
+,
+540p
+,
+720p
+, and
+1080p
+.
+360p
+is the draft tier (fast, low-cost previews).
+1080p
+works for landscape and square aspect ratios; vertical targets (
+9:16
+,
+3:4
+) at
+1080p
+are not yet available — use
+720p
+,
+540p
+, or
+360p
+for those.
+video.source_position
+Section titled “video.source_position”
+By default, Ray 3.2 fits the source video into the new canvas with a centered crop and outpaints the exposed area. To control exactly where the source sits inside the output canvas, pass
+video.source_position
+— a normalized rectangle measured as fractions of the
+output
+canvas:
+Field
+Range
+Meaning
+x_norm
+-2.0
+–
+2.0
+Left edge of the source rectangle, as a fraction of canvas width
+y_norm
+-2.0
+–
+2.0
+Top edge of the source rectangle, as a fraction of canvas height
+w_norm
+> 0
+–
+2.0
+Source rectangle width, as a fraction of canvas width
+h_norm
+> 0
+–
+2.0
+Source rectangle height, as a fraction of canvas height
+All four fields are required when
+source_position
+is present.
+x_norm
+/
+y_norm
+may be negative and
+w_norm
+/
+h_norm
+may exceed
+1.0
+(up to
+2.0
+) when the source bleeds off-canvas — the model outpaints only the visible portion. Omit
+source_position
+to let the model pick its own centered-fit crop.
+{
+"video"
+: {
+"source_position"
+: {
+"x_norm"
+:
+0.25
+,
+"y_norm"
+:
+0.0
+,
+"w_norm"
+:
+0.5
+,
+"h_norm"
+:
+1.0
+}
+}
+}
+video.source_position
+is only valid for
+type: "video_reframe"
+; setting it on any other type returns HTTP 400 with
+"video.source_position is only valid for type 'video_reframe'"
+.
+Validation rules
+Section titled “Validation rules”
+Rule
+Constraint
+model
+Must be
+ray-3.2
+type
+Must be
+"video_reframe"
+prompt
+Required, 1-6,000 characters
+aspect_ratio
+Required; must be one of the Ray 3.2 video aspect ratios
+source
+Required. Provide exactly one of
+source.generation_id
+,
+source.url
+, or
+source.data
+source.generation_id
+UUID of a prior completed video generation owned by the same client. No upload size limit — references stored media. The ≤10s duration cap still applies
+source.url
+Publicly reachable video URL. Requires
+source.media_type
+set to a
+video/*
+MIME (e.g.
+"video/mp4"
+). Max 200 MB, ≤10s
+source.data
+Inline base64 video. Requires
+source.media_type
+set to a
+video/*
+MIME. Max 200 MB, ≤10s
+video.duration
+One of
+5s
+,
+10s
+, or omitted (defaults
+5s
+). 10s is the maximum reframe output length
+video.resolution
+One of
+360p
+,
+540p
+,
+720p
+,
+1080p
+, or omitted.
+360p
+is the draft tier.
+1080p
+works for landscape/square; vertical targets (
+9:16
+,
+3:4
+) at
+1080p
+return a “coming soon” 400
+video.source_position
+Optional normalized source rectangle (
+x_norm
+,
+y_norm
+,
+w_norm
+,
+h_norm
+). Only valid for
+video_reframe
+video.hdr
+/
+video.exr_export
+Rejected — reframe is standard dynamic range only
+video.loop
+Rejected
+video.edit
+Rejected
+video.start_frame
+/
+video.end_frame
+Rejected
+Response
+Section titled “Response”
+A successful submit returns HTTP 201 with the same envelope as other generation requests. Poll
+GET /v1/generations/{id}
+until
+state
+is
+completed
+or
+failed
+; on completion,
+output[].url
+contains the presigned MP4 URL.
+Pricing
+Section titled “Pricing”
+Reframe is priced per second at the standard-only reframe tier. HDR and EXR pricing do not apply because
+video_reframe
+rejects HDR and EXR. See
+Pricing —
+ray-3.2
+per-video pricing
+.
+Next steps
+Section titled “Next steps”
+Video generation
+— Generate videos from text, anchor images, or extend a prior video
+Video editing
+— Restyle or reinterpret an existing video
+Models
+— Capability matrix for every model
+Pricing
+— Per-video pricing for Ray 3.2 video
+Error handling
+— Every error code with troubleshooting steps
+API Reference
+— Complete endpoint specifications
+Previous
+Editing
+Edit existing videos with Ray 3.2 — source.generation_id, source URLs and inline video, strength, auto-controls, per-signal conditioning controls, and single- or multi-keyframe guide frames.
+Next
+Overview
+Generate and edit images with the Luma Agents API using uni-1 and uni-1-max.

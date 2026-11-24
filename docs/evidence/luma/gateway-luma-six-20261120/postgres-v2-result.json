@@ -1,0 +1,22 @@
+{
+  "args": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--lib",
+    "--no-default-features",
+    "--features",
+    "runtime-defaults",
+    "-j",
+    "4",
+    "luma_reconciliation_postgres",
+    "--",
+    "--ignored",
+    "--test-threads=1"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T04:53:07.001483+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 72.3
+}

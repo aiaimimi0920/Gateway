@@ -1,0 +1,16 @@
+{
+  "args": [
+    "cargo",
+    "check",
+    "--locked",
+    "--offline",
+    "--lib",
+    "--no-default-features",
+    "--features",
+    "family-openai-compatible-official-api",
+    "-j",
+    "4"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 86.46
+}

@@ -43,3 +43,18 @@ it("blocks refresh while an unsaved edit exists", async () => {
   await act(() => hook.result.current.refreshAccountDiscovery("p", "a"));
   expect(opts.client.request).not.toHaveBeenCalled();
 });
+
+it("requests the custom directory with its separate read-only operation and revision fence", async () => {
+  const opts = options(vi.fn().mockResolvedValue({ revision: "r1", catalog: { models: ["new"] } }));
+  const hook = renderHook(() => useAccountDiscovery(opts));
+  await act(async () => {
+    expect(await hook.result.current.discoverAccountModels({ credentialId: "a" })).toEqual({ models: ["new"] });
+  });
+  expect(opts.client.request).toHaveBeenCalledWith("/v1/internal/gateway/console/account-discovery", expect.anything(),
+    expect.objectContaining({ body: { credentialId: "a", catalogOnly: true }, managementToken: "manager", secretGrant: "grant" }));
+  expect(opts.replaceEditorDocument).not.toHaveBeenCalled();
+  opts.client.request.mockResolvedValue({ revision: "r2", catalog: { models: ["other"] } });
+  await act(async () => {
+    await expect(hook.result.current.discoverAccountModels({ credentialId: "a" })).rejects.toThrow("配置或登录状态已变化");
+  });
+});

@@ -8,6 +8,7 @@ mod failure_tests;
 
 fn records_failure(error: &crate::error::GatewayError) -> bool {
     error.native_transport.is_none()
+        && !crate::protocol::sap_aicore::errors::neutral(error)
         && error.request_budget_stop_reason().is_none()
         && error.kind != crate::error::ErrorKind::ModelCapacity
         && !matches!(
@@ -146,6 +147,9 @@ pub(super) async fn record_credential_model_failure_from_snapshot(
     error_summary: Option<&str>,
     state: &Arc<AppState>,
 ) {
+    if error_summary == Some(crate::protocol::sap_aicore::errors::STREAM_UNVERIFIED) {
+        return;
+    }
     let Some(provider_account_id) = snapshot.provider_account_id.clone() else {
         return;
     };

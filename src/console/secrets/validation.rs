@@ -121,6 +121,13 @@ pub(super) fn ensure_document_is_redacted(
             )?;
             ensure_absent_option(
                 credential
+                    .quick_oauth
+                    .as_ref()
+                    .and_then(|context| context.client_secret()),
+                &format!("{credential_path}/quick_oauth/client_secret"),
+            )?;
+            ensure_absent_option(
+                credential
                     .vertex_oauth
                     .as_ref()
                     .and_then(|context| context.client_secret()),

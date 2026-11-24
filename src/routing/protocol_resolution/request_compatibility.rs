@@ -38,6 +38,9 @@ pub(super) fn request_compatible_wire_protocol_families(
     endpoint_kind: EndpointKind,
     fallback_protocol_family: &str,
 ) -> Vec<String> {
+    if crate::protocol::sensenova::native_messages::selected(payload, endpoint_kind) {
+        return vec![ANTHROPIC_MESSAGES_FAMILY.into()];
+    }
     match payload.canonical_adapter() {
         "dashscope_compatible" | "dashscope_multimodal_compatible" => match endpoint_kind {
             EndpointKind::ChatCompletions

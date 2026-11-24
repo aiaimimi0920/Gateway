@@ -1,0 +1,22 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 25m 30s
+test console::secrets::luma_web_tests::luma_web_keep_detects_adapter_or_origin_without_preset ... FAILED
+test console::secrets::luma_web_tests::luma_web_keep_preserves_secrets_for_model_edits_and_rejects_new_consumers ... FAILED
+test console::secrets::luma_web_tests::luma_web_keep_rejects_destination_and_board_changes ... FAILED
+test protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_preserve_context_and_reject_invalid_media_or_missing_fields ... FAILED
+test protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_send_explicit_answers_once_on_original_run ... FAILED
+---- console::secrets::luma_web_tests::luma_web_keep_detects_adapter_or_origin_without_preset stdout ----
+thread 'console::secrets::luma_web_tests::luma_web_keep_detects_adapter_or_origin_without_preset' (55980) panicked at src\console\secrets\luma_web_tests.rs:61:76:
+---- console::secrets::luma_web_tests::luma_web_keep_preserves_secrets_for_model_edits_and_rejects_new_consumers stdout ----
+thread 'console::secrets::luma_web_tests::luma_web_keep_preserves_secrets_for_model_edits_and_rejects_new_consumers' (44776) panicked at src\console\secrets\luma_web_tests.rs:50:78:
+---- console::secrets::luma_web_tests::luma_web_keep_rejects_destination_and_board_changes stdout ----
+thread 'console::secrets::luma_web_tests::luma_web_keep_rejects_destination_and_board_changes' (3424) panicked at src\console\secrets\luma_web_tests.rs:28:110:
+---- protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_preserve_context_and_reject_invalid_media_or_missing_fields stdout ----
+thread 'protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_preserve_context_and_reject_invalid_media_or_missing_fields' (10840) panicked at src\protocol\luma_mcp\creation_question_tests.rs:46:9:
+---- protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_send_explicit_answers_once_on_original_run stdout ----
+thread 'protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_send_explicit_answers_once_on_original_run' (52844) panicked at src\protocol\luma_mcp\creation_question_tests.rs:23:9:
+    console::secrets::luma_web_tests::luma_web_keep_detects_adapter_or_origin_without_preset
+    console::secrets::luma_web_tests::luma_web_keep_preserves_secrets_for_model_edits_and_rejects_new_consumers
+    console::secrets::luma_web_tests::luma_web_keep_rejects_destination_and_board_changes
+    protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_preserve_context_and_reject_invalid_media_or_missing_fields
+    protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_send_explicit_answers_once_on_original_run
+test result: FAILED. 334 passed; 5 failed; 2 ignored; 0 measured; 6139 filtered out; finished in 122.74s

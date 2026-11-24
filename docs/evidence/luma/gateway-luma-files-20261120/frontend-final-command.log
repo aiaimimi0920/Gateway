@@ -1,0 +1,27 @@
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+ ❯ src/features/console/LumaMediaProbeDialog.video-controls.test.tsx (5 tests | 1 failed) 15137ms
+   × rejects duplicate guide frame positions and preserves paired guide ordering 5045ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/console/LumaMediaProbeDialog.video-controls.test.tsx > rejects duplicate guide frame positions and preserves paired guide ordering
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/console/LumaMediaProbeDialog.video-controls.test.tsx:64:1
+     62|       start_frame: { url: "https://images.example.test/guide.png" }, e…
+     63| });
+     64| it("rejects duplicate guide frame positions and preserves paired guide…
+       | ^
+     65|   const { user, p } = await prepare("video_edit");
+     66|   await user.selectOptions(screen.getByRole("combobox", { name: "引导图模式…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 42 passed (43)
+   Start at  00:26:29
+   Duration  28.21s (transform 7.42s, setup 3.36s, import 12.76s, tests 37.45s, environment 12.32s)
+

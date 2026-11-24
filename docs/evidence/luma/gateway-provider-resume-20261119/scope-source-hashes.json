@@ -1,0 +1,526 @@
+[
+  {
+    "path": "Cargo.toml",
+    "sha256": "14488be2861ef6923061341571057366874ff90315366c3d606f5db40ae70f0b",
+    "bytes": 12458,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/ConsoleGlobalDialogs.tsx",
+    "sha256": "6620a1627d1f99352203135a239f02cf74e874781d3c6481ff7b563aefcdb080",
+    "bytes": 34434,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 477
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaInferenceCatalog.test.tsx",
+    "sha256": "ac93799ce4fca47451e81bf3b53ab3d32a8fdf8977988d32ecf06c456600f634",
+    "bytes": 2926,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 40
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMediaProbeDialog.tsx",
+    "sha256": "54f829844518138360efe4d09c863d7684331ac5725cccd0e95581f614fe197d",
+    "bytes": 11056,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 107
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMediaProbeDialog.video-controls.test.tsx",
+    "sha256": "2f30486da25a858a9401e6760260b13bd108546084afa630ca9b03f83e834e98",
+    "bytes": 7357,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 95
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaVideoProbeControls.tsx",
+    "sha256": "1a8efaccd0002f049dd2498bee714fd5b457bd5e8b57b23a7a746d3d823a25d7",
+    "bytes": 5230,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 50
+  },
+  {
+    "path": "apps/desktop/src/features/console/credentialDialogTypes.ts",
+    "sha256": "0b9897f6953607bbbab9a493ff8d54a3925ab9c1a31dbb1764bac73785d868e6",
+    "bytes": 4304,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 83
+  },
+  {
+    "path": "apps/desktop/src/features/console/credentialDocument.ts",
+    "sha256": "a677a7e2cda8a58bf46596e2130a37bdebe48043c94bc7d105147afff74e452b",
+    "bytes": 19425,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 483
+  },
+  {
+    "path": "apps/desktop/src/features/console/credentialKeyStaging.ts",
+    "sha256": "86451a226369bc8f5766d17270c3810478a6b3d9b9064158eda3dd2ffbcdb533",
+    "bytes": 2198,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 32
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaInferenceCatalog.ts",
+    "sha256": "3ddb31518816a2ca4f0a0cd7ea123b93708854cd14087729bd577ded8daa74af",
+    "bytes": 822,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 10
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaInferenceCredential.test.tsx",
+    "sha256": "4f4bfbf609e9061d630a5fe719cd7f5d61991b0a0b5bdd9eed7f874173e4e0f5",
+    "bytes": 3486,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 47
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaInferenceCredential.ts",
+    "sha256": "0c9473f508f1b4f0cd5707d1aa3b6219d46e6a227a5f1c1f67f076981d42be19",
+    "bytes": 2014,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 29
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaMcpCatalog.ts",
+    "sha256": "470d1e0058670e68f30c4f7070591c424b618cdd429a0b3549da5cf0574b4d79",
+    "bytes": 2293,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 27
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaVideoProbeDraft.test.ts",
+    "sha256": "c361c960022a8bbb2ec1fca4410c3db15f8dcc3470722ab8c30ca46cc039bfa3",
+    "bytes": 2559,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 39
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaVideoProbeDraft.ts",
+    "sha256": "34359ca6f94fb7f5438947beea298a1cbe450eb39f824aed75e908a95444ce89",
+    "bytes": 4882,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 94
+  },
+  {
+    "path": "apps/desktop/src/features/console/providerCatalogWorkflow.ts",
+    "sha256": "fc4694a034a1e744465f161361aab019edcabeb233628745a8e787233700360b",
+    "bytes": 9926,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 122,
+    "beforeEffectiveLines": 122
+  },
+  {
+    "path": "apps/desktop/src/features/console/providerConnectionDraft.ts",
+    "sha256": "818bb2ec24d9325ef2ed1360e8531a94aaa97ba502d66fa850bafe2e5b9a4168",
+    "bytes": 4335,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 65
+  },
+  {
+    "path": "apps/desktop/src/features/console/useCredentialDialog.ts",
+    "sha256": "6716b5da90cbec184319e9138c366ed95294f3aaecb9fd35d5f02644ad573433",
+    "bytes": 18768,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 299
+  },
+  {
+    "path": "apps/desktop/src/features/console/useCredentialDialogEditor.ts",
+    "sha256": "b0ca4a7ddd91c9cd90e7531219f99b6521e71ab99c3fbca735c5bd54eab66909",
+    "bytes": 20668,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 383
+  },
+  {
+    "path": "docs/plan/2026-11-02-provider-template-expansion.md",
+    "sha256": "d055987e6ce0fa400f126549e14acb4ed053f56370d536ecd23ffbca63db3f0c",
+    "bytes": 251844,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "docs/plan/provider-luma-agents-contract.md",
+    "sha256": "d9e698f008cf9cfea8ac5090f8a2b885b8d45112c7a79937c535930c2bc87009",
+    "bytes": 14683,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "docs/progress/2026-11-18-provider-channel-expansion-luma-layering.md",
+    "sha256": "61d50416e401c2e05ea21bb251c884b914457c4e8275ad27fe9f6743fa9d54b9",
+    "bytes": 7020,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "docs/progress/2026-11-19-provider-channel-expansion-luma-inference.md",
+    "sha256": "0d48a57c36cdfeb096ed9bbea285a4bb76277bf77cafb8a5213e57fccb627aed",
+    "bytes": 5726,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "docs/progress/2026-11-19-provider-channel-expansion-luma-video-controls.md",
+    "sha256": "56fc6dff46a1010108c42b6c42e3866905768088cd8a08318acebc2ca92bf2e4",
+    "bytes": 3739,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "docs/provider-luma-channel-contract.md",
+    "sha256": "04f49c778a03540cbd5e1cdb37ce9d6d38b78eb41a13c10dd143a9021e546108",
+    "bytes": 34819,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "docs/providers/examples/lumalabs-inference.routes.sample.json",
+    "sha256": "a1bf0da188feb66a9106c26cc590006313b2a342b43cbf4c4959b90985564beb",
+    "bytes": 250,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "docs/providers/lumalabs-inference-contract.md",
+    "sha256": "f8dfff00e71d86f2b27132b339232c36d458f95ee58463ef839b2e29e100cbdc",
+    "bytes": 2855,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "docs/providers/magpie-remaining-2026-11-13.md",
+    "sha256": "fe1b661bb8bc3f339619aa88fc85a281ae0c9609c9771be75f319d30c681a6b6",
+    "bytes": 27463,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "manifests/lines/lumalabs/inference-official-api.json",
+    "sha256": "4c8dea8878d2a754ef450d267f18e5f21596883dd3880e64a48df130cb179baa",
+    "bytes": 1742,
+    "utf8": true,
+    "bom": false
+  },
+  {
+    "path": "src/console/secrets/keep_bindings.rs",
+    "sha256": "169888de2c53657bfc09c683a0d44397aee8db1fe047eb02b0fb9a55dd1a3879",
+    "bytes": 13582,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 321,
+    "beforeEffectiveLines": 320
+  },
+  {
+    "path": "src/implementation_lines/catalog.rs",
+    "sha256": "59283dc0c7b6f334a781a4f3d7f01e9e1590ac45860ee34f5a689af8333c116d",
+    "bytes": 22317,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 388,
+    "beforeEffectiveLines": 380
+  },
+  {
+    "path": "src/implementation_lines/payload.rs",
+    "sha256": "b710e42eba7701e72aff5cd033405efddaba4a300fd929f1f4549f005cf55388",
+    "bytes": 8367,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 154,
+    "beforeEffectiveLines": 151
+  },
+  {
+    "path": "src/implementation_lines/profiles.rs",
+    "sha256": "8081a8f47565417abcd1a3a963099c1769dc14ffc980610811a8153dc1e4e1c7",
+    "bytes": 11443,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 224,
+    "beforeEffectiveLines": 221
+  },
+  {
+    "path": "src/implementation_lines/tests/feature_profiles.rs",
+    "sha256": "001d3dc12dfcb5abb07268e9391a803a4777ab069ae1054fa019873f2c4b2fab",
+    "bytes": 6595,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 149
+  },
+  {
+    "path": "src/pipeline/stage_send/stream_preflight.rs",
+    "sha256": "45e8217c9dca305e09e124baadbf6ac14cc656e5a7d88b8eab31277d90b84291",
+    "bytes": 17625,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 388
+  },
+  {
+    "path": "src/pipeline/stage_send/tool_bridge.rs",
+    "sha256": "04b3d1ac7cecc3fd7182409031b2cc0bb490f341452a2e5555be79bbabc9e8ec",
+    "bytes": 3635,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 90
+  },
+  {
+    "path": "src/preset.rs",
+    "sha256": "4c1b50dcdcbdc36cdd2022975b50d46717d8000da5abb2b02a87d51764e6afd2",
+    "bytes": 11801,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 248,
+    "beforeEffectiveLines": 248
+  },
+  {
+    "path": "src/preset/openai.rs",
+    "sha256": "fc9cd673d86f6fd940a6bc7e65478189fb383202820be119ca9dcb99201f7e92",
+    "bytes": 11302,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 255,
+    "beforeEffectiveLines": 248
+  },
+  {
+    "path": "src/preset/registry.rs",
+    "sha256": "6bd93709d0f5481685000525fc6f755376d532ac09823750780fc570b3cfdac8",
+    "bytes": 7008,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 208,
+    "beforeEffectiveLines": 206
+  },
+  {
+    "path": "src/protocol/call_flow/preparation.rs",
+    "sha256": "b122f2ee41a14758c6cc736f62eeae25c49d248db6279364955910c1d8c16f79",
+    "bytes": 7053,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 157,
+    "beforeEffectiveLines": 156
+  },
+  {
+    "path": "src/protocol/luma_inference.rs",
+    "sha256": "67daad6c57e5e59a6eadeb59d6978d814125ece52c5aa2891999ff96d81b6565",
+    "bytes": 7769,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 208
+  },
+  {
+    "path": "src/protocol/luma_inference/config.rs",
+    "sha256": "32b1f8607627350fff9b1df47e16d9067d30e05dd672ffb4b083d1028e72fa67",
+    "bytes": 2194,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 50
+  },
+  {
+    "path": "src/protocol/luma_inference/test_support.rs",
+    "sha256": "d0584617bcd697cdb5096bf83b0fc2d4fe1ccc6fdfd42e3f03242524d625ac17",
+    "bytes": 1093,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 26
+  },
+  {
+    "path": "src/protocol/luma_inference/wire_tests.rs",
+    "sha256": "1ec4765eb10debd5016e6573a70afbd467a292802cb67bcd44490bf0f1ff0070",
+    "bytes": 7627,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 182
+  },
+  {
+    "path": "src/protocol/luma_inference/wire_tests/boundaries.rs",
+    "sha256": "c07b04c3a616dd3e4b6f5ef7e3bfa681418390935c1856b925aa67cebe77bbdf",
+    "bytes": 4396,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 104
+  },
+  {
+    "path": "src/protocol/luma_inference/wire_tests/fixture.rs",
+    "sha256": "8940d574884e87f01c95cb40b32cf03e8773702fc91035d40f7b00b5e84c2206",
+    "bytes": 6883,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 166
+  },
+  {
+    "path": "src/protocol/luma_inference/wire_tests/probe.rs",
+    "sha256": "0b55d7522fa54c5a85aa25db144364c2413b3d83e69965c6b7191020b2d2832b",
+    "bytes": 6280,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 131
+  },
+  {
+    "path": "src/protocol/luma_inference/wire_tests/probe_management.rs",
+    "sha256": "6c6b41b66d801e4a828270e7e10cc95e0940ef710992b71d682960ab5a96336f",
+    "bytes": 6564,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 157
+  },
+  {
+    "path": "src/protocol/luma_inference/wire_tests/response_contract.rs",
+    "sha256": "0d4662faf253adc0513d9155d3d251927a0f6ee8f77c457113ba352c3b02b5d5",
+    "bytes": 1459,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 23
+  },
+  {
+    "path": "src/protocol/luma_inference/wire_tests/stream_failures.rs",
+    "sha256": "e93dde8e609a7f4e0a8bb0196f4ad705b7dbb6b977a28e6dc2a8be01efb159c3",
+    "bytes": 4136,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 89
+  },
+  {
+    "path": "src/protocol/luma_inference_tests.rs",
+    "sha256": "a7131fe3285d54d094c7c93f1f5e4beb1f40c44b22caf918e136ed536dc950c0",
+    "bytes": 5243,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 115
+  },
+  {
+    "path": "src/protocol/mod.rs",
+    "sha256": "9cff8d61de2a100c3f5dd8589bd9e4f96cfceccdd5b948a4e65029d830267def",
+    "bytes": 3298,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 123,
+    "beforeEffectiveLines": 120
+  },
+  {
+    "path": "src/protocol/registry/profile_inference.rs",
+    "sha256": "41cdda0571a5bc80847f69ad5f23085a67075d4c17efbc844357d59d71b04e82",
+    "bytes": 10814,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 269,
+    "beforeEffectiveLines": 265
+  },
+  {
+    "path": "src/protocol/registry/profiles.rs",
+    "sha256": "923d25fcf26290cba10b9d7a212dfd47a17b301ac039e598a895c3ca58b24357",
+    "bytes": 12602,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 258,
+    "beforeEffectiveLines": 257
+  },
+  {
+    "path": "src/provider_runtime.rs",
+    "sha256": "bca1a0052740abc4ed4e9de5a6b5c5a49bd2cb83c93ed12e43dfb23595b27829",
+    "bytes": 4012,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 115
+  },
+  {
+    "path": "src/provider_runtime/console_model_probe.rs",
+    "sha256": "060dcf98f61c34ca5d399d398c24776653b9241ce052091d30f68da964e8b562",
+    "bytes": 17511,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 426
+  },
+  {
+    "path": "src/provider_runtime/luma_inference_model_probe.rs",
+    "sha256": "16e1b93c52eda3c19d0d61d14b93c5d72af54eb6b99a615cb06a4427a90c6177",
+    "bytes": 3945,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 96
+  },
+  {
+    "path": "src/routing/config/provider_compilation.rs",
+    "sha256": "0b2d6ffa3319a79584af738e9f8253f64763379c36362705736ff1532ed4bb0a",
+    "bytes": 12468,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 255,
+    "beforeEffectiveLines": 249
+  },
+  {
+    "path": "src/upstream/client/buffered_response.rs",
+    "sha256": "f70dffd063801e93ad0d6c70b63d00bfa2cfa2e369849a81322df8f596ed9992",
+    "bytes": 2500,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 50
+  },
+  {
+    "path": "src/upstream/client/native_codex.rs",
+    "sha256": "6bd3edd456af62c355bb4e4cc7fe3f5ba3bb0d2043a7981ad2b667c1781d1726",
+    "bytes": 13721,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 288
+  },
+  {
+    "path": "src/upstream/client/passthrough.rs",
+    "sha256": "47331efa5d3805d8817aa611402b095444f2e3be5d53af8f64892a92fd1fbb64",
+    "bytes": 19584,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 474
+  },
+  {
+    "path": "src/upstream/client/request_plan_part_1.rs",
+    "sha256": "d82704bb1b68bbd997d6ac5810812c25a105283180e63dae7daf7b663c68ca74",
+    "bytes": 13676,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 204,
+    "beforeEffectiveLines": 201
+  },
+  {
+    "path": "src/upstream/client/streaming/profiled_sender.rs",
+    "sha256": "e68d8d4f3ecb17f4b91cfc56aeea5fa7d9419084cb5b32785eb1ae18bdb1a96e",
+    "bytes": 6701,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 119,
+    "beforeEffectiveLines": 112
+  },
+  {
+    "path": "src/upstream/luma_agents/layering_tests.rs",
+    "sha256": "f6c35d1b35be09f45afde7b3f3d7f0960e47e312b02887de4301693d6dc630a1",
+    "bytes": 9409,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 223
+  },
+  {
+    "path": "src/upstream/luma_agents/layering_text.rs",
+    "sha256": "86298068cdd36f9b0128cce2210ce6aff69d6e010394f829f3755c392d26e0f8",
+    "bytes": 2161,
+    "utf8": true,
+    "bom": false,
+    "effectiveLines": 57
+  }
+]

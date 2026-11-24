@@ -118,8 +118,15 @@ pub(crate) fn prepare_lumalabs_execution_context(
     default_timeout: Duration,
 ) -> Result<PreparedLumalabsExecutionContext, GatewayError> {
     let media_plan = prepare_lumalabs_media_plan(payload, req, model, default_timeout)?;
+    let mut browser_input = prepare_lumalabs_browser_execution_input(&media_plan, &payload.api_key);
+    // Keep the captured account identity on both local and remote browser paths.
+    browser_input.user_agent = payload
+        .headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("user-agent"))
+        .map(|(_, value)| value.clone());
     Ok(PreparedLumalabsExecutionContext {
-        browser_input: prepare_lumalabs_browser_execution_input(&media_plan, &payload.api_key),
+        browser_input,
         media_plan,
     })
 }
@@ -134,6 +141,7 @@ pub(crate) fn prepare_lumalabs_browser_execution_input(
         media_operation: Some(media_plan.media_operation.to_string()),
         artifact_field: media_plan.artifact_field.clone(),
         session_token: session_token.to_string(),
+        user_agent: None,
         action_body: media_plan.action_body.clone(),
         auto_discover_action_type: media_plan.auto_discover_action_type,
         locale: media_plan.locale.clone(),

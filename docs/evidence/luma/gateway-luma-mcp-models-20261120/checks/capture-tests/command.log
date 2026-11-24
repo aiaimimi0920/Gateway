@@ -1,0 +1,8 @@
+test_fixed_expiry_identifiers_remain_diagnosable (test_luma_model_capture.ModelCaptureErrors.test_fixed_expiry_identifiers_remain_diagnosable) ... ok
+test_malformed_and_wrong_type_errors_are_silent (test_luma_model_capture.ModelCaptureErrors.test_malformed_and_wrong_type_errors_are_silent) ... ok
+test_supplier_prose_and_unknown_identifiers_are_not_printed (test_luma_model_capture.ModelCaptureErrors.test_supplier_prose_and_unknown_identifiers_are_not_printed) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+OK

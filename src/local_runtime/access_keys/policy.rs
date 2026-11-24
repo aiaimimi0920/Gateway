@@ -184,7 +184,7 @@ impl LocalRuntime {
         let key = decode(&payload)?;
         ensure_active(&key)?;
         let scopes = crate::db::scope_list_from_metadata(key.metadata.as_ref());
-        let endpoint = request.path.trim_start_matches("/v1/").replace('/', ".");
+        let endpoint = endpoint_scope(request);
         if !scopes
             .iter()
             .any(|scope| scope == "relay" || scope == &endpoint)
@@ -268,6 +268,30 @@ impl LocalRuntime {
         tx.commit().await.map_err(storage_error)?;
         Ok((policy.provider_ids, key.metadata))
     }
+}
+
+// Scope matching never changes the actual path/method sent to an auth adapter.
+fn endpoint_scope(request: &AuthRequest) -> String {
+    if let Some(tail) = request.path.strip_prefix("/v1/responses/") {
+        let (id, cancel) = tail
+            .strip_suffix("/cancel")
+            .map_or((tail, false), |id| (id, true));
+        let valid_id = id.strip_prefix("resp_gw_").is_some_and(|suffix| {
+            suffix.len() == 32
+                && suffix
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || matches!(b, b'a'..=b'f'))
+        });
+        if valid_id
+            && matches!(
+                (request.method.as_str(), cancel),
+                ("GET" | "DELETE", false) | ("POST", true)
+            )
+        {
+            return "responses".into();
+        }
+    }
+    request.path.trim_start_matches("/v1/").replace('/', ".")
 }
 
 pub fn local_key_id<'a>(

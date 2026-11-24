@@ -1,0 +1,482 @@
+Upload a file | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Menu
+lumalabs.ai
+HTTP
+HTTP
+HTTP
+TypeScript
+TypeScript
+Python
+Python
+Go
+Go
+CLI Tool
+CLI Tool
+Guides
+API Reference
+Admin API
+Overview
+Generations
+Create
+POST
+Get
+GET
+Delete
+DELETE
+Files
+Create
+POST
+List
+GET
+Complete
+POST
+Get
+GET
+Delete
+DELETE
+Deletions
+Get
+GET
+Auto
+Light
+Dark
+lumalabs.ai
+API Reference
+Files
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+Upload a file
+POST
+/files
+Upload a file to your namespace, then reference it from a generation via ImageRef.file_id (as source, image_ref[], video.start_frame, keyframes, and so on). Two upload modes share this endpoint, selected by Content-Type:
+multipart/form-data — send the bytes inline in the
+file
+part. Best for small files (subject to an inline size cap; larger files must use the presigned flow). The returned file is already
+pending
+ingest.
+application/json — request a presigned upload. The response
+upload
+envelope tells you where to PUT the bytes; afterward call POST /files/{file_id}/complete to start ingest. Use this for larger files.
+Body Parameters
+{}
+JSON
+Expand
+Collapse
+mime_type
+:
+string
+MIME type of the bytes you will upload.
+minLength:
+1
+,
+maxLength:
+256
+size_bytes
+:
+number
+Exact size in bytes of the object you will PUT. Up to 5 GiB (the S3 single-PUT ceiling).
+minimum:
+1
+expires_at
+:
+optional
+string
+Optional TTL. After this time Luma may automatically delete the file and reclaim its bytes.
+format:
+date-time
+filename
+:
+optional
+string
+Optional original filename to record.
+maxLength:
+512
+purpose
+:
+optional
+FilePurpose
+How the file is intended to be used in a generation.
+input
+is the primary subject (e.g. the source image for an edit);
+reference
+is style/content guidance.
+One of the following:
+"input"
+"reference"
+user_id
+:
+optional
+string
+Optional opaque end-user tag for abuse attribution. Mirrors the user_id field on POST /generations.
+maxLength:
+256
+Returns
+Expand
+Collapse
+CreateFileResponse
+=
+object
+{
+id, file, state, upload
+}
+Result of POST /files. In the multipart (inline) flow
+upload
+is null and the file is already
+pending
+ingest. In the presigned (JSON) flow
+upload
+carries the PUT envelope and the file stays
+pending
+until you call POST /files/{file_id}/complete. Top-level
+id
+and
+state
+are conveniences that mirror
+file.id
+and
+file.state
+; the full record is always under
+file
+.
+id
+:
+string
+File identifier.
+format:
+uuid
+file
+:
+File
+{
+id, created_at, mime_type, 8 more
+}
+A file in the caller's namespace.
+id
+:
+string
+File identifier, referenced as ImageRef.file_id.
+format:
+uuid
+created_at
+:
+string
+Creation timestamp.
+format:
+date-time
+mime_type
+:
+string
+MIME type of the stored bytes (for example, image/jpeg).
+purpose
+:
+FilePurpose
+How the file is intended to be used in a generation.
+input
+is the primary subject (e.g. the source image for an edit);
+reference
+is style/content guidance.
+One of the following:
+"input"
+"reference"
+size_bytes
+:
+number
+Size of the stored object in bytes.
+state
+:
+FileState
+Lifecycle state of an uploaded file.
+pending
+until bytes are received and the ingest pipeline runs;
+ready
+once it can be referenced from a generation;
+failed
+if ingest/moderation rejected it;
+deleted
+once the file has been deleted.
+One of the following:
+"pending"
+"ready"
+"failed"
+"deleted"
+deleted_at
+:
+optional
+string
+When the file was deleted; null otherwise.
+format:
+date-time
+expires_at
+:
+optional
+string
+TTL set at upload, if any. After this time Luma may automatically delete the file and reclaim its bytes — you don't need to call DELETE yourself.
+format:
+date-time
+failure_reason
+:
+optional
+string
+Human-readable reason when state is failed.
+filename
+:
+optional
+string
+Original filename supplied at upload, if any.
+user_id
+:
+optional
+string
+The opaque end-user tag supplied at upload, echoed back unchanged. Abuse-attribution only; not an access-control primitive.
+state
+:
+FileState
+Lifecycle state of an uploaded file.
+pending
+until bytes are received and the ingest pipeline runs;
+ready
+once it can be referenced from a generation;
+failed
+if ingest/moderation rejected it;
+deleted
+once the file has been deleted.
+One of the following:
+"pending"
+"ready"
+"failed"
+"deleted"
+upload
+:
+optional
+PresignedUpload
+{
+expires_at, method, url, headers
+}
+Where to PUT the file bytes for a presigned (JSON) upload. Issue an HTTP PUT of the raw bytes to
+url
+with the given
+headers
+, then call POST /files/{file_id}/complete.
+expires_at
+:
+string
+When the presigned URL expires.
+format:
+date-time
+method
+:
+string
+HTTP method to use for the upload — always PUT.
+url
+:
+string
+Presigned S3 URL to PUT the bytes to.
+format:
+uri
+headers
+:
+optional
+map
+[
+string
+]
+Headers that must be sent with the PUT request.
+Upload a file
+HTTP
+TypeScript
+Python
+Go
+CLI Tool
+curl
+https://agents.lumalabs.ai/v1/files
+\
+-H
+'Content-Type: application/json'
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-d
+'{
+"mime_type": "x",
+"size_bytes": 1
+}'
+201 example
+{
+"id"
+:
+"182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"
+,
+"file"
+: {
+"id"
+:
+"182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"
+,
+"created_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"mime_type"
+:
+"mime_type"
+,
+"purpose"
+:
+"input"
+,
+"size_bytes"
+:
+0
+,
+"state"
+:
+"pending"
+,
+"deleted_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"expires_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"failure_reason"
+:
+"failure_reason"
+,
+"filename"
+:
+"filename"
+,
+"user_id"
+:
+"user_id"
+},
+"state"
+:
+"pending"
+,
+"upload"
+: {
+"expires_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"method"
+:
+"method"
+,
+"url"
+:
+"https://example.com"
+,
+"headers"
+: {
+"foo"
+:
+"string"
+}
+}
+}
+Returns Examples
+201 example
+{
+"id"
+:
+"182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"
+,
+"file"
+: {
+"id"
+:
+"182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"
+,
+"created_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"mime_type"
+:
+"mime_type"
+,
+"purpose"
+:
+"input"
+,
+"size_bytes"
+:
+0
+,
+"state"
+:
+"pending"
+,
+"deleted_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"expires_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"failure_reason"
+:
+"failure_reason"
+,
+"filename"
+:
+"filename"
+,
+"user_id"
+:
+"user_id"
+},
+"state"
+:
+"pending"
+,
+"upload"
+: {
+"expires_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"method"
+:
+"method"
+,
+"url"
+:
+"https://example.com"
+,
+"headers"
+: {
+"foo"
+:
+"string"
+}
+}
+}

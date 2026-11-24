@@ -1,0 +1,21 @@
+{
+  "args": [
+    "npm.cmd",
+    "--prefix",
+    "apps/desktop",
+    "run",
+    "test",
+    "--",
+    "run",
+    "src/api/client.test.ts",
+    "src/api/client.redirect.test.ts",
+    "src/api/client.multipart.test.ts",
+    "src/features/console/LumaFilesPanel.test.tsx",
+    "src/features/console/LumaFilesPanel.upload.test.tsx",
+    "--maxWorkers=1"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T17:47:16.835254+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 17.92
+}

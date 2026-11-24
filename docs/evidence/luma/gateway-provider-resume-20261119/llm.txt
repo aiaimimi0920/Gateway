@@ -1,0 +1,906 @@
+LLM Inference | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Menu
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Getting started
+Quickstart
+Models
+Videos
+Overview
+Migration guide
+Generation
+Editing
+Reframing
+Images
+Overview
+Generation
+Editing
+Layering
+Prompting guide
+Files
+Overview
+Deletion
+Generation deletion
+LLM Inference
+LLM Inference
+Reference
+Pricing
+Usage and credits
+Rate limits and headers
+Error handling
+FAQ
+Changelog
+Auto
+Light
+Dark
+lumalabs.ai
+On this page
+Overview
+Base URL
+Authentication
+Models
+glm-5.2
+Chat completions
+Non-streaming
+Streaming
+Using an OpenAI SDK
+Tool calling
+Usage and billing
+What you receive
+Token counting in responses
+Rate limits and capacity
+Rate limit layers
+Handling 429 responses
+Your RPM and TPM limits
+Errors
+Status codes
+Error types
+Stream errors
+FAQ
+Is this the same as the Luma Agents image/video API?
+Can I use my existing OpenAI SDK?
+Do I get billed for failed requests?
+How do I get an API key?
+Next steps
+On this page
+Overview
+Base URL
+Authentication
+Models
+glm-5.2
+Chat completions
+Non-streaming
+Streaming
+Using an OpenAI SDK
+Tool calling
+Usage and billing
+What you receive
+Token counting in responses
+Rate limits and capacity
+Rate limit layers
+Handling 429 responses
+Your RPM and TPM limits
+Errors
+Status codes
+Error types
+Stream errors
+FAQ
+Is this the same as the Luma Agents image/video API?
+Can I use my existing OpenAI SDK?
+Do I get billed for failed requests?
+How do I get an API key?
+Next steps
+LLM Inference
+LLM Inference
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+LLM Inference
+Luma's hosted LLM inference API — OpenAI-compatible chat completions for GLM models, built for LLM routers and resellers.
+Luma offers hosted LLM inference for GLM models through an
+OpenAI-compatible API
+. The endpoint is a drop-in replacement for the OpenAI Chat Completions API — point your existing client at Luma’s base URL, swap in a Luma-issued API key, and the same request and response shapes work out of the box.
+This API is designed for
+LLM routers and resellers
+who need high-throughput token inference with postpaid billing.
+Note
+The LLM Inference API is a separate product from the Luma Agents image and
+video API. It uses a different base URL, a different API key system, and a
+different billing model. The rest of this documentation site covers the image
+and video API; this page covers the LLM inference API.
+Base URL
+Section titled “Base URL”
+Environment
+Base URL
+Production
+https://inference.lumalabs.ai
+All requests are sent to
+https://inference.lumalabs.ai/v1/...
+.
+Authentication
+Section titled “Authentication”
+Every request must include a
+Bearer token
+in the
+Authorization
+header. API keys are issued by Luma when your inference account is provisioned.
+Terminal window
+curl
+https://inference.lumalabs.ai/v1/chat/completions
+\
+-H
+"Authorization: Bearer
+$LLM_INFERENCE_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{...}'
+Treat your API key as a secret — never expose it in client-side code or public repositories. If a key is compromised, contact Luma support to rotate it immediately.
+Info
+API keys for the LLM Inference API are separate from Luma Agents API keys.
+Contact
+sales
+to provision an inference
+account and receive your keys.
+Models
+Section titled “Models”
+The following models are available on the LLM Inference API. Each model is served at FP8 quantization on Luma’s GPU infrastructure.
+Model
+Context window
+Max output
+Quantization
+Features
+glm-5.2
+262,144
+32,768
+FP8
+Tools, JSON mode, structured outputs
+glm-5.2
+Section titled “glm-5.2”
+GLM 5.2 is a general-purpose large language model with strong tool-calling and agentic capabilities. It supports function/tool calls, JSON mode, and structured output formats.
+Supported sampling parameters:
+temperature
+,
+top_p
+,
+max_tokens
+,
+stop
+,
+frequency_penalty
+,
+presence_penalty
+,
+seed
+.
+Context window:
+262,144 tokens (256K).
+Max output:
+32,768 tokens.
+Chat completions
+Section titled “Chat completions”
+The
+POST /v1/chat/completions
+endpoint is fully OpenAI-compatible. Send a list of messages, pick a model, and receive a completion — either as a single JSON response or a stream of server-sent events.
+Non-streaming
+Section titled “Non-streaming”
+Terminal window
+curl
+https://inference.lumalabs.ai/v1/chat/completions
+\
+-H
+"Authorization: Bearer
+$LLM_INFERENCE_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"model": "glm-5.2",
+"messages": [
+{"role": "system", "content": "You are a helpful assistant."},
+{"role": "user", "content": "Explain prefix caching in one sentence."}
+],
+"max_tokens": 100
+}'
+{
+"id"
+:
+"chatcmpl-be40cbc6-..."
+,
+"object"
+:
+"chat.completion"
+,
+"created"
+:
+1767225600
+,
+"model"
+:
+"glm-5.2"
+,
+"choices"
+: [
+{
+"index"
+:
+0
+,
+"message"
+: {
+"role"
+:
+"assistant"
+,
+"content"
+:
+"Prefix caching stores the computed attention key-value pairs for a prompt's beginning so repeated prompts skip recomputation, reducing latency and cost."
+},
+"finish_reason"
+:
+"stop"
+}
+],
+"usage"
+: {
+"prompt_tokens"
+:
+25
+,
+"completion_tokens"
+:
+32
+,
+"total_tokens"
+:
+57
+,
+"prompt_tokens_details"
+: {
+"cached_tokens"
+:
+0
+}
+}
+}
+Streaming
+Section titled “Streaming”
+Set
+"stream": true
+to receive the response as a stream of server-sent events (SSE). Each chunk contains a delta with incremental content. The final chunk includes the
+usage
+object with token counts.
+Terminal window
+curl
+https://inference.lumalabs.ai/v1/chat/completions
+\
+-H
+"Authorization: Bearer
+$LLM_INFERENCE_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"model": "glm-5.2",
+"messages": [
+{"role": "user", "content": "Write a haiku about GPUs."}
+],
+"stream": true,
+"stream_options": {"include_usage": true}
+}'
+data: {"id":"chatcmpl-be40cbc6-...","object":"chat.completion.chunk","created":1767225600,"model":"glm-5.2","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+data: {"id":"chatcmpl-be40cbc6-...","object":"chat.completion.chunk","created":1767225600,"model":"glm-5.2","choices":[{"index":0,"delta":{"content":"Silicon"},"finish_reason":null}]}
+data: {"id":"chatcmpl-be40cbc6-...","object":"chat.completion.chunk","created":1767225600,"model":"glm-5.2","choices":[{"index":0,"delta":{"content":" whirrs,"},"finish_reason":null}]}
+...
+data: {"id":"chatcmpl-be40cbc6-...","object":"chat.completion.chunk","created":1767225600,"model":"glm-5.2","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":14,"total_tokens":26,"prompt_tokens_details":{"cached_tokens":0}}}
+data: [DONE]
+Info
+Include
+"stream_options": {"include_usage": true}
+to receive token usage in
+the final chunk. Without this, the
+usage
+field is omitted from streamed
+responses.
+Using an OpenAI SDK
+Section titled “Using an OpenAI SDK”
+Because the API is OpenAI-compatible, you can use the official OpenAI SDKs by setting the base URL to Luma’s inference endpoint:
+Python
+TypeScript
+cURL
+from
+openai
+import
+OpenAI
+client
+=
+OpenAI(
+api_key
+=
+"your-llm-inference-api-key"
+,
+base_url
+=
+"https://inference.lumalabs.ai/v1"
+,
+)
+response
+=
+client.chat.completions.create(
+model
+=
+"glm-5.2"
+,
+messages
+=
+[
+{
+"role"
+:
+"system"
+,
+"content"
+:
+"You are a helpful assistant."
+},
+{
+"role"
+:
+"user"
+,
+"content"
+:
+"What is 2 + 2?"
+},
+],
+max_tokens
+=
+50
+,
+)
+print
+(response.choices[
+0
+].message.content)
+import
+OpenAI
+from
+"openai"
+;
+const
+client
+=
+new
+OpenAI
+({
+apiKey:
+"your-llm-inference-api-key"
+,
+baseURL:
+"https://inference.lumalabs.ai/v1"
+,
+});
+const
+response
+=
+await
+client.chat.completions.
+create
+({
+model:
+"glm-5.2"
+,
+messages: [
+{ role:
+"system"
+, content:
+"You are a helpful assistant."
+},
+{ role:
+"user"
+, content:
+"What is 2 + 2?"
+},
+],
+max_tokens:
+50
+,
+});
+console.
+log
+(response.choices[
+0
+].message.content);
+Terminal window
+curl
+https://inference.lumalabs.ai/v1/chat/completions
+\
+-H
+"Authorization: Bearer
+$LLM_INFERENCE_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"model": "glm-5.2",
+"messages": [
+{"role": "user", "content": "What is 2 + 2?"}
+]
+}'
+Tool calling
+Section titled “Tool calling”
+GLM 5.2 supports OpenAI-compatible function/tool calling. Define tools in the request, and the model can choose to call them:
+Terminal window
+curl
+https://inference.lumalabs.ai/v1/chat/completions
+\
+-H
+"Authorization: Bearer
+$LLM_INFERENCE_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"model": "glm-5.2",
+"messages": [
+{"role": "user", "content": "What is the weather in Tokyo?"}
+],
+"tools": [{
+"type": "function",
+"function": {
+"name": "get_weather",
+"description": "Get the current weather for a city",
+"parameters": {
+"type": "object",
+"properties": {
+"city": {"type": "string", "description": "The city name"}
+},
+"required": ["city"]
+}
+}
+}]
+}'
+{
+"id"
+:
+"chatcmpl-be40cbc6-..."
+,
+"object"
+:
+"chat.completion"
+,
+"model"
+:
+"glm-5.2"
+,
+"choices"
+: [
+{
+"index"
+:
+0
+,
+"message"
+: {
+"role"
+:
+"assistant"
+,
+"content"
+:
+null
+,
+"tool_calls"
+: [
+{
+"id"
+:
+"call_abc123"
+,
+"type"
+:
+"function"
+,
+"function"
+: {
+"name"
+:
+"get_weather"
+,
+"arguments"
+:
+"{
+\"
+city
+\"
+:
+\"
+Tokyo
+\"
+}"
+}
+}
+]
+},
+"finish_reason"
+:
+"tool_calls"
+}
+],
+"usage"
+: {
+"prompt_tokens"
+:
+50
+,
+"completion_tokens"
+:
+20
+,
+"total_tokens"
+:
+70
+,
+"prompt_tokens_details"
+: {
+"cached_tokens"
+:
+0
+}
+}
+}
+Usage and billing
+Section titled “Usage and billing”
+Billing is
+postpaid and metered
+— you are billed for actual token usage after the billing period closes, with no prepaid balance required.
+What you receive
+Section titled “What you receive”
+At the end of each billing period, your usage is reported as
+monthly totals broken down by model
+with the following dimensions:
+Field
+Description
+Model
+The model ID (e.g.
+glm-5.2
+)
+Input tokens
+Total uncached input tokens
+Cached input tokens
+Total cached input tokens billed at the cached input rate
+Output tokens
+Total output (completion) tokens
+Total charge
+Total charge for the billing period
+These totals match your invoice exactly — every token counted in the monthly report appears on your bill.
+Info
+Request-level logs, real-time usage dashboards, and granular cost attribution
+are on the roadmap. For the initial launch, monthly per-model totals are the
+billing source of truth. If you need per-request visibility, log the
+usage
+object from each response on your side.
+Token counting in responses
+Section titled “Token counting in responses”
+Every response (streaming and non-streaming) includes a
+usage
+object:
+{
+"usage"
+: {
+"prompt_tokens"
+:
+1000
+,
+"completion_tokens"
+:
+500
+,
+"total_tokens"
+:
+1500
+,
+"prompt_tokens_details"
+: {
+"cached_tokens"
+:
+600
+}
+}
+}
+Field
+Description
+prompt_tokens
+Total input tokens (includes cached tokens)
+completion_tokens
+Total output tokens generated
+total_tokens
+prompt_tokens
++
+completion_tokens
+prompt_tokens_details.cached_tokens
+Portion of
+prompt_tokens
+served from cache
+To compute the billable input tokens yourself:
+uncached_input = prompt_tokens - cached_tokens
+.
+Rate limits and capacity
+Section titled “Rate limits and capacity”
+The API enforces two independent layers of rate limiting. Both return HTTP 429, but the response headers tell you which layer you hit and how to handle it.
+Rate limit layers
+Section titled “Rate limit layers”
+Layer
+Trigger
+X-Luma-Shed
+header
+Retry-After
+Per-key limit
+Your API key’s RPM/TPM allowance exceeded
+absent
+Present — wait the indicated seconds
+Fleet capacity
+The GPU fleet is overloaded
+capacity
+1
+Handling 429 responses
+Section titled “Handling 429 responses”
+Check the
+X-Luma-Shed
+response header to determine which limit you hit:
+No
+X-Luma-Shed
+header
+— you hit your per-key RPM or TPM limit. Wait for the
+Retry-After
+duration, then retry. If this happens frequently, your key’s limits may need adjusting — contact Luma to request a higher allowance.
+X-Luma-Shed: capacity
+— the fleet is under pressure. Back off collectively with jitter, then retry. This is a transient condition that resolves as capacity frees up.
+import
+time
+import
+random
+import
+requests
+def
+chat_with_retry
+(messages, max_retries
+=
+5
+):
+url
+=
+"https://inference.lumalabs.ai/v1/chat/completions"
+headers
+=
+{
+"Authorization"
+:
+f
+"Bearer
+{API_KEY}
+"
+,
+"Content-Type"
+:
+"application/json"
+,
+}
+payload
+=
+{
+"model"
+:
+"glm-5.2"
+,
+"messages"
+: messages}
+for
+attempt
+in
+range
+(max_retries):
+response
+=
+requests.post(url,
+headers
+=
+headers,
+json
+=
+payload)
+if
+response.status_code
+==
+429
+:
+retry_after
+=
+int
+(response.headers.get(
+"Retry-After"
+,
+"5"
+))
+jitter
+=
+random.uniform(
+0
+, retry_after
+*
+0.3
+)
+time.sleep(retry_after
++
+jitter)
+continue
+response.raise_for_status()
+return
+response.json()
+raise
+Exception
+(
+"Max retries exceeded"
+)
+Note
+A rate-limited request is
+never billed
+. Token usage is only
+metered on requests that return a successful (200) response. Requests that are
+rejected before the first byte never incur a charge.
+Your RPM and TPM limits
+Section titled “Your RPM and TPM limits”
+Per-key RPM (requests per minute) and TPM (tokens per minute) limits are set when your account is provisioned and can be adjusted based on your traffic profile. Check your current limits with Luma support or
+contact sales
+to request changes.
+Errors
+Section titled “Errors”
+The API uses standard HTTP status codes. All error responses follow the OpenAI error format:
+{
+"error"
+: {
+"message"
+:
+"Human-readable error description"
+,
+"type"
+:
+"invalid_request_error"
+,
+"param"
+:
+null
+,
+"code"
+:
+"429"
+}
+}
+Status codes
+Section titled “Status codes”
+Status
+Meaning
+Retryable?
+200
+Success
+—
+400
+Invalid request parameters
+No — fix the request
+401
+Invalid or missing API key
+No — fix auth
+429
+Rate limited or capacity shed
+Yes — see above
+500
+Internal server error
+Yes — retry with backoff
+503
+Service unavailable
+Yes — retry with backoff
+Error types
+Section titled “Error types”
+type
+When
+invalid_request_error
+Malformed or invalid request parameters
+auth_error
+Missing, invalid, or revoked API key
+rate_limit_error
+RPM/TPM limit or fleet capacity exceeded
+server_error
+Unexpected internal error
+Stream errors
+Section titled “Stream errors”
+There are two ways a stream can end abnormally after content has started flowing:
+Stream stops without an error frame (mid-stream stop):
+The connection ends without a
+data: [DONE]
+sentinel and without an error frame. An OpenAI-compatible client reads this as a clean end of stream — the partial content looks complete from the client’s perspective. Treat the response as incomplete.
+Stream terminates with an error frame (mid-stream error):
+The stream emits an error event instead of
+[DONE]
+, then closes. No
+data: [DONE]
+is ever sent on this path:
+data: {"error":{"message":"...","type":"server_error","code":"500"}}
+Caution
+A mid-stream error is terminal — no
+[DONE]
+sentinel follows it. An
+OpenAI-compatible client raises on the error frame. Billable tokens may have
+been generated before the failure; usage for these requests is reconciled
+server-side and appears in your monthly usage report, not in the response.
+FAQ
+Section titled “FAQ”
+Is this the same as the Luma Agents image/video API?
+Section titled “Is this the same as the Luma Agents image/video API?”
+No. The LLM Inference API is a separate product for text/chat LLM inference. It uses a different base URL (
+inference.lumalabs.ai
+), different API keys, and postpaid billing. The Luma Agents API covers image and video generation.
+Can I use my existing OpenAI SDK?
+Section titled “Can I use my existing OpenAI SDK?”
+Yes. Set the base URL to
+https://inference.lumalabs.ai/v1
+and use your Luma-issued API key. The request and response shapes are OpenAI-compatible.
+Do I get billed for failed requests?
+Section titled “Do I get billed for failed requests?”
+No. Requests that return a 429 (rate limited) or are rejected before the first byte are never billed. Only requests that return a 200 response are metered. Mid-stream failures may have generated billable tokens before the failure; those are reconciled server-side and appear in your monthly usage report.
+How do I get an API key?
+Section titled “How do I get an API key?”
+Contact sales
+to provision an inference account.
+Keys are issued during onboarding.
+Next steps
+Section titled “Next steps”
+Models
+— Available models and capabilities
+Chat completions
+— Request and response formats
+Rate limits
+— 429 handling and capacity shed
+Contact sales
+— Provision an account or request limit changes
+Previous
+Generation deletion
+Delete a finished generation with DELETE /v1/generations/{id} and track the asynchronous deletion task with GET /v1/deletions/{task_id}.
+Next
+Pricing
+Pay-as-you-go and Provisioned Throughput pricing for the Luma Agents API — image (uni-1, uni-1-max) and video (Ray 3.2).

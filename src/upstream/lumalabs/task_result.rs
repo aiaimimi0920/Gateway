@@ -48,6 +48,10 @@ impl TaskResult {
             ]
             .iter()
             .any(|value| !exact(value))
+            // Audio/video return links without downloading. Apply the same URL syntax
+            // boundary as image downloads, without changing the signed URL bytes.
+            || (result.media_operation != "image"
+                && crate::http_client::public_asset_url::checked(&result.signed_url).is_err())
             || result
                 .action_id
                 .as_deref()

@@ -1,0 +1,86 @@
+- main:
+  - complementary:
+    - strong: Gateway
+    - button "收起侧栏" [expanded]
+    - navigation "Gateway console navigation":
+      - button "凭据池"
+      - button "权益组"
+      - button "模型池"
+      - button "运维"
+      - button "密钥"
+    - navigation "辅助导航":
+      - button "设置"
+  - heading "凭据池" [level=1]
+  - button "刷新"
+  - search "搜索站点":
+    - searchbox "搜索站点"
+    - button "清除站点搜索" [disabled]
+    - combobox "站点排序": 默认顺序
+  - button "添加服务商"
+  - button "添加账号"
+  - complementary:
+    - group "接入形式":
+      - button "全部接入" [pressed]
+      - button "OAuth 授权"
+      - button "API Key"
+      - button "特殊"
+      - button "自定义"
+    - navigation "服务商目录":
+      - button "全部账号 4" [pressed]
+      - button "luma-backup API Key 1"
+      - button "luma-pipeline API Key 3"
+  - heading "全部账号" [level=2]
+  - text: 4 个账号
+  - button "全部" [pressed]
+  - button "已启用"
+  - button "已停用"
+  - searchbox "搜索账号"
+  - table:
+    - rowgroup:
+      - row "账号 / 服务商 并发 请求数 验证 调度":
+        - columnheader "账号 / 服务商"
+        - columnheader "并发"
+        - columnheader "请求数"
+        - columnheader "验证"
+        - columnheader "调度"
+    - rowgroup:
+      - row "backup-exact luma-backup 0/— 0 未验证 调度 backup-exact":
+        - cell "backup-exact luma-backup":
+          - button "backup-exact"
+          - text: luma-backup
+        - cell "0/—"
+        - cell "0"
+        - cell "未验证"
+        - cell "调度 backup-exact":
+          - switch "调度 backup-exact" [checked]
+      - row "disabled luma-pipeline — 0 未验证 调度 disabled":
+        - cell "disabled luma-pipeline":
+          - button "disabled"
+          - text: luma-pipeline
+        - cell "—"
+        - cell "0"
+        - cell "未验证"
+        - cell "调度 disabled":
+          - switch "调度 disabled"
+      - row "exact luma-pipeline — 0 未验证 调度 exact":
+        - cell "exact luma-pipeline":
+          - button "exact"
+          - text: luma-pipeline
+        - cell "—"
+        - cell "0"
+        - cell "未验证"
+        - cell "调度 exact":
+          - switch "调度 exact" [checked]
+      - row "unrelated luma-pipeline — 0 未验证 调度 unrelated":
+        - cell "unrelated luma-pipeline":
+          - button "unrelated"
+          - text: luma-pipeline
+        - cell "—"
+        - cell "0"
+        - cell "未验证"
+        - cell "调度 unrelated":
+          - switch "调度 unrelated" [checked]
+  - text: 4 个账号
+  - button "上一页" [disabled]
+  - text: 1 / 1
+  - button "下一页" [disabled]

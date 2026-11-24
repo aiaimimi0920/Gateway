@@ -26,12 +26,22 @@ mod kiro_api_key_probe_tests;
 #[cfg(all(test, feature = "line-kiro-official-vendor-api"))]
 mod kiro_oauth_runtime_probe_tests;
 mod lobsterai_model_probe;
+mod luma_inference_model_probe;
 mod lumalabs_media_probe;
 mod management;
 mod media_model_probe;
 mod media_probe_request;
 mod minimax_model_probe;
 mod model_probe_audit;
+#[cfg(all(
+    test,
+    any(
+        feature = "line-commandcode-provider-api",
+        feature = "line-sensenova-token-plan",
+        feature = "line-sap-aicore-chat"
+    )
+))]
+pub(crate) use model_probe_audit::test_support as probe_audit_test_support;
 mod model_probe_health;
 mod model_probe_recording;
 mod nous_model_probe;
@@ -40,6 +50,7 @@ mod perplexity_web_model_probe;
 #[cfg(all(test, feature = "line-perplexity-web-reverse-api"))]
 mod perplexity_web_model_probe_tests;
 mod probe_lock;
+mod quick_model_probe;
 mod qwen_model_probe;
 #[cfg(all(test, feature = "line-qwen-official-api"))]
 mod qwen_model_probe_tests;

@@ -280,6 +280,21 @@ pub async fn fetch_catalog(kind: CatalogProvider, key: &str) -> Result<ModelCata
     fetch_from(&client, kind.source(), key, kind).await
 }
 
+/// Uses the same parser and official destination; only the isolated devtest client differs.
+pub(crate) async fn fetch_sensenova_fixture(
+    client: &rquest::Client,
+    key: &str,
+) -> Result<ModelCatalog, GatewayError> {
+    if !crate::upstream::client::sensenova_fixture::synthetic_key(key) {
+        return Err(
+            GatewayError::bad_request("SenseNova fixture requires a synthetic Key")
+                .with_code("sensenova_fixture_key_invalid"),
+        );
+    }
+    let kind = CatalogProvider::SenseNova;
+    fetch_from(client, kind.source(), key, kind).await
+}
+
 fn unavailable() -> GatewayError {
     GatewayError::service_unavailable(
         "Cannot read official model catalog; previous catalog is unchanged.",

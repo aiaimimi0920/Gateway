@@ -416,8 +416,8 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     editorBusy: busy || actionBusy !== null || credentialPoolActions.credentialArchivePurgeBusy !== null || !routeConfig?.routeConfig.mutationSupported,
     background: { api, routeConfig, setRouteConfig, blocked: draftDirty || !!credentialDialogState || providerCatalogDialogOpen },
   });
-  const { autosavePending } = useConsoleDraftPersistence({
-    managementToken,
+  const { autosavePending, retrySave } = useConsoleDraftPersistence({
+    managementToken, routeConfig,
     secretGrant: session.secretGrant?.grant ?? null,
     editorLocked,
     selectedGroupIdInvalid: groupSelection.selectedGroupIdInvalid,
@@ -466,6 +466,7 @@ export function useConsoleController(consoleApi?: ConsoleApi) {
     activeWorkspace,
     ...providerCatalogEditor,
     autosavePending,
+    retrySave,
     busy,
     consoleRailCollapsed,
     credentialDialogState,

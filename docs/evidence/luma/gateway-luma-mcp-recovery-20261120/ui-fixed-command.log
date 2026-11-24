@@ -1,0 +1,13 @@
+
+> gateway-ui@0.1.0 test
+> vitest run src/features/console/LumaMcpCreationRecovery.test.tsx --maxWorkers=1
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  19:02:53
+   Duration  6.59s (transform 289ms, setup 705ms, import 986ms, tests 1.33s, environment 2.89s)
+

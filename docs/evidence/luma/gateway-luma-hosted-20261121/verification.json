@@ -1,0 +1,243 @@
+{
+    "dateLocal":  "2026-11-21",
+    "head":  "5d50886c5c3266606520d7ff933fdc9665d019f7",
+    "workingTree":  "dirty, including inherited edits",
+    "supplierNetworkUsedByTests":  false,
+    "packagedExeRebuilt":  false,
+    "testClock":  "Explicit worker tick; production timer and 15 minute wait not exercised",
+    "checks":  {
+                   "red":  {
+                               "args":  [
+                                            "cargo",
+                                            "test",
+                                            "--locked",
+                                            "--offline",
+                                            "--lib",
+                                            "--no-default-features",
+                                            "--features",
+                                            "runtime-defaults",
+                                            "-j",
+                                            "4",
+                                            "luma_reconciliation_server_restart_after_os_kill",
+                                            "--",
+                                            "--ignored",
+                                            "--test-threads=1",
+                                            "--nocapture"
+                                        ],
+                               "startedAt":  "2026-11-20T23:39:40.484086+00:00",
+                               "exitCode":  101,
+                               "elapsedSeconds":  1189.44,
+                               "observedMarkers":  [
+                                                       "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6467 filtered out; finished in 0.23s",
+                                                       "called `Result::unwrap()` on an `Err` value: ColumnDecode { index: \"2\", source: UnexpectedNullError }",
+                                                       "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6467 filtered out; finished in 1.48s"
+                                                   ],
+                               "commandLogSha256":  "9b2a62a57420b9c6b5e7cecd05e224a51fbfe18b467a6db57b17a88b27600a18"
+                           },
+                   "green":  {
+                                 "args":  [
+                                              "cargo",
+                                              "test",
+                                              "--locked",
+                                              "--offline",
+                                              "--lib",
+                                              "--no-default-features",
+                                              "--features",
+                                              "runtime-defaults",
+                                              "-j",
+                                              "4",
+                                              "luma_reconciliation_server_restart_after_os_kill",
+                                              "--",
+                                              "--ignored",
+                                              "--test-threads=1",
+                                              "--nocapture"
+                                          ],
+                                 "startedAt":  "2026-11-21T00:00:51.196549+00:00",
+                                 "exitCode":  0,
+                                 "elapsedSeconds":  763.77,
+                                 "observedMarkers":  [
+                                                         "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6467 filtered out; finished in 0.16s",
+                                                         "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6467 filtered out; finished in 0.16s",
+                                                         "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6467 filtered out; finished in 0.18s",
+                                                         "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6467 filtered out; finished in 1.93s"
+                                                     ],
+                                 "commandLogSha256":  "979db35c3b31d00d298ed98b71e5839a56ea765a32aedda3c794b30430fc3a74"
+                             },
+                   "luma_reconciliation":  {
+                                               "args":  [
+                                                            "cargo",
+                                                            "test",
+                                                            "--locked",
+                                                            "--offline",
+                                                            "--lib",
+                                                            "--no-default-features",
+                                                            "--features",
+                                                            "runtime-defaults",
+                                                            "-j",
+                                                            "4",
+                                                            "luma_reconciliation",
+                                                            "--",
+                                                            "--test-threads=1"
+                                                        ],
+                                               "startedAt":  "2026-11-21T00:13:41.999582+00:00",
+                                               "exitCode":  0,
+                                               "elapsedSeconds":  4.58,
+                                               "observedMarkers":  [
+                                                                       "test result: ok. 4 passed; 0 failed; 3 ignored; 0 measured; 6461 filtered out; finished in 2.03s"
+                                                                   ],
+                                               "commandLogSha256":  "0c3cb7bf8cd2cb5ed03e900ae38eb233ebbcb8c6174da6b37fb3a09317e4797c"
+                                           },
+                   "luma_agents_pipeline":  {
+                                                "args":  [
+                                                             "cargo",
+                                                             "test",
+                                                             "--locked",
+                                                             "--offline",
+                                                             "--lib",
+                                                             "--no-default-features",
+                                                             "--features",
+                                                             "runtime-defaults",
+                                                             "-j",
+                                                             "4",
+                                                             "luma_agents_pipeline",
+                                                             "--",
+                                                             "--test-threads=1"
+                                                         ],
+                                                "startedAt":  "2026-11-21T00:13:46.666825+00:00",
+                                                "exitCode":  0,
+                                                "elapsedSeconds":  13.27,
+                                                "observedMarkers":  [
+                                                                        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 6459 filtered out; finished in 11.50s"
+                                                                    ],
+                                                "commandLogSha256":  "d0aea0735b9109d79cc57e93edb64231ce18bb231016097069b886034926fdc6"
+                                            },
+                   "postgres":  {
+                                    "args":  [
+                                                 "cargo",
+                                                 "test",
+                                                 "--locked",
+                                                 "--offline",
+                                                 "--lib",
+                                                 "--no-default-features",
+                                                 "--features",
+                                                 "runtime-defaults",
+                                                 "-j",
+                                                 "4",
+                                                 "luma_reconciliation_postgres",
+                                                 "--",
+                                                 "--ignored",
+                                                 "--test-threads=1",
+                                                 "--nocapture"
+                                             ],
+                                    "startedAt":  "2026-11-21T00:14:02.850371+00:00",
+                                    "exitCode":  0,
+                                    "elapsedSeconds":  1.91,
+                                    "observedMarkers":  [
+                                                            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6467 filtered out; finished in 0.32s"
+                                                        ],
+                                    "commandLogSha256":  "fc902ac89cca0875ec6c519df8d90c870b9bc2dd99fde6b9d928b6336d32056f"
+                                },
+                   "feature-off":  {
+                                       "args":  [
+                                                    "cargo",
+                                                    "check",
+                                                    "--locked",
+                                                    "--offline",
+                                                    "--lib",
+                                                    "--no-default-features",
+                                                    "-j",
+                                                    "4"
+                                                ],
+                                       "startedAt":  "2026-11-21T00:14:05.475520+00:00",
+                                       "exitCode":  0,
+                                       "elapsedSeconds":  76.38,
+                                       "observedMarkers":  [
+                                                               "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 16s"
+                                                           ],
+                                       "commandLogSha256":  "57e01e660e518605fc9d4b7720401f97ee3fadd2362b423ad305df9084f7e5e1"
+                                   },
+                   "line-tests":  {
+                                      "args":  [
+                                                   "npm.cmd",
+                                                   "run",
+                                                   "test:effective-lines",
+                                                   "--prefix",
+                                                   "scripts"
+                                               ],
+                                      "startedAt":  "2026-11-21T00:01:56.492271+00:00",
+                                      "exitCode":  0,
+                                      "elapsedSeconds":  1.44,
+                                      "observedMarkers":  [
+                                                              "# tests 31",
+                                                              "# pass 31",
+                                                              "# fail 0"
+                                                          ],
+                                      "commandLogSha256":  "e093f0782ac3e704419e57de7a0a7dd86fb22179dece40285fd5979a71ac3968"
+                                  },
+                   "ratchet":  {
+                                   "args":  [
+                                                "npm.cmd",
+                                                "run",
+                                                "check:effective-lines",
+                                                "--prefix",
+                                                "scripts"
+                                            ],
+                                   "startedAt":  "2026-11-21T00:01:58.039974+00:00",
+                                   "exitCode":  0,
+                                   "elapsedSeconds":  6.64,
+                                   "observedMarkers":  [
+                                                           "\u003e gateway-browser-workers@0.1.0 check:effective-lines",
+                                                           "\u003e node effective-code-lines.mjs --mode ratchet --json artifacts/effective-code-lines.json"
+                                                       ],
+                                   "commandLogSha256":  "e7bcb07cae7f5830342e6e8d26aa2aa21b0817fb6d45555366bb7898aace8669"
+                               }
+               },
+    "serverCases":  [
+                        {
+                            "binding":  "route_document_v1",
+                            "upstream":  [
+                                             "POST",
+                                             "GET",
+                                             "GET"
+                                         ],
+                            "state":  "settled",
+                            "originalCredits":  0,
+                            "finalCredits":  12.5
+                        },
+                        {
+                            "binding":  "postgres_credential_v2",
+                            "upstream":  [
+                                             "POST",
+                                             "GET",
+                                             "GET"
+                                         ],
+                            "state":  "settled",
+                            "originalCredits":  0,
+                            "finalCredits":  12.5
+                        },
+                        {
+                            "binding":  "postgres_credential_v2_rotated_after_kill",
+                            "upstream":  [
+                                             "POST",
+                                             "GET"
+                                         ],
+                            "state":  "blocked",
+                            "originalCredits":  0,
+                            "finalCredits":  0
+                        }
+                    ],
+    "allCasesOriginalRequestStatus":  "running",
+    "allCasesOriginalTaskState":  "queued",
+    "allCasesMediaVerified":  false,
+    "sourceSha256":  {
+                         "src/luma_reconciliation.rs":  "4accfff2dc6d986d02ed1a9fd213b5e18ecf01ef4e3154bc6535eac0a86b9d7d",
+                         "src/luma_reconciliation/hosted.rs":  "4eafe7ddcd5cd634d1f1e905fd6037840b58d9c05eb885a3b357d7f2248fe3f0",
+                         "src/luma_reconciliation/worker.rs":  "ac091df270cbcd2ff905fe0e6c9b100a80c13fc0bd4254502967fb5316763343",
+                         "src/luma_reconciliation/server_recovery_tests.rs":  "a6ed8b585df8632fe0e0c8a941fb865e61e728fd7299787e6e621c3ea589da79",
+                         "src/luma_reconciliation/store.rs":  "e0f9517527abf0f9810e97f1934259b4e4eda1583deca5113697431f4afe084d",
+                         "src/db/routing.rs":  "34194d8fbd82bbc3bb42259e4a3c9db4fcf28e7db843b8cb722178998521a697",
+                         "src/db/routing/providers.rs":  "6dcfff09fef5758959d67f609a1834b72faf5724bc22e22ab38bd593ca3cd688",
+                         "src/pipeline/stage_send/recovery_wait.rs":  "a0c5176c802fdb18a6a97c3c493e383816a6a15f55a46efebaa2a1e7d196025e",
+                         "tools/luma/check-postgres.ps1":  "2525cd401f3b75c9ebac3af634681d992a70b77f88f88a146f374bc65856b7fa"
+                     }
+}

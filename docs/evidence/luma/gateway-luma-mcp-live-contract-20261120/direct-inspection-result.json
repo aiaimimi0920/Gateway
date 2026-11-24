@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "calls": [
+    {
+      "method": "initialize",
+      "status": 200
+    },
+    {
+      "method": "notifications/initialized",
+      "status": 202
+    },
+    {
+      "method": "tools/list",
+      "status": 200
+    }
+  ],
+  "cleanup": "closed",
+  "generationCalls": 0,
+  "source": "authorized_saved_account_direct_inspection",
+  "productionApiVerified": false
+}

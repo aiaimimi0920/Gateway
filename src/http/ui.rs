@@ -6,7 +6,7 @@ use axum::http::{
 };
 use axum::response::{IntoResponse, Redirect};
 use mime_guess::from_path;
-include!(concat!(env!("OUT_DIR"), "/gateway_embedded_ui.rs"));
+use gateway_embedded_ui::{asset_exists, get_asset};
 
 const INDEX_PATH: &str = "index.html";
 const HTML_CACHE_CONTROL: &str = "no-store";
@@ -47,8 +47,8 @@ fn serve_exact_asset(path: &str) -> Option<Response<Body>> {
 }
 
 fn serve_embedded_asset(path: &str, html_shell: bool) -> Option<Response<Body>> {
-    let asset = EmbeddedUi::get(path)?;
-    let mut response = Response::new(Body::from(asset.data.into_owned()));
+    let asset = get_asset(path)?;
+    let mut response = Response::new(Body::from(asset.into_owned()));
     *response.status_mut() = StatusCode::OK;
 
     let content_type = if html_shell {
@@ -99,9 +99,7 @@ fn apply_security_headers(response: &mut Response<Body>, html_shell: bool) {
     }
 }
 
-fn asset_exists(path: &str) -> bool {
-    EmbeddedUi::iter().any(|candidate| candidate == path)
-}
+
 
 fn normalize_requested_path(path: &str) -> Option<String> {
     let trimmed = path.trim_matches('/');

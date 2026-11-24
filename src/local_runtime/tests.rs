@@ -287,6 +287,70 @@ async fn local_crash_recovery_only_retires_stale_instance() {
 }
 
 #[tokio::test]
+async fn local_audit_maintenance_indexes_upgrade_schema_one_and_bound_retention() {
+    let (root, db) = setup().await;
+    sqlx::raw_sql("DROP INDEX audit_running_owner; DROP INDEX audit_retention_age;")
+        .execute(&db.pool)
+        .await
+        .unwrap();
+    sqlx::query("WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 502)
+        INSERT INTO request_audits(id, payload, created, status, owner)
+        SELECT 'old-' || i, '{}', strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-91 days'), 'completed', 'fixture' FROM n")
+        .execute(&db.pool).await.unwrap();
+    sqlx::query("INSERT INTO request_audits VALUES ('keep-recent', '{}', strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-89 days'), 'failed', 'fixture')")
+        .execute(&db.pool).await.unwrap();
+    db.close().await;
+
+    // Startup adds the indexes without changing the schema version or the prune batch size.
+    let db = LocalRuntime::open(&root).await.unwrap();
+    let version: i64 = sqlx::query_scalar("PRAGMA user_version")
+        .fetch_one(&db.pool)
+        .await
+        .unwrap();
+    assert_eq!(version, 1);
+    let remaining: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM request_audits WHERE id LIKE 'old-%'")
+            .fetch_one(&db.pool)
+            .await
+            .unwrap();
+    assert_eq!(remaining, 2);
+
+    let cancel_sql = format!("EXPLAIN QUERY PLAN {}", maintenance::CANCEL_ORPHANED_AUDITS);
+    let cancel_plan = sqlx::query_as::<_, (i64, i64, i64, String)>(&cancel_sql)
+        .bind("fixture")
+        .bind("fixture")
+        .fetch_all(&db.pool)
+        .await
+        .unwrap();
+    assert!(
+        cancel_plan
+            .iter()
+            .any(|step| step.3.contains("audit_running_owner")),
+        "{cancel_plan:?}"
+    );
+    let prune_sql = format!("EXPLAIN QUERY PLAN {}", maintenance::PRUNE_EXPIRED_AUDITS);
+    let prune_plan = sqlx::query_as::<_, (i64, i64, i64, String)>(&prune_sql)
+        .fetch_all(&db.pool)
+        .await
+        .unwrap();
+    assert!(
+        prune_plan
+            .iter()
+            .any(|step| step.3.contains("audit_retention_age")),
+        "{prune_plan:?}"
+    );
+
+    db.maintain().await.unwrap();
+    let ids: Vec<String> = sqlx::query_scalar("SELECT id FROM request_audits")
+        .fetch_all(&db.pool)
+        .await
+        .unwrap();
+    assert_eq!(ids, ["keep-recent"]);
+    db.close().await;
+    crate::local_runtime::test_support::remove_test_root(&root).await;
+}
+
+#[tokio::test]
 async fn local_model_health_persists_failure_and_success() {
     let (root, db) = setup().await;
     let input = RecordCredentialModelSuccessInput {

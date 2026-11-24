@@ -1,0 +1,146 @@
+- main:
+  - complementary:
+    - strong: Gateway
+    - button "收起侧栏" [expanded]
+    - navigation "Gateway console navigation":
+      - button "凭据池"
+      - button "权益组"
+      - button "模型池"
+      - button "运维"
+      - button "密钥"
+    - navigation "辅助导航":
+      - button "设置"
+  - heading "运维" [level=1]
+  - button "刷新"
+  - radiogroup "时间范围":
+    - text: 时间范围
+    - radio "今天"
+    - text: 今天
+    - radio "7 天"
+    - text: 7 天
+    - radio "30 天"
+    - text: 30 天
+    - radio "全部" [checked]
+    - text: 全部
+    - radio "自定义"
+    - text: 自定义
+  - radiogroup "请求状态":
+    - text: 请求状态
+    - radio "全部" [checked]
+    - text: 全部
+    - radio "失败"
+    - text: 失败
+    - radio "重试后成功"
+    - text: 重试后成功
+  - textbox "请求 ID":
+    - /placeholder: 搜索模型、服务商、请求 ID
+  - button "重置"
+  - text: 统计当前已加载的请求
+  - term: Token
+  - definition: —
+  - text: 输入 — · 输出 —
+  - term: 请求
+  - definition: "1"
+  - text: 没有失败
+  - term: 费用
+  - definition: —
+  - text: 暂无计费数据
+  - term: 缓存命中率
+  - definition: —
+  - text: 暂无缓存用量
+  - term: 输出速度
+  - definition: —
+  - text: 暂无流式计时
+  - region "请求分布图":
+    - radiogroup "统计指标":
+      - text: 统计指标
+      - radio "Token" [checked]
+      - text: Token
+      - radio "费用"
+      - text: 费用
+      - radio "请求"
+      - text: 请求
+      - radio "速度"
+      - text: 速度
+    - group "图表类型":
+      - button "柱状图" [pressed]
+      - button "折线图"
+    - radiogroup "拆分维度":
+      - text: 拆分维度
+      - radio "模型" [checked]
+      - text: 模型
+      - radio "模型 · 供应商"
+      - text: 模型 · 供应商
+      - radio "供应商"
+      - text: 供应商
+    - text: 这些请求没有可用的用量数据 按当前已加载记录统计
+  - text: 已加载记录：1 / 1
+  - table "请求列表":
+    - rowgroup:
+      - row "时间 请求模型 供应商 · 账号 实际模型 输入 输出 费用 首字耗时 耗时 速度 状态":
+        - columnheader "时间"
+        - columnheader "请求模型"
+        - columnheader "供应商 · 账号"
+        - columnheader "实际模型"
+        - columnheader "输入"
+        - columnheader "输出"
+        - columnheader "费用"
+        - columnheader "首字耗时"
+        - columnheader "耗时"
+        - columnheader "速度"
+        - columnheader "状态"
+    - rowgroup:
+      - 'row "请求详情: gw-audit-2b3f4407-0f61-4a3a-aff3-c3bf2f2b2e36 public-luma-image luma-pipeline 账号：exact uni-1 — — — — 51 ms — 已取消"':
+        - 'cell "请求详情: gw-audit-2b3f4407-0f61-4a3a-aff3-c3bf2f2b2e36"':
+          - 'button "请求详情: gw-audit-2b3f4407-0f61-4a3a-aff3-c3bf2f2b2e36" [expanded]': 2026/11/20 06:26:17
+        - cell "public-luma-image"
+        - cell "luma-pipeline 账号：exact"
+        - cell "uni-1"
+        - cell "—"
+        - cell "—"
+        - cell "—"
+        - cell "—"
+        - cell "51 ms"
+        - cell "—"
+        - cell "已取消"
+      - row "请求详情":
+        - cell "请求详情":
+          - region "请求详情":
+            - term: 状态
+            - definition: 已取消
+            - term: 上游返回
+            - definition: Request ended before terminal result submission.
+            - term: 耗时
+            - definition: 51 ms
+            - term: 接口类型
+            - definition: images_generations
+            - term: 请求模型
+            - definition: public-luma-image
+            - term: 实际模型
+            - definition: uni-1
+            - term: 尝试过的供应商
+            - definition: luma-pipeline
+            - text: 发送前跳过的账号
+            - list:
+              - listitem: luma-pipeline · unrelated · 账号未配置此模型
+              - listitem: luma-pipeline · disabled · 账号已停用
+            - text: 请求 ID
+            - code: gw-audit-2b3f4407-0f61-4a3a-aff3-c3bf2f2b2e36
+            - button "复制请求 ID":
+              - text: 复制请求 ID
+              - status
+            - text: Luma 任务 ID
+            - textbox "Luma 任务 ID": d290f1ee-6c54-4b01-90e6-d701748f0851
+            - button "复制 Luma 任务 ID":
+              - text: 复制 Luma 任务 ID
+              - status
+            - term: 供应商任务状态
+            - definition: 排队中
+            - term: 任务模型
+            - definition: uni-1
+            - term: 任务类型
+            - definition: image
+            - term: 供应商实际扣费（credits）
+            - definition: 未知
+            - term: 本地媒体验证
+            - definition: 未验证

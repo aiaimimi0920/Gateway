@@ -1,0 +1,23 @@
+{
+  "args": [
+    "rustfmt",
+    "--check",
+    "--edition",
+    "2021",
+    "--config",
+    "skip_children=true",
+    "src/protocol/luma_mcp/creation.rs",
+    "src/protocol/luma_mcp/creation/options.rs",
+    "src/protocol/luma_mcp/creation/reuse.rs",
+    "src/protocol/luma_mcp/creation_tests.rs",
+    "src/protocol/luma_mcp/creation_reuse_tests.rs",
+    "src/http/routes/internal_console/luma_mcp/creation.rs",
+    "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+    "src/http/routes/internal_console/luma_mcp/creation/execute.rs",
+    "src/http/routes/internal_console/luma_mcp/creation/workspace.rs"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T09:56:02.170580+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 0.22
+}

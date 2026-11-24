@@ -290,7 +290,7 @@ pub async fn delete_access_key(
         select id, display_name
         from gateway_access_keys
         where id = $1
-        limit 1
+        for update
         "#,
     )
     .bind(access_key_id)
@@ -299,6 +299,7 @@ pub async fn delete_access_key(
     .map_err(map_db_error)?
     .ok_or_else(|| GatewayError::not_found("access key 不存在"))?;
 
+    super::balance_store::ensure_no_sap_hold(&mut tx, access_key_id).await?;
     sqlx::query("delete from gateway_access_keys where id = $1")
         .bind(access_key_id)
         .execute(&mut *tx)

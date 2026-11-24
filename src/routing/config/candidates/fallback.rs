@@ -8,12 +8,30 @@ pub(super) fn provider_candidates(
     priority: i32,
     allowed: Option<&HashSet<String>>,
     admission: Admission<'_>,
+    preferred: Option<&str>,
 ) -> Vec<RouteCandidate> {
     let mut result = Vec::new();
     let mut selected = HashSet::new();
     // Match the global six-send ceiling; catalogue/legacy APIs keep one RR selection.
     let limit = if admission.is_some() { 6 } else { 1 };
-    for _ in 0..limit {
+    // Resolve the remembered account through the same model/auth/admission checks,
+    // before the bounded backup queue can omit it. A pinned session does not consume RR.
+    if let Some(id) = preferred {
+        let admit = |p: &str, c: &str, m: &str| c == id && admits(admission, p, c, Some(m));
+        if let Some(candidate) = provider_to_candidate(
+            provider,
+            model,
+            alias,
+            priority,
+            allowed,
+            Some(&admit),
+            false,
+        ) {
+            selected.insert(id.to_owned());
+            result.push(candidate);
+        }
+    }
+    for _ in result.len()..limit {
         let admit =
             |p: &str, c: &str, m: &str| !selected.contains(c) && admits(admission, p, c, Some(m));
         let Some(mut candidate) = provider_to_candidate(

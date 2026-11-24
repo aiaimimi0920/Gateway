@@ -38,6 +38,20 @@ it("adds an API Key with exact manual models and no OAuth, Web import or directo
   expect(owner.applyCredentialDialogValue).toHaveBeenCalledWith(expect.objectContaining({ credentialId: "stable", supportedModelsText: "uni-1\nray-3.2",
     apiKeyOperation: "replace", apiKeyValue: "luma-api-synthetic-only" })); expect(owner.client.request).not.toHaveBeenCalled();
 });
+it("exposes Files only for an existing saved Agents account and locks it for local edits", () => {
+  const owner = controller(true); owner.credentialDialogState!.initialValue!.enabled = true; mount(owner);
+  expect(screen.getByRole("region", { name: "Luma 文件" })).toBeInTheDocument();
+  expect(screen.getByRole("region", { name: "Luma 任务查询" })).toBeInTheDocument();
+  expect(screen.getByLabelText("待查询任务 ID")).toBeEnabled();
+  expect(screen.getByRole("button", { name: "读取文件列表" })).toBeEnabled();
+  fireEvent.change(screen.getByLabelText("手动模型列表"), { target: { value: "ray-3.2" } });
+  expect(screen.getByRole("button", { name: "读取文件列表" })).toBeDisabled();
+  expect(screen.getByLabelText("待查询任务 ID")).toBeDisabled();
+  expect(owner.client.request).not.toHaveBeenCalled();
+});
+it("disables Files for a saved disabled account", () => {
+  mount(controller(true)); expect(screen.getByRole("button", { name: "读取文件列表" })).toBeDisabled();
+});
 it.each(["uni-unknown", "UNI-1", "models/uni-1", "uni-1*", "ray3.14"]) ("rejects a model outside the implemented Agents contract: %s", (model) => {
   const owner = controller(true); mount(owner); fireEvent.change(screen.getByLabelText("手动模型列表"), { target: { value: model } }); save();
   expect(owner.applyCredentialDialogValue).not.toHaveBeenCalled(); expect(screen.getByText(/Luma Agents.*模型/)).toBeInTheDocument();

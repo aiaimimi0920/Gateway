@@ -1,0 +1,374 @@
+
+> gateway-ui@0.1.0 test
+> vitest run src/features/console/ProviderPoolDialogs.test.tsx --maxWorkers=1
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+ ❯ src/features/console/ProviderPoolDialogs.test.tsx (5 tests | 1 failed) 4004ms
+   × uses one configuration panel and sends custom prompt only after explicit run 2462ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/console/ProviderPoolDialogs.test.tsx > uses one configuration panel and sends custom prompt only after explicit run
+TestingLibraryElementError: Unable to find role="region" and name "测试结果"
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mdata-scroll-locked[39m=[32m"1"[39m
+  [33mstyle[39m=[32m"pointer-events: none;"[39m
+[36m>[39m
+  [36m<span[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33mdata-aria-hidden[39m=[32m"true"[39m
+    [33mdata-radix-focus-guard[39m=[32m""[39m
+    [33mstyle[39m=[32m"outline: none; opacity: 0; position: fixed; pointer-events: none;"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"neuro-root"[39m
+      [33mdata-neuro-mode[39m=[32m"dark"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"n-portal-host"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"n-overlay"[39m
+          [33mdata-aria-hidden[39m=[32m"true"[39m
+          [33mdata-state[39m=[32m"open"[39m
+          [33mstyle[39m=[32m"pointer-events: auto;"[39m
+        [36m/>[39m
+        [36m<div[39m
+          [33maria-labelledby[39m=[32m"radix-_r_8_"[39m
+          [33mclass[39m=[32m"n-dialog nt-pool-test-dialog"[39m
+          [33mdata-state[39m=[32m"open"[39m
+          [33mid[39m=[32m"radix-_r_7_"[39m
+          [33mrole[39m=[32m"dialog"[39m
+          [33mstyle[39m=[32m"pointer-events: auto;"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+        [36m>[39m
+          [36m<h2[39m
+            [33mclass[39m=[32m"n-dialog-title"[39m
+            [33mid[39m=[32m"radix-_r_8_"[39m
+          [36m>[39m
+            [0m测试 · Managed OpenAI[0m
+          [36m</h2>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"关闭测试弹窗"[39m
+            [33mclass[39m=[32m"n-button n-button--quiet n-compact n-icon-button n-dialog-close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"n-button-label"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"n-icon "[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mviewBox[39m=[32m"0 0 16 16"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m3 3 10 10M13 3 3 13"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</button>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"测试计划配置"[39m
+            [33mclass[39m=[32m"nt-test-dialog-body"[39m
+            [33mrole[39m=[32m"group"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"nt-test-dialog-form"[39m
+            [36m>[39m
+              [36m<fieldset[39m
+                [33mclass[39m=[32m"nt-test-scope"[39m
+              [36m>[39m
+                [36m<fieldset[39m
+                  [33mclass[39m=[32m"n-choice-group"[39m
+                  [33mrole[39m=[32m"radiogroup"[39m
+                [36m>[39m
+                  [36m<legend[39m
+                    [33mclass[39m=[32m"n-sr-only"[39m
+                  [36m>[39m
+                    [0m策略配置对象[0m
+                  [36m</legend>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"n-segmented"[39m
+                  [36m>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"n-segment"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33mchecked[39m=[32m""[39m
+                        [33mname[39m=[32m"_r_a_"[39m
+                        [33mtype[39m=[32m"radio"[39m
+                        [33mvalue[39m=[32m"pool"[39m
+                      [36m/>[39m
+                      [36m<span>[39m
+                        [0m全池[0m
+                      [36m</span>[39m
+                    [36m</label>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"n-segment"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33mname[39m=[32m"_r_a_"[39m
+                        [33mtype[39m=[32m"radio"[39m
+                        [33mvalue[39m=[32m"subpool"[39m
+                      [36m/>[39m
+                      [36m<span>[39m
+                        [0m子池[0m
+                      [36m</span>[39m
+                    [36m</label>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"n-segment"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33mname[39m=[32m"_r_a_"[39m
+                        [33mtype[39m=[32m"radio"[39m
+                        [33mvalue[39m=[32m"account"[39m
+                      [36m/>[39m
+                      [36m<span>[39m
+                        [0m账户[0m
+                      [36m</span>[39m
+                    [36m</label>[39m
+                  [36m</div>[39m
+                [36m</fieldset>[39m
+              [36m</fieldset>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"nt-test-inheritance"[39m
+              [36m/>[39m
+              [36m<fieldset[39m
+                [33mclass[39m=[32m"nt-pool-test-schedule n-choice-group"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"n-check"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33mtype[39m=[32m"checkbox"[39m
+                  [36m/>[39m
+                  [36m<span>[39m
+                    [0m启用自动测试[0m
+                  [36m</span>[39m
+                [36m</label>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"n-field"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mfor[39m=[32m"_r_c_"[39m
+                  [36m>[39m
+                    [0m执行间隔（分钟）[0m
+                  [36m</label>[39m
+                  [36m<input[39m
+                    [33maria-invalid[39m=[32m"false"[39m
+                    [33mclass[39m=[32m"n-input n-compact"[39m
+                    [33mid[39m=[32m"_r_c_"[39m
+                    [33mmax[39m=[32m"10080"[39m
+                    [33mmin[39m=[32m"1"[39m
+                    [33mstep[39m=[32m"1"[39m
+                    [33mtype[39m=[32m"number"[39m
+                    [33mvalue[39m=[32m"60"[39m
+                  [36m/>[39m
+                [36m</div>[39m
+              [36m</fieldset>[39m
+              [36m<fieldset[39m
+                [33mclass[39m=[32m"nt-test-selection n-choice-group"[39m
+              [36m>[39m
+                [36m<legend>[39m
+                  [0m测试模型[0m
+                [36m</legend>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"nt-test-selection__toolbar"[39m
+                ...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mdata-scroll-locked[39m=[32m"1"[39m
+  [33mstyle[39m=[32m"pointer-events: none;"[39m
+[36m>[39m
+  [36m<span[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33mdata-aria-hidden[39m=[32m"true"[39m
+    [33mdata-radix-focus-guard[39m=[32m""[39m
+    [33mstyle[39m=[32m"outline: none; opacity: 0; position: fixed; pointer-events: none;"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"neuro-root"[39m
+      [33mdata-neuro-mode[39m=[32m"dark"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"n-portal-host"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"n-overlay"[39m
+          [33mdata-aria-hidden[39m=[32m"true"[39m
+          [33mdata-state[39m=[32m"open"[39m
+          [33mstyle[39m=[32m"pointer-events: auto;"[39m
+        [36m/>[39m
+        [36m<div[39m
+          [33maria-labelledby[39m=[32m"radix-_r_8_"[39m
+          [33mclass[39m=[32m"n-dialog nt-pool-test-dialog"[39m
+          [33mdata-state[39m=[32m"open"[39m
+          [33mid[39m=[32m"radix-_r_7_"[39m
+          [33mrole[39m=[32m"dialog"[39m
+          [33mstyle[39m=[32m"pointer-events: auto;"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+        [36m>[39m
+          [36m<h2[39m
+            [33mclass[39m=[32m"n-dialog-title"[39m
+            [33mid[39m=[32m"radix-_r_8_"[39m
+          [36m>[39m
+            [0m测试 · Managed OpenAI[0m
+          [36m</h2>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"关闭测试弹窗"[39m
+            [33mclass[39m=[32m"n-button n-button--quiet n-compact n-icon-button n-dialog-close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"n-button-label"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"n-icon "[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mviewBox[39m=[32m"0 0 16 16"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m3 3 10 10M13 3 3 13"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</button>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"测试计划配置"[39m
+            [33mclass[39m=[32m"nt-test-dialog-body"[39m
+            [33mrole[39m=[32m"group"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"nt-test-dialog-form"[39m
+            [36m>[39m
+              [36m<fieldset[39m
+                [33mclass[39m=[32m"nt-test-scope"[39m
+              [36m>[39m
+                [36m<fieldset[39m
+                  [33mclass[39m=[32m"n-choice-group"[39m
+                  [33mrole[39m=[32m"radiogroup"[39m
+                [36m>[39m
+                  [36m<legend[39m
+                    [33mclass[39m=[32m"n-sr-only"[39m
+                  [36m>[39m
+                    [0m策略配置对象[0m
+                  [36m</legend>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"n-segmented"[39m
+                  [36m>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"n-segment"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33mchecked[39m=[32m""[39m
+                        [33mname[39m=[32m"_r_a_"[39m
+                        [33mtype[39m=[32m"radio"[39m
+                        [33mvalue[39m=[32m"pool"[39m
+                      [36m/>[39m
+                      [36m<span>[39m
+                        [0m全池[0m
+                      [36m</span>[39m
+                    [36m</label>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"n-segment"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33mname[39m=[32m"_r_a_"[39m
+                        [33mtype[39m=[32m"radio"[39m
+                        [33mvalue[39m=[32m"subpool"[39m
+                      [36m/>[39m
+                      [36m<span>[39m
+                        [0m子池[0m
+                      [36m</span>[39m
+                    [36m</label>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"n-segment"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33mname[39m=[32m"_r_a_"[39m
+                        [33mtype[39m=[32m"radio"[39m
+                        [33mvalue[39m=[32m"account"[39m
+                      [36m/>[39m
+                      [36m<span>[39m
+                        [0m账户[0m
+                      [36m</span>[39m
+                    [36m</label>[39m
+                  [36m</div>[39m
+                [36m</fieldset>[39m
+              [36m</fieldset>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"nt-test-inheritance"[39m
+              [36m/>[39m
+              [36m<fieldset[39m
+                [33mclass[39m=[32m"nt-pool-test-schedule n-choice-group"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"n-check"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33mtype[39m=[32m"checkbox"[39m
+                  [36m/>[39m
+                  [36m<span>[39m
+                    [0m启用自动测试[0m
+                  [36m</span>[39m
+                [36m</label>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"n-field"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mfor[39m=[32m"_r_c_"[39m
+                  [36m>[39m
+                    [0m执行间隔（分钟）[0m
+                  [36m</label>[39m
+                  [36m<input[39m
+                    [33maria-invalid[39m=[32m"false"[39m
+                    [33mclass[39m=[32m"n-input n-compact"[39m
+                    [33mid[39m=[32m"_r_c_"[39m
+                    [33mmax[39m=[32m"10080"[39m
+                    [33mmin[39m=[32m"1"[39m
+                    [33mstep[39m=[32m"1"[39m
+                    [33mtype[39m=[32m"number"[39m
+                    [33mvalue[39m=[32m"60"[39m
+                  [36m/>[39m
+                [36m</div>[39m
+              [36m</fieldset>[39m
+              [36m<fieldset[39m
+                [33mclass[39m=[32m"nt-test-selection n-choice-group"[39m
+              [36m>[39m
+                [36m<legend>[39m
+                  [0m测试模型[0m
+                [36m</legend>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"nt-test-selection__toolbar"[39m
+                ...
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/console/ProviderPoolDialogs.test.tsx:92:32
+     90|     })
+     91|   }), "managed-provider");
+     92|   const results = await screen.findByRole("region", { name: "测试结果" });
+       |                                ^
+     93|   expect(within(results).getByRole("heading", { name: "One" })).toBeIn…
+     94|   expect(within(results).getByText("可联通调用")).toBeInTheDocument();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  04:04:24
+   Duration  10.47s (transform 1.17s, setup 791ms, import 2.63s, tests 4.00s, environment 2.71s)
+

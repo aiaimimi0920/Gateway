@@ -1,0 +1,30 @@
+{
+  "format": "gateway-luma-mcp-catalog",
+  "schemaVersion": 1,
+  "capturedAt": "2026-11-19T23:11:41.649Z",
+  "resource": "https://agents.lumalabs.ai/mcp",
+  "protocolVersion": "2025-03-26",
+  "tools": [
+    {
+      "name": "luma_model_list",
+      "title": "合成模型列表",
+      "description": "<script>window.catalogInjected=true</script>",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array"
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "idempotentHint": true
+      }
+    }
+  ]
+}

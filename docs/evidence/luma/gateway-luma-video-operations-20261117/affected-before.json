@@ -1,0 +1,72 @@
+[
+  {
+    "path": "apps/desktop/src/api/contracts/credentials.ts",
+    "language": "c-like",
+    "effectiveLines": 238,
+    "physicalLines": 268,
+    "sourceSha256": "84686a576a671ec99d7dc29c737dff625d7f7be351761365da2d3047cd3d3dd1"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaAgentsMediaProbe.test.tsx",
+    "language": "c-like",
+    "effectiveLines": 122,
+    "physicalLines": 123,
+    "sourceSha256": "3ab9cfc4bca972358c002f3527c8453d3368b0351285f4e296010171aaf797fd"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMediaProbeDialog.tsx",
+    "language": "c-like",
+    "effectiveLines": 76,
+    "physicalLines": 79,
+    "sourceSha256": "c361085540842fbc0088c19b70d618eb48357f98b290c95272543fcd8484f118"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMediaProbeSource.tsx",
+    "language": "c-like",
+    "effectiveLines": 33,
+    "physicalLines": 34,
+    "sourceSha256": "7e66c553d27c746e10fd9bc07917fdfbe67a31cb715f01e1195484136eba4c6c"
+  },
+  {
+    "path": "src/protocol/luma_agents.rs",
+    "language": "rust",
+    "effectiveLines": 118,
+    "physicalLines": 134,
+    "sourceSha256": "a37c788234d735312f5abc587da0a3efba9d1ecdd2f2a6df379e2eee9e937e21"
+  },
+  {
+    "path": "src/protocol/luma_agents/media_ref.rs",
+    "language": "rust",
+    "effectiveLines": 96,
+    "physicalLines": 101,
+    "sourceSha256": "834fb7647880b27c04fa54786de00f5abae51004c5cb69adadec1d81d2eb70fa"
+  },
+  {
+    "path": "src/protocol/luma_agents/request.rs",
+    "language": "rust",
+    "effectiveLines": 212,
+    "physicalLines": 217,
+    "sourceSha256": "075dd5d30a5d3dc3609681d28de1dc030e9d785596ec91eb0d7f6316003cd2a8"
+  },
+  {
+    "path": "src/protocol/luma_agents/tests.rs",
+    "language": "rust",
+    "effectiveLines": 195,
+    "physicalLines": 198,
+    "sourceSha256": "a02e83cd3e849281eddba4b321fe4837578437ab2f49522764dd2a9ce523c030"
+  },
+  {
+    "path": "src/protocol/luma_agents/video.rs",
+    "language": "rust",
+    "effectiveLines": 124,
+    "physicalLines": 127,
+    "sourceSha256": "a81d000c58b214d01eb4b3b33d6225c94695504088d5351e42e53a949cb8af5f"
+  },
+  {
+    "path": "src/provider_runtime/media_probe_request.rs",
+    "language": "rust",
+    "effectiveLines": 157,
+    "physicalLines": 162,
+    "sourceSha256": "cf4f39d160857c4cae2f641d7d6aa0fdf1668c45e150b62c3b9120d179c75eef"
+  }
+]

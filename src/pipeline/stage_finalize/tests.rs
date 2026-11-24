@@ -36,6 +36,30 @@ fn make_ctx() -> PipelineContext {
 }
 
 #[test]
+fn route_trace_stream_snapshot_owns_rejected_candidates_on_success_and_failure() {
+    let mut ctx = make_ctx();
+    ctx.rejected_candidates
+        .push(crate::routing::config::RejectedCandidate {
+            provider_account_id: "unsent-provider".into(),
+            provider_label: "Unsent".into(),
+            real_credential_ref: Some("exact-ref".into()),
+            resolved_model: Some("upstream-model".into()),
+            reason: "upstream_credential_unavailable".into(),
+        });
+    let expected = build_route_trace_from_ctx(&ctx, None)["rejectedCandidates"].clone();
+    let snapshot = snapshot_request_audit(&ctx);
+    ctx.rejected_candidates.clear();
+    for summary in [None, Some("stream_failed")] {
+        let trace = build_route_trace_from_snapshot(&snapshot, summary);
+        assert_eq!(trace["rejectedCandidates"], expected);
+        assert_eq!(trace["routeAttemptCount"], 0);
+        assert_eq!(trace["attemptedProviderIds"], json!([]));
+        assert!(trace["selectedCandidate"].is_null());
+        assert!(trace["realCredentialRef"].is_null());
+    }
+}
+
+#[test]
 fn extract_usage_openai_shape() {
     let body = json!({
         "usage": {

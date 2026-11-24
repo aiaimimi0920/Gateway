@@ -5,6 +5,7 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         "nous_portal_oauth" | "nous-portal-oauth" => {
             Some(RefactoredImplementationLine::NousPortalOauth)
         }
+        "quick_oauth" | "quick-oauth" => Some(RefactoredImplementationLine::QuickOauth),
         "dim_user_oauth"
         | "dim-cn-oauth"
         | "dim-global-oauth"
@@ -55,6 +56,9 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         }
         "river" | "river-api" => Some(RefactoredImplementationLine::RiverOfficialApi),
         "agnes_api" | "agnes-api" => Some(RefactoredImplementationLine::AgnesOfficialApi),
+        "lumalabs_inference" | "lumalabs-inference-api" => {
+            Some(RefactoredImplementationLine::LumaLabsInferenceOfficialApi)
+        }
         "commandcode_chat" | "commandcode-api" => {
             Some(RefactoredImplementationLine::CommandCodeProviderApi)
         }

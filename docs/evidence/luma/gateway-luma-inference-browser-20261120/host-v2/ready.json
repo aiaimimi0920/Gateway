@@ -1,0 +1,11 @@
+{
+  "origin": "http://127.0.0.1:65129",
+  "pid": 46392,
+  "syntheticOnly": true,
+  "scenario": "luma-inference-normal-main-v1",
+  "provider": "luma_inference-public",
+  "credential": "exact",
+  "model": "public-luma_inference",
+  "revision": "r0-daf3c0ede74e",
+  "storageMode": "local"
+}

@@ -161,9 +161,8 @@ pub(super) fn group_projection_rows_by_model(
     }
 }
 
-async fn rebuild_access_projection(
+pub(super) async fn read_current_access_projection(
     pool: &PgPool,
-    redis_pool: &RedisPool,
     access_key: &AccessKeyAuthRecord,
 ) -> Result<CachedAccessProjection, GatewayError> {
     let rows = if access_key.key_kind == "auto_route" {
@@ -174,7 +173,15 @@ async fn rebuild_access_projection(
     let alias_rows =
         load_model_alias_projection_rows(pool, &access_key.resolved_project_id).await?;
     let rows = expand_projection_rows_with_aliases(rows, &alias_rows);
-    let projection = group_projection_rows_by_model(access_key, rows);
+    Ok(group_projection_rows_by_model(access_key, rows))
+}
+
+async fn rebuild_access_projection(
+    pool: &PgPool,
+    redis_pool: &RedisPool,
+    access_key: &AccessKeyAuthRecord,
+) -> Result<CachedAccessProjection, GatewayError> {
+    let projection = read_current_access_projection(pool, access_key).await?;
     let payload = serde_json::to_string(&projection).map_err(|error| {
         GatewayError::server_error(format!("serialize access projection: {error}"))
     })?;

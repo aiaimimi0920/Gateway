@@ -1,0 +1,11 @@
+{
+  "origin": "http://127.0.0.1:49769",
+  "pid": 42740,
+  "syntheticOnly": true,
+  "scenario": "luma-task-normal-main-v1",
+  "provider": "luma-pipeline",
+  "credential": "exact",
+  "revision": "r0-d5fb051f6211",
+  "taskId": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+  "auditId": "gw-audit-2b3f4407-0f61-4a3a-aff3-c3bf2f2b2e36"
+}

@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "calls": [
+    {
+      "path": "/route-config",
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/session/confirm-secret-access",
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/luma-mcp-tools",
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/luma-mcp-models",
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/route-config",
+      "status": 200,
+      "cacheControl": "no-store"
+    }
+  ],
+  "generationCalls": 0,
+  "configWrites": 0
+}

@@ -1,0 +1,83 @@
+[
+  {
+    "path": "src/protocol/luma_agents.rs",
+    "language": "rust",
+    "effectiveLines": 124,
+    "sourceSha256": "adddb0942cc186327c70e87fb4586f8c3e9a57af52761d3157f0bc7daec5b3a7"
+  },
+  {
+    "path": "src/protocol/luma_agents/request.rs",
+    "language": "rust",
+    "effectiveLines": 223,
+    "sourceSha256": "49f96986b9ca7a612628aea2c26d3213a2d3d34ad901a340b988f892d9c10068"
+  },
+  {
+    "path": "src/protocol/luma_agents/video_edit.rs",
+    "language": "rust",
+    "effectiveLines": 176,
+    "sourceSha256": "13f7a9a70e57d67da6a73d069b63081f2dc8c2e01f337bc03a33e60f8f288554"
+  },
+  {
+    "path": "src/protocol/luma_agents/video_edit_tests.rs",
+    "language": "rust",
+    "effectiveLines": 166,
+    "sourceSha256": "ef6c00bec1c79259f5ddc30819874f8c34ba287f74b2ac54f215b7fe8c834cb3"
+  },
+  {
+    "path": "src/provider_runtime/media_probe_request.rs",
+    "language": "rust",
+    "effectiveLines": 167,
+    "sourceSha256": "11f5e4ac7a5fe35c2896ba35b53e1c0b60ce3c7186c1fe8b2c660286897d98cf"
+  },
+  {
+    "path": "src/upstream/luma_agents.rs",
+    "language": "rust",
+    "effectiveLines": 86,
+    "sourceSha256": "bb8a012ec0d39144f46924fce356cc13d8ef9043e707a2caac8f582d8477a9a7"
+  },
+  {
+    "path": "src/upstream/luma_agents/video_edit_flow_tests.rs",
+    "language": "rust",
+    "effectiveLines": 227,
+    "sourceSha256": "59b97fe937689fdd93385f8abfb7ac19b2cbc075a429d0145bea47d6624fcf54"
+  },
+  {
+    "path": "apps/desktop/src/api/contracts/credentials.ts",
+    "language": "c-like",
+    "effectiveLines": 238,
+    "sourceSha256": "c31c09262a8d8aa0876159b97d3f0d8c10fd6be6c5741790b8e57aa4ddf4b49a"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMediaProbeDialog.tsx",
+    "language": "c-like",
+    "effectiveLines": 93,
+    "sourceSha256": "49e3ba3c9b035cd26ff266596d21048a8ac2fb092a1b5cc8097787d29f040b9d"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaAgentsMediaProbe.test.tsx",
+    "language": "c-like",
+    "effectiveLines": 161,
+    "sourceSha256": "7a5b4cf26ba30145c651f89ab011a783ee77b9801357d4c481463d2ff74e7936"
+  },
+  {
+    "path": "docs/plan/provider-luma-agents-contract.md",
+    "sourceSha256": "cfd1b7234bd2319904d3ef39ce92c81eeb609ff7a7c4558f2277f94d25d7b67d"
+  },
+  {
+    "path": "docs/provider-luma-channel-contract.md",
+    "sourceSha256": "9382449dc98efec585fb23cda6db5e65ad6b48d9432d56042f83b1c146abfa13"
+  },
+  {
+    "path": "docs/providers/magpie-remaining-2026-11-13.md",
+    "sourceSha256": "3b556d1aeabc4903405b31dced5fb38180fd39679d318adb5278eb32cc9f83b7"
+  },
+  {
+    "path": "docs/credential-test-policies.md",
+    "sourceSha256": "46e7925c287ab56452ebc5e865dc9b32ead8f2c459782074493a2d8d316fa402"
+  },
+  {
+    "path": "docs/progress/2026-11-17-provider-channel-expansion-luma-video-edit.md",
+    "sourceSha256": "caa4c94e01c6218a9f81fef09b607ecc17158b21467ba151063e7abe315eb4e8"
+  }
+]
+UTF-8 without BOM: 15 files passed

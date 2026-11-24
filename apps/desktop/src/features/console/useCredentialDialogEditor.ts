@@ -17,6 +17,7 @@ import { applyProviderSessionMaterial } from "./providerSessionMaterialApply";
 import { sessionProductForPreset } from "./providerSessionProducts";
 import { mergeCredentialSecretEditEntries } from "./secretPatchDraft";
 import { normalizeSapCredential } from "./sapAiCore";
+import { normalizeLumaInferenceCredential, lumaInferenceTarget } from "./lumaInferenceCredential";
 import { applyBedrockMaterial } from "./bedrockMaterialApply";
 import { isBedrockProvider } from "./bedrockMaterial";
 import { modelIdPolicy } from "./providerModelId";
@@ -164,6 +165,8 @@ export function useCredentialDialogEditor({
       catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
       try { value = normalizeLumaAgentsDraft(provider, value, credentialDialogState?.mode === "edit"); }
       catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+      try { value = normalizeLumaInferenceCredential(provider, value); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
       let selection;
       try { value = normalizeSapCredential(provider, value); }
       catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
@@ -239,6 +242,11 @@ export function useCredentialDialogEditor({
             isVertexExpressProvider(provider) && value.apiKeyOperation === "replace" ? vertexExpressMaterialTarget(selectedDocument, value.providerId, value.credentialId) : undefined,
             isLumaAgentsProvider(provider) && value.apiKeyOperation === "replace" ? lumaAgentsMaterialTarget(selectedDocument, value.providerId, value.credentialId) : undefined);
         if (webImport) setCredentialSecretEdits((current) => mergeCredentialSecretEditEntries(current, webImport.secretEdits));
+        if (provider?.preset === "lumalabs-inference-api" && value.apiKeyOperation === "replace") {
+          const binding = lumaInferenceTarget(selectedDocument, value.providerId, value.credentialId);
+          setCredentialSecretEdits(current => current.map(edit => edit.providerId === value.providerId
+            && edit.credentialId === value.credentialId && edit.field === "api_key" ? { ...edit, lumaInferenceBinding: binding } : edit));
+        }
         replaceEditorDocument(webImport?.document ?? selectedDocument, true);
         setError(null);
         pushAppToast(

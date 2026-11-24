@@ -1,0 +1,70 @@
+{
+  "scope": "Isolated normal-main web build; not a native package",
+  "files": [
+    {
+      "path": "favicon.svg",
+      "bytes": 467,
+      "sha256": "0c77110664e833b294bc6baf9ba3eb6654e25b1e5bf088c97478e0cfa7929237"
+    },
+    {
+      "path": "index.html",
+      "bytes": 633,
+      "sha256": "db8ea706cbd9bc2e093c6768d04e42f029beb89ec91c5f2894a78ba178df751e"
+    },
+    {
+      "path": "provider-logos-NOTICE.txt",
+      "bytes": 1683,
+      "sha256": "b5700ac18ac319f5798778c1ffcc0e71349f45c00d8b31ef041ad08ca006807a"
+    },
+    {
+      "path": "static/css/646.81a96351.css",
+      "bytes": 23899,
+      "sha256": "80aab0433ab7917d44ba942d21a1ebbe3440cef987d366a131da328a851350cb"
+    },
+    {
+      "path": "static/css/index.a80e8170.css",
+      "bytes": 126518,
+      "sha256": "f099342a5d97020ef49c35a30b4622ebd400179af01f3df162cb0c80347c6bf7"
+    },
+    {
+      "path": "static/js/646.414e37e0.js",
+      "bytes": 342565,
+      "sha256": "43fe7a8f83e543e0bf3d91e6e051ffd4e1c11628360cac198cfb3d8d894ca28a"
+    },
+    {
+      "path": "static/js/646.414e37e0.js.LICENSE.txt",
+      "bytes": 171,
+      "sha256": "a722ab826523cf702d2d14e8eb7cecaf4ff9cfa24fbd9dabaf859319f5535e66"
+    },
+    {
+      "path": "static/js/async/784.20b08c1b.js",
+      "bytes": 13571,
+      "sha256": "f9c7110b1395ec82377e83f68bf2e481c1b63554aa98e7ed16110f9ea0ef3bdc"
+    },
+    {
+      "path": "static/js/index.9ff7ea31.js",
+      "bytes": 1016726,
+      "sha256": "55eb0c367c04e532c6b022af27d4c5d2950a3d04ff63b35f7427d329c5eaac62"
+    },
+    {
+      "path": "static/js/lib-react.d7cbcb95.js",
+      "bytes": 189064,
+      "sha256": "69ba324bed1891a3a97fd5c38bb213cb239e14f55ef69151f4428730dc48d3b5"
+    },
+    {
+      "path": "static/js/lib-react.d7cbcb95.js.LICENSE.txt",
+      "bytes": 1209,
+      "sha256": "e47a413b62a5bf023d2b81a25d0ef4213ff1bb756df7f3c31ba57f88334e1e0f"
+    },
+    {
+      "path": "static/js/lib-router.9902c246.js",
+      "bytes": 33461,
+      "sha256": "32ca72a3a0a8f77f8cde538895e20893a0ea65004e27b5582b3886eb48d27427"
+    },
+    {
+      "path": "static/js/lib-router.9902c246.js.LICENSE.txt",
+      "bytes": 221,
+      "sha256": "b26426f0b3a35e8fdf4ef9728069b0ba32b8545eaa81908bf4ab1a08586389f8"
+    }
+  ]
+}

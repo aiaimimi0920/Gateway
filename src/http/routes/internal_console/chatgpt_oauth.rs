@@ -1,7 +1,9 @@
 //! Management-authenticated OAuth orchestration; callback state never grants console access.
 use super::{console_request_context, json_with_no_store, required_console_management_token};
 use crate::{
-    console::chatgpt_oauth, error::GatewayError, http::extractors::OptionalBearerToken,
+    console::{chatgpt_oauth, AuthenticatedConsoleActor, ConsoleRequestContext},
+    error::GatewayError,
+    http::extractors::OptionalBearerToken,
     state::AppState,
 };
 use axum::{
@@ -33,11 +35,35 @@ pub(super) fn authorize(
     info: Option<&ConnectInfo<SocketAddr>>,
     secret: bool,
 ) -> Result<(String, bool), GatewayError> {
+    let (actor, context) = authorize_actor(state, headers, bearer, info, secret, false)?;
+    let owner = serde_json::to_string(&(
+        actor.token_fingerprint(),
+        session_host(headers),
+        context.client_ip(),
+    ))
+    .expect("owner serialization");
+    Ok((owner, context.is_loopback()))
+}
+
+pub(super) fn authorize_actor(
+    state: &AppState,
+    headers: &HeaderMap,
+    bearer: Option<&str>,
+    info: Option<&ConnectInfo<SocketAddr>>,
+    secret: bool,
+    persistent: bool,
+) -> Result<(AuthenticatedConsoleActor, ConsoleRequestContext), GatewayError> {
     let context = console_request_context(headers, info);
-    let actor = state.console_auth.authenticate_management_token(
-        &context,
-        required_console_management_token(bearer, headers)?,
-    )?;
+    let token = required_console_management_token(bearer, headers)?;
+    let actor = if persistent {
+        state
+            .console_auth
+            .authenticate_persistent_management_token(&context, token)?
+    } else {
+        state
+            .console_auth
+            .authenticate_management_token(&context, token)?
+    };
     if secret {
         state.console_auth.verify_secret_grant(
             &context,
@@ -48,13 +74,7 @@ pub(super) fn authorize(
                 .unwrap_or_default(),
         )?;
     }
-    let owner = serde_json::to_string(&(
-        actor.token_fingerprint(),
-        session_host(headers),
-        context.client_ip(),
-    ))
-    .expect("owner serialization");
-    Ok((owner, context.is_loopback()))
+    Ok((actor, context))
 }
 
 // Browser GETs can omit both Origin and Referer (the console uses no-referrer).

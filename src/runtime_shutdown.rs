@@ -18,6 +18,7 @@ pub(super) async fn finish(state: &Arc<AppState>) -> anyhow::Result<()> {
     state.lifecycle.luma_oauth.join().await;
     state.lifecycle.nous_oauth.join().await;
     state.lifecycle.lobsterai_oauth.join().await;
+    state.lifecycle.quick_oauth.join().await;
     state.lifecycle.grok_oauth.join().await;
     state.lifecycle.accio_oauth.join().await;
     state.lifecycle.kiro_oauth.join().await;
@@ -26,6 +27,7 @@ pub(super) async fn finish(state: &Arc<AppState>) -> anyhow::Result<()> {
     crate::token_refresh::join(state).await;
     crate::provider_credential_refresh::accio::join(state).await;
     let background_result = state.lifecycle.background_tasks.join().await;
+    state.lifecycle.stored_response_tasks.join().await;
     // A worker panic must not bypass finalizers, retirement or pool closure.
     if let Some(local) = &state.local_runtime {
         local.close().await;

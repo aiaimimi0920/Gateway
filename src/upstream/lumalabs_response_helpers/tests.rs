@@ -1,3 +1,4 @@
+mod browser_identity;
 mod image_admission;
 mod media_outputs;
 mod planning;

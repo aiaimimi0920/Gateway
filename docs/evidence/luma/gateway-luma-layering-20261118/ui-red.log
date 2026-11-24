@@ -1,0 +1,123 @@
+
+> gateway-ui@0.1.0 test
+> vitest --run src/features/console/LumaAgentsMediaProbe.test.tsx -t layering
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+ ❯ src/features/console/LumaAgentsMediaProbe.test.tsx (15 tests | 2 failed | 13 skipped) 1286ms
+   × confirms layering with an empty optional prompt, exact uni-1 and selected layer resolution 445ms
+   × layering clears old sources, rejects overlong guidance and does not substitute another image model 830ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/console/LumaAgentsMediaProbe.test.tsx > confirms layering with an empty optional prompt, exact uni-1 and selected layer resolution
+TestingLibraryElementError: Value "layering" not found in options
+
+Ignored nodes: comments, script, style
+<select
+  class="n-input n-select"
+  id="_r_4_"
+>
+  <option
+    value="image"
+  >
+    图片生成
+  </option>
+  <option
+    value="image_edit"
+  >
+    图片编辑
+  </option>
+  <option
+    value="video"
+  >
+    视频生成
+  </option>
+  <option
+    value="video_reframe"
+  >
+    视频扩画
+  </option>
+  <option
+    value="video_edit"
+  >
+    视频重绘
+  </option>
+</select>
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:37:35
+ ❯ Object.selectOptionsBase node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:29:38
+ ❯ Object.selectOptions node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:16:30
+ ❯ node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:35
+ ❯ Object.asyncWrapper node_modules/@testing-library/react/dist/pure.js:87:28
+ ❯ wrapAsync node_modules/@testing-library/user-event/dist/esm/setup/wrapAsync.js:6:24
+ ❯ Object.method [as selectOptions] node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:16
+ ❯ src/features/console/LumaAgentsMediaProbe.test.tsx:24:14
+     22| it("confirms layering with an empty optional prompt, exact uni-1 and s…
+     23|   const user=userEvent.setup(),p=props();render(<PilotActionDialog {..…
+     24|   await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"l…
+       |              ^
+     25|   expect(screen.getByRole("combobox",{name:"模型"})).toHaveValue("uni-1"…
+     26|   expect(screen.queryByRole("combobox",{name:"时长"})).not.toBeInTheDocu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/features/console/LumaAgentsMediaProbe.test.tsx > layering clears old sources, rejects overlong guidance and does not substitute another image model
+TestingLibraryElementError: Value "layering" not found in options
+
+Ignored nodes: comments, script, style
+<select
+  class="n-input n-select"
+  id="_r_e_"
+>
+  <option
+    value="image"
+  >
+    图片生成
+  </option>
+  <option
+    value="image_edit"
+  >
+    图片编辑
+  </option>
+  <option
+    value="video"
+  >
+    视频生成
+  </option>
+  <option
+    value="video_reframe"
+  >
+    视频扩画
+  </option>
+  <option
+    value="video_edit"
+  >
+    视频重绘
+  </option>
+</select>
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:37:35
+ ❯ Object.selectOptionsBase node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:29:38
+ ❯ Object.selectOptions node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:16:30
+ ❯ node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:35
+ ❯ Object.asyncWrapper node_modules/@testing-library/react/dist/pure.js:87:28
+ ❯ wrapAsync node_modules/@testing-library/user-event/dist/esm/setup/wrapAsync.js:6:24
+ ❯ Object.method [as selectOptions] node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:16
+ ❯ src/features/console/LumaAgentsMediaProbe.test.tsx:40:14
+     38|   await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"i…
+     39|   await user.type(screen.getByRole("textbox",{name:"源图片引用"}),"https://…
+     40|   await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"l…
+       |              ^
+     41|   expect(screen.getByRole("textbox",{name:"源图片引用"})).toHaveValue("");
+     42|   await user.type(screen.getByRole("textbox",{name:"源图片引用"}),"https://…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 13 skipped (15)
+   Start at  03:31:12
+   Duration  7.89s (transform 1.71s, setup 813ms, import 3.00s, tests 1.29s, environment 2.42s)
+

@@ -1,0 +1,20 @@
+{
+  "args": [
+    "powershell.exe",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    "tools/package-gateway-devtest.ps1",
+    "-Edition",
+    "desktop",
+    "-Jobs",
+    "4",
+    "-VersionId",
+    "gateway-devtest-20261120-luma-large-files-reconciliation"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T05:13:59.393676+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 962.03
+}

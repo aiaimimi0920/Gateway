@@ -67,6 +67,7 @@ impl ProviderAccountPayload {
             || crate::protocol::commandcode::owns_payload(self)
             || crate::protocol::lobsterai::owns_payload(self)
             || crate::protocol::sap_aicore::owns_payload(self)
+            || crate::protocol::quick_oauth::owns_payload(self)
             || crate::protocol::agnes::owns_payload(self)
         {
             return false;
@@ -89,15 +90,18 @@ impl ProviderAccountPayload {
         &self,
         endpoint_kind: EndpointKind,
     ) -> bool {
-        if crate::protocol::commandcode::owns_payload(self) && self.responses_path.is_some() {
+        if crate::protocol::sensenova::owns_payload(self)
+            || crate::protocol::sap_aicore::native_responses::selected(self, endpoint_kind)
+            || (crate::protocol::commandcode::owns_payload(self) && self.responses_path.is_some())
+        {
             return false;
         }
         if crate::protocol::qwen::workspace_api::owns_payload(self)
             || crate::protocol::nous_portal::business::owns_payload(self)
-            || crate::protocol::sensenova::owns_payload(self)
             || crate::protocol::commandcode::owns_payload(self)
             || crate::protocol::lobsterai::owns_payload(self)
             || crate::protocol::sap_aicore::owns_payload(self)
+            || crate::protocol::quick_oauth::owns_payload(self)
         {
             return endpoint_kind == EndpointKind::Responses;
         }
@@ -157,6 +161,7 @@ impl ProviderAccountPayload {
             || self.adapter == "flow_web_compatible"
             || self.adapter == "stitch_web_compatible"
             || self.adapter == crate::protocol::antigravity::ADAPTER
+            || crate::protocol::quick_oauth::owns_payload(self)
             || self.call_flow.is_some_and(|flow| {
                 flow.special_adapter == crate::protocol::call_flow::SpecialAdapter::FlowmusicWeb
             })

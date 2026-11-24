@@ -1,0 +1,95 @@
+{
+  "date": "2026-11-20",
+  "verifiedAt": "2026-11-19T23:22:15.180721+00:00",
+  "scope": "MCP catalog annotations and explicit normalized JSON download; synthetic accounts only",
+  "status": "passed",
+  "checks": {
+    "frontend-final": {
+      "status": "passed",
+      "receipt": "frontend-final/result.json"
+    },
+    "typecheck-v3": {
+      "status": "passed",
+      "receipt": "typecheck-v3/result.json"
+    },
+    "ui-build": {
+      "status": "passed",
+      "receipt": "ui-build/result.json"
+    },
+    "checker-tests": {
+      "status": "passed",
+      "receipt": "checker-tests/result.json"
+    },
+    "ratchet-final": {
+      "status": "passed",
+      "receipt": "ratchet-final/result.json"
+    },
+    "format": {
+      "status": "passed",
+      "receipt": "format/result.json"
+    },
+    "script-syntax-final": {
+      "status": "passed",
+      "receipt": "script-syntax-final/result.json"
+    },
+    "diff-check-final": {
+      "status": "passed",
+      "receipt": "diff-check-final/result.json"
+    },
+    "rust": {
+      "status": "passed",
+      "receipt": "rust/result.json"
+    },
+    "rust-host": {
+      "status": "passed",
+      "receipt": "rust-host/result.json"
+    },
+    "browser-run": {
+      "status": "passed",
+      "receipt": "browser-run/result.json"
+    },
+    "production-check": {
+      "status": "passed",
+      "receipt": "production-check/result.json"
+    }
+  },
+  "counts": {
+    "frontend": 24,
+    "rust": 27,
+    "rustIgnored": 1,
+    "explicitBrowserHost": 1,
+    "checker": 31,
+    "managementRequests": 6,
+    "mcpPosts": 18,
+    "mcpDeletes": 6
+  },
+  "downloadExtraRequests": 0,
+  "sourceHashesUnchanged": true,
+  "screenshotsReviewed": [
+    "browser/catalog-export.png",
+    "browser/catalog-export-narrow.png"
+  ],
+  "failedAttempts": [
+    {
+      "receipt": "typecheck/result.json",
+      "reason": "test spy instance inferred as unknown; corrected HTMLAnchorElement annotation"
+    }
+  ],
+  "notVerified": [
+    "current real-account tool catalog",
+    "MCP creation or real credits",
+    "remote DELETE effect",
+    "native package",
+    "Server/PG/Redis/cross-process recovery"
+  ],
+  "notRepeated": [
+    "unmodified Agents and Inference suites",
+    "feature-off build"
+  ],
+  "archiveExcludes": [
+    "runtime database",
+    "browser profile",
+    "credentials",
+    "build payload"
+  ]
+}

@@ -56,10 +56,15 @@ pub fn resolve_image_model(model: &str) -> &str {
 
 pub fn normalize_image_generations(body: Value) -> Result<CanonicalRelayRequest, GatewayError> {
     let prompt = read_required_string(&body, &["prompt"])?;
+    Ok(image_generation_with_prompt(body, prompt))
+}
+
+/// Product normalizers may supply their own validated prompt contract, including an empty string.
+pub(crate) fn image_generation_with_prompt(body: Value, prompt: String) -> CanonicalRelayRequest {
     let model = read_optional_string(&body, &["model"])
         .unwrap_or_else(|| NANO_BANANA_PRO_MODEL.to_string());
 
-    Ok(CanonicalRelayRequest {
+    CanonicalRelayRequest {
         protocol_family: ProtocolFamily::OpenAi,
         endpoint_kind: EndpointKind::ImagesGenerations,
         requested_model: Some(model),
@@ -81,7 +86,7 @@ pub fn normalize_image_generations(body: Value) -> Result<CanonicalRelayRequest,
         previous_response_id: None,
         explicit_session_key: None,
         extra: std::collections::HashMap::new(),
-    })
+    }
 }
 
 pub fn normalize_image_edits(body: Value) -> Result<CanonicalRelayRequest, GatewayError> {

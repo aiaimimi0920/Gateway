@@ -1,0 +1,15 @@
+[gateway-local-smoke] POST /v1/internal/gateway/access/keys HTTP 200
+[gateway-local-smoke] GET /v1/internal/gateway/access/keys/local-ak-7446f24c-a492-4ef5-b0a5-fcc7b859f3d3/balance HTTP 200
+[gateway-local-smoke] POST /v1/internal/gateway/access/keys/local-ak-7446f24c-a492-4ef5-b0a5-fcc7b859f3d3/balances/adjust HTTP 200
+[gateway-local-smoke] POST /v1/chat/completions HTTP 429
+[gateway-local-smoke] POST /v1/internal/gateway/runtime/drain HTTP 202
+[gateway-local-smoke] GET /v1/internal/gateway/access/keys/local-ak-7446f24c-a492-4ef5-b0a5-fcc7b859f3d3/balance HTTP 200
+[gateway-local-smoke] GET /v1/models HTTP 200
+[gateway-local-smoke] POST /v1/internal/gateway/access/keys/local-ak-7446f24c-a492-4ef5-b0a5-fcc7b859f3d3/balances/adjust HTTP 200
+[gateway-local-smoke] POST /v1/chat/completions HTTP 400
+[gateway-local-smoke] GET /v1/internal/gateway/access/keys/local-ak-7446f24c-a492-4ef5-b0a5-fcc7b859f3d3/balance HTTP 200
+[gateway-local-smoke] POST /v1/internal/gateway/access/keys/local-ak-7446f24c-a492-4ef5-b0a5-fcc7b859f3d3/rotate HTTP 200
+[gateway-local-smoke] GET /v1/internal/gateway/access/keys/local-ak-59f29120-422d-44cd-93e8-20041a15abbd/balance HTTP 200
+[gateway-local-smoke] GET /v1/models HTTP 401
+[gateway-local-smoke] POST /v1/internal/gateway/runtime/drain HTTP 202
+[gateway-local-smoke] PASS: C:\Users\Public\nas_home\AI\GameEditor\linshi\gateway-luma-six-20261120\local-smoke\result.json

@@ -1,0 +1,612 @@
+{
+  "bytedance_seedream": {
+    "label": "Seedream",
+    "kind": "image",
+    "ratios": [
+      "9:21",
+      "9:16",
+      "2:3",
+      "3:4",
+      "1:1",
+      "4:3",
+      "3:2",
+      "16:9",
+      "21:9"
+    ],
+    "maxReferences": 5,
+    "parameters": {
+      "resolution": {
+        "type": "string",
+        "enum": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    }
+  },
+  "bytedance_seedream_5_flash": {
+    "label": "Seedream 5 Flash",
+    "kind": "image",
+    "ratios": [],
+    "maxReferences": 10,
+    "parameters": {
+      "size": {
+        "type": "string"
+      },
+      "output_format": {
+        "type": "string",
+        "enum": [
+          "jpeg",
+          "png"
+        ]
+      }
+    }
+  },
+  "bytedance_seedream_5_pro": {
+    "label": "Seedream 5 Pro",
+    "kind": "image",
+    "ratios": [
+      "9:21",
+      "9:16",
+      "2:3",
+      "3:4",
+      "1:1",
+      "4:3",
+      "3:2",
+      "16:9",
+      "21:9"
+    ],
+    "maxReferences": 10,
+    "parameters": {
+      "resolution": {
+        "type": "string",
+        "enum": [
+          "1K",
+          "2K"
+        ]
+      },
+      "output_format": {
+        "type": "string",
+        "enum": [
+          "jpeg",
+          "png"
+        ]
+      }
+    }
+  },
+  "google_nano_banana_2": {
+    "label": "Nano Banana 2",
+    "kind": "image",
+    "ratios": [
+      "8:1",
+      "4:1",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "1:4",
+      "1:8"
+    ],
+    "maxReferences": 14,
+    "parameters": {
+      "resolution": {
+        "type": "string",
+        "enum": [
+          "512",
+          "1K",
+          "2K",
+          "4K"
+        ]
+      },
+      "thinking_level": {
+        "type": "string",
+        "enum": [
+          "minimal",
+          "high"
+        ]
+      },
+      "enable_search": {
+        "type": "boolean"
+      },
+      "temperature": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 2.0
+      }
+    }
+  },
+  "google_nano_banana_2_1": {
+    "label": "Nano Banana 2.1",
+    "kind": "image",
+    "ratios": [
+      "8:1",
+      "4:1",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "1:4",
+      "1:8"
+    ],
+    "maxReferences": 14,
+    "parameters": {
+      "resolution": {
+        "type": "string",
+        "enum": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      },
+      "thinking_level": {
+        "type": "string",
+        "enum": [
+          "minimal",
+          "high"
+        ]
+      },
+      "enable_search": {
+        "type": "boolean"
+      }
+    }
+  },
+  "google_nano_banana_2_lite": {
+    "label": "Nano Banana 2 Lite",
+    "kind": "image",
+    "ratios": [
+      "8:1",
+      "4:1",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "1:4",
+      "1:8"
+    ],
+    "maxReferences": 14,
+    "parameters": {
+      "resolution": {
+        "type": "string",
+        "enum": [
+          "1K"
+        ]
+      },
+      "thinking_level": {
+        "type": "string",
+        "enum": [
+          "minimal",
+          "high"
+        ]
+      },
+      "enable_search": {
+        "type": "boolean"
+      },
+      "temperature": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 2.0
+      }
+    }
+  },
+  "google_nano_banana_pro": {
+    "label": "Nano Banana Pro",
+    "kind": "image",
+    "ratios": [
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "1:1",
+      "3:4",
+      "2:3",
+      "9:16"
+    ],
+    "maxReferences": 14,
+    "parameters": {
+      "resolution": {
+        "type": "string",
+        "enum": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    }
+  },
+  "ideogram_4_5": {
+    "label": "Ideogram 4.5",
+    "kind": "image",
+    "ratios": [],
+    "maxReferences": 5,
+    "parameters": {
+      "quality": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "size": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "1024x1024",
+          "2048x2048",
+          "2560x1440",
+          "1440x2560"
+        ]
+      },
+      "magic_prompt": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "on",
+          "off"
+        ]
+      }
+    }
+  },
+  "ideogram_4_6": {
+    "label": "Ideogram 4.6",
+    "kind": "image",
+    "ratios": [],
+    "maxReferences": 5,
+    "parameters": {
+      "quality": {
+        "type": "string",
+        "enum": [
+          "very_low",
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "size": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "1024x1024",
+          "2048x2048",
+          "2560x1440",
+          "1440x2560",
+          "4096x4096",
+          "4096x2304",
+          "2304x4096"
+        ]
+      },
+      "magic_prompt": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "on",
+          "off"
+        ]
+      },
+      "background": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "transparent",
+          "opaque"
+        ]
+      }
+    }
+  },
+  "ideogram_vector": {
+    "label": "Ideogram Vector",
+    "kind": "image",
+    "ratios": [
+      "auto",
+      "1x1",
+      "1x2",
+      "2x1",
+      "1x3",
+      "3x1",
+      "1x4",
+      "4x1",
+      "2x3",
+      "3x2",
+      "3x4",
+      "4x3",
+      "4x5",
+      "5x4",
+      "9x16",
+      "16x9",
+      "10x16",
+      "16x10"
+    ],
+    "maxReferences": 5,
+    "parameters": {
+      "quality": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    }
+  },
+  "luma_ray3_14": {
+    "label": "Ray 3.14",
+    "kind": "video",
+    "ratios": [
+      "9:16",
+      "3:4",
+      "1:1",
+      "4:3",
+      "16:9",
+      "21:9",
+      "4:5"
+    ],
+    "maxReferences": 0,
+    "parameters": {}
+  },
+  "luma_ray3_14_hdr": {
+    "label": "Ray 3.14 HDR",
+    "kind": "video",
+    "ratios": [
+      "9:16",
+      "3:4",
+      "1:1",
+      "4:3",
+      "16:9",
+      "21:9"
+    ],
+    "maxReferences": 0,
+    "parameters": {}
+  },
+  "luma_ray3_2": {
+    "label": "Ray 3.2",
+    "kind": "video",
+    "ratios": [
+      "9:16",
+      "3:4",
+      "1:1",
+      "4:3",
+      "16:9",
+      "21:9"
+    ],
+    "maxReferences": 0,
+    "parameters": {}
+  },
+  "luma_uni_1": {
+    "label": "UNI-1",
+    "kind": "image",
+    "ratios": [
+      "3:1",
+      "2:1",
+      "16:9",
+      "3:2",
+      "4:3",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "1:2",
+      "1:3"
+    ],
+    "maxReferences": 9,
+    "parameters": {}
+  },
+  "openai_gpt_image_1_5": {
+    "label": "GPT Image 1.5",
+    "kind": "image",
+    "ratios": [
+      "3:2",
+      "1:1",
+      "2:3"
+    ],
+    "maxReferences": 4,
+    "parameters": {
+      "quality": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "background": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "transparent",
+          "opaque"
+        ]
+      },
+      "output_format": {
+        "type": "string",
+        "enum": [
+          "png",
+          "jpeg",
+          "webp"
+        ]
+      }
+    }
+  },
+  "openai_gpt_image_2": {
+    "label": "GPT Image 2",
+    "kind": "image",
+    "ratios": [
+      "3:1",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "6:5",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "1:3"
+    ],
+    "maxReferences": 16,
+    "parameters": {
+      "resolution": {
+        "type": "string",
+        "enum": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      },
+      "quality": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "output_format": {
+        "type": "string",
+        "enum": [
+          "png",
+          "jpeg",
+          "webp"
+        ]
+      },
+      "background": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "transparent",
+          "opaque"
+        ]
+      }
+    }
+  },
+  "openai_gpt_image_2_5_flare": {
+    "label": "GPT Image 2.5 Flare",
+    "kind": "image",
+    "ratios": [
+      "3:1",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "6:5",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "1:3"
+    ],
+    "maxReferences": 16,
+    "parameters": {
+      "resolution": {
+        "type": "string",
+        "enum": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      },
+      "quality": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      "background": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "transparent",
+          "opaque"
+        ]
+      },
+      "output_format": {
+        "type": "string",
+        "enum": [
+          "png",
+          "jpeg",
+          "webp"
+        ]
+      }
+    }
+  },
+  "openai_gpt_image_2_5_sunburst": {
+    "label": "GPT Image 2.5 Sunburst",
+    "kind": "image",
+    "ratios": [
+      "3:1",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "6:5",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "1:3"
+    ],
+    "maxReferences": 16,
+    "parameters": {
+      "resolution": {
+        "type": "string",
+        "enum": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      },
+      "quality": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      "background": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "transparent",
+          "opaque"
+        ]
+      },
+      "output_format": {
+        "type": "string",
+        "enum": [
+          "png",
+          "jpeg",
+          "webp"
+        ]
+      }
+    }
+  }
+}

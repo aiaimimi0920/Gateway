@@ -25,7 +25,8 @@ pub struct Reply {
     pub hold: bool,
 }
 impl Reply {
-    pub fn task(result: Value) -> Self {
+    pub fn task(mut result: Value) -> Self {
+        result["ok"] = true.into();
         Self::bytes(
             "application/json",
             json!({"ok":true,"result":result}).to_string().into_bytes(),
@@ -124,7 +125,10 @@ async fn handler(State(state): State<PeerState>, request: Request<Body>) -> Resp
     let (parts, body) = request.into_parts();
     assert!(matches!(
         (parts.method.as_str(), parts.uri.path()),
-        ("POST", "/v1/internal/browser-executor/execute") | ("GET", "/image.png")
+        (
+            "POST",
+            "/v1/internal/browser-executor/luma-session-v1/execute"
+        ) | ("GET", "/image.png")
     ));
     let bytes = axum::body::to_bytes(body, 1024 * 1024).await.unwrap();
     state.calls.lock().unwrap().push(Call {
@@ -133,12 +137,21 @@ async fn handler(State(state): State<PeerState>, request: Request<Body>) -> Resp
         headers: parts.headers,
         body: bytes.to_vec(),
     });
-    let reply = state
+    let mut reply = state
         .replies
         .lock()
         .unwrap()
         .pop_front()
         .expect("unexpected additional generation/download");
+    if parts.method == axum::http::Method::POST {
+        let input: Value = serde_json::from_slice(&bytes).unwrap();
+        assert!(uuid::Uuid::parse_str(input["input"]["sessionBinding"].as_str().unwrap()).is_ok());
+        let mut response: Value = serde_json::from_slice(&reply.bytes).unwrap();
+        response["result"]["session"] = json!({"version":1,"binding":input["input"]["sessionBinding"],
+            "reauthenticationRequired":false,"cookie":{"name":"wos-session","value":"synthetic-rotated-cookie",
+            "domain":"app.lumalabs.ai","path":"/","expires":-1,"httpOnly":true,"secure":true,"sameSite":"Lax"}});
+        reply.bytes = serde_json::to_vec(&response).unwrap();
+    }
     let body = if reply.hold {
         Body::from_stream(futures::stream::unfold(
             CloseProbe(state.closed),
@@ -176,6 +189,10 @@ pub fn wire(peer: &Peer, asset: bool) {
         "never retry or switch accounts"
     );
     assert_eq!(calls[0].method, "POST");
+    assert_eq!(
+        calls[0].path,
+        "/v1/internal/browser-executor/luma-session-v1/execute"
+    );
     assert_eq!(
         calls[0].headers["authorization"],
         "Bearer synthetic-executor-token"

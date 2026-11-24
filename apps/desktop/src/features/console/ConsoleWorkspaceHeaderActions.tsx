@@ -1,4 +1,5 @@
 import { Button } from "@neuro/ui";
+import { Building2, UserPlus } from "lucide-react";
 
 type ConsoleWorkspaceHeaderActionsProps = {
   activeWorkspace: string;
@@ -39,22 +40,25 @@ export function ConsoleWorkspaceHeaderActions({
           : t("更改未应用", "Changes not applied")}
     </span>
   ) : null;
-  // Workspace actions live in the shell board header so no workspace needs a
-  // third command bar of its own.
+  const addProviderLabel = t("添加服务商", "Add provider");
+  const addAccountLabel = t("添加账号", "Add account");
   const workspaceHeaderActions =
     activeWorkspace === "accounts" ? (
       <>
-        <Button variant="primary"
-          disabled={editorLocked}
+        <Button variant="primary" compact className="nt-credential-pool-header__action"
+          aria-label={addProviderLabel} title={addProviderLabel} disabled={editorLocked}
           onClick={() => setProviderCatalogDialogOpen(true)}
         >
-          {t("添加服务商", "Add provider")}
+          <Building2 size={15} aria-hidden="true" />
+          <span className="nt-credential-pool-header__action-label">{addProviderLabel}</span>
         </Button>
-        <Button
+        <Button compact className="nt-credential-pool-header__action"
+          aria-label={addAccountLabel} title={addAccountLabel}
           disabled={editorLocked || accountLedgerProviderOptions.length <= 1}
           onClick={() => openAddCredentialDialog()}
         >
-          {t("添加账号", "Add account")}
+          <UserPlus size={15} aria-hidden="true" />
+          <span className="nt-credential-pool-header__action-label">{addAccountLabel}</span>
         </Button>
       </>
     ) : activeWorkspace === "groups" ? (

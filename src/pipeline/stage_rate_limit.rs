@@ -30,6 +30,7 @@ pub struct ProviderAttemptGate {
     attempted_provider_ids: Arc<parking_lot::Mutex<Vec<String>>>,
     attempt_audit: super::attempt_audit::AttemptAudit,
     provider_account_id: String,
+    provider_credential_ref: Option<String>,
     request_budget: super::request_budget::RequestBudget,
     smart_routing: Arc<crate::routing::smart::SmartRouting>,
     sticky_scope: Option<String>,
@@ -39,12 +40,27 @@ pub struct ProviderAttemptGate {
 }
 
 impl ProviderAttemptGate {
+    pub(super) fn provider_id(&self) -> &str {
+        &self.provider_account_id
+    }
+    pub(super) fn with_pinned(mut self, provider: &str, credential: &str, model: &str) -> Self {
+        self.attempt_audit.set_pinned(provider, credential, model);
+        self.provider_credential_ref = Some(credential.to_owned());
+        // Polling and cancellation must not alter normal conversation affinity.
+        self.sticky_scope = None;
+        self
+    }
+
     pub(crate) fn with_audit_candidate(
         mut self,
         candidate: &crate::routing::candidate::RouteCandidate,
         model: &str,
     ) -> Self {
         self.attempt_audit.set_candidate(candidate, model);
+        self.provider_credential_ref = candidate
+            .provider_credential_id
+            .clone()
+            .or_else(|| candidate.payload.credential_id.clone());
         self
     }
     pub(crate) fn with_circuit(
@@ -88,12 +104,33 @@ impl ProviderAttemptGate {
 }
 
 pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(), GatewayError> {
+    run_scoped(ctx, state, None).await
+}
+
+/// ID operations first admit the caller, then admit only the authorized model.
+/// Splitting dimensions avoids both unmetered lookups and double request debits.
+pub(super) async fn run_stored(
+    ctx: &mut PipelineContext,
+    state: &Arc<AppState>,
+    model_only: bool,
+) -> Result<(), GatewayError> {
+    run_scoped(ctx, state, Some(model_only)).await
+}
+
+async fn run_scoped(
+    ctx: &mut PipelineContext,
+    state: &Arc<AppState>,
+    model_only: Option<bool>,
+) -> Result<(), GatewayError> {
     ensure_route_policy_loaded(ctx, state).await?;
     let Some(config) = ctx.route_policy_config.as_ref() else {
         return Ok(());
     };
     let dimensions = request_dimensions(ctx, None)?;
-    let rules = build_request_rate_limit_rules(config, &dimensions)?;
+    let mut rules = build_request_rate_limit_rules(config, &dimensions)?;
+    if let Some(model_only) = model_only {
+        rules.retain(|rule| (rule.scope == crate::rate_limit::RateLimitScope::Model) == model_only);
+    }
     enforce(
         ctx.req_id,
         &state.redis_pool,
@@ -134,6 +171,7 @@ pub fn provider_attempt_gate(
         attempted_provider_ids: Arc::clone(&ctx.attempted_provider_ids),
         attempt_audit: super::attempt_audit::AttemptAudit::new(ctx.last_provider_attempt.clone()),
         provider_account_id: provider_account_id.to_string(),
+        provider_credential_ref: None,
         request_budget: ctx.request_budget.clone(),
         smart_routing: Arc::clone(&state.lifecycle.smart_routing),
         sticky_scope: super::stage_route::smart::session_scope(ctx),

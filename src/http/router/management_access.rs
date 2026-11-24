@@ -35,6 +35,10 @@ pub(super) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
             "/v1/internal/browser-executor/suno-bound-v1/execute",
             post(browser_executor::execute_suno_bound_browser_executor),
         )
+        .route(
+            "/v1/internal/browser-executor/luma-session-v1/execute",
+            post(browser_executor::execute_luma_session_browser_executor),
+        )
         // -- Internal gateway management ---------------------------------
         .route(
             "/v1/internal/gateway/api-access/resolve",

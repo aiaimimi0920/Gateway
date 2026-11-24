@@ -13,7 +13,7 @@ pub(crate) use relay::Relay;
 pub(crate) use response::decode_eventstream;
 pub use response::{accumulate, unpack};
 pub use stream::translate;
-pub(crate) use stream::translate_scoped;
+pub(crate) use stream::{translate_public, translate_scoped};
 
 use crate::protocol::stream_error::ProtocolStreamError;
 

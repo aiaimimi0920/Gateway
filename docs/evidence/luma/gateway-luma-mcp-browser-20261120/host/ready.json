@@ -1,0 +1,9 @@
+{
+  "origin": "http://127.0.0.1:65207",
+  "pid": 44036,
+  "syntheticOnly": true,
+  "scenario": "luma-mcp-normal-main-v1",
+  "provider": "luma-mcp",
+  "credential": "saved-mcp",
+  "revision": "r0-93750d71198d"
+}

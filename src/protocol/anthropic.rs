@@ -9,6 +9,8 @@
 // OpenAI-compatible chunks.
 // ---------------------------------------------------------------------------
 
+pub(crate) mod native_admission;
+pub(crate) mod native_stream;
 mod normalize;
 mod request;
 mod response;

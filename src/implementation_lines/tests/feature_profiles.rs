@@ -156,3 +156,11 @@ search_protocol_profile_compile_tests!(
     enabled = producer_web_reverse_protocol_profiles_compile_when_feature_enabled,
     disabled = producer_web_reverse_protocol_profiles_fail_compile_check_when_feature_disabled
 );
+
+search_protocol_profile_compile_tests!(
+    feature = "line-lumalabs-inference-official-api",
+    profiles = ["lumalabs_inference", "lumalabs-inference-api"],
+    line = "lumalabs_inference",
+    enabled = luma_inference_profiles_compile_when_feature_enabled,
+    disabled = luma_inference_profiles_fail_compile_check_when_feature_disabled
+);

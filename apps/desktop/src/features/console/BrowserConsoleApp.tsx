@@ -8,6 +8,7 @@ import { DEFAULT_OPERATIONS_LIST_VIEW } from "./operationsListView";
 import { AccessKeyHeaderProvider, AccessKeyHeaderSlot } from "./AccessKeyHeader";
 import { ProviderSiteHealthSettings } from "./ProviderSiteHealthSettings";
 import { QwenProviderEndpointSettings } from "./QwenProviderEndpointSettings";
+import { ProviderConnectionSettings } from "./ProviderConnectionSettings";
 import type { ProviderPoolView } from "./providerPoolView";
 import { useConsoleController } from "./useConsoleController";
 import { SettingsHeaderSlot, SettingsNavigationProvider } from "../settings/SettingsNavigation";
@@ -226,6 +227,9 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
     <AccountsLedgerWorkspace
       t={t}
       poolView={poolView}
+      renderProviderDetails={(section) => <ProviderConnectionSettings key={section.providerId} providerId={section.providerId}
+        document={draftDocumentState.document} locked={editorLocked} pending={draftDirty || autosavePending} error={error}
+        onApply={controller.applyProviderConnectionDraft} onRetry={() => void controller.retrySave()} t={t} />}
       renderProviderSettings={(section) => <><QwenProviderEndpointSettings providerId={section.providerId} providerLabel={section.providerLabel}
         document={draftDocumentState.document} activeConfig={routeConfig} locked={editorLocked}
         onApply={controller.applyQwenProviderEndpointDraft} t={t} /><ProviderSiteHealthSettings providerId={section.providerId}
@@ -515,13 +519,12 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
         railCollapsed={consoleRailCollapsed}
         onToggleRailCollapsed={() => setConsoleRailCollapsed((current) => !current)}
         title={activeWorkspaceLabel}
-        headerLeading={activeWorkspace === "accounts" ? <ProviderPoolToolbar value={poolView} onChange={setPoolView} t={t} />
-          : activeWorkspace === "groups" ? <ProviderPoolToolbar scope="groups" value={groupPoolView} onChange={setGroupPoolView} t={t} />
+        headerLeading={activeWorkspace === "groups" ? <ProviderPoolToolbar scope="groups" value={groupPoolView} onChange={setGroupPoolView} t={t} />
             : activeWorkspace === "models" ? <ProviderPoolToolbar scope="models" value={modelPoolView} onChange={setModelPoolView} t={t} />
               : activeWorkspace === "operations" ? null
                 : activeWorkspace === "access" ? <AccessKeyHeaderSlot slot="leading" />
                   : activeWorkspace === "settings" ? <SettingsHeaderSlot /> : undefined}
-        headerActions={workspaceHeaderActions}
+        headerActions={activeWorkspace === "accounts" ? null : workspaceHeaderActions}
         onRefresh={() => void refresh()}
         refreshBusy={busy}
         showLocaleToggle
@@ -529,6 +532,12 @@ function BrowserConsoleContent({ consoleApi }: BrowserConsoleAppProps) {
         stageClassName="nt-stage--console"
         beforeStage={
           <>
+            {activeWorkspace === "accounts" && (
+              <div className="nt-credential-pool-header">
+                <ProviderPoolToolbar value={poolView} onChange={setPoolView} t={t} />
+                {workspaceHeaderActions}
+              </div>
+            )}
             {error ? (
               <Notice tone="danger" className="nt-shell-feedback">
                 <span>{error}</span>

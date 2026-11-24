@@ -1,0 +1,53 @@
+{
+  "status": "passed",
+  "ordinaryKeyBalance": 2,
+  "revisionUnchanged": true,
+  "upstreamCalls": [
+    {
+      "method": "POST",
+      "path": "/v1/files",
+      "bytes": 322
+    },
+    {
+      "method": "GET",
+      "path": "/v1/files/d290f1ee-6c54-4b01-90e6-d701748f0851",
+      "bytes": 0
+    },
+    {
+      "method": "GET",
+      "path": "/v1/files",
+      "bytes": 0
+    },
+    {
+      "method": "GET",
+      "path": "/v1/files",
+      "bytes": 0
+    },
+    {
+      "method": "POST",
+      "path": "/v1/files",
+      "bytes": 153
+    },
+    {
+      "method": "PUT",
+      "path": "/output.png",
+      "bytes": 8388609
+    },
+    {
+      "method": "POST",
+      "path": "/v1/files/d290f1ee-6c54-4b01-90e6-d701748f0852/complete",
+      "bytes": 0
+    },
+    {
+      "method": "GET",
+      "path": "/v1/files/d290f1ee-6c54-4b01-90e6-d701748f0852",
+      "bytes": 0
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/files/d290f1ee-6c54-4b01-90e6-d701748f0852",
+      "bytes": 0
+    }
+  ],
+  "scope": "normal main to management TCP and synthetic upstream; no real vendor or charge"
+}

@@ -38,7 +38,7 @@ fn credential_model_health_cools_rate_limits_but_does_not_permanently_block() {
     assert_eq!(transition.status, CredentialModelHealthStatus::Cooling);
     assert!(!transition.permanent);
     assert!(transition.penalizes_candidate);
-    assert!(transition.cooldown_seconds.unwrap_or_default() >= 60);
+    assert_eq!(transition.cooldown_seconds, Some(30));
 }
 
 #[test]

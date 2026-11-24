@@ -1,0 +1,15 @@
+{
+  "args": [
+    "node",
+    "apps/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "apps/desktop",
+    "src/features/console/LumaFilesPanel.test.tsx",
+    "src/features/console/ConsoleGlobalDialogs.luma-agents.test.tsx"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T16:13:28.347122+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 11.77
+}

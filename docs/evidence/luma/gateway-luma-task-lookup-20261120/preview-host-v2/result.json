@@ -1,0 +1,17 @@
+{
+  "args": [
+    "node",
+    "tools/luma/build-ui.mjs",
+    "--preview",
+    "--output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-task-lookup-20261120/preview-v2",
+    "--port",
+    "4453",
+    "--lifetime-seconds",
+    "120"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T21:47:51.468558+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 121.31
+}

@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-11-19T22:21:17.285Z",
+  "boundary": "Scoped test-host and runner capture before browser run; production module only adds cfg(test) declaration",
+  "files": [
+    {
+      "path": "src/upstream/luma_agents.rs",
+      "sha256": "062c39d61c4525adc7a9ede81ed1ac06d86962ca724d2beb77ce0890a86cac1a",
+      "effectiveLines": 122
+    },
+    {
+      "path": "src/upstream/luma_agents/task_browser_host.rs",
+      "sha256": "837de86e371962a11da0ceddbba46d0fd98ce9b2c93ea4af94d173a378b5e84b",
+      "effectiveLines": 169
+    },
+    {
+      "path": "tools/luma/task-browser-check.mjs",
+      "sha256": "4d6e04be4f82bcb92a1263297a5c51998cc99e312b136c04f6ae28d423013597",
+      "effectiveLines": 138
+    }
+  ]
+}

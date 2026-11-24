@@ -1,0 +1,16 @@
+
+running 11 tests
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_caller_drop_closes_pending_body_without_background_work ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_never_starts_before_pending_usage_media_is_verified ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_reserves_return_time_without_starting_a_read ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_shares_the_existing_metadata_byte_budget ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_timeout_keeps_media_and_closes_pending_body ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_known_or_unavailable_usage_never_adds_reads ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_late_zero_and_nonzero_reach_public_response_and_audit_once ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_pending_is_bounded_and_unavailable_stops_polling ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_rejects_foreign_identity_state_and_malformed_charges ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_transport_errors_keep_verified_media_without_retry ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_caps_optional_wait_even_with_a_long_request_deadline ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 6296 filtered out; finished in 8.38s
+

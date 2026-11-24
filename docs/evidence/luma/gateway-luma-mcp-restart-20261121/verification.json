@@ -1,0 +1,147 @@
+{
+  "dateLocal": "2026-11-21",
+  "head": "5d50886c5c3266606520d7ff933fdc9665d019f7",
+  "workingTree": "dirty, includes inherited work",
+  "productionBehaviorChanged": false,
+  "supplierNetworkUsedByTests": false,
+  "packagedExeRebuilt": false,
+  "clock": "natural PostgreSQL 90-second lease, observed via read-only SQL; no injected clock or lease edits",
+  "cases": [
+    {
+      "name": "durable-run",
+      "before": "running",
+      "after": "completed",
+      "sessionId": "s1",
+      "runId": "r1",
+      "sessionCredits": 9,
+      "settled": true,
+      "upstreamTools": [
+        "luma_session_open",
+        "luma_generate_image",
+        "luma_run_await",
+        "luma_run_await",
+        "luma_usage"
+      ]
+    },
+    {
+      "name": "unconfirmed-submit",
+      "before": "submitting",
+      "after": "unconfirmed",
+      "sessionId": "s1",
+      "runId": null,
+      "sessionCredits": 9,
+      "settled": false,
+      "upstreamTools": [
+        "luma_session_open",
+        "luma_generate_image",
+        "luma_usage"
+      ]
+    }
+  ],
+  "checks": {
+    "initialHarnessBuild": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_mcp_server_restart_after_os_kill",
+        "--",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedAt": "2026-11-21T01:32:45.519163+00:00",
+      "exitCode": 101,
+      "elapsedSeconds": 242.19,
+      "commandLogSha256": "f8453f17f8023fe5c6b7c8eb6fd1e2082ac8d9cb2cb616263759565c0766cc42",
+      "observedMarkers": [
+        "error[E0597]: `root` does not live long enough"
+      ]
+    },
+    "serverRestart": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_mcp_server_restart_after_os_kill",
+        "--",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedAt": "2026-11-21T01:38:23.103179+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 1321.31,
+      "commandLogSha256": "6dff87c181a71ca71da8c85b8b72073e74e0447a3da8435d9255d23d2f77f119",
+      "observedMarkers": [
+        "unconfirmed-submit: killed pid 41108; recovered via pid 39760 after natural PG lease expiry; final state=\"unconfirmed\"",
+        "durable-run: killed pid 18504; recovered via pid 14256 after natural PG lease expiry; final state=\"completed\"",
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 20m 30s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6470 filtered out; finished in 89.40s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6470 filtered out; finished in 89.50s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6470 filtered out; finished in 90.30s"
+      ]
+    },
+    "creationRegression": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_mcp::creation",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedAt": "2026-11-21T02:00:26.084202+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 31.81,
+      "commandLogSha256": "64c7e074c6a6cb5f524e0da430977dcc69d6916a38d6088c312d93ad0f64c6e5",
+      "observedMarkers": [
+        "test result: ok. 37 passed; 0 failed; 3 ignored; 0 measured; 6431 filtered out; finished in 27.87s"
+      ]
+    },
+    "scopedRustfmt": "passed",
+    "scriptSyntaxAndModeExclusion": "passed",
+    "effectiveLinesCheckerTests": 31,
+    "effectiveLinesRatchet": "passed",
+    "gitDiffCheck": "passed",
+    "ownedFixtureContainersExited": true
+  },
+  "sourceSha256": {
+    "src/protocol/luma_mcp/creation_server_process_tests.rs": "8b789457de90108ee279dc60012cb7252da4341ab122e46f5f0eed6a428627ec",
+    "src/protocol/luma_mcp/creation_server_tests.rs": "7a24eb6ad84d56e4552e431d73e788b63ae000a92597fce8fabe4aa735f05027",
+    "src/protocol/luma_mcp/creation_tests.rs": "12cedfb9b4fe78ab2fc0bc93244e51dbfb291c493af843891773d37725847ae2",
+    "src/protocol/luma_mcp/browser_fixture.rs": "58e686464503bb65204e6cb470f87a6ca3bde71bf5ae0c8610718cc16e138449",
+    "src/protocol/luma_mcp/fixture.rs": "49cf75b7bb702b877b5c911a139ca4734c4a79539c0d5f5d7c72c66a78b514e6",
+    "src/protocol/luma_mcp/test_support.rs": "40751de90c5f5ecabca64d5078c8bc5f9eee8ad3885befac64a553e2301a3700",
+    "src/protocol/luma_mcp/transport.rs": "d05cf3178ab2a6e6fa12821cc3ebcf7d36e9d09fc7e582690a1965f3ca4cbe95",
+    "src/protocol/luma_mcp/creation/wire.rs": "9229087f5b165c7ecd6c4bb9419c0be804ce8def67a83f3749e4b5066b1fcc84",
+    "tools/luma/check-postgres.ps1": "b832fcdc982e009d3e56e3f6143e5369d9e5dc4cc9fb543a6a965e043043a54a",
+    "tools/luma/run-check.py": "dbdf92b02a86e4764b2552634ce5df7e7d6355b8a2292e12c736e0dcd880290a",
+    "deploy/postgres/initdb/006-gateway-luma-mcp-creation.sql": "aeaabb933ccad2ed007e8fc385c227e647f7219e860d99867a4e450e8ea1e613",
+    "src/http/routes/internal_console/luma_mcp/creation.rs": "eddde7af86e58bd576984f600c2b4c201a6e5cc1920192875aa48f2aace29dcb",
+    "src/http/routes/internal_console/luma_mcp/creation/execute.rs": "f47b35e32396b87eac65b6eeae3b1c554cb09b719d997382fe17d072a1850c20",
+    "src/http/routes/internal_console/luma_mcp/creation/store.rs": "075148acab04608e1c3d5f1fa35f61ee54dda3abc32f7e718908e206f3289ba7",
+    "src/http/routes/internal_console/luma_mcp/creation/store/postgres.rs": "04a87d9c7b2b6d4071b385cc6825bd2eb52ac9c31b900badbe78b5f824f47abe"
+  }
+}

@@ -37,9 +37,12 @@ pub async fn read_models(
     material: &TokenMaterial,
     query: &ModelQuery,
 ) -> Result<Value, McpError> {
+    let endpoint = RESOURCE;
+    #[cfg(test)]
+    let endpoint = super::test_support::endpoint(endpoint);
     read_at(
         http,
-        RESOURCE,
+        &endpoint,
         material.access_token(),
         material.expires_at(),
         query,
@@ -86,7 +89,7 @@ pub(super) async fn read_at(
     result
 }
 
-fn tool_payload(result: Value) -> Result<Value, McpError> {
+pub(super) fn tool_payload(result: Value) -> Result<Value, McpError> {
     match result.get("isError") {
         Some(Value::Bool(true)) => return Err(McpError::Rejected),
         None | Some(Value::Bool(false)) => {}

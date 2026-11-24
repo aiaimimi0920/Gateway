@@ -41,10 +41,11 @@ pub(super) async fn send(
     }
     let stream_attempt_started_at = Instant::now();
     // Recovery owns its individual sends; a guard here must not count their errors twice.
-    let cancellation = (!matches!(
-        candidate.adapter.as_str(),
-        "qwen_web_compatible" | "chatgpt_web_reverse_compatible"
-    ))
+    let cancellation = (!crate::protocol::sap_aicore::owns_payload(effective_payload)
+        && !matches!(
+            candidate.adapter.as_str(),
+            "qwen_web_compatible" | "chatgpt_web_reverse_compatible"
+        ))
     .then(|| {
         ProviderAttemptCancellation::new(
             global_gateway_metrics(),
@@ -53,7 +54,26 @@ pub(super) async fn send(
             stream_attempt_started_at,
         )
     });
-    let stream_result = if candidate.adapter == "freebuff_compatible" {
+    let stream_result = if crate::protocol::sap_aicore::owns_payload(effective_payload) {
+        buffered::sap_dispatch::run(
+            state,
+            provider_attempt_gate,
+            effective_payload,
+            &ctx.canonical_req,
+            model,
+            &mut ctx.observed_upstream_status,
+            |response| async {
+                crate::protocol::sap_aicore::runtime::decode_stream(
+                    response,
+                    effective_payload,
+                    &ctx.canonical_req,
+                    model,
+                )
+            },
+        )
+        .await
+        .map(|response| (response, None, stream_attempt_started_at))
+    } else if candidate.adapter == "freebuff_compatible" {
         freebuff::execute_stream(
             &state.upstream_client.freebuff,
             state.upstream_client.client(),
@@ -227,7 +247,8 @@ pub(super) async fn send(
                 if !matches!(
                     candidate.adapter.as_str(),
                     "qwen_web_compatible" | "chatgpt_web_reverse_compatible"
-                ) {
+                ) && !crate::protocol::sap_aicore::owns_payload(&candidate.payload)
+                {
                     observe_provider_failure_metric(
                         global_gateway_metrics().as_ref(),
                         &candidate.provider_account_id,

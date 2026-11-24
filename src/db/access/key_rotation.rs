@@ -26,6 +26,7 @@ pub async fn rotate_access_key(
     .await
     .map_err(map_db_error)?
     .ok_or_else(|| GatewayError::not_found("access key 不存在"))?;
+    super::balance_store::ensure_no_sap_hold(&mut tx, access_key_id).await?;
     let now = now_utc();
     sqlx::query(
         r#"

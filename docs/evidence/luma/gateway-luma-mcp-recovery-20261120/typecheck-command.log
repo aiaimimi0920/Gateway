@@ -1,0 +1,6 @@
+
+> gateway-ui@0.1.0 typecheck
+> tsc --noEmit -p tsconfig.json
+
+src/features/console/LumaMcpCreationRecovery.test.tsx(53,8): error TS2304: Cannot find name 'value'.
+src/features/console/LumaMcpCreationRecovery.test.tsx(55,54): error TS2304: Cannot find name 'value'.

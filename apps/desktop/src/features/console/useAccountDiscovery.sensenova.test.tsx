@@ -32,13 +32,21 @@ it("reads a newly supplied Key without writing it into the editor document", asy
   expect(opts.replaceEditorDocument).not.toHaveBeenCalled(); hook.unmount();
 });
 
-it.each(["revision", "editorText", "secretGrant", "managementToken"])("discards a late SenseNova catalog after %s changes", async (field) => {
+it.each([
+  ["revision", "r2", false],
+  ["editorText", JSON.stringify({ ...doc, aliases: { changed: "manual" } }), false],
+  ["secretGrant", null, false],
+  ["managementToken", "changed-manager", false],
+  ["secretGrant", "renewed-grant", true],
+])("applies a late SenseNova catalog after %s becomes %s: %s", async (field, value, applies) => {
   let resolve!: (value: unknown) => void;
   const opts = options(vi.fn(() => new Promise((done) => { resolve = done; })));
   const hook = renderHook((value) => useAccountDiscovery(value), { initialProps: opts });
   let pending!: Promise<void>;
   act(() => { pending = hook.result.current.refreshAccountDiscovery("renamed", "stable"); });
-  hook.rerender({ ...opts, [field]: field === "editorText" ? JSON.stringify({ ...doc, aliases: { changed: "manual" } }) : "changed" });
+  hook.rerender({ ...opts, [field]: value });
   await act(async () => { resolve({ revision: "r1", catalog }); await pending; });
-  expect(opts.replaceEditorDocument).not.toHaveBeenCalled(); hook.unmount();
+  expect(opts.client.request).toHaveBeenCalledTimes(1);
+  expect(opts.replaceEditorDocument).toHaveBeenCalledTimes(applies ? 1 : 0);
+  hook.unmount();
 });

@@ -1,0 +1,12 @@
+{
+  "args": [
+    "node",
+    "tools/luma/build-ui.mjs",
+    "--output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-mcp-snapshot-20261120/main-web"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T22:56:37.964738+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 2.16
+}

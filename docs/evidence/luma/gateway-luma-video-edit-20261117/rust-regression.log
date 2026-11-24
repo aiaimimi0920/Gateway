@@ -1,0 +1,88 @@
+
+running 60 tests
+test upstream::luma_agents::assets::tests::luma_agents_asset_targets_reject_local_schemes_credentials_and_redirect_inputs ... ok
+test upstream::luma_agents::boundary_tests::luma_agents_bad_material_or_request_never_reaches_http ... ok
+test upstream::luma_agents::boundary_tests::luma_agents_dispatcher_ignores_caller_and_default_auth_headers ... ok
+test upstream::luma_agents::boundary_tests::luma_agents_edit_wire_and_caller_drop_never_create_a_second_job ... ok
+test upstream::luma_agents::boundary_tests::luma_agents_json_limit_truncation_and_corrupt_images_are_rejected ... ok
+test upstream::luma_agents::boundary_tests::luma_agents_http_errors_redirects_and_unknown_start_do_not_retry ... ok
+test upstream::luma_agents::boundary_tests::luma_agents_video_submit_poll_and_container_read_preserve_actual_credit_zero ... ok
+test upstream::luma_agents::boundary_tests::luma_agents_wrong_job_model_type_state_and_id_never_download ... ok
+test upstream::luma_agents::failure_receipt_tests::luma_failure_audit_cancel_during_lookup_never_detaches_work_or_reposts ... ok
+test upstream::luma_agents::failure_receipt_tests::luma_failure_audit_invalid_initial_receipt_does_not_create_evidence ... ok
+test upstream::luma_agents::failure_receipt_tests::luma_failure_audit_late_zero_and_fraction_keep_the_original_failure_classification ... ok
+test upstream::luma_agents::failure_audit_tests::luma_failure_audit_management_preserves_failed_status_and_late_charge ... ok
+test upstream::luma_agents::failure_receipt_tests::luma_failure_audit_lookup_http_failure_and_poll_limit_keep_unknown_not_zero ... ok
+test upstream::luma_agents::failure_receipt_tests::luma_failure_audit_receipt_is_not_public_or_accepted_under_another_provider ... ok
+test upstream::luma_agents::failure_receipt_tests::luma_failure_audit_rejects_foreign_task_changed_state_and_bad_charges ... ok
+test upstream::luma_agents::pipeline_admission::luma_agents_generic_text_plans_are_rejected_instead_of_sending_the_api_key ... ok
+test upstream::luma_agents::failure_audit_tests::luma_failure_audit_public_failure_retains_charges_and_refunds_local_key ... ok
+test upstream::luma_agents::pipeline_admission::luma_agents_pipeline_unknown_token_usage_retains_existing_reservation_not_credits_conversion ... ok
+test upstream::luma_agents::failure_receipt_tests::luma_failure_audit_lookup_deadline_keeps_failure_and_closes_response_body ... ok
+test upstream::luma_agents::boundary_tests::luma_agents_cumulative_metadata_budget_and_invalid_asset_status_are_not_success ... ok
+test upstream::luma_agents::pipeline_failures::luma_agents_pipeline_caller_drop_at_submit_poll_or_asset_is_neutral_and_refunds ... ok
+test upstream::luma_agents::pipeline_failures::luma_agents_pipeline_failed_mismatched_or_unverified_output_is_not_billable_success ... ok
+test upstream::luma_agents::pipeline_failures::luma_agents_pipeline_http_refusals_never_retry_or_fall_back_and_refund ... ok
+test upstream::luma_agents::pipeline_tests::luma_agents_pipeline_public_upload_projection_reaches_edit_source ... ok
+test upstream::luma_agents::pipeline_tests::luma_agents_pipeline_images_edits_and_video_settle_once_and_persist_native_facts ... ok
+test upstream::luma_agents::probe_browser_host::luma_agents_probe_normal_main_browser_host ... ignored, Requires an explicit new fixture root and a dedicated browser session
+test upstream::luma_agents::pipeline_admission::luma_agents_pipeline_auth_models_modalities_and_parameters_reject_before_network ... ok
+test upstream::luma_agents::pipeline_tests::luma_agents_pipeline_source_refs_reach_image_edit_without_upload_normalizer_rejection ... ok
+test upstream::luma_agents::probe_failure_tests::luma_agents_probe_cancellation_closes_submit_poll_asset_and_does_not_penalize_health ... ok
+test upstream::luma_agents::probe_management_tests::luma_agents_probe_management_denies_missing_grant_origin_scope_and_unconfirmed_cost_without_network ... ok
+test upstream::luma_agents::probe_failure_tests::luma_agents_probe_http_failures_never_retry_fallback_or_leak_upstream_secrets ... ok
+test upstream::luma_agents::probe_management_tests::luma_agents_probe_management_exact_account_has_native_audit_without_text_assessment ... ok
+test upstream::luma_agents::probe_management_tests::luma_agents_probe_saved_temporary_named_and_automatic_text_plans_never_generate ... ok
+test upstream::luma_agents::probe_tests::luma_agents_probe_default_and_text_tests_never_implicitly_generate_media ... ok
+test upstream::luma_agents::probe_tests::luma_agents_probe_request_requires_explicit_cost_operation_and_one_exact_account ... ok
+test upstream::luma_agents::reframe_flow_tests::luma_reframe_management_probe_keeps_explicit_operation_account_and_no_local_charge ... ok
+test upstream::luma_agents::pipeline_failures::luma_agents_pipeline_submit_poll_and_asset_deadlines_release_source_and_refund ... ok
+test upstream::luma_agents::reframe_flow_tests::luma_reframe_public_invalid_parameters_never_submit_or_bill ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_caller_drop_closes_pending_body_without_background_work ... ok
+test upstream::luma_agents::probe_tests::luma_agents_probe_media_operations_use_one_exact_sender_and_native_audit_without_key_charge ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_never_starts_before_pending_usage_media_is_verified ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_reserves_return_time_without_starting_a_read ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_shares_the_existing_metadata_byte_budget ... ok
+test upstream::luma_agents::reframe_flow_tests::luma_reframe_public_success_and_failure_keep_task_facts_and_existing_settlement ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_known_or_unavailable_usage_never_adds_reads ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_late_zero_and_nonzero_reach_public_response_and_audit_once ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_pending_is_bounded_and_unavailable_stops_polling ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_timeout_keeps_media_and_closes_pending_body ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_rejects_foreign_identity_state_and_malformed_charges ... ok
+test upstream::luma_agents::tests::luma_agents_completed_url_with_html_is_not_a_success ... ok
+test upstream::luma_agents::tests::luma_agents_failed_generation_never_downloads_or_resubmits ... ok
+test upstream::luma_agents::tests::luma_agents_submit_poll_download_is_one_generation_with_isolated_auth ... ok
+test upstream::luma_agents::settlement_tests::luma_agents_settlement_transport_errors_keep_verified_media_without_retry ... ok
+test upstream::luma_agents::tests::luma_agents_total_timeout_does_not_restart_generation ... ok
+test upstream::luma_agents::video_edit_flow_tests::luma_video_edit_management_success_and_failure_keep_audit_without_local_key_charge ... ok
+test upstream::luma_agents::video_edit_flow_tests::luma_video_edit_public_invalid_parameters_never_submit_or_bill ... ok
+test upstream::luma_agents::video_edit_flow_tests::luma_video_edit_wrong_generation_kind_is_not_downloaded_retried_or_audited_as_success ... ok
+test upstream::luma_agents::video_edit_flow_tests::luma_video_edit_public_success_and_failure_use_exact_account_and_original_billing ... ok
+test upstream::luma_agents::probe_failure_tests::luma_agents_probe_submit_poll_asset_deadlines_close_source_and_preserve_key_balance ... ok
+test upstream::luma_agents::settlement_lifetime_tests::luma_agents_settlement_caps_optional_wait_even_with_a_long_request_deadline ... ok
+
+test result: ok. 59 passed; 0 failed; 1 ignored; 0 measured; 6274 filtered out; finished in 14.78s
+
+
+running 18 tests
+test protocol::luma_agents::tests::luma_agents_multi_keyframes_accept_prior_generation_images ... ok
+test protocol::luma_agents::tests::luma_agents_image_edit_source_and_reference_limits_keep_distinct_meanings ... ok
+test protocol::luma_agents::tests::luma_agents_request_preserves_unicode_and_uses_resolved_model_not_caller_alias ... ok
+test protocol::luma_agents::tests::luma_agents_identity_cannot_use_web_or_generic_executor ... ok
+test protocol::luma_agents::tests::luma_agents_request_rejects_unsupported_controls_and_bad_types ... ok
+test protocol::luma_agents::video_edit_tests::luma_video_edit_accepts_distinct_sources_and_resolved_model ... ok
+test protocol::luma_agents::tests::luma_agents_video_controls_preserve_keyframes_and_validate_combinations ... ok
+test protocol::luma_agents::video_edit_tests::luma_video_edit_accepts_source_frame_guides_without_inventing_source_length ... ok
+test protocol::luma_agents::video_edit_tests::luma_video_edit_hdr_is_standard_video_only_and_unfulfillable_controls_reject ... ok
+test protocol::luma_agents::video_edit_tests::luma_video_edit_preserves_auto_manual_strength_and_signal_controls ... ok
+test protocol::luma_agents::video_edit_tests::luma_video_edit_rejects_bad_signal_types_bounds_unknown_controls_and_auto_conflict ... ok
+test protocol::luma_agents::video_reframe_tests::luma_reframe_accepts_all_documented_source_forms_without_fetching_them ... ok
+test protocol::luma_agents::video_edit_tests::luma_video_edit_rejects_unpaired_duplicate_bad_frames_and_mixed_anchor_forms ... ok
+test protocol::luma_agents::video_reframe_tests::luma_reframe_rejects_bad_rectangles_and_cross_operation_or_model_use ... ok
+test protocol::luma_agents::video_reframe_tests::luma_reframe_preserves_rect_edges_duration_and_resolution ... ok
+test protocol::luma_agents::video_reframe_tests::luma_reframe_rejects_wrong_source_mime_and_ambiguous_or_invalid_references ... ok
+test protocol::luma_agents::video_reframe_tests::luma_reframe_rejects_unsupported_operation_controls_and_vertical_1080p ... ok
+test protocol::luma_agents::tests::luma_agents_multipart_upload_projection_and_total_inline_budget_are_bounded ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 6316 filtered out; finished in 0.41s
+

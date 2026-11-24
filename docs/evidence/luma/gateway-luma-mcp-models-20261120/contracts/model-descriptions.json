@@ -1,0 +1,637 @@
+[
+  {
+    "model": "bytedance_seedream",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "description": "1K fast, 2K balanced, 4K highest quality.",
+          "default": "1K"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nSeedream — specialty model for niche art styles.\n\nSpecialty cases this model handles well:\n- Niche or detailed art styles that mainstream models struggle with:\n  * Retro anime aesthetics (Vampire Hunter D, Hellsing, 80s/90s anime look)\n  * Specific artistic movements or obscure visual styles\n  * Complex stylistic prompts requiring deep prompt adherence\n- Very long, detailed prompts that must be followed precisely\n- Wide resolution support (1K to 4K) with aspect ratios including 2:3, 3:2, 21:9\n\nStrengths:\n- EXCELLENT for niche art styles and detailed stylistic control\n- Strong prompt adherence for complex, descriptive prompts\n- High-quality output for artistic and creative imagery\n- Fast generation times\n- Can take reference images to guide generation\n\nWeaknesses:\n- Sometimes mixes styles inappropriately (e.g., cartoon and photorealistic in same image)\n- For strict image editing, use an image editing tool instead\n\nMULTI-REFERENCE Prompt Format (when using 2+ input images):\n- Explicitly label each image's role: 'Image 1 (woman in red dress): use as character reference'\n- Specify reference TYPE for each: style reference, character reference, pose reference, composition reference\n- Format: 'Use image 1 (brief description) as [TYPE] reference. Use image 2 (brief description) as [TYPE] reference.'\n- Example: 'Use image 1 (man in suit) as character reference. Use image 2 (neon city) as background/style reference. Place character in scene.'\n- For style transfer: 'Apply style from image 1 (watercolor painting) to image 2 (photo of cat)'\n- For character consistency: 'Use image 1 (woman with curly hair) as character. Recreate pose from image 2.'\n- Be explicit about what comes from which reference - don't assume the model knows."
+  },
+  {
+    "model": "bytedance_seedream_5_flash",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "size": {
+          "type": "string",
+          "description": "Use 1K, 1.5K, or 2K for the resolution tier. To request an aspect ratio, state it explicitly in the prompt, e.g. 'Generate a landscape image with a 16:9 aspect ratio.' For edits, state whether to preserve the source's aspect ratio. Prompt-based ratios guide the model; use WIDTHxHEIGHT for explicit output dimensions. Explicit sizes must contain 921600–4624220 pixels with aspect ratio between 1:16 and 16:1.",
+          "default": "2K"
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "jpeg",
+            "png"
+          ],
+          "default": "png"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support."
+  },
+  {
+    "model": "bytedance_seedream_5_pro",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "1K",
+            "2K"
+          ],
+          "description": "Use 1K for faster iteration or 2K for final-quality output.",
+          "default": "2K"
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "jpeg",
+            "png"
+          ],
+          "description": "Use JPEG by default, or PNG when lossless output is important.",
+          "default": "jpeg"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support."
+  },
+  {
+    "model": "google_nano_banana_2",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "512",
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "description": "512 is draft quality. 1K is fast. 2K is default. 4K highest quality but slowest.",
+          "default": "2K"
+        },
+        "thinking_level": {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "high"
+          ],
+          "description": "Controls model reasoning depth. 'minimal' (default) is fastest. 'high' maximizes quality for complex compositions but is slower.",
+          "default": "minimal"
+        },
+        "enable_search": {
+          "type": "boolean",
+          "description": "Enable Google Search grounding to generate images informed by real-time web data. Useful for factual content like weather, stock charts, current events.",
+          "default": false
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "description": "0.5 is balanced default. Lower for consistency, higher for variety.",
+          "default": 0.5
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nNano Banana 2 — fast, versatile image generation (Gemini 3.1 Flash).\n\n- 512 to 4K resolution, 14 aspect ratios (including extreme 4:1, 1:4, 8:1, 1:8)\n- Up to 14 reference images, good text rendering (~90% accuracy)\n- Fast (~4-6s). Strong general-purpose model.\n- Thinking mode (advanced) can improve complex compositions\n- Does NOT support transparency — use openai_gpt_image_2_5_sunburst, openai_gpt_image_2_5_flare, or openai_gpt_image_1_5 for that"
+  },
+  {
+    "model": "google_nano_banana_2_1",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "description": "1K is fast. 2K is default. 4K highest quality but slowest.",
+          "default": "2K"
+        },
+        "thinking_level": {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "high"
+          ],
+          "description": "Controls model reasoning depth. 'minimal' (default) is fastest. 'high' maximizes quality for complex compositions but is slower.",
+          "default": "minimal"
+        },
+        "enable_search": {
+          "type": "boolean",
+          "description": "Enable Google Search grounding to generate images informed by real-time web data. Useful for factual content like weather, stock charts, current events.",
+          "default": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nNano Banana 2.1 image generation: 1K, 2K, or 4K; 14 aspect ratios; up to 14 reference images.\nUse minimal thinking for speed or high for complex compositions. Search grounding is optional.\nDoes not produce transparent images."
+  },
+  {
+    "model": "google_nano_banana_2_lite",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "1K"
+          ],
+          "description": "Lite serves 1K only. For 512/2K/4K use create_image_nano_banana_2.",
+          "default": "1K"
+        },
+        "thinking_level": {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "high"
+          ],
+          "description": "Controls model reasoning depth. Flash-Lite supports 'minimal' (default, fastest) and 'high' (maximizes quality for complex compositions but slower).",
+          "default": "minimal"
+        },
+        "enable_search": {
+          "type": "boolean",
+          "description": "Enable Google Search grounding to generate images informed by real-time web data. Useful for factual content like weather, stock charts, current events.",
+          "default": false
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "description": "0.5 is balanced default. Lower for consistency, higher for variety.",
+          "default": 0.5
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nNano Banana 2 Lite — budget, high-speed image generation (Gemini 3.1 Flash-Lite).\n\n- 1K only (no 512/2K/4K), but all 14 aspect ratios incl. extreme 4:1, 1:4, 8:1, 1:8\n- Up to 14 reference images. Cheapest image gen tier — ~half the cost of Nano Banana 2.\n- Thinking mode (advanced) can improve complex compositions\n- Does NOT support transparency — use openai_gpt_image_2_5_sunburst, openai_gpt_image_2_5_flare, or openai_gpt_image_1_5 for that"
+  },
+  {
+    "model": "google_nano_banana_pro",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "description": "1K is fast, 2K is balanced, 4K is highest quality but slower.",
+          "default": "2K"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\n\nStrengths:\n- Up to 14 reference images — budget breakdown:\n  * Up to 6 images of objects for high-fidelity inclusion in the final image\n  * Up to 5 images of humans to maintain character consistency\n  * Remaining slots for style, pose, or composition references\n- Strong text rendering capabilities\n- Maintains consistent characters and styles\n- Supports multiple aspect ratios and resolutions up to 4K\n- Excellent for photorealistic content, product imagery, and general creative tasks\n- Can take reference images to guide generation while allowing aspect ratio control\n- Accepts alpha in input reference images for visual context (output is always opaque)\n\nWeaknesses:\n- May produce generic results for some requests\n- Does not support less-common aspect ratios like 4:5 or 5:4\n\nMULTI-REFERENCE Prompt Format (when using 2+ input images):\n- Explicitly label each image's role: 'Image 1 (woman in red dress): use as character reference'\n- Specify reference TYPE for each: style reference, character reference, pose reference, composition reference\n- Format: 'Use image 1 (brief description) as [TYPE] reference. Use image 2 (brief description) as [TYPE] reference.'\n- Example: 'Use image 1 (man in suit) as character reference. Use image 2 (neon city) as background/style reference. Place character in scene.'\n- For style transfer: 'Apply style from image 1 (watercolor painting) to image 2 (photo of cat)'\n- For character consistency: 'Use image 1 (woman with curly hair) as character. Recreate pose from image 2.'\n- Be explicit about what comes from which reference - don't assume the model knows."
+  },
+  {
+    "model": "ideogram_4_5",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "quality": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "description": "Choose low for a quick draft, medium for balanced work, or high for the best output.",
+          "default": "high"
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "1024x1024",
+            "2048x2048",
+            "2560x1440",
+            "1440x2560"
+          ],
+          "description": "Auto lets Ideogram choose. Explicit presets fix the output dimensions.",
+          "default": "auto"
+        },
+        "magic_prompt": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "on",
+            "off"
+          ],
+          "description": "Auto lets Ideogram decide; on enhances the prompt; off uses the original prompt and is required for seed-based reproducibility. Ignored when input images are provided.",
+          "default": "auto"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support."
+  },
+  {
+    "model": "ideogram_4_6",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "quality": {
+          "type": "string",
+          "enum": [
+            "very_low",
+            "low",
+            "medium",
+            "high"
+          ],
+          "description": "Choose very low or low for quick iteration, medium for balanced work, or high for the best output. Very low renders at 2K or smaller.",
+          "default": "high"
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "1024x1024",
+            "2048x2048",
+            "2560x1440",
+            "1440x2560",
+            "4096x4096",
+            "4096x2304",
+            "2304x4096"
+          ],
+          "description": "Auto lets Ideogram choose. Explicit presets fix the output dimensions.",
+          "default": "auto"
+        },
+        "magic_prompt": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "on",
+            "off"
+          ],
+          "description": "Auto lets Ideogram decide; on enhances the prompt; off uses the original prompt and is required for seed-based reproducibility. Ignored when input images are provided.",
+          "default": "auto"
+        },
+        "background": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "transparent",
+            "opaque"
+          ],
+          "description": "Each option carries its own description.\nOptions: auto: Model decides; transparent: PNG with an alpha channel, for compositing; opaque: Solid background.",
+          "default": "auto"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nIdeogram 4.6 generation: text-to-image, or up to 5 ordered input images; the first is transformed and the rest guide it.\nSizes: Auto (about 2K), 1024x1024, 2048x2048, 2560x1440, 1440x2560, and the 4K presets 4096x4096, 4096x2304 and 2304x4096. very_low quality renders at 2K only.\nWith input images attached, every quality bills at the Precise Edit rate."
+  },
+  {
+    "model": "ideogram_vector",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "quality": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "medium"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support."
+  },
+  {
+    "model": "luma_ray3_14",
+    "type": "video",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [],
+    "guidance": null
+  },
+  {
+    "model": "luma_ray3_14_hdr",
+    "type": "video",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [],
+    "guidance": "Trigger ONLY on an explicit 'HDR' / 'high dynamic range' request — DO NOT use for 'cinematic' or 'dramatic lighting' unless the user says 'HDR'.\n\n- Fast HDR generation with native 1080p support\n- Supports 720p and 1080p resolution, 5s duration only\n- NO loop support for HDR mode\n- exr_export is NOT available here and is rejected — leave it off."
+  },
+  {
+    "model": "luma_ray3_2",
+    "type": "video",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [],
+    "guidance": "Ray 3.2 create-video model (text-to-video + multi-keyframe image-to-video).\nDefault is 720p resolution. Use 1080p only if the user explicitly requests high resolution.\nDefault is 5s duration. 10s is supported AND works with keyframes (unlike Ray 3.14, where 10s is text-to-video only).\n\nKEYFRAMES (multi-keyframe image-to-video):\n- Keyframes are OPTIONAL. With no keyframes, a first frame is generated from the prompt and animated — Ray 3.2's image-to-video is far stronger than raw text-to-video, so prompt-only requests route through a generated first frame automatically.\n- Use up to 64 image keyframes, each pinned to an output-frame position via keyframe_indexes.\n- Output grid is duration × 24fps + 1 (5s → indexes 0–120, 10s → 0–240); keyframe_indexes must be unique and in range.\n\nNO LOOP: this model has no loop control.\n\nHDR OPTIONS:\n- hdr=True: HDR output with expanded dynamic range\n- exr_export=True (requires HDR): HDR+EXR ZIP for professional color grading\n\nPROMPTING (REQUIRED) — T2V rules:\n- Mid-action verbs: 'running' not 'begins to run'\n- Include secondary consequences: wind in hair, fabric movement, reflections\n- NO: 'vibrant', 'whimsical', 'hyper-realistic' (these degrade quality)\n- Default to cinematic style unless user specifies otherwise\n- If using keyframe image: describe only what CHANGES, don't redescribe static elements"
+  },
+  {
+    "model": "luma_uni_1",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [],
+    "guidance": "Luma Uni-1.1 — strong general-purpose image model. Peaks at cinematic realism, manga/anime/webtoon, and sketch-to-image.\nUni-1.1 is the Uni-1 family superset of the old Uni-1.\n\nStrengths:\n- Luma Uni-1 model for text-to-image generation\n- Supports 12 aspect ratios (1:1, 4:5, 1:2, 1:3, 9:16, 3:4, 2:3, 3:2, 4:3, 16:9, 2:1, 3:1)\n- Seed support for reproducibility\n- Supports up to 9 reference images for style/content guidance\n- When references are provided, describe what to borrow from each IMAGE in the prompt\n\nWeaknesses:\n- For transforming/editing an existing image (same scene, targeted changes), use type='image_edit' instead\n\nMULTI-REFERENCE Prompt Format (when using 2+ input images):\n- Explicitly label each image's role: 'Image 1 (woman in red dress): use as character reference'\n- Specify reference TYPE for each: style reference, character reference, pose reference, composition reference\n- Format: 'Use image 1 (brief description) as [TYPE] reference. Use image 2 (brief description) as [TYPE] reference.'\n- Example: 'Use image 1 (man in suit) as character reference. Use image 2 (neon city) as background/style reference. Place character in scene.'\n- For style transfer: 'Apply style from image 1 (watercolor painting) to image 2 (photo of cat)'\n- For character consistency: 'Use image 1 (woman with curly hair) as character. Recreate pose from image 2.'\n- Be explicit about what comes from which reference - don't assume the model knows."
+  },
+  {
+    "model": "openai_gpt_image_1_5",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "quality": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "description": "low=fast, medium=balanced, high=best quality.",
+          "default": "medium"
+        },
+        "background": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "transparent",
+            "opaque"
+          ],
+          "description": "auto=model decides, transparent=RGBA cutout, opaque=solid background.\nOptions: auto: Model decides; transparent: RGBA cutout for compositing (png/webp); opaque: Solid background.",
+          "default": "auto"
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "description": "png=lossless (supports transparency), jpeg=smaller file, webp=modern compression.",
+          "default": "png"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nGPT Image 1.5 — OpenAI image generation with native transparent backgrounds.\n\nStrengths:\n- OpenAI's GPT Image 1.5 model\n- True transparent background support (set background=transparent, output_format=png)\n- Can handle multiple image references and inputs\n- Preserves context of input images including styles, composition, and other details\n\nWeaknesses:\n- Native alpha with a 16-ref budget and 10 aspect ratios lives on openai_gpt_image_2_5_sunburst / openai_gpt_image_2_5_flare\n- Only supports 3 aspect ratios: square (1:1), landscape (~3:2), portrait (~2:3). Only use if input image matches one of these — output will be cropped/resized otherwise.\n- Slow and resource-intensive\n\nIMAGE EDIT Prompt Style (CRITICAL):\n- Write DIRECT COMMANDS, not descriptions. Say 'Change X to Y' not 'The image should have X changed to Y'.\n- Be TERSE: 'Remove background' not 'Please remove the background from this image to create a cleaner look'.\n- State WHAT TO CHANGE and WHAT TO KEEP explicitly: 'Change hair to blonde, keep face and pose'.\n- NO flowery language, NO justifications, NO explanations of why.\n- BAD: 'Transform this beautiful image by artistically changing the background to create a more dramatic atmosphere'\n- GOOD: 'Change background to sunset beach. Keep subject unchanged.'\n- When preserving elements: List them explicitly: 'Keep: lighting, pose, expression. Change: outfit to red dress'\n\nMULTI-REFERENCE Prompt Format (when using 2+ input images):\n- Explicitly label each image's role: 'Image 1 (woman in red dress): use as character reference'\n- Specify reference TYPE for each: style reference, character reference, pose reference, composition reference\n- Format: 'Use image 1 (brief description) as [TYPE] reference. Use image 2 (brief description) as [TYPE] reference.'\n- Example: 'Use image 1 (man in suit) as character reference. Use image 2 (neon city) as background/style reference. Place character in scene.'\n- For style transfer: 'Apply style from image 1 (watercolor painting) to image 2 (photo of cat)'\n- For character consistency: 'Use image 1 (woman with curly hair) as character. Recreate pose from image 2.'\n- Be explicit about what comes from which reference - don't assume the model knows."
+  },
+  {
+    "model": "openai_gpt_image_2",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "description": "1K, 2K, or 4K. Higher is more expensive.",
+          "default": "2K"
+        },
+        "quality": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "description": "low=fast, medium=balanced, high=best quality.",
+          "default": "medium"
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "description": "png=lossless (supports transparency), jpeg=smaller file, webp=modern compression.",
+          "default": "png"
+        },
+        "background": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "transparent",
+            "opaque"
+          ],
+          "description": "Each option carries its own description.\nOptions: auto: Model decides; transparent: RGBA cutout for compositing (png/webp); opaque: Solid background.",
+          "default": "auto"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nGPT Image 2 — prior OpenAI image generation model.\n\nStrengths:\n- OpenAI's GPT Image 2\n- Up to 16 reference images\n- Non-celebrity face copy-paste — exact identity with no drift\n- 10 aspect ratios from 3:1 (ultrawide) to 1:3 (ultra-tall) at 1K/2K/4K, snapping to the nearest supported ratio with no deviation cap — safe for any source image shape (unlike GPT Image 1.5)\n\nWeaknesses:\n- Native transparent backgrounds live on openai_gpt_image_2_5_sunburst / openai_gpt_image_2_5_flare / openai_gpt_image_1_5\n- Slow and resource-intensive\n\nIMAGE EDIT Prompt Style (CRITICAL):\n- Write DIRECT COMMANDS, not descriptions. Say 'Change X to Y' not 'The image should have X changed to Y'.\n- Be TERSE: 'Remove background' not 'Please remove the background from this image to create a cleaner look'.\n- State WHAT TO CHANGE and WHAT TO KEEP explicitly: 'Change hair to blonde, keep face and pose'.\n- NO flowery language, NO justifications, NO explanations of why.\n- BAD: 'Transform this beautiful image by artistically changing the background to create a more dramatic atmosphere'\n- GOOD: 'Change background to sunset beach. Keep subject unchanged.'\n- When preserving elements: List them explicitly: 'Keep: lighting, pose, expression. Change: outfit to red dress'\n\nMULTI-REFERENCE Prompt Format (when using 2+ input images):\n- Explicitly label each image's role: 'Image 1 (woman in red dress): use as character reference'\n- Specify reference TYPE for each: style reference, character reference, pose reference, composition reference\n- Format: 'Use image 1 (brief description) as [TYPE] reference. Use image 2 (brief description) as [TYPE] reference.'\n- Example: 'Use image 1 (man in suit) as character reference. Use image 2 (neon city) as background/style reference. Place character in scene.'\n- For style transfer: 'Apply style from image 1 (watercolor painting) to image 2 (photo of cat)'\n- For character consistency: 'Use image 1 (woman with curly hair) as character. Recreate pose from image 2.'\n- Be explicit about what comes from which reference - don't assume the model knows."
+  },
+  {
+    "model": "openai_gpt_image_2_5_flare",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "description": "1K, 2K, or 4K. Higher is more expensive.",
+          "default": "1K"
+        },
+        "quality": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "description": "low=fast, medium=balanced, high/xhigh/max=increasing quality and generation time.",
+          "default": "medium"
+        },
+        "background": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "transparent",
+            "opaque"
+          ],
+          "description": "Each option carries its own description.\nOptions: auto: Model decides; transparent: RGBA cutout for compositing (png/webp); opaque: Solid background.",
+          "default": "auto"
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "description": "png=lossless (supports transparency), jpeg=smaller file, webp=modern compression.",
+          "default": "png"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nGPT Image 2.5 Flare — lower-latency OpenAI image generation.\n\nStrengths:\n- Same capability surface as Sunburst at lower latency — not a cheaper model, a faster one\n- Native transparent backgrounds: background=transparent and output_format=png. Transparent + jpeg is a hard API error — pair transparency with png or webp.\n- Up to 16 reference images\n- 10 aspect ratios from 3:1 (ultrawide) to 1:3 (ultra-tall) at 1K/2K/4K, snapping to the nearest supported ratio with no deviation cap — safe for any source image shape\n- Literal face copy-paste on non-celebrity / unfamiliar faces — exact identity with no drift\n- Multi-reference composition: blend brand, character, and product elements from labeled references\n- Quality: low / medium / high / xhigh / max. Stay on medium unless the user asks for more\n\nWeaknesses:\n- Higher fidelity lives on openai_gpt_image_2_5_sunburst (same capability surface)\n- Does not cover extreme banners (4:1, 1:8) — those ratios live on Nano Banana 2\n\nMULTI-REFERENCE Prompt Format (when using 2+ input images):\n- Explicitly label each image's role: 'Image 1 (woman in red dress): use as character reference'\n- Specify reference TYPE for each: style reference, character reference, pose reference, composition reference\n- Format: 'Use image 1 (brief description) as [TYPE] reference. Use image 2 (brief description) as [TYPE] reference.'\n- Example: 'Use image 1 (man in suit) as character reference. Use image 2 (neon city) as background/style reference. Place character in scene.'\n- For style transfer: 'Apply style from image 1 (watercolor painting) to image 2 (photo of cat)'\n- For character consistency: 'Use image 1 (woman with curly hair) as character. Recreate pose from image 2.'\n- Be explicit about what comes from which reference - don't assume the model knows."
+  },
+  {
+    "model": "openai_gpt_image_2_5_sunburst",
+    "type": "image",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "description": "1K, 2K, or 4K. Higher is more expensive.",
+          "default": "1K"
+        },
+        "quality": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "description": "low=fast, medium=balanced, high/xhigh/max=increasing quality and generation time.",
+          "default": "medium"
+        },
+        "background": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "transparent",
+            "opaque"
+          ],
+          "description": "Each option carries its own description.\nOptions: auto: Model decides; transparent: RGBA cutout for compositing (png/webp); opaque: Solid background.",
+          "default": "auto"
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "description": "png=lossless (supports transparency), jpeg=smaller file, webp=modern compression.",
+          "default": "png"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "media_roles": [
+      "reference"
+    ],
+    "guidance": "If the user explicitly requests a generation parameter that the chosen model or account cannot use, explain the limitation and ask before generating without it or switching models. Never silently drop an explicit request. A missing parameter in the schema means it is unavailable through the current tool or account; it does not establish that the provider lacks support.\nGPT Image 2.5 Sunburst — OpenAI image generation.\n\nStrengths:\n- Higher-fidelity GPT Image 2.5 sibling of Flare; same capability surface\n- Native transparent backgrounds: background=transparent and output_format=png. Transparent + jpeg is a hard API error — pair transparency with png or webp.\n- Up to 16 reference images\n- 10 aspect ratios from 3:1 (ultrawide) to 1:3 (ultra-tall) at 1K/2K/4K, snapping to the nearest supported ratio with no deviation cap — safe for any source image shape\n- Literal face copy-paste on non-celebrity / unfamiliar faces — exact identity with no drift\n- Multi-reference composition: blend brand, character, and product elements from labeled references\n- Quality: low / medium / high / xhigh / max. Stay on medium unless the user asks for more\n\nWeaknesses:\n- Lower latency lives on openai_gpt_image_2_5_flare (same capability surface)\n- Does not cover extreme banners (4:1, 1:8) — those ratios live on Nano Banana 2\n\nMULTI-REFERENCE Prompt Format (when using 2+ input images):\n- Explicitly label each image's role: 'Image 1 (woman in red dress): use as character reference'\n- Specify reference TYPE for each: style reference, character reference, pose reference, composition reference\n- Format: 'Use image 1 (brief description) as [TYPE] reference. Use image 2 (brief description) as [TYPE] reference.'\n- Example: 'Use image 1 (man in suit) as character reference. Use image 2 (neon city) as background/style reference. Place character in scene.'\n- For style transfer: 'Apply style from image 1 (watercolor painting) to image 2 (photo of cat)'\n- For character consistency: 'Use image 1 (woman with curly hair) as character. Recreate pose from image 2.'\n- Be explicit about what comes from which reference - don't assume the model knows."
+  }
+]

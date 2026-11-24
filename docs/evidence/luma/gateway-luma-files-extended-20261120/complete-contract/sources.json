@@ -1,0 +1,10 @@
+[
+  {
+    "name": "files-complete",
+    "url": "https://docs.agents.lumalabs.ai/api/resources/files/methods/complete/",
+    "checkedAt": "2026-11-19T17:37:48.059989+00:00",
+    "status": 200,
+    "finalUrl": "https://docs.agents.lumalabs.ai/api/resources/files/methods/complete/",
+    "sha256": "365b8f24cf920a7e2953a1d63b932569bbe5290dfd2b440eefc74b54b4dcf003"
+  }
+]

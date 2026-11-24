@@ -1,0 +1,6 @@
+.nt-provider-connection { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--n-line); }
+.nt-provider-connection__fields { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(240px, 2fr); gap: 12px; }
+.nt-provider-connection__fields input { width: 100%; min-width: 0; }
+.nt-provider-connection__actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.nt-provider-connection__actions > span { margin-right: auto; color: var(--n-muted); font-size: 12px; }
+@media (max-width: 640px) { .nt-provider-connection__fields { grid-template-columns: minmax(0, 1fr); } }

@@ -1,0 +1,26 @@
+[
+  {
+    "path": "src/upstream/luma_agents.rs",
+    "effectiveLines": 117
+  },
+  {
+    "path": "src/http/routes/internal_console.rs",
+    "effectiveLines": 453
+  },
+  {
+    "path": "src/upstream/luma_agents/generation.rs",
+    "effectiveLines": 232
+  },
+  {
+    "path": "apps/desktop/src/features/console/ConsoleGlobalDialogs.tsx",
+    "effectiveLines": 483
+  },
+  {
+    "path": "apps/desktop/src/features/console/OperationsRequestTable.tsx",
+    "effectiveLines": 56
+  },
+  {
+    "path": "tools/luma/fetch-contracts.py",
+    "effectiveLines": 71
+  }
+]

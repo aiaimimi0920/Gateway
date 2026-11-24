@@ -1,4 +1,7 @@
-//! Token Plan 显式 Key 的文本/函数工具通道；控制台 OAuth 与积分池属于独立合同。
+//! Token Plan 显式 Key 通道；控制台 OAuth 与积分池属于独立合同。
+mod chat_images;
+pub(crate) mod chat_reasoning;
+
 use crate::protocol::{
     call_flow::*,
     canonical::{CanonicalRelayRequest, EndpointKind},
@@ -129,6 +132,9 @@ pub fn validate_request(
     {
         return Err(invalid());
     }
+    if req.endpoint_kind == EndpointKind::ChatCompletions {
+        chat_images::validate_roles(req)?;
+    }
     Ok(())
 }
 pub fn validate_plan(
@@ -140,8 +146,13 @@ pub fn validate_plan(
     }
     validate(payload, payload.canonical_adapter())?;
     let body = plan.body.as_ref().ok_or_else(invalid)?;
-    if plan.response_kind != EndpointKind::ChatCompletions
-        || plan.url != format!("{BASE}/chat/completions")
+    let path = match plan.response_kind {
+        EndpointKind::ChatCompletions => "/chat/completions",
+        EndpointKind::Messages => "/messages",
+        EndpointKind::Responses => "/responses",
+        _ => return Err(invalid()),
+    };
+    if plan.url.strip_prefix(BASE) != Some(path)
         || plan.method != rquest::Method::POST
         || !plan.query.is_empty()
         || !valid_key(&payload.api_key)
@@ -150,6 +161,16 @@ pub fn validate_plan(
             .is_some_and(|id| !id.is_empty() && text_model(id))
     {
         return Err(invalid());
+    }
+    if plan.response_kind == EndpointKind::Responses
+        && !body["model"]
+            .as_str()
+            .is_some_and(native_responses::supports_model)
+    {
+        return Err(invalid());
+    }
+    if plan.response_kind == EndpointKind::ChatCompletions {
+        chat_images::validate_wire(body)?;
     }
     Ok(())
 }
@@ -168,7 +189,7 @@ pub(crate) async fn read_response(
 }
 fn response_error() -> GatewayError {
     let mut error =
-        GatewayError::server_error("SenseNova returned a failed or invalid Chat response.")
+        GatewayError::server_error("SenseNova returned a failed or invalid inference response.")
             .with_code("sensenova_response_failed");
     error.http_status = Some(502);
     error.retryable = false;
@@ -220,6 +241,60 @@ pub fn finalize_headers(
     Ok(())
 }
 
+pub(crate) fn native_selected(payload: &ProviderAccountPayload, endpoint: EndpointKind) -> bool {
+    owns_payload(payload)
+        && matches!(
+            endpoint,
+            EndpointKind::ChatCompletions | EndpointKind::Messages | EndpointKind::Responses
+        )
+}
+
+pub(crate) fn families(model: Option<&str>) -> Vec<String> {
+    use crate::protocol::registry::*;
+    let mut families = vec![OPENAI_CHAT_FAMILY.into(), ANTHROPIC_MESSAGES_FAMILY.into()];
+    if model.is_none_or(native_responses::supports_model) {
+        families.push(OPENAI_RESPONSES_FAMILY.into());
+    }
+    families
+}
+
+pub(crate) async fn execute_native(
+    client: &crate::upstream::client::UpstreamClient,
+    payload: &ProviderAccountPayload,
+    req: &CanonicalRelayRequest,
+    model: &str,
+) -> Result<serde_json::Value, GatewayError> {
+    let plan = match req.endpoint_kind {
+        EndpointKind::ChatCompletions => {
+            crate::upstream::client::UpstreamClient::build_request_plan(payload, req, model, false)?
+        }
+        EndpointKind::Messages => native_messages::plan(payload, req, model, false)?,
+        EndpointKind::Responses => native_responses::plan(payload, req, model, false)?,
+        _ => return Err(invalid()),
+    };
+    let response = client
+        .send_profiled_plan(payload, &plan, rquest::header::HeaderMap::new())?
+        .send()
+        .await
+        .map_err(|_| response_error().with_code("sensenova_transport_failed"))?;
+    if !response.status().is_success() {
+        return Err(crate::upstream::response_error::classify_response_error(
+            response,
+            PROFILE,
+            "SenseNova native inference HTTP error",
+        )
+        .await);
+    }
+    match req.endpoint_kind {
+        EndpointKind::ChatCompletions => chat_reasoning::read(response).await,
+        EndpointKind::Responses => native_responses::read(response).await,
+        EndpointKind::Messages => native_messages::read(response).await,
+        _ => unreachable!("SenseNova native plan accepted only Chat, Messages and Responses"),
+    }
+}
+
+pub(crate) mod native_messages;
+pub(crate) mod native_responses;
 pub(crate) mod probe;
 #[cfg(test)]
 pub(crate) mod test_support;

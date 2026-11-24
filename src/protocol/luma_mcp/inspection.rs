@@ -11,9 +11,12 @@ pub async fn inspect_tools(
     http: &rquest::Client,
     material: &TokenMaterial,
 ) -> Result<Vec<ToolDefinition>, McpError> {
+    let endpoint = RESOURCE;
+    #[cfg(test)]
+    let endpoint = super::test_support::endpoint(endpoint);
     inspect_at(
         http,
-        RESOURCE,
+        &endpoint,
         material.access_token(),
         material.expires_at(),
         Duration::from_secs(30),

@@ -224,7 +224,7 @@ rtk git diff --check
 每张卡增加真实 owner 的定向测试；涉及旧 worker 时补 `scripts/tests/suno-browser-worker.test.mjs`、`scripts/tests/udio-browser-worker.test.mjs`、`tests/media_worker_error_contract.rs` 等相关合同。
 目录/manifest 变化时补官方 manifest 校验和相关合同；UI 及打包集成阶段补 Web build，不用一次全仓回归代替每条链的证据。
 先记录红测，再最小实现并转绿；按改动范围检查依赖面。共享框架变化在集成门做受影响链交叉回归，日常不重复付费全模型扫测或正式发布审计。
-测试源码和稳定合成 fixture 归属仓库正常测试目录；临时脚本、私有录制和运行产物放在 `C:/Users/Public/nas_home/AI/GameEditor/linshi` 下的本任务目录。
+测试源码和稳定合成 fixture 归属仓库正常测试目录；后续持续使用的脚本必须放入仓库 `tools/` 或 `scripts/` 并记录入口，不能依赖将被清空的临时目录。一次性调查脚本、私有录制和运行产物放在 `C:/Users/Public/nas_home/AI/GameEditor/linshi` 下的本任务目录；需要长期留存的脱敏证据审查后归档到 `docs/evidence/`。
 依赖锁定，不自动升级、删除重装或安装参考项目。命令若涉及网络工作区，显式使用既有 `Z:/` 映射或当前本地路径，不创建临时盘符。
 
 ## 7. 状态、证据和“完成”的含义
@@ -335,6 +335,28 @@ OAuth callback 使用其已注册的 loopback 合同，测试 fake issuer 使用
 纯文档改动不运行假发布或真实上游验收。后续实现仍遵守第 6 节和仓库官方开发门禁。
 
 ### 10.4 当前执行状态
+
+2026-11-20（R14 Luma 阶段收尾）：用户明确要求避免无限优化、能收尾先收尾。按[固定支持范围与六个剩余工作包](../providers/luma-development-status.md#本阶段收尾决定2026-11-20)结束本轮连续扩展：Agents 既有媒体／≤64 MiB Files／任务查询、Inference 文本、MCP 授权与只读管理保留已验证结果。MCP 创作与 Web 当前业务是两项未完成核心链；大文件与自动财务／恢复为两项后置增强；新原生包与集中真实／适用 Server 验收为两项交付验收。只在实际缺陷、新协议材料或明确启用相应工作包时重开，不继续增加周边设施或重复既有验收。该决定不删除总计划承诺，不增加 R14 整卡或 P50/P60/P70 完成数；后续一般“继续”回到其余渠道明确未完成项。
+
+2026-11-20（R14 Luma MCP 合同快照）：[实现子批](../progress/2026-11-20-provider-channel-expansion-luma-mcp-snapshot.md)补齐目录 annotations 保留、正常账号内的 JSON 下载、读取时间与范围失效，导出不额外访问上游。官方插件固定 commit 无工具 schema，真实当前合同仍待取得。后端 27 passed／1 ignored、前端 24 passed、正常网页实际下载与宿主 1 passed；持续入口和证据在仓库。MCP 创作、Web 当前协议及费用恢复等边界继续，整卡数不变。
+
+2026-11-20（R14 Luma 单任务查询）：[实现子批](../progress/2026-11-20-provider-channel-expansion-luma-task-lookup.md)将已有任务 ID／状态／credits／本地媒体验证事实接入运维详情，并提供已保存 Agents 账号内的单次任务 GET。取消后或原截止后可显式查同 UUID；精确账号与 revision、授权和有界响应生效。未知不记零，不重提生成，不回填旧审计或改本地账本；自动追账／进程恢复／cash 仍待办。后续[正常网页联合验收](../progress/2026-11-20-provider-channel-expansion-luma-task-browser.md)显式宿主 1 passed，六次管理查询与六次合成上游 GET 对应，取消审计／余额／revision 不变，宽窄屏通过；无真实账号，不增整卡完成数。
+
+2026-11-20（R14 Luma MCP 目录网页联合）：[验收子批](../progress/2026-11-20-provider-channel-expansion-luma-mcp-browser.md)完成正常 main → 登录／授权 → 已保存账号 → 工具目录／模型列表／image/video 参数，修复授权拒绝时未处理 Promise。6 次管理请求对应18次 MCP POST／6次 DELETE，session、精确账号与 revision 匹配；切换清空、空列表、分类错误和宽窄屏通过。显式宿主 1 passed，MCP 回归 26 passed／1 ignored，前端 33 passed。持续入口和证据在仓库；真实模型／远端释放、MCP 创作合同、Web 当前协议及其他剩余边界未关闭，整卡数不变。
+
+2026-11-20（R14 Luma Inference 网页联合）：[验收子批](../progress/2026-11-20-provider-channel-expansion-luma-inference-browser.md)完成正常 main → 登录／授权 → 精确账号配置 → 显式文本测试 → 可见答案，修复独立账号测试弹窗不渲染结果的问题。配置及关闭不调用，显式操作仅一次 Chat；映射模型、账号、2/3/5 token 审计、余额和 revision 匹配。Rust 宿主 1 passed，前端 12 passed；宽窄屏、收尾与关键证据归档完成。真实销售账号／限速／账单、Server／跨进程和原生包未验，R14 整卡不关闭。
+
+2026-11-20（R14 Luma Files 网页联合）：[验收子批](../progress/2026-11-20-provider-channel-expansion-luma-files-browser.md)完成正常 main → 登录／grant → 管理 TCP → 合成上游；1 个 opt-in Rust 宿主通过，7 次管理请求／9 次上游调用匹配。覆盖大小文件、TTL/user_id、分页、账号切换清空及取消／确认删除，宽窄屏和资源收尾已检查。脚本、宿主和关键证据在仓库，不依赖临时目录；真实供应商／费用、MCP 创作、Web 当前协议及其他剩余边界继续，不增加整卡完成数。
+
+2026-11-20（R14 Luma Files 签名上传）：[实现子批](../progress/2026-11-20-provider-channel-expansion-luma-presigned-files.md)接入正常账号界面的 ≤64 MiB presign/PUT/complete、TTL 与 user_id。原双并发与精确账号授权复用，存储 PUT 独立无凭据、公网 DNS 固定、不重试不确定写操作。MCP 本批公开调查未取得完整生成结果 schema，保持待恢复合同；大于 64 MiB、真实业务、费用恢复和完整交付未关闭，不增加整卡完成数。具体测试结果以子批及归档回执为准。
+
+2026-11-20（R14 Luma 取消审计）：[本地子批](../progress/2026-11-20-provider-channel-expansion-luma-cancellation.md)保留取消／超时／资产失败前已验证的任务和费用事实，复用公共及管理已有审计生命周期；媒体状态与本地验证分开，普通 Key 退款不变。Agents 110 passed / 1 ignored，共享审计生命周期 31 passed。截止后追账、跨进程／cash、MCP 创作、Files 大文件与真实业务继续，不增加整卡完成数。
+
+2026-11-19 接手整理：Luma 可复用检查/构建/合同抓取入口及合成预览夹具已迁入仓库，现存关键证据已归档。[当前缺口](../providers/luma-development-status.md)、[工具说明](../../tools/luma/README.md)、[迁移验证](../progress/2026-11-19-luma-development-tools.md)分别记录；本次没有新增产品能力或关闭 R14。
+
+2026-11-20（R14 Luma Files）：[小文件管理子批](../progress/2026-11-20-provider-channel-expansion-luma-files.md)接通已保存 Agents 账号内的上传、分页、状态查询、确认删除和 ready 文件 ID 复制。管理授权、精确账号与 revision 绑定；8 MiB 为 Gateway 本地限额，不自动重放不确定写操作。大文件预签名流程、真实供应商文件/生成链、完整费用及跨进程仍未关闭；不增加整卡完成数。
+
+2026-11-19（R14 Luma 续做）：[分层回归](../progress/2026-11-18-provider-channel-expansion-luma-layering.md)修复字体 weight 的整数／小数表示丢失，受影响 `luma_agents` 95 passed / 0 failed / 1 ignored；[视频高级界面](../progress/2026-11-19-provider-channel-expansion-luma-video-controls.md)补齐扩画位置、重绘 HDR／conditioning／guides，并在请求变化后撤销费用确认。独立 [LLM Inference 子批](../progress/2026-11-19-provider-channel-expansion-luma-inference.md)增加固定目标、独立静态 Key、正常模板／账号保存与 Chat／无状态 Responses／Messages；不与媒体 Key／credits 合池。验证与真实未验边界按各回执，不关闭 R14/P50/P60/P70，不抵扣 Magpie 67 项。
 
 2026-11-13（Luma桌面授权入口）：已保存MCP profile的新增/重授权接入后台会话，锁定原账号登记信息、显式保存；专用Dialog不展示通用Key/模型编辑，保留owner/revision/secret consent与不确定保存不重放。前端77项去重相关测试、原生授权浏览器11项及真实前端入口构建通过；宽窄屏、显式保存和Escape已用真实组件/模拟回执核验，详见[回执](../progress/2026-11-13-provider-channel-expansion-luma-ui.md)。未出包/真实登录；服务商目录空池入口、动态注册、工具目录UI、refresh及业务调用仍未完成。
 

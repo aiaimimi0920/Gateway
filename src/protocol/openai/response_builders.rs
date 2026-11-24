@@ -172,7 +172,7 @@ pub fn build_legacy_completions_stop(
     chunk
 }
 
-fn chat_usage(usage: &TokenUsage) -> Value {
+pub(crate) fn chat_usage(usage: &TokenUsage) -> Value {
     let mut value = json!({"prompt_tokens":usage.prompt_tokens,
         "completion_tokens":usage.completion_tokens,"total_tokens":usage.total_tokens});
     // Unknown cache usage remains absent; an explicit upstream zero is still meaningful.

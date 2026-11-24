@@ -17,7 +17,11 @@ enum Stage {
     Route,
     RateLimit,
     Cash,
+    RouteUnreserved,
+    AutoReserve,
 }
+mod stored_create;
+pub(crate) use stored_create::run as run_stored_create;
 struct Lifetime {
     _permit: OwnedSemaphorePermit,
     _drain: Option<FinalizerGuard>,
@@ -144,6 +148,10 @@ impl Owner {
                 Stage::Route => Box::pin(stage_route::run(ctx, &state)).await,
                 Stage::RateLimit => Box::pin(stage_rate_limit::run(ctx, &state)).await,
                 Stage::Cash => Box::pin(crate::cash_billing::admission::prepare(ctx, &state)).await,
+                Stage::RouteUnreserved => {
+                    Box::pin(stage_route::select_for_durable_reservation(ctx, &state)).await
+                }
+                Stage::AutoReserve => stage_route::reserve_preselected_auto(ctx, &state).await,
             };
             #[cfg(test)]
             hooks.after(stage).await;

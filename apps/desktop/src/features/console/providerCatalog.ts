@@ -23,6 +23,8 @@ import { CLOUDFLARE_TEMPLATE, requireCloudflareBase } from "./cloudflareWorkersA
 import { DIM_TEMPLATES, writeDimProvider } from "./dimCatalog";
 import { NOUS_TEMPLATE, writeNousProvider } from "./nousCatalog";
 import { LOBSTERAI_TEMPLATE, writeLobsterAiProvider } from "./lobsteraiCatalog";
+import { QUICK_OAUTH_TEMPLATE, writeQuickProvider } from "./quickCatalog";
+import { SEARCH_CATALOG_TEMPLATES } from "./providerSearchCatalog";
 
 export type ProviderCatalogCategory =
   | "mainstream"
@@ -326,96 +328,7 @@ const STANDARD_CATALOG_TEMPLATES = [
     baseUrl: "https://api.poe.com/v1",
     supportedModels: [],
   },
-  {
-    id: "linkup",
-    providerId: "linkup-api",
-    labelZh: "linkup-api",
-    labelEn: "linkup-api",
-    descriptionZh: "搜索、抓取与研究接口。",
-    descriptionEn: "Search, fetch, and research APIs.",
-    category: "search",
-    compatibility: "search",
-    preset: "linkup",
-    vendorKey: "linkup",
-    vendorName: "Linkup",
-    baseUrl: "https://api.linkup.so",
-    supportedModels: ["linkup-search", "linkup-fetch", "linkup-research", "search", "fetch"],
-  },
-  {
-    id: "tavily",
-    providerId: "tavily-api",
-    labelZh: "tavily-api",
-    labelEn: "tavily-api",
-    descriptionZh: "Tavily 官方搜索与正文提取接口。",
-    descriptionEn: "Tavily's official search and extract APIs.",
-    category: "search",
-    compatibility: "search",
-    preset: "tavily",
-    vendorKey: "tavily",
-    vendorName: "Tavily",
-    baseUrl: "https://api.tavily.com",
-    supportedModels: ["tavily-search", "tavily-fetch", "search", "fetch"],
-  },
-  {
-    id: "you",
-    providerId: "you-api",
-    labelZh: "you-api",
-    labelEn: "you-api",
-    descriptionZh: "You.com 官方搜索与网页读取接口。",
-    descriptionEn: "You.com's official search and contents APIs.",
-    category: "search",
-    compatibility: "search",
-    preset: "you",
-    vendorKey: "you",
-    vendorName: "You.com",
-    baseUrl: "https://ydc-index.io",
-    supportedModels: ["you-search", "you-fetch", "search", "fetch"],
-  },
-  {
-    id: "exa",
-    providerId: "exa-api",
-    labelZh: "exa-api",
-    labelEn: "exa-api",
-    descriptionZh: "Exa 官方搜索与内容抓取接口。",
-    descriptionEn: "Exa's official search and content fetch APIs.",
-    category: "search",
-    compatibility: "search",
-    preset: "exa",
-    vendorKey: "exa",
-    vendorName: "Exa",
-    baseUrl: "https://api.exa.ai",
-    supportedModels: ["exa-search", "exa-fetch", "search", "fetch"],
-  },
-  {
-    id: "jina",
-    providerId: "jina-api",
-    labelZh: "jina-api",
-    labelEn: "jina-api",
-    descriptionZh: "Jina AI 官方搜索与网页读取接口，共用一个账号。",
-    descriptionEn: "Jina AI web search and page reading with one shared account.",
-    category: "search",
-    compatibility: "search",
-    preset: "jina",
-    vendorKey: "jina-ai",
-    vendorName: "Jina AI",
-    baseUrl: "https://s.jina.ai",
-    supportedModels: ["jina-search", "jina-fetch", "search", "fetch"],
-  },
-  {
-    id: "websearchapi",
-    providerId: "websearchapi-api",
-    labelZh: "websearchapi-api",
-    labelEn: "websearchapi-api",
-    descriptionZh: "WebSearchAPI 官方搜索与网页抓取接口。",
-    descriptionEn: "WebSearchAPI's official search and scraper APIs.",
-    category: "search",
-    compatibility: "search",
-    preset: "websearchapi",
-    vendorKey: "websearchapi",
-    vendorName: "WebSearchAPI",
-    baseUrl: "https://api.websearchapi.ai",
-    supportedModels: ["websearchapi-search", "websearchapi-fetch", "search", "fetch"],
-  },
+  ...SEARCH_CATALOG_TEMPLATES,
   RIVER_TEMPLATE,
   AGNES_TEMPLATE,
   ...MINIMAX_TEMPLATES,
@@ -426,6 +339,7 @@ const STANDARD_CATALOG_TEMPLATES = [
   ...DIM_TEMPLATES,
   NOUS_TEMPLATE,
   LOBSTERAI_TEMPLATE,
+  QUICK_OAUTH_TEMPLATE,
   CUSTOM_API_TEMPLATE,
 ] as const satisfies readonly ProviderCatalogTemplate[];
 
@@ -504,6 +418,7 @@ export function providerDefinitionFromCatalogDraft(
   writeDimProvider(provider, template);
   writeNousProvider(provider, template);
   writeLobsterAiProvider(provider, template);
+  writeQuickProvider(provider, template);
   writeSapProvider(provider, draft);
   return provider;
 }

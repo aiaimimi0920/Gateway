@@ -1,0 +1,66 @@
+[
+  {
+    "path": "src/protocol/mod.rs",
+    "effectiveLines": 120
+  },
+  {
+    "path": "src/preset.rs",
+    "effectiveLines": 248
+  },
+  {
+    "path": "src/preset/openai.rs",
+    "effectiveLines": 248
+  },
+  {
+    "path": "src/preset/registry.rs",
+    "effectiveLines": 206
+  },
+  {
+    "path": "src/protocol/registry/profiles.rs",
+    "effectiveLines": 257
+  },
+  {
+    "path": "src/protocol/registry/profile_inference.rs",
+    "effectiveLines": 265
+  },
+  {
+    "path": "src/implementation_lines/catalog.rs",
+    "effectiveLines": 380
+  },
+  {
+    "path": "src/implementation_lines/profiles.rs",
+    "effectiveLines": 221
+  },
+  {
+    "path": "src/implementation_lines/payload.rs",
+    "effectiveLines": 151
+  },
+  {
+    "path": "src/routing/config/provider_compilation.rs",
+    "effectiveLines": 249
+  },
+  {
+    "path": "src/protocol/call_flow/preparation.rs",
+    "effectiveLines": 156
+  },
+  {
+    "path": "src/upstream/client/request_plan_part_1.rs",
+    "effectiveLines": 201
+  },
+  {
+    "path": "src/upstream/client/streaming/profiled_sender.rs",
+    "effectiveLines": 112
+  },
+  {
+    "path": "src/console/secrets/keep_bindings.rs",
+    "effectiveLines": 320
+  },
+  {
+    "path": "apps/desktop/src/features/console/providerCatalog.ts",
+    "effectiveLines": 500
+  },
+  {
+    "path": "apps/desktop/src/features/console/providerCatalogWorkflow.ts",
+    "effectiveLines": 122
+  }
+]

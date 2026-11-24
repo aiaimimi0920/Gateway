@@ -1,0 +1,10 @@
+{
+  "args": [
+    "gateway-nonexistent-synthetic-command"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T15:33:34.208229+00:00",
+  "exitCode": 127,
+  "launchError": "[WinError 2] 系统找不到指定的文件。",
+  "elapsedSeconds": 0.0
+}

@@ -1,0 +1,1593 @@
+    Checking gateway v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway)
+warning: unused import: `list_active_provider_credential_refs_for_accounts`
+   --> src\db\mod.rs:184:5
+    |
+184 |     list_active_provider_credential_refs_for_accounts, list_provider_credential_import_metadata,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `finalize_candidate_protocol_family`
+  --> src\pipeline\stage_route.rs:23:5
+   |
+23 |     finalize_candidate_protocol_family, route_policy_family_matches_candidate,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `try_pack_for_plan`
+  --> src\protocol\bedrock_converse.rs:26:39
+   |
+26 | pub(crate) use packing::{finish_plan, try_pack_for_plan};
+   |                                       ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `json`
+ --> src\protocol\commandcode\messages.rs:7:18
+  |
+7 | use serde_json::{json, Value};
+  |                  ^^^^
+
+warning: unused import: `execution::root_turn::RootTurn`
+  --> src\protocol\freebuff\catalog.rs:36:16
+   |
+36 | pub(crate) use execution::root_turn::RootTurn;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `json`
+ --> src\protocol\gemini_canvas.rs:5:18
+  |
+5 | use serde_json::{json, Value};
+  |                  ^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src\protocol\gemini_canvas.rs:6:5
+  |
+6 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `CanonicalMessage`, `ContentPart`, `EndpointKind`, `MessageRole`, and `ProtocolFamily`
+  --> src\protocol\gemini_canvas.rs:10:5
+   |
+10 |     CanonicalMessage, CanonicalRelayRequest, ContentPart, EndpointKind, MessageRole, ProtocolFamily,
+   |     ^^^^^^^^^^^^^^^^                         ^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `Media`
+  --> src\protocol\luma_agents.rs:17:45
+   |
+17 | pub(crate) use request::{GenerationRequest, Media};
+   |                                             ^^^^^
+
+warning: unused imports: `BODY_LIMIT`, `Decoder`, and `Update`
+  --> src\protocol\perplexity_web\mod.rs:10:25
+   |
+10 | pub(crate) use decode::{Decoder, Update, BODY_LIMIT};
+   |                         ^^^^^^^  ^^^^^^  ^^^^^^^^^^
+
+warning: unused import: `request::pack_single_turn_for_model`
+  --> src\protocol\perplexity_web\mod.rs:12:16
+   |
+12 | pub(crate) use request::pack_single_turn_for_model;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `EndpointKind`
+ --> src\protocol\search_api_disabled.rs:7:57
+  |
+7 | use crate::protocol::canonical::{CanonicalRelayRequest, EndpointKind, ProtocolFamily};
+  |                                                         ^^^^^^^^^^^^
+
+warning: unused import: `MediaProbeOperation`
+ --> src\provider_runtime\lumalabs_media_probe.rs:3:27
+  |
+3 |     media_probe_request::{MediaProbeOperation, MediaProbeRequest},
+  |                           ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `read_json_bool`
+ --> src\upstream\browser_executor_helpers.rs:8:78
+  |
+8 |     build_browser_executor_header_map, missing_browser_executor_field_error, read_json_bool,
+  |                                                                              ^^^^^^^^^^^^^^
+
+warning: unused imports: `LumalabsBrowserWorkerInput`, `LumalabsBrowserWorkerResult`, `SunoBrowserWorkerInput`, `SunoBrowserWorkerResult`, `SunoBrowserWorkerSuccess`, `UdioBrowserWorkerInput`, `UdioBrowserWorkerResult`, and `UdioBrowserWorkerSuccess`
+  --> src\upstream\browser_worker_types.rs:15:5
+   |
+15 |     LumalabsBrowserWorkerInput, LumalabsBrowserWorkerResult, ProducerBrowserWorkerInput,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+16 |     ProducerBrowserWorkerResult, SunoBrowserWorkerInput, SunoBrowserWorkerResult,
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+17 |     SunoBrowserWorkerSuccess, UdioBrowserWorkerInput, UdioBrowserWorkerResult,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+18 |     UdioBrowserWorkerSuccess,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `browser_executor::browser_executor_remote_request_timeout`
+   --> src\upstream\client.rs:363:5
+    |
+363 | use browser_executor::browser_executor_remote_request_timeout;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `GeminiCanvasTextDirectHttpFallbackAttempt`
+   --> src\upstream\client.rs:479:5
+    |
+479 |     GeminiCanvasTextDirectHttpFallbackAttempt, GeminiCanvasVideoContinuation,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `response::accumulate`
+ --> src\upstream\vertex_express.rs:8:16
+  |
+8 | pub(crate) use response::accumulate;
+  |                ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `response::accumulate`
+ --> src\upstream\vertex_oauth.rs:8:16
+  |
+8 | pub(crate) use response::accumulate;
+  |                ^^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:184:13
+    |
+184 |         let mut attempt = 0usize;
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:185:13
+    |
+185 |         let mut failures = Vec::new();
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:186:13
+    |
+186 |         let mut last_entries_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:187:13
+    |
+187 |         let mut last_completion_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:188:13
+    |
+188 |         let mut last_probe_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:189:13
+    |
+189 |         let mut last_full_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:190:13
+    |
+190 |         let mut parity_probe_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:191:13
+    |
+191 |         let mut parity_full_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:192:13
+    |
+192 |         let mut parity_o30_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:193:13
+    |
+193 |         let mut parity_k4_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src\upstream\console_browser_workspace.rs:15:17
+   |
+15 |             let mut builder = std::fs::DirBuilder::new();
+   |                 ----^^^^^^^
+   |                 |
+   |                 help: remove this `mut`
+
+warning: unused variable: `model`
+  --> src\upstream\client\canvas_image_edit\setup.rs:60:9
+   |
+60 |         model: &str,
+   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `model`
+ --> src\upstream\client\canvas_stream_generate\prepare.rs:7:9
+  |
+7 |         model: &str,
+  |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+
+warning: unused variable: `model`
+ --> src\upstream\client\canvas_stream_generate\bootstrap.rs:8:9
+  |
+8 |         model: &str,
+  |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+
+warning: unused variable: `image_edit_followup_context`
+  --> src\upstream\client\canvas_stream_generate\request.rs:15:9
+   |
+15 |         image_edit_followup_context: &mut Option<&mut GeminiCanvasImageEditFollowupContext>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_edit_followup_context`
+
+warning: unused variable: `timeout`
+  --> src\upstream\client\canvas_stream_generate\send.rs:11:9
+   |
+11 |         timeout: Duration,
+   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timeout`
+
+warning: method `admit` is never used
+  --> src\console\freebuff_purchase\waiting.rs:96:25
+   |
+52 | impl ApprovedRequest {
+   | -------------------- method in this implementation
+...
+96 |     pub(crate) async fn admit(
+   |                         ^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `prepare_registration` is never used
+ --> src\console\luma_oauth\registration_registry.rs:7:25
+  |
+6 | impl Registry {
+  | ------------- method in this implementation
+7 |     pub(crate) async fn prepare_registration(
+  |                         ^^^^^^^^^^^^^^^^^^^^
+
+warning: field `reserved_unknown` is never read
+ --> src\credential_pool_automation\availability.rs:7:9
+  |
+5 | pub(crate) struct PoolAvailability {
+  |                   ---------------- field in this struct
+6 |     pub available: usize,
+7 |     pub reserved_unknown: usize,
+  |         ^^^^^^^^^^^^^^^^
+  |
+  = note: `PoolAvailability` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: associated function `verified` is never used
+  --> src\error\luma_generation.rs:14:19
+   |
+12 | impl LumaGenerationFailure {
+   | -------------------------- associated function in this implementation
+13 |     /// The product sender calls this only after binding task identity and validating usage.
+14 |     pub(crate) fn verified(
+   |                   ^^^^^^^^
+
+warning: method `credential_affinity` is never used
+  --> src\local_runtime\affinity.rs:21:19
+   |
+20 | impl super::LocalRuntime {
+   | ------------------------ method in this implementation
+21 |     pub(crate) fn credential_affinity(&self, scope: &str, model: &str) -> Option<String> {
+   |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: method `freebuff_closeout` is never used
+  --> src\local_runtime\freebuff_sessions\closeout.rs:81:25
+   |
+79 | impl LocalRuntime {
+   | ----------------- method in this implementation
+80 |     /// Bound, authenticated history facts only. Never restore an active capability or authorize POST.
+81 |     pub(crate) async fn freebuff_closeout(
+   |                         ^^^^^^^^^^^^^^^^^
+
+warning: method `claim` is never used
+  --> src\local_runtime\freebuff_sessions\lifecycle.rs:10:19
+   |
+ 9 | impl PendingAdmission<'_> {
+   | ------------------------- method in this implementation
+10 |     pub(crate) fn claim(&self) -> &SessionClaim {
+   |                   ^^^^^
+
+warning: method `active` is never used
+  --> src\local_runtime\freebuff_sessions\lifecycle.rs:51:19
+   |
+50 | impl ActiveAdmission {
+   | -------------------- method in this implementation
+51 |     pub(crate) fn active(&self) -> &OwnedActiveSession {
+   |                   ^^^^^^
+
+warning: variant `Restore` is never constructed
+ --> src\local_runtime\freebuff_sessions\purchase.rs:7:5
+  |
+6 | enum ExistingClaim {
+  |      ------------- variant in this enum
+7 |     Restore,
+  |     ^^^^^^^
+  |
+  = note: `ExistingClaim` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: method `admit_freebuff_for_request` is never used
+  --> src\local_runtime\freebuff_sessions\purchase.rs:44:25
+   |
+41 | impl LocalRuntime {
+   | ----------------- method in this implementation
+...
+44 |     pub(crate) async fn admit_freebuff_for_request(
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `text` is never read
+  --> src\pipeline\copilot_identity.rs:19:5
+   |
+12 | pub(super) struct CopilotIdentity<'a> {
+   |                   --------------- field in this struct
+...
+19 |     text: TextRequest<'a>,
+   |     ^^^^
+
+warning: method `request` is never used
+  --> src\pipeline\copilot_identity.rs:61:19
+   |
+22 | impl<'a> CopilotIdentity<'a> {
+   | ---------------------------- method in this implementation
+...
+61 |     pub(super) fn request(&self) -> &TextRequest<'a> {
+   |                   ^^^^^^^
+
+warning: function `get_affinity` is never used
+ --> src\pipeline\runtime_storage.rs:4:21
+  |
+4 | pub(super) async fn get_affinity(state: &AppState, scope: &str, model: &str) -> Option<String> {
+  |                     ^^^^^^^^^^^^
+
+warning: fields `access`, `refresh`, and `previous_sgcookie` are never read
+  --> src\protocol\accio_oauth.rs:81:5
+   |
+80 | pub struct RefreshGrant {
+   |            ------------ fields in this struct
+81 |     access: String,
+   |     ^^^^^^
+82 |     refresh: String,
+   |     ^^^^^^^
+83 |     previous_sgcookie: Option<String>,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: fields `client`, `redirect`, `verifier`, `code`, and `deadline` are never read
+  --> src\protocol\accio_oauth\authorization.rs:36:16
+   |
+35 | pub struct CodeGrant {
+   |            --------- fields in this struct
+36 |     pub(super) client: OAuthClient,
+   |                ^^^^^^
+37 |     pub(super) site: LoginSite,
+38 |     pub(super) redirect: String,
+   |                ^^^^^^^^
+39 |     pub(super) verifier: String,
+   |                ^^^^^^^^
+40 |     pub(super) code: String,
+   |                ^^^^
+41 |     pub(super) deadline: Instant,
+   |                ^^^^^^^^
+
+warning: method `remaining` is never used
+   --> src\protocol\accio_oauth\authorization.rs:140:19
+    |
+136 | impl CodeGrant {
+    | -------------- method in this implementation
+...
+140 |     pub(super) fn remaining(&self) -> Duration {
+    |                   ^^^^^^^^^
+
+warning: struct `Envelope` is never constructed
+  --> src\protocol\accio_oauth\material.rs:15:8
+   |
+15 | struct Envelope {
+   |        ^^^^^^^^
+
+warning: struct `Tokens` is never constructed
+  --> src\protocol\accio_oauth\material.rs:21:8
+   |
+21 | struct Tokens {
+   |        ^^^^^^
+
+warning: associated function `parse` is never used
+  --> src\protocol\accio_oauth\material.rs:42:19
+   |
+28 | impl TokenMaterial {
+   | ------------------ associated function in this implementation
+...
+42 |     pub(super) fn parse(
+   |                   ^^^^^
+
+warning: function `bind_response` is never used
+  --> src\protocol\bedrock_turn\continuation.rs:75:15
+   |
+75 | pub(crate) fn bind_response(
+   |               ^^^^^^^^^^^^^
+
+warning: fields `origin` and `authorization` are never read
+  --> src\protocol\freebuff\catalog\account.rs:37:9
+   |
+36 | pub(super) struct Binding {
+   |                   ------- fields in this struct
+37 |     pub origin: BusinessOrigin,
+   |         ^^^^^^
+38 |     pub client: ClientSurface,
+39 |     pub authorization: HeaderValue,
+   |         ^^^^^^^^^^^^^
+
+warning: method `transport_origin` is never used
+  --> src\protocol\freebuff\catalog\account.rs:67:12
+   |
+42 | impl Binding {
+   | ------------ method in this implementation
+...
+67 |     pub fn transport_origin(&self) -> String {
+   |            ^^^^^^^^^^^^^^^^
+
+warning: constant `SESSION` is never used
+ --> src\protocol\freebuff\catalog\business_wire.rs:4:7
+  |
+4 | const SESSION: &str = "/api/v1/freebuff/session";
+  |       ^^^^^^^
+
+warning: constant `ADMISSION` is never used
+ --> src\protocol\freebuff\catalog\business_wire.rs:5:7
+  |
+5 | const ADMISSION: &str = "/api/v1/freebuff/session/admission";
+  |       ^^^^^^^^^
+
+warning: constant `END_ATTEMPT` is never used
+ --> src\protocol\freebuff\catalog\business_wire.rs:6:7
+  |
+6 | const END_ATTEMPT: &str = "/api/v1/freebuff/session/attempt";
+  |       ^^^^^^^^^^^
+
+warning: constant `COMPLETION` is never used
+ --> src\protocol\freebuff\catalog\business_wire.rs:7:7
+  |
+7 | const COMPLETION: &str = "/api/v1/chat/completions";
+  |       ^^^^^^^^^^
+
+warning: constant `REPLY_LIMIT` is never used
+ --> src\protocol\freebuff\catalog\business_wire.rs:8:7
+  |
+8 | const REPLY_LIMIT: usize = 1_048_576;
+  |       ^^^^^^^^^^^
+
+warning: fields `http`, `device`, and `fetch_id` are never read
+  --> src\protocol\freebuff\catalog\business_wire.rs:12:9
+   |
+10 | pub(super) struct Authority<'a> {
+   |                   --------- fields in this struct
+11 |     pub binding: &'a super::account::Binding,
+12 |     pub http: &'a super::transport::CatalogTransport,
+   |         ^^^^
+13 |     pub device: &'a super::DeviceRegistration,
+   |         ^^^^^^
+14 |     pub fetch_id: Option<&'a str>,
+   |         ^^^^^^^^
+   |
+   = note: `Authority` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: field `0` is never read
+  --> src\protocol\freebuff\catalog\business_wire.rs:18:15
+   |
+18 |     Heartbeat(&'a SessionClaim),
+   |     --------- ^^^^^^^^^^^^^^^^
+   |     |
+   |     field in this variant
+   |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+18 -     Heartbeat(&'a SessionClaim),
+18 +     Heartbeat(()),
+   |
+
+warning: field `0` is never read
+  --> src\protocol\freebuff\catalog\business_wire.rs:19:11
+   |
+19 |     Admit(&'a SessionClaim),
+   |     ----- ^^^^^^^^^^^^^^^^
+   |     |
+   |     field in this variant
+   |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+19 -     Admit(&'a SessionClaim),
+19 +     Admit(()),
+   |
+
+warning: field `0` is never read
+  --> src\protocol\freebuff\catalog\business_wire.rs:20:9
+   |
+20 |     End(&'a SessionClaim),
+   |     --- ^^^^^^^^^^^^^^^^
+   |     |
+   |     field in this variant
+   |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+20 -     End(&'a SessionClaim),
+20 +     End(()),
+   |
+
+warning: method `target` is never used
+  --> src\protocol\freebuff\catalog\business_wire.rs:23:8
+   |
+22 | impl Operation<'_> {
+   | ------------------ method in this implementation
+23 |     fn target(&self) -> (&'static str, &'static str) {
+   |        ^^^^^^
+
+warning: field `expires_at` is never read
+  --> src\protocol\freebuff\catalog\owned_session.rs:64:5
+   |
+61 | pub(crate) struct OwnedActiveSession {
+   |                   ------------------ field in this struct
+...
+64 |     expires_at: OffsetDateTime,
+   |     ^^^^^^^^^^
+
+warning: method `expires_at` is never used
+   --> src\protocol\freebuff\catalog\owned_session.rs:127:19
+    |
+ 73 | impl OwnedActiveSession {
+    | ----------------------- method in this implementation
+...
+127 |     pub(crate) fn expires_at(&self) -> OffsetDateTime {
+    |                   ^^^^^^^^^^
+
+warning: method `push` is never used
+  --> src\protocol\freebuff\catalog\completion_decode\sse.rs:58:19
+   |
+43 | impl StreamDecoder {
+   | ------------------ method in this implementation
+...
+58 |     pub(crate) fn push(&mut self, bytes: Bytes) -> Result<(), BusinessError> {
+   |                   ^^^^
+
+warning: method `sign` is never used
+  --> src\protocol\freebuff\catalog\device.rs:26:19
+   |
+ 9 | impl DeviceKey {
+   | -------------- method in this implementation
+...
+26 |     pub(super) fn sign(
+   |                   ^^^^
+
+warning: methods `catalog_headers` and `request_headers` are never used
+  --> src\protocol\freebuff\catalog\device.rs:71:19
+   |
+56 | impl DeviceRegistration {
+   | ----------------------- methods in this implementation
+...
+71 |     pub(super) fn catalog_headers(
+   |                   ^^^^^^^^^^^^^^^
+...
+86 |     pub(super) fn request_headers(
+   |                   ^^^^^^^^^^^^^^^
+
+warning: methods `decode` and `decode_until` are never used
+  --> src\protocol\freebuff\catalog\execution\decoded.rs:16:25
+   |
+14 | impl<'a> CatalogCompletionResponse<'a> {
+   | -------------------------------------- methods in this implementation
+15 |     /// Aggregate native JSON/SSE using the same incremental owner with a no-op frame observer.
+16 |     pub(crate) async fn decode(self, budget: Duration) -> DecodedCatalogRun<'a> {
+   |                         ^^^^^^
+...
+21 |     pub(crate) async fn decode_until(
+   |                         ^^^^^^^^^^^^
+
+warning: methods `accounting` and `context_forecast` are never used
+   --> src\protocol\freebuff\catalog\execution\decoded.rs:130:19
+    |
+ 96 | impl<'a> DecodedCatalogRun<'a> {
+    | ------------------------------ methods in this implementation
+...
+130 |     pub(crate) fn accounting(&self) -> &Accounting {
+    |                   ^^^^^^^^^^
+...
+133 |     pub(crate) fn context_forecast(&self) -> Option<super::super::root_context::ContextForecast> {
+    |                   ^^^^^^^^^^^^^^^^
+
+warning: method `execute_relay_step` is never used
+ --> src\protocol\freebuff\catalog\execution\relay.rs:6:25
+  |
+5 | impl<'a> CatalogRun<'a> {
+  | ----------------------- method in this implementation
+6 |     pub(crate) async fn execute_relay_step(
+  |                         ^^^^^^^^^^^^^^^^^^
+
+warning: struct `RootTurn` is never constructed
+  --> src\protocol\freebuff\catalog\execution\root_turn.rs:11:19
+   |
+11 | pub(crate) struct RootTurn<'a> {
+   |                   ^^^^^^^^
+
+warning: method `step` is never used
+  --> src\protocol\freebuff\catalog\execution\root_turn.rs:18:8
+   |
+17 | impl RootTurn<'_> {
+   | ----------------- method in this implementation
+18 |     fn step(&self, messages: Vec<Value>) -> RootStep<'_> {
+   |        ^^^^
+
+warning: method `execute_root_turn` is never used
+  --> src\protocol\freebuff\catalog\execution\root_turn.rs:33:25
+   |
+32 | impl<'a> CatalogRun<'a> {
+   | ----------------------- method in this implementation
+33 |     pub(crate) async fn execute_root_turn(
+   |                         ^^^^^^^^^^^^^^^^^
+
+warning: fields `accounting`, `totals`, and `finish_http_status` are never read
+  --> src\protocol\freebuff\catalog\execution\sequence.rs:59:16
+   |
+56 | pub(crate) struct FinishedCatalogRun {
+   |                   ------------------ fields in this struct
+...
+59 |     pub(crate) accounting: Accounting,
+   |                ^^^^^^^^^^
+60 |     pub(crate) totals: RunTotals,
+   |                ^^^^^^
+61 |     /// Transport acceptance only, not a settlement receipt or a session release.
+62 |     pub(crate) finish_http_status: u16,
+   |                ^^^^^^^^^^^^^^^^^^
+
+warning: methods `continue_run` and `finish_single_step` are never used
+   --> src\protocol\freebuff\catalog\execution\sequence.rs:111:19
+    |
+108 | impl<'a> DecodedCatalogRun<'a> {
+    | ------------------------------ methods in this implementation
+...
+111 |     pub(crate) fn continue_run(self) -> Result<(CatalogRun<'a>, Value), Self> {
+    |                   ^^^^^^^^^^^^
+...
+124 |     pub(crate) async fn finish_single_step(
+    |                         ^^^^^^^^^^^^^^^^^^
+
+warning: methods `execute_step_observed`, `execute_step`, `execute_root_step`, and `execute_built_step` are never used
+  --> src\protocol\freebuff\catalog\execution\step.rs:13:25
+   |
+11 | impl<'a> CatalogRun<'a> {
+   | ----------------------- methods in this implementation
+12 |     /// Observe provisional native SSE frames; only the returned decoded owner can confirm EOF.
+13 |     pub(crate) async fn execute_step_observed<F, O>(
+   |                         ^^^^^^^^^^^^^^^^^^^^^
+...
+31 |     pub(crate) async fn execute_step(
+   |                         ^^^^^^^^^^^^
+...
+43 |     pub(crate) async fn execute_root_step(
+   |                         ^^^^^^^^^^^^^^^^^
+...
+63 |     pub(super) async fn execute_built_step(
+   |                         ^^^^^^^^^^^^^^^^^^
+
+warning: constant `TOOLS` is never used
+  --> src\protocol\freebuff\catalog\root_builder.rs:13:7
+   |
+13 | const TOOLS: [&str; 15] = [
+   |       ^^^^^
+
+warning: struct `RootHostContext` is never constructed
+  --> src\protocol\freebuff\catalog\root_builder.rs:32:19
+   |
+32 | pub(crate) struct RootHostContext<'a> {
+   |                   ^^^^^^^^^^^^^^^
+
+warning: struct `RootStep` is never constructed
+  --> src\protocol\freebuff\catalog\root_builder.rs:40:19
+   |
+40 | pub(crate) struct RootStep<'a> {
+   |                   ^^^^^^^^
+
+warning: method `build_root_step` is never used
+  --> src\protocol\freebuff\catalog\root_builder.rs:47:19
+   |
+46 | impl BusinessRequests<'_> {
+   | ------------------------- method in this implementation
+47 |     pub(crate) fn build_root_step(
+   |                   ^^^^^^^^^^^^^^^
+
+warning: constant `APPENDIX` is never used
+ --> src\protocol\freebuff\catalog\root_builder\cli.rs:4:18
+  |
+4 | pub(super) const APPENDIX: &str = r###"
+  |                  ^^^^^^^^
+
+warning: function `lean` is never used
+ --> src\protocol\freebuff\catalog\root_builder\guidance.rs:4:15
+  |
+4 | pub(super) fn lean(max_context: u64) -> String {
+  |               ^^^^
+
+warning: constant `BATCHING` is never used
+  --> src\protocol\freebuff\catalog\root_builder\guidance.rs:13:18
+   |
+13 | pub(super) const BATCHING: &str = r###"## Work in batches
+   |                  ^^^^^^^^
+
+warning: constant `LEAN` is never used
+  --> src\protocol\freebuff\catalog\root_builder\guidance.rs:26:7
+   |
+26 | const LEAN: &str = r###"# Context budget
+   |       ^^^^
+
+warning: function `prepare` is never used
+ --> src\protocol\freebuff\catalog\root_builder\history.rs:9:47
+  |
+9 | pub(in crate::protocol::freebuff::catalog) fn prepare(
+  |                                               ^^^^^^^
+
+warning: function `check_size` is never used
+  --> src\protocol\freebuff\catalog\root_builder\history.rs:72:47
+   |
+72 | pub(in crate::protocol::freebuff::catalog) fn check_size(
+   |                                               ^^^^^^^^^^
+
+warning: function `validate` is never used
+  --> src\protocol\freebuff\catalog\root_builder\history.rs:83:4
+   |
+83 | fn validate(message: &Value) -> Result<(), BusinessError> {
+   |    ^^^^^^^^
+
+warning: function `has_payload` is never used
+   --> src\protocol\freebuff\catalog\root_builder\history.rs:129:4
+    |
+129 | fn has_payload(message: &Value) -> bool {
+    |    ^^^^^^^^^^^
+
+warning: struct `Counter` is never constructed
+   --> src\protocol\freebuff\catalog\root_builder\history.rs:146:8
+    |
+146 | struct Counter {
+    |        ^^^^^^^
+
+warning: function `push` is never used
+ --> src\protocol\freebuff\catalog\root_builder\merge.rs:5:15
+  |
+5 | pub(super) fn push(messages: &mut Vec<Value>, message: Value) -> Result<(), BusinessError> {
+  |               ^^^^
+
+warning: function `empty` is never used
+  --> src\protocol\freebuff\catalog\root_builder\merge.rs:29:4
+   |
+29 | fn empty(value: &Value) -> bool {
+   |    ^^^^^
+
+warning: function `append` is never used
+  --> src\protocol\freebuff\catalog\root_builder\merge.rs:37:4
+   |
+37 | fn append(
+   |    ^^^^^^
+
+warning: function `system` is never used
+ --> src\protocol\freebuff\catalog\root_builder\prompt.rs:6:15
+  |
+6 | pub(super) fn system(model: &RootModelInput<'_>, host: &RootHostContext<'_>) -> String {
+  |               ^^^^^^
+
+warning: function `render` is never used
+  --> src\protocol\freebuff\catalog\root_builder\prompt.rs:39:15
+   |
+39 | pub(super) fn render(mut template: &str, values: &[(&str, &str)]) -> String {
+   |               ^^^^^^
+
+warning: constant `CORE` is never used
+  --> src\protocol\freebuff\catalog\root_builder\prompt.rs:59:7
+   |
+59 | const CORE: &str = r###"You are Buffy, the coding agent behind Codebuff. You help users with software engineering tasks: fixing bugs...
+   |       ^^^^
+
+warning: constant `TURN_ENDING_NOTE` is never used
+ --> src\protocol\freebuff\catalog\root_builder\reminders.rs:4:18
+  |
+4 | pub(super) const TURN_ENDING_NOTE: &str = r###"<system>Do not reply with a status line or an announcement of your next step. If the m...
+  |                  ^^^^^^^^^^^^^^^^
+
+warning: constant `STEP` is never used
+ --> src\protocol\freebuff\catalog\root_builder\reminders.rs:5:18
+  |
+5 | pub(super) const STEP: &str = r###"<system_reminder>Work in batches: put every tool call you can already make into this response (all...
+  |                  ^^^^
+
+warning: field `fixed_tokens` is never read
+  --> src\protocol\freebuff\catalog\root_context.rs:19:16
+   |
+16 | pub(super) struct RootPreview {
+   |                   ----------- field in this struct
+...
+19 |     pub(super) fixed_tokens: u64,
+   |                ^^^^^^^^^^^^
+   |
+   = note: `RootPreview` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: method `forecast` is never used
+  --> src\protocol\freebuff\catalog\root_context.rs:42:19
+   |
+34 | impl ContextState {
+   | ----------------- method in this implementation
+...
+42 |     pub(super) fn forecast(&self) -> Option<ContextForecast> {
+   |                   ^^^^^^^^
+
+warning: struct `RootHistory` is never constructed
+ --> src\protocol\freebuff\catalog\root_history.rs:5:19
+  |
+5 | pub(crate) struct RootHistory {
+  |                   ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+  --> src\protocol\freebuff\catalog\root_history.rs:12:19
+   |
+10 | impl RootHistory {
+   | ---------------- associated items in this implementation
+11 |     /// The supplied prefix is completed historical work. A new live request must use begin_turn.
+12 |     pub(crate) fn new(messages: Vec<Value>, limit: usize) -> Result<Self, BusinessError> {
+   |                   ^^^
+...
+25 |     pub(crate) fn messages(&self) -> &[Value] {
+   |                   ^^^^^^^^
+...
+28 |     pub(crate) fn begin_turn(&mut self, user: Value) -> Result<(), BusinessError> {
+   |                   ^^^^^^^^^^
+...
+35 |     pub(crate) fn steer(&mut self, user: Value) -> Result<(), BusinessError> {
+   |                   ^^^^^
+...
+42 |     pub(crate) fn append_tools(&mut self, tools: Vec<Value>) -> Result<(), BusinessError> {
+   |                   ^^^^^^^^^^^^
+...
+53 |     fn extend(&mut self, values: Vec<Value>) -> Result<(), BusinessError> {
+   |        ^^^^^^
+...
+65 |     pub(super) fn is_live_turn(&self) -> bool {
+   |                   ^^^^^^^^^^^^
+...
+68 |     pub(super) fn fresh_users(&self) -> impl Iterator<Item = &Value> + Clone {
+   |                   ^^^^^^^^^^^
+...
+74 |     pub(super) fn compacted(&self, memory: Value) -> Result<Self, BusinessError> {
+   |                   ^^^^^^^^^
+...
+87 |     pub(super) fn record_completion(&mut self, body: &Value) -> Result<(), BusinessError> {
+   |                   ^^^^^^^^^^^^^^^^^
+
+warning: function `due` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:10:15
+   |
+10 | pub(super) fn due(preview: RootPreview, history: &RootHistory) -> Result<bool, BusinessError> {
+   |               ^^^
+
+warning: function `request` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:30:15
+   |
+30 | pub(super) fn request(mut body: Value, limit: u64) -> Value {
+   |               ^^^^^^^
+
+warning: function `from_completion` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:41:15
+   |
+41 | pub(super) fn from_completion(body: &Value) -> Result<String, BusinessError> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `extract` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:70:4
+   |
+70 | fn extract(reply: &str) -> String {
+   |    ^^^^^^^
+
+warning: function `memory` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:95:15
+   |
+95 | pub(super) fn memory(text: &str) -> Value {
+   |               ^^^^^^
+
+warning: function `instruction` is never used
+ --> src\protocol\freebuff\catalog\root_summary\prompt.rs:2:15
+  |
+2 | pub(super) fn instruction(target_tokens: u64) -> String {
+  |               ^^^^^^^^^^^
+
+warning: fields `model_label`, `compiled_model_id`, `turn_ending_note`, and `batching` are never read
+  --> src\protocol\freebuff\catalog\root_model.rs:7:16
+   |
+ 5 | pub(crate) struct RootModelInput<'a> {
+   |                   -------------- fields in this struct
+ 6 |     pub(crate) model: &'a str,
+ 7 |     pub(crate) model_label: &'a str,
+   |                ^^^^^^^^^^^
+ 8 |     pub(crate) compaction: Option<&'a RootCompactionPolicy>,
+ 9 |     pub(crate) compiled_model_id: Option<&'static str>,
+   |                ^^^^^^^^^^^^^^^^^
+10 |     pub(crate) turn_ending_note: bool,
+   |                ^^^^^^^^^^^^^^^^
+11 |     pub(crate) batching: bool,
+   |                ^^^^^^^^
+
+warning: constant `CATALOG_PATH` is never used
+ --> src\protocol\freebuff\catalog\transport.rs:4:18
+  |
+4 | pub(super) const CATALOG_PATH: &str = "/api/v1/freebuff/models";
+  |                  ^^^^^^^^^^^^
+
+warning: constant `DEVICE_PATH` is never used
+ --> src\protocol\freebuff\catalog\transport.rs:5:7
+  |
+5 | const DEVICE_PATH: &str = "/api/v1/freebuff/device-keys";
+  |       ^^^^^^^^^^^
+
+warning: field `0` is never read
+ --> src\protocol\freebuff\catalog\transport.rs:8:36
+  |
+8 | pub(super) struct CatalogTransport(pub(super) rquest::Client);
+  |                   ---------------- ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |                   |
+  |                   field in this struct
+  |
+  = help: consider removing this field
+
+warning: field `device` is never read
+  --> src\protocol\freebuff\catalog\transport.rs:22:9
+   |
+21 |     Catalog {
+   |     ------- field in this variant
+22 |         device: Option<&'a DeviceRegistration>,
+   |         ^^^^^^
+
+warning: field `public_key` is never read
+  --> src\protocol\freebuff\catalog\transport.rs:25:9
+   |
+24 |     Register {
+   |     -------- field in this variant
+25 |         public_key: String,
+   |         ^^^^^^^^^^
+
+warning: field `0` is never read
+ --> src\protocol\freebuff_login\transport.rs:5:27
+  |
+5 | pub struct LoginTransport(rquest::Client);
+  |            -------------- ^^^^^^^^^^^^^^
+  |            |
+  |            field in this struct
+  |
+  = help: consider removing this field
+
+warning: field `fingerprint` is never read
+  --> src\protocol\freebuff_login\transport.rs:22:9
+   |
+21 |     Code {
+   |     ---- field in this variant
+22 |         fingerprint: &'a str,
+   |         ^^^^^^^^^^^
+
+warning: fields `fingerprint`, `hash`, and `expiry` are never read
+  --> src\protocol\freebuff_login\transport.rs:25:9
+   |
+24 |     Status {
+   |     ------ fields in this variant
+25 |         fingerprint: &'a str,
+   |         ^^^^^^^^^^^
+26 |         hash: &'a str,
+   |         ^^^^
+27 |         expiry: &'a str,
+   |         ^^^^^^
+
+warning: constant `PAGE_SIZE` is never used
+ --> src\protocol\luma_agents\files.rs:8:11
+  |
+8 | pub const PAGE_SIZE: usize = 25;
+  |           ^^^^^^^^^
+
+warning: method `as_str` is never used
+  --> src\protocol\luma_agents\files.rs:41:12
+   |
+40 | impl Purpose {
+   | ------------ method in this implementation
+41 |     pub fn as_str(self) -> &'static str {
+   |            ^^^^^^
+
+warning: fields `metadata` and `bytes` are never read
+  --> src\protocol\luma_agents\files.rs:51:9
+   |
+50 |     Presigned {
+   |     --------- fields in this variant
+51 |         metadata: super::file_upload::Upload,
+   |         ^^^^^^^^
+52 |         bytes: bytes::Bytes,
+   |         ^^^^^
+
+warning: field `0` is never read
+  --> src\protocol\luma_agents\files.rs:54:10
+   |
+54 |     List(Option<String>),
+   |     ---- ^^^^^^^^^^^^^^
+   |     |
+   |     field in this variant
+   |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+54 -     List(Option<String>),
+54 +     List(()),
+   |
+
+warning: field `0` is never read
+  --> src\protocol\luma_agents\files.rs:55:9
+   |
+55 |     Get(String),
+   |     --- ^^^^^^
+   |     |
+   |     field in this variant
+   |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+55 -     Get(String),
+55 +     Get(()),
+   |
+
+warning: field `0` is never read
+  --> src\protocol\luma_agents\files.rs:56:12
+   |
+56 |     Delete(String),
+   |     ------ ^^^^^^
+   |     |
+   |     field in this variant
+   |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+56 -     Delete(String),
+56 +     Delete(()),
+   |
+
+warning: fields `filename`, `purpose`, and `bytes` are never read
+  --> src\protocol\luma_agents\files.rs:58:9
+   |
+57 |     Upload {
+   |     ------ fields in this variant
+58 |         filename: String,
+   |         ^^^^^^^^
+59 |         purpose: Purpose,
+   |         ^^^^^^^
+60 |         bytes: Vec<u8>,
+   |         ^^^^^
+
+warning: fields `body`, `media`, `model`, `kind`, and `base64` are never read
+  --> src\protocol\luma_agents\request.rs:15:9
+   |
+14 | pub(crate) struct GenerationRequest {
+   |                   ----------------- fields in this struct
+15 |     pub body: Value,
+   |         ^^^^
+16 |     pub media: Media,
+   |         ^^^^^
+17 |     pub model: String,
+   |         ^^^^^
+18 |     pub kind: &'static str,
+   |         ^^^^
+19 |     pub base64: bool,
+   |         ^^^^^^
+
+warning: constant `BODY_LIMIT` is never used
+  --> src\protocol\perplexity_web\decode.rs:10:18
+   |
+10 | pub(crate) const BODY_LIMIT: usize = 4 * 1024 * 1024;
+   |                  ^^^^^^^^^^
+
+warning: constant `FRAME_LIMIT` is never used
+  --> src\protocol\perplexity_web\decode.rs:11:7
+   |
+11 | const FRAME_LIMIT: usize = 512 * 1024;
+   |       ^^^^^^^^^^^
+
+warning: constant `EVENT_LIMIT` is never used
+  --> src\protocol\perplexity_web\decode.rs:12:7
+   |
+12 | const EVENT_LIMIT: usize = 4096;
+   |       ^^^^^^^^^^^
+
+warning: enum `Update` is never used
+  --> src\protocol\perplexity_web\decode.rs:15:17
+   |
+15 | pub(crate) enum Update {
+   |                 ^^^^^^
+
+warning: struct `Decoder` is never constructed
+  --> src\protocol\perplexity_web\decode.rs:20:19
+   |
+20 | pub(crate) struct Decoder {
+   |                   ^^^^^^^
+
+warning: associated items `new`, `push_chunk`, `next_event`, and `finish` are never used
+   --> src\protocol\perplexity_web\decode.rs:32:19
+    |
+ 31 | impl Decoder {
+    | ------------ associated items in this implementation
+ 32 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+ 56 |     pub(crate) fn push_chunk(&mut self, bytes: Bytes) -> Result<(), GatewayError> {
+    |                   ^^^^^^^^^^
+...
+ 78 |     pub(crate) fn next_event(&mut self) -> Result<Option<Update>, GatewayError> {
+    |                   ^^^^^^^^^^
+...
+167 |     pub(crate) fn finish(&self) -> Result<(), GatewayError> {
+    |                   ^^^^^^
+
+warning: function `incomplete` is never used
+   --> src\protocol\perplexity_web\decode.rs:181:4
+    |
+181 | fn incomplete() -> GatewayError {
+    |    ^^^^^^^^^^
+
+warning: constant `LIMIT` is never used
+ --> src\protocol\perplexity_web\schematized.rs:7:7
+  |
+7 | const LIMIT: usize = 256 * 1024;
+  |       ^^^^^
+
+warning: constant `CHUNKS` is never used
+ --> src\protocol\perplexity_web\schematized.rs:8:7
+  |
+8 | const CHUNKS: usize = 4096;
+  |       ^^^^^^
+
+warning: constant `USAGE` is never used
+ --> src\protocol\perplexity_web\schematized.rs:9:7
+  |
+9 | const USAGE: &str = "ask_text_0_markdown";
+  |       ^^^^^
+
+warning: struct `State` is never constructed
+  --> src\protocol\perplexity_web\schematized.rs:12:19
+   |
+12 | pub(super) struct State {
+   |                   ^^^^^
+
+warning: function `invalid` is never used
+  --> src\protocol\perplexity_web\schematized.rs:18:15
+   |
+18 | pub(super) fn invalid() -> GatewayError {
+   |               ^^^^^^^
+
+warning: associated items `active`, `recognizes`, `extract`, `replace`, and `apply` are never used
+   --> src\protocol\perplexity_web\schematized.rs:26:19
+    |
+ 25 | impl State {
+    | ---------- associated items in this implementation
+ 26 |     pub(super) fn active(&self) -> bool {
+    |                   ^^^^^^
+...
+ 30 |     pub(super) fn recognizes(raw: &Value) -> bool {
+    |                   ^^^^^^^^^^
+...
+ 44 |     pub(super) fn extract(&mut self, raw: &Value) -> Result<(Option<Answer>, bool), GatewayError> {
+    |                   ^^^^^^^
+...
+139 |     fn replace(&mut self, value: &Value) -> Result<(), GatewayError> {
+    |        ^^^^^^^
+...
+164 |     fn apply(&mut self, patch: &Value) -> Result<(), GatewayError> {
+    |        ^^^^^
+
+warning: constant `BLOCK_LIMIT` is never used
+ --> src\protocol\perplexity_web\snapshot.rs:8:7
+  |
+8 | const BLOCK_LIMIT: usize = 128;
+  |       ^^^^^^^^^^^
+
+warning: function `extract` is never used
+  --> src\protocol\perplexity_web\snapshot.rs:17:15
+   |
+17 | pub(super) fn extract(raw: &Value) -> Result<Option<Answer>, GatewayError> {
+   |               ^^^^^^^
+
+warning: function `legacy_final` is never used
+  --> src\protocol\perplexity_web\snapshot.rs:99:4
+   |
+99 | fn legacy_final(value: &Value) -> Result<Option<String>, GatewayError> {
+   |    ^^^^^^^^^^^^
+
+warning: struct `State` is never constructed
+ --> src\protocol\perplexity_web\workflow.rs:7:19
+  |
+7 | pub(super) struct State {
+  |                   ^^^^^
+
+warning: function `invalid` is never used
+  --> src\protocol\perplexity_web\workflow.rs:11:15
+   |
+11 | pub(super) fn invalid() -> GatewayError {
+   |               ^^^^^^^
+
+warning: function `present` is never used
+  --> src\protocol\perplexity_web\workflow.rs:18:4
+   |
+18 | fn present(value: &Value, key: &str) -> bool {
+   |    ^^^^^^^
+
+warning: associated items `active`, `recognizes`, and `extract` are never used
+  --> src\protocol\perplexity_web\workflow.rs:23:19
+   |
+22 | impl State {
+   | ---------- associated items in this implementation
+23 |     pub(super) fn active(&self) -> bool {
+   |                   ^^^^^^
+...
+27 |     pub(super) fn recognizes(raw: &Value) -> bool {
+   |                   ^^^^^^^^^^
+...
+37 |     pub(super) fn extract(&mut self, raw: &Value) -> Result<Option<Answer>, GatewayError> {
+   |                   ^^^^^^^
+
+warning: function `validate_pending` is never used
+  --> src\protocol\perplexity_web\workflow.rs:91:4
+   |
+91 | fn validate_pending(block: &Value) -> Result<(), GatewayError> {
+   |    ^^^^^^^^^^^^^^^^
+
+warning: function `materialized` is never used
+   --> src\protocol\perplexity_web\workflow.rs:124:4
+    |
+124 | fn materialized(workflow: &Value) -> Result<Answer, GatewayError> {
+    |    ^^^^^^^^^^^^
+
+warning: fields `client`, `refresh_token`, and `refresh_expires_at` are never read
+  --> src\protocol\vertex_oauth.rs:81:5
+   |
+80 | pub struct RefreshGrant {
+   |            ------------ fields in this struct
+81 |     client: OAuthClient,
+   |     ^^^^^^
+82 |     refresh_token: String,
+   |     ^^^^^^^^^^^^^
+83 |     refresh_expires_at: Option<time::OffsetDateTime>,
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: fields `client`, `redirect`, `verifier`, `code`, and `deadline` are never read
+  --> src\protocol\vertex_oauth\authorization.rs:20:16
+   |
+19 | pub struct CodeGrant {
+   |            --------- fields in this struct
+20 |     pub(super) client: OAuthClient,
+   |                ^^^^^^
+21 |     pub(super) redirect: String,
+   |                ^^^^^^^^
+22 |     pub(super) verifier: String,
+   |                ^^^^^^^^
+23 |     pub(super) code: String,
+   |                ^^^^
+24 |     pub(super) deadline: Instant,
+   |                ^^^^^^^^
+
+warning: method `remaining` is never used
+   --> src\protocol\vertex_oauth\authorization.rs:120:19
+    |
+119 | impl CodeGrant {
+    | -------------- method in this implementation
+120 |     pub(super) fn remaining(&self) -> Duration {
+    |                   ^^^^^^^^^
+
+warning: struct `Reply` is never constructed
+  --> src\protocol\vertex_oauth\material.rs:16:8
+   |
+16 | struct Reply {
+   |        ^^^^^
+
+warning: function `present` is never used
+  --> src\protocol\vertex_oauth\material.rs:30:4
+   |
+30 | fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(d: D) -> Result<Option<T>, D::Error> {
+   |    ^^^^^^^
+
+warning: associated function `parse` is never used
+  --> src\protocol\vertex_oauth\material.rs:34:19
+   |
+33 | impl TokenMaterial {
+   | ------------------ associated function in this implementation
+34 |     pub(super) fn parse(
+   |                   ^^^^^
+
+warning: function `expiry` is never used
+  --> src\protocol\vertex_oauth\material.rs:95:4
+   |
+95 | fn expiry(started: OffsetDateTime, seconds: u64) -> Result<OffsetDateTime, OAuthError> {
+   |    ^^^^^^
+
+warning: field `guard` is never read
+  --> src\routing\config\refresh_exchange.rs:20:9
+   |
+ 5 | pub(crate) struct RefreshAttempt {
+   |                   -------------- field in this struct
+...
+20 |     pub guard: tokio::sync::OwnedMutexGuard<()>,
+   |         ^^^^^
+
+warning: methods `apply` and `apply_with_dim` are never used
+   --> src\routing\config\refresh_exchange.rs:157:12
+    |
+128 | impl RefreshAttempt {
+    | ------------------- methods in this implementation
+...
+157 |     pub fn apply(
+    |            ^^^^^
+...
+171 |     pub fn apply_with_dim(
+    |            ^^^^^^^^^^^^^^
+
+warning: method `runtime_override` is never used
+   --> src\routing\config\refresh_state.rs:201:19
+    |
+ 60 | impl TokenRefreshState {
+    | ---------------------- method in this implementation
+...
+201 |     pub(crate) fn runtime_override(&self) -> (Option<String>, Option<String>) {
+    |                   ^^^^^^^^^^^^^^^^
+
+warning: method `execute_aistudio_browser_text_request` is never used
+  --> src\upstream\aistudio\web_reverse\browser_execution.rs:24:25
+   |
+23 | impl UpstreamClient {
+   | ------------------- method in this implementation
+24 |     pub(crate) async fn execute_aistudio_browser_text_request(
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `execute_aistudio_program_owned_text_request` and `execute_aistudio_program_owned_target_rpc` are never used
+   --> src\upstream\aistudio\web_reverse\execution\program_replay.rs:22:25
+    |
+ 21 | impl UpstreamClient {
+    | ------------------- methods in this implementation
+ 22 |     pub(super) async fn execute_aistudio_program_owned_text_request(
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+143 |     async fn execute_aistudio_program_owned_target_rpc(
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `replace_url_path` is never used
+   --> src\upstream\aistudio\web_reverse\execution\program_replay.rs:174:4
+    |
+174 | fn replace_url_path(url: &str, path: &str) -> String {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `read_json_bool` is never used
+  --> src\upstream\browser_executor_request_helpers.rs:20:15
+   |
+20 | pub(crate) fn read_json_bool(value: &Value, key: &str) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^
+
+warning: function `udio_browser_request_timeout` is never used
+  --> src\upstream\browser_worker_runtime_helpers.rs:43:15
+   |
+43 | pub(crate) fn udio_browser_request_timeout(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `LumalabsBrowserWorkerInput` is never constructed
+ --> src\upstream\browser_worker_types\media_workers.rs:8:19
+  |
+8 | pub(crate) struct LumalabsBrowserWorkerInput<'a> {
+  |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `LumalabsBrowserWorkerResult` is never constructed
+  --> src\upstream\browser_worker_types\media_workers.rs:34:19
+   |
+34 | pub(crate) struct LumalabsBrowserWorkerResult {
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `LumalabsBrowserWorkerError` is never constructed
+  --> src\upstream\browser_worker_types\media_workers.rs:42:19
+   |
+42 | pub(crate) struct LumalabsBrowserWorkerError {
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `UdioBrowserWorkerInput` is never constructed
+  --> src\upstream\browser_worker_types\media_workers.rs:96:19
+   |
+96 | pub(crate) struct UdioBrowserWorkerInput<'a> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `UdioBrowserWorkerResult` is never constructed
+   --> src\upstream\browser_worker_types\media_workers.rs:134:19
+    |
+134 | pub(crate) struct UdioBrowserWorkerResult {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `UdioBrowserWorkerSuccess` is never constructed
+   --> src\upstream\browser_worker_types\media_workers.rs:142:19
+    |
+142 | pub(crate) struct UdioBrowserWorkerSuccess {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `UdioBrowserWorkerError` is never constructed
+   --> src\upstream\browser_worker_types\media_workers.rs:152:19
+    |
+152 | pub(crate) struct UdioBrowserWorkerError {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `SunoBrowserWorkerInput` is never constructed
+   --> src\upstream\browser_worker_types\media_workers.rs:160:19
+    |
+160 | pub(crate) struct SunoBrowserWorkerInput<'a> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `SunoBrowserWorkerResult` is never constructed
+   --> src\upstream\browser_worker_types\media_workers.rs:203:19
+    |
+203 | pub(crate) struct SunoBrowserWorkerResult {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `SunoBrowserWorkerSuccess` is never constructed
+   --> src\upstream\browser_worker_types\media_workers.rs:211:19
+    |
+211 | pub(crate) struct SunoBrowserWorkerSuccess {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `SunoBrowserWorkerError` is never constructed
+   --> src\upstream\browser_worker_types\media_workers.rs:221:19
+    |
+221 | pub(crate) struct SunoBrowserWorkerError {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `text_preflight_source_path` is never read
+  --> src\upstream\client\canvas_stream_generate.rs:67:5
+   |
+61 | struct StreamGenerateRequestContext {
+   |        ---------------------------- field in this struct
+...
+67 |     text_preflight_source_path: String,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `commit` is never used
+  --> src\upstream\gemini\web_reverse\http_session.rs:43:25
+   |
+21 | impl HttpSession {
+   | ---------------- method in this implementation
+...
+43 |     pub(super) async fn commit(&mut self) {
+   |                         ^^^^^^
+
+warning: method `snapshot` is never used
+  --> src\upstream\gemini\web_reverse\session_cookies\snapshot.rs:28:53
+   |
+27 | impl SessionCookies {
+   | ------------------- method in this implementation
+28 |     pub(in crate::upstream::gemini::web_reverse) fn snapshot(&self) -> CookieSnapshot {
+   |                                                     ^^^^^^^^
+
+warning: function `gemini_canvas_music_response_requires_browser_followup` is never used
+  --> src\upstream\gemini_canvas_music_helpers.rs:88:15
+   |
+88 | pub(crate) fn gemini_canvas_music_response_requires_browser_followup(response: &Value) -> bool {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `gemini_canvas_program_music_browser_fallback_forbidden_error` is never used
+   --> src\upstream\gemini_canvas_music_helpers.rs:198:15
+    |
+198 | pub(crate) fn gemini_canvas_program_music_browser_fallback_forbidden_error(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `unsupported_plan` is never used
+  --> src\upstream\grok_web\mod.rs:33:15
+   |
+33 | pub(crate) fn unsupported_plan() -> GatewayError {
+   |               ^^^^^^^^^^^^^^^^
+
+warning: constant `IMPLEMENTATION_LINE` is never used
+ --> src\upstream\lumalabs_disabled.rs:8:18
+  |
+8 | pub(crate) const IMPLEMENTATION_LINE: &str = "lumalabs_web_reverse_api";
+  |                  ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PROVIDER_ADAPTER` is never used
+ --> src\upstream\lumalabs_disabled.rs:9:18
+  |
+9 | pub(crate) const PROVIDER_ADAPTER: &str = "lumalabs_compatible";
+  |                  ^^^^^^^^^^^^^^^^
+
+warning: fields `cookie` and `user_agent` are never read
+  --> src\upstream\perplexity_web\session.rs:10:5
+   |
+ 9 | pub struct Session {
+   |            ------- fields in this struct
+10 |     cookie: HeaderValue,
+   |     ^^^^^^
+11 |     user_agent: HeaderValue,
+   |     ^^^^^^^^^^
+
+warning: method `headers` is never used
+  --> src\upstream\perplexity_web\session.rs:60:19
+   |
+14 | impl Session {
+   | ------------ method in this implementation
+...
+60 |     pub(super) fn headers(&self) -> HeaderMap {
+   |                   ^^^^^^^
+
+warning: function `accumulate` is never used
+  --> src\upstream\vertex_express\response.rs:11:21
+   |
+11 | pub(crate) async fn accumulate(
+   |                     ^^^^^^^^^^
+
+warning: function `accumulate` is never used
+ --> src\upstream\vertex_oauth\response.rs:9:21
+  |
+9 | pub(crate) async fn accumulate(
+  |                     ^^^^^^^^^^
+
+warning: function `project` is never used
+  --> src\upstream\vertex_oauth\response.rs:15:4
+   |
+15 | fn project(
+   |    ^^^^^^^
+
+warning: function `target_urls` is never used
+ --> src\upstream\search_fetch_request.rs:9:15
+  |
+9 | pub(crate) fn target_urls(req: &CanonicalRelayRequest) -> Result<Vec<&str>, GatewayError> {
+  |               ^^^^^^^^^^^
+
+warning: function `pack` is never used
+  --> src\upstream\search_fetch_request.rs:45:15
+   |
+45 | pub(crate) fn pack(
+   |               ^^^^
+
+warning: function `require_search_api_path` is never used
+ --> src\upstream\search_provider_helpers_disabled.rs:6:15
+  |
+6 | pub(crate) fn require_search_api_path<'a>(
+  |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `search_endpoint_label` is never used
+  --> src\upstream\search_provider_helpers_disabled.rs:17:15
+   |
+17 | pub(crate) fn search_endpoint_label(endpoint_kind: EndpointKind) -> &'static str {
+   |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `IMPLEMENTATION_LINE` is never used
+ --> src\upstream\suno_disabled.rs:8:18
+  |
+8 | pub(crate) const IMPLEMENTATION_LINE: &str = "suno_web_reverse_api";
+  |                  ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PROVIDER_ADAPTER` is never used
+ --> src\upstream\suno_disabled.rs:9:18
+  |
+9 | pub(crate) const PROVIDER_ADAPTER: &str = "suno_compatible";
+  |                  ^^^^^^^^^^^^^^^^
+
+warning: constant `IMPLEMENTATION_LINE` is never used
+ --> src\upstream\udio_disabled.rs:8:18
+  |
+8 | pub(crate) const IMPLEMENTATION_LINE: &str = "udio_web_reverse_api";
+  |                  ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PROVIDER_ADAPTER` is never used
+ --> src\upstream\udio_disabled.rs:9:18
+  |
+9 | pub(crate) const PROVIDER_ADAPTER: &str = "udio_compatible";
+  |                  ^^^^^^^^^^^^^^^^
+
+warning: `gateway` (lib) generated 198 warnings (run `cargo fix --lib -p gateway` to apply 35 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 29s

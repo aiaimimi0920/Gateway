@@ -18,6 +18,7 @@ impl UpstreamClient {
     pub(crate) async fn execute_lumalabs_browser_executor_service_invocation(
         &self,
         _input: &Value,
+        _retain_session: bool,
     ) -> Result<Value, GatewayError> {
         Err(compiled_out_error())
     }

@@ -1,0 +1,30 @@
+
+> gateway-ui@0.1.0 test
+> vitest run src/features/console/LumaMcpCreationRecovery.test.tsx src/features/console/LumaMcpCreationPanel.test.tsx src/features/console/LumaMcpCreationReuse.test.tsx --maxWorkers=1
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+ ❯ src/features/console/LumaMcpCreationRecovery.test.tsx (4 tests | 1 failed) 960ms
+   × rejects stale envelope revisions and foreign task bindings while retaining the requested ID 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/console/LumaMcpCreationRecovery.test.tsx > rejects stale envelope revisions and foreign task bindings while retaining the requested ID
+ReferenceError: value is not defined
+ ❯ src/features/console/LumaMcpCreationRecovery.test.tsx:53:8
+     51|
+     52| it("rejects stale envelope revisions and foreign task bindings while r…
+     53|   for (value of [response, { ...response, revision: "current", task: {…
+       |        ^
+     54|     { ...response, revision: "current", task: { ...task, id: "differen…
+     55|     const f = fixture(); f.request.mockResolvedValue(value);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 13 passed (14)
+   Start at  19:01:33
+   Duration  19.56s (transform 562ms, setup 1.88s, import 3.26s, tests 4.38s, environment 8.26s)
+

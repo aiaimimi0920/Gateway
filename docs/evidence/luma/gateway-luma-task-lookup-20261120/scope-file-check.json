@@ -1,0 +1,107 @@
+[
+  {
+    "path": "src/upstream/luma_agents.rs",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "src/http/routes/internal_console.rs",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "src/upstream/luma_agents/generation.rs",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/ConsoleGlobalDialogs.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/OperationsRequestTable.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "tools/luma/fetch-contracts.py",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "src/http/router/management_config.rs",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_tasks.rs",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "src/upstream/luma_agents/task_lookup.rs",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "src/upstream/luma_agents/task_lookup_tests.rs",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/api/console/luma-task.ts",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaTaskPanel.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaTaskFacts.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaAccountTools.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/OperationsLumaTask.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaTaskPanel.test.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/OperationsLumaTask.test.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/src/features/console/ConsoleGlobalDialogs.luma-agents.test.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/e2e/fixtures/luma-task-preview.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "apps/desktop/e2e/fixtures/luma-media-preview.tsx",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  },
+  {
+    "path": "tools/luma/task-preview-check.mjs",
+    "utf8NoBom": true,
+    "whitespaceErrors": false
+  }
+]

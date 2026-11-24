@@ -369,6 +369,13 @@ fn draft_path_for_active_secret(
         {
             return Ok(SecretDisposition::Deleted);
         }
+        if segments.get(4).map(String::as_str) == Some("quick_oauth")
+            && draft.providers[draft_provider_index].credentials[draft_credential_index]
+                .quick_oauth
+                .is_none()
+        {
+            return Ok(SecretDisposition::Deleted);
+        }
         if segments.get(4).map(String::as_str) == Some("vertex_oauth")
             && draft.providers[draft_provider_index].credentials[draft_credential_index]
                 .vertex_oauth

@@ -21,6 +21,10 @@ export type AccountDiscovery = z.infer<typeof accountDiscoverySchema>;
 export type DiscoveryInput = { baseUrl?: string; apiKey?: string; credentialId?: string; models?: string[] };
 export type DiscoverAccount = (input: DiscoveryInput, signal?: AbortSignal) => Promise<AccountDiscovery>;
 export const discoveryResponseSchema = z.object({ discovery: accountDiscoverySchema, revision: z.string() });
+// Custom directories carry model IDs only, never official-provider or generation evidence.
+export const accountModelsSchema = z.object({ models: modelSelectionSchema.shape.fetched.min(1) });
+export const accountModelsResponseSchema = z.object({ catalog: accountModelsSchema, revision: z.string() });
+export type DiscoverAccountModels = (input: Omit<DiscoveryInput, "models">, signal?: AbortSignal) => Promise<z.infer<typeof accountModelsSchema>>;
 
 export function supportsAccountDiscovery(provider: Record<string, unknown>): boolean {
   if (provider.preset === "openai" && (provider.adapter == null || provider.adapter === "openai_compatible")) {

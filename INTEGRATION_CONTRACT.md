@@ -71,6 +71,59 @@ The public serving API is mounted by `src/http/router.rs`. It includes:
 Consumers should treat `src/http/router.rs` as the source of truth for concrete
 route paths and methods.
 
+### Model capabilities in `GET /v1/models`
+
+The OpenAI-compatible `object: "list"` response adds optional capability metadata
+only to already-visible entries whose public IDs match exactly. Aliases and
+unlisted IDs do not inherit metadata; absence means the catalog makes no claim.
+
+[`gpt-6.2-sol`][GPT-6.2 Sol] and [`gpt-6.2-astra`][GPT-6.2 Astra] also return
+`input_modalities: ["text", "image"]`. This declares accepted input types,
+not image output support or a guarantee that every fallback route accepts images.
+
+GPT entries use `default_reasoning_level` and `supported_reasoning_levels` (an
+ordered list of `{effort, description}` objects). The selected value goes in
+`reasoning.effort` for OpenAI Responses requests.
+
+| Exact model IDs | Catalog default | Supported levels |
+| --- | --- | --- |
+| `gpt-6.2-sol`, `gpt-6.2-astra`, [`gpt-6.1-sol`][GPT-6.1 Sol] | `medium` | `low`, `medium`, `high`, `xhigh`, `max` |
+| [`gpt-5.5`][GPT-5.5] | `medium` | `none`, `low`, `medium`, `high`, `xhigh` |
+| [`gpt-5.4`][GPT-5.4], [`gpt-5.4-mini`][GPT-5.4 mini] | `none` | `none`, `low`, `medium`, `high`, `xhigh` |
+
+The catalog default is for client selection only. `none` is a string value,
+not `null`. Gateway does not insert the default into generation requests.
+
+Claude and Gemini entries instead use `native_reasoning`, an object with
+`protocol`, `parameter` (the dotted path within the native request body), and
+`supported_levels` (an ordered list of native string values). It declares no
+client default and does not imply translation to OpenAI `reasoning.effort`.
+
+| Exact model IDs | Protocol | Parameter | Supported levels |
+| --- | --- | --- | --- |
+| `claude-sonnet-4-6` | `anthropic_messages` | `output_config.effort` | `low`, `medium`, `high`, `max` |
+| `claude-opus-4-7`, `claude-opus-4-8` | `anthropic_messages` | `output_config.effort` | `low`, `medium`, `high`, `xhigh`, `max` |
+| `gemini-3.1-pro-preview` | `gemini_generate_content` | `generationConfig.thinkingConfig.thinkingLevel` | `LOW`, `MEDIUM`, `HIGH` |
+| `gemini-3-flash-preview` | `gemini_generate_content` | `generationConfig.thinkingConfig.thinkingLevel` | `MINIMAL`, `LOW`, `MEDIUM`, `HIGH` |
+
+See [Claude effort], [Gemini thinking], and the [Gemini REST reference]. These
+are model-level declarations, not a guarantee for each routed account,
+compatibility adapter, or fallback. The metadata does not change request routing
+or forwarding.
+
+Run the HTTP contract from the repository root (no live upstream required):
+`cargo test --locked --no-default-features --features runtime-defaults --test model_catalog_reasoning_contract`.
+
+[GPT-6.2 Sol]: https://developers.openai.com/api/docs/models/gpt-6.2-sol
+[GPT-6.2 Astra]: https://developers.openai.com/api/docs/models/gpt-6.2-astra
+[GPT-6.1 Sol]: https://developers.openai.com/api/docs/models/gpt-6.1-sol
+[GPT-5.5]: https://developers.openai.com/api/docs/models/gpt-5.5
+[GPT-5.4]: https://developers.openai.com/api/docs/models/gpt-5.4
+[GPT-5.4 mini]: https://developers.openai.com/api/docs/models/gpt-5.4-mini
+[Claude effort]: https://platform.claude.com/docs/en/build-with-claude/effort
+[Gemini thinking]: https://ai.google.dev/gemini-api/docs/thinking
+[Gemini REST reference]: https://ai.google.dev/api/generate-content
+
 ## Internal management endpoints
 
 Gateway exposes internal management APIs under `/v1/internal/gateway/**`.

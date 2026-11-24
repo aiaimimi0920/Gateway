@@ -60,9 +60,17 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         method: method.to_string(),
     };
 
+    run_request(ctx, state, &auth_req).await
+}
+
+pub(super) async fn run_request(
+    ctx: &mut PipelineContext,
+    state: &Arc<AppState>,
+    auth_req: &AuthRequest,
+) -> Result<(), GatewayError> {
     let session = crate::auth::authenticate_request(
         state.as_ref(),
-        &auth_req,
+        auth_req,
         ctx.request_headers.get("x-credential-ref").cloned(),
     )
     .await?;

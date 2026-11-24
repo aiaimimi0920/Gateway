@@ -8,10 +8,12 @@
 use std::sync::Arc;
 
 use axum::{extract::State, http::HeaderMap, response::IntoResponse, Json};
+use serde::Serialize;
 
 use crate::http::extractors::OptionalBearerToken;
 use crate::http::request_headers::build_public_auth_request;
 use crate::provider_runtime;
+use crate::routing::config::ModelInfo;
 use crate::state::AppState;
 
 /// GET /v1/models — list available models.
@@ -80,8 +82,149 @@ pub async fn handle_models(
             });
         }
     }
-    Ok::<_, crate::error::GatewayError>(Json(serde_json::json!({
-        "object": "list",
-        "data": models,
-    })))
+    Ok::<_, crate::error::GatewayError>(Json(PublicModelList {
+        object: "list",
+        data: models.into_iter().map(PublicModel::from).collect(),
+    }))
 }
+
+#[derive(Serialize)]
+struct PublicModelList {
+    object: &'static str,
+    data: Vec<PublicModel>,
+}
+
+#[derive(Serialize)]
+struct PublicModel {
+    #[serde(flatten)]
+    info: ModelInfo,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    reasoning: Option<ReasoningMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    input_modalities: Option<&'static [&'static str]>,
+}
+
+impl From<ModelInfo> for PublicModel {
+    fn from(info: ModelInfo) -> Self {
+        // Annotate admitted public IDs only; do not infer from aliases or provider names.
+        let reasoning = ReasoningMetadata::for_model(&info.id);
+        let input_modalities: Option<&'static [&'static str]> = match info.id.as_str() {
+            "gpt-6.2-sol" | "gpt-6.2-astra" => Some(&["text", "image"]),
+            _ => None,
+        };
+        Self {
+            info,
+            reasoning,
+            input_modalities,
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum ReasoningMetadata {
+    OpenAi {
+        // Client selection hint, not a default injected into upstream requests.
+        default_reasoning_level: &'static str,
+        supported_reasoning_levels: &'static [ReasoningLevel],
+    },
+    Native {
+        native_reasoning: NativeReasoning,
+    },
+}
+
+impl ReasoningMetadata {
+    // Model-level declarations, not route capability checks. See INTEGRATION_CONTRACT.md.
+    fn for_model(id: &str) -> Option<Self> {
+        let (default_reasoning_level, supported_reasoning_levels) = match id {
+            "gpt-6.2-sol" | "gpt-6.2-astra" | "gpt-6.1-sol" => ("medium", GPT_6_REASONING_LEVELS),
+            "gpt-5.5" => ("medium", GPT_5_REASONING_LEVELS),
+            "gpt-5.4" | "gpt-5.4-mini" => ("none", GPT_5_REASONING_LEVELS),
+            "claude-sonnet-4-6" => return Some(Self::anthropic(&["low", "medium", "high", "max"])),
+            "claude-opus-4-7" | "claude-opus-4-8" => {
+                return Some(Self::anthropic(&["low", "medium", "high", "xhigh", "max"]))
+            }
+            "gemini-3.1-pro-preview" => return Some(Self::gemini(&["LOW", "MEDIUM", "HIGH"])),
+            "gemini-3-flash-preview" => {
+                return Some(Self::gemini(&["MINIMAL", "LOW", "MEDIUM", "HIGH"]))
+            }
+            _ => return None,
+        };
+        Some(Self::OpenAi {
+            default_reasoning_level,
+            supported_reasoning_levels,
+        })
+    }
+
+    fn anthropic(supported_levels: &'static [&'static str]) -> Self {
+        Self::Native {
+            native_reasoning: NativeReasoning {
+                protocol: "anthropic_messages",
+                parameter: "output_config.effort",
+                supported_levels,
+            },
+        }
+    }
+
+    fn gemini(supported_levels: &'static [&'static str]) -> Self {
+        Self::Native {
+            native_reasoning: NativeReasoning {
+                protocol: "gemini_generate_content",
+                parameter: "generationConfig.thinkingConfig.thinkingLevel",
+                supported_levels,
+            },
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct NativeReasoning {
+    protocol: &'static str,
+    parameter: &'static str,
+    supported_levels: &'static [&'static str],
+}
+
+#[derive(Serialize)]
+struct ReasoningLevel {
+    effort: &'static str,
+    description: &'static str,
+}
+
+const LOW: ReasoningLevel = ReasoningLevel {
+    effort: "low",
+    description: "Faster responses with less reasoning",
+};
+const MEDIUM: ReasoningLevel = ReasoningLevel {
+    effort: "medium",
+    description: "Balance response speed and reasoning depth",
+};
+const HIGH: ReasoningLevel = ReasoningLevel {
+    effort: "high",
+    description: "Deeper reasoning for complex tasks",
+};
+const XHIGH: ReasoningLevel = ReasoningLevel {
+    effort: "xhigh",
+    description: "More reasoning for especially difficult tasks",
+};
+
+const GPT_6_REASONING_LEVELS: &[ReasoningLevel] = &[
+    LOW,
+    MEDIUM,
+    HIGH,
+    XHIGH,
+    ReasoningLevel {
+        effort: "max",
+        description: "Highest reasoning effort for the hardest tasks",
+    },
+];
+
+const GPT_5_REASONING_LEVELS: &[ReasoningLevel] = &[
+    ReasoningLevel {
+        effort: "none",
+        description: "Respond without additional reasoning",
+    },
+    LOW,
+    MEDIUM,
+    HIGH,
+    XHIGH,
+];

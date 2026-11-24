@@ -7,7 +7,7 @@ import { UiLocaleProvider } from "../../i18n/UiLocaleProvider";
 import { ProviderModelMappingDialog } from "./ProviderModelMappingDialog";
 import { ProviderTestDialog } from "./ProviderTestDialog";
 import { pilotSection, pilotAccount } from "./AccountsLedgerWorkspace.fixtures";
-import type { ConsoleRouteDocument } from "../../api/contracts";
+import type { ConsoleProviderProbeResponse, ConsoleRouteDocument } from "../../api/contracts";
 const render = (ui: Parameters<typeof renderBase>[0]) => renderBase(ui, { wrapper: NeuroProvider });
 
 const testDocument: ConsoleRouteDocument = {
@@ -36,7 +36,20 @@ it("autosaves multiple targets and closes without an extra write", async () => {
 
 it("uses one configuration panel and sends custom prompt only after explicit run", async () => {
   const user = userEvent.setup();
-  const onProbe = vi.fn().mockResolvedValue(undefined);
+  const response: ConsoleProviderProbeResponse = {
+    result: {
+      providerId: "managed-provider", status: "passed", message: "complete", checkedAt: "2026-11-20T00:00:00Z",
+      totalCount: 1, passedCount: 1, failedCount: 0, unsupportedCount: 0, results: [{
+        providerId: "managed-provider", credentialId: "one", probePoint: "matrix",
+        status: "passed", message: "complete", checkedAt: "2026-11-20T00:00:00Z", assessment: {
+          policySource: "request", mode: "manual",
+          models: [{ model: "a", callable: true, completedCount: 1, gradedCount: 0, correctCount: 0, score: null, capabilityLevel: "unrated" }],
+          cases: [{ caseId: "custom", name: "Custom", model: "a", difficulty: 1, status: "passed", answer: "Visible answer", expectedAnswer: null, correct: null, message: "done" }]
+        }
+      }]
+    }
+  };
+  const onProbe = vi.fn().mockResolvedValue(response);
   const apply = vi.fn();
   const close = vi.fn();
   const t = (zh: string) => zh;
@@ -76,6 +89,11 @@ it("uses one configuration panel and sends custom prompt only after explicit run
       ])
     })
   }), "managed-provider");
+  const results = await screen.findByRole("region", { name: "测试结果" });
+  expect(within(results).getByRole("heading", { name: "One" })).toBeInTheDocument();
+  expect(within(results).getByText("可联通调用")).toBeInTheDocument();
+  await user.click(within(results).getByText("答案详情"));
+  expect(within(results).getByText("实际回复：Visible answer")).toBeVisible();
   await user.type(screen.getByRole("textbox", { name: "添加测试模型" }), "*");
   expect(screen.getByRole("button", { name: "添加模型" })).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "添加模型" }));

@@ -17,6 +17,8 @@ pub const LINE_GROQ_OPENAI_OFFICIAL_VENDOR_API_FEATURE: &str =
     "line-groq-openai-official-vendor-api";
 pub const LINE_RIVER_OFFICIAL_API_FEATURE: &str = "line-river-official-api";
 pub const LINE_AGNES_OFFICIAL_API_FEATURE: &str = "line-agnes-official-api";
+pub const LINE_LUMALABS_INFERENCE_OFFICIAL_API_FEATURE: &str =
+    "line-lumalabs-inference-official-api";
 pub const LINE_MINIMAX_M_PLAN_FEATURE: &str = "line-minimax-m-plan";
 pub const LINE_SENSENOVA_TOKEN_PLAN_FEATURE: &str = "line-sensenova-token-plan";
 pub const LINE_COMMANDCODE_PROVIDER_API_FEATURE: &str = "line-commandcode-provider-api";
@@ -70,6 +72,7 @@ pub const LINE_QWEN_OFFICIAL_API_FEATURE: &str = "line-qwen-official-api";
 pub const LINE_QWEN_WEB_REVERSE_FEATURE: &str = "line-qwen-web-reverse";
 pub const LINE_CHATAIBOT_WEB_REVERSE_FEATURE: &str = "line-chataibot-web-reverse";
 pub const LINE_KIRO_OFFICIAL_VENDOR_API_FEATURE: &str = "line-kiro-official-vendor-api";
+pub const LINE_QUICK_OAUTH_FEATURE: &str = "line-quick-oauth";
 pub const FAMILY_OPENAI_COMPATIBLE_OFFICIAL_API_FEATURE: &str =
     "family-openai-compatible-official-api";
 pub const FAMILY_ANTHROPIC_COMPATIBLE_OFFICIAL_API_FEATURE: &str =
@@ -97,6 +100,7 @@ pub enum RefactoredImplementationLine {
     GroqOpenAiOfficialVendorApi,
     RiverOfficialApi,
     AgnesOfficialApi,
+    LumaLabsInferenceOfficialApi,
     MiniMaxMPlan,
     SenseNovaTokenPlan,
     CommandCodeProviderApi,
@@ -136,6 +140,7 @@ pub enum RefactoredImplementationLine {
     QwenWebReverse,
     ChataibotWebReverse,
     KiroOfficialVendorApi,
+    QuickOauth,
 }
 
 impl RefactoredImplementationLine {
@@ -156,6 +161,7 @@ impl RefactoredImplementationLine {
             Self::GroqOpenAiOfficialVendorApi => "groq",
             Self::RiverOfficialApi => "river",
             Self::AgnesOfficialApi => "agnes_api",
+            Self::LumaLabsInferenceOfficialApi => "lumalabs_inference",
             Self::MiniMaxMPlan => "minimax_m_plan",
             Self::SenseNovaTokenPlan => "sensenova_token_plan",
             Self::CommandCodeProviderApi => "commandcode_chat",
@@ -195,6 +201,7 @@ impl RefactoredImplementationLine {
             Self::QwenWebReverse => "qwen_web_reverse",
             Self::ChataibotWebReverse => "chataibot",
             Self::KiroOfficialVendorApi => "kiro",
+            Self::QuickOauth => "quick_oauth",
         }
     }
 
@@ -219,6 +226,7 @@ impl RefactoredImplementationLine {
             Self::GroqOpenAiOfficialVendorApi => LINE_GROQ_OPENAI_OFFICIAL_VENDOR_API_FEATURE,
             Self::RiverOfficialApi => LINE_RIVER_OFFICIAL_API_FEATURE,
             Self::AgnesOfficialApi => LINE_AGNES_OFFICIAL_API_FEATURE,
+            Self::LumaLabsInferenceOfficialApi => LINE_LUMALABS_INFERENCE_OFFICIAL_API_FEATURE,
             Self::MiniMaxMPlan => LINE_MINIMAX_M_PLAN_FEATURE,
             Self::SenseNovaTokenPlan => LINE_SENSENOVA_TOKEN_PLAN_FEATURE,
             Self::CommandCodeProviderApi => LINE_COMMANDCODE_PROVIDER_API_FEATURE,
@@ -266,6 +274,7 @@ impl RefactoredImplementationLine {
             Self::QwenWebReverse => LINE_QWEN_WEB_REVERSE_FEATURE,
             Self::ChataibotWebReverse => LINE_CHATAIBOT_WEB_REVERSE_FEATURE,
             Self::KiroOfficialVendorApi => LINE_KIRO_OFFICIAL_VENDOR_API_FEATURE,
+            Self::QuickOauth => LINE_QUICK_OAUTH_FEATURE,
         }
     }
 
@@ -300,6 +309,9 @@ impl RefactoredImplementationLine {
             }
             Self::RiverOfficialApi => cfg!(feature = "line-river-official-api"),
             Self::AgnesOfficialApi => cfg!(feature = "line-agnes-official-api"),
+            Self::LumaLabsInferenceOfficialApi => {
+                cfg!(feature = "line-lumalabs-inference-official-api")
+            }
             Self::MiniMaxMPlan => cfg!(feature = "line-minimax-m-plan"),
             Self::SenseNovaTokenPlan => cfg!(feature = "line-sensenova-token-plan"),
             Self::CommandCodeProviderApi => cfg!(feature = "line-commandcode-provider-api"),
@@ -379,6 +391,7 @@ impl RefactoredImplementationLine {
             Self::QwenWebReverse => cfg!(feature = "line-qwen-web-reverse"),
             Self::ChataibotWebReverse => cfg!(feature = "line-chataibot-web-reverse"),
             Self::KiroOfficialVendorApi => cfg!(feature = "line-kiro-official-vendor-api"),
+            Self::QuickOauth => cfg!(feature = "line-quick-oauth"),
         }
     }
 }

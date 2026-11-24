@@ -60,6 +60,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(body_limit_layer(state.config.max_request_body_bytes))
         // Backups have their own bounded upload limit; shared LAN/auth/lifecycle layers still apply.
         .merge(super::routes::internal_console::backup::router())
+        // Files use a dedicated bounded binary upload limit, with the same auth/LAN/lifecycle layers.
+        .merge(super::routes::internal_console::mount_luma_files(
+            Router::new(),
+        ))
         .layer(axum::Extension(Arc::clone(&lan_sharing)))
         .layer(axum_mw::from_fn_with_state(
             lan_sharing,

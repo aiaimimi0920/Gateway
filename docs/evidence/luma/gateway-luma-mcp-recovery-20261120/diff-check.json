@@ -1,0 +1,66 @@
+{
+  "command": "git diff --no-index --check",
+  "note": "--no-index returns 1 for differing files; no whitespace diagnostics were emitted.",
+  "files": [
+    {
+      "file": "src/http/routes/internal_console/luma_mcp/creation.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "src/http/routes/internal_console/luma_mcp/creation/workspace.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "src/protocol/luma_mcp/creation_tests.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "src/protocol/luma_mcp/creation_reuse_tests.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "src/http/routes/internal_console/luma_mcp/creation/identity.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "src/protocol/luma_mcp/creation_recovery_tests.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "src/protocol/luma_mcp/creation_recovery_fixture.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "apps/desktop/src/features/console/LumaMcpCreationRecovery.test.tsx",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    }
+  ]
+}

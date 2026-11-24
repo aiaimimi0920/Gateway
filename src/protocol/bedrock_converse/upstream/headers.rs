@@ -10,7 +10,11 @@ pub(super) struct Event {
     pub body: Value,
 }
 
-pub(super) fn parse(mut bytes: &[u8], payload: &[u8]) -> Result<Event, ProtocolStreamError> {
+pub(super) fn parse(
+    mut bytes: &[u8],
+    payload: &[u8],
+    strict_json: bool,
+) -> Result<Event, ProtocolStreamError> {
     let mut headers = HashMap::new();
     while !bytes.is_empty() {
         // Bound map overhead independently of wire bytes; not the service's encoded-header-size rule.
@@ -104,8 +108,12 @@ pub(super) fn parse(mut bytes: &[u8], payload: &[u8]) -> Result<Event, ProtocolS
             {
                 return Err(invalid("conflicting event discriminators"));
             }
-            let body = serde_json::from_slice::<Value>(payload)
-                .map_err(|_| invalid("invalid event JSON"))?;
+            let body = if strict_json {
+                crate::protocol::unique_json::parse(payload)
+            } else {
+                serde_json::from_slice::<Value>(payload)
+            }
+            .map_err(|_| invalid("invalid event JSON"))?;
             if !body.is_object() {
                 return Err(invalid("event payload is not an object"));
             }

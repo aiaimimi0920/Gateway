@@ -20,7 +20,9 @@ test(`Luma closes real Fetch SSE on ${mode} with the original status`, {timeout:
     } else if (req.url.endsWith("/actions")) {
       posts++; res.setHeader("content-type","application/json");
       res.end(JSON.stringify({output_artifacts:{image:["output-1"]}}));
-      if (mode === "completed") subscribed.write(event("finalizing") + event("completed"));
+      if (mode === "completed") {
+        subscribed.write(event("finalizing") + event("completed").replace(/\n\n$/, "\n\r\n"));
+      }
     } else { res.writeHead(404); res.end(); }
   });
   server.listen(0,"127.0.0.1"); await once(server,"listening");

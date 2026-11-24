@@ -1,0 +1,30 @@
+{
+    "passed":  true,
+    "failure":  null,
+    "port":  58249,
+    "storageBackend":  "sqlite",
+    "releaseDir":  "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\release\\Gateway\\gateway-devtest-20261121-luma-handoff",
+    "observed":  {
+                     "backendPid":  45760,
+                     "readiness":  {
+                                       "status":  "ready",
+                                       "storage_backend":  "sqlite",
+                                       "degraded":  false,
+                                       "sqlite":  true,
+                                       "database":  true,
+                                       "redis_required":  false,
+                                       "redis":  null,
+                                       "routing_configured":  false,
+                                       "runtime_role":  "standalone",
+                                       "auth_configured":  true,
+                                       "active_requests":  1
+                                   },
+                     "uiPid":  57856,
+                     "consoleStatus":  200
+                 },
+    "supplierCalls":  0,
+    "nativeBusinessClicksVerified":  false,
+    "uiSha256":  "8274772679207ea5dbcacecd23d4bc9892d85e70c4e961a343a22a062ba173b3",
+    "backendSha256":  "190d3a571f81cab468d4427f903a1ea85de003cc4a24962d2745ccc885da8f7a",
+    "remainingOwnedProcesses":  0
+}

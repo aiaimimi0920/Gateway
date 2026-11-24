@@ -1,0 +1,114 @@
+
+> gateway-ui@0.1.0 test
+> vitest --run src/features/console/LumaAgentsMediaProbe.test.tsx -t video edit|manual edit
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+ ❯ src/features/console/LumaAgentsMediaProbe.test.tsx (13 tests | 2 failed | 11 skipped) 1032ms
+   × confirms an exact-account video edit with automatic conditioning and no ignored size controls 287ms
+   × uses a manual edit strength and clears previous reframe source on operation changes 737ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/console/LumaAgentsMediaProbe.test.tsx > confirms an exact-account video edit with automatic conditioning and no ignored size controls
+TestingLibraryElementError: Value "video_edit" not found in options
+
+Ignored nodes: comments, script, style
+[36m<select[39m
+  [33mclass[39m=[32m"n-input n-select"[39m
+  [33mid[39m=[32m"_r_4_"[39m
+[36m>[39m
+  [36m<option[39m
+    [33mvalue[39m=[32m"image"[39m
+  [36m>[39m
+    [0m图片生成[0m
+  [36m</option>[39m
+  [36m<option[39m
+    [33mvalue[39m=[32m"image_edit"[39m
+  [36m>[39m
+    [0m图片编辑[0m
+  [36m</option>[39m
+  [36m<option[39m
+    [33mvalue[39m=[32m"video"[39m
+  [36m>[39m
+    [0m视频生成[0m
+  [36m</option>[39m
+  [36m<option[39m
+    [33mvalue[39m=[32m"video_reframe"[39m
+  [36m>[39m
+    [0m视频扩画[0m
+  [36m</option>[39m
+[36m</select>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:37:35
+ ❯ Object.selectOptionsBase node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:29:38
+ ❯ Object.selectOptions node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:16:30
+ ❯ node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:35
+ ❯ Object.asyncWrapper node_modules/@testing-library/react/dist/pure.js:87:28
+ ❯ wrapAsync node_modules/@testing-library/user-event/dist/esm/setup/wrapAsync.js:6:24
+ ❯ Object.method [as selectOptions] node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:16
+ ❯ src/features/console/LumaAgentsMediaProbe.test.tsx:96:14
+     94| it("confirms an exact-account video edit with automatic conditioning a…
+     95|   const user=userEvent.setup(),p=props();render(<PilotActionDialog {..…
+     96|   await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"v…
+       |              ^
+     97|   expect(screen.getByRole("combobox",{name:"模型"})).toHaveValue("ray-3.…
+     98|   expect(screen.queryByRole("combobox",{name:"时长"})).not.toBeInTheDocu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/features/console/LumaAgentsMediaProbe.test.tsx > uses a manual edit strength and clears previous reframe source on operation changes
+TestingLibraryElementError: Value "video_edit" not found in options
+
+Ignored nodes: comments, script, style
+[36m<select[39m
+  [33mclass[39m=[32m"n-input n-select"[39m
+  [33mid[39m=[32m"_r_e_"[39m
+[36m>[39m
+  [36m<option[39m
+    [33mvalue[39m=[32m"image"[39m
+  [36m>[39m
+    [0m图片生成[0m
+  [36m</option>[39m
+  [36m<option[39m
+    [33mvalue[39m=[32m"image_edit"[39m
+  [36m>[39m
+    [0m图片编辑[0m
+  [36m</option>[39m
+  [36m<option[39m
+    [33mvalue[39m=[32m"video"[39m
+  [36m>[39m
+    [0m视频生成[0m
+  [36m</option>[39m
+  [36m<option[39m
+    [33mvalue[39m=[32m"video_reframe"[39m
+  [36m>[39m
+    [0m视频扩画[0m
+  [36m</option>[39m
+[36m</select>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:37:35
+ ❯ Object.selectOptionsBase node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:29:38
+ ❯ Object.selectOptions node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:16:30
+ ❯ node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:35
+ ❯ Object.asyncWrapper node_modules/@testing-library/react/dist/pure.js:87:28
+ ❯ wrapAsync node_modules/@testing-library/user-event/dist/esm/setup/wrapAsync.js:6:24
+ ❯ Object.method [as selectOptions] node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:16
+ ❯ src/features/console/LumaAgentsMediaProbe.test.tsx:113:14
+    111|   await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"v…
+    112|   await user.type(screen.getByRole("textbox",{name:"源视频引用"}),"https://…
+    113|   await user.selectOptions(screen.getByRole("combobox",{name:"操作"}),"v…
+       |              ^
+    114|   expect(screen.getByRole("textbox",{name:"源视频引用"})).toHaveValue("");
+    115|   await user.selectOptions(screen.getByRole("combobox",{name:"源视频类型"})…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 11 skipped (13)
+   Start at  18:23:14
+   Duration  5.85s (transform 1.15s, setup 532ms, import 2.14s, tests 1.03s, environment 1.84s)
+
+EXIT_CODE: 1

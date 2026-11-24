@@ -1,0 +1,111 @@
+MCP and the API | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Overview
+API
+Agents
+MCP
+API Reference
+Admin API
+Menu
+lumalabs.ai
+Overview
+API
+Agents
+MCP
+API Reference
+Admin API
+Getting started
+What is an agent session?
+Quickstart
+Core concepts
+Sessions
+Generate runs
+Workflow apps
+Budgets and usage
+Workspaces and access
+Instructions and references
+Going further
+Streaming
+Approvals and review
+Tools: let the agent call your code
+Skills
+More capabilities
+MCP and the API
+Reference
+Reference
+API reference
+Auto
+Light
+Dark
+lumalabs.ai
+On this page
+Overview
+On this page
+Overview
+Going further
+MCP and the API
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+MCP and the API
+How each MCP tool maps to the Agents API, for teams moving from a chat assistant to their own product.
+The
+Luma MCP server
+runs on the same sessions, runs and apps as this API.
+MCP tool
+API route
+luma_workspace_list
+GET /v1/scopes
+luma_session_open
+POST /v1/scopes
++
+POST /v1/sessions
+luma_session_send_brief
+POST /v1/sessions/{id}/events
+with
+user.message
+luma_session_run_capability
+POST /v1/sessions/{id}/events
+, a
+user.message
+with
+capability
+luma_session_await
+GET /v1/sessions/{id}/events/stream
+luma_run_respond
+POST /v1/sessions/{id}/runs/{run_id}/tool-response
+luma_generate_image
+,
+luma_generate_video
+POST /v1/sessions/{id}/runs
+with
+kind: "generate"
+luma_capability_list
+,
+luma_capability_describe
+GET /v1/apps
+,
+GET /v1/apps/{slug}
+luma_session_cancel
+DELETE /v1/sessions/{id}
+Previous
+More capabilities
+Layering, fonts, webhooks, model choice and platform tools.
+Next
+Reference
+Every Agents route, error code and limit on one page.

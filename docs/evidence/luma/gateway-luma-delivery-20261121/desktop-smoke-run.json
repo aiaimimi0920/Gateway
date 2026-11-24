@@ -1,0 +1,18 @@
+{
+  "args": [
+    "powershell.exe",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    "tools/luma/check-desktop.ps1",
+    "-ReleaseDir",
+    "C:/Users/Public/nas_home/AI/GameEditor/Neuro/release/Gateway/gateway-devtest-20261121-luma-handoff",
+    "-Output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/luma-package-native-20261121"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-21T10:26:28.666607+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 88.59
+}

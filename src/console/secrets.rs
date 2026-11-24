@@ -14,10 +14,14 @@ mod identity;
 mod keep_bindings;
 #[cfg(test)]
 mod lobsterai_tests;
+#[cfg(test)]
+mod luma_web_tests;
 mod masks;
 #[cfg(test)]
 mod nous_portal_tests;
 mod pointers;
+#[cfg(test)]
+mod quick_oauth_tests;
 mod qwen_workspace;
 mod site_health;
 mod storage_connections;
@@ -260,6 +264,14 @@ pub fn redact_route_document(
                 push_optional_string_descriptor(
                     &mut secrets,
                     format!("{credential_path}/kiro_oauth/client_secret"),
+                    secret.as_deref(),
+                );
+            }
+            if let Some(context) = &mut credential.quick_oauth {
+                let secret = context.take_client_secret();
+                push_optional_string_descriptor(
+                    &mut secrets,
+                    format!("{credential_path}/quick_oauth/client_secret"),
                     secret.as_deref(),
                 );
             }

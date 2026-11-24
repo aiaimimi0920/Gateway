@@ -1,0 +1,13 @@
+
+> gateway-ui@0.1.0 test
+> vitest --run src/features/console/LumaFilesPanel.test.tsx src/features/console/LumaFilesPanel.upload.test.tsx
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+
+ Test Files  2 passed (2)
+      Tests  16 passed (16)
+   Start at  12:51:41
+   Duration  6.97s (transform 408ms, setup 1.30s, import 1.47s, tests 1.92s, environment 7.45s)
+

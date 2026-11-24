@@ -14,8 +14,7 @@
 
 mod tool_stream;
 
-use std::sync::Arc;
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use bytes::Bytes;
 use futures::StreamExt;
@@ -86,6 +85,7 @@ mod qwen_recovery;
 mod recovery_wait;
 mod responses_bridge;
 mod responses_bridge_stream;
+mod responses_wire;
 mod selection;
 mod stream_preflight;
 mod stream_translation;
@@ -204,6 +204,7 @@ async fn run_candidates(
                             )
                         ) =>
                 {
+                    super::stage_route::rejections::record_error(ctx, candidate, &error);
                     recovery_wait::remember(
                         waiting,
                         candidate_index,
@@ -214,7 +215,10 @@ async fn run_candidates(
                     last_error = Some(error);
                     continue;
                 }
-                Err(error) => return Err(error),
+                Err(error) => {
+                    super::stage_route::rejections::record_error(ctx, candidate, &error);
+                    return Err(error);
+                }
             };
         let route_policy_config = ctx.route_policy_config.clone();
         let provider_attempt_gate = super::stage_rate_limit::provider_attempt_gate(
@@ -287,15 +291,6 @@ async fn run_candidates(
         );
 
         let reply_model = caller_visible_reply_model(&ctx.canonical_req, &model);
-        if let (Some(local), Some(audit_id)) = (&state.local_runtime, &ctx.request_audit_id) {
-            if let Err(error) = local
-                .route_audit(audit_id, &candidate.provider_account_id, &model)
-                .await
-            {
-                warn!(code = ?error.code, "Failed to attribute local running request");
-            }
-        }
-
         let remote_browser_executor_configured = state
             .upstream_client
             .browser_executor_runtime_health()
@@ -384,7 +379,8 @@ async fn run_candidates(
         }
 
         // A caller's invalid continuation is not an attempted provider failure.
-        admission::validate_continuation(ctx, &effective_payload, &model)?;
+        admission::validate_plan(ctx, candidate, &effective_payload, &model)?;
+        admission::record_running(ctx, state, candidate, &effective_payload, &model).await;
         if candidate.adapter == "freebuff_compatible" {
             if let Some(target) =
                 freebuff::business_target::read(effective_payload.extra_body.as_ref())?
@@ -416,6 +412,7 @@ async fn run_candidates(
         .await?;
         if let Err(error) = provider_attempt_gate.admit().await {
             drop(permit);
+            admission::record_rejection(ctx, candidate, &error);
             recovery_wait::remember(waiting, candidate_index, &error, false, &ctx.request_budget);
             if crate::request_wait::recoverable(&error) {
                 last_error = Some(error);
@@ -485,15 +482,16 @@ async fn run_candidates(
         if let Some(error) = last_error.as_ref() {
             observe_fallback_metric(global_gateway_metrics(), error);
         }
-        let attempts_before = ctx.route_attempt_count();
+        let before = (ctx.route_attempt_count(), ctx.observed_upstream_status);
         let candidate_started_at = Instant::now();
         // Never cancel admission/reservation transactions: their result must first
         // reach ctx so failure settlement can refund the exact source reservation.
         let result =
             recovery_wait::send_cancellable(ctx, state, candidate, candidate_index, attempt).await;
+        admission::record_unsent_next(ctx, candidate, &result, before);
         if let Err(AttemptError::Next(error) | AttemptError::Stop(error)) = &result {
             terminal_gate.finish_error(error);
-            let sent = ctx.route_attempt_count() > attempts_before;
+            let sent = ctx.route_attempt_count() > before.0;
             recovery_wait::remember(waiting, candidate_index, error, sent, &ctx.request_budget);
             if sent {
                 model_health::record_rate_limit(

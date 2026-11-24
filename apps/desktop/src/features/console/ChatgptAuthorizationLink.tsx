@@ -3,11 +3,13 @@ import { Button, ButtonLink, Notice } from "@neuro/ui";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import { kiroAuthorizationUrl } from "./kiroAuthorizationUrl";
 import { lobsteraiAuthorizationUrl } from "./lobsteraiAuthorizationUrl";
+import { quickAuthorizationUrl } from "./quickAuthorizationUrl";
 
-type AuthorizationKind = "chatgpt" | "antigravity" | "vertex" | "grok" | "grok-device" | "accio" | "kiro" | "freebuff" | "dim-china" | "dim-global" | "nous" | "lobsterai" | "luma";
+type AuthorizationKind = "chatgpt" | "antigravity" | "vertex" | "grok" | "grok-device" | "accio" | "kiro" | "quick" | "freebuff" | "dim-china" | "dim-global" | "nous" | "lobsterai" | "luma";
 function authorizationUrl(value: string, kind: AuthorizationKind): string | null {
   if (kind === "lobsterai") return lobsteraiAuthorizationUrl(value);
   if (kind === "kiro") return kiroAuthorizationUrl(value);
+  if (kind === "quick") return quickAuthorizationUrl(value);
   if (value.length > 8192) return null;
   try {
     const url = new URL(value);

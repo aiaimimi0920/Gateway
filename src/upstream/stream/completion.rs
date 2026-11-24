@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::protocol::sse_parse::{parse_sse_line, SseParseState};
 
 use super::observation::{BoundaryRule, ObservationLine, ObservationLines};
-use super::ObservationScope;
+use super::{NativeResponsesObserver, ObservationScope};
 
 struct CompletionSemanticsTappedStream<E> {
     inner: Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
@@ -55,13 +55,14 @@ pub(crate) fn tap_messages_completion_with_error<E: Send + 'static>(
 }
 
 /// Incomplete Responses retain their specific reason, even when output contains a tool call.
-pub(crate) fn tap_commandcode_responses_completion_with_error<E: Send + 'static>(
+pub(crate) fn tap_native_responses_completion_with_error<E: Send + 'static>(
     inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    observe: NativeResponsesObserver,
 ) -> (
     impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     Arc<Mutex<Option<String>>>,
 ) {
-    tap_completion_mode(inner, ObservationScope::CommandCodeResponses)
+    tap_completion_mode(inner, ObservationScope::NativeResponses(observe))
 }
 
 fn tap_completion_mode<E: Send + 'static>(
@@ -143,19 +144,13 @@ impl SseCompletionSemanticsCapture {
             return;
         };
 
-        let semantics = if self.scope == ObservationScope::CommandCodeResponses {
+        let semantics = if let ObservationScope::NativeResponses(observe) = self.scope {
             matches!(
                 event_name,
                 Some("response.completed" | "response.incomplete")
             )
-            .then(|| {
-                crate::protocol::commandcode::native_json::observe(
-                    &value["response"],
-                    crate::protocol::canonical::EndpointKind::Responses,
-                )
-                .1
-            })
-        } else if self.scope == ObservationScope::Messages {
+            .then(|| observe(&value["response"]).1)
+        } else if matches!(self.scope, ObservationScope::Messages) {
             (event_name == Some("message_delta"))
                 .then(|| value["delta"]["stop_reason"].as_str())
                 .flatten()

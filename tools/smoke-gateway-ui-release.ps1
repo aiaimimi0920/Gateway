@@ -17,6 +17,20 @@ function Write-Smoke {
   Write-Host "[gateway-ui-smoke] $Message"
 }
 
+function Get-SmokeFileSha256Hex {
+  param(
+    [Parameter(Mandatory = $true)][System.Security.Cryptography.SHA256] $Sha,
+    [Parameter(Mandatory = $true)][string] $LiteralPath
+  )
+
+  $stream = [System.IO.File]::Open($LiteralPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+  try {
+    return ([System.BitConverter]::ToString($Sha.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+  } finally {
+    $stream.Dispose()
+  }
+}
+
 function Resolve-SmokeReleaseDir {
   param([Parameter(Mandatory = $true)][string] $Path)
   $resolved = Resolve-Path -LiteralPath $Path -ErrorAction Stop
@@ -109,13 +123,18 @@ function Assert-PackagedReleaseIntegrity {
   $actualFiles = [System.Collections.Generic.Dictionary[string, string]]::new(
     [System.StringComparer]::Ordinal
   )
-  foreach ($file in @(Get-ChildItem -LiteralPath $ReleaseRoot -Recurse -File -Force)) {
-    $relative = Get-RelativeUnixPath -BasePath $ReleaseRoot -Path $file.FullName
-    if ($relative -eq "checksums.sha256") {
-      continue
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    foreach ($file in @(Get-ChildItem -LiteralPath $ReleaseRoot -Recurse -File -Force)) {
+      $relative = Get-RelativeUnixPath -BasePath $ReleaseRoot -Path $file.FullName
+      if ($relative -eq "checksums.sha256") {
+        continue
+      }
+      Assert-SafePackageRelativePath -Path $relative | Out-Null
+      $actualFiles[$relative] = Get-SmokeFileSha256Hex -Sha $sha -LiteralPath $file.FullName
     }
-    Assert-SafePackageRelativePath -Path $relative | Out-Null
-    $actualFiles[$relative] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+  } finally {
+    $sha.Dispose()
   }
   if ($actualFiles.Count -ne $checksumEntries.Count) {
     throw "checksums.sha256 entry count does not match packaged files"
@@ -238,7 +257,12 @@ function Assert-ReleaseArtifact {
   }
 
   $item = Get-Item -LiteralPath $artifactPath
-  $hash = (Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $hash = Get-SmokeFileSha256Hex -Sha $sha -LiteralPath $artifactPath
+  } finally {
+    $sha.Dispose()
+  }
   $bytesMatch = $item.Length -eq [int64] $Record.bytes
   $shaMatch = $hash -eq [string] $Record.sha256
   Write-Smoke "$($Record.name)|bytesMatch=$bytesMatch|shaMatch=$shaMatch|bytes=$($item.Length)|sha256=$hash"
@@ -290,7 +314,7 @@ function Invoke-OptionalUiLaunchSmoke {
       $baselineGatewayProcessIds -notcontains [int] $_.ProcessId
     })
     $newGatewayProcessIds = @($newGatewayProcesses | ForEach-Object { [int] $_.ProcessId })
-    if ($newGatewayProcessIds.Count -gt 0) {
+    if ($newGatewayProcessIds.Count > 0) {
       Write-Smoke "gateway-ui.exe auto-started release-owned gateway.exe process ids: $($newGatewayProcessIds -join ', ')"
     } else {
       Write-Smoke "gateway-ui.exe remained open; no release-owned gateway.exe process was observed during the smoke window"

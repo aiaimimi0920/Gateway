@@ -23,6 +23,7 @@ async fn sap_aicore_sse_cancel_refunds_and_releases_source() {
                 drop(body);
                 let rows = fixture.audits(1).await;
                 assert_eq!(rows[0].status, "cancelled");
+                assert_eq!(rows[0].upstream_status, Some(200));
                 assert_identity(&rows[0]);
                 assert!(rows[0].total_tokens.is_none());
                 assert_eq!(fixture.remaining().await, 2);

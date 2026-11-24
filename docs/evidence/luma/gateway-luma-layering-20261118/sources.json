@@ -1,0 +1,16 @@
+[
+  {
+    "http_status": 200,
+    "captured_utc": "2026-11-17T19:25:56.1281610Z",
+    "url": "https://docs.agents.lumalabs.ai/guides/images/layering/",
+    "name": "layering",
+    "sha256": "2b303d1d5c06cf1eff4e57ec2f3eddfa1e84a245baab25a16f3871416899cd5b"
+  },
+  {
+    "http_status": 200,
+    "captured_utc": "2026-11-17T19:29:42.6419291Z",
+    "url": "https://docs.agents.lumalabs.ai/api/resources/generations/methods/create/",
+    "name": "create",
+    "sha256": "6144c6d6006a4d1f6fbfc677d25f6f6714cbe9b9095d999ef4600afa620d507d"
+  }
+]

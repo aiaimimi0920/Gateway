@@ -1,0 +1,44 @@
+- dialog "合成 MCP 创作":
+  - heading "合成 MCP 创作" [level=2]
+  - button "关闭"
+  - region "Luma MCP 创作":
+    - text: 创作模型
+    - combobox "创作模型":
+      - option "Seedream"
+      - option "Seedream 5 Flash" [selected]
+      - option "Seedream 5 Pro"
+      - option "Nano Banana 2"
+      - option "Nano Banana 2.1"
+      - option "Nano Banana 2 Lite"
+      - option "Nano Banana Pro"
+      - option "Ideogram 4.5"
+      - option "Ideogram 4.6"
+      - option "Ideogram Vector"
+      - option "Ray 3.14"
+      - option "Ray 3.14 HDR"
+      - option "Ray 3.2"
+      - option "UNI-1"
+      - option "GPT Image 1.5"
+      - option "GPT Image 2"
+      - option "GPT Image 2.5 Flare"
+      - option "GPT Image 2.5 Sunburst"
+    - checkbox "使用已保存任务的素材"
+    - text: 使用已保存任务的素材 参考图片 URL（每行一个）
+    - textbox "参考图片 URL（每行一个）"
+    - text: 图片尺寸
+    - textbox "图片尺寸":
+      - /placeholder: 1K / 1.5K / 2K / 1536x1024
+      - text: 1536x1024
+    - text: 图片格式
+    - combobox "图片格式":
+      - option "默认"
+      - option "jpeg"
+      - option "png" [selected]
+    - text: 提示词
+    - textbox "提示词": A blue circle
+    - text: 会话预算上限（credits）
+    - spinbutton "会话预算上限（credits）": "50"
+    - button "准备任务"
+    - text: 任务 ID
+    - textbox "任务 ID"
+    - button "查询结果与费用" [disabled]

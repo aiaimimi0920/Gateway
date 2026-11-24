@@ -1,0 +1,1258 @@
+    Checking cfg-if v1.0.4
+    Checking serde_core v1.0.229
+    Checking windows-link v0.2.1
+    Checking bytes v1.11.1
+    Checking windows-sys v0.61.2
+   Compiling getrandom v0.3.4
+   Compiling jobserver v0.1.34
+    Checking pin-project-lite v0.2.17
+    Checking zeroize v1.9.1
+   Compiling cc v1.2.59
+    Checking itoa v1.0.18
+    Checking scopeguard v1.2.0
+    Checking lock_api v0.4.14
+    Checking futures-core v0.3.34
+    Checking serde v1.0.229
+    Checking memchr v2.8.0
+    Checking smallvec v1.15.1
+    Checking futures-sink v0.3.34
+    Checking log v0.4.29
+    Checking parking_lot_core v0.9.12
+    Checking once_cell v1.21.4
+    Checking parking_lot v0.12.5
+    Checking slab v0.4.12
+    Checking typenum v1.19.0
+    Checking futures-channel v0.3.34
+    Checking subtle v2.6.1
+    Checking http v1.5.0
+    Checking futures-io v0.3.34
+    Checking futures-task v0.3.34
+    Checking futures-util v0.3.34
+   Compiling cmake v0.1.58
+    Checking tracing-core v0.1.36
+    Checking getrandom v0.2.17
+    Checking tracing v0.1.44
+    Checking generic-array v0.14.7
+    Checking const-oid v0.9.6
+    Checking http-body v1.0.1
+    Checking fnv v1.0.7
+    Checking equivalent v1.0.2
+    Checking num-traits v0.2.19
+    Checking crypto-common v0.1.7
+    Checking block-buffer v0.10.4
+    Checking hashbrown v0.16.1
+    Checking indexmap v2.13.1
+    Checking mio v1.2.0
+    Checking socket2 v0.6.3
+    Checking digest v0.10.7
+    Checking tokio v1.53.1
+    Checking percent-encoding v2.3.2
+    Checking http-body-util v0.1.5
+    Checking zerofrom v0.1.7
+    Checking rustls-pki-types v1.14.0
+    Checking stable_deref_trait v1.2.1
+    Checking ryu v1.0.23
+    Checking yoke v0.8.2
+   Compiling aws-lc-sys v0.45.0
+   Compiling num-conv v0.2.1
+    Checking either v1.15.0
+   Compiling time-core v0.1.8
+    Checking powerfmt v0.2.0
+   Compiling time-macros v0.2.27
+    Checking deranged v0.5.8
+    Checking zerovec v0.11.6
+   Compiling ring v0.17.14
+    Checking tokio-util v0.7.18
+    Checking time v0.3.47
+    Checking rand_core v0.6.4
+   Compiling libc v0.2.189
+    Checking httparse v1.10.1
+    Checking tinystr v0.8.3
+    Checking form_urlencoded v1.2.2
+    Checking writeable v0.6.3
+    Checking litemap v0.8.2
+    Checking untrusted v0.9.0
+    Checking icu_locale_core v2.2.0
+    Checking potential_utf v0.1.5
+    Checking zerotrie v0.2.4
+    Checking crc32fast v1.5.0
+    Checking num-integer v0.1.46
+    Checking utf8_iter v1.0.4
+    Checking icu_provider v2.2.0
+    Checking icu_collections v2.2.0
+    Checking atomic-waker v1.1.2
+    Checking base64 v0.22.1
+    Checking tower-service v0.3.3
+   Compiling nom v7.1.3
+   Compiling libloading v0.8.9
+    Checking icu_normalizer_data v2.2.0
+    Checking icu_properties_data v2.2.0
+    Checking http v0.2.12
+    Checking vsimd v0.8.0
+    Checking try-lock v0.2.5
+    Checking cpufeatures v0.2.17
+    Checking outref v0.5.2
+    Checking want v0.3.1
+    Checking http-body v0.4.6
+    Checking base64-simd v0.8.0
+   Compiling cexpr v0.6.0
+    Checking icu_properties v2.2.0
+    Checking icu_normalizer v2.2.0
+   Compiling clang-sys v1.8.1
+   Compiling itertools v0.13.0
+    Checking bytes-utils v0.1.4
+   Compiling bitflags v2.13.2
+    Checking pin-utils v0.1.0
+    Checking aws-smithy-types v1.6.2
+    Checking idna_adapter v1.2.1
+    Checking zmij v1.0.21
+    Checking schannel v0.1.29
+   Compiling bindgen v0.72.1
+    Checking httpdate v1.0.3
+    Checking tower-layer v0.3.3
+    Checking idna v1.1.0
+    Checking zerocopy v0.8.48
+    Checking aws-smithy-async v1.3.0
+    Checking windows-strings v0.5.1
+    Checking windows-result v0.4.1
+    Checking simd-adler32 v0.3.9
+    Checking base64ct v1.8.3
+   Compiling sha2 v0.10.9
+    Checking ppv-lite86 v0.2.21
+    Checking aws-smithy-runtime-api v1.15.0
+    Checking windows-registry v0.6.1
+    Checking url v2.5.8
+    Checking serde_json v1.0.151
+    Checking sync_wrapper v1.0.2
+    Checking adler2 v2.0.1
+    Checking ipnet v2.12.0
+    Checking miniz_oxide v0.8.9
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+    Checking h2 v0.4.16
+    Checking zlib-rs v0.6.8
+    Checking flate2 v1.1.9
+    Checking tower v0.5.3
+    Checking pem-rfc7468 v0.7.0
+    Checking rustls-native-certs v0.8.4
+    Checking hybrid-array v0.4.10
+    Checking hyper v1.9.0
+    Checking hyper-util v0.1.20
+    Checking der v0.7.10
+    Checking cmov v0.5.4
+    Checking alloc-no-stdlib v2.0.4
+    Checking mime v0.3.17
+    Checking alloc-stdlib v0.2.2
+    Checking ctutils v0.4.2
+    Checking spki v0.7.3
+    Checking block-buffer v0.12.1
+    Checking crypto-common v0.2.2
+    Checking hmac v0.12.1
+    Checking encoding_rs v0.8.35
+   Compiling filetime v0.2.27
+    Checking const-oid v0.10.2
+    Checking foreign-types-shared v0.3.1
+    Checking foreign-types v0.5.0
+    Checking digest v0.11.3
+   Compiling tar v0.4.46
+    Checking pkcs8 v0.10.2
+    Checking crossbeam-utils v0.8.21
+    Checking brotli-decompressor v5.0.0
+   Compiling zstd-safe v7.2.4
+    Checking rand_chacha v0.3.1
+    Checking sha1 v0.10.6
+    Checking ff v0.13.1
+    Checking byteorder v1.5.0
+    Checking base16ct v0.2.0
+    Checking lazy_static v1.5.0
+    Checking sec1 v0.7.3
+    Checking group v0.13.0
+    Checking brotli v8.0.2
+    Checking rand v0.8.6
+    Checking zstd v0.13.3
+   Compiling http2 v0.5.20 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\http2-go-compat)
+   Compiling gateway-cpa-bssl-build v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\cpa-bssl-build)
+   Compiling btls-sys v0.5.6
+    Checking crypto-bigint v0.5.5
+    Checking fastrand v2.4.1
+    Checking compression-core v0.4.31
+    Checking compression-codecs v0.4.37
+    Checking elliptic-curve v0.13.8
+   Compiling rama-boring-sys v0.6.20 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\cpa-bssl-sys)
+    Checking windows_x86_64_msvc v0.48.5
+    Checking thiserror v2.0.18
+    Checking aws-smithy-schema v0.2.0
+   Compiling windows_x86_64_msvc v0.52.6
+    Checking aws-smithy-eventstream v0.61.2
+    Checking futures-executor v0.3.32
+   Compiling vswhom-sys v0.1.3
+    Checking spin v0.9.9
+   Compiling foldhash v0.1.5
+    Checking allocator-api2 v0.2.21
+    Checking foldhash v0.2.0
+    Checking hex v0.4.3
+    Checking cpufeatures v0.3.0
+    Checking utf-8 v0.7.6
+    Checking data-encoding v2.10.0
+    Checking hashbrown v0.17.1
+   Compiling hashbrown v0.15.5
+    Checking aws-smithy-http v0.64.0
+   Compiling windows-targets v0.52.6
+    Checking windows-targets v0.48.5
+    Checking async-compression v0.4.41
+    Checking rfc6979 v0.4.0
+    Checking serde_urlencoded v0.7.1
+    Checking signature v2.2.0
+    Checking webpki-roots v1.0.6
+    Checking tinyvec_macros v0.1.1
+   Compiling parking v2.2.1
+    Checking bytemuck v1.25.0
+    Checking event-listener v5.4.2
+   Compiling libsqlite3-sys v0.30.1
+    Checking tinyvec v1.11.0
+    Checking thiserror v1.0.69
+    Checking rand_core v0.9.5
+    Checking webpki-roots v0.26.11
+    Checking ecdsa v0.16.9
+   Compiling crossbeam-queue v0.3.12
+    Checking tower-http v0.6.11
+    Checking wreq-proto v0.2.6
+warning: rama-boring-sys@0.6.20: skipping git patches application, providednative BoringSSL is expected to have the patches included
+    Checking windows-sys v0.48.0
+   Compiling futures-intrusive v0.5.0
+   Compiling windows-sys v0.59.0
+    Checking hashlink v0.10.0
+    Checking lru v0.18.5
+    Checking getrandom v0.4.2
+    Checking sha2 v0.11.0
+    Checking primeorder v0.13.6
+    Checking aws-credential-types v1.3.0
+    Checking tokio-stream v0.1.19
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling serde_spanned v1.1.1
+    Checking headers-core v0.3.0
+    Checking aho-corasick v1.1.4
+    Checking regex-syntax v0.8.10
+    Checking arrayvec v0.7.8
+    Checking bitflags v1.3.2
+   Compiling sqlx-core v0.8.6
+    Checking regex-automata v0.4.14
+   Compiling toml v1.1.2+spec-1.1.0
+    Checking symphonia-core v0.5.5
+    Checking headers v0.4.1
+   Compiling winreg v0.55.0
+    Checking p256 v0.13.2
+    Checking uuid v1.23.0
+   Compiling vswhom v0.1.0
+    Checking rama-boring v0.6.20
+    Checking wreq-rt v0.2.2-rc.4
+    Checking windows-sys v0.52.0
+    Checking rand_chacha v0.9.0
+    Checking unicode-normalization v0.1.25
+    Checking native-tls v0.2.18
+    Checking futures v0.3.32
+    Checking arc-swap v1.9.1
+    Checking hmac v0.13.0
+    Checking aws-smithy-observability v0.3.0
+    Checking serde_html_form v0.4.1
+    Checking webpki-root-certs v1.0.12
+    Checking winapi-util v0.1.11
+    Checking home v0.5.12
+    Checking atoi v2.0.0
+    Checking unicode-properties v0.1.4
+    Checking crc-catalog v2.4.0
+    Checking spin v0.10.1
+   Compiling dotenvy v0.15.7
+    Checking unicode-bidi v0.3.18
+    Checking crc-fast v1.10.0
+    Checking stringprep v0.1.5
+   Compiling sqlx-macros-core v0.8.6
+    Checking crc v3.4.0
+    Checking same-file v1.0.6
+    Checking etcetera v0.8.0
+    Checking aws-sigv4 v1.5.1
+    Checking tokio-native-tls v0.3.1
+    Checking rand v0.9.5
+    Checking socket2 v0.5.10
+   Compiling embed-resource v3.0.9
+    Checking aws-types v1.5.0
+    Checking multer v3.1.0
+    Checking symphonia-metadata v0.5.5
+    Checking axum-core v0.4.5
+    Checking sha1 v0.11.0
+    Checking flume v0.11.1
+    Checking backon v1.6.0
+    Checking md-5 v0.11.0
+    Checking hkdf v0.12.4
+    Checking fdeflate v0.3.7
+    Checking num-bigint v0.4.6
+    Checking combine v4.6.7
+    Checking deadpool-runtime v0.1.4
+    Checking md-5 v0.10.6
+    Checking serde_path_to_error v0.1.20
+    Checking hashbrown v0.12.3
+    Checking color_quant v1.1.0
+    Checking zune-core v0.5.1
+    Checking matchit v0.7.3
+    Checking weezl v0.1.12
+    Checking quick-error v2.0.1
+    Checking sha1_smol v1.0.1
+    Checking byteorder-lite v0.1.0
+    Checking xmlparser v0.13.6
+    Checking whoami v1.6.1
+    Checking pxfm v0.1.29
+    Checking num_cpus v1.17.0
+    Checking deadpool v0.12.3
+    Checking aws-smithy-xml v0.62.0
+    Checking image-webp v0.2.4
+    Checking redis v0.27.6
+    Checking moxcms v0.8.1
+    Checking gif v0.14.2
+    Checking zune-jpeg v0.5.15
+    Checking indexmap v1.9.3
+    Checking pin-project v1.1.11
+    Checking typed-builder v0.23.2
+    Checking png v0.18.1
+    Checking aws-smithy-checksums v0.65.0
+    Checking symphonia-bundle-mp3 v0.5.5
+   Compiling gateway v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway)
+    Checking hyper-tls v0.6.0
+    Checking walkdir v2.5.0
+   Compiling sqlx-macros v0.8.6
+    Checking cookie v0.18.2
+    Checking rama-boring-tokio v0.6.20
+    Checking gateway-cpa-tls-profile v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\cpa-tls-profile)
+    Checking matchers v0.2.0
+    Checking aws-smithy-json v0.63.0
+    Checking hdrhistogram v7.5.4
+    Checking sharded-slab v0.1.7
+    Checking crossbeam-channel v0.5.15
+    Checking password-hash v0.5.0
+    Checking blake2 v0.10.6
+    Checking nu-ansi-term v0.50.3
+    Checking chrono v0.4.45
+    Checking tracing-serde v0.2.0
+    Checking tracing-log v0.2.0
+    Checking thread_local v1.1.9
+    Checking keccak v0.1.6
+    Checking unsafe-libyaml v0.2.11
+    Checking regex-lite v0.1.9
+    Checking hashbrown v0.14.5
+    Checking serde_yaml v0.9.34+deprecated
+    Checking dashmap v6.1.0
+    Checking sha3 v0.10.9
+    Checking gateway-cpa-claude-profile v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\cpa-claude-profile)
+    Checking tracing-subscriber v0.3.23
+    Checking notify v6.1.1
+    Checking argon2 v0.5.3
+    Checking tower v0.4.13
+    Checking cookie_store v0.22.0
+    Checking symphonia v0.5.5
+    Checking deadpool-redis v0.18.0
+    Checking image v0.25.10
+    Checking anyhow v1.0.103
+    Checking regex v1.12.3
+    Checking gateway-local-data v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\gateway-local-data)
+    Checking tower-http v0.5.2
+   Compiling aws-lc-rs v1.18.1
+   Compiling rustls v0.23.46
+    Checking rustls-webpki v0.103.15
+    Checking tokio-rustls v0.26.4
+    Checking tungstenite v0.24.0
+    Checking hyper-rustls v0.27.8
+    Checking tokio-tungstenite v0.24.0
+    Checking aws-smithy-http-client v1.4.0
+    Checking axum v0.7.9
+    Checking aws-smithy-runtime v1.14.0
+    Checking sqlx-sqlite v0.8.6
+    Checking sqlx-postgres v0.8.6
+    Checking aws-runtime v1.9.1
+    Checking tungstenite v0.27.0 (https://github.com/openai-oss-forks/tungstenite-rs?rev=4fffad30fe373adbdcffab9545e9e9bf4f2fc19f#4fffad30)
+    Checking axum-extra v0.9.6
+    Checking tokio-tungstenite v0.28.0 (https://github.com/openai-oss-forks/tokio-tungstenite?rev=0e5b2d73aa18dd9f0a50ee9ff199d5aef7594186#0e5b2d73)
+    Checking aws-sdk-s3 v1.144.0
+    Checking gateway-sqlx v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\gateway-sqlx)
+    Checking reqwest v0.12.28
+    Checking btls v0.5.6
+    Checking tokio-btls v0.5.6
+    Checking wreq v0.16.1
+    Checking wreq-util v0.2.0
+    Checking gateway-cpa-http-transport v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\cpa-http-transport)
+warning: unused import: `list_active_provider_credential_refs_for_accounts`
+   --> src\db\mod.rs:184:5
+    |
+184 |     list_active_provider_credential_refs_for_accounts, list_provider_credential_import_metadata,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `finalize_candidate_protocol_family`
+  --> src\pipeline\stage_route.rs:23:5
+   |
+23 |     finalize_candidate_protocol_family, route_policy_family_matches_candidate,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `json`
+ --> src\protocol\commandcode\messages.rs:7:18
+  |
+7 | use serde_json::{json, Value};
+  |                  ^^^^
+
+warning: unused import: `execution::root_turn::RootTurn`
+  --> src\protocol\freebuff\catalog.rs:36:16
+   |
+36 | pub(crate) use execution::root_turn::RootTurn;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `json`
+ --> src\protocol\gemini_canvas.rs:5:18
+  |
+5 | use serde_json::{json, Value};
+  |                  ^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src\protocol\gemini_canvas.rs:6:5
+  |
+6 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `CanonicalMessage`, `ContentPart`, `EndpointKind`, `MessageRole`, and `ProtocolFamily`
+  --> src\protocol\gemini_canvas.rs:10:5
+   |
+10 |     CanonicalMessage, CanonicalRelayRequest, ContentPart, EndpointKind, MessageRole, ProtocolFamily,
+   |     ^^^^^^^^^^^^^^^^                         ^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `browser_executor::browser_executor_remote_request_timeout`
+   --> src\upstream\client.rs:363:5
+    |
+363 | use browser_executor::browser_executor_remote_request_timeout;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `GeminiCanvasTextDirectHttpFallbackAttempt`
+   --> src\upstream\client.rs:479:5
+    |
+479 |     GeminiCanvasTextDirectHttpFallbackAttempt, GeminiCanvasVideoContinuation,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `response::accumulate`
+ --> src\upstream\vertex_express.rs:8:16
+  |
+8 | pub(crate) use response::accumulate;
+  |                ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `response::accumulate`
+ --> src\upstream\vertex_oauth.rs:8:16
+  |
+8 | pub(crate) use response::accumulate;
+  |                ^^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:184:13
+    |
+184 |         let mut attempt = 0usize;
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:185:13
+    |
+185 |         let mut failures = Vec::new();
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:186:13
+    |
+186 |         let mut last_entries_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:187:13
+    |
+187 |         let mut last_completion_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:188:13
+    |
+188 |         let mut last_probe_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:189:13
+    |
+189 |         let mut last_full_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:190:13
+    |
+190 |         let mut parity_probe_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:191:13
+    |
+191 |         let mut parity_full_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:192:13
+    |
+192 |         let mut parity_o30_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src\upstream\client\canvas_image_edit\setup.rs:193:13
+    |
+193 |         let mut parity_k4_preview = "<none>".to_string();
+    |             ----^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src\upstream\console_browser_workspace.rs:15:17
+   |
+15 |             let mut builder = std::fs::DirBuilder::new();
+   |                 ----^^^^^^^
+   |                 |
+   |                 help: remove this `mut`
+
+warning: unused variable: `model`
+  --> src\upstream\client\canvas_image_edit\setup.rs:60:9
+   |
+60 |         model: &str,
+   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `model`
+ --> src\upstream\client\canvas_stream_generate\prepare.rs:7:9
+  |
+7 |         model: &str,
+  |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+
+warning: unused variable: `model`
+ --> src\upstream\client\canvas_stream_generate\bootstrap.rs:8:9
+  |
+8 |         model: &str,
+  |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+
+warning: unused variable: `image_edit_followup_context`
+  --> src\upstream\client\canvas_stream_generate\request.rs:15:9
+   |
+15 |         image_edit_followup_context: &mut Option<&mut GeminiCanvasImageEditFollowupContext>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_edit_followup_context`
+
+warning: unused variable: `timeout`
+  --> src\upstream\client\canvas_stream_generate\send.rs:11:9
+   |
+11 |         timeout: Duration,
+   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timeout`
+
+warning: method `admit` is never used
+  --> src\console\freebuff_purchase\waiting.rs:96:25
+   |
+52 | impl ApprovedRequest {
+   | -------------------- method in this implementation
+...
+96 |     pub(crate) async fn admit(
+   |                         ^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `prepare_registration` is never used
+ --> src\console\luma_oauth\registration_registry.rs:7:25
+  |
+6 | impl Registry {
+  | ------------- method in this implementation
+7 |     pub(crate) async fn prepare_registration(
+  |                         ^^^^^^^^^^^^^^^^^^^^
+
+warning: field `reserved_unknown` is never read
+ --> src\credential_pool_automation\availability.rs:7:9
+  |
+5 | pub(crate) struct PoolAvailability {
+  |                   ---------------- field in this struct
+6 |     pub available: usize,
+7 |     pub reserved_unknown: usize,
+  |         ^^^^^^^^^^^^^^^^
+  |
+  = note: `PoolAvailability` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `credential_affinity` is never used
+  --> src\local_runtime\affinity.rs:21:19
+   |
+20 | impl super::LocalRuntime {
+   | ------------------------ method in this implementation
+21 |     pub(crate) fn credential_affinity(&self, scope: &str, model: &str) -> Option<String> {
+   |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: method `freebuff_closeout` is never used
+  --> src\local_runtime\freebuff_sessions\closeout.rs:81:25
+   |
+79 | impl LocalRuntime {
+   | ----------------- method in this implementation
+80 |     /// Bound, authenticated history facts only. Never restore an active capability or authorize POST.
+81 |     pub(crate) async fn freebuff_closeout(
+   |                         ^^^^^^^^^^^^^^^^^
+
+warning: method `claim` is never used
+  --> src\local_runtime\freebuff_sessions\lifecycle.rs:10:19
+   |
+ 9 | impl PendingAdmission<'_> {
+   | ------------------------- method in this implementation
+10 |     pub(crate) fn claim(&self) -> &SessionClaim {
+   |                   ^^^^^
+
+warning: method `active` is never used
+  --> src\local_runtime\freebuff_sessions\lifecycle.rs:51:19
+   |
+50 | impl ActiveAdmission {
+   | -------------------- method in this implementation
+51 |     pub(crate) fn active(&self) -> &OwnedActiveSession {
+   |                   ^^^^^^
+
+warning: variant `Restore` is never constructed
+ --> src\local_runtime\freebuff_sessions\purchase.rs:7:5
+  |
+6 | enum ExistingClaim {
+  |      ------------- variant in this enum
+7 |     Restore,
+  |     ^^^^^^^
+  |
+  = note: `ExistingClaim` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: method `admit_freebuff_for_request` is never used
+  --> src\local_runtime\freebuff_sessions\purchase.rs:44:25
+   |
+41 | impl LocalRuntime {
+   | ----------------- method in this implementation
+...
+44 |     pub(crate) async fn admit_freebuff_for_request(
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `text` is never read
+  --> src\pipeline\copilot_identity.rs:19:5
+   |
+12 | pub(super) struct CopilotIdentity<'a> {
+   |                   --------------- field in this struct
+...
+19 |     text: TextRequest<'a>,
+   |     ^^^^
+
+warning: method `request` is never used
+  --> src\pipeline\copilot_identity.rs:61:19
+   |
+22 | impl<'a> CopilotIdentity<'a> {
+   | ---------------------------- method in this implementation
+...
+61 |     pub(super) fn request(&self) -> &TextRequest<'a> {
+   |                   ^^^^^^^
+
+warning: function `get_affinity` is never used
+ --> src\pipeline\runtime_storage.rs:4:21
+  |
+4 | pub(super) async fn get_affinity(state: &AppState, scope: &str, model: &str) -> Option<String> {
+  |                     ^^^^^^^^^^^^
+
+warning: field `expires_at` is never read
+  --> src\protocol\freebuff\catalog\owned_session.rs:64:5
+   |
+61 | pub(crate) struct OwnedActiveSession {
+   |                   ------------------ field in this struct
+...
+64 |     expires_at: OffsetDateTime,
+   |     ^^^^^^^^^^
+
+warning: method `expires_at` is never used
+   --> src\protocol\freebuff\catalog\owned_session.rs:127:19
+    |
+ 73 | impl OwnedActiveSession {
+    | ----------------------- method in this implementation
+...
+127 |     pub(crate) fn expires_at(&self) -> OffsetDateTime {
+    |                   ^^^^^^^^^^
+
+warning: method `push` is never used
+  --> src\protocol\freebuff\catalog\completion_decode\sse.rs:58:19
+   |
+43 | impl StreamDecoder {
+   | ------------------ method in this implementation
+...
+58 |     pub(crate) fn push(&mut self, bytes: Bytes) -> Result<(), BusinessError> {
+   |                   ^^^^
+
+warning: methods `decode` and `decode_until` are never used
+  --> src\protocol\freebuff\catalog\execution\decoded.rs:16:25
+   |
+14 | impl<'a> CatalogCompletionResponse<'a> {
+   | -------------------------------------- methods in this implementation
+15 |     /// Aggregate native JSON/SSE using the same incremental owner with a no-op frame observer.
+16 |     pub(crate) async fn decode(self, budget: Duration) -> DecodedCatalogRun<'a> {
+   |                         ^^^^^^
+...
+21 |     pub(crate) async fn decode_until(
+   |                         ^^^^^^^^^^^^
+
+warning: methods `accounting` and `context_forecast` are never used
+   --> src\protocol\freebuff\catalog\execution\decoded.rs:130:19
+    |
+ 96 | impl<'a> DecodedCatalogRun<'a> {
+    | ------------------------------ methods in this implementation
+...
+130 |     pub(crate) fn accounting(&self) -> &Accounting {
+    |                   ^^^^^^^^^^
+...
+133 |     pub(crate) fn context_forecast(&self) -> Option<super::super::root_context::ContextForecast> {
+    |                   ^^^^^^^^^^^^^^^^
+
+warning: method `execute_relay_step` is never used
+ --> src\protocol\freebuff\catalog\execution\relay.rs:6:25
+  |
+5 | impl<'a> CatalogRun<'a> {
+  | ----------------------- method in this implementation
+6 |     pub(crate) async fn execute_relay_step(
+  |                         ^^^^^^^^^^^^^^^^^^
+
+warning: struct `RootTurn` is never constructed
+  --> src\protocol\freebuff\catalog\execution\root_turn.rs:11:19
+   |
+11 | pub(crate) struct RootTurn<'a> {
+   |                   ^^^^^^^^
+
+warning: method `step` is never used
+  --> src\protocol\freebuff\catalog\execution\root_turn.rs:18:8
+   |
+17 | impl RootTurn<'_> {
+   | ----------------- method in this implementation
+18 |     fn step(&self, messages: Vec<Value>) -> RootStep<'_> {
+   |        ^^^^
+
+warning: method `execute_root_turn` is never used
+  --> src\protocol\freebuff\catalog\execution\root_turn.rs:33:25
+   |
+32 | impl<'a> CatalogRun<'a> {
+   | ----------------------- method in this implementation
+33 |     pub(crate) async fn execute_root_turn(
+   |                         ^^^^^^^^^^^^^^^^^
+
+warning: fields `accounting`, `totals`, and `finish_http_status` are never read
+  --> src\protocol\freebuff\catalog\execution\sequence.rs:59:16
+   |
+56 | pub(crate) struct FinishedCatalogRun {
+   |                   ------------------ fields in this struct
+...
+59 |     pub(crate) accounting: Accounting,
+   |                ^^^^^^^^^^
+60 |     pub(crate) totals: RunTotals,
+   |                ^^^^^^
+61 |     /// Transport acceptance only, not a settlement receipt or a session release.
+62 |     pub(crate) finish_http_status: u16,
+   |                ^^^^^^^^^^^^^^^^^^
+
+warning: methods `continue_run` and `finish_single_step` are never used
+   --> src\protocol\freebuff\catalog\execution\sequence.rs:111:19
+    |
+108 | impl<'a> DecodedCatalogRun<'a> {
+    | ------------------------------ methods in this implementation
+...
+111 |     pub(crate) fn continue_run(self) -> Result<(CatalogRun<'a>, Value), Self> {
+    |                   ^^^^^^^^^^^^
+...
+124 |     pub(crate) async fn finish_single_step(
+    |                         ^^^^^^^^^^^^^^^^^^
+
+warning: methods `execute_step_observed`, `execute_step`, `execute_root_step`, and `execute_built_step` are never used
+  --> src\protocol\freebuff\catalog\execution\step.rs:13:25
+   |
+11 | impl<'a> CatalogRun<'a> {
+   | ----------------------- methods in this implementation
+12 |     /// Observe provisional native SSE frames; only the returned decoded owner can confirm EOF.
+13 |     pub(crate) async fn execute_step_observed<F, O>(
+   |                         ^^^^^^^^^^^^^^^^^^^^^
+...
+31 |     pub(crate) async fn execute_step(
+   |                         ^^^^^^^^^^^^
+...
+43 |     pub(crate) async fn execute_root_step(
+   |                         ^^^^^^^^^^^^^^^^^
+...
+63 |     pub(super) async fn execute_built_step(
+   |                         ^^^^^^^^^^^^^^^^^^
+
+warning: constant `TOOLS` is never used
+  --> src\protocol\freebuff\catalog\root_builder.rs:13:7
+   |
+13 | const TOOLS: [&str; 15] = [
+   |       ^^^^^
+
+warning: struct `RootHostContext` is never constructed
+  --> src\protocol\freebuff\catalog\root_builder.rs:32:19
+   |
+32 | pub(crate) struct RootHostContext<'a> {
+   |                   ^^^^^^^^^^^^^^^
+
+warning: struct `RootStep` is never constructed
+  --> src\protocol\freebuff\catalog\root_builder.rs:40:19
+   |
+40 | pub(crate) struct RootStep<'a> {
+   |                   ^^^^^^^^
+
+warning: method `build_root_step` is never used
+  --> src\protocol\freebuff\catalog\root_builder.rs:47:19
+   |
+46 | impl BusinessRequests<'_> {
+   | ------------------------- method in this implementation
+47 |     pub(crate) fn build_root_step(
+   |                   ^^^^^^^^^^^^^^^
+
+warning: constant `APPENDIX` is never used
+ --> src\protocol\freebuff\catalog\root_builder\cli.rs:4:18
+  |
+4 | pub(super) const APPENDIX: &str = r###"
+  |                  ^^^^^^^^
+
+warning: function `lean` is never used
+ --> src\protocol\freebuff\catalog\root_builder\guidance.rs:4:15
+  |
+4 | pub(super) fn lean(max_context: u64) -> String {
+  |               ^^^^
+
+warning: constant `BATCHING` is never used
+  --> src\protocol\freebuff\catalog\root_builder\guidance.rs:13:18
+   |
+13 | pub(super) const BATCHING: &str = r###"## Work in batches
+   |                  ^^^^^^^^
+
+warning: constant `LEAN` is never used
+  --> src\protocol\freebuff\catalog\root_builder\guidance.rs:26:7
+   |
+26 | const LEAN: &str = r###"# Context budget
+   |       ^^^^
+
+warning: function `prepare` is never used
+ --> src\protocol\freebuff\catalog\root_builder\history.rs:9:47
+  |
+9 | pub(in crate::protocol::freebuff::catalog) fn prepare(
+  |                                               ^^^^^^^
+
+warning: function `check_size` is never used
+  --> src\protocol\freebuff\catalog\root_builder\history.rs:72:47
+   |
+72 | pub(in crate::protocol::freebuff::catalog) fn check_size(
+   |                                               ^^^^^^^^^^
+
+warning: function `validate` is never used
+  --> src\protocol\freebuff\catalog\root_builder\history.rs:83:4
+   |
+83 | fn validate(message: &Value) -> Result<(), BusinessError> {
+   |    ^^^^^^^^
+
+warning: function `has_payload` is never used
+   --> src\protocol\freebuff\catalog\root_builder\history.rs:129:4
+    |
+129 | fn has_payload(message: &Value) -> bool {
+    |    ^^^^^^^^^^^
+
+warning: struct `Counter` is never constructed
+   --> src\protocol\freebuff\catalog\root_builder\history.rs:146:8
+    |
+146 | struct Counter {
+    |        ^^^^^^^
+
+warning: function `push` is never used
+ --> src\protocol\freebuff\catalog\root_builder\merge.rs:5:15
+  |
+5 | pub(super) fn push(messages: &mut Vec<Value>, message: Value) -> Result<(), BusinessError> {
+  |               ^^^^
+
+warning: function `empty` is never used
+  --> src\protocol\freebuff\catalog\root_builder\merge.rs:29:4
+   |
+29 | fn empty(value: &Value) -> bool {
+   |    ^^^^^
+
+warning: function `append` is never used
+  --> src\protocol\freebuff\catalog\root_builder\merge.rs:37:4
+   |
+37 | fn append(
+   |    ^^^^^^
+
+warning: function `system` is never used
+ --> src\protocol\freebuff\catalog\root_builder\prompt.rs:6:15
+  |
+6 | pub(super) fn system(model: &RootModelInput<'_>, host: &RootHostContext<'_>) -> String {
+  |               ^^^^^^
+
+warning: function `render` is never used
+  --> src\protocol\freebuff\catalog\root_builder\prompt.rs:39:15
+   |
+39 | pub(super) fn render(mut template: &str, values: &[(&str, &str)]) -> String {
+   |               ^^^^^^
+
+warning: constant `CORE` is never used
+  --> src\protocol\freebuff\catalog\root_builder\prompt.rs:59:7
+   |
+59 | const CORE: &str = r###"You are Buffy, the coding agent behind Codebuff. You help users with software engineering tasks: fixing bugs...
+   |       ^^^^
+
+warning: constant `TURN_ENDING_NOTE` is never used
+ --> src\protocol\freebuff\catalog\root_builder\reminders.rs:4:18
+  |
+4 | pub(super) const TURN_ENDING_NOTE: &str = r###"<system>Do not reply with a status line or an announcement of your next step. If the m...
+  |                  ^^^^^^^^^^^^^^^^
+
+warning: constant `STEP` is never used
+ --> src\protocol\freebuff\catalog\root_builder\reminders.rs:5:18
+  |
+5 | pub(super) const STEP: &str = r###"<system_reminder>Work in batches: put every tool call you can already make into this response (all...
+  |                  ^^^^
+
+warning: field `fixed_tokens` is never read
+  --> src\protocol\freebuff\catalog\root_context.rs:19:16
+   |
+16 | pub(super) struct RootPreview {
+   |                   ----------- field in this struct
+...
+19 |     pub(super) fixed_tokens: u64,
+   |                ^^^^^^^^^^^^
+   |
+   = note: `RootPreview` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: method `forecast` is never used
+  --> src\protocol\freebuff\catalog\root_context.rs:42:19
+   |
+34 | impl ContextState {
+   | ----------------- method in this implementation
+...
+42 |     pub(super) fn forecast(&self) -> Option<ContextForecast> {
+   |                   ^^^^^^^^
+
+warning: struct `RootHistory` is never constructed
+ --> src\protocol\freebuff\catalog\root_history.rs:5:19
+  |
+5 | pub(crate) struct RootHistory {
+  |                   ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+  --> src\protocol\freebuff\catalog\root_history.rs:12:19
+   |
+10 | impl RootHistory {
+   | ---------------- associated items in this implementation
+11 |     /// The supplied prefix is completed historical work. A new live request must use begin_turn.
+12 |     pub(crate) fn new(messages: Vec<Value>, limit: usize) -> Result<Self, BusinessError> {
+   |                   ^^^
+...
+25 |     pub(crate) fn messages(&self) -> &[Value] {
+   |                   ^^^^^^^^
+...
+28 |     pub(crate) fn begin_turn(&mut self, user: Value) -> Result<(), BusinessError> {
+   |                   ^^^^^^^^^^
+...
+35 |     pub(crate) fn steer(&mut self, user: Value) -> Result<(), BusinessError> {
+   |                   ^^^^^
+...
+42 |     pub(crate) fn append_tools(&mut self, tools: Vec<Value>) -> Result<(), BusinessError> {
+   |                   ^^^^^^^^^^^^
+...
+53 |     fn extend(&mut self, values: Vec<Value>) -> Result<(), BusinessError> {
+   |        ^^^^^^
+...
+65 |     pub(super) fn is_live_turn(&self) -> bool {
+   |                   ^^^^^^^^^^^^
+...
+68 |     pub(super) fn fresh_users(&self) -> impl Iterator<Item = &Value> + Clone {
+   |                   ^^^^^^^^^^^
+...
+74 |     pub(super) fn compacted(&self, memory: Value) -> Result<Self, BusinessError> {
+   |                   ^^^^^^^^^
+...
+87 |     pub(super) fn record_completion(&mut self, body: &Value) -> Result<(), BusinessError> {
+   |                   ^^^^^^^^^^^^^^^^^
+
+warning: function `due` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:10:15
+   |
+10 | pub(super) fn due(preview: RootPreview, history: &RootHistory) -> Result<bool, BusinessError> {
+   |               ^^^
+
+warning: function `request` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:30:15
+   |
+30 | pub(super) fn request(mut body: Value, limit: u64) -> Value {
+   |               ^^^^^^^
+
+warning: function `from_completion` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:41:15
+   |
+41 | pub(super) fn from_completion(body: &Value) -> Result<String, BusinessError> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `extract` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:70:4
+   |
+70 | fn extract(reply: &str) -> String {
+   |    ^^^^^^^
+
+warning: function `memory` is never used
+  --> src\protocol\freebuff\catalog\root_summary.rs:95:15
+   |
+95 | pub(super) fn memory(text: &str) -> Value {
+   |               ^^^^^^
+
+warning: function `instruction` is never used
+ --> src\protocol\freebuff\catalog\root_summary\prompt.rs:2:15
+  |
+2 | pub(super) fn instruction(target_tokens: u64) -> String {
+  |               ^^^^^^^^^^^
+
+warning: fields `model_label`, `compiled_model_id`, `turn_ending_note`, and `batching` are never read
+  --> src\protocol\freebuff\catalog\root_model.rs:7:16
+   |
+ 5 | pub(crate) struct RootModelInput<'a> {
+   |                   -------------- fields in this struct
+ 6 |     pub(crate) model: &'a str,
+ 7 |     pub(crate) model_label: &'a str,
+   |                ^^^^^^^^^^^
+ 8 |     pub(crate) compaction: Option<&'a RootCompactionPolicy>,
+ 9 |     pub(crate) compiled_model_id: Option<&'static str>,
+   |                ^^^^^^^^^^^^^^^^^
+10 |     pub(crate) turn_ending_note: bool,
+   |                ^^^^^^^^^^^^^^^^
+11 |     pub(crate) batching: bool,
+   |                ^^^^^^^^
+
+warning: field `guard` is never read
+  --> src\routing\config\refresh_exchange.rs:20:9
+   |
+ 5 | pub(crate) struct RefreshAttempt {
+   |                   -------------- field in this struct
+...
+20 |     pub guard: tokio::sync::OwnedMutexGuard<()>,
+   |         ^^^^^
+
+warning: methods `apply` and `apply_with_dim` are never used
+   --> src\routing\config\refresh_exchange.rs:157:12
+    |
+128 | impl RefreshAttempt {
+    | ------------------- methods in this implementation
+...
+157 |     pub fn apply(
+    |            ^^^^^
+...
+171 |     pub fn apply_with_dim(
+    |            ^^^^^^^^^^^^^^
+
+warning: method `runtime_override` is never used
+   --> src\routing\config\refresh_state.rs:201:19
+    |
+ 60 | impl TokenRefreshState {
+    | ---------------------- method in this implementation
+...
+201 |     pub(crate) fn runtime_override(&self) -> (Option<String>, Option<String>) {
+    |                   ^^^^^^^^^^^^^^^^
+
+warning: method `execute_aistudio_browser_text_request` is never used
+  --> src\upstream\aistudio\web_reverse\browser_execution.rs:24:25
+   |
+23 | impl UpstreamClient {
+   | ------------------- method in this implementation
+24 |     pub(crate) async fn execute_aistudio_browser_text_request(
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `execute_aistudio_program_owned_text_request` and `execute_aistudio_program_owned_target_rpc` are never used
+   --> src\upstream\aistudio\web_reverse\execution\program_replay.rs:22:25
+    |
+ 21 | impl UpstreamClient {
+    | ------------------- methods in this implementation
+ 22 |     pub(super) async fn execute_aistudio_program_owned_text_request(
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+143 |     async fn execute_aistudio_program_owned_target_rpc(
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `replace_url_path` is never used
+   --> src\upstream\aistudio\web_reverse\execution\program_replay.rs:174:4
+    |
+174 | fn replace_url_path(url: &str, path: &str) -> String {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: field `text_preflight_source_path` is never read
+  --> src\upstream\client\canvas_stream_generate.rs:67:5
+   |
+61 | struct StreamGenerateRequestContext {
+   |        ---------------------------- field in this struct
+...
+67 |     text_preflight_source_path: String,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `gemini_canvas_music_response_requires_browser_followup` is never used
+  --> src\upstream\gemini_canvas_music_helpers.rs:88:15
+   |
+88 | pub(crate) fn gemini_canvas_music_response_requires_browser_followup(response: &Value) -> bool {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `gemini_canvas_program_music_browser_fallback_forbidden_error` is never used
+   --> src\upstream\gemini_canvas_music_helpers.rs:198:15
+    |
+198 | pub(crate) fn gemini_canvas_program_music_browser_fallback_forbidden_error(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_lumalabs_browser_executor_service_result` is never used
+  --> src\upstream\lumalabs_response_helpers\worker_results.rs:84:15
+   |
+84 | pub(crate) fn build_lumalabs_browser_executor_service_result(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_lumalabs_remote_browser_executor_signed_url` is never used
+  --> src\upstream\lumalabs_response_helpers\worker_results.rs:92:15
+   |
+92 | pub(crate) fn parse_lumalabs_remote_browser_executor_signed_url(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `accumulate` is never used
+  --> src\upstream\vertex_express\response.rs:11:21
+   |
+11 | pub(crate) async fn accumulate(
+   |                     ^^^^^^^^^^
+
+warning: function `accumulate` is never used
+ --> src\upstream\vertex_oauth\response.rs:9:21
+  |
+9 | pub(crate) async fn accumulate(
+  |                     ^^^^^^^^^^
+
+warning: function `project` is never used
+  --> src\upstream\vertex_oauth\response.rs:15:4
+   |
+15 | fn project(
+   |    ^^^^^^^
+
+warning: function `parse_suno_challenge_probe_verified_response` is never used
+  --> src\upstream\suno_response_helpers.rs:46:15
+   |
+46 | pub(crate) fn parse_suno_challenge_probe_verified_response(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_json_response` is never used
+ --> src\upstream\suno_response_helpers\http_responses.rs:8:15
+  |
+8 | pub(crate) fn parse_suno_json_response(
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_challenge_probe_body` is never used
+  --> src\upstream\suno_response_helpers\http_responses.rs:31:15
+   |
+31 | pub(crate) fn parse_suno_challenge_probe_body(body_text: &str) -> Result<Value, GatewayError> {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_challenge_probe_http_response` is never used
+  --> src\upstream\suno_response_helpers\http_responses.rs:39:15
+   |
+39 | pub(crate) fn parse_suno_challenge_probe_http_response(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_generation_body` is never used
+  --> src\upstream\suno_response_helpers\http_responses.rs:49:15
+   |
+49 | pub(crate) fn parse_suno_generation_body(body_text: &str) -> Result<Value, GatewayError> {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_generation_http_response` is never used
+  --> src\upstream\suno_response_helpers\http_responses.rs:57:15
+   |
+57 | pub(crate) fn parse_suno_generation_http_response(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_generation_http_clips_response` is never used
+  --> src\upstream\suno_response_helpers\http_responses.rs:67:15
+   |
+67 | pub(crate) fn parse_suno_generation_http_clips_response(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_generation_http_poll_seed` is never used
+  --> src\upstream\suno_response_helpers\http_responses.rs:79:15
+   |
+79 | pub(crate) fn parse_suno_generation_http_poll_seed(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_feed_body` is never used
+  --> src\upstream\suno_response_helpers\http_responses.rs:95:15
+   |
+95 | pub(crate) fn parse_suno_feed_body(body_text: &str) -> Result<Value, GatewayError> {
+   |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_feed_http_response` is never used
+   --> src\upstream\suno_response_helpers\http_responses.rs:103:15
+    |
+103 | pub(crate) fn parse_suno_feed_http_response(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_suno_feed_http_clips_response` is never used
+   --> src\upstream\suno_response_helpers\http_responses.rs:113:15
+    |
+113 | pub(crate) fn parse_suno_feed_http_clips_response(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ensure_successful_suno_upstream_status` is never used
+  --> src\upstream\suno_response_helpers\upstream_errors.rs:75:15
+   |
+75 | pub(crate) fn ensure_successful_suno_upstream_status(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `resolve_udio_worker_latest_songs` is never used
+  --> src\upstream\udio_response_helpers.rs:59:15
+   |
+59 | pub(crate) fn resolve_udio_worker_latest_songs(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `resolve_udio_downloaded_image_mime_type` is never used
+  --> src\upstream\udio_response_helpers\media_outputs.rs:30:15
+   |
+30 | pub(crate) fn resolve_udio_downloaded_image_mime_type(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `materialize_udio_downloaded_image` is never used
+  --> src\upstream\udio_response_helpers\media_outputs.rs:44:15
+   |
+44 | pub(crate) fn materialize_udio_downloaded_image(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `classify_udio_upstream_error` is never used
+ --> src\upstream\udio_response_helpers\upstream_errors.rs:6:15
+  |
+6 | pub(crate) fn classify_udio_upstream_error(
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `classify_udio_media_fetch_error` is never used
+  --> src\upstream\udio_response_helpers\upstream_errors.rs:65:15
+   |
+65 | pub(crate) fn classify_udio_media_fetch_error(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ensure_successful_udio_media_fetch_status` is never used
+  --> src\upstream\udio_response_helpers\upstream_errors.rs:73:15
+   |
+73 | pub(crate) fn ensure_successful_udio_media_fetch_status(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `gateway` (lib) generated 115 warnings (run `cargo fix --lib -p gateway` to apply 27 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7m 15s

@@ -44,7 +44,7 @@ it("follows explicit login, callback and save without auto-import or tools calls
   expect(screen.getByRole("link")).toHaveAttribute("href", session("waiting_user").authorizationUrl);
   f.setStatus("ready"); await poll();
   expect(f.request.mock.calls.filter(([path]) => path.endsWith("/import"))).toHaveLength(0);
-  expect(f.props.onSaved).not.toHaveBeenCalled(); await click("保存只读 MCP 账号");
+  expect(f.props.onSaved).not.toHaveBeenCalled(); await click("保存 MCP 账号");
   expect(screen.getByText("正在保存")).toBeInTheDocument();
   f.setStatus("succeeded"); await poll(); expect(f.props.onSaved).toHaveBeenCalledOnce();
   expect(f.request.mock.calls.every(([path]) => path.includes("/luma-auth-sessions"))).toBe(true);
@@ -72,10 +72,10 @@ it("cancels an unsaved session on close", async () => {
 it("preserves an ambiguous save across reopen without replay, then accepts a confirmed receipt", async () => {
   const f = fixture(); const view = render(<LumaOAuthPanel {...f.props} />); fill(); await click("通过 Luma 登录");
   f.setStatus("ready"); await poll(); f.request.mockRejectedValueOnce(new Error("response lost"));
-  await click("保存只读 MCP 账号"); expect(f.props.operations.size).toBe(1); view.unmount();
+  await click("保存 MCP 账号"); expect(f.props.operations.size).toBe(1); view.unmount();
   render(<LumaOAuthPanel {...f.props} />);
   expect(screen.queryByRole("button", { name: "通过 Luma 登录" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "保存只读 MCP 账号" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "保存 MCP 账号" })).not.toBeInTheDocument();
   f.setStatus("succeeded"); await poll(); expect(f.props.onSaved).toHaveBeenCalledOnce();
   expect(f.request.mock.calls.filter(([path]) => path.endsWith("/import"))).toHaveLength(1);
 });
@@ -84,7 +84,7 @@ it("allows explicit restart for a reclaimed unsaved session but not a lost save 
   f.request.mockRejectedValueOnce(new GatewayApiError("luma_login_unavailable", 400, "luma_login_rejected")); await poll();
   expect(screen.getByRole("button", { name: "通过 Luma 登录" })).toBeEnabled();
   await click("通过 Luma 登录"); f.setStatus("ready"); await poll();
-  f.request.mockRejectedValueOnce(new Error("response lost")); await click("保存只读 MCP 账号");
+  f.request.mockRejectedValueOnce(new Error("response lost")); await click("保存 MCP 账号");
   f.request.mockRejectedValueOnce(new GatewayApiError("luma_login_unavailable", 400, "luma_login_rejected")); await poll();
   expect(screen.getByText(/保存回执已不可用/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "通过 Luma 登录" })).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ it("allows explicit restart for a reclaimed unsaved session but not a lost save 
 });
 it("continues checking an accepted save after revision change but does not create or import again", async () => {
   const f = fixture(); const view = render(<LumaOAuthPanel {...f.props} />); fill(); await click("通过 Luma 登录");
-  f.setStatus("ready"); await poll(); await click("保存只读 MCP 账号");
+  f.setStatus("ready"); await poll(); await click("保存 MCP 账号");
   view.rerender(<LumaOAuthPanel {...f.props} expectedRevision="r2" disabled />);
   f.setStatus("succeeded"); await poll(); expect(f.props.onSaved).toHaveBeenCalledOnce();
   expect(f.request.mock.calls.filter(([path]) => path.endsWith("/import"))).toHaveLength(1);

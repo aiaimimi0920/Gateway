@@ -18,6 +18,7 @@ mod egress;
 mod identity_wait;
 mod latency;
 mod resolution;
+mod session_accounts;
 
 // Local validation can select a disposable Redis without touching a host service.
 fn test_redis_url() -> String {

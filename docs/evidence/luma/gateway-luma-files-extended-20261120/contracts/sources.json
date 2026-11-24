@@ -1,0 +1,18 @@
+[
+  {
+    "name": "files",
+    "url": "https://docs.agents.lumalabs.ai/guides/files/",
+    "checkedAt": "2026-11-19T17:34:56.586084+00:00",
+    "status": 200,
+    "finalUrl": "https://docs.agents.lumalabs.ai/guides/files/",
+    "sha256": "e382558beed54192b027dece65fb55875b1c30efadb169147175d3949a3c89bb"
+  },
+  {
+    "name": "files-create",
+    "url": "https://docs.agents.lumalabs.ai/api/resources/files/methods/create/",
+    "checkedAt": "2026-11-19T17:34:58.522708+00:00",
+    "status": 200,
+    "finalUrl": "https://docs.agents.lumalabs.ai/api/resources/files/methods/create/",
+    "sha256": "166bda6c4fc986c31ed00489c5119526c7f0f6f3c7b8db07065be69930ce6964"
+  }
+]

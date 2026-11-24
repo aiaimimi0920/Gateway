@@ -8,6 +8,7 @@ pub mod job;
 pub mod model_catalog;
 mod openrouter;
 mod registry;
+mod request_identity;
 mod sampling;
 mod selection;
 #[cfg(test)]
@@ -191,16 +192,36 @@ pub async fn discover(url: &str, key: &str) -> anyhow::Result<CredentialDiscover
     discover_with_models(url, key, &[]).await
 }
 
+/// Directory metadata only. This must never invoke generation or assert protocol support.
+pub async fn read_account_models(url: &str, key: &str) -> anyhow::Result<Vec<String>> {
+    transport::checked_url(url)?;
+    validate_key(key)?;
+    let client = crate::http_client::builder()
+        .redirect(rquest::redirect::Policy::none())
+        .timeout(REQUEST_TIMEOUT)
+        .build()?;
+    if openrouter::matches(url) {
+        openrouter::load(&client, key).await
+    } else {
+        catalogue::load(&client, url, key).await
+    }
+}
+
+fn validate_key(key: &str) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !key.trim().is_empty() && key.len() <= 16_384 && !key.contains(['\r', '\n']),
+        "A valid API key is required."
+    );
+    Ok(())
+}
+
 /// Caller-supplied model IDs are probe candidates, never evidence of support.
 pub async fn discover_with_models(
     url: &str,
     key: &str,
     models: &[String],
 ) -> anyhow::Result<CredentialDiscovery> {
-    anyhow::ensure!(
-        !key.trim().is_empty() && key.len() <= 16_384 && !key.contains(['\r', '\n']),
-        "A valid API key is required."
-    );
+    validate_key(key)?;
     // Candidate/page/sample counts bound the job. A whole-job timeout would steal
     // a later request's budget while earlier aliases or protocols were running.
     anyhow::ensure!(

@@ -11,6 +11,7 @@ use crate::upstream::lumalabs_response_helpers::{
 
 mod assets;
 mod browser_worker;
+mod session;
 mod task_result;
 #[cfg(test)]
 mod task_tests;
@@ -37,17 +38,42 @@ pub(crate) fn validate_media_probe(
     .map(|_| ())
 }
 
+fn legacy_executor_result(
+    value: Value,
+    prepared: &PreparedLumalabsBrowserExecutorServiceInput,
+) -> Result<Value, GatewayError> {
+    let task = browser_worker::parse_task(value, "lumalabs_compatible")?;
+    task.validate(prepared)?;
+    Ok(task.into_value())
+}
+
 impl UpstreamClient {
     pub(crate) async fn execute_lumalabs_browser_executor_service_invocation(
         &self,
         input: &Value,
+        retain_session: bool,
     ) -> Result<Value, GatewayError> {
+        if retain_session
+            && !input
+                .get("sessionBinding")
+                .and_then(Value::as_str)
+                .is_some_and(|binding| uuid::Uuid::parse_str(binding).is_ok())
+        {
+            return Err(
+                GatewayError::bad_request("Luma Web executor requires a session binding.")
+                    .with_code("lumalabs_session_binding_invalid"),
+            );
+        }
         let prepared = prepare_lumalabs_browser_executor_service_input(input)?;
-        let task = self
-            .execute_lumalabs_browser_worker("lumalabs_compatible", &prepared)
+        if retain_session {
+            // Only the versioned route can return a receipt, including on a business failure.
+            return self.execute_luma_worker_value(&prepared, input).await;
+        }
+        // The legacy endpoint keeps its old result shape and business error classification.
+        let value = self
+            .execute_luma_worker_value(&prepared, &Value::Null)
             .await?;
-        task.validate(&prepared)?;
-        Ok(task.into_value())
+        legacy_executor_result(value, &prepared)
     }
 
     pub(crate) async fn execute_lumalabs_media(
@@ -64,23 +90,17 @@ impl UpstreamClient {
         // after entering this owner is uncertain, never permission to generate on another account.
         let deadline = tokio::time::Instant::now() + prepared.browser_input.timeout;
         tokio::time::timeout_at(deadline, async {
-            let task = if let Some(result) = self
-                .execute_remote_browser_executor(
-                    "lumalabs",
+            let result = self
+                .dispatch_luma_session(
                     provider_account_id,
+                    payload,
                     req.endpoint_kind,
-                    build_lumalabs_browser_executor_payload_from_prepared(
-                        &prepared.browser_input,
-                        std::env::var("LUMALABS_BROWSER_EXECUTABLE_PATH").ok(),
-                    ),
+                    prepared.browser_input.clone(),
+                    false,
                 )
                 .await?
-            {
-                task_result::TaskResult::from_value(result)?
-            } else {
-                self.execute_lumalabs_browser_worker(provider, &prepared.browser_input)
-                    .await?
-            };
+                .expect("business dispatch is never skipped");
+            let task = browser_worker::parse_task(result, provider)?;
             task.validate(&prepared.browser_input)?;
             let signed_url = task.signed_url;
 
@@ -117,19 +137,5 @@ impl UpstreamClient {
         .await
         .map_err(|_| browser_worker::timeout_error())?
         .map_err(browser_worker::no_replay)
-    }
-
-    async fn execute_lumalabs_browser_worker(
-        &self,
-        provider: &str,
-        prepared: &PreparedLumalabsBrowserExecutorServiceInput,
-    ) -> Result<task_result::TaskResult, GatewayError> {
-        let launch = prepare_lumalabs_browser_worker_launch(
-            prepared,
-            std::env::var("LUMALABS_BROWSER_EXECUTABLE_PATH").ok(),
-            std::env::var("LUMALABS_BROWSER_NODE_BIN").ok(),
-        )?;
-
-        browser_worker::run(launch, prepared.timeout, provider).await
     }
 }

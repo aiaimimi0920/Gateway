@@ -1,0 +1,93 @@
+[
+  {
+    "path": "apps/desktop/src/api/contracts/credentials.ts",
+    "language": "c-like",
+    "effectiveLines": 238,
+    "physicalLines": 268,
+    "sourceSha256": "9a70ce8620279787c10187851dd223c951ffff7df3f3bded7775dbe8203eddd4"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaAgentsMediaProbe.test.tsx",
+    "language": "c-like",
+    "effectiveLines": 132,
+    "physicalLines": 133,
+    "sourceSha256": "38ba6b16bb2700163906639fdb8dcc3784c7e75a0f3325d335cdb78bc454e578"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMediaProbeDialog.tsx",
+    "language": "c-like",
+    "effectiveLines": 85,
+    "physicalLines": 88,
+    "sourceSha256": "0e11253fe0d9c448ee79ef276e727c43dfe9bfd890b4bd27639dcbe87615c38b"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMediaProbeSource.tsx",
+    "language": "c-like",
+    "effectiveLines": 41,
+    "physicalLines": 42,
+    "sourceSha256": "8968a6a5d2624b27bf1bf307da10cbb9321b2fe341e899e8a6bbab88f159235d"
+  },
+  {
+    "path": "src/protocol/luma_agents.rs",
+    "language": "rust",
+    "effectiveLines": 121,
+    "physicalLines": 137,
+    "sourceSha256": "9622fd5a26e39c03e880b329b3cb48a7da2cc01abb60a398064dec31aede5f6c"
+  },
+  {
+    "path": "src/protocol/luma_agents/media_ref.rs",
+    "language": "rust",
+    "effectiveLines": 121,
+    "physicalLines": 129,
+    "sourceSha256": "d334439b655163afaf6394d74e2075c114798700ca9c852132ef6028d9e25061"
+  },
+  {
+    "path": "src/protocol/luma_agents/request.rs",
+    "language": "rust",
+    "effectiveLines": 221,
+    "physicalLines": 226,
+    "sourceSha256": "7e83e72cc6abf9f88b4f45c4d1bde7c28f484d68a63d7f623dbffc18b306d0dd"
+  },
+  {
+    "path": "src/protocol/luma_agents/tests.rs",
+    "language": "rust",
+    "effectiveLines": 195,
+    "physicalLines": 198,
+    "sourceSha256": "a02e83cd3e849281eddba4b321fe4837578437ab2f49522764dd2a9ce523c030"
+  },
+  {
+    "path": "src/protocol/luma_agents/video_reframe_tests.rs",
+    "language": "rust",
+    "effectiveLines": 116,
+    "physicalLines": 122,
+    "sourceSha256": "ef02e854a64472e9eedd3b8e071e1addf76e419017c6e8c2c3b5f78e6ffe577c"
+  },
+  {
+    "path": "src/protocol/luma_agents/video_reframe.rs",
+    "language": "rust",
+    "effectiveLines": 87,
+    "physicalLines": 91,
+    "sourceSha256": "dfc34367070b94bb51429bddb0f779854c71d8cb2a54020bd037b64dd01f1616"
+  },
+  {
+    "path": "src/protocol/luma_agents/video.rs",
+    "language": "rust",
+    "effectiveLines": 124,
+    "physicalLines": 127,
+    "sourceSha256": "a81d000c58b214d01eb4b3b33d6225c94695504088d5351e42e53a949cb8af5f"
+  },
+  {
+    "path": "src/provider_runtime/media_probe_request.rs",
+    "language": "rust",
+    "effectiveLines": 162,
+    "physicalLines": 167,
+    "sourceSha256": "9b474ac0e1e35065b023eb2bb2ed5283f42a799df89ad7d49c034c762c7a210e"
+  },
+  {
+    "path": "src/upstream/luma_agents/reframe_flow_tests.rs",
+    "language": "rust",
+    "effectiveLines": 183,
+    "physicalLines": 188,
+    "sourceSha256": "45048e0b4a81d68bf51c5b8dc166357ddc2aae67f8e09d9d3c4f66a7d4bb5e90"
+  }
+]

@@ -7,6 +7,17 @@ pub(super) async fn read(
     model: &str,
     provider: &str,
 ) -> Result<CanonicalRelayResponse, GatewayError> {
+    if crate::protocol::luma_inference::owns_payload(payload) {
+        return crate::protocol::luma_inference::read_response(response).await;
+    }
+    if crate::protocol::sensenova::native_messages::selected(payload, req.endpoint_kind) {
+        let body = crate::protocol::sensenova::native_messages::read(response).await?;
+        return crate::protocol::anthropic::unpack_anthropic_response(&body);
+    }
+    if crate::protocol::sensenova::native_responses::selected(payload, req.endpoint_kind) {
+        let body = crate::protocol::sensenova::native_responses::read(response).await?;
+        return responses::unpack_responses_response(&body);
+    }
     if crate::protocol::sensenova::owns_payload(payload) {
         return crate::protocol::sensenova::read_response(response).await;
     }

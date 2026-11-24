@@ -16,6 +16,8 @@ pub(crate) struct LumalabsBrowserWorkerInput<'a> {
     pub(crate) artifact_field: &'a str,
     #[serde(rename = "sessionToken")]
     pub(crate) session_token: &'a str,
+    #[serde(rename = "userAgent", skip_serializing_if = "Option::is_none")]
+    pub(crate) user_agent: Option<&'a str>,
     #[serde(rename = "actionBody")]
     pub(crate) action_body: &'a Value,
     #[serde(rename = "autoDiscoverActionType")]

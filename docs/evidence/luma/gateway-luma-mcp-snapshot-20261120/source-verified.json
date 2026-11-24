@@ -1,0 +1,37 @@
+[
+  {
+    "path": "src/protocol/luma_mcp/catalog.rs",
+    "effectiveLines": 62,
+    "sha256": "9bab23a2de95c38c499d6a4bc68352d31c02c4f8b596ebea7694ee70d1994380"
+  },
+  {
+    "path": "src/protocol/luma_mcp/tests.rs",
+    "effectiveLines": 283,
+    "sha256": "0cd462aebc5e682be422bf96bb16594492d8074492173439d39d787bb2094a5f"
+  },
+  {
+    "path": "src/protocol/luma_mcp/browser_fixture.rs",
+    "effectiveLines": 142,
+    "sha256": "418bb5c6836cefdbe238823119c00e515808fc4a6b62f8eb368bfbc9d462341a"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpToolsPanel.tsx",
+    "effectiveLines": 78,
+    "sha256": "a570b1b3f119a68a628e5dc9fc526e9dc7708b64bfe6b36ddea36c23e17825ba"
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaMcpSnapshot.ts",
+    "effectiveLines": 18,
+    "sha256": "5804bc61b277750e103554d77351b32e3279533f07fbdb5247965b1e3607ff65"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpToolsPanel.snapshot.test.tsx",
+    "effectiveLines": 97,
+    "sha256": "70f10aadb970bdc618e3d98ff947b62495456f008f2f36deccec7cdf467768a4"
+  },
+  {
+    "path": "tools/luma/mcp-browser-check.mjs",
+    "effectiveLines": 162,
+    "sha256": "4a2d9405636151a8d711a06d8ef6f435f6d17bababd5ab95f4781c21050cdf9e"
+  }
+]

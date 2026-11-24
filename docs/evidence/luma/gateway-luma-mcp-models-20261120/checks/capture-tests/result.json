@@ -1,0 +1,17 @@
+{
+  "args": [
+    "python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests/python",
+    "-p",
+    "test_luma_model_capture.py",
+    "-v"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T10:32:32.516445+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 0.25
+}

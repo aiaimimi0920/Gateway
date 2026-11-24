@@ -1,0 +1,15 @@
+[package]
+name = "gateway-provider-kit"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98.0"
+license = "MIT"
+publish = false
+
+[dependencies]
+gateway-core = { path = "../gateway-core" }
+axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
+bytes = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
+url = "2"

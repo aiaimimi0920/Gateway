@@ -1,0 +1,21 @@
+{
+  "args": [
+    "rustfmt",
+    "--check",
+    "--edition",
+    "2021",
+    "--config",
+    "skip_children=true",
+    "src/upstream/luma_agents.rs",
+    "src/upstream/luma_agents/generation.rs",
+    "src/upstream/luma_agents/task_lookup.rs",
+    "src/upstream/luma_agents/task_lookup_tests.rs",
+    "src/http/routes/internal_console.rs",
+    "src/http/routes/internal_console/luma_tasks.rs",
+    "src/http/router/management_config.rs"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T21:51:18.577337+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 0.34
+}

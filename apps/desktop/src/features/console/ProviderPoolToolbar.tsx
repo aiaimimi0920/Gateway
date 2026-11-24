@@ -36,7 +36,8 @@ export function ProviderPoolToolbar({ value, onChange, t, scope = "sites" }: {
     </div>
     <PopupSelect value={value.sort} onValueChange={(sort: ProviderPoolSort) => onChange({ ...value, sort })}
       options={options.map(([value, label]) => ({ value, label }))} leading={<ArrowDownWideNarrow size={15} aria-hidden="true" />}
-      className="nt-provider-pool-toolbar__sort" aria-label={sortLabel} />
+      compact={scope === "sites"} className="nt-provider-pool-toolbar__sort" aria-label={sortLabel}
+      title={scope === "sites" ? `${sortLabel}: ${options.find(([sort]) => sort === value.sort)?.[1] ?? ""}` : undefined} />
 
   </div>;
 }

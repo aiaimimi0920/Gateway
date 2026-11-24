@@ -1,0 +1,258 @@
+diff --git a/apps/desktop/src/api/client.ts b/apps/desktop/src/api/client.ts
+index 34c00b1..249448a 100644
+--- a/apps/desktop/src/api/client.ts
++++ b/apps/desktop/src/api/client.ts
+@@ -98,7 +98,9 @@ export function createGatewayApiClient({
+       } = options;
+       const headers = new Headers(suppliedHeaders);
+       headers.set("Accept", "application/json");
+-      if (body !== undefined) {
++      if (body instanceof FormData) {
++        headers.delete("Content-Type"); // The browser supplies the matching multipart boundary.
++      } else if (body !== undefined) {
+         headers.set("Content-Type", "application/json");
+       }
+       if (managementToken) {
+@@ -110,7 +112,7 @@ export function createGatewayApiClient({
+ 
+       const response = await fetchImplementation(buildApiUrl(host.apiOrigin, path), {
+         ...requestInit,
+-        body: body === undefined ? undefined : JSON.stringify(body),
++        body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
+         cache: "no-store",
+         credentials: "omit",
+         headers,
+diff --git a/src/http/router.rs b/src/http/router.rs
+index 461a7fb..dec7793 100644
+--- a/src/http/router.rs
++++ b/src/http/router.rs
+@@ -60,6 +60,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
+         .layer(body_limit_layer(state.config.max_request_body_bytes))
+         // Backups have their own bounded upload limit; shared LAN/auth/lifecycle layers still apply.
+         .merge(super::routes::internal_console::backup::router())
++        // Files use a dedicated bounded binary upload limit, with the same auth/LAN/lifecycle layers.
++        .merge(super::routes::internal_console::mount_luma_files(
++            Router::new(),
++        ))
+         .layer(axum::Extension(Arc::clone(&lan_sharing)))
+         .layer(axum_mw::from_fn_with_state(
+             lan_sharing,
+diff --git a/src/protocol/luma_agents.rs b/src/protocol/luma_agents.rs
+index d19828a..40a20ae 100644
+--- a/src/protocol/luma_agents.rs
++++ b/src/protocol/luma_agents.rs
+@@ -1,12 +1,19 @@
+ //! Product-scoped contract for the official Agents API, independent of Luma Web.
++pub(crate) mod file_upload;
++pub(crate) mod files;
++pub(crate) mod generation_audit;
++mod layering;
+ mod media_ref;
+ mod request;
+ mod video;
++mod video_edit;
++mod video_reframe;
+ 
+ use crate::{
+     error::{ErrorKind, FallbackHint, GatewayError},
+     routing::candidate::ProviderAccountPayload,
+ };
++pub(crate) use layering::normalize as normalize_layering;
+ pub(crate) use request::{GenerationRequest, Media};
+ 
+ pub const ADAPTER: &str = "lumalabs_agents_compatible";
+@@ -32,6 +39,20 @@ pub(crate) fn record_success_audit(
+     Some(id.to_owned())
+ }
+ 
++/// Failure paths have no selected successful adapter; the error owns validated task facts.
++pub(crate) fn record_failure_audit(
++    error: &GatewayError,
++    trace: &mut serde_json::Value,
++) -> Option<String> {
++    if error.provider_name.as_deref() != Some(ADAPTER) {
++        return None;
++    }
++    error
++        .luma_generation_failure
++        .as_ref()
++        .map(|facts| facts.record(trace))
++}
++
+ /// Reference-based edits have no local upload; product validation follows auth and model resolution.
+ pub(crate) fn normalize_source_edit(
+     body: serde_json::Value,
+@@ -116,5 +137,11 @@ pub(crate) fn invalid_request() -> GatewayError {
+     )
+ }
+ 
++#[cfg(test)]
++mod layering_tests;
+ #[cfg(test)]
+ mod tests;
++#[cfg(test)]
++mod video_edit_tests;
++#[cfg(test)]
++mod video_reframe_tests;
+diff --git a/src/upstream/luma_agents.rs b/src/upstream/luma_agents.rs
+index 9134438..3172e51 100644
+--- a/src/upstream/luma_agents.rs
++++ b/src/upstream/luma_agents.rs
+@@ -1,9 +1,20 @@
+ //! Official Agents API owner; never dispatches the existing Luma Web board worker.
+ #[cfg(feature = "line-lumalabs-agents-official-api")]
+ mod assets;
++pub(crate) mod files;
++#[cfg(feature = "line-lumalabs-agents-official-api")]
++mod files_output;
++#[cfg(feature = "line-lumalabs-agents-official-api")]
++mod files_upload;
+ #[cfg(feature = "line-lumalabs-agents-official-api")]
+ mod generation;
+ #[cfg(feature = "line-lumalabs-agents-official-api")]
++mod layering_output;
++#[cfg(feature = "line-lumalabs-agents-official-api")]
++mod layering_text;
++#[cfg(feature = "line-lumalabs-agents-official-api")]
++mod settlement;
++#[cfg(feature = "line-lumalabs-agents-official-api")]
+ mod transport;
+ use crate::{
+     error::GatewayError, protocol::canonical::CanonicalRelayRequest,
+@@ -33,7 +44,9 @@ pub(crate) async fn execute(
+     {
+         let material = transport::Material::new(payload)?;
+         let request = crate::protocol::luma_agents::GenerationRequest::pack(request, model)?;
+-        let max = if request.media == crate::protocol::luma_agents::Media::Image {
++        let max = if request.media == crate::protocol::luma_agents::Media::Image
++            && request.kind != "layering"
++        {
+             120
+         } else {
+             600
+@@ -43,9 +56,11 @@ pub(crate) async fn execute(
+             return Err(transport::timeout_error());
+         }
+         // One deadline owns submit, every poll, DNS, download and validation; no detached I/O.
++        // Heap-pin the media future so polling/settlement state does not enlarge every
++        // enclosing dispatcher and management request frame on Windows' default stack.
+         tokio::time::timeout(
+             duration,
+-            generation::run(client, &material, request, duration),
++            Box::pin(generation::run(client, &material, request, duration)),
+         )
+         .await
+         .map_err(|_| transport::timeout_error())?
+@@ -55,6 +70,28 @@ pub(crate) async fn execute(
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod boundary_tests;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod cancellation_audit_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod failure_audit_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod failure_receipt_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod files_management_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod files_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod files_upload_management_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod files_upload_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod layering_fixture;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod layering_flow_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod layering_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod observation_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod pipeline_admission;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod pipeline_failures;
+@@ -71,6 +108,14 @@ mod probe_management_tests;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod probe_tests;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod reframe_flow_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod settlement_lifetime_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod settlement_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod test_support;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod video_edit_flow_tests;
+diff --git a/src/upstream/luma_agents/test_support.rs b/src/upstream/luma_agents/test_support.rs
+index d2d86d0..dbf1746 100644
+--- a/src/upstream/luma_agents/test_support.rs
++++ b/src/upstream/luma_agents/test_support.rs
+@@ -38,6 +38,7 @@ pub struct Call {
+     pub path: String,
+     pub headers: axum::http::HeaderMap,
+     pub body: Value,
++    pub raw_body: Vec<u8>,
+ }
+ pub struct Reply {
+     pub status: u16,
+@@ -153,7 +154,7 @@ async fn handler(State(state): State<Fixture>, request: Request<Body>) -> Respon
+         matches!(parts.uri.scheme_str(), None | Some("http")),
+         "fixture never forwards CONNECT"
+     );
+-    let bytes = axum::body::to_bytes(body, 2 * 1024 * 1024).await.unwrap();
++    let bytes = axum::body::to_bytes(body, 65 * 1024 * 1024).await.unwrap();
+     let unsupported_method = parts.method == axum::http::Method::CONNECT;
+     state.calls.lock().unwrap().push(Call {
+         method: parts.method.to_string(),
+@@ -162,12 +163,19 @@ async fn handler(State(state): State<Fixture>, request: Request<Body>) -> Respon
+             .path_and_query()
+             .map(|p| p.to_string())
+             .unwrap_or_else(|| parts.uri.to_string()),
+-        headers: parts.headers,
+-        body: if bytes.is_empty() {
++        body: if bytes.is_empty()
++            || parts.method == axum::http::Method::PUT
++            || parts
++                .headers
++                .get("content-type")
++                .is_some_and(|v| v.as_bytes().starts_with(b"multipart/form-data"))
++        {
+             Value::Null
+         } else {
+             serde_json::from_slice(&bytes).unwrap()
+         },
++        headers: parts.headers,
++        raw_body: bytes.to_vec(),
+     });
+     if unsupported_method {
+         // Observe an accidental generic HTTPS attempt without forwarding it or poisoning the log.
+@@ -208,10 +216,11 @@ impl Drop for CloseProbe {
+     }
+ }
+ pub fn job(state: &str) -> Value {
++    // Default deployment has no usage reporting; delayed settlement fixtures opt in explicitly.
+     json!({"id":ID,"type":"image","model":"uni-1","state":state,
+         "created_at":"2026-11-05T00:00:00Z","failure_reason":null,"failure_code":null,
+         "output":if state=="completed" {json!([{"type":"image","url":ASSET}])}else{json!([])},
+-        "usage":{"credits_charged":null}})
++        "usage":null})
+ }
+ pub fn payload() -> crate::routing::candidate::ProviderAccountPayload {
+     serde_json::from_value(json!({"adapter":"lumalabs_agents_compatible",
+diff --git a/src/upstream/public_assets.rs b/src/upstream/public_assets.rs
+index e21302b..7ac2508 100644
+--- a/src/upstream/public_assets.rs
++++ b/src/upstream/public_assets.rs
+@@ -2,6 +2,8 @@
+ #[cfg(feature = "line-suno-web-reverse-api")]
+ pub(super) mod audio;
+ pub(super) mod image;
++#[cfg(feature = "line-lumalabs-agents-official-api")]
++pub(super) mod upload;
+ use futures::StreamExt;
+ use std::net::IpAddr;
+ #[cfg(not(test))]

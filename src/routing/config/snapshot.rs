@@ -99,12 +99,30 @@ impl RouteConfigSnapshot {
         admission: &dyn Fn(&str, &str, &str) -> bool,
         authorized_group_fallback: bool,
     ) -> CandidateResolution {
+        self.resolve_candidates_admitted_with_preferred(
+            model,
+            constraint,
+            admission,
+            authorized_group_fallback,
+            None,
+        )
+    }
+
+    pub(crate) fn resolve_candidates_admitted_with_preferred(
+        &self,
+        model: Option<&str>,
+        constraint: &RouteAccountGroupConstraint,
+        admission: &dyn Fn(&str, &str, &str) -> bool,
+        authorized_group_fallback: bool,
+        preferred: Option<&(String, String)>,
+    ) -> CandidateResolution {
         candidates::resolve_candidates_filtered(
             self.compiled(),
             model,
             constraint.allowed_account_ids.as_ref(),
             Some(admission),
             authorized_group_fallback,
+            preferred,
         )
     }
 

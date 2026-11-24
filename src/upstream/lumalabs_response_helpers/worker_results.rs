@@ -1,6 +1,8 @@
 //! LumaLabs local and remote browser worker results and failure classification.
 
-use crate::error::{classify_upstream_error, sanitize_provider_error_message, GatewayError};
+use crate::error::{
+    classify_upstream_error, sanitize_provider_error_message, FallbackHint, GatewayError,
+};
 use crate::upstream::browser_worker_types::LumalabsBrowserWorkerResult;
 use serde_json::json;
 
@@ -36,6 +38,24 @@ pub(crate) fn classify_lumalabs_browser_worker_failure(
 ) -> GatewayError {
     let error = result.error;
     let status = error.as_ref().and_then(|entry| entry.status).unwrap_or(500);
+    // The worker deliberately omits the private payment response body. Classify its
+    // explicit refusal before inspecting diagnostics, without authorizing another attempt.
+    if status == 402
+        && error.as_ref().and_then(|entry| entry.code.as_deref())
+            == Some("lumalabs_action_payment_required")
+    {
+        let mut refusal = GatewayError::quota_exceeded(
+            "LumaLabs declined the action: payment or additional credits are required.",
+        )
+        .with_code("lumalabs_action_payment_required")
+        .with_provider(provider);
+        refusal.http_status = Some(402);
+        refusal.fallback_hint = FallbackHint::Abort {
+            reason: "Luma Web payment refusal requires user action; do not replay generation."
+                .into(),
+        };
+        return refusal;
+    }
     let body_text = error
         .as_ref()
         .and_then(|entry| entry.body.as_deref())

@@ -1,0 +1,20 @@
+{
+  "args": [
+    "powershell.exe",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    "tools/package-gateway-devtest.ps1",
+    "-Edition",
+    "desktop",
+    "-Jobs",
+    "4",
+    "-VersionId",
+    "gateway-devtest-20261121-luma-web-session"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-21T15:01:20.833648+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 894.73
+}

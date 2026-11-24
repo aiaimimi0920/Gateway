@@ -20,6 +20,8 @@ pub struct DiscoveryRequest {
     pub credential_id: Option<String>,
     #[serde(default)]
     pub models: Vec<String>,
+    #[serde(default)]
+    pub catalog_only: bool,
 }
 
 pub async fn discover_account(
@@ -30,10 +32,10 @@ pub async fn discover_account(
     Json(body): Json<DiscoveryRequest>,
 ) -> Result<Response, GatewayError> {
     let request = console_request_context(&headers, connect_info.as_ref());
-    let actor = state.console_auth.authenticate_management_token(
-        &request,
-        required_console_management_token(token.as_deref(), &headers)?,
-    )?;
+    let management_token = required_console_management_token(token.as_deref(), &headers)?;
+    let actor = state
+        .console_auth
+        .authenticate_management_token(&request, management_token)?;
     let grant = headers
         .get("x-secret-grant")
         .and_then(|v| v.to_str().ok())
@@ -94,25 +96,31 @@ pub async fn discover_account(
             body.models,
         )
     };
-    let discovery =
+    let result = if body.catalog_only {
+        crate::provider_discovery::read_account_models(base.trim(), key.trim())
+            .await.map(|models| serde_json::json!({"catalog":{"models":models},"revision":snapshot.revision().id()}))
+    } else {
         crate::provider_discovery::discover_with_models(base.trim(), key.trim(), &models)
-            .await
-            .map_err(|error| {
-                GatewayError::bad_request(
-                    error
-                        .downcast_ref::<crate::provider_discovery::DiscoveryFailure>()
-                        .map(ToString::to_string)
-                        .unwrap_or_else(|| {
-                            "自动识别失败：请检查地址、密钥及模型 ID 格式；原配置未更改。".into()
-                        }),
-                )
-                .with_code("provider_discovery_failed")
-            })?;
-    // Re-authenticate after the bounded network operation in case access was revoked.
-    state
+            .await.map(|discovery| serde_json::json!({"discovery":discovery,"revision":snapshot.revision().id()}))
+    };
+    let result = result.map_err(|error| {
+        GatewayError::bad_request(
+            error
+                .downcast_ref::<crate::provider_discovery::DiscoveryFailure>()
+                .map(ToString::to_string)
+                .unwrap_or_else(|| {
+                    "自动识别失败：请检查地址、密钥及模型 ID 格式；原配置未更改。".into()
+                }),
+        )
+        .with_code("provider_discovery_failed")
+    })?;
+    // A long dry-run may outlive its original grant. Re-authenticate the same token,
+    // origin and client IP; only current (possibly renewed) authority may receive its result.
+    let actor = state
         .console_auth
-        .verify_secret_grant(&request, &actor, grant)?;
-    Ok(json_with_no_store(
-        serde_json::json!({"discovery": discovery, "revision": snapshot.revision().id()}),
-    ))
+        .authenticate_management_token(&request, management_token)?;
+    if !actor.secret_access_granted() {
+        return Err(crate::console::auth::console_secret_access_required_error());
+    }
+    Ok(json_with_no_store(result))
 }

@@ -1,0 +1,109 @@
+{
+  "files": [
+    {
+      "path": "main-check/command.log",
+      "bytes": 1394,
+      "sha256": "34b7edc671f33485403e6bd7c6688094aa7de15e2cfc4e48955244ebfd9d3bea"
+    },
+    {
+      "path": "main-check/result.json",
+      "bytes": 357,
+      "sha256": "98bb57dc4b34b05370743869d846ac124a5e6f2263f259c999a9d0e08a58b8f8"
+    },
+    {
+      "path": "preview-build-final/command.log",
+      "bytes": 1213,
+      "sha256": "3e0b0c1140b4cce369948a9b85da07570e90fba593e6fecb605128441bf0d937"
+    },
+    {
+      "path": "preview-build-final/result.json",
+      "bytes": 390,
+      "sha256": "c8e244144b2f972991e445366c0bbe6cafed2093863608a35fabd2710990a60e"
+    },
+    {
+      "path": "typecheck/command.log",
+      "bytes": 163,
+      "sha256": "78ba547f69c2723ea8f98f8f56e3482d8e9df550ba90f36dedf8c8bddba6ef30"
+    },
+    {
+      "path": "typecheck/result.json",
+      "bytes": 323,
+      "sha256": "61a55883e8dbec982f3966d978b40895580080102025b7379149bd0023f26042"
+    },
+    {
+      "path": "typecheck-final/command.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typecheck-final/result.json",
+      "bytes": 323,
+      "sha256": "d47347369013898ffd45e71d496528d73691d929da165678be8ba4104aa63e57"
+    },
+    {
+      "path": "checker-tests/command.log",
+      "bytes": 6292,
+      "sha256": "9af21a062aa74a0797efbad4b764e1691a3eda6f072662f03da183b4b71b0fd5"
+    },
+    {
+      "path": "checker-tests/result.json",
+      "bytes": 283,
+      "sha256": "017f3cd1fbb04855b5905882d76f0edfff1a9317abfa0557d5e5ddb89f26fc88"
+    },
+    {
+      "path": "ratchet/command.log",
+      "bytes": 273,
+      "sha256": "449bf97ae77e656d8fc6c38d7b5437dd87b8c0769109371a67c88e18c73f748d"
+    },
+    {
+      "path": "ratchet/result.json",
+      "bytes": 284,
+      "sha256": "f311472f523df79917a48b0accd7eda3f2f29597111b97856fd395a9e6801c15"
+    },
+    {
+      "path": "public-files/sources.json",
+      "bytes": 321,
+      "sha256": "e94db6b0638dd6f6eb951b4c22afadf8399247d7756ee00988799538e530a451"
+    },
+    {
+      "path": "preview-lifecycle.log",
+      "bytes": 546,
+      "sha256": "acb37245735439168a0890cc8ad40856898cf69bed03bb7ecceab597f6bf84e9"
+    },
+    {
+      "path": "preview-lifecycle-final.log",
+      "bytes": 91,
+      "sha256": "5598a71514ce5e91eab40c6b5fa03b5dd50cab25a9a7ef3d2c39d9f7d1042fc7"
+    },
+    {
+      "path": "preview-lifecycle-final.json",
+      "bytes": 98,
+      "sha256": "9beb5a78341a98741874be0c2000188a7ff51e6dc024e44674faaa40ce29ee04"
+    },
+    {
+      "path": "migration-verification.json",
+      "bytes": 159,
+      "sha256": "b6eed34b0c89efaff3281614451205ced6d4e4c2cf7ce8b29a3123c8143d78c5"
+    },
+    {
+      "path": "effective-lines.json",
+      "bytes": 326,
+      "sha256": "e525ddba6c81a227058f13ad2b85e916a9f5631674203015d26c18f51c3d9f86"
+    },
+    {
+      "path": "expected-exit-seven/result.json",
+      "bytes": 380,
+      "sha256": "b038fde8150242478eba38d0b192faafd145c30c0bfdce6fba59ed15e905cc14"
+    },
+    {
+      "path": "expected-missing-command/result.json",
+      "bytes": 308,
+      "sha256": "5b0e049d6a517dd6064e4cac1fc5efff6758ec8e13eaea0e1e93b7a625084982"
+    }
+  ],
+  "notes": [
+    "typecheck initial failed on fixture type import; fixed and final passed",
+    "preview initial close API failed; corrected to Rsbuild returned server.close and final passed",
+    "exit seven and missing command are deliberate negative probes"
+  ]
+}

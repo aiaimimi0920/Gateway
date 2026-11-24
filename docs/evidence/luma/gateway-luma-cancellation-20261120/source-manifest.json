@@ -1,0 +1,82 @@
+[
+  {
+    "path": "src/protocol/luma_agents.rs",
+    "sha256": "2a70671d178897213eea537c8b87e862a0775ea9170ae6fadb0a1ce2339fade0",
+    "bytes": 5049
+  },
+  {
+    "path": "src/upstream/luma_agents.rs",
+    "sha256": "e2f47c9f3254650d418f83558a75bf50df3b4a7bbf77abe66336bfa4e12aef7f",
+    "bytes": 4530
+  },
+  {
+    "path": "src/upstream/luma_agents/generation.rs",
+    "sha256": "14d32830d14d185184b2c86e89f11f063b9916fccf59622a946fd547a6ab8844",
+    "bytes": 8567
+  },
+  {
+    "path": "src/upstream/luma_agents/settlement.rs",
+    "sha256": "8f9919d6fd3801b6e23c1143542a2884f5e8c1982a2bb0519723e354472d73c3",
+    "bytes": 3304
+  },
+  {
+    "path": "src/pipeline/mod.rs",
+    "sha256": "403fc906063be5c4489e87800731b8e49debe40c9a966662d984466709d16d28",
+    "bytes": 24659
+  },
+  {
+    "path": "src/pipeline/stage_finalize/audit_persistence.rs",
+    "sha256": "8d27591d7a2116be512fd198ad18b416bee2cb79a63a6860f0077355695b324e",
+    "bytes": 7553
+  },
+  {
+    "path": "src/pipeline/stage_finalize/cancelled.rs",
+    "sha256": "4303c9f5325634b7b8fdbd6c16e91b5b9d552200cb631acecdbd2df0add968c9",
+    "bytes": 1417
+  },
+  {
+    "path": "src/provider_runtime/model_probe_audit.rs",
+    "sha256": "d06411a3a6adbb979d50c5202cd5c6afdfb069b838daa87aa49821116d0a2446",
+    "bytes": 8125
+  },
+  {
+    "path": "src/provider_runtime/model_probe_recording.rs",
+    "sha256": "2f9ed7f3b69f473c17473e006be34d083e1446113b7aeef9599ed716fbb082ac",
+    "bytes": 10025
+  },
+  {
+    "path": "src/provider_runtime/media_model_probe.rs",
+    "sha256": "d61a1c2169d5ec2702f3b90ca33d57bf66ac24cb2568552aa6e7a6b38e352d24",
+    "bytes": 6731
+  },
+  {
+    "path": "src/upstream/luma_agents/pipeline_failures.rs",
+    "sha256": "d6e873cd65c56e6052dab85add456571d13e676f8976c90c31fa63c662bbf35d",
+    "bytes": 9007
+  },
+  {
+    "path": "src/upstream/luma_agents/probe_failure_tests.rs",
+    "sha256": "e1f9d1904acb4e439f13535dc774fc55e7cc4729cbd383657f9bb18b5711bc77",
+    "bytes": 6777
+  },
+  {
+    "path": "src/pipeline/stage_send/recovery_wait.rs",
+    "sha256": "c15bfe81360c5aca3fd225b034c22b467f9ec7933f2196685f2533400317ffa4",
+    "bytes": 13092
+  },
+  {
+    "path": "src/protocol/luma_agents/generation_audit.rs",
+    "sha256": "208cb7c0f14b4ca7bc16f13d279d75c7d947199f83802d655e41f087d21404a4",
+    "bytes": 2856
+  },
+  {
+    "path": "src/upstream/luma_agents/cancellation_audit_tests.rs",
+    "sha256": "23e48cbca5bb337215d2a6c47e3153d39e1cac0d181f27ecd10ad07d800ccada",
+    "bytes": 8020
+  },
+  {
+    "path": "src/upstream/luma_agents/observation_tests.rs",
+    "sha256": "66c9f48d850f7cb9ebef95cb21648e3fb6448da5a5a1d9fadd6ca9cf9ae66206",
+    "bytes": 4920
+  }
+]

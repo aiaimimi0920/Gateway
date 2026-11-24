@@ -1,0 +1,16 @@
+{
+  "args": [
+    "node",
+    "tools/luma/inference-browser-check.mjs",
+    "--host",
+    "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\linshi\\gateway-luma-inference-browser-20261120\\host-v2",
+    "--ui",
+    "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\linshi\\gateway-luma-inference-browser-20261120\\main-web-v2",
+    "--output",
+    "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\linshi\\gateway-luma-inference-browser-20261120\\browser-v2"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T20:29:46.580024+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 4.7
+}

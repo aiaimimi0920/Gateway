@@ -1,0 +1,9 @@
+Get-SourceTreeState : The term 'Get-FileHash' is not recognized as the name of a cmdlet, function, script file, or 
+operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try 
+again.
+At C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\tools\build-gateway-devtest.ps1:53 char:11
++ $before = Get-SourceTreeState -Root $root
++           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get-FileHash:String) [Get-SourceTreeState], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException,Get-SourceTreeState
+ 

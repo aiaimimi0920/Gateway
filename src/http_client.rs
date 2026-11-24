@@ -6,6 +6,7 @@ mod native_cookie_store;
 mod proxy_policy;
 pub mod proxy_settings;
 pub(crate) mod public_addresses;
+pub(crate) mod public_asset_url;
 pub(crate) use native_claude::client as native_claude_client;
 pub(crate) use native_codex::client as native_codex_client;
 pub(crate) use native_codex::send as send_native_codex;

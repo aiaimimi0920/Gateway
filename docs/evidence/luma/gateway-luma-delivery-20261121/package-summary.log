@@ -1,0 +1,21 @@
+[gateway-devtest] npm run build:web --prefix apps/desktop
+[gateway-devtest] cargo build --locked --profile devtest --bin gateway --jobs 4 --target-dir target
+    Finished `devtest` profile [optimized] target(s) in 13m 23s
+[gateway-devtest] npm run build:tauri --prefix apps/desktop
+[gateway-devtest] cargo build --locked --profile devtest --manifest-path apps/desktop/src-tauri/Cargo.toml --features tauri/custom-protocol --jobs 4 --target-dir apps/desktop/src-tauri/target
+    Finished `devtest` profile [optimized] target(s) in 19.28s
+[gateway-devtest] ready: C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\target\devtest-editions\desktop\gateway-build-provenance.json
+[gateway-package] copied 132 locked production worker packages
+[gateway-package] locked ChatGPT browser runtime import passed
+[gateway-package] locked Gemini worker import passed (main suppressed)
+[gateway-package] AI Studio native runtime {"included":false}
+[gateway-package] published C:\Users\Public\nas_home\AI\GameEditor\linshi\gateway-devtest-packages\gateway-devtest-20261121-luma-handoff
+[gateway-package] files=6152 checksums=C:\Users\Public\nas_home\AI\GameEditor\linshi\gateway-devtest-packages\gateway-devtest-20261121-luma-handoff\checksums.sha256
+[gateway-package] evidence provenance C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\target\release-evidence\gateway-devtest-20261121-luma-handoff\gateway-build-provenance.json
+[gateway-ui-smoke] gateway.exe|bytesMatch=True|shaMatch=True|bytes=94940672|sha256=190d3a571f81cab468d4427f903a1ea85de003cc4a24962d2745ccc885da8f7a
+[gateway-ui-smoke] gateway-ui.exe|bytesMatch=True|shaMatch=True|bytes=13291008|sha256=8274772679207ea5dbcacecd23d4bc9892d85e70c4e961a343a22a062ba173b3
+[gateway-ui-smoke] artifact smoke passed; pass -LaunchUi to also launch gateway-ui.exe briefly
+[gateway-ui-smoke] gateway.exe|bytesMatch=True|shaMatch=True|bytes=94940672|sha256=190d3a571f81cab468d4427f903a1ea85de003cc4a24962d2745ccc885da8f7a
+[gateway-ui-smoke] gateway-ui.exe|bytesMatch=True|shaMatch=True|bytes=13291008|sha256=8274772679207ea5dbcacecd23d4bc9892d85e70c4e961a343a22a062ba173b3
+[gateway-ui-smoke] artifact smoke passed; pass -LaunchUi to also launch gateway-ui.exe briefly
+[gateway-devtest] published C:\Users\Public\nas_home\AI\GameEditor\Neuro\release\Gateway\gateway-devtest-20261121-luma-handoff

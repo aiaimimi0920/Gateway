@@ -1,0 +1,4 @@
+Command: npm.cmd --prefix apps/desktop run test -- run src/features/console/LumaMcpCreationReview.test.tsx --maxWorkers=1
+Tests: 4 failed | 11 passed (15)
+Failed new variants: approve, confirm, text_input, select.
+Missing answer form for approve/text_input/select; missing destructive confirmation notice for confirm.

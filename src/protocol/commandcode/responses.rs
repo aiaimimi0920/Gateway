@@ -12,7 +12,9 @@ pub(super) fn plan(
         method: rquest::Method::POST,
         url: format!("{BASE}/responses"),
         query: vec![],
-        body: Some(super::native_request::pack(req, model, stream)?),
+        body: Some(crate::protocol::native_text_request::pack(
+            req, model, stream, invalid,
+        )?),
         response_kind: EndpointKind::Responses,
     };
     validate_plan(payload, &plan)?;

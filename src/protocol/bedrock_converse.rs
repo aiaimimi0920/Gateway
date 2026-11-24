@@ -9,10 +9,11 @@ mod messages;
 mod normalization;
 mod packing;
 mod public_history;
+pub(crate) mod public_tools;
 mod upstream;
 pub(crate) use upstream::decode_eventstream;
-pub(crate) use upstream::translate_scoped;
 pub(crate) use upstream::Relay as StreamRelay;
+pub(crate) use upstream::{translate_public, translate_scoped};
 
 pub use upstream::{
     accumulate as accumulate_bedrock_eventstream,

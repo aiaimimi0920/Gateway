@@ -272,7 +272,12 @@ async fn read_catalog(
     if key.is_empty() || key.len() > 16384 || !key.bytes().all(|b| b.is_ascii_graphic()) {
         return Err(GatewayError::bad_request("Invalid catalog API key"));
     }
-    let catalog = model_catalog::fetch_catalog(kind, &key).await?;
+    let catalog = match (kind, &state.upstream_client.sensenova_fixture_http) {
+        (CatalogProvider::SenseNova, Some(client)) => {
+            model_catalog::fetch_sensenova_fixture(client, &key).await?
+        }
+        _ => model_catalog::fetch_catalog(kind, &key).await?,
+    };
     state
         .console_auth
         .verify_secret_grant(&request, &actor, grant)?;

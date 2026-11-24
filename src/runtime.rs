@@ -54,6 +54,9 @@ pub async fn run_gateway_runtime(config: Config) -> anyhow::Result<()> {
 }
 
 pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
+    let sensenova_fixture_http = crate::upstream::client::sensenova_fixture::load(&config)?;
+    let commandcode_fixture_http = crate::upstream::client::commandcode_fixture::load(&config)?;
+    let sap_aicore = crate::protocol::sap_aicore::auth::TokenCache::for_runtime(&config)?;
     let local_console = config.storage_mode == GatewayStorageMode::Local;
     if local_console && config.runtime_role != crate::config::GatewayRuntimeRole::Standalone {
         anyhow::bail!("Local storage requires standalone runtime role");
@@ -90,11 +93,14 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         }
     };
 
-    let upstream_client = UpstreamClient::new_with_runtime(
+    let mut upstream_client = UpstreamClient::new_with_runtime(
         config.upstream_timeout_secs,
         (!local_console).then(|| redis_pool.clone()),
         pg_pool.clone(),
     );
+    upstream_client.sensenova_fixture_http = sensenova_fixture_http;
+    upstream_client.commandcode_fixture_http = commandcode_fixture_http;
+    upstream_client.sap_aicore = Arc::new(sap_aicore);
     let concurrency_registry = ConcurrencyRegistry::new(AimdConfig::default());
     let mut auth_adapters: Vec<Box<dyn AuthAdapter>> = Vec::new();
     if let (Some(pool), Some(secret)) = (pg_pool.clone(), config.gateway_api_key_secret.clone()) {
@@ -128,6 +134,13 @@ pub async fn build_app_state(config: Config) -> anyhow::Result<Arc<AppState>> {
         )?
     });
     let route_config = Arc::clone(route_config_runtime.route_config());
+    upstream_client
+        .luma_web_sessions
+        .set(crate::luma_web_session::SessionStore::new(
+            &config.console,
+            (!local_console).then(|| redis_pool.clone()),
+        )?)
+        .map_err(|_| anyhow::anyhow!("Luma Web session owner was already initialized"))?;
     let local_runtime = if local_console {
         Some(
             crate::local_runtime::LocalRuntime::open(std::path::Path::new(
@@ -201,6 +214,10 @@ pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
         .spawn(app_state.shutdown.clone());
     app_state
         .lifecycle
+        .quick_oauth
+        .spawn(app_state.shutdown.clone());
+    app_state
+        .lifecycle
         .dim_oauth
         .spawn(app_state.shutdown.clone());
     app_state
@@ -226,6 +243,8 @@ pub fn spawn_background_tasks(app_state: &Arc<AppState>) {
     crate::token_refresh::spawn(app_state);
     crate::routing::model_circuit::network_probe::schedule(app_state);
     crate::local_runtime::spawn_maintenance(app_state);
+    crate::luma_reconciliation::spawn(app_state);
+    crate::protocol::sap_aicore::responses_lifecycle::store::recovery::spawn(app_state);
     let tasks = &app_state.lifecycle.background_tasks;
     tasks.spawn(
         Worker::CredentialRefill,

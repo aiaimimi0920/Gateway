@@ -1,0 +1,90 @@
+{
+  "scope": "Package all repository PostgreSQL initialization schemas",
+  "checks": {
+    "schema-red": {
+      "args": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/python",
+        "-p",
+        "test_gateway_package_layout_contract.py",
+        "-v"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T10:01:27.007761+00:00",
+      "exitCode": 1,
+      "elapsedSeconds": 6.77
+    },
+    "schema-green": {
+      "args": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/python",
+        "-p",
+        "test_gateway_package_*.py",
+        "-v"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T10:02:10.071685+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 88.14
+    },
+    "checker": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "test:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T10:02:10.077987+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 3.39
+    },
+    "ratchet": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "check:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T10:02:10.076838+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 18.01
+    }
+  },
+  "packageTests": {
+    "passed": 20,
+    "failed": 0
+  },
+  "checkerTests": {
+    "passed": 31,
+    "failed": 0
+  },
+  "sourceSha256": {
+    "tools/package-gateway-release.ps1": "fca5872817cd1b582e81bf0dec9e86763183b2e42981fba923c39a2fd1db8c9d",
+    "tests/python/gateway_package_fixture.py": "40385b94cc61293075181d29c8fc377164fb3cd80717857c4909b9118e04b565",
+    "tests/python/test_gateway_package_layout_contract.py": "b912f1891209b8974c5e81bf6b36a68f62aee40099353db1acfece0ef8c18853"
+  },
+  "delivery": {
+    "package": "gateway-devtest-20261121-luma-handoff",
+    "buildKind": "devtest",
+    "packagePassed": true,
+    "checksumEntries": 6152,
+    "postgresSchemas": 6,
+    "nativeStartupPassed": true,
+    "supplierCalls": 0,
+    "nativeBusinessClicksVerified": false,
+    "creditAcceptance": "waived_insufficient_credits",
+    "scope": "Existing implemented capabilities; unsupported MCP interactions and layering layout remain unimplemented"
+  }
+}

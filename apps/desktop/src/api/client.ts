@@ -98,7 +98,9 @@ export function createGatewayApiClient({
       } = options;
       const headers = new Headers(suppliedHeaders);
       headers.set("Accept", "application/json");
-      if (body !== undefined) {
+      if (body instanceof FormData) {
+        headers.delete("Content-Type"); // The browser supplies the matching multipart boundary.
+      } else if (body !== undefined) {
         headers.set("Content-Type", "application/json");
       }
       if (managementToken) {
@@ -110,7 +112,7 @@ export function createGatewayApiClient({
 
       const response = await fetchImplementation(buildApiUrl(host.apiOrigin, path), {
         ...requestInit,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
         cache: "no-store",
         credentials: "omit",
         headers,

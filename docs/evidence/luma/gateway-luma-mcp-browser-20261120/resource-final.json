@@ -1,0 +1,22 @@
+{
+    "CheckedAt":  "2026-11-19T21:08:37.7091155Z",
+    "Hosts":  [
+                  {
+                      "Run":  "host",
+                      "Pid":  44036,
+                      "Port":  65207,
+                      "ProcessPresent":  false,
+                      "Listening":  false
+                  },
+                  {
+                      "Run":  "host-v2",
+                      "Pid":  24656,
+                      "Port":  59779,
+                      "ProcessPresent":  false,
+                      "Listening":  false
+                  }
+              ],
+    "ScopedBrowserResiduals":  [
+
+                               ]
+}

@@ -87,7 +87,9 @@ async fn luma_agents_probe_submit_poll_asset_deadlines_close_source_and_preserve
                     probe_console_target_with_request(&fixture.state, &target, Some(&request))
                         .await;
                 assert_eq!(report.status, ProviderPayloadProbeStatus::Failed);
-                assert_eq!(fixture.audit().await.status, "failed");
+                let row = fixture.audit().await;
+                assert_eq!(row.status, "failed");
+                super::cancellation_audit_tests::assert_phase(&row, phase);
                 assert_eq!(fixture.balance().await.remaining_messages, Some(2));
                 assert_eq!(server.calls().len(), phase + 1);
                 assert_eq!(
@@ -134,6 +136,7 @@ async fn luma_agents_probe_cancellation_closes_submit_poll_asset_and_does_not_pe
                 drop(call);
                 let row = fixture.audit().await;
                 assert_eq!(row.status, "cancelled");
+                super::cancellation_audit_tests::assert_phase(&row, phase);
                 assert_eq!(row.requested_model.as_deref(), Some(IMAGE));
                 assert_eq!(row.model_alias.as_deref(), Some(IMAGE));
                 assert_eq!(

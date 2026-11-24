@@ -1,0 +1,30 @@
+{
+    "passed":  true,
+    "failure":  null,
+    "port":  51883,
+    "storageBackend":  "sqlite",
+    "releaseDir":  "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\release\\Gateway\\gateway-devtest-20261120-luma-mcp-options",
+    "observed":  {
+                     "backendPid":  33424,
+                     "readiness":  {
+                                       "status":  "ready",
+                                       "storage_backend":  "sqlite",
+                                       "degraded":  false,
+                                       "sqlite":  true,
+                                       "database":  true,
+                                       "redis_required":  false,
+                                       "redis":  null,
+                                       "routing_configured":  false,
+                                       "runtime_role":  "standalone",
+                                       "auth_configured":  true,
+                                       "active_requests":  1
+                                   },
+                     "uiPid":  33864,
+                     "consoleStatus":  200
+                 },
+    "supplierCalls":  0,
+    "nativeBusinessClicksVerified":  false,
+    "uiSha256":  "7dd015de9c66710ef4443ef632b077e58893a13ea083eab4d89790fd205407be",
+    "backendSha256":  "6330896aa16cd8292865026fb5ca917d335126461d9aaefd78cea9b7d3f92a33",
+    "remainingOwnedProcesses":  0
+}

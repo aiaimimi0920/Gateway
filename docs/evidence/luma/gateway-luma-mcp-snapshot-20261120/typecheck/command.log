@@ -1,0 +1,2 @@
+apps/desktop/src/features/console/LumaMcpToolsPanel.snapshot.test.tsx(44,10): error TS18046: 'anchor' is of type 'unknown'.
+apps/desktop/src/features/console/LumaMcpToolsPanel.snapshot.test.tsx(45,10): error TS18046: 'anchor' is of type 'unknown'.

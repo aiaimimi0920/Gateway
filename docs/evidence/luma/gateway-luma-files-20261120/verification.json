@@ -1,0 +1,43 @@
+{
+  "scope": "Luma Agents Files small-file account management",
+  "rust": {
+    "receipt": "rust-final-result.json",
+    "passed": 104,
+    "failed": 0,
+    "ignored": 1,
+    "newFilesTests": 9
+  },
+  "frontend": {
+    "distinctPassed": 44,
+    "files": 4,
+    "receipts": [
+      "frontend-final-result.json",
+      "video-recheck-result.json",
+      "global-dialog-closed-result.json"
+    ],
+    "note": "frontend-final had one existing 5-second video test timeout; isolated video recheck passed all 5. Final global-dialog adds one disabled-account test; 12 passed."
+  },
+  "typecheck": "typecheck-closed-result.json",
+  "mainWebBuild": "build-main-closed-result.json",
+  "productionCompile": "production-check-result.json",
+  "featureDisabledCompile": "disabled-check-result.json",
+  "checkerTests": {
+    "receipt": "checker-tests-result.json",
+    "passed": 31
+  },
+  "ratchet": "ratchet-closed-result.json",
+  "formatter": "format-result.json",
+  "diffCheck": "diff-check-result.json",
+  "sourceManifest": "source-manifest.json",
+  "notExecuted": [
+    "real provider upload/delete/generation/billing",
+    "normal main browser to management TCP integration",
+    "Server/PG/Redis and cross-process acceptance",
+    "native EXE packaging"
+  ],
+  "history": [
+    "rust-1: missing chrono dependency; replaced by existing time crate",
+    "rust-2: cursor query replaced limit; fixed to a single query call",
+    "typecheck-complete: nullable initialValue; corrected"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+    "passed":  true,
+    "storageBackend":  "sqlite",
+    "checks":  [
+                   "SQLite readiness with empty routes",
+                   "Exhausted key denied before upstream execution",
+                   "Key and balance survive restart",
+                   "Routing failure refunds remaining credit only",
+                   "Rotation preserves balance and revokes old token",
+                   "Zero Redis and PostgreSQL connections"
+               ],
+    "modelCalls":  0,
+    "executableSha256":  "bc887d71e00ce267334819ea9ab50c5af3896e842f2ff26f802255ac2ce99c7d",
+    "sqliteSha256":  "4b7d5b23309d905a2634a7e324c5257d6133f7413370d3e20a26b001e95f4ac5",
+    "processesDrained":  true
+}

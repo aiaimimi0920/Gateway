@@ -12,6 +12,17 @@ pub(super) fn browser_executor_remote_request_timeout(
 }
 
 impl UpstreamClient {
+    pub(crate) fn validate_luma_browser_dispatch(&self) -> Result<(), GatewayError> {
+        if self.browser_executor_base_url.is_none()
+            && self.request_time_browser_policy != RequestTimeBrowserPolicy::LocalAllowed
+        {
+            return Err(remote_browser_executor_required_unavailable_error(
+                "Luma Web requires an available browser executor before session admission.",
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) async fn execute_remote_browser_executor(
         &self,
         provider: &str,
@@ -62,6 +73,8 @@ impl UpstreamClient {
         // dispatching an unbound paid task; never retry the legacy endpoint on 404.
         let path = if provider == "suno" {
             "/v1/internal/browser-executor/suno-bound-v1/execute"
+        } else if provider == "lumalabs" {
+            "/v1/internal/browser-executor/luma-session-v1/execute"
         } else {
             "/v1/internal/browser-executor/execute"
         };
@@ -115,9 +128,24 @@ impl UpstreamClient {
         &self,
         request: BrowserExecutorServiceInvocationRequest,
     ) -> BrowserExecutorServiceInvocationResponse {
+        self.browser_executor_service_response(request, false).await
+    }
+
+    pub(crate) async fn execute_luma_session_browser_executor_service_invocation(
+        &self,
+        request: BrowserExecutorServiceInvocationRequest,
+    ) -> BrowserExecutorServiceInvocationResponse {
+        self.browser_executor_service_response(request, true).await
+    }
+
+    async fn browser_executor_service_response(
+        &self,
+        request: BrowserExecutorServiceInvocationRequest,
+        retain_luma_session: bool,
+    ) -> BrowserExecutorServiceInvocationResponse {
         let provider_name = request.provider.trim().to_lowercase();
         match self
-            .execute_browser_executor_service_invocation_inner(request)
+            .execute_browser_executor_service_invocation_inner(request, retain_luma_session)
             .await
         {
             Ok(result) => {
@@ -129,9 +157,10 @@ impl UpstreamClient {
         }
     }
 
-    pub(super) async fn execute_browser_executor_service_invocation_inner(
+    async fn execute_browser_executor_service_invocation_inner(
         &self,
         request: BrowserExecutorServiceInvocationRequest,
+        retain_luma_session: bool,
     ) -> Result<Value, GatewayError> {
         let provider_label = request.provider.clone();
         let provider = provider_label.trim().to_lowercase();
@@ -139,8 +168,11 @@ impl UpstreamClient {
 
         match provider.as_str() {
             "lumalabs" => {
-                self.execute_lumalabs_browser_executor_service_invocation(&input)
-                    .await
+                self.execute_lumalabs_browser_executor_service_invocation(
+                    &input,
+                    retain_luma_session,
+                )
+                .await
             }
             "producer" => {
                 let prepared = prepare_producer_browser_executor_service_input(&input)?;

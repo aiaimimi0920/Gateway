@@ -6,15 +6,47 @@ pub(super) fn key_group_candidates_error(
     snapshot: &crate::routing::config::RouteConfigSnapshot,
     constraint: &RouteAccountGroupConstraint,
     model: Option<&str>,
+    rejected: &[crate::routing::config::RejectedCandidate],
 ) -> GatewayError {
     if snapshot.has_authorized_model(model, constraint) {
-        GatewayError::service_unavailable(
-            "Authorized upstream accounts are disabled or temporarily unavailable",
-        )
+        let rejected_summary = build_rejected_summary(rejected);
+        GatewayError::service_unavailable(format!(
+            "Authorized upstream accounts are disabled or temporarily unavailable. {}",
+            rejected_summary
+        ))
         .with_code("authorized_candidates_unavailable")
     } else {
         crate::access_key_groups::denied()
     }
+}
+
+/// Build a compact human-readable summary of rejected candidates with their
+/// provider account IDs, labels and rejection reasons. The summary is bounded
+/// to avoid bloating error payloads.
+pub(super) fn build_rejected_summary(
+    rejected: &[crate::routing::config::RejectedCandidate],
+) -> String {
+    if rejected.is_empty() {
+        return String::new();
+    }
+    let limit = 10;
+    let entries: Vec<String> = rejected
+        .iter()
+        .take(limit)
+        .map(|r| {
+            let cred = r.real_credential_ref.as_deref().unwrap_or("<default>");
+            format!(
+                "{}({}) cred={} reason={}",
+                r.provider_account_id, r.provider_label, cred, r.reason
+            )
+        })
+        .collect();
+    let overflow = if rejected.len() > limit {
+        format!(" (+{} more)", rejected.len() - limit)
+    } else {
+        String::new()
+    };
+    format!("Rejected: [{}]{}", entries.join(", "), overflow)
 }
 
 pub(super) fn map_account_group_selection_error(

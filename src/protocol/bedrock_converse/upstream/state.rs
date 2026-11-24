@@ -1,6 +1,7 @@
 //! Validate response/block order before exposing deltas; completion includes post-stop usage.
 use std::collections::BTreeMap;
 
+use super::super::public_tools::PublicTools;
 use super::{headers::Event, invalid, upstream_failure};
 use crate::protocol::{canonical::TokenUsage, stream_error::ProtocolStreamError};
 use serde_json::Value;
@@ -34,6 +35,7 @@ enum Block {
 #[derive(Default)]
 pub(super) struct State {
     started: bool,
+    public_tools: Option<PublicTools>,
     blocks: BTreeMap<u32, Block>,
     tool_bytes: usize,
     tool_count: u32,
@@ -42,6 +44,16 @@ pub(super) struct State {
 }
 
 impl State {
+    pub fn public(tools: PublicTools) -> Self {
+        Self {
+            public_tools: Some(tools),
+            ..Self::default()
+        }
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.public_tools.is_some()
+    }
     pub fn observe(&mut self, event: &Event) -> Result<Option<Update>, ProtocolStreamError> {
         let body = &event.body;
         if event.kind == "messageStart" {
@@ -82,6 +94,13 @@ impl State {
                 if reason == "tool_calls" && self.tool_count == 0 {
                     return Err(invalid("tool stop reason has no tool identity"));
                 }
+                if self
+                    .public_tools
+                    .as_ref()
+                    .is_some_and(|tools| !tools.complete(reason))
+                {
+                    return Err(invalid("tool identity contradicts finish reason"));
+                }
                 self.stop = Some(reason);
                 Ok(None)
             }
@@ -110,6 +129,11 @@ impl State {
             .ok_or_else(|| invalid("unsupported content start"))?;
         let id = identity(start, "toolUseId")?;
         let name = identity(start, "name")?;
+        if let Some(tools) = &mut self.public_tools {
+            if start.as_object().is_none_or(|map| map.len() != 2) || !tools.accept(&id, &name) {
+                return Err(invalid("unsupported or duplicate client tool identity"));
+            }
+        }
         // AWS indices include text blocks. OpenAI tool indices are dense and tool-only.
         let tool_index = self.tool_count;
         self.tool_count += 1;
@@ -145,6 +169,9 @@ impl State {
             return Ok(Update::Text(text.into()));
         }
         if let Some(reasoning) = delta.get("reasoningContent") {
+            if self.is_public() {
+                return Err(invalid("reasoning block outside public projection"));
+            }
             let delta = super::reasoning::parse(reasoning)?;
             if !self.blocks.contains_key(&index) {
                 self.admit()?;
@@ -168,6 +195,7 @@ impl State {
         }
         if let Some(input) = delta
             .get("toolUse")
+            .filter(|v| !self.is_public() || v.as_object().is_some_and(|map| map.len() == 1))
             .and_then(|v| v.get("input"))
             .and_then(Value::as_str)
         {
@@ -202,7 +230,15 @@ impl State {
             .ok_or_else(|| invalid("stop has no content block"))?;
         let mut update = None;
         if let Block::Tool { index, arguments } = block {
-            if !arguments.trim().is_empty() && serde_json::from_str::<Value>(arguments).is_err() {
+            if self.public_tools.is_some()
+                && super::super::public_tools::arguments(arguments).is_none()
+            {
+                return Err(invalid("tool arguments are not an unambiguous JSON object"));
+            }
+            if self.public_tools.is_none()
+                && !arguments.trim().is_empty()
+                && serde_json::from_str::<Value>(arguments).is_err()
+            {
                 return Err(invalid("tool arguments are not complete JSON"));
             }
             self.tool_bytes -= arguments.len();

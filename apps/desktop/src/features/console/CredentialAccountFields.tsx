@@ -18,7 +18,7 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
   const { t } = useUiLocale();
   const { open, mode, locked, providerOptions, supportsBasispoints, initialValue, hasSecretAccess,
     onCaptureWebBrowser, onRequestSecretAccess, onRevealKey } = props;
-  const { value, setValue, authentication, manualCodex, qwen, canFetch, fetchModels, busy, catalog, official,
+  const { value, setValue, authentication, manualCodex, qwen, canFetch, fetchModels, busy, catalog, official, customCatalog,
     webSession, managedWeb, productSession, bedrock, bedrockMaterial, manual } = model;
   return <fieldset className="nt-credential-fields" disabled={locked || busy}>
     <Field label="Provider">
@@ -65,7 +65,7 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
       </Field>
       {qwen && <QwenCredentialEndpoint provider={qwen} value={value} onChange={setValue} disabled={locked || busy} t={t} />}
       {model.sap ? <Field label={t("部署 ID", "Deployment ID")}><Input compact readOnly value={sapEndpoint(String(model.sap.base_url ?? ""))?.deployment ?? ""} /></Field> : <CredentialModelEditors value={value} disabled={locked || busy} canFetch={canFetch && value.apiKeyOperation !== "clear"}
-        manualOnly={Boolean(model.express || model.vertex || model.lumaAgents)} busy={catalog.busy || official.busy} onFetch={fetchModels} onChange={setValue} />}
+        manualOnly={Boolean(model.express || model.vertex || model.lumaAgents)} busy={catalog.busy || official.busy || customCatalog.busy} onFetch={fetchModels} onChange={setValue} />}
       {open && webSession && <ChatgptWebSessionImport key={`web:${value.providerId}:${initialValue?.credentialId ?? ""}`}
         capture={onCaptureWebBrowser} providerId={value.providerId} disabled={locked || busy || !hasSecretAccess}
         loaded={Boolean(value.webSessionMaterial)}

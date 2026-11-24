@@ -1,0 +1,108 @@
+- dialog "测试 · luma_inference-public":
+  - heading "测试 · luma_inference-public" [level=2]
+  - button "关闭测试弹窗"
+  - group "测试计划配置":
+    - text: 账户 · exact
+    - checkbox "继承"
+    - text: 继承
+    - group:
+      - checkbox "启用自动测试"
+      - text: 启用自动测试 执行间隔（分钟）
+      - spinbutton "执行间隔（分钟）": "60"
+    - group "测试模型":
+      - text: 测试模型
+      - checkbox "全部模型"
+      - text: 全部模型
+      - button "清空选择"
+      - group "选择模型":
+        - text: 选择模型
+        - checkbox "public-luma_inference" [checked]
+        - text: public-luma_inference
+      - textbox "添加测试模型":
+        - /placeholder: 精确模型名
+      - button "添加模型" [disabled]
+    - group "测试集 (1/13)":
+      - text: 测试集 (1/13)
+      - button "全选测试集"
+      - button "清空测试集"
+      - button "补充 IQ 题库" [disabled]
+      - article:
+        - checkbox "连通与指令遵循"
+        - text: 连通与指令遵循 L1 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "计算能力"
+        - text: 计算能力 L2 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "多步推理"
+        - text: 多步推理 L3 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "数列递推"
+        - text: 数列递推 L1 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "容斥计数"
+        - text: 容斥计数 L2 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "条件概率"
+        - text: 条件概率 L3 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "偏序约束"
+        - text: 偏序约束 L2 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "网格路径"
+        - text: 网格路径 L3 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "程序状态跟踪"
+        - text: 程序状态跟踪 L2 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "同余推理"
+        - text: 同余推理 L3 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "否定条件理解"
+        - text: 否定条件理解 L1 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "非相邻组合"
+        - text: 非相邻组合 L3 · 可评分
+        - group: 用例详情
+      - article:
+        - checkbox "合成问题" [checked]
+        - text: 合成问题 L1 · 仅联通
+        - group: 用例详情
+        - button "移除临时用例"
+    - group "临时用例":
+      - text: 临时用例
+      - textbox "临时提示词"
+      - text: 标准答案（可选）
+      - textbox "标准答案（可选）"
+      - text: 用例难度
+      - combobox "用例难度":
+        - option "L1" [selected]
+        - option "L2"
+        - option "L3"
+      - button "加入测试集" [disabled]
+    - region "测试结果":
+      - heading "测试结果" [level=3]
+      - heading "exact" [level=4]
+      - text: 2026-11-19T20:14:04.7740417Z · 手动
+      - strong: public-luma_inference
+      - text: 可联通调用 未评级 · — (0/0)
+      - group:
+        - text: 答案详情
+        - strong: public-luma_inference · 合成问题
+        - paragraph: 调用：passed · 未评分
+        - paragraph: 实际回复：合成答案
+        - paragraph: 标准答案：—
+        - paragraph: 路由健康：对应模型健康状态已更新
+  - button "关闭"
+  - button "运行测试"
+  - button "保存策略"

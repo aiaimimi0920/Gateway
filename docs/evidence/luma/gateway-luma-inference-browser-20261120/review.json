@@ -1,0 +1,20 @@
+{
+  "scope": [
+    "CredentialTestDialog.tsx",
+    "ProviderPoolDialogs.test.tsx",
+    "wire_tests/browser_host.rs",
+    "inference-browser-check.mjs",
+    "normal-main-server.mjs"
+  ],
+  "productionChange": "Reuses existing result renderer inside existing scroll container; no new request, persistence or authorization path.",
+  "resultOwnership": "Only this dialog runs.responses; no shared providerProbeResponse injected; hook invalidates response on scope change and unmount.",
+  "rendering": "Existing React text rendering, exact account and plan filtering; no HTML injection.",
+  "fixtureBoundary": "New absolute fixture root; loopback listener; task-local synthetic upstream; production login and secret grant preserved.",
+  "cleanup": "Browser and proxy close before finish/abort. Host closes management TCP, local runtime and peer before acceptance assertions. 30-minute test timeout is process bound.",
+  "transport": "Static root is explicit; loopback-only API target; streams upload/request and response; 190-second request timeout; client-close propagates to upstream.",
+  "data": "Synthetic credentials and prompts only. No real user profile, live database or online instance.",
+  "limitations": [
+    "Source snapshot was taken during compilation, not a complete pre-build freeze.",
+    "New browser harness is opt-in and requires installed Edge or Chrome."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "args": [
+    "node.exe",
+    "tools/luma/build-ui.mjs",
+    "--preview",
+    "--output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-mcp-models-20261120/preview",
+    "--port",
+    "4451",
+    "--lifetime-seconds",
+    "180"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T10:30:05.975037+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 180.88
+}

@@ -148,6 +148,13 @@ pub(super) fn validate_secret_target(
                 {
                     Ok(SecretTarget::OptionalString)
                 }
+                "quick_oauth"
+                    if segments.len() == 6
+                        && segments[5] == "client_secret"
+                        && credential.quick_oauth.is_some() =>
+                {
+                    Ok(SecretTarget::OptionalString)
+                }
                 "vertex_oauth"
                     if segments.len() == 6
                         && segments[5] == "client_secret"

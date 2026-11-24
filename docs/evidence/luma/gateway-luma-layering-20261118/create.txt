@@ -1,0 +1,1409 @@
+Create a generation | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Menu
+lumalabs.ai
+HTTP
+HTTP
+HTTP
+TypeScript
+TypeScript
+Python
+Python
+Go
+Go
+CLI Tool
+CLI Tool
+Guides
+API Reference
+Admin API
+Overview
+Generations
+Create
+POST
+Get
+GET
+Delete
+DELETE
+Files
+Create
+POST
+List
+GET
+Complete
+POST
+Get
+GET
+Delete
+DELETE
+Deletions
+Get
+GET
+Auto
+Light
+Dark
+lumalabs.ai
+API Reference
+Generations
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+Create a generation
+POST
+/generations
+Submit an image or video generation job. Returns immediately with an opaque job ID to poll via GET /generations/{id}.
+Body Parameters
+{}
+JSON
+Expand
+Collapse
+prompt
+:
+string
+Text prompt
+maxLength:
+6000
+aspect_ratio
+:
+optional
+"3:1"
+or
+"2:1"
+or
+"21:9"
+or
+10 more
+Output aspect ratio. Valid values depend on the selected model and generation type; the server validates the final model-specific set.
+One of the following:
+"3:1"
+"2:1"
+"21:9"
+"16:9"
+"4:3"
+"3:2"
+"1:1"
+"4:5"
+"3:4"
+"2:3"
+"9:16"
+"1:2"
+"1:3"
+expires_at
+:
+optional
+string
+Deletion deadline you set for this generation. It overrides your client's retention period for this generation, later or earlier: a successful generation is due for deletion at this deadline, a failed one at the earlier of this deadline and its failed-generation grace period, and one still running at the deadline as soon as it finishes. Once the deadline passes, GET /v1/generations/{generation_id} returns 404. Requires the managed retention add-on (
+managed_retention
+); silently ignored without it. A past value is rejected with 422; a value more than ten years ahead is clamped to ten years. See the Generation deletion guide.
+format:
+date-time
+image_ref
+:
+optional
+array of
+ImageRef
+{
+data, file_id, generation_id, 2 more
+}
+Reference images for style/content guidance. Up to 9 for type 'image', up to 8 for type 'image_edit'.
+data
+:
+optional
+string
+Base64-encoded image or video data
+file_id
+:
+optional
+string
+UUID of a file previously uploaded via POST /files. Skips URL fetch / base64 decode and reuses the file's pre-moderated backing artifact. The referenced file must be owned by the same client and in state=ready. See the Files API for the upload flow.
+format:
+uuid
+generation_id
+:
+optional
+string
+UUID of a prior generation owned by the same caller. Used on source for image_edit, video_edit, and video_reframe chaining and on video.start_frame / video.end_frame for video extension.
+format:
+uuid
+media_type
+:
+optional
+string
+MIME type (for example, image/jpeg or video/mp4). Required with data. Required with source.url on video_edit/video_reframe so the route can dispatch video ingest before fetching bytes; optional for image URLs.
+url
+:
+optional
+string
+Publicly accessible image URL, or a video URL when used as source for video_edit/video_reframe with media_type=video/*.
+layering
+:
+optional
+object
+{
+resolution
+}
+Layering options. Applies only to type=layering; rejected on every other type. The image to split goes in source, and prompt may carry optional guidance for how to split it (up to 500 characters, may be empty). Unknown keys are rejected rather than ignored.
+resolution
+:
+optional
+"1k"
+or
+"2k"
+Output resolution for every layer. 2k re-renders each layer at higher quality and costs more; either is one flat price per generation, whatever the number of layers.
+One of the following:
+"1k"
+"2k"
+model
+:
+optional
+Model
+Model identifier.
+uni-1
+is the default image tier;
+uni-1-max
+produces higher-quality output than
+uni-1
+at a higher per-image price.
+ray-3.2
+is the public video model for text-to-video, image-to-video, and video-to-video editing.
+One of the following:
+"uni-1"
+"uni-1-max"
+"ray-3.2"
+output_format
+:
+optional
+"png"
+or
+"jpeg"
+Output image format
+One of the following:
+"png"
+"jpeg"
+source
+:
+optional
+ImageRef
+{
+data, file_id, generation_id, 2 more
+}
+Media reference for guided generation. Provide exactly one of url, inline base64 data, generation_id, or file_id. URL/data references accept image media at image positions; video_edit and video_reframe sources also accept source.url or source.data when source.media_type is a video/* MIME. generation_id chains image_edit off a prior image output, video_edit/video_reframe off a prior video output, and video.start_frame/end_frame for extension. file_id references a file previously uploaded via POST /files — see the Files API.
+data
+:
+optional
+string
+Base64-encoded image or video data
+file_id
+:
+optional
+string
+UUID of a file previously uploaded via POST /files. Skips URL fetch / base64 decode and reuses the file's pre-moderated backing artifact. The referenced file must be owned by the same client and in state=ready. See the Files API for the upload flow.
+format:
+uuid
+generation_id
+:
+optional
+string
+UUID of a prior generation owned by the same caller. Used on source for image_edit, video_edit, and video_reframe chaining and on video.start_frame / video.end_frame for video extension.
+format:
+uuid
+media_type
+:
+optional
+string
+MIME type (for example, image/jpeg or video/mp4). Required with data. Required with source.url on video_edit/video_reframe so the route can dispatch video ingest before fetching bytes; optional for image URLs.
+url
+:
+optional
+string
+Publicly accessible image URL, or a video URL when used as source for video_edit/video_reframe with media_type=video/*.
+style
+:
+optional
+"auto"
+or
+"manga"
+Style preset (auto, manga)
+One of the following:
+"auto"
+"manga"
+type
+:
+optional
+"image"
+or
+"image_edit"
+or
+"video"
+or
+3 more
+The kind of generation to perform
+One of the following:
+"image"
+"image_edit"
+"video"
+"video_edit"
+"video_reframe"
+"layering"
+user_id
+:
+optional
+string
+Your end-user's stable opaque identifier (no PII). Forwarded to upstream model providers as their per-user tagging field so trust & safety violations can be attributed to a specific end-user rather than the whole API account. Also used for per-end-user usage breakdowns in /v1/usage. Strongly recommended for partner integrations.
+maxLength:
+256
+video
+:
+optional
+VideoOptions
+{
+duration, edit, end_frame, 9 more
+}
+Ray 3.2 video request options. Common output settings live at the top level for
+type=video
+,
+type=video_edit
+, and
+type=video_reframe
+; video-to-video conditioning lives under
+edit
+.
+duration
+:
+optional
+VideoDuration
+Video duration
+One of the following:
+"5s"
+"10s"
+edit
+:
+optional
+VideoEditOptions
+{
+auto_controls, controls, keyframe_indexes, 2 more
+}
+Ray 3.2 video-to-video edit controls. Only valid under
+video.edit
+when
+type
+is
+video_edit
+. The source video must be 18 seconds or shorter; output duration matches the source.
+auto_controls
+:
+optional
+boolean
+When true, the model derives the control schedule from the source video. When omitted, supplying strength or controls implies manual mode.
+controls
+:
+optional
+AdvancedControls
+{
+depth, face, normals, 2 more
+}
+Per-signal manual conditioning controls for video edits
+depth
+:
+optional
+DepthControl
+{
+blur, enabled
+}
+Depth / scene-geometry conditioning control
+blur
+:
+optional
+number
+Depth-map blur amount from 0 to 1. Higher values allow more geometric freedom.
+format:
+float
+,
+minimum:
+0
+,
+maximum:
+1
+enabled
+:
+optional
+boolean
+Enable or disable depth conditioning. Omit to use the model default.
+face
+:
+optional
+FaceControl
+{
+enabled
+}
+Face-identity conditioning control
+enabled
+:
+optional
+boolean
+Enable or disable face conditioning. Omit to use the model default.
+normals
+:
+optional
+NormalsControl
+{
+augmentation, enabled
+}
+Surface-normals conditioning control
+augmentation
+:
+optional
+number
+Surface-normals augmentation from 0 to 1. Higher values allow more reinterpretation of surface geometry.
+format:
+float
+,
+minimum:
+0
+,
+maximum:
+1
+enabled
+:
+optional
+boolean
+Enable or disable normals conditioning. Omit to use the model default.
+pose
+:
+optional
+PoseControl
+{
+enabled, strength
+}
+Pose / skeleton conditioning control
+enabled
+:
+optional
+boolean
+Enable or disable pose conditioning. Omit to use the model default.
+strength
+:
+optional
+PoseControlStrength
+Pose-conditioning strength
+One of the following:
+"precise"
+"coarse"
+trajectory
+:
+optional
+TrajectoryControl
+{
+enabled, sparsity
+}
+Motion-trajectory conditioning control
+enabled
+:
+optional
+boolean
+Enable or disable trajectory conditioning. Omit to use the model default.
+sparsity
+:
+optional
+number
+Point-trajectory sparsity from 0 to 1. Higher values use fewer motion anchors.
+format:
+float
+,
+minimum:
+0
+,
+maximum:
+1
+keyframe_indexes
+:
+optional
+array of
+number
+Parallel list of non-negative, unique frame positions in the source video's frame grid where each keyframes[i] is anchored. Must match keyframes in length.
+keyframes
+:
+optional
+array of
+ImageRef
+{
+data, file_id, generation_id, 2 more
+}
+Multi-anchor guide-frame images at arbitrary source-frame positions (parallel with keyframe_indexes). Up to 64 anchors. Mutually exclusive with video.start_frame (the single-anchor case). Each entry takes the same ImageRef shape as source / image_ref[].
+data
+:
+optional
+string
+Base64-encoded image or video data
+file_id
+:
+optional
+string
+UUID of a file previously uploaded via POST /files. Skips URL fetch / base64 decode and reuses the file's pre-moderated backing artifact. The referenced file must be owned by the same client and in state=ready. See the Files API for the upload flow.
+format:
+uuid
+generation_id
+:
+optional
+string
+UUID of a prior generation owned by the same caller. Used on source for image_edit, video_edit, and video_reframe chaining and on video.start_frame / video.end_frame for video extension.
+format:
+uuid
+media_type
+:
+optional
+string
+MIME type (for example, image/jpeg or video/mp4). Required with data. Required with source.url on video_edit/video_reframe so the route can dispatch video ingest before fetching bytes; optional for image URLs.
+url
+:
+optional
+string
+Publicly accessible image URL, or a video URL when used as source for video_edit/video_reframe with media_type=video/*.
+strength
+:
+optional
+VideoEditStrength
+How much a video edit preserves or reimagines the source
+One of the following:
+"adhere_1"
+"adhere_2"
+"adhere_3"
+"flex_1"
+"flex_2"
+"flex_3"
+"reimagine_1"
+"reimagine_2"
+"reimagine_3"
+end_frame
+:
+optional
+ImageRef
+{
+data, file_id, generation_id, 2 more
+}
+Media reference for guided generation. Provide exactly one of url, inline base64 data, generation_id, or file_id. URL/data references accept image media at image positions; video_edit and video_reframe sources also accept source.url or source.data when source.media_type is a video/* MIME. generation_id chains image_edit off a prior image output, video_edit/video_reframe off a prior video output, and video.start_frame/end_frame for extension. file_id references a file previously uploaded via POST /files — see the Files API.
+data
+:
+optional
+string
+Base64-encoded image or video data
+file_id
+:
+optional
+string
+UUID of a file previously uploaded via POST /files. Skips URL fetch / base64 decode and reuses the file's pre-moderated backing artifact. The referenced file must be owned by the same client and in state=ready. See the Files API for the upload flow.
+format:
+uuid
+generation_id
+:
+optional
+string
+UUID of a prior generation owned by the same caller. Used on source for image_edit, video_edit, and video_reframe chaining and on video.start_frame / video.end_frame for video extension.
+format:
+uuid
+media_type
+:
+optional
+string
+MIME type (for example, image/jpeg or video/mp4). Required with data. Required with source.url on video_edit/video_reframe so the route can dispatch video ingest before fetching bytes; optional for image URLs.
+url
+:
+optional
+string
+Publicly accessible image URL, or a video URL when used as source for video_edit/video_reframe with media_type=video/*.
+exr_export
+:
+optional
+boolean
+Export EXR alongside the MP4. Requires hdr=true.
+guide_frame
+:
+optional
+ImageRef
+{
+data, file_id, generation_id, 2 more
+}
+Media reference for guided generation. Provide exactly one of url, inline base64 data, generation_id, or file_id. URL/data references accept image media at image positions; video_edit and video_reframe sources also accept source.url or source.data when source.media_type is a video/* MIME. generation_id chains image_edit off a prior image output, video_edit/video_reframe off a prior video output, and video.start_frame/end_frame for extension. file_id references a file previously uploaded via POST /files — see the Files API.
+data
+:
+optional
+string
+Base64-encoded image or video data
+file_id
+:
+optional
+string
+UUID of a file previously uploaded via POST /files. Skips URL fetch / base64 decode and reuses the file's pre-moderated backing artifact. The referenced file must be owned by the same client and in state=ready. See the Files API for the upload flow.
+format:
+uuid
+generation_id
+:
+optional
+string
+UUID of a prior generation owned by the same caller. Used on source for image_edit, video_edit, and video_reframe chaining and on video.start_frame / video.end_frame for video extension.
+format:
+uuid
+media_type
+:
+optional
+string
+MIME type (for example, image/jpeg or video/mp4). Required with data. Required with source.url on video_edit/video_reframe so the route can dispatch video ingest before fetching bytes; optional for image URLs.
+url
+:
+optional
+string
+Publicly accessible image URL, or a video URL when used as source for video_edit/video_reframe with media_type=video/*.
+hdr
+:
+optional
+boolean
+Generate HDR video. Requires HDR access. Not supported for video_reframe.
+keyframe_indexes
+:
+optional
+array of
+number
+Parallel list of non-negative, unique output-frame positions where each keyframes[i] is anchored, in the duration x 24fps grid (5s -> 0..120, 10s -> 0..240). Must match keyframes in length.
+keyframes
+:
+optional
+array of
+ImageRef
+{
+data, file_id, generation_id, 2 more
+}
+Image-to-video guide frames (type=video only), each pinned to an output-frame position via the parallel keyframe_indexes. 1-64 anchors: a single anchor is a valid start-pinned i2v (an alternate to start_frame), and any count up to 64 places guide frames at arbitrary positions. Unlike start_frame/end_frame (the legacy 2-frame surface), this supports arbitrary positions, 10s durations, and HDR. Mutually exclusive with start_frame / end_frame / loop. Only supported on model ray-3.2. For video-to-video keyframes use video.edit.keyframes on type=video_edit instead.
+data
+:
+optional
+string
+Base64-encoded image or video data
+file_id
+:
+optional
+string
+UUID of a file previously uploaded via POST /files. Skips URL fetch / base64 decode and reuses the file's pre-moderated backing artifact. The referenced file must be owned by the same client and in state=ready. See the Files API for the upload flow.
+format:
+uuid
+generation_id
+:
+optional
+string
+UUID of a prior generation owned by the same caller. Used on source for image_edit, video_edit, and video_reframe chaining and on video.start_frame / video.end_frame for video extension.
+format:
+uuid
+media_type
+:
+optional
+string
+MIME type (for example, image/jpeg or video/mp4). Required with data. Required with source.url on video_edit/video_reframe so the route can dispatch video ingest before fetching bytes; optional for image URLs.
+url
+:
+optional
+string
+Publicly accessible image URL, or a video URL when used as source for video_edit/video_reframe with media_type=video/*.
+loop
+:
+optional
+boolean
+Generate a seamlessly looping video. Only valid for type=video; not supported with duration=10s or hdr=true.
+resolution
+:
+optional
+VideoResolution
+Ray 3.2 video output resolution. 360p is the draft tier (fast, low-cost previews), accepted on type=video, video_edit, and video_reframe; on type=video it is SDR-only (not valid with hdr=true). 1080p is public for video generation; video_reframe 1080p is still rolling out and may return a coming-soon validation error until enabled for the caller.
+One of the following:
+"360p"
+"540p"
+"720p"
+"1080p"
+source_position
+:
+optional
+SourcePosition
+{
+h_norm, w_norm, x_norm, y_norm
+}
+Normalized source rectangle inside the output canvas for video_reframe. Omit to let the model choose the default centered-fit crop.
+h_norm
+:
+number
+Source rectangle height, as a fraction of canvas height. Up to 2.0 so the source can bleed off-canvas.
+format:
+float
+,
+exclusiveMinimum:
+0
+,
+maximum:
+2
+w_norm
+:
+number
+Source rectangle width, as a fraction of canvas width. Up to 2.0 so the source can bleed off-canvas.
+format:
+float
+,
+exclusiveMinimum:
+0
+,
+maximum:
+2
+x_norm
+:
+number
+Left edge of the source rectangle, as a fraction of canvas width. May be negative when the source extends off-canvas.
+format:
+float
+,
+minimum:
+-2
+,
+maximum:
+2
+y_norm
+:
+number
+Top edge of the source rectangle, as a fraction of canvas height. May be negative when the source extends off-canvas.
+format:
+float
+,
+minimum:
+-2
+,
+maximum:
+2
+start_frame
+:
+optional
+ImageRef
+{
+data, file_id, generation_id, 2 more
+}
+Media reference for guided generation. Provide exactly one of url, inline base64 data, generation_id, or file_id. URL/data references accept image media at image positions; video_edit and video_reframe sources also accept source.url or source.data when source.media_type is a video/* MIME. generation_id chains image_edit off a prior image output, video_edit/video_reframe off a prior video output, and video.start_frame/end_frame for extension. file_id references a file previously uploaded via POST /files — see the Files API.
+data
+:
+optional
+string
+Base64-encoded image or video data
+file_id
+:
+optional
+string
+UUID of a file previously uploaded via POST /files. Skips URL fetch / base64 decode and reuses the file's pre-moderated backing artifact. The referenced file must be owned by the same client and in state=ready. See the Files API for the upload flow.
+format:
+uuid
+generation_id
+:
+optional
+string
+UUID of a prior generation owned by the same caller. Used on source for image_edit, video_edit, and video_reframe chaining and on video.start_frame / video.end_frame for video extension.
+format:
+uuid
+media_type
+:
+optional
+string
+MIME type (for example, image/jpeg or video/mp4). Required with data. Required with source.url on video_edit/video_reframe so the route can dispatch video ingest before fetching bytes; optional for image URLs.
+url
+:
+optional
+string
+Publicly accessible image URL, or a video URL when used as source for video_edit/video_reframe with media_type=video/*.
+web_search
+:
+optional
+boolean
+Enable web search grounding — the agent can search the web and download reference images before generating.
+Returns
+Expand
+Collapse
+Generation
+=
+object
+{
+id, created_at, model, 8 more
+}
+Generation status and output
+id
+:
+string
+Generation identifier
+format:
+uuid
+created_at
+:
+string
+When the generation was created, as RFC 3339 UTC ending in Z. The create response and every poll return the same value.
+format:
+date-time
+model
+:
+Model
+Model used
+One of the following:
+"uni-1"
+"uni-1-max"
+"ray-3.2"
+state
+:
+"queued"
+or
+"processing"
+or
+"completed"
+or
+"failed"
+Current state of the generation
+One of the following:
+"queued"
+"processing"
+"completed"
+"failed"
+type
+:
+"image"
+or
+"image_edit"
+or
+"video"
+or
+3 more
+The kind of generation to perform
+One of the following:
+"image"
+"image_edit"
+"video"
+"video_edit"
+"video_reframe"
+"layering"
+failure_code
+:
+optional
+GenerationFailureCode
+Machine-readable failure code for programmatic handling
+One of the following:
+"content_moderated"
+"generation_failed"
+"budget_exhausted"
+"output_not_found"
+"image_too_large"
+"unsupported_format"
+"corrupt_input"
+"invalid_request"
+"rate_limited"
+failure_reason
+:
+optional
+string
+Human-readable failure description
+output
+:
+optional
+array of
+GenerationOutput
+{
+type, url, layer
+}
+Generated outputs (populated on completion)
+type
+:
+string
+Media type (e.g. image, video)
+url
+:
+string
+Presigned URL (1hr expiry)
+format:
+uri
+layer
+:
+optional
+object
+{
+alpha_hint, description, index, 4 more
+}
+Per-layer semantics for a type=layering output
+alpha_hint
+:
+string
+Edge treatment of the layer's transparency — soft (hair/fur/glass), hard (solid edges), or none (the opaque background)
+description
+:
+string
+Complete-element caption for the layer's content
+index
+:
+number
+Layer position, front-to-back; the last layer is the background
+label
+:
+string
+Short (1-2 word) layer name
+bounds
+:
+optional
+object
+{
+canvas_height, canvas_width, height, 3 more
+}
+Where a layer's returned pixels sit inside the full composite frame. Layer images are cropped to their visible-alpha bounding box, so layers of one stack have differing pixel dimensions. Composite onto a transparent canvas_width x canvas_height image by pasting each layer at (x, y), iterating the output list in reverse (back-to-front), to reconstruct the source frame.
+canvas_height
+:
+number
+Height of the full composite canvas the layers reassemble into
+canvas_width
+:
+number
+Width of the full composite canvas the layers reassemble into
+height
+:
+number
+Pixel height of the returned layer image
+width
+:
+number
+Pixel width of the returned layer image
+x
+:
+number
+Left offset of this layer's pixels within the composite canvas
+y
+:
+number
+Top offset of this layer's pixels within the composite canvas
+contains_text
+:
+optional
+boolean
+Whether the layer was planned as typeset text (a headline, caption, or label) rather than an image element. Null when not reported for this generation.
+text
+:
+optional
+object
+{
+content, decorated, font
+}
+The text on one live-text layer, as a string plus how it is styled. Placement is the owning layer's bounds — the text fills that box.
+content
+:
+string
+The text as shown, preserving capitalization; one line per line (newline-separated)
+decorated
+:
+optional
+boolean
+True when the lettering is ornamental (outlines, patterned fills, bevels, drop shadows), so plain typeset text will not reproduce its look.
+font
+:
+optional
+object
+{
+category, families, italic, 3 more
+}
+Described letterform traits of a text layer — enough to pick a matching font.
+category
+:
+"sans serif"
+or
+"serif"
+or
+"slab serif"
+or
+6 more
+Letterform style
+One of the following:
+"sans serif"
+"serif"
+"slab serif"
+"display sans"
+"display serif"
+"display slab"
+"display decorative"
+"handwriting"
+"monospace"
+families
+:
+array of
+string
+Up to three Google Fonts family names that resemble the lettering, closest first. Empty when none of the offered families fit.
+italic
+:
+boolean
+Whether the letters are slanted or cursive
+weight
+:
+"thin"
+or
+"light"
+or
+"regular"
+or
+3 more
+Stroke weight
+One of the following:
+"thin"
+"light"
+"regular"
+"medium"
+"bold"
+"black"
+width
+:
+"condensed"
+or
+"normal"
+or
+"wide"
+Letter width for its height
+One of the following:
+"condensed"
+"normal"
+"wide"
+match
+:
+optional
+object
+{
+face_id, family_id, family_name, 2 more
+}
+The font in your font catalog that the lettering matches, so you can re-set the text in it. Absent when no catalog font matches closely enough, or matching is not enabled. The image itself is not rendered in this font.
+face_id
+:
+string
+Typed ref of the matched face (one weight and style), font_face:
+family_id
+:
+string
+Typed ref of the matched font family, font_family:
+family_name
+:
+string
+Name of the matched font family
+style
+:
+"normal"
+or
+"italic"
+Style of the matched face
+One of the following:
+"normal"
+"italic"
+weight
+:
+number
+CSS font weight of the matched face, e.g. 400 or 700
+team
+:
+optional
+GenerationTeam
+{
+id, name
+}
+The Luma team that owns a generation
+id
+:
+string
+Team identifier
+format:
+uuid
+name
+:
+string
+Team display name
+usage
+:
+optional
+GenerationUsage
+{
+credits_charged
+}
+What one generation actually cost, as billing settled it
+credits_charged
+:
+number
+Credits actually charged for this generation. Null until billing has settled it; a confirmed no-charge outcome is 0. Stays null for a generation whose charge could not be confirmed, including ones settled before this field existed. Never an estimate or the reserved amount.
+minimum:
+0
+user_id
+:
+optional
+string
+The end-user identifier sent as
+user_id
+when this generation was created, with surrounding whitespace trimmed. Null when none was sent, or when it was the Luma user id of the project's creator.
+Create a generation
+HTTP
+TypeScript
+Python
+Go
+CLI Tool
+curl
+https://agents.lumalabs.ai/v1/generations
+\
+-H
+'Content-Type: application/json'
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-d
+'{
+"prompt": "A glass of iced coffee on a marble countertop, morning light streaming through a window"
+}'
+201 example
+{
+"id"
+:
+"182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"
+,
+"created_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"model"
+:
+"uni-1"
+,
+"state"
+:
+"queued"
+,
+"type"
+:
+"image"
+,
+"failure_code"
+:
+"content_moderated"
+,
+"failure_reason"
+:
+"failure_reason"
+,
+"output"
+: [
+{
+"type"
+:
+"type"
+,
+"url"
+:
+"https://example.com"
+,
+"layer"
+: {
+"alpha_hint"
+:
+"alpha_hint"
+,
+"description"
+:
+"description"
+,
+"index"
+:
+0
+,
+"label"
+:
+"label"
+,
+"bounds"
+: {
+"canvas_height"
+:
+0
+,
+"canvas_width"
+:
+0
+,
+"height"
+:
+0
+,
+"width"
+:
+0
+,
+"x"
+:
+0
+,
+"y"
+:
+0
+},
+"contains_text"
+:
+true
+,
+"text"
+: {
+"content"
+:
+"content"
+,
+"decorated"
+:
+true
+,
+"font"
+: {
+"category"
+:
+"sans serif"
+,
+"families"
+: [
+"string"
+],
+"italic"
+:
+true
+,
+"weight"
+:
+"thin"
+,
+"width"
+:
+"condensed"
+,
+"match"
+: {
+"face_id"
+:
+"face_id"
+,
+"family_id"
+:
+"family_id"
+,
+"family_name"
+:
+"family_name"
+,
+"style"
+:
+"normal"
+,
+"weight"
+:
+0
+}
+}
+}
+}
+}
+],
+"team"
+: {
+"id"
+:
+"182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"
+,
+"name"
+:
+"name"
+},
+"usage"
+: {
+"credits_charged"
+:
+0
+},
+"user_id"
+:
+"user_id"
+}
+Returns Examples
+201 example
+{
+"id"
+:
+"182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"
+,
+"created_at"
+:
+"2019-12-27T18:11:19.117Z"
+,
+"model"
+:
+"uni-1"
+,
+"state"
+:
+"queued"
+,
+"type"
+:
+"image"
+,
+"failure_code"
+:
+"content_moderated"
+,
+"failure_reason"
+:
+"failure_reason"
+,
+"output"
+: [
+{
+"type"
+:
+"type"
+,
+"url"
+:
+"https://example.com"
+,
+"layer"
+: {
+"alpha_hint"
+:
+"alpha_hint"
+,
+"description"
+:
+"description"
+,
+"index"
+:
+0
+,
+"label"
+:
+"label"
+,
+"bounds"
+: {
+"canvas_height"
+:
+0
+,
+"canvas_width"
+:
+0
+,
+"height"
+:
+0
+,
+"width"
+:
+0
+,
+"x"
+:
+0
+,
+"y"
+:
+0
+},
+"contains_text"
+:
+true
+,
+"text"
+: {
+"content"
+:
+"content"
+,
+"decorated"
+:
+true
+,
+"font"
+: {
+"category"
+:
+"sans serif"
+,
+"families"
+: [
+"string"
+],
+"italic"
+:
+true
+,
+"weight"
+:
+"thin"
+,
+"width"
+:
+"condensed"
+,
+"match"
+: {
+"face_id"
+:
+"face_id"
+,
+"family_id"
+:
+"family_id"
+,
+"family_name"
+:
+"family_name"
+,
+"style"
+:
+"normal"
+,
+"weight"
+:
+0
+}
+}
+}
+}
+}
+],
+"team"
+: {
+"id"
+:
+"182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"
+,
+"name"
+:
+"name"
+},
+"usage"
+: {
+"credits_charged"
+:
+0
+},
+"user_id"
+:
+"user_id"
+}

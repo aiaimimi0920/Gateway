@@ -46,6 +46,44 @@ pub(super) async fn provider_payload_value_from_row(
     Ok(Some(payload_value))
 }
 
+/// Read one original hosted credential for an already-admitted Luma task; never redispatch it.
+pub(crate) async fn read_hosted_luma_payload(
+    pool: &PgPool,
+    provider_id: &str,
+    credential_id: &str,
+) -> Result<Option<ProviderAccountPayload>, GatewayError> {
+    let provider = sqlx::query_as::<_, GatewayProviderRouteRow>(
+        "SELECT id,label,adapter,protocol_family,protocol_profile,cooldown_until,failure_count,
+                execution_mode,endpoint_execution_modes,payload_inline,payload_object_key
+         FROM gateway_provider_accounts WHERE id = $1 AND status = 'active'
+           AND archived_at IS NULL AND (cooldown_until IS NULL OR cooldown_until <= now())",
+    )
+    .bind(provider_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(map_db_error)?;
+    let Some(provider) = provider.filter(|row| {
+        canonicalize_adapter_name(&row.adapter) == crate::protocol::luma_agents::ADAPTER
+    }) else {
+        return Ok(None);
+    };
+    let credential = crate::db::get_provider_credential(pool, credential_id).await?;
+    let Some(credential) = credential.filter(|row| {
+        row.provider_account_id == provider_id
+            && row.archived_at.is_none()
+            && row.status == "active"
+    }) else {
+        return Ok(None);
+    };
+    let Some(account) = provider_payload_value_from_row(&provider).await? else {
+        return Ok(None);
+    };
+    provider_payload_from_value(
+        &provider,
+        merge_provider_account_and_credential_payloads(&account, &credential.payload),
+    )
+}
+
 pub(super) fn provider_payload_from_value(
     row: &GatewayProviderRouteRow,
     payload_value: Value,

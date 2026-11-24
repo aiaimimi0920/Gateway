@@ -32,13 +32,29 @@ it("reads a newly supplied Key without writing it into the editor document", asy
   expect(opts.replaceEditorDocument).not.toHaveBeenCalled(); hook.unmount();
 });
 
-it.each(["revision", "editorText", "secretGrant", "managementToken"])("discards a late CommandCode catalog after %s changes", async (field) => {
+it.each(["revision", "editorText", "secretGrant", "managementToken"])("discards a late CommandCode catalog if %s is no longer valid", async (field) => {
   let resolve!: (value: unknown) => void;
   const opts = options(vi.fn(() => new Promise((done) => { resolve = done; })));
   const hook = renderHook((value) => useAccountDiscovery(value), { initialProps: opts });
   let pending!: Promise<void>;
   act(() => { pending = hook.result.current.refreshAccountDiscovery("renamed", "stable"); });
-  hook.rerender({ ...opts, [field]: field === "editorText" ? JSON.stringify({ ...doc, aliases: { changed: "manual" } }) : "changed" });
+  const changed = field === "secretGrant" ? null : field === "editorText"
+    ? JSON.stringify({ ...doc, aliases: { changed: "manual" } }) : "changed";
+  hook.rerender({ ...opts, [field]: changed });
   await act(async () => { resolve({ revision: "r1", catalog }); await pending; });
   expect(opts.replaceEditorDocument).not.toHaveBeenCalled(); hook.unmount();
+});
+
+it("keeps the catalog in flight when the same management session renews its grant", async () => {
+  let resolve!: (value: unknown) => void;
+  const opts = options(vi.fn(() => new Promise((done) => { resolve = done; })));
+  const hook = renderHook((value) => useAccountDiscovery(value), { initialProps: opts });
+  let pending!: Promise<void>;
+  act(() => { pending = hook.result.current.refreshAccountDiscovery("renamed", "stable"); });
+  hook.rerender({ ...opts, secretGrant: "renewed-grant" });
+  // The server can return successfully if the original grant is still valid after renewal.
+  await act(async () => { resolve({ revision: "r1", catalog }); await pending; });
+  expect(opts.client.request).toHaveBeenCalledTimes(1);
+  expect(opts.replaceEditorDocument).toHaveBeenCalledTimes(1);
+  hook.unmount();
 });

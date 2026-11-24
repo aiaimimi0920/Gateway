@@ -6,10 +6,12 @@ import type {
 import { remapSiteHealthSecretPath } from "./siteHealthSecretPath";
 import { sessionMaterialTarget, type SessionMaterialBinding } from "./providerSessionTarget";
 import { clearBedrockMaterialAliases, validateBedrockStaging, type BedrockMaterialBinding } from "./bedrockMaterialBinding";
-import { validateQwenStaging, type QwenMaterialBinding } from "./qwenMaterialBinding";
-import { validateKiroKeyStaging, type KiroKeyMaterialBinding } from "./kiroKeyMaterialBinding";
-import { validateVertexExpressStaging, type VertexExpressMaterialBinding } from "./vertexExpress";
-import { validateLumaAgentsStaging, type LumaAgentsMaterialBinding } from "./lumaAgents";
+import { type QwenMaterialBinding } from "./qwenMaterialBinding";
+import { type KiroKeyMaterialBinding } from "./kiroKeyMaterialBinding";
+import { type VertexExpressMaterialBinding } from "./vertexExpress";
+import type { LumaAgentsMaterialBinding } from "./lumaAgents";
+import type { LumaInferenceBinding } from "./lumaInferenceCredential";
+import { validateCredentialKeyStaging } from "./credentialKeyStaging";
 
 export type AddExplicitCredentialInput = {
   providerId: string;
@@ -41,7 +43,7 @@ export type ProviderProbeScheduleInput = {
 
 type CredentialSecretFieldPath = "api_key" | "auth_token" | "refresh_token" | "headers/Cookie" | "headers/Authorization"
   | "extra_body/sessionId" | "extra_body/accessToken" | "extra_body/awsAccessKeyId" | "extra_body/awsSecretAccessKey" | "extra_body/awsSessionToken";
-export type CredentialSecretEdit = CredentialIdentity & { sessionBinding?: SessionMaterialBinding; bedrockBinding?: BedrockMaterialBinding; qwenBinding?: QwenMaterialBinding; kiroKeyBinding?: KiroKeyMaterialBinding; vertexExpressBinding?: VertexExpressMaterialBinding; lumaAgentsBinding?: LumaAgentsMaterialBinding } &
+export type CredentialSecretEdit = CredentialIdentity & { sessionBinding?: SessionMaterialBinding; bedrockBinding?: BedrockMaterialBinding; qwenBinding?: QwenMaterialBinding; kiroKeyBinding?: KiroKeyMaterialBinding; vertexExpressBinding?: VertexExpressMaterialBinding; lumaAgentsBinding?: LumaAgentsMaterialBinding; lumaInferenceBinding?: LumaInferenceBinding } &
   (
     | {
         field: CredentialSecretFieldPath;
@@ -477,26 +479,7 @@ export function buildCredentialSecretPatches({
     const providerId = requiredId(edit.providerId, "providerId");
     const credentialId = requiredId(edit.credentialId, "credentialId");
     const draftProviderIndex = providerIndexById(draftDocument, providerId);
-    if (edit.qwenBinding || edit.operation === "replace" && edit.field === "api_key"
-      && (draftDocument.providers[draftProviderIndex] as Record<string, unknown> | undefined)?.preset === "qwen-official-api") {
-      try { validateQwenStaging(draftDocument, providerId, credentialId, edit.qwenBinding); }
-      catch (error) { if (!strictSessionBindings) continue; throw error; }
-    }
-    if (edit.kiroKeyBinding || edit.operation === "replace" && edit.field === "api_key"
-      && (draftDocument.providers[draftProviderIndex] as Record<string, unknown> | undefined)?.preset === "kiro-api-key") {
-      try { validateKiroKeyStaging(draftDocument, providerId, credentialId, edit.kiroKeyBinding); }
-      catch (error) { if (!strictSessionBindings) continue; throw error; }
-    }
-    if (edit.vertexExpressBinding || edit.operation === "replace" && edit.field === "api_key"
-      && (draftDocument.providers[draftProviderIndex] as Record<string, unknown> | undefined)?.preset === "vertex-express-api") {
-      try { validateVertexExpressStaging(draftDocument, providerId, credentialId, edit.vertexExpressBinding); }
-      catch (error) { if (!strictSessionBindings) continue; throw error; }
-    }
-    if (edit.lumaAgentsBinding || edit.operation === "replace" && edit.field === "api_key"
-      && (draftDocument.providers[draftProviderIndex] as Record<string, unknown> | undefined)?.preset === "lumalabs-api") {
-      try { validateLumaAgentsStaging(draftDocument, providerId, credentialId, edit.lumaAgentsBinding); }
-      catch (error) { if (!strictSessionBindings) continue; throw error; }
-    }
+    if (!validateCredentialKeyStaging(draftDocument, edit, strictSessionBindings)) continue;
     if (edit.bedrockBinding) {
       try { validateBedrockStaging(draftDocument, providerId, credentialId, edit.bedrockBinding, activeDocument, activeSecrets); }
       catch (error) { if (!strictSessionBindings) continue; throw error; }

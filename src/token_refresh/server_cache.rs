@@ -42,6 +42,7 @@ pub(crate) fn patch_from_grant(
         &original.refresh,
         original.context.as_ref(),
         original.kiro_oauth.as_ref(),
+        original.quick_oauth.as_ref(),
         original.vertex_oauth.as_ref(),
         original.dim_oauth.as_ref(),
         original.nous_portal.as_ref(),
@@ -82,6 +83,7 @@ fn patch(
         refresh,
         context,
         kiro_context,
+        None,
         vertex_context,
         dim_context,
         None,
@@ -97,6 +99,7 @@ fn patch_with_nous(
     refresh: &str,
     context: Option<&crate::protocol::grok_oauth::AuthorizationContext>,
     kiro_context: Option<&crate::protocol::kiro_oauth::AuthorizationContext>,
+    quick_context: Option<&crate::protocol::quick_oauth::AuthorizationContext>,
     vertex_context: Option<&crate::protocol::vertex_oauth::AuthorizationContext>,
     dim_context: Option<&crate::protocol::dim_oauth::AuthorizationContext>,
     nous_context: Option<&crate::protocol::nous_portal::AuthorizationContext>,
@@ -163,7 +166,9 @@ fn patch_with_nous(
             return None;
         }
     }
-    if !super::cache_target::matches_kiro(entry.get("account_payload"), kiro_context) {
+    if !super::cache_target::matches_kiro(entry.get("account_payload"), kiro_context)
+        || !super::cache_target::matches_quick(entry.get("account_payload"), quick_context)
+    {
         return None;
     }
     if !super::cache_target::matches_vertex(entry.get("account_payload"), vertex_context) {
@@ -197,6 +202,7 @@ fn patch_with_nous(
         .pointer("/account_payload/refresh_token")
         .and_then(Value::as_str);
     if (kiro_context.is_some()
+        || quick_context.is_some()
         || vertex_context.is_some()
         || dim_context.is_some()
         || nous_context.is_some())
@@ -261,13 +267,14 @@ pub(super) async fn persist(
     token: &TokenResponse,
     expiry: &str,
 ) -> anyhow::Result<()> {
-    persist_with_nous(
+    persist_with_quick(
         pool,
         id,
         expected_access,
         expected_refresh,
         context,
         kiro_context,
+        None,
         vertex_context,
         dim_context,
         None,
@@ -278,6 +285,7 @@ pub(super) async fn persist(
     .await
 }
 
+#[cfg(test)]
 pub(super) async fn persist_with_nous(
     pool: &deadpool_redis::Pool,
     id: &str,
@@ -285,6 +293,39 @@ pub(super) async fn persist_with_nous(
     expected_refresh: &str,
     context: Option<&crate::protocol::grok_oauth::AuthorizationContext>,
     kiro_context: Option<&crate::protocol::kiro_oauth::AuthorizationContext>,
+    vertex_context: Option<&crate::protocol::vertex_oauth::AuthorizationContext>,
+    dim_context: Option<&crate::protocol::dim_oauth::AuthorizationContext>,
+    nous_context: Option<&crate::protocol::nous_portal::AuthorizationContext>,
+    sgcookie: Option<&str>,
+    token: &TokenResponse,
+    expiry: &str,
+) -> anyhow::Result<()> {
+    persist_with_quick(
+        pool,
+        id,
+        expected_access,
+        expected_refresh,
+        context,
+        kiro_context,
+        None,
+        vertex_context,
+        dim_context,
+        nous_context,
+        sgcookie,
+        token,
+        expiry,
+    )
+    .await
+}
+
+pub(super) async fn persist_with_quick(
+    pool: &deadpool_redis::Pool,
+    id: &str,
+    expected_access: &str,
+    expected_refresh: &str,
+    context: Option<&crate::protocol::grok_oauth::AuthorizationContext>,
+    kiro_context: Option<&crate::protocol::kiro_oauth::AuthorizationContext>,
+    quick_context: Option<&crate::protocol::quick_oauth::AuthorizationContext>,
     vertex_context: Option<&crate::protocol::vertex_oauth::AuthorizationContext>,
     dim_context: Option<&crate::protocol::dim_oauth::AuthorizationContext>,
     nous_context: Option<&crate::protocol::nous_portal::AuthorizationContext>,
@@ -306,6 +347,7 @@ pub(super) async fn persist_with_nous(
                 expected_refresh,
                 context,
                 kiro_context,
+                quick_context,
                 vertex_context,
                 dim_context,
                 nous_context,
@@ -333,171 +375,5 @@ pub(super) async fn persist_with_nous(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cache_patch_preserves_quotas_and_rejects_reauthorization() {
-        let raw = json!({"api_key":"old", "quota_remaining_tokens":42,
-            "unknown_field":"retained", "account_payload":{"refresh_token":"old-rt",
-            "session_auth":{"expires_at":"old"}, "headers":{"x-id":"account"}}})
-        .to_string();
-        let token = TokenResponse {
-            grok_oauth: None,
-            absolute_expiry: None,
-            accio_sgcookie: None,
-            vertex_oauth: None,
-            dim_oauth: None,
-            nous_portal: None,
-            lobsterai: None,
-            access_token: "new".into(),
-            refresh_token: Some("new-rt".into()),
-            expires_in: Some(3600),
-        };
-        let patched = patch(
-            &raw,
-            "old",
-            "old-rt",
-            None,
-            None,
-            None,
-            None,
-            None,
-            &token,
-            "new-expiry",
-        )
-        .unwrap();
-        let value: Value = serde_json::from_str(&patched).unwrap();
-        assert_eq!(value["quota_remaining_tokens"], 42);
-        assert_eq!(value["unknown_field"], "retained");
-        assert_eq!(value["account_payload"]["refresh_token"], "new-rt");
-        assert_eq!(
-            value["account_payload"]["session_auth"]["expires_at"],
-            "new-expiry"
-        );
-        assert!(patch(
-            &patched,
-            "old",
-            "old-rt",
-            None,
-            None,
-            None,
-            None,
-            None,
-            &token,
-            "new-expiry"
-        )
-        .is_none());
-        assert!(patch(
-            &raw,
-            "old",
-            "other-rt",
-            None,
-            None,
-            None,
-            None,
-            None,
-            &token,
-            "new-expiry"
-        )
-        .is_none());
-    }
-
-    #[test]
-    fn grok_cache_patch_cas_binds_original_context_and_persists_scope_narrowing() {
-        let value = json!({"issuer":"https://auth.x.ai","client_id":"explicit-client",
-            "requested_scopes":["openid","profile"],"granted_scopes":["openid","profile"]});
-        let context: crate::protocol::grok_oauth::AuthorizationContext =
-            serde_json::from_value(value.clone()).unwrap();
-        let mut narrowed = value;
-        narrowed["granted_scopes"] = json!(["profile"]);
-        let next: crate::protocol::grok_oauth::AuthorizationContext =
-            serde_json::from_value(narrowed).unwrap();
-        let raw = json!({"api_key":"old","account_payload":{"refresh_token":"old-rt",
-            "grok_oauth":context},"quota_remaining_tokens":42})
-        .to_string();
-        let token = TokenResponse {
-            access_token: "new".into(),
-            refresh_token: Some("new-rt".into()),
-            expires_in: Some(3600),
-            grok_oauth: Some(next.clone()),
-            absolute_expiry: None,
-            accio_sgcookie: None,
-            vertex_oauth: None,
-            dim_oauth: None,
-            nous_portal: None,
-            lobsterai: None,
-        };
-        let patched = patch(
-            &raw,
-            "old",
-            "old-rt",
-            Some(&context),
-            None,
-            None,
-            None,
-            None,
-            &token,
-            "new-expiry",
-        )
-        .unwrap();
-        let stored: Value = serde_json::from_str(&patched).unwrap();
-        assert_eq!(
-            stored["account_payload"]["grok_oauth"],
-            serde_json::to_value(&next).unwrap()
-        );
-        assert_eq!(stored["quota_remaining_tokens"], 42);
-        assert!(patch(
-            &raw,
-            "old",
-            "old-rt",
-            None,
-            None,
-            None,
-            None,
-            None,
-            &token,
-            "new-expiry"
-        )
-        .is_none());
-        assert!(patch(
-            &raw,
-            "old",
-            "old-rt",
-            Some(&next),
-            None,
-            None,
-            None,
-            None,
-            &token,
-            "new-expiry"
-        )
-        .is_none());
-        assert!(patch(
-            &patched,
-            "new",
-            "new-rt",
-            Some(&context),
-            None,
-            None,
-            None,
-            None,
-            &token,
-            "later-expiry"
-        )
-        .is_none());
-        assert!(patch(
-            &patched,
-            "new",
-            "new-rt",
-            Some(&next),
-            None,
-            None,
-            None,
-            None,
-            &token,
-            "later-expiry"
-        )
-        .is_some());
-    }
-}
+#[path = "server_cache_tests.rs"]
+mod tests;

@@ -1,12 +1,19 @@
 //! Product-scoped contract for the official Agents API, independent of Luma Web.
+pub(crate) mod file_upload;
+pub(crate) mod files;
+pub(crate) mod generation_audit;
+mod layering;
 mod media_ref;
 mod request;
 mod video;
+mod video_edit;
+mod video_reframe;
 
 use crate::{
     error::{ErrorKind, FallbackHint, GatewayError},
     routing::candidate::ProviderAccountPayload,
 };
+pub(crate) use layering::normalize as normalize_layering;
 pub(crate) use request::{GenerationRequest, Media};
 
 pub const ADAPTER: &str = "lumalabs_agents_compatible";
@@ -30,6 +37,20 @@ pub(crate) fn record_success_audit(
     trace["lumaAgentsGeneration"] = serde_json::json!({"id":id,"model":job["model"],"type":job["type"],
         "state":job["state"],"usage":{"credits_charged":job["usage"]["credits_charged"]}});
     Some(id.to_owned())
+}
+
+/// Failure paths have no selected successful adapter; the error owns validated task facts.
+pub(crate) fn record_failure_audit(
+    error: &GatewayError,
+    trace: &mut serde_json::Value,
+) -> Option<String> {
+    if error.provider_name.as_deref() != Some(ADAPTER) {
+        return None;
+    }
+    error
+        .luma_generation_failure
+        .as_ref()
+        .map(|facts| facts.record(trace))
 }
 
 /// Reference-based edits have no local upload; product validation follows auth and model resolution.
@@ -117,4 +138,10 @@ pub(crate) fn invalid_request() -> GatewayError {
 }
 
 #[cfg(test)]
+mod layering_tests;
+#[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod video_edit_tests;
+#[cfg(test)]
+mod video_reframe_tests;

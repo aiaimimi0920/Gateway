@@ -34,19 +34,22 @@ pub(in super::super) fn track(
         legacy_lease: freebuff_lease_handle,
         terminal,
     } = owner;
+    let sap = crate::protocol::sap_aicore::owns_payload(&candidate.payload);
     let (byte_stream, stream_completion_semantics_handle) = if ctx.canonical_req.endpoint_kind
         == EndpointKind::Messages
-        && crate::protocol::commandcode::owns_payload(&candidate.payload)
+        && (crate::protocol::commandcode::owns_payload(&candidate.payload)
+            || crate::protocol::sensenova::owns_payload(&candidate.payload))
     {
         let (stream, handle) =
             crate::upstream::stream::tap_messages_completion_with_error(byte_stream);
         (Box::pin(stream) as ByteStream, Some(handle))
-    } else if ctx.canonical_req.endpoint_kind == EndpointKind::Responses
-        && crate::protocol::commandcode::owns_payload(&candidate.payload)
-        && candidate.payload.responses_path.as_deref() == Some("/responses")
+    } else if let Some(observe) =
+        responses_wire::observer(&candidate.payload, ctx.canonical_req.endpoint_kind)
     {
-        let (stream, handle) =
-            crate::upstream::stream::tap_commandcode_responses_completion_with_error(byte_stream);
+        let (stream, handle) = crate::upstream::stream::tap_native_responses_completion_with_error(
+            byte_stream,
+            observe,
+        );
         (Box::pin(stream) as ByteStream, Some(handle))
     } else if is_conversation_endpoint(ctx.canonical_req.endpoint_kind) {
         let (tapped_stream, completion_semantics_handle) =
@@ -222,16 +225,22 @@ pub(in super::super) fn track(
                 let classified = failure
                     .as_ref()
                     .and_then(|failure| failure.classified.as_ref());
-                let failure_message = failure
-                    .as_ref()
-                    .map(|failure| failure.message.clone())
-                    .unwrap_or_else(|| {
-                        format!(
-                            "stream terminated before completion ({:?}); termination_reason={}",
-                            metrics.termination,
-                            cause.label()
-                        )
-                    });
+                let sap_indeterminate =
+                    sap && classified.is_none_or(crate::protocol::sap_aicore::errors::neutral);
+                let failure_message = if sap_indeterminate {
+                    crate::protocol::sap_aicore::errors::STREAM_UNVERIFIED.to_owned()
+                } else {
+                    failure
+                        .as_ref()
+                        .map(|failure| failure.message.clone())
+                        .unwrap_or_else(|| {
+                            format!(
+                                "stream terminated before completion ({:?}); termination_reason={}",
+                                metrics.termination,
+                                cause.label()
+                            )
+                        })
+                };
                 warn!(req_id = %failure_finalize_snapshot.request_id,
                 provider = %provider_id, error = %failure_message,
                 chunks = metrics.chunk_count, bytes = metrics.total_bytes,
@@ -239,6 +248,7 @@ pub(in super::super) fn track(
                 // A local deadline or caller cancellation still finalizes/refunds,
                 // but must not poison provider health or reduce its capacity.
                 if upstream_failed
+                    && !sap_indeterminate
                     && !classified.is_some_and(|error| {
                         error.code.as_deref() == Some("freebuff_business_run_journal_unavailable")
                     })

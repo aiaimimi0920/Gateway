@@ -44,6 +44,18 @@ Gateway 使用服务商配置指定的目标和凭证，绝不复制入口的 Ho
 - buffered 和 SSE 使用同一 native sender；SSE 仍保留 completion 校验、背压和取消清理。
   native 网络错误保留自己的类型，不伪装为另一 HTTP 客户端的错误；诊断先移除 URL。
 
+原生 HTTP 连接池由接受的入站连接拥有，按普通／恢复等待、普通／Cookie session
+隔离，保持惰性创建。在可信原生发送错误后退休该 generation 的缓存 transport，
+后续新请求重新创建；旧在途请求仍持有自己的 client，不被取消。取 client 和
+generation 在同一锁内完成，迟到错误不能反复淘汰较新的池。证书拒绝与代理认证错误
+不触发此退休路径，也不修改 TLS、代理或认证配置。
+
+退休连接池不是业务重试许可。`delivery_unknown` 仍终止当前请求，不自动重放或
+切换账号；仅确知尚未到达 origin 的连接失败可沿用既有预算内的安全恢复规则。
+完整输出前的流终止、真实限流以及会话绑定／加密内容拒绝仍保留原有错误语义，
+不能靠重建 transport 伪装成成功。实现与本轮证据见
+[4200 自动恢复修复](progress/2026-11-18-ag-account-automatic-recovery.md)。
+
 ## TLS 版本依据
 
 普通 HTTP 的默认系统信任路径使用 `reqwest 0.12.28` 与系统 native TLS；

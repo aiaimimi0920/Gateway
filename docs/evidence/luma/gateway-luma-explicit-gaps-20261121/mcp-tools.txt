@@ -1,0 +1,110 @@
+Tool list | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Overview
+API
+Agents
+MCP
+API Reference
+Admin API
+Menu
+lumalabs.ai
+Overview
+API
+Agents
+MCP
+API Reference
+Admin API
+Getting started
+Luma in your AI assistant
+Connect
+Using Luma
+Plans, credits and admin
+Troubleshooting
+Reference
+Tool list
+Auto
+Light
+Dark
+lumalabs.ai
+On this page
+Overview
+On this page
+Overview
+Reference
+Tool list
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+Tool list
+Every tool the Luma connector gives your assistant, and what each one does.
+For developers and admins. Your assistant chooses these tools for you; you don’t need to call them by name.
+Tool
+What it does
+luma_session_open
+Opens a workspace session. Reuse a workspace key to keep assets between chats.
+luma_session_send_brief
+Sends a free-text request to Luma’s creative agent.
+luma_session_run_capability
+Runs a pre-set workflow (an app) with its form fields.
+luma_session_await
+Waits for progress, questions and results on a session.
+luma_run_respond
+Answers a question or review a workflow is waiting on.
+luma_generate_image
+,
+luma_generate_video
+,
+luma_generate_layering
+One model call, one result.
+luma_run_await
+Waits for a direct generation to finish.
+luma_session_cancel
+Stops one run or the whole session. Outputs already made are kept.
+luma_workspace_upload_widget
+,
+luma_workspace_upload_asset
+,
+luma_workspace_complete_upload
+Gets your files into the workspace.
+luma_workspace_list_assets
+,
+luma_workspace_view_asset
+,
+luma_workspace_list
+Lists, shows and finds workspace files and workspaces.
+luma_library_*
+Reads and organizes your team’s Asset Library.
+luma_capability_list
+,
+luma_capability_describe
+Lists the workflows you can run and their form fields.
+luma_model_list
+,
+luma_model_describe
+Lists the image and video models and their options.
+luma_usage
+Credits used and left, per team, session or asset.
+Every tool that starts work takes an
+idempotency_key
+, so a retry never makes duplicate work. Developers building on the same functionality should read
+MCP and the API
+.
+Previous
+Troubleshooting
+Fixes for the most common connection, sign-in and generation problems.
+Home

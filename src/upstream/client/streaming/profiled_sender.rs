@@ -30,6 +30,12 @@ impl UpstreamClient {
         }
         crate::protocol::nous_portal::runtime::finalize_headers(payload, plan, &mut headers)?;
         crate::protocol::agnes::finalize_headers(payload, plan, &mut headers)?;
+        crate::protocol::luma_inference::finalize_headers(payload, plan, &mut headers)?;
+        #[cfg(test)]
+        let luma_plan =
+            crate::protocol::luma_inference::test_support::transport_plan(payload, plan);
+        #[cfg(test)]
+        let plan = luma_plan.as_ref().unwrap_or(plan);
         crate::protocol::sensenova::finalize_headers(payload, plan, &mut headers)?;
         #[cfg(test)]
         let sensenova_plan =
@@ -83,9 +89,24 @@ impl UpstreamClient {
             crate::provider_credential_refresh::accio::server_peer::transport_plan(payload, plan);
         #[cfg(all(test, feature = "line-accio-web-reverse-api"))]
         let plan = accio_plan.as_ref().unwrap_or(plan);
-        let builder = self.send_plan(plan, headers);
+        let fixture = self
+            .sensenova_fixture_http
+            .as_ref()
+            .filter(|_| crate::protocol::sensenova::owns_payload(payload));
+        let builder = if let Some(http) = fixture {
+            if !super::super::sensenova_fixture::synthetic_key(&payload.api_key) {
+                return Err(GatewayError::bad_request(
+                    "SenseNova fixture accepts only synthetic keys",
+                )
+                .with_code("sensenova_fixture_key_invalid"));
+            }
+            build_request_builder_from_plan(http, self.timeout, plan, headers)
+        } else {
+            self.send_plan(plan, headers)
+        };
         let builder = if crate::protocol::nous_portal::business::owns_payload(payload)
             || crate::protocol::agnes::owns_payload(payload)
+            || crate::protocol::luma_inference::owns_payload(payload)
             || crate::protocol::sensenova::owns_payload(payload)
             || crate::protocol::minimax::owns_payload(payload)
         {

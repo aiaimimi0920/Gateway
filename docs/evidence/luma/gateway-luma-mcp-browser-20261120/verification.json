@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "scope": "luma_mcp_readonly_normal_main_browser",
+  "date": "2026-11-20",
+  "verifiedAt": "2026-11-19T21:11:37.643254+00:00",
+  "status": "passed",
+  "tests": {
+    "rustHost": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    "mcpRegression": {
+      "passed": 26,
+      "failed": 0,
+      "ignored": 1
+    },
+    "frontend": {
+      "passed": 33,
+      "failed": 0,
+      "files": 3
+    },
+    "checker": {
+      "passed": 31,
+      "failed": 0
+    }
+  },
+  "checks": {
+    "main-build": 0,
+    "frontend": 0,
+    "typecheck": 0,
+    "formatter": 0,
+    "checker-tests": 0,
+    "rust-host-v2": 0,
+    "browser-run-v2": 0,
+    "mcp-regression": 0,
+    "production-check": 0,
+    "node-syntax": 0,
+    "ratchet-final": 0,
+    "diff-final": 0
+  },
+  "managementRequests": 6,
+  "upstreamPosts": 18,
+  "upstreamDeletes": 6,
+  "independentSessions": 6,
+  "flows": [
+    "normal main login and secret grant",
+    "opening and account switching send no catalog calls",
+    "display-only untrusted tool description",
+    "image and video model parameters",
+    "unknown pricing remains unknown",
+    "audio detail action disabled",
+    "switching accounts clears results",
+    "empty model list",
+    "classified 503 tool error without upstream body",
+    "1440px and 390px layouts"
+  ],
+  "accountsUnchanged": true,
+  "revisionUnchanged": true,
+  "resourcesClosed": true,
+  "productionChange": "Handle rejected secret authorization in tool catalog panel with neutral retryable error and no request or replay.",
+  "initialFailures": [
+    {
+      "run": "frontend-red",
+      "passed": 12,
+      "failed": 1,
+      "reason": "Missing neutral error after rejected consent; fixed production panel."
+    },
+    {
+      "run": "browser-run and rust-host",
+      "catalogRequests": 0,
+      "reason": "Runner expected a secondary edit button although existing UI opens dedicated MCP dialog directly; corrected runner, host closed on abort."
+    }
+  ],
+  "sourceSnapshotBoundary": "Nine scoped hashes captured during Rust compile; eight Rust/frontend inputs unchanged at acceptance. Browser runner corrected to existing dialog. Not a whole-worktree pre-build freeze.",
+  "notVerified": [
+    "real Luma model catalog and entitlement",
+    "real remote DELETE release",
+    "MCP creation and current generation schema",
+    "Web current protocol",
+    "forced crash/cross-machine/remote Server recovery",
+    "post-deadline fee reconciliation and cash",
+    "feature-off compile not rerun in this batch",
+    "native EXE"
+  ],
+  "gitCommitted": false,
+  "gitPushed": false
+}

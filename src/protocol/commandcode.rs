@@ -256,8 +256,6 @@ mod messages_stream_extended_tests;
 #[cfg(test)]
 mod messages_stream_tests;
 pub(crate) mod native_json;
-mod native_request;
-mod native_request_history;
 #[cfg(all(test, feature = "line-commandcode-provider-api"))]
 mod native_request_tests;
 pub(crate) mod probe;

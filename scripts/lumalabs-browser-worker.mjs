@@ -1,5 +1,6 @@
 import { chromium, errors } from "playwright-core";
 import { executeLumaOperation } from "./lumalabs-session/browser-operation.mjs";
+import { sessionReceipt, checkSession } from "./lumalabs-session/session-receipt.mjs";
 import { existsSync } from "node:fs";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -24,9 +25,12 @@ const LINUX_EDGE_PATHS = [
 
 async function main() {
   let browser = null;
+  let context = null;
+  let page = null;
+  let input = null;
   async function generate() {
     const raw = await readStdin();
-    const input = JSON.parse(raw);
+    input = JSON.parse(raw);
     validateInput(input);
 
     const executablePath = resolveExecutablePath(
@@ -61,7 +65,8 @@ async function main() {
     const baseUrl = normalizeBaseUrl(input.baseUrl);
     const realmId = input.realmId.trim();
     const boardUrl = `${baseUrl}/board/${realmId}`;
-    const context = await browser.newContext({
+    context = await browser.newContext({
+      serviceWorkers: "block",
       locale,
       userAgent: normalizeString(input.userAgent) ?? undefined,
       extraHTTPHeaders: {
@@ -95,15 +100,16 @@ async function main() {
       },
     ]);
 
-    const page = await context.newPage();
-    await page.goto(boardUrl, {
+    page = await context.newPage();
+    const navigation = await page.goto(boardUrl, {
       waitUntil: "domcontentloaded",
       timeout: remaining(),
     });
 
     const finalUrl = new URL(page.url());
     const expectedUrl = new URL(boardUrl);
-    if (finalUrl.origin !== expectedUrl.origin || finalUrl.pathname !== expectedUrl.pathname) {
+    if (finalUrl.origin !== expectedUrl.origin || finalUrl.pathname !== expectedUrl.pathname
+      || navigation?.status() === 401) {
       return {
         ok: false,
         error: {
@@ -115,6 +121,7 @@ async function main() {
       };
     }
 
+    if (input.sessionOnly === true) return checkSession(page, realmId, remaining());
     return await page.evaluate(executeLumaOperation, {
       realmId,
       mediaOperation: normalizeString(input.mediaOperation),
@@ -137,12 +144,20 @@ async function main() {
         ? error.code : "lumalabs_browser_worker_failed", "LumaLabs browser worker execution failed; details omitted.");
     }
   }
+  let session;
+  try {
+    // Stop page requests before sampling the final Cookie; no late response may rotate after capture.
+    if (page) await page.close({ runBeforeUnload: false });
+    session = await sessionReceipt(context, input, result);
+  }
+  catch { result = workerFailure("lumalabs_session_receipt_failed", "Luma Web session receipt could not be retained."); }
   // JSON business failures use exit 0 too: a nonzero OS exit is an execution failure.
   // Never emit success until the owned browser has actually finished closing.
   if (browser) {
     try { await browser.close(); }
     catch { result = workerFailure("lumalabs_browser_cleanup_failed", "LumaLabs browser cleanup failed."); }
   }
+  if (session) result.session = session;
   await new Promise((resolve, reject) => process.stdout.write(`${JSON.stringify(result)}\n`,
     (error) => error ? reject(error) : resolve()));
 }

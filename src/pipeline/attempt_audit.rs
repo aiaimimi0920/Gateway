@@ -11,6 +11,7 @@ pub(super) struct AttemptAttribution {
     pub provider_id: String,
     model: String,
     credential_ref: Option<String>,
+    label: String,
 }
 
 pub(super) type LastAttempt = Arc<Mutex<Option<AttemptAttribution>>>;
@@ -33,11 +34,24 @@ impl AttemptAudit {
         self.candidate = Some(AttemptAttribution {
             provider_id: candidate.provider_account_id.clone(),
             model: model.to_string(),
-            credential_ref: candidate.payload.credential_id.clone(),
+            credential_ref: candidate
+                .provider_credential_id
+                .clone()
+                .or_else(|| candidate.payload.credential_id.clone()),
+            label: candidate.label.clone(),
         });
     }
 
     // Call only after admission and request-budget begin succeed. No winner or secrets are stored.
+    pub(super) fn set_pinned(&mut self, provider: &str, credential: &str, model: &str) {
+        self.candidate = Some(AttemptAttribution {
+            provider_id: provider.to_owned(),
+            model: model.to_owned(),
+            credential_ref: Some(credential.to_owned()),
+            label: provider.to_owned(),
+        });
+    }
+
     pub fn record(&self) {
         if let Some(candidate) = &self.candidate {
             *self.latest.lock() = Some(candidate.clone());
@@ -46,6 +60,15 @@ impl AttemptAudit {
 }
 
 impl PipelineContext {
+    pub(super) fn last_attempt_trace(&self) -> Option<serde_json::Value> {
+        self.last_provider_attempt.lock().as_ref().map(|attempt| {
+            serde_json::json!({
+                "providerAccountId": attempt.provider_id, "providerLabel": attempt.label,
+                "realCredentialRef": attempt.credential_ref, "resolvedModel": attempt.model,
+            })
+        })
+    }
+
     pub fn audited_resolved_model(&self) -> Option<String> {
         self.resolved_model.clone().or_else(|| {
             self.last_provider_attempt
@@ -83,6 +106,7 @@ mod tests {
                 provider_id: provider.into(),
                 model: format!("{provider}-search"),
                 credential_ref: Some(credential.into()),
+                label: format!("label-{provider}"),
             });
             assert_ne!(
                 ctx.audited_real_credential_ref().as_deref(),
@@ -97,6 +121,10 @@ mod tests {
             assert_eq!(
                 ctx.audited_real_credential_ref().as_deref(),
                 Some(credential)
+            );
+            assert_eq!(
+                ctx.last_attempt_trace().unwrap()["providerLabel"],
+                format!("label-{provider}")
             );
             assert!(ctx.selected_provider_id.is_none());
         }

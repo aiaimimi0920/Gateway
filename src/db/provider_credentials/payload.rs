@@ -21,6 +21,9 @@ mod freebuff_context_tests;
 mod grok_context_tests;
 #[cfg(test)]
 mod kiro_context_tests;
+mod sap_deployment;
+#[cfg(test)]
+mod sap_deployment_tests;
 #[cfg(test)]
 mod vertex_context_tests;
 
@@ -30,7 +33,17 @@ pub fn merge_provider_account_and_credential_payloads(
 ) -> Value {
     match (account_payload, credential_payload) {
         (Value::Object(account), Value::Object(credential)) => {
-            let mut merged = normalized_policy_keys(account).into_owned();
+            let account = normalized_policy_keys(account);
+            let mut credential = normalized_policy_keys(credential);
+            let (mut merged, sap_account) =
+                if sap_deployment::is_sap(&account) || sap_deployment::is_sap(&credential) {
+                    let account = sap_deployment::normalize_settings(account);
+                    credential = sap_deployment::normalize_settings(credential);
+                    sap_deployment::inherit_settings(&account, &mut credential);
+                    (account.as_ref().clone(), Some(account))
+                } else {
+                    (account.into_owned(), None)
+                };
             // A grant snapshot belongs to one credential, never inherited or recursively assembled.
             merged.remove("grok_oauth");
             merged.remove("luma_oauth");
@@ -40,13 +53,17 @@ pub fn merge_provider_account_and_credential_payloads(
             merged.remove("nous_portal");
             merged.remove("dim_catalog");
             merged.remove("freebuff_session");
-            let credential = normalized_policy_keys(credential);
             // A replacement directory is one snapshot, not a union of old and new model maps.
             if credential.contains_key("model_catalog") || credential.contains_key("modelCatalog") {
                 merged.remove("model_catalog");
                 merged.remove("modelCatalog");
             }
             deep_merge_object(&mut merged, &credential);
+            if let Some(account) = sap_account {
+                if !sap_deployment::preserve_capabilities(&account, &mut merged) {
+                    return Value::Null;
+                }
+            }
             apply_credential_fingerprint_override(&mut merged, &credential);
             Value::Object(merged)
         }

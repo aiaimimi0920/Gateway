@@ -84,9 +84,13 @@ impl RouteAccountGroupConstraint {
     }
 
     pub fn allows_candidate(&self, candidate: &RouteCandidate) -> bool {
+        self.allows_account_id(&route_candidate_account_id(candidate))
+    }
+
+    pub(crate) fn allows_account_id(&self, account_id: &str) -> bool {
         self.allowed_account_ids
             .as_ref()
-            .is_none_or(|allowed| allowed.contains(&route_candidate_account_id(candidate)))
+            .is_none_or(|allowed| allowed.contains(account_id))
     }
 
     pub fn filter_candidates(&self, candidates: Vec<RouteCandidate>) -> Vec<RouteCandidate> {

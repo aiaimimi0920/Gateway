@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet("api", "web", "desktop")][string]$Edition = "desktop",
-    [ValidateRange(1, 32)][int]$Jobs = [Math]::Max(1, [Math]::Min(4, [Environment]::ProcessorCount)),
+    [ValidateRange(1, 32)][int]$Jobs = [Math]::Max(1, [Math]::Min(6, [Environment]::ProcessorCount)),
     [string]$VersionId = "gateway-devtest-$(Get-Date -Format 'yyyyMMdd-HHmmss')",
     [switch]$DryRun
 )
@@ -22,7 +22,6 @@ if ($DryRun) {
 & "$PSScriptRoot/package-gateway-release.ps1" -Edition $Edition -BuildKind devtest -VersionId $VersionId `
     -SkipBuild -UseExampleRoutes -ReleaseRoot $scratch -AllowCustomReleaseRoot
 $package = Join-Path $scratch $VersionId
-& "$PSScriptRoot/smoke-gateway-ui-release.ps1" -ReleaseDir $package
 New-Item -ItemType Directory -Path $release -Force | Out-Null
 # Creating the directory first fails on a publication race, rather than merging trees.
 New-Item -ItemType Directory -Path $destination -ErrorAction Stop | Out-Null

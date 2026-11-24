@@ -1,0 +1,18 @@
+{
+  "args": [
+    "powershell.exe",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    "tools/luma/check-desktop.ps1",
+    "-ReleaseDir",
+    "C:/Users/Public/nas_home/AI/GameEditor/Neuro/release/Gateway/gateway-devtest-20261120-luma-large-files-reconciliation",
+    "-Output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-six-20261120/desktop-smoke-v2"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T05:33:18.094546+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 64.06
+}

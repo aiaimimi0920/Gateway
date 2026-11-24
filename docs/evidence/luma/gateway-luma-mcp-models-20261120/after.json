@@ -1,0 +1,66 @@
+[
+  {
+    "path": "src/protocol/luma_mcp/creation.rs",
+    "effectiveLines": 117
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/options.rs",
+    "effectiveLines": 209
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/video.rs",
+    "effectiveLines": 195
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/profiles.rs",
+    "effectiveLines": 55
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/image_parameters.rs",
+    "effectiveLines": 86
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation_tests.rs",
+    "effectiveLines": 298
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation_model_tests.rs",
+    "effectiveLines": 277
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaMcpCreationDraft.ts",
+    "effectiveLines": 103
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaMcpCreationModels.ts",
+    "effectiveLines": 23
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationOptions.tsx",
+    "effectiveLines": 71
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpImageParameters.tsx",
+    "effectiveLines": 28
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationModels.test.tsx",
+    "effectiveLines": 70
+  },
+  {
+    "path": "tools/luma/capture-mcp-models.py",
+    "effectiveLines": 110
+  },
+  {
+    "path": "tools/luma/mcp-creation-preview-check.mjs",
+    "effectiveLines": 129
+  },
+  {
+    "path": "tools/luma/mcp-models-preview-flow.mjs",
+    "effectiveLines": 58
+  },
+  {
+    "path": "tests/python/test_luma_model_capture.py",
+    "effectiveLines": 30
+  }
+]

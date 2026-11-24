@@ -1,0 +1,67 @@
+[
+  {
+    "path": "src/protocol/gemini_business.rs",
+    "effectiveLines": 485,
+    "sourceSha256": "18c2b9690d852e5f92cf6be91fc0cbcae164986ffdace79187b4a92cb2de6e5a"
+  },
+  {
+    "path": "src/http/routes/images.rs",
+    "effectiveLines": 393,
+    "sourceSha256": "48a399eef57b35a0c7ac1d14d5b98c14d2c014b7f7df64a000ebf811ac4b3a96"
+  },
+  {
+    "path": "src/protocol/luma_agents.rs",
+    "effectiveLines": 124,
+    "sourceSha256": "adddb0942cc186327c70e87fb4586f8c3e9a57af52761d3157f0bc7daec5b3a7"
+  },
+  {
+    "path": "src/protocol/luma_agents/request.rs",
+    "effectiveLines": 223,
+    "sourceSha256": "49f96986b9ca7a612628aea2c26d3213a2d3d34ad901a340b988f892d9c10068"
+  },
+  {
+    "path": "src/upstream/public_assets/image.rs",
+    "effectiveLines": 37,
+    "sourceSha256": "bee55f2b8780da8f4082bf56d4834de8a3585fb2fdc4b21b4f199097923b7781"
+  },
+  {
+    "path": "src/upstream/luma_agents.rs",
+    "effectiveLines": 86,
+    "sourceSha256": "bb8a012ec0d39144f46924fce356cc13d8ef9043e707a2caac8f582d8477a9a7"
+  },
+  {
+    "path": "src/upstream/luma_agents/generation.rs",
+    "effectiveLines": 197,
+    "sourceSha256": "9c29da6e96c182432a30b2301824b586778b7b3a545d473e032d71d39c6ce90f"
+  },
+  {
+    "path": "src/upstream/luma_agents/assets.rs",
+    "effectiveLines": 73,
+    "sourceSha256": "4a7029edd577eef19d6666ea79bd1ade5d071f8c0948d945f5303baff60de719"
+  },
+  {
+    "path": "src/provider_runtime/media_probe_request.rs",
+    "effectiveLines": 167,
+    "sourceSha256": "11f5e4ac7a5fe35c2896ba35b53e1c0b60ce3c7186c1fe8b2c660286897d98cf"
+  },
+  {
+    "path": "src/provider_runtime/console_probe_request.rs",
+    "effectiveLines": 81,
+    "sourceSha256": "079fcbdd56dee521d7406124e6d51ce37a5183149f97fa9bbdc6787b4653f903"
+  },
+  {
+    "path": "apps/desktop/src/api/contracts/credentials.ts",
+    "effectiveLines": 238,
+    "sourceSha256": "c31c09262a8d8aa0876159b97d3f0d8c10fd6be6c5741790b8e57aa4ddf4b49a"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMediaProbeDialog.tsx",
+    "effectiveLines": 93,
+    "sourceSha256": "49e3ba3c9b035cd26ff266596d21048a8ac2fb092a1b5cc8097787d29f040b9d"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaAgentsMediaProbe.test.tsx",
+    "effectiveLines": 161,
+    "sourceSha256": "7a5b4cf26ba30145c651f89ab011a783ee77b9801357d4c481463d2ff74e7936"
+  }
+]

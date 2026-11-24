@@ -1,0 +1,22 @@
+[
+    {
+        "source":  "fetch_contracts.py",
+        "destination":  "tools/luma/fetch-contracts.py",
+        "sha256":  "62a230b0250ee6c280e30e6ee76678091ac3a782bf9bfc8d7e4dacbcb7fbe2fd"
+    },
+    {
+        "source":  "run-check.py",
+        "destination":  "tools/luma/run-check.py",
+        "sha256":  "82d17e3f02ee874f9f0bf3b100506777a6804edcd34836e16647998c34aea8ae"
+    },
+    {
+        "source":  "build-ui.mjs",
+        "destination":  "tools/luma/build-ui.mjs",
+        "sha256":  "8cdc462336862aad02bec43aedf51d4fd1aa152b94effd76758d0e0d9f999bf5"
+    },
+    {
+        "source":  "preview.tsx",
+        "destination":  "tools/luma/preview.tsx",
+        "sha256":  "4e211d80cf5ecc9e21258affa150fa1e2f2e4af38cb0ff4e5989fbd2a667166d"
+    }
+]

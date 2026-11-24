@@ -23,17 +23,20 @@ mod model_declaration;
 mod observation;
 mod responses_terminal;
 mod usage;
-pub(crate) use completion::tap_commandcode_responses_completion_with_error;
 pub(crate) use completion::tap_messages_completion_with_error;
-pub(crate) use usage::tap_commandcode_responses_usage_with_error;
+pub(crate) use completion::tap_native_responses_completion_with_error;
 pub(crate) use usage::tap_messages_usage_with_error;
+pub(crate) use usage::tap_native_responses_usage_with_error;
 
 /// Native protocols must not interpret opaque extension fields as generic control data.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+type NativeResponsesObserver =
+    fn(&serde_json::Value) -> (Option<crate::protocol::canonical::TokenUsage>, &'static str);
+
+#[derive(Clone, Copy, Debug)]
 enum ObservationScope {
     Generic,
     Messages,
-    CommandCodeResponses,
+    NativeResponses(NativeResponsesObserver),
 }
 
 pub use archive::{

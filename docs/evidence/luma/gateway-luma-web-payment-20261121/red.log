@@ -1,0 +1,33 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 23m 43s
+     Running unittests src\lib.rs (target\debug\deps\neuro_gateway-4f2bc1ae2c10e750.exe)
+
+running 3 tests
+test upstream::lumalabs::tests::luma_web_payment_refusal_survives_worker_process_without_replay ... FAILED
+test upstream::lumalabs_response_helpers::tests::worker_results::luma_web_payment_refusal_mapping_requires_both_code_and_status ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::luma_web_payment_refusal_uses_structured_worker_identity_without_private_details ... FAILED
+
+failures:
+
+---- upstream::lumalabs::tests::luma_web_payment_refusal_survives_worker_process_without_replay stdout ----
+
+thread 'upstream::lumalabs::tests::luma_web_payment_refusal_survives_worker_process_without_replay' (37240) panicked at src\upstream\lumalabs\tests.rs:62:5:
+assertion `left == right` failed
+  left: Unknown
+ right: InsufficientQuota
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- upstream::lumalabs_response_helpers::tests::worker_results::luma_web_payment_refusal_uses_structured_worker_identity_without_private_details stdout ----
+
+thread 'upstream::lumalabs_response_helpers::tests::worker_results::luma_web_payment_refusal_uses_structured_worker_identity_without_private_details' (30672) panicked at src\upstream\lumalabs_response_helpers\tests\worker_results.rs:13:9:
+assertion `left == right` failed
+  left: Unknown
+ right: InsufficientQuota
+
+
+failures:
+    upstream::lumalabs::tests::luma_web_payment_refusal_survives_worker_process_without_replay
+    upstream::lumalabs_response_helpers::tests::worker_results::luma_web_payment_refusal_uses_structured_worker_identity_without_private_details
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 6472 filtered out; finished in 0.23s
+
+error: test failed, to rerun pass `--lib`

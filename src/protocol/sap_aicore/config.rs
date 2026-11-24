@@ -1,19 +1,18 @@
 //! Only documented SAP origins receive service secrets; deployment identity never comes from model text.
 use super::*;
 use crate::protocol::call_flow::{CallAdapter, FingerprintAdapter, SpecialAdapter};
-use serde::Deserialize;
 pub struct Endpoint {
     pub origin: String,
     pub deployment: String,
 }
-fn atom(value: &str, max: usize) -> bool {
+pub(super) fn atom(value: &str, max: usize) -> bool {
     !value.is_empty()
         && value.len() <= max
         && value
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
-fn url(value: &str) -> Option<url::Url> {
+pub(super) fn url(value: &str) -> Option<url::Url> {
     let parsed = url::Url::parse(value).ok()?;
     (parsed.scheme() == "https"
         && parsed.username().is_empty()
@@ -25,13 +24,15 @@ fn url(value: &str) -> Option<url::Url> {
         && value == parsed.as_str().trim_end_matches('/'))
     .then_some(parsed)
 }
-fn api_origin(value: &str) -> Option<String> {
+pub(super) fn api_origin(value: &str) -> Option<String> {
     let parsed = url(value)?;
-    let region = parsed
-        .host_str()?
-        .strip_prefix("api.ai.prod.")?
-        .strip_suffix(".aws.ml.hana.ondemand.com")?;
-    (atom(region, 32) && matches!(parsed.path(), "/" | "/v2"))
+    let host = parsed.host_str()?;
+    let supported = host == "api.ai.prod-eu20.westeurope.azure.ml.hana.ondemand.com"
+        || host
+            .strip_prefix("api.ai.prod.")
+            .and_then(|host| host.strip_suffix(".aws.ml.hana.ondemand.com"))
+            .is_some_and(|region| atom(region, 32));
+    (supported && matches!(parsed.path(), "/" | "/v2"))
         .then(|| parsed.origin().ascii_serialization())
 }
 impl Endpoint {
@@ -45,47 +46,33 @@ impl Endpoint {
         })
     }
 }
-// Deserialize known fields directly so duplicate identity/secret fields are rejected.
-#[derive(Deserialize)]
-pub struct ServiceKey {
-    pub clientid: String,
-    pub clientsecret: String,
-    pub url: String,
-    pub serviceurls: ServiceUrls,
+pub(super) const IMAGE_API_VERSION: &str = "2024-10-21";
+pub(crate) const IMAGE_INPUT: &str = "sap_image_input";
+pub(crate) const NATIVE_RESPONSES: &str = "sap_native_responses";
+pub(crate) const NATIVE_RESPONSES_IMAGE_INPUT: &str = "sap_native_responses_image_input";
+pub(crate) const STORED_RESPONSES: &str = "sap_stored_responses";
+pub(crate) const O3_MINI: &str = "sap_o3_mini";
+const O3_MINI_API_VERSION: &str = "2024-12-01-preview";
+
+fn valid_capability(
+    settings: &std::collections::HashMap<String, serde_json::Value>,
+    key: &str,
+    version: &str,
+) -> bool {
+    settings
+        .get(key)
+        .is_none_or(|enabled| match enabled.as_bool() {
+            Some(false) => true,
+            Some(true) => {
+                settings
+                    .get("sap_api_version")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(version)
+            }
+            None => false,
+        })
 }
-#[derive(Deserialize)]
-pub struct ServiceUrls {
-    #[serde(rename = "AI_API_URL")]
-    pub api: String,
-}
-impl ServiceKey {
-    pub fn parse(raw: &str, endpoint: &Endpoint) -> Result<Self, GatewayError> {
-        if raw.len() > 65_536 {
-            return Err(invalid());
-        }
-        let key: Self = serde_json::from_str(raw).map_err(|_| invalid())?;
-        let auth = url(key.url.trim_end_matches('/')).ok_or_else(invalid)?;
-        let host = auth.host_str().ok_or_else(invalid)?;
-        let (tenant, region) = host
-            .strip_suffix(".hana.ondemand.com")
-            .and_then(|h| h.split_once(".authentication."))
-            .ok_or_else(invalid)?;
-        if !atom(tenant, 200)
-            || !atom(region, 32)
-            || auth.path() != "/"
-            || api_origin(key.serviceurls.api.trim_end_matches('/')).as_deref()
-                != Some(&endpoint.origin)
-            || !secret_atom(&key.clientid, 2048)
-            || !secret_atom(&key.clientsecret, 16_384)
-        {
-            return Err(invalid());
-        }
-        Ok(key)
-    }
-}
-fn secret_atom(value: &str, max: usize) -> bool {
-    !value.is_empty() && value.len() <= max && value.bytes().all(|b| b.is_ascii_graphic())
-}
+
 pub fn validate(payload: &ProviderAccountPayload, adapter: &str) -> Result<(), GatewayError> {
     if !owns_payload(payload) {
         return Ok(());
@@ -104,7 +91,54 @@ pub fn validate(payload: &ProviderAccountPayload, adapter: &str) -> Result<(), G
             .get("AI-Resource-Group")
             .is_some_and(|v| atom(v, 253))
         || payload.extra_body.as_ref().is_none_or(|b| {
-            b.len() != 1
+            if let Some(enabled) = b.get(BEDROCK_CONVERSE) {
+                return enabled.as_bool() != Some(true)
+                    || b.keys().any(|key| {
+                        !matches!(key.as_str(), BEDROCK_CONVERSE | BEDROCK_IMAGE_INPUT)
+                    })
+                    || b.get(BEDROCK_IMAGE_INPUT)
+                        .is_some_and(|flag| !flag.is_boolean());
+            }
+            if let Some(model) = b.get(ORCHESTRATION_MODEL) {
+                // Orchestration and Azure OpenAI use different endpoints and request contracts.
+                return !model.as_str().is_some_and(orchestration::valid_model)
+                    || b.keys().any(|key| {
+                        !matches!(
+                            key.as_str(),
+                            ORCHESTRATION_MODEL
+                                | ORCHESTRATION_IMAGE_INPUT
+                                | ORCHESTRATION_REASONING
+                        )
+                    })
+                    || [ORCHESTRATION_IMAGE_INPUT, ORCHESTRATION_REASONING]
+                        .iter()
+                        .any(|&flag| b.get(flag).is_some_and(|v| !v.is_boolean()));
+            }
+            b.keys().any(|k| {
+                !matches!(
+                    k.as_str(),
+                    "sap_api_version"
+                        | IMAGE_INPUT
+                        | O3_MINI
+                        | NATIVE_RESPONSES
+                        | NATIVE_RESPONSES_IMAGE_INPUT
+                        | STORED_RESPONSES
+                )
+            }) || b.get(NATIVE_RESPONSES).is_some_and(|v| !v.is_boolean())
+                || [NATIVE_RESPONSES_IMAGE_INPUT, STORED_RESPONSES]
+                    .into_iter()
+                    .any(|flag| {
+                        b.get(flag).is_some_and(|v| match v.as_bool() {
+                            Some(false) => false,
+                            Some(true) => {
+                                b.get(NATIVE_RESPONSES).and_then(serde_json::Value::as_bool)
+                                    != Some(true)
+                            }
+                            None => true,
+                        })
+                    })
+                || !valid_capability(b, IMAGE_INPUT, IMAGE_API_VERSION)
+                || !valid_capability(b, O3_MINI, O3_MINI_API_VERSION)
                 || !b
                     .get("sap_api_version")
                     .and_then(serde_json::Value::as_str)
@@ -180,9 +214,26 @@ pub fn validate_declaration(
             && cfg.credentials.iter().all(|c| c.refresh_token.is_none()
                 && c.discovery_job.is_none()
                 && c.discovery.is_none()
+                && !c.extra_body.contains_key(IMAGE_INPUT)
+                && !c.extra_body.contains_key(O3_MINI)
+                && !c.extra_body.contains_key(NATIVE_RESPONSES)
+                && !c.extra_body.contains_key(NATIVE_RESPONSES_IMAGE_INPUT)
+                && !c.extra_body.contains_key(STORED_RESPONSES)
+                && !c.extra_body.contains_key(ORCHESTRATION_MODEL)
+                && !c.extra_body.contains_key(ORCHESTRATION_IMAGE_INPUT)
+                && !c.extra_body.contains_key(ORCHESTRATION_REASONING)
+                && !c.extra_body.contains_key(BEDROCK_CONVERSE)
+                && !c.extra_body.contains_key(BEDROCK_IMAGE_INPUT)
+                && (!cfg.extra_body.contains_key(ORCHESTRATION_MODEL)
+                    && !cfg.extra_body.contains_key(BEDROCK_CONVERSE)
+                    && cfg.extra_body.get(NATIVE_RESPONSES).and_then(serde_json::Value::as_bool) != Some(true)
+                    || (c.headers.get("AI-Resource-Group")
+                        .is_none_or(|v| Some(v) == cfg.headers.get("AI-Resource-Group"))
+                        && c.extra_body.get("sap_api_version")
+                            .is_none_or(|v| Some(v) == cfg.extra_body.get("sap_api_version"))))
                 && c.auth_mode.as_deref().is_none_or(|m| m == AUTH_MODE)
                 && c.base_url.as_deref().is_none_or(|b| b == cfg.base_url)),
-        "SAP AI Core service key cannot change its deployment or use a refresh token."
+        "SAP AI Core credentials cannot override deployment capability or its binding, change deployment or use a refresh token."
     );
     Ok(())
 }
@@ -200,8 +251,15 @@ pub fn config_binding(
     {
         return None;
     }
-    Some(serde_json::json!({
+    let mut binding = serde_json::json!({
         "group": credential.and_then(|c| c.headers.get("AI-Resource-Group")).or_else(|| provider.headers.get("AI-Resource-Group")),
         "version": credential.and_then(|c| c.extra_body.get("sap_api_version")).or_else(|| provider.extra_body.get("sap_api_version"))
-    }))
+    });
+    if let Some(model) = provider.extra_body.get(ORCHESTRATION_MODEL) {
+        binding["orchestrationModel"] = model.clone();
+    }
+    if let Some(enabled) = provider.extra_body.get(BEDROCK_CONVERSE) {
+        binding["bedrockConverse"] = enabled.clone();
+    }
+    Some(binding)
 }

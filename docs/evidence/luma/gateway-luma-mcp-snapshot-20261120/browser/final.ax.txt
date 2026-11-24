@@ -1,0 +1,20 @@
+- dialog "Luma MCP · 重新授权":
+  - heading "Luma MCP · 重新授权" [level=2]
+  - button "关闭"
+  - region "Luma MCP OAuth":
+    - checkbox "允许刷新账号授权" [disabled]
+    - text: 允许刷新账号授权 Client ID
+    - textbox "Client ID" [disabled]: registered-client
+    - text: 已登记的回调地址
+    - textbox "已登记的回调地址" [disabled]:
+      - /placeholder: http://127.0.0.1:PORT/callback
+      - text: http://127.0.0.1:54421/callback
+    - button "通过 Luma 登录"
+    - region "Luma 模型":
+      - button "读取模型"
+      - status: 模型列表为空
+    - region "Luma MCP 工具目录":
+      - button "读取工具目录"
+      - button "导出工具目录" [disabled]
+      - alert: 工具目录读取失败，请检查授权与配置版本后重试。
+  - button "关闭"

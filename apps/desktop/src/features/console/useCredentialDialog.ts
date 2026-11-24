@@ -12,6 +12,7 @@ import type { CredentialDialogMode, CredentialDialogValue, CredentialDialogProps
 import { normalizeVertexExpressDraft } from "./vertexExpress";
 import { normalizeVertexOAuthDraft } from "./vertexOAuth";
 import { normalizeLumaAgentsDraft } from "./lumaAgents";
+import { normalizeLumaInferenceCredential } from "./lumaInferenceCredential";
 import { normalizeSapCredential } from "./sapAiCore";
 
 function emptyValue(providerId = ""): CredentialDialogValue {
@@ -46,6 +47,7 @@ export function useCredentialDialog({
   manualAuthentication,
   discoveryProvider,
   onDiscover,
+  onDiscoverAccountModels,
   onDiscoverChatgptModels,
   onDiscoverProviderModels,
   catalogProviderKind,
@@ -58,6 +60,7 @@ export function useCredentialDialog({
   vertexExpressProvider,
   vertexOAuthProvider,
   lumaAgentsProvider,
+  lumaInferenceProvider,
   sapProvider,
   managedWebProvider,
   modelPolicy: resolveModelPolicy,
@@ -78,7 +81,8 @@ export function useCredentialDialog({
   const discovery = useDiscoverySubmission(open && hasSecretAccess, onDiscover, requestFence);
   const catalog = useDiscoverySubmission(open && hasSecretAccess, onDiscoverChatgptModels, `${requestFence}:${value.chatgptAccountId}:${authenticationMode}`);
   const official = useDiscoverySubmission(open && hasSecretAccess, onDiscoverProviderModels, requestFence);
-  const busy = discovery.busy || catalog.busy || official.busy;
+  const customCatalog = useDiscoverySubmission(open && hasSecretAccess, onDiscoverAccountModels, requestFence);
+  const busy = discovery.busy || catalog.busy || official.busy || customCatalog.busy;
   const webSession = Boolean(supportsWebSession?.(value.providerId));
   const productSession = sessionProduct?.(value.providerId);
   const bedrock = bedrockProvider?.(value.providerId);
@@ -140,6 +144,8 @@ export function useCredentialDialog({
     try { normalized = normalizeVertexOAuthDraft(vertex, normalized, mode === "edit"); }
     catch (error) { setValidationError(error instanceof Error ? error.message : String(error)); return; }
     try { normalized = normalizeLumaAgentsDraft(lumaAgents, normalized, mode === "edit"); }
+    catch (error) { setValidationError(error instanceof Error ? error.message : String(error)); return; }
+    try { normalized = normalizeLumaInferenceCredential(lumaInferenceProvider?.(value.providerId), normalized); }
     catch (error) { setValidationError(error instanceof Error ? error.message : String(error)); return; }
     try { normalized = normalizeSapCredential(sap, normalized); }
     catch (error) { setValidationError(error instanceof Error ? error.message : String(error)); return; }
@@ -235,7 +241,7 @@ export function useCredentialDialog({
     if (sap || bedrock || qwen || vertex || lumaAgents) return;
     if (!hasSecretAccess) { onRequestSecretAccess(); return; }
     const target = discoveryProvider?.(value.providerId);
-    if (!target || locked || discovery.busy) return;
+    if (!target || locked || busy) return;
     const addressChanged = value.baseUrl.trim() !== (initialValue?.baseUrl ?? "").trim();
     const input = value.apiKeyValue.trim()
       ? { baseUrl: value.baseUrl.trim() || target.baseUrl, apiKey: value.apiKeyValue.trim() }
@@ -255,7 +261,8 @@ export function useCredentialDialog({
   const requestedCatalogKind = catalogProviderKind?.(value.providerId);
   const catalogKind = sap || bedrock || vertex || lumaAgents || qwen && requestedCatalogKind !== "qwen" ? undefined : requestedCatalogKind;
   const chatgpt = webSession || Boolean(supportsBasispoints?.(value.providerId));
-  const canFetch = !sap && !bedrock && Boolean((catalogKind && onDiscoverProviderModels) || (chatgpt && onDiscoverChatgptModels
+  const customTarget = discoveryProvider?.(value.providerId);
+  const canFetch = !sap && !bedrock && Boolean((customTarget && onDiscoverAccountModels) || (catalogKind && onDiscoverProviderModels) || (chatgpt && onDiscoverChatgptModels
     && ((mode === "edit" && value.apiKeyOperation === "keep") || manualCodex)));
   const fetchModels = () => {
     if (sap || lumaAgents || locked || busy || value.apiKeyOperation === "clear") return;
@@ -263,7 +270,13 @@ export function useCredentialDialog({
     setValidationError(null);
     const stored = mode === "edit" && value.apiKeyOperation === "keep";
     if (!stored && !value.apiKeyValue.trim()) { setValidationError(t("请填写 API Key。", "Enter an API key.")); return; }
-    if (chatgpt && onDiscoverChatgptModels) {
+    if (customTarget && onDiscoverAccountModels) {
+      const addressChanged = value.baseUrl.trim() !== (initialValue?.baseUrl ?? "").trim();
+      if (stored && addressChanged) { setValidationError(t("地址已修改，请先保存或重新填写 API Key。", "Save the new address or enter the API key again.")); return; }
+      void customCatalog.run(stored ? { credentialId: value.credentialId }
+        : { baseUrl: value.baseUrl.trim() || customTarget.baseUrl, apiKey: value.apiKeyValue.trim() },
+        (result) => setValue((current) => editModelSources(current, result.models.join("\n"), current.manualModelsText ?? "")));
+    } else if (chatgpt && onDiscoverChatgptModels) {
       if (!stored && !value.chatgptAccountId?.trim()) { setValidationError("请填写 ChatGPT Account ID。"); return; }
       void catalog.run(stored ? { credentialId: value.credentialId }
         : { accessToken: value.apiKeyValue.trim(), accountId: value.chatgptAccountId!.trim() },
@@ -289,7 +302,7 @@ export function useCredentialDialog({
 
   return {
     value, setValue, validationError, setValidationError, authenticationMode, setAuthenticationMode,
-    reauthorizing, setReauthorizing, authenticationActive, qwen, discovery, catalog, official, busy, webSession,
+    reauthorizing, setReauthorizing, authenticationActive, qwen, discovery, catalog, official, customCatalog, busy, webSession,
     productSession, bedrock, bedrockMaterial, express, vertex, lumaAgents, sap, managedWeb, oauth, reauthentication, localEdits, manualCodex,
     manual, authentication, submit, secretMutationRequested, refreshProtocols, canFetch, fetchModels
   };

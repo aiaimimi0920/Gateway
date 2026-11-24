@@ -20,7 +20,19 @@ where
     S: Stream<Item = Result<Bytes, E>> + Send + 'static,
     E: From<ProtocolStreamError> + Send + 'static,
 {
-    guard(stream, error, false)
+    guard(stream, error, false, None)
+}
+/// Project the public model on validated Chat frames, without touching nested payloads.
+pub(crate) fn require_completion_with_reply_model<S, E>(
+    stream: S,
+    error: fn() -> ProtocolStreamError,
+    reply_model: String,
+) -> impl Stream<Item = Result<Bytes, E>> + Send
+where
+    S: Stream<Item = Result<Bytes, E>> + Send + 'static,
+    E: From<ProtocolStreamError> + Send + 'static,
+{
+    guard(stream, error, false, Some(reply_model))
 }
 /// Some Chat products document finish_reason or DONE as the terminal signal.
 pub(crate) fn require_terminal<S, E>(
@@ -31,16 +43,21 @@ where
     S: Stream<Item = Result<Bytes, E>> + Send + 'static,
     E: From<ProtocolStreamError> + Send + 'static,
 {
-    guard(stream, error, true)
+    guard(stream, error, true, None)
 }
-fn guard<S, E>(stream: S, error: fn() -> ProtocolStreamError, either_terminal: bool) -> Guard<E>
+fn guard<S, E>(
+    stream: S,
+    error: fn() -> ProtocolStreamError,
+    either_terminal: bool,
+    reply_model: Option<String>,
+) -> Guard<E>
 where
     S: Stream<Item = Result<Bytes, E>> + Send + 'static,
 {
     Guard {
         inner: Some(Box::pin(stream)),
         decoder: BoundedSseDecoder::new_strict(MAX_TRANSLATED_SSE_FRAME_BYTES),
-        admission: Admission::new(either_terminal),
+        admission: Admission::new(either_terminal, reply_model),
         held: VecDeque::new(),
         held_bytes: 0,
         eof: false,

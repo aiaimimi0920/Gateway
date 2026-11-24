@@ -70,6 +70,7 @@ mod probe_identity;
 #[cfg(test)]
 mod probe_identity_tests;
 mod provider_compilation;
+mod quick_oauth;
 mod qwen_workspace;
 mod refresh_exchange;
 #[cfg(test)]
@@ -92,7 +93,7 @@ mod vertex_express;
 mod vertex_oauth;
 
 pub(crate) use aliases::normalized_alias_conflicts;
-pub use candidates::CandidateResolution;
+pub use candidates::{CandidateResolution, RejectedCandidate};
 pub(crate) use document_compilation::{
     compile_route_document, effective_credential_id, provider_default_account_id,
 };

@@ -20,9 +20,14 @@ use crate::routing::config::RouteConfigStore;
 use crate::upstream::client::UpstreamClient;
 use sqlx::PgPool;
 
+mod stored_response_tasks;
+use stored_response_tasks::StoredResponseTasks;
+pub(crate) use stored_response_tasks::{StoredResponseAdmission, StoredResponseWaiter};
+
 #[derive(Debug, Default)]
 pub struct GatewayLifecycleState {
     pub(crate) background_tasks: crate::runtime::background_tasks::BackgroundTasks,
+    pub(crate) stored_response_tasks: StoredResponseTasks,
     /// Heartbeat stop is later than internal shutdown: HTTP must finish draining first.
     pub(crate) local_maintenance_stop: GatewayShutdownHandle,
     pub(crate) request_waiters: Arc<crate::request_wait::WaitRegistry>,
@@ -47,6 +52,7 @@ pub struct GatewayLifecycleState {
     pub(crate) luma_oauth: Arc<crate::console::luma_oauth::Registry>,
     pub(crate) nous_oauth: Arc<crate::console::nous_oauth::Registry>,
     pub(crate) lobsterai_oauth: Arc<crate::console::lobsterai_oauth::Registry>,
+    pub(crate) quick_oauth: Arc<crate::console::quick_oauth::Registry>,
     pub(crate) freebuff_login: Arc<crate::console::freebuff_login::Registry>,
     pub(crate) freebuff_purchases: Arc<crate::console::freebuff_purchase::Registry>,
     draining: AtomicBool,
@@ -60,6 +66,7 @@ impl GatewayLifecycleState {
     pub fn begin_drain(&self, reason: &str) -> bool {
         let started = !self.draining.swap(true, Ordering::SeqCst);
         if started {
+            self.stored_response_tasks.close();
             self.accio_db_refresh_stop.request(reason);
             self.freebuff_purchases.close();
             *self.drain_started_at.write() = Some(

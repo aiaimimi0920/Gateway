@@ -1,0 +1,35 @@
+- dialog "编辑账号":
+  - heading "编辑账号" [level=2]
+  - button "关闭"
+  - group:
+    - text: Provider
+    - combobox "Provider" [disabled]:
+      - option "请选择 Provider"
+      - option "luma-pipeline-api" [selected]
+      - option "luma-backup-api"
+    - text: 账号 ID
+    - textbox "账号 ID" [disabled]: exact
+    - text: 支持模型 手动模型
+    - textbox "手动模型列表":
+      - /placeholder: 每行一个模型，也支持逗号分隔
+      - text: uni-1 ray-3.2
+    - text: API Key
+    - textbox "API Key":
+      - /placeholder: ••••••••
+    - button "显示 API Key"
+  - region "Luma 文件":
+    - text: 上传文件（最大 64 MiB）
+    - button "上传文件（最大 64 MiB）"
+    - text: 文件用途
+    - combobox "文件用途":
+      - option "输入素材"
+      - option "参考素材" [selected]
+    - text: 过期时间（可选）
+    - textbox "过期时间（可选）": 2099-01-01T00:00
+    - text: 用户标记（可选）
+    - textbox "用户标记（可选）": owner-tag
+    - button "上传文件"
+    - button "读取文件列表"
+    - status: 没有文件
+  - button "取消"
+  - button "保存"

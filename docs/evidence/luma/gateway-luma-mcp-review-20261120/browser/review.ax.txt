@@ -1,0 +1,84 @@
+- dialog "合成 MCP 创作":
+  - heading "合成 MCP 创作" [level=2]
+  - button "关闭"
+  - region "Luma MCP 创作":
+    - text: 创作模型
+    - combobox "创作模型" [disabled]:
+      - option "Seedream"
+      - option "Seedream 5 Flash"
+      - option "Seedream 5 Pro"
+      - option "Nano Banana 2"
+      - option "Nano Banana 2.1"
+      - option "Nano Banana 2 Lite"
+      - option "Nano Banana Pro"
+      - option "Ideogram 4.5"
+      - option "Ideogram 4.6"
+      - option "Ideogram Vector"
+      - option "Ray 3.14"
+      - option "Ray 3.14 HDR"
+      - option "Ray 3.2"
+      - option "UNI-1" [selected]
+      - option "GPT Image 1.5"
+      - option "GPT Image 2"
+      - option "GPT Image 2.5 Flare"
+      - option "GPT Image 2.5 Sunburst"
+    - text: 创作操作
+    - combobox "创作操作" [disabled]:
+      - option "生成" [selected]
+      - option "编辑"
+    - checkbox "使用已保存任务的素材" [disabled]
+    - text: 使用已保存任务的素材 画面比例
+    - combobox "画面比例" [disabled]:
+      - option "默认" [selected]
+      - option "3:1"
+      - option "2:1"
+      - option "16:9"
+      - option "3:2"
+      - option "4:3"
+      - option "1:1"
+      - option "4:5"
+      - option "3:4"
+      - option "2:3"
+      - option "9:16"
+      - option "1:2"
+      - option "1:3"
+    - text: 参考图片 URL（每行一个）
+    - textbox "参考图片 URL（每行一个）" [disabled]
+    - text: 图片风格
+    - combobox "图片风格" [disabled]:
+      - option "默认" [selected]
+      - option "auto"
+      - option "manga"
+    - text: 图片格式
+    - combobox "图片格式" [disabled]:
+      - option "默认" [selected]
+      - option "png"
+      - option "jpeg"
+    - text: 提示词
+    - textbox "提示词" [disabled]: A blue circle
+    - text: 会话预算上限（credits）
+    - spinbutton "会话预算上限（credits）" [disabled]: "20"
+    - text: 任务 ID
+    - textbox "任务 ID" [disabled]: luma-mcp-e5fd6bad-1aba-4af1-839d-df5bc2b69a2f
+    - button "查询结果与费用"
+    - button "取消生成"
+    - button "结束会话"
+    - button "另一任务"
+    - status: 需要进一步输入
+    - text: MCP 任务 ID：
+    - code: luma-mcp-e5fd6bad-1aba-4af1-839d-df5bc2b69a2f
+    - button "复制 MCP 任务 ID":
+      - text: 复制 MCP 任务 ID
+      - status
+    - paragraph: 请求模型：luma_uni_1
+    - paragraph: 会话费用：9 credits · 未结算
+    - region "待审阅内容":
+      - text: "{ \"params\": { \"question\": \"请审阅这张图片\" }, \"text\": [ { \"target\": \"headline\", \"label\": \"标题\", \"text\": \"蓝色圆形\" } ] }"
+      - img "待审阅图片"
+      - link "打开审阅素材":
+        - /url: https://cdn.example.com/review.png
+      - text: "回答格式与可修改目标 { \"verdict_schema\": { \"type\": \"object\", \"properties\": { \"decision\": { \"enum\": [ \"accept\", \"revise\" ] } }, \"required\": [ \"decision\" ] }, \"revision_targets\": [ \"headline\" ] } 审阅答复（JSON）"
+      - textbox "审阅答复（JSON）": "{\"decision\":\"accept\"}"
+      - checkbox "已审阅内容，确认按此答复继续；可能使用剩余会话 credits"
+      - text: 已审阅内容，确认按此答复继续；可能使用剩余会话 credits
+      - button "提交审阅答复" [disabled]

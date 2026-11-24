@@ -1,0 +1,128 @@
+{
+  "status": "passed",
+  "browserClosed": true,
+  "proxyClosed": true,
+  "calls": [
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-tools",
+      "body": {
+        "providerId": "luma-mcp",
+        "credentialId": "saved-mcp",
+        "expectedRevision": "r0-93750d71198d"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-models",
+      "body": {
+        "providerId": "luma-mcp",
+        "credentialId": "saved-mcp",
+        "expectedRevision": "r0-93750d71198d",
+        "action": "list"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-models",
+      "body": {
+        "providerId": "luma-mcp",
+        "credentialId": "saved-mcp",
+        "expectedRevision": "r0-93750d71198d",
+        "action": "describe",
+        "model": "synthetic-image",
+        "type": "image"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-models",
+      "body": {
+        "providerId": "luma-mcp",
+        "credentialId": "saved-mcp",
+        "expectedRevision": "r0-93750d71198d",
+        "action": "describe",
+        "model": "synthetic-video",
+        "type": "video"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-models",
+      "body": {
+        "providerId": "luma-mcp",
+        "credentialId": "saved-mcp",
+        "expectedRevision": "r0-93750d71198d",
+        "action": "list"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-tools",
+      "body": {
+        "providerId": "luma-mcp",
+        "credentialId": "saved-mcp",
+        "expectedRevision": "r0-93750d71198d"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-tools",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-models",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-models",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-models",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-models",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-tools",
+      "status": 503
+    }
+  ],
+  "sessionResponses": [
+    {
+      "path": "/v1/internal/gateway/console/session/verify",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/session/confirm-secret-access",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "checkpoints": [
+    {
+      "name": "opening-does-not-read",
+      "catalogRequests": 0
+    },
+    {
+      "name": "tool-catalog-display-only",
+      "catalogRequests": 1
+    },
+    {
+      "name": "catalog-download-without-upstream-call",
+      "catalogRequests": 1
+    },
+    {
+      "name": "image-video-options-and-audio-boundary",
+      "catalogRequests": 4
+    },
+    {
+      "name": "account-switch-clears-results",
+      "catalogRequests": 4
+    },
+    {
+      "name": "empty-list-and-classified-error",
+      "catalogRequests": 6
+    }
+  ],
+  "scope": "normal main UI to management TCP and synthetic read-only MCP"
+}

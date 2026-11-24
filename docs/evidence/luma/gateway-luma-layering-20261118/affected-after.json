@@ -1,0 +1,102 @@
+[
+  {
+    "path": "src/protocol/gemini_business.rs",
+    "effectiveLines": 488,
+    "sourceSha256": "d82aa51d401bacd6c5f5dccdb29a13b32610374db7d0756e1d8d1cb99ff41018"
+  },
+  {
+    "path": "src/http/routes/images.rs",
+    "effectiveLines": 395,
+    "sourceSha256": "34e0d39d731f6b918da753221c83eb07ac4efc7e154c6072c221b5566e3bf67d"
+  },
+  {
+    "path": "src/protocol/luma_agents.rs",
+    "effectiveLines": 128,
+    "sourceSha256": "a163cabeda0c406438437441023769b7ac50942b3d1e5af270ee7fd632e6e769"
+  },
+  {
+    "path": "src/protocol/luma_agents/request.rs",
+    "effectiveLines": 241,
+    "sourceSha256": "41502e17341440e35f86c6434a66e40bb04c27250d18e2a2f341c944d539c74f"
+  },
+  {
+    "path": "src/protocol/luma_agents/layering.rs",
+    "effectiveLines": 48,
+    "sourceSha256": "942ddeffd488a5220b0d21749114bddcdfa5927656ac8413d9cf15bf955a6cf1"
+  },
+  {
+    "path": "src/protocol/luma_agents/layering_tests.rs",
+    "effectiveLines": 105,
+    "sourceSha256": "b9f7b6c1d2c4244e9b107abf06b5e219a78cf8d45f9e48cc6a575eb108686e75"
+  },
+  {
+    "path": "src/upstream/public_assets/image.rs",
+    "effectiveLines": 46,
+    "sourceSha256": "1fce3aac5b0672542db67748525ed00125c8c9def119cbcee7b7f97a6f43202d"
+  },
+  {
+    "path": "src/upstream/luma_agents.rs",
+    "effectiveLines": 98,
+    "sourceSha256": "a6f46a8341b9cad3b5bdc384c2e41babe66b8ade6dad782817e2a9b64e5ea507"
+  },
+  {
+    "path": "src/upstream/luma_agents/generation.rs",
+    "effectiveLines": 210,
+    "sourceSha256": "544451a20ba070d54fe1f39b8eb4ed1e318d6ec39368f8c890ff8ca9b6ba4fec"
+  },
+  {
+    "path": "src/upstream/luma_agents/assets.rs",
+    "effectiveLines": 73,
+    "sourceSha256": "9fdf962639c9fa3215d5175d101c98097965fd103191a90c5c5d16966588770b"
+  },
+  {
+    "path": "src/upstream/luma_agents/layering_output.rs",
+    "effectiveLines": 133,
+    "sourceSha256": "8941211153d0309abc644e924cb13d6babf79dd218bd3e43b4482142cb78a0ad"
+  },
+  {
+    "path": "src/upstream/luma_agents/layering_text.rs",
+    "effectiveLines": 54,
+    "sourceSha256": "0f8d6f7372b4b0ca7d824b5f5edc92a3d4bd522c1af5b9817b106a23daa63fd5"
+  },
+  {
+    "path": "src/upstream/luma_agents/layering_tests.rs",
+    "effectiveLines": 143,
+    "sourceSha256": "288e486ea5cb36ca681f57674760b2bc1dde1542c2c3c5202d66bab6cea50bc2"
+  },
+  {
+    "path": "src/upstream/luma_agents/layering_flow_tests.rs",
+    "effectiveLines": 190,
+    "sourceSha256": "0d6a9d5ab232fb3b20e8f9a63b08a15b3824e05fd8bc27e694f4117092c58f84"
+  },
+  {
+    "path": "src/upstream/luma_agents/layering_fixture.rs",
+    "effectiveLines": 55,
+    "sourceSha256": "e43421057c50530d84332b1852f9eb10e44ead1aa6b4c0f8322e6558b772a930"
+  },
+  {
+    "path": "src/provider_runtime/media_probe_request.rs",
+    "effectiveLines": 172,
+    "sourceSha256": "78d4cbf550a179d606f1259fb8ddc57fed36caf93b9609d509f5e7a13b1284fe"
+  },
+  {
+    "path": "src/provider_runtime/console_probe_request.rs",
+    "effectiveLines": 87,
+    "sourceSha256": "02ba4d0c9a096b787e696e083bab15ffbfd2995af650cbb2899bf6ed9f1da0ae"
+  },
+  {
+    "path": "apps/desktop/src/api/contracts/credentials.ts",
+    "effectiveLines": 238,
+    "sourceSha256": "0129fb50d432fa7ef7139754b64daa0a42a1132396b34fece22652d75b927562"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMediaProbeDialog.tsx",
+    "effectiveLines": 98,
+    "sourceSha256": "d46532fe9ca2bb5f67bfdca1a1ebeb2fddd13a53d0f0b566c75653fe48516993"
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaAgentsMediaProbe.test.tsx",
+    "effectiveLines": 191,
+    "sourceSha256": "efb3cc69de44936de9c2800cac0ebba4c36d8ab5ec346f50234795121aab188e"
+  }
+]

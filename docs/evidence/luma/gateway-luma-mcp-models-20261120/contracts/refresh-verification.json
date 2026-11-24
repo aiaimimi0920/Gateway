@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "refreshRequests": 1,
+  "sessionStatus": "succeeded",
+  "credentialIdPreserved": true,
+  "revisionSaved": true,
+  "revisionChanged": true,
+  "scope": "explicit OAuth refresh and save; no media generation"
+}

@@ -1,10 +1,35 @@
-//! SAP AI Core 的显式 Azure OpenAI Chat 部署；服务密钥与短期 Token 各自保留生命周期。
+//! SAP AI Core 的显式推理部署；服务密钥与短期 Token 各自保留生命周期。
 pub mod auth;
+mod bedrock;
+mod bedrock_images;
+mod bedrock_tools;
 mod config;
+pub(crate) mod deployments;
+pub(crate) mod errors;
+mod fixture;
+mod image_input;
+mod mtls;
+pub(crate) mod native_responses;
+pub(crate) mod orchestration;
+mod orchestration_stream;
 pub(crate) mod probe;
+pub(crate) mod probe_evidence;
+mod reasoning;
+pub(crate) mod responses_lifecycle;
 pub mod runtime;
+pub(crate) mod sender;
+mod service_key;
 use crate::{error::GatewayError, routing::candidate::ProviderAccountPayload};
-pub use config::{config_binding, validate, validate_declaration, Endpoint, ServiceKey};
+pub use config::{config_binding, validate, validate_declaration, Endpoint};
+pub(crate) use config::{
+    IMAGE_INPUT, NATIVE_RESPONSES, NATIVE_RESPONSES_IMAGE_INPUT, O3_MINI, STORED_RESPONSES,
+};
+pub use service_key::ServiceKey;
+pub(crate) const BEDROCK_CONVERSE: &str = "sap_bedrock_converse";
+pub(crate) const BEDROCK_IMAGE_INPUT: &str = "sap_bedrock_image_input";
+pub(crate) const ORCHESTRATION_REASONING: &str = "sap_orchestration_reasoning";
+pub(crate) const ORCHESTRATION_IMAGE_INPUT: &str = "sap_orchestration_image_input";
+pub(crate) const ORCHESTRATION_MODEL: &str = "sap_orchestration_model";
 pub const PRESET: &str = "sap-aicore-chat";
 pub const PROFILE: &str = "sap_aicore_chat";
 pub const AUTH_MODE: &str = "sap_aicore_service_key";

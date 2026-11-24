@@ -1,0 +1,13 @@
+{
+  "args": [
+    "node",
+    "tools/luma/build-ui.mjs",
+    "--preview-build",
+    "--output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-repository-tools-20261119/preview-web-final"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T15:32:22.931092+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 1.58
+}

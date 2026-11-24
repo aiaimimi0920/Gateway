@@ -18,8 +18,14 @@ pub fn line_for_payload(payload: &ProviderAccountPayload) -> Option<RefactoredIm
     if crate::protocol::agnes::owns_payload(payload) {
         return Some(RefactoredImplementationLine::AgnesOfficialApi);
     }
+    if crate::protocol::luma_inference::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::LumaLabsInferenceOfficialApi);
+    }
     if crate::protocol::nous_portal::business::owns_payload(payload) {
         return Some(RefactoredImplementationLine::NousPortalOauth);
+    }
+    if crate::protocol::quick_oauth::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::QuickOauth);
     }
     if crate::protocol::dim_oauth::business::owns_payload(payload) {
         return Some(RefactoredImplementationLine::DimUserOauth);

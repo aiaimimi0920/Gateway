@@ -1,0 +1,14 @@
+[
+  {
+    "path": "src/upstream/luma_agents.rs",
+    "effectiveLines": 120
+  },
+  {
+    "path": "tools/luma/normal-main-server.mjs",
+    "effectiveLines": 67
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaTaskPanel.tsx",
+    "effectiveLines": 57
+  }
+]

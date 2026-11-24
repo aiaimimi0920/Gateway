@@ -4,7 +4,7 @@ import pathlib
 import tempfile
 import unittest
 
-from gateway_package_fixture import GatewayPackageFixture
+from gateway_package_fixture import GATEWAY_ROOT, GatewayPackageFixture
 
 
 class GatewayPackageLayoutContractTests(GatewayPackageFixture):
@@ -48,19 +48,27 @@ class GatewayPackageLayoutContractTests(GatewayPackageFixture):
                 "deploy/docker-compose.yml",
                 "deploy/docker-deploy.sh",
                 "deploy/docker-entrypoint.sh",
-                "deploy/postgres/initdb/001-gateway-schema.sql",
-                "deploy/postgres/initdb/002-gateway-bootstrap.sql",
-                "deploy/postgres/initdb/003-gateway-standalone-constraints.sql",
                 "tools/smoke-gateway-packaged-runtime.ps1",
                 "manifest.json",
                 "checksums.sha256",
             }
+            schema_files = {
+                f"deploy/postgres/initdb/{path.name}"
+                for path in (GATEWAY_ROOT / "deploy/postgres/initdb").glob("*.sql")
+            }
+            required_files.update(schema_files)
             actual_files = {
                 path.relative_to(destination).as_posix()
                 for path in destination.rglob("*")
                 if path.is_file()
             }
-            self.assertTrue(required_files.issubset(actual_files))
+            self.assertTrue(required_files.issubset(actual_files), required_files - actual_files)
+            for relative in schema_files:
+                self.assertEqual(
+                    (source_root / relative).read_bytes(),
+                    (destination / relative).read_bytes(),
+                    relative,
+                )
 
             for forbidden in (
                 "scripts/node_modules",

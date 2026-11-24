@@ -1,0 +1,15 @@
+{
+  "args": [
+    "node",
+    "--test",
+    "scripts/tests/lumalabs-browser-operation.test.mjs",
+    "scripts/tests/lumalabs-task-contract.test.mjs",
+    "scripts/tests/lumalabs-task-fetch.test.mjs",
+    "scripts/tests/lumalabs-session-receipt.test.mjs",
+    "tools/luma/web-worker-check.mjs"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-21T13:54:57.678107+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 9.5
+}

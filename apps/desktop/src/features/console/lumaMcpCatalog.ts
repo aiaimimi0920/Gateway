@@ -1,11 +1,12 @@
 // A management-only pool: never pass MCP credentials through generic inference defaults.
 import type { ProviderCatalogDraft, ProviderCatalogTemplate } from "./providerCatalog";
 import { LUMA_AGENTS_TEMPLATE } from "./lumaAgents";
+import { LUMA_INFERENCE_TEMPLATE } from "./lumaInferenceCatalog";
 
 const MCP_BASE = "https://agents.lumalabs.ai/mcp";
-export const LUMA_CATALOG_TEMPLATES: readonly ProviderCatalogTemplate[] = [LUMA_AGENTS_TEMPLATE, {
+export const LUMA_CATALOG_TEMPLATES: readonly ProviderCatalogTemplate[] = [LUMA_AGENTS_TEMPLATE, LUMA_INFERENCE_TEMPLATE, {
   id: "lumalabs-mcp", providerId: "lumalabs-mcp-oauth", labelZh: "lumalabs-mcp-oauth", labelEn: "lumalabs-mcp-oauth",
-  descriptionZh: "Luma OAuth / MCP 只读账号池。", descriptionEn: "Luma OAuth / MCP read-only account pool.",
+  descriptionZh: "Luma OAuth / MCP 账号池，支持显式目录查询与媒体创作。", descriptionEn: "Luma OAuth / MCP accounts with explicit catalog queries and media creation.",
   category: "mainstream", compatibility: "native", preset: null,
   adapter: "lumalabs_mcp_readonly", protocolProfile: "lumalabs_mcp_readonly",
   vendorKey: "lumalabs", vendorName: "Luma", baseUrl: MCP_BASE, supportedModels: [],

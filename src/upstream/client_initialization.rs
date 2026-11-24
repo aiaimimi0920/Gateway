@@ -37,12 +37,15 @@ impl UpstreamClient {
         let request_time_browser_policy = RequestTimeBrowserPolicy::from_env();
 
         Self {
+            luma_web_sessions: Default::default(),
             lobsterai_http: crate::http_client::builder()
                 .retry(rquest::retry::Policy::never())
                 .build()
                 .expect("failed to build LobsterAI client"),
             wait_native_http: Default::default(),
             wait_http: Default::default(),
+            sensenova_fixture_http: None,
+            commandcode_fixture_http: None,
             http,
             plain_http,
             native_claude_http: crate::http_client::native_claude_client(Duration::from_secs(

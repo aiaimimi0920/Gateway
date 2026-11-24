@@ -1583,6 +1583,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "base64 0.22.1",
+ "btls",
  "bytes",
  "cookie_store",
  "crc",
@@ -1592,15 +1593,19 @@ dependencies = [
  "embed-resource",
  "futures",
  "gateway-copilot-runtime",
+ "gateway-core",
  "gateway-cpa-claude-profile",
  "gateway-cpa-http-transport",
+ "gateway-embedded-ui",
  "gateway-local-data",
+ "gateway-provider-kit",
  "gateway-sqlx",
  "hex",
  "hmac 0.12.1",
  "http-body 1.0.1",
  "http-body-util",
  "httpdate",
+ "hyper",
  "hyper-util",
  "image",
  "libc",
@@ -1614,7 +1619,6 @@ dependencies = [
  "regex",
  "reqwest",
  "ring",
- "rust-embed",
  "rustls",
  "rustls-native-certs",
  "serde",
@@ -1653,6 +1657,31 @@ version = "0.1.0"
 dependencies = [
  "github-copilot-sdk",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "gateway-core"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "dashmap",
+ "futures",
+ "gateway-cpa-http-transport",
+ "hmac 0.12.1",
+ "httpdate",
+ "parking_lot",
+ "rand 0.8.6",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "tracing",
+ "wreq",
 ]
 
 [[package]]
@@ -1707,11 +1736,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "gateway-embedded-ui"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "rust-embed",
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "gateway-local-data"
 version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "gateway-provider-kit"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "gateway-core",
+ "serde",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

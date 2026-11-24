@@ -1,6 +1,8 @@
 //! Keep has no secret grant: protected material cannot silently gain a target or consumer.
 #[path = "bedrock_context.rs"]
 mod context;
+#[path = "luma_web.rs"]
+mod luma_web;
 #[path = "perplexity_web.rs"]
 mod perplexity;
 #[path = "qwen_web.rs"]
@@ -40,6 +42,7 @@ impl KeepBindings {
                 | "refresh_token"
                 | "accio_sgcookie"
                 | "kiro_oauth"
+                | "quick_oauth"
                 | "vertex_oauth"
                 | "dim_oauth"
                 | "nous_portal"
@@ -148,6 +151,7 @@ impl KeepBindings {
         if context::destination(active, old) != context::destination(draft, new)
             || perplexity::binding(active, old) != perplexity::binding(draft, new)
             || qwen_web::binding(active, old) != qwen_web::binding(draft, new)
+            || luma_web::binding(active, old) != luma_web::binding(draft, new)
             || crate::protocol::sap_aicore::config_binding(active, old)
                 != crate::protocol::sap_aicore::config_binding(draft, new)
         {
@@ -164,7 +168,9 @@ fn protected_product(
 ) -> bool {
     super::bedrock::owns(provider, credential)
         || crate::routing::config::luma_mcp::owns(provider)
+        || luma_web::owns(provider, credential)
         || provider.preset.as_deref() == Some("river-api")
+        || crate::protocol::luma_inference::config::owns(provider)
         || provider
             .preset
             .as_deref()
@@ -215,6 +221,12 @@ fn protected_product(
         || qwen_web::owns_product(provider, credential)
         || credential.is_some_and(|c| c.grok_oauth.is_some())
         || credential.is_some_and(|c| c.kiro_oauth.is_some())
+        || credential.is_some_and(|c| c.quick_oauth.is_some())
+        || provider.preset.as_deref() == Some(crate::protocol::quick_oauth::PRESET_ID)
+        || credential
+            .and_then(|c| c.auth_mode.as_deref())
+            .or(provider.auth_mode.as_deref())
+            == Some(crate::protocol::quick_oauth::AUTH_MODE)
         || credential.is_some_and(|c| c.vertex_oauth.is_some())
         || credential.is_some_and(|c| c.dim_oauth.is_some())
         || credential.is_some_and(|c| c.nous_portal.is_some())

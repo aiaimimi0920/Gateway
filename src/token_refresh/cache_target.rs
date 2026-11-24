@@ -88,7 +88,9 @@ pub(super) fn matches(raw: &str, record: &GrantRecord, target: &ProviderAccountP
     ) {
         return false;
     }
-    if !matches_kiro(entry.account_payload.as_ref(), material.kiro_oauth.as_ref()) {
+    if !matches_kiro(entry.account_payload.as_ref(), material.kiro_oauth.as_ref())
+        || !matches_quick(entry.account_payload.as_ref(), material.quick_oauth.as_ref())
+    {
         return false;
     }
     if !matches_sgcookie(
@@ -111,6 +113,7 @@ pub(super) fn matches(raw: &str, record: &GrantRecord, target: &ProviderAccountP
     let client = value("refresh_client_id", "refreshClientId").and_then(|value| value.as_str());
     if material.context.is_none()
         && material.kiro_oauth.is_none()
+        && material.quick_oauth.is_none()
         && material.vertex_oauth.is_none()
         && material.dim_oauth.is_none()
         && material.nous_portal.is_none()
@@ -241,4 +244,24 @@ pub(super) fn matches_sgcookie(
         }
     }
     present || expected.is_none()
+}
+
+pub(super) fn matches_quick(
+    payload: Option<&serde_json::Value>,
+    expected: Option<&crate::protocol::quick_oauth::AuthorizationContext>,
+) -> bool {
+    let modes: Vec<_> = ["auth_mode", "authMode"]
+        .iter()
+        .filter_map(|key| payload.and_then(|value| value.get(key)))
+        .collect();
+    let typed = serde_json::Value::String(crate::protocol::quick_oauth::AUTH_MODE.into());
+    if expected.is_some() && (modes.is_empty() || modes.iter().any(|mode| **mode != typed))
+        || expected.is_none() && modes.iter().any(|mode| **mode == typed)
+    {
+        return false;
+    }
+    let saved = payload
+        .and_then(|p| p.get("quick_oauth"))
+        .unwrap_or(&serde_json::Value::Null);
+    serde_json::to_value(expected).is_ok_and(|expected| *saved == expected)
 }

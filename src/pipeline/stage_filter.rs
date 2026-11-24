@@ -24,7 +24,10 @@ use super::PipelineContext;
 /// error is returned immediately.
 pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(), GatewayError> {
     enforce_quota(ctx, state).await?;
+    enforce_content(ctx, state)
+}
 
+pub(super) fn enforce_content(ctx: &PipelineContext, state: &AppState) -> Result<(), GatewayError> {
     let filter_config = match &state.filter_config {
         Some(cfg) => cfg,
         None => {

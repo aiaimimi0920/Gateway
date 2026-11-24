@@ -2,8 +2,9 @@
 #[cfg(feature = "line-suno-web-reverse-api")]
 pub(super) mod audio;
 pub(super) mod image;
+#[cfg(feature = "line-lumalabs-agents-official-api")]
+pub(super) mod upload;
 use futures::StreamExt;
-use std::net::IpAddr;
 #[cfg(not(test))]
 use std::time::Duration;
 
@@ -18,22 +19,7 @@ pub(super) enum Failure {
 }
 
 pub(super) fn checked_url(raw: &str) -> Result<url::Url, Failure> {
-    let url = url::Url::parse(raw).map_err(|_| Failure::Target)?;
-    if raw.len() > 16384
-        || url.scheme() != "https"
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.fragment().is_some()
-        || url.port().is_some()
-        || url.host_str().is_none()
-        || url
-            .host_str()
-            .and_then(|s| s.trim_matches(['[', ']']).parse::<IpAddr>().ok())
-            .is_some_and(|ip| !crate::http_client::public_addresses::allowed_ip(ip, false))
-    {
-        return Err(Failure::Target);
-    }
-    Ok(url)
+    crate::http_client::public_asset_url::checked(raw).map_err(|_| Failure::Target)
 }
 
 pub(super) async fn download(

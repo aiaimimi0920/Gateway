@@ -48,9 +48,6 @@ class GatewayPackageFixture(unittest.TestCase):
             "deploy/docker-compose.yml": b"services: {}\n",
             "deploy/docker-deploy.sh": b"#!/usr/bin/env bash\n",
             "deploy/docker-entrypoint.sh": b"#!/usr/bin/env sh\n",
-            "deploy/postgres/initdb/001-gateway-schema.sql": b"-- Synthetic schema fixture.\n",
-            "deploy/postgres/initdb/002-gateway-bootstrap.sql": b"-- Synthetic bootstrap fixture.\n",
-            "deploy/postgres/initdb/003-gateway-standalone-constraints.sql": b"-- Synthetic constraints fixture.\n",
             "deploy/.env": b"GATEWAY_MANAGEMENT_TOKEN=fixture-secret\n",
             "deploy/gateway_data/routes.yaml": b"api_key: sk-fixture-local\n",
             "deploy/redis_data/appendonly.aof": b"fixture redis state\n",
@@ -60,6 +57,9 @@ class GatewayPackageFixture(unittest.TestCase):
             "tools/line-evidence/process.ps1": b"function Get-PrivateEvidenceProcess {}\n",
             "tools/smoke-gateway-packaged-runtime.ps1": b"param()\n",
         }
+        # Packaging must carry the same initialization schema as a source deployment.
+        for schema in (GATEWAY_ROOT / "deploy/postgres/initdb").glob("*.sql"):
+            files[f"deploy/postgres/initdb/{schema.name}"] = schema.read_bytes()
         for relative, content in files.items():
             path = root / pathlib.PurePosixPath(relative)
             path.parent.mkdir(parents=True, exist_ok=True)

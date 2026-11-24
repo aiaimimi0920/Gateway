@@ -1,0 +1,273 @@
+{
+  "capturedAt": "2026-11-20T08:58:47.757160+00:00",
+  "scope": "Local MCP options and edit operations; synthetic supplier only",
+  "results": {
+    "rust": {
+      "passed": 40,
+      "failed": 0,
+      "ignored": 1
+    },
+    "frontend": {
+      "passed": 22
+    },
+    "checker": {
+      "passed": 31
+    },
+    "browserPreview": "passed",
+    "featureOffCompile": "passed"
+  },
+  "receipts": [
+    {
+      "name": "frontend-red",
+      "result": "frontend-red-result.json",
+      "log": "frontend-red-command.log",
+      "exitCode": 1,
+      "accepted": false
+    },
+    {
+      "name": "frontend",
+      "result": "frontend-result.json",
+      "log": "frontend-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "frontend-final",
+      "result": "frontend-final-result.json",
+      "log": "frontend-final-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "typecheck",
+      "result": "typecheck-result.json",
+      "log": "typecheck-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "typecheck-final",
+      "result": "typecheck-final-result.json",
+      "log": "typecheck-final-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "typecheck-preview",
+      "result": "typecheck-preview-result.json",
+      "log": "typecheck-preview-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "web-build",
+      "result": "web-build-result.json",
+      "log": "web-build-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "effective-tests",
+      "result": "effective-tests-result.json",
+      "log": "effective-tests-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "effective-ratchet",
+      "result": "effective-ratchet-result.json",
+      "log": "effective-ratchet-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "ratchet-final",
+      "result": "ratchet-final-result.json",
+      "log": "ratchet-final-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "rust-tests",
+      "result": "rust-tests-result.json",
+      "log": "rust-tests-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "static",
+      "result": "static-result.json",
+      "log": "static-command.log",
+      "exitCode": 0,
+      "accepted": false
+    },
+    {
+      "name": "format",
+      "result": "format-result.json",
+      "log": "format-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "diff-check",
+      "result": "diff-check-result.json",
+      "log": "diff-check-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "browser-run",
+      "result": "browser-run-result.json",
+      "log": "browser-run-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "feature-off",
+      "result": "feature-off-result.json",
+      "log": "feature-off-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "package",
+      "result": "package-result.json",
+      "log": "package-command.log",
+      "exitCode": 0,
+      "accepted": true
+    },
+    {
+      "name": "desktop-run",
+      "result": "desktop-run-result.json",
+      "log": "desktop-run-command.log",
+      "exitCode": 0,
+      "accepted": true
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "src/protocol/luma_mcp/creation.rs",
+      "sha256": "9a3e428d628beaafbcabc64e1328f618ddc9eef2577f0a4727092762562c9cd1",
+      "bytes": 3701
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation/options.rs",
+      "sha256": "33c55074e965e87d4f20abe196b4e1aefeffaf63ca3ad377451642df15a4e210",
+      "bytes": 8363
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation/video.rs",
+      "sha256": "78f9ee1fb6e99aaf435e3f873c507312926b69da26c08a5dfe48c7ba2ff6e1cf",
+      "bytes": 6273
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation_options_tests.rs",
+      "sha256": "6eb0215e181ca310bc8bbb1e844dc30c7d987f31fbfa5307517e5ca2042c41c8",
+      "bytes": 10351
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation_tests.rs",
+      "sha256": "df4cdc52f842fd046de0916a3b64ee217ae3ae61171da7a9a5a1ce5d67930f3a",
+      "bytes": 11564
+    },
+    {
+      "path": "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+      "sha256": "51273a535f2e4af98f407ecaac38f055b4e9616779c57e9fb91de207d277c30a",
+      "bytes": 7433
+    },
+    {
+      "path": "src/http/routes/internal_console/luma_mcp/creation/execute.rs",
+      "sha256": "b00ffad58ba9331e5dab60821637325ecf21308a067db54f53f9c05bc848a7ba",
+      "bytes": 5438
+    },
+    {
+      "path": "apps/desktop/src/api/console/luma-creation.ts",
+      "sha256": "6a1cc24c21e5416b84f823c5189bdac9b8ca8b28b349b6a69e0cde5d5985a590",
+      "bytes": 999
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx",
+      "sha256": "d9db94fcd5a50119e5c40dab5b9ea7402795c955169c9bae1d2178d01710d034",
+      "bytes": 7574
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationFacts.tsx",
+      "sha256": "edfe8e06f9d731649de01a43d4b511a08c3b55592f743af8eb5d9a50a4d34a13",
+      "bytes": 1174
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationOptions.tsx",
+      "sha256": "feee4f034ce8d565c3426d7f863335f986162493f6879f3d416830db426ca7cf",
+      "bytes": 4511
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationOptions.test.tsx",
+      "sha256": "65baee3489bc771362e2e338d5ef5e4b146b58e52b749b23affca09d4edef525",
+      "bytes": 3383
+    },
+    {
+      "path": "apps/desktop/src/features/console/lumaMcpCreationDraft.ts",
+      "sha256": "980561580a0385f1e56b72737dccb9741ceaf0da425567a94596ec4dc18ba58d",
+      "bytes": 5047
+    },
+    {
+      "path": "apps/desktop/e2e/fixtures/luma-media-preview.tsx",
+      "sha256": "1afc0255f40da469449905ba0ec6e774564eb4e16af7d9eac649e6d68ce8cdaf",
+      "bytes": 2132
+    },
+    {
+      "path": "apps/desktop/e2e/fixtures/luma-mcp-creation-preview.tsx",
+      "sha256": "0a34920d389394ec196879614f4c54addeab7d8504f8b99c4e15b3a855dcef36",
+      "bytes": 3077
+    },
+    {
+      "path": "tools/luma/mcp-creation-preview-check.mjs",
+      "sha256": "0a1d5bdb994970b5be064273f88a1414a7e2689e67c3d1cf7e4c89c4719c278f",
+      "bytes": 5900
+    }
+  ],
+  "supplierGenerationCalls": 0,
+  "liveConfigWrites": 0,
+  "limitations": [
+    "Other catalog models, layering layout and run interaction remain open",
+    "Server identity and OS hard-kill not verified",
+    "static combined receipt rejected: PowerShell escaping error despite zero exit code",
+    "Native business clicks and real media generation not verified"
+  ],
+  "webReadBlocker": "Module not found: @oai/cua/tinyskyAlt",
+  "package": {
+    "buildKind": "devtest",
+    "path": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\release\\Gateway\\gateway-devtest-20261120-luma-mcp-options",
+    "filesVerified": 6129,
+    "startup": {
+      "passed": true,
+      "failure": null,
+      "port": 51883,
+      "storageBackend": "sqlite",
+      "releaseDir": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\release\\Gateway\\gateway-devtest-20261120-luma-mcp-options",
+      "observed": {
+        "backendPid": 33424,
+        "readiness": {
+          "status": "ready",
+          "storage_backend": "sqlite",
+          "degraded": false,
+          "sqlite": true,
+          "database": true,
+          "redis_required": false,
+          "redis": null,
+          "routing_configured": false,
+          "runtime_role": "standalone",
+          "auth_configured": true,
+          "active_requests": 1
+        },
+        "uiPid": 33864,
+        "consoleStatus": 200
+      },
+      "supplierCalls": 0,
+      "nativeBusinessClicksVerified": false,
+      "uiSha256": "7dd015de9c66710ef4443ef632b077e58893a13ea083eab4d89790fd205407be",
+      "backendSha256": "6330896aa16cd8292865026fb5ca917d335126461d9aaefd78cea9b7d3f92a33",
+      "remainingOwnedProcesses": 0
+    }
+  }
+}

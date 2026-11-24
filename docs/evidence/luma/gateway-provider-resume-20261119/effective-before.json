@@ -1,0 +1,14 @@
+[
+  {
+    "file": "apps/desktop/src/features/console/LumaMediaProbeDialog.tsx",
+    "effective": 98
+  },
+  {
+    "file": "src/upstream/luma_agents/layering_text.rs",
+    "effective": 57
+  },
+  {
+    "file": "src/upstream/luma_agents/layering_tests.rs",
+    "effective": 223
+  }
+]

@@ -259,6 +259,24 @@ impl ConsoleAuthRuntime {
         request: &ConsoleRequestContext,
         token: &str,
     ) -> Result<AuthenticatedConsoleActor, GatewayError> {
+        self.authenticate_console_actor(request, token, true)
+    }
+
+    /// A public passwordless marker cannot own persisted management data.
+    pub(crate) fn authenticate_persistent_management_token(
+        &self,
+        request: &ConsoleRequestContext,
+        token: &str,
+    ) -> Result<AuthenticatedConsoleActor, GatewayError> {
+        self.authenticate_console_actor(request, token, false)
+    }
+
+    fn authenticate_console_actor(
+        &self,
+        request: &ConsoleRequestContext,
+        token: &str,
+        allow_passwordless: bool,
+    ) -> Result<AuthenticatedConsoleActor, GatewayError> {
         if !request.is_loopback() && !self.remote_access_enabled {
             return Err(forbidden_error(
                 "Gateway console remote access is disabled for non-loopback clients",
@@ -266,7 +284,11 @@ impl ConsoleAuthRuntime {
             ));
         }
         let token = normalize_token(token)?;
-        if !self.is_passwordless_token(&token)? {
+        if self.is_passwordless_token(&token)? {
+            if !allow_passwordless {
+                return Err(console_invalid_token_error());
+            }
+        } else {
             self.verify_plaintext_token(&token)?;
         }
         let token_fingerprint = token_fingerprint(&token);
@@ -403,7 +425,7 @@ fn console_invalid_token_error() -> GatewayError {
         .with_code("console_management_token_invalid")
 }
 
-fn console_secret_access_required_error() -> GatewayError {
+pub(crate) fn console_secret_access_required_error() -> GatewayError {
     forbidden_error(
         "Secret access confirmation is required before accessing credential secrets",
         "console_secret_access_required",

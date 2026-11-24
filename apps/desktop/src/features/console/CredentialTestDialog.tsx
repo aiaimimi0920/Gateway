@@ -9,6 +9,7 @@ import { testPolicyError, testScopeModelPolicy } from "./credentialTestPolicyDoc
 import { CredentialTestPlanFields } from "./CredentialTestPlanFields";
 import { CredentialTestScopeFields } from "./CredentialTestScopeFields";
 import { CredentialTestPlanHeader } from "./CredentialTestPlanHeader";
+import { CredentialTestResults } from "./CredentialTestResults";
 import { useCredentialTestRuns, type TestProbeAction, type TestResultLoader } from "./useCredentialTestRuns";
 import { testScopeKey } from "./credentialTestPolicyDocument";
 
@@ -27,7 +28,7 @@ type Props = {
   onSavePlan?(name: string, scopes: CredentialTestScope[], policy: CredentialTestPolicy): boolean;
 };
 
-/** The plan editor owns configuration only; the list owns execution and results. */
+/** Embedded plans only configure; standalone account tests also show their own run results. */
 export function CredentialTestDialog({ probe, schedule, document, initialScope, scopeLocked = false, onProbe, onSave, embedded = false, plan, onSavePlan }: Props) {
   const { t, section, closePilotActionDialog, providerProbeBusy, providerProbeError } = probe;
   const [saved, setSaved] = useState(false);
@@ -79,7 +80,8 @@ export function CredentialTestDialog({ probe, schedule, document, initialScope, 
         </fieldset>
         <CredentialTestPlanFields modelPolicy={modelPolicy} policy={draft.policy} models={models} configuredModels={state.configuredModels} locked={locked || inherited || !state.available} t={t}
           onChange={(policy) => { state.updatePolicy(policy); setSaved(false); }} />
-
+        {!embedded && (busy || runs.responses.length > 0) ? <CredentialTestResults response={null} responses={runs.responses}
+          accounts={accounts} busy={busy} error={null} t={t} planId={plan?.id ?? null} /> : null}
       </div>
     </div>
     <div className="nt-test-dialog-footer">

@@ -1,0 +1,14 @@
+{
+  "args": [
+    "node",
+    "tools/luma/mcp-creation-preview-check.mjs",
+    "--origin",
+    "http://127.0.0.1:4453",
+    "--output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-mcp-options/browser"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T08:55:47.058402+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 4.02
+}

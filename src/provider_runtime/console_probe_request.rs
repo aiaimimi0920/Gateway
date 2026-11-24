@@ -39,7 +39,13 @@ impl ConsoleProbeRequest {
         }
         if (request.test_plan.is_none()
             && request.plan_id.is_none()
-            && request.prompt.trim().is_empty())
+            && request.prompt.trim().is_empty()
+            && !request.media.as_ref().is_some_and(|m| {
+                matches!(
+                    m.operation,
+                    super::media_probe_request::MediaProbeOperation::Layering
+                )
+            }))
             || request.prompt.len() > 8192
             || request
                 .model

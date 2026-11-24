@@ -1,0 +1,843 @@
+--- before/src/protocol/luma_agents.rs
++++ after/src/protocol/luma_agents.rs
+@@ -1,5 +1,6 @@
+ //! Product-scoped contract for the official Agents API, independent of Luma Web.
+ pub(crate) mod files;
++pub(crate) mod generation_audit;
+ mod layering;
+ mod media_ref;
+ mod request;
+--- before/src/upstream/luma_agents.rs
++++ after/src/upstream/luma_agents.rs
+@@ -68,6 +68,8 @@
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod boundary_tests;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod cancellation_audit_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod failure_audit_tests;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod failure_receipt_tests;
+@@ -81,6 +83,8 @@
+ mod layering_flow_tests;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod layering_tests;
++#[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
++mod observation_tests;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+ mod pipeline_admission;
+ #[cfg(all(test, feature = "line-lumalabs-agents-official-api"))]
+--- before/src/upstream/luma_agents/generation.rs
++++ after/src/upstream/luma_agents/generation.rs
+@@ -5,7 +5,7 @@
+ };
+ use crate::{
+     error::{ErrorKind, GatewayError},
+-    protocol::luma_agents::{failure, GenerationRequest, Media},
++    protocol::luma_agents::{failure, generation_audit, GenerationRequest, Media},
+ };
+ use base64::Engine;
+ use serde_json::{json, Value};
+@@ -31,7 +31,15 @@
+     let id = read_id(&job)?;
+     let mut polls = 0usize;
+     loop {
+-        validate(&job, &request, &id)?;
++        let state = validate(&job, &request, &id)?;
++        generation_audit::observe(
++            &id,
++            &request.model,
++            request.kind,
++            state,
++            job["usage"]["credits_charged"].as_number().cloned(),
++            false,
++        );
+         match job["state"].as_str() {
+             Some("completed") => break,
+             Some("failed") => {
+@@ -127,6 +135,14 @@
+         .ok_or_else(invalid)?
+         .unix_timestamp();
+     // Optional accounting must not consume the time needed to verify the media itself.
++    generation_audit::observe(
++        &id,
++        &request.model,
++        request.kind,
++        "completed",
++        job["usage"]["credits_charged"].as_number().cloned(),
++        true,
++    );
+     let usage =
+         super::settlement::collect(client, material, &request, &id, &job, deadline, &mut total)
+             .await?;
+@@ -154,7 +170,7 @@
+     job: &Value,
+     request: &GenerationRequest,
+     id: &str,
+-) -> Result<(), GatewayError> {
++) -> Result<&'static str, GatewayError> {
+     if !job.is_object()
+         || read_id(job)? != id
+         || job.get("model").and_then(Value::as_str) != Some(&request.model)
+@@ -177,7 +193,13 @@
+     {
+         return Err(invalid());
+     }
+-    Ok(())
++    match job["state"].as_str() {
++        Some("queued") => Ok("queued"),
++        Some("processing") => Ok("processing"),
++        Some("completed") => Ok("completed"),
++        Some("failed") => Ok("failed"),
++        _ => Err(invalid()),
++    }
+ }
+ pub(super) fn usage(job: &Value) -> Result<Value, GatewayError> {
+     let Some(usage) = job.get("usage").filter(|v| !v.is_null()) else {
+--- before/src/upstream/luma_agents/settlement.rs
++++ after/src/upstream/luma_agents/settlement.rs
+@@ -72,6 +72,10 @@
+         }
+         // Ignore new outputs/reasons. Accept charges only for the same task and terminal state.
+         if !pending(&job) {
++            crate::protocol::luma_agents::generation_audit::observe_credits(
++                id,
++                job["usage"]["credits_charged"].as_number().cloned(),
++            );
+             return generation::usage(&job);
+         }
+     }
+--- before/src/pipeline/mod.rs
++++ after/src/pipeline/mod.rs
+@@ -135,6 +135,7 @@
+     pub attempted_provider_ids: Arc<Mutex<Vec<String>>>,
+     /// Last admitted send, including failed candidates; never a synthetic winner.
+     last_provider_attempt: attempt_audit::LastAttempt,
++    luma_generation_audit: Option<crate::protocol::luma_agents::generation_audit::GenerationAudit>,
+ 
+     // ── Provider selection info (populated by stage_send) ─────────────────
+     /// Provider account ID of the winning candidate.
+@@ -264,6 +265,7 @@
+             route_attempt_count: Arc::new(AtomicU32::new(0)),
+             attempted_provider_ids: Arc::new(Mutex::new(Vec::new())),
+             last_provider_attempt: Default::default(),
++            luma_generation_audit: None,
+             selected_provider_id: None,
+             selected_provider_credential_id: None,
+             selected_provider_label: None,
+--- before/src/pipeline/stage_finalize/audit_persistence.rs
++++ after/src/pipeline/stage_finalize/audit_persistence.rs
+@@ -38,7 +38,8 @@
+     };
+ 
+     let mut trace = build_route_trace_from_ctx(ctx, Some(error));
+-    let response_id = crate::protocol::luma_agents::record_failure_audit(error, &mut trace);
++    let response_id = crate::protocol::luma_agents::record_failure_audit(error, &mut trace)
++        .or_else(|| ctx.luma_generation_audit.as_ref()?.record(&mut trace));
+     finalize_request_audit(
+         ctx,
+         StreamFailureCause::from_observation(ctx.request_budget.stopped_reason(), true).status(),
+--- before/src/pipeline/stage_finalize/cancelled.rs
++++ after/src/pipeline/stage_finalize/cancelled.rs
+@@ -12,6 +12,10 @@
+     let cause = StreamFailureCause::from_observation(ctx.request_budget.stopped_reason(), false);
+     let reason = "Request ended before terminal result submission.";
+     let mut trace = build_route_trace_from_ctx(ctx, None);
++    let response_id = ctx
++        .luma_generation_audit
++        .as_ref()
++        .and_then(|audit| audit.record(&mut trace));
+     trace["terminationReason"] = json!(if cause == StreamFailureCause::ConsumerClosed {
+         "request_consumer_closed"
+     } else {
+@@ -24,7 +28,7 @@
+         None,
+         Some(reason.into()),
+         Some(trace),
+-        None,
++        response_id,
+         state,
+     )
+     .await;
+--- before/src/provider_runtime/model_probe_audit.rs
++++ after/src/provider_runtime/model_probe_audit.rs
+@@ -50,6 +50,7 @@
+     model: Option<String>,
+     route_trace: Option<serde_json::Value>,
+     started: Instant,
++    luma_generation: Option<crate::protocol::luma_agents::generation_audit::GenerationAudit>,
+ }
+ struct Lifetime {
+     _permit: OwnedSemaphorePermit,
+@@ -112,6 +113,7 @@
+                     model: input.resolved_model,
+                     route_trace: input.route_trace,
+                     started,
++                    luma_generation: None,
+                 }),
+                 lifetime: Some(lifetime),
+             };
+@@ -128,6 +130,23 @@
+                 None
+             }
+         }
++    }
++    pub(super) fn luma_generation_audit(
++        &mut self,
++    ) -> crate::protocol::luma_agents::generation_audit::GenerationAudit {
++        self.pending
++            .as_mut()
++            .expect("active probe audit")
++            .luma_generation
++            .get_or_insert_with(Default::default)
++            .clone()
++    }
++    pub(super) fn record_luma_generation(&self, trace: &mut serde_json::Value) -> Option<String> {
++        self.pending
++            .as_ref()?
++            .luma_generation
++            .as_ref()?
++            .record(trace)
+     }
+     pub(super) async fn finish(
+         mut self,
+@@ -180,6 +199,11 @@
+ }
+ impl Pending {
+     fn cancelled(&self) -> db::FinalizeRequestAuditInput {
++        let mut trace = self.route_trace.clone();
++        let response_id = self
++            .luma_generation
++            .as_ref()
++            .and_then(|audit| audit.record(trace.get_or_insert_with(|| serde_json::json!({}))));
+         db::FinalizeRequestAuditInput {
+             status: "cancelled".into(),
+             client_disconnected: false,
+@@ -201,8 +225,8 @@
+             resolved_model: self.model.clone(),
+             model_alias: None,
+             route_attempt_count: 1,
+-            response_id: None,
+-            route_trace: self.route_trace.clone(),
++            response_id,
++            route_trace: trace,
+         }
+     }
+ }
+--- before/src/provider_runtime/model_probe_recording.rs
++++ after/src/provider_runtime/model_probe_recording.rs
+@@ -15,6 +15,11 @@
+ }
+ 
+ impl Recording {
++    pub(super) fn luma_generation_audit(
++        &mut self,
++    ) -> Option<crate::protocol::luma_agents::generation_audit::GenerationAudit> {
++        self.audit.as_mut().map(ProbeAudit::luma_generation_audit)
++    }
+     pub(super) fn media_failure(
+         mut self,
+         adapter: &str,
+@@ -22,7 +27,8 @@
+     ) -> Self {
+         if adapter == crate::protocol::luma_agents::ADAPTER {
+             self.response_id =
+-                crate::protocol::luma_agents::record_failure_audit(error, &mut self.trace);
++                crate::protocol::luma_agents::record_failure_audit(error, &mut self.trace)
++                    .or_else(|| self.audit.as_ref()?.record_luma_generation(&mut self.trace));
+         }
+         self
+     }
+--- before/src/provider_runtime/media_model_probe.rs
++++ after/src/provider_runtime/media_model_probe.rs
+@@ -43,7 +43,7 @@
+         return super::udio_media_probe::probe(state, target, model, request, media, canonical)
+             .await;
+     }
+-    let audit = super::model_probe_recording::begin_media(
++    let mut audit = super::model_probe_recording::begin_media(
+         state,
+         target,
+         model,
+@@ -65,23 +65,30 @@
+     } else {
+         ProviderExecutionMode::DirectHttp
+     };
+-    let output = state
+-        .upstream_client
+-        .execute_json_passthrough(
++    let luma_audit = if target.payload.canonical_adapter() == crate::protocol::luma_agents::ADAPTER
++    {
++        audit.luma_generation_audit()
++    } else {
++        None
++    };
++    let output = crate::protocol::luma_agents::generation_audit::within(
++        luma_audit,
++        state.upstream_client.execute_json_passthrough(
+             &target.provider_id,
+             execution_mode,
+             &target.payload,
+             &canonical,
+             model,
+             None,
+-        )
+-        .await
+-        .and_then(|body| {
+-            if matches!(product, MediaProbeProduct::Suno) {
+-                super::suno_media_probe::completed(&body)?;
+-            }
+-            Ok(body)
+-        });
++        ),
++    )
++    .await
++    .and_then(|body| {
++        if matches!(product, MediaProbeProduct::Suno) {
++            super::suno_media_probe::completed(&body)?;
++        }
++        Ok(body)
++    });
+     let result = match &output {
+         Ok(_) if matches!(product, MediaProbeProduct::LumaWeb) => ModelProbeResult {
+             status: Some(200), usage: Value::Null,
+--- before/src/upstream/luma_agents/pipeline_failures.rs
++++ after/src/upstream/luma_agents/pipeline_failures.rs
+@@ -90,8 +90,12 @@
+                     assert_eq!(facts["state"], "failed");
+                     assert_eq!(row.response_id, ID);
+                     assert!(facts["usage"]["credits_charged"].is_null());
++                } else if scenario == 1 {
++                    assert!(facts.is_null());
+                 } else {
+-                    assert!(facts.is_null());
++                    assert_eq!(facts["state"], "completed");
++                    assert_eq!(facts["mediaVerified"], false);
++                    assert_eq!(row.response_id, ID);
+                 }
+                 assert_eq!(fixture.balance().await.remaining_messages, Some(2));
+                 single_submit(&server, expected);
+@@ -128,9 +132,11 @@
+             within(&server.origin, async {
+                 let response = fixture.open("images/generations", body(IMAGE)).await;
+                 assert!(!response.status().is_success());
+-                let _ = drain(response.into_body()).await;
++                let text = drain(response.into_body()).await;
++                assert!(!text.contains(ID) && !text.contains("credits_charged"));
+                 let row = fixture.audit().await;
+                 assert_ne!(row.status, "completed");
++                super::cancellation_audit_tests::assert_phase(&row, phase);
+                 assert!(row.total_tokens.is_none());
+                 assert_eq!(fixture.balance().await.remaining_messages, Some(2));
+                 single_submit(&server, phase + 1);
+@@ -174,6 +180,7 @@
+                 drop(call);
+                 let row = fixture.audit().await;
+                 assert_eq!(row.status, "cancelled");
++                super::cancellation_audit_tests::assert_phase(&row, phase);
+                 identity(&row, IMAGE, "uni-1");
+                 assert!(row.total_tokens.is_none());
+                 assert_eq!(fixture.balance().await.remaining_messages, Some(2));
+--- before/src/upstream/luma_agents/probe_failure_tests.rs
++++ after/src/upstream/luma_agents/probe_failure_tests.rs
+@@ -87,7 +87,9 @@
+                     probe_console_target_with_request(&fixture.state, &target, Some(&request))
+                         .await;
+                 assert_eq!(report.status, ProviderPayloadProbeStatus::Failed);
+-                assert_eq!(fixture.audit().await.status, "failed");
++                let row = fixture.audit().await;
++                assert_eq!(row.status, "failed");
++                super::cancellation_audit_tests::assert_phase(&row, phase);
+                 assert_eq!(fixture.balance().await.remaining_messages, Some(2));
+                 assert_eq!(server.calls().len(), phase + 1);
+                 assert_eq!(
+@@ -134,6 +136,7 @@
+                 drop(call);
+                 let row = fixture.audit().await;
+                 assert_eq!(row.status, "cancelled");
++                super::cancellation_audit_tests::assert_phase(&row, phase);
+                 assert_eq!(row.requested_model.as_deref(), Some(IMAGE));
+                 assert_eq!(row.model_alias.as_deref(), Some(IMAGE));
+                 assert_eq!(
+--- before/src/pipeline/stage_send/recovery_wait.rs
++++ after/src/pipeline/stage_send/recovery_wait.rs
+@@ -96,6 +96,11 @@
+     ctx.lobster_model_resolution = None;
+     let cancel = ctx.caller_cancel.clone();
+     let budget = ctx.request_budget.clone();
++    let luma_audit = (attempt.effective_payload.canonical_adapter()
++        == crate::protocol::luma_agents::ADAPTER)
++        .then(crate::protocol::luma_agents::generation_audit::GenerationAudit::default);
++    // Clear a prior attempt's facts before binding the exact current account.
++    ctx.luma_generation_audit = luma_audit.clone();
+     let mut ticket = crate::protocol::lobsterai::dispatch::Ticket::capture(
+         state,
+         candidate,
+@@ -142,6 +147,7 @@
+         }
+         result
+     });
++    let send = crate::protocol::luma_agents::generation_audit::within(luma_audit, send);
+     cancellable(cancel, budget, state, send)
+         .await
+         .unwrap_or_else(|error| Err(AttemptError::Stop(error)))
+--- before/src/protocol/luma_agents/generation_audit.rs
++++ after/src/protocol/luma_agents/generation_audit.rs
+@@ -0,0 +1,83 @@
++//! Request-owned supplier observations survive cancellation without extending upstream I/O.
++use parking_lot::Mutex;
++use serde_json::{json, Number, Value};
++use std::{future::Future, sync::Arc};
++
++#[derive(Clone, Default)]
++pub(crate) struct GenerationAudit(Arc<Mutex<Option<Observation>>>);
++
++struct Observation {
++    id: String,
++    model: String,
++    kind: &'static str,
++    state: &'static str,
++    credits: Option<Number>,
++    media_verified: bool,
++}
++
++tokio::task_local! { static CURRENT: Option<GenerationAudit>; }
++
++/// The send future stays in the caller task. Each attempt/probe installs its own scope;
++/// the existing audit owner retains the handle when that future is dropped.
++pub(crate) async fn within<T>(
++    audit: Option<GenerationAudit>,
++    future: impl Future<Output = T>,
++) -> T {
++    CURRENT.scope(audit, future).await
++}
++
++impl GenerationAudit {
++    pub(crate) fn record(&self, trace: &mut Value) -> Option<String> {
++        let slot = self.0.lock();
++        let facts = slot.as_ref()?;
++        trace["lumaAgentsGeneration"] = json!({"id":facts.id,"model":facts.model,
++            "type":facts.kind,"state":facts.state,"usage":{"credits_charged":facts.credits},
++            "mediaVerified":facts.media_verified});
++        Some(facts.id.clone())
++    }
++}
++
++/// Only the product sender publishes, after UUID/model/type/state/usage validation.
++/// No raw upstream body, input, credentials or asset addresses enter this slot.
++#[cfg(feature = "line-lumalabs-agents-official-api")]
++pub(crate) fn observe(
++    id: &str,
++    model: &str,
++    kind: &'static str,
++    state: &'static str,
++    credits: Option<Number>,
++    media_verified: bool,
++) {
++    let _ = CURRENT.try_with(|current| {
++        let Some(audit) = current else { return };
++        let mut slot = audit.0.lock();
++        // A later missing usage must not erase a previously observed actual charge.
++        let credits = credits.or_else(|| {
++            slot.as_ref()
++                .filter(|previous| previous.id == id)
++                .and_then(|previous| previous.credits.clone())
++        });
++        *slot = Some(Observation {
++            id: id.into(),
++            model: model.into(),
++            kind,
++            state,
++            credits,
++            media_verified,
++        });
++    });
++}
++
++/// Settlement already checked the same UUID and terminal state. Update only its charge;
++/// asset verification and the original task facts remain owned by the generation flow.
++#[cfg(feature = "line-lumalabs-agents-official-api")]
++pub(crate) fn observe_credits(id: &str, credits: Option<Number>) {
++    let _ = CURRENT.try_with(|current| {
++        let Some(audit) = current else { return };
++        if let Some(facts) = audit.0.lock().as_mut().filter(|facts| facts.id == id) {
++            if credits.is_some() {
++                facts.credits = credits;
++            }
++        }
++    });
++}
+--- before/src/upstream/luma_agents/cancellation_audit_tests.rs
++++ after/src/upstream/luma_agents/cancellation_audit_tests.rs
+@@ -0,0 +1,234 @@
++//! Existing public/probe cancellation owners retain only already validated supplier facts.
++use super::{
++    failure_audit_tests::failed, pipeline_fixture::*, probe_tests::options, test_support::*,
++};
++use axum::http::Method;
++use serde_json::{json, Value};
++use std::{future::Future, time::Duration};
++
++pub(super) fn assert_phase(row: &crate::db::GatewayRequestAuditView, phase: usize) {
++    let facts = &row.route_trace.as_ref().unwrap()["lumaAgentsGeneration"];
++    if phase == 0 {
++        assert!(
++            facts.is_null(),
++            "an unfinished submit body proves no task identity"
++        );
++        assert_ne!(row.response_id, ID);
++    } else {
++        assert_eq!(row.response_id, ID);
++        assert_eq!(
++            facts,
++            &json!({"id":ID,"model":"uni-1","type":"image",
++            "state":if phase == 1 {"queued"} else {"completed"},
++            "usage":{"credits_charged":null},"mediaVerified":false})
++        );
++    }
++}
++
++async fn reach(server: &Server, count: usize, call: impl Future<Output = ()>) {
++    tokio::time::timeout(Duration::from_secs(3), async {
++        tokio::select! {
++            _ = call => panic!("held upstream stage must remain pending"),
++            _ = async {
++                while server.calls().len() < count { tokio::task::yield_now().await; }
++            } => {}
++        }
++    })
++    .await
++    .expect("expected upstream stage must be reached");
++}
++
++fn pending_failed() -> Value {
++    let mut value = failed("image", "uni-1", Value::Null);
++    value["usage"] = json!({"credits_charged":null});
++    value
++}
++
++fn scenario(index: usize) -> (Vec<Reply>, Value) {
++    let (mut replies, state, credits, verified) = match index {
++        0 => (
++            vec![
++                Reply::json(201, pending_failed()),
++                Reply::json(200, pending_failed()),
++            ],
++            "failed",
++            Value::Null,
++            false,
++        ),
++        1 => {
++            let mut completed = job("completed");
++            completed["usage"] = json!({"credits_charged":null});
++            (
++                vec![
++                    Reply::json(201, completed.clone()),
++                    Reply::png(),
++                    Reply::json(200, completed),
++                ],
++                "completed",
++                Value::Null,
++                true,
++            )
++        }
++        2 => {
++            let mut queued = job("queued");
++            queued["usage"] = json!({"credits_charged":0});
++            (
++                vec![
++                    Reply::json(201, queued),
++                    Reply::json(200, job("processing")),
++                    Reply::json(200, job("completed")),
++                ],
++                "processing",
++                json!(0),
++                false,
++            )
++        }
++        _ => {
++            let mut completed = job("completed");
++            completed["usage"] = json!({"credits_charged":1.25});
++            (
++                vec![Reply::json(201, completed), Reply::png()],
++                "completed",
++                json!(1.25),
++                false,
++            )
++        }
++    };
++    replies.last_mut().unwrap().hold = true;
++    (
++        replies,
++        json!({"id":ID,"model":"uni-1","type":"image","state":state,
++        "usage":{"credits_charged":credits},"mediaVerified":verified}),
++    )
++}
++
++async fn assert_cancelled(fixture: &Fixture, server: &Server, expected: Value, count: usize) {
++    let row = fixture.audit().await;
++    assert_eq!(row.status, "cancelled");
++    assert_eq!(row.response_id, ID);
++    assert_eq!(row.provider_account_id.as_deref(), Some("luma-pipeline"));
++    assert_eq!(row.resolved_model.as_deref(), Some("uni-1"));
++    assert_eq!(
++        row.route_trace.as_ref().unwrap()["realCredentialRef"],
++        "exact"
++    );
++    assert_eq!(
++        row.route_trace.as_ref().unwrap()["lumaAgentsGeneration"],
++        expected
++    );
++    assert!(row.total_tokens.is_none());
++    assert_eq!(fixture.balance().await.remaining_messages, Some(2));
++    let text = serde_json::to_string(&row).unwrap();
++    for secret in [
++        KEY,
++        "supplier-private",
++        "signature=private",
++        "合成媒体测试",
++        "assets.example.test",
++    ] {
++        assert!(!text.contains(secret), "audit leaked {secret}");
++    }
++    let states = fixture
++        .state
++        .local_runtime
++        .as_ref()
++        .unwrap()
++        .list_model_states(crate::db::CredentialModelStateFilters::default())
++        .await
++        .unwrap();
++    assert!(states.iter().all(|s| s.failure_count == 0), "{states:?}");
++    server.wait_closed().await;
++    let calls = server.calls();
++    assert_eq!(calls.len(), count);
++    assert_eq!(calls.iter().filter(|call| call.method == "POST").count(), 1);
++}
++
++#[tokio::test]
++async fn luma_agents_cancel_public_retains_settlement_and_earlier_charge_without_replay() {
++    Box::pin(async {
++        for index in 0..4 {
++            let (replies, expected) = scenario(index);
++            let count = replies.len();
++            let server = Server::start(replies).await;
++            let fixture = Box::pin(Fixture::new(&server, 5)).await;
++            within(&server.origin, async {
++                let mut call = Box::pin(fixture.open("images/generations", body(IMAGE)));
++                reach(&server, count, async {
++                    call.as_mut().await;
++                })
++                .await;
++                assert_eq!(fixture.balance().await.remaining_messages, Some(1));
++                drop(call);
++                assert_cancelled(&fixture, &server, expected, count).await;
++            })
++            .await;
++            fixture.finish().await;
++            server.stop().await;
++        }
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn luma_agents_cancel_management_retains_settlement_and_earlier_charge_without_replay() {
++    Box::pin(async {
++        for index in 0..4 {
++            let (replies, expected) = scenario(index);
++            let count = replies.len();
++            let server = Server::start(replies).await;
++            let fixture = Box::pin(Fixture::new(&server, 5)).await;
++            let grant = Box::pin(support::grant_console_secret_access(&fixture.state)).await;
++            within(&server.origin, async {
++                let mut call = Box::pin(support::send_console_json(
++                    &fixture.state,
++                    Method::POST,
++                    "/v1/internal/gateway/console/providers/luma-pipeline/probe",
++                    options("image", IMAGE),
++                    Some(&grant),
++                    None,
++                ));
++                reach(&server, count, async {
++                    call.as_mut().await;
++                })
++                .await;
++                drop(call);
++                assert_cancelled(&fixture, &server, expected, count).await;
++            })
++            .await;
++            fixture.finish().await;
++            server.stop().await;
++        }
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn luma_agents_observation_rejects_invalid_identity_state_and_usage() {
++    use crate::protocol::luma_agents::generation_audit::{self, GenerationAudit};
++    for field in ["id", "model", "type", "state", "usage"] {
++        let mut invalid = job("queued");
++        invalid[field] = json!("invalid-private");
++        let server = Server::start(vec![Reply::json(201, invalid)]).await;
++        let audit = GenerationAudit::default();
++        let result = generation_audit::within(
++            Some(audit.clone()),
++            within(
++                &server.origin,
++                super::execute(
++                    &server.client(),
++                    Duration::from_secs(5),
++                    &payload(),
++                    &request(json!({"prompt":"image"})),
++                    "uni-1",
++                ),
++            ),
++        )
++        .await;
++        assert_eq!(
++            result.unwrap_err().code.as_deref(),
++            Some("luma_agents_generation")
++        );
++        assert!(audit.record(&mut json!({})).is_none());
++        assert_eq!(server.calls().len(), 1);
++    }
++}
+--- before/src/upstream/luma_agents/observation_tests.rs
++++ after/src/upstream/luma_agents/observation_tests.rs
+@@ -0,0 +1,134 @@
++//! Observation scopes isolate concurrent requests and publish settled charges before returning.
++use super::{failure_audit_tests::failed, test_support::*};
++use crate::protocol::luma_agents::generation_audit::{self, GenerationAudit};
++use serde_json::{json, Value};
++use std::time::Duration;
++
++async fn run(
++    server: &Server,
++    audit: &GenerationAudit,
++) -> Result<Value, crate::error::GatewayError> {
++    generation_audit::within(
++        Some(audit.clone()),
++        within(
++            &server.origin,
++            super::execute(
++                &server.client(),
++                Duration::from_secs(5),
++                &payload(),
++                &request(json!({"prompt":"image"})),
++                "uni-1",
++            ),
++        ),
++    )
++    .await
++}
++
++#[tokio::test]
++async fn luma_agents_observation_publishes_late_credits_before_terminal_handoff() {
++    for failure in [false, true] {
++        let mut terminal = if failure {
++            failed("image", "uni-1", Value::Null)
++        } else {
++            job("completed")
++        };
++        terminal["usage"] = json!({"credits_charged":null});
++        let mut settled = terminal.clone();
++        settled["usage"]["credits_charged"] = json!(0.5);
++        let mut replies = vec![Reply::json(201, terminal)];
++        if !failure {
++            replies.push(Reply::png());
++        }
++        replies.push(Reply::json(200, settled));
++        let server = Server::start(replies).await;
++        let audit = GenerationAudit::default();
++        assert_eq!(run(&server, &audit).await.is_err(), failure);
++        let mut trace = json!({});
++        assert_eq!(audit.record(&mut trace).as_deref(), Some(ID));
++        assert_eq!(
++            trace["lumaAgentsGeneration"]["usage"]["credits_charged"],
++            0.5
++        );
++        assert_eq!(trace["lumaAgentsGeneration"]["mediaVerified"], !failure);
++    }
++}
++
++#[tokio::test]
++async fn luma_agents_observation_rejects_mismatched_late_settlement() {
++    let mut terminal = failed("image", "uni-1", Value::Null);
++    terminal["usage"] = json!({"credits_charged":null});
++    let mut wrong = terminal.clone();
++    wrong["model"] = json!("uni-1-max");
++    wrong["usage"]["credits_charged"] = json!(5);
++    let server = Server::start(vec![Reply::json(201, terminal), Reply::json(200, wrong)]).await;
++    let audit = GenerationAudit::default();
++    assert!(run(&server, &audit).await.is_err());
++    let mut trace = json!({});
++    audit.record(&mut trace).unwrap();
++    assert_eq!(trace["lumaAgentsGeneration"]["state"], "failed");
++    assert!(trace["lumaAgentsGeneration"]["usage"]["credits_charged"].is_null());
++}
++
++#[tokio::test]
++async fn luma_agents_observation_concurrent_scopes_do_not_exchange_task_facts() {
++    let ids = [ID, "f47095e6-7c32-4917-b65c-3462f65c0f6c"];
++    let mut servers = Vec::new();
++    for (index, id) in ids.iter().enumerate() {
++        let mut completed = job("completed");
++        completed["id"] = json!(id);
++        completed["usage"] = json!({"credits_charged":index});
++        servers.push(
++            Server::start(vec![
++                Reply::json(201, completed),
++                Reply {
++                    hold: true,
++                    ..Reply::png()
++                },
++            ])
++            .await,
++        );
++    }
++    let audits = [GenerationAudit::default(), GenerationAudit::default()];
++    let mut first = Box::pin(run(&servers[0], &audits[0]));
++    let mut second = Box::pin(run(&servers[1], &audits[1]));
++    tokio::time::timeout(Duration::from_secs(3), async {
++        tokio::select! {
++            _ = first.as_mut() => panic!("first asset is held"),
++            _ = second.as_mut() => panic!("second asset is held"),
++            _ = async {
++                while servers.iter().any(|s| s.calls().len() < 2) { tokio::task::yield_now().await; }
++            } => {}
++        }
++    }).await.unwrap();
++    drop(first);
++    drop(second);
++    for (index, audit) in audits.iter().enumerate() {
++        let mut trace = json!({});
++        assert_eq!(audit.record(&mut trace).as_deref(), Some(ids[index]));
++        assert_eq!(
++            trace["lumaAgentsGeneration"]["usage"]["credits_charged"],
++            index
++        );
++        servers[index].wait_closed().await;
++        assert_eq!(servers[index].calls().len(), 2);
++    }
++    // A new unscoped sender cannot mutate either request's retained snapshot.
++    let mut fresh = job("failed");
++    fresh["usage"] = json!({"credits_charged":99});
++    let server = Server::start(vec![Reply::json(201, fresh)]).await;
++    assert!(within(
++        &server.origin,
++        super::execute(
++            &server.client(),
++            Duration::from_secs(5),
++            &payload(),
++            &request(json!({"prompt":"image"})),
++            "uni-1"
++        )
++    )
++    .await
++    .is_err());
++    let mut trace = json!({});
++    audits[0].record(&mut trace).unwrap();
++    assert_eq!(trace["lumaAgentsGeneration"]["usage"]["credits_charged"], 0);
++}

@@ -1,0 +1,26 @@
+[
+  {
+    "path": "src/protocol/luma_mcp/catalog.rs",
+    "effectiveLines": 60
+  },
+  {
+    "path": "src/protocol/luma_mcp/tests.rs",
+    "effectiveLines": 255
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpToolsPanel.tsx",
+    "effectiveLines": 72
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpToolsPanel.test.tsx",
+    "effectiveLines": 87
+  },
+  {
+    "path": "src/protocol/luma_mcp/browser_fixture.rs",
+    "effectiveLines": 140
+  },
+  {
+    "path": "tools/luma/mcp-browser-check.mjs",
+    "effectiveLines": 133
+  }
+]

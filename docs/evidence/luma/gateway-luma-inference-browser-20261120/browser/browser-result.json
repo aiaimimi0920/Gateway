@@ -1,0 +1,217 @@
+{
+  "status": "passed",
+  "browserClosed": true,
+  "proxyClosed": true,
+  "calls": [
+    {
+      "scope": {
+        "kind": "account",
+        "id": "exact"
+      },
+      "testPlan": {
+        "automaticEnabled": false,
+        "intervalMinutes": 60,
+        "modelSelection": "selected",
+        "models": [
+          "public-luma_inference"
+        ],
+        "cases": [
+          {
+            "id": "connection",
+            "name": "连通与指令遵循",
+            "prompt": "Reply with only OK.",
+            "expectedAnswer": "OK",
+            "difficulty": 1,
+            "enabled": false
+          },
+          {
+            "id": "arithmetic",
+            "name": "计算能力",
+            "prompt": "What is 17 * 23? Reply with only the number.",
+            "expectedAnswer": "391",
+            "difficulty": 2,
+            "enabled": false
+          },
+          {
+            "id": "reasoning",
+            "name": "多步推理",
+            "prompt": "A counter starts at 120, subtracts 35, adds 19, then divides by 2. What is the final value? Reply with only the number.",
+            "expectedAnswer": "52",
+            "difficulty": 3,
+            "enabled": false
+          },
+          {
+            "id": "iq-sequence-v1",
+            "name": "数列递推",
+            "difficulty": 1,
+            "prompt": "Start with 3. Repeatedly multiply by 2 and add 1. After 5 repetitions, what is the value? Reply with only the integer.",
+            "expectedAnswer": "127",
+            "enabled": false
+          },
+          {
+            "id": "iq-count-v1",
+            "name": "容斥计数",
+            "difficulty": 2,
+            "prompt": "How many integers from 1 to 120 inclusive are divisible by 4 or by 6, but not by both? Reply with only the integer.",
+            "expectedAnswer": "30",
+            "enabled": false
+          },
+          {
+            "id": "iq-bayes-v1",
+            "name": "条件概率",
+            "difficulty": 3,
+            "prompt": "Box A has 3 red and 1 blue ball. Box B has 1 red and 3 blue balls. Select one box uniformly at random and draw one ball. It is red. What is the probability the selected box was A? Reply with only a reduced fraction a/b.",
+            "expectedAnswer": "3/4",
+            "enabled": false
+          },
+          {
+            "id": "iq-order-v1",
+            "name": "偏序约束",
+            "difficulty": 2,
+            "prompt": "Four tasks A, B, C, D each run once in a sequence. A must precede C; B must precede C; C must precede D. How many valid sequences are there? Reply with only the integer.",
+            "expectedAnswer": "2",
+            "enabled": false
+          },
+          {
+            "id": "iq-path-v1",
+            "name": "网格路径",
+            "difficulty": 3,
+            "prompt": "On a grid, walk from (0,0) to (4,3), using only unit right or unit up moves. How many paths avoid (2,1)? Reply with only the integer.",
+            "expectedAnswer": "17",
+            "enabled": false
+          },
+          {
+            "id": "iq-state-v1",
+            "name": "程序状态跟踪",
+            "difficulty": 2,
+            "prompt": "Let x=2 and y=1. Repeat 4 times, simultaneously assigning x=x+y and y=the old x. What is x+y after the fourth repetition? Reply with only the integer.",
+            "expectedAnswer": "21",
+            "enabled": false
+          },
+          {
+            "id": "iq-modular-v1",
+            "name": "同余推理",
+            "difficulty": 3,
+            "prompt": "Find the smallest positive integer n such that n mod 5=2, n mod 7=3, and n mod 9=4. Reply with only the integer.",
+            "expectedAnswer": "157",
+            "enabled": false
+          },
+          {
+            "id": "iq-language-v1",
+            "name": "否定条件理解",
+            "difficulty": 1,
+            "prompt": "A gate opens if and only if card K is present and alarm A is off. K is present, but A is on. Is the gate open? Reply with only YES or NO.",
+            "expectedAnswer": "NO",
+            "enabled": false
+          },
+          {
+            "id": "iq-combinatorics-v1",
+            "name": "非相邻组合",
+            "difficulty": 3,
+            "prompt": "How many ways are there to choose 3 distinct numbers from 1 through 8 inclusive so that no two chosen numbers are consecutive? Order does not matter. Reply with only the integer.",
+            "expectedAnswer": "20",
+            "enabled": false
+          },
+          {
+            "id": "temporary-73a88830-3768-435e-bb5e-c3340efabcf0",
+            "name": "合成问题",
+            "prompt": "合成问题",
+            "expectedAnswer": null,
+            "difficulty": 1,
+            "enabled": true
+          }
+        ]
+      },
+      "credentialIds": [
+        "exact"
+      ]
+    }
+  ],
+  "result": {
+    "result": {
+      "providerId": "luma_inference-public",
+      "status": "passed",
+      "message": "Provider test completed: 1 passed, 0 failed, 0 unsupported.",
+      "checkedAt": "2026-11-19T20:14:04.7400103Z",
+      "totalCount": 1,
+      "passedCount": 1,
+      "failedCount": 0,
+      "unsupportedCount": 0,
+      "results": [
+        {
+          "credentialId": "exact",
+          "providerId": "luma_inference-public",
+          "probePoint": "Configured model/test matrix",
+          "status": "passed",
+          "message": "Test round: 1 replies, 0 failures, 0 unexecuted/unsupported.",
+          "checkedAt": "2026-11-19T20:14:04.7740417Z",
+          "assessment": {
+            "policySource": "account:temporary",
+            "mode": "manual",
+            "models": [
+              {
+                "model": "public-luma_inference",
+                "callable": true,
+                "completedCount": 1,
+                "gradedCount": 0,
+                "correctCount": 0,
+                "score": null,
+                "capabilityLevel": "unrated",
+                "measurement": {
+                  "testSetId": "fa4a50c4973673e8d075001bda27c64e40f64dbaf877eb1a52f877d8a097b1b2",
+                  "elapsedMs": 33,
+                  "quota": {
+                    "status": "unavailable",
+                    "unit": null,
+                    "consumed": null,
+                    "before": null,
+                    "after": null,
+                    "source": null
+                  }
+                }
+              }
+            ],
+            "cases": [
+              {
+                "healthRecovery": "applied",
+                "caseId": "temporary-73a88830-3768-435e-bb5e-c3340efabcf0",
+                "name": "合成问题",
+                "model": "public-luma_inference",
+                "difficulty": 1,
+                "status": "passed",
+                "answer": "合成答案",
+                "expectedAnswer": null,
+                "correct": null,
+                "message": "Model call passed. Model: glm-5.2. Reply: 合成答案",
+                "elapsedMs": 33
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "sessionResponses": [
+    {
+      "path": "/v1/internal/gateway/console/session/verify",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/session/confirm-secret-access",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "checkpoints": [
+    {
+      "name": "configured-and-closed-without-send",
+      "probeRequests": 0
+    },
+    {
+      "name": "explicit-test-passed",
+      "probeRequests": 1
+    }
+  ],
+  "scope": "normal main UI to management TCP; synthetic inference only"
+}

@@ -61,7 +61,7 @@ pub async fn run_stream_success(
     finalize_request_audit_from_snapshot(
         &snapshot,
         "completed",
-        Some(200),
+        snapshot.observed_upstream_status.unwrap_or(Some(200)),
         usage.clone(),
         None,
         Some(build_route_trace_from_snapshot(&snapshot, None)),

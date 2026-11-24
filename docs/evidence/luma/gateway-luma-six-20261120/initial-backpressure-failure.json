@@ -1,0 +1,22 @@
+{
+  "args": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--lib",
+    "--no-default-features",
+    "--features",
+    "runtime-defaults",
+    "-j",
+    "4",
+    "files_",
+    "--no-fail-fast",
+    "--",
+    "--test-threads=1"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T03:17:46.140532+00:00",
+  "exitCode": 101,
+  "elapsedSeconds": 1524.59
+}

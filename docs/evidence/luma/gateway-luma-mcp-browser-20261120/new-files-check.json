@@ -1,0 +1,50 @@
+[
+  {
+    "path": "src/protocol/luma_mcp/test_support.rs",
+    "exitCode": 1,
+    "whitespaceErrors": false,
+    "utf8NoBom": true
+  },
+  {
+    "path": "src/protocol/luma_mcp/browser_fixture.rs",
+    "exitCode": 1,
+    "whitespaceErrors": false,
+    "utf8NoBom": true
+  },
+  {
+    "path": "src/protocol/luma_mcp/browser_host.rs",
+    "exitCode": 1,
+    "whitespaceErrors": false,
+    "utf8NoBom": true
+  },
+  {
+    "path": "tools/luma/mcp-browser-check.mjs",
+    "exitCode": 1,
+    "whitespaceErrors": false,
+    "utf8NoBom": true
+  },
+  {
+    "path": "tools/luma/README.md",
+    "exitCode": 1,
+    "whitespaceErrors": false,
+    "utf8NoBom": true
+  },
+  {
+    "path": "docs/progress/2026-11-20-provider-channel-expansion-luma-mcp-browser.md",
+    "exitCode": 1,
+    "whitespaceErrors": false,
+    "utf8NoBom": true
+  },
+  {
+    "path": "docs/providers/luma-development-status.md",
+    "exitCode": 1,
+    "whitespaceErrors": false,
+    "utf8NoBom": true
+  },
+  {
+    "path": "docs/evidence/luma/README.md",
+    "exitCode": 1,
+    "whitespaceErrors": false,
+    "utf8NoBom": true
+  }
+]

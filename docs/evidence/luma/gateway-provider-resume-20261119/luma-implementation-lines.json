@@ -1,0 +1,9 @@
+{
+  "args": [
+    "target/debug/deps/neuro_gateway-4f2bc1ae2c10e750.exe",
+    "implementation_lines::tests",
+    "--nocapture"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 0.06
+}

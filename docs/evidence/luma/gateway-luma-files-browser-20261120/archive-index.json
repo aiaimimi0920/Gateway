@@ -1,0 +1,136 @@
+{
+  "copiedFiles": 26,
+  "originalRoot": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\linshi\\gateway-luma-files-browser-20261120",
+  "files": [
+    {
+      "path": "resource-final.json",
+      "bytes": 158,
+      "sha256": "0e40739f98296fd8de9f4aaca64d9fab375b3d4f21427a48edf2d1d47b05a449"
+    },
+    {
+      "path": "source-inputs.json",
+      "bytes": 734781,
+      "sha256": "99cef822469688a891d83113ca7f8854bed59b75017376602f4bebaf3cce3b6e"
+    },
+    {
+      "path": "source-drift.json",
+      "bytes": 194,
+      "sha256": "9224648b91d54a96cc9b2059cced0099fc84703e57365c2d175845ab8cf92741"
+    },
+    {
+      "path": "host-v2/ready.json",
+      "bytes": 239,
+      "sha256": "635d83fd2e98bb9e4084014a437754529322e63549979b4263713b6779179309"
+    },
+    {
+      "path": "host-v2/completed.json",
+      "bytes": 1093,
+      "sha256": "cb0136a07971607b9680ff7d2b89276fffe3faee66272c14d1cd8f8384fdfa2a"
+    },
+    {
+      "path": "rust-host/command.log",
+      "bytes": 25703,
+      "sha256": "624d569424448b7864ebace6a6a8664f9d3a961d0f746167b7a528eb01527108"
+    },
+    {
+      "path": "rust-host/result.json",
+      "bytes": 483,
+      "sha256": "b697fa5da32ec3efb0c8139376495605ee55118914b747e898c9727e1c819d12"
+    },
+    {
+      "path": "rust-host-exact/command.log",
+      "bytes": 26176,
+      "sha256": "e6330585b1ae243ec366cacd3a5ff741438d7f8a0f3e64a4ff89dc550c32b18e"
+    },
+    {
+      "path": "rust-host-exact/result.json",
+      "bytes": 526,
+      "sha256": "246d5d0a7556620c1163ca3ad480fca2fcdcf7cde861d0162397f1af2856db7f"
+    },
+    {
+      "path": "rust-host-v2/command.log",
+      "bytes": 25716,
+      "sha256": "51de0214c8001791b317ac6d84b4c9774378d55954a62846eab866b90470cf73"
+    },
+    {
+      "path": "rust-host-v2/result.json",
+      "bytes": 524,
+      "sha256": "56264b3063c8cc06054cee972602705cfde08f9d6f1c13ae3cc6f50e4c6d0bda"
+    },
+    {
+      "path": "browser-run/command.log",
+      "bytes": 409,
+      "sha256": "00efb6e35e6e64a3512a74a6a2ebc407383ba578631ae8f60edafe1f04f754b8"
+    },
+    {
+      "path": "browser-run/result.json",
+      "bytes": 587,
+      "sha256": "e475dd0bc5777e88a362f39c2125bbd95453334bedb0f30fba2b4a6105f8804e"
+    },
+    {
+      "path": "browser-run-v2/command.log",
+      "bytes": 144,
+      "sha256": "1f4490da072e21f7c549df0ce32c3e6d177d0d9c7f5d2a0438cc4d229476ea0d"
+    },
+    {
+      "path": "browser-run-v2/result.json",
+      "bytes": 592,
+      "sha256": "23708136ed54d10207a2f195f04b841f374a84406a23f87fad417adf191f2cbf"
+    },
+    {
+      "path": "checker-tests/command.log",
+      "bytes": 6295,
+      "sha256": "a95e2a890357eb44c6fa10ddc02621897e4257dcfdfd6b9e458474f7d16af022"
+    },
+    {
+      "path": "checker-tests/result.json",
+      "bytes": 283,
+      "sha256": "af9e061b14583576f26e6f218b7af2532568716ad3884d87988d9be36acd5f81"
+    },
+    {
+      "path": "ratchet-final/command.log",
+      "bytes": 273,
+      "sha256": "ab79e41facf1ebd8f45f1a5033d9ad9f7e7f7d002469121beeee0db7857d080d"
+    },
+    {
+      "path": "ratchet-final/result.json",
+      "bytes": 285,
+      "sha256": "bd0407e5c36d430375018fbf5b7cafd5a5c5137d1e089b8564d1a7d40c1eb3da"
+    },
+    {
+      "path": "browser/browser-result.json",
+      "bytes": 723,
+      "sha256": "a157988d5d939b5a653ca2e5eba0310f366ba467ec5567232f3e86f69ccda01b"
+    },
+    {
+      "path": "browser/failure.ax.txt",
+      "bytes": 2764,
+      "sha256": "cf9a1026a2ce90af03ace9b5daeecaf3ceb5bf1f8fc7fa5ec4f26935fcdec8fe"
+    },
+    {
+      "path": "browser-v2/browser-result.json",
+      "bytes": 2261,
+      "sha256": "d13fec32984f641a88bd0425b0a50188ddf22c5e2ddcfb80be991e3323e3c9f7"
+    },
+    {
+      "path": "browser-v2/initial.ax.txt",
+      "bytes": 1134,
+      "sha256": "08747812447a4d2066d990a4854e25c40a9fb03fa27c385074a4bd0cbebd4feb"
+    },
+    {
+      "path": "browser-v2/final.ax.txt",
+      "bytes": 1179,
+      "sha256": "afb184a6f1eac8bc8cb83f0ee040cc4ed7d365768b96c6da79e5f1f5018e3c88"
+    },
+    {
+      "path": "browser-v2/ready.png",
+      "bytes": 82692,
+      "sha256": "eccd6ccba2d0a3d64fd76e993361218a6a510a7c95ac1ecf59589a2d09fc291f"
+    },
+    {
+      "path": "browser-v2/ready-narrow.png",
+      "bytes": 37003,
+      "sha256": "fd030417ad2b9ac8e7fdc12852ecff4af1e249637d3bdb733367bc1192fb1ef6"
+    }
+  ]
+}

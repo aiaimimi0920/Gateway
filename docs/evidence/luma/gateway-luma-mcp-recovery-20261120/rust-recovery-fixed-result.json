@@ -1,0 +1,22 @@
+{
+  "args": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--lib",
+    "--no-default-features",
+    "--features",
+    "runtime-defaults",
+    "-j",
+    "4",
+    "protocol::luma_mcp::creation_tests::recovery_tests::luma_mcp_creation_recovery_published_rotations_restart_and_workspace_reuse",
+    "--",
+    "--exact",
+    "--test-threads=1"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T11:25:26.155250+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 1142.31
+}

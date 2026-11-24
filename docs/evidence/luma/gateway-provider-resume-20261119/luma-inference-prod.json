@@ -1,0 +1,16 @@
+{
+  "args": [
+    "cargo",
+    "check",
+    "--locked",
+    "--offline",
+    "--lib",
+    "--no-default-features",
+    "--features",
+    "runtime-defaults",
+    "-j",
+    "4"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 696.81
+}

@@ -1,0 +1,11 @@
+   Compiling gateway-cpa-bssl-build v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\cpa-bssl-build)
+   Compiling gateway v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway)
+   Compiling gateway-local-data v0.1.0 (C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\crates\gateway-local-data)
+error: couldn't read `C:\Users\Public\nas_home\AI\GameEditor\linshi\cpa-bssl\fe284567ae6d682a\rama-boring-sys-0.6.20\build\config.rs`: 系统找不到指定的路径。 (os error 3)
+  --> C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway\target\debug\build\gateway-cpa-bssl-build-9dc3547f0577f148\out/upstream_build.rs:12:134
+   |
+12 | ...e284567ae6d682a\\rama-boring-sys-0.6.20\\build/config.rs"] mod config;
+   |                                                               ^^^^^^^^^^^
+
+error: could not compile `gateway-cpa-bssl-build` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

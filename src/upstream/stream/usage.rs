@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::protocol::canonical::TokenUsage;
 
 use super::observation::{BoundaryRule, ObservationLine, ObservationLines};
-use super::ObservationScope;
+use super::{NativeResponsesObserver, ObservationScope};
 
 struct UsageTappedStream<E> {
     inner: Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
@@ -63,13 +63,14 @@ pub(crate) fn tap_messages_usage_with_error<E: Send + 'static>(
 }
 
 /// The product guard validates and releases exactly one authoritative terminal envelope.
-pub(crate) fn tap_commandcode_responses_usage_with_error<E: Send + 'static>(
+pub(crate) fn tap_native_responses_usage_with_error<E: Send + 'static>(
     inner: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    observe: NativeResponsesObserver,
 ) -> (
     impl Stream<Item = Result<Bytes, E>> + Send + 'static,
     Arc<Mutex<Option<TokenUsage>>>,
 ) {
-    tap_usage_mode(inner, ObservationScope::CommandCodeResponses)
+    tap_usage_mode(inner, ObservationScope::NativeResponses(observe))
 }
 
 fn tap_usage_mode<E: Send + 'static>(
@@ -173,22 +174,19 @@ impl SseUsageCapture {
             return;
         };
 
-        if self.scope == ObservationScope::CommandCodeResponses {
+        if let ObservationScope::NativeResponses(observe) = self.scope {
             if matches!(
                 event.as_deref(),
                 Some("response.completed" | "response.incomplete")
             ) {
-                let (usage, _) = crate::protocol::commandcode::native_json::observe(
-                    &value["response"],
-                    crate::protocol::canonical::EndpointKind::Responses,
-                );
+                let (usage, _) = observe(&value["response"]);
                 if let Ok(mut latest) = self.latest_usage.lock() {
                     *latest = usage;
                 }
             }
             return;
         }
-        if self.scope == ObservationScope::Messages {
+        if matches!(self.scope, ObservationScope::Messages) {
             let start = event.as_deref() == Some("message_start");
             let raw = match event.as_deref() {
                 Some("message_start") => &value["message"]["usage"],

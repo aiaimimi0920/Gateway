@@ -13,6 +13,10 @@ mod tests;
 mod profile_tests;
 
 #[cfg(test)]
+#[path = "native_codex_recovery_tests.rs"]
+mod recovery_tests;
+
+#[cfg(test)]
 #[path = "qwen_workspace_tests.rs"]
 mod qwen_workspace_tests;
 
@@ -36,10 +40,12 @@ impl UpstreamClient {
             && !crate::protocol::dim_oauth::business::owns_payload(payload)
             && !crate::protocol::nous_portal::business::owns_payload(payload)
             && !crate::protocol::agnes::owns_payload(payload)
+            && !crate::protocol::luma_inference::owns_payload(payload)
             && !crate::protocol::sensenova::owns_payload(payload)
             && !crate::protocol::commandcode::owns_payload(payload)
             && !crate::protocol::lobsterai::owns_payload(payload)
             && !crate::protocol::sap_aicore::owns_payload(payload)
+            && !crate::protocol::quick_oauth::owns_payload(payload)
             && payload.resolve_execution_mode(req.endpoint_kind)
                 == ProviderExecutionMode::DirectHttp
             && req.endpoint_kind == EndpointKind::Responses
@@ -143,10 +149,12 @@ impl UpstreamClient {
         #[cfg(test)]
         assert!(
             !crate::protocol::agnes::owns_payload(payload)
+                && !crate::protocol::luma_inference::owns_payload(payload)
                 && !crate::protocol::sensenova::owns_payload(payload)
                 && !crate::protocol::commandcode::owns_payload(payload)
                 && !crate::protocol::lobsterai::owns_payload(payload)
-                && !crate::protocol::sap_aicore::owns_payload(payload),
+                && !crate::protocol::sap_aicore::owns_payload(payload)
+                && !crate::protocol::quick_oauth::owns_payload(payload),
             "Agnes test attempted an unisolated native Codex transport"
         );
         let plan = if wire.is_some_and(|w| w.compact) {
@@ -154,19 +162,30 @@ impl UpstreamClient {
         } else {
             Self::build_request_plan(payload, req, model, stream)?
         };
-        let builder = self.native_request(payload, req, model, extra, wire, &plan)?;
-        let response = if let Some(scope) = wire.and_then(|w| w.native_session) {
-            let connection = wire
-                .and_then(|w| w.connection.as_ref())
-                .ok_or_else(|| GatewayError::bad_request("Native session connection required"))?;
-            let _session_lease = self
-                .initialize_sdk_session(&builder, payload, scope, connection, extra)
-                .await?;
-            self.send_native_session(builder, payload, scope).await?
-        } else {
-            crate::http_client::send_native_codex(builder, &payload.adapter).await?
-        };
-        native_response::success(response, &payload.adapter).await
+        let connection = wire
+            .filter(|w| w.websocket.is_none())
+            .and_then(|w| w.connection.as_ref());
+        let (builder, generation) = self.native_request(payload, req, model, extra, wire, &plan)?;
+        let response = async {
+            if let Some(scope) = wire.and_then(|w| w.native_session) {
+                let connection = wire.and_then(|w| w.connection.as_ref()).ok_or_else(|| {
+                    GatewayError::bad_request("Native session connection required")
+                })?;
+                let _session_lease = self
+                    .initialize_sdk_session(&builder, payload, scope, connection, extra)
+                    .await?;
+                self.send_native_session(builder, payload, scope).await
+            } else {
+                crate::http_client::send_native_codex(builder, &payload.adapter).await
+            }
+        }
+        .await;
+        if let (Some(connection), Some(generation), Err(error)) =
+            (connection, generation, &response)
+        {
+            connection.recover_after_send(generation, error);
+        }
+        native_response::success(response?, &payload.adapter).await
     }
 
     fn native_request(
@@ -177,7 +196,7 @@ impl UpstreamClient {
         extra: Option<&HashMap<String, String>>,
         wire: Option<&NativeRequestWire>,
         plan: &crate::upstream::common::RequestPlan,
-    ) -> Result<reqwest::RequestBuilder, GatewayError> {
+    ) -> Result<(reqwest::RequestBuilder, Option<u64>), GatewayError> {
         let filtered = extra.map(|headers| {
             headers
                 .iter()
@@ -247,28 +266,31 @@ impl UpstreamClient {
         }
         // Production requests use the accepted connection's pool. Internal
         // callers without wire evidence retain the existing client behavior.
-        let http = wire
+        let (http, generation) = wire
             .and_then(|w| {
                 w.websocket
                     .as_ref()
-                    .map(|socket| socket.client(self.timeout))
+                    .map(|socket| (socket.client(self.timeout).clone(), None))
                     .or_else(|| {
                         w.connection.as_ref().map(|connection| {
-                            if w.native_session.is_some() {
+                            let (client, generation) = if w.native_session.is_some() {
                                 connection.session_client(self.timeout)
                             } else {
                                 connection.client(self.timeout)
-                            }
+                            };
+                            (client, Some(generation))
                         })
                     })
             })
             .unwrap_or_else(|| {
-                if crate::request_wait::transport::managed() {
+                let client = if crate::request_wait::transport::managed() {
                     self.wait_native_http
                         .get_or_init(|| crate::http_client::native_codex_client(self.timeout))
+                        .clone()
                 } else {
-                    &self.native_http
-                }
+                    self.native_http.clone()
+                };
+                (client, None)
             });
         let mut builder = http.request(plan.method.clone(), url).headers(headers);
         // reqwest total timeout includes body consumption; never apply it to SSE.
@@ -290,6 +312,6 @@ impl UpstreamClient {
                 None => builder.json(body),
             };
         }
-        Ok(builder)
+        Ok((builder, generation))
     }
 }

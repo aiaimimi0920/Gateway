@@ -1,0 +1,80 @@
+
+running 1 test
+test protocol::luma_mcp::creation_tests::review_tests::luma_mcp_creation_review_disconnect_keeps_delivery_and_expired_intent_stays_consumed ... 
+thread 'protocol::luma_mcp::creation_tests::review_tests::luma_mcp_creation_review_disconnect_keeps_delivery_and_expired_intent_stays_consumed' (31128) panicked at src\protocol\luma_mcp\..\..\..\tests\console_contract_support\mod.rs:294:36:
+response must be JSON: Error("expected value", line: 1, column: 1)
+stack backtrace:
+   0: std::panicking::panic_handler
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\std\src\panicking.rs:679
+   1: core::panicking::panic_fmt
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\core\src\panicking.rs:80
+   2: core::result::unwrap_failed
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\core\src\result.rs:1870
+   3: enum2$<core::result::Result<enum2$<serde_json::value::Value>,serde_json::error::Error> >::expect<enum2$<serde_json::value::Value>,serde_json::error::Error>
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\core\src\result.rs:1183
+   4: neuro_gateway::protocol::luma_mcp::creation_tests::support::parse_json::async_fn$0
+             at .\tests\console_contract_support\mod.rs:294
+   5: neuro_gateway::protocol::luma_mcp::creation_tests::impl$0::send::async_fn$0
+             at .\src\protocol\luma_mcp\creation_tests.rs:96
+   6: neuro_gateway::protocol::luma_mcp::creation_tests::review_tests::luma_mcp_creation_review_disconnect_keeps_delivery_and_expired_intent_stays_consumed::async_block$0
+             at .\src\protocol\luma_mcp\creation_review_tests.rs:247
+   7: core::future::future::impl$1::poll<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > >
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\core\src\future\future.rs:133
+   8: core::future::future::impl$1::poll<ref_mut$<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > > >
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\core\src\future\future.rs:133
+   9: tokio::runtime::scheduler::current_thread::impl$9::block_on::closure$0::closure$0::closure$0<core::pin::Pin<ref_mut$<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > > > >
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\scheduler\current_thread\mod.rs:830
+  10: tokio::task::coop::with_budget
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\task\coop\mod.rs:167
+  11: tokio::task::coop::budget
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\task\coop\mod.rs:133
+  12: tokio::runtime::scheduler::current_thread::impl$9::block_on::closure$0::closure$0<core::pin::Pin<ref_mut$<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > > > >
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\scheduler\current_thread\mod.rs:830
+  13: tokio::runtime::scheduler::current_thread::Context::enter<enum2$<core::task::poll::Poll<tuple$<> > >,tokio::runtime::scheduler::current_thread::impl$9::block_on::closure$0::closure_env$0<core::pin::Pin<ref_mut$<core::pin::Pin<ref_mut$<dyn$<core::future::fu
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\scheduler\current_thread\mod.rs:488
+  14: tokio::runtime::scheduler::current_thread::impl$9::block_on::closure$0<core::pin::Pin<ref_mut$<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > > > >
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\scheduler\current_thread\mod.rs:829
+  15: tokio::runtime::scheduler::current_thread::impl$9::enter::closure$0<tokio::runtime::scheduler::current_thread::impl$9::block_on::closure_env$0<core::pin::Pin<ref_mut$<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > 
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\scheduler\current_thread\mod.rs:906
+  16: tokio::runtime::context::scoped::Scoped<enum2$<tokio::runtime::scheduler::Context> >::set<enum2$<tokio::runtime::scheduler::Context>,tokio::runtime::scheduler::current_thread::impl$9::enter::closure_env$0<tokio::runtime::scheduler::current_thread::impl$9::
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\context\scoped.rs:40
+  17: tokio::runtime::context::set_scheduler::closure$0<tuple$<alloc::boxed::Box<tokio::runtime::scheduler::current_thread::Core,alloc::alloc::Global>,enum2$<core::option::Option<tuple$<> > > >,tokio::runtime::scheduler::current_thread::impl$9::enter::closure_en
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\context.rs:187
+  18: std::thread::local::LocalKey<tokio::runtime::context::Context>::try_with<tokio::runtime::context::Context,tokio::runtime::context::set_scheduler::closure_env$0<tuple$<alloc::boxed::Box<tokio::runtime::scheduler::current_thread::Core,alloc::alloc::Global>,e
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\std\src\thread\local.rs:463
+  19: std::thread::local::LocalKey<tokio::runtime::context::Context>::with<tokio::runtime::context::Context,tokio::runtime::context::set_scheduler::closure_env$0<tuple$<alloc::boxed::Box<tokio::runtime::scheduler::current_thread::Core,alloc::alloc::Global>,enum2
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\std\src\thread\local.rs:427
+  20: tokio::runtime::context::set_scheduler<tuple$<alloc::boxed::Box<tokio::runtime::scheduler::current_thread::Core,alloc::alloc::Global>,enum2$<core::option::Option<tuple$<> > > >,tokio::runtime::scheduler::current_thread::impl$9::enter::closure_env$0<tokio::
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\context.rs:187
+  21: tokio::runtime::scheduler::current_thread::CoreGuard::enter<tokio::runtime::scheduler::current_thread::impl$9::block_on::closure_env$0<core::pin::Pin<ref_mut$<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > > > >,
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\scheduler\current_thread\mod.rs:906
+  22: tokio::runtime::scheduler::current_thread::CoreGuard::block_on<core::pin::Pin<ref_mut$<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > > > >
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\scheduler\current_thread\mod.rs:817
+  23: tokio::runtime::scheduler::current_thread::impl$0::block_on::closure$0<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > >
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\scheduler\current_thread\mod.rs:218
+  24: tokio::runtime::context::runtime::enter_runtime<tokio::runtime::scheduler::current_thread::impl$0::block_on::closure_env$0<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > >,tuple$<> >
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\context\runtime.rs:65
+  25: tokio::runtime::scheduler::current_thread::CurrentThread::block_on<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > >
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\scheduler\current_thread\mod.rs:206
+  26: tokio::runtime::runtime::Runtime::block_on_inner<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > >
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\runtime.rs:374
+  27: tokio::runtime::runtime::Runtime::block_on<core::pin::Pin<ref_mut$<dyn$<core::future::future::Future<assoc$<Output,tuple$<> > > > > > >
+             at C:\Users\vmjcv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\runtime\runtime.rs:343
+  28: neuro_gateway::protocol::luma_mcp::creation_tests::review_tests::luma_mcp_creation_review_disconnect_keeps_delivery_and_expired_intent_stays_consumed
+             at .\src\protocol\luma_mcp\creation_review_tests.rs:249
+  29: neuro_gateway::protocol::luma_mcp::creation_tests::review_tests::luma_mcp_creation_review_disconnect_keeps_delivery_and_expired_intent_stays_consumed::closure$0
+             at .\src\protocol\luma_mcp\creation_review_tests.rs:193
+  30: core::ops::function::FnOnce::call_once<neuro_gateway::protocol::luma_mcp::creation_tests::review_tests::luma_mcp_creation_review_disconnect_keeps_delivery_and_expired_intent_stays_consumed::closure_env$0,tuple$<> >
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\core\src\ops\function.rs:250
+  31: core::ops::function::FnOnce::call_once
+             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\core\src\ops\function.rs:250
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+FAILED
+
+failures:
+
+failures:
+    protocol::luma_mcp::creation_tests::review_tests::luma_mcp_creation_review_disconnect_keeps_delivery_and_expired_intent_stays_consumed
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6461 filtered out; finished in 18.57s
+

@@ -21,9 +21,9 @@ export function CredentialDialog(props: CredentialDialogProps) {
     discoveryProvider, onDiscover } = props;
   const { value, setValue, authenticationMode, setAuthenticationMode, authenticationActive, setValidationError,
     oauth, manual, authentication, reauthentication, reauthorizing, setReauthorizing, localEdits,
-    busy, secretMutationRequested, productSession, bedrock, qwen, discovery, catalog, official,
+    busy, secretMutationRequested, productSession, bedrock, qwen, discovery, catalog, official, customCatalog,
     submit, refreshProtocols, validationError } = model;
-  const error = validationError ?? discovery.error ?? catalog.error ?? official.error;
+  const error = validationError ?? discovery.error ?? catalog.error ?? official.error ?? customCatalog.error;
 
   return <Dialog open={open} onOpenChange={onOpenChange} className="nt-credential-dialog"
     title={mode === "add" ? t("新增账号", "Add account") : t("编辑账号", "Edit account")}
@@ -63,7 +63,7 @@ export function CredentialDialog(props: CredentialDialogProps) {
             {value.discoveryStatus === "pending" && <Notice>{t("后台识别中", "Discovering in background")}</Notice>}
             {value.discoveryStatus === "unconfirmed" && <Notice tone="warning">{t("尚未确认可用协议，可重新刷新", "Protocols unconfirmed; refresh to retry")}</Notice>}
           </div>
-          <Button compact disabled={locked || discovery.busy} loading={discovery.busy} onClick={refreshProtocols}>
+          <Button compact disabled={locked || busy} loading={discovery.busy} onClick={refreshProtocols}>
             {t("刷新协议", "Refresh protocols")}
           </Button>
           <CredentialProtocolList discovery={value.discovery} />

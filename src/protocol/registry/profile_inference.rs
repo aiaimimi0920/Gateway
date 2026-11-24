@@ -69,6 +69,7 @@ fn profile_from_hint(value: &str) -> Option<&'static str> {
         "groq" => Some("groq"),
         "river" | "river_api" => Some("river"),
         "agnes_api" => Some("agnes_api"),
+        "lumalabs_inference" => Some("lumalabs_inference"),
         "sensenova_token_plan" => Some("sensenova_token_plan"),
         "commandcode_chat" => Some("commandcode_chat"),
         "sap_aicore_chat" => Some("sap_aicore_chat"),
@@ -126,6 +127,9 @@ fn profile_from_base_url(adapter: &str, base_url: &str) -> Option<&'static str> 
     if let Ok(url) = url::Url::parse(base_url) {
         match url.host_str() {
             Some("api.river.ai") if adapter.trim() == "openai_compatible" => return Some("river"),
+            Some("inference.lumalabs.ai") if adapter.trim() == "openai_compatible" => {
+                return Some("lumalabs_inference")
+            }
             Some("agents.lumalabs.ai") => return Some(crate::protocol::luma_agents::PROFILE),
             Some("www.perplexity.ai") => return Some("perplexity_web"),
             Some("s.jina.ai") => return Some("jina"),

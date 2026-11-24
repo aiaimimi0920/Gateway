@@ -1,0 +1,36 @@
+{
+  "capturedAt": "2026-11-19T20:20:03.414Z",
+  "boundary": "Scoped source snapshot captured during Rust compilation; no pre-build whole-tree freeze",
+  "files": [
+    {
+      "path": "src/protocol/luma_inference/wire_tests.rs",
+      "sha256": "72d872cfb9aeddb2685f89a61f80a80b73daa960ac2942e41847f2fe96d1e7ef",
+      "effectiveLines": 183
+    },
+    {
+      "path": "src/protocol/luma_inference/wire_tests/browser_host.rs",
+      "sha256": "67cb4a68cdce14f772e444c9f906e4c8f5f31253cb3f2077dd2a387ba77c4791",
+      "effectiveLines": 158
+    },
+    {
+      "path": "tools/luma/inference-browser-check.mjs",
+      "sha256": "4794e5ca1106d5aad0d4ae5d0e14e16995751d564f09f666d25cf2ec5c34df41",
+      "effectiveLines": 123
+    },
+    {
+      "path": "tools/luma/normal-main-server.mjs",
+      "sha256": "bdf6a021d9225e942ae0abca8df2c312b075da3fd88227f373206da2e8b5be8b",
+      "effectiveLines": 67
+    },
+    {
+      "path": "apps/desktop/src/features/console/CredentialTestDialog.tsx",
+      "sha256": "e706273c5acace9314c412bd78d7a6652e1a3cdcd0808bf94a4adc8a02b4ea34",
+      "effectiveLines": 97
+    },
+    {
+      "path": "apps/desktop/src/features/console/ProviderPoolDialogs.test.tsx",
+      "sha256": "c55c41be35616a179a5d984814224500cfa87f788f0053ee70f9984dcef179f0",
+      "effectiveLines": 180
+    }
+  ]
+}

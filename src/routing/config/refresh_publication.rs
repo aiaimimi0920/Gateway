@@ -56,6 +56,7 @@ pub(crate) fn same_authorization(a: &ProviderCredentialYaml, b: &ProviderCredent
         && a.grok_oauth == b.grok_oauth
         && a.luma_oauth == b.luma_oauth
         && a.kiro_oauth == b.kiro_oauth
+        && a.quick_oauth == b.quick_oauth
         && a.vertex_oauth == b.vertex_oauth
         && a.dim_oauth == b.dim_oauth
         && a.nous_portal == b.nous_portal

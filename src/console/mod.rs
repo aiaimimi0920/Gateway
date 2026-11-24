@@ -22,6 +22,7 @@ pub mod lobsterai_oauth;
 pub mod luma_oauth;
 pub mod nous_oauth;
 pub mod persistence;
+pub mod quick_oauth;
 pub mod redis_store;
 pub mod refresh_grants;
 pub mod revision;

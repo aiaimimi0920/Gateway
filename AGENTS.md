@@ -8,8 +8,8 @@ Scope: this independent Gateway repository and all of its subdirectories.
   只有用户明确要求“正式发布包、最终交付、正式 Release 流程”时，才执行正式发布流程。
 - 快速手测入口：`tools/package-gateway-devtest.ps1`；仅构建使用
   `tools/build-gateway-devtest.ps1`。默认桌面版，`-Edition api|web|desktop` 可选。
-- 快速构建使用独立 `devtest` profile：优化等级 1、无 LTO、开启增量；默认最多 4 个
-  Cargo 并发任务，可通过 `-Jobs` 调整。不得无理由固定单任务，也不得未经资源评估占满核心。
+- 快速构建使用独立 `devtest` profile：优化等级 1、无 LTO、开启增量；默认最多 6 个
+  Cargo 并发任务（与全局 `CARGO_BUILD_JOBS=6` 对齐），可通过 `-Jobs` 调整。不得无理由固定单任务，也不得未经资源评估占满核心。
 - 日常仅运行改动相关的定向检查和包完整性检查，不重复全量回归、付费上游测试或正式发布安全审计。
   首次/改动启动流程时补隔离启动验证。编译失败、来源不匹配、哈希错误仍必须阻止交付。
 - 依赖保持锁定；不自动升级或删除重装。复用由 Cargo 指纹缓存判断，不凭时间戳拷贝旧 EXE。
@@ -20,6 +20,14 @@ Scope: this independent Gateway repository and all of its subdirectories.
   本节是日常手测的专用流程规则，优先于旧技能中“每次变更都做完整发布验证”的笼统要求。
 - 交付必须明确：包类型、路径、实际通过的检查、未执行的验证。首次冷构建和热增量构建
   分开统计，没有实测不得承诺提速倍数。具体命令见 `docs/devtest-build.md`。
+
+## 编译、测试与服务商接入提速纪律
+
+- **子库分层与防巨型单体膨胀**：基础错误、限流、重试、凭据原语已抽离至 `crates/gateway-core`，管理前端嵌入资源已抽离至 `crates/gateway-embedded-ui`（改前端不再触发 `neuro_gateway` 重编），新服务商声明式描述符与有界 SSE 解码器位于 `crates/gateway-provider-kit`（前端配套 `apps/desktop/src/features/console/declarativeProviderSpec.ts`）。接入新服务商优先复用上述子库与声明式配置，避免跨 10+ 目录散落重复样板代码；独立 `tests/*.rs` 契约测试统一归入 `tests/suite_*.rs` 聚合入口，禁止新增零散顶层集成测试二进制。
+- **先批量读样板、显式派只读子代理并行预研，再一次性成批 `apply_patch` 落盘**：同一轮并发发出全部独立读文件（`inspect_local_file(files=[...])`）与检索调用（禁止单工具串行往返）；**只要单个复杂服务商涉及 4 个以上模块/协议目录/外部 SDK 文档核对，或跨多个服务商盘点，明确要求同轮并发派发 3–4 个只读 `default` 子代理（`fork_turns = "none"`）分片梳理合同与调用点**；常规单文件/多文件增改一律合并为原生 `apply_patch`（严禁在大脏工作树上对常规局部编辑调用每次耗时 8–17s 的 FastCtx `replace` 或手写 PowerShell `[IO.File]::ReadAllText` 切片脚本），动手前按 150–500 有效行拆好子文件，一次性把整张服务商卡剩余后端、数据库、前端与测试整批写齐。
+- **增量编译、快速并行 `check:rust:fast`、`cargo nextest` 与快速行数门禁**：本机已全局启用 `CARGO_INCREMENTAL=1`、`CARGO_BUILD_JOBS=6`、`lld-link`、`debug=0` 及 `[profile.*.build-override] opt-level=3`。多文件分步写码期间仅需静态语法/类型快检时，优先跑 `cargo check -p gateway-core` / `cargo check -p gateway-provider-kit` 或独立目录 6 线程并行前端检查 `npm run check:rust:fast --prefix scripts`（使用 `target/nightly-check` 隔离缓存，绝不污染或击穿主 `target/` 指纹）及缓存门禁 `npm run check:effective-lines:fast --prefix scripts`（约 0.2s）；测试期统一使用 `npm run test:rust:fast --prefix scripts -- "<expr>"` 或 `cargo nextest run --locked --offline --lib --no-default-features --features runtime-defaults -E "test(<filter>)"`（未改 Rust 源码仅重跑过滤词时直接调 `npm run test:rust:retest --prefix scripts -- "<substring>"` 秒级复验；严禁零改动间隔下先跑 `cargo check --tests` 又紧接着跑测试，严禁混用临时 `--config debug=...` 或在主 `target/` 来回翻转 `--features line-<provider>` 与 `runtime-defaults`；单线独立编译隔离验证仅在里程碑收口做 1 次 `cargo check` 探针）。
+- **`/goal` 持续模式与整卡单次出包门禁，严禁微切片提前收口/反复打包**：在普通对话及 `/goal` 自动续跑模式下，开发单个服务商的剩余能力（或批量推进 3–4 个新服务商）时，**禁止每完成一个 100–200 行子功能就结束回合（`task_complete`）、重写台账或触发收口门禁**；必须在同一推进周期内将该服务商获准范围内的全部非账号代码切片（如认证、协议流、媒体/推理、持久化生命周期、计费归属与单测）一次性补齐并通过源码级 `nextest` 后，**仅在整张服务商卡片彻底写完的收口里程碑执行 1 次** `tools/package-gateway-devtest.ps1`（纯后端改动用 `-Edition api`，仅前端 UI 变动才用 `-Edition desktop`）、1 次权威 `npm run check:effective-lines --prefix scripts` 及 1 次汇总回执更新；严禁在服务商协议切片未全部写完前中途提前出包或反复点击 WebView2。
+- **单写者 `target/` 锁、双开礼让与禁建一次性冷编译目录**：同一检出目录同一时刻只允许一个会话执行主 `target/` Cargo 构建；当本机同时运行其他仓库 `rustc` 或可用内存紧张时自动降并发（如 `--jobs 3`）；严禁在 `linshi/` 下新建一次性空 `CARGO_TARGET_DIR`。后台构建单次设足等待窗口（`exec_command` 传 `yield_time_ms = 30000, login = false`，后续单次 `write_stdin` 传 `60000–120000`）并利用等待窗口并发预读下一批代码，严禁 `1000ms` 短轮询空等。
 
 ## Active parallel refactor coordination
 
@@ -108,9 +116,14 @@ commands, and exception process.
    injection and traversal, bounded memory/queues, task/handle/process cleanup,
    blocking work, allocation/copying, concurrency, and algorithmic complexity.
 5. Run focused tests, directly dependent compile/typecheck/static checks, the
-   official formatter, the checker tests, and the effective-line ratchet:
-   `npm run test:effective-lines --prefix scripts` followed by
-   `npm run check:effective-lines --prefix scripts`.
+   official formatter (`rustfmt --edition 2021 --config skip_children=true <changed-files>`
+   during iteration; `cargo fmt --all --check` at milestone closure), and the
+   effective-line gate: use `npm run check:effective-lines:fast --prefix scripts`
+   during inner-loop iterations, run the authoritative ratchet
+   `npm run check:effective-lines --prefix scripts` once at provider-card or
+   milestone closure, and run `npm run test:effective-lines --prefix scripts`
+   only when `scripts/effective-code-lines*` (checker, lexer, runtime-artifact
+   matcher, policy, baseline, or exceptions) was modified.
 6. Run `git diff --check` and inspect this independent repository's scoped diff.
 7. For runtime or release work, run Gateway's documented package/runtime gates;
    documentation-only governance changes do not require a fake release build.

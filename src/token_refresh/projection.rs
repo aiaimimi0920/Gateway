@@ -40,7 +40,7 @@ pub(super) fn project(
         }
         _ => return None,
     }
-    if previous.kiro_oauth != material.kiro_oauth {
+    if previous.kiro_oauth != material.kiro_oauth || previous.quick_oauth != material.quick_oauth {
         return None;
     }
     let expiry = material.expires_at.as_deref();

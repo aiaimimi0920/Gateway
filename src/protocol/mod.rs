@@ -57,6 +57,9 @@ pub mod kiro_oauth;
 pub mod lobsterai;
 pub(crate) mod loopback_callback;
 pub mod luma_agents;
+pub mod luma_inference;
+#[cfg(all(test, feature = "line-lumalabs-inference-official-api"))]
+mod luma_inference_tests;
 pub mod luma_mcp;
 pub mod luma_oauth;
 #[cfg(feature = "line-lumalabs-web-reverse-api")]
@@ -66,12 +69,14 @@ pub mod lumalabs;
 pub mod lumalabs;
 pub mod minimax;
 pub mod model_declaration;
+mod native_text_request;
 pub mod nous_portal;
 pub mod openai;
 mod openai_tool_wire;
 mod output_format;
 pub mod perplexity_web;
 pub mod producer;
+pub mod quick_oauth;
 pub mod qwen;
 pub mod qwen_web;
 pub mod registry;

@@ -1,0 +1,22 @@
+[
+  {
+    "path": "src/protocol/luma_mcp/creation.rs",
+    "effectiveLines": 115
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/options.rs",
+    "effectiveLines": 261
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/video.rs",
+    "effectiveLines": 171
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaMcpCreationDraft.ts",
+    "effectiveLines": 78
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationOptions.tsx",
+    "effectiveLines": 72
+  }
+]

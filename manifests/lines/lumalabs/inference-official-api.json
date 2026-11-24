@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "lumalabs-inference-official-api",
+  "identity": {
+    "serviceProviderKey": "lumalabs-inference", "serviceProviderLabel": "Luma Inference",
+    "providerSurfaceKey": "lumalabs-inference-api", "providerSurfaceLabel": "Luma LLM Inference API",
+    "protocolProfile": "lumalabs_inference", "implementationLine": "official_vendor_api", "adapter": "openai_compatible",
+    "sourceKind": "official_vendor_api", "executionMode": "direct_http", "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation"], "supportsModelsEndpoint": false },
+  "credentials": {
+    "materialKinds": ["api_key"], "samplePath": "docs/providers/examples/lumalabs-inference.routes.sample.json",
+    "fieldsDocPath": "docs/providers/lumalabs-inference-contract.md"
+  },
+  "docs": { "overviewDocPath": "docs/providers/lumalabs-inference-contract.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "lumalabs-inference-verify", "focusedCargoFilters": ["luma_inference"],
+    "fixtureSuiteId": "luma_inference_fixture", "liveSuiteId": "luma_inference_live_pending", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-lumalabs-inference-official-api",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"], "binaryInclusionGroup": "lumalabs-inference-official-api"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/luma_inference.rs", "upstreamModule": "gateway/src/upstream/openai_compatible_request_plan.rs",
+    "platformDeltaModule": "gateway/src/provider_runtime/luma_inference_model_probe.rs"
+  }
+}

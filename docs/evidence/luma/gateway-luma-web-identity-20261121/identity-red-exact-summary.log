@@ -1,0 +1,4 @@
+running 1 test
+  left: Null
+ right: "FixtureBrowser/1.0"
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6481 filtered out; finished in 0.00s

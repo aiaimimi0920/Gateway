@@ -110,7 +110,15 @@ pub async fn finalize_request_audit(
           client_has_cache_control = $10,
           auto_cache_applied = $11,
           error_summary = $12,
-          route_trace = coalesce($13, route_trace),
+          route_trace = case when route_trace ? 'lumaReconciliation' then
+            case when route_trace->'lumaReconciliation'->>'state' = 'settled'
+              and route_trace->'lumaAgentsGeneration'->>'id' = $13->'lumaAgentsGeneration'->>'id'
+              and jsonb_typeof(route_trace->'lumaAgentsGeneration'->'usage'->'credits_charged') = 'number'
+            then jsonb_set($13, '{lumaAgentsGeneration,usage,credits_charged}',
+              route_trace->'lumaAgentsGeneration'->'usage'->'credits_charged')
+            else coalesce($13, route_trace) end
+            || jsonb_build_object('lumaReconciliation', route_trace->'lumaReconciliation')
+            else coalesce($13, route_trace) end,
           access_key_id = coalesce($14, access_key_id),
           source_access_key_id = coalesce($15, source_access_key_id),
           session_id = coalesce($16, session_id),

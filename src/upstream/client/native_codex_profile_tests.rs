@@ -56,6 +56,7 @@ fn request(native: bool, override_accept: bool, stream: bool) -> reqwest::Reques
             &plan,
         )
         .unwrap()
+        .0
         .build()
         .unwrap()
 }

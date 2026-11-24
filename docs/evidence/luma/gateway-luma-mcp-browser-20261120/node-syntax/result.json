@@ -1,0 +1,11 @@
+{
+  "args": [
+    "node",
+    "--check",
+    "tools/luma/mcp-browser-check.mjs"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T21:08:38.715333+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 0.12
+}

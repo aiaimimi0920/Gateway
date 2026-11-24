@@ -1,0 +1,16 @@
+info    build started...
+ready   built in 1.33 s
+
+File (web)                                                                                        Size        Gzip   
+..\..\..\..\linshi\gateway-luma-mcp-snapshot-20261120\main-web\favicon.svg                        0.47 kB     0.26 kB
+..\..\..\..\linshi\gateway-luma-mcp-snapshot-20261120\main-web\index.html                         0.63 kB     0.34 kB
+..\..\..\..\linshi\gateway-luma-mcp-snapshot-20261120\main-web\static\js\async\784.20b08c1b.js    13.6 kB     3.2 kB
+..\..\..\..\linshi\gateway-luma-mcp-snapshot-20261120\main-web\static\css\646.81a96351.css        23.9 kB     5.3 kB
+..\..\..\..\linshi\gateway-luma-mcp-snapshot-20261120\main-web\static\js\lib-router.9902c246.js   33.5 kB     11.9 kB
+..\..\..\..\linshi\gateway-luma-mcp-snapshot-20261120\main-web\static\css\index.a80e8170.css      126.5 kB    20.5 kB
+..\..\..\..\linshi\gateway-luma-mcp-snapshot-20261120\main-web\static\js\lib-react.d7cbcb95.js    189.1 kB    59.8 kB
+..\..\..\..\linshi\gateway-luma-mcp-snapshot-20261120\main-web\static\js\646.414e37e0.js          342.6 kB    88.3 kB
+..\..\..\..\linshi\gateway-luma-mcp-snapshot-20261120\main-web\static\js\index.d5231ab7.js        1022.2 kB   287.3 kB
+
+                                                                                         Total:   1752.4 kB   477.0 kB
+

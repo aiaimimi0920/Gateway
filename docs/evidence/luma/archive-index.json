@@ -1,0 +1,625 @@
+{
+  "archivedAt": "2026-11-19T15:32:56.225940+00:00",
+  "sourceRootLabel": "historical linshi directory",
+  "mode": "byte-identical copy; originals retained until user cleanup",
+  "files": [
+    {
+      "path": "gateway-provider-resume-20261119/effective-before.json",
+      "source": "gateway-provider-resume-20261119/effective-before.json",
+      "bytes": 280,
+      "sha256": "bd7e324550a831955fa353d0c44807a2edebb7f647b216939f583782cf23573f"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/files.html",
+      "source": "gateway-provider-resume-20261119/files.html",
+      "bytes": 135103,
+      "sha256": "e382558beed54192b027dece65fb55875b1c30efadb169147175d3949a3c89bb"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/files.txt",
+      "source": "gateway-provider-resume-20261119/files.txt",
+      "bytes": 12193,
+      "sha256": "3b039e5f6ddb3ad13bd9cd84c6813cc11ea7571e05b4f5b102b68f415d78c7db"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/final-diff-check.log",
+      "source": "gateway-provider-resume-20261119/final-diff-check.log",
+      "bytes": 305,
+      "sha256": "959bc19fcfe4be95b08dc557286ca846edabcba9fc8e0cdbb15cf04fa280156b"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/layering.html",
+      "source": "gateway-provider-resume-20261119/layering.html",
+      "bytes": 176776,
+      "sha256": "2b303d1d5c06cf1eff4e57ec2f3eddfa1e84a245baab25a16f3871416899cd5b"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/layering.txt",
+      "source": "gateway-provider-resume-20261119/layering.txt",
+      "bytes": 24206,
+      "sha256": "5b6a338d6413416c5a35cd1ce7a24c0904dbbdf081f93527a83652cc2b89fb67"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/llm-before-lines.json",
+      "source": "gateway-provider-resume-20261119/llm-before-lines.json",
+      "bytes": 1390,
+      "sha256": "e394a0118b20de24a715f89cca71fd57a910f2a55957d78a7fdfc1e7fab979f9"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/llm.html",
+      "source": "gateway-provider-resume-20261119/llm.html",
+      "bytes": 175799,
+      "sha256": "64c4fbda68e12a4818c3f2012ef3d6a1e2270b84ffcf75b02c063b7625ece6b6"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/llm.txt",
+      "source": "gateway-provider-resume-20261119/llm.txt",
+      "bytes": 17669,
+      "sha256": "8d6843551f79abfbb7d8683b81f70e260578b4670ddacd4931bc6b687cdb95d7"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-implementation-lines.json",
+      "source": "gateway-provider-resume-20261119/luma-implementation-lines.json",
+      "bytes": 183,
+      "sha256": "e4e41f1aba70c59e6a79e3e7c80d42ef4decd0c3baa9d55d1d5e0bd1d0a89882"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-implementation-lines.log",
+      "source": "gateway-provider-resume-20261119/luma-implementation-lines.log",
+      "bytes": 4549,
+      "sha256": "8e74d63445060012707682c407374f568f9d3367bcb778897c12f2272d6cf8e3"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-inference-disabled.json",
+      "source": "gateway-provider-resume-20261119/luma-inference-disabled.json",
+      "bytes": 260,
+      "sha256": "a89d18ed59ef99cf395951677daae1e90ef3200f8bf898e45ccf29fdd0c46949"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-inference-disabled.log",
+      "source": "gateway-provider-resume-20261119/luma-inference-disabled.log",
+      "bytes": 53266,
+      "sha256": "1cb923fb8a2470147124821ead862fa4c5c6ca0f8bbf387408f54ee339417657"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-inference-final.json",
+      "source": "gateway-provider-resume-20261119/luma-inference-final.json",
+      "bytes": 285,
+      "sha256": "cd4349986c703b040d92f37334489ffbe3e3f3af1d74e3aec5410022f0c2ddf0"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-inference-final.log",
+      "source": "gateway-provider-resume-20261119/luma-inference-final.log",
+      "bytes": 27984,
+      "sha256": "73f4ba7d3d3fd79ae9be6a74c32fd7fcda385e8e6a1bafe95f5105be011b3c2d"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-inference-prod.json",
+      "source": "gateway-provider-resume-20261119/luma-inference-prod.json",
+      "bytes": 240,
+      "sha256": "145b4d611a60a8433ab7a9cd326a9951beac05762bd1f938cdaadf05aa95d538"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-inference-prod.log",
+      "source": "gateway-provider-resume-20261119/luma-inference-prod.log",
+      "bytes": 33322,
+      "sha256": "ca1135c2cd0d53f83eb4126058f3566d623bcd9c689657f5793a04458508e615"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-inference-rust.log",
+      "source": "gateway-provider-resume-20261119/luma-inference-rust.log",
+      "bytes": 28969,
+      "sha256": "5af42a1678ba4d6a8c20e3381c1b6deb26cbba8fc712275af4c54f7276329a6b"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-narrow.png",
+      "source": "gateway-provider-resume-20261119/luma-narrow.png",
+      "bytes": 30215,
+      "sha256": "51725b9ab09207af95ce8ea2f878e93e8f1771e3c11ed421b84011d253b8a93e"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-scope-format.json",
+      "source": "gateway-provider-resume-20261119/luma-scope-format.json",
+      "bytes": 1905,
+      "sha256": "9f9d765efef5e2d21003749412f24237238c6ea1c4ab5ba6ba1f789a6a5cb5c2"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-scope-format.log",
+      "source": "gateway-provider-resume-20261119/luma-scope-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/luma-wide.png",
+      "source": "gateway-provider-resume-20261119/luma-wide.png",
+      "bytes": 36426,
+      "sha256": "60c620b59329b8863ec2dfdc64e5fc8b3564d17beee73fbe4504875eeb89de16"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/scope-source-hashes.json",
+      "source": "gateway-provider-resume-20261119/scope-source-hashes.json",
+      "bytes": 15461,
+      "sha256": "c622b13b07e8c37bdc87a01132f11233fb27f82a022643a74af9b0d5d7023794"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/scope.json",
+      "source": "gateway-provider-resume-20261119/scope.json",
+      "bytes": 3497,
+      "sha256": "0d5d4f58171d1096e6de4b4022461db2d58810a48eff60d2e180833663df85ed"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/script-migration-originals.json",
+      "source": "gateway-provider-resume-20261119/script-migration-originals.json",
+      "bytes": 773,
+      "sha256": "760c1c4b68a4a5847aa2c1179de6d69874a194360a5393022e0a0e08b6016c7f"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/sources.json",
+      "source": "gateway-provider-resume-20261119/sources.json",
+      "bytes": 1551,
+      "sha256": "b5d99040be1fa7d999b05c8cb75bdb7dfb761cd5279499a84254f7939b145bcb"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/verification.json",
+      "source": "gateway-provider-resume-20261119/verification.json",
+      "bytes": 6250,
+      "sha256": "63e5f5c9d7d2166e972904362facdeed41fed76965135300648ac7c0db17feaf"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/video-edit.html",
+      "source": "gateway-provider-resume-20261119/video-edit.html",
+      "bytes": 189570,
+      "sha256": "1db1ff77ed7b0f7e936e89bb202950c005e0171e81ad72010b034bab88113155"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/video-edit.txt",
+      "source": "gateway-provider-resume-20261119/video-edit.txt",
+      "bytes": 21086,
+      "sha256": "fe649fdb0b276e597b6efdbc54da4baca9cd0560fb03b4bacea8d55ac6ca4041"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/video-reframe.html",
+      "source": "gateway-provider-resume-20261119/video-reframe.html",
+      "bytes": 120878,
+      "sha256": "9b41f57ba42175ea14e0c7fcacaf05a4b978e73c423eca8ea406425d968f0b91"
+    },
+    {
+      "path": "gateway-provider-resume-20261119/video-reframe.txt",
+      "source": "gateway-provider-resume-20261119/video-reframe.txt",
+      "bytes": 10122,
+      "sha256": "2b4020c0d73230ddad48c9405a69cca88af241c0b9470ee42d077e1a5615b88d"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/affected-after.json",
+      "source": "gateway-luma-layering-20261118/affected-after.json",
+      "bytes": 3576,
+      "sha256": "c4facf7f8000342b6d42a9b65e6153a4fde2caf0653af8812fe9ad8f8e310c6b"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/affected-before.json",
+      "source": "gateway-luma-layering-20261118/affected-before.json",
+      "bytes": 2311,
+      "sha256": "46aff0ec788bdb56ac6b8ebdff8f19af33b3ddd8b597c934643f62ea9316af92"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/create.html",
+      "source": "gateway-luma-layering-20261118/create.html",
+      "bytes": 358917,
+      "sha256": "6144c6d6006a4d1f6fbfc677d25f6f6714cbe9b9095d999ef4600afa620d507d"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/create.txt",
+      "source": "gateway-luma-layering-20261118/create.txt",
+      "bytes": 27773,
+      "sha256": "6b1478c9708f69ce960fd961e70445a1ba5e6475be31f49ee8db52951dc3e922"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/effective-ratchet.log",
+      "source": "gateway-luma-layering-20261118/effective-ratchet.log",
+      "bytes": 279,
+      "sha256": "58b21f481fc62ba739624691a1b21068902b6b401f075d9cf84a56188ae54d45"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/effective-tests.log",
+      "source": "gateway-luma-layering-20261118/effective-tests.log",
+      "bytes": 6489,
+      "sha256": "d6467e2bc62183f6e99cfce323e207b0241d85f56ef564f4bbef9302749de7db"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/layering-narrow.png",
+      "source": "gateway-luma-layering-20261118/layering-narrow.png",
+      "bytes": 23933,
+      "sha256": "cc967617de3b0e5b61860380f30c8dbd4e47db065512d844f5651552d8c5abde"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/layering-wide.png",
+      "source": "gateway-luma-layering-20261118/layering-wide.png",
+      "bytes": 37930,
+      "sha256": "86e9316b3da3797879f192f174150f09aae167776cf3d85ffe5bf38c49aa9d3e"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/layering.html",
+      "source": "gateway-luma-layering-20261118/layering.html",
+      "bytes": 176776,
+      "sha256": "2b303d1d5c06cf1eff4e57ec2f3eddfa1e84a245baab25a16f3871416899cd5b"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/layering.txt",
+      "source": "gateway-luma-layering-20261118/layering.txt",
+      "bytes": 24206,
+      "sha256": "5b6a338d6413416c5a35cd1ce7a24c0904dbbdf081f93527a83652cc2b89fb67"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/rust-layering.log",
+      "source": "gateway-luma-layering-20261118/rust-layering.log",
+      "bytes": 32004,
+      "sha256": "c8895bcf96d3c7f030ded4bf5599aa1b9b55441e15e77cf6eede888577d0f211"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/sources.json",
+      "source": "gateway-luma-layering-20261118/sources.json",
+      "bytes": 553,
+      "sha256": "3244ebfa86e45eaf8ab81d10584bb9db551e5c9cb009c994f385481fe016b822"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/typecheck.log",
+      "source": "gateway-luma-layering-20261118/typecheck.log",
+      "bytes": 67,
+      "sha256": "65e0d682353e91b2468c13b2322bc51a912cf56bdfdecd0da74bd172f439dc1b"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/ui-green.log",
+      "source": "gateway-luma-layering-20261118/ui-green.log",
+      "bytes": 363,
+      "sha256": "db71fa0254e811414f5b3caf3e3289cc76d441a1e4bc7e0dde8f9524f6a9175b"
+    },
+    {
+      "path": "gateway-luma-layering-20261118/ui-red.log",
+      "source": "gateway-luma-layering-20261118/ui-red.log",
+      "bytes": 4852,
+      "sha256": "8170e7e494565a655009aeb7564b0019165d2cf80012a340df31484cacaded79"
+    },
+    {
+      "path": "gateway-luma-failure-audit-20261117/adjacent.log",
+      "source": "gateway-luma-failure-audit-20261117/adjacent.log",
+      "bytes": 8256,
+      "sha256": "934f5a82766cbf4441e7ece2107eb641dd1843840b6f78f94bbc888552b0ea2b"
+    },
+    {
+      "path": "gateway-luma-failure-audit-20261117/effective-ratchet.log",
+      "source": "gateway-luma-failure-audit-20261117/effective-ratchet.log",
+      "bytes": 347,
+      "sha256": "b4bb0db397cc624d6d0b5a6e85c93a873f01e4527144922df7693653038c41e2"
+    },
+    {
+      "path": "gateway-luma-failure-audit-20261117/effective-tests.log",
+      "source": "gateway-luma-failure-audit-20261117/effective-tests.log",
+      "bytes": 6489,
+      "sha256": "1d4e80eb27bfef6f5671789e363346a868193c808a3586eb460e43fe0ea62a87"
+    },
+    {
+      "path": "gateway-luma-failure-audit-20261117/green-v1.log",
+      "source": "gateway-luma-failure-audit-20261117/green-v1.log",
+      "bytes": 17141,
+      "sha256": "5817069743db2ce3920906ffb67c2eea36fc63197e0a533ebf96669548cc3a8b"
+    },
+    {
+      "path": "gateway-luma-failure-audit-20261117/green-v2.log",
+      "source": "gateway-luma-failure-audit-20261117/green-v2.log",
+      "bytes": 33340,
+      "sha256": "035fde18a8712826f5bf479980e79c5590748c04ae8e1fe14220357c8a03012c"
+    },
+    {
+      "path": "gateway-luma-failure-audit-20261117/production-check.log",
+      "source": "gateway-luma-failure-audit-20261117/production-check.log",
+      "bytes": 34162,
+      "sha256": "914449b4dde723b888e43e28fe98817f467a7f9ccc0ac4a048ead56b185f3efd"
+    },
+    {
+      "path": "gateway-luma-failure-audit-20261117/red.log",
+      "source": "gateway-luma-failure-audit-20261117/red.log",
+      "bytes": 28052,
+      "sha256": "9054f787168b3a8bbbdd252ca0f1a855334ab0201901b6b4838a478496540ba0"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/call-flow-v5.log",
+      "source": "gateway-luma-settlement-20261117/call-flow-v5.log",
+      "bytes": 4998,
+      "sha256": "bb6226d6b0ce4e75d6c286013f20fc3cb23729d62dd6b335b3b067f6f1300190"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/cargo-check-v5.log",
+      "source": "gateway-luma-settlement-20261117/cargo-check-v5.log",
+      "bytes": 35168,
+      "sha256": "9f1d24d3573f2db9d611479ea42fc063f6f3dcdfee8080b9167622e726ed3158"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/effective-ratchet-final.log",
+      "source": "gateway-luma-settlement-20261117/effective-ratchet-final.log",
+      "bytes": 344,
+      "sha256": "af54202047fec576097f5e89a78f376da4736db37a4ea32138e63cb53506cdde"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/effective-ratchet-v2.log",
+      "source": "gateway-luma-settlement-20261117/effective-ratchet-v2.log",
+      "bytes": 1156,
+      "sha256": "8f9597017af38f3e3674488d8d48da7e5da99a72a6fc39313187c767af9e85b6"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/effective-ratchet-v5.log",
+      "source": "gateway-luma-settlement-20261117/effective-ratchet-v5.log",
+      "bytes": 344,
+      "sha256": "af54202047fec576097f5e89a78f376da4736db37a4ea32138e63cb53506cdde"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/effective-ratchet.log",
+      "source": "gateway-luma-settlement-20261117/effective-ratchet.log",
+      "bytes": 918,
+      "sha256": "b79bb9f05e9b4f8bee84ff8a6a284108e2f1903c95d6f87b91809f2173c3871e"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/effective-tests.log",
+      "source": "gateway-luma-settlement-20261117/effective-tests.log",
+      "bytes": 6489,
+      "sha256": "44263a2ead7f9d73ecb727c98f245339dab29fa55fca65da0b0499c85106aaf5"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/management-isolated-v3.log",
+      "source": "gateway-luma-settlement-20261117/management-isolated-v3.log",
+      "bytes": 193,
+      "sha256": "160f1360734c16bddad711de8075823d7fb6235153204f3f1d8d426ade42b3ce"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/probe-isolated-v3.log",
+      "source": "gateway-luma-settlement-20261117/probe-isolated-v3.log",
+      "bytes": 261,
+      "sha256": "f5d35c2cd1015d0c76fd14cd004068fc303b9e9aace4042f7d7bb2a68e335056"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/rust-tests-v2.log",
+      "source": "gateway-luma-settlement-20261117/rust-tests-v2.log",
+      "bytes": 30351,
+      "sha256": "0c8d0a3896ea8bb2d04aba8e50d67f7efb659ceff942b616731b8c9eed5a8838"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/rust-tests-v3.log",
+      "source": "gateway-luma-settlement-20261117/rust-tests-v3.log",
+      "bytes": 29791,
+      "sha256": "0e399e24b5fccb711242341fce6093a86e4c94a2c2c134796225c975175e9f36"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/rust-tests-v4.log",
+      "source": "gateway-luma-settlement-20261117/rust-tests-v4.log",
+      "bytes": 29791,
+      "sha256": "b5f78bf4f193a3e5557600dccac2f2fa3bb6e6aa18ed61537627ad051d266756"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/rust-tests-v5.log",
+      "source": "gateway-luma-settlement-20261117/rust-tests-v5.log",
+      "bytes": 32153,
+      "sha256": "57c89680f68bb6197bb2317893eeeb7e64571ba98a3224aecc7e363a43a060c6"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/rust-tests.log",
+      "source": "gateway-luma-settlement-20261117/rust-tests.log",
+      "bytes": 966,
+      "sha256": "c644d36fd571c5b2b01fb6388944a456c27ffa89fb4e61c4a3faa5c0559cb08f"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/settlement-before-heap-pin.log",
+      "source": "gateway-luma-settlement-20261117/settlement-before-heap-pin.log",
+      "bytes": 1571,
+      "sha256": "58a1b79663281fd2aa9fcc00ff199cac7b3ed7431c515acf2dd6306ab5766d26"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/stack-sizes-v4.log",
+      "source": "gateway-luma-settlement-20261117/stack-sizes-v4.log",
+      "bytes": 56053,
+      "sha256": "0849cb349a252271a188dbaaef0365a7fdaf2bcf7446b529c5ff325cb8750ea7"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/stack-v4.log",
+      "source": "gateway-luma-settlement-20261117/stack-v4.log",
+      "bytes": 52367,
+      "sha256": "2de36b2d342e536b66b2f1e19a86671065f4c01169fd0f73379f3f006baf7a05"
+    },
+    {
+      "path": "gateway-luma-settlement-20261117/unaffected-v4.log",
+      "source": "gateway-luma-settlement-20261117/unaffected-v4.log",
+      "bytes": 5683,
+      "sha256": "25efb0cfcbe84222cca6363274e2574a4db8d3378cf4a1de799122418594e231"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/adjacent-admission.log",
+      "source": "gateway-luma-video-edit-20261117/adjacent-admission.log",
+      "bytes": 1046,
+      "sha256": "3e64c9a25089d63d5f865b7feafcd4e42cae1dfc1cf42cce6a3f90dcb4e66bf9"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/affected-after.json",
+      "source": "gateway-luma-video-edit-20261117/affected-after.json",
+      "bytes": 2853,
+      "sha256": "4dcfbb5772e3483344f27aea972641e6ded3577bd0ed4f7e05d64263e3e28618"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/affected-before.json",
+      "source": "gateway-luma-video-edit-20261117/affected-before.json",
+      "bytes": 3027,
+      "sha256": "034b0ad5e9e305478275bdb50f3f2d92a2839ab423d1bdd288728427cff25595"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/editing.html",
+      "source": "gateway-luma-video-edit-20261117/editing.html",
+      "bytes": 189570,
+      "sha256": "1db1ff77ed7b0f7e936e89bb202950c005e0171e81ad72010b034bab88113155"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/editing.txt",
+      "source": "gateway-luma-video-edit-20261117/editing.txt",
+      "bytes": 21086,
+      "sha256": "fe649fdb0b276e597b6efdbc54da4baca9cd0560fb03b4bacea8d55ac6ca4041"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/final-source-check.log",
+      "source": "gateway-luma-video-edit-20261117/final-source-check.log",
+      "bytes": 2971,
+      "sha256": "2ee686ca0d9ecf3396efe63de0dbca93179f6c8f8f40741b56db8e357eeed467"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/production-check.log",
+      "source": "gateway-luma-video-edit-20261117/production-check.log",
+      "bytes": 34148,
+      "sha256": "1ce798f587dadfb5e4be5ffb096b00e88c63bfaa56e7cd2cce0d5eeda742e6c4"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/rust-edit.log",
+      "source": "gateway-luma-video-edit-20261117/rust-edit.log",
+      "bytes": 27777,
+      "sha256": "efa617008bc4a842d12f0e28cfc10fd9d68b559085f6e2458f80364015a4878f"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/rust-regression.log",
+      "source": "gateway-luma-video-edit-20261117/rust-regression.log",
+      "bytes": 10251,
+      "sha256": "8d2ec3e8337fdf984f090f18a9b9f648687cb625333b2e421a59cc877893bd7d"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/sources.json",
+      "source": "gateway-luma-video-edit-20261117/sources.json",
+      "bytes": 248,
+      "sha256": "18e2a9554d73b058db909d0ab7c84add2815ea0c99127229ebca580975d77f3e"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/ui-green.log",
+      "source": "gateway-luma-video-edit-20261117/ui-green.log",
+      "bytes": 376,
+      "sha256": "93834c3496e4ab643bd8762fb0ece3dd88734ab1742e87b0a1cb2178333da190"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/ui-red.log",
+      "source": "gateway-luma-video-edit-20261117/ui-red.log",
+      "bytes": 5323,
+      "sha256": "73266cbccac72f646fe53ebe3393385695b92a742353852e9477438c54939d02"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/video-edit-narrow-bottom.png",
+      "source": "gateway-luma-video-edit-20261117/video-edit-narrow-bottom.png",
+      "bytes": 29261,
+      "sha256": "15e829402e6839c92f105ccb356803867463b4a39dbf6a36a96e2919bc0b0fff"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/video-edit-narrow.png",
+      "source": "gateway-luma-video-edit-20261117/video-edit-narrow.png",
+      "bytes": 28750,
+      "sha256": "f0088d73895063cb4766ac415ea6f109b55d8681d1aaa5a1b80a438b6a7637fe"
+    },
+    {
+      "path": "gateway-luma-video-edit-20261117/video-edit-wide.png",
+      "source": "gateway-luma-video-edit-20261117/video-edit-wide.png",
+      "bytes": 44017,
+      "sha256": "fa9005e43df99eb9a85cdd032a1c9c34f8e72584bee94b3c189b96f7a7337784"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/adjacent-admission.log",
+      "source": "gateway-luma-video-operations-20261117/adjacent-admission.log",
+      "bytes": 1459,
+      "sha256": "a5294d7369d0fdf91bee2ffc3b724b09008bcad4ace69410891bcdcc6be5432b"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/affected-after.json",
+      "source": "gateway-luma-video-operations-20261117/affected-after.json",
+      "bytes": 3027,
+      "sha256": "034b0ad5e9e305478275bdb50f3f2d92a2839ab423d1bdd288728427cff25595"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/affected-before.json",
+      "source": "gateway-luma-video-operations-20261117/affected-before.json",
+      "bytes": 2327,
+      "sha256": "b2304176e78691e7da00ff2ce332573499aff320c7426aa15c3e33564fdfa0f8"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/editing.html",
+      "source": "gateway-luma-video-operations-20261117/editing.html",
+      "bytes": 189570,
+      "sha256": "1db1ff77ed7b0f7e936e89bb202950c005e0171e81ad72010b034bab88113155"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/editing.txt",
+      "source": "gateway-luma-video-operations-20261117/editing.txt",
+      "bytes": 21086,
+      "sha256": "fe649fdb0b276e597b6efdbc54da4baca9cd0560fb03b4bacea8d55ac6ca4041"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/production-check.log",
+      "source": "gateway-luma-video-operations-20261117/production-check.log",
+      "bytes": 34162,
+      "sha256": "0bf48d904ac0b04768a922b5a82127202bca6431c21aaf8970d1152f59ffe4ad"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/reframe-narrow-bottom.png",
+      "source": "gateway-luma-video-operations-20261117/reframe-narrow-bottom.png",
+      "bytes": 27657,
+      "sha256": "752569459a3d079dc4157a53885cb69e3aebe05934d07ff38fcb89109ca6cecb"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/reframe-narrow.png",
+      "source": "gateway-luma-video-operations-20261117/reframe-narrow.png",
+      "bytes": 28103,
+      "sha256": "44f116f5fcef79a34d4cc212ddf2b11a70ae74ae66f36c55c56556293a0c911b"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/reframe-wide.png",
+      "source": "gateway-luma-video-operations-20261117/reframe-wide.png",
+      "bytes": 42670,
+      "sha256": "b0f923f692c8a18605fb4b5514185712d75620c687376cc33dba83676aa5dabb"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/reframing.html",
+      "source": "gateway-luma-video-operations-20261117/reframing.html",
+      "bytes": 120878,
+      "sha256": "9b41f57ba42175ea14e0c7fcacaf05a4b978e73c423eca8ea406425d968f0b91"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/reframing.txt",
+      "source": "gateway-luma-video-operations-20261117/reframing.txt",
+      "bytes": 10122,
+      "sha256": "2b4020c0d73230ddad48c9405a69cca88af241c0b9470ee42d077e1a5615b88d"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/rust-reframe.log",
+      "source": "gateway-luma-video-operations-20261117/rust-reframe.log",
+      "bytes": 27481,
+      "sha256": "a1751357ef2c2ffc6f174ae46da0912d1c9129ded29a781df608679dac466141"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/rust-regression.log",
+      "source": "gateway-luma-video-operations-20261117/rust-regression.log",
+      "bytes": 9031,
+      "sha256": "14c2ba5295d0b571f63687b5dea97a3ef00cb467e8eb3a5bd9c3441470f641b4"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/sources.json",
+      "source": "gateway-luma-video-operations-20261117/sources.json",
+      "bytes": 495,
+      "sha256": "7ca234c96af99a1891d85f7e2701ad4c3ceab9dd533b62d88b7df156722ba58d"
+    },
+    {
+      "path": "gateway-luma-video-operations-20261117/ui-tests.log",
+      "source": "gateway-luma-video-operations-20261117/ui-tests.log",
+      "bytes": 376,
+      "sha256": "975a88f2770a2b8bdff88ab3751020e05af69ff0beba6a743ecb1166d2a49996"
+    }
+  ],
+  "omitted": [
+    "build outputs",
+    "temporary runtime databases",
+    "browser profiles",
+    "one-off scripts"
+  ],
+  "toolDestinations": [
+    "tools/luma/run-check.py",
+    "tools/luma/build-ui.mjs",
+    "tools/luma/fetch-contracts.py",
+    "apps/desktop/e2e/fixtures/luma-media-preview.tsx"
+  ]
+}

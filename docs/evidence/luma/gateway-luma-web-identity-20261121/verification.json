@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-21",
+  "recordedAt": "2026-11-21T13:25:53.354866+00:00",
+  "scope": "Luma Web account User-Agent through local and remote worker inputs",
+  "status": "source_and_focused_checks_passed",
+  "tests": {
+    "red": {
+      "passed": 0,
+      "failed": 1
+    },
+    "rust": {
+      "passed": 60,
+      "failed": 0
+    },
+    "realEdgeLoopback": {
+      "passed": 2,
+      "failed": 0
+    },
+    "effectiveLineChecker": {
+      "passed": 31,
+      "failed": 0
+    }
+  },
+  "cargoFmtCheck": "passed",
+  "effectiveLineRatchet": "passed",
+  "gitDiffCheck": "passed",
+  "productionBrowserWorkerChanged": false,
+  "webRenewalPersistenceImplemented": false,
+  "newPackageBuilt": false,
+  "liveWebGenerationCalls": 0,
+  "liveMcpLayeringCalls": 1,
+  "mcpLayeringImplemented": false,
+  "sha256": {
+    "src/upstream/browser_worker_types/media_workers.rs": "d92b7fd488b828ebd000043ea592f7d725fb918055f9c3fde8a7f49de6eab74b",
+    "src/upstream/lumalabs_response_helpers.rs": "1db3930edfffe30bee5c0c09d11222e7dca19e48931d4dc4d8401dacfee2610c",
+    "src/upstream/lumalabs_response_helpers/tests.rs": "6660eea4389175c0847ca107b0bd25426e5ee884aacfcb0be451f55a8093f801",
+    "src/upstream/lumalabs_response_helpers/tests/browser_identity.rs": "75b86c32bbb76c2f1679b38007b9130a80823864c391438d159f2fb83b2476bc",
+    "src/upstream/lumalabs_runtime_helpers.rs": "0139fd153fef8e0774463ff12dd0f1af6a3862fdc28582166e7be0eb41de532b",
+    "tools/luma/web-worker-check.mjs": "1b1ef4cce35079b39070f69b99d7dde0ec34eebeda61e8bf7187d3df5a34432b"
+  },
+  "effectiveLines": {
+    "src/upstream/lumalabs_runtime_helpers.rs": {
+      "before": 470,
+      "after": 486
+    },
+    "src/upstream/lumalabs_response_helpers.rs": {
+      "before": 143,
+      "after": 150
+    },
+    "src/upstream/browser_worker_types/media_workers.rs": {
+      "before": 209,
+      "after": 211
+    },
+    "src/upstream/lumalabs_response_helpers/tests/browser_identity.rs": {
+      "before": 0,
+      "after": 60
+    },
+    "tools/luma/web-worker-check.mjs": {
+      "after": 115
+    }
+  }
+}

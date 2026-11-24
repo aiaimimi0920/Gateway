@@ -25,6 +25,9 @@ if (mode === "tree") {
     if (mode === "stderr") process.stderr.write("x".repeat(16 * 1024 + 1));
     if (mode === "error") process.stdout.write(JSON.stringify({ ok: false, error: {
       code: "lumalabs_fixture_error", status: 503, message: "fixture generation failed" } }));
+    else if (mode === "payment") process.stdout.write(JSON.stringify({ ok: false, error: {
+      code: "lumalabs_action_payment_required", status: 402, stage: "action",
+      message: "LumaLabs declined the action: payment or additional credits are required." } }));
     else process.stdout.write(JSON.stringify(success));
     if (mode === "nonzero") process.exitCode = 23;
   }

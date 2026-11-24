@@ -111,7 +111,7 @@ fn amount(value: u64) -> Result<i64, GatewayError> {
     })
 }
 
-pub(super) fn reserve(
+pub(crate) fn reserve(
     balance: &mut GatewayAccessKeyBalanceView,
     estimate: u64,
 ) -> Result<AccessBalanceDecision, GatewayError> {
@@ -122,7 +122,7 @@ pub(super) fn reserve(
     Ok(decision)
 }
 
-pub(super) fn refund(
+pub(crate) fn refund(
     balance: &mut GatewayAccessKeyBalanceView,
     reserved: u64,
     refund: bool,
@@ -137,7 +137,7 @@ pub(super) fn refund(
     Ok(())
 }
 
-pub(super) fn settle(
+pub(crate) fn settle(
     balance: &mut GatewayAccessKeyBalanceView,
     reserved: u64,
     actual: u64,

@@ -62,7 +62,10 @@ pub(super) async fn state_document(
     // Explicit loopback fixture identity prevents accidental use of a developer database.
     let database = url::Url::parse(config.database_url.as_ref().unwrap()).unwrap();
     assert_eq!(database.host_str(), Some("127.0.0.1"));
-    assert_eq!(database.path(), "/gateway_fixture");
+    assert!(matches!(
+        database.path(),
+        "/gateway_fixture" | "/gateway_fixture_unmigrated"
+    ));
     assert_ne!(database.port(), Some(5432));
     assert_eq!(
         url::Url::parse(&config.redis_url).unwrap().host_str(),

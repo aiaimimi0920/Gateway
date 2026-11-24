@@ -1,0 +1,17 @@
+{
+  "args": [
+    "npm.cmd",
+    "--prefix",
+    "apps/desktop",
+    "run",
+    "test",
+    "--",
+    "run",
+    "src/features/console/LumaMcpCreationReview.test.tsx",
+    "--maxWorkers=1"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T12:28:49.815281+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 8.27
+}

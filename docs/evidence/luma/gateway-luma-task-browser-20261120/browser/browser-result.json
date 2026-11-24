@@ -1,0 +1,24 @@
+{
+  "status": "failed",
+  "browserClosed": true,
+  "proxyClosed": true,
+  "origin": "http://127.0.0.1:56320",
+  "calls": [],
+  "responses": [],
+  "sessions": [
+    {
+      "path": "/v1/internal/gateway/console/session/verify",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/session/confirm-secret-access",
+      "status": 200
+    }
+  ],
+  "errors": [
+    "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '已复制', exact: true }) to be visible\u001b[22m\n\n    at C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway\\tools\\luma\\task-browser-check.mjs:56:23"
+  ],
+  "external": [],
+  "checkpoints": [],
+  "scope": "normal main UI and management TCP; synthetic upstream only"
+}

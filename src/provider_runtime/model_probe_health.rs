@@ -57,6 +57,17 @@ pub(super) async fn finish(
     health: ProbeHealth,
     result: &ModelProbeResult,
 ) -> ModelHealthRecovery {
+    finish_classified(state, target, model, health, result, None).await
+}
+
+pub(super) async fn finish_classified(
+    state: &AppState,
+    target: &CredentialProbeTarget,
+    model: &str,
+    health: ProbeHealth,
+    result: &ModelProbeResult,
+    error: Option<&crate::error::GatewayError>,
+) -> ModelHealthRecovery {
     let _health_update = state.lifecycle.health_control.gate.lock().await;
     let ProbeHealth::Ready {
         revision,
@@ -86,6 +97,9 @@ pub(super) async fn finish(
     if !matches() {
         return ModelHealthRecovery::StaleConfiguration;
     }
+    if error.is_some_and(crate::protocol::sap_aicore::errors::neutral) {
+        return ModelHealthRecovery::FailureNotPenalized;
+    }
     let failure =
         result
             .reply
@@ -98,11 +112,11 @@ pub(super) async fn finish(
                 protocol_profile: expected.identity.protocol_profile.clone(),
                 model: model.into(),
                 upstream_status: result.status,
-                upstream_retry_after_ms: None,
+                upstream_retry_after_ms: error.and_then(|error| error.upstream_retry_after_ms),
                 error_message: Some(message.clone()),
                 classification: crate::provider_failure::classify_provider_failure(
-                    result.status,
-                    None,
+                    error.and_then(|error| error.http_status).or(result.status),
+                    error.and_then(|error| error.code.as_deref()),
                     Some(message),
                 ),
             });

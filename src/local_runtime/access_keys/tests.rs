@@ -34,6 +34,38 @@ pub(super) async fn setup() -> (std::path::PathBuf, LocalRuntime) {
 }
 
 #[tokio::test]
+async fn local_keys_responses_scope_only_admits_exact_lifecycle_methods() {
+    let (root, db) = setup().await;
+    let mut input = input();
+    input.metadata = Some(serde_json::json!({"scopes":["responses"]}));
+    let key = db.save_access_key(None, input).await.unwrap();
+    let id = format!("resp_gw_{}", "a".repeat(32));
+    for (method, path, allowed) in [
+        ("POST", "/v1/responses".into(), true),
+        ("GET", format!("/v1/responses/{id}"), true),
+        ("DELETE", format!("/v1/responses/{id}"), true),
+        ("POST", format!("/v1/responses/{id}/cancel"), true),
+        ("POST", format!("/v1/responses/{id}"), false),
+        ("GET", format!("/v1/responses/{id}/cancel"), false),
+        ("GET", format!("/responses/{id}"), false),
+        ("GET", "/v1/responses/resp_upstream".into(), false),
+        ("POST", "/v1/chat/completions".into(), false),
+    ] {
+        let mut req = request(&key);
+        req.path = path;
+        req.method = method.into();
+        assert_eq!(
+            db.authenticate_access_key(&req).await.is_ok(),
+            allowed,
+            "{method} {}",
+            req.path
+        );
+    }
+    db.close().await;
+    crate::local_runtime::test_support::remove_test_root(&root).await;
+}
+
+#[tokio::test]
 async fn local_keys_upgrade_schema_one_and_preserve_existing_data_and_secrets() {
     let (root, db) = setup().await;
     sqlx::query("DROP TABLE local_access_keys")

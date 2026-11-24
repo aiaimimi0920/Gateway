@@ -1,0 +1,60 @@
+{
+  "checkedAt": "2026-11-19T21:09:00.670Z",
+  "boundary": "Only browser runner changed after initial snapshot to match existing dedicated MCP dialog. Rust and frontend inputs unchanged.",
+  "files": [
+    {
+      "path": "src/protocol/luma_mcp.rs",
+      "sha256": "ec01396148429c57acea404fe1d18ec2aa2ded87e7ad10d9d47903348c53b139",
+      "effectiveLines": 46,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/protocol/luma_mcp/inspection.rs",
+      "sha256": "98c6e07906865da3500d127fbacae152bc5ef7edb4613ccc4298630ddf0824d9",
+      "effectiveLines": 83,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/protocol/luma_mcp/models.rs",
+      "sha256": "5f6706d4a5507dc44e8d78f7e1b5ca23aec50636244c7f8e0e3393b5d08462d7",
+      "effectiveLines": 157,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/protocol/luma_mcp/test_support.rs",
+      "sha256": "40751de90c5f5ecabca64d5078c8bc5f9eee8ad3885befac64a553e2301a3700",
+      "effectiveLines": 15,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/protocol/luma_mcp/browser_fixture.rs",
+      "sha256": "0f71c634d002f777f28682130ea3a8c89fe51260eff885b98c2a70aba7c8438c",
+      "effectiveLines": 140,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/protocol/luma_mcp/browser_host.rs",
+      "sha256": "aafdae2fd6193bf9fd1a68adc44f9a4b5dff8f38eff1f9b82321141f4464181a",
+      "effectiveLines": 89,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpToolsPanel.tsx",
+      "sha256": "8cd2b47ea9d1869d60576086c653e5239fe6ab7cfd8f1165f64235c450133a64",
+      "effectiveLines": 72,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpToolsPanel.test.tsx",
+      "sha256": "85d766aee1315325abe9ab78e1216c87c378b30edaf545b167df1ec836622c4e",
+      "effectiveLines": 87,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "tools/luma/mcp-browser-check.mjs",
+      "sha256": "1a007877d010cd916232d95d5ba9e4f6859162ca580a98a3435bb510f43b8733",
+      "effectiveLines": 133,
+      "unchangedSinceSnapshot": false
+    }
+  ]
+}

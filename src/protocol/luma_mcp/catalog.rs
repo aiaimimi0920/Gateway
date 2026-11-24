@@ -12,6 +12,7 @@ pub struct ToolDefinition {
     pub description: Option<String>,
     pub input_schema: Value,
     pub output_schema: Option<Value>,
+    pub annotations: Option<Value>,
 }
 
 #[derive(Default)]
@@ -44,6 +45,7 @@ impl Catalog {
                 || !tool.input_schema.is_object()
                 || tool.input_schema["type"] != "object"
                 || tool.output_schema.as_ref().is_some_and(|v| !v.is_object())
+                || tool.annotations.as_ref().is_some_and(|v| !v.is_object())
             {
                 return Err(McpError::InvalidResponse);
             }

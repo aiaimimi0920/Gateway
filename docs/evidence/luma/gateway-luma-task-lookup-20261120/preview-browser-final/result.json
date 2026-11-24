@@ -1,0 +1,36 @@
+{
+  "status": "passed",
+  "browserClosed": true,
+  "calls": [
+    {
+      "path": "/v1/internal/gateway/console/luma-agents-task",
+      "body": {
+        "providerId": "preview-luma",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "generationId": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-agents-task",
+      "body": {
+        "providerId": "preview-luma",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "generationId": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-agents-task",
+      "body": {
+        "providerId": "preview-luma",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "generationId": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      }
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "scope": "synthetic component preview only; Rust management transport tested separately"
+}

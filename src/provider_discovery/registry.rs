@@ -102,9 +102,11 @@ pub fn authenticate(
     key: &str,
 ) -> rquest::RequestBuilder {
     match protocol {
-        P::Messages => request
-            .header("x-api-key", key)
-            .header("anthropic-version", "2023-06-01"),
+        // The inference builder already owns authentication and version headers.
+        // Appending them again creates duplicate Authorization/x-api-key values.
+        P::ChatCompletions | P::Responses | P::Completions | P::Messages => {
+            request.headers(super::request_identity::headers(protocol, key))
+        }
         P::GeminiGenerateContent => request.header("x-goog-api-key", key),
         P::GeminiInteractions => request
             .header("x-goog-api-key", key)

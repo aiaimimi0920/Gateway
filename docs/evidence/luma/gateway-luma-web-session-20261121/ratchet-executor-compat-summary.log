@@ -1,0 +1,2 @@
+> node effective-code-lines.mjs --mode ratchet --json artifacts/effective-code-lines.json
+Classified immutable runtime artifacts: 14; governed source >700=0

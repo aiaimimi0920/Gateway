@@ -1,0 +1,139 @@
+{
+  "status": "passed",
+  "browserClosed": true,
+  "proxyClosed": true,
+  "origin": "http://127.0.0.1:49777",
+  "calls": [
+    {
+      "method": "POST",
+      "body": {
+        "providerId": "luma-pipeline",
+        "credentialId": "exact",
+        "expectedRevision": "r0-d5fb051f6211",
+        "generationId": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "providerId": "luma-pipeline",
+        "credentialId": "exact",
+        "expectedRevision": "r0-d5fb051f6211",
+        "generationId": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "providerId": "luma-pipeline",
+        "credentialId": "exact",
+        "expectedRevision": "r0-d5fb051f6211",
+        "generationId": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "providerId": "luma-pipeline",
+        "credentialId": "exact",
+        "expectedRevision": "r0-d5fb051f6211",
+        "generationId": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "providerId": "luma-pipeline",
+        "credentialId": "exact",
+        "expectedRevision": "r0-d5fb051f6211",
+        "generationId": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "providerId": "luma-pipeline",
+        "credentialId": "exact",
+        "expectedRevision": "r0-d5fb051f6211",
+        "generationId": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "status": 200,
+      "cacheControl": "no-store"
+    },
+    {
+      "status": 401,
+      "cacheControl": "no-store"
+    },
+    {
+      "status": 429,
+      "cacheControl": "no-store"
+    },
+    {
+      "status": 502,
+      "cacheControl": "no-store"
+    }
+  ],
+  "sessions": [
+    {
+      "path": "/v1/internal/gateway/console/session/verify",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/session/confirm-secret-access",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "checkpoints": [
+    {
+      "name": "cancelled-audit-copied",
+      "taskRequests": 0
+    },
+    {
+      "name": "credits-null",
+      "taskRequests": 1
+    },
+    {
+      "name": "credits-0",
+      "taskRequests": 2
+    },
+    {
+      "name": "credits-12.5",
+      "taskRequests": 3
+    },
+    {
+      "name": "error-401-keeps-management-session",
+      "taskRequests": 4
+    },
+    {
+      "name": "error-429-keeps-management-session",
+      "taskRequests": 5
+    },
+    {
+      "name": "error-502-keeps-management-session",
+      "taskRequests": 6
+    },
+    {
+      "name": "close-and-account-switch-clear",
+      "taskRequests": 6
+    },
+    {
+      "name": "original-audit-remains-unknown-cancelled",
+      "taskRequests": 6
+    }
+  ],
+  "scope": "normal main UI and management TCP; synthetic upstream only"
+}

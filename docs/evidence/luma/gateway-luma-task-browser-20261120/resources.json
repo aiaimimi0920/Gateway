@@ -1,0 +1,25 @@
+{
+    "checkedAt":  "2026-11-19T22:30:31.1454743Z",
+    "ports":  [
+                  49769,
+                  53846,
+                  64052,
+                  56320,
+                  49777,
+                  54767
+              ],
+    "listeners":  [
+
+                  ],
+    "hostPids":  [
+                     42740,
+                     28032,
+                     11212
+                 ],
+    "hostResiduals":  [
+
+                      ],
+    "scopedBrowserResiduals":  [
+
+                               ]
+}

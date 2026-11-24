@@ -1,0 +1,734 @@
+Files | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Menu
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Getting started
+Quickstart
+Models
+Videos
+Overview
+Migration guide
+Generation
+Editing
+Reframing
+Images
+Overview
+Generation
+Editing
+Layering
+Prompting guide
+Files
+Overview
+Deletion
+Generation deletion
+LLM Inference
+LLM Inference
+Reference
+Pricing
+Usage and credits
+Rate limits and headers
+Error handling
+FAQ
+Changelog
+Auto
+Light
+Dark
+lumalabs.ai
+On this page
+Overview
+When to use a file
+Upload a file
+Inline (multipart) — small files
+Presigned (JSON) — large files
+File lifecycle
+Reference a file in a generation
+List, get, and delete
+Fields
+Common errors
+Next steps
+On this page
+Overview
+When to use a file
+Upload a file
+Inline (multipart) — small files
+Presigned (JSON) — large files
+File lifecycle
+Reference a file in a generation
+List, get, and delete
+Fields
+Common errors
+Next steps
+Files
+Overview
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+Files
+Upload files once with the Luma Agents Files API and reference them across many image and video generations by file_id.
+The Files API lets you upload an image or video once and reference it from many generations by its
+file_id
+— instead of re-sending a URL or re-encoding base64 on every request. Uploaded files are moderated once at ingest, so referencing one later skips the per-request fetch/decode and the moderation round-trip.
+Note
+Files belong to your API account — they’re scoped to your key, and you are
+responsible for access control among your own end users.
+When to use a file
+Section titled “When to use a file”
+A
+file_id
+is one of the media reference shapes accepted anywhere
+ImageRef
+is —
+source
+,
+image_ref[]
+,
+video.start_frame
+/
+end_frame
+, and
+video.keyframes
+. Use whichever fits:
+You have
+Use
+Media you’ll reference more than once
+file_id
+(upload it)
+A one-off, publicly reachable URL
+url
+Small bytes you already hold in memory
+data
+(base64)
+The output of a prior generation
+generation_id
+Uploading is worth it when the same asset feeds several generations, when the bytes aren’t publicly hosted, or when you want moderation to happen up front rather than on the generation’s critical path.
+Upload a file
+Section titled “Upload a file”
+There are two ways to upload, sharing one endpoint (
+POST /v1/files
+). Pick by
+Content-Type
+.
+Inline (multipart) — small files
+Section titled “Inline (multipart) — small files”
+Send the bytes directly as
+multipart/form-data
+. Simplest for small assets; subject to an inline size cap (larger files must use the presigned flow below).
+cURL
+Python
+TypeScript
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/files
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-F
+"file=@./reference.jpg"
+\
+-F
+"purpose=reference"
+from
+luma_agents
+import
+Luma
+client
+=
+Luma()
+created
+=
+client.files.create(
+file
+=
+open
+(
+"reference.jpg"
+,
+"rb"
+),
+purpose
+=
+"reference"
+,
+)
+print
+(created.id, created.state)
+# -> "<uuid>" "pending"
+import
+Luma, { toFile }
+from
+"luma-agents"
+;
+import
+fs
+from
+"node:fs"
+;
+const
+client
+=
+new
+Luma
+();
+const
+created
+=
+await
+client.files.
+create
+({
+file:
+await
+toFile
+(fs.
+createReadStream
+(
+"reference.jpg"
+)),
+purpose:
+"reference"
+,
+});
+console.
+log
+(created.id, created.state);
+// -> "<uuid>" "pending"
+The response is a
+CreateFileResponse
+. For an inline upload,
+upload
+is
+null
+and the file is already
+pending
+ingest — no follow-up call needed.
+{
+"id"
+:
+"f1e2d3c4-b5a6-7890-abcd-ef0123456789"
+,
+"state"
+:
+"pending"
+,
+"upload"
+:
+null
+,
+"file"
+: {
+"id"
+:
+"f1e2d3c4-b5a6-7890-abcd-ef0123456789"
+,
+"filename"
+:
+"reference.jpg"
+,
+"mime_type"
+:
+"image/jpeg"
+,
+"size_bytes"
+:
+248173
+,
+"purpose"
+:
+"reference"
+,
+"state"
+:
+"pending"
+,
+"created_at"
+:
+"2026-06-11T12:00:00Z"
+}
+}
+Presigned (JSON) — large files
+Section titled “Presigned (JSON) — large files”
+For larger files, request a presigned upload,
+PUT
+the bytes straight to storage, then finalize. Three steps:
+1. Request the upload.
+Declare
+mime_type
+and exact
+size_bytes
+:
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/files
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"filename": "scene.mp4",
+"mime_type": "video/mp4",
+"size_bytes": 734003200,
+"purpose": "input"
+}'
+The response carries an
+upload
+envelope:
+{
+"id"
+:
+"a1b2c3d4-e5f6-7890-abcd-ef0123456789"
+,
+"state"
+:
+"pending"
+,
+"upload"
+: {
+"url"
+:
+"https://storage.example.com/...&X-Amz-Signature=..."
+,
+"method"
+:
+"PUT"
+,
+"headers"
+: {
+"Content-Type"
+:
+"video/mp4"
+},
+"expires_at"
+:
+"2026-06-11T13:00:00Z"
+},
+"file"
+: {
+"id"
+:
+"a1b2c3d4-e5f6-7890-abcd-ef0123456789"
+,
+"state"
+:
+"pending"
+,
+"..."
+:
+"..."
+}
+}
+2. Upload the bytes
+with an HTTP
+PUT
+to
+upload.url
+, sending exactly the
+upload.headers
+and the
+size_bytes
+you declared:
+Terminal window
+curl
+-X
+PUT
+"<upload.url>"
+\
+-H
+"Content-Type: video/mp4"
+\
+--data-binary
+@./scene.mp4
+3. Complete the upload
+to kick off ingest:
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/files/a1b2c3d4-e5f6-7890-abcd-ef0123456789/complete
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+Tip
+The presigned
+PUT
+goes to storage directly, not to the Luma API — so it
+doesn’t count against your API rate limit and can carry files far larger than
+the inline cap. The
+complete
+call must use the same
+file_id
+returned in
+step 1.
+File lifecycle
+Section titled “File lifecycle”
+After upload, ingest and moderation run asynchronously. Poll
+GET /v1/files/{file_id}
+until the file reaches a terminal state:
+State
+Meaning
+pending
+Bytes received; ingest/moderation in progress. Not yet referenceable.
+ready
+Available — reference it from a generation by
+file_id
+.
+failed
+Ingest or moderation rejected the file; see
+failure_reason
+.
+deleted
+Deleted; can no longer be referenced, and
+GET
+returns
+404
+.
+A file must be
+ready
+before a generation can reference it. Referencing a
+pending
+,
+failed
+, or
+deleted
+file is rejected.
+Reference a file in a generation
+Section titled “Reference a file in a generation”
+Once a file is
+ready
+, pass its
+id
+as
+file_id
+anywhere an
+ImageRef
+is accepted. The shape is interchangeable with
+url
+/
+data
+/
+generation_id
+— provide exactly one.
+As the edit source:
+Python
+TypeScript
+cURL
+generation
+=
+client.generations.create(
+type
+=
+"image_edit"
+,
+prompt
+=
+"Change the sky to a dramatic sunset"
+,
+source
+=
+{
+"file_id"
+:
+"f1e2d3c4-b5a6-7890-abcd-ef0123456789"
+},
+)
+const
+generation
+=
+await
+client.generations.
+create
+({
+type:
+"image_edit"
+,
+prompt:
+"Change the sky to a dramatic sunset"
+,
+source: { file_id:
+"f1e2d3c4-b5a6-7890-abcd-ef0123456789"
+},
+});
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/generations
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"type": "image_edit",
+"prompt": "Change the sky to a dramatic sunset",
+"source": { "file_id": "f1e2d3c4-b5a6-7890-abcd-ef0123456789" }
+}'
+As a reference image
+(and the same form works for
+video.start_frame
+,
+video.end_frame
+, and
+video.keyframes[]
+):
+{
+"type"
+:
+"image"
+,
+"prompt"
+:
+"A product photo in the same lighting as the reference"
+,
+"image_ref"
+: [{
+"file_id"
+:
+"f1e2d3c4-b5a6-7890-abcd-ef0123456789"
+}]
+}
+Note
+The referenced file must be owned by the same API client and in
+state:   "ready"
+. A request that references a file you don’t own, or one that isn’t
+ready, is rejected.
+List, get, and delete
+Section titled “List, get, and delete”
+List
+your files, newest first (keyset-paginated — pass
+next_cursor
+back as
+cursor
+):
+cURL
+Python
+TypeScript
+Terminal window
+curl
+"https://agents.lumalabs.ai/v1/files?limit=25&purpose=reference"
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+page
+=
+client.files.list(
+limit
+=
+25
+,
+purpose
+=
+"reference"
+)
+for
+f
+in
+page.data:
+print
+(f.id, f.state)
+if
+page.has_more:
+next_page
+=
+client.files.list(
+cursor
+=
+page.next_cursor)
+const
+page
+=
+await
+client.files.
+list
+({ limit:
+25
+, purpose:
+"reference"
+});
+for
+(
+const
+f
+of
+page.data) console.
+log
+(f.id, f.state);
+Get
+a single file’s metadata:
+Terminal window
+curl
+https://agents.lumalabs.ai/v1/files/f1e2d3c4-b5a6-7890-abcd-ef0123456789
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+Delete
+(the file is deleted immediately and this cannot be undone through the API; returns
+204
+):
+Terminal window
+curl
+-X
+DELETE
+https://agents.lumalabs.ai/v1/files/f1e2d3c4-b5a6-7890-abcd-ef0123456789
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+A file is independent of the generations that reference it by
+file_id
+; removing a generation never removes the file. Delete the file itself with
+DELETE /v1/files/{file_id}
+.
+A deleted file disappears from
+GET
+(
+404
+) and list right away, and new generations can no longer reference it. Its stored bytes are not removed during the request. Where file retention is enabled for your API client, a background job then permanently deletes them, keeping stored bytes another live artifact still references; otherwise the bytes stay stored until a Luma operator purges them. A
+failed
+file, or a file past its
+expires_at
+, can also be deleted until its stored bytes have been purged. Re-issuing
+DELETE
+is idempotent: it returns
+204
+until the stored bytes have been purged, and
+404
+(
+FILE.NOT_FOUND
+) after that.
+Fields
+Section titled “Fields”
+Field
+Notes
+purpose
+input
+(a primary subject, e.g. an edit source) or
+reference
+(style/content guidance). Defaults to
+input
+.
+mime_type
+Required in the presigned flow; sniffed from the bytes in the inline flow.
+size_bytes
+Required (and enforced) in the presigned flow. Up to 5 GiB (the storage single-
+PUT
+ceiling).
+expires_at
+Optional TTL; once it passes,
+GET
+and list hide the file and generations can no longer reference it. Where file retention is enabled for your API client, its stored bytes are then permanently deleted by a background job, keeping stored bytes another live artifact still references.
+user_id
+Optional opaque end-user tag for abuse attribution — mirrors
+user_id
+on
+generations
+. Echoed back unchanged.
+Common errors
+Section titled “Common errors”
+HTTP
+When
+401
+Missing or invalid API key
+404
+The file isn’t yours, doesn’t exist, or has been purged; on
+GET
+, also a deleted or expired file
+413
+Inline upload over the size cap, or your storage / file-count quota is full
+415
+Content-Type
+is neither
+multipart/form-data
+nor
+application/json
+422
+Invalid body or form fields; on
+complete
+, the bytes haven’t been
+PUT
+yet
+429
+Rate limit exceeded
+503
+File ingest pipeline temporarily unavailable — retry shortly; file retention briefly busy (
+FILE.RETENTION_BUSY
+) on
+DELETE
+, or on an upload with
+expires_at
+where file retention is enabled — retry after
+Retry-After
+Next steps
+Section titled “Next steps”
+Image editing
+— Reference an uploaded
+file_id
+as the edit
+source
+Image generation
+— Use uploaded files as
+image_ref
+Video generation
+— Use uploaded files as
+start_frame
+/
+end_frame
+/
+keyframes
+API Reference
+— Complete
+files
+endpoint specifications
+Error handling
+— Every error code with troubleshooting steps
+Previous
+Prompting guide
+A creator's field guide to prompting Uni-1 — workflow, templates, anatomy of a great prompt, reference images, and the cheat sheet of dos and don'ts.
+Next
+Generation deletion
+Delete a finished generation with DELETE /v1/generations/{id} and track the asynchronous deletion task with GET /v1/deletions/{task_id}.

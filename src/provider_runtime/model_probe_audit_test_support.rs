@@ -23,15 +23,15 @@ pub(super) fn run<F: std::future::Future<Output = ()> + 'static>(test: fn() -> F
 }
 
 #[derive(Default)]
-pub(super) struct Pause {
+pub(crate) struct Pause {
     reached: Notify,
     resume: Notify,
 }
 impl Pause {
-    pub(super) async fn entered(&self) {
+    pub(crate) async fn entered(&self) {
         self.reached.notified().await;
     }
-    pub(super) fn release(&self) {
+    pub(crate) fn release(&self) {
         self.resume.notify_one();
     }
     async fn wait(&self) {
@@ -40,7 +40,7 @@ impl Pause {
     }
 }
 #[derive(Default, Clone)]
-pub(super) struct Hooks {
+pub(crate) struct Hooks {
     pub before: Option<Arc<Pause>>,
     pub created: Option<Arc<Pause>>,
     pub finish: Option<Arc<Pause>>,
@@ -51,7 +51,15 @@ pub(super) fn capture() -> Hooks {
     HOOKS.try_with(Clone::clone).unwrap_or_default()
 }
 impl Hooks {
-    pub(super) async fn within<T>(&self, future: impl std::future::Future<Output = T>) -> T {
+    #[cfg(any(feature = "line-commandcode-provider-api", feature = "line-sensenova-token-plan"))]
+    pub(crate) fn pause_at_finish(pause: Arc<Pause>) -> Self {
+        Self {
+            finish: Some(pause),
+            ..Self::default()
+        }
+    }
+
+    pub(crate) async fn within<T>(&self, future: impl std::future::Future<Output = T>) -> T {
         HOOKS.scope(self.clone(), future).await
     }
     pub(super) async fn before_create(&self) {
@@ -87,7 +95,7 @@ pub(super) async fn fixture() -> (console::ConsoleStateFixture, LocalRuntime) {
     Arc::get_mut(&mut fixture.state).unwrap().local_runtime = Some(local.clone());
     (fixture, local)
 }
-pub(super) fn input() -> db::CreateRequestAuditInput {
+pub(crate) fn input() -> db::CreateRequestAuditInput {
     db::CreateRequestAuditInput {
         project_id: "console-model-probe".into(),
         api_key_id: None,

@@ -1,0 +1,209 @@
+{
+  "checkedAt": "2026-11-19T15:07:45.557107+00:00",
+  "scope": "Luma layering numeric fix, advanced video probe controls, independent LLM inference local implementation",
+  "receipts": {
+    "luma-inference-final": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_inference",
+        "--no-fail-fast"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 890.46
+    },
+    "luma-inference-prod": {
+      "args": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 696.81
+    },
+    "luma-inference-disabled": {
+      "args": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "family-openai-compatible-official-api",
+        "-j",
+        "4"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 86.46
+    },
+    "luma-implementation-lines": {
+      "args": [
+        "target/debug/deps/neuro_gateway-4f2bc1ae2c10e750.exe",
+        "implementation_lines::tests",
+        "--nocapture"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.06
+    },
+    "luma-scope-format": {
+      "args": [
+        "rustfmt",
+        "--edition",
+        "2021",
+        "--check",
+        "--config",
+        "skip_children=true",
+        "src/console/secrets/keep_bindings.rs",
+        "src/implementation_lines/catalog.rs",
+        "src/implementation_lines/payload.rs",
+        "src/implementation_lines/profiles.rs",
+        "src/implementation_lines/tests/feature_profiles.rs",
+        "src/pipeline/stage_send/stream_preflight.rs",
+        "src/pipeline/stage_send/tool_bridge.rs",
+        "src/preset.rs",
+        "src/preset/openai.rs",
+        "src/preset/registry.rs",
+        "src/protocol/call_flow/preparation.rs",
+        "src/protocol/luma_inference.rs",
+        "src/protocol/luma_inference/config.rs",
+        "src/protocol/luma_inference/test_support.rs",
+        "src/protocol/luma_inference/wire_tests.rs",
+        "src/protocol/luma_inference/wire_tests/boundaries.rs",
+        "src/protocol/luma_inference/wire_tests/fixture.rs",
+        "src/protocol/luma_inference/wire_tests/probe.rs",
+        "src/protocol/luma_inference/wire_tests/probe_management.rs",
+        "src/protocol/luma_inference/wire_tests/response_contract.rs",
+        "src/protocol/luma_inference/wire_tests/stream_failures.rs",
+        "src/protocol/luma_inference_tests.rs",
+        "src/protocol/mod.rs",
+        "src/protocol/registry/profile_inference.rs",
+        "src/protocol/registry/profiles.rs",
+        "src/provider_runtime.rs",
+        "src/provider_runtime/console_model_probe.rs",
+        "src/provider_runtime/luma_inference_model_probe.rs",
+        "src/routing/config/provider_compilation.rs",
+        "src/upstream/client/buffered_response.rs",
+        "src/upstream/client/native_codex.rs",
+        "src/upstream/client/passthrough.rs",
+        "src/upstream/client/request_plan_part_1.rs",
+        "src/upstream/client/streaming/profiled_sender.rs",
+        "src/upstream/luma_agents/layering_tests.rs",
+        "src/upstream/luma_agents/layering_text.rs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.43
+    }
+  },
+  "checks": {
+    "lumaAgents": {
+      "passed": 95,
+      "failed": 0,
+      "ignored": 1,
+      "evidence": "Earlier tool results in this continuous turn; unchanged media backend after those checks."
+    },
+    "lumaInferenceFinal": {
+      "passed": 19,
+      "failed": 0,
+      "log": "luma-inference-final.log"
+    },
+    "implementationLines": {
+      "passed": 38,
+      "failed": 0,
+      "log": "luma-implementation-lines.log",
+      "overlapWithInference": 1
+    },
+    "frontend": {
+      "distinctFiles": 12,
+      "distinctTests": 108,
+      "finalStatus": "passed",
+      "evidence": "Actual Vitest tool results; logs were not separately captured.",
+      "resolvedFailure": "Two video control tests timed out at 5000 ms under concurrent files; the same five-test file passed with maxWorkers=1 without source or timeout changes."
+    },
+    "typescript": "passed",
+    "isolatedMainWebBuild": "passed",
+    "manifestValidator": {
+      "checked": 55,
+      "errors": 0
+    },
+    "effectiveLineCheckerTests": {
+      "passed": 31,
+      "failed": 0
+    },
+    "effectiveLineRatchet": {
+      "status": "passed",
+      "measuredFiles": 5828,
+      "immutableRuntimeArtifacts": 14,
+      "governedSourceOver700": 0
+    },
+    "rustfmt": {
+      "status": "passed",
+      "files": 36
+    },
+    "diffCheck": "passed",
+    "scopeSources": {
+      "files": 65,
+      "utf8NoBom": true,
+      "maxEffectiveLines": 483,
+      "hashes": "scope-source-hashes.json"
+    },
+    "mediaSyntheticBrowser": {
+      "wide": [
+        1280,
+        900
+      ],
+      "narrow": [
+        420,
+        850
+      ],
+      "horizontalOverflow": false,
+      "consoleErrors": 0,
+      "consoleWarnings": 0,
+      "actualUpstreamCalls": 0,
+      "evidence": [
+        "luma-wide.png",
+        "luma-narrow.png"
+      ]
+    }
+  },
+  "unchangedRunningInstances": {
+    "gateway": 24140,
+    "gatewayUi": 35132,
+    "package": "gateway-devtest-20261119-session-account-stickiness"
+  },
+  "notExecuted": [
+    "real supplier inference or generation",
+    "real billing or account entitlement",
+    "Server PostgreSQL Redis acceptance",
+    "native EXE package",
+    "formal release",
+    "git commit or push"
+  ],
+  "remaining": [
+    "Luma Files",
+    "MCP creative operations",
+    "current Web wire and model bindings",
+    "cancelled media receipts and cross-process accounting",
+    "real accounts and product delivery",
+    "R01-R16 whole-plan closure"
+  ],
+  "planClosure": {
+    "R14": false,
+    "magpie67": false
+  }
+}

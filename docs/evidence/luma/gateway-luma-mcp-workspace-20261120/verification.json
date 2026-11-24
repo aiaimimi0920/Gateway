@@ -1,0 +1,444 @@
+{
+  "capturedAt": "2026-11-20T10:08:43.497088+00:00",
+  "status": "passed",
+  "scope": "Local MCP saved workspace asset reuse; synthetic upstream only",
+  "paidCalls": 0,
+  "packaged": false,
+  "checks": [
+    {
+      "name": "ui",
+      "args": [
+        "npm.cmd",
+        "--prefix",
+        "apps/desktop",
+        "run",
+        "test",
+        "--",
+        "run",
+        "src/features/console/LumaMcpCreationReuse.test.tsx",
+        "src/features/console/LumaMcpCreationOptions.test.tsx",
+        "src/features/console/LumaMcpCreationPanel.test.tsx",
+        "--maxWorkers=1"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:50:23.148290+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 14.28
+    },
+    {
+      "name": "types",
+      "args": [
+        "node.exe",
+        "apps/desktop/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "-p",
+        "apps/desktop/tsconfig.json"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:50:23.147283+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 24.25
+    },
+    {
+      "name": "types-final",
+      "args": [
+        "node.exe",
+        "apps/desktop/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "-p",
+        "apps/desktop/tsconfig.json"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:57:41.462611+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 23.16
+    },
+    {
+      "name": "checker",
+      "args": [
+        "npm.cmd",
+        "run",
+        "test:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:54:20.893824+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 1.98
+    },
+    {
+      "name": "ratchet",
+      "args": [
+        "npm.cmd",
+        "run",
+        "check:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:54:20.895834+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 7.11
+    },
+    {
+      "name": "formatter",
+      "args": [
+        "rustfmt",
+        "--check",
+        "--edition",
+        "2021",
+        "--config",
+        "skip_children=true",
+        "src/protocol/luma_mcp/creation.rs",
+        "src/protocol/luma_mcp/creation/options.rs",
+        "src/protocol/luma_mcp/creation/reuse.rs",
+        "src/protocol/luma_mcp/creation_tests.rs",
+        "src/protocol/luma_mcp/creation_reuse_tests.rs",
+        "src/http/routes/internal_console/luma_mcp/creation.rs",
+        "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+        "src/http/routes/internal_console/luma_mcp/creation/execute.rs",
+        "src/http/routes/internal_console/luma_mcp/creation/workspace.rs"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:56:02.170580+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 0.22
+    },
+    {
+      "name": "diff",
+      "args": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:57:41.462611+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 0.3
+    },
+    {
+      "name": "browser-run",
+      "args": [
+        "node.exe",
+        "tools/luma/mcp-creation-preview-check.mjs",
+        "--origin",
+        "http://127.0.0.1:4452",
+        "--output",
+        "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-mcp-workspace-20261120/browser",
+        "--reuse"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:54:54.077847+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 5.34
+    },
+    {
+      "name": "preview-run",
+      "args": [
+        "node.exe",
+        "tools/luma/build-ui.mjs",
+        "--preview",
+        "--output",
+        "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-mcp-workspace-20261120/preview",
+        "--port",
+        "4452",
+        "--lifetime-seconds",
+        "180"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:54:10.201312+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 180.88
+    },
+    {
+      "name": "rust",
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_mcp::creation",
+        "--",
+        "--test-threads=1"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T09:51:41.766622+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 973.44
+    },
+    {
+      "name": "ui-grant",
+      "args": [
+        "npm.cmd",
+        "--prefix",
+        "apps/desktop",
+        "run",
+        "test",
+        "--",
+        "run",
+        "src/features/console/LumaMcpCreationReuse.test.tsx",
+        "src/features/console/LumaMcpCreationPanel.test.tsx",
+        "--maxWorkers=1"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T10:03:34.351379+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 11.94
+    },
+    {
+      "name": "ratchet-final",
+      "args": [
+        "npm.cmd",
+        "run",
+        "check:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-20T10:05:52.631005+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 10.78
+    }
+  ],
+  "sources": [
+    {
+      "path": "src/protocol/luma_mcp/creation.rs",
+      "sha256": "dba62b42a590689ef1008ebca8ad24b73b6a0734dad9242ef5c92f9acb6bc3b7"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation/options.rs",
+      "sha256": "49e2415e06132b0a68117927644f7f0a5c6ae784a9698b31e8a95c9d6ba48bd5"
+    },
+    {
+      "path": "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+      "sha256": "e7f3b007bf4c47c850a3b1861aceb58ce42b2323449e924b7815bd5de9fd0030"
+    },
+    {
+      "path": "src/http/routes/internal_console/luma_mcp/creation/execute.rs",
+      "sha256": "e78f4aa5bdf3a558924e4d65e4e987da161a547be78ccf6ead5ca86adb7c87d5"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation_tests.rs",
+      "sha256": "b2a19e880b956255c524946de48698f49ca8ae7e5e2a881575dcf3ea09ec587a"
+    },
+    {
+      "path": "apps/desktop/src/api/console/luma-creation.ts",
+      "sha256": "f2a32e7f1565d1cd00b10a1f1b0b69c749d583297bcb051bc19c2eb5f6ac7a3f"
+    },
+    {
+      "path": "apps/desktop/src/features/console/lumaMcpCreationDraft.ts",
+      "sha256": "138dfb2903e963b5f16081232159c37b26dfbaef6c523a77d7f2cfec64e13478"
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationOptions.tsx",
+      "sha256": "1f09d94c11ea01ac52956cf6af2bc66f8f55d3a6491439dab720cdd7616acb51"
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx",
+      "sha256": "9406096beb90d4292d572fc2e0790d2d649dc341713b260fc42419eaa8a65744"
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationFacts.tsx",
+      "sha256": "7bbf3980551c7645cd95b46293ead90c410f7415698aa5aedac841de28428cff"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation/reuse.rs",
+      "sha256": "bc3e9f6b93ffafb76cdbebb5e1ef21cca4066ea3fe5d0f1e6638d12e35442f3c"
+    },
+    {
+      "path": "src/http/routes/internal_console/luma_mcp/creation/workspace.rs",
+      "sha256": "6859b1b715fc91b0f61c2d7eceaf898573fcc44ecd6ea8ae38ef69fbcec380b8"
+    },
+    {
+      "path": "src/protocol/luma_mcp/creation_reuse_tests.rs",
+      "sha256": "962658539031011634dfcb23f62d6d04d176ba02a52d07e2f6f958d40a60544a"
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaMcpCreationReuse.test.tsx",
+      "sha256": "c878c5abb3d76bfd88ce84a0eabb3e2292766f89c7ce195d83197bdea8233944"
+    },
+    {
+      "path": "tools/luma/mcp-creation-preview-check.mjs",
+      "sha256": "8b09b3fdc1dc211fa54ca5e110c9408d63f5cbb4da4e48fe9eaedcedc696c266"
+    },
+    {
+      "path": "apps/desktop/e2e/fixtures/luma-mcp-creation-preview.tsx",
+      "sha256": "b46ea5ca7a02fd2580aaeaef97782fc6bc4187560d5f2a115d4e91800178a60c"
+    },
+    {
+      "path": "src/http/routes/internal_console/luma_mcp/creation.rs",
+      "sha256": "e6e31f8348dab57d7190e3b23d562a19f9822bfd79be2c1910f5a4c6f9949109"
+    },
+    {
+      "path": "docs/providers/luma-development-status.md",
+      "sha256": "bf8e45e383acf816cf0520641b71d9e2ccd5e19ec06ade3ca4a7ba72693362c6"
+    },
+    {
+      "path": "docs/provider-luma-channel-contract.md",
+      "sha256": "5018b3bd5eccb21bb576f0fa5706ddfc03d51d0cd6d9efc7a76bf95b1e475240"
+    },
+    {
+      "path": "tools/luma/README.md",
+      "sha256": "69f1c7554a412659d30a8094c3a67d4066cf6ccad18ccf5ddd12e1c80ec48ae4"
+    },
+    {
+      "path": "docs/progress/2026-11-20-luma-mcp-workspace.md",
+      "sha256": "0a2be8c100e95198c3155f0928f75040bfad4dae69f4b27b919e811d3e8f2ab4"
+    },
+    {
+      "path": "docs/evidence/luma/README.md",
+      "sha256": "22c7af0abddaa5c3f95470a58814565292c537cceb3ccb5cb47d21c6025adea3"
+    }
+  ],
+  "rustTests": {
+    "passed": 15,
+    "failed": 0,
+    "filteredOut": 6428,
+    "testSeconds": 10.04
+  },
+  "frontendDistinctTests": 13,
+  "browserActions": 8,
+  "sourceReview": "scoped.diff plus new modules reviewed; no arbitrary workspace, URL fetch, credential changes or automatic generation",
+  "reusedChecks": "Parameter tests and browser paths unchanged by final secret-grant draft fix; affected two UI files rerun in ui-grant. TypeScript snapshot precedes the effect-dependency-only fix; no new types or dependencies followed. Checker tests unchanged and reused; final ratchet repeated after source changes.",
+  "limitations": [
+    "synthetic provider only",
+    "Local storage only",
+    "browser uses real components with synthetic client; management route independently tested in Rust",
+    "no paid generation",
+    "no new EXE package",
+    "normal close and restart tested; OS kill and Server/Redis not tested"
+  ],
+  "artifacts": [
+    {
+      "path": "browser/result.json",
+      "sha256": "54227dfa6de606055f5f750fa07005ef594e73ae7c966c0396048ab72b9207e0"
+    },
+    {
+      "path": "browser/reuse-edit-narrow.png",
+      "sha256": "c1fe48494b1bc0eb548870fcc39cfd04e73f585c67a23b08450422c5c83e8a75"
+    },
+    {
+      "path": "browser/reuse-reference.png",
+      "sha256": "9a463984a424bb5d9a009e1a0e9df88a3fafb7c9d8175b3fc06dfba2de544615"
+    },
+    {
+      "path": "browser/reuse.ax.txt",
+      "sha256": "ab47d18b1f86c2eb1a84f1aa706b7bb03ac9b310550f8a89876d728fe756eb3e"
+    },
+    {
+      "path": "browser-run/command.log",
+      "sha256": "6c2d6193da5036a4c313d31339472b1ac7920e5f7be436e36783817d0bb5def9"
+    },
+    {
+      "path": "browser-run/result.json",
+      "sha256": "323a21c69061e12750c6604be7c4a0ad1559e95d2ae2e812c65577db51c4cd72"
+    },
+    {
+      "path": "checker/command.log",
+      "sha256": "d0e2be2709693d86d094e415ab5cbef3100d6b4408871533d14aa9caa071378c"
+    },
+    {
+      "path": "checker/result.json",
+      "sha256": "00481a095aa062d3284aa6578dc46c2ec4e5438a9196df3139e7f1ceaec742a4"
+    },
+    {
+      "path": "diff/command.log",
+      "sha256": "d51c52a1cfcd65108d22fd2a0e9062e5110672350e25b1f904a22a6eb367184d"
+    },
+    {
+      "path": "diff/result.json",
+      "sha256": "22fb00e0c953f67093012abc32e660596b3e009b76370cf6b02721e997542518"
+    },
+    {
+      "path": "effective-lines.json",
+      "sha256": "05750a2aa8d7741a06715db9ee84d72fac41fdad3de89d3dc307967375a17c5b"
+    },
+    {
+      "path": "encoding.json",
+      "sha256": "bdcd4535ade0fccb9dba65c728869be11c089b3962518f2e2a9278c105424797"
+    },
+    {
+      "path": "formatter/command.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "formatter/result.json",
+      "sha256": "cc71ffb82913c3d45307c57e935b2a9ca881dddef57a182073e8a3e87e113ebf"
+    },
+    {
+      "path": "preview-run/command.log",
+      "sha256": "422e8184c3df34ffa24bac84e25d321489060588c50d220e44dd206dc7e982f7"
+    },
+    {
+      "path": "preview-run/result.json",
+      "sha256": "e28e4dbaccc480cf216a1b930cbd59f1f88741265af989281c9659e248fb20bf"
+    },
+    {
+      "path": "ratchet/command.log",
+      "sha256": "4416cc0119fc0bc2074be2d43cc5685fd009a09333a8133d0d93cf98bd0df537"
+    },
+    {
+      "path": "ratchet/result.json",
+      "sha256": "ea5c3432b2fddc514d58db3aa2286a0e8ce01a25537e106157b6df940ff68537"
+    },
+    {
+      "path": "ratchet-final/command.log",
+      "sha256": "4416cc0119fc0bc2074be2d43cc5685fd009a09333a8133d0d93cf98bd0df537"
+    },
+    {
+      "path": "ratchet-final/result.json",
+      "sha256": "8e58f486641a053749d57b1b27148359d4df4d27eb4cdbfc3ef3cbe56bb7d8d8"
+    },
+    {
+      "path": "rust/command.log",
+      "sha256": "a58778408bfd8567c96690f3676a813ed9829eededa91043484e8cf8cdcd513a"
+    },
+    {
+      "path": "rust/result.json",
+      "sha256": "8e6dac024f38bbc1e124fd463ebf2833ae93f3ad4ef833e55027faaed9b666a3"
+    },
+    {
+      "path": "scoped.diff",
+      "sha256": "f7f48f268e92426abef3f6f8dc8f0ffefd176844be102998e98a0a6f7f100a13"
+    },
+    {
+      "path": "types/command.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "types/result.json",
+      "sha256": "658b85c5c2cd560ba9df69edf92bef3a9203e45a7d80b59ba4295ac68319cbb0"
+    },
+    {
+      "path": "types-final/command.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "types-final/result.json",
+      "sha256": "ea76fcf4a17fb8242c891a67a316a07f1ca9715ab51dcddbae49d5d70c0a705d"
+    },
+    {
+      "path": "ui/command.log",
+      "sha256": "630e4033178e3af880827f0412f745245d7451044d46950453d2b39a4faa3a16"
+    },
+    {
+      "path": "ui/result.json",
+      "sha256": "fe6d6bf1601756c9fce6abc7879b9c1674014e2bb45b0645aa4c6ae6c0ca2e5f"
+    },
+    {
+      "path": "ui-grant/command.log",
+      "sha256": "52fa5bdce79d8c019b3fe85f0a000076dbb13eb1a58600c8d487195eb8b09ad7"
+    },
+    {
+      "path": "ui-grant/result.json",
+      "sha256": "dcf43557ba172300abca5d7479d1f1562dfb1d101a0b34ac8f2999c471c7eae3"
+    }
+  ]
+}

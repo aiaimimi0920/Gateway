@@ -1,0 +1,18 @@
+{
+  "args": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--lib",
+    "--no-default-features",
+    "--features",
+    "runtime-defaults",
+    "-j",
+    "4",
+    "luma_inference",
+    "--no-fail-fast"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 890.46
+}

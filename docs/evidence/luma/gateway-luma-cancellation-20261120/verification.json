@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "scope": "luma_agents_cancellation_audit",
+  "date": "2026-11-20",
+  "tests": {
+    "lumaAgents": {
+      "passed": 110,
+      "failed": 0,
+      "ignored": 1
+    },
+    "adjacent": {
+      "passed": 31,
+      "failed": 0,
+      "ignored": 0
+    },
+    "effectiveLineChecker": {
+      "passed": 31,
+      "failed": 0
+    },
+    "effectiveLineRatchet": {
+      "exitCode": 0
+    },
+    "rustfmt": {
+      "exitCode": 0
+    },
+    "gitDiffCheck": {
+      "exitCode": 0
+    }
+  },
+  "builds": {
+    "runtimeDefaultsLibCheck": {
+      "exitCode": 0
+    },
+    "officialLineDisabledLibCheck": {
+      "exitCode": 0
+    }
+  },
+  "verified": [
+    "same_generation_id_only",
+    "late_credits_update",
+    "null_vs_zero",
+    "public_and_management_cancellation",
+    "ordinary_key_refund",
+    "no_replay",
+    "source_close",
+    "concurrent_scope_isolation",
+    "secret_redaction"
+  ],
+  "notVerified": [
+    "real_supplier_account",
+    "real_billing",
+    "post_deadline_reconciliation",
+    "cross_process_recovery",
+    "cash_settlement",
+    "server_postgres_redis",
+    "native_exe"
+  ],
+  "temporaryEvidence": "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-cancellation-20261120",
+  "verifiedAt": "2026-11-19T17:27:33.290236+00:00",
+  "ignoredReason": "Existing probe_browser_host requires a dedicated browser session.",
+  "initialFormatterCheck": {
+    "exitCode": 1,
+    "reason": "Formatting differences corrected with rustfmt; successful recheck archived. Initial failure only exists in tool output."
+  },
+  "utf8NoBom": true,
+  "sourceFiles": 16,
+  "newRustTests": 6,
+  "gitCommitted": false,
+  "gitPushed": false
+}

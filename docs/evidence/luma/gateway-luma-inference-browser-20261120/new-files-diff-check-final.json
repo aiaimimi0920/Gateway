@@ -1,0 +1,53 @@
+{
+  "exitCodeMeaning": "git diff --no-index implies --exit-code; 1 with empty --check output means new content without whitespace errors",
+  "results": [
+    {
+      "file": "tools/luma/README.md",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "tools/luma/files-browser-check.mjs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "tools/luma/inference-browser-check.mjs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "tools/luma/normal-main-server.mjs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "src/upstream/luma_agents/files_browser_host.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "src/protocol/luma_inference/wire_tests/browser_host.rs",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "docs/progress/2026-11-20-provider-channel-expansion-luma-files-browser.md",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    },
+    {
+      "file": "docs/progress/2026-11-20-provider-channel-expansion-luma-inference-browser.md",
+      "exitCode": 1,
+      "output": "",
+      "passed": true
+    }
+  ]
+}

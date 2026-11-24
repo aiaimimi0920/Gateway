@@ -30,4 +30,7 @@ debug-assertions = false
 overflow-checks = true
 lto = false
 incremental = true
-codegen-units = 16
+codegen-units = 256
+
+[profile.devtest.build-override]
+opt-level = 3

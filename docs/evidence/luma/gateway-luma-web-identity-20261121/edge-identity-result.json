@@ -1,0 +1,11 @@
+{
+  "args": [
+    "node",
+    "--test",
+    "tools/luma/web-worker-check.mjs"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-21T13:07:42.241202+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 8.5
+}

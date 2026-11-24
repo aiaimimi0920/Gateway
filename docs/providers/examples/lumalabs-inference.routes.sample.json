@@ -1,0 +1,12 @@
+{
+  "providers": [
+    {
+      "id": "luma-inference",
+      "preset": "lumalabs-inference-api",
+      "base_url": "https://inference.lumalabs.ai/v1",
+      "explicit_credentials_only": true,
+      "credentials": []
+    }
+  ],
+  "model_routes": []
+}

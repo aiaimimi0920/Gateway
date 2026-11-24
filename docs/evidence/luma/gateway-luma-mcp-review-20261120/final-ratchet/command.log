@@ -1,0 +1,6 @@
+
+> gateway-browser-workers@0.1.0 check:effective-lines
+> node effective-code-lines.mjs --mode ratchet --json artifacts/effective-code-lines.json
+
+Effective lines: 5936 files; >1500=4, 701-1500=8, 501-700=2
+Classified immutable runtime artifacts: 14; governed source >700=0

@@ -1,0 +1,13 @@
+
+> gateway-ui@0.1.0 test
+> vitest run src/features/console/LumaMcpToolsPanel.test.tsx src/features/console/LumaModelsPanel.test.tsx src/features/console/LumaOAuthPanel.test.tsx --maxWorkers=1
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+
+ Test Files  3 passed (3)
+      Tests  33 passed (33)
+   Start at  04:50:40
+   Duration  12.82s (transform 373ms, setup 1.38s, import 1.84s, tests 2.08s, environment 6.06s)
+

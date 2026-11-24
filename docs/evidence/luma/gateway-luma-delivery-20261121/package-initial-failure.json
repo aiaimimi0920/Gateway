@@ -1,0 +1,20 @@
+{
+  "args": [
+    "powershell.exe",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    "tools/package-gateway-devtest.ps1",
+    "-Edition",
+    "desktop",
+    "-Jobs",
+    "4",
+    "-VersionId",
+    "gateway-devtest-20261121-luma-handoff"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-21T10:04:31.465875+00:00",
+  "exitCode": 1,
+  "elapsedSeconds": 10.95
+}

@@ -57,6 +57,14 @@ async fn luma_web_red_worker_business_failure_cannot_replay() {
     assert_error(run("error").await.unwrap_err(), "lumalabs_fixture_error");
 }
 #[tokio::test]
+async fn luma_web_payment_refusal_survives_worker_process_without_replay() {
+    let error = run("payment").await.unwrap_err();
+    assert_eq!(error.kind, crate::error::ErrorKind::InsufficientQuota);
+    assert_eq!(error.http_status, Some(402));
+    assert_eq!(error.upstream_retry_after_ms, None);
+    assert_error(error, "lumalabs_action_payment_required");
+}
+#[tokio::test]
 async fn luma_web_worker_success_preserves_signed_url() {
     assert_eq!(
         run("success").await.unwrap().signed_url,

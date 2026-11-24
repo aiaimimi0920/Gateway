@@ -34,6 +34,8 @@ mod rejected_channel;
 mod responses_completeness;
 #[path = "pipeline_send_runtime/safety.rs"]
 mod safety;
+#[path = "pipeline_send_runtime/session_accounts.rs"]
+mod session_accounts;
 #[path = "pipeline_send_runtime/stream_budget.rs"]
 mod stream_budget;
 #[path = "pipeline_send_runtime/streaming.rs"]

@@ -80,6 +80,70 @@ hand-edit `001`, drop grant history, or treat this extension as runtime auto-DDL
 See [Accio DB refresh contract](../docs/provider-accio-db-refresh.md) for the
 rollback, secret-access, table-lock and object-publication boundaries.
 
+Server-mode Luma MCP console creation uses the separate
+`postgres/initdb/006-gateway-luma-mcp-creation.sql` journal. New standalone
+volumes initialize it from `initdb`; back up existing deployments and apply the
+additive DDL transactionally after schema-owner review (including Platform-shared
+installations). Neither the runtime nor the existing `001` dump creates this
+extension on an already initialized deployment. If the table or
+`GATEWAY_API_KEY_SECRET` is unavailable, only this Server creation flow rejects
+work before sending to Luma. Ensure participating replicas use the same stable
+signing secret and authorized management token. A new token, or a new signing
+secret, cannot reopen existing tasks; no automatic owner migration is provided.
+For binary rollback, leave the additive table in place and retain the data and
+signing configuration. Do not discard a volume to install or roll back this
+extension. Journal payloads can contain signed media URLs and upstream review or
+session content: restrict table, backup and log access as for sensitive console
+state. These rows are not public request or cash-billing audits.
+
+Command Code Server model probes require the additive
+`postgres/initdb/007-gateway-internal-model-probe-audits.sql` extension. Apply it
+before a binary upgrade through the deployment owner's reviewed migration;
+startup does not perform DDL. Without it, Command Code Server generation probes
+reject before sending; public relay and Local probes are unchanged. Keep the
+extra table on rollback. See the [Server probe audit contract](../docs/providers/commandcode-server-probe-audit-contract.md).
+
+SAP Server 模型探测另需在 `007` 之后应用
+`postgres/initdb/012-gateway-sap-probe-evidence.sql`。此为可重复执行的加法迁移，
+由部署 schema owner 审核并应用；运行时不执行 DDL，不自动迁移线上数据库。
+新列 `sap_evidence` 仅记录 SAP 探测闭合后的发送次数、实际 HTTP 状态及固定脱敏错误字段；
+OAuth 状态与 inference 状态分开。旧行和未完成的 `running` 行保持 SQL `NULL`，表示未知，
+不可解读为零发送或退款依据。缺少扩展时 SAP 探测在发送前拒绝，其他产品沿用原 SQL。
+回退二进制时保留列和数据；混合版本的旧写者仍可忽略此可空列。Platform 管理的库必须由
+该库 owner 一并确认前置 `007`，不能只对缺少内部探测表的基线执行 `012`。
+
+The SAP Responses receipt schema (`postgres/initdb/008-gateway-sap-response-receipts.sql`)
+is additive; it does not enable public stored Responses by itself. On existing
+PostgreSQL deployments, review the DDL and grants with the schema owner and
+apply it transactionally before enabling a future lifecycle rollout. Runtime
+startup does not apply PostgreSQL DDL. Installations that applied the
+receipt-only revision must reapply `008` to add the balance-hold table and its
+index. Keep both tables on rollback. They store routing references and accounting
+evidence, not SAP Service Keys or inference content; restrict access to the
+runtime and authorized operators. Do not roll back to a binary that ignores the
+holds while a funded response is unsettled: it may rotate or remove the key
+before the settlement can adjust its balance.
+
+Apply `postgres/initdb/009-gateway-sap-response-mutations.sql` after `008` for
+the SAP lifecycle mutation journal. Preserve it on rollback. An unconfirmed
+claim does not prove the upstream operation was rejected and must not be
+cleared simply to retry the request.
+
+Apply `postgres/initdb/010-gateway-sap-response-route-pins.sql` after `009`.
+Preserve the route pins on rollback. Existing receipts are not backfilled from
+current routing data; an unpinned receipt is not eligible for upstream routing.
+
+Apply `postgres/initdb/011-gateway-sap-response-recovery.sql` after `010` before
+deploying the local-ledger recovery worker. Review the additive table/index and
+runtime grants with the schema owner; PostgreSQL startup still performs no DDL.
+Preserve unsent proofs and open holds on rollback. Never backfill proofs from a
+`submitting` phase: that phase cannot distinguish an unsent request from an
+unknown delivery. The worker only refunds matching durable proofs or settles
+already recorded terminal usage; it does not call SAP or release unconfirmed
+cancel/delete claims. A missing migration is reported as recovery unavailable,
+not as an empty queue. Existing live-owner refunds can still use direct unsent
+knowledge, but a failed proof write cannot authorize future automatic refunds.
+
 ### Method 1: One-Click Preparation (Recommended)
 
 ```bash

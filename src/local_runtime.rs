@@ -3,7 +3,7 @@ use crate::error::GatewayError;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::SqlitePool;
 use std::{path::Path, time::Duration};
-mod access_balances;
+pub(crate) mod access_balances;
 pub mod access_keys;
 mod affinity;
 mod audit_queries;
@@ -85,6 +85,9 @@ impl LocalRuntime {
             ).execute(&mut *tx).await?;
         }
         // Additive initialization also runs for already released schema-1 databases.
+        sqlx::raw_sql(maintenance::AUDIT_INDEXES)
+            .execute(&mut *tx)
+            .await?;
         sqlx::raw_sql(access_keys::SCHEMA).execute(&mut *tx).await?;
         sqlx::raw_sql(freebuff_devices::SCHEMA)
             .execute(&mut *tx)
@@ -101,15 +104,31 @@ impl LocalRuntime {
         sqlx::raw_sql(crate::provider_runtime::test_store::LOCAL_SCHEMA)
             .execute(&mut *tx)
             .await?;
+        sqlx::raw_sql(crate::protocol::sap_aicore::responses_lifecycle::store::SCHEMA)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::raw_sql(crate::protocol::sap_aicore::responses_lifecycle::store::MUTATION_SCHEMA)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::raw_sql(crate::protocol::sap_aicore::responses_lifecycle::store::ROUTE_SCHEMA)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::raw_sql(crate::protocol::sap_aicore::responses_lifecycle::store::RECOVERY_SCHEMA)
+            .execute(&mut *tx)
+            .await?;
         access_balances::initialize(&mut tx)
             .await
             .map_err(|error| anyhow::anyhow!(error.message))?;
         let sealed: i64 = sqlx::query_scalar("SELECT (SELECT count(*) FROM local_access_key_secrets) + (SELECT count(*) FROM local_freebuff_device_keys) + (SELECT count(*) FROM local_freebuff_registrations) + (SELECT count(*) FROM local_freebuff_registration_replacements) + (SELECT count(*) FROM local_freebuff_session_claims) + (SELECT count(*) FROM local_freebuff_session_closeouts) + (SELECT count(*) FROM local_freebuff_runs)")
             .fetch_one(&mut *tx)
             .await?;
+        let has_sap_pins: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM gateway_sap_response_route_pins)")
+                .fetch_one(&mut *tx)
+                .await?;
         let secret_directory = directory.to_owned();
         let secret_seal = tokio::task::spawn_blocking(move || {
-            secret_seal::LocalSecretSeal::open(&secret_directory, sealed > 0)
+            secret_seal::LocalSecretSeal::open(&secret_directory, sealed > 0 || has_sap_pins)
         })
         .await?;
         tx.commit().await?;
@@ -142,6 +161,11 @@ impl LocalRuntime {
 
     pub fn track_finalizer(&self) -> finalizers::FinalizerGuard {
         self.finalizers.track()
+    }
+
+    #[allow(dead_code)] // SAP lifecycle dispatch is not public yet.
+    pub(crate) fn sap_response_key(&self) -> Option<&[u8; 32]> {
+        self.secret_seal.sap_response_key()
     }
 }
 

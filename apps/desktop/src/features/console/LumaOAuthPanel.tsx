@@ -6,6 +6,7 @@ import { ChatgptAuthorizationLink } from "./ChatgptAuthorizationLink";
 import type { LumaRegistration } from "./lumaMcp";
 import { useLumaOAuth, type LumaOAuthProps } from "./useLumaOAuth";
 import { LumaMcpToolsPanel } from "./LumaMcpToolsPanel";
+import { LumaMcpCreationPanel } from "./LumaMcpCreationPanel";
 import { LumaModelsPanel } from "./LumaModelsPanel";
 import { LumaRegistrationPanel } from "./LumaRegistrationPanel";
 import { LumaRefreshPanel } from "./LumaRefreshPanel";
@@ -58,13 +59,14 @@ export function LumaOAuthPanel(props: LumaOAuthProps & { registration?: LumaRegi
         onClick={() => { void flow.run({ action: "complete", callbackUrl }); setCallbackUrl(""); }}>{t("完成授权", "Complete authorization")}</Button>
     </>}
     {session?.status === "ready" && !unresolved && <Button variant="primary" disabled={mutationDisabled || Boolean(busy || pending)}
-      onClick={() => void flow.run({ action: "import" })}>{t("保存只读 MCP 账号", "Save read-only MCP account")}</Button>}
+      onClick={() => void flow.run({ action: "import" })}>{t("保存 MCP 账号", "Save MCP account")}</Button>}
     {active && !unresolved && session?.status !== "importing" && <Button disabled={Boolean(busy || pending)} onClick={() => void flow.run({ action: "cancel" })}>{t("取消授权", "Cancel authorization")}</Button>}
     {uncertain && <Notice tone="warning">{t("保存响应未确认；仅检查状态，不会重复提交。", "Save response unconfirmed; checking status only, without resubmitting.")}</Notice>}
     {flow.pollStopped && <Button onClick={flow.resumePolling}>{t("继续检查状态", "Continue checking status")}</Button>}
     {flow.error && <Notice tone="danger">{flow.error}</Notice>}
     {props.credentialId && <LumaModelsPanel {...props} disabled={Boolean(mutationDisabled || locked)} />}
     {props.credentialId && <LumaMcpToolsPanel {...props} disabled={Boolean(mutationDisabled || locked)} />}
+    {props.credentialId && <LumaMcpCreationPanel {...props} disabled={Boolean(mutationDisabled || locked)} />}
     {props.credentialId && props.registration?.offlineAccess && <LumaRefreshPanel {...props}
       disabled={Boolean(mutationDisabled || loginLocked)} onActivityChange={setRefreshActive} />}
   </section>;

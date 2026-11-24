@@ -90,7 +90,7 @@ async fn luma_web_remote_redirect_does_not_submit_twice() {
     for status in [307, 308] {
         let calls = Arc::new(AtomicUsize::new(0));
         let observed = calls.clone();
-        let path = "/v1/internal/browser-executor/execute";
+        let path = "/v1/internal/browser-executor/luma-session-v1/execute";
         let app = Router::new().route(
             path,
             post(move || {
@@ -127,7 +127,12 @@ async fn luma_web_remote_redirect_does_not_submit_twice() {
 }
 #[tokio::test]
 async fn luma_web_media_owner_protects_errors_after_remote_success() {
-    let (base, server) = single_response_executor_base_url(200, "OK", r#"{"ok":true,"result":{}}"#);
+    // The worker envelope succeeds, but the required task context is missing.
+    let (base, server) = single_response_executor_base_url(
+        200,
+        "OK",
+        r#"{"ok":true,"result":{"ok":true,"signedUrl":"https://assets.example.test/fixture.png"}}"#,
+    );
     let mut client = UpstreamClient::new(1);
     client.http = rquest::Client::builder().no_proxy().build().unwrap();
     client.browser_executor_base_url = Some(base);
@@ -161,7 +166,7 @@ async fn luma_web_remote_chunked_metadata_budget_is_128_kib() {
         data["result"]["pad"] = json!("x".repeat(128 * 1024 + extra - base_size));
         let bytes = serde_json::to_vec(&data).unwrap();
         let app = Router::new().route(
-            "/v1/internal/browser-executor/execute",
+            "/v1/internal/browser-executor/luma-session-v1/execute",
             post(move || {
                 let bytes = bytes.clone();
                 async move {

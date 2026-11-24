@@ -1,6 +1,7 @@
 //! Buffered binary, JSON and canonical dispatch with unchanged retry snapshots.
 use super::*;
 use crate::upstream::client::UpstreamClient;
+pub(super) mod sap_dispatch;
 
 pub(super) async fn send(
     ctx: &mut PipelineContext,
@@ -137,10 +138,23 @@ pub(super) async fn send(
 
     // Keep product reasoning and custom-tool fields intact for native Responses clients.
     // SDK text owns its dispatch even when the generic OpenAI adapter prefers native Responses.
+    let sensenova_native =
+        crate::protocol::sensenova::native_selected(&payload, canonical_req.endpoint_kind);
+    let sap_responses = crate::protocol::sap_aicore::native_responses::selected(
+        &payload,
+        canonical_req.endpoint_kind,
+    );
+    let sap_orchestration = crate::protocol::sap_aicore::orchestration::native_selected(
+        &payload,
+        canonical_req.endpoint_kind,
+    );
     let native_text = payload.auth_mode.as_deref() != Some("copilot_sdk")
         && !tools_were_injected
         && (UpstreamClient::uses_native_codex(&payload, &canonical_req, &model)
             || payload.is_discovered_native(&canonical_req)
+            || sensenova_native
+            || sap_responses
+            || sap_orchestration
             || crate::protocol::commandcode::native_json::selected(&payload, &canonical_req)
             || (crate::protocol::minimax::owns_payload(&payload)
                 && canonical_req.endpoint_kind == EndpointKind::Messages)
@@ -152,41 +166,53 @@ pub(super) async fn send(
     if expects_json_passthrough(&ctx.canonical_req) || native_text {
         let metric_provider = candidate.provider_account_id.clone();
         let metric_model = model.clone();
-        let result = provider_attempt_gate
-            .execute_observed(
-                || {
-                    let payload = Arc::clone(&payload);
-                    let canonical_req = Arc::clone(&canonical_req);
-                    let model = model.clone();
-                    let extra_hdrs = Arc::clone(&extra_hdrs);
-                    let native_wire = native_wire.clone();
-                    // Native and legacy dispatch must not inflate every enclosing
-                    // retry/gate frame. Same-task polling preserves cancellation.
-                    Box::pin(async move {
-                        client
-                            .execute_json_with_wire(
-                                &candidate.provider_account_id,
-                                candidate.resolved_execution_mode,
-                                payload.as_ref(),
-                                canonical_req.as_ref(),
-                                &model,
-                                Some(extra_hdrs.as_ref()),
-                                native_wire.as_deref(),
-                            )
-                            .await
-                    })
-                },
-                move |observation| {
-                    observe_provider_attempt_metric(
-                        global_gateway_metrics().as_ref(),
-                        &metric_provider,
-                        &metric_model,
-                        observation,
-                    );
-                },
-                &retry_policy,
+        let result = if crate::protocol::sap_aicore::owns_payload(&payload) {
+            sap_dispatch::json(
+                state,
+                &provider_attempt_gate,
+                &payload,
+                &canonical_req,
+                &model,
+                &mut ctx.observed_upstream_status,
             )
-            .await;
+            .await
+        } else {
+            provider_attempt_gate
+                .execute_observed(
+                    || {
+                        let payload = Arc::clone(&payload);
+                        let canonical_req = Arc::clone(&canonical_req);
+                        let model = model.clone();
+                        let extra_hdrs = Arc::clone(&extra_hdrs);
+                        let native_wire = native_wire.clone();
+                        // Native and legacy dispatch must not inflate every enclosing
+                        // retry/gate frame. Same-task polling preserves cancellation.
+                        Box::pin(async move {
+                            client
+                                .execute_json_with_wire(
+                                    &candidate.provider_account_id,
+                                    candidate.resolved_execution_mode,
+                                    payload.as_ref(),
+                                    canonical_req.as_ref(),
+                                    &model,
+                                    Some(extra_hdrs.as_ref()),
+                                    native_wire.as_deref(),
+                                )
+                                .await
+                        })
+                    },
+                    move |observation| {
+                        observe_provider_attempt_metric(
+                            global_gateway_metrics().as_ref(),
+                            &metric_provider,
+                            &metric_model,
+                            observation,
+                        );
+                    },
+                    &retry_policy,
+                )
+                .await
+        };
 
         match result {
             Ok(mut json_resp) => {
@@ -198,6 +224,18 @@ pub(super) async fn send(
                         &json_resp,
                         canonical_req.endpoint_kind,
                     );
+                    ctx.observed_usage = Some(usage);
+                    ctx.canonical_completion_semantics = Some(completion.into());
+                } else if sensenova_native || sap_responses {
+                    let (usage, completion) = match canonical_req.endpoint_kind {
+                        EndpointKind::ChatCompletions => {
+                            crate::protocol::sensenova::chat_reasoning::observe(&json_resp)
+                        }
+                        EndpointKind::Responses => {
+                            crate::protocol::responses::native_admission::observe(&json_resp)
+                        }
+                        _ => crate::protocol::anthropic::native_admission::observe(&json_resp),
+                    };
                     ctx.observed_usage = Some(usage);
                     ctx.canonical_completion_semantics = Some(completion.into());
                 } else if native_text {
@@ -241,7 +279,11 @@ pub(super) async fn send(
                     tools_were_injected,
                 );
 
-                if crate::protocol::commandcode::native_json::selected(&payload, &canonical_req) {
+                if sensenova_native
+                    || sap_responses
+                    || sap_orchestration
+                    || crate::protocol::commandcode::native_json::selected(&payload, &canonical_req)
+                {
                     // Observe the real model first; only the public projection uses the caller alias.
                     json_resp["model"] =
                         pack::caller_visible_reply_model(&canonical_req, &model).into();
@@ -278,7 +320,17 @@ pub(super) async fn send(
         }
     }
 
-    let result = if payload.auth_mode.as_deref() == Some("copilot_sdk") {
+    let result = if crate::protocol::sap_aicore::owns_payload(&payload) {
+        sap_dispatch::canonical(
+            state,
+            &provider_attempt_gate,
+            &payload,
+            &canonical_req,
+            &model,
+            &mut ctx.observed_upstream_status,
+        )
+        .await
+    } else if payload.auth_mode.as_deref() == Some("copilot_sdk") {
         // SDK failures and cancellation have no upstream HTTP response either.
         ctx.observed_upstream_status = Some(None);
         super::super::copilot_dispatch::execute(
@@ -423,10 +475,12 @@ pub(super) async fn send(
                 infer_canonical_completion_semantics(&ctx.canonical_req, &canonical_resp)
                     .map(str::to_string);
             ctx.observed_usage = Some(canonical_resp.usage.clone());
-            ctx.observed_upstream_status = upstream_status_observation(
-                payload.auth_mode.as_deref(),
-                canonical_resp.upstream_status,
-            );
+            ctx.observed_upstream_status = ctx.observed_upstream_status.or_else(|| {
+                upstream_status_observation(
+                    payload.auth_mode.as_deref(),
+                    canonical_resp.upstream_status,
+                )
+            });
 
             // Pack the response back into the wire format matching
             // the original protocol family.

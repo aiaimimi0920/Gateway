@@ -92,7 +92,8 @@ async fn pool_filters_failed_plus_before_round_robin_without_disabling_pro() {
     )
     .await;
     let healthy = Upstream::start(StatusCode::OK, false, JSON_REPLY).await;
-    let fixture = TestState::new();
+    // Use the existing local store; failed Redis connects would outlast the short cooldown.
+    let fixture = TestState::with_local_limits().await;
     fixture.state.route_config.replace_document(serde_json::from_value(serde_json::json!({
         "providers":[{"id":"site","preset":"openai","request_wait":{"mode":"disabled"},"base_url":rejected.base_url,
             "supported_models":["caller-alias"], "model_map":{"caller-alias":"upstream-model"},
@@ -172,5 +173,63 @@ async fn stream_transport_failures_after_handoff_are_not_header_successes() {
         0,
         "stream header success must not reset the failure streak"
     );
+    fixture.finish().await;
+}
+
+#[tokio::test]
+async fn upstream_queue_full_recovers_after_short_wait_without_account_toggle() {
+    let rejected = Upstream::start(StatusCode::TOO_MANY_REQUESTS, false,
+        r#"{"error":{"code":"gateway_queue_full","message":"Too many pending requests, please retry later"}}"#).await;
+    let healthy = Upstream::start(StatusCode::OK, true, super::fixture::SSE_REPLY).await;
+    let fixture = TestState::new();
+    let mut selected = candidate(&rejected, "queue-full");
+    let mut first = context(true, vec![selected.clone()]);
+    let error = timeout(DEADLINE, send(&mut first, &fixture.state))
+        .await
+        .unwrap()
+        .err()
+        .expect("upstream queue rejection");
+    assert_eq!(error.http_status, Some(429));
+    assert_eq!(rejected.requests().len(), 1);
+    // Same account/model identity, now backed by a recovered loopback service.
+    selected.payload.base_url = healthy.base_url.clone();
+    let mut blocked = context(true, vec![selected.clone()]);
+    assert!(timeout(DEADLINE, send(&mut blocked, &fixture.state))
+        .await
+        .unwrap()
+        .is_err());
+    assert_eq!(blocked.route_attempt_count(), 0);
+    assert!(healthy.requests().is_empty());
+    // Advance only between HTTP exchanges; paused I/O would auto-advance timeouts.
+    tokio::time::pause();
+    tokio::time::advance(std::time::Duration::from_secs(31)).await;
+    tokio::time::resume();
+    for _ in 0..2 {
+        let mut recovered = context(true, vec![selected.clone()]);
+        let PipelineOutput::Sse(stream) = timeout(DEADLINE, send(&mut recovered, &fixture.state))
+            .await
+            .unwrap()
+            .unwrap()
+        else {
+            panic!("expected stream")
+        };
+        let chunks = timeout(DEADLINE, stream.collect::<Vec<_>>()).await.unwrap();
+        let body: Vec<u8> = chunks
+            .into_iter()
+            .flat_map(|chunk| chunk.unwrap().to_vec())
+            .collect();
+        let text = String::from_utf8(body).unwrap();
+        assert!(text.contains("local stream reply"));
+        assert!(text.contains("\"finish_reason\":\"stop\""));
+        assert!(text.contains("[DONE]"));
+        assert_eq!(recovered.route_attempt_count(), 1);
+    }
+    assert_eq!(
+        healthy.requests().len(),
+        2,
+        "one completed trial must restore normal dispatch"
+    );
+    rejected.finish().await;
+    healthy.finish().await;
     fixture.finish().await;
 }

@@ -115,6 +115,46 @@ test("menu discovery prefers the exact operation id and does not mutate caller i
   assert.equal(result.error.code, "lumalabs_missing_signed_url");
 });
 
+// Minimal live-menu shape: only model labels and action IDs; no user data.
+const toolbarMenus = { version: "fixture", announcements: {}, menus: {
+  toolbar_image: { items: [
+    { type: "action", id: "create_image_nano_banana_2_1", label: "Nano Banana 2.1" },
+    { type: "action", id: "create_image_uni_1", label: "Uni-1.1" },
+  ] },
+  toolbar_video: { items: [
+    { type: "action", id: "create_video_ray3_2_via_api", label: "Ray3.2" },
+    { type: "action", id: "create_video_ray3_14", label: "Ray3.14" },
+  ] },
+  toolbar_audio: { items: [
+    { type: "submenu", label: "Speech", isActionGroup: true, items: [
+      { type: "action", id: "text_to_speech_eleven_labs", label: "ElevenLabs v4" },
+    ] },
+    { type: "submenu", label: "Music", isActionGroup: true, items: [
+      { type: "action", id: "text_to_music_elevenlabs_v1", label: "ElevenLabs Music v1" },
+    ] },
+  ] },
+} };
+
+for (const [mediaOperation, configured, expected] of [
+  ["image", "old", "create_image_uni_1"],
+  ["video", "old", "create_video_ray3_14"],
+  ["video", "create_video_ray3_2_via_api", "create_video_ray3_2_via_api"],
+  ["audio", "old", "text_to_music_elevenlabs_v1"],
+]) {
+  test(`recorded toolbar shape selects ${expected} for ${mediaOperation}`, async () => {
+    const fixture = protocol({ menus: toolbarMenus });
+    await runInBrowser(fixture.fetch, {
+      mediaOperation, actionBody: { type: configured }, autoDiscoverActionType: true,
+    });
+    const menu = fixture.calls.find(({ url }) => new URL(url).pathname.endsWith("/menus.json"));
+    assert.equal(menu?.init.method, "GET");
+    assert.equal(new URL(menu.url).search, "?v=1");
+    const posts = fixture.calls.filter(({ init }) => init.method === "POST");
+    assert.deepEqual(posts.map(({ init }) => JSON.parse(init.body)), [{ type: expected }]);
+    assert.equal(fixture.wasCancelled(), true);
+  });
+}
+
 test("failed menu discovery preserves the caller action and action-error metadata", async () => {
   const fixture = protocol({ menusStatus: 503, actionStatus: 429, action: { error: "busy" } });
   const result = await runInBrowser(fixture.fetch, { actionBody: { type: "old" }, autoDiscoverActionType: true });
@@ -122,6 +162,23 @@ test("failed menu discovery preserves the caller action and action-error metadat
   assert.equal(result.error.status, 429);
   assert.equal(result.error.resolvedActionType, "old");
   assert.equal(JSON.parse(fixture.calls.at(-1).init.body).type, "old");
+});
+
+test("action HTTP 402 is an actionable refusal without replay or upstream body disclosure", async () => {
+  const fixture = protocol({
+    actionStatus: 402,
+    action: { detail: { error: "Not enough credits", account_detail: "private-fixture" } },
+  });
+  const result = await runInBrowser(fixture.fetch);
+  assert.deepEqual(result, { ok: false, error: {
+    code: "lumalabs_action_payment_required",
+    message: "LumaLabs declined the action: payment or additional credits are required.",
+    stage: "action",
+    status: 402,
+    resolvedActionType: "create_image_uni_1",
+  } });
+  assert.equal(fixture.calls.filter(({ init }) => init.method === "POST").length, 1);
+  assert.equal(fixture.wasCancelled(), true);
 });
 
 test("missing signature token stops before subscribing or dispatching", async () => {
@@ -136,6 +193,27 @@ test("missing output id preserves the action-stage error", async () => {
   const result = await runInBrowser(fixture.fetch);
   assert.equal(result.error.code, "lumalabs_missing_output_id");
   assert.equal(result.error.stage, "action");
+});
+
+test("the creation POST stops at a redirect without replaying or claiming success", async () => {
+  const event = 'data: {"artifact":{"id":"output-1","object_ref":"right.png","state":"completed"}}\n\n';
+  const fixture = protocol({ frames: [event] });
+  const submissions = [];
+  const result = await runInBrowser(async (url, init) => {
+    if (init.method !== "POST") return fixture.fetch(url, init);
+    submissions.push(init);
+    // Model Fetch's opaque response in manual mode; following would hide the redirect.
+    if (init.redirect === "manual") return { type: "opaqueredirect", ok: false, status: 0 };
+    return fixture.fetch(url, init);
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "lumalabs_action_redirect");
+  assert.equal(result.error.stage, "action");
+  assert.equal(result.error.status, 502);
+  assert.equal(submissions.length, 1);
+  assert.equal(submissions[0].redirect, "manual");
+  assert.ok(submissions[0].signal.aborted);
+  assert.equal(fixture.wasCancelled(), true);
 });
 
 for (const mediaOperation of ["image", "video", "audio"]) {

@@ -76,6 +76,8 @@ worker 收到 shutdown 后取消网络等待，不主动取消已进入的配置
 写回失败保留 pending 意图及至多一个内存中的完成结果，下次唤醒仅重试该结果的写回，不重复同进程内已经完成的付费探测。进程重启后仍遵循上述 at-least-once 语义。
 前端只在没有待保存修改和打开的编辑弹窗时轮询并接收后台修订，不锁住创建流程；在途轮询结果不得覆盖新编辑或新会话。
 手动“刷新协议”仍是编辑弹窗内的 dry-run：取消、切换会话或配置版本变化会丢弃迟到结果；点击保存后提交，不另建配置或密钥存储。
+同一管理会话的敏感权限自动续期不会取消在途识别，也不会重复发送探测。真正失去权限、切换管理会话或连接时仍取消请求，并显示可操作的状态变化原因。
+服务端开始探测前仍要求请求携带有效 grant；完成后重新验证原管理密钥及相同 origin／客户端 IP 当前的敏感权限，认可同一上下文的有效续期，不接受已过期且未续期、已退出或其他上下文的权限。
 
 ## 回归入口
 
@@ -87,5 +89,6 @@ worker 收到 shutdown 后取消网络等待，不主动取消已进入的配置
 - `tests/provider_discovery_alias_contract.rs`：根目录与别名目录合并、Gemini 版本后缀、Claude 别名、实际地址保存/重载、显式前缀不重复拼接。
 - 前端 `accountDiscovery.test.tsx`、`useAccountDiscovery.test.tsx`：新增、取消、错误、
   配置修订隔离和刷新；`ProviderAccountCard.test.tsx` 覆盖刷新按钮。
+- `CredentialDialog.discovery-lifecycle.test.tsx` 覆盖真实自动续期 hook、账号弹窗和 API client 的在途刷新、取消原因及配置隔离；`tests/account_discovery_authorization_contract.rs` 覆盖原 grant 过期后的续期接收、未续期／退出拒绝和 origin／客户端 IP 隔离。
 - `tests/background_discovery_contract.rs`：先保存后探测、未确认账号不路由、后台合并／重载、迟到 Key 结果隔离、失败保留账号与授权、虚拟时钟跨越旧 100 秒超时。
 - `backgroundDiscovery.test.tsx`：后台意图与秘密补丁隔离、即时创建、轮询不覆盖编辑或已切换会话。

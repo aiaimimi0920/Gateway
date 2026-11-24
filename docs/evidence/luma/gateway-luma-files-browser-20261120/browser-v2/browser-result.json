@@ -1,0 +1,108 @@
+{
+  "status": "passed",
+  "browserClosed": true,
+  "proxyClosed": true,
+  "calls": [
+    {
+      "method": "POST",
+      "contentType": "application/json",
+      "action": "upload",
+      "providerId": "luma-pipeline",
+      "credentialId": "exact"
+    },
+    {
+      "method": "POST",
+      "contentType": "application/json",
+      "action": "get",
+      "providerId": "luma-pipeline",
+      "credentialId": "exact"
+    },
+    {
+      "method": "POST",
+      "contentType": "application/json",
+      "action": "list",
+      "providerId": "luma-pipeline",
+      "credentialId": "exact"
+    },
+    {
+      "method": "POST",
+      "contentType": "application/json",
+      "action": "list",
+      "providerId": "luma-pipeline",
+      "credentialId": "exact"
+    },
+    {
+      "method": "POST",
+      "contentType": "multipart/form-data; boundary=----WebKitFormBoundaryf2h8UyRpDdwbUxCg",
+      "action": "upload",
+      "providerId": "multipart",
+      "credentialId": "multipart"
+    },
+    {
+      "method": "POST",
+      "contentType": "application/json",
+      "action": "get",
+      "providerId": "luma-pipeline",
+      "credentialId": "exact"
+    },
+    {
+      "method": "POST",
+      "contentType": "application/json",
+      "action": "delete",
+      "providerId": "luma-pipeline",
+      "credentialId": "exact"
+    }
+  ],
+  "responses": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "sessionResponses": [
+    {
+      "path": "/v1/internal/gateway/console/session/verify",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/session/confirm-secret-access",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "checkpoints": [
+    {
+      "name": "inline-pending",
+      "fileRequests": 1
+    },
+    {
+      "name": "inline-ready-copied",
+      "fileRequests": 2
+    },
+    {
+      "name": "account-switch-clears-results",
+      "fileRequests": 2
+    },
+    {
+      "name": "pagination",
+      "fileRequests": 4
+    },
+    {
+      "name": "presigned-pending",
+      "fileRequests": 5
+    },
+    {
+      "name": "delete-cancelled",
+      "fileRequests": 6
+    },
+    {
+      "name": "delete-confirmed",
+      "fileRequests": 7
+    }
+  ],
+  "scope": "normal main UI; synthetic upstream only"
+}

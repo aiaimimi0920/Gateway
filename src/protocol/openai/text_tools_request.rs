@@ -7,6 +7,14 @@ pub(crate) fn validate(
     req: &CanonicalRelayRequest,
     invalid: fn() -> GatewayError,
 ) -> Result<(), GatewayError> {
+    validate_with_content(req, invalid, |_, _| false)
+}
+
+pub(crate) fn validate_with_content(
+    req: &CanonicalRelayRequest,
+    invalid: fn() -> GatewayError,
+    allow_extra: impl Fn(crate::protocol::canonical::MessageRole, &ContentPart) -> bool,
+) -> Result<(), GatewayError> {
     let raw = &req.raw_body;
     if !matches!(
         req.endpoint_kind,
@@ -42,7 +50,7 @@ pub(crate) fn validate(
         || req.messages.iter().any(|m| {
             m.content
                 .iter()
-                .any(|p| !matches!(p, ContentPart::Text { .. }))
+                .any(|p| !matches!(p, ContentPart::Text { .. }) && !allow_extra(m.role, p))
                 || m.tool_calls
                     .iter()
                     .any(|call| !matches!(call.call_type.as_str(), "function" | "function_call"))

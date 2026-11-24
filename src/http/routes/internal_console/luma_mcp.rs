@@ -15,9 +15,10 @@ use axum::{
 };
 use serde::Deserialize;
 use std::{net::SocketAddr, sync::Arc};
+mod creation;
 
 pub(crate) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
-    router
+    creation::mount(router)
         .route(
             "/v1/internal/gateway/console/luma-mcp-tools",
             axum::routing::post(read_tools)
@@ -34,13 +35,16 @@ pub(crate) fn mount(router: Router<Arc<AppState>>) -> Router<Arc<AppState>> {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Input {
+pub(super) struct Input {
     provider_id: String,
     credential_id: String,
     expected_revision: String,
 }
 
-fn resolve(snapshot: &RouteConfigSnapshot, input: &Input) -> Result<TokenMaterial, GatewayError> {
+pub(super) fn resolve(
+    snapshot: &RouteConfigSnapshot,
+    input: &Input,
+) -> Result<TokenMaterial, GatewayError> {
     let provider = snapshot
         .document()
         .providers

@@ -11,7 +11,11 @@
     "test:effective-lines": "node --test tests/effective-code-lines.test.mjs tests/effective-code-lines-runtime-artifacts.test.mjs",
     "check:effective-lines": "node effective-code-lines.mjs --mode ratchet --json artifacts/effective-code-lines.json",
     "report:effective-lines": "node effective-code-lines.mjs --mode report --json artifacts/effective-code-lines.json",
-    "strict:effective-lines": "node effective-code-lines.mjs --mode strict --json artifacts/effective-code-lines-strict.json"
+    "strict:effective-lines": "node effective-code-lines.mjs --mode strict --json artifacts/effective-code-lines-strict.json",
+    "check:effective-lines:fast": "node effective-code-lines-fast.mjs",
+    "check:rust:fast": "powershell -NoProfile -ExecutionPolicy Bypass -File ../tools/gateway-fast-dev.ps1 check",
+    "test:rust:fast": "powershell -NoProfile -ExecutionPolicy Bypass -File ../tools/gateway-fast-dev.ps1 test",
+    "test:rust:retest": "powershell -NoProfile -ExecutionPolicy Bypass -File ../tools/gateway-fast-dev.ps1 retest"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1033.0",

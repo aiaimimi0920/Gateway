@@ -1,0 +1,14 @@
+  ➜  Local:    http://127.0.0.1:59849/
+
+start   build started...
+ready   built in 0.46 s
+file:///C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/tools/luma/build-ui.mjs:60
+      closing = server.close().catch(error => {
+                       ^
+
+TypeError: server.close is not a function
+    at Timeout.close (file:///C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/tools/luma/build-ui.mjs:60:24)
+    at listOnTimeout (node:internal/timers:585:17)
+    at process.processTimers (node:internal/timers:521:7)
+
+Node.js v22.22.2

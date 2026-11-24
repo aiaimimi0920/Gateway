@@ -1,0 +1,115 @@
+FILTER: error::
+
+running 53 tests
+test error::admission_rejection::tests::bulk_probe_ip_block_is_a_narrow_retryable_provider_admission_refusal ... ok
+test error::admission_rejection::tests::bulk_probe_ip_block_plain_text_preserves_provider_scope_evidence ... ok
+test error::admission_rejection::tests::bulk_probe_ip_block_code_alone_cannot_authorize_replay ... ok
+test error::retry_after::tests::body_fractional_seconds_round_up_and_overflow_remains_terminally_large ... ok
+test error::channel_unavailable::tests::only_structured_distributor_refusals_trigger_immediate_cooling ... ok
+test error::retry_after::tests::date_rounds_up_instead_of_retrying_early ... ok
+test error::retry_after::tests::explicit_header_priority_and_invalid_fallback_are_stable ... ok
+test error::retry_after::tests::http_date_uses_an_injected_clock_and_accepts_legacy_http_forms ... ok
+test error::retry_after::tests::malformed_missing_and_duplicate_hints_fall_back_without_panicking ... ok
+test error::retry_after::tests::body_hint_paths_preserve_priority_and_handle_nested_large_numbers ... ok
+test error::retry_after::tests::overflow_and_oversize_cannot_turn_into_a_shorter_retry ... ok
+test error::tests::bad_request_constructor_sets_correct_fields ... ok
+test error::retry_after::tests::seconds_and_millisecond_headers_are_normalized ... ok
+test error::tests::builder_methods_attach_fields ... ok
+test error::retry_after::tests::normalized_header_overrides_body_but_not_error_identity_or_auth_eligibility ... ok
+test error::tests::classify_upstream_429_uses_retry_after_from_body ... ok
+test error::tests::classify_upstream_429_falls_back_to_default_delay ... ok
+test error::tests::classify_upstream_401_parses_openai_body ... ok
+test error::tests::classify_upstream_500_triggers_provider_fallback ... ok
+test error::tests::classify_upstream_deactivated_workspace_as_authentication ... ok
+test error::tests::classify_upstream_appid_no_auth_error_as_authentication ... ok
+test error::tests::classify_upstream_falls_through_to_keyword_scan_on_unmapped_status ... ok
+test error::tests::classify_upstream_fully_unknown_when_no_signals ... ok
+test error::tests::classify_upstream_error_redacts_message_without_losing_classification ... ok
+test error::tests::classify_upstream_sanitizes_before_truncating_a_long_jwt ... ok
+test error::tests::classify_upstream_token_invalidated_as_authentication ... ok
+test error::tests::current_openai_billing_codes_preserve_429_without_same_account_retry ... ok
+test error::tests::explicit_openai_quota_is_not_retried_as_rate_limit ... ok
+test error::tests::fallback_hint_abort_serialises_action_tag ... ok
+test error::tests::fallback_hint_fallback_provider_serialises_action_tag ... ok
+test error::tests::fallback_hint_retry_serialises_action_tag ... ok
+test error::tests::http_status_mapping_covers_common_codes ... ok
+test error::tests::http_status_returns_none_for_unmapped_codes ... ok
+test error::tests::keyword_detects_content_filter ... ok
+test error::tests::keyword_detects_context_length ... ok
+test error::tests::keyword_detects_rate_limit ... ok
+test error::tests::keyword_returns_none_for_benign_text ... ok
+test error::tests::non_retryable_kinds_are_not_retryable ... ok
+test error::tests::rate_limited_constructor_uses_supplied_delay ... ok
+test error::tests::retryable_kinds_are_marked_retryable ... ok
+test error::tests::server_error_is_retryable_and_triggers_fallback ... ok
+test error::tests::unauthorized_is_not_retryable_and_aborts ... ok
+test protocol::stream_error::tests::protocol_errors_preserve_display_and_json_io_source ... ok
+test protocol::stream_error::tests::protocol_boundary_preserves_text_without_impersonating_transport ... ok
+test error::tests::classify_network_error_redacts_secrets_embedded_in_url ... ok
+test protocol::stream_error::tests::typed_protocol_variant_preserves_serialization_source_without_transport ... ok
+test protocol::stream_error::tests::typed_stream_classification_is_explicit_and_never_inferred_from_provider_text ... ok
+test protocol::stream_error::tests::typed_transport_variant_keeps_original_error_and_source_identity ... ok
+test error::tests::provider_error_message_sanitizer_redacts_secrets_and_bounds_output ... ok
+test upstream::response_error::tests::invalid_headers_fall_back_to_body_without_losing_error_identity ... ok
+test upstream::response_error::tests::server_failure_honors_headers_without_promoting_permanent_errors ... ok
+test upstream::response_error::tests::generic_and_official_http_errors_preserve_header_precedence ... ok
+test upstream::response_error::tests::real_http_retry_apis_wait_for_the_transported_hint ... ok
+
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 6263 filtered out; finished in 0.12s
+
+EXIT_CODE: 0
+FILTER: retry::tests::
+
+running 17 tests
+test retry::tests::default_policy_has_expected_values ... ok
+test retry::tests::compute_delay_is_within_jitter_band ... ok
+test retry::tests::compute_delay_is_capped_at_max_delay ... ok
+test retry::tests::compute_delay_grows_exponentially ... ok
+test retry::tests::execute_with_retry_does_not_retry_non_retryable_error ... ok
+test retry::tests::execute_with_retry_returns_ok_immediately ... ok
+test retry::tests::retry_admission_rejection_returns_the_fail_closed_admission_error ... ok
+test retry::tests::execute_with_retry_exhausts_max_retries_and_returns_last_error ... ok
+test retry::tests::execute_with_retry_retries_on_transient_error_then_succeeds ... ok
+test retry::tests::should_retry_returns_false_for_429_with_policy_that_excludes_it ... ok
+test retry::tests::should_retry_returns_false_for_client_error_status_even_if_retryable_flag_set ... ok
+test retry::tests::should_retry_returns_false_when_retryable_flag_is_false ... ok
+test retry::tests::should_retry_returns_false_when_status_not_in_policy ... ok
+test retry::tests::should_retry_returns_true_for_network_error_without_status ... ok
+test retry::tests::should_retry_returns_true_for_retryable_status ... ok
+test retry::tests::retry_admission_runs_before_each_retry_but_not_before_the_pre_admitted_first_call ... ok
+test retry::tests::observed_retry_reports_every_real_upstream_attempt_and_elapsed_time ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 6299 filtered out; finished in 0.07s
+
+EXIT_CODE: 0
+FILTER: pipeline::stage_finalize::luma_agents_audit::tests::
+
+running 2 tests
+test pipeline::stage_finalize::luma_agents_audit::tests::luma_agents_audit_extension_cannot_impersonate_a_different_selected_adapter ... ok
+test pipeline::stage_finalize::luma_agents_audit::tests::luma_agents_audit_native_credits_keep_null_zero_and_fraction_without_secret_fields ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 6314 filtered out; finished in 0.00s
+
+EXIT_CODE: 0
+FILTER: provider_runtime::model_probe_audit::tests::
+
+running 7 tests
+test provider_runtime::model_probe_audit::tests::model_probe_audit_drop_without_runtime_context_releases_ownership_without_fake_terminal ... ok
+test provider_runtime::model_probe_audit::tests::model_probe_audit_admission_wait_cancellation_never_creates_a_worker_or_row ... ok
+test provider_runtime::model_probe_audit::tests::model_probe_audit_no_store_and_server_without_principal_are_not_fake_success ... ok
+test provider_runtime::model_probe_audit::tests::model_probe_audit_storage_failure_does_not_silently_become_cancelled ... ok
+test provider_runtime::model_probe_audit::tests::model_probe_audit_recording_and_unpolled_finish_drop_are_cancellations ... ok
+test provider_runtime::model_probe_audit::tests::model_probe_audit_create_and_unread_output_drop_keep_terminal_ownership ... ok
+test provider_runtime::model_probe_audit::tests::model_probe_audit_submitted_finish_survives_waiter_drop_and_drains_before_close ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 6309 filtered out; finished in 0.41s
+
+EXIT_CODE: 0
+FILTER: provider_runtime::tests::persistence_boundary_redacts_provider_error_secrets
+
+running 1 test
+test provider_runtime::tests::persistence_boundary_redacts_provider_error_secrets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6315 filtered out; finished in 0.03s
+
+EXIT_CODE: 0

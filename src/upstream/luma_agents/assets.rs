@@ -17,7 +17,7 @@ pub(super) async fn download(
         .map_err(error)?;
     validate::payload(bytes, &mime, media).await
 }
-fn error(error: Failure) -> GatewayError {
+pub(super) fn error(error: Failure) -> GatewayError {
     match error {
         Failure::Target => unsafe_url(),
         Failure::Http(status) => failure(

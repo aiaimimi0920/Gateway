@@ -12,7 +12,7 @@ fn absent_hint_is_not_confused_with_the_retry_loops_default() {
     assert_eq!(
         transition_for_failure_with_retry_after(&classification, error.upstream_retry_after_ms)
             .cooldown_seconds,
-        Some(300)
+        Some(30)
     );
     assert_eq!(
         neuro_gateway::error::GatewayError::rate_limited("local limit", 25).upstream_retry_after_ms,

@@ -30,14 +30,17 @@ use super::{CredentialSource, PipelineContext};
 
 mod account_group;
 mod candidate_policy;
+pub(super) mod rejections;
+mod reservation;
+pub(super) use reservation::reserve_preselected_auto;
 pub(crate) mod smart;
 pub(crate) use candidate_policy::{
     provider_allowed_by_policy, provider_explicitly_allowed_by_policy,
 };
 
 use account_group::{
-    account_group_candidates_unavailable_error, filter_candidate_pairs_by_account_group,
-    map_account_group_selection_error,
+    account_group_candidates_unavailable_error, build_rejected_summary,
+    filter_candidate_pairs_by_account_group, map_account_group_selection_error,
 };
 use candidate_policy::{
     filter_candidates_by_route_policy_family, finalize_candidate_pairs_for_request,
@@ -51,9 +54,27 @@ use candidate_policy::{
 /// - `UserOwned` / `AccountCredential`: only matched to their owner
 /// - `PlatformUnlimited` / `PlatformLimited`: shared across all project users
 pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(), GatewayError> {
+    run_inner(ctx, state, true).await
+}
+
+// Used by receipt-owned execution: resolve and authorize the normal route
+// without handing a process-owned balance reservation to ordinary finalize.
+pub(super) async fn select_for_durable_reservation(
+    ctx: &mut PipelineContext,
+    state: &Arc<AppState>,
+) -> Result<(), GatewayError> {
+    run_inner(ctx, state, false).await
+}
+
+async fn run_inner(
+    ctx: &mut PipelineContext,
+    state: &Arc<AppState>,
+    reserve_auto_route: bool,
+) -> Result<(), GatewayError> {
     ctx.explicit_fallback_provider_ids.clear();
     ctx.local_key_fallback_provider_ids.clear();
-    let model = ctx.canonical_req.requested_model.as_deref();
+    let requested_model = ctx.canonical_req.requested_model.clone();
+    let model = requested_model.as_deref();
     let requested_account_group_id = ctx.account_group_id.clone();
     let route_snapshot = state.route_config.snapshot();
     ctx.cash_route_snapshot = Some(route_snapshot.clone());
@@ -72,7 +93,8 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         .or_else(|| ctx.request_headers.get("x-credential-ref").cloned());
     let explicit_credential_requested = credential_ref.is_some();
     let local_access_key_id =
-        crate::local_runtime::access_keys::local_key_id(state, ctx.session.as_ref());
+        crate::local_runtime::access_keys::local_key_id(state, ctx.session.as_ref())
+            .map(str::to_owned);
     if state.local_runtime.is_some() && explicit_credential_requested {
         return Err(crate::local_runtime::access_keys::denied(
             "Local access keys cannot override credential ownership",
@@ -131,23 +153,21 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             route_context.candidates,
         );
         let had_authorized_candidates = !route_candidates.is_empty();
-        let (route_candidates, projected_candidates): (Vec<_>, Vec<_>) = route_candidates
-            .into_iter()
-            .zip(projected_candidates)
-            .filter(|(c, _)| {
-                crate::routing::admission::candidate_queueable(
-                    state,
-                    c,
-                    c.upstream_model.as_deref().unwrap_or(requested_model),
-                )
-            })
-            .unzip();
+        let (route_candidates, projected_candidates) = rejections::retain_queueable_pairs(
+            ctx,
+            state,
+            route_candidates,
+            projected_candidates,
+            requested_model,
+        );
         if route_candidates.is_empty() {
             if key_groups.is_some() {
                 return Err(if had_authorized_candidates {
-                    GatewayError::service_unavailable(
-                        "Authorized upstream accounts are temporarily unavailable",
-                    )
+                    let rejected_summary = build_rejected_summary(&ctx.rejected_candidates);
+                    GatewayError::service_unavailable(format!(
+                        "Authorized upstream accounts are disabled or temporarily unavailable. {}",
+                        rejected_summary
+                    ))
                     .with_code("authorized_candidates_unavailable")
                 } else {
                     crate::access_key_groups::denied()
@@ -162,32 +182,8 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             return Err(GatewayError::quota_exceeded("当前 key 没有可用的访问候选")
                 .with_code("access_candidates_exhausted"));
         }
-        if ctx
-            .session
-            .as_ref()
-            .and_then(|s| s.access_key_kind.as_deref())
-            == Some("auto_route")
-        {
-            if let Some(selected) = projected_candidates.first() {
-                let decision = db::pre_deduct_access_key_balance(
-                    pg_pool,
-                    &state.redis_pool,
-                    &selected.source_access_key_id,
-                    estimated,
-                )
-                .await?;
-                if !decision.allowed {
-                    return Err(
-                        GatewayError::quota_exceeded("当前自动路由 key 的候选额度不足").with_code(
-                            decision
-                                .reason
-                                .unwrap_or_else(|| "balance_not_allowed".to_string()),
-                        ),
-                    );
-                }
-                ctx.quota_credential_id = Some(selected.source_access_key_id.clone());
-                ctx.quota_pre_deducted_tokens = decision.pre_deduct_amount;
-            }
+        if reserve_auto_route {
+            reservation::reserve(ctx, state, projected_candidates.first()).await?;
         }
         let finalized = finalize_candidate_pairs_for_request(
             &ctx.canonical_req,
@@ -400,7 +396,8 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         // no candidate of its own.
         if !database_resolved_candidates {
             // Use the same snapshot and intersected membership before credential round-robin.
-            let resolution = route_snapshot.resolve_candidates_admitted(
+            let preferred = smart::preferred_account(ctx, state);
+            let resolution = route_snapshot.resolve_candidates_admitted_with_preferred(
                 model,
                 &account_group_constraint,
                 &|p, c, m| {
@@ -413,9 +410,11 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
                     )
                 },
                 key_groups.is_some(),
+                preferred.as_ref(),
             );
             ctx.explicit_fallback_provider_ids =
                 resolution.explicit_provider_ids.unwrap_or_default();
+            ctx.rejected_candidates = resolution.rejected_candidates;
             all_candidates.extend(resolution.candidates);
         }
     }
@@ -424,26 +423,31 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     // the same validated group constraint used by access-catalog and YAML
     // routing before affinity or queue ordering can select an outside account.
     all_candidates = account_group_constraint.filter_candidates(all_candidates);
-    all_candidates.retain(|c| {
-        crate::routing::admission::candidate_queueable(
-            state,
-            c,
-            c.upstream_model.as_deref().unwrap_or_else(|| {
-                crate::upstream::upstream_model_helpers::resolve_model(
-                    &c.payload,
-                    &ctx.canonical_req,
-                )
-            }),
-        )
-    });
+    let pre_queueable_candidates = all_candidates.clone();
+    rejections::retain_queueable(ctx, state, &mut all_candidates);
     if key_groups.is_some() && all_candidates.is_empty() {
-        return Err(account_group::key_group_candidates_error(
-            &route_snapshot,
-            &account_group_constraint,
-            model,
-        ));
+        // All queueable candidates were filtered out. If there were
+        // authorized candidates that are only temporarily blocked (not
+        // permanently disabled), retain them so the send stage can wait
+        // for recovery rather than failing the request immediately.
+        if !pre_queueable_candidates.is_empty() {
+            debug!(
+                req_id = %ctx.req_id,
+                model = ?model,
+                blocked_count = pre_queueable_candidates.len(),
+                "all queueable candidates blocked in fallback path; retaining temporarily blocked candidates"
+            );
+            all_candidates = pre_queueable_candidates;
+        } else {
+            return Err(account_group::key_group_candidates_error(
+                &route_snapshot,
+                &account_group_constraint,
+                model,
+                &ctx.rejected_candidates,
+            ));
+        }
     }
-    if let Some(id) = local_access_key_id {
+    if let Some(id) = local_access_key_id.as_deref() {
         if let Some(local) = &state.local_runtime {
             if let Some(ids) = local
                 .authorize_local_candidates_with_fallback_authorization(
@@ -489,6 +493,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
     }
     all_candidates =
         filter_candidates_by_route_policy_family(all_candidates, ctx.route_policy_config.as_ref());
+    let health_candidates = rejections::capture(&all_candidates);
     let model_health = if let Some(local) = &state.local_runtime {
         local.apply_model_states(&mut all_candidates).await
     } else if let Some(pg_pool) = &state.pg_pool {
@@ -508,6 +513,7 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
         );
     }
 
+    rejections::record_removed(ctx, &all_candidates, health_candidates);
     if all_candidates.is_empty() {
         if let Some(error) =
             account_group_candidates_unavailable_error(&account_group_constraint, model)
@@ -515,14 +521,16 @@ pub async fn run(ctx: &mut PipelineContext, state: &Arc<AppState>) -> Result<(),
             return Err(error);
         }
         let model_str = model.unwrap_or("<none>");
+        let rejected_summary = build_rejected_summary(&ctx.rejected_candidates);
         warn!(
             req_id = %ctx.req_id,
             model = model_str,
+            rejected_count = ctx.rejected_candidates.len(),
             "no route candidates found"
         );
         return Err(GatewayError::bad_request(format!(
-            "No providers configured for model '{}'",
-            model_str
+            "No providers configured for model '{}'. {}",
+            model_str, rejected_summary
         )));
     }
 

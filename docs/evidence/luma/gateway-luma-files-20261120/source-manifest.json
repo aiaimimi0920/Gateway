@@ -1,0 +1,80 @@
+{
+  "files": [
+    {
+      "path": "src/protocol/luma_agents/files.rs",
+      "sha256": "d4f0997517ce5dae96473eca3e8f9ec42ce4d8958fbf9dd37c737a7da23567f4"
+    },
+    {
+      "path": "src/upstream/luma_agents/files.rs",
+      "sha256": "a11517549c8911f158e02001034f09c313f04ef18fecfc9c48d95a02fc6b13d2"
+    },
+    {
+      "path": "src/upstream/luma_agents/files_output.rs",
+      "sha256": "7e92d963f5691cd9575614372a02ac956085022274cce143314916e5bf412b7b"
+    },
+    {
+      "path": "src/http/routes/internal_console/luma_files.rs",
+      "sha256": "cb329da7c59645a1e1c2528c715becee5218bcb9366b6ab2d36b59c0ede8de3f"
+    },
+    {
+      "path": "src/upstream/luma_agents/files_tests.rs",
+      "sha256": "4a3355c54e0e54878fa4f94459b670805b4deebc8df630c475a5d7a40070666f"
+    },
+    {
+      "path": "src/upstream/luma_agents/files_management_tests.rs",
+      "sha256": "1c83d7b2c9233f3118a6d2a31893c396e212ca084e469020e845cce8fcc7995b"
+    },
+    {
+      "path": "src/upstream/luma_agents/test_support.rs",
+      "sha256": "e0acd7d1c0b2673cbcd40d89858dca72d30deb1c9a94765c9cc68758d356a0c7"
+    },
+    {
+      "path": "src/protocol/luma_agents.rs",
+      "sha256": "86008c0f8c7ba958435b81af855dae5a88a3e4d31b45b65bf840f7c17c715e8a"
+    },
+    {
+      "path": "src/upstream/luma_agents.rs",
+      "sha256": "ef4e07af929f7156761d13a0e7d847acece1e55940d56caa2eee5fd589e5c20b"
+    },
+    {
+      "path": "src/upstream/luma_agents/transport.rs",
+      "sha256": "49a7b04a5ccdece3cc5bbc802af002e31767370160271488fa3708ec17c77d23"
+    },
+    {
+      "path": "src/http/routes/internal_console.rs",
+      "sha256": "b9d7049ea42dd5dcaec32e52fc3fd24e3a4241219abb9ce5fe75de48e1b8580c"
+    },
+    {
+      "path": "src/http/router/management_config.rs",
+      "sha256": "327375b6af7d883de3e79ff347a8614125ac7030df0d5dbce818b7d1c3b664e2"
+    },
+    {
+      "path": "apps/desktop/src/api/console/luma-files.ts",
+      "sha256": "6bab5eddd431e8def5a6f6bcebb119e41ed33d7bc04510a959456bd98cdbb75c"
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaFilesPanel.tsx",
+      "sha256": "91e673ec4b99276bcb213c55bd30f16205bac75d903cc1b13ee0496bd8829eb8"
+    },
+    {
+      "path": "apps/desktop/src/features/console/useLumaFiles.ts",
+      "sha256": "04649b4ab6192180c6393b8b08bfec84297b1f5f39d0ad8dda42d9ecb0d3454e"
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaFilesPanel.test.tsx",
+      "sha256": "eef66a06ac1efb236bdc7c93abd7b1b688a35e88678945b21045a0492e019a24"
+    },
+    {
+      "path": "apps/desktop/src/features/console/ConsoleGlobalDialogs.tsx",
+      "sha256": "c09a50a27a7e4bdb37d78cdf4475e4b7cee77e8bebdc15145180c82eefbbef83"
+    },
+    {
+      "path": "apps/desktop/src/features/console/ConsoleGlobalDialogs.luma-agents.test.tsx",
+      "sha256": "a6a5fb5e7ae06bfa28ac71188be5a5dc2e07e16c5aca81aff009ce822455dadc"
+    },
+    {
+      "path": "tools/luma/fetch-contracts.py",
+      "sha256": "f4cf414eeee340c0700177cec920b86cd7231a29f5b10cf8a55703ebe2d69e69"
+    }
+  ]
+}

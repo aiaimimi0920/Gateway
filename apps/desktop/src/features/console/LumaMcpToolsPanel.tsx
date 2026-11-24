@@ -4,13 +4,10 @@ import { Button, Field, Notice, Select, Textarea } from "@neuro/ui";
 import { z } from "zod";
 import { useUiLocale } from "../../i18n/UiLocaleProvider";
 import type { LumaOAuthProps } from "./useLumaOAuth";
+import { downloadLumaMcpSnapshot, lumaMcpToolSchema } from "./lumaMcpSnapshot";
 
-const toolSchema = z.object({ name: z.string().min(1).max(128).regex(/^[A-Za-z0-9_.-]+$/),
-  title: z.string().max(1024).nullable(), description: z.string().max(16384).nullable(),
-  inputSchema: z.object({ type: z.literal("object") }).passthrough(),
-  outputSchema: z.record(z.string(), z.unknown()).nullable() });
 const responseSchema = z.object({ revision: z.string(), providerId: z.string(), credentialId: z.string(),
-  tools: z.array(toolSchema).max(256).refine((tools) => new Set(tools.map((tool) => tool.name)).size === tools.length) });
+  tools: z.array(lumaMcpToolSchema).max(256).refine((tools) => new Set(tools.map((tool) => tool.name)).size === tools.length) });
 type Tools = z.infer<typeof responseSchema>["tools"];
 type Props = Pick<LumaOAuthProps, "client" | "managementToken" | "secretGrant" | "providerId" | "credentialId"
   | "expectedRevision" | "disabled" | "onRequestSecretAccess">;
@@ -24,18 +21,22 @@ export function LumaMcpToolsPanel(props: Props) {
   const pending = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  const [result, setResult] = useState<{ scope: typeof scope; tools: Tools } | null>(null);
+  const [exportError, setExportError] = useState(false);
+  const [result, setResult] = useState<{ scope: typeof scope; tools: Tools; capturedAt: string } | null>(null);
   const [selected, setSelected] = useState("");
   useEffect(() => {
-    setResult(null); setSelected(""); setError(false); setBusy(false);
+    setResult(null); setSelected(""); setError(false); setExportError(false); setBusy(false);
     return () => { pending.current?.abort(); pending.current = null; };
   }, [scope]);
   const enabled = !scope.disabled && !!scope.token && !!scope.credentialId && !!scope.revision;
   const read = async () => {
     if (!enabled || pending.current) return;
-    if (!scope.grant) { void props.onRequestSecretAccess(); return; }
+    if (!scope.grant) {
+      try { await props.onRequestSecretAccess(); } catch { if (current.current === scope) setError(true); }
+      return;
+    }
     const controller = new AbortController(); pending.current = controller;
-    setBusy(true); setError(false); setResult(null); setSelected("");
+    setBusy(true); setError(false); setExportError(false); setResult(null); setSelected("");
     try {
       const response = await scope.client.request("/v1/internal/gateway/console/luma-mcp-tools", responseSchema, {
         method: "POST", cache: "no-store", managementToken: scope.token, secretGrant: scope.grant, signal: controller.signal,
@@ -45,7 +46,7 @@ export function LumaMcpToolsPanel(props: Props) {
       if (response.revision !== scope.revision || response.providerId !== scope.providerId || response.credentialId !== scope.credentialId) {
         setError(true); return;
       }
-      setResult({ scope, tools: response.tools }); setSelected(response.tools[0]?.name ?? "");
+      setResult({ scope, tools: response.tools, capturedAt: new Date().toISOString() }); setSelected(response.tools[0]?.name ?? "");
     } catch {
       // Do not echo arbitrary server/upstream content, which may contain authentication material.
       if (!controller.signal.aborted && current.current === scope) setError(true);
@@ -55,10 +56,18 @@ export function LumaMcpToolsPanel(props: Props) {
   };
   const tools = result?.scope === scope ? result.tools : null;
   const tool = tools?.find((entry) => entry.name === selected);
+  const save = () => {
+    if (!enabled || busy || !result || result.scope !== scope || current.current !== scope) return;
+    setExportError(false);
+    try { downloadLumaMcpSnapshot(result.tools, result.capturedAt); }
+    catch { setExportError(true); }
+  };
   return <section className="n-stack" aria-label={t("Luma MCP 工具目录", "Luma MCP tools")}>
     <Button disabled={!enabled || busy} loading={busy} onClick={() => void read()}>{t("读取工具目录", "Read tool catalog")}</Button>
+    <Button disabled={!enabled || busy || !tools} onClick={save}>{t("导出工具目录", "Export tool catalog")}</Button>
     {busy && <Button onClick={() => { pending.current?.abort(); pending.current = null; setBusy(false); }}>{t("停止读取", "Stop reading")}</Button>}
     {error && <Notice tone="danger">{t("工具目录读取失败，请检查授权与配置版本后重试。", "Tool catalog read failed. Check authorization and configuration before retrying.")}</Notice>}
+    {exportError && <Notice tone="danger">{t("工具目录导出失败，请重试。", "Tool catalog export failed. Please retry.")}</Notice>}
     {tools?.length === 0 && <Notice>{t("工具目录为空", "Tool catalog is empty")}</Notice>}
     {!!tools?.length && <Field label={t("工具", "Tool")}><Select value={selected} onChange={(event) => setSelected(event.target.value)}>
       {tools.map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}

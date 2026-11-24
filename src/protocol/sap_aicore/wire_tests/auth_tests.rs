@@ -47,6 +47,46 @@ async fn sap_aicore_token_singleflight_expiry_and_secret_replacement() {
     peer.stop().await;
 }
 #[tokio::test]
+async fn sap_aicore_token_slots_are_isolated_by_deployment_and_resource_group() {
+    let peer = peer::Peer::new("chat", false, false, 200).await;
+    let cache = super::super::auth::TokenCache::default();
+    let http = peer.client();
+    let first = super::super::tests::payload();
+    let mut deployment = first.clone();
+    deployment.base_url = first.base_url.replace("deployment1", "deployment2");
+    let mut group = first.clone();
+    group
+        .headers
+        .insert("AI-Resource-Group".into(), "group-b".into());
+    super::super::test_support::origin(peer.origin.clone(), async {
+        for (name, payload) in [
+            ("first", &first),
+            ("deployment", &deployment),
+            ("group", &group),
+        ] {
+            *peer.token.lock().unwrap() = (
+                200,
+                json!({"access_token": name, "token_type":"Bearer", "expires_in":3600})
+                    .to_string()
+                    .into_bytes(),
+            );
+            assert_eq!(cache.get(&http, payload).await.unwrap(), name);
+        }
+        for (name, payload) in [
+            ("group", &group),
+            ("first", &first),
+            ("deployment", &deployment),
+        ] {
+            assert_eq!(cache.get(&http, payload).await.unwrap(), name);
+        }
+        assert_eq!(peer.oauth.lock().unwrap().len(), 3);
+    })
+    .await;
+    assert!(peer.calls.lock().unwrap().is_empty());
+    peer.stop().await;
+}
+
+#[tokio::test]
 async fn sap_aicore_token_failures_are_redacted_not_cached_and_never_generate() {
     let peer = peer::Peer::new("chat", false, false, 200).await;
     let cache = super::super::auth::TokenCache::default();
@@ -82,4 +122,40 @@ async fn sap_aicore_token_failures_are_redacted_not_cached_and_never_generate() 
     })
     .await;
     peer.stop().await;
+}
+
+#[test]
+fn sap_aicore_x509_imports_bound_service_key() {
+    use super::super::{test_support::BASE, Endpoint, ServiceKey};
+    let endpoint = Endpoint::parse(BASE).unwrap();
+    let mut key = mtls_fixtures::service_key(false);
+    assert!(ServiceKey::parse(&key.to_string(), &endpoint).is_ok());
+    for (field, value) in [
+        ("clientsecret", json!("mixed-auth-must-not-fallback")),
+        (
+            "certurl",
+            json!("https://synthetic.authentication.eu10.hana.ondemand.com"),
+        ),
+        (
+            "certurl",
+            json!("https://synthetic.authentication.cert.eu10.hana.ondemand.com.invalid"),
+        ),
+        (
+            "url",
+            json!("https://foreign.authentication.eu10.hana.ondemand.com"),
+        ),
+        ("key", json!("invalid-private-key")),
+        ("certificate", json!("invalid-leaf")),
+        ("certUrl", key["certurl"].clone()), // cites the same field twice
+    ] {
+        let mut malformed = key.clone();
+        malformed[field] = value;
+        assert!(
+            ServiceKey::parse(&malformed.to_string(), &endpoint).is_err(),
+            "{field}"
+        );
+    }
+    key.as_object_mut().unwrap().remove("url");
+    key["certUrl"] = key.as_object_mut().unwrap().remove("certurl").unwrap();
+    assert!(ServiceKey::parse(&key.to_string(), &endpoint).is_ok());
 }

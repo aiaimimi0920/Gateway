@@ -30,7 +30,13 @@ async fn luma_mcp_inspection_initializes_and_paginates_json_and_sse_without_eof(
     let first = Reply::json(
         json!({"jsonrpc":"2.0","id":2,"result":{"tools":[tool("luma_model_list")],"nextCursor":"cursor-1"}}),
     );
-    let mut second = page(3, vec![tool("luma_generate_image")]);
+    let mut definition = tool("luma_generate_image");
+    definition["inputSchema"]["required"] = json!(["session_id", "prompt"]);
+    definition["outputSchema"] = json!({"type":"object","properties":{"run_id":{"type":"string"}}});
+    definition["annotations"] =
+        json!({"readOnlyHint":false,"idempotentHint":false,"futureHint":{"value":"保留"}});
+    definition["_meta"] = json!({"private":"excluded-tool-metadata"});
+    let mut second = page(3, vec![definition.clone()]);
     second.mime = "text/event-stream";
     second.body = format!("data: {}\n\n", second.body);
     second.hold = true;
@@ -41,6 +47,12 @@ async fn luma_mcp_inspection_initializes_and_paginates_json_and_sse_without_eof(
         .unwrap();
     assert_eq!(catalog.len(), 2);
     assert_eq!(catalog[1].name, "luma_generate_image");
+    let saved = serde_json::to_value(&catalog[1]).unwrap();
+    for key in ["inputSchema", "outputSchema", "annotations"] {
+        assert_eq!(saved[key], definition[key]);
+    }
+    assert!(saved.get("_meta").is_none());
+    assert!(catalog[0].annotations.is_none());
     let serialized = serde_json::to_string(&catalog).unwrap();
     assert!(!serialized.contains("synthetic-access") && !serialized.contains("private-session"));
     {
@@ -72,6 +84,23 @@ async fn luma_mcp_inspection_initializes_and_paginates_json_and_sse_without_eof(
     }
     peer.wait_drops(4).await;
     peer.stop().await;
+}
+
+#[tokio::test]
+async fn luma_mcp_inspection_rejects_invalid_annotations_without_partial_catalog() {
+    for annotations in [json!(true), json!("private-error"), json!([]), json!(1)] {
+        let mut invalid = tool("invalid");
+        invalid["annotations"] = annotations;
+        let peer = Peer::new(vec![
+            init(),
+            Reply::initialized(),
+            page(2, vec![tool("valid"), invalid]),
+        ])
+        .await;
+        assert_eq!(inspect(&peer).await.unwrap_err(), McpError::InvalidResponse);
+        assert_eq!(peer.count(), 3);
+        peer.stop().await;
+    }
 }
 
 #[tokio::test]

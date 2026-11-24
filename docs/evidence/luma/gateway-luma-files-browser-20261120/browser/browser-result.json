@@ -1,0 +1,23 @@
+{
+  "status": "failed",
+  "browserClosed": true,
+  "proxyClosed": true,
+  "calls": [],
+  "responses": [],
+  "sessionResponses": [
+    {
+      "path": "/v1/internal/gateway/console/session/verify",
+      "status": 200
+    },
+    {
+      "path": "/v1/internal/gateway/console/session/confirm-secret-access",
+      "status": 200
+    }
+  ],
+  "errors": [
+    "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '编辑账号 exact', exact: true })\u001b[22m\n\n    at C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway\\tools\\luma\\files-browser-check.mjs:58:30"
+  ],
+  "external": [],
+  "checkpoints": [],
+  "scope": "normal main UI; synthetic upstream only"
+}

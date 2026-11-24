@@ -1,0 +1,13 @@
+
+> gateway-ui@0.1.0 test
+> vitest run src/features/console/ProviderPoolDialogs.test.tsx src/features/console/CredentialTestManager.test.tsx --maxWorkers=1
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+
+ Test Files  2 passed (2)
+      Tests  12 passed (12)
+   Start at  04:17:55
+   Duration  12.08s (transform 1.15s, setup 611ms, import 2.55s, tests 5.94s, environment 2.43s)
+

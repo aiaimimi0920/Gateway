@@ -61,6 +61,28 @@ pub async fn execute_suno_bound_browser_executor(
     Ok(Json(response))
 }
 
+pub async fn execute_luma_session_browser_executor(
+    state: State<Arc<AppState>>,
+    token: OptionalBearerToken,
+    headers: HeaderMap,
+    Json(body): Json<BrowserExecutorServiceInvocationRequest>,
+) -> Result<Json<BrowserExecutorServiceInvocationResponse>, GatewayError> {
+    assert_browser_executor_access(token.0.as_deref(), &headers)?;
+    if !body.provider.trim().eq_ignore_ascii_case("lumalabs") {
+        return Err(
+            GatewayError::bad_request("This versioned executor accepts only Luma Web.")
+                .with_code("lumalabs_session_provider_invalid"),
+        );
+    }
+    Ok(Json(
+        state
+            .0
+            .upstream_client
+            .execute_luma_session_browser_executor_service_invocation(body)
+            .await,
+    ))
+}
+
 fn assert_browser_executor_access(
     bearer_token: Option<&str>,
     headers: &HeaderMap,

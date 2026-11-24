@@ -8,6 +8,16 @@ pub(crate) async fn validate(
     bytes: Vec<u8>,
     mime: &str,
 ) -> Result<(Vec<u8>, &'static str), Failure> {
+    let (bytes, mime, ()) = validate_with(bytes, mime, |_| Ok(())).await?;
+    Ok((bytes, mime))
+}
+
+/// Product-specific checks run inside the same bounded decode owner, without decoding twice.
+pub(crate) async fn validate_with<T: Send + 'static>(
+    bytes: Vec<u8>,
+    mime: &str,
+    inspect: impl FnOnce(&image::DynamicImage) -> Result<T, Failure> + Send + 'static,
+) -> Result<(Vec<u8>, &'static str, T), Failure> {
     let format = image::guess_format(&bytes).map_err(|_| Failure::Type)?;
     let actual = match format {
         image::ImageFormat::Png => "image/png",
@@ -23,7 +33,7 @@ pub(crate) async fn validate(
         .await
         .map_err(|_| Failure::Type)?;
     // Dropping a caller cannot abort blocking decoding; the permit stays with its bounded work.
-    let bytes = tokio::task::spawn_blocking(move || {
+    let (bytes, facts) = tokio::task::spawn_blocking(move || {
         let _permit = permit;
         let mut reader = image::ImageReader::with_format(std::io::Cursor::new(&bytes), format);
         let mut limits = image::Limits::default();
@@ -31,10 +41,11 @@ pub(crate) async fn validate(
         limits.max_image_height = Some(8192);
         limits.max_alloc = Some(64 * 1024 * 1024);
         reader.limits(limits);
-        reader.decode().map_err(|_| Failure::Type)?;
-        Ok::<_, Failure>(bytes)
+        let decoded = reader.decode().map_err(|_| Failure::Type)?;
+        let facts = inspect(&decoded)?;
+        Ok::<_, Failure>((bytes, facts))
     })
     .await
     .map_err(|_| Failure::Type)??;
-    Ok((bytes, actual))
+    Ok((bytes, actual, facts))
 }

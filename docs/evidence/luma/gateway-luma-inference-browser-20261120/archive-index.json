@@ -1,0 +1,206 @@
+{
+  "copiedFiles": 40,
+  "originalRoot": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\linshi\\gateway-luma-inference-browser-20261120",
+  "files": [
+    {
+      "path": "source-inputs.json",
+      "bytes": 1311,
+      "sha256": "8f671f9688b1837e36561ec89dbe27d07690bd7a92934f7bfdcad27912d0f740"
+    },
+    {
+      "path": "main-output-hashes.json",
+      "bytes": 2292,
+      "sha256": "8f624c5370234a8db42889be091c7166898a82c099029b338cd0e3f3b7d67b91"
+    },
+    {
+      "path": "static-checks.json",
+      "bytes": 1605,
+      "sha256": "35846a7975fb9c957fdc9e2a533bcb01f585d62a8b59391015c6a86e90ef9e82"
+    },
+    {
+      "path": "new-files-diff-check-final.json",
+      "bytes": 1331,
+      "sha256": "97191f30e2a04b56251a190e20a0adb27caebaa900bd3d8c5b2784d93f62b7e7"
+    },
+    {
+      "path": "review.json",
+      "bytes": 1399,
+      "sha256": "be6853e86779fe777d2a1ce0667f6798a407af4e7a9b7efbfce5da1785d5bd40"
+    },
+    {
+      "path": "resource-final.json",
+      "bytes": 669,
+      "sha256": "7b7178bdce53e552fded856361940242b73317ead625e98b7090a2b4520e55bd"
+    },
+    {
+      "path": "host/ready.json",
+      "bytes": 287,
+      "sha256": "d19d807584a835c08b2e15228f9aa60c5bc91873262aabe6859ce316412aa0e5"
+    },
+    {
+      "path": "host-v2/ready.json",
+      "bytes": 287,
+      "sha256": "54f4abfee8a55ad1ea6340410d831b25a2fc9435cf7bfc6dad1705cf2df2e39c"
+    },
+    {
+      "path": "host-v2/completed.json",
+      "bytes": 1543,
+      "sha256": "e073343ae0c325323352c562d5b47f36dffeef66880ea8d7403f36ab429425d9"
+    },
+    {
+      "path": "rust-host/command.log",
+      "bytes": 26453,
+      "sha256": "7bc8203d0c0469d57d5a45c09f33bc484c114a1e39348aaa63107dafe59044f2"
+    },
+    {
+      "path": "rust-host/result.json",
+      "bytes": 534,
+      "sha256": "9e9327188e4749ef509aca14688d05776890e52abe7f8cfec7f4208f95dd3782"
+    },
+    {
+      "path": "rust-host-v2/command.log",
+      "bytes": 25806,
+      "sha256": "2fa68e57c0c6ced37440634ae1cd662bb9db62f4d1bb1c727ef2766942fe85d7"
+    },
+    {
+      "path": "rust-host-v2/result.json",
+      "bytes": 531,
+      "sha256": "e63fdbae6a6af017892982c47aa64109900d8c3ab7c6b6540ad835aae0756e18"
+    },
+    {
+      "path": "browser-run/command.log",
+      "bytes": 145,
+      "sha256": "bac35ab21eaf2ff4982cef65a90fa236e381f8d1e19b77672d9f58721f09e93a"
+    },
+    {
+      "path": "browser-run/result.json",
+      "bytes": 602,
+      "sha256": "8af6a44eefebb7e0b3be6e15f48c8a5ab17c97d9ea91ede8d1214e128045a1bb"
+    },
+    {
+      "path": "browser-run-v2/command.log",
+      "bytes": 148,
+      "sha256": "f79cde62aa9b85150d2784abb72480f425cd41e8406ee80df96f70cae02e42e9"
+    },
+    {
+      "path": "browser-run-v2/result.json",
+      "bytes": 634,
+      "sha256": "422273e1391b9d5126904cacb1357ca1ab7729fff613d41a99f1dbb8bbed6c99"
+    },
+    {
+      "path": "frontend-red/command.log",
+      "bytes": 15726,
+      "sha256": "84330e2ff3d2428951aa38559d451fa66d7e8d25988f47bb1c88290283b9bec8"
+    },
+    {
+      "path": "frontend-red/result.json",
+      "bytes": 377,
+      "sha256": "2ff1a178e193378892f48b381ef44a8bb19a291870ed905949374df82c5aa0a1"
+    },
+    {
+      "path": "frontend/command.log",
+      "bytes": 413,
+      "sha256": "9e876624fe9b0114990b8bc41ceaead7c9b83c25faed2b9a332a084ca38ee1a8"
+    },
+    {
+      "path": "frontend/result.json",
+      "bytes": 437,
+      "sha256": "1ef8a573aa543059212f1269c1f30bb016a96830064afa914d617e059ac0269d"
+    },
+    {
+      "path": "frontend-final/command.log",
+      "bytes": 413,
+      "sha256": "8e06031cf5792dd72276e9c2d26bdecc31313958a1570ad477c851e9dbb2e5a4"
+    },
+    {
+      "path": "frontend-final/result.json",
+      "bytes": 437,
+      "sha256": "b7cc6898e7540ca32f0d6582a33b0a80fce9d0cb985af0441d7f72a1752c5951"
+    },
+    {
+      "path": "main-build/command.log",
+      "bytes": 1405,
+      "sha256": "5098572c5ade3485a184843c87c88df494f5443786e118f4d3fcad5fc0febd1d"
+    },
+    {
+      "path": "main-build/result.json",
+      "bytes": 358,
+      "sha256": "47acc2cddd71a21d02b36014018e2dd6362b06948e6c18b5278083be7b405d3c"
+    },
+    {
+      "path": "main-build-v2/command.log",
+      "bytes": 1438,
+      "sha256": "591d289cfcad2dbe5121e254c8d70c25c93a9c5cc6ae50a9ef925b79be044e92"
+    },
+    {
+      "path": "main-build-v2/result.json",
+      "bytes": 361,
+      "sha256": "a7738a8e9ddded64664743f6a1dda0bca14080dd7483a11300205617ad66bfdd"
+    },
+    {
+      "path": "typecheck/command.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typecheck/result.json",
+      "bytes": 323,
+      "sha256": "f580ec5f75267e563611d2a29ea3387ee5e1c4f901f8f179fac7d316e2a7b0b7"
+    },
+    {
+      "path": "ratchet/command.log",
+      "bytes": 273,
+      "sha256": "ab79e41facf1ebd8f45f1a5033d9ad9f7e7f7d002469121beeee0db7857d080d"
+    },
+    {
+      "path": "ratchet/result.json",
+      "bytes": 284,
+      "sha256": "a8ef2c710def6dfcb262a752dbfd0366a8cc8022b74d499a23b369d2793649b8"
+    },
+    {
+      "path": "browser/browser-result.json",
+      "bytes": 7552,
+      "sha256": "44fd70d25ed9883f0f41a2535709d858dfc0cccf69bf58051fc3638372b92a30"
+    },
+    {
+      "path": "browser/configured.png",
+      "bytes": 72166,
+      "sha256": "f0ab3c18e19b7b4557029b56e0a1fa479e4cf50322ea69b62490aaabc33e6347"
+    },
+    {
+      "path": "browser/result.png",
+      "bytes": 68858,
+      "sha256": "c3bf172b01fde5816a92614f5c36975a0b79268a29772d64f329a19a12c59709"
+    },
+    {
+      "path": "browser/result.ax.txt",
+      "bytes": 3697,
+      "sha256": "87b1ca9349e11089c9480b62ad37e4ec21d2e99c7c709cb84e8d94ce3941eed2"
+    },
+    {
+      "path": "browser-v2/browser-result.json",
+      "bytes": 7552,
+      "sha256": "425751961febee9a5aaba1f03617e801d30279211373b2f4b222926ef6af6a36"
+    },
+    {
+      "path": "browser-v2/configured.png",
+      "bytes": 72010,
+      "sha256": "c6758c17f79978c4608a93a92dc000c60ec0104a9730a94e16a46243f8d07256"
+    },
+    {
+      "path": "browser-v2/result.png",
+      "bytes": 67609,
+      "sha256": "40314d55f2a2bddf2f047c60e36629b97c41055649bffebeeabf71406efddec2"
+    },
+    {
+      "path": "browser-v2/result-narrow.png",
+      "bytes": 32176,
+      "sha256": "5729d112a0a9ad999d37d22e160171e93cdbe62c265dcdf7f486f19d54fd0303"
+    },
+    {
+      "path": "browser-v2/result.ax.txt",
+      "bytes": 3697,
+      "sha256": "e24938ad63c73906fec775e295fcc67e2f02c0af1601cf732e2a26127995536c"
+    }
+  ]
+}

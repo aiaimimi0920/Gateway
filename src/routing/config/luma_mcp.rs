@@ -75,6 +75,7 @@ fn invalid_credential(c: &ProviderCredentialYaml) -> bool {
         || c.model_catalog.is_some()
         || c.grok_oauth.is_some()
         || c.kiro_oauth.is_some()
+        || c.quick_oauth.is_some()
         || c.vertex_oauth.is_some()
         || c.dim_oauth.is_some()
         || c.dim_catalog.is_some()

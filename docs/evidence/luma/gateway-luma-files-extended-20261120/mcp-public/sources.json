@@ -1,0 +1,27 @@
+[
+  {
+    "name": "connector",
+    "url": "https://lumalabs.ai/learning-center/articles/luma-claude-connector-guide",
+    "checkedAt": "2026-11-19T18:06:22.223896+00:00",
+    "status": 200,
+    "finalUrl": "https://lumalabs.ai/learning-center/articles/luma-claude-connector-guide",
+    "sha256": "6630c684052eae59689f69761bffc9aae031a5f3bfe0780e77e99cb9fc23f629"
+  },
+  {
+    "name": "help",
+    "url": "https://luma-ai.support.site/article/mcp",
+    "checkedAt": "2026-11-19T18:06:24.903537+00:00",
+    "status": 200,
+    "finalUrl": "https://luma-ai.support.site/article/mcp",
+    "sha256": "665791454a0680e1e2b478dc38d23f6a7c894a7dddc4fc9f0220888592873f59"
+  },
+  {
+    "name": "anonymous-tools-list",
+    "url": "https://agents.lumalabs.ai/mcp",
+    "checkedAt": "2026-11-19T18:06:28.417219+00:00",
+    "method": "POST",
+    "authorization": false,
+    "rpcMethod": "tools/list",
+    "status": 401
+  }
+]

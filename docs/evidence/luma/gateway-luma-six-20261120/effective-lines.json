@@ -1,0 +1,70 @@
+[
+  {
+    "path": "src/luma_reconciliation.rs",
+    "effectiveLines": 95
+  },
+  {
+    "path": "src/luma_reconciliation/store.rs",
+    "effectiveLines": 97
+  },
+  {
+    "path": "src/luma_reconciliation/worker.rs",
+    "effectiveLines": 115
+  },
+  {
+    "path": "src/luma_reconciliation/tests.rs",
+    "effectiveLines": 174
+  },
+  {
+    "path": "src/luma_reconciliation/postgres_tests.rs",
+    "effectiveLines": 96
+  },
+  {
+    "path": "src/luma_reconciliation/recovery_tests.rs",
+    "effectiveLines": 91
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_files/upload.rs",
+    "effectiveLines": 93
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_files/upload/ingress.rs",
+    "effectiveLines": 69
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_files/upload/streaming.rs",
+    "effectiveLines": 50
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_files/upload/streaming/tests.rs",
+    "effectiveLines": 105
+  },
+  {
+    "path": "src/runtime.rs",
+    "effectiveLines": 415
+  },
+  {
+    "path": "src/pipeline/stage_send/recovery_wait.rs",
+    "effectiveLines": 340
+  },
+  {
+    "path": "src/provider_runtime/model_probe_audit.rs",
+    "effectiveLines": 241
+  },
+  {
+    "path": "src/provider_runtime/model_probe_recording.rs",
+    "effectiveLines": 285
+  },
+  {
+    "path": "src/provider_runtime/media_model_probe.rs",
+    "effectiveLines": 166
+  },
+  {
+    "path": "src/local_runtime/audits.rs",
+    "effectiveLines": 184
+  },
+  {
+    "path": "src/db/request_audits/persistence.rs",
+    "effectiveLines": 199
+  }
+]

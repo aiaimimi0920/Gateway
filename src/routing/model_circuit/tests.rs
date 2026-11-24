@@ -20,23 +20,23 @@ fn consecutive_short_window_failures_open_and_only_one_trial_can_enter() {
     let runtime = ModelCircuits::default();
     let plus = key("plus");
     trip(&runtime, &plus);
-    assert!(!runtime.available_at(&plus, 120_019));
+    assert!(!runtime.available_at(&plus, 10_019));
     assert!(runtime.available_at(&key("pro"), 30));
-    let trial = runtime.acquire_at(&[plus.clone()], 120_020).unwrap();
-    assert!(runtime.acquire_at(&[plus.clone()], 120_020).is_err());
-    runtime.finish_at(trial, Outcome::Failure(0), 120_020);
-    assert!(!runtime.available_at(&plus, 600_019));
-    assert!(runtime.available_at(&plus, 600_020));
+    let trial = runtime.acquire_at(&[plus.clone()], 10_020).unwrap();
+    assert!(runtime.acquire_at(&[plus.clone()], 10_020).is_err());
+    runtime.finish_at(trial, Outcome::Failure(0), 10_020);
+    assert!(!runtime.available_at(&plus, 30_019));
+    assert!(runtime.available_at(&plus, 30_020));
 }
 #[test]
-fn repeated_trial_failures_back_off_two_eight_thirty_two_and_sixty_minutes() {
+fn transport_trial_failures_use_bounded_second_scale_backoff() {
     let runtime = ModelCircuits::default();
     let k = key("plus");
     trip(&runtime, &k);
-    let mut at = 120_020;
-    for minutes in [8, 32, 60, 60] {
-        finish(&runtime, &k, at, Outcome::Failure(0));
-        at += minutes * 60_000;
+    let mut at = 10_020;
+    for seconds in [20, 40, 60, 60] {
+        finish(&runtime, &k, at, Outcome::TransportFailure(0));
+        at += seconds * 1_000;
         assert!(!runtime.available_at(&k, at - 1));
         assert!(runtime.available_at(&k, at));
     }
@@ -52,31 +52,29 @@ fn success_breaks_streak_and_old_failures_do_not_accumulate_forever() {
     assert!(runtime.available_at(&k, 60_021));
 }
 #[test]
-fn late_completions_cannot_clear_new_generation_and_two_spaced_trials_restore() {
+fn late_success_cannot_clear_new_generation_but_one_complete_trial_can() {
     let runtime = ModelCircuits::default();
     let k = key("plus");
     let late = runtime.acquire_at(&[k.clone()], 0).unwrap();
     trip(&runtime, &k);
     runtime.finish_at(late, Outcome::Success, 21);
     assert!(!runtime.available_at(&k, 21));
-    finish(&runtime, &k, 120_020, Outcome::Success);
-    assert!(!runtime.available_at(&k, 150_019));
-    finish(&runtime, &k, 150_020, Outcome::Success);
-    assert!(runtime.available_at(&k, 150_020));
-    for at in [150_030, 150_040, 150_050] {
+    finish(&runtime, &k, 10_020, Outcome::Success);
+    assert!(runtime.available_at(&k, 10_021));
+    for at in [10_030, 10_040, 10_050] {
         finish(&runtime, &k, at, Outcome::Failure(0));
     }
-    assert!(!runtime.available_at(&k, 630_049));
-    assert!(runtime.available_at(&k, 630_050));
+    assert!(!runtime.available_at(&k, 20_049));
+    assert!(runtime.available_at(&k, 20_050));
 }
 #[test]
 fn neutral_trial_does_not_count_as_failure_or_leak_lease() {
     let runtime = ModelCircuits::default();
     let k = key("plus");
     trip(&runtime, &k);
-    finish(&runtime, &k, 120_020, Outcome::Neutral);
-    assert!(runtime.acquire_at(&[k.clone()], 120_021).is_err());
-    assert!(runtime.acquire_at(&[k], 150_020).is_ok());
+    finish(&runtime, &k, 10_020, Outcome::Neutral);
+    assert!(runtime.acquire_at(&[k.clone()], 10_021).is_err());
+    assert!(runtime.acquire_at(&[k], 15_020).is_ok());
 }
 #[test]
 fn upstream_wait_is_a_minimum_not_capped_at_one_hour() {
@@ -132,7 +130,7 @@ fn capacity_reclaims_success_churn_but_never_active_tickets_or_restrictions() {
 }
 
 #[test]
-fn multi_group_acquisition_is_atomic_and_stable_success_resets_escalation() {
+fn multi_group_acquisition_is_atomic_and_trial_success_resets_escalation() {
     let runtime = ModelCircuits::default();
     let plus = key("plus");
     let pro = key("pro");
@@ -141,9 +139,7 @@ fn multi_group_acquisition_is_atomic_and_stable_success_resets_escalation() {
         .acquire_at(&[pro.clone(), plus.clone()], 30)
         .is_err());
     assert!(!runtime.entries.lock().contains_key(&pro));
-    finish(&runtime, &plus, 120_020, Outcome::Success);
-    finish(&runtime, &plus, 150_020, Outcome::Success);
-    finish(&runtime, &plus, 1_950_020, Outcome::Success);
+    finish(&runtime, &plus, 10_020, Outcome::Success);
     assert_eq!(runtime.entries.lock()[&plus].level, 0);
 }
 

@@ -1,0 +1,24 @@
+
+running 1 test
+test upstream::client::tests::suno_media_probe::failure_tests::suno_probe_rejects_operation_parameters_unconfigured_models_and_legacy_flow_before_network ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6333 filtered out; finished in 0.16s
+
+
+running 1 test
+test upstream::client::tests::udio_probe::udio_probe_no_default_text_or_parameter_override_can_generate ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6333 filtered out; finished in 0.18s
+
+
+running 1 test
+test upstream::client::tests::lumalabs_probe::boundaries::luma_web_probe_rejects_implicit_calls_and_parameter_overrides ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6333 filtered out; finished in 0.30s
+
+
+running 1 test
+test upstream::chataibot::probe_management_tests::chataibot_probe_management_rejects_foreign_grant_origin_account_model_parameters_and_cost_without_network ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6333 filtered out; finished in 0.31s
+

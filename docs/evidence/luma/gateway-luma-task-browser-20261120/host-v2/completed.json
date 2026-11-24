@@ -1,0 +1,44 @@
+{
+  "status": "passed",
+  "revisionUnchanged": true,
+  "auditUnchanged": true,
+  "auditCount": 1,
+  "ordinaryKeyBalance": 2,
+  "seedCalls": 2,
+  "lookupCalls": 6,
+  "upstreamCalls": [
+    {
+      "method": "POST",
+      "path": "/v1/generations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/generations/d290f1ee-6c54-4b01-90e6-d701748f0851"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/generations/d290f1ee-6c54-4b01-90e6-d701748f0851"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/generations/d290f1ee-6c54-4b01-90e6-d701748f0851"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/generations/d290f1ee-6c54-4b01-90e6-d701748f0851"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/generations/d290f1ee-6c54-4b01-90e6-d701748f0851"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/generations/d290f1ee-6c54-4b01-90e6-d701748f0851"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/generations/d290f1ee-6c54-4b01-90e6-d701748f0851"
+    }
+  ],
+  "scope": "normal main, real management TCP and local persisted cancellation; synthetic supplier only"
+}

@@ -59,3 +59,55 @@
   .nt-provider-pool-toolbar { width: 100%; }
   .nt-provider-pool-toolbar__search { flex: 1 1 150px; }
 }
+
+/* Keep the credential-pool row out of the fixed window chrome. */
+.nt-credential-pool-header {
+  container: credential-pool-header / inline-size;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--nt-border);
+}
+
+.nt-credential-pool-header .nt-provider-pool-toolbar {
+  flex: 1;
+  flex-wrap: nowrap;
+  gap: inherit;
+  width: auto;
+}
+
+.nt-credential-pool-header .nt-provider-pool-toolbar__search {
+  flex: 1 1 0;
+  max-width: 320px;
+}
+
+.nt-credential-pool-header .nt-provider-pool-toolbar__sort,
+.nt-credential-pool-header .nt-credential-pool-header__action {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Switch before long sorting labels leave too little room to type. */
+@container credential-pool-header (max-width: 600px) {
+  .nt-credential-pool-header .nt-credential-pool-header__action,
+  .nt-credential-pool-header .nt-provider-pool-toolbar__sort {
+    justify-content: center;
+    width: 30px;
+    padding-inline: 0;
+  }
+
+  .nt-credential-pool-header__action-label,
+  .nt-credential-pool-header .nt-provider-pool-toolbar__sort > span {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Preserve navigation icons while freeing space for an editable search field. */
+  .nt-shell.nt-shell--compact:has(.nt-credential-pool-header) { --nt-shell-rail-width: 48px; }
+  .nt-shell.nt-shell--compact:has(.nt-credential-pool-header) .nt-rail :is(.nt-rail__label, .nt-brand__name) {
+    display: none;
+  }
+}

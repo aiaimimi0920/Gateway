@@ -25,10 +25,11 @@ impl ProviderAttemptGate {
             return Err(error);
         }
         self.attempt_audit.record();
-        self.smart_routing.begin_request(
+        self.smart_routing.begin_account_request(
             self.sticky_scope.as_deref(),
             &self.requested_model,
             &self.provider_account_id,
+            self.provider_credential_ref.as_deref(),
             self.req_id,
         );
         self.outbound_attempt_count
@@ -182,6 +183,7 @@ impl ProviderAttemptGate {
 
 fn provider_failed(error: &GatewayError) -> bool {
     error.native_transport.is_none()
+        && !crate::protocol::sap_aicore::errors::neutral(error)
         && error.request_budget_stop_reason().is_none()
         && !matches!(
             error.code.as_deref(),
@@ -217,6 +219,7 @@ pub(super) mod tests {
             attempted_provider_ids: Default::default(),
             attempt_audit: Default::default(),
             provider_account_id: "diagnostic-provider".into(),
+            provider_credential_ref: None,
             request_budget: crate::pipeline::request_budget::RequestBudget::new(
                 6,
                 std::time::Duration::from_secs(30),

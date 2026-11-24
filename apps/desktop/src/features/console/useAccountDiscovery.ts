@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ZodType } from "zod";
 import type { GatewayApiClient } from "../../api/client";
 import { pushAppToast } from "../../components/AppToast";
-import { applyAccountDiscovery, discoveryResponseSchema, supportsAccountDiscovery, type DiscoveryInput } from "./accountDiscovery";
+import { applyAccountDiscovery, discoveryResponseSchema, accountModelsResponseSchema, supportsAccountDiscovery, type DiscoveryInput } from "./accountDiscovery";
 import { isRecord, parseRouteDocument } from "./routeDocument";
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { useBackgroundDiscoverySync } from "./useBackgroundDiscoverySync";
@@ -20,6 +20,8 @@ type Options = {
   requestSecretAccess(): void; setError(error: string | null): void;
 };
 
+const staleDiscovery = () => new Error("配置或登录状态已变化，本次识别结果未保存，请重试。");
+
 export function useAccountDiscovery(options: Options) {
   const current = useRef(options); current.current = options;
   const pending = useRef<AbortController | null>(null);
@@ -28,8 +30,10 @@ export function useAccountDiscovery(options: Options) {
   useBackgroundDiscoverySync(options.background ? { ...options.background,
     editorText: options.editorText, managementToken: options.managementToken,
     blocked: editorLocked || options.background.blocked } : null);
-  useEffect(() => () => { pending.current?.abort(); pending.current = null; setBusy(false); },
-    [options.client, options.managementToken, options.secretGrant]);
+  // Renewal changes the grant string, not the session's authority. Actual access loss still cancels I/O.
+  const hasSecretAccess = !!options.secretGrant;
+  useEffect(() => () => { pending.current?.abort(staleDiscovery()); pending.current = null; setBusy(false); },
+    [options.client, options.managementToken, hasSecretAccess]);
 
   const requestDiscovery = async <T extends { revision: string }>(path: string, schema: ZodType<T>, input: unknown, signal?: AbortSignal) => {
     const initial = current.current;
@@ -38,18 +42,19 @@ export function useAccountDiscovery(options: Options) {
     }
     if (pending.current) throw new Error("正在识别，请稍候。");
     const controller = new AbortController(); pending.current = controller; setBusy(true);
-    const abort = () => controller.abort(); signal?.addEventListener("abort", abort, { once: true });
-    if (signal?.aborted) controller.abort();
+    const abort = () => controller.abort(signal?.reason); signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
     try {
       const result = await initial.client.request(path, schema, {
         method: "POST", managementToken: initial.managementToken, secretGrant: initial.secretGrant,
         body: input, signal: controller.signal,
       });
+      controller.signal.throwIfAborted();
       const latest = current.current;
-      if (controller.signal.aborted || latest.client !== initial.client || latest.managementToken !== initial.managementToken
-        || latest.secretGrant !== initial.secretGrant || latest.editorText !== initial.editorText
+      if (latest.client !== initial.client || latest.managementToken !== initial.managementToken
+        || !latest.secretGrant || latest.editorText !== initial.editorText
         || latest.revision !== initial.revision || result.revision !== initial.revision) {
-        throw new Error("配置或登录状态已变化，本次识别结果未保存，请重试。");
+        throw staleDiscovery();
       }
       return result;
     } finally {
@@ -59,6 +64,8 @@ export function useAccountDiscovery(options: Options) {
   };
   const discoverAccount = async (input: DiscoveryInput, signal?: AbortSignal) =>
     (await requestDiscovery("/v1/internal/gateway/console/account-discovery", discoveryResponseSchema, input, signal)).discovery;
+  const discoverAccountModels = async (input: Omit<DiscoveryInput, "models">, signal?: AbortSignal) =>
+    (await requestDiscovery("/v1/internal/gateway/console/account-discovery", accountModelsResponseSchema, { ...input, catalogOnly: true }, signal)).catalog;
   const discoverChatgptModels = async (input: ChatgptCatalogInput, signal?: AbortSignal) =>
     (await requestDiscovery("/v1/internal/gateway/console/chatgpt-model-catalog", chatgptCatalogResponseSchema, input, signal)).catalog;
   const discoverNvidiaModels = async (input: NvidiaCatalogInput, signal?: AbortSignal) =>
@@ -104,5 +111,5 @@ export function useAccountDiscovery(options: Options) {
       current.current.setError(null);
     } catch (error) { current.current.setError(error instanceof Error ? error.message : String(error)); }
   };
-  return { discoverAccount, discoverChatgptModels, discoverNvidiaModels, discoverProviderModels, refreshAccountDiscovery, discoveryBusy, editorLocked };
+  return { discoverAccount, discoverAccountModels, discoverChatgptModels, discoverNvidiaModels, discoverProviderModels, refreshAccountDiscovery, discoveryBusy, editorLocked };
 }

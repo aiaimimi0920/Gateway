@@ -1,0 +1,1 @@
+apps/desktop/e2e/fixtures/luma-media-preview.tsx(5,42): error TS2307: Cannot find module '../../src/api/contracts/routes' or its corresponding type declarations.

@@ -1,0 +1,14 @@
+info    build started...
+ready   built in 0.68 s
+
+File (web)                                                                                                    Size       Gzip   
+..\..\..\..\linshi\gateway-luma-repository-tools-20261119\preview-web-final\favicon.svg                       0.47 kB    0.26 kB
+..\..\..\..\linshi\gateway-luma-repository-tools-20261119\preview-web-final\index.html                        0.55 kB    0.32 kB
+..\..\..\..\linshi\gateway-luma-repository-tools-20261119\preview-web-final\static\css\626.81a96351.css       23.9 kB    5.3 kB
+..\..\..\..\linshi\gateway-luma-repository-tools-20261119\preview-web-final\static\js\index.649d6dc4.js       27.7 kB    10.3 kB
+..\..\..\..\linshi\gateway-luma-repository-tools-20261119\preview-web-final\static\css\index.2f7ed20a.css     75.9 kB    12.7 kB
+..\..\..\..\linshi\gateway-luma-repository-tools-20261119\preview-web-final\static\js\626.71129575.js         185.3 kB   47.9 kB
+..\..\..\..\linshi\gateway-luma-repository-tools-20261119\preview-web-final\static\js\lib-react.47efd6b3.js   189.0 kB   59.7 kB
+
+                                                                                                     Total:   502.9 kB   136.6 kB
+

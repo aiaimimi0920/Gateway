@@ -1,0 +1,43 @@
+
+running 38 tests
+test implementation_lines::tests::compile_checks::compiled_out_error_uses_stable_code ... ok
+test implementation_lines::tests::compile_checks::media_web_reverse_protocol_profiles_fail_compile_check_when_feature_disabled ... ok
+test implementation_lines::tests::compile_checks::nvidia_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::compile_checks::grok_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::compile_checks::media_web_reverse_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::freebuff_web_reverse_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::compile_checks::qwen_web_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::compile_checks::qwen_official_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::jina_reader_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::jina_search_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::linkup_search_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::exa_search_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::luma_inference_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::perplexity_chat_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::perplexity_search_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::producer_web_reverse_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::tavily_search_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::websearchapi_search_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::xai_openai_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::xfyun_native_websocket_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::xfyun_openai_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::feature_profiles::you_search_protocol_profiles_compile_when_feature_enabled ... ok
+test implementation_lines::tests::payloads::payload_inference_distinguishes_gemini_chat_and_canvas_program_lanes ... ok
+test implementation_lines::tests::payloads::adapter_and_payload_mapping_include_media_platform_lines ... ok
+test implementation_lines::tests::payloads::payload_inference_distinguishes_nvidia_and_grok_lines ... ok
+test implementation_lines::tests::payloads::payload_inference_distinguishes_chatgpt_official_codex_and_web_reverse ... ok
+test implementation_lines::tests::profiles::protocol_profile_inference_includes_wave4_openai_compatible_profiles ... ok
+test implementation_lines::tests::payloads::payload_inference_distinguishes_aistudio_and_agent_platform_official ... ok
+test implementation_lines::tests::payloads::payload_inference_distinguishes_azure_anthropic_bedrock_and_cohere ... ok
+test implementation_lines::tests::profiles::protocol_profile_mapping_includes_media_platform_lines ... ok
+test implementation_lines::tests::payloads::payload_inference_distinguishes_qwen_official_and_web_reverse ... ok
+test implementation_lines::tests::payloads::payload_inference_distinguishes_remaining_unfinished_platform_lines ... ok
+test implementation_lines::tests::payloads::payload_inference_distinguishes_wave4_openai_compatible_base_urls ... ok
+test implementation_lines::tests::profiles::protocol_profile_mapping_includes_nvidia_and_grok_lines ... ok
+test implementation_lines::tests::payloads::payload_inference_distinguishes_search_family_base_urls ... ok
+test implementation_lines::tests::profiles::protocol_profile_mapping_includes_remaining_unfinished_platform_lines ... ok
+test implementation_lines::tests::profiles::protocol_profile_mapping_includes_search_family_lines ... ok
+test implementation_lines::tests::profiles::protocol_profile_mapping_includes_wave3_official_api_lines ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 6340 filtered out; finished in 0.01s
+

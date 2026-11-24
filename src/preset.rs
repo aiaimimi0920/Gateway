@@ -29,6 +29,7 @@ mod native_api;
 mod nous_portal;
 mod openai;
 mod perplexity_web;
+mod quick_oauth;
 mod qwen;
 mod registry;
 mod search;
@@ -59,12 +60,13 @@ pub use nous_portal::nous_portal_oauth_preset;
 pub use openai::{
     agnes_api_preset, azure_openai_preset, chatgpt_codex_oauth_official_api_preset,
     cloudflare_workers_ai_preset, codex_preset, commandcode_api_preset, deepseek_openai_preset,
-    groq_openai_preset, longcat_openai_preset, mistral_openai_preset, nvidia_openai_preset,
-    openai_preset, openrouter_openai_preset, perplexity_preset, poe_openai_preset,
-    river_api_preset, sap_aicore_chat_preset, sensenova_token_plan_preset, together_openai_preset,
-    xai_openai_preset, xfyun_preset,
+    groq_openai_preset, longcat_openai_preset, lumalabs_inference_api_preset,
+    mistral_openai_preset, nvidia_openai_preset, openai_preset, openrouter_openai_preset,
+    perplexity_preset, poe_openai_preset, river_api_preset, sap_aicore_chat_preset,
+    sensenova_token_plan_preset, together_openai_preset, xai_openai_preset, xfyun_preset,
 };
 pub use perplexity_web::perplexity_web_preset;
+pub use quick_oauth::quick_oauth_preset;
 pub use qwen::{
     qwen_coding_plan_anthropic_preset, qwen_coding_plan_openai_preset, qwen_official_api_preset,
     qwen_web_chat_preset,

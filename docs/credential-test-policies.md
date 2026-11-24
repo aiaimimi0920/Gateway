@@ -126,7 +126,7 @@ Secret Grant 的上下文校验。同 `/probe` 路径的 `GET` 保留兼容，�
 ## Luma Agents 显式媒体单点测试
 
 独立 `lumalabs-api` 账号卡的“测试”使用同一个 provider probe 管理接口，但必须显式
-选择 `image`、`image_edit` 或 `video`、填写提示词/匹配型号，并在每次运行前确认可能
+选择 `image`、`image_edit`、`video`、`video_reframe` 或 `video_edit`、填写提示词/匹配型号，并在每次运行前确认可能
 消耗供应商额度。请求示例：
 
 ```json
@@ -136,8 +136,15 @@ Secret Grant 的上下文校验。同 `/probe` 路径的 `GET` 保留兼容，�
 仅接受一个精确账号，不与 scope、testPlan 或 planId 混用；parameters 不能覆盖
 model/prompt/type/n/stream/response_format，其余参数交给该产品的既有 mapper 校验。
 图片编辑必须提供 source；视频可显式设置 `video.duration` 和 `video.resolution`。
+视频扩画要求单个视频 source 与 `aspect_ratio`；URL/inline source 另带 video MIME，
+竖向目标比例不接受 1080p。UI 默认居中扩画，API 可提供 `video.source_position`。
+源视频实际内容、≤10s 时长和账号归属仍由供应商验证，不把本地参数检查当作视频解码证明。
+视频重绘同样要求单个视频 source，URL/inline 带 video MIME；UI 提供自动控制或九档重绘强度及分辨率，
+不提供时长／比例。API 另支持五类 conditioning、单 guide／至多 64 个配对 guide frames 与 720p/1080p HDR；
+拒绝 EXR、显式比例和本地 profile 未开放的 duration 等字段。重绘源 ≤18s、实际内容与帧位置由供应商验证，
+不是本地解码证明；逐次费用确认及精确账号准入与其他操作相同。
 费用确认不保存、不继承、不调度；默认、保存、临时、命名及自动文本计划不会偷偷生成媒体。
-媒体结果没有文本答案或 IQ 评分。成功记录原生 UUID 和 credits，`null` 仍是未知，不能
+媒体结果没有文本答案或 IQ 评分。成功及已验证的正常失败终态记录原生 UUID 和 credits，`null` 仍是未知，不能
 视为零或转换为 Token/USD；管理 probe 不扣普通接入 Key 余额。本地关闭/取消不能
 撤销供应商已受理的生成，也不保证退费。正常 Secret Grant、Origin 和精确账号准入
 不变；不新增未认证媒体测试入口。

@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use std::{sync::Arc, time::Duration};
 use tower::ServiceExt;
 #[path = "../../../tests/console_contract_support/mod.rs"]
-pub(super) mod support;
+pub(crate) mod support;
 
 pub const IMAGE: &str = "public-luma-image";
 pub const VIDEO: &str = "public-luma-video";

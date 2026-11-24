@@ -1,0 +1,10 @@
+{
+  "args": [
+    "C:\\Users\\vmjcv\\scoop\\apps\\python312\\current\\python.exe",
+    "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\linshi\\gateway-luma-repository-tools-20261119\\runner-probe.py"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T15:33:33.956027+00:00",
+  "exitCode": 7,
+  "elapsedSeconds": 0.05
+}

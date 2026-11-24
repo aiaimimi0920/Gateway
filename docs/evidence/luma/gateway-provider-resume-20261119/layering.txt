@@ -1,0 +1,1236 @@
+Image layering | Luma Agents
+Skip to content
+Luma Agents
+Search
+Ctrl
+K
+Cancel
+Auto
+Light
+Dark
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Menu
+lumalabs.ai
+Guides
+API Reference
+Admin API
+Getting started
+Quickstart
+Models
+Videos
+Overview
+Migration guide
+Generation
+Editing
+Reframing
+Images
+Overview
+Generation
+Editing
+Layering
+Prompting guide
+Files
+Overview
+Deletion
+Generation deletion
+LLM Inference
+LLM Inference
+Reference
+Pricing
+Usage and credits
+Rate limits and headers
+Error handling
+FAQ
+Changelog
+Auto
+Light
+Dark
+lumalabs.ai
+On this page
+Overview
+When to use layering
+How it works
+Basic request
+Source image
+Guiding the split with prompt
+Controlling granularity
+Content policy
+Layering options
+layering.resolution
+Validation rules
+Asynchronous failures
+Response
+The layer object
+Layers are cropped, and bounds puts them back
+Text layers
+Pricing
+Rate limits
+Next steps
+On this page
+Overview
+When to use layering
+How it works
+Basic request
+Source image
+Guiding the split with prompt
+Controlling granularity
+Content policy
+Layering options
+layering.resolution
+Validation rules
+Asynchronous failures
+Response
+The layer object
+Layers are cropped, and bounds puts them back
+Text layers
+Pricing
+Rate limits
+Next steps
+Images
+Layering
+Copy Markdown
+Open in
+Claude
+Open in
+ChatGPT
+Open in
+Cursor
+Copy Markdown
+View as Markdown
+Image layering
+Decompose an image into ordered RGBA layers with the Luma Agents API — layer extraction with real transparency on uni-1.
+Decompose an existing image into up to 10 ordered RGBA layers — each a standalone PNG with real transparency, stacked front-to-back so the original composition can be reassembled or re-edited layer by layer. The
+uni-1 model
+analyzes the image, plans the split automatically, and extracts each layer as a complete element. For modifying an image in place, see
+Image editing
+.
+When to use layering
+Section titled “When to use layering”
+Use
+type: "layering"
+when you want to take an image apart — not change it. Each extracted layer is a complete element (the model fills in content hidden behind foreground objects), so layers can be moved, restyled, or recomposed independently.
+Scenario
+Use
+Why
+Separate a subject from its background
+layering
+Both come back as standalone RGBA images
+Build animatable / parallax scenes from a still
+layering
+Ordered depth layers, background last
+Prepare design comps for per-element editing
+layering
+Each element is its own transparent PNG
+Change something in the image (sky, color, style)
+image_edit
++
+source
+Edits in place — see
+Image editing
+How it works
+Section titled “How it works”
+You submit a source image (and optionally a short
+prompt
+guiding how to split it).
+The server plans the layers automatically — a vision model analyzes the image before generating, deciding how many layers to extract and what goes in each.
+Each planned layer is generated as a full RGBA image. Occluded regions are completed, so every layer is a whole element rather than a cutout with holes behind it.
+The completed generation returns N outputs (up to 10), ordered
+front-to-back
+— the
+last
+output is always the opaque background. Each layer PNG is cropped to its visible content, and its
+layer.bounds
+carries the geometry to place it back on the composite canvas.
+Basic request
+Section titled “Basic request”
+A layering request requires
+type: "layering"
+and a
+source
+image. The
+prompt
+field is required by the request schema — like every generation request — but for layering it may be an empty string.
+Python
+TypeScript
+cURL
+CLI
+from
+luma_agents
+import
+Luma
+client
+=
+Luma()
+generation
+=
+client.generations.create(
+type
+=
+"layering"
+,
+model
+=
+"uni-1"
+,
+prompt
+=
+"separate the subject from the background"
+,
+source
+=
+{
+"url"
+:
+"https://example.com/product-shot.jpg"
+},
+)
+import
+Luma
+from
+"luma-agents"
+;
+const
+client
+=
+new
+Luma
+();
+const
+generation
+=
+await
+client.generations.
+create
+({
+type:
+"layering"
+,
+model:
+"uni-1"
+,
+prompt:
+"separate the subject from the background"
+,
+source: { url:
+"https://example.com/product-shot.jpg"
+},
+});
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/generations
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"type": "layering",
+"model": "uni-1",
+"prompt": "separate the subject from the background",
+"source": {
+"url": "https://example.com/product-shot.jpg"
+}
+}'
+Terminal window
+luma-agents-cli
+generations
+create
+\
+--type
+layering
+\
+--model
+uni-1
+\
+--prompt
+"separate the subject from the background"
+\
+--source.url
+"https://example.com/product-shot.jpg"
+Source image
+Section titled “Source image”
+The
+source
+field takes the same shape as
+image editing
+— a URL, inline base64 data, an uploaded file, or a prior generation reference.
+From a URL:
+{
+"source"
+: {
+"url"
+:
+"https://example.com/photo.jpg"
+}
+}
+From base64 data:
+{
+"source"
+: {
+"data"
+:
+"iVBORw0KGgoAAAANSUhEUgAAAAUA..."
+,
+"media_type"
+:
+"image/jpeg"
+}
+}
+From a prior generation
+— decompose an image you just generated by passing that completed generation’s top-level
+id
+as
+source.generation_id
+. The referenced generation must be owned by the same client:
+{
+"source"
+: {
+"generation_id"
+:
+"a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+}
+From an uploaded file
+— reference a file you uploaded via the
+Files API
+by its
+file_id
+:
+{
+"source"
+: {
+"file_id"
+:
+"f1e2d3c4-b5a6-7890-abcd-ef0123456789"
+}
+}
+Note
+The
+source
+field is
+required
+for
+type: "layering"
+. Provide exactly one
+of
+url
+,
+data
+(with
+media_type
+),
+generation_id
+, or
+file_id
+.
+Guiding the split with
+prompt
+Section titled “Guiding the split with prompt”
+The
+prompt
+field must be present on every request, but for layering its content is optional — pass
+""
+to let the model choose the decomposition on its own. It is also shorter than elsewhere —
+at most 500 characters
+. It does not describe an image to generate; it guides how the planner splits the source.
+{
+"type"
+:
+"layering"
+,
+"prompt"
+:
+"keep the text and logo on their own layers, group the props together"
+,
+"source"
+: {
+"url"
+:
+"https://example.com/poster.jpg"
+}
+}
+Tip
+Use the prompt to say what should stay together and what should come apart —
+“one layer per person”, “isolate the bottle, merge everything else into the
+background”. The planner decides the exact layer count; you steer the
+grouping.
+Controlling granularity
+Section titled “Controlling granularity”
+State the
+rule
+by which you want things separated and let the planner apply it, rather than dictating a finished manifest:
+Split by kind
+—
+"one layer per product on the shelf, plus the shelf and the background"
+,
+"split by material: metal parts, glass parts, everything else"
+Steer coarse or fine
+—
+"as few layers as possible"
+,
+"the finest separation you can"
+. Ten is the hard cap (nine foreground plus one background).
+Name what to keep together
+— over-splitting is the more common complaint, and
+"keep the whole figure on one layer"
+is the fix.
+Two things work against you. An exhaustive numbered manifest (
+"Layer 1: … Layer 2: … Layer 3: …"
+) fights the planner instead of steering it. And instructions about rendering have no effect — the prompt shapes decomposition only; it does not restyle, recolor, or add content.
+Content policy
+Section titled “Content policy”
+The layering prompt passes the same pre-flight content check as every other generation request. A rejection is a synchronous
+HTTP 422
+with
+code: "content_moderated"
+, returned before anything is queued or billed.
+Two things commonly surprise layering callers:
+The check covers protected characters, not just unsafe content.
+A layer-by-layer breakdown of a character owned by a major rights holder is still a description of that character — often a more identifying one than a plain sentence, since it enumerates the exact visual construction that makes the character recognizable. Rewording will not clear it; that is a licensing boundary rather than a phrasing problem.
+Long part-by-part inventories detached from their subject
+read very differently to a text classifier than the same request with its subject attached. Prefer
+"the arms and legs of the yellow cartoon character"
+over a bare list of body parts and colors.
+An empty prompt is always permitted, so submitting
+""
+is a quick way to confirm whether a block is about your prompt text or your source image.
+Layering options
+Section titled “Layering options”
+layering.resolution
+Section titled “layering.resolution”
+Sets the output resolution for
+every
+extracted layer. Defaults to
+"1k"
+.
+Value
+Description
+1k
+Faster and lower cost — the default
+2k
+Re-renders each layer at higher quality, at a higher flat rate
+2k
+re-renders lettering too. Check text layers at
+2k
+, or set them as live type from
+text
+(see
+Text layers
+).
+Python
+TypeScript
+cURL
+generation
+=
+client.generations.create(
+type
+=
+"layering"
+,
+prompt
+=
+""
+,
+source
+=
+{
+"url"
+:
+"https://example.com/product-shot.jpg"
+},
+layering
+=
+{
+"resolution"
+:
+"2k"
+},
+)
+const
+generation
+=
+await
+client.generations.
+create
+({
+type:
+"layering"
+,
+prompt:
+""
+,
+source: { url:
+"https://example.com/product-shot.jpg"
+},
+layering: { resolution:
+"2k"
+},
+});
+Terminal window
+curl
+-X
+POST
+https://agents.lumalabs.ai/v1/generations
+\
+-H
+"Authorization: Bearer
+$LUMA_AGENTS_API_KEY
+"
+\
+-H
+"Content-Type: application/json"
+\
+-d
+'{
+"type": "layering",
+"prompt": "",
+"source": {"url": "https://example.com/product-shot.jpg"},
+"layering": {"resolution": "2k"}
+}'
+Note
+The
+layering
+block is only valid on
+type: "layering"
+requests — sending it
+with any other type returns HTTP 422.
+Validation rules
+Section titled “Validation rules”
+These constraints are specific to
+type: "layering"
+requests.
+Rule
+Constraint
+type
+Must be
+"layering"
+model
+Send
+uni-1
+, or leave
+model
+out. Any other model,
+uni-1-max
+included, is rejected.
+source
+Required.
+Provide exactly one of
+url
+,
+data
+,
+generation_id
+, or
+file_id
+prompt
+Required field, may be empty.
+Maximum 500 characters
+(guides the split; does not describe a new image)
+layering.resolution
+"1k"
+or
+"2k"
+. Defaults to
+"1k"
+layering.*
+Unknown keys in the
+layering
+block are
+rejected
+, not ignored
+image_ref
+Rejected
+on layering requests
+web_search
+Rejected
+on layering requests
+video
+Rejected
+on layering requests
+Common validation errors:
+Mistake
+HTTP code
+Error
+model
+other than
+uni-1
+422
+"layering is only available on uni-1"
+Missing
+source
+422
+"source image is required for layering"
+Including
+image_ref
+422
+"image_ref is not supported for layering"
+Including
+web_search
+422
+"web_search is not supported for layering"
+Including a
+video
+block
+422
+"video options are not supported for layering"
+prompt
+over 500 characters
+422
+"prompt must be at most 500 characters for layering"
+layering
+block on a non-layering type
+422
+"layering options are only supported for type='layering'"
+See
+Error handling
+for the full list of validation errors.
+Asynchronous failures
+Section titled “Asynchronous failures”
+Some problems only surface after submission, when the generation is polled. These fail with
+state: "failed"
+and a standard
+failure_code
+— any hold placed at submit is released in full:
+Situation
+failure_code
+The source image passed the submit checks but could not be used for layer extraction
+corrupt_input
+Layer planning failed for this image — retry, or adjust the prompt guidance
+generation_failed
+The source image or an output was flagged by content moderation
+content_moderated
+Layer planning failure is the one worth handling explicitly: the vision pass could not produce a usable decomposition for that particular image, and the server already retried once before reporting it. It shows up most on images with no clear foreground/background separation — a flat texture, an abstract pattern, an already-isolated object on plain white. Retrying the identical request rarely helps; adding prompt guidance does.
+Note
+Layering is all-or-nothing.
+The layers form a single front-to-back
+composition, so a stack missing one layer can’t be recomposed — surviving
+layers are never returned as a partial result. If any individual layer fails,
+the whole generation fails and the hold is released
+without a charge
+.
+Response
+Section titled “Response”
+Layering follows the standard polling flow — submit returns HTTP 201 with
+state: "queued"
+; poll
+GET /v1/generations/{id}
+until the state reaches
+completed
+or
+failed
+. See the
+Quickstart
+for the polling pattern.
+The poll reads
+queued
+until the layering job starts, then
+processing
+until the generation is
+completed
+or
+failed
+. It never goes back to
+queued
+.
+On completion,
+output
+contains one entry per extracted layer,
+ordered front-to-back
+—
+output[0]
+is the frontmost element and the
+last entry is always the background
+. Each output carries a
+layer
+object describing what the layer contains:
+{
+"id"
+:
+"d290f1ee-6c54-4b01-90e6-d701748f0851"
+,
+"type"
+:
+"layering"
+,
+"state"
+:
+"completed"
+,
+"model"
+:
+"uni-1"
+,
+"created_at"
+:
+"2026-07-16T12:00:00Z"
+,
+"output"
+: [
+{
+"type"
+:
+"image"
+,
+"url"
+:
+"https://storage.example.com/generations/d290f1ee/layer0.png?X-Amz-Expires=3600&..."
+,
+"layer"
+: {
+"index"
+:
+0
+,
+"label"
+:
+"subject"
+,
+"description"
+:
+"A woman in a red coat, complete from head to toe"
+,
+"alpha_hint"
+:
+"soft"
+,
+"bounds"
+: {
+"x"
+:
+312
+,
+"y"
+:
+64
+,
+"width"
+:
+420
+,
+"height"
+:
+896
+,
+"canvas_width"
+:
+1024
+,
+"canvas_height"
+:
+1024
+}
+}
+},
+{
+"type"
+:
+"image"
+,
+"url"
+:
+"https://storage.example.com/generations/d290f1ee/layer1.png?X-Amz-Expires=3600&..."
+,
+"layer"
+: {
+"index"
+:
+1
+,
+"label"
+:
+"background"
+,
+"description"
+:
+"The full street scene behind the subject"
+,
+"alpha_hint"
+:
+"none"
+,
+"bounds"
+: {
+"x"
+:
+0
+,
+"y"
+:
+0
+,
+"width"
+:
+1024
+,
+"height"
+:
+1024
+,
+"canvas_width"
+:
+1024
+,
+"canvas_height"
+:
+1024
+}
+}
+}
+],
+"failure_reason"
+:
+null
+,
+"failure_code"
+:
+null
+}
+The
+layer
+object
+Section titled “The layer object”
+Field
+Description
+index
+Layer position, front-to-back, starting at 0. The last layer is the background
+label
+Short (1–2 word) layer name
+description
+Complete-element caption for the layer’s content
+alpha_hint
+Edge treatment of the layer’s transparency — see below
+bounds
+Placement of this layer’s pixels on the composite canvas — see below
+contains_text
+Whether the layer is typeset text (a headline, caption, label) — see
+Text layers
+text
+The layer’s text as an editable string plus font traits — see
+Text layers
+alpha_hint
+values:
+Value
+Meaning
+soft
+Feathered edges — hair, fur, glass, smoke
+hard
+Clean solid edges — objects, text, graphic elements
+none
+Fully opaque — the background layer
+Layers are cropped, and
+bounds
+puts them back
+Section titled “Layers are cropped, and bounds puts them back”
+Each layer is returned
+cropped to its own visible content
+, not padded to the size of the source image — a hat layer occupying a small corner comes back as a small PNG. This keeps payloads small, but it means the layer images in one response have different dimensions from each other and from your input.
+bounds
+carries the geometry needed to place each one:
+Field
+Description
+x
+,
+y
+Where this layer’s top-left corner sits on the composite canvas
+width
+,
+height
+The returned PNG’s real pixel size
+canvas_width
+,
+canvas_height
+The full composite canvas — identical across every layer in one response
+canvas_width
+and
+canvas_height
+are the size of the layering output, which
+layering.resolution
+sets, not the size of your source. A 2048 × 2048 source layered at
+1k
+reports a 1024 × 1024 frame. To place layers on the original, multiply every
+bounds
+value by your source width divided by
+canvas_width
+.
+Guarantees you can build on:
+bounds
+is set on every layering output whose dimensions resolved — there is no need to derive placement from the alpha channel yourself. It is
+null
+only in the rare case the output’s dimensions could not be read; for that layer, place it from its own pixels.
+A layer that already fills the frame (usually the background) reports the identity rect
+x=0, y=0, width=canvas_width, height=canvas_height
+, so you never need a has-crop/no-crop branch.
+To reassemble the source image, composite
+back-to-front
+— draw the last output first (the background), then each preceding layer on top at its
+bounds
+offset. With the Python SDK:
+import
+io, time, urllib.request
+from
+PIL
+import
+Image
+# `generation` is the object client.generations.create(...) returned above.
+while
+generation.state
+not
+in
+(
+"completed"
+,
+"failed"
+):
+time.sleep(
+5
+)
+generation
+=
+client.generations.get(generation.id)
+if
+generation.state
+==
+"failed"
+:
+raise
+RuntimeError
+(generation.failure_reason)
+outputs
+=
+generation.output
+b0
+=
+outputs[
+0
+].layer.to_dict()[
+"bounds"
+]
+canvas
+=
+Image.new(
+"RGBA"
+, (b0[
+"canvas_width"
+], b0[
+"canvas_height"
+]), (
+0
+,
+0
+,
+0
+,
+0
+))
+for
+out
+in
+reversed
+(outputs):
+# back-to-front
+b
+=
+out.layer.to_dict()[
+"bounds"
+]
+layer
+=
+Image.open(io.BytesIO(urllib.request.urlopen(out.url).read())).convert(
+"RGBA"
+)
+canvas.alpha_composite(layer, (b[
+"x"
+], b[
+"y"
+]))
+canvas.save(
+"recomposited.png"
+)
+From the raw JSON response, read the same fields as keys:
+output[i]["layer"]["bounds"]
+and
+output[i]["url"]
+.
+Tip
+If your pipeline wants same-size layers, pad each one onto a transparent
+full-canvas image at its
+bounds
+offset — you then hold N identical-size RGBA
+images that stack with no offsets. We serve the cropped form deliberately:
+padded PNGs are several times larger on the wire, and the cropped bytes carry
+the C2PA content credentials.
+Info
+Presigned URLs expire after
+1 hour
+. Download layers promptly or generate
+new URLs by polling the endpoint again.
+Text layers
+Section titled “Text layers”
+Text in the source, such as headlines, taglines and button labels, is split onto its own layers. A text layer is still returned as an image. It also carries the text itself, so you can replace the image with live, editable type without generating again:
+"layer"
+: {
+"index"
+:
+0
+,
+"label"
+:
+"Headline"
+,
+"description"
+:
+"The headline SUMMER SALE in bold condensed capitals"
+,
+"alpha_hint"
+:
+"hard"
+,
+"bounds"
+: {
+"x"
+:
+112
+,
+"y"
+:
+80
+,
+"width"
+:
+800
+,
+"height"
+:
+210
+,
+"canvas_width"
+:
+1024
+,
+"canvas_height"
+:
+1024
+},
+"contains_text"
+:
+true
+,
+"text"
+: {
+"content"
+:
+"SUMMER
+\n
+SALE"
+,
+"font"
+: {
+"category"
+:
+"display sans"
+,
+"weight"
+:
+"bold"
+,
+"width"
+:
+"condensed"
+,
+"italic"
+:
+false
+,
+"families"
+: [
+"Oswald"
+,
+"Anton"
+]
+},
+"decorated"
+:
+false
+}
+}
+Field
+Description
+contains_text
+true
+for a text layer,
+false
+for an image element,
+null
+when text detection did not run for this generation
+text.content
+The text as shown, capitalization preserved; lines separated by
+\n
+text.font
+Described typeface traits, or
+null
+when they could not be read
+text.font.category
+sans serif
+,
+serif
+,
+slab serif
+,
+display sans
+,
+display serif
+,
+display slab
+,
+display decorative
+,
+handwriting
+,
+monospace
+text.font.weight
+thin
+,
+light
+,
+regular
+,
+medium
+,
+bold
+,
+black
+text.font.width
+condensed
+,
+normal
+,
+wide
+text.font.italic
+Whether the letters are slanted or cursive
+text.font.families
+Up to three
+Google Fonts
+family names that resemble the lettering, closest first; may be empty
+text.font.match
+The font in your font catalog that the lettering matches (
+family_id
+as a
+font_family:<id>
+ref,
+face_id
+as a
+font_face:<id>
+ref,
+family_name
+,
+weight
+,
+style
+); absent when none matches closely enough or matching is not enabled for your account
+text.decorated
+true
+when the lettering is ornamental (outlines, patterned fills, bevels, shadows), so plain type will not match its look
+text
+is
+null
+on every layer that is not text. On a
+contains_text: true
+layer, a
+null
+text
+means the lettering is a logo or wordmark, could not be read, failed to extract, or was not read within 5 minutes of the layers being ready. Keep the image layer in that case.
+How to use it:
+Position
+is the layer’s
+bounds
+. Set the text inside that box on the composite canvas and size the type to fit it. There is no separate font size or per-line geometry.
+Colour
+is not reported. Sample it from the layer image if you need it.
+A catalog font
+, when
+text.font.match
+is present, is the font in your team’s font catalog that most resembles the lettering. Set the text in it. The layer image itself was not rendered in that font.
+Text is final once the generation is
+completed
+.
+Reading the text finishes a little after the layers themselves. Until it has finished for every text layer, the poll keeps reporting
+state: "processing"
+with no output, even though the layers are ready. A
+completed
+poll never gains text later. A read that has not finished 5 minutes after the layers are ready is given up: the generation completes with
+text: null
+on that layer, and the text is never added afterwards.
+A
+503
+while polling
+with
+TRANSIENT.SERVICE.UNAVAILABLE
+means a finished text could not be fetched just then. Retry the poll.
+Pricing
+Section titled “Pricing”
+Layering is priced
+per generation, by
+layering.resolution
+. The rate is flat — it does not depend on how many layers come back.
+layering.resolution
+Credits per generation
+1k
+75
+2k
+105
+A 2-layer result and a 10-layer result cost the same at the same resolution, so you know the charge before you submit. The hold placed at submit equals the final charge — nothing is released on a successful generation. A failed generation releases the hold in full and is never charged.
+Note
+These are
+introductory rates
+and are subject to change. Layering is not
+yet listed on the
+Pricing
+page — confirm current rates with
+support+luma-agents-api@lumalabs.ai
+before committing to
+high-volume workloads.
+Rate limits
+Section titled “Rate limits”
+Layering counts against your standard generation limits — see
+Rate limits and headers
+. Rejections return HTTP 429 with
+Retry-After
+and the standard
+X-RateLimit-*
+headers, before any hold is placed, so a 429 never charges you.
+A layering request occupies far more capacity than its single request slot suggests: one submission fans out to as many as ten image generations. Pace accordingly — treat one layering submission as up to ten generations, and prefer a modest concurrency ceiling with retries over bursting. If your integration needs sustained layering throughput, contact
+support+luma-agents-api@lumalabs.ai
+so headroom can be sized for your account.
+Next steps
+Section titled “Next steps”
+Image generation
+— Generate new images from text
+Image editing
+— Modify existing images with text prompts
+Files API
+— Upload a source once, reference it by
+file_id
+Models
+— Model capabilities and limitations
+Pricing
+— Pay-as-you-go and Provisioned Throughput plans
+Error handling
+— Every error code with troubleshooting steps
+API Reference
+— Complete endpoint specifications
+Previous
+Editing
+Edit existing images with text prompts using the Luma Agents API — background replacement, style transfer, object modification, and more.
+Next
+Prompting guide
+A creator's field guide to prompting Uni-1 — workflow, templates, anatomy of a great prompt, reference images, and the cheat sheet of dos and don'ts.

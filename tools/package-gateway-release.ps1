@@ -259,7 +259,16 @@ $deployPayloadRelativePaths = @(
     # 404 "AI gateway project 不存在".
     "postgres\initdb\001-gateway-schema.sql",
     "postgres\initdb\002-gateway-bootstrap.sql",
-    "postgres\initdb\003-gateway-standalone-constraints.sql"
+    "postgres\initdb\003-gateway-standalone-constraints.sql",
+    "postgres\initdb\004-gateway-key-cash.sql",
+    "postgres\initdb\005-gateway-refresh-authority.sql",
+    "postgres\initdb\006-gateway-luma-mcp-creation.sql",
+    "postgres\initdb\007-gateway-internal-model-probe-audits.sql",
+    "postgres\initdb\008-gateway-sap-response-receipts.sql",
+    "postgres\initdb\009-gateway-sap-response-mutations.sql",
+    "postgres\initdb\010-gateway-sap-response-route-pins.sql",
+    "postgres\initdb\011-gateway-sap-response-recovery.sql",
+    "postgres\initdb\012-gateway-sap-probe-evidence.sql"
 )
 foreach ($requiredDirectory in @($manifestsSource, $scriptsSource, $docsSource, $deploySource, $toolsSource)) {
     if (-not (Test-Path -LiteralPath $requiredDirectory -PathType Container)) {

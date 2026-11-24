@@ -70,6 +70,11 @@ fn pipeline_lifecycle_sse_handoff_then_immediate_drop_refunds_only_in_stream() {
     run(sse_handoff);
 }
 async fn sse_handoff() {
+    for observed in [None, Some(None), Some(Some(202))] {
+        sse_handoff_case(observed).await;
+    }
+}
+async fn sse_handoff_case(status_observation: Option<Option<u16>>) {
     let fixture = Fixture::new().await;
     let limit = Arc::new(Semaphore::new(1));
     let mut owner = Owner::begin(fixture.ctx(), &fixture.console.state, limit.clone())
@@ -82,7 +87,8 @@ async fn sse_handoff() {
     }
     let reserved = fixture.balance().await;
     assert!(reserved.0 < 1000);
-    let ctx = owner.ctx.as_ref().unwrap();
+    let ctx = owner.ctx.as_mut().unwrap();
+    ctx.observed_upstream_status = status_observation;
     let audit = stage_finalize::snapshot_request_audit(ctx);
     let snapshot = stage_finalize::FailureFinalizeSnapshot {
         request_id: ctx.req_id.to_string(),
@@ -129,7 +135,43 @@ async fn sse_handoff() {
     drop(result);
     let row = fixture.audit("cancelled").await;
     assert!(row.total_tokens.is_none());
+    assert_eq!(
+        row.upstream_status,
+        status_observation.flatten().map(i32::from)
+    );
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert_eq!(fixture.balance().await, (1000, 0));
     fixture.close().await;
+}
+
+#[test]
+fn pipeline_lifecycle_pre_handoff_cancellation_preserves_observed_status() {
+    run(cancelled_status);
+}
+
+async fn cancelled_status() {
+    for observed in [None, Some(None), Some(Some(202))] {
+        let fixture = Fixture::new().await;
+        let limit = Arc::new(Semaphore::new(1));
+        let mut owner = Owner::begin(fixture.ctx(), &fixture.console.state, limit.clone())
+            .await
+            .unwrap();
+        for stage in [Stage::Audit, Stage::Filter] {
+            let (next, result) = owner.step(stage).await.unwrap();
+            owner = next;
+            result.unwrap();
+        }
+        // Synthetic observation tests the finalizer seam; real SAP transport is covered separately.
+        owner.ctx.as_mut().unwrap().observed_upstream_status = observed;
+        drop(owner);
+        let returned = tokio::time::timeout(Duration::from_secs(3), limit.acquire_owned())
+            .await
+            .unwrap()
+            .unwrap();
+        let row = fixture.audit("cancelled").await;
+        assert_eq!(row.upstream_status, observed.flatten().map(i32::from));
+        assert_eq!(fixture.balance().await, (1000, 0));
+        drop(returned);
+        fixture.close().await;
+    }
 }

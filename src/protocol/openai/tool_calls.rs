@@ -97,7 +97,7 @@ fn normalize_tool_arguments(value: &Value, decode_entities: bool) -> String {
     }
 }
 
-fn decode_provider_tool_argument_entities(text: &str) -> String {
+pub(crate) fn decode_provider_tool_argument_entities(text: &str) -> String {
     text.replace("&quot;", "\"")
         .replace("&#34;", "\"")
         .replace("&apos;", "'")

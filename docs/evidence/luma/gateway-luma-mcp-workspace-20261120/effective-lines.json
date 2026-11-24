@@ -1,0 +1,82 @@
+[
+  {
+    "path": "src/protocol/luma_mcp/creation.rs",
+    "before": 101,
+    "after": 115
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/options.rs",
+    "before": 236,
+    "after": 261
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+    "before": 186,
+    "after": 191
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_mcp/creation/execute.rs",
+    "before": 152,
+    "after": 156
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation_tests.rs",
+    "before": 294,
+    "after": 296
+  },
+  {
+    "path": "apps/desktop/src/api/console/luma-creation.ts",
+    "before": 14,
+    "after": 15
+  },
+  {
+    "path": "apps/desktop/src/features/console/lumaMcpCreationDraft.ts",
+    "before": 68,
+    "after": 78
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationOptions.tsx",
+    "before": 61,
+    "after": 72
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx",
+    "before": 95,
+    "after": 104
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationFacts.tsx",
+    "before": 14,
+    "after": 24
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/reuse.rs",
+    "before": 0,
+    "after": 49
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_mcp/creation/workspace.rs",
+    "before": 0,
+    "after": 39
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation_reuse_tests.rs",
+    "before": 0,
+    "after": 279
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationReuse.test.tsx",
+    "before": 0,
+    "after": 87
+  },
+  {
+    "path": "tools/luma/mcp-creation-preview-check.mjs",
+    "before": 82,
+    "after": 123
+  },
+  {
+    "path": "apps/desktop/e2e/fixtures/luma-mcp-creation-preview.tsx",
+    "before": 46,
+    "after": 46
+  }
+]

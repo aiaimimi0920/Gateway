@@ -96,6 +96,22 @@ pub(super) async fn send_cancellable(
     ctx.lobster_model_resolution = None;
     let cancel = ctx.caller_cancel.clone();
     let budget = ctx.request_budget.clone();
+    let luma_audit = (attempt.effective_payload.canonical_adapter()
+        == crate::protocol::luma_agents::ADAPTER)
+        .then(|| {
+            crate::protocol::luma_agents::generation_audit::GenerationAudit::durable(
+                ctx.request_audit_id.as_deref().and_then(|id| {
+                    crate::luma_reconciliation::Checkpoint::for_candidate(
+                        state,
+                        id,
+                        candidate,
+                        &attempt.effective_payload,
+                    )
+                }),
+            )
+        });
+    // Clear a prior attempt's facts before binding the exact current account.
+    ctx.luma_generation_audit = luma_audit.clone();
     let mut ticket = crate::protocol::lobsterai::dispatch::Ticket::capture(
         state,
         candidate,
@@ -142,6 +158,7 @@ pub(super) async fn send_cancellable(
         }
         result
     });
+    let send = crate::protocol::luma_agents::generation_audit::within(luma_audit, send);
     cancellable(cancel, budget, state, send)
         .await
         .unwrap_or_else(|error| Err(AttemptError::Stop(error)))

@@ -1,0 +1,13 @@
+
+> gateway-ui@0.1.0 test
+> vitest run src/features/console/LumaTaskPanel.test.tsx src/features/console/OperationsLumaTask.test.tsx src/features/console/ConsoleGlobalDialogs.luma-agents.test.tsx src/features/console/OperationsRequestAttribution.test.tsx --maxWorkers=1
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+
+ Test Files  4 passed (4)
+      Tests  32 passed (32)
+   Start at  05:44:59
+   Duration  18.60s (transform 1.95s, setup 1.95s, import 4.54s, tests 3.21s, environment 7.28s)
+

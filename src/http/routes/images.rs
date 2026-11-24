@@ -25,7 +25,9 @@ pub async fn handle_image_generations(
     headers: HeaderMap,
     crate::http::extractors::JsonBody(body): crate::http::extractors::JsonBody,
 ) -> Result<Response, GatewayError> {
-    let canonical = if producer::should_use_image_generations(&body) {
+    let canonical = if body.get("type").and_then(Value::as_str) == Some("layering") {
+        crate::protocol::luma_agents::normalize_layering(body)?
+    } else if producer::should_use_image_generations(&body) {
         producer::normalize_image_generations(body)?
     } else {
         normalize_image_generations(body)?

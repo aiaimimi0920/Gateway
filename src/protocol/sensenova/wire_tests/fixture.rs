@@ -10,6 +10,15 @@ impl Fixture {
         Self::with_fallback(peer, false).await
     }
     pub async fn with_fallback(peer: &peer::Peer, fallback: bool) -> Self {
+        let document = json!({"providers":[{"id":"sensenova-public","preset":"sensenova-token-plan","base_url":super::super::BASE,
+            "explicit_credentials_only":true,"request_wait":{"mode":"disabled"},
+            "supported_models":[MODEL],"model_map":{MODEL:UPSTREAM_MODEL},
+            "credentials":[{"id":"unrelated","api_key":if fallback { KEY } else { "other-key" },"supported_models":[if fallback { MODEL } else { "other-model" }]},
+                {"id":"exact","api_key":KEY,"supported_models":[MODEL]}]}],"model_routes":[]});
+        Self::with_document(peer, document, 2).await
+    }
+
+    pub async fn with_document(peer: &peer::Peer, document: Value, messages: usize) -> Self {
         let root = std::env::temp_dir().join(format!("sensenova-public-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).unwrap();
         let mut config = support::test_config();
@@ -20,11 +29,6 @@ impl Fixture {
         config.console.state_dir = root.join("state");
         config.console.routes_file = root.join("routes.yaml");
         config.upstream_timeout_secs = 5;
-        let document = json!({"providers":[{"id":"sensenova-public","preset":"sensenova-token-plan","base_url":super::super::BASE,
-            "explicit_credentials_only":true,"request_wait":{"mode":"disabled"},
-            "supported_models":[MODEL],"model_map":{MODEL:UPSTREAM_MODEL},
-            "credentials":[{"id":"unrelated","api_key":if fallback { KEY } else { "other-key" },"supported_models":[if fallback { MODEL } else { "other-model" }]},
-                {"id":"exact","api_key":KEY,"supported_models":[MODEL]}]}],"model_routes":[]});
         std::fs::write(
             &config.console.routes_file,
             serde_yaml::to_string(&document).unwrap(),
@@ -46,7 +50,7 @@ impl Fixture {
             &state,
             &format!("/v1/internal/gateway/access/keys/{id}/balances/adjust"),
             support::MANAGEMENT_TOKEN,
-            json!({"balanceMode":"message_prepaid","totalMessages":2,"remainingMessages":2}),
+            json!({"balanceMode":"message_prepaid","totalMessages":messages,"remainingMessages":messages}),
         )
         .await;
         assert_eq!(status, StatusCode::OK, "{text}");
@@ -72,6 +76,19 @@ impl Fixture {
         .unwrap()
         .unwrap()
     }
+    pub async fn restart(self, peer: &peer::Peer) -> Self {
+        let config = self.state.config.clone();
+        let id = self.id.clone();
+        let token = self.token.clone();
+        self.finish().await;
+        let mut state = Box::pin(crate::runtime::build_app_state(config))
+            .await
+            .unwrap();
+        assert!(state.local_runtime.is_some() && state.pg_pool.is_none());
+        Arc::get_mut(&mut state).unwrap().upstream_client.http = peer.client();
+        Self { state, id, token }
+    }
+
     pub async fn remaining(&self) -> i64 {
         AccessBalanceStore::from_state(&self.state)
             .unwrap()

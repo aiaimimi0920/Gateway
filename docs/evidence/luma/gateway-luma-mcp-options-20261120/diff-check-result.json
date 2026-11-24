@@ -1,0 +1,11 @@
+{
+  "args": [
+    "git",
+    "diff",
+    "--check"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T08:46:03.182737+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 0.34
+}

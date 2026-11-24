@@ -1,0 +1,38 @@
+[
+  {
+    "path": "src/protocol/luma_mcp/creation.rs",
+    "effectiveLines": 117
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/facts.rs",
+    "effectiveLines": 156
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation/wire.rs",
+    "effectiveLines": 71
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_mcp/creation.rs",
+    "effectiveLines": 181
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_mcp/creation/execute.rs",
+    "effectiveLines": 156
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+    "effectiveLines": 195
+  },
+  {
+    "path": "src/protocol/luma_mcp/creation_tests.rs",
+    "effectiveLines": 300
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx",
+    "effectiveLines": 106
+  },
+  {
+    "path": "apps/desktop/src/api/console/luma-creation.ts",
+    "effectiveLines": 15
+  }
+]

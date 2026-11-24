@@ -1,0 +1,6 @@
+  ➜  Local:    http://127.0.0.1:4452/
+
+start   build started...
+ready   built in 0.41 s
+start   building e2e\fixtures\luma-task-preview.tsx
+ready   built in 0.40 s

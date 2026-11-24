@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "files": [
+    "src/protocol/luma_mcp/creation.rs",
+    "src/protocol/luma_mcp/creation/options.rs",
+    "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+    "src/http/routes/internal_console/luma_mcp/creation/execute.rs",
+    "src/protocol/luma_mcp/creation_tests.rs",
+    "apps/desktop/src/api/console/luma-creation.ts",
+    "apps/desktop/src/features/console/lumaMcpCreationDraft.ts",
+    "apps/desktop/src/features/console/LumaMcpCreationOptions.tsx",
+    "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx",
+    "apps/desktop/src/features/console/LumaMcpCreationFacts.tsx",
+    "src/protocol/luma_mcp/creation/reuse.rs",
+    "src/http/routes/internal_console/luma_mcp/creation/workspace.rs",
+    "src/protocol/luma_mcp/creation_reuse_tests.rs",
+    "apps/desktop/src/features/console/LumaMcpCreationReuse.test.tsx",
+    "tools/luma/mcp-creation-preview-check.mjs",
+    "apps/desktop/e2e/fixtures/luma-mcp-creation-preview.tsx",
+    "src/http/routes/internal_console/luma_mcp/creation.rs",
+    "docs/providers/luma-development-status.md",
+    "docs/provider-luma-channel-contract.md",
+    "tools/luma/README.md",
+    "docs/progress/2026-11-20-luma-mcp-workspace.md",
+    "docs/evidence/luma/README.md"
+  ],
+  "errors": []
+}

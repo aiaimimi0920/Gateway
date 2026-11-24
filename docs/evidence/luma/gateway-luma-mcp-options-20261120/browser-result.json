@@ -1,0 +1,157 @@
+{
+  "status": "passed",
+  "browserClosed": true,
+  "calls": [
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "prepare",
+        "request": {
+          "kind": "image",
+          "prompt": "Keep the subject and change the sky",
+          "budgetCredits": 40,
+          "options": {
+            "model": "openai_gpt_image_2",
+            "operation": "generate",
+            "referenceUrls": [
+              "https://cdn.example.com/source.png"
+            ],
+            "parameters": {
+              "resolution": "4K",
+              "quality": "high",
+              "outputFormat": "webp"
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "start",
+        "taskId": "luma-mcp-preview-1",
+        "request": {
+          "kind": "image",
+          "prompt": "Keep the subject and change the sky",
+          "budgetCredits": 40,
+          "options": {
+            "model": "openai_gpt_image_2",
+            "operation": "generate",
+            "referenceUrls": [
+              "https://cdn.example.com/source.png"
+            ],
+            "parameters": {
+              "resolution": "4K",
+              "quality": "high",
+              "outputFormat": "webp"
+            }
+          }
+        },
+        "chargeConfirmed": true
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "read",
+        "taskId": "luma-mcp-preview-1"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "prepare",
+        "request": {
+          "kind": "video",
+          "prompt": "Keep the subject and change the sky",
+          "budgetCredits": 40,
+          "options": {
+            "model": "luma_ray3_2",
+            "operation": "reframe",
+            "aspectRatio": "16:9",
+            "sourceUrl": "https://cdn.example.com/source.webm",
+            "sourceMediaType": "video/webm",
+            "video": {
+              "resolution": "720p",
+              "duration": "10s",
+              "sourcePosition": {
+                "x": -0.5,
+                "y": 0.5,
+                "width": 1.5,
+                "height": 0.5
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "start",
+        "taskId": "luma-mcp-preview-2",
+        "request": {
+          "kind": "video",
+          "prompt": "Keep the subject and change the sky",
+          "budgetCredits": 40,
+          "options": {
+            "model": "luma_ray3_2",
+            "operation": "reframe",
+            "aspectRatio": "16:9",
+            "sourceUrl": "https://cdn.example.com/source.webm",
+            "sourceMediaType": "video/webm",
+            "video": {
+              "resolution": "720p",
+              "duration": "10s",
+              "sourcePosition": {
+                "x": -0.5,
+                "y": 0.5,
+                "width": 1.5,
+                "height": 0.5
+              }
+            }
+          }
+        },
+        "chargeConfirmed": true
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "cancel",
+        "taskId": "luma-mcp-preview-2"
+      }
+    },
+    {
+      "path": "/v1/internal/gateway/console/luma-mcp-creation",
+      "body": {
+        "providerId": "preview-mcp",
+        "credentialId": "synthetic",
+        "expectedRevision": "preview-r1",
+        "action": "end",
+        "taskId": "luma-mcp-preview-2"
+      }
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "scope": "synthetic component preview only; Rust management transport tested separately"
+}

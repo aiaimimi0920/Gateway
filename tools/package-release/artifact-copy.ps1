@@ -20,6 +20,21 @@ function Assert-ArtifactPathWithoutLinks {
     }
 }
 
+function Get-FastFileSha256Hex {
+    param([Parameter(Mandatory = $true)][string]$LiteralPath)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $stream = [System.IO.File]::Open($LiteralPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        try {
+            return ([System.BitConverter]::ToString($sha.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+        } finally {
+            $stream.Dispose()
+        }
+    } finally {
+        $sha.Dispose()
+    }
+}
+
 function New-ArtifactRecord {
     param(
         [Parameter(Mandatory = $true)][string]$PackageRoot,
@@ -37,7 +52,7 @@ function New-ArtifactRecord {
         name = $item.Name
         path = Get-RelativeUnixPath -BasePath $PackageRoot -Path $Path
         bytes = [int64]$item.Length
-        sha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-FastFileSha256Hex -LiteralPath $Path
     }
 }
 
@@ -88,8 +103,8 @@ function Copy-ImmutableEvidenceFile {
         [System.IO.File]::Copy((Resolve-FullPath -Path $Source), $temporaryPath, $false)
         $sourceItem = Get-Item -LiteralPath $Source
         $temporaryItem = Get-Item -LiteralPath $temporaryPath -Force
-        $sourceHash = (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash
-        $temporaryHash = (Get-FileHash -LiteralPath $temporaryPath -Algorithm SHA256).Hash
+        $sourceHash = Get-FastFileSha256Hex -LiteralPath $Source
+        $temporaryHash = Get-FastFileSha256Hex -LiteralPath $temporaryPath
         if ($sourceItem.Length -ne $temporaryItem.Length -or $sourceHash -ne $temporaryHash) {
             throw "Immutable evidence copy verification failed: $Destination"
         }

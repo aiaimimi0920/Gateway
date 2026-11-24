@@ -17,8 +17,8 @@ name = "gateway"
 path = "src/main.rs"
 
 [features]
-management-ui = ["dep:rust-embed", "dep:mime_guess"]
-cpa-rust-transport = ["dep:gateway-cpa-http-transport"]
+management-ui = ["dep:gateway-embedded-ui", "dep:mime_guess"]
+cpa-rust-transport = ["dep:gateway-cpa-http-transport", "gateway-core/cpa-rust-transport"]
 # Runtime ownership only; public Copilot inference is not enabled by this feature.
 copilot-sdk-runtime = ["dep:gateway-copilot-runtime"]
 # Never active in a release build, even when --all-features is supplied.
@@ -75,6 +75,7 @@ runtime-defaults = [
     "line-udio-web-reverse-api",
     "line-lumalabs-web-reverse-api",
     "line-lumalabs-agents-official-api",
+    "line-lumalabs-inference-official-api",
     "line-perplexity-search-official-vendor-api",
     "line-tavily-search-official-vendor-api",
     "line-exa-search-official-vendor-api",
@@ -87,6 +88,7 @@ runtime-defaults = [
     "line-qwen-web-reverse",
     "line-chataibot-web-reverse",
     "line-kiro-official-vendor-api",
+    "line-quick-oauth",
 ]
 family-openai-compatible-official-api = []
 family-anthropic-compatible-official-api = []
@@ -137,6 +139,7 @@ line-suno-web-reverse-api = ["dep:symphonia"]
 line-udio-web-reverse-api = []
 line-lumalabs-web-reverse-api = []
 line-lumalabs-agents-official-api = []
+line-lumalabs-inference-official-api = ["family-openai-compatible-official-api"]
 line-perplexity-search-official-vendor-api = ["family-search-api-compatible-official-api"]
 line-tavily-search-official-vendor-api = ["family-search-api-compatible-official-api"]
 line-exa-search-official-vendor-api = ["family-search-api-compatible-official-api"]
@@ -154,7 +157,11 @@ line-qwen-official-api = [
 line-qwen-web-reverse = []
 line-chataibot-web-reverse = []
 line-kiro-official-vendor-api = []
+line-quick-oauth = ["family-openai-compatible-official-api"]
 [dependencies]
+gateway-core = { path = "crates/gateway-core" }
+gateway-embedded-ui = { path = "crates/gateway-embedded-ui", optional = true }
+gateway-provider-kit = { path = "crates/gateway-provider-kit" }
 gateway-local-data = { path = "crates/gateway-local-data" }
 # HTTP server
 axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
@@ -231,7 +238,6 @@ arc-swap = "1"
 argon2 = "0.5"
 ring = "=0.17.14"
 subtle = "2.6"
-rust-embed = { version = "8", optional = true }
 mime_guess = { version = "2", optional = true }
 
 # Config
@@ -261,6 +267,9 @@ serde_json = "1"
 sha2 = "0.10"
 
 [dev-dependencies]
+# Reuse locked transports for in-memory SAP mTLS loopback fixtures.
+btls = "=0.5.6"
+hyper = { version = "=1.9.0", features = ["http1", "server"] }
 tokio = { version = "1", features = ["test-util"] }
 
 [profile.release]
@@ -269,6 +278,13 @@ opt-level = 3
 codegen-units = 1
 
 # Daily functional validation; never relabel these artifacts as release builds.
+# Optimize proc-macros (serde, sqlx, tokio, rust-embed) and build scripts once for fast expansion.
+[profile.dev.build-override]
+opt-level = 3
+
+[profile.test.build-override]
+opt-level = 3
+
 [profile.devtest]
 inherits = "dev"
 opt-level = 1
@@ -277,7 +293,10 @@ debug-assertions = false
 overflow-checks = true
 lto = false
 incremental = true
-codegen-units = 16
+codegen-units = 256
+
+[profile.devtest.build-override]
+opt-level = 3
 
 [patch.crates-io]
 http2 = { path = "crates/http2-go-compat" }

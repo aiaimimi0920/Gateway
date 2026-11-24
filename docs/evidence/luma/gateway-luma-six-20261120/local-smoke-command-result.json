@@ -1,0 +1,18 @@
+{
+  "args": [
+    "powershell.exe",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    "tools/smoke-gateway-local-storage.ps1",
+    "-ReleaseDir",
+    "C:/Users/Public/nas_home/AI/GameEditor/Neuro/release/Gateway/gateway-devtest-20261120-luma-large-files-reconciliation",
+    "-EvidenceRoot",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-six-20261120/local-smoke"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T05:30:36.254203+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 28.31
+}

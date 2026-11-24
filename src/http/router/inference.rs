@@ -50,9 +50,18 @@ pub(super) fn mount(router: Router<Arc<AppState>>, state: &AppState) -> Router<A
     let responses_routes = Router::new()
         .route(
             "/v1/responses",
-            post(responses::handle_responses).get(responses::handle_websocket),
+            post(responses::handle_public_create).get(responses::handle_websocket),
         )
         .route("/v1/responses/compact", post(responses::handle_compact))
+        .route(
+            "/v1/responses/:id",
+            axum::routing::get(responses::handle_stored_operation)
+                .delete(responses::handle_stored_operation),
+        )
+        .route(
+            "/v1/responses/:id/cancel",
+            post(responses::handle_stored_operation),
+        )
         .layer(body_limit_layer(state.config.max_body_responses_bytes));
 
     let gemini_generate_content_routes = Router::new()

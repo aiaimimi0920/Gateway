@@ -1,0 +1,200 @@
+
+> gateway-browser-workers@0.1.0 test:effective-lines
+> node --test tests/effective-code-lines.test.mjs tests/effective-code-lines-runtime-artifacts.test.mjs
+
+TAP version 13
+# Subtest: classifies only exact approved bytes while retaining the measured inventory
+ok 1 - classifies only exact approved bytes while retaining the measured inventory
+  ---
+  duration_ms: 61.7169
+  type: 'test'
+  ...
+# Subtest: without an approved registry the original strict rules still apply
+ok 2 - without an approved registry the original strict rules still apply
+  ---
+  duration_ms: 36.9164
+  type: 'test'
+  ...
+# Subtest: byte and line-ending drift remain visible even with identical effective lines
+ok 3 - byte and line-ending drift remain visible even with identical effective lines
+  ---
+  duration_ms: 72.5492
+  type: 'test'
+  ...
+# Subtest: identical siblings, new versions and first-party files receive no classification
+ok 4 - identical siblings, new versions and first-party files receive no classification
+  ---
+  duration_ms: 78.0206
+  type: 'test'
+  ...
+# Subtest: optional local runtime payloads may be absent from a clean checkout
+ok 5 - optional local runtime payloads may be absent from a clean checkout
+  ---
+  duration_ms: 29.4012
+  type: 'test'
+  ...
+# Subtest: missing registry or provenance evidence fails closed
+ok 6 - missing registry or provenance evidence fails closed
+  ---
+  duration_ms: 32.7721
+  type: 'test'
+  ...
+# Subtest: unreviewed changes to either hash-bound document fail closed
+ok 7 - unreviewed changes to either hash-bound document fail closed
+  ---
+  duration_ms: 32.6827
+  type: 'test'
+  ...
+# Subtest: registry rejects escape paths, first-party targets and unknown entry fields
+ok 8 - registry rejects escape paths, first-party targets and unknown entry fields
+  ---
+  duration_ms: 64.5197
+  type: 'test'
+  ...
+# Subtest: registry rejects duplicate and invalid records
+ok 9 - registry rejects duplicate and invalid records
+  ---
+  duration_ms: 61.9086
+  type: 'test'
+  ...
+# Subtest: receipt must bind the exact registered file and package identity
+ok 10 - receipt must bind the exact registered file and package identity
+  ---
+  duration_ms: 39.851
+  type: 'test'
+  ...
+# Subtest: evidence references reject traversal and directory junctions
+ok 11 - evidence references reject traversal and directory junctions
+  ---
+  duration_ms: 23.4968
+  type: 'test'
+  ...
+# Subtest: oversized and malformed evidence documents are rejected before classification
+ok 12 - oversized and malformed evidence documents are rejected before classification
+  ---
+  duration_ms: 27.866
+  type: 'test'
+  ...
+# Subtest: counts Rust code while removing nested comments
+ok 13 - counts Rust code while removing nested comments
+  ---
+  duration_ms: 2.7461
+  type: 'test'
+  ...
+# Subtest: counts JavaScript regexes and multiline templates as code
+ok 14 - counts JavaScript regexes and multiline templates as code
+  ---
+  duration_ms: 0.2721
+  type: 'test'
+  ...
+# Subtest: counts PowerShell here-strings and ignores comments
+ok 15 - counts PowerShell here-strings and ignores comments
+  ---
+  duration_ms: 1.0011
+  type: 'test'
+  ...
+# Subtest: treats Python docstrings as documentation and assigned triples as code
+ok 16 - treats Python docstrings as documentation and assigned triples as code
+  ---
+  duration_ms: 0.6223
+  type: 'test'
+  ...
+# Subtest: counts shell heredocs and SQL strings without treating their content as comments
+ok 17 - counts shell heredocs and SQL strings without treating their content as comments
+  ---
+  duration_ms: 4.427
+  type: 'test'
+  ...
+# Subtest: counts CSS and HTML around their comment forms
+ok 18 - counts CSS and HTML around their comment forms
+  ---
+  duration_ms: 1.645
+  type: 'test'
+  ...
+# Subtest: removes CMD comment forms without hiding normal commands
+ok 19 - removes CMD comment forms without hiding normal commands
+  ---
+  duration_ms: 0.6262
+  type: 'test'
+  ...
+# Subtest: normalizes BOM and line endings deterministically
+ok 20 - normalizes BOM and line endings deterministically
+  ---
+  duration_ms: 0.4334
+  type: 'test'
+  ...
+# Subtest: rejects invalid UTF-8 instead of silently replacing bytes
+ok 21 - rejects invalid UTF-8 instead of silently replacing bytes
+  ---
+  duration_ms: 1.0124
+  type: 'test'
+  ...
+# Subtest: normalizes repository paths and rejects escape paths
+ok 22 - normalizes repository paths and rejects escape paths
+  ---
+  duration_ms: 1.2195
+  type: 'test'
+  ...
+# Subtest: baseline file-list contents are anchored by the policy digest
+ok 23 - baseline file-list contents are anchored by the policy digest
+  ---
+  duration_ms: 346.2162
+  type: 'test'
+  ...
+# Subtest: ratchet permits non-growing legacy debt and rejects growth or new oversized files
+ok 24 - ratchet permits non-growing legacy debt and rejects growth or new oversized files
+  ---
+  duration_ms: 0.6502
+  type: 'test'
+  ...
+# Subtest: soft-limit files require an exact exception once changed or added
+ok 25 - soft-limit files require an exact exception once changed or added
+  ---
+  duration_ms: 0.1524
+  type: 'test'
+  ...
+# Subtest: exception validation rejects stale, expired, and over-limit records
+ok 26 - exception validation rejects stale, expired, and over-limit records
+  ---
+  duration_ms: 8.1425
+  type: 'test'
+  ...
+# Subtest: repository scan excludes declared generated paths and prefixes
+ok 27 - repository scan excludes declared generated paths and prefixes
+  ---
+  duration_ms: 28.9398
+  type: 'test'
+  ...
+# Subtest: repository scan hashes LF and CRLF source identically
+ok 28 - repository scan hashes LF and CRLF source identically
+  ---
+  duration_ms: 6.4062
+  type: 'test'
+  ...
+# Subtest: integrity hashes normalize checker and lexer line endings
+ok 29 - integrity hashes normalize checker and lexer line endings
+  ---
+  duration_ms: 2.2149
+  type: 'test'
+  ...
+# Subtest: summary uses the exact Gateway tiers
+ok 30 - summary uses the exact Gateway tiers
+  ---
+  duration_ms: 0.5006
+  type: 'test'
+  ...
+# Subtest: Gateway documentation retains the ratchet and CI reports it independently
+ok 31 - Gateway documentation retains the ratchet and CI reports it independently
+  ---
+  duration_ms: 4.7692
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 781.4093

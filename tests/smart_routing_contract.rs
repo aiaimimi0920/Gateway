@@ -91,3 +91,35 @@ fn late_failure_does_not_clear_newer_attempt_to_same_provider() {
     router.release_failed_request(Some("session"), "model", "provider", current);
     assert!(router.sticky(Some("session"), "model").is_none());
 }
+
+#[test]
+fn sticky_account_changes_only_at_send_start_and_keeps_the_request_fence() {
+    let router = SmartRouting::default();
+    let old = uuid::Uuid::new_v4();
+    let current = uuid::Uuid::new_v4();
+    router.begin_account_request(Some("session"), "model", "provider", Some("account-1"), old);
+    assert_eq!(
+        router.sticky_account(Some("session"), "model"),
+        Some(("provider".into(), "account-1".into()))
+    );
+    router.begin_account_request(
+        Some("session"),
+        "model",
+        "provider",
+        Some("account-2"),
+        current,
+    );
+    router.release_failed_request(Some("session"), "model", "provider", old);
+    assert_eq!(
+        router.sticky_account(Some("session"), "model"),
+        Some(("provider".into(), "account-2".into()))
+    );
+    assert!(router
+        .sticky_account(Some("other-session"), "model")
+        .is_none());
+    assert!(router
+        .sticky_account(Some("session"), "other-model")
+        .is_none());
+    router.release_failed_request(Some("session"), "model", "provider", current);
+    assert!(router.sticky_account(Some("session"), "model").is_none());
+}

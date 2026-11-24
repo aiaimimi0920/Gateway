@@ -1,0 +1,94 @@
+{
+  "scope": "Luma Web payment refusal classification only",
+  "liveGeneration": false,
+  "packaged": false,
+  "deployed": false,
+  "checks": {
+    "red": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_web_payment_refusal",
+        "--",
+        "--test-threads=1"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T09:06:56.742400+00:00",
+      "exitCode": 101,
+      "elapsedSeconds": 1424.81
+    },
+    "green": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "upstream::lumalabs",
+        "--",
+        "--test-threads=1"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T09:32:10.798740+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 1393.45
+    },
+    "checker": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "test:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T09:32:42.212136+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 2.66
+    },
+    "ratchet": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "check:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T09:32:42.298625+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 14.94
+    }
+  },
+  "redTests": {
+    "passed": 1,
+    "failed": 2
+  },
+  "greenTests": {
+    "passed": 58,
+    "failed": 0
+  },
+  "checkerTests": {
+    "passed": 31,
+    "failed": 0
+  },
+  "sourceSha256": {
+    "src/upstream/lumalabs_response_helpers/worker_results.rs": "753fa890a5cdc74796865a93af4162637d4787948631cecd25e3f9548296a092",
+    "src/upstream/lumalabs_response_helpers/tests/worker_results.rs": "f117df5fe3a1c93ff18d13fa0a999cf17eb57f960622108659e4bfad245a0434",
+    "src/upstream/lumalabs/tests.rs": "3c083cc8d063651aa3990df0dc71bcbf34695ee35c4cae38fa491af32e69f768",
+    "scripts/tests/fixtures/lumalabs-worker-process.mjs": "8915f1c3c50e5c5658fa33a758f468164fe37fa441962eec6667a495ed7fdbb6"
+  }
+}

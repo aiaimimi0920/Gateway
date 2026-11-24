@@ -1,7 +1,9 @@
 //! Ordered provider resolution and constrained credential round-robin.
 
 use super::*;
+mod diagnostics;
 mod fallback;
+pub use diagnostics::RejectedCandidate;
 #[cfg(test)]
 mod fallback_tests;
 
@@ -10,6 +12,7 @@ pub struct CandidateResolution {
     pub candidates: Vec<RouteCandidate>,
     /// None means automatic discovery; Some(empty) means only disabled rules matched.
     pub explicit_provider_ids: Option<Vec<String>>,
+    pub rejected_candidates: Vec<RejectedCandidate>,
 }
 
 pub(super) fn resolve_candidates_inner(
@@ -32,7 +35,7 @@ pub(super) fn resolve_candidates_with_authorization(
     model: Option<&str>,
     allowed_account_ids: Option<&HashSet<String>>,
 ) -> CandidateResolution {
-    resolve_candidates_filtered(guard, model, allowed_account_ids, None, false)
+    resolve_candidates_filtered(guard, model, allowed_account_ids, None, false, None)
 }
 
 pub(super) type Admission<'a> = Option<&'a dyn Fn(&str, &str, &str) -> bool>;
@@ -43,6 +46,7 @@ pub(super) fn resolve_candidates_filtered(
     allowed_account_ids: Option<&HashSet<String>>,
     admission: Admission<'_>,
     authorized_group_fallback: bool,
+    preferred: Option<&(String, String)>,
 ) -> CandidateResolution {
     let mut explicit_provider_ids: Option<Vec<String>> = None;
     let provider_map: HashMap<&str, &CompiledProvider> = guard
@@ -162,6 +166,7 @@ pub(super) fn resolve_candidates_filtered(
             }
         }
     }
+    let mut rejected_candidates = Vec::new();
     let candidates: Vec<RouteCandidate> = matched
         .into_iter()
         .flat_map(|matched| {
@@ -169,6 +174,13 @@ pub(super) fn resolve_candidates_filtered(
                 .get(matched.id)
                 .filter(|provider| search_tools::allows_model(provider, resolved))
                 .map_or_else(Vec::new, |provider| {
+                    diagnostics::collect(
+                        &mut rejected_candidates,
+                        provider,
+                        resolved,
+                        allowed_account_ids,
+                        admission,
+                    );
                     fallback::provider_candidates(
                         provider,
                         resolved,
@@ -176,10 +188,14 @@ pub(super) fn resolve_candidates_filtered(
                         matched.priority,
                         allowed_account_ids,
                         admission,
+                        preferred
+                            .filter(|(id, _)| id == &provider.id)
+                            .map(|(_, credential)| credential.as_str()),
                     )
                 })
         })
         .collect();
+    diagnostics::remove_admitted(&mut rejected_candidates, &candidates);
     if (authorized_group_fallback && admission.is_some() && allowed_account_ids.is_some())
         || resolved.is_some_and(search_tools::is_generic)
     {
@@ -196,6 +212,7 @@ pub(super) fn resolve_candidates_filtered(
     CandidateResolution {
         candidates,
         explicit_provider_ids,
+        rejected_candidates,
     }
 }
 
@@ -525,6 +542,8 @@ fn provider_to_candidate(
             upstream_model.as_deref(),
         ) {
             families
+        } else if crate::protocol::sensenova::owns_payload(&selected_payload) {
+            crate::protocol::sensenova::families(upstream_model.as_deref())
         } else {
             surface_supported_wire_protocol_families(&selected_payload.adapter, family)
         },

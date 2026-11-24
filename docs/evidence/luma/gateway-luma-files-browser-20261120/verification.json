@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "scope": "luma_files_normal_main_browser",
+  "date": "2026-11-20",
+  "status": "passed",
+  "browser": "isolated headless Edge, normal main UI, real management TCP, synthetic upstream",
+  "tests": {
+    "rustHost": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    "effectiveLineChecker": {
+      "passed": 31,
+      "failed": 0
+    }
+  },
+  "checks": {
+    "normalMainBuild": 0,
+    "ratchet": 0,
+    "rustfmt": 0,
+    "nodeSyntax": 0,
+    "scopedGitDiffCheck": 0
+  },
+  "managementRequests": 7,
+  "managementStatuses": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "upstreamRequests": 9,
+  "ordinaryKeyBalance": 2,
+  "revisionUnchanged": true,
+  "resourcesClosed": true,
+  "flows": [
+    "inline pending to ready and clipboard",
+    "account switch clears state without requests",
+    "pagination cursor",
+    "8388609-byte presign PUT complete with expires_at and user_id",
+    "cancel delete sends nothing; confirm sends once",
+    "wide and 390px screenshots"
+  ],
+  "initialAttempts": [
+    {
+      "run": "rust-host",
+      "meaning": "0 tests due to short exact filter; compile-only evidence"
+    },
+    {
+      "run": "rust-host-exact and browser-run",
+      "meaning": "obsolete account locator; 0 Files requests; abort and resource cleanup; failed"
+    }
+  ],
+  "sourceSnapshotBoundary": "4487 inputs captured during compilation, not before compilation. source-drift.json was checked before later Inference test additions and UI result fix; it is not a whole-tree freeze.",
+  "notVerified": [
+    "real media ingestion/reuse/delete/TTL/account isolation",
+    "real supplier charges",
+    "files above 64 MiB",
+    "MCP creation",
+    "Web production protocol",
+    "cross-process recovery",
+    "server postgres redis",
+    "native EXE"
+  ],
+  "gitCommitted": false,
+  "gitPushed": false
+}

@@ -10,7 +10,9 @@ pub(super) fn build_route_trace_from_ctx(
 
     let failure_classification = error
         .filter(|value| {
-            value.native_transport.is_none() && value.request_budget_stop_reason().is_none()
+            ctx.route_attempt_count() > 0
+                && value.native_transport.is_none()
+                && value.request_budget_stop_reason().is_none()
         })
         .map(|value| {
             classify_provider_failure(
@@ -26,6 +28,8 @@ pub(super) fn build_route_trace_from_ctx(
         "endpointKind": endpoint_kind_name(ctx),
         "routeAttemptCount": ctx.route_attempt_count(),
         "candidateCount": ctx.candidates.len(),
+        "routeRevision": ctx.cash_route_snapshot.as_ref().map(|snapshot| snapshot.revision().id()),
+        "rejectedCandidates": ctx.rejected_candidates,
         "attemptedProviderIds": attempted_provider_ids,
         "selectedPipelineMode": ctx.selected_execution_mode.clone(),
         "selectedProtocolProfile": ctx.selected_protocol_profile.clone(),
@@ -46,7 +50,7 @@ pub(super) fn build_route_trace_from_ctx(
         "toolStrategy": ctx.tool_strategy.clone(),
         "canonicalToolChoiceSemantics": ctx.canonical_tool_choice_semantics.clone(),
         "canonicalCompletionSemantics": ctx.canonical_completion_semantics.clone(),
-        "selectedCandidate": build_selected_candidate_trace_from_ctx(ctx),
+        "selectedCandidate": build_selected_candidate_trace_from_ctx(ctx).or_else(|| ctx.last_attempt_trace()),
         "upstreamModelResolution": ctx.lobster_model_resolution.as_ref().map(|value| value.trace()),
         "fallbackEligible": error.map(is_fallback_eligible),
         "errorCode": error.and_then(|value| value.code.clone()),
@@ -70,6 +74,7 @@ pub(super) fn build_route_trace_from_snapshot(
         "endpointKind": snapshot.endpoint_kind.clone(),
         "routeAttemptCount": snapshot.route_attempt_count,
         "attemptedProviderIds": snapshot.attempted_provider_ids.clone(),
+        "rejectedCandidates": snapshot.rejected_candidates,
         "selectedPipelineMode": snapshot.selected_execution_mode.clone(),
         "selectedProtocolProfile": snapshot.selected_protocol_profile.clone(),
         "selectionStrategy": snapshot.route_selection_strategy.clone(),

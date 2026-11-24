@@ -23,6 +23,13 @@ pub(crate) struct BoundedSseDecoder {
     max_frame_bytes: usize,
     first_line: bool,
     strict_utf8: bool,
+    passthrough: Option<PassthroughFields>,
+}
+
+#[derive(Default)]
+struct PassthroughFields {
+    pending: String,
+    decoded: Option<(String, bool)>,
 }
 
 impl BoundedSseDecoder {
@@ -37,6 +44,7 @@ impl BoundedSseDecoder {
             max_frame_bytes,
             first_line: true,
             strict_utf8: false,
+            passthrough: None,
         }
     }
 
@@ -47,12 +55,26 @@ impl BoundedSseDecoder {
         }
     }
 
+    /// Preserve SSE framing fields when a caller only projects the event's data.
+    pub(crate) fn with_passthrough_fields(mut self) -> Self {
+        self.passthrough = Some(PassthroughFields::default());
+        self
+    }
+
+    pub(crate) fn take_passthrough_fields(&mut self) -> Option<(String, bool)> {
+        self.passthrough.as_mut()?.decoded.take()
+    }
+
     /// Strict endpoint encoders must not silently discard a truncated final event.
     pub(crate) fn finish_strict(&self) -> Result<(), ProtocolStreamError> {
         if !self.input.is_empty()
             || !self.line.is_empty()
             || self.has_data
             || self.event_name.is_some()
+            || self
+                .passthrough
+                .as_ref()
+                .is_some_and(|p| !p.pending.is_empty())
         {
             return Err(stream_decode_error(
                 "translated SSE ended with an incomplete frame".into(),
@@ -172,6 +194,16 @@ impl BoundedSseDecoder {
         if line.is_empty() {
             return Ok(self.finish_frame());
         }
+        if let Some(fields) = &mut self.passthrough {
+            if line.split_once(':').map_or(line, |(field, _)| field) != "data" {
+                // The existing raw frame budget includes these bytes.
+                fields.pending.try_reserve(line.len() + 1).map_err(|_| {
+                    stream_decode_error("failed to reserve translated SSE metadata".into())
+                })?;
+                fields.pending.push_str(line);
+                fields.pending.push('\n');
+            }
+        }
         if line.starts_with(':') {
             return Ok(None);
         }
@@ -235,7 +267,13 @@ impl BoundedSseDecoder {
     }
 
     fn finish_frame(&mut self) -> Option<SseFrame> {
-        if !self.has_data && self.event_name.is_none() {
+        let passthrough = self.passthrough.as_mut().is_some_and(|fields| {
+            let pending = std::mem::take(&mut fields.pending);
+            let present = !pending.is_empty();
+            fields.decoded = Some((pending, self.has_data));
+            present
+        });
+        if !self.has_data && self.event_name.is_none() && !passthrough {
             return None;
         }
         self.has_data = false;
@@ -252,6 +290,9 @@ impl BoundedSseDecoder {
         self.data = String::new();
         self.has_data = false;
         self.pending_frame_bytes = 0;
+        if let Some(fields) = &mut self.passthrough {
+            *fields = PassthroughFields::default();
+        }
     }
 }
 

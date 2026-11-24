@@ -1,0 +1,14 @@
+{
+  "args": [
+    "node",
+    "tools/luma/task-preview-check.mjs",
+    "--origin",
+    "http://127.0.0.1:4453",
+    "--output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-task-lookup-20261120/preview-browser-final"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T21:48:02.073607+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 9.36
+}

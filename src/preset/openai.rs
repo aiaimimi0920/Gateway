@@ -126,6 +126,15 @@ pub fn river_api_preset() -> ProviderPreset {
     }
 }
 
+/// Luma token inference has a separate Key and billing product from Agents media.
+pub fn lumalabs_inference_api_preset() -> ProviderPreset {
+    ProviderPreset {
+        auth_mode: Some(crate::protocol::luma_inference::AUTH_MODE.into()),
+        chat_completions_path: Some("/chat/completions".into()),
+        ..generic_openai_compatible_profile_preset(crate::protocol::luma_inference::PRESET)
+    }
+}
+
 /// Workers AI's account target and restricted Responses support are validated separately.
 pub fn cloudflare_workers_ai_preset() -> ProviderPreset {
     ProviderPreset {

@@ -1,5 +1,5 @@
 //! Bind permanent grant admission to the exact pinned transport material before any network send.
-use super::{accio, dim, grok, kiro, lobsterai, nous, transport, vertex, PendingRefresh};
+use super::{accio, dim, grok, kiro, lobsterai, nous, quick, transport, vertex, PendingRefresh};
 use crate::console::{refresh_grants::*, RouteConfigRedisRevision, RouteConfigRuntime};
 use crate::routing::{candidate::ProviderAccountPayload, config::*};
 
@@ -7,6 +7,7 @@ pub(super) enum Prepared {
     Generic(rquest::Request),
     Grok(grok::Prepared),
     Accio(accio::Prepared),
+    Quick(quick::Prepared),
     Kiro(kiro::Prepared),
     Vertex(vertex::Prepared),
     Dim(dim::Prepared),
@@ -38,6 +39,9 @@ impl Prepared {
         if vertex::owns(attempt, payload) {
             return vertex::prepare(attempt, payload).map(Self::Vertex);
         }
+        if quick::owns(attempt, payload) {
+            return quick::prepare(attempt, payload).map(Self::Quick);
+        }
         if kiro::owns(attempt, payload) {
             return kiro::prepare(attempt, payload).map(Self::Kiro);
         }
@@ -67,6 +71,7 @@ impl Prepared {
             Self::Generic(request) => transport::execute(http, request).await.map(Outcome::Token),
             Self::Grok(prepared) => prepared.execute(http).await.map(Outcome::Token),
             Self::Accio(prepared) => prepared.execute(http).await.map(Outcome::Token),
+            Self::Quick(prepared) => prepared.execute(http).await.map(Outcome::Token),
             Self::Kiro(prepared) => prepared.execute(http).await.map(Outcome::Token),
             Self::Vertex(prepared) => prepared.execute(http).await.map(Outcome::Token),
             Self::Dim(prepared) => prepared.execute(http).await.map(Outcome::Token),
@@ -94,6 +99,7 @@ pub(super) async fn reserve(
         || attempt.refresh_token != material.refresh
         || attempt.context != material.context
         || attempt.kiro_oauth != material.kiro_oauth
+        || attempt.quick_oauth != material.quick_oauth
         || attempt.vertex_oauth != material.vertex_oauth
         || attempt.dim_oauth != material.dim_oauth
         || attempt.nous_portal != material.nous_portal

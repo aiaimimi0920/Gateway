@@ -1,10 +1,12 @@
 //! Shared local AES seal. The legacy filename and ciphertext framing remain byte-compatible.
 //! This is a same-data-root key, not an OS vault or protection against a reader of the whole root.
 use base64::{engine::general_purpose::STANDARD, Engine};
+use hmac::{Hmac, Mac};
 use ring::{
     aead,
     rand::{SecureRandom, SystemRandom},
 };
+use sha2::Sha256;
 use std::{
     fs::{self, OpenOptions},
     io::{Read, Write},
@@ -12,15 +14,20 @@ use std::{
     sync::Arc,
 };
 
+struct SealKeys {
+    aes: aead::LessSafeKey,
+    sap_response: [u8; 32],
+}
+
 #[derive(Clone, Default)]
-pub(super) struct LocalSecretSeal(Option<Arc<aead::LessSafeKey>>);
+pub(super) struct LocalSecretSeal(Option<Arc<SealKeys>>);
 
 impl LocalSecretSeal {
     // Startup holds SQLite's writer transaction, including the all-owner sealed-row check.
     pub(super) fn open(directory: &Path, has_sealed: bool) -> Self {
         Self(Self::load(directory, has_sealed).ok().map(Arc::new))
     }
-    fn load(directory: &Path, has_sealed: bool) -> Result<aead::LessSafeKey, ()> {
+    fn load(directory: &Path, has_sealed: bool) -> Result<SealKeys, ()> {
         let path = directory.join("access-key-seal.json");
         match fs::symlink_metadata(&path) {
             Ok(metadata) => {
@@ -64,15 +71,25 @@ impl LocalSecretSeal {
         }
         let encoded: String = serde_json::from_slice(&bytes).map_err(|_| ())?;
         let key = STANDARD.decode(encoded).map_err(|_| ())?;
-        aead::UnboundKey::new(&aead::AES_256_GCM, &key)
+        let aes = aead::UnboundKey::new(&aead::AES_256_GCM, &key)
             .map(aead::LessSafeKey::new)
-            .map_err(|_| ())
+            .map_err(|_| ())?;
+        let mut derive = Hmac::<Sha256>::new_from_slice(&key).map_err(|_| ())?;
+        derive.update(b"neuro-gateway/sap-response-local/v1\0");
+        Ok(SealKeys {
+            aes,
+            sap_response: derive.finalize().into_bytes().into(),
+        })
+    }
+
+    pub(super) fn sap_response_key(&self) -> Option<&[u8; 32]> {
+        self.0.as_ref().map(|keys| &keys.sap_response)
     }
     pub(super) fn seal(&self, aad: &[u8], bytes: &[u8], max: usize) -> Result<String, ()> {
         if bytes.len() > max {
             return Err(());
         }
-        let key = self.0.as_ref().ok_or(())?;
+        let key = &self.0.as_ref().ok_or(())?.aes;
         let mut nonce = [0u8; 12];
         SystemRandom::new().fill(&mut nonce).map_err(|_| ())?;
         let mut data = bytes.to_vec();
@@ -93,7 +110,7 @@ impl LocalSecretSeal {
         encoded_max: usize,
         plain_max: usize,
     ) -> Result<Vec<u8>, ()> {
-        let key = self.0.as_ref().ok_or(())?;
+        let key = &self.0.as_ref().ok_or(())?.aes;
         if sealed.len() > encoded_max {
             return Err(());
         }

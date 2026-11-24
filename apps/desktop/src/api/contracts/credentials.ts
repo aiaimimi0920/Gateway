@@ -4,7 +4,7 @@ export type ConsoleProviderProbeRequest = {
   prompt?: string;
   model?: string;
   credentialIds?: string[];
-  media?: { operation: "image" | "image_edit" | "video" | "music"; confirmCharge: true; parameters: Record<string, unknown> };
+  media?: { operation: "image" | "image_edit" | "video" | "video_reframe" | "video_edit" | "layering" | "music"; confirmCharge: true; parameters: Record<string, unknown> };
   testPlan?: import("./credentialTests").CredentialTestPolicy;
   scope?: import("./credentialTests").CredentialTestRequestScope;
 };

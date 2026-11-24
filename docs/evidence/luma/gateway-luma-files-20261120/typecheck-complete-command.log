@@ -1,0 +1,2 @@
+apps/desktop/src/features/console/ConsoleGlobalDialogs.luma-agents.test.tsx(42,35): error TS2531: Object is possibly 'null'.
+apps/desktop/src/features/console/ConsoleGlobalDialogs.tsx(370,87): error TS18047: 'credentialDialogState.initialValue' is possibly 'null'.

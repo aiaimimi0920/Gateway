@@ -88,6 +88,8 @@ pub(crate) fn prepare_route_payload(
     let surface = if crate::protocol::commandcode::owns_payload(&payload) {
         crate::protocol::commandcode::catalog::families(&payload, upstream_model.or(model_alias))
             .unwrap_or_else(|| vec![registry::OPENAI_CHAT_FAMILY.into()])
+    } else if crate::protocol::sensenova::owns_payload(&payload) {
+        crate::protocol::sensenova::families(upstream_model)
     } else {
         super::protocol_resolution::surface_supported_wire_protocol_families(
             &adapter,

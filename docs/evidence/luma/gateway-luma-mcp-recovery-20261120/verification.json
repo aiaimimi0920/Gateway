@@ -1,0 +1,212 @@
+{
+  "capturedAt": "2026-11-20T11:46:25.120437+00:00",
+  "scope": "L1 Local MCP task recovery across configuration changes and published OAuth refreshes",
+  "status": "passed",
+  "rust": {
+    "initial": {
+      "passed": 25,
+      "failed": 1,
+      "filteredOut": 6428
+    },
+    "correctedExactRetest": {
+      "passed": 1,
+      "failed": 0,
+      "filteredOut": 6453
+    },
+    "distinctTestsPassing": 26,
+    "initialFailure": "Fixture joined and shut down the OAuth registry after the first refresh; second refresh preparation returned 400. Only fixture cleanup changed; production code stayed unchanged."
+  },
+  "frontend": {
+    "distinctTestsPassing": 14,
+    "initial": {
+      "passed": 13,
+      "failed": 1
+    },
+    "correctedRecoveryFile": {
+      "passed": 4,
+      "failed": 0
+    },
+    "initialFailure": "New test omitted const in for-of; corrected only test and reran affected file."
+  },
+  "typecheck": "passed after correcting test declaration",
+  "checkerTests": 31,
+  "ratchet": "passed; unrelated grandfathered debt retained",
+  "rustfmt": "passed for changed Rust files",
+  "utf8NoBomFiles": 15,
+  "diffCheck": "passed including scoped untracked files",
+  "sourceUnchangedDuringRetest": true,
+  "realOAuthRefreshes": 0,
+  "paidGenerations": 0,
+  "newPackage": false,
+  "databaseMigration": false,
+  "browser": {
+    "status": "blocked",
+    "error": "Module not found: @oai/cua/tinyskyAlt"
+  },
+  "remainingPackages": [
+    "L1 layering/run interaction/Server identity/real business",
+    "L2 current Web wire and worker",
+    "L4 full Server/Redis and OS-kill acceptance",
+    "L6 live business and applicable environment acceptance"
+  ],
+  "sourceFiles": [
+    {
+      "file": "src/http/routes/internal_console/luma_mcp/creation.rs",
+      "sha256": "da78316956b6ea0d2cc5f611fce687f537acb2c75415937cb4ec57e835e45d1e"
+    },
+    {
+      "file": "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+      "sha256": "f2ab0423290b9d8dcd5b95a26fa5ef2783af33eaa27de3fb4870f3b378768b61"
+    },
+    {
+      "file": "src/http/routes/internal_console/luma_mcp/creation/workspace.rs",
+      "sha256": "54afa7d7716651f5e51623a9c9a0e368a873f67560377eee90fa068052a12981"
+    },
+    {
+      "file": "src/protocol/luma_mcp/creation_tests.rs",
+      "sha256": "1f33cc1a4dfb28f43209d025cd5399a345130b575e0e12d7bd003e04a8ecfef8"
+    },
+    {
+      "file": "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx",
+      "sha256": "d38a9d66ed95b7a0fa3a7fe646febed8e09c131fe56ec902bf1e1ed8058d0fbe"
+    },
+    {
+      "file": "src/protocol/luma_mcp/creation_reuse_tests.rs",
+      "sha256": "abc79d0c5a4a0a041a0a931520d81e7ed4805cdf6b9f6447d174ed04608faaf5"
+    },
+    {
+      "file": "src/http/routes/internal_console/luma_mcp/creation/identity.rs",
+      "sha256": "5783ea6574eb9f01c2ea4e03d0590a823808b44c1f9dc61dc38c44c4861a5185"
+    },
+    {
+      "file": "src/protocol/luma_mcp/creation_recovery_tests.rs",
+      "sha256": "3b2305b5fc26f3c6f2c4b60d5dc605340324f95014c6bc3a4caa0c3d4adb8c1d"
+    },
+    {
+      "file": "src/protocol/luma_mcp/creation_recovery_fixture.rs",
+      "sha256": "d79bcf37616c1c23e175752182ca51e9dd68d4f40f602bd9f059da800ba1219d"
+    },
+    {
+      "file": "apps/desktop/src/features/console/LumaMcpCreationRecovery.test.tsx",
+      "sha256": "510c4a171b457e30f52b6307346fa663bde76fb0b2fb64a80ae7ca60d9efe70d"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "rust-command.log",
+      "sha256": "6cff6f80208273185ffc5dfb44421c4df56e39e581f94c3d991678006db4d7cc"
+    },
+    {
+      "file": "rust-result.json",
+      "sha256": "a863681dff8938f3f02906b97037939dbec0cd19aa8d26ae0837ee215794238b"
+    },
+    {
+      "file": "rust-recovery-fixed-command.log",
+      "sha256": "540275deef7a14013a9e024c742ec1d73a1a4aba1e8174a320be6931fae28853"
+    },
+    {
+      "file": "rust-recovery-fixed-result.json",
+      "sha256": "afc21fda14ecc709af2115082db0018b79e87d4e6bfcdb9be112f87949ac443a"
+    },
+    {
+      "file": "ui-command.log",
+      "sha256": "e1ac28edd4bbdee7f42b89b02c9b6daf00ffd64e76926fcc30d9baaac8003228"
+    },
+    {
+      "file": "ui-result.json",
+      "sha256": "6cb3fe85a5513b06a220fa27ceeaa6fa8e0a335edd208041761226bdecac3722"
+    },
+    {
+      "file": "ui-fixed-command.log",
+      "sha256": "00483ef307a372db7c5b5a6bcc4b5f34358b32d8d1f79a32edf7e6e4ee6c253b"
+    },
+    {
+      "file": "ui-fixed-result.json",
+      "sha256": "c4986671994d6b8540da7fce72ffed3f0a09c0c35b4ed02d8c21cf1af5cdcfa8"
+    },
+    {
+      "file": "typecheck-command.log",
+      "sha256": "724422f9007acfbe547d388c104bcc12da7303b13d5ac395f4ccce9d68575f0a"
+    },
+    {
+      "file": "typecheck-result.json",
+      "sha256": "88e605f56822df1821b4e6421e490fd53501c5087372c30b80315e69c5a53d7c"
+    },
+    {
+      "file": "typecheck-fixed-command.log",
+      "sha256": "533899cb566c144a6b52962e4dcb82a352e791618fef84de1870486ba1d663c5"
+    },
+    {
+      "file": "typecheck-fixed-result.json",
+      "sha256": "9c8791d77372ab7c4a2bc2026b1a2502b7082548c174726d7c153c3a391ac10d"
+    },
+    {
+      "file": "checker-tests-command.log",
+      "sha256": "20f034adbd9903eead577bb6928779813e50701000f6f7fc91f148480653dc98"
+    },
+    {
+      "file": "checker-tests-result.json",
+      "sha256": "a4c86a0ce39bd4f59175d8a3f221e6e45885b892786a01d7718852679b1d0364"
+    },
+    {
+      "file": "ratchet-command.log",
+      "sha256": "9e1c7fa0438dbc58d46576a5d75b9af8bf74e737769485d73449a18550a92398"
+    },
+    {
+      "file": "ratchet-result.json",
+      "sha256": "519296cfc05a71c1a66c4929f692d9d07e5c425a71347e015571f8b4622983f6"
+    },
+    {
+      "file": "format-command.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "format-result.json",
+      "sha256": "7a64af739150da62ecdc81f73d3db30d72e868374982aa2197fb675abbf1160b"
+    },
+    {
+      "file": "format-fixture-command.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "format-fixture-result.json",
+      "sha256": "6780ef6a72ee06ab0e88ecb18f2d2b4ccc1fc16bfed867e1e1ce2d3918e81e53"
+    },
+    {
+      "file": "diff-command.log",
+      "sha256": "d51c52a1cfcd65108d22fd2a0e9062e5110672350e25b1f904a22a6eb367184d"
+    },
+    {
+      "file": "diff-result.json",
+      "sha256": "7fa21c68a9caf863e2e5480f164ecdd70fc55bf8858c81c01e4d219809a12110"
+    },
+    {
+      "file": "effective-before.json",
+      "sha256": "27097dca3d49d9b8b348db50458a042d167f2855f11fda1bf91cd9c65706ef33"
+    },
+    {
+      "file": "effective-scope-final.json",
+      "sha256": "c243c0bfd0acaed3ad7a72511d6f75f04210ae36145bfdd50b767aeda2f1bc5b"
+    },
+    {
+      "file": "source-hashes.json",
+      "sha256": "457778d57afea49f86727a751ff53a8ae834693bfc99c74b78c1ab3e5626c993"
+    },
+    {
+      "file": "final-source-hashes.json",
+      "sha256": "a988653e9fa23ed41fa1ef3ec243809140f6639ddc275faaeedfac7d6565ba24"
+    },
+    {
+      "file": "scoped-final.diff",
+      "sha256": "6cb111d47dcde5e4ce7c96f2f6ca9ecf5c3abc7babe9814b0e9df298a41cf449"
+    },
+    {
+      "file": "diff-check.json",
+      "sha256": "b38f1acb2d3aee772d2cc0a5cbc5b94b5ddf9ddaaf0c8cc3f6fb9ff270765ad8"
+    },
+    {
+      "file": "browser-entry.json",
+      "sha256": "38a4e7f99a0ab350ad31e63cb22d74720baad4a4726aa6005a089561bcae3b7c"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+    "passed":  false,
+    "failure":  "The term \u0027Write-Smoke\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.",
+    "port":  49174,
+    "storageBackend":  "sqlite",
+    "releaseDir":  "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\release\\Gateway\\gateway-devtest-20261120-luma-large-files-reconciliation",
+    "observed":  null,
+    "supplierCalls":  0,
+    "nativeBusinessClicksVerified":  false,
+    "uiSha256":  "32199345482a6dbe8d6102d61c7ecc0bde6bf3d6c84b9f9857b446a541c517d0",
+    "backendSha256":  "bc887d71e00ce267334819ea9ab50c5af3896e842f2ff26f802255ac2ce99c7d",
+    "remainingOwnedProcesses":  0
+}

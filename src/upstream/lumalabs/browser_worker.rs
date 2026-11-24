@@ -64,11 +64,11 @@ fn project_error(error: GatewayError) -> GatewayError {
     failure(code, message)
 }
 
-pub(super) async fn run(
+pub(super) async fn run_value(
     launch: PreparedLumalabsBrowserWorkerLaunch,
     timeout: Duration,
     provider: &str,
-) -> Result<super::task_result::TaskResult, GatewayError> {
+) -> Result<serde_json::Value, GatewayError> {
     if launch.stdin_json.len() > 1024 * 1024 {
         return Err(failure(
             "lumalabs_browser_worker_input_too_large",
@@ -101,6 +101,20 @@ pub(super) async fn run(
             "Luma Web worker returned invalid UTF-8; details omitted.",
         )
     })?;
+    let _ = provider;
+    serde_json::from_str(stdout).map_err(|_| {
+        failure(
+            "lumalabs_browser_worker_output_parse_failed",
+            "Luma Web worker returned invalid JSON; details omitted.",
+        )
+    })
+}
+
+pub(super) fn parse_task(
+    value: serde_json::Value,
+    provider: &str,
+) -> Result<super::task_result::TaskResult, GatewayError> {
+    let stdout = value.to_string();
     parse_lumalabs_browser_worker_verified_output(stdout.trim(), "", provider).map_err(
         |mut error| {
             if matches!(
@@ -116,5 +130,14 @@ pub(super) async fn run(
             no_replay(error)
         },
     )?;
-    super::task_result::TaskResult::from_stdout(stdout)
+    super::task_result::TaskResult::from_value(value)
+}
+
+#[cfg(test)]
+pub(super) async fn run(
+    launch: PreparedLumalabsBrowserWorkerLaunch,
+    timeout: Duration,
+    provider: &str,
+) -> Result<super::task_result::TaskResult, GatewayError> {
+    parse_task(run_value(launch, timeout, provider).await?, provider)
 }

@@ -1,0 +1,13 @@
+{
+  "args": [
+    "C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/target/debug/deps/neuro_gateway-4f2bc1ae2c10e750.exe",
+    "--exact",
+    "protocol::luma_mcp::creation_tests::review_tests::luma_mcp_creation_review_disconnect_keeps_delivery_and_expired_intent_stays_consumed",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T12:34:22.550174+00:00",
+  "exitCode": 101,
+  "elapsedSeconds": 18.83
+}

@@ -33,16 +33,22 @@ pub(super) fn translate(
         } else {
             byte_stream
         };
+    let sensenova_messages = crate::protocol::sensenova::native_messages::selected(
+        &attempt.effective_payload,
+        ctx.canonical_req.endpoint_kind,
+    );
+    let responses_observer =
+        responses_wire::observer(&attempt.effective_payload, ctx.canonical_req.endpoint_kind);
     let (byte_stream, stream_usage_handle) = if candidate.adapter == "kiro_compatible" {
         (byte_stream, None)
-    } else if crate::protocol::commandcode::messages::selected(&attempt.effective_payload) {
+    } else if sensenova_messages
+        || crate::protocol::commandcode::messages::selected(&attempt.effective_payload)
+    {
         let (stream, handle) = crate::upstream::stream::tap_messages_usage_with_error(byte_stream);
         (Box::pin(stream) as ByteStream, Some(handle))
-    } else if crate::protocol::commandcode::owns_payload(&attempt.effective_payload)
-        && attempt.effective_payload.responses_path.as_deref() == Some("/responses")
-    {
+    } else if let Some(observe) = responses_observer {
         let (stream, handle) =
-            crate::upstream::stream::tap_commandcode_responses_usage_with_error(byte_stream);
+            crate::upstream::stream::tap_native_responses_usage_with_error(byte_stream, observe);
         (Box::pin(stream) as ByteStream, Some(handle))
     } else {
         let (tapped_stream, usage_handle) = tap_sse_usage_with_error(byte_stream);
@@ -60,6 +66,15 @@ pub(super) fn translate(
     };
     if !tools_were_injected
         && (candidate.payload.is_discovered_native(&ctx.canonical_req)
+            || sensenova_messages
+            || crate::protocol::sensenova::native_responses::selected(
+                &attempt.effective_payload,
+                ctx.canonical_req.endpoint_kind,
+            )
+            || crate::protocol::sap_aicore::native_responses::selected(
+                &attempt.effective_payload,
+                ctx.canonical_req.endpoint_kind,
+            )
             || crate::protocol::commandcode::messages::selected(&attempt.effective_payload))
     {
         return (byte_stream, stream_usage_handle);

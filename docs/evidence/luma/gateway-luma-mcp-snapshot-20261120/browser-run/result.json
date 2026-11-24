@@ -1,0 +1,16 @@
+{
+  "args": [
+    "node",
+    "tools/luma/mcp-browser-check.mjs",
+    "--host",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-mcp-snapshot-20261120/host",
+    "--ui",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-mcp-snapshot-20261120/main-web",
+    "--output",
+    "C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-luma-mcp-snapshot-20261120/browser"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T23:11:38.994151+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 65.05
+}

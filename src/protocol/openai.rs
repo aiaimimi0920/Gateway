@@ -7,6 +7,7 @@
 
 pub(crate) mod chat_admission;
 pub(crate) mod chat_stream;
+pub(crate) mod chat_stream_model;
 mod chat_stream_state;
 mod normalize;
 mod pack;
@@ -17,6 +18,7 @@ pub(crate) mod text_tools_request;
 mod tool_calls;
 mod usage;
 pub(crate) use stream_translate::translate_openai_chat_sse_to_legacy_completions_with_reply_model;
+pub(crate) use tool_calls::decode_provider_tool_argument_entities;
 pub(crate) use usage::parse_embeddings_usage;
 
 pub use normalize::{
@@ -25,6 +27,7 @@ pub use normalize::{
 };
 pub use pack::pack_openai;
 pub(crate) use pack::pack_openai_message;
+pub(crate) use response_builders::chat_usage;
 pub use response_builders::{
     build_chat_completions_delta, build_chat_completions_stop, build_chat_completions_success,
     build_legacy_completions_delta, build_legacy_completions_stop,

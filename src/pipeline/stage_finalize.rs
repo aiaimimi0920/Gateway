@@ -55,6 +55,7 @@ mod streaming;
 mod timestamps;
 
 pub use audit_begin::{begin_request_audit, snapshot_request_audit};
+pub(super) use audit_persistence::finish_stored_response_audit;
 pub use buffered::{run, run_non_json_success};
 pub(super) use cancelled::run_cancelled;
 pub use failure::{run_failure, run_stream_failure};
@@ -131,7 +132,9 @@ pub struct RequestAuditFinalizeSnapshot {
     pub selected_breaker_open: Option<bool>,
     pub selected_degradation_reasons: Vec<String>,
     pub route_attempt_count: u32,
+    pub(crate) observed_upstream_status: Option<Option<u16>>,
     pub attempted_provider_ids: Vec<String>,
+    pub rejected_candidates: Vec<crate::routing::config::RejectedCandidate>,
     pub protocol_family: String,
     pub endpoint_kind: String,
     pub requested_model: Option<String>,

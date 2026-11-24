@@ -1,0 +1,15 @@
+{
+  "args": [
+    "rustfmt",
+    "--edition",
+    "2021",
+    "--check",
+    "src/protocol/luma_mcp/catalog.rs",
+    "src/protocol/luma_mcp/tests.rs",
+    "src/protocol/luma_mcp/browser_fixture.rs"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T22:58:17.693876+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 0.17
+}

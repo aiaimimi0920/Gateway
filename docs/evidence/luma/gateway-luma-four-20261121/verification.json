@@ -1,0 +1,207 @@
+{
+  "dateLocal": "2026-11-21",
+  "head": "5d50886",
+  "workingTree": "dirty, including inherited edits",
+  "supplierNetworkUsedByTests": false,
+  "packagedExeRebuilt": false,
+  "checks": {
+    "focused-final": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "--",
+        "--test-threads=1",
+        "luma_mcp::creation",
+        "luma_web_",
+        "luma_reconciliation",
+        "luma_agents_pipeline"
+      ],
+      "startedAt": "2026-11-20T23:08:46.352467+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 886.67,
+      "observedMarkers": [
+        "84 passed; 0 failed; 4 ignored",
+        "luma_mcp_creation_review_answers_session_only_review_on_original_run ... ok",
+        "luma_web_task_result_admits_only_public_https_audio_and_video_links ... ok"
+      ],
+      "commandLogSha256": "f1451bd53a3061df7b256f1003636c5274171b0f1092658034f56eaf3bbf54d5"
+    },
+    "server-restart": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_reconciliation_server_restart_after_os_kill",
+        "--",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedAt": "2026-11-20T23:23:36.926883+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 2.59,
+      "observedMarkers": [
+        "luma_reconciliation_server_restart_after_os_kill",
+        "1 passed; 0 failed; 0 ignored"
+      ],
+      "commandLogSha256": "39b208d41bcd20bedf3530e1e5e9323262510c6ed125108af1db9b7caa023c73"
+    },
+    "postgres-cas-final": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_reconciliation_postgres",
+        "--",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedAt": "2026-11-20T23:28:10.777348+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 2.14,
+      "observedMarkers": [
+        "luma_reconciliation_postgres_preserves_finalization_and_fences_competing_claims ... ok",
+        "1 passed; 0 failed; 0 ignored"
+      ],
+      "commandLogSha256": "0f4ff94c6a76a6a5e9f5885f99b14a32de535b8ff337bce8f567878554aca36a"
+    },
+    "feature-off": {
+      "args": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "-j",
+        "4"
+      ],
+      "startedAt": "2026-11-20T23:23:40.628670+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 77.08,
+      "observedMarkers": [
+        "Finished `dev` profile"
+      ],
+      "commandLogSha256": "5914d24a41a90f35a6b6f1a00df6a90c3e87199e345452cc1b4e9ee3072c9d0c"
+    },
+    "ui": {
+      "args": [
+        "npm.cmd",
+        "--prefix",
+        "apps/desktop",
+        "run",
+        "test",
+        "--",
+        "run",
+        "src/features/console/LumaMcpCreationReview.test.tsx",
+        "src/features/console/LumaMcpCreationPanel.test.tsx",
+        "src/features/console/LumaMcpCreationRecovery.test.tsx",
+        "--maxWorkers=1",
+        "--no-cache"
+      ],
+      "startedAt": "2026-11-20T22:54:32.155817+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 29.06,
+      "observedMarkers": [
+        "Tests  20 passed (20)"
+      ],
+      "commandLogSha256": "2851d54651681777deeff0e64b35ffc6373314ba67977ad78f455577f2f5ab49"
+    },
+    "typecheck": {
+      "args": [
+        "node",
+        "apps/desktop/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "-p",
+        "apps/desktop/tsconfig.json"
+      ],
+      "startedAt": "2026-11-20T23:00:01.990958+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 44.98,
+      "observedMarkers": [],
+      "commandLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lines-tests": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "test:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "startedAt": "2026-11-20T22:54:14.882113+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 3.3,
+      "observedMarkers": [
+        "# pass 31",
+        "# fail 0"
+      ],
+      "commandLogSha256": "86250c598786150f598dda365bf8ec2d4df1fe7dcbfc49bfa30353c15ba4597b"
+    },
+    "lines-final": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "check:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "startedAt": "2026-11-20T23:00:47.125173+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 12.08,
+      "observedMarkers": [],
+      "commandLogSha256": "8454c123a391502a5fa085559a392c20a37f4e5c63c2a3f2551fce831525b76c"
+    }
+  },
+  "serverScope": {
+    "storage": "isolated PostgreSQL and Redis, public TCP image generation, route-document credential, shared Gateway public Key, synthetic supplier",
+    "assertions": [
+      "real OS termination after durable task ID and queued zero credits",
+      "new process invokes the production reconciliation tick after the active deadline",
+      "same audit ID and original running outcome; media remains unverified",
+      "original queued snapshot gets 12.5 synthetic credits",
+      "one POST and two GETs; exact original task and supplier credential"
+    ],
+    "notCovered": [
+      "real timer delay",
+      "packaged gateway executable",
+      "DB-hosted provider credential binding",
+      "supplier workflow or real billing"
+    ]
+  },
+  "sourceSha256": {
+    "src/protocol/luma_mcp/creation/review.rs": "a677c72bcaec18682bab7bfaa46d5c220c51f390b82b0feb7ed7a5d9c679a803",
+    "src/protocol/luma_mcp/creation_review_tests.rs": "e7e1bb6baa6d6bb651c486df7795d2e9993d77d191f4c7b9374d4bcdc149d80b",
+    "src/protocol/luma_mcp/creation_review_contract_tests.rs": "7819c256658880a0502d19f9d239855f7a19334c7a721299b494b710f5407f09",
+    "src/http/routes/internal_console/luma_mcp/creation/execute.rs": "b31cf1267d077c72227a44f9d5135a33dbe33329e6f24cb614274618ff20d2b5",
+    "src/http/routes/internal_console/luma_mcp/creation/review.rs": "21633c6859aa60d116d0edbdfe0fd7e1dd0821790125b8ab98a68f3839eabdc4",
+    "src/upstream/lumalabs/task_result.rs": "df64e682a3359526687446497df60ad7ebafa955ddf3fa8d6e00092d0bd1ddfc",
+    "src/upstream/lumalabs/task_tests.rs": "2cd3ca7fb760cc5216e08e39c612ef028bfbbb363329bdaca2e10b64666271ee",
+    "src/luma_reconciliation.rs": "3d2840983b147cce039dd865c3fb371192422ce51e20d88825e992fcbf61eacb",
+    "src/luma_reconciliation/server_recovery_tests.rs": "900f30dc0f95ca21ad19353d40ba68364f8a86a9f27568f10a3233668438da9a",
+    "tools/luma/check-postgres.ps1": "2525cd401f3b75c9ebac3af634681d992a70b77f88f88a146f374bc65856b7fa"
+  }
+}

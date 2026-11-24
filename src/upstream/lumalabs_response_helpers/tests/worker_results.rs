@@ -1,6 +1,67 @@
 use super::*;
 
 #[test]
+fn luma_web_payment_refusal_uses_structured_worker_identity_without_private_details() {
+    use crate::error::{ErrorKind, FallbackHint};
+    for details in [
+        serde_json::Value::Null,
+        serde_json::json!("synthetic-private rate limit"),
+    ] {
+        let payload = serde_json::json!({"ok":false,"error":{
+            "code":"lumalabs_action_payment_required","status":402,
+            "message":details,"body":details}});
+        let error = parse_lumalabs_browser_worker_verified_output(
+            &payload.to_string(),
+            "synthetic-private stderr",
+            "lumalabs_compatible",
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, ErrorKind::InsufficientQuota);
+        assert_eq!(error.http_status, Some(402));
+        assert_eq!(
+            error.code.as_deref(),
+            Some("lumalabs_action_payment_required")
+        );
+        assert_eq!(error.provider_name.as_deref(), Some("lumalabs_compatible"));
+        assert_eq!(
+            error.message,
+            "LumaLabs declined the action: payment or additional credits are required."
+        );
+        assert!(!error.retryable);
+        assert!(matches!(error.fallback_hint, FallbackHint::Abort { .. }));
+        assert_eq!(error.upstream_retry_after_ms, None);
+    }
+}
+
+#[test]
+fn luma_web_payment_refusal_mapping_requires_both_code_and_status() {
+    use crate::error::ErrorKind;
+    for (code, status, kind) in [
+        ("lumalabs_action_failed", 402, ErrorKind::Unknown),
+        (
+            "lumalabs_action_payment_required",
+            401,
+            ErrorKind::Authentication,
+        ),
+        (
+            "lumalabs_action_payment_required",
+            503,
+            ErrorKind::ServerError,
+        ),
+    ] {
+        let payload = serde_json::json!({"ok":false,"error":{"code":code,"status":status}});
+        let error = parse_lumalabs_browser_worker_verified_output(
+            &payload.to_string(),
+            "",
+            "lumalabs_compatible",
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, kind);
+        assert_eq!(error.http_status, Some(status));
+    }
+}
+
+#[test]
 fn parse_lumalabs_browser_worker_output_reads_result_contract() {
     let parsed = parse_lumalabs_browser_worker_output(
         "{\"ok\":true,\"signedUrl\":\"https://cdn.example.com/file.mp4\"}",

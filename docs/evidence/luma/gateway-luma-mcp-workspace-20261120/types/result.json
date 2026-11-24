@@ -1,0 +1,13 @@
+{
+  "args": [
+    "node.exe",
+    "apps/desktop/node_modules/typescript/bin/tsc",
+    "--noEmit",
+    "-p",
+    "apps/desktop/tsconfig.json"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T09:50:23.147283+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 24.25
+}

@@ -8,13 +8,14 @@ use serde_json::Value;
 use std::path::PathBuf;
 use std::time::Duration;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct PreparedLumalabsBrowserExecutorServiceInput {
     pub(crate) base_url: String,
     pub(crate) realm_id: String,
     pub(crate) media_operation: Option<String>,
     pub(crate) artifact_field: String,
     pub(crate) session_token: String,
+    pub(crate) user_agent: Option<String>,
     pub(crate) action_body: Value,
     pub(crate) auto_discover_action_type: bool,
     pub(crate) locale: String,
@@ -56,6 +57,7 @@ pub(crate) fn build_lumalabs_browser_worker_input<'a>(
         media_operation,
         artifact_field,
         session_token,
+        user_agent: None,
         action_body,
         auto_discover_action_type,
         locale,
@@ -68,7 +70,7 @@ pub(crate) fn build_lumalabs_browser_worker_input_from_prepared<'a>(
     prepared: &'a PreparedLumalabsBrowserExecutorServiceInput,
     browser_executable_path: Option<String>,
 ) -> LumalabsBrowserWorkerInput<'a> {
-    build_lumalabs_browser_worker_input(
+    let mut input = build_lumalabs_browser_worker_input(
         &prepared.base_url,
         &prepared.realm_id,
         prepared.media_operation.as_deref(),
@@ -79,7 +81,9 @@ pub(crate) fn build_lumalabs_browser_worker_input_from_prepared<'a>(
         &prepared.locale,
         prepared.timeout,
         browser_executable_path,
-    )
+    );
+    input.user_agent = prepared.user_agent.as_deref();
+    input
 }
 
 pub(crate) fn serialize_lumalabs_browser_worker_input_from_prepared(
@@ -138,7 +142,7 @@ pub(crate) fn build_lumalabs_browser_executor_payload_from_prepared(
     prepared: &PreparedLumalabsBrowserExecutorServiceInput,
     browser_executable_path: Option<String>,
 ) -> serde_json::Value {
-    build_lumalabs_browser_executor_payload(
+    let mut input = build_lumalabs_browser_executor_payload(
         &prepared.base_url,
         &prepared.realm_id,
         prepared.media_operation.as_deref(),
@@ -149,7 +153,11 @@ pub(crate) fn build_lumalabs_browser_executor_payload_from_prepared(
         &prepared.locale,
         prepared.timeout,
         browser_executable_path,
-    )
+    );
+    if let Some(agent) = &prepared.user_agent {
+        input["userAgent"] = Value::String(agent.clone());
+    }
+    input
 }
 
 pub(crate) fn prepare_lumalabs_browser_executor_service_input(
@@ -219,6 +227,10 @@ pub(crate) fn prepare_lumalabs_browser_executor_service_input(
             .unwrap_or("image")
             .to_string(),
         session_token,
+        user_agent: input
+            .get("userAgent")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
         action_body,
         auto_discover_action_type: read_json_bool(input, "autoDiscoverActionType").unwrap_or(false),
         locale: input
@@ -299,6 +311,7 @@ mod tests {
             media_operation: Some("create_image_uni_1".to_string()),
             artifact_field: "image".to_string(),
             session_token: "session-token".to_string(),
+            user_agent: None,
             action_body: json!({ "prompt": "volumetric sky whale" }),
             auto_discover_action_type: true,
             locale: "en-US".to_string(),
@@ -331,6 +344,7 @@ mod tests {
             media_operation: Some("create_image_uni_1".to_string()),
             artifact_field: "image".to_string(),
             session_token: "session-token".to_string(),
+            user_agent: None,
             action_body: json!({ "prompt": "volumetric sky whale" }),
             auto_discover_action_type: true,
             locale: "en-US".to_string(),
@@ -365,6 +379,7 @@ mod tests {
             media_operation: Some("create_image_uni_1".to_string()),
             artifact_field: "image".to_string(),
             session_token: "session-token".to_string(),
+            user_agent: None,
             action_body: json!({ "prompt": "volumetric sky whale" }),
             auto_discover_action_type: true,
             locale: "en-US".to_string(),
@@ -439,6 +454,7 @@ mod tests {
             media_operation: Some("image".to_string()),
             artifact_field: "image".to_string(),
             session_token: "session-token".to_string(),
+            user_agent: None,
             action_body: json!({ "prompt": "volumetric sky whale" }),
             auto_discover_action_type: true,
             locale: "en-US".to_string(),

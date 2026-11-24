@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 #[path = "build_support/embed_source.rs"]
 mod embed_source;
 #[path = "build_support/manifest.rs"]
@@ -6,6 +7,7 @@ mod manifest;
 mod publish_lock;
 #[path = "build_support/snapshot.rs"]
 mod snapshot;
+#[allow(unused_imports)]
 use embed_source::{snapshot_rustc_env_directive, write_embedded_ui_source};
 use manifest::{
     assert_ready_marker_unchanged, safe_relative_path, validate_prebuilt_web_ui_locked,
@@ -22,7 +24,6 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     env, fs,
     path::{Component, Path, PathBuf},
-    process::Command,
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -91,6 +92,7 @@ fn wait_for_prebuilt_web_ui_snapshot(snapshot_root: &Path) -> Result<(), String>
     Err(last_error)
 }
 
+#[allow(dead_code)]
 fn prepare_web_ui_snapshot<F>(
     prebuilt_web_ui_enabled: bool,
     snapshot_root: &Path,
@@ -108,8 +110,7 @@ where
 fn main() {
     println!("cargo:rerun-if-changed=build_support/windows.rc");
     println!("cargo:rerun-if-changed=apps/desktop/src-tauri/icons/icon.ico");
-    // Only the headless EXE owns this resource; library consumers keep their own icons.
-    // Tests include this build script but do not compile or link Windows resources.
+    // Only the headless EXE owns this resource; Web UI embedding lives in crates/gateway-embedded-ui.
     #[cfg(not(test))]
     embed_resource::compile_for(
         "build_support/windows.rc",
@@ -118,73 +119,4 @@ fn main() {
     )
     .manifest_required()
     .expect("failed to embed the shared Gateway Windows icon");
-
-    // API-only builds neither invoke Node/npm nor read stale frontend output.
-    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_MANAGEMENT_UI");
-    if env::var_os("CARGO_FEATURE_MANAGEMENT_UI").is_none() {
-        return;
-    }
-
-    println!("cargo:rerun-if-env-changed={PREBUILT_WEB_UI_ENV}");
-    for path in [
-        "apps/desktop/package.json",
-        "apps/desktop/package-lock.json",
-        "apps/desktop/rsbuild.config.ts",
-        "apps/desktop/tsconfig.json",
-        "apps/desktop/public",
-        "apps/desktop/src",
-        "apps/desktop/tools",
-    ] {
-        println!("cargo:rerun-if-changed={path}");
-    }
-
-    let prebuilt_web_ui_enabled = env::var(PREBUILT_WEB_UI_ENV)
-        .ok()
-        .map(|value| matches!(value.trim(), "1" | "true" | "TRUE" | "True"))
-        .unwrap_or(false);
-    if prebuilt_web_ui_enabled {
-        println!("cargo:rerun-if-changed={DIST_WEB_READY_PATH}");
-    }
-
-    let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo must provide OUT_DIR"));
-    let snapshot_root = out_dir.join(WEB_UI_SNAPSHOT_DIR_NAME);
-    let preparation_result =
-        prepare_web_ui_snapshot(prebuilt_web_ui_enabled, &snapshot_root, || {
-            let npm_program = if cfg!(windows) { "npm.cmd" } else { "npm" };
-            let status = Command::new(npm_program)
-                .args(["run", "build:web", "--prefix", "apps/desktop"])
-                .env("GATEWAY_WEB_PRUNE_LIVE", "1")
-                .status()
-                .map_err(|error| {
-                    format!("failed to launch npm for Gateway web console build: {error}")
-                })?;
-            if status.success() {
-                Ok(())
-            } else {
-                Err(format!(
-                    "Gateway web console build failed with status: {status}"
-                ))
-            }
-        });
-    if let Err(error) = preparation_result {
-        if prebuilt_web_ui_enabled {
-            panic!(
-                "prebuilt web console assets requested via {PREBUILT_WEB_UI_ENV}, but the published assets could not be snapshotted: {error}"
-            );
-        }
-        panic!("Gateway web console build or immutable snapshot failed: {error}");
-    }
-
-    if prebuilt_web_ui_enabled {
-        println!(
-            "cargo:warning=prebuilt web console assets requested via {PREBUILT_WEB_UI_ENV}; verified ready marker and created immutable build snapshot"
-        );
-    }
-    write_embedded_ui_source(&out_dir, &snapshot_root)
-        .unwrap_or_else(|error| panic!("failed to configure embedded web UI snapshot: {error}"));
-    println!(
-        "{}",
-        snapshot_rustc_env_directive(&snapshot_root)
-            .unwrap_or_else(|error| panic!("failed to export web UI snapshot path: {error}"))
-    );
 }

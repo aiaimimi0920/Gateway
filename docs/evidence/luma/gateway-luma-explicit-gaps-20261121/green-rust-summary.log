@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13m 55s
+test console::secrets::luma_web_tests::luma_web_keep_detects_adapter_or_origin_without_preset ... ok
+test console::secrets::luma_web_tests::luma_web_keep_preserves_secrets_for_model_edits_and_rejects_new_consumers ... ok
+test console::secrets::luma_web_tests::luma_web_keep_rejects_destination_and_board_changes ... ok
+test protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_correlate_session_waiting_without_inventing_a_question ... ok
+test protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_preserve_context_and_reject_invalid_media_or_missing_fields ... ok
+test protocol::luma_mcp::creation_tests::review_tests::question_tests::luma_mcp_questions_send_explicit_answers_once_on_original_run ... ok
+test result: ok. 58 passed; 0 failed; 4 ignored; 0 measured; 6419 filtered out; finished in 21.31s

@@ -23,10 +23,27 @@ pub(super) async fn normalize(
         model,
     );
     let native_events = matches!(&stream_response, UpstreamStreamingResponse::NativeEvents(_));
+    let mapped_http_chat = matches!(&stream_response, UpstreamStreamingResponse::Http(_))
+        && ctx.canonical_req.endpoint_kind == EndpointKind::ChatCompletions
+        && attempt.effective_payload.adapter == "openai_compatible"
+        && attempt.reply_model != *model
+        && !attempt
+            .effective_payload
+            .bridges_openai_text_endpoint_to_responses(ctx.canonical_req.endpoint_kind);
+    let sensenova_responses = crate::protocol::sensenova::native_responses::selected(
+        &attempt.effective_payload,
+        ctx.canonical_req.endpoint_kind,
+    );
+    let sap_responses = crate::protocol::sap_aicore::native_responses::selected(
+        &attempt.effective_payload,
+        ctx.canonical_req.endpoint_kind,
+    );
     let needs_completion = matches!(&stream_response, UpstreamStreamingResponse::Native(_))
         || (matches!(&stream_response, UpstreamStreamingResponse::Http(_))
             && attempt.effective_payload.canonical_adapter() == "openai_compatible"
             && ctx.canonical_req.endpoint_kind == EndpointKind::Responses
+            && !sensenova_responses
+            && !sap_responses
             && !attempt
                 .effective_payload
                 .bridges_openai_responses_to_chat_completions(ctx.canonical_req.endpoint_kind));
@@ -272,16 +289,20 @@ pub(super) async fn normalize(
     // This product owns raw admission and fixed error diagnostics; generic early replay must not
     // interpret or expose its first error frame before that guard sees it.
     let sensenova = crate::protocol::sensenova::owns_payload(&attempt.effective_payload);
+    let luma_inference = crate::protocol::luma_inference::owns_payload(&attempt.effective_payload);
     let sap = crate::protocol::sap_aicore::owns_payload(&attempt.effective_payload);
     let commandcode = crate::protocol::commandcode::owns_payload(&attempt.effective_payload);
     let lobsterai = crate::protocol::lobsterai::owns_payload(&attempt.effective_payload);
+    let quick_oauth = crate::protocol::quick_oauth::owns_payload(&attempt.effective_payload);
     // Native event transports own failure forwarding and terminal settlement.
     let byte_stream = if !native_events
         && !qwen_workspace
         && !sensenova
+        && !luma_inference
         && !sap
         && !commandcode
         && !lobsterai
+        && !quick_oauth
         && candidate.payload.canonical_adapter() == "openai_compatible"
         && is_conversation_endpoint(ctx.canonical_req.endpoint_kind)
     {
@@ -337,19 +358,53 @@ pub(super) async fn normalize(
         } else {
             byte_stream
         };
-    let byte_stream: ByteStream = if sensenova {
+    let byte_stream: ByteStream = if luma_inference {
         Box::pin(crate::protocol::openai::chat_stream::require_completion(
             byte_stream,
-            crate::protocol::sensenova::stream_error,
+            crate::protocol::luma_inference::stream_error,
         ))
     } else {
         byte_stream
     };
-    let byte_stream: ByteStream = if sap {
-        Box::pin(crate::protocol::openai::chat_stream::require_completion(
+    let byte_stream: ByteStream = if crate::protocol::sensenova::native_messages::selected(
+        &attempt.effective_payload,
+        ctx.canonical_req.endpoint_kind,
+    ) {
+        Box::pin(crate::protocol::anthropic::native_stream::guard(
             byte_stream,
-            crate::protocol::sap_aicore::stream_error,
+            attempt.reply_model.clone(),
+            crate::protocol::sensenova::native_messages::stream_error,
+            false,
         ))
+    } else if sensenova_responses {
+        Box::pin(crate::protocol::sensenova::native_responses::guard(
+            byte_stream,
+            attempt.reply_model.clone(),
+        ))
+    } else if sensenova {
+        Box::pin(
+            crate::protocol::openai::chat_stream::require_completion_with_reply_model(
+                byte_stream,
+                crate::protocol::sensenova::stream_error,
+                attempt.reply_model.clone(),
+            ),
+        )
+    } else {
+        byte_stream
+    };
+    let byte_stream: ByteStream = if sap_responses {
+        Box::pin(crate::protocol::sap_aicore::native_responses::guard(
+            byte_stream,
+            attempt.reply_model.clone(),
+        ))
+    } else if sap {
+        Box::pin(
+            crate::protocol::openai::chat_stream::require_completion_with_reply_model(
+                byte_stream,
+                crate::protocol::sap_aicore::stream_error,
+                attempt.reply_model.clone(),
+            ),
+        )
     } else {
         byte_stream
     };
@@ -365,10 +420,13 @@ pub(super) async fn normalize(
                 attempt.reply_model.clone(),
             ))
         } else if commandcode {
-            Box::pin(crate::protocol::openai::chat_stream::require_completion(
-                byte_stream,
-                crate::protocol::commandcode::stream_error,
-            ))
+            Box::pin(
+                crate::protocol::openai::chat_stream::require_completion_with_reply_model(
+                    byte_stream,
+                    crate::protocol::commandcode::stream_error,
+                    attempt.reply_model.clone(),
+                ),
+            )
         } else {
             byte_stream
         };
@@ -389,6 +447,18 @@ pub(super) async fn normalize(
                 attempt.reply_model.clone(),
             ))
         }
+    } else if mapped_http_chat
+        && !sap
+        && !sensenova
+        && !commandcode
+        && !luma_inference
+        && !qwen_workspace
+        && !crate::protocol::minimax::owns_payload(&attempt.effective_payload)
+    {
+        Box::pin(openai::chat_stream_model::project(
+            byte_stream,
+            attempt.reply_model.clone(),
+        ))
     } else {
         byte_stream
     };

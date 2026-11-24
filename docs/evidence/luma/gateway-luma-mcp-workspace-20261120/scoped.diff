@@ -1,0 +1,570 @@
+--- src/protocol/luma_mcp/creation.rs (before)
++++ src/protocol/luma_mcp/creation.rs
+@@ -1,12 +1,14 @@
+ //! Fixed creation tools. Business sessions outlive individual MCP transport connections.
+ mod facts;
+ mod options;
++mod reuse;
+ mod video;
+ mod wire;
+ pub(crate) use super::McpError as Error;
+ use super::McpError;
+ pub(crate) use facts::{assets, cancellation, progress, session, usage};
+ pub(crate) use options::Options;
++pub(crate) use reuse::Reuse;
+ use serde::{Deserialize, Serialize};
+ use serde_json::{json, Value};
+ pub(crate) use wire::{call, endpoint, Tool};
+@@ -20,6 +22,8 @@
+     // Omission keeps the original request hash stable for tasks prepared before options existed.
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     pub options: Option<Options>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub reuse: Option<Reuse>,
+ }
+ #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+ #[serde(rename_all = "snake_case")]
+@@ -50,7 +54,12 @@
+             return Err(McpError::InvalidResponse);
+         }
+         if let Some(options) = &self.options {
+-            options.pack(self.kind)?;
++            options.pack(self.kind, self.reuse.as_ref())?;
++        } else if self.reuse.is_some() {
++            Options::default().pack(self.kind, self.reuse.as_ref())?;
++        }
++        if let Some(reuse) = &self.reuse {
++            reuse.assets(self.kind)?;
+         }
+         Ok(())
+     }
+@@ -75,10 +84,15 @@
+         };
+         let mut body = json!({"model":self.kind.model(),"type":self.kind.name(),"prompt":self.prompt,
+             "user_id":key,"idempotency_key":format!("{key}-generate"),"session_id":session});
+-        if let Some(options) = &self.options {
++        if self.options.is_some() || self.reuse.is_some() {
+             body.as_object_mut()
+                 .ok_or(McpError::InvalidResponse)?
+-                .extend(options.pack(self.kind)?);
++                .extend(
++                    self.options
++                        .clone()
++                        .unwrap_or_default()
++                        .pack(self.kind, self.reuse.as_ref())?,
++                );
+         }
+         Ok((tool, body))
+     }
+--- src/protocol/luma_mcp/creation/options.rs (before)
++++ src/protocol/luma_mcp/creation/options.rs
+@@ -1,5 +1,5 @@
+ //! Typed options from the captured MCP contract; never forward arbitrary tool arguments.
+-use super::{Kind, McpError};
++use super::{reuse, Kind, McpError, Reuse};
+ use serde::{Deserialize, Serialize};
+ use serde_json::{json, Map, Value};
+ 
+@@ -41,7 +41,11 @@
+             _ => Err(McpError::InvalidResponse),
+         }
+     }
+-    pub(crate) fn pack(&self, kind: Kind) -> Result<Map<String, Value>, McpError> {
++    pub(crate) fn pack(
++        &self,
++        kind: Kind,
++        reuse: Option<&Reuse>,
++    ) -> Result<Map<String, Value>, McpError> {
+         let operation = self.operation(kind)?;
+         let model = self.model(kind);
+         if !matches!(
+@@ -54,12 +58,13 @@
+         body.insert("model".into(), json!(model));
+         body.insert("type".into(), json!(operation));
+         if kind == Kind::Image {
+-            self.image(&mut body, operation, model)?;
++            self.image(&mut body, operation, model, reuse)?;
+         } else {
+             if self.style.is_some()
+                 || self.output_format.is_some()
+                 || self.parameters.is_some()
+                 || !self.reference_urls.is_empty()
++                || reuse.is_some_and(|r| !r.reference_asset_ids.is_empty())
+             {
+                 return Err(McpError::InvalidResponse);
+             }
+@@ -74,6 +79,7 @@
+                 &self.source_url,
+                 operation != "video",
+                 &self.source_media_type,
++                reuse.and_then(|r| r.source_asset_id.as_deref()),
+             )?;
+             let video = self
+                 .video
+@@ -91,6 +97,7 @@
+         body: &mut Map<String, Value>,
+         operation: &str,
+         model: &str,
++        reuse: Option<&Reuse>,
+     ) -> Result<(), McpError> {
+         if self.video.is_some() || self.source_media_type.is_some() {
+             return Err(McpError::InvalidResponse);
+@@ -103,7 +110,17 @@
+         } else {
+             9
+         };
+-        if self.reference_urls.len() > max_refs {
++        let mut references = reuse
++            .map(Reuse::references)
++            .transpose()?
++            .unwrap_or_default();
++        references.extend(
++            self.reference_urls
++                .iter()
++                .map(|url| media(url))
++                .collect::<Result<Vec<_>, _>>()?,
++        );
++        if references.len() > max_refs {
+             return Err(McpError::Limit);
+         }
+         choice(
+@@ -119,6 +136,7 @@
+             // GPT accepts reference-role medias, not native source/image_ref or native edit mode.
+             if operation != "image"
+                 || self.source_url.is_some()
++                || reuse.is_some_and(|r| r.source_asset_id.is_some())
+                 || self.style.is_some()
+                 || self.output_format.is_some()
+             {
+@@ -157,15 +175,13 @@
+                 }
+                 body.insert("parameters".into(), Value::Object(values));
+             }
+-            let medias = self
+-                .reference_urls
+-                .iter()
+-                .map(|url| {
+-                    let mut media = media(url)?;
++            let medias = references
++                .into_iter()
++                .map(|mut media| {
+                     media["role"] = json!("reference");
+-                    Ok(media)
++                    media
+                 })
+-                .collect::<Result<Vec<_>, McpError>>()?;
++                .collect::<Vec<_>>();
+             if !medias.is_empty() {
+                 body.insert("medias".into(), json!(medias));
+             }
+@@ -176,14 +192,15 @@
+             }
+             choice(body, "style", &self.style, &["auto", "manga"])?;
+             choice(body, "output_format", &self.output_format, &["png", "jpeg"])?;
+-            source(body, &self.source_url, operation == "image_edit", &None)?;
+-            let refs = self
+-                .reference_urls
+-                .iter()
+-                .map(|url| media(url))
+-                .collect::<Result<Vec<_>, _>>()?;
+-            if !refs.is_empty() {
+-                body.insert("image_ref".into(), json!(refs));
++            source(
++                body,
++                &self.source_url,
++                operation == "image_edit",
++                &None,
++                reuse.and_then(|r| r.source_asset_id.as_deref()),
++            )?;
++            if !references.is_empty() {
++                body.insert("image_ref".into(), json!(references));
+             }
+         }
+         Ok(())
+@@ -217,9 +234,17 @@
+     url: &Option<String>,
+     required: bool,
+     mime: &Option<String>,
++    asset: Option<&str>,
+ ) -> Result<(), McpError> {
+-    if required != url.is_some() {
++    if url.is_some() && asset.is_some() || required != (url.is_some() || asset.is_some()) {
+         return Err(McpError::InvalidResponse);
++    }
++    if let Some(id) = asset {
++        if mime.is_some() {
++            return Err(McpError::InvalidResponse);
++        }
++        body.insert("source".into(), reuse::media(id)?);
++        return Ok(());
+     }
+     let video = body["type"] != "image_edit";
+     if video
+--- src/http/routes/internal_console/luma_mcp/creation/store.rs (before)
++++ src/http/routes/internal_console/luma_mcp/creation/store.rs
+@@ -20,6 +20,8 @@
+     pub state: String,
+     pub session_id: Option<String>,
+     pub workspace_id: Option<String>,
++    #[serde(default)]
++    pub workspace_binding: Option<super::workspace::Binding>,
+     pub run_id: Option<String>,
+     pub assets: Vec<Value>,
+     pub usage: Option<Value>,
+@@ -37,6 +39,7 @@
+     target: &super::super::Input,
+     request: &flow::Request,
+ ) -> Result<Task, GatewayError> {
++    let workspace_binding = super::workspace::bind(local, target, request).await?;
+     let task = Task {
+         id: format!("luma-mcp-{}", uuid::Uuid::new_v4()),
+         provider_id: target.provider_id.clone(),
+@@ -50,6 +53,7 @@
+         state: "prepared".into(),
+         session_id: None,
+         workspace_id: None,
++        workspace_binding,
+         run_id: None,
+         assets: vec![],
+         usage: None,
+@@ -164,6 +168,7 @@
+             prompt: "circle".into(),
+             budget_credits: 20,
+             options: None,
++            reuse: None,
+         };
+         let mut stale = prepare(&local, &target, &request).await.unwrap();
+         let mut winner = stale.clone();
+--- src/http/routes/internal_console/luma_mcp/creation/execute.rs (before)
++++ src/http/routes/internal_console/luma_mcp/creation/execute.rs
+@@ -59,19 +59,24 @@
+     }
+     if action == Action::Start {
+         let request = request.ok_or(flow::Error::InvalidResponse)?;
+-        let value = flow::call(
+-            http,
+-            endpoint,
+-            material,
+-            flow::Tool::Open,
+-            request.open(&task.id),
+-        )
+-        .await?;
++        let mut args = request.open(&task.id);
++        if let Some(binding) = &task.workspace_binding {
++            args["workspace_key"] = json!(binding.key);
++        }
++        let value = flow::call(http, endpoint, material, flow::Tool::Open, args).await?;
+         let (session, workspace) = flow::session(&value)?;
+         task.session_id = Some(session.clone());
+-        task.workspace_id = Some(workspace);
++        task.workspace_id = Some(workspace.clone());
+         task.state = "submitting".into();
+         checkpoint(local, task).await?;
++        // Persist the opened session for cleanup, but never render in a substituted workspace.
++        if task
++            .workspace_binding
++            .as_ref()
++            .is_some_and(|binding| binding.id != workspace)
++        {
++            return Err(flow::Error::InvalidResponse);
++        }
+         // An account edit or drain while opening must not dispatch a render with stale authorization.
+         if !permitted() {
+             return Err(flow::Error::Rejected);
+--- src/protocol/luma_mcp/creation_tests.rs (before)
++++ src/protocol/luma_mcp/creation_tests.rs
+@@ -9,6 +9,8 @@
+ use std::sync::Arc;
+ #[path = "creation_options_tests.rs"]
+ mod options_tests;
++#[path = "creation_reuse_tests.rs"]
++mod reuse_tests;
+ #[path = "../../../tests/console_contract_support/mod.rs"]
+ mod support;
+ 
+--- apps/desktop/src/api/console/luma-creation.ts (before)
++++ apps/desktop/src/api/console/luma-creation.ts
+@@ -5,6 +5,7 @@
+   kind: z.enum(["image", "video"]), budgetCredits: z.number(), state: z.string(),
+   requestedModel: z.string().nullable().optional(), operation: z.string().nullable().optional(),
+   sessionId: z.string().nullable(), runId: z.string().nullable(), ended: z.boolean(),
++  workspaceBinding: z.object({ taskId: z.string(), key: z.string(), id: z.string() }).nullable().optional(),
+   leaseUntil: z.number(), error: z.string().nullable(),
+   assets: z.array(z.object({ id: z.string(), kind: z.string(), state: z.string(), url: z.string().nullable() })),
+   usage: z.object({ credits: z.number(), settled: z.boolean(), estimated: z.boolean(),
+--- apps/desktop/src/features/console/lumaMcpCreationDraft.ts (before)
++++ apps/desktop/src/features/console/lumaMcpCreationDraft.ts
+@@ -5,11 +5,13 @@
+   references: string; style: string; format: string; quality: string; imageResolution: string; background: string;
+   resolution: string; duration: string; hdr: string; strength: string; autoControls: string;
+   startFrame: string; endFrame: string; keyframes: string; position: string;
++  reuseEnabled: boolean; reuseTask: string; sourceAsset: string; referenceAssets: string;
+ };
+ export const newMcpDraft = (model: McpModel = "luma_uni_1", operation: McpDraft["operation"] = "generate"): McpDraft => ({
+   model, operation, ratio: "", source: "", sourceType: "video/mp4", references: "", style: "", format: "",
+   quality: "", imageResolution: "", background: "", resolution: "", duration: "", hdr: "", strength: "",
+   autoControls: "", startFrame: "", endFrame: "", keyframes: "", position: "",
++  reuseEnabled: false, reuseTask: "", sourceAsset: "", referenceAssets: "",
+ });
+ const lines = (value: string) => value.split(/\r?\n/).map(v => v.trim()).filter(Boolean);
+ export function publicMediaUrl(value: string) {
+@@ -23,16 +25,22 @@
+   const video = draft.model === "luma_ray3_2";
+   const gpt = draft.model === "openai_gpt_image_2";
+   const references = lines(draft.references);
++  const assetReferences = draft.reuseEnabled ? lines(draft.referenceAssets) : [];
++  const sourceAsset = draft.reuseEnabled ? draft.sourceAsset.trim() : "";
++  const assets = [...assetReferences, ...sourceAsset ? [sourceAsset] : []];
+   const keyframes = lines(draft.keyframes).map(line => {
+     const [index, ...url] = line.split(/\s+/);
+     return { index: /^\d+$/.test(index) ? Number(index) : NaN, url: url.join(" ") };
+   });
+   const parts = draft.position.trim() ? draft.position.split(",").map(v => v.trim() ? Number(v) : NaN) : [];
+   const urls = [...references, ...keyframes.map(frame => frame.url), ...[draft.source, draft.startFrame, draft.endFrame].filter(Boolean)];
+-  const valid = urls.every(publicMediaUrl) && (draft.operation === "generate" || !!draft.source)
+-    && (!video || draft.operation === "generate" || ["video/mp4", "video/webm", "video/quicktime"].includes(draft.sourceType))
++  const valid = urls.every(publicMediaUrl) && (draft.operation === "generate" || !!(draft.reuseEnabled ? sourceAsset : draft.source))
++    && (!draft.reuseEnabled || /^luma-mcp-[0-9a-f-]{36}$/i.test(draft.reuseTask.trim()) && assets.length > 0
++      && !draft.source && assets.every(id => /^(artifact:)?[A-Za-z0-9_-]+$/.test(id) && id.length <= 64)
++      && new Set(assets.map(id => id.replace(/^artifact:/, ""))).size === assets.length)
++    && (!video || draft.reuseEnabled || draft.operation === "generate" || ["video/mp4", "video/webm", "video/quicktime"].includes(draft.sourceType))
+     && (draft.operation !== "reframe" || !!draft.ratio)
+-    && references.length <= (gpt ? 16 : draft.operation === "edit" ? 8 : 9)
++    && references.length + assetReferences.length <= (gpt ? 16 : draft.operation === "edit" ? 8 : 9)
+     && keyframes.length <= 64 && new Set(keyframes.map(f => f.index)).size === keyframes.length
+     && keyframes.every(f => Number.isInteger(f.index) && f.index >= 0 && f.index <= (draft.duration === "10s" ? 240 : 120))
+     && !(keyframes.length && (draft.startFrame || draft.endFrame))
+@@ -66,5 +74,7 @@
+   };
+   // Default options are omitted so pre-existing prepared tasks keep their original digest.
+   const defaults = draft.operation === "generate" && draft.model !== "openai_gpt_image_2" && Object.keys(options).length === 2;
+-  return { valid, kind: video ? "video" as const : "image" as const, options: defaults ? undefined : options };
++  const reuse = draft.reuseEnabled ? { taskId: draft.reuseTask.trim(),
++    ...(sourceAsset ? { sourceAssetId: sourceAsset } : {}), referenceAssetIds: assetReferences } : undefined;
++  return { valid, kind: video ? "video" as const : "image" as const, options: defaults ? undefined : options, reuse };
+ }
+--- apps/desktop/src/features/console/LumaMcpCreationOptions.tsx (before)
++++ apps/desktop/src/features/console/LumaMcpCreationOptions.tsx
+@@ -1,4 +1,4 @@
+-import { Field, Input, Select, Textarea } from "@neuro/ui";
++import { Checkbox, Field, Input, Select, Textarea } from "@neuro/ui";
+ import { useUiLocale } from "../../i18n/UiLocaleProvider";
+ import { newMcpDraft, type McpDraft, type McpModel } from "./lumaMcpCreationDraft";
+ 
+@@ -11,15 +11,17 @@
+   const edit = draft.operation === "edit";
+   const reframe = draft.operation === "reframe";
+   const update = (key: keyof McpDraft, value: string) => onChange({ ...draft, [key]: value });
+-  const select = (key: keyof McpDraft, label: string, values: string[]) => <Field label={label}>
++  const select = (key: Exclude<keyof McpDraft, "reuseEnabled">, label: string, values: string[]) => <Field label={label}>
+     <Select value={draft[key]} disabled={disabled} onChange={e => update(key, e.target.value)}>
+       <option value="">{t("默认", "Default")}</option>{values.map(value => <option key={value} value={value}>{value}</option>)}
+     </Select></Field>;
+-  const input = (key: keyof McpDraft, label: string, placeholder?: string) => <Field label={label}>
++  const input = (key: Exclude<keyof McpDraft, "reuseEnabled">, label: string, placeholder?: string) => <Field label={label}>
+     <Input value={draft[key]} disabled={disabled} onChange={e => update(key, e.target.value)} placeholder={placeholder} /></Field>;
+   return <>
+     <Field label={t("创作模型", "Creation model")}><Select value={draft.model} disabled={disabled}
+-      onChange={e => onChange(newMcpDraft(e.target.value as McpModel))}>
++      onChange={e => onChange({ ...newMcpDraft(e.target.value as McpModel),
++        ...(draft.reuseEnabled && draft.operation === "generate" && !video && e.target.value !== "luma_ray3_2"
++          ? { reuseEnabled: true, reuseTask: draft.reuseTask, referenceAssets: draft.referenceAssets } : {}) })}>
+       <option value="luma_uni_1">UNI-1</option><option value="openai_gpt_image_2">GPT Image 2</option><option value="luma_ray3_2">Ray 3.2</option>
+     </Select></Field>
+     {!gpt && <Field label={t("创作操作", "Creation operation")}><Select value={draft.operation} disabled={disabled}
+@@ -27,8 +29,17 @@
+       <option value="generate">{t("生成", "Generate")}</option><option value="edit">{t("编辑", "Edit")}</option>
+       {video && <option value="reframe">{t("扩画", "Reframe")}</option>}
+     </Select></Field>}
+-    {(edit || reframe) && input("source", t("源素材 URL", "Source URL"), "https://…")}
+-    {video && (edit || reframe) && select("sourceType", t("源视频类型", "Source video MIME type"), ["video/mp4", "video/webm", "video/quicktime"])}
++    {(!video || edit || reframe) && <Checkbox checked={draft.reuseEnabled} disabled={disabled}
++      label={t("使用已保存任务的素材", "Use assets from a saved task")}
++      onChange={e => onChange({ ...draft, reuseEnabled: e.target.checked, source: "", reuseTask: "", sourceAsset: "", referenceAssets: "" })} />}
++    {draft.reuseEnabled && <>
++      {input("reuseTask", t("素材来源任务 ID", "Source task ID"))}
++      {(edit || reframe) && input("sourceAsset", t("源素材 ID", "Source asset ID"))}
++      {!video && <Field label={t("参考图片 ID（每行一个）", "Reference image IDs (one per line)")}><Textarea value={draft.referenceAssets}
++        disabled={disabled} maxLength={1040} onChange={e => update("referenceAssets", e.target.value)} /></Field>}
++    </>}
++    {(edit || reframe) && !draft.reuseEnabled && input("source", t("源素材 URL", "Source URL"), "https://…")}
++    {video && (edit || reframe) && !draft.reuseEnabled && select("sourceType", t("源视频类型", "Source video MIME type"), ["video/mp4", "video/webm", "video/quicktime"])}
+     {!edit && select("ratio", t("画面比例", "Aspect ratio"), video ? ["9:16", "3:4", "1:1", "4:3", "16:9", "21:9"]
+       : ["1:1", "4:5", "1:2", "1:3", "9:16", "3:4", "2:3", "3:2", "4:3", "16:9", "2:1", "3:1"])}
+     {!video && <>
+--- apps/desktop/src/features/console/LumaMcpCreationPanel.tsx (before)
++++ apps/desktop/src/features/console/LumaMcpCreationPanel.tsx
+@@ -5,7 +5,7 @@
+ import type { LumaOAuthProps } from "./useLumaOAuth";
+ import { LumaMcpCreationFacts } from "./LumaMcpCreationFacts";
+ import { LumaMcpCreationOptions } from "./LumaMcpCreationOptions";
+-import { mcpDraftOptions, newMcpDraft } from "./lumaMcpCreationDraft";
++import { mcpDraftOptions, newMcpDraft, type McpDraft } from "./lumaMcpCreationDraft";
+ 
+ type Props = Pick<LumaOAuthProps, "client" | "managementToken" | "secretGrant" | "providerId" | "credentialId"
+   | "expectedRevision" | "disabled" | "onRequestSecretAccess">;
+@@ -18,7 +18,7 @@
+   const current = useRef(scope); current.current = scope;
+   const pending = useRef<AbortController | null>(null);
+   const [draft, setDraft] = useState(newMcpDraft);
+-  const { kind, options, valid: validOptions } = mcpDraftOptions(draft);
++  const { kind, options, reuse, valid: validOptions } = mcpDraftOptions(draft);
+   const [prompt, setPrompt] = useState("");
+   const [budget, setBudget] = useState("");
+   const [confirmed, setConfirmed] = useState(false);
+@@ -31,6 +31,8 @@
+     setTask(null); setId(""); setConfirmed(false); setBusy(false); setError(false); setSubmitted(false);
+     return () => { pending.current?.abort(); pending.current = null; };
+   }, [scope]);
++  useEffect(() => { setDraft(newMcpDraft()); },
++    [props.client, props.managementToken, props.providerId, props.credentialId, props.expectedRevision]);
+   useEffect(() => { setConfirmed(false); }, [draft, prompt, budget]);
+   const enabled = !scope.disabled && !!scope.token && !!scope.credentialId && !!scope.revision;
+   const valid = validOptions && prompt.trim().length > 0 && [...prompt].length <= 6000
+@@ -50,7 +52,7 @@
+         signal: controller.signal, notifyAuthenticationFailure: false,
+         body: { providerId: scope.providerId, credentialId: scope.credentialId, expectedRevision: scope.revision, action,
+           ...(action !== "prepare" ? { taskId: id.trim() } : {}),
+-          ...(["prepare", "start"].includes(action) ? { request: { kind, prompt, budgetCredits: Number(budget), ...(options ? { options } : {}) } } : {}),
++          ...(["prepare", "start"].includes(action) ? { request: { kind, prompt, budgetCredits: Number(budget), ...(options ? { options } : {}), ...(reuse ? { reuse } : {}) } } : {}),
+           ...(action === "start" ? { chargeConfirmed: true } : {}) },
+       });
+       if (controller.signal.aborted || current.current !== scope) return;
+@@ -65,6 +67,13 @@
+     finally { if (pending.current === controller) { pending.current = null; setBusy(false); } }
+   };
+   const locked = busy || !!task;
++  const reuseAsset = (assetId: string, operation: McpDraft["operation"]) => {
++    if (!task || busy || !enabled) return;
++    setDraft({ ...newMcpDraft(task.kind === "video" ? "luma_ray3_2" : "luma_uni_1", operation),
++      reuseEnabled: true, reuseTask: task.id, sourceAsset: operation === "generate" ? "" : assetId,
++      referenceAssets: operation === "generate" ? assetId : "" });
++    setPrompt(""); setBudget(""); setTask(null); setId(""); setConfirmed(false); setSubmitted(false); setError(false);
++  };
+   const labels: Record<string, string> = { prepared: t("待提交", "Prepared"), opening: t("正在创建会话", "Opening session"),
+     submitting: t("正在提交", "Submitting"), running: t("生成中", "Running"), completed: t("上游已完成", "Upstream completed"),
+     failed: t("生成失败", "Failed"), cancelled: t("已取消", "Cancelled"), needs_input: t("需要进一步输入", "Needs input"),
+@@ -85,13 +94,13 @@
+       <Button disabled={!enabled || busy || !id.trim()} onClick={() => void run("read")}>{t("查询结果与费用", "Read result and cost")}</Button>
+       {task?.runId && !task.ended && <Button disabled={!enabled || busy} onClick={() => void run("cancel")}>{t("取消生成", "Cancel generation")}</Button>}
+       {task?.sessionId && !task.ended && <Button disabled={!enabled || busy} onClick={() => void run("end")}>{t("结束会话", "End session")}</Button>}
+-      {task && <Button disabled={busy} onClick={() => { setTask(null); setId(""); setConfirmed(false); setSubmitted(false); }}>{t("另一任务", "Another task")}</Button>}
++      {task && <Button disabled={busy} onClick={() => { setTask(null); setId(""); setConfirmed(false); setSubmitted(false); setDraft(newMcpDraft()); }}>{t("另一任务", "Another task")}</Button>}
+     </div>
+     {error && <Notice tone="danger">{t("操作未确认。请保留任务 ID，查询原任务后再操作。", "Operation unconfirmed. Keep the task ID and read the existing task.")}</Notice>}
+     {task && <>
+       <Notice>{labels[task.state] ?? task.state}{task.ended ? t(" · 会话已结束", " · Session ended") : ""}</Notice>
+       {task.error && <Notice tone="warning">{t("上次操作未确认，可查询原任务。", "Last operation unconfirmed. Read the existing task.")}</Notice>}
+-      <LumaMcpCreationFacts task={task} />
++      <LumaMcpCreationFacts task={task} onReuse={!busy && enabled ? reuseAsset : undefined} />
+     </>}
+   </section>;
+ }
+--- apps/desktop/src/features/console/LumaMcpCreationFacts.tsx (before)
++++ apps/desktop/src/features/console/LumaMcpCreationFacts.tsx
+@@ -1,15 +1,25 @@
+-import { CopyButton } from "@neuro/ui";
++import { Button, CopyButton } from "@neuro/ui";
+ import type { LumaCreationTask } from "../../api/console/luma-creation";
+ import { useUiLocale } from "../../i18n/UiLocaleProvider";
+ 
+-export function LumaMcpCreationFacts({ task }: { task: LumaCreationTask }) {
++export function LumaMcpCreationFacts({ task, onReuse }: { task: LumaCreationTask;
++  onReuse?: (assetId: string, operation: "generate" | "edit" | "reframe") => void;
++}) {
+   const { t } = useUiLocale();
+   return <div className="n-stack" aria-label="Luma MCP">
+     <div>{t("MCP 任务 ID：", "MCP task ID: ")}<code>{task.id}</code>
+       <CopyButton compact label={t("复制 MCP 任务 ID", "Copy MCP task ID")} onCopy={() => navigator.clipboard.writeText(task.id)} /></div>
+     {task.requestedModel && <p>{t("请求模型：", "Requested model: ")}{task.requestedModel}</p>}
++    {task.workspaceBinding && <p>{t("素材来源任务：", "Source task: ")}{task.workspaceBinding.taskId}</p>}
+     <p>{t("会话费用：", "Session cost: ")}{task.usage ? `${task.usage.credits} credits · ${task.usage.settled ? t("已结算", "Settled") : t("未结算", "Unsettled")}` : t("未知", "Unknown")}</p>
+     {task.assets.map(asset => <div key={asset.id}>{asset.state === "ready" && asset.url && /^https:\/\//i.test(asset.url)
+-      ? <a href={asset.url} target="_blank" rel="noreferrer noopener">{t("打开生成结果", "Open generated asset")}</a> : t("资产尚不可用", "Asset unavailable")}</div>)}
++      ? <a href={asset.url} target="_blank" rel="noreferrer noopener">{t("打开生成结果", "Open generated asset")}</a> : t("暂无素材链接", "No asset link")}
++      <CopyButton compact label={t("复制素材 ID", "Copy asset ID")} onCopy={() => navigator.clipboard.writeText(asset.id)} />
++      {asset.state === "ready" && onReuse && <div className="nt-actions">
++        <Button onClick={() => onReuse(asset.id, "edit")}>{t("编辑此素材", "Edit this asset")}</Button>
++        {asset.kind === "image" && <Button onClick={() => onReuse(asset.id, "generate")}>{t("用作参考图片", "Use as reference image")}</Button>}
++        {asset.kind === "video" && <Button onClick={() => onReuse(asset.id, "reframe")}>{t("扩画此视频", "Reframe this video")}</Button>}
++      </div>}
++    </div>)}
+   </div>;
+ }
+--- tools/luma/mcp-creation-preview-check.mjs (before)
++++ tools/luma/mcp-creation-preview-check.mjs
+@@ -5,7 +5,7 @@
+ import path from "node:path";
+ import { parseArgs } from "node:util";
+ 
+-const { values } = parseArgs({ options: { origin: { type: "string" }, output: { type: "string" } } });
++const { values } = parseArgs({ options: { origin: { type: "string" }, output: { type: "string" }, reuse: { type: "boolean" } } });
+ if (!values.origin || !values.output) throw new Error("Use --origin http://127.0.0.1:<port> --output <new-directory>");
+ const origin = new URL(values.origin);
+ assert.equal(origin.protocol, "http:"); assert.equal(origin.hostname, "127.0.0.1"); assert.ok(origin.port);
+@@ -48,6 +48,46 @@
+   await dialog.getByText("会话费用：9 credits · 已结算", { exact: true }).waitFor();
+   assert.equal(await dialog.getByRole("link", { name: "打开生成结果", exact: true }).getAttribute("href"), "https://cdn.example.com/result");
+   await page.screenshot({ path: path.join(output, "gpt-result.png") });
++  if (values.reuse) {
++    const sourceId = await field("任务 ID").inputValue();
++    await click("用作参考图片");
++    await field("创作模型").selectOption("openai_gpt_image_2");
++    assert.equal(await field("素材来源任务 ID").inputValue(), sourceId);
++    assert.equal(await field("参考图片 ID（每行一个）").inputValue(), "synthetic-asset");
++    assert.equal(await field("会话预算上限（credits）").inputValue(), "");
++    assert.equal(await page.evaluate(() => window.syntheticRequests.length), 3);
++    await field("提示词").fill("Use the saved image as reference");
++    await field("会话预算上限（credits）").fill("13");
++    await field("素材来源任务 ID").scrollIntoViewIfNeeded();
++    await page.screenshot({ path: path.join(output, "reuse-reference.png") });
++    await click("准备任务");
++    assert.equal(await dialog.getByRole("button", { name: "提交生成", exact: true }).isEnabled(), false);
++    await field("确认使用此 Luma 账号的 credits 生成").check(); await click("提交生成");
++    await click("查询结果与费用");
++    const childId = await field("任务 ID").inputValue();
++    assert.notEqual(childId, sourceId);
++    await click("编辑此素材");
++    assert.equal(await field("素材来源任务 ID").inputValue(), childId);
++    assert.equal(await field("源素材 ID").inputValue(), "synthetic-asset");
++    assert.equal(await field("源素材 URL").count(), 0);
++    await field("提示词").fill("Edit the saved image");
++    await field("会话预算上限（credits）").fill("12");
++    await page.setViewportSize({ width: 390, height: 844 });
++    for (const label of ["素材来源任务 ID", "源素材 ID", "提示词"]) {
++      const input = field(label); await input.scrollIntoViewIfNeeded();
++      const bounds = await input.boundingBox(); assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 390, label);
++    }
++    await page.screenshot({ path: path.join(output, "reuse-edit-narrow.png") });
++    await writeFile(path.join(output, "reuse.ax.txt"), await dialog.ariaSnapshot());
++    await click("准备任务"); await field("确认使用此 Luma 账号的 credits 生成").check(); await click("提交生成");
++    calls = await page.evaluate(() => window.syntheticRequests);
++    assert.deepEqual(calls.map(call => call.body.action), ["prepare", "start", "read", "prepare", "start", "read", "prepare", "start"]);
++    assert.deepEqual(calls[3].body.request, calls[4].body.request);
++    assert.deepEqual(calls[6].body.request, calls[7].body.request);
++    assert.deepEqual(calls[3].body.request.reuse, { taskId: sourceId, referenceAssetIds: ["synthetic-asset"] });
++    assert.deepEqual(calls[6].body.request.reuse, { taskId: childId, sourceAssetId: "synthetic-asset", referenceAssetIds: [] });
++    assert.equal(calls[6].body.request.options.sourceUrl, undefined);
++  } else {
+   await click("另一任务");
+   await field("创作模型").selectOption("luma_ray3_2"); await field("创作操作").selectOption("reframe");
+   assert.equal(await dialog.getByRole("button", { name: "准备任务", exact: true }).isEnabled(), false);
+@@ -71,6 +111,7 @@
+   assert.equal(calls[0].body.request.options.parameters.quality, "high");
+   assert.equal(calls[3].body.request.options.sourceMediaType, "video/webm");
+   assert.equal(calls[3].body.request.options.parameters, undefined);
++  }
+   assert.deepEqual(errors, []); assert.deepEqual(external, []);
+   status = "passed";
+ } catch (error) {
+--- apps/desktop/e2e/fixtures/luma-mcp-creation-preview.tsx (before)
++++ apps/desktop/e2e/fixtures/luma-mcp-creation-preview.tsx
+@@ -14,7 +14,7 @@
+   let task: LumaCreationTask;
+   if (body.action === "prepare" && body.request) {
+     const request = body.request;
+-    task = { id: `luma-mcp-preview-${tasks.size + 1}`, providerId: "preview-mcp", credentialId: "synthetic", revision: "preview-r1",
++    task = { id: `luma-mcp-${crypto.randomUUID()}`, providerId: "preview-mcp", credentialId: "synthetic", revision: "preview-r1",
+       kind: request.kind, budgetCredits: request.budgetCredits, state: "prepared", sessionId: null, runId: null,
+       ended: false, leaseUntil: 0, error: null, assets: [], usage: null,
+       requestedModel: request.options?.model ?? "luma_uni_1", operation: request.options?.operation ?? "generate" };

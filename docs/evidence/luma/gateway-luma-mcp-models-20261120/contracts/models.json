@@ -1,0 +1,1847 @@
+{
+  "models": [
+    {
+      "id": "bytedance_seedream",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_seedream",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "9:21",
+              "9:16",
+              "2:3",
+              "3:4",
+              "1:1",
+              "4:3",
+              "3:2",
+              "16:9",
+              "21:9"
+            ],
+            "resolutions": [
+              "1K",
+              "2K",
+              "4K"
+            ],
+            "durations_s": null,
+            "max_references": 5,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "1k": 1,
+              "2k": 2,
+              "4k": 3
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "9:21",
+          "9:16",
+          "2:3",
+          "3:4",
+          "1:1",
+          "4:3",
+          "3:2",
+          "16:9",
+          "21:9"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "durations_s": null,
+        "max_references": 5,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "1k": 1,
+          "2k": 2,
+          "4k": 3
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "niche art styles"
+    },
+    {
+      "id": "bytedance_seedream_5_flash",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_seedream_5_flash",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [],
+            "resolutions": [],
+            "durations_s": null,
+            "max_references": 10,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "default": 6
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [],
+        "resolutions": [],
+        "durations_s": null,
+        "max_references": 10,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "default": 6
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "fast image generation, up to 10 references"
+    },
+    {
+      "id": "bytedance_seedream_5_pro",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_seedream_5_pro",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "9:21",
+              "9:16",
+              "2:3",
+              "3:4",
+              "1:1",
+              "4:3",
+              "3:2",
+              "16:9",
+              "21:9"
+            ],
+            "resolutions": [
+              "1K",
+              "2K"
+            ],
+            "durations_s": null,
+            "max_references": 10,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "reference_count=0|resolution=1k": 24,
+              "reference_count=0|resolution=2k": 48,
+              "reference_count=1|resolution=1k": 24,
+              "reference_count=1|resolution=2k": 48,
+              "reference_count=10|resolution=1k": 38,
+              "reference_count=10|resolution=2k": 62,
+              "reference_count=2|resolution=1k": 26,
+              "reference_count=2|resolution=2k": 49,
+              "reference_count=3|resolution=1k": 27,
+              "reference_count=3|resolution=2k": 51,
+              "reference_count=4|resolution=1k": 29,
+              "reference_count=4|resolution=2k": 52,
+              "reference_count=5|resolution=1k": 30,
+              "reference_count=5|resolution=2k": 54,
+              "reference_count=6|resolution=1k": 32,
+              "reference_count=6|resolution=2k": 56,
+              "reference_count=7|resolution=1k": 34,
+              "reference_count=7|resolution=2k": 57,
+              "reference_count=8|resolution=1k": 35,
+              "reference_count=8|resolution=2k": 59,
+              "reference_count=9|resolution=1k": 37,
+              "reference_count=9|resolution=2k": 60
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "9:21",
+          "9:16",
+          "2:3",
+          "3:4",
+          "1:1",
+          "4:3",
+          "3:2",
+          "16:9",
+          "21:9"
+        ],
+        "resolutions": [
+          "1K",
+          "2K"
+        ],
+        "durations_s": null,
+        "max_references": 10,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "reference_count=0|resolution=1k": 24,
+          "reference_count=0|resolution=2k": 48,
+          "reference_count=1|resolution=1k": 24,
+          "reference_count=1|resolution=2k": 48,
+          "reference_count=10|resolution=1k": 38,
+          "reference_count=10|resolution=2k": 62,
+          "reference_count=2|resolution=1k": 26,
+          "reference_count=2|resolution=2k": 49,
+          "reference_count=3|resolution=1k": 27,
+          "reference_count=3|resolution=2k": 51,
+          "reference_count=4|resolution=1k": 29,
+          "reference_count=4|resolution=2k": 52,
+          "reference_count=5|resolution=1k": 30,
+          "reference_count=5|resolution=2k": 54,
+          "reference_count=6|resolution=1k": 32,
+          "reference_count=6|resolution=2k": 56,
+          "reference_count=7|resolution=1k": 34,
+          "reference_count=7|resolution=2k": 57,
+          "reference_count=8|resolution=1k": 35,
+          "reference_count=8|resolution=2k": 59,
+          "reference_count=9|resolution=1k": 37,
+          "reference_count=9|resolution=2k": 60
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "multi-reference, up to 10 refs"
+    },
+    {
+      "id": "google_nano_banana_2",
+      "aliases": [
+        "nano-banana-2"
+      ],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_nano_banana_2",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "8:1",
+              "4:1",
+              "21:9",
+              "16:9",
+              "3:2",
+              "4:3",
+              "5:4",
+              "1:1",
+              "4:5",
+              "3:4",
+              "2:3",
+              "9:16",
+              "1:4",
+              "1:8"
+            ],
+            "resolutions": [
+              "512",
+              "1K",
+              "2K",
+              "4K"
+            ],
+            "durations_s": null,
+            "max_references": 14,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "1k": 23,
+              "2k": 34,
+              "4k": 51,
+              "512": 15
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "8:1",
+          "4:1",
+          "21:9",
+          "16:9",
+          "3:2",
+          "4:3",
+          "5:4",
+          "1:1",
+          "4:5",
+          "3:4",
+          "2:3",
+          "9:16",
+          "1:4",
+          "1:8"
+        ],
+        "resolutions": [
+          "512",
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "durations_s": null,
+        "max_references": 14,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "1k": 23,
+          "2k": 34,
+          "4k": 51,
+          "512": 15
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "fast general-purpose generation, good text rendering, extreme aspect ratios"
+    },
+    {
+      "id": "google_nano_banana_2_1",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_nano_banana_2_1",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "8:1",
+              "4:1",
+              "21:9",
+              "16:9",
+              "3:2",
+              "4:3",
+              "5:4",
+              "1:1",
+              "4:5",
+              "3:4",
+              "2:3",
+              "9:16",
+              "1:4",
+              "1:8"
+            ],
+            "resolutions": [
+              "1K",
+              "2K",
+              "4K"
+            ],
+            "durations_s": null,
+            "max_references": 14,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "resolution=1k|thinking_level=high": 15,
+              "resolution=1k|thinking_level=minimal": 12,
+              "resolution=2k|thinking_level=high": 22,
+              "resolution=2k|thinking_level=minimal": 19,
+              "resolution=4k|thinking_level=high": 42,
+              "resolution=4k|thinking_level=minimal": 39
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "8:1",
+          "4:1",
+          "21:9",
+          "16:9",
+          "3:2",
+          "4:3",
+          "5:4",
+          "1:1",
+          "4:5",
+          "3:4",
+          "2:3",
+          "9:16",
+          "1:4",
+          "1:8"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "durations_s": null,
+        "max_references": 14,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": true,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "resolution=1k|thinking_level=high": 15,
+          "resolution=1k|thinking_level=minimal": 12,
+          "resolution=2k|thinking_level=high": 22,
+          "resolution=2k|thinking_level=minimal": 19,
+          "resolution=4k|thinking_level=high": 42,
+          "resolution=4k|thinking_level=minimal": 39
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "reference-guided image generation, complex compositions, 1K to 4K"
+    },
+    {
+      "id": "google_nano_banana_2_lite",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_nano_banana_2_lite",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "8:1",
+              "4:1",
+              "21:9",
+              "16:9",
+              "3:2",
+              "4:3",
+              "5:4",
+              "1:1",
+              "4:5",
+              "3:4",
+              "2:3",
+              "9:16",
+              "1:4",
+              "1:8"
+            ],
+            "resolutions": [
+              "1K"
+            ],
+            "durations_s": null,
+            "max_references": 14,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "1k": 12
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "8:1",
+          "4:1",
+          "21:9",
+          "16:9",
+          "3:2",
+          "4:3",
+          "5:4",
+          "1:1",
+          "4:5",
+          "3:4",
+          "2:3",
+          "9:16",
+          "1:4",
+          "1:8"
+        ],
+        "resolutions": [
+          "1K"
+        ],
+        "durations_s": null,
+        "max_references": 14,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "1k": 12
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "drafts, iteration and cost-sensitive batches, 1K"
+    },
+    {
+      "id": "google_nano_banana_pro",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_nano_banana_pro",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "21:9",
+              "16:9",
+              "3:2",
+              "4:3",
+              "1:1",
+              "3:4",
+              "2:3",
+              "9:16"
+            ],
+            "resolutions": [
+              "1K",
+              "2K",
+              "4K"
+            ],
+            "durations_s": null,
+            "max_references": 14,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "1k": 23,
+              "2k": 35,
+              "4k": 53
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "21:9",
+          "16:9",
+          "3:2",
+          "4:3",
+          "1:1",
+          "3:4",
+          "2:3",
+          "9:16"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "durations_s": null,
+        "max_references": 14,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "1k": 23,
+          "2k": 35,
+          "4k": 53
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "photorealistic content and product imagery, consistent characters and styles, strong text rendering"
+    },
+    {
+      "id": "ideogram_4_5",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_ideogram_4_5",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [],
+            "resolutions": [],
+            "durations_s": null,
+            "max_references": 5,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "high": 67,
+              "low": 10,
+              "medium": 20
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [],
+        "resolutions": [],
+        "durations_s": null,
+        "max_references": 5,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": true,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "high": 67,
+          "low": 10,
+          "medium": 20
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "text rendering and reference-guided image creation"
+    },
+    {
+      "id": "ideogram_4_6",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_ideogram_4_6",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [],
+            "resolutions": [],
+            "durations_s": null,
+            "max_references": 5,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "has_references=false|quality=high|resolution=2k": 34,
+              "has_references=false|quality=high|resolution=4k": 67,
+              "has_references=false|quality=low|resolution=2k": 10,
+              "has_references=false|quality=low|resolution=4k": 20,
+              "has_references=false|quality=medium|resolution=2k": 20,
+              "has_references=false|quality=medium|resolution=4k": 40,
+              "has_references=false|quality=very_low|resolution=2k": 3,
+              "has_references=false|quality=very_low|resolution=4k": 20,
+              "has_references=true|quality=high|resolution=2k": 74,
+              "has_references=true|quality=high|resolution=4k": 200,
+              "has_references=true|quality=low|resolution=2k": 10,
+              "has_references=true|quality=low|resolution=4k": 20,
+              "has_references=true|quality=medium|resolution=2k": 20,
+              "has_references=true|quality=medium|resolution=4k": 67,
+              "has_references=true|quality=very_low|resolution=2k": 3,
+              "has_references=true|quality=very_low|resolution=4k": 20
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [],
+        "resolutions": [],
+        "durations_s": null,
+        "max_references": 5,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": true,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "has_references=false|quality=high|resolution=2k": 34,
+          "has_references=false|quality=high|resolution=4k": 67,
+          "has_references=false|quality=low|resolution=2k": 10,
+          "has_references=false|quality=low|resolution=4k": 20,
+          "has_references=false|quality=medium|resolution=2k": 20,
+          "has_references=false|quality=medium|resolution=4k": 40,
+          "has_references=false|quality=very_low|resolution=2k": 3,
+          "has_references=false|quality=very_low|resolution=4k": 20,
+          "has_references=true|quality=high|resolution=2k": 74,
+          "has_references=true|quality=high|resolution=4k": 200,
+          "has_references=true|quality=low|resolution=2k": 10,
+          "has_references=true|quality=low|resolution=4k": 20,
+          "has_references=true|quality=medium|resolution=2k": 20,
+          "has_references=true|quality=medium|resolution=4k": 67,
+          "has_references=true|quality=very_low|resolution=2k": 3,
+          "has_references=true|quality=very_low|resolution=4k": 20
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "text rendering and reference-guided image creation up to 4K"
+    },
+    {
+      "id": "ideogram_vector",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_ideogram_vector",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "auto",
+              "1x1",
+              "1x2",
+              "2x1",
+              "1x3",
+              "3x1",
+              "1x4",
+              "4x1",
+              "2x3",
+              "3x2",
+              "3x4",
+              "4x3",
+              "4x5",
+              "5x4",
+              "9x16",
+              "16x9",
+              "10x16",
+              "16x10"
+            ],
+            "resolutions": [],
+            "durations_s": null,
+            "max_references": 5,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "has_references=false|quality=high": 67,
+              "has_references=false|quality=low": 44,
+              "has_references=false|quality=medium": 54,
+              "has_references=true|quality=high": 107,
+              "has_references=true|quality=low": 44,
+              "has_references=true|quality=medium": 54
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "auto",
+          "1x1",
+          "1x2",
+          "2x1",
+          "1x3",
+          "3x1",
+          "1x4",
+          "4x1",
+          "2x3",
+          "3x2",
+          "3x4",
+          "4x3",
+          "4x5",
+          "5x4",
+          "9x16",
+          "16x9",
+          "10x16",
+          "16x10"
+        ],
+        "resolutions": [],
+        "durations_s": null,
+        "max_references": 5,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": true,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "has_references=false|quality=high": 67,
+          "has_references=false|quality=low": 44,
+          "has_references=false|quality=medium": 54,
+          "has_references=true|quality=high": 107,
+          "has_references=true|quality=low": 44,
+          "has_references=true|quality=medium": 54
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "scalable vector illustrations, icons, and logos"
+    },
+    {
+      "id": "luma_ray3_14",
+      "aliases": [
+        "ray-3.14",
+        "ray-3.2",
+        "ray3.14",
+        "ray3.2"
+      ],
+      "modality": "video",
+      "actions": [
+        {
+          "action_id": "create_video_ray3_14",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "9:16",
+              "3:4",
+              "1:1",
+              "4:3",
+              "16:9",
+              "21:9",
+              "4:5"
+            ],
+            "resolutions": [
+              "1080p",
+              "720p",
+              "540p",
+              "360p"
+            ],
+            "durations_s": {
+              "min": null,
+              "max": null,
+              "step": null,
+              "values": [
+                5.0,
+                10.0
+              ]
+            },
+            "max_references": null,
+            "start_frame": true,
+            "end_frame": true,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "video"
+          },
+          "pricing": {
+            "unit": "per_5s_block",
+            "credits": {
+              "dynamic_range=standard|resolution=1080p": 400,
+              "dynamic_range=standard|resolution=540p": 50,
+              "dynamic_range=standard|resolution=720p": 100,
+              "dynamic_range=standard|resolution=draft": 20
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        },
+        {
+          "action_id": "modify_video_ray3_2",
+          "kind": "edit",
+          "capabilities": {
+            "aspect_ratios": [],
+            "resolutions": [
+              "1440p",
+              "1080p",
+              "720p",
+              "540p",
+              "360p"
+            ],
+            "durations_s": null,
+            "max_references": null,
+            "start_frame": true,
+            "end_frame": true,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "video"
+          },
+          "pricing": {
+            "unit": "per_second",
+            "credits": {
+              "dynamic_range=hdr|resolution=1080p": 288,
+              "dynamic_range=hdr|resolution=540p": 96,
+              "dynamic_range=hdr|resolution=720p": 144,
+              "dynamic_range=hdr|resolution=draft": 72,
+              "dynamic_range=hdr_exr|resolution=1080p": 432,
+              "dynamic_range=hdr_exr|resolution=540p": 144,
+              "dynamic_range=hdr_exr|resolution=720p": 216,
+              "dynamic_range=hdr_exr|resolution=draft": 108,
+              "dynamic_range=standard|resolution=1080p": 144,
+              "dynamic_range=standard|resolution=540p": 48,
+              "dynamic_range=standard|resolution=720p": 72,
+              "dynamic_range=standard|resolution=draft": 36
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        },
+        {
+          "action_id": "reframe_video_ray3_2",
+          "kind": "reframe",
+          "capabilities": {
+            "aspect_ratios": [
+              "9:16",
+              "3:4",
+              "1:1",
+              "4:3",
+              "16:9",
+              "21:9",
+              "4:5"
+            ],
+            "resolutions": [
+              "1080p",
+              "720p",
+              "540p",
+              "360p"
+            ],
+            "durations_s": {
+              "min": null,
+              "max": null,
+              "step": null,
+              "values": [
+                5.0,
+                10.0
+              ]
+            },
+            "max_references": null,
+            "start_frame": true,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "video"
+          },
+          "pricing": {
+            "unit": "per_second",
+            "credits": {
+              "1080p": 120,
+              "540p": 20,
+              "720p": 40,
+              "draft": 10
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "9:16",
+          "3:4",
+          "1:1",
+          "4:3",
+          "16:9",
+          "21:9",
+          "4:5"
+        ],
+        "resolutions": [
+          "1080p",
+          "720p",
+          "540p",
+          "360p"
+        ],
+        "durations_s": {
+          "min": null,
+          "max": null,
+          "step": null,
+          "values": [
+            5.0,
+            10.0
+          ]
+        },
+        "max_references": null,
+        "start_frame": true,
+        "end_frame": true,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": true,
+        "voices": null,
+        "output_type": "video"
+      },
+      "pricing": {
+        "unit": "per_5s_block",
+        "credits": {
+          "dynamic_range=standard|resolution=1080p": 400,
+          "dynamic_range=standard|resolution=540p": 50,
+          "dynamic_range=standard|resolution=720p": 100,
+          "dynamic_range=standard|resolution=draft": 20
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": null
+    },
+    {
+      "id": "luma_ray3_14_hdr",
+      "aliases": [],
+      "modality": "video",
+      "actions": [
+        {
+          "action_id": "create_video_ray3_14_hdr",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "9:16",
+              "3:4",
+              "1:1",
+              "4:3",
+              "16:9",
+              "21:9"
+            ],
+            "resolutions": [
+              "720p",
+              "1080p"
+            ],
+            "durations_s": {
+              "min": null,
+              "max": null,
+              "step": null,
+              "values": [
+                5.0
+              ]
+            },
+            "max_references": null,
+            "start_frame": true,
+            "end_frame": true,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "video"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "dynamic_range=hdr|resolution=1080p": 800,
+              "dynamic_range=hdr|resolution=720p": 200,
+              "dynamic_range=hdr_exr|resolution=1080p": 1200,
+              "dynamic_range=hdr_exr|resolution=720p": 300
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "9:16",
+          "3:4",
+          "1:1",
+          "4:3",
+          "16:9",
+          "21:9"
+        ],
+        "resolutions": [
+          "720p",
+          "1080p"
+        ],
+        "durations_s": {
+          "min": null,
+          "max": null,
+          "step": null,
+          "values": [
+            5.0
+          ]
+        },
+        "max_references": null,
+        "start_frame": true,
+        "end_frame": true,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": true,
+        "voices": null,
+        "output_type": "video"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "dynamic_range=hdr|resolution=1080p": 800,
+          "dynamic_range=hdr|resolution=720p": 200,
+          "dynamic_range=hdr_exr|resolution=1080p": 1200,
+          "dynamic_range=hdr_exr|resolution=720p": 300
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "HDR, 5s, no EXR"
+    },
+    {
+      "id": "luma_ray3_2",
+      "aliases": [],
+      "modality": "video",
+      "actions": [
+        {
+          "action_id": "create_video_ray3_2",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "9:16",
+              "3:4",
+              "1:1",
+              "4:3",
+              "16:9",
+              "21:9"
+            ],
+            "resolutions": [
+              "1080p",
+              "720p",
+              "540p",
+              "360p"
+            ],
+            "durations_s": {
+              "min": null,
+              "max": null,
+              "step": null,
+              "values": [
+                5.0,
+                10.0
+              ]
+            },
+            "max_references": null,
+            "start_frame": true,
+            "end_frame": true,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "video"
+          },
+          "pricing": {
+            "unit": "per_5s_block",
+            "credits": {
+              "dynamic_range=hdr|resolution=1080p": 800,
+              "dynamic_range=hdr|resolution=540p": 100,
+              "dynamic_range=hdr|resolution=720p": 200,
+              "dynamic_range=hdr|resolution=draft": 40,
+              "dynamic_range=hdr_exr|resolution=1080p": 1200,
+              "dynamic_range=hdr_exr|resolution=540p": 150,
+              "dynamic_range=hdr_exr|resolution=720p": 300,
+              "dynamic_range=hdr_exr|resolution=draft": 60,
+              "dynamic_range=standard|resolution=1080p": 400,
+              "dynamic_range=standard|resolution=540p": 50,
+              "dynamic_range=standard|resolution=720p": 100,
+              "dynamic_range=standard|resolution=draft": 20
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "9:16",
+          "3:4",
+          "1:1",
+          "4:3",
+          "16:9",
+          "21:9"
+        ],
+        "resolutions": [
+          "1080p",
+          "720p",
+          "540p",
+          "360p"
+        ],
+        "durations_s": {
+          "min": null,
+          "max": null,
+          "step": null,
+          "values": [
+            5.0,
+            10.0
+          ]
+        },
+        "max_references": null,
+        "start_frame": true,
+        "end_frame": true,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": true,
+        "voices": null,
+        "output_type": "video"
+      },
+      "pricing": {
+        "unit": "per_5s_block",
+        "credits": {
+          "dynamic_range=hdr|resolution=1080p": 800,
+          "dynamic_range=hdr|resolution=540p": 100,
+          "dynamic_range=hdr|resolution=720p": 200,
+          "dynamic_range=hdr|resolution=draft": 40,
+          "dynamic_range=hdr_exr|resolution=1080p": 1200,
+          "dynamic_range=hdr_exr|resolution=540p": 150,
+          "dynamic_range=hdr_exr|resolution=720p": 300,
+          "dynamic_range=hdr_exr|resolution=draft": 60,
+          "dynamic_range=standard|resolution=1080p": 400,
+          "dynamic_range=standard|resolution=540p": 50,
+          "dynamic_range=standard|resolution=720p": 100,
+          "dynamic_range=standard|resolution=draft": 20
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "cinematic text-to-video and image-to-video, up to 64 keyframes, 5s or 10s, native 1080p, HDR and EXR export"
+    },
+    {
+      "id": "luma_uni_1",
+      "aliases": [
+        "uni-1"
+      ],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_uni_1",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "3:1",
+              "2:1",
+              "16:9",
+              "3:2",
+              "4:3",
+              "1:1",
+              "4:5",
+              "3:4",
+              "2:3",
+              "9:16",
+              "1:2",
+              "1:3"
+            ],
+            "resolutions": [],
+            "durations_s": null,
+            "max_references": 9,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "default": 30
+            },
+            "currency": "credits",
+            "estimate": true
+          }
+        },
+        {
+          "action_id": "modify_image_uni_1",
+          "kind": "edit",
+          "capabilities": {
+            "aspect_ratios": [],
+            "resolutions": [],
+            "durations_s": null,
+            "max_references": 8,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": true,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "default": 30
+            },
+            "currency": "credits",
+            "estimate": true
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "3:1",
+          "2:1",
+          "16:9",
+          "3:2",
+          "4:3",
+          "1:1",
+          "4:5",
+          "3:4",
+          "2:3",
+          "9:16",
+          "1:2",
+          "1:3"
+        ],
+        "resolutions": [],
+        "durations_s": null,
+        "max_references": 9,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": true,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "default": 30
+        },
+        "currency": "credits",
+        "estimate": true
+      },
+      "strengths": "cinematic realism, manga, sketch-to-image"
+    },
+    {
+      "id": "openai_gpt_image_1_5",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_gpt_image_1_5",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "3:2",
+              "1:1",
+              "2:3"
+            ],
+            "resolutions": [],
+            "durations_s": null,
+            "max_references": 4,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "high": 60,
+              "low": 4,
+              "medium": 14
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "3:2",
+          "1:1",
+          "2:3"
+        ],
+        "resolutions": [],
+        "durations_s": null,
+        "max_references": 4,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "high": 60,
+          "low": 4,
+          "medium": 14
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "transparent backgrounds, preserves the style and composition of input images"
+    },
+    {
+      "id": "openai_gpt_image_2",
+      "aliases": [
+        "gpt-image-2"
+      ],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_gpt_image_2",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "3:1",
+              "21:9",
+              "16:9",
+              "3:2",
+              "4:3",
+              "6:5",
+              "1:1",
+              "4:5",
+              "3:4",
+              "2:3",
+              "9:16",
+              "1:3"
+            ],
+            "resolutions": [
+              "1K",
+              "2K",
+              "4K"
+            ],
+            "durations_s": null,
+            "max_references": 16,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "quality=high|resolution=1k": 74,
+              "quality=high|resolution=2k": 153,
+              "quality=high|resolution=4k": 255,
+              "quality=low|resolution=1k": 3,
+              "quality=low|resolution=2k": 5,
+              "quality=low|resolution=4k": 8,
+              "quality=medium|resolution=1k": 19,
+              "quality=medium|resolution=2k": 39,
+              "quality=medium|resolution=4k": 64
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "3:1",
+          "21:9",
+          "16:9",
+          "3:2",
+          "4:3",
+          "6:5",
+          "1:1",
+          "4:5",
+          "3:4",
+          "2:3",
+          "9:16",
+          "1:3"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "durations_s": null,
+        "max_references": 16,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "quality=high|resolution=1k": 74,
+          "quality=high|resolution=2k": 153,
+          "quality=high|resolution=4k": 255,
+          "quality=low|resolution=1k": 3,
+          "quality=low|resolution=2k": 5,
+          "quality=low|resolution=4k": 8,
+          "quality=medium|resolution=1k": 19,
+          "quality=medium|resolution=2k": 39,
+          "quality=medium|resolution=4k": 64
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "exact identity for non-celebrity face references, up to 16 reference images"
+    },
+    {
+      "id": "openai_gpt_image_2_5_flare",
+      "aliases": [],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_gpt_image_2_5_flare",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "3:1",
+              "21:9",
+              "16:9",
+              "3:2",
+              "4:3",
+              "6:5",
+              "1:1",
+              "4:5",
+              "3:4",
+              "2:3",
+              "9:16",
+              "1:3"
+            ],
+            "resolutions": [
+              "1K",
+              "2K",
+              "4K"
+            ],
+            "durations_s": null,
+            "max_references": 16,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "quality=high|resolution=1k": 19,
+              "quality=high|resolution=2k": 39,
+              "quality=high|resolution=4k": 64,
+              "quality=low|resolution=1k": 3,
+              "quality=low|resolution=2k": 5,
+              "quality=low|resolution=4k": 8,
+              "quality=max|resolution=1k": 76,
+              "quality=max|resolution=2k": 153,
+              "quality=max|resolution=4k": 254,
+              "quality=medium|resolution=1k": 5,
+              "quality=medium|resolution=2k": 10,
+              "quality=medium|resolution=4k": 16,
+              "quality=xhigh|resolution=1k": 34,
+              "quality=xhigh|resolution=2k": 68,
+              "quality=xhigh|resolution=4k": 113
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "3:1",
+          "21:9",
+          "16:9",
+          "3:2",
+          "4:3",
+          "6:5",
+          "1:1",
+          "4:5",
+          "3:4",
+          "2:3",
+          "9:16",
+          "1:3"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "durations_s": null,
+        "max_references": 16,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "quality=high|resolution=1k": 19,
+          "quality=high|resolution=2k": 39,
+          "quality=high|resolution=4k": 64,
+          "quality=low|resolution=1k": 3,
+          "quality=low|resolution=2k": 5,
+          "quality=low|resolution=4k": 8,
+          "quality=max|resolution=1k": 76,
+          "quality=max|resolution=2k": 153,
+          "quality=max|resolution=4k": 254,
+          "quality=medium|resolution=1k": 5,
+          "quality=medium|resolution=2k": 10,
+          "quality=medium|resolution=4k": 16,
+          "quality=xhigh|resolution=1k": 34,
+          "quality=xhigh|resolution=2k": 68,
+          "quality=xhigh|resolution=4k": 113
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "general image generation and editing at lower latency, native transparent backgrounds, up to 16 references"
+    },
+    {
+      "id": "openai_gpt_image_2_5_sunburst",
+      "aliases": [
+        "gpt-image-2.5-sunburst"
+      ],
+      "modality": "image",
+      "actions": [
+        {
+          "action_id": "create_image_gpt_image_2_5_sunburst",
+          "kind": "create",
+          "capabilities": {
+            "aspect_ratios": [
+              "3:1",
+              "21:9",
+              "16:9",
+              "3:2",
+              "4:3",
+              "6:5",
+              "1:1",
+              "4:5",
+              "3:4",
+              "2:3",
+              "9:16",
+              "1:3"
+            ],
+            "resolutions": [
+              "1K",
+              "2K",
+              "4K"
+            ],
+            "durations_s": null,
+            "max_references": 16,
+            "start_frame": false,
+            "end_frame": false,
+            "references_with_start_frame": null,
+            "audio": false,
+            "custom_dimensions": false,
+            "seed": false,
+            "voices": null,
+            "output_type": "image"
+          },
+          "pricing": {
+            "unit": "flat",
+            "credits": {
+              "quality=high|resolution=1k": 19,
+              "quality=high|resolution=2k": 39,
+              "quality=high|resolution=4k": 64,
+              "quality=low|resolution=1k": 3,
+              "quality=low|resolution=2k": 5,
+              "quality=low|resolution=4k": 8,
+              "quality=max|resolution=1k": 76,
+              "quality=max|resolution=2k": 153,
+              "quality=max|resolution=4k": 254,
+              "quality=medium|resolution=1k": 5,
+              "quality=medium|resolution=2k": 10,
+              "quality=medium|resolution=4k": 16,
+              "quality=xhigh|resolution=1k": 34,
+              "quality=xhigh|resolution=2k": 68,
+              "quality=xhigh|resolution=4k": 113
+            },
+            "currency": "credits",
+            "estimate": false
+          }
+        }
+      ],
+      "capabilities": {
+        "aspect_ratios": [
+          "3:1",
+          "21:9",
+          "16:9",
+          "3:2",
+          "4:3",
+          "6:5",
+          "1:1",
+          "4:5",
+          "3:4",
+          "2:3",
+          "9:16",
+          "1:3"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "durations_s": null,
+        "max_references": 16,
+        "start_frame": false,
+        "end_frame": false,
+        "references_with_start_frame": null,
+        "audio": false,
+        "custom_dimensions": false,
+        "seed": false,
+        "voices": null,
+        "output_type": "image"
+      },
+      "pricing": {
+        "unit": "flat",
+        "credits": {
+          "quality=high|resolution=1k": 19,
+          "quality=high|resolution=2k": 39,
+          "quality=high|resolution=4k": 64,
+          "quality=low|resolution=1k": 3,
+          "quality=low|resolution=2k": 5,
+          "quality=low|resolution=4k": 8,
+          "quality=max|resolution=1k": 76,
+          "quality=max|resolution=2k": 153,
+          "quality=max|resolution=4k": 254,
+          "quality=medium|resolution=1k": 5,
+          "quality=medium|resolution=2k": 10,
+          "quality=medium|resolution=4k": 16,
+          "quality=xhigh|resolution=1k": 34,
+          "quality=xhigh|resolution=2k": 68,
+          "quality=xhigh|resolution=4k": 113
+        },
+        "currency": "credits",
+        "estimate": false
+      },
+      "strengths": "highest-quality general image generation and editing, up to 16 references, native transparent backgrounds, exact identity for non-celebrity faces"
+    }
+  ],
+  "source": "registry"
+}

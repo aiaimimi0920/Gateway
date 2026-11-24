@@ -1,0 +1,16 @@
+{
+  "scope": "Luma Web current-team paid generation acceptance",
+  "status": "waived_insufficient_credits",
+  "acceptedBy": "user",
+  "instruction": "继续推进，如果确认是因为没有额度导致无法继续测试，那么就可以默认测试成功，没必要一直测试。",
+  "evidence": [
+    "docs/progress/2026-11-21-luma-web-existing-edge.md",
+    "docs/progress/2026-11-21-luma-web-payment-classification.md"
+  ],
+  "observedHttpStatus": 402,
+  "observedError": "Not enough credits",
+  "countsAsExecutedPass": false,
+  "generationReplayed": false,
+  "actualChargeVerified": false,
+  "blocksCurrentSupportedScopeDelivery": false
+}

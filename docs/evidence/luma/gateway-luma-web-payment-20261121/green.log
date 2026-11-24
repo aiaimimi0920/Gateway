@@ -1,0 +1,65 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 23m 08s
+     Running unittests src\lib.rs (target\debug\deps\neuro_gateway-4f2bc1ae2c10e750.exe)
+
+running 58 tests
+test upstream::lumalabs::task_tests::luma_web_task_result_admits_only_public_https_audio_and_video_links ... ok
+test upstream::lumalabs::task_tests::luma_web_task_result_discovery_records_actual_type_without_claiming_model_binding ... ok
+test upstream::lumalabs::task_tests::luma_web_task_result_local_worker_does_not_accept_legacy_url_success ... ok
+test upstream::lumalabs::task_tests::luma_web_task_result_rejects_foreign_context_and_explicit_action_type ... ok
+test upstream::lumalabs::task_tests::luma_web_task_result_rejects_legacy_nonterminal_empty_or_malformed_success ... ok
+test upstream::lumalabs::task_tests::luma_web_task_result_roundtrip_preserves_all_context_and_optional_action_id ... ok
+test upstream::lumalabs::tests::luma_web_payment_refusal_survives_worker_process_without_replay ... ok
+test upstream::lumalabs::tests::luma_web_red_worker_business_failure_cannot_replay ... ok
+test upstream::lumalabs::tests::luma_web_red_worker_invalid_json_does_not_echo_output ... ok
+test upstream::lumalabs::tests::luma_web_red_worker_nonzero_success_is_not_success ... ok
+test upstream::lumalabs::tests::luma_web_red_worker_output_budgets_are_metadata_sized ... ok
+test upstream::lumalabs::tests::luma_web_worker_caller_drop_reaps_owned_descendant ... ok
+test upstream::lumalabs::tests::luma_web_worker_input_is_bounded_before_spawn_and_spawn_errors_are_projected ... ok
+test upstream::lumalabs::tests::luma_web_worker_success_preserves_signed_url ... ok
+test upstream::lumalabs::tests::luma_web_worker_timeout_reaps_owned_descendant ... ok
+test upstream::lumalabs_response_helpers::tests::image_admission::luma_web_image_output_contract_keeps_supported_formats_and_empty_input_compatibility ... ok
+test upstream::lumalabs_response_helpers::tests::image_admission::luma_web_red_image_output_contract_is_admitted_before_generation ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::build_lumalabs_downloaded_image_response_falls_back_to_signed_url_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::build_lumalabs_downloaded_image_response_preserves_header_mime_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::build_lumalabs_non_image_generation_response_preserves_audio_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::build_lumalabs_non_image_generation_response_preserves_video_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::classify_lumalabs_media_fetch_error_preserves_generic_upstream_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::ensure_successful_lumalabs_media_fetch_status_accepts_2xx_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::ensure_successful_lumalabs_media_fetch_status_preserves_failure_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::resolve_lumalabs_downloaded_image_mime_type_falls_back_to_signed_url_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::resolve_lumalabs_downloaded_image_mime_type_prefers_image_header_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::resolve_lumalabs_image_generation_plan_preserves_b64_contract ... ok
+test upstream::lumalabs_response_helpers::tests::media_outputs::resolve_lumalabs_image_generation_plan_preserves_url_response_contract ... ok
+test upstream::lumalabs_response_helpers::tests::planning::prepare_lumalabs_browser_execution_input_reads_contract ... ok
+test upstream::lumalabs_response_helpers::tests::planning::prepare_lumalabs_execution_context_preserves_image_input_rejection_contract ... ok
+test upstream::lumalabs_response_helpers::tests::planning::prepare_lumalabs_execution_context_reads_session_contract ... ok
+test upstream::lumalabs_response_helpers::tests::planning::prepare_lumalabs_media_plan_builds_image_contract ... ok
+test upstream::lumalabs_response_helpers::tests::planning::prepare_lumalabs_media_plan_preserves_unsupported_image_inputs_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::build_lumalabs_browser_executor_service_result_preserves_empty_string_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::build_lumalabs_browser_executor_service_result_wraps_signed_url_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::classify_lumalabs_browser_worker_failure_prefers_worker_error_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::classify_lumalabs_browser_worker_failure_uses_stderr_when_body_missing ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::extract_lumalabs_browser_worker_success_reads_signed_url_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::extract_lumalabs_browser_worker_success_rejects_missing_signed_url_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::luma_web_payment_refusal_mapping_requires_both_code_and_status ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::luma_web_payment_refusal_uses_structured_worker_identity_without_private_details ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::parse_lumalabs_browser_worker_output_reads_result_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::parse_lumalabs_browser_worker_output_rejects_empty_stdout_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::parse_lumalabs_browser_worker_verified_output_preserves_failure_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::parse_lumalabs_browser_worker_verified_output_reads_success_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::parse_lumalabs_remote_browser_executor_signed_url_preserves_missing_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::parse_lumalabs_remote_browser_executor_signed_url_reads_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::resolve_lumalabs_browser_worker_result_preserves_failure_contract ... ok
+test upstream::lumalabs_response_helpers::tests::worker_results::resolve_lumalabs_browser_worker_result_reads_success_contract ... ok
+test upstream::lumalabs_runtime_helpers::tests::build_lumalabs_browser_executor_payload_from_prepared_preserves_runtime_contract ... ok
+test upstream::lumalabs_runtime_helpers::tests::build_lumalabs_browser_executor_payload_preserves_runtime_contract ... ok
+test upstream::lumalabs_runtime_helpers::tests::build_lumalabs_browser_worker_input_from_prepared_preserves_runtime_contract ... ok
+test upstream::lumalabs_runtime_helpers::tests::build_lumalabs_browser_worker_input_preserves_runtime_contract ... ok
+test upstream::lumalabs_runtime_helpers::tests::lumalabs_locale_prefers_trimmed_accept_language_and_defaults_to_zh_cn ... ok
+test upstream::lumalabs_runtime_helpers::tests::prepare_lumalabs_browser_executor_service_input_preserves_runtime_contract ... ok
+test upstream::lumalabs_runtime_helpers::tests::prepare_lumalabs_browser_executor_service_input_requires_action_body_contract ... ok
+test upstream::lumalabs_runtime_helpers::tests::prepare_lumalabs_browser_worker_launch_preserves_runtime_contract ... ok
+test upstream::lumalabs_runtime_helpers::tests::serialize_lumalabs_browser_worker_input_from_prepared_preserves_runtime_contract ... ok
+
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 6417 filtered out; finished in 4.40s
+

@@ -1,5 +1,6 @@
 //! Real sender, bounded response and cancellation evidence for explicit SAP console tests.
 use super::*;
+mod health;
 use crate::provider_runtime::{
     probe_console_target_with_request, ConsoleProbeRequest, ProviderPayloadProbeStatus,
 };

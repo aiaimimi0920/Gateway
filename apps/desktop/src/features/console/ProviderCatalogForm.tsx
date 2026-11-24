@@ -17,7 +17,9 @@ import { vertexTargetBase } from "./vertexOAuth";
 import { kiroProfileTarget } from "./kiroOAuthCatalog";
 import { cloudflareBase } from "./cloudflareWorkersAi";
 import { CatalogFirstAccountFields } from "./CatalogFirstAccountFields";
+import { setCatalogDeploymentUrl } from "./sapAiCore";
 import { SapAiCoreFields } from "./SapAiCoreFields";
+import type { DiscoverSapDeployments } from "../../api/sapAiCoreDeployments";
 
 export type ProviderCatalogFormProps = {
   t(zh: string, en: string): string;
@@ -29,8 +31,11 @@ export type ProviderCatalogFormProps = {
   setTab(tab: CatalogTab): void;
   drivers: readonly ConsoleCredentialPoolAutomationDriver[];
   validationError: string | null;
+  discoverSapDeployments?: DiscoverSapDeployments;
+  hasSecretAccess: boolean;
+  onRequestSecretAccess(): void;
 };
-export function ProviderCatalogForm({ t, selectedTemplate, draft, setDraft, locked, tab, setTab, drivers, validationError }: ProviderCatalogFormProps) {
+export function ProviderCatalogForm({ t, selectedTemplate, draft, setDraft, locked, tab, setTab, drivers, validationError, discoverSapDeployments, hasSecretAccess, onRequestSecretAccess }: ProviderCatalogFormProps) {
   const update = (patch: Partial<CatalogWorkflow>) => setDraft((current) => ({ ...current, workflow: { ...current.workflow!, ...patch } }));
   const fields = { t, workflow: draft.workflow!, update, locked };
   const allTabs = [["basics", t("基础与账号", "Basics & account")], ["request", t("调用配置", "Call settings")], ["mapping", t("模型映射", "Model mapping")],
@@ -43,12 +48,13 @@ export function ProviderCatalogForm({ t, selectedTemplate, draft, setDraft, lock
         onChange={(event) => setDraft((current) => ({ ...current, providerId: event.target.value }))} /></CatalogField>
       <CatalogField name="Base URL"><Input type="url" value={draft.baseUrl} disabled={locked}
         readOnly={!selectedTemplate.custom && !["azure-api", "sap-aicore-chat"].includes(selectedTemplate.id)} spellCheck={false}
-        onChange={(event) => setDraft((current) => ({ ...current, baseUrl: event.target.value }))} /></CatalogField>
+        onChange={(event) => setDraft((current) => setCatalogDeploymentUrl(current, event.target.value))} /></CatalogField>
       {selectedTemplate.id === "cloudflare-workers-ai" && <CatalogField name="Cloudflare Account ID"><Input
         value={draft.cloudflareAccountId ?? ""} disabled={locked} maxLength={32} spellCheck={false}
         onChange={(event) => { const cloudflareAccountId = event.target.value;
           setDraft((current) => ({ ...current, cloudflareAccountId, baseUrl: cloudflareBase(cloudflareAccountId) ?? "" })); }} /></CatalogField>}
-      {selectedTemplate.id === "sap-aicore-chat" && <SapAiCoreFields draft={draft} setDraft={setDraft} disabled={locked} />}
+      {selectedTemplate.id === "sap-aicore-chat" && <SapAiCoreFields draft={draft} setDraft={setDraft} disabled={locked}
+        discover={tab === "basics" ? discoverSapDeployments : undefined} hasSecretAccess={hasSecretAccess} onRequestSecretAccess={onRequestSecretAccess} />}
       {selectedTemplate.preset === "qwen-official-api" && <div className="nt-provider-catalog__qwen"><QwenEndpointFields t={t} disabled={locked}
         value={draft.qwenEndpoint ?? emptyQwenEndpoint()} onChange={(qwenEndpoint) => setDraft((current) => ({
           ...current, qwenEndpoint, baseUrl: buildQwenEndpoint(qwenEndpoint) ?? "",

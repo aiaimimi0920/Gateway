@@ -75,6 +75,13 @@ class GatewayDevtestTests(GatewayPackageFixture):
                 package = releases / "gateway-devtest-contract"
                 manifest = json.loads((package / "manifest.json").read_text(encoding="utf-8"))
                 self.assertEqual(manifest["buildKind"], "devtest")
+                migration = "deploy/postgres/initdb/012-gateway-sap-probe-evidence.sql"
+                self.assertEqual((package / migration).read_bytes(),
+                                 (source / migration).read_bytes())
+                support = {item["path"]: item for item in manifest["supportFiles"]}
+                self.assertEqual(support[migration]["kind"], "docker-deploy")
+                entry = next(item for item in manifest["files"] if item["path"] == migration)
+                self.assertEqual(entry["kind"], "docker-deploy")
                 smoke = self._run_smoke(UI_SMOKE, package)
                 self.assertEqual(smoke.returncode, 0, smoke.stdout + smoke.stderr)
 

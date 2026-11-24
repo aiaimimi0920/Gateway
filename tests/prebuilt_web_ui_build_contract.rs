@@ -406,6 +406,7 @@ mod build_script {
             let generated = write_embedded_ui_source(&out_dir, &snapshot)
                 .expect("write generated RustEmbed source");
             let source = fs::read_to_string(generated).expect("read generated RustEmbed source");
+            let embed_crate_source = include_str!("../crates/gateway-embedded-ui/src/lib.rs");
             let ui_source = include_str!("../src/http/ui.rs");
             let escaped_snapshot = snapshot.to_string_lossy().replace('\\', "\\\\");
 
@@ -413,8 +414,9 @@ mod build_script {
             assert!(source.contains(escaped_snapshot.as_str()));
             assert!(source.contains(r#"env!("GATEWAY_WEB_UI_SNAPSHOT")"#));
             assert!(!source.contains(DIST_WEB_ROOT_PATH));
-            assert!(ui_source
+            assert!(embed_crate_source
                 .contains(r#"include!(concat!(env!("OUT_DIR"), "/gateway_embedded_ui.rs"))"#));
+            assert!(!embed_crate_source.contains("apps/desktop/dist/web/"));
             assert!(!ui_source.contains("apps/desktop/dist/web/"));
         }
 

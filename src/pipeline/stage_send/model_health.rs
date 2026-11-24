@@ -18,12 +18,17 @@ pub(super) async fn record_rate_limit(
         error.code.as_deref(),
         Some(&error.message),
     );
-    if !matches!(
-        classification.class,
-        crate::provider_failure::ProviderFailureClass::RateLimited
-            | crate::provider_failure::ProviderFailureClass::CredentialInvalid
-            | crate::provider_failure::ProviderFailureClass::CredentialExpired
-    ) {
+    if !error
+        .code
+        .as_deref()
+        .is_some_and(|code| code.starts_with("sap_aicore_"))
+        && !matches!(
+            classification.class,
+            crate::provider_failure::ProviderFailureClass::RateLimited
+                | crate::provider_failure::ProviderFailureClass::CredentialInvalid
+                | crate::provider_failure::ProviderFailureClass::CredentialExpired
+        )
+    {
         return;
     }
     let input = crate::db::RecordCredentialModelFailureInput {

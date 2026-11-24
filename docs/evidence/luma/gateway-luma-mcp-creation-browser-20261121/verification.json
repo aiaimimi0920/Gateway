@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-21",
+  "scope": "L1/L6: normal management web UI to management TCP, SQLite, and synthetic MCP only",
+  "normalUiBuild": {
+    "startedAt": "2026-11-21T11:13:12.46371+08:00",
+    "exitCode": 0
+  },
+  "rust": {
+    "startedAt": "2026-11-21T11:33:27.129927+08:00",
+    "exitCode": 0,
+    "passed": 1,
+    "failed": 0,
+    "exactTest": "protocol::luma_mcp::creation_tests::browser_test::luma_mcp_creation_normal_main_browser"
+  },
+  "browser": {
+    "status": "passed",
+    "checkpoints": [
+      {
+        "name": "fixture-ready",
+        "posts": 0,
+        "requests": 0
+      },
+      {
+        "name": "login-grant-does-not-prepare-or-submit",
+        "posts": 0,
+        "requests": 0
+      },
+      {
+        "name": "opening-does-not-submit",
+        "posts": 0,
+        "requests": 0
+      },
+      {
+        "name": "prepared-without-charge-or-mcp",
+        "posts": 0,
+        "requests": 1
+      },
+      {
+        "name": "one-session-and-one-generation",
+        "posts": 6,
+        "requests": 2
+      },
+      {
+        "name": "reopen-does-not-resubmit",
+        "posts": 6,
+        "requests": 2
+      },
+      {
+        "name": "same-task-result-and-session-cost",
+        "posts": 15,
+        "requests": 3
+      }
+    ],
+    "browserClosed": true,
+    "proxyClosed": true,
+    "externalRequests": 0,
+    "errors": 0
+  },
+  "host": {
+    "status": "passed",
+    "scope": "normal management UI to TCP, SQLite and synthetic MCP",
+    "mcpPosts": 15,
+    "transportDeletes": 5,
+    "generationSubmissions": 1,
+    "sameTaskRecovered": true,
+    "assetLink": true,
+    "syntheticSessionCredits": 9,
+    "revisionUnchanged": true
+  },
+  "gates": {
+    "nodeSyntax": "passed",
+    "rustfmtNewModule": "passed",
+    "effectiveLineTestsPassed": 31,
+    "effectiveLineRatchetExitCode": 0,
+    "gitDiffCheck": "passed",
+    "isolatedProcessesRemaining": 0
+  },
+  "initialAttempt": "Test fixture waited for a second secret grant on Prepare; actual normal login already requested the grant. Compile succeeded, browser assertion timed out. No production change was needed.",
+  "excluded": [
+    "real provider generation or billing",
+    "external asset fetch or media decode",
+    "native desktop or packaging",
+    "L2 authenticated Web contract"
+  ],
+  "sourceSha256": {
+    "src/protocol/luma_mcp/creation_browser_test.rs": "d7428af58f0f5f183d2bf678b1f66d620294d721a62e0de7b65ddec380ff4df3",
+    "src/protocol/luma_mcp/creation_tests.rs": "fa63e98af73cd3d307ddd80cee4189f927cf4f0415239ad9150bdc079f5f36a1",
+    "tools/luma/mcp-creation-browser-check.mjs": "f6f899eafcd24e563d8cf1ecc7010232664d8829fd2108df58a4f6f702c2d518",
+    "tools/luma/normal-main-server.mjs": "bdf6a021d9225e942ae0abca8df2c312b075da3fd88227f373206da2e8b5be8b",
+    "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx": "90b8d99187562486b44e7a54cf25924d8d605ef7f9870c8d117ecae5dbdc893b",
+    "apps/desktop/src/features/console/LumaMcpCreationFacts.tsx": "7bbf3980551c7645cd95b46293ead90c410f7415698aa5aedac841de28428cff"
+  }
+}

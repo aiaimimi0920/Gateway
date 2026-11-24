@@ -1,0 +1,18 @@
+{
+  "args": [
+    "npm.cmd",
+    "--prefix",
+    "apps/desktop",
+    "run",
+    "test",
+    "--",
+    "run",
+    "src/features/console/ProviderPoolDialogs.test.tsx",
+    "src/features/console/CredentialTestManager.test.tsx",
+    "--maxWorkers=1"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T20:17:53.820445+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 13.66
+}

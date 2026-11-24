@@ -25,9 +25,15 @@ pub(super) struct Completion {
     pub count: u64,
 }
 impl Capture {
+    pub fn public(tools: super::super::public_tools::PublicTools) -> Self {
+        Self {
+            state: State::public(tools),
+            ..Self::default()
+        }
+    }
     pub fn observe(&mut self, event: &Event) -> Result<Value, ProtocolStreamError> {
         let update = self.state.observe(event)?;
-        if let Some(update) = &update {
+        if let Some(update) = update.as_ref().filter(|_| !self.state.is_public()) {
             self.snapshot.accept(event, update)?;
         }
         self.count = self

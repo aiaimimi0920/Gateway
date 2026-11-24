@@ -1,0 +1,23 @@
+{
+  "args": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--lib",
+    "--no-default-features",
+    "--features",
+    "runtime-defaults",
+    "-j",
+    "4",
+    "upstream::luma_agents::files_browser_host::luma_agents_files_normal_main_browser_host",
+    "--",
+    "--ignored",
+    "--exact",
+    "--nocapture"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T19:14:49.691407+00:00",
+  "exitCode": 101,
+  "elapsedSeconds": 56.41
+}

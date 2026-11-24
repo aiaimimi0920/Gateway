@@ -12,6 +12,10 @@ pub async fn run_cancelled(ctx: &PipelineContext, state: &Arc<AppState>) {
     let cause = StreamFailureCause::from_observation(ctx.request_budget.stopped_reason(), false);
     let reason = "Request ended before terminal result submission.";
     let mut trace = build_route_trace_from_ctx(ctx, None);
+    let response_id = ctx
+        .luma_generation_audit
+        .as_ref()
+        .and_then(|audit| audit.record(&mut trace));
     trace["terminationReason"] = json!(if cause == StreamFailureCause::ConsumerClosed {
         "request_consumer_closed"
     } else {
@@ -20,11 +24,11 @@ pub async fn run_cancelled(ctx: &PipelineContext, state: &Arc<AppState>) {
     finalize_request_audit(
         ctx,
         cause.status(),
-        None,
+        ctx.observed_upstream_status.flatten(),
         None,
         Some(reason.into()),
         Some(trace),
-        None,
+        response_id,
         state,
     )
     .await;

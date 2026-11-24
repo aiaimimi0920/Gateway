@@ -1,0 +1,7 @@
+[gateway-ui-smoke] gateway.exe|bytesMatch=True|shaMatch=True|bytes=94601728|sha256=6330896aa16cd8292865026fb5ca917d335126461d9aaefd78cea9b7d3f92a33
+[gateway-ui-smoke] gateway-ui.exe|bytesMatch=True|shaMatch=True|bytes=13291008|sha256=7dd015de9c66710ef4443ef632b077e58893a13ea083eab4d89790fd205407be
+[gateway-ui-smoke] launching gateway-ui.exe for 30 seconds; UI may auto-start gateway.exe
+[gateway-ui-smoke] gateway-ui.exe auto-started release-owned gateway.exe process ids: 33424
+[gateway-ui-smoke] optional UI launch smoke passed; release-owned gateway.exe sidecars will be cleaned
+[gateway-ui-smoke] closed gateway-ui.exe smoke process: pid=33864
+[gateway-ui-smoke] cleaned release-owned gateway.exe smoke process: pid=33424

@@ -1,0 +1,43 @@
+ok 1 - serialized operation preserves the signature error contract and clears its timer
+ok 2 - deadline aborts the request and maps a timeout error
+ok 3 - split SSE chunks select the matching completed artifact and cancel the reader
+ok 4 - menu discovery prefers the exact operation id and does not mutate caller input
+ok 5 - recorded toolbar shape selects create_image_uni_1 for image
+ok 6 - recorded toolbar shape selects create_video_ray3_14 for video
+ok 7 - recorded toolbar shape selects create_video_ray3_2_via_api for video
+ok 8 - recorded toolbar shape selects text_to_music_elevenlabs_v1 for audio
+ok 9 - failed menu discovery preserves the caller action and action-error metadata
+ok 10 - action HTTP 402 is an actionable refusal without replay or upstream body disclosure
+ok 11 - missing signature token stops before subscribing or dispatching
+ok 12 - missing output id preserves the action-stage error
+ok 13 - the creation POST stops at a redirect without replaying or claiming success
+ok 14 - image discovery rejects a nonempty menu without a matching action before POST
+ok 15 - video discovery rejects a nonempty menu without a matching action before POST
+ok 16 - audio discovery rejects a nonempty menu without a matching action before POST
+ok 17 - explicit action bypasses optional discovery
+ok 18 - discovery preserves existing selection policy: []
+ok 19 - discovery preserves existing selection policy: ["old","create_image_uni_1"]
+ok 20 - discovery preserves existing selection policy: ["create_image_fixture"]
+ok 21 - session receipt preserves a successor on business refusal without exporting unrelated cookies
+ok 22 - session receipt rejects duplicate or foreign scoped authentication cookies
+ok 23 - expired login or removed session stays a reauthentication condition
+ok 24 - Luma finalizing and foreign artifacts cannot become a completed task
+ok 25 - Luma returns the original action output and exact completed task context
+ok 26 - Luma only consumes a complete SSE event and accepts CRLF framing
+ok 27 - Luma accepts mixed SSE line endings, including a split CRLF
+ok 28 - Luma does not count a split CRLF as an empty line
+ok 29 - Luma releases the subscribed stream when action submission fails
+ok 30 - Luma rejects ambiguous output IDs and HTML event sources before waiting
+ok 31 - Luma metadata and cumulative SSE byte limits cannot be bypassed by complete chunks
+ok 32 - Luma does not turn cleanup failure or invalid UTF-8 into success
+ok 33 - Luma optional menus cannot hide metadata decode or cleanup failure
+ok 34 - Luma closes real Fetch SSE on completed with the original status
+ok 35 - Luma closes real Fetch SSE on timeout with the original status
+ok 36 - production Luma worker returns only the original completed artifact in Chromium
+ok 37 - production Luma worker does not replay a Chromium POST redirect
+ok 38 - production Luma worker retains the latest Cookie even when the paid action is refused
+ok 39 - production Luma session maintenance rotates through authenticated GET without creating an action
+# tests 39
+# pass 39
+# fail 0
+# skipped 0

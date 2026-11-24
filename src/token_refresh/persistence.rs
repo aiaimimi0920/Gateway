@@ -99,13 +99,14 @@ impl PendingRefresh {
             let Some(expiry) = self.expires_at.as_deref() else {
                 return false;
             };
-            if super::server_cache::persist_with_nous(
+            if super::server_cache::persist_with_quick(
                 pool,
                 &self.credential,
                 &self.previous_access,
                 &self.previous_refresh,
                 self.previous_context.as_ref(),
                 self.original.kiro_oauth.as_ref(),
+                self.original.quick_oauth.as_ref(),
                 self.original.vertex_oauth.as_ref(),
                 self.original.dim_oauth.as_ref(),
                 self.original.nous_portal.as_ref(),
@@ -275,6 +276,7 @@ impl PendingRefresh {
                     .or(self.original.lobsterai.as_ref())
             && current.token_expires_in_secs == self.token.expires_in
             && current.kiro_oauth == self.original.kiro_oauth
+            && current.quick_oauth == self.original.quick_oauth
             && current.nous_portal.as_ref()
                 == self
                     .token

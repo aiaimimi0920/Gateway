@@ -1,0 +1,7 @@
+# Gateway Nextest 配置：每个测试独立子进程隔离运行，默认 6 并发，单测超时自动强杀防挂死。
+[profile.default]
+test-threads = 6
+fail-fast = false
+slow-timeout = { period = "30s", terminate-after = 3 }
+status-level = "fail"
+final-status-level = "flaky"

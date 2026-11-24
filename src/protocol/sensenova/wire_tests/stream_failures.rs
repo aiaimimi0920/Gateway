@@ -1,18 +1,14 @@
-//! 三个公共入口均须等待原始 Chat 完成；任何错误尾部都不能释放成功终态。
+//! 公共入口等待上游原生协议完成；错误尾部不能释放成功终态。
 use super::*;
 #[tokio::test]
 async fn sensenova_stream_errors_and_truncation_refund_without_success_or_replay() {
     Box::pin(async {
-        let full = String::from_utf8(native::reply("chat", false, true, true)).unwrap();
-        let partial = full
-            .split("data: ")
-            .nth(1)
-            .map(|f| format!("data: {f}"))
-            .unwrap();
         let error = format!(
             "event: error\ndata: {{\"type\":\"error\",\"error\":{{\"message\":\"{KEY}\"}}}}\n\n"
         );
         for endpoint in ENDPOINTS {
+            let full = String::from_utf8(native::reply(family(endpoint), false, true, true)).unwrap();
+            let partial = format!("{}\n\n", full.split_once("\n\n").unwrap().0);
             for raw in [
                 String::new(),
                 format!("{{\"error\":\"{KEY}\"}}"),

@@ -38,14 +38,15 @@ pub(super) async fn load(
     key: &str,
 ) -> anyhow::Result<Vec<String>> {
     let specs = [
-        (P::DashscopeText, "/models"),
         (P::ChatCompletions, "/models"),
+        (P::DashscopeText, "/models"),
         (P::Messages, "/models"),
         (P::GeminiGenerateContent, "/models"),
         (P::OllamaChat, "/tags"),
         (P::BedrockConverse, "/foundation-models"),
     ];
     let mut union = Vec::new();
+    let mut denied = None;
     let mut visited = std::collections::HashSet::new();
     let mut succeeded = std::collections::HashSet::new();
     {
@@ -86,6 +87,28 @@ pub(super) async fn load(
                     else {
                         break;
                     };
+                    if !response.status().is_success() {
+                        if matches!(response.status().as_u16(), 401 | 403 | 429) {
+                            let error = super::failure::rejected(response).await;
+                            if matches!(
+                                error,
+                                super::DiscoveryFailure::CatalogueHttp {
+                                    site_blocked: true,
+                                    ..
+                                } | super::DiscoveryFailure::CatalogueHttp {
+                                    client_restricted: true,
+                                    ..
+                                }
+                            ) {
+                                if !union.is_empty() {
+                                    return Ok(union);
+                                }
+                                return Err(error.into());
+                            }
+                            denied = Some(error);
+                        }
+                        break;
+                    }
                     let Ok(body) = transport::read_json(response).await else {
                         break;
                     };
@@ -112,6 +135,8 @@ pub(super) async fn load(
             }
         }
     }
-    anyhow::ensure!(!union.is_empty(), "No model catalogue found.");
+    if union.is_empty() {
+        return Err(denied.unwrap_or(super::DiscoveryFailure::Catalogue).into());
+    }
     Ok(union)
 }

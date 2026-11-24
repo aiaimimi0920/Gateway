@@ -1,3 +1,5 @@
+#[path = "access_key_groups_contract/attribution.rs"]
+mod attribution;
 #[path = "access_key_groups_contract/capacity.rs"]
 mod capacity;
 #[path = "access_key_groups_contract/dispatch.rs"]

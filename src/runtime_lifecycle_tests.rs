@@ -76,7 +76,17 @@ async fn normal_background_bootstrap_is_deduplicated_and_binding_failure_joins_e
     let state = local_state().await;
     spawn_background_tasks(&state);
     spawn_background_tasks(&state);
-    assert_eq!(state.lifecycle.background_tasks.workers().len(), 4);
+    assert_eq!(
+        state.lifecycle.background_tasks.workers(),
+        vec![
+            Worker::NetworkProbe,
+            Worker::LocalMaintenance,
+            Worker::LumaReconciliation,
+            Worker::SapResponseRecovery,
+            Worker::CredentialRefill,
+            Worker::CredentialProbe,
+        ]
+    );
     let error = tokio::time::timeout(
         Duration::from_secs(5),
         run_gateway_server(state.clone(), occupied.local_addr().unwrap().port()),

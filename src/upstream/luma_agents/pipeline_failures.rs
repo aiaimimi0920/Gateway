@@ -85,12 +85,18 @@ async fn luma_agents_pipeline_failed_mismatched_or_unverified_output_is_not_bill
                 assert_eq!(row.status, "failed");
                 identity(&row, IMAGE, "uni-1");
                 assert!(row.total_tokens.is_none());
-                assert!(row
-                    .route_trace
-                    .as_ref()
-                    .unwrap()
-                    .get("lumaAgentsGeneration")
-                    .is_none());
+                let facts = &row.route_trace.as_ref().unwrap()["lumaAgentsGeneration"];
+                if scenario == 0 {
+                    assert_eq!(facts["state"], "failed");
+                    assert_eq!(row.response_id, ID);
+                    assert!(facts["usage"]["credits_charged"].is_null());
+                } else if scenario == 1 {
+                    assert!(facts.is_null());
+                } else {
+                    assert_eq!(facts["state"], "completed");
+                    assert_eq!(facts["mediaVerified"], false);
+                    assert_eq!(row.response_id, ID);
+                }
                 assert_eq!(fixture.balance().await.remaining_messages, Some(2));
                 single_submit(&server, expected);
             })
@@ -126,9 +132,11 @@ async fn luma_agents_pipeline_submit_poll_and_asset_deadlines_release_source_and
             within(&server.origin, async {
                 let response = fixture.open("images/generations", body(IMAGE)).await;
                 assert!(!response.status().is_success());
-                let _ = drain(response.into_body()).await;
+                let text = drain(response.into_body()).await;
+                assert!(!text.contains(ID) && !text.contains("credits_charged"));
                 let row = fixture.audit().await;
                 assert_ne!(row.status, "completed");
+                super::cancellation_audit_tests::assert_phase(&row, phase);
                 assert!(row.total_tokens.is_none());
                 assert_eq!(fixture.balance().await.remaining_messages, Some(2));
                 single_submit(&server, phase + 1);
@@ -172,6 +180,7 @@ async fn luma_agents_pipeline_caller_drop_at_submit_poll_or_asset_is_neutral_and
                 drop(call);
                 let row = fixture.audit().await;
                 assert_eq!(row.status, "cancelled");
+                super::cancellation_audit_tests::assert_phase(&row, phase);
                 identity(&row, IMAGE, "uni-1");
                 assert!(row.total_tokens.is_none());
                 assert_eq!(fixture.balance().await.remaining_messages, Some(2));

@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "scope": "luma_inference_normal_main_browser",
+  "date": "2026-11-20",
+  "verifiedAt": "2026-11-19T20:31:20.164145+00:00",
+  "status": "passed",
+  "tests": {
+    "rustHost": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    "frontend": {
+      "passed": 12,
+      "failed": 0,
+      "files": 2
+    }
+  },
+  "checks": {
+    "typecheck": 0,
+    "normalMainBuild": 0,
+    "rustfmt": 0,
+    "nodeSyntax": 0,
+    "ratchet": 0,
+    "gitDiffCheck": 0,
+    "newFilesDiffCheck": "passed"
+  },
+  "unchangedCheckerTests": {
+    "passed": 31,
+    "source": "../gateway-luma-files-browser-20261120/checker-tests/result.json",
+    "rerun": false
+  },
+  "flows": [
+    "normal main login and secret grant",
+    "exact account configuration and close send nothing",
+    "explicit run sends exactly once",
+    "public alias mapped to glm-5.2",
+    "visible answer in wide and 390px narrow viewport",
+    "close causes no further call"
+  ],
+  "managementRequests": 1,
+  "upstreamRequests": 1,
+  "promptTokens": 2,
+  "completionTokens": 3,
+  "totalTokens": 5,
+  "ordinaryKeyBalance": 2,
+  "revisionUnchanged": true,
+  "resourcesClosed": true,
+  "productionChange": "Standalone account test dialog renders its own responses via existing component and scroll container; embedded plan editor unchanged.",
+  "auditSemantics": "Console text probes record resolved model in requested/resolved fields; assessment retains user alias. Shared audit behavior unchanged.",
+  "initialFailures": [
+    {
+      "run": "frontend-red",
+      "passed": 4,
+      "failed": 1,
+      "reason": "Missing test result region; fixed in production dialog"
+    },
+    {
+      "run": "rust-host",
+      "passed": 0,
+      "failed": 1,
+      "reason": "New harness reused public API requested-model assertion for console probe; corrected to verified existing console contract"
+    }
+  ],
+  "sourceSnapshotBoundary": "Six scoped source hashes collected during compilation and unchanged at acceptance; not a pre-build whole-tree freeze.",
+  "notVerified": [
+    "real sales account/model entitlement/rate limit/billing",
+    "server postgres redis",
+    "cross-process recovery",
+    "MCP creation",
+    "Web current protocol",
+    "native EXE"
+  ],
+  "gitCommitted": false,
+  "gitPushed": false
+}

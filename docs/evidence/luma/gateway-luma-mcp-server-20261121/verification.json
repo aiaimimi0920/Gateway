@@ -1,0 +1,172 @@
+{
+  "dateLocal": "2026-11-21",
+  "head": "5d50886c5c3266606520d7ff933fdc9665d019f7",
+  "workingTree": "dirty, includes inherited work",
+  "supplierNetworkUsedByTests": false,
+  "packagedExeRebuilt": false,
+  "serverMcpGate": "normal Axum router without TCP, independent Server runtimes and pools, isolated PG/Redis and loopback MCP fixture",
+  "checks": {
+    "red": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_mcp_creation_server_durable_owner",
+        "--",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedAt": "2026-11-21T00:26:45.115326+00:00",
+      "exitCode": 101,
+      "elapsedSeconds": 1125.36,
+      "commandLogSha256": "b0fecb2bc0d58badf3b09d24d944a75ae4a8d6e608e6276f853c132432e70f7a",
+      "observedMarkers": [
+        "Finished `test` profile [unoptimized + debuginfo] target(s) in 18m 44s",
+        "assertion `left == right` failed: {\"error\":{\"message\":\"Luma MCP creation currently requires local storage.\",\"type\":\"BadRequest\",\"code\":null}}",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6468 filtered out; finished in 0.26s"
+      ]
+    },
+    "green": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_mcp_creation_server_durable_owner",
+        "--",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedAt": "2026-11-21T01:01:37.349153+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 827.59,
+      "commandLogSha256": "b66ad6ec81ab41cdbfbaccebfe5df0ff382fead7535d45c1637b0646e5b8d3a7",
+      "observedMarkers": [
+        "Finished `test` profile [unoptimized + debuginfo] target(s) in 13m 45s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6468 filtered out; finished in 1.35s"
+      ]
+    },
+    "creation-regression": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_mcp::creation",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedAt": "2026-11-21T01:15:39.791732+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 35.14,
+      "commandLogSha256": "737930a4e694d87d26533817a4577d56ec2e12dbee52b574738db15d926d5402",
+      "observedMarkers": [
+        "Finished `test` profile [unoptimized + debuginfo] target(s) in 3.12s",
+        "test result: ok. 37 passed; 0 failed; 1 ignored; 0 measured; 6431 filtered out; finished in 31.59s"
+      ]
+    },
+    "feature-off": {
+      "args": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "-j",
+        "4"
+      ],
+      "startedAt": "2026-11-21T00:59:58.564653+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 76.58,
+      "commandLogSha256": "57e01e660e518605fc9d4b7720401f97ee3fadd2362b423ad305df9084f7e5e1",
+      "observedMarkers": [
+        "Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 16s"
+      ]
+    },
+    "postgresSqlSmoke": {
+      "status": "passed",
+      "scope": "SQL strings extracted from postgres.rs, isolated PG fixture, transaction rolled back",
+      "observations": [
+        "wrong owner read: 0 rows",
+        "CAS version 0 -> 1 and a stale claim updated 0 rows",
+        "active lease: true; release and previous version active: false",
+        "read back runId r1, version 2, lease_until 0"
+      ]
+    },
+    "effectiveLines": {
+      "checkerTests": 31,
+      "ratchet": "passed"
+    },
+    "rustfmtScoped": "passed",
+    "gitDiffCheck": "passed",
+    "fixtureExpectationFailure": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_mcp_creation_server_durable_owner",
+        "--",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedAt": "2026-11-21T00:39:21.200681+00:00",
+      "exitCode": 101,
+      "elapsedSeconds": 1205.5,
+      "commandLogSha256": "7f285aea08dafe835fcd45dcf7bea241668584c121224ae5e20a9ce20cc3256e",
+      "observedMarkers": [
+        "Finished `test` profile [unoptimized + debuginfo] target(s) in 20m 03s",
+        "left: [\"luma_session_open\", \"luma_generate_image\", \"luma_run_await\", \"luma_usage\"]",
+        "right: [\"luma_session_open\", \"luma_generate_image\", \"luma_run_await\", \"luma_session_usage\"]",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6468 filtered out; finished in 0.89s"
+      ],
+      "classification": "test expected luma_session_usage; existing wire contract and observed tool both use luma_usage; test literal corrected without production change"
+    },
+    "fixtureContainers": "removed after the guarded test runs"
+  },
+  "sourceSha256": {
+    "src/console/auth.rs": "45ca69ab2a486d9973429b1d78c6600105a9ccc5f9b204bbc877a59cd0f78a8b",
+    "src/http/routes/internal_console/chatgpt_oauth.rs": "9b66fc6787d863c78164b3f0021cfc68c420034eec8b8a5ab39675666f2a541b",
+    "src/http/routes/internal_console/luma_mcp/creation.rs": "eddde7af86e58bd576984f600c2b4c201a6e5cc1920192875aa48f2aace29dcb",
+    "src/protocol/luma_mcp/browser_fixture.rs": "58e686464503bb65204e6cb470f87a6ca3bde71bf5ae0c8610718cc16e138449",
+    "src/protocol/luma_mcp/creation_tests.rs": "12cedfb9b4fe78ab2fc0bc93244e51dbfb291c493af843891773d37725847ae2",
+    "src/protocol/luma_mcp/creation_server_tests.rs": "723f366233b3dbb9ac22e13cbb58d57d6d0125a539a1daa6c64546c4f9ff69dc",
+    "deploy/postgres/initdb/006-gateway-luma-mcp-creation.sql": "aeaabb933ccad2ed007e8fc385c227e647f7219e860d99867a4e450e8ea1e613",
+    "tools/luma/check-postgres.ps1": "d135f6c70c12fddf59b5317f1f5ace9b7060fd6af6d4648eccbb6a3803e73e4a",
+    "src/http/routes/internal_console/luma_mcp/creation/execute.rs": "f47b35e32396b87eac65b6eeae3b1c554cb09b719d997382fe17d072a1850c20",
+    "src/http/routes/internal_console/luma_mcp/creation/identity.rs": "5783ea6574eb9f01c2ea4e03d0590a823808b44c1f9dc61dc38c44c4861a5185",
+    "src/http/routes/internal_console/luma_mcp/creation/review.rs": "3695e9439d670a97ee9d554c4094857a77e7882e33fc37bae4ed84be7dcdc393",
+    "src/http/routes/internal_console/luma_mcp/creation/store.rs": "075148acab04608e1c3d5f1fa35f61ee54dda3abc32f7e718908e206f3289ba7",
+    "src/http/routes/internal_console/luma_mcp/creation/store/postgres.rs": "04a87d9c7b2b6d4071b385cc6825bd2eb52ac9c31b900badbe78b5f824f47abe",
+    "src/http/routes/internal_console/luma_mcp/creation/workspace.rs": "c597adfd499aeef07bc9856bdb7e7fcd17071e0a0618a5ba48bc5eae508f3f14"
+  }
+}

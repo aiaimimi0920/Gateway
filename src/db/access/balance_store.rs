@@ -26,12 +26,32 @@ where
     F: FnOnce(Option<GatewayAccessKeyBalanceView>) -> Result<Change<T>, GatewayError>,
 {
     let mut tx = pool.begin().await.map_err(map_db_error)?;
+    let current = lock(&mut tx, id, operation).await?;
+    let prior_mode = if operation == Mutation::Adjust {
+        current.as_ref().map(|old| old.balance_mode.clone())
+    } else {
+        None
+    };
+    let (balance, result, _) = change(current)?;
+    if prior_mode.is_some_and(|old| old != balance.balance_mode) {
+        ensure_no_sap_hold(&mut tx, id).await?;
+    }
+    write(&mut tx, id, &balance).await?;
+    tx.commit().await.map_err(map_db_error)?;
+    Ok(result)
+}
+
+pub(crate) async fn lock(
+    tx: &mut Transaction<'_, Postgres>,
+    id: &str,
+    operation: Mutation,
+) -> Result<Option<GatewayAccessKeyBalanceView>, GatewayError> {
     // Lock the parent as well, serializing initialization with rotation and deletion.
     let key: Option<(String, Option<OffsetDateTime>)> = sqlx::query_as(
         "SELECT status, expires_at FROM gateway_access_keys WHERE id = $1 FOR UPDATE",
     )
     .bind(id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut **tx)
     .await
     .map_err(map_db_error)?;
     let (status, expiry) = key.ok_or_else(|| GatewayError::not_found("Access key not found"))?;
@@ -46,13 +66,33 @@ where
         "SELECT * FROM gateway_access_key_balances WHERE access_key_id = $1 FOR UPDATE",
     )
     .bind(id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut **tx)
     .await
     .map_err(map_db_error)?;
-    let (balance, result, _) = change(current.map(views::to_access_key_balance_view))?;
-    write(&mut tx, id, &balance).await?;
-    tx.commit().await.map_err(map_db_error)?;
-    Ok(result)
+    Ok(current.map(views::to_access_key_balance_view))
+}
+
+// Call with the parent key locked. Older Hosted installations may not have
+// enabled the additive SAP ledger yet; ordinary key operations still work.
+pub(super) async fn ensure_no_sap_hold(
+    tx: &mut Transaction<'_, Postgres>,
+    id: &str,
+) -> Result<(), GatewayError> {
+    let supported: bool =
+        sqlx::query_scalar("SELECT to_regclass('gateway_sap_response_balance_holds') IS NOT NULL")
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(map_db_error)?;
+    if supported {
+        let pending: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM gateway_sap_response_balance_holds WHERE account_ref = $1 AND open = 1)")
+            .bind(id).fetch_one(&mut **tx).await.map_err(map_db_error)?;
+        if pending {
+            return Err(GatewayError::conflict(
+                "Access key has unsettled SAP Responses",
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub(super) async fn set_key_quota(
@@ -69,7 +109,13 @@ pub(super) async fn set_key_quota(
     .map_err(map_db_error)?;
     let current = current.map(views::to_access_key_balance_view);
     quota.validate_server_mode(current.as_ref())?;
-    let balance = quota.apply(id, current)?;
+    let balance = quota.apply(id, current.clone())?;
+    if current
+        .as_ref()
+        .is_some_and(|old| old.balance_mode != balance.balance_mode)
+    {
+        ensure_no_sap_hold(tx, id).await?;
+    }
     if quota.mode == "cash_prepaid" {
         crate::cash_billing::store::set_limit(
             &mut crate::cash_billing::sql::CashConnection::Postgres(tx),
@@ -81,7 +127,7 @@ pub(super) async fn set_key_quota(
     write(tx, id, &balance).await
 }
 
-async fn write(
+pub(crate) async fn write(
     tx: &mut Transaction<'_, Postgres>,
     id: &str,
     balance: &GatewayAccessKeyBalanceView,

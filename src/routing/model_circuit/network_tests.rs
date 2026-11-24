@@ -165,6 +165,35 @@ fn recovery_fences_unobserved_inflight_transport_but_preserves_confirmed_balance
 }
 
 #[test]
+fn recovery_releases_unobserved_trial_lease_without_reapplying_old_transport_failure() {
+    let runtime = ModelCircuits::default();
+    let trial_key = key("trial", "m");
+    trigger(&runtime, &trial_key);
+    let late_trial = runtime.acquire_at(&[trial_key.clone()], 120_020).unwrap();
+    runtime.network.lock().enabled = true;
+    trigger(&runtime, &key("outage", "m"));
+    let epoch = runtime.network_epoch().unwrap();
+    runtime.complete_network_probe(epoch, false);
+    runtime.complete_network_probe(epoch, true);
+    runtime.finish_at(late_trial, Outcome::TransportFailure(120_000), 120_040);
+    assert!(!runtime.available_at(&trial_key, 120_041));
+    assert!(
+        runtime.available_at(&trial_key, 150_040),
+        "completed trial retained its lease forever"
+    );
+    assert_eq!(runtime.entries.lock()[&trial_key].in_flight, 0);
+    assert_eq!(runtime.entries.lock()[&trial_key].level, 1);
+    for at in [150_040, 180_040] {
+        let tickets = runtime.acquire_at(&[trial_key.clone()], at).unwrap();
+        runtime.finish_at(tickets, Outcome::Success, at);
+    }
+    assert!(matches!(
+        runtime.entries.lock()[&trial_key].phase,
+        Phase::Closed
+    ));
+}
+
+#[test]
 fn provider_ip_block_disables_all_models_for_that_provider_at_level_three() {
     let runtime = ModelCircuits::default();
     let provider_key = CircuitKey {

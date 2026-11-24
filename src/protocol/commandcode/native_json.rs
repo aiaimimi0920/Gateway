@@ -47,6 +47,12 @@ pub(super) fn content_type(value: &Value) -> Result<&str, GatewayError> {
         .ok_or_else(response_error)
 }
 
+pub(crate) fn observe_responses(
+    body: &Value,
+) -> (Option<crate::protocol::canonical::TokenUsage>, &'static str) {
+    observe(body, EndpointKind::Responses)
+}
+
 /// Observe only validated native usage and terminal fields. Opaque Gateway-looking extensions
 /// must neither enter another product's turn decoder nor trigger the generic usage fallback.
 pub(crate) fn observe(

@@ -1,5 +1,5 @@
 //! Map the resolved model and explicit media operation; never forward arbitrary raw options.
-use super::{invalid_request, media_ref, video};
+use super::{invalid_request, layering, media_ref, video, video_edit, video_reframe};
 use crate::{
     error::GatewayError,
     protocol::canonical::{CanonicalRelayRequest, EndpointKind},
@@ -20,10 +20,23 @@ pub(crate) struct GenerationRequest {
 }
 impl GenerationRequest {
     pub fn pack(request: &CanonicalRelayRequest, model: &str) -> Result<Self, GatewayError> {
+        let raw = request.raw_body.as_object().ok_or_else(invalid_request)?;
         let (media, kind) = match request.endpoint_kind {
+            EndpointKind::ImagesGenerations
+                if raw.get("type").and_then(Value::as_str) == Some("layering") =>
+            {
+                (Media::Image, "layering")
+            }
             EndpointKind::ImagesGenerations => (Media::Image, "image"),
             EndpointKind::ImagesEdits => (Media::Image, "image_edit"),
-            EndpointKind::VideosGenerations => (Media::Video, "video"),
+            EndpointKind::VideosGenerations => (
+                Media::Video,
+                match raw.get("type").and_then(Value::as_str) {
+                    Some("video_reframe") => "video_reframe",
+                    Some("video_edit") => "video_edit",
+                    _ => "video",
+                },
+            ),
             _ => return Err(invalid_request()),
         };
         if request.stream
@@ -38,7 +51,9 @@ impl GenerationRequest {
         {
             return Err(invalid_request());
         }
-        let raw = request.raw_body.as_object().ok_or_else(invalid_request)?;
+        if kind == "layering" && model != "uni-1" {
+            return Err(invalid_request());
+        }
         const ALLOWED: &[&str] = &[
             "model",
             "prompt",
@@ -54,6 +69,7 @@ impl GenerationRequest {
             "source",
             "images",
             "video",
+            "layering",
             "user_id",
         ];
         if raw
@@ -66,6 +82,7 @@ impl GenerationRequest {
             || raw
                 .get("n")
                 .is_some_and(|v| !v.is_null() && v.as_u64() != Some(1))
+            || kind != "layering" && raw.get("layering").is_some_and(|v| !v.is_null())
         {
             return Err(invalid_request());
         }
@@ -73,7 +90,13 @@ impl GenerationRequest {
         let prompt = raw
             .get("prompt")
             .and_then(Value::as_str)
-            .filter(|s| !s.trim().is_empty() && s.chars().count() <= 6000)
+            .filter(|s| {
+                if kind == "layering" {
+                    s.chars().count() <= 500
+                } else {
+                    !s.trim().is_empty() && s.chars().count() <= 6000
+                }
+            })
             .ok_or_else(invalid_request)?;
         let base64 = match raw.get("response_format").filter(|v| !v.is_null()) {
             None => false,
@@ -94,8 +117,14 @@ impl GenerationRequest {
             }
             body.insert("user_id".into(), user.clone());
         }
-        if media == Media::Image {
+        if kind == "layering" {
+            layering::pack(raw, &mut body)?;
+        } else if media == Media::Image {
             pack_image(raw, &mut body, kind == "image_edit")?;
+        } else if kind == "video_reframe" {
+            video_reframe::pack(raw, &mut body)?;
+        } else if kind == "video_edit" {
+            video_edit::pack(raw, &mut body)?;
         } else {
             video::pack(raw, &mut body)?;
         }

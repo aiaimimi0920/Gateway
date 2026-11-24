@@ -1,0 +1,18 @@
+[
+  {
+    "path": "tools/luma/run-check.py",
+    "effectiveLines": 45
+  },
+  {
+    "path": "tools/luma/fetch-contracts.py",
+    "effectiveLines": 69
+  },
+  {
+    "path": "tools/luma/build-ui.mjs",
+    "effectiveLines": 68
+  },
+  {
+    "path": "apps/desktop/e2e/fixtures/luma-media-preview.tsx",
+    "effectiveLines": 53
+  }
+]

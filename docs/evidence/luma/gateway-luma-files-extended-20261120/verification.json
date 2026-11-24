@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "scope": "luma_agents_presigned_files",
+  "date": "2026-11-20",
+  "verifiedAt": "2026-11-19T18:46:03.853345+00:00",
+  "tests": {
+    "rustFiles": {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "testThreads": 1,
+      "newTests": 7
+    },
+    "frontend": {
+      "passed": 31,
+      "failed": 0,
+      "files": 5
+    },
+    "effectiveLineChecker": {
+      "passed": 31,
+      "failed": 0
+    }
+  },
+  "checks": {
+    "typecheck": 0,
+    "normalMainBuild": 0,
+    "productionLibCheck": 0,
+    "featureOffLibCheck": 0,
+    "rustfmt": 0,
+    "ratchet": 0,
+    "gitDiffCheck": 0
+  },
+  "initialFailures": [
+    {
+      "run": "rust-files",
+      "passed": 15,
+      "failed": 1,
+      "reason": "management multipart returned 400"
+    },
+    {
+      "run": "rust-files-fixed",
+      "passed": 15,
+      "failed": 1,
+      "reason": "multer field lock remained after reading all chunks"
+    },
+    {
+      "run": "rust-files-final",
+      "passed": 15,
+      "failed": 1,
+      "reason": "parallel management tests contended for two shared admission slots; production limit preserved"
+    }
+  ],
+  "implemented": [
+    "presign_put_complete",
+    "maximum_64_MiB",
+    "future_expires_at",
+    "opaque_user_id",
+    "exact_saved_account_and_revision",
+    "credential_free_public_pinned_storage",
+    "no_redirect_or_write_replay",
+    "same_file_id_and_metadata"
+  ],
+  "notVerified": [
+    "real_supplier_upload_ingest_reuse_delete_ttl",
+    "normal_browser_to_management_tcp",
+    "cross_process_recovery",
+    "files_above_64_MiB",
+    "MCP_creation",
+    "native_exe",
+    "server_postgres_redis"
+  ],
+  "mcpContractStatus": "public guides fetched; anonymous tools/list returned 401; full creation result schemas unavailable",
+  "sourceFiles": 25,
+  "utf8NoBom": true,
+  "gitCommitted": false,
+  "gitPushed": false
+}

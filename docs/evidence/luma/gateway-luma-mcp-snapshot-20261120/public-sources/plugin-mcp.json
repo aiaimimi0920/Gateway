@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+        "luma": {
+            "type": "http",
+            "url": "https://agents.lumalabs.ai/mcp"
+        }
+    }
+}

@@ -13,6 +13,8 @@ mod network_tests;
 mod provider_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod transient_tests;
 pub(crate) use attempt::CircuitAttempt;
 #[cfg(test)]
 use failure::failure_delay;
@@ -46,6 +48,7 @@ struct Entry {
     phase: Phase,
     generation: u64,
     level: u32,
+    slow_recovery: bool,
     failures: VecDeque<u64>,
     stable_since: Option<u64>,
     touched: u64,
@@ -57,6 +60,7 @@ impl Entry {
             phase: Phase::Closed,
             generation: 0,
             level: 0,
+            slow_recovery: false,
             failures: VecDeque::new(),
             stable_since: None,
             touched: now,
@@ -72,9 +76,16 @@ impl Entry {
     }
     fn trip(&mut self, now: u64, minimum_ms: u64, minimum_level: u32) {
         self.level = self.level.saturating_add(1).max(minimum_level).min(4);
-        let delay = (120_000u64 * 4u64.pow(self.level - 1))
-            .min(3_600_000)
-            .max(minimum_ms);
+        // Explicit balance/IP/channel refusals retain their conservative recovery policy.
+        self.slow_recovery |= minimum_level >= 3;
+        let delay = if self.slow_recovery {
+            (120_000u64 * 4u64.pow(self.level - 1)).min(3_600_000)
+        } else {
+            (10_000u64 * 2u64.pow(self.level - 1)).min(60_000)
+        };
+        self.open(now, delay.max(minimum_ms));
+    }
+    fn open(&mut self, now: u64, delay: u64) {
         self.phase = Phase::Open(now.saturating_add(delay));
         self.generation = self.generation.wrapping_add(1);
         self.failures.clear();
@@ -93,6 +104,7 @@ pub(crate) enum Outcome {
     Success,
     Failure(u64),
     TransportFailure(u64),
+    RateLimited(u64),
     ChannelUnavailable(u64),
     ProviderUnavailable(u64),
     BalanceUnavailable(u64),
@@ -246,11 +258,15 @@ impl ModelCircuits {
             if entry.generation != ticket.generation {
                 continue;
             }
-            if matches!(outcome, Outcome::TransportFailure(_))
+            let outcome = if matches!(outcome, Outcome::TransportFailure(_))
                 && ticket.recovery_generation != self.network.lock().recovery_generation
             {
-                continue;
-            }
+                // Fence the old network failure, but finish its matching trial lease.
+                // Skipping completion here would leave an unjournaled trial unavailable forever.
+                Outcome::Neutral
+            } else {
+                outcome
+            };
             if let Phase::Trial { lease, .. } = &entry.phase {
                 if *lease != ticket.lease {
                     continue;
@@ -276,11 +292,18 @@ impl ModelCircuits {
                     true,
                     Outcome::Failure(_)
                     | Outcome::TransportFailure(_)
+                    | Outcome::RateLimited(_)
                     | Outcome::ChannelUnavailable(_),
                 ) => Outcome::Neutral,
                 (_, other) => other,
             };
             match outcome {
+                Outcome::RateLimited(delay) => {
+                    // Use upstream timing verbatim, not the historical outage escalation level.
+                    entry.level = 1;
+                    entry.slow_recovery = false;
+                    entry.open(now, delay);
+                }
                 Outcome::ChannelUnavailable(minimum_ms) => {
                     // A persistent distributor refusal skips directly to level 3 (32 min).
                     // Store the level as well as the deadline so a failed trial reaches level 4.
@@ -315,7 +338,10 @@ impl ModelCircuits {
                         *successes += 1;
                         *lease = None;
                         *next = now.saturating_add(30_000);
-                        if *successes >= 2 {
+                        if !entry.slow_recovery || *successes >= 2 {
+                            if !entry.slow_recovery {
+                                entry.level = 0;
+                            }
                             entry.phase = Phase::Closed;
                             entry.generation = entry.generation.wrapping_add(1);
                             entry.stable_since = Some(now);
@@ -324,6 +350,7 @@ impl ModelCircuits {
                         let since = entry.stable_since.get_or_insert(now);
                         if now.saturating_sub(*since) >= 1_800_000 {
                             entry.level = 0;
+                            entry.slow_recovery = false;
                         }
                     }
                 }
@@ -332,7 +359,8 @@ impl ModelCircuits {
                 | Outcome::ProviderUnavailable(_) => {
                     if let Phase::Trial { next, lease, .. } = &mut entry.phase {
                         *lease = None;
-                        *next = now.saturating_add(30_000);
+                        *next =
+                            now.saturating_add(if entry.slow_recovery { 30_000 } else { 5_000 });
                     }
                 }
             }
@@ -343,6 +371,7 @@ impl ModelCircuits {
                     outcome,
                     Outcome::Failure(_)
                         | Outcome::TransportFailure(_)
+                        | Outcome::RateLimited(_)
                         | Outcome::ChannelUnavailable(_)
                 )
             {

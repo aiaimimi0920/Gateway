@@ -1,0 +1,62 @@
+[
+  {
+    "path": "src/protocol/luma_agents/files.rs",
+    "effective": 103
+  },
+  {
+    "path": "src/upstream/luma_agents/files.rs",
+    "effective": 133
+  },
+  {
+    "path": "src/upstream/luma_agents/files_output.rs",
+    "effective": 103
+  },
+  {
+    "path": "src/http/routes/internal_console/luma_files.rs",
+    "effective": 122
+  },
+  {
+    "path": "src/upstream/luma_agents/files_tests.rs",
+    "effective": 242
+  },
+  {
+    "path": "src/upstream/luma_agents/files_management_tests.rs",
+    "effective": 102
+  },
+  {
+    "path": "src/upstream/luma_agents/test_support.rs",
+    "effective": 224
+  },
+  {
+    "path": "apps/desktop/src/api/console/luma-files.ts",
+    "effective": 22
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaFilesPanel.tsx",
+    "effective": 59
+  },
+  {
+    "path": "apps/desktop/src/features/console/useLumaFiles.ts",
+    "effective": 92
+  },
+  {
+    "path": "apps/desktop/src/features/console/LumaFilesPanel.test.tsx",
+    "effective": 99
+  },
+  {
+    "path": "apps/desktop/src/features/console/ConsoleGlobalDialogs.tsx",
+    "effective": 483
+  },
+  {
+    "path": "src/http/router/management_config.rs",
+    "effective": 489
+  },
+  {
+    "path": "src/http/routes/internal_console.rs",
+    "effective": 453
+  },
+  {
+    "path": "src/upstream/luma_agents/transport.rs",
+    "effective": 174
+  }
+]

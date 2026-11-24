@@ -134,7 +134,7 @@ fn commandcode_rejects_lossy_or_unimplemented_requests_before_transport() {
     }
     for message in [
         json!({"role":"assistant","content":"x","reasoning_content":"hidden"}),
-        json!({"role":"user","content":[{"type":"image_url","image_url":{"url":"https://image.invalid/a"}}]}),
+        json!({"role":"tool","tool_call_id":"c","content":[{"type":"image_url","image_url":{"url":"https://image.invalid/a"}}]}),
         json!({"role":"assistant","tool_calls":[{"id":"c","type":"custom","custom":{"name":"x","input":"x"}}]}),
         json!({"role":"assistant","tool_calls":[{"id":"c","type":"function","function":{"name":"x","arguments":"{\"text\":\"&lt;\"}"}}]}),
     ] {

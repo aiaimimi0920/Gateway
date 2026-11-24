@@ -4,6 +4,21 @@ use crate::{error::GatewayError, state::AppState};
 use std::{sync::Arc, time::Duration};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
+// Keep the predicates and age expression aligned with the partial indexes;
+// this work runs under the SQLite writer lock even when there is nothing to clean up.
+pub(super) const AUDIT_INDEXES: &str =
+    "CREATE INDEX IF NOT EXISTS audit_running_owner ON request_audits(owner) WHERE status = 'running';
+     CREATE INDEX IF NOT EXISTS audit_retention_age ON request_audits(julianday(created)) WHERE status != 'running';";
+
+pub(super) const CANCEL_ORPHANED_AUDITS: &str = "UPDATE request_audits SET status = 'cancelled',
+    payload = json_set(payload, '$.status', 'cancelled', '$.completedAt', ?, '$.updatedAt', ?,
+        '$.errorSummary', 'Gateway instance stopped before request completion')
+    WHERE status = 'running' AND owner NOT IN (SELECT id FROM runtime_instances)";
+
+pub(super) const PRUNE_EXPIRED_AUDITS: &str =
+    "DELETE FROM request_audits WHERE id IN (SELECT id FROM request_audits
+    WHERE status != 'running' AND julianday(created) < julianday('now', '-90 days') LIMIT 500)";
+
 impl LocalRuntime {
     pub(crate) async fn maintain(&self) -> Result<(), GatewayError> {
         let mut tx = self
@@ -30,15 +45,17 @@ impl LocalRuntime {
         let time = OffsetDateTime::now_utc()
             .format(&Rfc3339)
             .expect("timestamp");
-        sqlx::query("UPDATE request_audits SET status = 'cancelled',
-            payload = json_set(payload, '$.status', 'cancelled', '$.completedAt', ?, '$.updatedAt', ?,
-                '$.errorSummary', 'Gateway instance stopped before request completion')
-            WHERE status = 'running' AND owner NOT IN (SELECT id FROM runtime_instances)")
-            .bind(&time).bind(&time).execute(&mut *tx).await.map_err(storage_error)?;
+        sqlx::query(CANCEL_ORPHANED_AUDITS)
+            .bind(&time)
+            .bind(&time)
+            .execute(&mut *tx)
+            .await
+            .map_err(storage_error)?;
         // Prune in small batches so housekeeping cannot hold the writer lock for an unbounded interval.
-        sqlx::query("DELETE FROM request_audits WHERE id IN (SELECT id FROM request_audits
-            WHERE status != 'running' AND julianday(created) < julianday('now', '-90 days') LIMIT 500)")
-            .execute(&mut *tx).await.map_err(storage_error)?;
+        sqlx::query(PRUNE_EXPIRED_AUDITS)
+            .execute(&mut *tx)
+            .await
+            .map_err(storage_error)?;
         tx.commit().await.map_err(storage_error)?;
         self.prune_refill_tasks().await
     }

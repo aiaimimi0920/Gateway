@@ -1,0 +1,34 @@
+{
+  "buildKind": "devtest",
+  "edition": "desktop",
+  "releaseDir": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\release\\Gateway\\gateway-devtest-20261121-luma-handoff",
+  "sourceTreeFingerprint": "3b46b009a758c320698c32847655f86528c8687d3fe8574effca20a7b4d669fb",
+  "sourceTreeDirty": true,
+  "checksumEntries": 6152,
+  "initializationSchemas": [
+    "deploy/postgres/initdb/001-gateway-schema.sql",
+    "deploy/postgres/initdb/002-gateway-bootstrap.sql",
+    "deploy/postgres/initdb/003-gateway-standalone-constraints.sql",
+    "deploy/postgres/initdb/004-gateway-key-cash.sql",
+    "deploy/postgres/initdb/005-gateway-refresh-authority.sql",
+    "deploy/postgres/initdb/006-gateway-luma-mcp-creation.sql"
+  ],
+  "packagedLumaSourceMatches": true,
+  "privateDataAbsent": true,
+  "executables": [
+    {
+      "kind": "exe",
+      "name": "gateway.exe",
+      "path": "gateway.exe",
+      "bytes": 94940672,
+      "sha256": "190d3a571f81cab468d4427f903a1ea85de003cc4a24962d2745ccc885da8f7a"
+    },
+    {
+      "kind": "exe",
+      "name": "gateway-ui.exe",
+      "path": "gateway-ui.exe",
+      "bytes": 13291008,
+      "sha256": "8274772679207ea5dbcacecd23d4bc9892d85e70c4e961a343a22a062ba173b3"
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+{
+  "scope": [
+    "MCP approve/confirm/text_input/select explicit JSON responses",
+    "Luma Web Keep destination and realm binding"
+  ],
+  "liveSupplierCalls": false,
+  "newGeneration": false,
+  "packaged": false,
+  "deployed": false,
+  "checks": {
+    "red-rust": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "-j",
+        "4",
+        "luma_",
+        "--",
+        "--test-threads=1",
+        "--skip",
+        "browser_host",
+        "--skip",
+        "creation_browser",
+        "--skip",
+        "server"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T10:45:30.635731+00:00",
+      "exitCode": 101,
+      "elapsedSeconds": 1656.02
+    },
+    "green-rust": {
+      "args": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "runtime-defaults",
+        "--config",
+        "profile.test.package.gateway.debug=0",
+        "-j",
+        "4",
+        "--",
+        "console::secrets::",
+        "protocol::luma_mcp::creation",
+        "--test-threads=1"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T11:14:26.614422+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 857.69
+    },
+    "green-ui": {
+      "args": [
+        "npm.cmd",
+        "--prefix",
+        "apps/desktop",
+        "run",
+        "test",
+        "--",
+        "run",
+        "src/features/console/LumaMcpCreationReview.test.tsx",
+        "src/features/console/LumaMcpCreationPanel.test.tsx",
+        "--maxWorkers=1"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T10:59:41.034771+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 44.38
+    },
+    "typecheck": {
+      "args": [
+        "npm.cmd",
+        "--prefix",
+        "apps/desktop",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T10:59:41.390266+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 93.41
+    },
+    "checker": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "test:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T11:14:26.542878+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 1.95
+    },
+    "ratchet": {
+      "args": [
+        "npm.cmd",
+        "run",
+        "check:effective-lines",
+        "--prefix",
+        "scripts"
+      ],
+      "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+      "startedAt": "2026-11-21T11:14:26.546177+00:00",
+      "exitCode": 0,
+      "elapsedSeconds": 10.91
+    }
+  },
+  "results": {
+    "redRust": {
+      "passed": 334,
+      "failed": 5,
+      "ignored": 2
+    },
+    "greenRust": {
+      "passed": 58,
+      "failed": 0,
+      "ignored": 4
+    },
+    "redUi": {
+      "passed": 11,
+      "failed": 4
+    },
+    "greenUi": {
+      "passed": 24,
+      "failed": 0
+    },
+    "checker": {
+      "passed": 31,
+      "failed": 0
+    }
+  },
+  "sourceSha256": {
+    "src/console/secrets.rs": "051380aa016d467aed393979cef287391e4f2a5361c6707613e14581b4609d65",
+    "src/console/secrets/keep_bindings.rs": "97a7ae359f8d2084a75af8aa3a1a165f8e4ce2b94de7c6601f4ca55e44db28e3",
+    "src/console/secrets/luma_web.rs": "a864a594bba027efc238030dce90f0e6244aa888652a3518a72280486c930ab2",
+    "src/console/secrets/luma_web_tests.rs": "78dabf701ef890327e075b0ec7d242e3d8e0e73d559e3239211e2ded6c5e0e60",
+    "src/protocol/luma_mcp/creation.rs": "e25e632ebe49b912569f835b415a9b711e8e48891df6ff3b38d890d976b30726",
+    "src/protocol/luma_mcp/creation/review.rs": "1b8d1ad67885355289a346dfe487e5d84e3c33d9fc96325048c6766aed64f594",
+    "src/protocol/luma_mcp/creation/questions.rs": "d64b2045798fc9c111c9560334bfa1932abde0a9b9564a2da479c6b02a0955ed",
+    "src/protocol/luma_mcp/creation_review_tests.rs": "e5308e26c91c730ae383725eceab82784cee517097c8f1be68246c23a6c94f8b",
+    "src/protocol/luma_mcp/creation_question_tests.rs": "6223bf586c50d120a52484014d217d80984186a5bcc0c481777427a7a7f9c695",
+    "src/http/routes/internal_console/luma_mcp/creation/review.rs": "1abe4c7714c2994badf745ed7f273150e71f9800f991c1af4cdb86a45480e411",
+    "apps/desktop/src/features/console/LumaMcpCreationReview.tsx": "739056a77616f22ee1f4c68e386c393e4477c18f745eb30e1b08edbd6cc2a891",
+    "apps/desktop/src/features/console/LumaMcpCreationReview.test.tsx": "8d1e2f180fcc103e3aab00f04a7318636d7616d30f4d0f3e2a57ea0baee035d8"
+  },
+  "remainingContractItems": [
+    "MCP layering output layout",
+    "Web session renewal/rotation"
+  ],
+  "creditBlockedWebItemsDeferred": true,
+  "publicDocuments": [
+    {
+      "url": "https://docs.agents.lumalabs.ai/mcp/tools/",
+      "status": 200,
+      "rawSha256": "0fbd92c88b3681079cee570050af2c6c55ce9c3c796e790b67eb3a1e876ebeb8"
+    },
+    {
+      "url": "https://docs.agents.lumalabs.ai/agents/mcp-and-the-api/",
+      "status": 200,
+      "rawSha256": "102885033e0c9b0250dcac0fc4b222051b866348f86eaeff867b8da63d5ce62c"
+    }
+  ]
+}

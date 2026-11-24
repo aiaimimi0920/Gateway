@@ -1,0 +1,23 @@
+{
+  "observedDate": "2026-11-21",
+  "source": "existing Edge DevTools Network recording",
+  "pathTemplate": "/api/vespa/teams/<team>/connectors",
+  "method": "GET",
+  "status": 200,
+  "requestCookieCount": 1,
+  "responseCookieCount": 1,
+  "cookieName": "wos-session",
+  "rotated": true,
+  "comparison": "request and response values compared only in memory",
+  "domain": "app.lumalabs.ai",
+  "path": "/",
+  "cookieLifetimeDays": 400,
+  "httpOnly": true,
+  "secure": true,
+  "sameSite": "Lax",
+  "newNetworkCalls": 0,
+  "credentialValuesArchived": false,
+  "internalTokenLifetimeVerified": false,
+  "expiredSessionRecoveryVerified": false,
+  "gatewayPersistenceVerified": false
+}

@@ -42,8 +42,18 @@ impl UpstreamClient {
         if crate::protocol::sap_aicore::owns_payload(payload) {
             return crate::protocol::sap_aicore::runtime::plan(payload, req, model, stream);
         }
+        if crate::protocol::quick_oauth::owns_payload(payload) {
+            return crate::protocol::quick_oauth::runtime::plan(payload, req, model, stream);
+        }
         crate::protocol::nous_portal::runtime::validate_request(payload, req)?;
         crate::protocol::agnes::validate_request(payload, req)?;
+        crate::protocol::luma_inference::validate_request(payload, req)?;
+        if crate::protocol::sensenova::native_messages::selected(payload, req.endpoint_kind) {
+            return crate::protocol::sensenova::native_messages::plan(payload, req, model, stream);
+        }
+        if crate::protocol::sensenova::native_responses::selected(payload, req.endpoint_kind) {
+            return crate::protocol::sensenova::native_responses::plan(payload, req, model, stream);
+        }
         crate::protocol::sensenova::validate_request(payload, req)?;
         crate::protocol::minimax::validate_request(payload, req)?;
         crate::protocol::bedrock_turn::validate_request(payload, req)?;
@@ -181,6 +191,7 @@ impl UpstreamClient {
             || (crate::protocol::agnes::owns_payload(payload)
                 && req.endpoint_kind == EndpointKind::Messages)
             || crate::protocol::sensenova::owns_payload(payload)
+            || crate::protocol::luma_inference::owns_payload(payload)
         {
             plan.response_kind = EndpointKind::ChatCompletions;
         }
@@ -234,6 +245,8 @@ impl UpstreamClient {
         crate::protocol::dim_oauth::runtime::validate_plan(payload, &plan)?;
         crate::protocol::nous_portal::runtime::validate_plan(payload, &plan)?;
         crate::protocol::agnes::validate_plan(payload, &plan)?;
+        crate::protocol::luma_inference::validate_plan(payload, &plan)?;
+        crate::protocol::sensenova::chat_reasoning::restore_history(payload, req, &mut plan)?;
         crate::protocol::sensenova::validate_plan(payload, &plan)?;
         crate::protocol::minimax::prepare_plan(payload, &mut plan)?;
         tracing::debug!(url = %plan.url, "request plan built");

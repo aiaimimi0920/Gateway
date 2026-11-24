@@ -1,0 +1,20 @@
+{
+    "checkedAt":  "2026-11-19T20:30:33.3697925Z",
+    "hosts":  [
+                  {
+                      "run":  "host",
+                      "hostPid":  37484,
+                      "hostStillRunning":  false,
+                      "managementPort":  65238,
+                      "stillListening":  false
+                  },
+                  {
+                      "run":  "host-v2",
+                      "hostPid":  46392,
+                      "hostStillRunning":  false,
+                      "managementPort":  65129,
+                      "stillListening":  false
+                  }
+              ],
+    "ownedBrowserProcesses":  0
+}

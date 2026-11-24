@@ -13,6 +13,9 @@ pub(super) struct Material {
     headers: HeaderMap,
 }
 impl Material {
+    pub(super) fn headers(&self) -> HeaderMap {
+        self.headers.clone()
+    }
     pub fn new(payload: &ProviderAccountPayload) -> Result<Self, GatewayError> {
         contract::validate(payload, payload.canonical_adapter())?;
         if payload.adapter != contract::ADAPTER

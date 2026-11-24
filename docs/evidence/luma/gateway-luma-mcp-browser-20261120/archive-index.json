@@ -1,0 +1,271 @@
+{
+  "createdAt": "2026-11-19T21:11:37.744673+00:00",
+  "sourceRoot": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\linshi\\gateway-luma-mcp-browser-20261120",
+  "files": [
+    {
+      "path": "main-build/command.log",
+      "bytes": 1339,
+      "sha256": "f4f459f9322a1936a2e785848ce7ce5d53cb9597264f84cb3ae2c8b3a24fab4e"
+    },
+    {
+      "path": "main-build/result.json",
+      "bytes": 352,
+      "sha256": "200523921ef62e1aa91e1bb9290bf614d1fc01f57469fdc2f27ab11191bf55c3"
+    },
+    {
+      "path": "frontend-red/command.log",
+      "bytes": 4952,
+      "sha256": "03ad0f825a342a22f3a7855fd05f752e6b0a479df0d9b175dbe53382edc003cf"
+    },
+    {
+      "path": "frontend-red/result.json",
+      "bytes": 374,
+      "sha256": "8347e147e152f886a4773d229fa673c12a1e469119d5d15b5ad6ba2a096beb2f"
+    },
+    {
+      "path": "frontend/command.log",
+      "bytes": 450,
+      "sha256": "9b635a2fb4fcc424abac0636685ca6f54662c0b475c6b612575cfdab4001fafa"
+    },
+    {
+      "path": "frontend/result.json",
+      "bytes": 482,
+      "sha256": "b9121a575fe07f52736459d0261f9f1a8aefc3d8e6b6cc0adf30b57e19546f26"
+    },
+    {
+      "path": "typecheck/command.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typecheck/result.json",
+      "bytes": 323,
+      "sha256": "dc443b1c5dabdaf12e21a5a3f6fcb1759a9b901b2589af4d736ffea0279127e5"
+    },
+    {
+      "path": "formatter/command.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "formatter/result.json",
+      "bytes": 558,
+      "sha256": "a79ac7a13f7d2f1b1de6298f0b5cf58218fbada26c27165c7582b01440b335b5"
+    },
+    {
+      "path": "checker-tests/command.log",
+      "bytes": 6295,
+      "sha256": "f283e4cb3f2ed7dfabea07109b11a9cc36622d6d005f3ac2490cfb9673ba4075"
+    },
+    {
+      "path": "checker-tests/result.json",
+      "bytes": 283,
+      "sha256": "1fb0be8e907b10706b88519d4682fdb5eba6345fcd083ec44df45faf1f5b7189"
+    },
+    {
+      "path": "ratchet/command.log",
+      "bytes": 273,
+      "sha256": "122b51bf53c27dcdf701bf0bc44052604605ce5e7c02304a0ccfea7cb34fc8b8"
+    },
+    {
+      "path": "ratchet/result.json",
+      "bytes": 285,
+      "sha256": "d7f81533fb464d9195fa1a0bbb73c7ce0d9f740d673a020f8c5676ccffd52032"
+    },
+    {
+      "path": "diff-check/command.log",
+      "bytes": 569,
+      "sha256": "d51c52a1cfcd65108d22fd2a0e9062e5110672350e25b1f904a22a6eb367184d"
+    },
+    {
+      "path": "diff-check/result.json",
+      "bytes": 234,
+      "sha256": "4220002650d57f76ddf911018360fe298019351726f888dea8f43ba485b50c29"
+    },
+    {
+      "path": "rust-host/command.log",
+      "bytes": 26197,
+      "sha256": "735003f6ea105de5c0f5eacc027874bd9dcce2a6e8251f9b8031f3d17ff1437d"
+    },
+    {
+      "path": "rust-host/result.json",
+      "bytes": 510,
+      "sha256": "11f92592895dba985fc2717caa044206178f43703dbdd7cac2ea531ba944fd56"
+    },
+    {
+      "path": "browser-run/command.log",
+      "bytes": 536,
+      "sha256": "052d70d418a6dcf62d925dc1b68bfafbb1d599499b50411519f78e2757253288"
+    },
+    {
+      "path": "browser-run/result.json",
+      "bytes": 603,
+      "sha256": "ce25f845eea01d0c8bf388ff84701a6b6214ce60b7a51bea202e408cd1b2d6c5"
+    },
+    {
+      "path": "rust-host-v2/command.log",
+      "bytes": 25808,
+      "sha256": "0bfea411a53f62c1da3f01daaeaae208519caeffcb6e215e084b3dd95d14a7ca"
+    },
+    {
+      "path": "rust-host-v2/result.json",
+      "bytes": 506,
+      "sha256": "496dffd44196f9585665626c75f0ee118194f916c2324f2179805852c56c237d"
+    },
+    {
+      "path": "browser-run-v2/command.log",
+      "bytes": 142,
+      "sha256": "9337b6a9a79bc141af6d4e977ce146f62fd4c83b1c33cee3f8dd270d5c5b1974"
+    },
+    {
+      "path": "browser-run-v2/result.json",
+      "bytes": 584,
+      "sha256": "c8dfbf3789b7b64c63f4df350aa398ad55698eadc3825a792ca13a503fcebc22"
+    },
+    {
+      "path": "mcp-regression/command.log",
+      "bytes": 28509,
+      "sha256": "ff3b0ab4c094228d49c48f360c84f01f5e26937fd114bb811e565215854ef2c2"
+    },
+    {
+      "path": "mcp-regression/result.json",
+      "bytes": 414,
+      "sha256": "46392e1b0d35db9b81f3d9e8f4df8dded2af3e2538135fde125f66059faff926"
+    },
+    {
+      "path": "production-check/command.log",
+      "bytes": 33267,
+      "sha256": "ce84f543e722e9c51c2c1c88c0a316d1e3e40d3a1af3df9b0ff17c69dda0f7c6"
+    },
+    {
+      "path": "production-check/result.json",
+      "bytes": 367,
+      "sha256": "2a2a286507794b8c869128f3ba99a211eaf4400e7e6aa6d78f773f3a72ec8fe3"
+    },
+    {
+      "path": "node-syntax/command.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "node-syntax/result.json",
+      "bytes": 263,
+      "sha256": "f13909fa326cc178c26a4bb2c6f21930fba0bee09a3fb288195f9d469bec0535"
+    },
+    {
+      "path": "ratchet-final/command.log",
+      "bytes": 273,
+      "sha256": "122b51bf53c27dcdf701bf0bc44052604605ce5e7c02304a0ccfea7cb34fc8b8"
+    },
+    {
+      "path": "ratchet-final/result.json",
+      "bytes": 284,
+      "sha256": "5c6ca4bb5defa374088aaab4d8c6ae3b627353cece4c9278cb936f3ea4523765"
+    },
+    {
+      "path": "diff-final/command.log",
+      "bytes": 569,
+      "sha256": "d51c52a1cfcd65108d22fd2a0e9062e5110672350e25b1f904a22a6eb367184d"
+    },
+    {
+      "path": "diff-final/result.json",
+      "bytes": 233,
+      "sha256": "f67ba37c4ffadeee3d9918385514787a6a512ef73ee930c60fc862c4ce65da92"
+    },
+    {
+      "path": "browser/browser-result.json",
+      "bytes": 873,
+      "sha256": "1566dff37efae1e571f58c0093f23df30034c6d3802df9b4284dbec48ffcc7a4"
+    },
+    {
+      "path": "browser/failure.ax.txt",
+      "bytes": 665,
+      "sha256": "5098cd63e1adbe0132bf8caaaa1e9d27326997505910d5e7ee6553a04a342e95"
+    },
+    {
+      "path": "browser/failure.png",
+      "bytes": 60678,
+      "sha256": "89d428c04bd67ecf57ecc11bcb0311c443558b91e92f3df420a574907900e006"
+    },
+    {
+      "path": "browser-v2/browser-result.json",
+      "bytes": 3004,
+      "sha256": "454e45ba3d18883f398b15922cc524624924a30aa0120dbc6f3f6ce91e1eb790"
+    },
+    {
+      "path": "browser-v2/initial.ax.txt",
+      "bytes": 665,
+      "sha256": "5098cd63e1adbe0132bf8caaaa1e9d27326997505910d5e7ee6553a04a342e95"
+    },
+    {
+      "path": "browser-v2/final.ax.txt",
+      "bytes": 785,
+      "sha256": "2f2642a9bc21162e9984a73e9080a0d0c9febc8a014bc6e0f1ed8b231b8220d0"
+    },
+    {
+      "path": "browser-v2/models.png",
+      "bytes": 68386,
+      "sha256": "04a38497e77e5fe7e7aebd28ed0b78273e44eded36174feeb495f260e6991234"
+    },
+    {
+      "path": "browser-v2/models-narrow.png",
+      "bytes": 30758,
+      "sha256": "73d1c82e77bfc95a530e6cefcbf8a0bf12cad4edfdd11ee85e12016470e1b15e"
+    },
+    {
+      "path": "browser-v2/empty-error.png",
+      "bytes": 34819,
+      "sha256": "07ad08d3db54876614763946551292f2f0f38aae48cfa8ead144870cb4c9ffdd"
+    },
+    {
+      "path": "host/ready.json",
+      "bytes": 210,
+      "sha256": "182b8be29797e7f5f744970025ae23e3d8fafd92963d5983c315b30a3fddac05"
+    },
+    {
+      "path": "host-v2/ready.json",
+      "bytes": 210,
+      "sha256": "8fcc8eb778c6e3ca6c52389306a5ac0b20bab374e8f834816fb1382196eb1a48"
+    },
+    {
+      "path": "host-v2/completed.json",
+      "bytes": 331,
+      "sha256": "9173c9ae6eb9ecaf752c066381fab86fa05227036bce7e62aadeb76399652204"
+    },
+    {
+      "path": "source-inputs.json",
+      "bytes": 2192,
+      "sha256": "2f69fc41b0e8be04cd06ced86e4e3bc2968471f444362e42604ab0ab63bff6c2"
+    },
+    {
+      "path": "source-final.json",
+      "bytes": 2182,
+      "sha256": "f8738b552b04350b4bc1d348072ddb4903561e489ada70f09f9c596d13068bc4"
+    },
+    {
+      "path": "resource-final.json",
+      "bytes": 664,
+      "sha256": "193968c736e168de162cb27317fc5b094db8e826632d31df56031d292139caa6"
+    },
+    {
+      "path": "new-files-check.json",
+      "bytes": 1135,
+      "sha256": "4f349c005a2f402666b09e3a9d86561a3d9cc0125c64f93a627a640b986d8738"
+    },
+    {
+      "path": "verification.json",
+      "bytes": 2695,
+      "sha256": "84898c1948cff547693482fd588d7becff78fdf9af14b744c2f3a976de6058bc"
+    }
+  ],
+  "count": 51,
+  "bytes": 346086,
+  "allHashesMatched": true,
+  "excluded": [
+    "state databases",
+    "browser profiles",
+    "temporary caches",
+    "complete UI build",
+    "unrelated browser baseline"
+  ]
+}

@@ -27,6 +27,14 @@ pub(super) fn provider_supports_model(provider: &CompiledProvider, model: &str) 
         supported == model
             || provider.model_map.get(model) == Some(supported)
             || targets.is_some_and(|targets| targets.contains(supported))
+    }) || provider.credential_pool.iter().any(|credential| {
+        // A concrete account catalogue is model support, even if the provider summary is stale.
+        !credential.supported_models.is_empty()
+            && candidates::credential_supports_model(
+                credential,
+                Some(model),
+                provider.model_map.get(model).map(String::as_str),
+            )
     }) || targets.is_some_and(|targets| {
         targets
             .iter()

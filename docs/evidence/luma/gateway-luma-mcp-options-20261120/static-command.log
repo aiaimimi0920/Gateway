@@ -1,0 +1,12 @@
+\ : The term '\' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify 
+that the path is correct and try again.
+At line:1 char:391
++ ... p/routes/internal_console/luma_mcp/creation/execute.rs; if (\ -ne 0)  ...
++                                                                 ~
+    + CategoryInfo          : ObjectNotFound: (\:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+warning: in the working copy of 'apps/desktop/src/features/console/CredentialAccountFields.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/desktop/src/features/console/useCredentialDialog.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/plan/provider-luma-agents-contract.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/provider-luma-channel-contract.md', CRLF will be replaced by LF the next time Git touches it

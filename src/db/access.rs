@@ -40,6 +40,7 @@ mod key_rotation;
 mod keys;
 mod memberships;
 mod models;
+pub(crate) mod pinned_route;
 mod projection;
 mod projection_queries;
 mod route_context;

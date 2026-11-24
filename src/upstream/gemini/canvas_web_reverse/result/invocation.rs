@@ -234,6 +234,7 @@ mod tests {
             provider_name: Some("gemini_canvas_compatible".to_string()),
             upstream_retry_after_ms: None,
             native_transport: None,
+            luma_generation_failure: None,
         };
 
         assert_eq!(browser_request_retry_delay_ms(&error, 0), Some(2_500));

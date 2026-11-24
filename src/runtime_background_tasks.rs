@@ -9,6 +9,8 @@ use tokio::task::{JoinError, JoinHandle};
 pub(crate) enum Worker {
     NetworkProbe,
     LocalMaintenance,
+    LumaReconciliation,
+    SapResponseRecovery,
     CredentialRefill,
     CredentialProbe,
     CredentialCache,

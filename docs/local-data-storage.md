@@ -34,6 +34,7 @@ See [devtest-build.md](devtest-build.md) for port, override and isolation bounda
 | local/routes.yaml | Local provider and credential bootstrap/export |
 | local/state/console | Active revision, transactions, secret access state and recovery |
 | local/state/console/luma-client-registrations.json | Bounded public Luma MCP registration receipts: durable pre-send uncertainty and confirmed client/redirect; no access tokens; same-owner, same-state-root recovery without automatic registration replay |
+| local/state/console/luma-web-sessions | 私密 Web Cookie 轮换材料和发送归属；按原账号／站点／realm／UA 绑定，原子 CAS 保存，未确认请求不因重启重放。升级保留，勿导出到发布载荷；Server 使用原 console namespace 的 Redis |
 | local/state/runtime.sqlite3, runtime.sqlite3-wal, runtime.sqlite3-shm | Durable refill queue, request history, pricing, credential-model health, local access keys and balances |
 | local/state/runtime.sqlite3 (local_freebuff_device_keys / local_freebuff_registrations / local_freebuff_registration_replacements) | One sealed FreeBuff installation key, exact account/audience receipts and bounded replacement-attempt overlays preserving the previous receipt until confirmed |
 | local/state/runtime.sqlite3 (local_freebuff_session_claims / local_freebuff_session_closeouts) | Sealed exact FreeBuff active claims and final closeout receipts; prepare-before-send, unresolved recovery, exact atomic archive/release and offline bounded history, without automatic repurchase or cleanup |
@@ -72,6 +73,9 @@ rate-limit adapter admits all configured dimensions atomically and bounds counte
 8,192 live windows; it rejects capacity overflow rather than evicting live limits.
 Durable permissions and balances never depend on these caches. Local request audits
 persist usage directly; server mode additionally publishes its existing Redis reports.
+Local startup adds SQLite indexes for orphaned running audits and expired terminal
+rows to existing schema-1 databases, without changing the storage version or rewriting
+rows. Maintenance keeps the 90-day retention and 500-row batch limit.
 Provider model health stays in SQLite. Distributed provider-quota polling and advanced
 server catalog/project services retain their server owners.
 

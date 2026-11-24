@@ -203,14 +203,14 @@ export function AccountsLedgerWorkspace(props: AccountsLedgerWorkspaceProps) {
       {notice}
       <CredentialDirectory entries={providerEntries} props={props}
         renderAccount={renderProviderAccountCard} onRemove={setPendingProviderRemoval}
-        renderSettings={({ section, snapshot }) => renderProviderLifecycleBack({
+        renderSettings={({ section, snapshot }) => <>{props.renderProviderDetails?.(section)}{renderProviderLifecycleBack({
           section, active: true, discardEdits: props.discardLifecycleDrafts,
           availableCount: snapshot.availablePoolCount,
           coolingCount: snapshot.poolSegments.rateLimited,
           invalidCount: snapshot.poolSegments.invalid,
           automation: automationByProvider.get(section.providerId),
           refill: refillByProvider.get(section.providerId),
-        })} />
+        })}</>} />
       <AccountsLedgerTable
         t={t}
         editorLocked={editorLocked}

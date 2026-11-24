@@ -116,6 +116,7 @@ where
                         provider_name: None,
                         upstream_retry_after_ms: None,
                         native_transport: None,
+                        luma_generation_failure: None,
                     })
                 } else {
                     Err(GatewayError::bad_request(format!(

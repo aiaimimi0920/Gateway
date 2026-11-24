@@ -1,0 +1,13 @@
+{
+  "args": [
+    "npm.cmd",
+    "--prefix",
+    "apps/desktop",
+    "run",
+    "typecheck"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-20T11:01:30.819615+00:00",
+  "exitCode": 2,
+  "elapsedSeconds": 38.77
+}

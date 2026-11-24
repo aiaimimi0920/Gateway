@@ -62,6 +62,20 @@ it("does not start a queued refresh after unmount", async () => {
   expect(h.invalidate).not.toHaveBeenCalled();
 });
 
+it("does not overwrite a committed revision with an earlier in-flight refresh", async () => {
+  const h = setup();
+  const snapshot = await h.api.getRouteConfig("fixture");
+  const old = deferred();
+  vi.mocked(h.api.getRouteConfig).mockReturnValueOnce(old.promise);
+  let request!: Promise<void>;
+  await act(async () => { request = h.result.current.refresh(); await Promise.resolve(); });
+  const committed = { routeConfig: { ...snapshot.routeConfig, revision: { ...snapshot.routeConfig.revision, id: "r3" } } };
+  act(() => h.result.current.setRouteConfig(committed));
+  await act(async () => { old.resolve(snapshot); await request; });
+  expect(h.result.current.routeConfig).toEqual(committed);
+  expect(h.result.current.busy).toBe(false);
+});
+
 it.each([null, "different-token"])("clears published snapshots immediately on token change to %s", async (token) => {
   const h = setup();
   await act(() => h.result.current.refresh());

@@ -115,6 +115,8 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     presets.push(river_api_preset());
     #[cfg(feature = "line-agnes-official-api")]
     presets.push(agnes_api_preset());
+    #[cfg(feature = "line-lumalabs-inference-official-api")]
+    presets.push(lumalabs_inference_api_preset());
     #[cfg(feature = "line-sensenova-token-plan")]
     presets.push(sensenova_token_plan_preset());
     #[cfg(feature = "line-commandcode-provider-api")]
@@ -129,6 +131,8 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     presets.extend([dim_oauth_preset(false), dim_oauth_preset(true)]);
     #[cfg(feature = "line-nous-portal-oauth")]
     presets.push(nous_portal_oauth_preset());
+    #[cfg(feature = "line-quick-oauth")]
+    presets.push(quick_oauth_preset());
     #[cfg(feature = "line-nvidia-openai-official-vendor-api")]
     {
         presets.push(nvidia_openai_preset());

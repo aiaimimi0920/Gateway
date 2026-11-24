@@ -12,7 +12,7 @@ const WEB_PROFILES = new Set(["gemini-business", "gemini-canvas", "gemini-canvas
 
 export function providerAccessKind(provider: ProviderAccessMetadata): ProviderAccessKind {
   if (provider.adapter === "lumalabs_mcp_readonly" && provider.protocolProfile === "lumalabs_mcp_readonly" && provider.authMode === "luma_mcp_oauth") return "oauth";
-  if (provider.authMode === "lobsterai_session") return "oauth";
+  if (provider.authMode === "lobsterai_session" || provider.authMode === "quick_oauth") return "oauth";
   // Full Vertex shares legacy presets with generic API configurations, so require its typed product identity.
   if (isVertexOAuthProvider({ preset: provider.providerPreset, auth_mode: provider.authMode })) return "oauth";
   // CLI Key and OAuth share an executor/profile, not an authentication identity.

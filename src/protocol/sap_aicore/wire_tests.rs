@@ -9,17 +9,29 @@ use serde_json::{json, Value};
 use std::{sync::Arc, time::Duration};
 use tower::ServiceExt;
 mod auth_tests;
+mod azure;
+mod bedrock;
 mod boundaries;
+mod discovery;
 mod failures;
-mod fixture;
+pub(super) mod fixture;
+mod health;
 mod management;
+mod media;
+mod mtls_fixtures;
+mod mtls_tests;
 #[path = "../dim_oauth/pipeline_tests/native.rs"]
 mod native;
-mod peer;
+mod orchestration;
+mod orchestration_tools;
+pub(super) mod peer;
 mod probe;
 mod probe_management;
 #[path = "../../upstream/client/vertex_express_pipeline_tool_wire.rs"]
 mod public_wire;
+mod reasoning;
+mod responses;
+mod server_hosted;
 
 #[path = "../../../tests/console_contract_support/mod.rs"]
 mod support;
@@ -66,6 +78,9 @@ fn assert_identity(row: &db::GatewayRequestAuditView) {
 }
 fn assert_wire(peer: &peer::Peer, count: usize, _endpoint: &str) {
     assert_eq!(peer.oauth.lock().unwrap().len(), 1);
+    assert_inference_wire(peer, count);
+}
+fn assert_inference_wire(peer: &peer::Peer, count: usize) {
     let calls = peer.calls.lock().unwrap();
     assert_eq!(calls.len(), count, "no replay");
     for (path, headers, raw) in calls.iter() {
@@ -87,7 +102,9 @@ fn assert_wire(peer: &peer::Peer, count: usize, _endpoint: &str) {
         }
         assert!(raw.get("model").is_none());
         assert!(raw.get("sap_api_version").is_none());
-        assert!(!raw.to_string().contains(KEY));
+        let serialized = raw.to_string();
+        assert!(!serialized.contains("synthetic-sap-client"));
+        assert!(!serialized.contains("PRIVATE KEY") && !serialized.contains("BEGIN CERTIFICATE"));
     }
 }
 #[tokio::test]
@@ -103,6 +120,20 @@ async fn sap_aicore_public_text_json_sse_and_account_billing() {
                     let text = drain(response.into_body()).await;
                     assert_eq!(status, StatusCode::OK, "{endpoint}/{stream}: {text}");
                     assert!(text.contains("合成答案"), "{text}");
+                    assert!(
+                        !text.contains("opaque-model"),
+                        "{endpoint}/{stream}: {text}"
+                    );
+                    if endpoint == "chat/completions" && stream {
+                        let frames: Vec<Value> = text
+                            .lines()
+                            .filter_map(|line| line.strip_prefix("data: "))
+                            .filter(|data| *data != "[DONE]")
+                            .map(|data| serde_json::from_str(data).unwrap())
+                            .collect();
+                        assert!(!frames.is_empty());
+                        assert!(frames.iter().all(|frame| frame["model"] == MODEL), "{text}");
+                    }
                     if stream {
                         assert!(
                             text.contains(match endpoint {

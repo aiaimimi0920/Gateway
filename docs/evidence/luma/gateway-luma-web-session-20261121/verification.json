@@ -1,0 +1,80 @@
+{
+  "sourceSha256": {
+    "src/luma_web_session.rs": "bbd1dd2ba7fae7fd1e5a84f95de8f4ef775eb715c0ccc2e8586ea63f5d55e0de",
+    "src/luma_web_session/storage.rs": "f113c1c580ecfaf694b220b5cfc897746f0cdd94106b83d356b375f5101b1d8a",
+    "src/luma_web_session/pending.rs": "6f7075a8828bb2a87e31e91c03e06f2066a3f3bcb9263b2011676d4d7cc90a05",
+    "src/luma_web_session/maintenance.rs": "93d0f9ec1c776b792a9d89af83a8940850d4cd5d30468cd7e401ded46b608838",
+    "src/luma_web_session/tests.rs": "b3c5219bd6593430d39926eecec99093a64eab960fedb1c359e50429dec3595b",
+    "src/luma_web_session/browser_tests.rs": "fddd83494808f79b91de6249add01d65ca78e59d4304316df780609f1dd67c2b",
+    "src/console/persistence/luma_web_session.rs": "e50f9412e9f62928a6bd55bda03bb352ad47672725a2c8843a1e9dd7280e7a33",
+    "src/console/persistence.rs": "3c721eac182221bbb72a171bc6f8a7ba6cdfd778a93c0aa369fa5457fb3bb533",
+    "src/lib.rs": "becb689d0b24a6564ecaa6edd33e061da39643add744e1344e4b97076d125153",
+    "src/upstream/client.rs": "fa8b45328d660cbe3a888b80b6e3bcecf85b55183b9bd1194b2ab20fb77bb51a",
+    "src/upstream/client_initialization.rs": "ebc123967b41cb16751d57302a8fc26abde65398d2d00679ebcf7c7745d040f1",
+    "src/upstream/client/browser_executor.rs": "9dd168c306e3999e6ad86d05e9926ec828df78305134774cb5fde2adbea15b07",
+    "src/upstream/client/tests/lumalabs_executor.rs": "4654dafbd079970d4737afd0c5a5d14f2c7d29e0306aa14f9c1997b729fba9bf",
+    "src/upstream/client/tests/lumalabs_pipeline/peer.rs": "ac78466799cb4a7c6de58fd6a1301d8ebbeb1fe2175463cb2c9212a4b13f9453",
+    "src/upstream/lumalabs.rs": "9a3554c1ff2c21aed710f87c5aba8d095e933e8990bd8482efff7b0a294bfdb5",
+    "src/upstream/lumalabs/browser_worker.rs": "ac0b199ba89b296f3558fe4011d595b00475fba05c6d82e29c15acfa0ce4100c",
+    "src/upstream/lumalabs/session.rs": "7242853fc5915296c04fcf5b9256092756a6203f166e43ae65d64556cf842a1e",
+    "src/upstream/lumalabs/task_tests.rs": "33092c1914b68a45579f46106b4b4c3c2ea612f62f0bc97d5429c279dbcbf7fe",
+    "src/upstream/lumalabs_disabled.rs": "e07c86b8d787dcc46aaccdf55f3292ff47e5047efa93e4a28f84387b9c15b9f9",
+    "src/upstream/lumalabs_runtime_helpers.rs": "7c9a2538771efc84f715d5d15714afd6b9ab6a773795f01be4d4237431dc1571",
+    "src/upstream/lumalabs_response_helpers.rs": "1db3930edfffe30bee5c0c09d11222e7dca19e48931d4dc4d8401dacfee2610c",
+    "src/upstream/lumalabs_response_helpers/tests.rs": "6660eea4389175c0847ca107b0bd25426e5ee884aacfcb0be451f55a8093f801",
+    "src/upstream/lumalabs_response_helpers/tests/browser_identity.rs": "75b86c32bbb76c2f1679b38007b9130a80823864c391438d159f2fb83b2476bc",
+    "src/upstream/browser_worker_types/media_workers.rs": "d92b7fd488b828ebd000043ea592f7d725fb918055f9c3fde8a7f49de6eab74b",
+    "src/runtime.rs": "e437f103d58728b290d61cd55478f5bc38b4fb06ab17b5e09399718ff977011f",
+    "src/token_refresh.rs": "de4f7ef0659fd4d5ca693f672fc8a9b9a81daa7d6c85dbce4e7e105dd8b59289",
+    "src/keepalive/ensure.rs": "1de67037d4746dce69384049b0a18bb894f36cb152af4c4004ac9929164c1e79",
+    "src/http/routes/browser_executor.rs": "0133157725a5dd6deb04c1a12f23b03bc84da2395d72178f692504facc7e8cd6",
+    "src/http/router/management_access.rs": "eb75a06e4c2d17a2f85732fcf6a341d4884988becd60abb2e92e8cd9b0075dfc",
+    "scripts/lumalabs-browser-worker.mjs": "04027ecec5e88ee9c93db252393fb6eab6ac1bb62a61e3ee882417d41793740d",
+    "scripts/lumalabs-session/session-receipt.mjs": "40b7e53823bf75a486ddb70e4882afa44de560798599cf718312cc09106fe473",
+    "scripts/tests/lumalabs-session-receipt.test.mjs": "53bbb725256dd33a0382f6febdfe89292d2f43ec1adcb2139c6235e4cc2a2d1d",
+    "tools/luma/web-worker-check.mjs": "90f23808b1791c2c3c888382ef662ef075a6e383f4731ae68a5bde8a8c6aa62e",
+    "tools/luma/check-web-session-redis.ps1": "dcc50c4e1ad0b795ac5ddeafc244552b7aae2248b625fdcb51134957a9057094"
+  },
+  "checks": {
+    "rust-final-r3": {
+      "exitCode": 0,
+      "elapsedSeconds": 670.42,
+      "summary": "test result: ok. 92 passed; 0 failed; 3 ignored; 0 measured; 6397 filtered out; finished in 14.91s"
+    },
+    "browser-rust": {
+      "exitCode": 0,
+      "elapsedSeconds": 10.02,
+      "summary": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6491 filtered out; finished in 5.95s"
+    },
+    "redis": {
+      "exitCode": 0,
+      "elapsedSeconds": 2.52,
+      "summary": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6491 filtered out; finished in 0.04s"
+    },
+    "node-green": {
+      "exitCode": 0,
+      "elapsedSeconds": 9.5,
+      "summary": null
+    },
+    "checker": {
+      "exitCode": 0,
+      "elapsedSeconds": 1.88,
+      "summary": null
+    },
+    "ratchet-executor-compat": {
+      "exitCode": 0,
+      "elapsedSeconds": 6.06,
+      "summary": null
+    }
+  },
+  "encoding": "UTF-8 without BOM",
+  "liveSupplierGenerationCalls": 0,
+  "liveWebRenewalVerified": false,
+  "savedWebProvidersObserved": 0,
+  "savedWebCredentialsObserved": 0,
+  "packageVerified": true,
+  "mcpLayering": "deferred; not implemented",
+  "versionId": "gateway-devtest-20261121-luma-web-session",
+  "sourceTreeFingerprint": "269b36429b3e4a088b820b5ee36ce550a6ef87fbfffd71991add0a1134d693d6",
+  "nativeBusinessClicksVerified": false
+}

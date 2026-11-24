@@ -52,6 +52,9 @@ impl UpstreamClient {
         if crate::protocol::sap_aicore::owns_payload(payload) {
             return crate::protocol::sap_aicore::runtime::execute(self, payload, req, model).await;
         }
+        if crate::protocol::quick_oauth::owns_payload(payload) {
+            return crate::protocol::quick_oauth::runtime::execute(self, payload, req, model).await;
+        }
         crate::protocol::bedrock_turn::validate_request(payload, req)?;
         if crate::upstream::grok_web::owns_payload(payload) {
             return crate::upstream::grok_web::execute(

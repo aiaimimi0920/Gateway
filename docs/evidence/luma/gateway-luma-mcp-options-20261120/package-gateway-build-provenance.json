@@ -1,0 +1,42 @@
+{
+    "schemaVersion":  1,
+    "app":  "Gateway",
+    "edition":  "desktop",
+    "buildKind":  "devtest",
+    "capabilities":  {
+                         "desktopUi":  true,
+                         "managementUi":  true
+                     },
+    "builtAt":  "2026-11-20T09:25:53.4875884+00:00",
+    "sourceTreeFingerprint":  "35f79449b6ba7d1ec51f58f59df39edc4c37881626d92c4252e9cbdaa504f61e",
+    "sourceTreeDirty":  true,
+    "sourceTree":  {
+                       "algorithm":  "sha256-git-source-list-v2",
+                       "fingerprint":  "35f79449b6ba7d1ec51f58f59df39edc4c37881626d92c4252e9cbdaa504f61e",
+                       "fileCount":  7847,
+                       "dirty":  true
+                   },
+    "buildSettings":  {
+                          "optLevel":  1,
+                          "profile":  "devtest",
+                          "defaultApiPort":  4200,
+                          "jobs":  4,
+                          "isolatedDataDirectory":  ".ng-devtest-4300",
+                          "lto":  false,
+                          "incremental":  true
+                      },
+    "managementLoginRequired":  false,
+    "artifactReuse":  "Cargo fingerprint/incremental cache; no unchecked binary reuse",
+    "artifacts":  [
+                      {
+                          "path":  "target/devtest-editions/desktop/gateway.exe",
+                          "bytes":  94601728,
+                          "sha256":  "6330896aa16cd8292865026fb5ca917d335126461d9aaefd78cea9b7d3f92a33"
+                      },
+                      {
+                          "path":  "target/devtest-editions/desktop/gateway-ui.exe",
+                          "bytes":  13291008,
+                          "sha256":  "7dd015de9c66710ef4443ef632b077e58893a13ea083eab4d89790fd205407be"
+                      }
+                  ]
+}

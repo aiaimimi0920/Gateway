@@ -1,0 +1,45 @@
+
+running 40 tests
+test db::provider_credentials::payload::call_flow_tests::call_flow_merge_keeps_provider_flow_authoritative_without_credential_override ... ok
+test db::provider_credentials::payload::call_flow_tests::call_flow_explicit_credential_fingerprint_beats_same_layer_legacy_projection ... ok
+test db::provider_credentials::payload::call_flow_tests::call_flow_merge_does_not_hide_invalid_policy_or_same_layer_alias_duplicates ... ok
+test db::provider_credentials::payload::call_flow_tests::call_flow_credential_profile_overrides_only_inherited_fingerprint ... ok
+test db::provider_credentials::payload::call_flow_tests::call_flow_merge_preserves_no_flow_and_explicit_null_contracts ... ok
+test db::provider_credentials::payload::call_flow_tests::call_flow_session_owner_rejects_inherited_credential_api_profile ... ok
+test db::provider_credentials::payload::call_flow_tests::call_flow_mixed_policy_aliases_merge_as_one_field ... ok
+test db::routing::providers::call_flow_tests::call_flow_hosted_payload_reader_rejects_invalid_special_executor ... ok
+test db::routing::providers::call_flow_tests::call_flow_hosted_builder_uses_effective_adapter_before_model_policy ... ok
+test db::routing::providers::call_flow_tests::call_flow_hosted_credential_merge_retains_policy_and_chosen_secret ... ok
+test pipeline::stage_route::candidate_policy::call_flow_tests::call_flow_send_admission_rejects_unprepared_or_incompatible_candidates ... ok
+test pipeline::stage_route::candidate_policy::call_flow_tests::call_flow_candidate_pairs_preserve_projection_alignment_and_route_policy ... ok
+test protocol::call_flow::product_tests::call_flow_products_bind_existing_presets_without_rewriting_materials ... ok
+test protocol::call_flow::tests::independent_api_format_and_fingerprint_keep_authentication ... ok
+test protocol::call_flow::tests::legacy_flow_borrows_without_mutating_payload_or_serialization ... ok
+test protocol::call_flow::product_tests::call_flow_products_keep_legacy_and_auto_configuration_unchanged ... ok
+test protocol::call_flow::product_tests::call_flow_products_reject_api_format_fingerprint_and_executor_disable ... ok
+test protocol::call_flow::tests::specialized_executor_has_canonical_input_and_session_fingerprint ... ok
+test protocol::call_flow::tests::unknown_flow_options_fail_closed ... ok
+test protocol::call_flow::product_tests::call_flow_products_reject_cross_product_and_standard_api_bindings ... ok
+test protocol::call_flow::tests::unsupported_combinations_fail_instead_of_discarding_an_adapter ... ok
+test routing::config::tests::call_flow::call_flow_compiles_without_losing_independent_policy_or_credential_overrides ... ok
+test routing::config::tests::call_flow::call_flow_fixed_format_survives_protocol_discovery_and_debug_override ... ok
+test routing::config::tests::call_flow::call_flow_auto_uses_existing_discovery_and_preserves_negative_model_evidence ... ok
+test routing::config::tests::call_flow::call_flow_basispoints_channel_preserves_credential_disable_override ... ok
+test routing::config::tests::call_flow::call_flow_missing_in_legacy_documents_stays_absent ... ok
+test routing::config::tests::call_flow::call_flow_rejects_incompatible_executor_before_publishing_configuration ... ok
+test routing::credential_routing::tests::call_flow::call_flow_redis_does_not_trust_unvalidated_discovery_targets ... ok
+test routing::credential_routing::tests::call_flow::call_flow_redis_raw_and_preset_keep_effective_format_and_profile ... ok
+test routing::credential_routing::tests::call_flow::call_flow_redis_rejects_invalid_or_model_blocked_policy_without_legacy_fallback ... ok
+test routing::protocol_resolution::tests::call_flow::call_flow_protocol_admission_rejects_invalid_product_executor ... ok
+test routing::protocol_resolution::tests::call_flow::call_flow_protocol_admission_synchronizes_payload_without_expanding_policy ... ok
+test upstream::chatgpt::official_api::execution::tests::call_flow::call_flow_official_context_retains_common_extra_body_merge ... ok
+test routing::config::tests::product_call_flow::call_flow_product_presets_compile_without_creating_or_merging_accounts ... ok
+test upstream::client::call_flow_tests::call_flow_selects_format_before_building_request ... ok
+test upstream::client::call_flow_wire_tests::call_flow_invalid_combinations_fail_before_any_network_or_session_work ... ok
+test protocol::freebuff::call_flow_tests::call_flow_freebuff_direct_entries_fail_before_network_or_runtime_mutation ... ok
+test routing::config::tests::product_call_flow::call_flow_product_mismatches_fail_before_configuration_is_published ... ok
+test upstream::client::call_flow_wire_tests::call_flow_wire_covers_buffered_stream_passthrough_and_native_shortcuts ... ok
+test upstream::chatgpt::official_api::execution::tests::call_flow::call_flow_official_cpa_rejects_retired_transport_for_all_three_sends ... ok
+
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 6267 filtered out; finished in 0.18s
+

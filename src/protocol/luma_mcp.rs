@@ -1,7 +1,8 @@
-//! Bounded read-only MCP catalog and model discovery; no persistence or generic MCP execution.
+//! Bounded MCP discovery and explicitly authorized creation; no generic MCP execution.
 pub mod boundary;
 mod catalog;
 mod cleanup;
+pub(crate) mod creation;
 mod decode;
 mod inspection;
 mod models;
@@ -34,13 +35,21 @@ pub enum McpError {
     Unsupported,
 }
 
+#[cfg(all(test, feature = "runtime-defaults"))]
+mod browser_fixture;
+#[cfg(all(test, feature = "runtime-defaults"))]
+mod browser_host;
 #[cfg(test)]
 mod cleanup_tests;
+#[cfg(all(test, feature = "runtime-defaults"))]
+mod creation_tests;
 #[cfg(test)]
 mod decode_tests;
 #[cfg(test)]
 mod fixture;
 #[cfg(test)]
 mod models_tests;
+#[cfg(test)]
+mod test_support;
 #[cfg(test)]
 mod tests;

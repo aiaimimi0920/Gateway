@@ -5,6 +5,14 @@ use base64::Engine;
 use serde_json::{json, Value};
 
 pub(super) fn checked(value: &Value, generation: bool) -> Result<Value, GatewayError> {
+    checked_media(value, generation, false)
+}
+
+pub(super) fn video(value: &Value) -> Result<Value, GatewayError> {
+    checked_media(value, true, true)
+}
+
+fn checked_media(value: &Value, generation: bool, video: bool) -> Result<Value, GatewayError> {
     let map = value.as_object().ok_or_else(invalid_request)?;
     if map
         .keys()
@@ -32,7 +40,14 @@ pub(super) fn checked(value: &Value, generation: bool) -> Result<Value, GatewayE
         {
             return Err(invalid_request());
         }
-        if map.get("media_type").is_some_and(|v| !v.is_null()) {
+        if video {
+            let mime = map
+                .get("media_type")
+                .and_then(Value::as_str)
+                .filter(|s| video_mime(s))
+                .ok_or_else(invalid_request)?;
+            return Ok(json!({"url":url,"media_type":mime}));
+        } else if map.get("media_type").is_some_and(|v| !v.is_null()) {
             return Err(invalid_request());
         }
         return Ok(json!({"url":url}));
@@ -59,8 +74,11 @@ pub(super) fn checked(value: &Value, generation: bool) -> Result<Value, GatewayE
         .and_then(Value::as_str)
         .ok_or_else(invalid_request)?;
     // A local 8 MiB inline cap bounds decode and JSON copies; the upstream's limit is larger.
-    if !["image/png", "image/jpeg", "image/webp", "image/gif"].contains(&mime)
-        || data.len() > 8 * 1024 * 1024
+    if !(if video {
+        video_mime(mime)
+    } else {
+        ["image/png", "image/jpeg", "image/webp", "image/gif"].contains(&mime)
+    }) || data.len() > 8 * 1024 * 1024
         || data.is_empty()
         || base64::engine::general_purpose::STANDARD
             .decode(data)
@@ -69,6 +87,16 @@ pub(super) fn checked(value: &Value, generation: bool) -> Result<Value, GatewayE
         return Err(invalid_request());
     }
     Ok(json!({"data":data,"media_type":mime}))
+}
+
+fn video_mime(mime: &str) -> bool {
+    mime.len() <= 127
+        && mime.strip_prefix("video/").is_some_and(|subtype| {
+            !subtype.is_empty()
+                && subtype
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"!#$&^_.+-".contains(&b))
+        })
 }
 
 pub(super) fn upload(value: &Value) -> Result<Value, GatewayError> {

@@ -75,6 +75,7 @@ export type AccountsLedgerWorkspaceProps = {
   notice?: ReactNode;
   poolView?: ProviderPoolView;
   renderProviderSettings?: (section: AccountsLedgerPilotSection) => ReactNode;
+  renderProviderDetails?: (section: AccountsLedgerPilotSection) => ReactNode;
   editorLocked: boolean;
   discardLifecycleDrafts?: boolean;
   lifecycleActionsLocked?: boolean;

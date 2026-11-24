@@ -6,6 +6,7 @@ import { addCatalogProvider } from "./providerCatalogCreation";
 import { parseRouteDocument } from "./routeDocument";
 import { editQwenProviderEndpoint } from "./qwenProviderEndpoint";
 import type { QwenEndpointDraft } from "./qwenEndpoint";
+import { editProviderConnection, type ProviderConnectionDraft } from "./providerConnectionDraft";
 
 type ProviderCatalogEditorOptions = {
   editorText: string;
@@ -33,5 +34,11 @@ export function useProviderCatalogEditor({ editorText, replaceEditorDocument, st
       replaceEditorDocument(next, true); setError(null); return true;
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return false; }
   }, [editorText, replaceEditorDocument, setError]);
-  return { applyProviderCatalogDraft, applyQwenProviderEndpointDraft };
+  const applyProviderConnectionDraft = useCallback((providerId: string, expected: string, value: ProviderConnectionDraft) => {
+    try {
+      const next = editProviderConnection(parseRouteDocument(editorText), providerId, expected, value);
+      replaceEditorDocument(next, true); setError(null); return true;
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return false; }
+  }, [editorText, replaceEditorDocument, setError]);
+  return { applyProviderCatalogDraft, applyQwenProviderEndpointDraft, applyProviderConnectionDraft };
 }

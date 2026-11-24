@@ -8,6 +8,8 @@ mod accumulate;
 mod completeness;
 mod input_arguments;
 mod input_ids;
+pub(crate) mod native_admission;
+pub(crate) mod native_stream;
 mod normalize;
 pub(crate) use input_arguments::normalize_input_arguments;
 pub(crate) use input_ids::sanitize_replayed_message_ids;

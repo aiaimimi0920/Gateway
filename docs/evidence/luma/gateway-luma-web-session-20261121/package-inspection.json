@@ -1,0 +1,35 @@
+{
+  "buildKind": "devtest",
+  "edition": "desktop",
+  "releaseDir": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\release\\Gateway\\gateway-devtest-20261121-luma-web-session",
+  "sourceTreeFingerprint": "269b36429b3e4a088b820b5ee36ce550a6ef87fbfffd71991add0a1134d693d6",
+  "sourceTreeDirty": true,
+  "checksumEntries": 6157,
+  "packagedSourceMatches": {
+    "scripts/lumalabs-browser-worker.mjs": "04027ecec5e88ee9c93db252393fb6eab6ac1bb62a61e3ee882417d41793740d",
+    "scripts/lumalabs-session/session-receipt.mjs": "40b7e53823bf75a486ddb70e4882afa44de560798599cf718312cc09106fe473",
+    "deploy/postgres/initdb/001-gateway-schema.sql": "bb07c6151bbf576597aaea201e183d2a65c06fe2bf22411ec287839e8f1e2cdb",
+    "deploy/postgres/initdb/002-gateway-bootstrap.sql": "4a9010d8d7a0303658a718d8c2dd7ad8c8cafa85974d5c1750b902cf9dec8b23",
+    "deploy/postgres/initdb/003-gateway-standalone-constraints.sql": "dcbe7bb5bb97e167ed80195166bb585b3f19edf2fb03131fbc716c54bc734345",
+    "deploy/postgres/initdb/004-gateway-key-cash.sql": "d991a61e4fb8c6b970840dc2fff470e0d2a877c8a51d10fa7747b3e81fc6283a",
+    "deploy/postgres/initdb/005-gateway-refresh-authority.sql": "c8af6b60c65bbd919dd42fc0a5aeaad4a412b650b4395361f2dc4acac999e620",
+    "deploy/postgres/initdb/006-gateway-luma-mcp-creation.sql": "aeaabb933ccad2ed007e8fc385c227e647f7219e860d99867a4e450e8ea1e613"
+  },
+  "privateDataAbsent": true,
+  "executables": [
+    {
+      "kind": "exe",
+      "name": "gateway.exe",
+      "path": "gateway.exe",
+      "bytes": 95124992,
+      "sha256": "899d4cd4b5abb5bd2f4a95a50a3e55250bf647cd82dadc3338e9ae2313708630"
+    },
+    {
+      "kind": "exe",
+      "name": "gateway-ui.exe",
+      "path": "gateway-ui.exe",
+      "bytes": 13291008,
+      "sha256": "5889891e7f3cc8fa9ccb2abbaafbb0e1a07a71f48cedf4d95dac8957878716e6"
+    }
+  ]
+}

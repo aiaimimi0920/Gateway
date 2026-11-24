@@ -1,0 +1,26 @@
+[
+  {
+    "file": "src/http/routes/internal_console/luma_mcp/creation.rs",
+    "measurement": 173
+  },
+  {
+    "file": "src/http/routes/internal_console/luma_mcp/creation/store.rs",
+    "measurement": 191
+  },
+  {
+    "file": "src/http/routes/internal_console/luma_mcp/creation/workspace.rs",
+    "measurement": 39
+  },
+  {
+    "file": "src/protocol/luma_mcp/creation_tests.rs",
+    "measurement": 298
+  },
+  {
+    "file": "apps/desktop/src/features/console/LumaMcpCreationPanel.tsx",
+    "measurement": 104
+  },
+  {
+    "file": "src/protocol/luma_mcp/creation_reuse_tests.rs",
+    "measurement": 279
+  }
+]

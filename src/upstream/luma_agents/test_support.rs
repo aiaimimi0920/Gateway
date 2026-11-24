@@ -38,6 +38,7 @@ pub struct Call {
     pub path: String,
     pub headers: axum::http::HeaderMap,
     pub body: Value,
+    pub raw_body: Vec<u8>,
 }
 pub struct Reply {
     pub status: u16,
@@ -139,13 +140,21 @@ impl Server {
         .expect("dropped HTTP owner must close its source");
     }
     pub fn client(&self) -> rquest::Client {
-        rquest::Client::builder()
-            .no_proxy()
-            .proxy(rquest::Proxy::all(&self.origin).unwrap())
-            .timeout(Duration::from_secs(5))
-            .build()
-            .unwrap()
+        loopback_client(&self.origin)
     }
+}
+
+pub fn loopback_client(origin: &str) -> rquest::Client {
+    let url = url::Url::parse(origin).unwrap();
+    assert_eq!(url.scheme(), "http");
+    assert_eq!(url.host_str(), Some("127.0.0.1"));
+    assert!(url.port().is_some());
+    rquest::Client::builder()
+        .no_proxy()
+        .proxy(rquest::Proxy::all(origin).unwrap())
+        .timeout(Duration::from_secs(5))
+        .build()
+        .unwrap()
 }
 async fn handler(State(state): State<Fixture>, request: Request<Body>) -> Response {
     let (parts, body) = request.into_parts();
@@ -153,7 +162,7 @@ async fn handler(State(state): State<Fixture>, request: Request<Body>) -> Respon
         matches!(parts.uri.scheme_str(), None | Some("http")),
         "fixture never forwards CONNECT"
     );
-    let bytes = axum::body::to_bytes(body, 2 * 1024 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(body, 65 * 1024 * 1024).await.unwrap();
     let unsupported_method = parts.method == axum::http::Method::CONNECT;
     state.calls.lock().unwrap().push(Call {
         method: parts.method.to_string(),
@@ -162,12 +171,19 @@ async fn handler(State(state): State<Fixture>, request: Request<Body>) -> Respon
             .path_and_query()
             .map(|p| p.to_string())
             .unwrap_or_else(|| parts.uri.to_string()),
-        headers: parts.headers,
-        body: if bytes.is_empty() {
+        body: if bytes.is_empty()
+            || parts.method == axum::http::Method::PUT
+            || parts
+                .headers
+                .get("content-type")
+                .is_some_and(|v| v.as_bytes().starts_with(b"multipart/form-data"))
+        {
             Value::Null
         } else {
             serde_json::from_slice(&bytes).unwrap()
         },
+        headers: parts.headers,
+        raw_body: bytes.to_vec(),
     });
     if unsupported_method {
         // Observe an accidental generic HTTPS attempt without forwarding it or poisoning the log.
@@ -208,10 +224,11 @@ impl Drop for CloseProbe {
     }
 }
 pub fn job(state: &str) -> Value {
+    // Default deployment has no usage reporting; delayed settlement fixtures opt in explicitly.
     json!({"id":ID,"type":"image","model":"uni-1","state":state,
         "created_at":"2026-11-05T00:00:00Z","failure_reason":null,"failure_code":null,
         "output":if state=="completed" {json!([{"type":"image","url":ASSET}])}else{json!([])},
-        "usage":{"credits_charged":null}})
+        "usage":null})
 }
 pub fn payload() -> crate::routing::candidate::ProviderAccountPayload {
     serde_json::from_value(json!({"adapter":"lumalabs_agents_compatible",

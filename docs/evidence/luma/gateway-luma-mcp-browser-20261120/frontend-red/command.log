@@ -1,0 +1,130 @@
+
+> gateway-ui@0.1.0 test
+> vitest run src/features/console/LumaMcpToolsPanel.test.tsx --maxWorkers=1
+
+
+ RUN  v4.1.11 C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/apps/desktop
+
+ ❯ src/features/console/LumaMcpToolsPanel.test.tsx (13 tests | 1 failed) 512ms
+   × handles rejected consent without sending or exposing the rejection 27ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/console/LumaMcpToolsPanel.test.tsx > handles rejected consent without sending or exposing the rejection
+TestingLibraryElementError: Unable to find an element with the text: /工具目录读取失败/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Luma MCP OAuth"[39m
+      [33mclass[39m=[32m"n-stack"[39m
+    [36m>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"n-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [36m<span>[39m
+          [0m允许刷新账号授权[0m
+        [36m</span>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"n-field"[39m
+      [36m>[39m
+        [36m<label[39m
+          [33mfor[39m=[32m"_r_a_"[39m
+        [36m>[39m
+          [0mClient ID[0m
+        [36m</label>[39m
+        [36m<input[39m
+          [33mclass[39m=[32m"n-input"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mid[39m=[32m"_r_a_"[39m
+          [33mmaxlength[39m=[32m"512"[39m
+          [33mvalue[39m=[32m""[39m
+        [36m/>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"n-field"[39m
+      [36m>[39m
+        [36m<label[39m
+          [33mfor[39m=[32m"_r_b_"[39m
+        [36m>[39m
+          [0m已登记的回调地址[0m
+        [36m</label>[39m
+        [36m<input[39m
+          [33mclass[39m=[32m"n-input"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mid[39m=[32m"_r_b_"[39m
+          [33mmaxlength[39m=[32m"512"[39m
+          [33mplaceholder[39m=[32m"http://127.0.0.1:PORT/callback"[39m
+          [33mvalue[39m=[32m""[39m
+        [36m/>[39m
+      [36m</div>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"n-button n-button--primary"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"n-button-label"[39m
+        [36m>[39m
+          [0m通过 Luma 登录[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Luma 模型"[39m
+        [33mclass[39m=[32m"n-stack"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"n-button n-button--secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"n-button-label"[39m
+          [36m>[39m
+            [0m读取模型[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Luma MCP 工具目录"[39m
+        [33mclass[39m=[32m"n-stack"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"n-button n-button--secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"n-button-label"[39m
+          [36m>[39m
+            [0m读取工具目录[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</section>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/features/console/LumaMcpToolsPanel.test.tsx:42:17
+     40|   expect(f.props.onRequestSecretAccess).toHaveBeenCalledOnce();
+     41|   expect(f.request).not.toHaveBeenCalled();
+     42|   expect(screen.getByText(/工具目录读取失败/)).toBeInTheDocument();
+       |                 ^
+     43|   expect(screen.queryByText(/private-consent-error/)).not.toBeInTheDoc…
+     44|   expect(screen.getByRole("button", { name: "读取工具目录" })).toBeEnabled();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  04:49:50
+   Duration  3.97s (transform 263ms, setup 472ms, import 736ms, tests 512ms, environment 1.91s)
+

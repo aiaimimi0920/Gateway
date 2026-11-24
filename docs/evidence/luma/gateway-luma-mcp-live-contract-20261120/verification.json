@@ -1,0 +1,61 @@
+{
+  "recordedAt": "2026-11-20T06:37:57.433444+00:00",
+  "status": "passed",
+  "resource": "https://agents.lumalabs.ai/mcp",
+  "protocolVersion": "2025-03-26",
+  "toolCount": 26,
+  "toolsWithOutputSchema": 26,
+  "modelCount": 18,
+  "imageModelCount": 15,
+  "videoModelCount": 3,
+  "describedModels": [
+    "luma_uni_1",
+    "luma_ray3_2",
+    "openai_gpt_image_2"
+  ],
+  "directAndGatewayCatalogEqual": true,
+  "directSessionCleanup": "closed",
+  "managementApiStatuses": "all_200_no_store",
+  "configurationRevisionUnchanged": true,
+  "generationCalls": 0,
+  "configurationWrites": 0,
+  "runtimeRestarted": false,
+  "runtimePackage": "gateway-devtest-20261120-transient-model-circuit",
+  "runtimeApi": "http://127.0.0.1:4200",
+  "notVerified": [
+    "generation",
+    "business_session_cancel",
+    "production_remote_session_release",
+    "assets",
+    "actual_charges",
+    "web_board_protocol",
+    "server_pg_redis"
+  ],
+  "files": [
+    {
+      "path": "catalog.json",
+      "sha256": "7b167013c8ccc997581983958c79212e5ee14b65fe608c9210fcf60e3eff2c59",
+      "bytes": 342019
+    },
+    {
+      "path": "models.json",
+      "sha256": "b92b914837622abc7cf75867f81571e2d9a44c667db29f731402075a7568bb77",
+      "bytes": 54848
+    },
+    {
+      "path": "model-descriptions.json",
+      "sha256": "d223021de196709fa2120c19c19ea151e5336b9e0bb51dfc83194238ba72f834",
+      "bytes": 8168
+    },
+    {
+      "path": "management-read-result.json",
+      "sha256": "16abe65487405f59679e9c21d359a7057e56d64d02009f94c9f5e461178e980b",
+      "bytes": 599
+    },
+    {
+      "path": "direct-inspection-result.json",
+      "sha256": "7e8bc1fa8c79fa3bc6d8d489bac0301533e87a98f7e30e5ec4dbd1b7c6a65c5c",
+      "bytes": 385
+    }
+  ]
+}

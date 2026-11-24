@@ -40,7 +40,7 @@ async fn luma_agents_probe_media_operations_use_one_exact_sender_and_native_audi
 ) {
     Box::pin(async {
         for (kind, model, resolved, credits) in [
-            ("image", IMAGE, "uni-1", Value::Null),
+            ("image", IMAGE, "uni-1", json!(1.25)),
             ("image_edit", IMAGE, "uni-1", json!(0)),
             ("video", VIDEO, "ray-3.2", json!(0.25)),
         ] {
@@ -52,7 +52,11 @@ async fn luma_agents_probe_media_operations_use_one_exact_sender_and_native_audi
             completed["usage"]["credits_charged"] = credits.clone();
             completed["output"] =
                 json!([{"type":if kind=="video"{"video"}else{"image"},"url":test_support::ASSET}]);
-            let server = Server::start(vec![
+            let settled = completed.clone();
+            if kind == "image" {
+                completed["usage"]["credits_charged"] = Value::Null;
+            }
+            let mut replies = vec![
                 Reply::json(201, queued),
                 Reply::json(200, completed),
                 if kind == "video" {
@@ -60,8 +64,11 @@ async fn luma_agents_probe_media_operations_use_one_exact_sender_and_native_audi
                 } else {
                     Reply::png()
                 },
-            ])
-            .await;
+            ];
+            if kind == "image" {
+                replies.push(Reply::json(200, settled));
+            }
+            let server = Server::start(replies).await;
             let fixture = Box::pin(Fixture::new(&server, 5)).await;
             let target = fixture
                 .state
@@ -100,7 +107,15 @@ async fn luma_agents_probe_media_operations_use_one_exact_sender_and_native_audi
                 );
                 assert_eq!(fixture.balance().await.remaining_messages, Some(2));
                 let calls = server.calls();
-                assert_eq!(calls.len(), 3);
+                assert_eq!(calls.len(), if kind == "image" { 4 } else { 3 });
+                assert_eq!(calls.iter().filter(|c| c.method == "POST").count(), 1);
+                if kind == "image" {
+                    assert_eq!(calls[3].path, format!("/v1/generations/{ID}"));
+                    assert_eq!(
+                        calls[3].headers["authorization"],
+                        format!("Bearer {}", pipeline_fixture::KEY)
+                    );
+                }
                 assert_eq!(calls[0].body["type"], kind);
                 assert_eq!(calls[0].body["model"], resolved);
                 assert_eq!(

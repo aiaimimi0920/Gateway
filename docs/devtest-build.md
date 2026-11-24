@@ -6,7 +6,7 @@
 ## 一条命令构建并交付
 
 ```powershell
-rtk proxy powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/package-gateway-devtest.ps1 -Jobs 4
+rtk proxy powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/package-gateway-devtest.ps1 -Jobs 6
 ```
 
 默认生成桌面版，输出到 `C:/Users/Public/nas_home/AI/GameEditor/Neuro/release/Gateway/gateway-devtest-<时间>`。
@@ -16,12 +16,21 @@ rtk proxy powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/package-
 仅构建或预览执行计划：
 
 ```powershell
-rtk proxy powershell.exe -NoProfile -File tools/build-gateway-devtest.ps1 -Edition desktop -Jobs 4
+rtk proxy powershell.exe -NoProfile -File tools/build-gateway-devtest.ps1 -Edition desktop -Jobs 6
 rtk proxy powershell.exe -NoProfile -File tools/package-gateway-devtest.ps1 -Edition web -Jobs 6 -DryRun
 ```
 
+日常服务商编码内循环（不提前出包、不污染主 `target/` 指纹）：
+
+```powershell
+npm run check:rust:fast --prefix scripts
+npm run test:rust:fast --prefix scripts -- "test(<filter>)"
+npm run test:rust:retest --prefix scripts -- "<test_name_substring>"
+npm run check:effective-lines:fast --prefix scripts
+```
+
 `api` 无管理网页，`web` 包含管理网页，`desktop` 另含桌面启动器。
-默认并发 `min(4, 逻辑处理器数)`，至少 1，可用 `-Jobs 1..32` 调整；先观察内存再加并发。
+默认并发 `min(6, 逻辑处理器数)`，当未显式指定 `-Jobs` 且检测到本机其他仓库 `rustc` 并发或可用物理内存低于 6GB 时自动降至 3；可用 `-Jobs 1..32` 显式覆盖。
 Cargo 的 jobs 控制 crate 任务并发，不等于同一 crate 的代码生成并发。
 
 ## 手测端口与数据隔离
@@ -57,12 +66,13 @@ HTTP(S) 管理界面自动使用约定的测试管理密钥完成服务端会话
 现有实例的凭据和数据不会由构建过程自动修改。
 
 后端及桌面独立工作区均声明 `devtest` profile：`opt-level=1`、`lto=false`、
-`incremental=true`、`codegen-units=16`、无调试符号、保留溢出检查。
+`incremental=true`、`codegen-units=256`、`build-override.opt-level=3`、无调试符号、保留溢出检查。
 与正式 `release` profile 相互独立，不改写正式优化设置。
 
 复用已安装的锁定依赖，不做 npm ci，不默认联网审计或升级；缺少依赖直接报错。
-Cargo 使用 `--locked`。Web 静态资源每次做一次短构建，避免缓存失效判断漏掉输入；
-Rust 后端/桌面由 Cargo 的依赖指纹和增量缓存决定重编，不手工跳过变更判断。
+Cargo 使用 `--locked`。管理前端嵌入资源已解耦至 `crates/gateway-embedded-ui`，且构建脚本会对
+`apps/desktop` 输入目录计算摘要：当前端源码未变化且产物就绪时自动复用现有 `dist/web` 与 `dist/tauri`，
+避免纯后端改动反复触发前端打包与 Rust 重编；Rust 后端/桌面仍由 Cargo 的依赖指纹和增量缓存决定重编。
 当前 Tauri CLI 没有自定义 profile 开关，因此手测脚本明确执行已配置的 `build:tauri`，
 再通过 Cargo devtest 和 `tauri/custom-protocol` 构建嵌入静态资源的桌面程序，沿用
 `tauri_build::build()`、配置及图标处理；不启动前端开发服务器，不复制历史 EXE。

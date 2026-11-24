@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-21",
+  "browser": "Existing signed-in ordinary Edge",
+  "method": "DevTools Network UI only; no replay, page reload, login, HAR export or generation",
+  "requestsObserved": 8121,
+  "filters": [
+    {
+      "value": "domain:app.lumalabs.ai /refresh|session|auth|token/",
+      "matched": 0,
+      "totalAtObservation": 8108
+    },
+    {
+      "value": "domain:app.lumalabs.ai has-response-header:set-cookie",
+      "matched": 28
+    },
+    {
+      "value": "domain:app.lumalabs.ai set-cookie-name:wos-session",
+      "matched": 24
+    }
+  ],
+  "sample": {
+    "path": "/api/canvas-health",
+    "method": "POST",
+    "status": 204,
+    "cookieName": "wos-session",
+    "requestAndResponseValuesDiffer": true,
+    "domain": "app.lumalabs.ai",
+    "pathAttribute": "/",
+    "responseMaxAge": "400 days",
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  "otherMatchingPaths": [
+    {
+      "path": "/api/vespa/teams/{team}/connectors",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/vespa/teams/{team}/directives",
+      "method": "GET",
+      "status": 200
+    }
+  ],
+  "limits": [
+    "One POST request/response cookie pair compared in memory; neither value saved",
+    "GET cookie values not compared",
+    "Cookie persistence lifetime does not prove internal access-token or refresh lifetime",
+    "No proof of expired-session recovery or Gateway durable publication"
+  ],
+  "productionCodeChanged": false
+}

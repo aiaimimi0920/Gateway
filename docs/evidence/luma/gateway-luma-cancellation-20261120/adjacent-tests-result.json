@@ -1,0 +1,23 @@
+{
+  "args": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--lib",
+    "--no-default-features",
+    "--features",
+    "runtime-defaults",
+    "-j",
+    "4",
+    "--",
+    "model_probe_audit",
+    "pipeline::lifecycle",
+    "pipeline::attempt_audit",
+    "pipeline::stage_finalize"
+  ],
+  "cwd": "C:\\Users\\Public\\nas_home\\AI\\GameEditor\\Neuro\\Gateway",
+  "startedAt": "2026-11-19T17:20:30.398482+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 6.27
+}

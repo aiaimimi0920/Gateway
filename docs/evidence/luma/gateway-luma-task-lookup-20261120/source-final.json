@@ -1,0 +1,131 @@
+{
+  "capturedAt": "2026-11-19T21:54:52.051Z",
+  "boundary": "Initial capture during Rust compile; Rust inputs unchanged; only preview imports and screenshot scrolling changed after capture. Not a whole-tree freeze.",
+  "files": [
+    {
+      "path": "src/upstream/luma_agents.rs",
+      "sha256": "f5388a4e6b70ced31bd1fcb874ba87be5cebd2044f3723a703dc90f2ba195596",
+      "effectiveLines": 120,
+      "before": 117,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/http/routes/internal_console.rs",
+      "sha256": "67ee63af3d1f07971321f969f43fd669b4687a27092dfdcfcacae0248b85ddec",
+      "effectiveLines": 455,
+      "before": 453,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/upstream/luma_agents/generation.rs",
+      "sha256": "34741b03bea6d00fe5c08bc9c4d29ecbf322f4be15fc85dd1bf1d8f73dbea3dc",
+      "effectiveLines": 240,
+      "before": 232,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/ConsoleGlobalDialogs.tsx",
+      "sha256": "ddb5f49dbaccee31246760460434b21d54343c0f53b95613bdf9192a9a813adc",
+      "effectiveLines": 483,
+      "before": 483,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/OperationsRequestTable.tsx",
+      "sha256": "a035b3d1c7a5c877b6370e69cdef6e5193b1af0422f24f41b34614c2fec7c3d7",
+      "effectiveLines": 58,
+      "before": 56,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/http/router/management_config.rs",
+      "sha256": "c960866a779bdc3adf9ad6bcba64f97a26cdf1ffd3d500309848237f274d9855",
+      "effectiveLines": 489,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/http/routes/internal_console/luma_tasks.rs",
+      "sha256": "9217bcd4b0486cc83d88eaeebecc4dd420548212c069eaa4d2e94ded97e03f7d",
+      "effectiveLines": 100,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/upstream/luma_agents/task_lookup.rs",
+      "sha256": "f0fd4690051c206dd5c55d9998ef4049570e74a3e140534439d129ab25ca6c1d",
+      "effectiveLines": 69,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "src/upstream/luma_agents/task_lookup_tests.rs",
+      "sha256": "7bdf115c3752840644601150b767c2307f64b9f33799250d059ca7d29ab2fa2b",
+      "effectiveLines": 273,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/api/console/luma-task.ts",
+      "sha256": "e077d406b4b03b48143632e638c6551c9ba71675c0178027c6686d0b9092164d",
+      "effectiveLines": 14,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaTaskPanel.tsx",
+      "sha256": "93ee53ce361444284d16e99e7810b50c048da1b7b4dc4216199c72d8b2709a74",
+      "effectiveLines": 57,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaTaskFacts.tsx",
+      "sha256": "7afc8a6418fe442fcd7955b205d1dab51cf56777d798c5071b27a9a93e93a34f",
+      "effectiveLines": 18,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaAccountTools.tsx",
+      "sha256": "60f88f351754d580c790ea19f334097d1bd1b0cd4e413d10105200b449b950a5",
+      "effectiveLines": 6,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/OperationsLumaTask.tsx",
+      "sha256": "5c87f4cd410744c42f474df95583036f54f7bc327db330e92f5871e8b8325498",
+      "effectiveLines": 7,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/LumaTaskPanel.test.tsx",
+      "sha256": "715519afbe871e52926f0c887f728c6fb8eca22bd9fc5520d6418598561583cf",
+      "effectiveLines": 71,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/OperationsLumaTask.test.tsx",
+      "sha256": "2abdb459f3a31a0e787608f1f96305cb3f780a6625afafc942bee70c726171ef",
+      "effectiveLines": 26,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/src/features/console/ConsoleGlobalDialogs.luma-agents.test.tsx",
+      "sha256": "6e18d97bfcfa1dfb330603b1375f857fc4da9e52f7c7c4e9e0b4aa1804616ae8",
+      "effectiveLines": 70,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "apps/desktop/e2e/fixtures/luma-task-preview.tsx",
+      "sha256": "809aaddc87e683489a96357f9f1ead11500d3e767f1a833e8b5dd5172f21862d",
+      "effectiveLines": 31,
+      "unchangedSinceSnapshot": false
+    },
+    {
+      "path": "apps/desktop/e2e/fixtures/luma-media-preview.tsx",
+      "sha256": "084c7e09daf2d41cca315adef7c4b0c611e4817805b7586c7b5ab8bb8e2354f7",
+      "effectiveLines": 55,
+      "unchangedSinceSnapshot": true
+    },
+    {
+      "path": "tools/luma/task-preview-check.mjs",
+      "sha256": "77ee72319e7d7be7cf4b85485c1d5aa7ca54f6e3e58f2fa2c4671c4c5b664c5d",
+      "effectiveLines": 62,
+      "unchangedSinceSnapshot": false
+    }
+  ]
+}

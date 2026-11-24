@@ -1,0 +1,7 @@
+Copyright (c) 2026 Luma AI, Inc. All rights reserved.
+
+The files in this repository, including the Luma name and logo, are proprietary to
+Luma AI, Inc. You may install and use this plugin with Claude to access Luma's
+services under Luma's Terms of Service (https://lumalabs.ai/legal/terms-of-service).
+No other right to copy, modify, or distribute these files is granted without prior
+written permission from Luma AI, Inc.
