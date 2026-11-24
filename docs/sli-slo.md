@@ -71,14 +71,15 @@ The summary is diagnostic evidence, not a historical SLO store. Prometheus and
 the external HTTP probe retain the time series used for objective evaluation.
 Its `readiness.ok` mirrors the existing internal enterprise contract, including
 object storage, API-key secret, public base URL, and draining gates. `/readyz`
-remains the narrower traffic-admission probe for Redis, configured PostgreSQL,
-and draining state.
+remains the narrower traffic-admission probe: it checks draining, then SQLite
+in Local mode, or Redis and configured PostgreSQL in non-Local modes.
 
 ## Dependency Failure Matrix
 
 | Condition | Observable evidence | Readiness and request behavior | Operator action |
 | --- | --- | --- | --- |
-| Redis unavailable | `/readyz` is 503; operator summary has `readiness.dependencies.redis.ready=false` | Redis is required and blocks traffic readiness. Redis-backed request paths may fail until connectivity recovers. | Stop rollout activity, verify only the explicitly configured Redis target, retain request IDs/logs, and confirm `/readyz` recovery before restoring traffic. |
+| Redis unavailable (non-Local) | `/readyz` reports `redis=false` | Returns 503 if `redis_required=true`. Standalone with configured routes and a healthy database check can return 200 with `degraded=true` and `redis_required=false`; this is not full dependency health. | Check the configured Redis target and isolate any affected traffic; do not treat degraded readiness as a clean rollout signal. |
+| SQLite unavailable (Local) | `/readyz` reports `storage_backend=sqlite` and `sqlite=false` | Returns 503. Local does not probe Redis. | Preserve local data and inspect the SQLite failure before restarting or replacing the instance. |
 | PostgreSQL not configured | Operator summary has `postgresql.configured=false`, `required=false`, and `ready=true` | This is the supported DB-less runtime mode and does not block `/readyz` or internal readiness. PostgreSQL-owned management/provider statistics remain unavailable or zero. | No incident action. Confirm the deployment intentionally uses DB-less mode. |
 | PostgreSQL configured but unavailable | `/readyz` is 503; summary has `postgresql.configured=true` and `ready=false` | A configured database is treated as an active dependency and blocks readiness until its probe recovers. | Stop writes and rollout activity, preserve database logs, validate failover/recovery separately, then confirm both readiness endpoints. |
 | Browser executor unavailable | `GET /v1/internal/gateway/browser-executor/health` or `GET /v1/internal/browser-executor/health` reports unhealthy/degraded state; browser-backed requests fail | It does not globally block `/readyz`; impact is limited to implementation lines that require browser execution unless that line records an explicit fallback. | Isolate affected browser capacity, inspect leases/session evidence, and validate a replacement executor before re-enabling the affected line. |

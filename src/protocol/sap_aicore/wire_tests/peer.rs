@@ -62,6 +62,9 @@ impl Peer {
                 "usage":{"input_tokens":2,"output_tokens":3,"total_tokens":5}})),
         ]), None).await
     }
+    pub async fn stored_stream(replies: Vec<Vec<u8>>) -> Self {
+        Self::serve("stored_stream", false, false, 200, Some(replies), None).await
+    }
     pub async fn chat_with_unique_ids(prefix: String) -> Self {
         Self::serve("chat", false, false, 200, None, Some(prefix)).await
     }
@@ -171,7 +174,7 @@ impl Drop for Peer {
 }
 async fn handler(State(reply): State<Reply>, request: Request<Body>) -> Response {
     if (request.method() != axum::http::Method::POST
-        && !(reply.family == "stored_responses"
+        && !(matches!(reply.family, "stored_responses" | "stored_stream")
             && request.method() == axum::http::Method::GET
             && request
                 .uri()
@@ -252,6 +255,25 @@ async fn handler(State(reply): State<Reply>, request: Request<Body>) -> Response
     } else {
         b"synthetic-private-error synthetic-dim-public-access".to_vec()
     };
+    if reply.family == "stored_stream" && stream {
+        use futures::StreamExt;
+        let boundary = bytes.windows(2).position(|pair| pair == b"\n\n").unwrap() + 2;
+        let first = bytes::Bytes::copy_from_slice(&bytes[..boundary]);
+        let tail = bytes::Bytes::copy_from_slice(&bytes[boundary..]);
+        let release = reply.disconnect;
+        let body = Body::from_stream(
+            futures::stream::iter([Ok::<_, std::io::Error>(first)]).chain(futures::stream::once(
+                async move {
+                    release.notified().await;
+                    Ok(tail)
+                },
+            )),
+        );
+        return Response::builder()
+            .header("content-type", "text/event-stream")
+            .body(body)
+            .unwrap();
+    }
     let chunks = bytes
         .chunks(7)
         .map(bytes::Bytes::copy_from_slice)

@@ -37,6 +37,17 @@ fn sap_aicore_responses_lifecycle_paths_and_path_segment_admission() {
         );
         assert!(plan.query.is_empty() && plan.body.is_none());
     }
+    let plan = operation_plan(&payload, &id, Operation::RetrieveStream(Some(7))).unwrap();
+    assert_eq!(plan.method, Method::GET);
+    assert_eq!(
+        plan.query,
+        vec![
+            ("stream".into(), "true".into()),
+            ("starting_after".into(), "7".into())
+        ]
+    );
+    assert!(plan.body.is_none());
+    assert!(operation_plan(&payload, &id, Operation::RetrieveStream(Some(-1))).is_err());
     for raw in [
         "", ".", "../id", "x%2Fy", "x\\y", "a?b", "a#b", " a", "中", LOCAL,
     ] {
@@ -105,7 +116,6 @@ fn sap_aicore_responses_lifecycle_stored_create_rewrites_only_resolved_predecess
         json!({"store":false}),
         json!({"background":"yes"}),
         json!({"conversation":"external"}),
-        json!({"stream":true}),
     ] {
         let mut invalid = raw.clone();
         invalid

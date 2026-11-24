@@ -8,7 +8,10 @@ use crate::{
     error::GatewayError,
     protocol::sap_aicore::responses_lifecycle::{
         enabled,
-        store::{lookup_pinned, run_existing, run_submit, PinnedTarget, SendHooks},
+        store::{
+            lookup_pinned, run_existing_with_stream, run_submit_with_stream, PinnedTarget,
+            SendHooks,
+        },
         Operation,
     },
     state::{AppState, StoredResponseAdmission, StoredResponseWaiter},
@@ -16,6 +19,8 @@ use crate::{
 use serde_json::Value;
 use std::sync::Arc;
 mod health;
+mod subscriber;
+pub(super) use subscriber::run_live;
 
 pub(crate) enum Request {
     Create,
@@ -27,7 +32,7 @@ impl Request {
         match self {
             Self::Create => "create",
             Self::Existing { operation, .. } => match operation {
-                Operation::Retrieve => "retrieve",
+                Operation::Retrieve | Operation::RetrieveStream(_) => "retrieve",
                 Operation::Cancel => "cancel",
                 Operation::Delete => "delete",
             },
@@ -36,12 +41,42 @@ impl Request {
 }
 
 pub(crate) async fn run(
-    mut ctx: PipelineContext,
+    ctx: PipelineContext,
     auth: AuthRequest,
     request: Request,
     state: Arc<AppState>,
 ) -> Result<Value, GatewayError> {
-    stage_auth::run_request(&mut ctx, &state, &auth).await?;
+    let (ctx, admission) = authorize(ctx, auth, &state).await?;
+    run_authenticated(ctx, request, state, false, admission).await
+}
+
+pub(crate) async fn resume(
+    ctx: PipelineContext,
+    auth: AuthRequest,
+    id: String,
+    cursor: Option<i32>,
+    state: Arc<AppState>,
+) -> Result<super::PipelineOutput, GatewayError> {
+    let (ctx, admission) = authorize(ctx, auth, &state).await?;
+    subscriber::run_stream(
+        ctx,
+        Request::Existing {
+            id,
+            operation: Operation::RetrieveStream(cursor),
+        },
+        state,
+        false,
+        admission,
+    )
+    .await
+}
+
+async fn authorize(
+    mut ctx: PipelineContext,
+    auth: AuthRequest,
+    state: &Arc<AppState>,
+) -> Result<(PipelineContext, StoredResponseAdmission), GatewayError> {
+    stage_auth::run_request(&mut ctx, state, &auth).await?;
     if ctx
         .session
         .as_ref()
@@ -53,7 +88,7 @@ pub(crate) async fn run(
         ));
     }
     let admission = state.lifecycle.stored_response_tasks.try_admit()?;
-    run_authenticated(ctx, request, state, false, admission).await
+    Ok((ctx, admission))
 }
 
 pub(super) async fn run_authenticated(
@@ -63,8 +98,32 @@ pub(super) async fn run_authenticated(
     caller_admitted: bool,
     admission: StoredResponseAdmission,
 ) -> Result<Value, GatewayError> {
+    let (_cancel, rx) = start_owned(ctx, request, state, caller_admitted, admission, None);
+    crate::state::stored_response_tasks::receive(rx).await
+}
+
+fn start_owned(
+    ctx: PipelineContext,
+    request: Request,
+    state: Arc<AppState>,
+    caller_admitted: bool,
+    admission: StoredResponseAdmission,
+    publisher: Option<subscriber::Publisher>,
+) -> (
+    crate::state::stored_response_tasks::CancelOnDrop,
+    tokio::sync::oneshot::Receiver<Result<Value, GatewayError>>,
+) {
     let owned = state.clone();
-    let work = move |waiter| Box::pin(run_owned(ctx, request, owned, waiter, caller_admitted));
+    let work = move |waiter| {
+        Box::pin(run_owned(
+            ctx,
+            request,
+            owned,
+            waiter,
+            caller_admitted,
+            publisher,
+        ))
+    };
     #[cfg(test)]
     let work = {
         // The mock's destination is task-local and must follow the durable task.
@@ -81,7 +140,7 @@ pub(super) async fn run_authenticated(
             task
         }
     };
-    admission.run(work).await
+    admission.start(work)
 }
 
 async fn run_owned(
@@ -90,9 +149,15 @@ async fn run_owned(
     state: Arc<AppState>,
     waiter: StoredResponseWaiter,
     caller_admitted: bool,
+    publisher: Option<subscriber::Publisher>,
 ) -> Result<Value, GatewayError> {
     let receipt_id = parking_lot::Mutex::new(None);
     let observed = parking_lot::Mutex::new(None);
+    let publish = |bytes, terminal| {
+        if let Some(publisher) = &publisher {
+            publisher.publish(bytes, terminal);
+        }
+    };
     ctx.observed_upstream_status = Some(None);
     let result = dispatch(
         &mut ctx,
@@ -102,6 +167,9 @@ async fn run_owned(
         &receipt_id,
         &observed,
         caller_admitted,
+        publisher
+            .as_ref()
+            .map(|_| &publish as &(dyn Fn(bytes::Bytes, bool) + Sync)),
     )
     .await;
     // This owner survives caller disconnect. Health never gates required receipt persistence.
@@ -143,6 +211,7 @@ async fn dispatch(
     receipt_id: &parking_lot::Mutex<Option<String>>,
     observed: &parking_lot::Mutex<Option<health::Observed>>,
     caller_admitted: bool,
+    publish: Option<&(dyn Fn(bytes::Bytes, bool) + Sync)>,
 ) -> Result<Value, GatewayError> {
     waiter.check()?;
     let session = ctx.session.clone().ok_or_else(unavailable)?;
@@ -252,7 +321,7 @@ async fn dispatch(
             } else {
                 (estimate as f64 * state.config.quota_pre_deduct_estimate_ratio).ceil() as u64
             };
-            run_submit(
+            run_submit_with_stream(
                 state,
                 &session,
                 &selected,
@@ -260,11 +329,15 @@ async fn dispatch(
                 &ctx.canonical_req,
                 estimate,
                 hooks,
+                publish,
             )
             .await
         }
         Request::Existing { id, operation } => {
-            run_existing(state, &session, &selected, id, group, *operation, hooks).await
+            run_existing_with_stream(
+                state, &session, &selected, id, group, *operation, hooks, publish,
+            )
+            .await
         }
     }
 }

@@ -1,5 +1,7 @@
 # Neuro Gateway
 
+[文档导航](docs/README.md)
+
 [![CI](https://github.com/aiaimimi0920/Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/aiaimimi0920/Gateway/actions/workflows/ci.yml)
 [![Build Windows](https://github.com/aiaimimi0920/Gateway/actions/workflows/build-windows.yml/badge.svg)](https://github.com/aiaimimi0920/Gateway/actions/workflows/build-windows.yml)
 [![Docker](https://github.com/aiaimimi0920/Gateway/actions/workflows/docker.yml/badge.svg)](https://github.com/aiaimimi0920/Gateway/actions/workflows/docker.yml)
@@ -47,7 +49,7 @@ Platform、Loom 和 Otter 的实现代码不会复制进本仓库。模块职责
 ## 环境要求
 
 - Windows 10/11 或当前受支持的 Linux 发行版。
-- Rust `1.95.0`，或 `rust-toolchain.toml` 固定的版本。
+- Rust 版本以 [`rust-toolchain.toml`](rust-toolchain.toml) 为准。
 - Node.js `>=22.22.0` 与 npm。
 - Python `3.11+`。
 - Windows 打包需要 PowerShell 5.1+。
@@ -73,13 +75,7 @@ CI 会阻止新增超大文件和既有 700 行以上文件继续增长，但不
 清偿全部历史旧债。扫描器、严格审计、例外 schema、支持语言和显式排除规则见
 [`docs/effective-code-lines.md`](docs/effective-code-lines.md)。
 
-Gateway 现在自带一个本地默认的 Cargo 限流配置：
-[`./.cargo/config.toml`](.cargo/config.toml) 中的 `build.jobs = 1`。这样日常
-Rust 构建默认不会再轻易把整台工作站的 CPU / 内存打满。Release 构建脚本仍会
-强制使用 `CARGO_BUILD_JOBS=1`、`CARGO_INCREMENTAL=0`，保证支持的发布路径保持
-可复现；而源码挂载的开发容器现在改为默认使用
-`GATEWAY_DEV_CARGO_BUILD_JOBS=4`、`GATEWAY_DEV_CARGO_INCREMENTAL=1`，
-优先缩短本地迭代重编译时间，同时允许你按机器情况显式覆盖。
+仓库 Cargo 配置是直接构建时的保守兜底。日常 Windows 出包使用[增量手测流程](docs/devtest-build.md)，不走正式发布流程。
 
 运行线路清单和 Python 合同校验：
 
@@ -110,10 +106,7 @@ cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 
 ## 运行时配置
 
-服务从环境变量读取运行配置。`Config::from_env` 要求
-`GATEWAY_REDIS_URL`；`GATEWAY_DATABASE_URL` 或 `DATABASE_URL` 可选。
-本地开发可以从 `.env.example` 创建 `.env`，而 `.env` 和其他本地环境
-文件不会进入 Git。
+`GATEWAY_STORAGE_MODE=local` 使用 SQLite，要求 `standalone`，不需要外部 Redis 或 PostgreSQL；桌面受管后端自动选用本地模式。`GATEWAY_STORAGE_MODE=server` 要求 `GATEWAY_REDIS_URL`，配置 `GATEWAY_DATABASE_URL` 或 `DATABASE_URL` 后启用依赖 PostgreSQL 的能力。官方 Compose 同时部署 Redis 和 PostgreSQL。开发环境可从 `.env.example` 创建不入库的 `.env`。数据目录见[本地数据存储](docs/local-data-storage.md)。
 共享启动配置 `.ng/gateway.json` 可设置 `enable_management_ui`。该值与编译版本
 是否包含管理 UI 能力共同决定最终行为；也可用绝对路径环境变量
 `GATEWAY_CONFIG_FILE` 指定配置文件。详情见
@@ -220,142 +213,9 @@ node --test ".\release\Gateway\$id\scripts\tests\*.test.mjs"
 
 ## Docker
 
-服务端正式部署请优先使用 [`deploy/`](deploy/README.md) 目录下的官方
-Compose 栈。推荐的本地目录版本会把路由文件与 Redis 数据直接落到宿主机：
+配置 Compose、密钥、持久化和验证见[部署手册](deploy/README.md#quick-start)。已有数据库按[迁移说明](deploy/README.md#postgresql-and-the-gateway-schema)升级，不要删卷。
 
-```bash
-cd deploy
-chmod +x docker-deploy.sh
-./docker-deploy.sh
-docker compose -f docker-compose.local.yml up -d
-```
-
-这套一键准备流程是 Gateway 对齐 Sub2API 推荐 Docker Compose 部署方案的做法：
-先生成 `.env`、自动补齐关键密钥、创建本地持久化目录，再启动
-`docker-compose.local.yml`。
-
-```bash
-cd deploy
-cp .env.example .env
-mkdir -p gateway_data redis_data
-docker compose -f docker-compose.local.yml up -d
-docker compose -f docker-compose.local.yml logs -f gateway
-```
-
-镜像默认以 `standalone` 模式启动，并会在首次启动时自动把
-`routes.example.yaml` 初始化到持久化的路由文件位置。
-
-也提供命名卷版本：
-
-```bash
-cd deploy
-cp .env.example .env
-docker compose up -d
-docker compose logs -f gateway
-```
-
-根目录下的 `docker build` / `docker run` 仍然保留，适合快速复用 Docker 层缓存的
-开发验证。没有传入审计 nonce 的 raw build 不能证明本次重新执行了依赖审计，
-因为 BuildKit 可能直接复用之前的审计层：
-
-```powershell
-docker build -t gateway:local .
-docker run --rm -p 4200:4200 --env-file .env gateway:local
-```
-
-需要做本地安全验证时，应传入每次都不同的 nonce，强制两棵生产依赖的镜像内
-审计层在本次构建中重新执行：
-
-```powershell
-$auditNonce = [guid]::NewGuid().ToString("N")
-docker build --build-arg "GATEWAY_AUDIT_NONCE=$auditNonce" -t gateway:local .
-```
-
-镜像包含核心二进制、线路配置、提供方清单、浏览器 Worker，以及一个会在持久化
-路由文件缺失时自动初始化 `/data/routes.yaml` 的容器入口脚本。运行时凭据通过
-环境变量或 env 文件提供，Docker 构建过程不会读取本地 `.env`。
-
-如果希望直接在仓库根目录下一键管理 Docker 部署，可使用：
-
-```powershell
-.\tools\deploy-gateway-docker.ps1 -Action up -Mode local
-.\tools\deploy-gateway-docker.ps1 -Action logs -Mode local -Follow
-.\tools\deploy-gateway-docker.ps1 -Action down -Mode local
-```
-
-这个 PowerShell helper 针对“本地新用户直接启动”的场景做了默认优化。首次执行
-`-Action up` 时，它会默认写入 `GATEWAY_BIND_HOST=127.0.0.1`，并在 loopback
-绑定场景下自动补齐以下控制台登录配置，且不会覆盖你已经显式设置过的值：
-
-- `GATEWAY_MANAGEMENT_TOKEN=11011101`
-- `GATEWAY_CONSOLE_REMOTE_ACCESS=true`
-
-启动完成后，直接访问：
-
-- `http://127.0.0.1:4200/ui/`
-
-然后使用管理密钥 `11011101` 登录即可。如果你要部署成对外提供服务的服务器形态，
-请显式传入 `-BindHost 0.0.0.0`，并在暴露端口前改成你自己的管理密钥。
-
-当前浏览器控制台除了原有的 route-config / revision 能力外，还新增了两个直接面向
-账号池管理的工作区：
-
-- `账号台账`：把 `routes.yaml` / route-config 文档里的 `provider.credentials[]` 视为
-  可复用账号单元，并按 Provider / 服务商分组浏览；
-- `分组策略`：把多个账号组织成逻辑分组，记录 `billing_multiplier` 等后续可供
-  Platform 消费的费率元数据。
-
-这些分组元数据保存在同一份 route-config 文档的顶层 `account_groups` 字段中，
-因此它在当前 standalone / Redis 管理模式下无需 PostgreSQL 也能直接工作。
-
-运行时路由默认保持向后兼容：
-
-- **不带**账号分组选择器的请求，仍按原有路由逻辑运行；
-- 可信内部调用方可在同时携带 `x-internal-api-key` 时，附带
-  `x-neuro-account-group`（或 `x-account-group-id`）请求头，把 YAML/static
-  路由候选限制在指定账号组内。
-
-为了让 Platform 更容易消费计费倍率与账号池关系，Gateway 现在还提供了一个仅管理面可读的汇总接口：
-
-```bash
-curl http://127.0.0.1:4200/v1/internal/gateway/account-groups \
-  -H "x-internal-api-key: 11011101"
-```
-
-返回结果包含：
-
-- `accountGroups[]`：已经折算好的 `billingMultiplier`、成员数量、启用状态、成员账号 ID；
-- `accounts[]`：账号到 provider / group 的反向映射；
-- `providers[]`：provider 到账号清单的汇总视图。
-
-账号台账中的 `测试` 按钮调用独立的凭据连通性探测接口：
-
-```text
-POST /v1/internal/gateway/console/credentials/{credential_id}/probe
-```
-
-该接口只接受已登录的管理会话，并要求请求精确携带敏感信息确认接口返回的有效
-`Secret Grant`。客户端必须通过 `x-secret-grant` 请求头发送该值；请求头缺失、Grant
-过期、不存在或上下文不匹配时，后端统一返回 HTTP `403` 和
-`console_secret_access_required`。Grant 会绑定管理密钥指纹、请求 Origin 和客户端
-IP。探测直接使用 active route-config 编译后的凭据，不依赖 PostgreSQL；停用凭据
-不会发起网络请求。返回状态只有：
-
-- `passed`：已完成受支持的 HTTP 凭据探测；
-- `failed`：上游请求失败，消息已清洗；
-- `unsupported`：固定模型、浏览器态、状态型或未知适配器没有安全的无副作用探测。
-
-响应格式为 `{ "result": { "credentialId", "providerId", "status", "message", "checkedAt" } }`，
-不会返回 API Key、Cookie、Token 或上游响应正文。
-
-如果要对本地源码做一次完整的 Docker 端到端验证，可运行：
-
-```powershell
-.\tools\verify-gateway-docker-stack.ps1 -BuildImage
-```
-
-`-BuildImage` 会在内部生成并传入唯一的 `GATEWAY_AUDIT_NONCE`，因此官方 wrapper
-可以强制重新执行镜像内审计，同时不要求宿主机预装 Node.js 或 `node_modules`。
+启动后的管理操作见[运维手册](docs/operations-manual.md)和[凭据测试策略](docs/credential-test-policies.md)。
 
 ## GitHub Actions
 

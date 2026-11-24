@@ -30,6 +30,6 @@ MP3无统一文件结束标志：刚好缺少若干**完整尾帧**、或以独�
 
 资产错误使用Suno安全错误码和502；原期限用尽为504。省略signed URL、CDN正文及decoder/连接细节。CDN401/403不直接当生成账号认证失效；所有此类后提交失败都禁止重放。
 
-沿正常公共owner执行Local次数Key成功扣一次、失败/取消退款与审计，provider不另做结算。上游usage/实际credits未知仍未知，不伪造token或0费用；现金Key缺usage/tariff的未决语义不因音频准入改变。完整当前模型/feed/Clerk刷新/challenge、原提交ID的远端证明、精确媒体probe/逐次费用确认/UI、Server/独立进程/原生包与真实CDN播放及权益仍需接力。
+Local 次数 Key 由公共请求 owner 统一扣款、退款与审计。上游 usage／credits 未知时不填 0；音频准入也不补足现金 Key 所需的用量或费率证据。精确媒体探测、逐次费用确认和管理界面已有受控联合验收；适用范围和仍待确认的真实平台、Server 与打包结果见[渠道合同](provider-suno-channel-contract.md)。
 
-库许可与固定源码见 [Symphonia说明](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/third-party/symphonia/NOTICE.md)。P50仍需证明许可随适用包交付；本批不以源码说明替代打包门禁。
+库许可与固定源码见 [Symphonia 说明](third-party/symphonia/NOTICE.md)。仍须验证许可随适用包交付；源码说明不能替代打包门禁。

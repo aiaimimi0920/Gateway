@@ -75,15 +75,14 @@ pub(crate) async fn run(
         // This guard has no reservation; durable tasks take over before the first
         // write. A dropped waiter can never start the ordinary branch.
         let lifetime = owner.lifetime.take();
-        let result = super::super::stored_responses::run_authenticated(
-            ctx,
-            super::super::stored_responses::Request::Create,
-            state,
-            true,
-            admission,
-        )
-        .await
-        .map(PipelineOutput::Json);
+        use super::super::stored_responses as durable;
+        let result = if ctx.canonical_req.stream {
+            durable::run_live(ctx, state, admission).await
+        } else {
+            durable::run_authenticated(ctx, durable::Request::Create, state, true, admission)
+                .await
+                .map(PipelineOutput::Json)
+        };
         drop(lifetime);
         return result;
     }

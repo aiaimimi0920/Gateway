@@ -111,13 +111,13 @@ or upstream; an end needs the existing registration and fresh signed catalog.
 History is not active authority. Catalog CLI / Local non-streaming Chat now uses
 the normal request-owned per-purchase approval; other public lanes and Server
 admission storage remain incomplete. See
-[正常管理原claim收尾子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-07-provider-channel-expansion-freebuff-managed-closeout.md).
+[正常管理原 claim 收尾](progress/2026-11-07-provider-channel-expansion-freebuff-managed-closeout.md).
 
 原 run 记录在同一 schema-1 内 additive 初始化，旧 claim 无 run 时返回缺少事实，而不补造 ID/费用。
 START、模型、FINISH 的原意图必须先持久化；当前未知费用与此前已知累计分开，HTTP 接受不当结算。
 正常管理 claim/history 读取与页面只展示恢复事实，不返回 remote run/client ID、body 或认证材料，
 不生成恢复执行许可。实际进程/跨进程、远端 lease 与未知结果显式对账仍需后续验收；见
-[原 run 持久化子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-freebuff-run-journal.md)。
+[原 run 持久化回执](progress/2026-11-08-provider-channel-expansion-freebuff-run-journal.md)。
 
 Local refill workers use the existing authenticated HTTP claim/renew/complete APIs.
 The status response identifies storageBackend=sqlite and streamKey=null. Provider

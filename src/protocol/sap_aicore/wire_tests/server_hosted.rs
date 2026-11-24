@@ -12,6 +12,7 @@ mod probe;
 mod reasoning;
 mod responses;
 mod stored_health;
+mod stored_stream;
 
 #[test]
 #[ignore = "Requires isolated Hosted PostgreSQL schema and Redis; retains scoped fixture data"]

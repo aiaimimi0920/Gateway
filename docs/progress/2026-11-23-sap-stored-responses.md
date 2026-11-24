@@ -1,5 +1,7 @@
 # SAP 持久化 Responses 公共生命周期验收
 
+> 本页保留各批次原始验收口径。前台 SSE 的包级结果见[双 EXE 回执](#双-exe-sse-验收通过)；后台 SSE 的后续源码结果、延期项及当前收口口径见[首批交付与验收](../providers/first-three-closure-2026-11-13.md#3-sap-ai-core)。
+
 ## 结论
 
 2026-11-23 已完成默认关闭、显式启用的 SAP 持久化 Responses 公共生命周期接线，
@@ -300,6 +302,76 @@ JSON 和所有 Chat SSE JSON 帧仅报告请求别名；SSE 终态唯一。SAP �
 - Manifest SHA-256：`74b386291e4f1a4bb906dd25e254f1349ac7303673ef7fb8e98b0a719f9db66a`
 - Nextest **24/24**（`71cc5767-ce70-479b-a5b7-34d8108b0c16`），同一测试 EXE 的三服务商关联回归 **11/11**，SAP Python 夹具 **14/14**，定向格式与 6170 文件 ratchet 通过。全仓 `cargo fmt --all --check` 仍有范围外差异，未修改。
 - 上节恢复／探测与 48 条矩阵仍绑定原包；本次新包回执只覆盖发送前撤销与回退，不把旧包结果记作新包复跑。
+
+## 2026-11-24：包内生产未发送证明与退款恢复
+
+复用 `gateway-devtest-sap-hosted-tools-20261124-070907` 的既有 API 包，不重新构建或修改包内文件。
+新版仓库夹具通过公共 `POST /v1/responses` 产生两条真实收据：隔离 PostgreSQL 在预扣事务内
+撤销各次请求的精确测试凭据，使拒绝发生在预扣提交之后、推理发送之前。定向故障阻止即时退款；
+只有正例成功提交当前 revision 的未发送证明，负例另注入证明写失败。两条请求均返回
+`sap_aicore_response_refund_pending` 和各自的本地 ID，零推理发送、零实际发送归属；夹具不造证明行。
+
+旧进程正常 drain 并移除故障后，双新 EXE 启动：自动结算两条权威终态（其中一条 token 保持 NULL），
+且仅退回有证明的一条消息；无证明的 hold 保持开放，第二周期稳定。整轮 12 次存储生命周期
+上游操作、17 条公共审计；自动恢复无新增 OAuth、推理或公共审计。缺 CA 对照 exit 1，其余隔离 EXE
+正常退出。证据不覆盖强杀、同一行双 worker 抢占或真实租户，也不是当前工作树新包验收。
+
+- 回执：`linshi/gateway-packaged-provider-fixture/sap-live-unsent-both-20261124-145635/result.json`
+- EXE SHA-256：`49ac17f0c622de1c455f2e9ac3ee7592fcbe0146f44595c79b721888c9049578`
+- SAP Python 夹具 **14/14**，有效行门禁通过。
+
+## 2026-11-24：前台持久化 Responses SSE 源码回归
+
+对显式启用的 SAP 原生部署支持 `store:true, stream:true`。首个有效
+`response.created` 在公开 Gateway ID 前先持久化原 SAP ID；干净 EOF、权威终态
+和本地结算成功后才发布终态。首帧绑定的本地写失败保留已观测 HTTP 状态，不记为
+上游健康失败。公开流不转发私有模型名、SAP 响应 ID 或任意 metadata。
+
+两个公共 Router 测试覆盖八种带 loopback OAuth／SAP 和 Local SQLite 的场景：
+正常完成、非法尾帧、上游响应 ID 改变、调用端断开后 drain、慢订阅者积压、并发 GET
+用量一致／冲突，以及 GET 后删除。订阅中断不重复发送或扣款；慢订阅者只能收到部分
+增量与流错误，原操作仍落账。非法流保留已绑定回执与 hold，后续 GET 可恢复；并发
+GET 已确认的用量不被流覆盖，已确认删除的对象不复活。
+
+- 首轮 **134 passed / 1 failed**：审计已完成，但测试仍持有 HTTP Body 导致
+  夹具等待 `AppState` 归还超时；修正后最终 **136 passed / 0 failed / 6407 skipped**，
+  Nextest run ID `2e2bc57a-4a24-42d5-99c8-845771ee782a`。
+- 定向 Rust 格式检查、fast effective-lines（6178 文件）及 scoped `git diff --check` 通过。
+- 此轮只验证 Local；后续 Hosted 验证见下。后台 SSE／游标续接不在本批启用范围。
+
+## 2026-11-24：Hosted 前台 SSE 与跨实例恢复
+
+新增 `sap_aicore_server_hosted_stored_sse_and_cross_instance_recovery`。两个独立
+Hosted `AppState` 使用标记明确的 loopback PostgreSQL／Redis 和合成 SAP OAuth／推理。
+正式终态与半帧截断分别经公开 `POST /v1/responses` 验证。尾流放行前，另一实例已能读回
+精确部署凭据、原扣费 Key、上游 ID 和开放 hold；终态发布时已结算。半帧截断后仍是
+`pending` 和开放 hold，另一实例用 Gateway ID GET 后才结算 `2/3/5` 用量。
+两次创建共净扣两条消息，GET 不追加扣款。上游仅收到两次创建和一次按原 SAP ID 的
+GET；三条审计各有一次实际发送及精确账号、凭据归属，截断为 `failed` 且保留 HTTP 200。
+
+- Nextest（含隔离 Hosted 套件）**149 passed / 0 failed / 6395 skipped**，
+  run ID `a51ac46f-2145-4a18-91a4-6817769b44c1`。
+- 定向 Rust 格式、fast effective-lines（6179 文件）及 scoped `git diff --check` 通过。
+- 这是源码级双 `AppState`，不是双 EXE、原生窗口或真实 SAP 租户验收；未拿旧包抵扣。
+
+### 双 EXE SSE 验收通过
+
+包级 runner 新增显式 `--stream-only`，保留原 JSON 生命周期矩阵及原回执口径。新增
+合成 TLS 首帧放行闸门和有界 SSE 客户端，要求另一 EXE 恢复截断回执，并校对准确发送、
+审计归属和单次扣款。SAP Python 夹具 **18/18**，其中包括实际 loopback TLS 首帧闸门。
+2026-11-24 同源 API devtest `gateway-devtest-20261124-160401-sap-foreground-sse` 已通过
+`run_sap_stored_lifecycle.py --stream-only`。两个隔离 `gateway.exe` 实例均正常 drain；
+首帧放行前已确认 PostgreSQL 绑定和预扣，另一实例可查询截断任务。回执精确记录两次
+POST、一次 GET、三条公共审计、合计扣两条消息，无重复扣款。
+
+- 包：`Neuro/release/Gateway/gateway-devtest-20261124-160401-sap-foreground-sse`
+- 回执：`linshi/gateway-packaged-provider-fixture/gateway-devtest-20261124-160401-sap-foreground-sse/result.json`
+- EXE SHA-256：`9f1191d851b8b44c02550d3e094ad83a5769ff6ce10c943a14789d5ab39e1837`
+- Manifest SHA-256：`f8eaa16b7ce4c9ecd545b9d2118fbdbdb26de2b200966007ee15d6ef41267ddd`
+
+首次启动夹具时缺测试数据库环境变量，未启动 Gateway；补齐专用测试容器连接环境后
+复用同包通过，未重编。这里验证的是两个同一后端 EXE 的隔离进程，不是桌面壳＋后端，
+也不是实际 SAP 租户或后台 SSE 游标续接验收。
 
 ## 仍未完成
 

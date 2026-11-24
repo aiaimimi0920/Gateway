@@ -1,12 +1,6 @@
 # magpie 全范围实施看板
 
-当前执行批次：用户已选定 **Command Code → SenseNova Token Plan → SAP AI Core**，逐个推进到仅待真实账号验收；第一项开发中，后两项排队，不同时扩展 67 项。完成门槛与当前阻碍见 [首批三个收口清单](first-three-closure-2026-11-13.md)。
-
-首批 Hosted 接线（2026-11-14）：Command Code DB／缓存原生目录投影、无 preset 身份恢复、显式协议限制及凭证目录整体替换已通过，产品 57 passed、共享回归 36／3／20／17／29 passed，独立 feature 编译与有效行检查通过。尚非 PostgreSQL／Redis 实例或产品包验收，不增加整卡完成数。见 [Hosted 目录接线](../progress/2026-11-14-commandcode-hosted-catalog.md)。
-
-首批目录后续（2026-11-14）：Command Code 原生专用模型自动导入、按声明探测和管理保存后 Local runtime 重建已通过；含手工模型兼容修复的最终产品回归 49 passed、共享目录 35 passed、Responses 60 passed、前端 5 passed 及 typecheck 通过。Server 目录投影与完整交付仍开放，不增加整卡完成数。见 [目录与原生探测](../progress/2026-11-14-commandcode-catalog-native-probe.md)。
-
-首批最新实现（2026-11-14）：Command Code 原生 Messages 文本／函数工具已通过仅声明 Messages 的保存配置、真实公共 JSON／SSE 两回合及额度／失败退款验收。产品回归 44 passed、共享路由 35 passed、Anthropic 60 passed、独立 feature 编译及有效行检查通过；原生目录自动导入／专用 probe、完整保真和产品交付仍未收口，见 [Messages 切片](../progress/2026-11-14-commandcode-native-messages.md)。以下为此前检查点。
+**历史实施看板。** 下文保留原始范围和当时的检查点，不是当前进度。Command Code、SenseNova Token Plan、SAP AI Core 已按调整后的范围收口，见 [交付与验收](first-three-closure-2026-11-13.md)；其他扩展工作从 [剩余清单](magpie-remaining-2026-11-13.md) 接手。两者的完成口径不同。
 
 首批最新验证（2026-11-14）：经用户窄范围授权，Gemini feature 关闭路径门禁已修复，三个服务商独立构建及无 feature 基线通过，四个关闭入口无网络执行测试 1 passed，见 [门禁回执](../progress/2026-11-14-gemini-disabled-build-gate.md)。Command Code 原生 Responses 文本／函数工具切片产品回归 39 passed、共享 Responses 回归 47 passed，见 [实现边界](../progress/2026-11-13-commandcode-native-responses.md)。原生 Messages、完整输出保真及交付门槛仍开放，不增加整卡完成数。
 

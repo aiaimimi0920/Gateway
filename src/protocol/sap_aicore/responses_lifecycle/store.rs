@@ -11,8 +11,13 @@ mod ingress;
 mod mutation;
 mod projection;
 mod route_binding;
+mod stream;
 use balance::{sql, Ledger};
-pub(crate) use ingress::{lookup_pinned, run_existing, run_submit, PinnedTarget, SendHooks};
+#[cfg(test)]
+use ingress::run_submit;
+pub(crate) use ingress::{
+    lookup_pinned, run_existing_with_stream, run_submit_with_stream, PinnedTarget, SendHooks,
+};
 
 pub(crate) const SCHEMA: &str =
     include_str!("../../../../deploy/postgres/initdb/008-gateway-sap-response-receipts.sql");

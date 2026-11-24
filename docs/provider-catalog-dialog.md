@@ -58,7 +58,7 @@ owner 删除则丢弃。WebDAV 密码必须同时提供用户名。
 目录必须同时保留 `sourceUrl + accountBaseUrl`；新加坡/香港 shared source 不能代替精确 workspace 绑定。旧目录按 fetched 读取，复制账号不复制目录或将其洗成 manual。错误旧目录阻止普通编辑，不静默删证据。
 已有普通 Qwen 池可在卡片背面使用“Qwen 默认目标”编辑六区/workspace。变更前必须明确确认“固定原目标”：给原继承账号补其旧有效目标，已有 override 不动；旧 Key、目录/fetched、模型、禁用状态和路由保留，不随默认目标迁移。需要迁移某个账号时仍单独编辑并明确 replace/clear Key。
 空 parent 且无继承账号可首次设置目标；未知旧目标不能被固定。具有 provider-default 认证秘密或非显式账号池的旧配置不在此编辑器中迁移。取消/权限撤销丢弃本地输入；打开后 provider 草稿变化则拒绝应用，须关闭重开。应用仅写草稿，沿原自动保存、SecretPatch 和 revision/CAS；失败显示在控制台，不冒称已生效。
-Qwen 仍不提供 generic discovery 或其他产品目录。精确 probe 和完整 pipeline 仍待完成；目录链见 [P14](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-02-provider-channel-expansion-p14.md)，父级默认目标见 [P15](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-02-provider-channel-expansion-p15.md)，均不表示真实验收或蓝色完成标记。
+Qwen 仍不提供 generic discovery 或其他产品目录。精确 probe 和完整 pipeline 仍待完成；目录链见 [P14](progress/2026-11-02-provider-channel-expansion-p14.md)，父级默认目标见 [P15](progress/2026-11-02-provider-channel-expansion-p15.md)，均不表示真实验收或蓝色完成标记。
 
 ## Web 服务商的专用账号导入
 
@@ -90,7 +90,7 @@ AI Studio／Flow 只返回 Cookie 对象引用；Gemini Web 沿已有 secret pat
 
 新增七类 Session 入口继续复用普通 revision/SecretPatch 保存链；模型默认留空，媒体测试不按文本 IQ 判定。
 产品字段、Luma realmId、Suno 完整 Cookie、Udio 分片、FreeBuff agentId 与暂存后目标复核见
-[产品 Session 材料合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-session-material-import.md)。
+[产品 Session 材料合同](provider-session-material-import.md)。
 模板均待真实验收，不新增蓝色登记；Qwen 恢复 seed、各 OAuth 生命周期和 FreeBuff CLI 登录不由手动材料导入替代。
 
 ## NVIDIA 目录与调用证据

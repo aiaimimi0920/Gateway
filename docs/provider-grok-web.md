@@ -28,13 +28,13 @@ OAuth 和 Web SSO 仍是不同产品，不共享材料、不自动跨渠道兜�
 
 ## 本批明确支持的范围
 
-2026-11-12 [普通余额Key真实TCP/WS联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-grok-prepaid-tcp.md) 已连接正常Key/SQLite、真实HTTP下游与合成GET/WS：成功次数扣一次或token保留预扣，异常与增量后断连退款并关闭WS，audit用量保持未知。此处不是仅oneshot，但仍非真实平台、现金或成品验收。
+2026-11-12 [普通余额Key真实TCP/WS联合](progress/2026-11-12-provider-channel-expansion-grok-prepaid-tcp.md) 已连接正常Key/SQLite、真实HTTP下游与合成GET/WS：成功次数扣一次或token保留预扣，异常与增量后断连退款并关闭WS，audit用量保持未知。此处不是仅oneshot，但仍非真实平台、现金或成品验收。
 
-2026-11-12 [精确阈值与重叠准入](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-token-competing.md) 已验证：余额恰好等于预扣时可调用，两个重叠请求只允许一个使用最后额度，被拒绝请求不误退预扣，取消后只恢复一次。限单实例本地合成合同，非跨进程/PG压力验收。
+2026-11-12 [精确阈值与重叠准入](progress/2026-11-12-provider-channel-expansion-web-token-competing.md) 已验证：余额恰好等于预扣时可调用，两个重叠请求只允许一个使用最后额度，被拒绝请求不误退预扣，取消后只恢复一次。限单实例本地合成合同，非跨进程/PG压力验收。
 
-2026-11-12 后续 [非流式结算与不足准入](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-token-admission.md) 已补齐 buffered 成功保留预扣且usage未知，并验证0/1 token不足余额在普通/流式入口均429且零上游调用。未覆盖并发或真实收费。
+2026-11-12 后续 [非流式结算与不足准入](progress/2026-11-12-provider-channel-expansion-web-token-admission.md) 已补齐 buffered 成功保留预扣且usage未知，并验证0/1 token不足余额在普通/流式入口均429且零上游调用。未覆盖并发或真实收费。
 
-2026-11-12 补充 [token 预付费合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-token-prepaid.md)：成功流在 usage 未知时保留既有预扣，audit 不伪造 tokens；失败或增量后取消释放预扣。仅本地合成合同，不代表真实用量、现金定价或供应商扣额。
+2026-11-12 补充 [token 预付费合同](progress/2026-11-12-provider-channel-expansion-web-token-prepaid.md)：成功流在 usage 未知时保留既有预扣，audit 不伪造 tokens；失败或增量后取消释放预扣。仅本地合成合同，不代表真实用量、现金定价或供应商扣额。
 
 2026-11-12 补充：普通 Gateway Key 的 `message_prepaid` 已以生产本地状态和合成上游验证成功扣一次、失败退款、增量后取消释放预扣；token usage 仍未知。仅按次数合同，不代表现金定价或真实供应商扣额验证。详见 [本批回执](progress/2026-11-12-provider-channel-expansion-grok-prepaid.md)。
 
@@ -79,17 +79,17 @@ feature-off 的正常执行返回 `grok_web_line_disabled`，不触网兜底。
 
 还缺完整多轮/模型目录/额度/订阅、搜索引用和其他声明能力、SSO/challenge 的录制与恢复、
 原生 devtest 包、真实平台/费用/权益逐渠道验收。当前文本子批不等于 R03 整卡
-`offline_ready`，也不等于 P50/P60/P70 完成。验证结果见[本批接力回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-grok-web.md)。
+`offline_ready`，也不等于 P50/P60/P70 完成。验证结果见[本批接力回执](progress/2026-11-06-provider-channel-expansion-grok-web.md)。
 
-2026-11-12 后续已补 [公共真实 TCP / WS 合成验收](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-grok-public-tcp.md)：两公共入口的成功、提前关闭、坏 JSON、未知终态与客户端断开均有真实 socket 证据。此限定子链不替代正常管理网页联合、独立进程/包或真实平台验收。
+2026-11-12 后续已补 [公共真实 TCP / WS 合成验收](progress/2026-11-12-provider-channel-expansion-grok-public-tcp.md)：两公共入口的成功、提前关闭、坏 JSON、未知终态与客户端断开均有真实 socket 证据。此限定子链不替代正常管理网页联合、独立进程/包或真实平台验收。
 
-2026-11-12 已进一步补 [正常管理网页联合验收](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-grok-probe-ui.md)：取消导入无写入，正常 Grant/CAS 保存合成 SSO/Cookie/UA 后精确账号一次 probe，实际身份 GET/WS 使用新材料，页面结果与唯一脱敏审计一致；未知 usage/额度保持未知。未涵盖重启恢复、真实平台或应用包，不能据此宣称整卡完成。
+2026-11-12 已进一步补 [正常管理网页联合验收](progress/2026-11-12-provider-channel-expansion-grok-probe-ui.md)：取消导入无写入，正常 Grant/CAS 保存合成 SSO/Cookie/UA 后精确账号一次 probe，实际身份 GET/WS 使用新材料，页面结果与唯一脱敏审计一致；未知 usage/额度保持未知。未涵盖重启恢复、真实平台或应用包，不能据此宣称整卡完成。
 
-2026-11-12 [本地会话材料恢复合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-session-restart.md)补齐生产 new_local 的旧材料读取、轮换、移除与发布前后中断恢复；这是 runtime/store 重建和磁盘阶段注入，不是独立应用进程或真实平台验收。
+2026-11-12 [本地会话材料恢复合同](progress/2026-11-12-provider-channel-expansion-web-session-restart.md)补齐生产 new_local 的旧材料读取、轮换、移除与发布前后中断恢复；这是 runtime/store 重建和磁盘阶段注入，不是独立应用进程或真实平台验收。
 
-2026-11-12 [管理 TCP 与本地恢复联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-session-management.md)进一步验证正常 Grant/secretPatches/CAS 保存后关闭旧管理状态、新服务从磁盘恢复，脱敏读取和路由材料一致，旧 Grant/旧 revision 不得覆盖；仍非完整应用进程或真实平台验收。
+2026-11-12 [管理 TCP 与本地恢复联合](progress/2026-11-12-provider-channel-expansion-web-session-management.md)进一步验证正常 Grant/secretPatches/CAS 保存后关闭旧管理状态、新服务从磁盘恢复，脱敏读取和路由材料一致，旧 Grant/旧 revision 不得覆盖；仍非完整应用进程或真实平台验收。
 
-2026-11-12 [正常网页跨进程联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-grok-process-ui.md)已实际完成同一材料的网页保存、首宿主退出、不同PID从同根本地authority恢复、网页精确probe及合成WS出站。此处是测试宿主进程重启，不是成品EXE/全启动/真实平台验收；其他边界保持。
+2026-11-12 [正常网页跨进程联合](progress/2026-11-12-provider-channel-expansion-grok-process-ui.md)已实际完成同一材料的网页保存、首宿主退出、不同PID从同根本地authority恢复、网页精确probe及合成WS出站。此处是测试宿主进程重启，不是成品EXE/全启动/真实平台验收；其他边界保持。
 
 ## 参考许可
 

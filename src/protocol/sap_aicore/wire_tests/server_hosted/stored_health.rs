@@ -164,7 +164,7 @@ async fn hosted() {
     finish(writer, reader, peer).await;
 }
 
-async fn grant(writer: &Arc<AppState>, scope: &str, provider: &str) -> (Value, String) {
+pub(super) async fn grant(writer: &Arc<AppState>, scope: &str, provider: &str) -> (Value, String) {
     const ACCESS: &str = "/v1/internal/gateway/access";
     let capability = manage(
         writer,
@@ -203,7 +203,7 @@ async fn grant(writer: &Arc<AppState>, scope: &str, provider: &str) -> (Value, S
         .unwrap();
     let key = manage(writer, &format!("{ACCESS}/keys"), json!({
         "ownerType":"user","ownerId":scope,"resolvedProjectId":PROJECT,"resolvedTenantId":tenant,
-        "keyKind":"normal","publicKeyPrefix":"neuro","displayName":"stored health",
+        "keyKind":"normal","publicKeyPrefix":"neuro","displayName":scope,
         "bundleIds":[bundle_id]
     })).await;
     (key, platform)

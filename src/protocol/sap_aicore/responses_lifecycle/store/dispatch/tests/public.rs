@@ -11,6 +11,7 @@ mod inventory;
 mod ordinary;
 mod recovery;
 mod safety;
+mod streaming;
 
 fn create() -> Value {
     json!({"model":MODEL,"input":"hello","store":true})

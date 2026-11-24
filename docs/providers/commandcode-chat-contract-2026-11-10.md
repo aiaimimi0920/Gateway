@@ -1,6 +1,6 @@
-# Command Code Provider API Chat 合同
+# Command Code Provider API 合同
 
-本页记录 2026-11-10 联网核实的官方合同与 Gateway 当前切片。实现线 `commandcode-provider-api`，preset `commandcode-api`，profile `commandcode_chat`，auth mode `commandcode_api_key`。这不是 Go 套餐的私有生成接口，也不是完整 Command Code 产品验收。
+实现线 `commandcode-provider-api`，preset `commandcode-api`，profile `commandcode_chat`，auth mode `commandcode_api_key`。使用 Studio 手工创建的 API Key，不使用 Go 套餐私有生成接口。已验范围及真实账号边界见[交付与验收](first-three-closure-2026-11-13.md#1-command-code)。
 
 ## 官方来源与实际目录
 
@@ -14,22 +14,12 @@
 
 六份官方资料已保存 URL、UTC、SHA-256 和原文，位于 `C:/Users/Public/nas_home/AI/GameEditor/linshi/gateway-commandcode-20261110/contracts/`。目录快照时间为 `2026-11-10T14:51:29.792679+00:00`。
 
-## 2026-11-10 初始实现
+## Gateway 行为
 
-1. 固定生成地址 `https://api.commandcode.ai/provider/v1/chat/completions`，只发送账号自己的 Bearer Key，清除 ambient/caller 身份，禁跳转，不读取 CLI 凭据、不刷新、不回退 `/alpha/*`。
-2. 目录固定 `https://api.commandcode.ai/provider/v1/models`，不发送 Key。控制台仍沿用管理身份、secret grant、显式账号或草稿 Key、revision fence 和普通 CAS 保存。目录读取本身不保存 Key 或改动路由。
-3. 目录只导入 `supported_endpoints` 数组明确包含 `/chat/completions` 的条目。Messages-only、Responses-only、缺失/未知路由不猜测转换。目录是公开路由元数据，不证明账号权益或推理成功；用户手工模型仍由普通配置机制管理。
-4. 公共 Chat／Messages／Responses 的文本和现代客户端函数工具转为 Chat wire，支持 JSON/SSE 和两回合工具。模型 ID 原样发送，不根据 `o1/o3` 前缀改写参数；system 消息逐条保留顺序及文本片段。
-5. 复用共享 Chat JSON/SSE 完成校验；失败响应固定脱敏诊断，HTTP 4xx/5xx 保留状态且不自动重放，3xx 转为 502 且不跟随。坏 JSON、截断、错误尾部不能制造成功结束或完成本地计费。取消释放请求并恢复本地预扣，不代表上游退款。
-6. Key 创建、替换与 Keep 使用既有秘密槽和稳定账号 ID；Keep 绑定产品/目标。通用识别、后台 discovery job、通用目录和默认连通性探测不接管这个产品。2026-11-11 已补显式专属控制台模型测试：复用生产 sender、精确账号及配置模型／别名、严格有界响应、答案脱敏与取消安全审计；临时／命名／账号保存策略本地验证通过，见 [控制台测试](../progress/2026-11-11-commandcode-console-probe.md)。
-
-## 2026-11-10 初始切片未覆盖
-
-原生 Responses/Messages wire、System One/Jev、浏览器签发 Key、完整 reasoning/thinking、媒体、hosted/custom tools、远端会话/后台请求及 ZDR 控件未实现。
-
-对通用转换已证会丢语义的输入直接拒绝：reasoning 历史、富文本扩展、工具结果 `is_error:true`、旧版 functions、其他产品的历史封套等。公共 Chat normalizer 尚不接受 developer；Responses developer 也明确拒绝，避免降为 user。含被现有 Chat normalizer 修复的 HTML entity 的函数参数历史明确拒绝，普通 JSON 参数原样传递。这些限制属于本切片，不能宣称完整兼容官方 Pi 客户端。
-
-真实账号权限、订阅消费、真实流式响应、独立 feature 构建、浏览器视觉、原生 EXE、Server/Redis 和部署未验。manifest/inventory 保持 `metadata_only`，本地合同测试不自动提升为 live acceptance。
+1. 目录读取固定的 `https://api.commandcode.ai/provider/v1/models`，不发送 Key，也不保存配置。导入与专属探测按 `supported_endpoints` 保留 Chat、Messages 和 Responses 能力，不按模型名猜协议；目录不是账号权益证明。手工模型仍由普通配置机制管理。
+2. Gateway 对具备相应声明的模型调用原生 Chat／Messages／Responses，支持 JSON／SSE；同协议保留已支持的富历史与工具，Chat 转换回退不放行会丢失语义的输入。System One/Jev 是独立非流式结构化端点，现金预付在发送前拒绝。
+3. 生成只使用账号自身凭据，不接受 caller 身份，不读取 CLI 凭据、不刷新、不跟随重定向、不回退私有 `/alpha/*`。Key 创建、轮换／保留用既有秘密槽和 CAS；保留凭据受产品与目标约束。专属探测见[内部审计合同](commandcode-server-probe-audit-contract.md)。
+4. HTTP 4xx／5xx 保留状态，不自动重放；3xx 不跟随。坏 JSON、截断、错误尾部不会伪造成功或完成本地计费。本地取消与预算释放不表示上游退款。ZDR 约束贯穿候选选择与发送。
 
 ## 2026-11-23 公开合同复核：图片与 reasoning
 

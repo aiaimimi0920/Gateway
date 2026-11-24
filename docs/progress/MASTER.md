@@ -1,5 +1,7 @@
 # Gateway Productization Progress
 
+> Historical productization and refactor ledger. For current documentation and provider handoffs, start at the [Gateway documentation index](../README.md).
+
 **Scope:** `C:\Users\Public\nas_home\AI\GameEditor\Neuro\Gateway`
 
 **Release root:** `C:\Users\Public\nas_home\AI\GameEditor\Neuro\release\Gateway`
@@ -162,41 +164,8 @@ open. See `docs/status/2026-09-24-program-handle-network-capture.md`.
 
 Release `gateway-product-20260721-010734` is the final productization baseline. Keep the package and its evidence directory immutable; future source changes require a new version id and a fresh build/provenance cycle. Releases `gateway-product-20260719-205059`, `gateway-product-20260720-170128`, `gateway-product-20260720-180002`, intermediates `gateway-product-20260721-002744` and `gateway-product-20260721-004122`, and pre-release `gateway-product-20260721-000813-rc` remain preserved.
 
-Latest coordinator UI continuation (2026-09-24): ModelPoolWorkspace now keeps
-cross-card state in a 168-effective-line facade and composes 211/106-line card
-and serving-account owners. Focused ModelPool tests pass 6/6; the full desktop
-suite, typecheck, Web build, checker, ratchet, and scoped diff checks pass. See
-`docs/status/2026-09-24-model-pool-workspace.md`. This presentation slice does
-not change the S06 Rust/Gemini lane or release/runtime ownership.
-
-The same continuation moved CredentialGroupsWorkspace test setup into a
-216-effective-line fixture owner; the 16-test behavior suite is 290 effective
-lines and remains unchanged. See
-`docs/status/2026-09-24-credential-group-test-fixtures.md`.
-
-The latest UI continuation keeps entitlement provider selection and aggregation
-in a 197-effective-line facade and composes 44/208-line pager and model-scope
-owners. The card-owned deselected-provider contract, expanded account-panel
-filtering, page resets, and `ScopePager` facade export remain stable. Focused
-credential-group tests pass 16/16; full desktop, typecheck, Web build, checker,
-ratchet, strict accounting, development-standard contract and scoped diff checks
-pass. See `docs/status/2026-09-24-entitlement-scope-owners.md`.
-
-The newest continuation moves the remaining legacy account ledger table into a
-93-effective-line `AccountsLedgerTable` owner. `AccountsLedgerWorkspace` remains
-the state/filter/composition facade at 377 effective lines, with row keys,
-translations, lock semantics, and edit/add callbacks preserved. The focused
-ledger suites pass 18/18; full desktop, typecheck, Web build, checker, ratchet,
-strict accounting, development-standard contract and scoped diff checks pass.
-See `docs/status/2026-09-24-accounts-ledger-table.md`.
-
-The latest continuation moves the AccessKeys credentials accordion into a
-264-effective-line `AccessCredentialsSection` owner. `AccessKeysWorkspace`
-retains accordion state, drafts, issue/verify/revoke callbacks, and request or
-secret ownership at 183 effective lines. Full desktop, typecheck, Web build,
-checker, ratchet, strict accounting, development-standard contract and scoped
-diff checks pass. See
-`docs/status/2026-09-24-access-credentials-section.md`.
+The 2026-09-24 desktop continuation is recorded once in the table above. Those
+desktop checks did not close the S06 Rust/Gemini or integrated release gates.
 
 Latest continuation checkpoint (2026-09-23): S06-i-g remains in_progress after
 five Rust owner splits and the Python splitter test-harness extraction. The

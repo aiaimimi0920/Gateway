@@ -81,6 +81,7 @@ pub(crate) async fn lookup_pinned(
     })
 }
 
+#[cfg(test)]
 pub(crate) async fn run_submit(
     state: &std::sync::Arc<AppState>,
     session: &AuthenticatedSession,
@@ -90,6 +91,25 @@ pub(crate) async fn run_submit(
     estimate: u64,
     hooks: SendHooks<'_>,
 ) -> Result<Value, GatewayError> {
+    run_submit_with_stream(
+        state, session, selected, group, request, estimate, hooks, None,
+    )
+    .await
+}
+
+pub(crate) async fn run_submit_with_stream(
+    state: &std::sync::Arc<AppState>,
+    session: &AuthenticatedSession,
+    selected: &PinnedTarget,
+    group: Option<&str>,
+    request: &CanonicalRelayRequest,
+    estimate: u64,
+    hooks: SendHooks<'_>,
+    publish: Option<&(dyn Fn(bytes::Bytes, bool) + Sync)>,
+) -> Result<Value, GatewayError> {
+    if request.stream != publish.is_some() {
+        return Err(super::super::invalid());
+    }
     let target = Target {
         pin: selected.pin(),
         provider: &selected.provider,
@@ -97,7 +117,7 @@ pub(crate) async fn run_submit(
         upstream_model: &selected.upstream_model,
         account_group: group,
     };
-    let observation = submit(state, session, &target, request, estimate, hooks)
+    let observation = submit(state, session, &target, request, estimate, hooks, publish)
         .await
         .map_err(public_error)?;
     observation
@@ -105,7 +125,7 @@ pub(crate) async fn run_submit(
         .map_err(|error| recoverable(error, &observation.receipt.id))
 }
 
-pub(crate) async fn run_existing(
+pub(crate) async fn run_existing_with_stream(
     state: &AppState,
     session: &AuthenticatedSession,
     selected: &PinnedTarget,
@@ -113,11 +133,21 @@ pub(crate) async fn run_existing(
     group: Option<&str>,
     operation: Operation,
     hooks: SendHooks<'_>,
+    publish: Option<&(dyn Fn(bytes::Bytes, bool) + Sync)>,
 ) -> Result<Value, GatewayError> {
-    access_existing(state, session, id, group, operation, hooks)
-        .await
-        .map_err(public_error)?
-        .public_json(&selected.pin())
+    let pin = selected.pin();
+    access_existing(
+        state,
+        session,
+        id,
+        group,
+        operation,
+        hooks,
+        publish.map(|publish| (&pin, publish)),
+    )
+    .await
+    .map_err(public_error)?
+    .public_json(&pin)
 }
 
 fn public_error(error: DispatchError) -> GatewayError {

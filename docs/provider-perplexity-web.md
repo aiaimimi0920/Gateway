@@ -1,12 +1,12 @@
 # Perplexity Web 单轮文本 owner
 
-> 2026-11-04；P37–P39 底层/材料/来源前置之上，P40 已接正常模板、材料表单、专用 dispatcher 和精确 probe。离线验证状态见 [P40 回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-04-provider-channel-expansion-p40.md)；R12 / W08 仍不是完整渠道或真实账号验收。
+> 2026-11-04；P37–P39 底层/材料/来源前置之上，P40 已接正常模板、材料表单、专用 dispatcher 和精确 probe。离线验证状态见 [P40 回执](progress/2026-11-04-provider-channel-expansion-p40.md)；R12 / W08 仍不是完整渠道或真实账号验收。
 
-2026-11-08 增量：流式入口已接同一 HTTP/严格 decoder owner 的实时可替换快照；这不是标准 token 追加。标准正文/最终来源仍等合法应用终态后输出，见下节及[快照子批回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-perplexity-snapshots.md)。
+2026-11-08 增量：流式入口已接同一 HTTP/严格 decoder owner 的实时可替换快照；这不是标准 token 追加。标准正文/最终来源仍等合法应用终态后输出，见下节及[快照子批回执](progress/2026-11-08-provider-channel-expansion-perplexity-snapshots.md)。
 
 ## 产品与来源
 
-消费端 `www.perplexity.ai` 与既有 `perplexity-api` / `perplexity-search` 分离，不提供平台 API Key 认证，不假定订阅、额度或模型互通。请求和答案格式按[固定公开参考合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/plan/provider-perplexity-web-contract.md)实现；版本 `2.18`、`turbo`、`concise` 均是 pinned 观察值，不是官方长期稳定或账号有权调用的承诺。
+消费端 `www.perplexity.ai` 与既有 `perplexity-api` / `perplexity-search` 分离，不提供平台 API Key 认证，不假定订阅、额度或模型互通。请求和答案格式按[固定公开参考合同](plan/provider-perplexity-web-contract.md)实现；版本 `2.18`、`turbo`、`concise` 均是 pinned 观察值，不是官方长期稳定或账号有权调用的承诺。
 
 Gateway 自行实现 request/parser/HTTP owner，没有运行或引入参考项目、Python/browser CLI、邮箱注册或第三方账号服务。[参考 MIT 许可与版权](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/src/protocol/perplexity_web/REFERENCE-LICENSE.txt)随源码保留。开源许可不替代厂商自动化使用授权；未来出包仍须将适用 notice 纳入发布载荷，本批未出包。
 
@@ -77,7 +77,7 @@ Chat SSE 使用命名事件 `gateway.perplexity.snapshot`，data 形状如下。
 
 401/403、429、重定向、200 HTML/可能的 challenge、非 SSE、HTTP 失败、协议/资源错误、网络与 deadline 分别有固定错误码。403 只能证明会话/访问被拒绝，不据此断言具体 challenge 类型；200 HTML 也不猜登录页内部 schema。本 owner 返回的错误全部标记为不可 retry/Abort；自身不换账号、渠道、模型或改 body 重提。P40 公共 pipeline 已用仍有可用备用候选的合成配置验证401/429/不完整答案各只发送一次。错误不回显 Cookie、上游正文或网络 URL。
 
-交换不 spawn 后台任务；成功终态、解析错误、超时及 future 取消均通过正常 ownership 释放 HTTP stream。测试使用新建随机回环端口和合成材料，不读 `.ng` 或真实账号，不需要 Redis。详细运行结果见[P37 回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-03-provider-channel-expansion-p37.md)。
+交换不 spawn 后台任务；成功终态、解析错误、超时及 future 取消均通过正常 ownership 释放 HTTP stream。测试使用新建随机回环端口和合成材料，不读 `.ng` 或真实账号，不需要 Redis。详细运行结果见[P37 回执](progress/2026-11-03-provider-channel-expansion-p37.md)。
 
 ## 正常入口与未实现项
 
@@ -112,10 +112,10 @@ Sonar/Search 原有 preset、Key、URL 与调度逻辑未修改。R12/W08、P50/
 
 普通 SecretPatch Keep 在完整 resolved document 上比较原产品、完整目的地/继承消费者，并额外绑定原UA和绝对expiry。删除标记、改投API、改UA或延长expiry不能保留原秘密；需要正常Secret Grant下明确replace/clear。该保护不是新secret schema，也没有修改旧存储version或补缺省字段。
 
-材料/目标前置见 [P38回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-03-provider-channel-expansion-p38.md)，来源前置见 [P39回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-03-provider-channel-expansion-p39.md)，正常入口和实际检查结果见 [P40回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-04-provider-channel-expansion-p40.md)。快照流是后续限定增量，不是完整渠道或真实账户验收；不立即要求用户登录。
+材料/目标前置见 [P38回执](progress/2026-11-03-provider-channel-expansion-p38.md)，来源前置见 [P39回执](progress/2026-11-03-provider-channel-expansion-p39.md)，正常入口和实际检查结果见 [P40回执](progress/2026-11-04-provider-channel-expansion-p40.md)。快照流是后续限定增量，不是完整渠道或真实账户验收；不立即要求用户登录。
 
 ## P39 来源列表公共保真
 
-最终 `Answer` 已可整体移交独立 canonical `sources`。Chat/Responses JSON、聚合 Chat SSE 终帧、Responses SSE terminal response 以及反向解包/聚合采用明确的 `gateway_sources` 扩展，保留 `name/url/snippet`、顺序和重复项；空时省略，不改写正文，不虚构 inline citation offsets。详细形状、预算及 native passthrough 边界见[来源合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-response-sources.md)。
+最终 `Answer` 已可整体移交独立 canonical `sources`。Chat/Responses JSON、聚合 Chat SSE 终帧、Responses SSE terminal response 以及反向解包/聚合采用明确的 `gateway_sources` 扩展，保留 `name/url/snippet`、顺序和重复项；空时省略，不改写正文，不虚构 inline citation offsets。详细形状、预算及 native passthrough 边界见[来源合同](provider-response-sources.md)。
 
 来源终帧冻结答案；等待 usage 期间也拒绝后续正文/工具修改，但允许同一终帧的最后 delta 与 usage-only 尾帧。反向流不再吞掉已声明来源扩展的解包失败。usage 不存在或 null 时保持未知，合法 object 的原有语义不变。P39证明来源前置，P40继续正常dispatcher及公共HTTP接线；两者都不宣称实时 token streaming。

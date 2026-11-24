@@ -1,5 +1,7 @@
 # Gateway Project Overview
 
+> Historical productization baseline. For current runtime modes, dependencies, and operating procedures, use the [documentation index](../README.md), not the source pointers below.
+
 ## Scope
 
 This document describes the standalone Gateway repository, integrated into Neuro

@@ -1,6 +1,6 @@
 # Grok Build OAuth 管理登录合同
 
-本页描述 P35 管理 HTTP/正常保存链及 P36 手动授权 UI，不表示 Grok Build 全渠道完成或已经真实登录。实现与验证记录见 [P35 回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-03-provider-channel-expansion-p35.md) 和 [P36 回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-03-provider-channel-expansion-p36.md)。
+本页描述 P35 管理 HTTP/正常保存链及 P36 手动授权 UI，不表示 Grok Build 全渠道完成或已经真实登录。实现与验证记录见 [P35 回执](progress/2026-11-03-provider-channel-expansion-p35.md) 和 [P36 回执](progress/2026-11-03-provider-channel-expansion-p36.md)。
 
 ## 产品与前置条件
 

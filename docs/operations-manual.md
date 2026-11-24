@@ -122,23 +122,7 @@ Do not print `$managementHeaders` or enable shell tracing around these calls.
 
 ### 管理密钥轮换
 
-在已登录的控制台打开 **设置 → 管理安全**。先确认当前连接的是目标 Gateway，
-再输入并重复确认新密钥，勾选已保存新密钥的提示后提交。新密钥使用不含空白的
-可打印 ASCII 字符，界面支持 1–4096 个字符；建议由密码管理器生成至少 32 个
-字符的随机值，不要把密钥写入命令记录、截图、问题单或日志。
-
-轮换只修改管理后台的鉴权密钥，不修改项目 API 访问密钥。旧管理密钥会立即
-失效；当前页面会话切换到新密钥并清除已有的秘密访问授权，其他客户端需要
-使用新密钥重新登录。输入框在成功后清空，密钥仍只保存在当前浏览器会话的
-`sessionStorage`，不会写入 `localStorage`。
-
-如果提交后连接中断、响应格式不正确或收到服务端 5xx，界面只用新密钥校验
-一次，校验最多等待 5 秒，不会自动重复轮换。新密钥验证成功后继续当前会话；
-明确的 4xx 不触发该恢复校验。如果仍显示“未能确认密钥更新结果”，请安全保留
-新旧密钥，检查连接和部署配置后重新登录确认，不要连续重复提交。
-
-若页面显示“管理密钥由环境变量托管”，轮换表单为只读提示；需要在对应部署
-配置中更新 `GATEWAY_MANAGEMENT_TOKEN`，再按部署流程使其生效，不能从界面覆盖。
+先确认当前连接的是目标 Gateway，再在 **设置 → 网络与共享** 更换对应槽位，按 Enter 或离开输入框保存。修改当前登录使用的密钥后，用新值重新登录。轮换不改变项目 API 访问密钥；不要将管理密钥写入命令记录、截图或日志。兼容行为和双槽均禁用时的免密风险见[管理密钥双槽](management-key-slots.md)。
 
 ## Normal Checks
 
@@ -176,7 +160,7 @@ and dependency failure matrix are defined in `docs/sli-slo.md`.
 | Class | Evidence | First action |
 | --- | --- | --- |
 | Process unavailable | `/healthz` connection failure | Retain process/container logs and replace the instance. |
-| Redis unavailable | `/readyz` is 503 and the Redis check is false | Stop rollout activity, verify the explicitly configured Redis endpoint, and avoid restarting all workers at once. |
+| Redis unavailable | Non-Local `/readyz` reports `redis=false`: 503 when required, or 200 with `degraded=true` if started in eligible standalone mode | Check `redis_required` and the [failure matrix](sli-slo.md#dependency-failure-matrix); verify the configured Redis endpoint without restarting all workers at once. |
 | PostgreSQL unavailable | PostgreSQL is configured and `/readyz` or management readiness reports its probe failed | Preserve DB logs, stop writes, and verify failover or recovery on a separate target. An unconfigured optional PostgreSQL dependency is not an incident. |
 | Object storage unavailable | Management readiness reports `objectStorage=false` | Check the local directory or S3-compatible endpoint without logging access material. |
 | Planned drain | `/readyz` is 503 with `status=draining` | Confirm the load balancer or splitter has moved traffic; do not restart the worker back into service. |

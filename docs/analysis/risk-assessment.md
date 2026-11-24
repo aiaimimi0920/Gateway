@@ -1,5 +1,7 @@
 # Gateway Productization Risk Assessment
 
+> Risks identified at the start of productization, not confirmed current defects. Current checks are linked from the [documentation index](../README.md).
+
 ## P0 Risks
 
 | Risk | Evidence | Impact | Verification |

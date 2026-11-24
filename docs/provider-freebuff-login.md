@@ -2,7 +2,7 @@
 
 此入口属于 `freebuff-web` 的 CLI/browser-assisted session，不是标准 OAuth，也不是平台推理 API Key。它复用已有 `preset: freebuff`，不会因为登录方式新增同义额度池。
 
-本文描述当前接口与边界；对应定向验证结果单独记录在进度回执。[正常前端登录/重授权 UI](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-freebuff-ui.md) 已接线；后续 [本地管理子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-freebuff-local-ui.md) 已用正常 main→真实管理 TCP、Local runtime/持久配置/SQLite与合成认证 peer 验证新增、metadata Keep、稳定账号重授权和两次同目录重建。真实平台登录、独立进程重启和完整业务不能由此推定完成。
+本文描述当前接口与边界；对应定向验证结果单独记录在进度回执。[正常前端登录/重授权 UI](progress/2026-11-06-provider-channel-expansion-freebuff-ui.md) 已接线；后续 [本地管理子批](progress/2026-11-06-provider-channel-expansion-freebuff-local-ui.md) 已用正常 main→真实管理 TCP、Local runtime/持久配置/SQLite与合成认证 peer 验证新增、metadata Keep、稳定账号重授权和两次同目录重建。真实平台登录、独立进程重启和完整业务不能由此推定完成。
 
 ## 1. 管理权限与目标
 
@@ -87,7 +87,7 @@ import 一旦接纳，cancel 不冒充事务回滚。保存预算为 20 秒，�
 
 成功返回 `Cache-Control: no-store`，包含 `revision`、`providerId`、`credentialId`、`businessOrigin`、`client` 及 `models`。model 仅含稳定 `key`、名称/短文案、warning、badges、access/dataUse/premium/multimodal；不导出短效 handle/fetchId、plans URL、token 或 fingerprint 字段。locked 可展示，未开放行按服务器 issuedAt 排除；目录可见不证明调用权益或额度。上游错误仅返回固定安全错误/code，不回显原始 body。
 
-目录接口仍是只读展示，不是配置发布或公共推理接线。原只读 UI 的定向证据见 [只读目录管理子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-freebuff-management-catalog.md)；设备注册工具独立显式操作，见下一节。
+目录接口仍是只读展示，不是配置发布或公共推理接线。原只读 UI 的定向证据见 [只读目录管理子批](progress/2026-11-06-provider-channel-expansion-freebuff-management-catalog.md)；设备注册工具独立显式操作，见下一节。
 
 ### 5.1 本地安装设备的显式注册 API
 
@@ -111,9 +111,9 @@ POST 结果未知、取消或保存前 fence 失败时保留 marker，普通重�
 
 replacement 未确认期间，正常目录调用返回 `409/freebuff_device_registration_unconfirmed`，不使用保留的旧签名，也不 unsigned fallback。只能重新本地检查，再明确确认当前 attempt 的重投；不自动回滚或重注册。正常 UI 的确认绑定账号、站点、client、管理身份/Grant、revision 和当前记录对象；变更、dirty/pending、取消或卸载都隔离迟到结果。写请求未取得确认后只保留“检查设备”入口，关闭重开不自动 POST；停止等待不是撤销远端注册。
 
-本次 UI 与后端分别使用合成 transport、production router/真实 SQLite/seal 验证；不是浏览器到真实管理 TCP 的联合验收，也不证明真实平台有效。详细范围见[状态/重新注册与 UI 子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-freebuff-device-ui.md)。
+本次 UI 与后端分别使用合成 transport、production router/真实 SQLite/seal 验证；不是浏览器到真实管理 TCP 的联合验收，也不证明真实平台有效。详细范围见[状态/重新注册与 UI 子批](progress/2026-11-06-provider-channel-expansion-freebuff-device-ui.md)。
 
-安装 key 与登录 fingerprint 分离，旧 access-key seal 文件/AAD/格式兼容，不 bump 本地 schema version。丢 seal 或坏设备 key fail closed，不自动换 key。它是同数据目录 AES seal，不是 OS vault；完整目录的读取者仍可能取得秘密。实现、证据与未验范围见[本地设备子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-freebuff-device-runtime.md)。
+安装 key 与登录 fingerprint 分离，旧 access-key seal 文件/AAD/格式兼容，不 bump 本地 schema version。丢 seal 或坏设备 key fail closed，不自动换 key。它是同数据目录 AES seal，不是 OS vault；完整目录的读取者仍可能取得秘密。实现、证据与未验范围见[本地设备子批](progress/2026-11-06-provider-channel-expansion-freebuff-device-runtime.md)。
 
 ### 5.3 稳定目录选择与普通账号保存
 
@@ -154,14 +154,14 @@ replacement 未确认期间，正常目录调用返回 `409/freebuff_device_regi
 - `meter.state = absent | unavailable | available`，分别保留字段缺失、显式 null、合法余额块。available 仅解析使用的必要余额/价格字段，不复制整个权益 block；保留 `balance`、每日剩余、钱包余额、可选 claimable/discount/免问标记，缺少或格式错误的必要字段不会填零。
 - `sessionPrice: null` 表示此模型未提供 Freebucks 价格，数值 `0` 才表示明确零 session price；二者都不是完整资格判断。按一次 `observedAt` 依时序应用已到时间的 `priceChanges`，再应用权威 recurring `offPeak`（UTC 日窗口、跨午夜、北京时间周末）；只修改原价格表存在的 key，不修改余额或已购买会话收费，不把 `soloDiscount` 预先减成实际扣款。列表价、小时和美元 cost 不混用。
 
-显示的是**当次新 session 参考价，不是可消费 quote、锁价或 debit receipt**。不计算完整 legacy quota/intent，不认领其他进程会话，也不实现费用确认、持久 pending/unknown claim 或购买。原公共目录模式的网络前 guard 不变。当前验证分别覆盖生产管理 router→真实回环上游/SQLite 和正常编辑宿主→合成 API，不冒充浏览器到真实管理 TCP 的联合验收；详见[会话检查子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-freebuff-inspection.md)。
+显示的是**当次新 session 参考价，不是可消费 quote、锁价或 debit receipt**。不计算完整 legacy quota/intent，不认领其他进程会话，也不实现费用确认、持久 pending/unknown claim 或购买。原公共目录模式的网络前 guard 不变。当前验证分别覆盖生产管理 router→真实回环上游/SQLite 和正常编辑宿主→合成 API，不冒充浏览器到真实管理 TCP 的联合验收；详见[会话检查子批](progress/2026-11-06-provider-channel-expansion-freebuff-inspection.md)。
 
 ## 6. 尚未闭合的范围
 
 正常 UI 的新增/稳定账号重授权、同 Console 管理身份内的未知保存关闭重开、权限/原 revision、取消及材料兼容入口已做定向验证；新鲜真实管理 TCP/Local 持久保存与同目录 runtime 重建已有独立证据。未知保存状态仍只在存活组件的独立 Map 中，不跨页面/进程恢复；独立进程退出/重启、FreeBuff-specific Server/Worker Redis 与 PostgreSQL 边界仍需单独验证。Local runtime/SQLite运行和配置材料重建不等于SQLite凭据表级核验，也不能代替上述验收。
 
-后续[业务 ownership 子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-freebuff-business-ownership.md) 已修同 ID 换 token/target 的 session/run namespace 串用、caller runtime 字段与伪造 instance 残留；普通 custom metadata 保留。两个真实回环场景仍只证明旧 wire 的修复，不代表 typed 登录到当前产品公共调用已经完成，也不声称重授权立即撤回在途调用。
+后续[业务 ownership 子批](progress/2026-11-06-provider-channel-expansion-freebuff-business-ownership.md) 已修同 ID 换 token/target 的 session/run namespace 串用、caller runtime 字段与伪造 instance 残留；普通 custom metadata 保留。两个真实回环场景仍只证明旧 wire 的修复，不代表 typed 登录到当前产品公共调用已经完成，也不声称重授权立即撤回在途调用。
 
-新公开业务参考明确登录与业务origin可分离，独立[catalog/device子链](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-freebuff-catalog-device.md)已实现显式固定业务目标/client、目录GET、有效目录后显式设备注册和signed GET；第5节接正常管理目录，第5.1/5.2节接安装key/registration持久owner、正常注册/状态/重注册与UI，第5.3节接稳定选择与业务目标的正常保存。最新独立[signed business wire](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-freebuff-business-wire.md)已实现最终session/completion签名发送，其中 signed inspect 已由第5.4节正常管理调用，其他有副作用业务和公共执行尚未接通；没有将token自动跨host发送或改变原登录受众，保存目标不能解释成购买授权。
+新公开业务参考明确登录与业务origin可分离，独立[catalog/device子链](progress/2026-11-06-provider-channel-expansion-freebuff-catalog-device.md)已实现显式固定业务目标/client、目录GET、有效目录后显式设备注册和signed GET；第5节接正常管理目录，第5.1/5.2节接安装key/registration持久owner、正常注册/状态/重注册与UI，第5.3节接稳定选择与业务目标的正常保存。最新独立[signed business wire](provider-freebuff-business-wire.md)已实现最终session/completion签名发送，其中 signed inspect 已由第5.4节正常管理调用，其他有副作用业务和公共执行尚未接通；没有将token自动跨host发送或改变原登录受众，保存目标不能解释成购买授权。
 
 本批transport的`MaySpendFreebucks`只是显式marker，不是管理UI逐次费用确认、当前价格余额重验、持久pending/unknown claim或active业务准入；这些owner仍未实现。dedicated reuse缺完整请求合同不猜，旧未opt-in执行器的自动POST并未升级，目录模式仍在网络前拒绝而非回退。完整agent/run/lease/取消、正常Console精确probe、公共推理及模型/额度/权益继续，不用默认agent、零credits、Codebuff Key或广告Key凑完成。R06/W04、P50无凭据整包、P60集中录制、P70真实逐渠道验收保留。

@@ -1,5 +1,7 @@
 # Gateway Module Inventory
 
+> Historical productization inventory. For current entry points, see the [documentation index](../README.md).
+
 ## High-Level Inventory
 
 | Area | Representative files | Responsibility | Productization phase |

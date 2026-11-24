@@ -1,14 +1,14 @@
 # FreeBuff 公共 Responses／Messages 实时 SSE 合同
 
-后续验证（2026-11-08）：[正常网页与三协议活 SSE 联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-freebuff-public-sse-ui.md)已覆盖 Local 单轮文本的正常逐次批准/取消、EOF 前增量、原 FINISH/journal 阶段的页面读取、显式原 end/再购买与 Local 结算；不是完整渠道或真实平台验收。
+后续验证（2026-11-08）：[正常网页与三协议活 SSE 联合](progress/2026-11-08-provider-channel-expansion-freebuff-public-sse-ui.md)已覆盖 Local 单轮文本的正常逐次批准/取消、EOF 前增量、原 FINISH/journal 阶段的页面读取、显式原 end/再购买与 Local 结算；不是完整渠道或真实平台验收。
 
-状态：限定文本／函数工具子链已完成无凭据实现及离线验证。最终 FreeBuff 508 passed / 0 failed / 4 ignored，共享预算／tracker／lifecycle、Bedrock 公共 TCP、两生产 lib、格式／行数／来源检查均通过；具体证据见[本批回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-freebuff-public-protocol-sse.md)。不是整卡或真实平台验收声明。
+状态：限定文本／函数工具子链已完成无凭据实现及离线验证。最终 FreeBuff 508 passed / 0 failed / 4 ignored，共享预算／tracker／lifecycle、Bedrock 公共 TCP、两生产 lib、格式／行数／来源检查均通过；具体证据见[本批回执](progress/2026-11-08-provider-channel-expansion-freebuff-public-protocol-sse.md)。不是整卡或真实平台验收声明。
 
 本渠道只接受已有文本／函数工具闭集，原始 `stream` 必须是合法 bool，并由转换器保留到原 `RelayStep` 的最终签名 bytes。其他未知字段、模态、内建工具和服务端 continuation 仍在报价前明确拒绝，不因流式模式悄悄丢弃。
 
 ## 唯一执行与终态
 
-Responses、Messages 和既有 Chat 共用 `paid::execute_observed`、同一原持久 claim/run/journal、签名模型发送、费用 FINISH 与 Local 公共结算；消费者同次轮询原 future 与容量 1 mailbox，不新增 producer、购买、重试或恢复权限。permit、原 attempt continuation、deadline、协作取消、真正 Drop 和未知费用保持 [Chat SSE 合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-freebuff-public-chat-sse.md) 的边界。
+Responses、Messages 和既有 Chat 共用 `paid::execute_observed`、同一原持久 claim/run/journal、签名模型发送、费用 FINISH 与 Local 公共结算；消费者同次轮询原 future 与容量 1 mailbox，不新增 producer、购买、重试或恢复权限。permit、原 attempt continuation、deadline、协作取消、真正 Drop 和未知费用保持 [Chat SSE 合同](provider-freebuff-public-chat-sse.md) 的边界。
 
 native finish/DONE 仍只是 provisional 观察。必须经过真实 EOF、完整 native decoder、最终协议投影、累计序列化预算及原 FINISH/journal 与动态 fence，才交付公共成功终态。投影失败必须在原 FINISH 前已知，不能先按 completed 收尾再发现协议不可表达；不在同步 tracker callback 中补异步 FINISH。
 

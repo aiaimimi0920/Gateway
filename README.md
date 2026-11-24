@@ -7,6 +7,8 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+[Documentation index](docs/README.md)
+
 Neuro Gateway is an independently runnable Rust AI gateway and provider relay.
 It exposes OpenAI-compatible and provider-specific APIs, owns provider line
 manifests and routing, and ships a local Windows desktop launcher alongside
@@ -81,14 +83,9 @@ historical debt. The scanner, strict audit, exception schema, supported
 languages, and reviewed exclusions are documented in
 [`docs/effective-code-lines.md`](docs/effective-code-lines.md).
 
-Gateway now carries a local-default Cargo throttle under
-[`./.cargo/config.toml`](.cargo/config.toml) with `build.jobs = 1` so routine
-Rust builds do not saturate a workstation by default. The official development
-release builder still force `CARGO_BUILD_JOBS=1` and `CARGO_INCREMENTAL=0` so
-the supported release path stays deterministic. The source-mounted development
-container now uses dev-only defaults of `GATEWAY_DEV_CARGO_BUILD_JOBS=4` and
-`GATEWAY_DEV_CARGO_INCREMENTAL=1` to favor faster local rebuilds, while still
-allowing explicit overrides when a workstation needs a different balance.
+The repository Cargo config uses a conservative fallback for direct builds.
+For routine Windows packages, use the [incremental devtest workflow](docs/devtest-build.md);
+the formal release tooling is separate.
 
 Validate manifests and Python contracts:
 
@@ -249,193 +246,18 @@ evidence root, never inside an immutable package.
 
 ## Docker
 
-For direct server deployment, use the official Compose stack under
-[`deploy/`](deploy/README.md). The recommended local-directory variant keeps
-route and Redis data on the host filesystem for easy backup and migration:
+Use the [deployment guide](deploy/README.md#quick-start) for Compose setup,
+secrets, persistence, and verification. For updates to an existing database,
+see the [schema and migration instructions](deploy/README.md#postgresql-and-the-gateway-schema);
+do not remove the persistent volume to upgrade.
 
-```bash
-cd deploy
-chmod +x docker-deploy.sh
-./docker-deploy.sh
-docker compose -f docker-compose.local.yml up -d
-```
-
-That one-click preparation flow is the closest Gateway equivalent to the
-recommended Sub2API Docker Compose deployment pattern: prepare `.env`, generate
-the required secrets, create local data directories, then start the
-local-directory compose stack.
-
-```bash
-cd deploy
-cp .env.example .env
-mkdir -p gateway_data redis_data
-docker compose -f docker-compose.local.yml up -d
-docker compose -f docker-compose.local.yml logs -f gateway
-```
-
-The image boots in `standalone` mode by default and auto-seeds the persistent
-route file from `routes.example.yaml` on first start.
-
-Named-volume deployment is also provided:
-
-```bash
-cd deploy
-cp .env.example .env
-docker compose up -d
-docker compose logs -f gateway
-```
-
-Raw `docker build` / `docker run` remains available for fast, layer-cached
-development image testing. A raw build without an audit nonce
-does not prove that the dependency audit was refreshed because BuildKit may
-reuse the prior audit layer:
-
-```powershell
-docker build -t gateway:local .
-docker run --rm -p 4200:4200 --env-file .env gateway:local
-```
-
-For a local security-verification build, supply a new nonce so both production
-dependency audit layers execute during this build:
-
-```powershell
-$auditNonce = [guid]::NewGuid().ToString("N")
-docker build --build-arg "GATEWAY_AUDIT_NONCE=$auditNonce" -t gateway:local .
-```
-
-The image contains the release binary, route files, provider manifests, browser
-workers, and a container entrypoint that initializes `/data/routes.yaml` when a
-persistent route file is missing. Runtime secrets are supplied through
-environment variables or an env file; they are not read from `.env` during the
-image build.
-
-For one-command Docker operations from the repository root, use:
-
-```powershell
-.\tools\deploy-gateway-docker.ps1 -Action up -Mode local
-.\tools\deploy-gateway-docker.ps1 -Action logs -Mode local -Follow
-.\tools\deploy-gateway-docker.ps1 -Action down -Mode local
-```
-
-The root PowerShell helper is optimized for a fresh local workstation flow. On
-the first `-Action up`, it writes `GATEWAY_BIND_HOST=127.0.0.1` by default and,
-for loopback-bound stacks, seeds these missing console values without
-overwriting existing user settings:
-
-- `GATEWAY_MANAGEMENT_TOKEN=11011101`
-- `GATEWAY_CONSOLE_REMOTE_ACCESS=true`
-
-After the stack is up, open:
-
-- `http://127.0.0.1:4200/ui/`
-
-and sign in with the management token `11011101`. If you want a server-style
-public bind instead, pass `-BindHost 0.0.0.0` and set your own management
-token before exposing the port externally.
-
-The browser console now includes two account-pool management workspaces on top
-of the existing route-config and revision flows:
-
-- `Accounts` treats `provider.credentials[]` inside `routes.yaml` / the active
-  route-config document as reusable account units and groups them by provider /
-  service provider;
-- `Groups` lets you organize those accounts into logical pools and persist
-  `billing_multiplier` metadata for later Platform-side billing integration.
-
-This metadata lives in the same route-config document under the top-level
-`account_groups` field, so it works in the current standalone / Redis-managed
-product shape without requiring PostgreSQL.
-
-Runtime routing stays backward-compatible by default:
-
-- requests **without** an account-group selector keep the existing routing behavior;
-- trusted internal callers can set `x-neuro-account-group` (or
-  `x-account-group-id`) together with `x-internal-api-key` to force YAML/static
-  routing to stay inside one configured account pool.
-
-For Platform-side billing and account-pool orchestration, the gateway now also
-exposes a management-only summary endpoint:
-
-```bash
-curl http://127.0.0.1:4200/v1/internal/gateway/account-groups \
-  -H "x-internal-api-key: 11011101"
-```
-
-The response includes:
-
-- `accountGroups[]`: effective `billingMultiplier`, `memberCount`, enabled
-  state, and member account IDs;
-- `accounts[]`: reverse mapping from account ID to provider and group IDs;
-- `providers[]`: provider-to-account inventory summary.
-
-The Accounts workspace now uses one stable test dialog for pool, subpool and
-account policies. Automatic and manual tabs share the same model/case selection
-and temporary prompts; manual runs one explicit round, while automatic runs the
-saved, active policy in the backend (including local SQLite mode). Policy saves
-update the route draft; the existing console autosave commits settled changes
-after 1.2 seconds, and the backend uses the policy only after that commit succeeds.
-See [credential test policies](docs/credential-test-policies.md) for the UI,
-three-level inheritance, scoring and compatibility boundaries.
+For management after startup, see the [operations manual](docs/operations-manual.md)
+and [credential test policies](docs/credential-test-policies.md).
 
 ### 可选 Codex 通道与独立站点健康
 
-Codex 凭据可选择原生或 Basispoints 通道，沿用原账号与 OAuth 刷新链。
-独立站点健康支持自动识别五类监控接口、advisory 提示和显式启用的模型路由限制，
-不复用账号测试或账号密钥。新建自定义站点默认开启健康接口识别。
-配置、界面入口、安全约束及当前不支持的内容见
-[Basispoints 与站点健康](docs/basispoints-and-site-health.md)。
-
-通用文本 API 还可按服务商选择 Codex CLI、Claude CLI 或 CPA 兼容客户端参数，
-账号可单独覆盖；默认 Claude 模型采用 Claude CLI，其余采用 Codex CLI。
-设置入口、字段优先级及专用通道边界见[上游客户端参数配置](docs/request-client-profiles.md)。
-
-```text
-POST /v1/internal/gateway/console/credentials/{credential_id}/probe
-POST /v1/internal/gateway/console/providers/{provider_id}/probe
-GET  /v1/internal/gateway/console/providers/{provider_id}/probe
-POST /v1/internal/gateway/console/providers/{provider_id}/probe/results
-```
-
-All endpoints require management authentication and the exact active Secret Grant
-in `x-secret-grant`. Missing, expired, unknown or context-mismatched grants return
-HTTP `403` with `console_secret_access_required`. GET only reads recent results;
-opening the dialog or switching tabs never calls a model. The browser uses the
-read-only POST `/probe/results` endpoint to keep the confirmation Origin and
-exact Secret Grant context consistent; GET remains available for compatible
-clients. Reads support pool/subpool/account scope before the 128-result bound.
-
-A new `testPlan` request selects all configured or explicit models and selected
-cases, with optional expected answers and difficulty 1–3. Account overrides win
-over pool-local identity subpools, which win over pool policies. Parent manual
-rounds honor lower overrides; an explicit account-scope temporary plan tests only
-that account. Empty-body probes use saved policies when present; without them,
-legacy connectivity probes and `scheduled_probe_*` retain their existing behavior.
-The old `prompt/model/credentialIds` request remains supported.
-
-Generated tests currently support OpenAI-compatible chat endpoints and official
-Codex accounts. They require non-empty complete replies and exact credential
-attribution, never fallback to another account, and reject malformed, empty or
-token-truncated replies. Unsupported adapters are explicit, not treated as passed.
-Wrong answers affect the independent assessment, not credential/model health.
-Grades represent the selected test set only, using trimmed case-insensitive exact
-matching; unscored prompts are unrated, not an inferred intelligence ranking.
-
-The original `passed/failed/unsupported` statuses and account response fields are
-preserved, with optional `assessment` containing per-model callability/quality and
-per-case sanitized answer previews. Each round admits at most 128 calls within
-300 seconds, each call has a 60-second timeout, and route-revision changes stop
-new admissions. Latest results are durable for 30 days in SQLite or Redis. Keys,
-cookies, tokens and full upstream bodies are never returned.
-
-To run an end-to-end local Docker verification against a locally built image:
-
-```powershell
-.\tools\verify-gateway-docker-stack.ps1 -BuildImage
-```
-
-`-BuildImage` generates and passes a unique `GATEWAY_AUDIT_NONCE` internally,
-so this official wrapper forces fresh in-image audits without requiring Node.js
-or preinstalled `node_modules` on the host.
+See [Basispoints and site health](docs/basispoints-and-site-health.md) and
+[upstream client profiles](docs/request-client-profiles.md).
 
 ## GitHub Automation
 

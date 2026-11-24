@@ -77,7 +77,7 @@ OAuth 材料仍只在服务端保存；只有 succeeded 才关闭/refresh，不�
 
 旧手工录入通过明确的录入方式保留，字段标为 Access Token，不承诺补齐 device/refresh/SG；编辑 metadata/模型和 keep 保留。存在活动登录、待恢复权限或未确认保存时，模式切换和返回编辑被锁住，不能借手工表单绕过未知保存；仍可 Escape 关闭，重开恢复 receipt。关闭后回到仍存在的 opener，不抢其他 dialog 焦点。
 
-P45 证据、扩大回归的三项基线失败及合成 UI 边界见 [本批回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-04-provider-channel-expansion-p45.md)。不将模拟 API 的浏览器检查当真实平台登录或管理后端 E2E。
+P45 证据、扩大回归的三项基线失败及合成 UI 边界见 [本批回执](progress/2026-11-04-provider-channel-expansion-p45.md)。不将模拟 API 的浏览器检查当真实平台登录或管理后端 E2E。
 
 ## 业务调用与精确账号测试（P46）
 
@@ -85,19 +85,19 @@ P45 证据、扩大回归的三项基线失败及合成 UI 边界见 [本批回�
 
 buffered 与公共 SSE 共用专用 admission decoder：空响应、usage-only、未知/截断、孤立工具参数及业务错误不能成为成功；成功 Finish/DONE 保留至 EOF 校验，防止后到错误被吞。单帧 256 KiB、总 wire 64 MiB、最多 128 次工具创建和累计 1 MiB 参数。stream 不新建后台生成任务，drop 释放原上游；共享 Anthropic decoder 不施加这套 Accio 终态规则。
 
-这只是现有可识别事件的本地合成合同收紧。固定参考仅核实 OAuth，没有固定 Accio generateContent 的成功终态来源；不能将 outer turn_complete、AWS metadata 或旧 binary envelope 兼容单独宣称为已证实时 wire。具体红绿、验证和未覆盖边界见 [P46 回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-04-provider-channel-expansion-p46.md)。
+这只是现有可识别事件的本地合成合同收紧。固定参考仅核实 OAuth，没有固定 Accio generateContent 的成功终态来源；不能将 outer turn_complete、AWS metadata 或旧 binary envelope 兼容单独宣称为已证实时 wire。具体红绿、验证和未覆盖边界见 [P46 回执](progress/2026-11-04-provider-channel-expansion-p46.md)。
 
 ## 旧材料的新导入（2026-11-09）
 
 folder normalizer 现保留新导入的 access/refresh/SG/显式client和精确绝对expiry；root与两种extra命名中的同义材料不一致或类型无效时拒绝，不制造client身份或相对TTL。业务body不再保存token/accessToken/utdid副本，普通planner仍绑定canonical access/device，refresh/SG/client/rawSource不进入业务body；SG与归档秘密继续走正常脱敏。显式Cookie/cna和原identity逻辑未因此重写，不声称已清理Cookie内未知SG。
 
-单独更新normalizer不是旧数据库自动迁移：原文件source hash相同在normalize前即跳过。新导入的真实红绿、普通planner与脱敏回归见[新导入回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-accio-import.md)；已有行的限定读取兼容见下节。后续独立DB Accio steward及共享Gateway Key下的正常server/管理/public子闭环已接入并验证，见[联合回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-09-provider-channel-expansion-accio-db-server.md)。正常route-config OAuth仍由上述owner负责；DB刷新不写另一hosted身份的gw:cred，不以cache repair字段读取冒充DB scheduler。
+单独更新normalizer不是旧数据库自动迁移：原文件source hash相同在normalize前即跳过。新导入的真实红绿、普通planner与脱敏回归见[新导入回执](progress/2026-11-08-provider-channel-expansion-accio-import.md)；已有行的限定读取兼容见下节。后续独立DB Accio steward及共享Gateway Key下的正常server/管理/public子闭环已接入并验证，见[联合回执](progress/2026-11-09-provider-channel-expansion-accio-db-server.md)。正常route-config OAuth仍由上述owner负责；DB刷新不写另一hosted身份的gw:cred，不以cache repair字段读取冒充DB scheduler。
 
 ## 已知旧 DB 形状的普通读取兼容（2026-11-09）
 
 普通inline/object hydrated reader对`folder_sync_import`/`folder_sync`、Accio surface、固定Phoenix受众、原rawSource和已知旧body/device副本精确认形。原access/refresh和现存上下文仍匹配原材料时，读取view补SG/显式client/endpoint/原绝对expiry并移除旧body副本；轮换、partial clear、null或不同上下文不恢复历史字段，canonical access空/null也移除已证旧body认证副本，不能回退使用旧token。手工/未知形状不泛化改写，关线不投影。
 
-这不修改原DB/object bytes、source hash/path、ID、状态、诊断、时间戳或xmin，不增加storage version，也不强制重导；仍保留DB行时不依赖源文件继续在场。后续显式保存仍由正常writer/snapshot CAS决定，迟到view不能覆盖后来rotation/clear。共享parser只迁入协议owner，材料算法不复制。8项reader与真实PG/Redis3项通过，正常列表脱敏、同hash跳过、object原bytes/mtime和普通planner已有证据；相邻刷新回归有1项并行Nous失败，不能称全仓绿。详见[本批范围与来源回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-09-provider-channel-expansion-accio-db-reader.md)。
+这不修改原DB/object bytes、source hash/path、ID、状态、诊断、时间戳或xmin，不增加storage version，也不强制重导；仍保留DB行时不依赖源文件继续在场。后续显式保存仍由正常writer/snapshot CAS决定，迟到view不能覆盖后来rotation/clear。共享parser只迁入协议owner，材料算法不复制。8项reader与真实PG/Redis3项通过，正常列表脱敏、同hash跳过、object原bytes/mtime和普通planner已有证据；相邻刷新回归有1项并行Nous失败，不能称全仓绿。详见[本批范围与来源回执](progress/2026-11-09-provider-channel-expansion-accio-db-reader.md)。
 
 ## 仍需继续
 

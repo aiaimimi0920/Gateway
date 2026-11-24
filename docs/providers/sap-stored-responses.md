@@ -7,8 +7,9 @@
 
 - 仅 SAP 原生 Responses 部署可同时开启 `sap_native_responses` 和
   `sap_stored_responses`；凭据不能自行授予部署能力。不自动探测或开启已有池。
-- `POST /v1/responses` 显式传 `store:true`，支持 JSON 和可选的布尔
-  `background`；不支持持久化 SSE、任意 conversation、远端 item/file 或内置工具。
+- `POST /v1/responses` 显式传 `store:true`。JSON 支持布尔 `background`；
+  `stream:true` 支持前台持久化创建，和 `background:true` 一起使用时创建后台流。仍不支持任意
+  conversation、远端 item/file 或内置工具。
   未选择持久化的 SAP 请求保持 `store:false`；非 SAP 原生 `store:true` 保持普通管线。
 - 回复 ID 为 `resp_gw_<32 位十六进制>`。后续入口为
   `GET /v1/responses/{id}`、`POST /v1/responses/{id}/cancel`、
@@ -18,13 +19,27 @@
 - 输出投影保留受支持的文本、拒绝、函数调用和推理摘要，不原样转发 SAP metadata、
   私有模型名或顶层响应 ID。这不是完整 OpenAI Responses 字段兼容声明。
 
+前台 SSE 先将首个有效 `response.created` 的上游 ID 绑定到耐久回执，再公开 Gateway ID。
+后续只投影已明确支持的文本、拒绝、函数参数和推理摘要事件；校验事件名、递增序号、
+一致的响应 ID 与 512 KiB 单帧上限。只有干净 EOF、有效终态和本地结算成功后才公开终态。
+断开或订阅积压不会取消已发送请求的后台落账。若终态前截断，可用已发布的 Gateway ID
+正常 GET；不重发创建，不把截断当成退款证明。未拿到权威上游 ID 的情形仍需人工核实。
+
+后台流的 `response.created` 可处于 `queued`，同样先持久绑定再发布。
+已有绑定的回执可用 `GET /v1/responses/{id}?stream=true&starting_after=N` 从严格大于
+`N` 的事件续接；省略游标时由上游从流起点读取。续接重验原调用者和原 SAP 路由，
+不发送新 POST、不预扣，也不把历史 pending 事件写回当前状态。只以干净 EOF 和
+同一 SAP ID 的有效终态更新回执并幂等结算。此 GET 不补绑未知 ID，也不解除
+未确认的 cancel/delete。
+
 ## 授权、发送与账务
 
 每次操作重新验证原调用 Key、当前模型授权、原 Hosted 聚合成员、platform access、
 部署、资源组与实际凭据。撤销原绑定后拒绝旧 ID，不借仍有效的备用成员操作旧对象。
 新的独立请求仍可使用其他已授权成员。
 
-创建和续接还核对实时生成资格，并在最终发送点原子领取同一候选的熔断／容量许可；
+创建（含用 `previous_response_id` 发起的新生成）还核对实时生成资格，并在最终发送点
+原子领取同一候选的熔断／容量许可；
 读取和清理不继承生成 cooldown。公共限流、provider attempt、总预算与发送审计保留，
 不执行普通管线的第二次预扣、生成重试或候选回退。
 

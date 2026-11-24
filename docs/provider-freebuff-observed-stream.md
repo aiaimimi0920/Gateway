@@ -1,8 +1,6 @@
 # FreeBuff 原 run 的逐帧增量观察合同
 
-后续更新（2026-11-08）：[公共 Chat SSE](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-freebuff-public-chat-sse.md)已沿本接缝接入 owned handoff 与原 FINISH／公共终态。下文“公共 guard 不变／仍待接”的文字是本内部接缝子批的历史边界，不代表当前 Chat 仍关闭；Responses／Messages 实时 SSE 与其余交付卡范围仍待完成。
-
-本合同描述目录业务执行器的内部增量接缝，**不是公共 Chat、Responses、Messages 实时 SSE 已开放的声明**。公共输入 guard 与 `RelayStep` 的非流式准入保持不变，新增模板数也不变。
+本页只定义目录执行器的内部增量接缝，不定义公共协议准入。公共 Chat、Responses、Messages 的限量文本／函数工具 SSE 范围和验收统一从[公共 SSE 协议合同](provider-freebuff-public-protocol-sse.md)进入；下文历史子批的公共 guard 不变，不代表对应公共接口仍待实现。
 
 ## 唯一执行责任
 
@@ -45,4 +43,4 @@
 - 既有公共审计、usage、配额/退款、健康与 permit 的唯一终态 owner；正常公共 TCP/UI 的端到端验证。
 - 真实平台、完整参数/模态/实际工具与 child、未知结果显式对账/安全恢复、远端 lease、Server、原生包及总计划 P50/P60/P70。
 
-本合同不修改认证方式、服务商额度池或账号权限；不代替[公共非流式 JSON 合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-freebuff-public-json.md)。
+本合同不修改认证方式、服务商额度池或账号权限；不代替[公共非流式 JSON 合同](provider-freebuff-public-json.md)。

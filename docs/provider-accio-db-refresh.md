@@ -1,6 +1,6 @@
 # Accio 数据库刷新权限与持久结果合同
 
-本页描述 PostgreSQL 凭证的刷新存储 owner，不是 route-config authority，不是整个 Accio 渠道已完成的声明。独立 DB steward／专用单次合成 HTTP／持久结果及新worker恢复的合同已验证，见 [worker回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-09-provider-channel-expansion-accio-db-steward.md)；后续真实server／管理TCP／共享Gateway Key public子闭环已验证，见 [联合回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-09-provider-channel-expansion-accio-db-server.md)。unified key/bundle/prepaid、独立进程、全部后台join、包与真实供应商仍未验，现有ChatGPT steward不因此支持Accio。正常DB reader不读取hosted `gw:cred`，不能误写同名Redis entry冒充缓存接线。
+本页描述 PostgreSQL 凭证的刷新存储 owner，不是 route-config authority，不是整个 Accio 渠道已完成的声明。独立 DB steward／专用单次合成 HTTP／持久结果及新worker恢复的合同已验证，见 [worker回执](progress/2026-11-09-provider-channel-expansion-accio-db-steward.md)；后续真实server／管理TCP／共享Gateway Key public子闭环已验证，见 [联合回执](progress/2026-11-09-provider-channel-expansion-accio-db-server.md)。unified key/bundle/prepaid、独立进程、全部后台join、包与真实供应商仍未验，现有ChatGPT steward不因此支持Accio。正常DB reader不读取hosted `gw:cred`，不能误写同名Redis entry冒充缓存接线。
 
 ## 数据库权限来源
 

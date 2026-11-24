@@ -1,4 +1,4 @@
-//! Only canonical HTTP Responses exposes SAP's opted-in, buffered lifecycle.
+//! Only canonical HTTP Responses exposes SAP's opted-in stored lifecycle.
 use super::*;
 use crate::{
     http::request_headers::build_public_auth_request,
@@ -9,6 +9,12 @@ use axum::{
     extract::{OriginalUri, Path},
     http::Method,
 };
+
+#[derive(serde::Deserialize)]
+pub(crate) struct StoredQuery {
+    stream: Option<bool>,
+    starting_after: Option<i32>,
+}
 
 pub(crate) async fn handle_public_create(
     state: State<Arc<AppState>>,
@@ -39,10 +45,19 @@ pub(crate) async fn handle_stored_operation(
     State(state): State<Arc<AppState>>,
     OptionalBearerToken(token): OptionalBearerToken,
     Path(id): Path<String>,
+    Query(query): Query<StoredQuery>,
     OriginalUri(original): OriginalUri,
     method: Method,
     mut headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, GatewayError> {
+) -> Result<Response, GatewayError> {
+    if query.starting_after.is_some_and(|n| n < 0)
+        || (query.starting_after.is_some() && query.stream != Some(true))
+        || (method != Method::GET && (query.stream.is_some() || query.starting_after.is_some()))
+    {
+        return Err(GatewayError::bad_request(
+            "Invalid stored Responses stream query.",
+        ));
+    }
     let operation = match method {
         Method::GET => Operation::Retrieve,
         Method::DELETE => Operation::Delete,
@@ -64,6 +79,18 @@ pub(crate) async fn handle_stored_operation(
         &headers,
         &state,
     )?;
+    if query.stream == Some(true) {
+        return super::respond(
+            Box::pin(stored_responses::resume(
+                ctx,
+                auth,
+                id,
+                query.starting_after,
+                state,
+            ))
+            .await?,
+        );
+    }
     Box::pin(stored_responses::run(
         ctx,
         auth,
@@ -71,5 +98,5 @@ pub(crate) async fn handle_stored_operation(
         state,
     ))
     .await
-    .map(Json)
+    .map(|body| Json(body).into_response())
 }

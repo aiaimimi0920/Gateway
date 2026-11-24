@@ -1,8 +1,8 @@
 # 产品绑定的 Web / Session 材料导入
 
-> 2026-11-02；本批属于[分渠道扩展计划](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/plan/2026-11-02-provider-template-expansion.md)的无凭据开发。
+> 2026-11-02；本批属于[分渠道扩展计划](plan/2026-11-02-provider-template-expansion.md)的无凭据开发。
 > 这是已有执行器的材料录入及正常保存链，不是新增 OAuth 授权、完整登录录制或真实平台验收。
-> 本文保留 P02 七产品的原合同；P36 的 Grok Build 手动 OAuth 见其独立回执，不属于这里的 Session 导入。P40 新增第八个 Session 产品 `perplexity-web`，必须提供原会话 `userAgent`，仅投影本站 session/可选 clearance；其 storageState、最早expiry及UA绑定规则见 [Perplexity Web合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-perplexity-web.md) 和 [P40回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-04-provider-channel-expansion-p40.md)。
+> 本文保留 P02 七产品的原合同；P36 的 Grok Build 手动 OAuth 见其独立回执，不属于这里的 Session 导入。P40 新增第八个 Session 产品 `perplexity-web`，必须提供原会话 `userAgent`，仅投影本站 session/可选 clearance；其 storageState、最早expiry及UA绑定规则见 [Perplexity Web合同](provider-perplexity-web.md) 和 [P40回执](progress/2026-11-04-provider-channel-expansion-p40.md)。
 
 ## 1. 新建与认证边界
 
@@ -69,4 +69,4 @@ FreeBuff fingerprint 登录字段当前不由推理执行器读取，本入口�
 
 本批不证明真实 SSO/账号资格、Qwen signin seed 生命周期、FreeBuff 官方 CLI 登录和 fingerprint 接线、Clerk 刷新、模型目录/额度、媒体生成、challenge、worker 可用性或取消/资产安全均已验收。
 没有启动真实浏览器、发起 OAuth、调用上游、写在线数据库、接管实例或制作 EXE；集中录制仍在计划后半段。
-离线证据与当前剩余项见 [P01 材料链检查点](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-02-provider-channel-expansion-p02.md)。
+离线证据与当前剩余项见 [P01 材料链检查点](progress/2026-11-02-provider-channel-expansion-p02.md)。

@@ -77,7 +77,7 @@ commit `36bbbd7f60bd361a96e62e417a28ea09d6c2266b` 的 Suno 文档、auth/generat
 
 ## 4. 浏览器元数据子链的当前保证
 
-[浏览器子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-suno-browser.md)已接原提交ID的同快照完整终态；页面全局feed可含合法其他歌曲，但只选原ID、恢复顺序，坏/重复/失败项、部分集合和默认等待超时不能假成功。不主动增加feed请求，不因此宣布现有wire/model合同已是当前平台事实。
+[浏览器子批](progress/2026-11-06-provider-channel-expansion-suno-browser.md)已接原提交ID的同快照完整终态；页面全局feed可含合法其他歌曲，但只选原ID、恢复顺序，坏/重复/失败项、部分集合和默认等待超时不能假成功。不主动增加feed请求，不因此宣布现有wire/model合同已是当前平台事实。
 
 点击前复用既有native response capture且未改Gemini/S06；精确origin/path/POST、128KiB单响应decoded-body准入、16项业务队列及1MiB JSON累计准入，native错误优先、正文省略、停止后迟到响应不准入。**1MiB是JSON累计准入，不是实际累计读取、wire或heap严格上限**：单响应已预准入后仍可能先读入至多128KiB再因累计超限被拒。redirect响应拒绝不等于阻止浏览器网络跟随；capture.stop不保证撤回页面请求或远端任务。
 
@@ -85,7 +85,7 @@ commit `36bbbd7f60bd361a96e62e417a28ea09d6c2266b` 的 Suno 文档、auth/generat
 
 ### 4.1 完成音乐的实际 MP3 准入
 
-本轮在三种执行方式共同的 Music finalize 接入原 `audio_url` 匿名读取与完整 MP3 解码，合同及精确限制见[音频准入](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-suno-audio.md)，运行证据见[音频子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-suno-audio.md)。原 JSON/clip/URL 不改；完成集合任一首失败即整次失败，显式 pending 不读取未完成音频或声称它有效。只读原播放 URL，不调用另收费的 download/WAV 转换；失败不重新生成、换号或 fallback。
+本轮在三种执行方式共同的 Music finalize 接入原 `audio_url` 匿名读取与完整 MP3 解码，合同及精确限制见[音频准入](provider-suno-audio.md)，运行证据见[音频子批](progress/2026-11-08-provider-channel-expansion-suno-audio.md)。原 JSON/clip/URL 不改；完成集合任一首失败即整次失败，显式 pending 不读取未完成音频或声称它有效。只读原播放 URL，不调用另收费的 download/WAV 转换；失败不重新生成、换号或 fallback。
 
 资产传输不携带生成或 caller 身份，复用公网 HTTPS/DNS 绑定/无 proxy、redirect 的有界 reader。精确帧边界、ID3 边界与固定 Symphonia `0.5.5` PCM 解码外，额外拒绝该库会容错补静音的 reservoir 历史缺失。32MiB/首、64MiB/请求、2个资产 owner、20分钟/首 samples 上限及原 deadline 共同约束；取消逐帧生效，不能抢占已开始的单帧。
 
@@ -93,7 +93,7 @@ commit `36bbbd7f60bd361a96e62e417a28ea09d6c2266b` 的 Suno 文档、auth/generat
 
 ### 4.2 基本浏览器任务的 native model 绑定
 
-[模型绑定子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-suno-model-binding.md)已把路由解析出的 native model 传入本地/远端 worker，并在原生 Simple/TEXT POST 前核对基本操作和提示词、只改变 `mv`，保留页面 auth/challenge。两种已冻结 simple prompt 形态可发送，Custom/纯伴奏/续写/未知操作、未 arm 与第二次提交拒绝，不猜测 UI 模型选择器。
+[模型绑定子批](progress/2026-11-08-provider-channel-expansion-suno-model-binding.md)已把路由解析出的 native model 传入本地/远端 worker，并在原生 Simple/TEXT POST 前核对基本操作和提示词、只改变 `mv`，保留页面 auth/challenge。两种已冻结 simple prompt 形态可发送，Custom/纯伴奏/续写/未知操作、未 arm 与第二次提交拒绝，不猜测 UI 模型选择器。
 
 专用 `/v1/internal/browser-executor/suno-bound-v1/execute` 防止旧 service 忽略字段后仍生成；没有 legacy 路径重试，Suno 远端连接/HTTP/解码/业务失败已纳入共享 no-replay。新 worker 的 `wireModel` 必须被父进程核对后才进入原 finalize；此字段只证明发出请求的绑定，不独立证明平台最终执行型号。仍只声明既有两个 native ID 的合成合同，不宣布它们是当前可用目录。
 
@@ -101,15 +101,15 @@ commit `36bbbd7f60bd361a96e62e417a28ea09d6c2266b` 的 Suno 文档、auth/generat
 
 ### 4.3 基本 BrowserBacked 精确音乐测试
 
-[精确音乐测试子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-suno-browser-probe.md)已放开 provider/endpoint/credential 配置的 BrowserBacked，沿正常费用确认、精确账号、配置模型/alias、普通 bound sender 与全部 MP3 链；未知模式仍拒绝，不强制 DirectHttp。模型回执/远端失败/pending、任一音频坏和三阶段 Drop 均不能假成功或重放；原 Grant/Origin/费用/账号门禁保持。
+[精确音乐测试子批](progress/2026-11-08-provider-channel-expansion-suno-browser-probe.md)已放开 provider/endpoint/credential 配置的 BrowserBacked，沿正常费用确认、精确账号、配置模型/alias、普通 bound sender 与全部 MP3 链；未知模式仍拒绝，不强制 DirectHttp。模型回执/远端失败/pending、任一音频坏和三阶段 Drop 均不能假成功或重放；原 Grant/Origin/费用/账号门禁保持。
 
 正常 main→真实管理 TCP/Grant→合成 bound remote 联合已验：取消零 probe/上游，重新确认后一次 probe、两首 MP3、封闭未知费用结果；普通 Key余额/完整配置/revision保持。联合暴露并最小修复了共用目标判断对可选 `base_url:null` 的误拒绝，最终固定受众校验不放宽。Rust最终去重359 passed/5旧opt-in ignored、前端192及完整范围/来源/资源证据见回执；不是当前官网、真实生成、Server或原生包验收。以下“probe限制仍保留”仅记录历史停点。
 
 ## 5. 来源与接力资料
 
-默认直连基本音乐的显式账号probe、逐次费用确认及正常账号表单由[单点测试子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-suno-probe.md)接续：仅空参数/精确配置模型与账号、完整MP3准入后成功；无文本评分、音频/URL返回或普通Key扣费，unknown保持未知。其收尾时因浏览器worker未绑定native model而保留unsupported；此历史缺口已由§4.2绑定与§4.3精确probe/正常网页联合承接，不能继续据旧停点断言当前入口仍封闭。当前wire/会话/权益、完整公共/Server/进程/包及OAuth/MCP仍未完成。
+默认直连基本音乐的显式账号probe、逐次费用确认及正常账号表单由[单点测试子批](progress/2026-11-08-provider-channel-expansion-suno-probe.md)接续：仅空参数/精确配置模型与账号、完整MP3准入后成功；无文本评分、音频/URL返回或普通Key扣费，unknown保持未知。其收尾时因浏览器worker未绑定native model而保留unsupported；此历史缺口已由§4.2绑定与§4.3精确probe/正常网页联合承接，不能继续据旧停点断言当前入口仍封闭。当前wire/会话/权益、完整公共/Server/进程/包及OAuth/MCP仍未完成。
 
-本地 browser worker 后续资源改造见 [worker 子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-06-provider-channel-expansion-suno-worker.md)：复用受控进程、metadata 管道预算和取消回收；正常结果先关闭/断开及释放 lease 再输出。实际隔离 Chromium/CDP 测试证明正常成功/业务错误不关闭借用浏览器及原页，不是实际 Suno 生成。
+本地 browser worker 后续资源改造见 [worker 子批](progress/2026-11-06-provider-channel-expansion-suno-worker.md)：复用受控进程、metadata 管道预算和取消回收；正常结果先关闭/断开及释放 lease 再输出。实际隔离 Chromium/CDP 测试证明正常成功/业务错误不关闭借用浏览器及原页，不是实际 Suno 生成。
 该批当时未接的浏览器完整同ID终态/native响应准入由上方新子批承接，不能外推为所有响应/远端执行器的内存保证；完成音乐的实际 MP3 准入和限定 Local 公共结算由音频子批接续，其他格式不外推。默认直连及基本浏览器精确probe/费用/UI与限定正常网页联合均有上述离线证据；强杀远端lease对账、当前wire/Clerk会话、完整公共链、Server/独立进程/原生包仍缺；OAuth/MCP保持discovery-only状态。
 
 固定公开文件、URL、获取时间、状态码与 SHA256 见：

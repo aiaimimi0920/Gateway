@@ -164,7 +164,7 @@ metadata 或图片 URL 直接恢复模型健康。
 结果没有文本评分；审计只记验证图数量及未知供应商扣额，不保存图片、签名 URL、
 提示词或估算价格，不扣普通接入 Key 余额。失败/本地取消不自动重提、不保证远端取消
 或退款。完整合同与离线/真实验收边界见
-[ChatAIBot 显式媒体子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-07-provider-channel-expansion-chataibot-media-probe.md)。
+[ChatAIBot 显式媒体子批](progress/2026-11-07-provider-channel-expansion-chataibot-media-probe.md)。
 
 ## Suno Web 显式基本音乐单点测试
 
@@ -176,6 +176,6 @@ typed `suno_web` 账号卡的“测试”进入音乐表单，只接受一个精
 
 本批仅实现既有 mapper 的基本音乐生成；`parameters` 必须为空，不接受 count、延续、challenge token、等待策略、下载或转换覆盖。强制等待完整音乐，普通 sender 已匿名读取并完整验证全部 MP3 才能通过；pending 不是成功。默认、显式文本、保存、临时、命名和自动文本计划都不会隐式生成音乐。
 
-模型列表是显式配置与现有四个兼容映射 ID 的交集，不声明它们是当前平台目录或账号权益。BrowserBacked（含账号和 endpoint override）沿正常绑定 sender 而非静默改成 DirectHttp；[浏览器精确测试与正常网页联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-suno-browser-probe.md)已取得限定离线证据：真实管理 TCP/Grant、取消零调用、逐次重新确认、两首 MP3 全部验证、普通Key/配置/revision保持。远端为合成服务，不表示真实平台或完整渠道验收。
+模型列表是显式配置与现有四个兼容映射 ID 的交集，不声明它们是当前平台目录或账号权益。BrowserBacked（含账号和 endpoint override）沿正常绑定 sender 而非静默改成 DirectHttp；[浏览器精确测试与正常网页联合](progress/2026-11-08-provider-channel-expansion-suno-browser-probe.md)已取得限定离线证据：真实管理 TCP/Grant、取消零调用、逐次重新确认、两首 MP3 全部验证、普通Key/配置/revision保持。远端为合成服务，不表示真实平台或完整渠道验收。
 
-费用确认不保存、不调度、不继承；路由 revision、账号/材料、模型/提示词、草稿状态或管理 Grant 变化会撤销旧确认，关闭或身份变化后不显示迟到结果。结果不返回音频、clip、签名 URL、歌词或文本评分；成功审计只记已验证数量、wire model 和未知供应商扣额，不扣普通接入 Key、不造 Token 或零费用。关闭本地等待不能撤销远端已受理任务，也不保证退费；失败不自动重提、换号或额外收费下载。完整运行范围与剩余边界见[Suno 单点测试子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-suno-probe.md)。
+费用确认不保存、不调度、不继承；路由 revision、账号/材料、模型/提示词、草稿状态或管理 Grant 变化会撤销旧确认，关闭或身份变化后不显示迟到结果。结果不返回音频、clip、签名 URL、歌词或文本评分；成功审计只记已验证数量、wire model 和未知供应商扣额，不扣普通接入 Key、不造 Token 或零费用。关闭本地等待不能撤销远端已受理任务，也不保证退费；失败不自动重提、换号或额外收费下载。完整运行范围与剩余边界见[Suno 单点测试子批](progress/2026-11-08-provider-channel-expansion-suno-probe.md)。

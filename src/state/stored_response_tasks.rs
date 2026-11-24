@@ -24,7 +24,7 @@ impl Default for StoredResponseTasks {
 #[derive(Clone, Default)]
 pub(crate) struct StoredResponseWaiter(Arc<parking_lot::Mutex<bool>>);
 
-struct CancelOnDrop(Arc<parking_lot::Mutex<bool>>);
+pub(crate) struct CancelOnDrop(Arc<parking_lot::Mutex<bool>>);
 
 /// Acquire before transferring an existing audit owner. This permit also makes
 /// drain wait for an admitted task that has not been spawned yet.
@@ -101,7 +101,21 @@ impl StoredResponseTasks {
 }
 
 impl StoredResponseAdmission {
+    #[cfg(test)]
     pub(crate) async fn run<T, F, Fut>(self, work: F) -> Result<T, GatewayError>
+    where
+        T: Send + 'static,
+        F: FnOnce(StoredResponseWaiter) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<T, GatewayError>> + Send + 'static,
+    {
+        let (_cancel, rx) = self.start(work);
+        receive(rx).await
+    }
+
+    pub(crate) fn start<T, F, Fut>(
+        self,
+        work: F,
+    ) -> (CancelOnDrop, oneshot::Receiver<Result<T, GatewayError>>)
     where
         T: Send + 'static,
         F: FnOnce(StoredResponseWaiter) -> Fut + Send + 'static,
@@ -109,16 +123,22 @@ impl StoredResponseAdmission {
     {
         let (tx, rx) = oneshot::channel();
         let waiter = StoredResponseWaiter::default();
-        let _cancel = CancelOnDrop(waiter.0.clone());
+        let cancel = CancelOnDrop(waiter.0.clone());
         tokio::spawn(async move {
             let _permit = self.0;
             let _ = tx.send(work(waiter).await);
         });
-        rx.await.map_err(|_| {
-            GatewayError::service_unavailable("Stored SAP Responses task stopped.")
-                .with_code("sap_aicore_response_task_stopped")
-        })?
+        (cancel, rx)
     }
+}
+
+pub(crate) async fn receive<T>(
+    rx: oneshot::Receiver<Result<T, GatewayError>>,
+) -> Result<T, GatewayError> {
+    rx.await.map_err(|_| {
+        GatewayError::service_unavailable("Stored SAP Responses task stopped.")
+            .with_code("sap_aicore_response_task_stopped")
+    })?
 }
 
 #[cfg(test)]

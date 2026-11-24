@@ -34,23 +34,23 @@
 
 ## 仍未完成
 
-后续 [普通余额Key真实TCP联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-qwen-prepaid-tcp.md) 已把正常管理创建Key、message/token余额、真实下游HTTP请求与合成上游接成同一次流程；成功按规则结算、截断和客户端增量后断连释放预扣并关闭上游。此处不再仅oneshot，但仍非真实供应商/PG/现金/成品验收。
+后续 [普通余额Key真实TCP联合](progress/2026-11-12-provider-channel-expansion-qwen-prepaid-tcp.md) 已把正常管理创建Key、message/token余额、真实下游HTTP请求与合成上游接成同一次流程；成功按规则结算、截断和客户端增量后断连释放预扣并关闭上游。此处不再仅oneshot，但仍非真实供应商/PG/现金/成品验收。
 
-后续 [混合成功/取消结算](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-qwen-token-mixed.md) 已验证同Key重叠流在两种终结顺序下只退取消者预扣，保留成功实际消费及欠额，后续请求仍拒绝。仅本地合成合同，不是供应商退款、PG或跨进程验收。
+后续 [混合成功/取消结算](progress/2026-11-12-provider-channel-expansion-qwen-token-mixed.md) 已验证同Key重叠流在两种终结顺序下只退取消者预扣，保留成功实际消费及欠额，后续请求仍拒绝。仅本地合成合同，不是供应商退款、PG或跨进程验收。
 
-后续 [两个已获准请求超额累计](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-qwen-token-concurrent.md) 已验证本地同Key两个流式响应先后/同时消费时，两笔usage完整累计且不覆盖另一预扣；合并欠额后拒绝新请求。仅current-thread单实例合同，不是PG/跨进程/压力或现金验收。
+后续 [两个已获准请求超额累计](progress/2026-11-12-provider-channel-expansion-qwen-token-concurrent.md) 已验证本地同Key两个流式响应先后/同时消费时，两笔usage完整累计且不覆盖另一预扣；合并欠额后拒绝新请求。仅current-thread单实例合同，不是PG/跨进程/压力或现金验收。
 
-后续 [欠额后追加额度恢复](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-qwen-token-recovery.md) 已验证同Key正常tokenDelta追加先抵欠额，余额0仍拒绝，足额后恢复调用、按实结算并再次耗尽拒绝，总量不重置。此为token管理接口合同，不是支付/现金充值验收。
+后续 [欠额后追加额度恢复](progress/2026-11-12-provider-channel-expansion-qwen-token-recovery.md) 已验证同Key正常tokenDelta追加先抵欠额，余额0仍拒绝，足额后恢复调用、按实结算并再次耗尽拒绝，总量不重置。此为token管理接口合同，不是支付/现金充值验收。
 
-后续 [超预扣及欠额结算](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-qwen-token-overage.md) 已验证既有token规则：buffered/SSE有usage时按实扣减，超过余额后保留负值，下一请求拒绝且不增加上游调用。不是现金透支授权，不代表并发超额、充值恢复或供应商真实计费验收。
+后续 [超预扣及欠额结算](progress/2026-11-12-provider-channel-expansion-qwen-token-overage.md) 已验证既有token规则：buffered/SSE有usage时按实扣减，超过余额后保留负值，下一请求拒绝且不增加上游调用。不是现金透支授权，不代表并发超额、充值恢复或供应商真实计费验收。
 
-后续 [精确阈值与重叠准入](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-token-competing.md) 已验证：未知usage成功在精确预扣余额下归零；两个重叠请求只有一个获准，被拒绝者不误退，取消获准者后只恢复一次。限单实例本地合成合同，非有usage欠额结算或跨进程/PG压力验收。
+后续 [精确阈值与重叠准入](progress/2026-11-12-provider-channel-expansion-web-token-competing.md) 已验证：未知usage成功在精确预扣余额下归零；两个重叠请求只有一个获准，被拒绝者不误退，取消获准者后只恢复一次。限单实例本地合成合同，非有usage欠额结算或跨进程/PG压力验收。
 
-后续 [非流式结算与不足准入](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-token-admission.md) 已补齐 buffered 成功 token 结算，并验证0/1 token不足余额在普通/流式入口均429且零上游调用。仍不代表现金、并发或供应商收费验收。
+后续 [非流式结算与不足准入](progress/2026-11-12-provider-channel-expansion-web-token-admission.md) 已补齐 buffered 成功 token 结算，并验证0/1 token不足余额在普通/流式入口均429且零上游调用。仍不代表现金、并发或供应商收费验收。
 
-同日补充 [token 预付费合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-token-prepaid.md)：成功流有 usage 按实结算，无 usage 保留既有预扣且审计仍未知；失败和增量后取消释放预扣。仅本地合成合同，非现金/供应商收费证据，buffered 成功 token 结算未由本批覆盖。
+同日补充 [token 预付费合同](progress/2026-11-12-provider-channel-expansion-web-token-prepaid.md)：成功流有 usage 按实结算，无 usage 保留既有预扣且审计仍未知；失败和增量后取消释放预扣。仅本地合成合同，非现金/供应商收费证据，buffered 成功 token 结算未由本批覆盖。
 
-2026-11-12 已补[普通 Gateway Key 按次数预付费合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-qwen-prepaid.md)：生产本地状态下，成功请求在已报告/未报告 token usage 时均扣一次，失败或增量后取消释放本地次数预扣。下游为 router/body drop、上游为合成 peer；不是现金计费、真实供应商扣额或远端退款证据。
+2026-11-12 已补[普通 Gateway Key 按次数预付费合同](progress/2026-11-12-provider-channel-expansion-qwen-prepaid.md)：生产本地状态下，成功请求在已报告/未报告 token usage 时均扣一次，失败或增量后取消释放本地次数预扣。下游为 router/body drop、上游为合成 peer；不是现金计费、真实供应商扣额或远端退款证据。
 
 - 当前官方 signin 在独立 `https://auth.qwen.ai/api/v2/auths/signin`，构造使用一次 SHA256 password；返回 envelope、MFA/OTP/challenge、Cookie 与真实登录未验。本批不开放旧 seed 导入，不进行密码猜测或多种哈希重试。
 - 多轮所需的远端会话、parent/response ownership 与恢复；system、工具/local MCP、搜索引用、附件、多模态及其他已声明能力。
@@ -61,8 +61,8 @@
 
 离线定向检查、真实红测和后续结果应以本批进度文档及 `linshi/gateway-qwen-web-20261106` 的最终回执为准；尚未完成的检查不得由本合同文字替代。
 
-2026-11-12 后续已补 [公共真实 TCP](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-qwen-public-tcp.md) 及 [正常网页材料保存/精确账号 probe](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-qwen-probe-ui.md) 的合成联合验收。后者覆盖普通 Grant/CAS、新会话材料实际出站、唯一审计和集中结果页，尚不证明重启恢复、普通 Key 余额或真实平台可用性。
+2026-11-12 后续已补 [公共真实 TCP](progress/2026-11-12-provider-channel-expansion-qwen-public-tcp.md) 及 [正常网页材料保存/精确账号 probe](progress/2026-11-12-provider-channel-expansion-qwen-probe-ui.md) 的合成联合验收。后者覆盖普通 Grant/CAS、新会话材料实际出站、唯一审计和集中结果页，尚不证明重启恢复、普通 Key 余额或真实平台可用性。
 
-同日已补 [本地 authority 恢复合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-session-restart.md)及[管理 TCP 保存与恢复联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-web-session-management.md)：正常 Grant/secretPatches/CAS 写入后，新管理状态从真实磁盘恢复材料，旧 revision 不得覆盖；发布前后中断恢复另有阶段注入测试。这不是实际应用进程重启、真实登录轮换或上游权益验收。
+同日已补 [本地 authority 恢复合同](progress/2026-11-12-provider-channel-expansion-web-session-restart.md)及[管理 TCP 保存与恢复联合](progress/2026-11-12-provider-channel-expansion-web-session-management.md)：正常 Grant/secretPatches/CAS 写入后，新管理状态从真实磁盘恢复材料，旧 revision 不得覆盖；发布前后中断恢复另有阶段注入测试。这不是实际应用进程重启、真实登录轮换或上游权益验收。
 
-同日进一步完成[正常网页跨测试进程联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-qwen-process-ui.md)：网页保存到真实local后首宿主退出，不同PID恢复同revision/材料，无重新导入，网页精确probe实际使用恢复bearer/Cookie/UA完成一次create/completion，结果与唯一脱敏审计一致。此处是测试宿主进程重启，不是成品EXE/全启动/真实平台验收。
+同日进一步完成[正常网页跨测试进程联合](progress/2026-11-12-provider-channel-expansion-qwen-process-ui.md)：网页保存到真实local后首宿主退出，不同PID恢复同revision/材料，无重新导入，网页精确probe实际使用恢复bearer/Cookie/UA完成一次create/completion，结果与唯一脱敏审计一致。此处是测试宿主进程重启，不是成品EXE/全启动/真实平台验收。

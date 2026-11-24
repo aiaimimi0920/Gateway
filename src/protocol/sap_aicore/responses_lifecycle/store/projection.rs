@@ -37,42 +37,66 @@ impl Observation {
         {
             return Err(conflict());
         }
-        let output = self.body["output"]
-            .as_array()
-            .ok_or_else(conflict)?
-            .iter()
-            .map(project_item)
-            .collect::<Result<Vec<_>, _>>()?;
-        let status = self.body["status"].as_str().ok_or_else(conflict)?;
-        let mut body = json!({
-            "id": row.id, "object": "response", "model": pin.public_model,
-            "status": status, "store": true, "output": output,
-            "usage": usage.map(|u| json!({
-                "input_tokens":u.prompt_tokens,"output_tokens":u.completion_tokens,
-                "total_tokens":u.total_tokens
-            })),
-            "error": null,
-        });
-        if status == "failed" {
-            body["error"] =
-                json!({"code":"sap_aicore_response_failed","message":"Stored response failed."});
-        }
-        if let Some(at) = self.body["created_at"].as_u64() {
-            body["created_at"] = at.into();
-        }
-        if status == "incomplete" {
-            let reason = match self.body["incomplete_details"]["reason"].as_str() {
-                Some("max_output_tokens") => "max_output_tokens",
-                Some("content_filter") => "content_filter",
-                _ => "other",
-            };
-            body["incomplete_details"] = json!({"reason":reason});
-        }
-        Ok(body)
+        project_response(row, pin, &self.body, usage)
     }
 }
 
-fn project_item(item: &Value) -> Result<Value, GatewayError> {
+pub(super) fn historical_pending(
+    row: &super::Receipt,
+    pin: &RoutePin,
+    body: &Value,
+) -> Result<Value, GatewayError> {
+    let upstream = super::dispatch::live_id(row).ok_or_else(conflict)?;
+    if !matches!(
+        super::super::observe(body, Some(&upstream))?.1,
+        super::super::State::Pending
+    ) {
+        return Err(conflict());
+    }
+    project_response(row, pin, body, None)
+}
+
+fn project_response(
+    row: &super::Receipt,
+    pin: &RoutePin,
+    body: &Value,
+    usage: Option<crate::protocol::canonical::TokenUsage>,
+) -> Result<Value, GatewayError> {
+    let output = body["output"]
+        .as_array()
+        .ok_or_else(conflict)?
+        .iter()
+        .map(project_item)
+        .collect::<Result<Vec<_>, _>>()?;
+    let status = body["status"].as_str().ok_or_else(conflict)?;
+    let mut public = json!({
+        "id": row.id, "object": "response", "model": pin.public_model,
+        "status": status, "store": true, "output": output,
+        "usage": usage.map(|u| json!({
+            "input_tokens":u.prompt_tokens,"output_tokens":u.completion_tokens,
+            "total_tokens":u.total_tokens
+        })),
+        "error": null,
+    });
+    if status == "failed" {
+        public["error"] =
+            json!({"code":"sap_aicore_response_failed","message":"Stored response failed."});
+    }
+    if let Some(at) = body["created_at"].as_u64() {
+        public["created_at"] = at.into();
+    }
+    if status == "incomplete" {
+        let reason = match body["incomplete_details"]["reason"].as_str() {
+            Some("max_output_tokens") => "max_output_tokens",
+            Some("content_filter") => "content_filter",
+            _ => "other",
+        };
+        public["incomplete_details"] = json!({"reason":reason});
+    }
+    Ok(public)
+}
+
+pub(super) fn project_item(item: &Value) -> Result<Value, GatewayError> {
     let mut output = match item["type"].as_str() {
         Some("message") if item["role"] == "assistant" => {
             let parts = item["content"]
@@ -120,7 +144,7 @@ fn project_item(item: &Value) -> Result<Value, GatewayError> {
     Ok(output)
 }
 
-fn project_part(part: &Value) -> Result<Value, GatewayError> {
+pub(super) fn project_part(part: &Value) -> Result<Value, GatewayError> {
     match part["type"].as_str() {
         Some("output_text") => {
             Ok(json!({"type":"output_text","text":field(part,"text")?,"annotations":[]}))

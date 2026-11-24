@@ -156,6 +156,20 @@ create 分别记录有 `2/3/5` 用量、无用量的终态，但关闭 hold 均�
 方法、路径、前序 SAP ID 和 `background:true`。本 runner 不重验错误 CA、真实
 SAP、原生窗口或未知提交的人工恢复；这些不能由生命周期成功回执抵扣。
 
+### 前台持久化 SSE（独立矩阵）
+
+使用同套隔离环境与包含前台持久化 SSE 的同源 API devtest，另开全新证据目录：
+
+```powershell
+python -B tools/packaged-provider-fixture/run_sap_stored_lifecycle.py --stream-only --package $package --evidence (Join-Path $root ([guid]::NewGuid().ToString('N')))
+```
+
+`--stream-only` 保留包哈希、迁移哈希、缺 CA、双 EXE、日志脱敏和 drain 的护栏，不运行旧
+JSON 矩阵。合成 TLS peer 发首帧后等待，客户端先检查精确绑定和开放 hold，再放行尾帧。
+一条成功终态、一条半帧截断；后者由第二 EXE 用 Gateway ID GET 恢复。要求三条精确审计、
+两次创建和一次上游 GET、净扣两条消息。仅本次 `result.json` 的 `scenario=stored-sse`
+及 `status=passed` 证明指定 EXE 实际跑通；夹具单测不替代该验收。
+
 ## SAP Hosted 管理探测失败与发送前撤销
 
 复用上述 API devtest 和隔离连接，串行执行：

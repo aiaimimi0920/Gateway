@@ -104,12 +104,12 @@ client、适用 scope、可自行注册或 refresh/device 业务已完成的证�
 refresh、真实费用与签名资产来源。旧默认、营销名称、Agents REST 或 MCP 工具名不能补作证据。
 本轮可先修已证的本地生命周期与不重放问题，但不能据此宣称当前业务合同已完整实现。
 
-后续 [Web图片公共子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-07-provider-channel-expansion-luma-web-images.md)
+后续 [Web图片公共子批](progress/2026-11-07-provider-channel-expansion-luma-web-images.md)
 已把 URL/b64 都接到无凭据公网 HTTPS、有界读取与完整 PNG/JPEG 解码，正常公共调用/Local
 次数结算、失败取消退款有离线证据；这是资产内容和本地业务结果验证，不证明当前 board wire、
 原任务归属、签名资产的精确发行方或真实供应商费用。音视频、精确 probe/UI 与完整渠道仍未闭合。
 
-后续[原任务结果子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-07-provider-channel-expansion-luma-web-tasks.md)
+后续[原任务结果子批](progress/2026-11-07-provider-channel-expansion-luma-web-tasks.md)
 已对现有board worker增加POST唯一output ID→completed事件绑定、完整任务上下文透传与取图前核对，
 拒绝finalizing/partial SSE/旧URL-only；这只是内部fail-closed准入，不证明当前官网状态/schema或资产发行方。
 actionId仍可null，Rust依赖可信browser executor提供POST→event关联，自动发现不冒称精确模型绑定。
@@ -125,7 +125,7 @@ generation状态、复数`artifacts`合入本地`artifact`和`/api/photon/v2/gen
 
 ## 4. 接力顺序
 
-2026-11-12 [单账号图片任务测试子批](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-12-provider-channel-expansion-luma-image-probe.md)
+2026-11-12 [单账号图片任务测试子批](progress/2026-11-12-provider-channel-expansion-luma-image-probe.md)
 已接通配置模型/别名、prompt-only 图片、逐次费用确认和普通 sender 的管理测试及独立表单。
 成功只证明任务上下文与图片字节，返回中性结果，不恢复模型健康；失败也不对未经绑定的所选模型或账号施加健康反馈。
 这承接上文尚未接通的 probe/UI 代码缺口，不替代真实浏览器联合验收、当前 board wire 或模型/action 合同。

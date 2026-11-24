@@ -10,7 +10,7 @@ stack for Gateway.
 | `docker-compose.yml` | Named volumes | Long-running servers where Docker manages persistent volumes |
 | `docker-compose.local.yml` | Local directories | Easier backup, inspection, and migration of `gateway_data/` and `redis_data/` (the database still uses a named volume) |
 | `docker-compose.dev.yml` | Source bind mount + build caches | Source checkout only; local edits rebuild the running Gateway automatically |
-| `docker-deploy.sh` | One-click local-directory preparation | Linux/macOS server deployment aligned with the recommended Sub2API Docker workflow |
+| `docker-deploy.sh` | Local-directory preparation | Initializes missing files and settings before an operator reviews `.env` |
 
 The production variants deploy the current minimum official runtime stack:
 
@@ -20,14 +20,15 @@ The production variants deploy the current minimum official runtime stack:
 
 ## PostgreSQL and the Gateway Schema
 
-PostgreSQL is required, not optional. The gateway keeps its request audits,
+PostgreSQL is required for the official Compose stack. The gateway keeps its request audits,
 usage aggregates and per-credential model states there, so without a database
 the console's live concurrency, cost and success-rate panels answer
 `503 PostgreSQL 尚未配置` and every affected number renders as `—`.
 
-Each compose variant therefore ships its own `postgres:16-alpine` service and
-defaults `GATEWAY_DATABASE_URL` to it. To use an external database instead, set
-`GATEWAY_DATABASE_URL` in `.env` and stop the bundled service.
+The production Compose files default to the bundled PostgreSQL service and require
+it to be healthy before starting Gateway. Changing `GATEWAY_DATABASE_URL` does not
+remove that dependency. To run without the bundled service, use a reviewed custom
+Compose configuration and provision the external schema first.
 
 The Rust runtime does not create tables; it expects the schema to already
 exist. `postgres/initdb/001-gateway-schema.sql` supplies it and is applied by
@@ -40,7 +41,8 @@ rows so a fresh database reports the same migration state as a migrated one.
 Platform remains the owner of the schema: when a migration is added there,
 re-dump this file rather than hand-editing it.
 
-Two more files run after it, and both are specific to a standalone deployment:
+Two standalone-only files follow the baseline. The additive extensions after them
+are listed below.
 
 - `postgres/initdb/002-gateway-bootstrap.sql` seeds one tenant, the project named
   by `GATEWAY_DEFAULT_PROJECT_ID` (default `platform-default-project`), that
@@ -61,14 +63,16 @@ Two more files run after it, and both are specific to a standalone deployment:
   deployment sharing Platform's database writes real `gateway_provider_accounts`
   ids and should keep the foreign key.
 
-Because the image only runs `docker-entrypoint-initdb.d` on first
-initialisation, applying an updated dump to an existing deployment means either
-running the Platform migrator against it or discarding the volume
-(`docker compose down -v`). The same applies to the two files above: apply them
-by hand (`docker compose exec -T postgres psql -U gateway -d gateway < …`) or
-recreate the volume.
+New volumes run `postgres/initdb/` in filename order. Existing volumes do not rerun
+initdb: back up the database, review schema and grants with the owner, and apply
+only the required migrations before the binary upgrade. Use the Platform migration
+process for a shared database; do not apply standalone-only seed or constraint
+changes there. Do not remove the volume or reapply the baseline dump to upgrade.
 
-## Quick Start
+### Additive extensions for existing databases
+
+`postgres/initdb/004-gateway-key-cash.sql` adds cash billing storage; see the
+[cash billing contract](../docs/key-cash-billing.md).
 
 The additive Accio DB refresh extension is
 `postgres/initdb/005-gateway-refresh-authority.sql`. It adds authorization
@@ -144,29 +148,37 @@ cancel/delete claims. A missing migration is reported as recovery unavailable,
 not as an empty queue. Existing live-owner refunds can still use direct unsent
 knowledge, but a failed proof write cannot authorize future automatic refunds.
 
-### Method 1: One-Click Preparation (Recommended)
+## Quick Start
+
+For existing PostgreSQL data, review the [schema and migration instructions](#postgresql-and-the-gateway-schema) first.
+
+### Method 1: Prepare a local-directory stack
 
 ```bash
 cd deploy
 chmod +x docker-deploy.sh
 ./docker-deploy.sh
+# Review and edit .env before starting.
 docker compose -f docker-compose.local.yml up -d
 docker compose -f docker-compose.local.yml logs -f gateway
 ```
 
-The script:
-
-- creates `.env` from `.env.example` when needed
-- generates `GATEWAY_API_KEY`, `GATEWAY_API_KEY_SECRET`, and `GATEWAY_MANAGEMENT_TOKEN`
-- enables remote console access for the prepared stack
-- creates `gateway_data/` and `redis_data/`
+The helper prepares `.env`, `gateway_data/`, and `redis_data/` and fills missing
+secrets. Its fallback management token is a fixed development value, not a
+generated secret. It does not override the template's explicit
+`GATEWAY_CONSOLE_REMOTE_ACCESS=false`. For local use, set
+`GATEWAY_BIND_HOST=127.0.0.1` before starting; the Compose template otherwise
+publishes to `0.0.0.0`. Replace the development management token and database
+password before any shared deployment. Enable remote console access only if
+intended and keep it behind your deployment's access controls.
 
 ### Method 2: Manual Preparation
 
 ```bash
 cd deploy
-cp .env.example .env
+test -f .env || cp .env.example .env
 mkdir -p gateway_data redis_data
+# Set bind address and deployment secrets in .env before starting.
 docker compose -f docker-compose.local.yml up -d
 docker compose -f docker-compose.local.yml logs -f gateway
 ```
@@ -261,7 +273,7 @@ Notes for the first cold boot:
 
 ```bash
 cd deploy
-cp .env.example .env
+# Prepare .env as in Quick Start; do not overwrite an existing configuration.
 docker compose up -d
 docker compose logs -f gateway
 ```
@@ -271,10 +283,10 @@ Useful commands:
 ```bash
 # Stop the stack
 docker compose down
-
-# Remove all persistent data
-docker compose down -v
 ```
+
+Do not add `-v` for a restart or upgrade: it removes named volumes, including
+PostgreSQL data, but does not remove host bind mounts.
 
 ## Repository Helper Script
 

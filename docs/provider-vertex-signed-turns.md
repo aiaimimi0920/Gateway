@@ -131,4 +131,4 @@ function_call items 表示的工具轮，按既有公共 ID 关联规则聚合�
 未再含第二个特殊字符串，因此不作为它的当前 Cloud 可用性证据。
 
 实现与离线运行证据见
-[签名 turn 子批回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-05-provider-channel-expansion-vertex-express-signed-turns.md)。
+[签名 turn 子批回执](progress/2026-11-05-provider-channel-expansion-vertex-express-signed-turns.md)。

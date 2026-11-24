@@ -87,6 +87,12 @@ class Stored:
         with self.lock:
             return list(self.attempts)
 
+    def accept(self, method, path):
+        return "application/json"
+
+    def send(self, request, body):
+        request.send_payload(json.dumps(body).encode(), "application/json")
+
 
 def handle(request):
     peer, host = request.server.server.peer, request.server.authority
@@ -99,7 +105,7 @@ def handle(request):
     if (host != AZURE or path.query or request.headers.get_all("Host") != [host]
             or request.headers.get_all("Authorization") != [f"Bearer {peer.tokens[host]}"]
             or request.headers.get_all("AI-Resource-Group") != [GROUP]
-            or request.headers.get_all("Accept") != ["application/json"]):
+            or request.headers.get_all("Accept") != [state.accept(request.command, path.path)]):
         request.send_error(400)
         return True
     lengths = request.headers.get_all("Content-Length", ["0"])
@@ -119,6 +125,6 @@ def handle(request):
     if status != 200:
         request.send_error(status)
     else:
-        peer.record(host, path.path, False)
-        request.send_payload(json.dumps(body).encode(), "application/json")
+        peer.record(host, path.path, state.accept(request.command, path.path) == "text/event-stream")
+        state.send(request, body)
     return True

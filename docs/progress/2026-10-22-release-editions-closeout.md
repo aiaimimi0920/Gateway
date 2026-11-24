@@ -8,14 +8,7 @@
 
 ## 交付语义
 
-- API 使用 `--no-default-features --features runtime-defaults`，不编译网页资源。
-- Web 使用带 `management-ui` 的后端，但不包含桌面启动器。
-- Desktop 包含同一带 UI 后端和桌面启动器。
-- 有效管理界面能力为编译能力与 `enable_management_ui` 的 AND。
-- 关闭 UI 不关闭管理 API，也不取消推理 API 的鉴权。
-- Desktop 关闭 UI 时不创建 WebView，Local 模式启动后端；Existing 模式报错退出，
-  不接管远程或偷偷创建本地服务。
-- 发布包排除测试目录、测试副本、缓存和截图产物，仓库测试保留。
+现行能力矩阵见[发行版说明](../release-editions.md)；构建按[手测与正式发布流程](../devtest-build.md)选择。下文只记录本批证据。
 
 ## 本轮证据
 

@@ -60,6 +60,19 @@ impl Prepared {
         let url = super::super::test_support::url(&plan.url);
         #[cfg(not(test))]
         let url = plan.url;
+        let accept = if plan
+            .body
+            .as_ref()
+            .is_some_and(|body| body["stream"] == true)
+            || plan
+                .query
+                .iter()
+                .any(|(key, value)| key == "stream" && value == "true")
+        {
+            "text/event-stream"
+        } else {
+            "application/json"
+        };
         let mut builder = http
             .request(plan.method, url)
             .query(&plan.query)
@@ -67,7 +80,7 @@ impl Prepared {
             .timeout(client.timeout)
             .bearer_auth(token)
             .header("AI-Resource-Group", &payload.headers["AI-Resource-Group"])
-            .header("accept", "application/json");
+            .header("accept", accept);
         if let Some(body) = plan.body {
             builder = builder.json(&body);
         }
@@ -78,6 +91,23 @@ impl Prepared {
     }
 
     async fn execute(self, observed_status: &mut Option<u16>) -> Result<Received, Evidence> {
+        let response = self.open(observed_status).await?;
+        let status = response.status().as_u16();
+        let bytes = crate::protocol::upstream_body::collect_bounded_upstream_body(
+            response,
+            "SAP stored Responses",
+        )
+        .await
+        .map_err(|_| Evidence::failed(failure("sap_aicore_body_incomplete"), Some(status)))?;
+        let body = crate::protocol::unique_json::parse(&bytes)
+            .map_err(|_| Evidence::failed(failure("sap_aicore_response_failed"), Some(status)))?;
+        Ok(Received { body, status })
+    }
+
+    pub(super) async fn open(
+        self,
+        observed_status: &mut Option<u16>,
+    ) -> Result<rquest::Response, Evidence> {
         let response = self
             .http
             .execute(self.request)
@@ -91,14 +121,6 @@ impl Prepared {
                 Some(status),
             ));
         }
-        let bytes = crate::protocol::upstream_body::collect_bounded_upstream_body(
-            response,
-            "SAP stored Responses",
-        )
-        .await
-        .map_err(|_| Evidence::failed(failure("sap_aicore_body_incomplete"), Some(status)))?;
-        let body = crate::protocol::unique_json::parse(&bytes)
-            .map_err(|_| Evidence::failed(failure("sap_aicore_response_failed"), Some(status)))?;
-        Ok(Received { body, status })
+        Ok(response)
     }
 }

@@ -2,7 +2,7 @@
 
 ## 结论与计数口径
 
-按 Magpie 原始来源卡去重后的产品工作项统计，**A–C 仍有 67 个功能块尚未完整关闭**。本对话渠道扩展的剩余项另登记于 D，包含与原清单重叠的产品，不能直接与 67 相加：
+以下 67 项是 2026-11-13 按 Magpie 原始来源卡去重形成的 A–C 全范围基线，不是实时待办数。首批三家已按调整后的范围[完成本轮开发](first-three-closure-2026-11-13.md)，不等于满足原卡的全范围，也不重算其他卡。D 的渠道扩展含重叠项，不能直接与 67 相加：
 
 | 分类 | 数量 | 含义 |
 | --- | ---: | --- |
@@ -32,14 +32,14 @@ ModelScope msmoli 是辅助能力而非推理服务商，但仍保留在用户�
 | 1 | Agnes AI | 国际站显式 Key、管理／目录／UI、公共文本及工具切片 | Models API 真实合同与账号权限；真实调用／费用；国内站、网页登录、媒体；原生包、Server／Redis；独立 feature 构建阻碍待复核 |
 | 3 | GitHub Copilot | 专用身份保存、SDK owner、受限公共 Chat／Responses 单轮文本、额度审计、在途禁用验证 | 真实 CLI／订阅账号及模型调用；公共 Key 撤销、token 轮换、断连取消；未确认 stop 后隔离策略的产品收尾；原生手测包与 Server 支持边界。流式、多轮、工具、媒体、现金当前不支持，不能算已完成，扩展前明确目标范围 |
 | 12 | Grok Build | 产品 owner、device 接线、runtime-defaults 编译及定向回归 | 真实账号与公共调用验收；完整产品交付证据 |
-| 13 | Command Code | 已批准的公开 Provider API 非账号范围已验：原生 Chat／Messages／Responses、System One/Jev、ZDR、目录、独立构建、双 EXE 推理及调度、原生账号保存编辑与重启 | 真实 Studio Key／目录权限／上游行为／费用；OAuth 签发、未核实的远端 Responses 生命周期及 System One 现金按用户决定后置，不计作已实现。Go 套餐不能替代 Provider API 资格。见 [收口清单](first-three-closure-2026-11-13.md#1-command-code) |
+| 13 | Command Code | [首批公开 Provider API 已收口](first-three-closure-2026-11-13.md#1-command-code) | 真实账号／费用未验；OAuth 签发、远端 Responses 生命周期及 System One 现金延期。 |
 | 16 | Kiro | 既有 Key／OAuth 部分接入 | 完整产品与跨应用验收；不能按部分接入宣布整项关闭 |
 | 25 | Nous Portal OAuth | 管理／目录／UI、持久刷新、双目标文本工具、Embeddings 等本地切片 | 获准 client／真实账号；浏览器视觉、原生包、Server／Redis、媒体及完整产品验收；不借用 hermes-cli 身份 |
-| 27 | SenseNova Token Plan | 订阅 Key 管理、原生账号目录拉取／保存／重启、原生三协议、双 EXE 图片及工具推理历史、非法输入发送前拒绝且不罚健康凭据、真实调度周期；后续未知内容块与非法 text／计划形状准入已验源码 | 当前内容准入补丁包级；真实 Key／订阅／消费；控制台 OAuth／客户端资格／积分池与视频 wire 合同；见 [SenseNova 收口清单](first-three-closure-2026-11-13.md#2-sensenova-token-plan) |
+| 27 | SenseNova Token Plan | [首批订阅 Key 与三协议已收口](first-three-closure-2026-11-13.md#2-sensenova-token-plan) | 真实账号／费用未验；视频、控制台 OAuth／积分池延期。 |
 | 31 | GCP AI | 既有 Vertex OAuth／Express | ADC 导入／发现；对应产品完整验收，不以现有 Vertex 等同全部 GCP 路线 |
 | 32 | Cloudflare Workers AI | 首批实现与定向合同 | 真实账号／推理与完整交付验收；不与 Cloudflare AI Gateway 合并 |
 | 33 | River | 首批实现与定向合同 | 真实账号／推理与完整交付验收 |
-| 34 | SAP AI Core | Service Key OAuth／X.509、Azure Chat、三种目录、原生 Responses／Orchestration v2／Bedrock、部分 reasoning 与图片；双 EXE 合成推理 32/32、持久化 Responses 公共生命周期及有耐久依据的本地恢复；阶段化错误／精确健康、探测／流式事实及单次准入已验源码和适用 Hosted；精确零发送 JSON／SSE fallback 及无用量消息预付恢复已验源码／双库；Orchestration 原生目录选择／保存／重启读回 | 未知提交权威 ID 绑定／人工结案、无耐久未发送证明退款处置、不确定 mutation 人工处置、当前错误反馈／拒绝记录／恢复补丁包级验收、未覆盖的上游错误语义、现金 tariff、其余批准区域和能力及对应原生窗口；真实租户／权限／费用另验。逐项证据与边界见 [SAP 收口清单](first-three-closure-2026-11-13.md#3-sap-ai-core) |
+| 34 | SAP AI Core | [首批原生协议与受控持久化 Responses 已收口](first-three-closure-2026-11-13.md#3-sap-ai-core) | 后台 SSE 仅有 Local 源码回执；未知提交对账／人工处置延期；真实租户／费用未验。 |
 | 44 | DIM | 两站隔离、授权刷新、管理／UI／目录、多 wire 文本工具 | 操作者提供获准 client 注册；真实账号、媒体、桌面／Server／跨应用验收 |
 | 53 | LobsterAI | 授权刷新、管理／UI／目录、普通与虚拟模型公共推理、专属测试／调度／运行时重建 | 真实账号／订阅／费用与自有身份头；跨请求持久绑定、特殊 profile／Kimi、reasoning／媒体；Server／Redis、独立 feature、原生包与原生进程重启验收 |
 
@@ -141,7 +141,7 @@ ModelScope msmoli 是辅助能力而非推理服务商，但仍保留在用户�
 | R14 Luma Web | 单图任务／worker 资源／公共图片；精确图片 probe，正常浏览器→管理 TCP→合成 executor 联合 | 当前官网 board wire／session、任务／资产发行方合同、可靠模型／action 绑定、有效音视频、费用／额度、完整 Keep；远端取消／lease／跨请求 exactly-once；真实 browser worker、Server／PG／跨进程／原生包 | [图片 probe／UI](../progress/2026-11-12-provider-channel-expansion-luma-image-probe-ui.md)；模型绑定未验证，不恢复健康，供应商扣额未知 |
 | R14 Luma Agents API | 独立 Key、模板／保存／Keep／清空／本地重建、图片／图片编辑／视频；扩画、重绘、layering 的公共 API 与显式账号测试；扩画位置、重绘 conditioning／guides／有限 HDR 的高级 UI；同 UUID 轮询、资产验证及本地结算；成功与正常失败终态的晚到 credits 有界补查、任务事实及原审计接线；取消／超时前已验证任务及费用快照；已保存账号的 ≤8 MiB 内联／≤64 MiB 签名 Files 上传、TTL/user_id／分页／状态／确认删除与 ID 复制 | 超过 64 MiB 的 Files 上传及真实验收、其他官方操作、重绘 EXR／duration、取消后未知费用、补查截止后及跨进程追账／cash、真实分层／扩画／重绘／晚到扣费及视频播放、实际平台权益；Web／REST 额度对照及完整产品交付 | [图片分层](../progress/2026-11-18-provider-channel-expansion-luma-layering.md)、[高级参数 UI](../progress/2026-11-19-provider-channel-expansion-luma-video-controls.md)、[失败费用审计](../progress/2026-11-17-provider-channel-expansion-luma-failure-audit.md)；不以 Web 或 MCP 授权替代 API Key 权益 |
 | R14 Luma LLM Inference | 独立产品／Key／固定目标、空池模板、正常账号保存／Keep／清空与暂存受众；Chat／无状态 Responses／Messages、function tools、JSON／SSE、原审计结算与显式账号测试 | 真实销售开通账号、模型资格、限速／供应商账单、Server／PG／Redis、跨进程／原生包；不猜 models 或余额接口 | [独立合同](lumalabs-inference-contract.md)、[本地实施回执](../progress/2026-11-19-provider-channel-expansion-luma-inference.md)；不使用 Agents Key／credits，不新增整卡完成 |
-| R14 Luma OAuth／MCP | credential-only 管理、桌面新增／重授权／离线授权／目录 UI；正常管理 API 独立兼容 client 注册、官方授权、显式保存、一次真实刷新、前后 26 项 tools/list；Web devtest 包及本地 SQLite 正常原生重启后目录读取已通过 | 当前 26 项完整工具合同、18 个模型及三项参数的正常管理 API 真实读取已通过（[当前账号回执](../progress/2026-11-20-luma-mcp-live-contract.md)），创作执行链尚未接通；生成／取消／结果／费用业务；完整网页点击／窄屏；完整进程强制崩溃、换身份／地址、跨机器及远程 Server 授权恢复；远端 MCP session DELETE 的真实验收及强制取消清理；未启用自动刷新 | [真实显式刷新与包回执](../progress/2026-11-14-provider-channel-expansion-luma-explicit-refresh.md)、[渠道合同](../provider-luma-channel-contract.md)；正常账号本地授权刷新闭环已关闭，工具目录不等于创作业务 |
+| R14 Luma OAuth／MCP | 正常管理授权、显式刷新、工具目录与创作执行链已有交付回执 | MCP 分层暂缓；各运行形态、真实账号及费用验收边界见[四渠道现状](luma-development-status.md) | [渠道合同](../provider-luma-channel-contract.md)、[真实目录回执](../progress/2026-11-20-luma-mcp-live-contract.md) |
 | R15 Suno Web | MP3 字节解码、公共 Local 次数结算、native 模型绑定；直连／BrowserBacked 精确 probe、费用确认、正常网页→管理 TCP→合成 remote 联合 | 当前模型／feed wire、device／Clerk／受众／challenge／refresh、实际额度与下载权益、完整生成参数／其他格式；远端硬取消／lease；完整公共／Server／进程／原生包与真实平台验收 | [浏览器 probe 回执](../progress/2026-11-08-provider-channel-expansion-suno-browser-probe.md)；有效 MP3 和 probe UI 不再作为完全未实现项 |
 | R15 Suno OAuth／MCP | 11 月 12 日独立 client 注册成功，用户尝试官方授权 | 用户当时收到 `Connecting AI apps to Suno isn't available for your account yet.`；未交换 token／读取 tools/list。待资格改变或用户明确选择其他账号后继续工具合同、授权刷新、产品入口与业务；不绕过资格或重复注册 | [注册回执](../progress/2026-11-12-provider-channel-expansion-suno-mcp-registration.md)；资格受阻，不推断账号永远不可用 |
 | R16 Udio Web | worker／模型绑定、公共音乐元数据与本地结算、精确 probe／费用 UI；图片 URL／base64 安全准入及 PNG／JPEG 完整解码 | 当前 wire／session／模型／额度与图片权益、平台内有效音乐播放、完整参数／Keep；本地 worker／远端 lease／取消、Server／独立进程／原生包与 feature 边界。既有无公共 API／下载限制合同不得通过绕过限制补验收 | [音乐任务 UI](../progress/2026-11-11-provider-channel-expansion-udio-probe-ui.md)、[图片资产](../progress/2026-11-11-provider-channel-expansion-udio-image-assets.md)；音乐元数据成功不代表音频验证或模型健康恢复 |
@@ -154,6 +154,8 @@ ModelScope msmoli 是辅助能力而非推理服务商，但仍保留在用户�
 - 旧 Dream Machine API 仅为对照／范围待定，不新增为已批准必做渠道；Together 不在本次范围，Flow Web 的既有暂停不因本次登记而解除。
 
 ### D4. Luma 收尾标准（2026-11-14 状态复核）
+
+以下是历史快照，不是当前待办；现状以[四渠道状态页](luma-development-status.md)为准。
 
 2026-11-19 接手复核：[四渠道当前剩余工作](luma-development-status.md)区分实现缺口、待验收及未承诺范围；[开发工具](../../tools/luma/README.md)已迁入仓库，后续不依赖旧临时脚本。
 

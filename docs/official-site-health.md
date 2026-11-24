@@ -80,12 +80,13 @@ OpenRouter 另有按模型 endpoint 的 `uptime_last_30m` 等数据；本轮适�
 HTML 在有界后台解析任务中处理，不扩大其他适配器限制。Gemini 第二 origin 同样独立校验，绝不信任页面中的动态目的地址。
 报告不包含 bootstrap key、监控 key 或业务 key。路由热路径仍只读缓存。
 
-离线验证：`cargo test --locked --lib site_health::`、`site_health_official_contract` 和既有
-站点健康合同；前端 `officialHealthAdapters.test.tsx` 及既有方案/密钥回归。
+离线验证：`cargo test --locked --lib site_health::` 和
+`cargo test --locked --test suite_provider_contracts site_health_`；
+前端使用 `officialHealthAdapters.test.tsx`。
 显式真实公开状态验证（默认测试不会联网）：
 
 ```powershell
-cargo test --locked --test site_health_official_contract official_public_status_smoke -- --ignored --nocapture
+cargo test --locked --test suite_provider_contracts official_public_status_smoke -- --ignored --nocapture
 ```
 
 本功能不是生产部署或正式发布，不改变运行中的 Gateway、凭证和数据库。

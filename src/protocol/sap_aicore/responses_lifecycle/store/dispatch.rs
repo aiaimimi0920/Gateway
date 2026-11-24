@@ -4,7 +4,9 @@ use super::super::{
     transport::{DispatchError, Prepared},
     Operation, UpstreamId,
 };
-use super::{authorization::read_authorized, mutation::MutationKind, Receipt, SendHooks, Store};
+use super::{
+    authorization::read_authorized, mutation::MutationKind, Receipt, RoutePin, SendHooks, Store,
+};
 use crate::{auth::session::AuthenticatedSession, error::GatewayError, state::AppState};
 use serde_json::Value;
 
@@ -21,7 +23,15 @@ pub(super) async fn access_existing(
     account_group: Option<&str>,
     operation: Operation,
     hooks: SendHooks<'_>,
+    streaming: Option<(&RoutePin, super::stream::Publish<'_>)>,
 ) -> Result<Observation, DispatchError> {
+    let resume = match (operation, streaming) {
+        (Operation::RetrieveStream(cursor), Some((pin, publish))) => Some((cursor, pin, publish)),
+        (Operation::RetrieveStream(_), None) | (_, Some(_)) => {
+            return Err(super::super::invalid().into())
+        }
+        _ => None,
+    };
     let store = Store::from_state(state).ok_or_else(not_found)?;
     let (initial, payload) = read_authorized(state, session, public_id, account_group)
         .await?
@@ -46,7 +56,7 @@ pub(super) async fn access_existing(
     }
     ensure_running(state)?;
     let claim = match operation {
-        Operation::Retrieve => None,
+        Operation::Retrieve | Operation::RetrieveStream(_) => None,
         Operation::Cancel | Operation::Delete => Some(
             store
                 .claim_mutation(
@@ -88,6 +98,21 @@ pub(super) async fn access_existing(
             store.release_unsent(claim).await?;
         }
         return Err(error.into());
+    }
+    if let Some((cursor, pin, publish)) = resume {
+        return super::stream::consume(
+            prepared,
+            &store,
+            current,
+            pin,
+            hooks,
+            super::stream::Source::Resume {
+                id: upstream,
+                cursor,
+            },
+            publish,
+        )
+        .await;
     }
     let received = prepared
         .execute_until(hooks.deadline)

@@ -12,6 +12,8 @@ from sap_peer import AZURE, SAP
 from sap_stored import DEPLOY, Stored
 from sap_stored_cases import aggregate, exercise
 from sap_stored_recovery_cases import exercise as recover
+from sap_stored_stream import StoredStream
+from sap_stored_stream_cases import exercise as stream
 from server_process import Backend, PG, REDIS, fixture_url, package_identity, require, sha256, sql
 
 
@@ -22,7 +24,7 @@ class StoredProduct(Product):
         return value
 
 
-def run(package, evidence):
+def run(package, evidence, *, stream_only=False):
     evidence = evidence.resolve()
     require(evidence.is_relative_to(LINSHI.resolve()) and evidence != LINSHI.resolve(),
             "Use a fresh evidence directory under linshi")
@@ -43,7 +45,7 @@ def run(package, evidence):
     scope = "packaged-sap-aicore-stored-" + uuid.uuid4().hex
     management, signing = secrets.token_hex(32), secrets.token_hex(32)
     peer = SAP(evidence)
-    peer.stored = Stored()
+    peer.stored = StoredStream() if stream_only else Stored()
     hidden = [management, signing, peer.secret, peer.basic, peer.client_key, *peer.tokens.values()]
     instances = []
     stage = "startup"
@@ -74,11 +76,15 @@ def run(package, evidence):
                 require(saved["providerAccount"]["id"] == account and any(
                     row["id"] == credential and row["providerAccountId"] == account
                     for row in saved["credentials"]), "Reader did not load the exact stored credential")
-                stage = "lifecycle"
-                checks = exercise(writer, reader, lambda: start("restarted"), peer, pg,
-                                  scope, owner, sources, account, credential)
-                stage = "recovery"
-                checks["recovery"] = recover(instances, start, peer, pg, scope, owner, sources)
+                if stream_only:
+                    stage = "stored-sse"
+                    checks = stream(writer, reader, peer, pg, scope, owner, sources, account, credential, hidden)
+                else:
+                    stage = "lifecycle"
+                    checks = exercise(writer, reader, lambda: start("restarted"), peer, pg,
+                                      scope, owner, sources, account, credential)
+                    stage = "recovery"
+                    checks["recovery"] = recover(instances, start, peer, pg, scope, owner, sources, credential)
                 stage = "drain"
                 for instance in instances:
                     if instance.process.poll() is None:
@@ -92,6 +98,7 @@ def run(package, evidence):
                 calls=peer.stored.all_attempts(), exits=[p.process.poll() for p in instances]), indent=2) + "\n", encoding="utf-8")
             raise
     result = dict(identity, status="passed", scope=scope, checks=checks,
+        scenario="stored-sse" if stream_only else "stored-lifecycle",
         pids=[p.process.pid for p in instances], exits=[p.process.poll() for p in instances],
         storedCalls=peer.stored.snapshot(), storedAttempts=peer.stored.all_attempts(),
         peerCalls=peer.snapshot()[0], gracefulDrain=True)
@@ -103,5 +110,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--package", required=True, type=Path)
     parser.add_argument("--evidence", required=True, type=Path)
+    parser.add_argument("--stream-only", action="store_true")
     args = parser.parse_args()
-    run(args.package, args.evidence)
+    run(args.package, args.evidence, stream_only=args.stream_only)

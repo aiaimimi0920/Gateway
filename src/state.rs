@@ -20,7 +20,7 @@ use crate::routing::config::RouteConfigStore;
 use crate::upstream::client::UpstreamClient;
 use sqlx::PgPool;
 
-mod stored_response_tasks;
+pub(crate) mod stored_response_tasks;
 use stored_response_tasks::StoredResponseTasks;
 pub(crate) use stored_response_tasks::{StoredResponseAdmission, StoredResponseWaiter};
 

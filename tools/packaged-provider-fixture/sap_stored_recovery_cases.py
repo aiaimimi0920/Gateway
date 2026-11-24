@@ -5,6 +5,7 @@ import uuid
 
 from sap_stored import PATH
 from sap_stored_cases import literal, public
+from sap_stored_unsent import produce
 from server_process import require, sql
 
 
@@ -23,47 +24,7 @@ def ledger(pg, identity):
                f"ON h.response_id=r.id WHERE r.id={literal(identity)}")
 
 
-def seed_unsent_pair(pg, original, source):
-    """Consumer-only fixtures: never claim these rows came from a live submit owner."""
-    proven, unknown = ("resp_gw_" + uuid.uuid4().hex for _ in range(2))
-    statements = ["BEGIN", f"""DO $seed$ BEGIN
-        IF NOT EXISTS(SELECT 1 FROM gateway_sap_response_balance_holds
-            WHERE response_id={literal(original)} AND key_ref={literal(source)}
-            AND account_ref={literal(source)} AND mode='message_prepaid' AND reserved=1) THEN
-            RAISE EXCEPTION 'unexpected original fixture hold';
-        END IF;
-        UPDATE gateway_access_key_balances SET remaining_messages=remaining_messages-2
-            WHERE access_key_id={literal(source)} AND balance_mode='message_prepaid'
-            AND remaining_messages>=2;
-        IF NOT FOUND THEN RAISE EXCEPTION 'synthetic reserve denied'; END IF;
-        END; $seed$"""]
-    for identity in (proven, unknown):
-        statements.extend([
-            "INSERT INTO gateway_sap_response_receipts "
-            "(id,owner_tag,binding_tag,provider_ref,credential_ref,phase) "
-            f"SELECT {literal(identity)},owner_tag,binding_tag,provider_ref,credential_ref,'submitting' "
-            f"FROM gateway_sap_response_receipts WHERE id={literal(original)}",
-            "INSERT INTO gateway_sap_response_route_pins "
-            "(response_id,public_model,source_key_ref,platform_access_ref) "
-            f"SELECT {literal(identity)},public_model,source_key_ref,platform_access_ref "
-            f"FROM gateway_sap_response_route_pins WHERE response_id={literal(original)}",
-            "INSERT INTO gateway_sap_response_balance_holds "
-            "(response_id,key_ref,account_ref,mode,reserved) "
-            f"VALUES ({literal(identity)},{literal(source)},{literal(source)},'message_prepaid',1)",
-        ])
-    statements.extend([
-        "INSERT INTO gateway_sap_response_unsent_proofs (response_id,revision) "
-        f"VALUES ({literal(proven)},0)",
-        "COMMIT",
-    ])
-    before = remaining(pg, source)
-    require(before >= 2, "Recovery fixture has insufficient synthetic quota")
-    sql(pg, ";".join(statements))
-    require(remaining(pg, source) == before - 2, "Synthetic holds did not debit exactly twice")
-    return proven, unknown
-
-
-def exercise(instances, start, peer, pg, alias, owner, sources):
+def exercise(instances, start, peer, pg, alias, owner, sources, credential):
     active = [backend for backend in instances if backend.process.poll() is None]
     require(len(active) == 2, "Recovery requires two active original EXEs")
     source = sql(pg, "SELECT id FROM gateway_access_keys WHERE id IN ("
@@ -102,25 +63,35 @@ def exercise(instances, start, peer, pg, alias, owner, sources):
             require(ledger(pg, identity) == f"completed|0|{tokens}|1", "Terminal evidence was not retained")
             require(remaining(pg, source) == before - number, "Create did not debit exactly once")
             require(peer.stored.all_attempts() == calls + [("POST", PATH)] * number, "Create replayed")
+        proven = produce(active[0], peer, pg, alias, owner, source, credential)
+        unknown = produce(active[0], peer, pg, alias, owner, source, credential, deny_proof=True)
+        require(proven != unknown and remaining(pg, source) == before - 4,
+                "Live rejected submits did not debit distinct holds")
         for backend in active:
             backend.drain()
         require(all(ledger(pg, receipt) == f"completed|0|{tokens}|1" for receipt, tokens in pending),
                 "Fault was bypassed before restart")
+        require(all(ledger(pg, receipt) == "submitting|0|||1" for receipt in (proven, unknown)),
+                "Rejected create did not retain a pending hold before restart")
     finally:
         # No fixture data is deleted. Only these two newly created fault objects retire.
         if installed:
             sql(pg, f"BEGIN; DROP TRIGGER {name} ON public.gateway_sap_response_balance_holds; "
                     f"DROP FUNCTION public.{name}(); COMMIT;")
 
-    proven, unknown = seed_unsent_pair(pg, pending[0][0], source)
     network = snapshot(peer)
     where = f"FROM gateway_request_audits WHERE access_key_id={literal(owner['id'])}"
     audit_count = sql(pg, "SELECT count(*) " + where)
-    require(audit_count == "15", "Recovery source request audit is missing or duplicated")
+    require(audit_count == "17", "Recovery source request audit is missing or duplicated")
     for receipt, _ in pending:
         require(sql(pg, "SELECT count(*) " + where + " AND status NOT IN ('started','running')"
                     f" AND route_trace->>'storedResponseId'={literal(receipt)} AND route_attempt_count=1") == "1",
                 "Recovery source audit lacks terminal exact-send evidence")
+    for receipt in (proven, unknown):
+        require(sql(pg, "SELECT count(*) " + where + " AND status NOT IN ('started','running')"
+                    f" AND route_trace->>'storedResponseId'={literal(receipt)} AND route_attempt_count=0"
+                    " AND provider_account_id IS NULL AND upstream_status IS NULL") == "1",
+                "Rejected stored create lacks terminal zero-send evidence")
     restarted = [start("recovery-a"), start("recovery-b")]
 
     def settled():
@@ -146,8 +117,8 @@ def exercise(instances, start, peer, pg, alias, owner, sources):
         backend.drain()
     require(snapshot(peer) == network, "Recovery drain accessed OAuth or the provider")
     return dict(terminalReceipt=pending[0][0], noUsageTerminalReceipt=pending[1][0],
-        noUsageTokensStayedNull=True, syntheticProofReceipt=proven, syntheticUnknownReceipt=unknown,
-        syntheticEvidence="seeded consumer only; live proof producer is covered by source tests",
+        noUsageTokensStayedNull=True, liveUnsentProofReceipt=proven, liveProofWriteFailureReceipt=unknown,
+        localRefunds=1, rejectedCreates=2, rejectedCreateSends=0,
         pids=[backend.process.pid for backend in restarted], additionalPublicSends=2,
         automaticRecoverySends=0, automaticRecoveryOAuthPosts=0, publicAudits=int(audit_count),
         originalMember=source, remainingMessages=before - 3, secondPeriodStable=True)

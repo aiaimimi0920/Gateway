@@ -1,10 +1,10 @@
 # FreeBuff 公共 Chat 实时 SSE 合同
 
-后续验证（2026-11-08）：[正常网页与三协议活 SSE 联合](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-freebuff-public-sse-ui.md)已覆盖单轮文本的逐次批准/取消、EOF 前增量、FINISH pending/accepted 的正常页面读取、原 claim 显式 end/取消 end/再购买及 Local 结算。该联合缺口不再全部列为未验；不代完整参数、工具 UI、Server、原生包或真实平台。
+后续验证（2026-11-08）：[正常网页与三协议活 SSE 联合](progress/2026-11-08-provider-channel-expansion-freebuff-public-sse-ui.md)已覆盖单轮文本的逐次批准/取消、EOF 前增量、FINISH pending/accepted 的正常页面读取、原 claim 显式 end/取消 end/再购买及 Local 结算。该联合缺口不再全部列为未验；不代完整参数、工具 UI、Server、原生包或真实平台。
 
 本合同覆盖目录 CLI 业务账号的公共 `/v1/chat/completions` 文本／函数工具流式子链，复用正常请求的逐次购买批准、Local claim/run、签名发送和费用责任。它不是整张 FreeBuff 交付卡、完整 agent harness 或真实平台验收完成的声明。
 
-后续更新（2026-11-08）：Responses／Messages 的限定文本／函数工具实时 SSE 已由[三协议接线合同](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/provider-freebuff-public-protocol-sse.md)承接，复用本合同的同一原执行 owner；旧批次“这两个入口的流式请求在报价前拒绝”仅是当时停点。没有整段缓存伪装实时流，其他参数／模态仍按既有闭集校验，不悄悄丢弃。
+后续更新（2026-11-08）：Responses／Messages 的限定文本／函数工具实时 SSE 已由[三协议接线合同](provider-freebuff-public-protocol-sse.md)承接，复用本合同的同一原执行 owner；旧批次“这两个入口的流式请求在报价前拒绝”仅是当时停点。没有整段缓存伪装实时流，其他参数／模态仍按既有闭集校验，不悄悄丢弃。
 
 ## 一个付费执行 owner 跨越 HTTP handoff
 
@@ -44,6 +44,6 @@ FreeBuff source 不套用会到期先 drop inner 的通用 `BudgetStream`；普�
 
 ## 接力边界
 
-Chat 原子批离线证据和真实失败分类见 [公共 Chat SSE 回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-freebuff-public-chat-sse.md)，Responses／Messages 的后续证据见[三协议接线回执](C:/Users/Public/nas_home/AI/GameEditor/Neuro/Gateway/docs/progress/2026-11-08-provider-channel-expansion-freebuff-public-protocol-sse.md)。完整参数／模态、实际工具与 child 执行、未知 START／FINISH 结果显式对账和安全恢复、远端 lease、Server、独立进程／原生包及真实平台仍须继续；限定正常浏览器单轮文本流式联合见本合同开头的新回执。
+Chat 原子批离线证据和真实失败分类见 [公共 Chat SSE 回执](progress/2026-11-08-provider-channel-expansion-freebuff-public-chat-sse.md)，Responses／Messages 的后续证据见[三协议接线回执](progress/2026-11-08-provider-channel-expansion-freebuff-public-protocol-sse.md)。完整参数／模态、实际工具与 child 执行、未知 START／FINISH 结果显式对账和安全恢复、远端 lease、Server、独立进程／原生包及真实平台仍须继续；限定正常浏览器单轮文本流式联合见本合同开头的新回执。
 
 模板仍为 17 个，无新增整卡 `offline_ready`；P50／P60／P70 和总目标未完成。认证、额度池、账号权限与存储版本未因本合同改变。

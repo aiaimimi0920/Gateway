@@ -36,6 +36,7 @@ impl UpstreamId {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum Operation {
     Retrieve,
+    RetrieveStream(Option<i32>),
     Cancel,
     Delete,
 }
@@ -63,16 +64,23 @@ pub(super) fn operation_plan(
 ) -> Result<RequestPlan, GatewayError> {
     deployment(payload)?;
     let (method, tail) = match op {
-        Operation::Retrieve => (Method::GET, ""),
+        Operation::Retrieve | Operation::RetrieveStream(_) => (Method::GET, ""),
         Operation::Cancel => (Method::POST, "/cancel"),
         Operation::Delete => (Method::DELETE, ""),
     };
-    Ok(native_responses::responses_plan(
-        payload,
-        method,
-        &format!("/{}{tail}", id.0),
-        None,
-    ))
+    let mut plan =
+        native_responses::responses_plan(payload, method, &format!("/{}{tail}", id.0), None);
+    if let Operation::RetrieveStream(cursor) = op {
+        plan.query.push(("stream".into(), "true".into()));
+        if let Some(cursor) = cursor {
+            if cursor < 0 {
+                return Err(invalid());
+            }
+            plan.query
+                .push(("starting_after".into(), cursor.to_string()));
+        }
+    }
+    Ok(plan)
 }
 
 /// The authorization owner supplies the upstream predecessor, never the HTTP caller.
@@ -85,7 +93,6 @@ pub(super) fn create_plan(
 ) -> Result<RequestPlan, GatewayError> {
     if deployment(payload)?.deployment != model
         || !native_responses::selected(payload, req.endpoint_kind)
-        || req.stream
         || !stored_intent(&req.raw_body)
     {
         return Err(invalid());

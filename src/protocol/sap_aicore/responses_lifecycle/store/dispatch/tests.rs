@@ -29,6 +29,8 @@ struct Wire {
     creates: Mutex<Vec<Value>>,
     pause_create: Option<(Arc<tokio::sync::Notify>, Arc<tokio::sync::Notify>)>,
     create_response: Option<Value>,
+    stream_response: Option<(String, String, Arc<tokio::sync::Notify>)>,
+    resume_response: Option<String>,
     terminal_response: Option<Value>,
     rejection: Mutex<Option<(u16, Vec<u8>)>>,
     hold_body: bool,
@@ -135,7 +137,8 @@ async fn exercise_submit() {
                 &target,
                 &request(Some("resp_created")),
                 1,
-                SendHooks::default()
+                SendHooks::default(),
+                None,
             )
             .await,
             Err(DispatchError::NotSent(_))
@@ -148,6 +151,7 @@ async fn exercise_submit() {
             &request(None),
             1,
             SendHooks::default(),
+            None,
         )
         .await
         .ok()
@@ -174,7 +178,16 @@ async fn exercise_submit() {
         .is_err());
         let second = request(public["id"].as_str());
         assert!(matches!(
-            submit(state, &session, &target, &second, 1, SendHooks::default()).await,
+            submit(
+                state,
+                &session,
+                &target,
+                &second,
+                1,
+                SendHooks::default(),
+                None
+            )
+            .await,
             Err(DispatchError::Recorded(_))
         ));
         assert!(matches!(
@@ -184,7 +197,8 @@ async fn exercise_submit() {
                 &target,
                 &request(None),
                 1,
-                SendHooks::default()
+                SendHooks::default(),
+                None,
             )
             .await,
             Err(DispatchError::NotSent(_))
@@ -294,6 +308,7 @@ async fn exercise() {
             None,
             op,
             SendHooks::default(),
+            None,
         )
     };
     test_support::origin(origin, async {
@@ -368,7 +383,11 @@ async fn handler(State(wire): State<Arc<Wire>>, request: Request<Body>) -> Respo
         .lock()
         .unwrap()
         .push((parts.method.to_string(), path.to_owned()));
-    assert!(parts.uri.query().is_none());
+    if parts.uri.query().is_some() {
+        assert!(wire.resume_response.is_some());
+        assert_eq!(parts.uri.query(), Some("stream=true&starting_after=1"));
+        assert_eq!(parts.method, axum::http::Method::GET);
+    }
     assert_eq!(parts.headers["authorization"], "Bearer stored-sap-token");
     assert_eq!(parts.headers["ai-resource-group"], "group-a");
     if let Some((status, bytes)) = wire.rejection.lock().unwrap().as_ref() {
@@ -397,6 +416,24 @@ async fn handler(State(wire): State<Arc<Wire>>, request: Request<Body>) -> Respo
         }
         let mut creates = wire.creates.lock().unwrap();
         creates.push(body);
+        if let Some((first, tail, release)) = &wire.stream_response {
+            use futures::StreamExt;
+            assert_eq!(parts.headers["accept"], "text/event-stream");
+            assert_eq!(creates.last().unwrap()["stream"], true);
+            let first = bytes::Bytes::copy_from_slice(first.as_bytes());
+            let tail = bytes::Bytes::copy_from_slice(tail.as_bytes());
+            let release = release.clone();
+            let stream = futures::stream::iter([Ok::<_, std::io::Error>(first)]).chain(
+                futures::stream::once(async move {
+                    release.notified().await;
+                    Ok(tail)
+                }),
+            );
+            return Response::builder()
+                .header("content-type", "text/event-stream")
+                .body(Body::from_stream(stream))
+                .unwrap();
+        }
         if let Some(body) = &wire.create_response {
             return Json(body.clone()).into_response();
         }
@@ -414,6 +451,14 @@ async fn handler(State(wire): State<Arc<Wire>>, request: Request<Body>) -> Respo
         };
     }
     assert!(to_bytes(body, 1).await.unwrap().is_empty());
+    if let Some(stream) = wire
+        .resume_response
+        .as_ref()
+        .filter(|_| parts.uri.query().is_some())
+    {
+        assert_eq!(parts.headers["accept"], "text/event-stream");
+        return ([("content-type", "text/event-stream")], stream.clone()).into_response();
+    }
     if path.ends_with("/cancel") {
         if let Some(body) = &wire.terminal_response {
             return Json(body.clone()).into_response();

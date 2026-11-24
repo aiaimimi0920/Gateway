@@ -34,6 +34,7 @@ pub(super) async fn submit(
     request: &CanonicalRelayRequest,
     estimate: u64,
     hooks: SendHooks<'_>,
+    publish: Option<super::stream::Publish<'_>>,
 ) -> Result<Observation, DispatchError> {
     let store = Store::from_state(state).ok_or_else(not_found)?;
     let secret = key(state).ok_or_else(not_found)?;
@@ -138,6 +139,21 @@ pub(super) async fn submit(
             return Err(error.into());
         }
     };
+    if let Some(publish) = publish {
+        return super::stream::consume(
+            prepared,
+            &store,
+            receipt,
+            &target.pin,
+            hooks,
+            super::stream::Source::Create {
+                circuit: &circuit,
+                background: request.raw_body["background"] == true,
+            },
+            publish,
+        )
+        .await;
+    }
     let received = prepared
         .execute_until(hooks.deadline)
         .await
