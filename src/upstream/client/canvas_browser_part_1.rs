@@ -14,6 +14,7 @@ impl UpstreamClient {
         const IMAGE_EDIT_SHORT_ACK_GRACE_SECS: u64 = 30;
         const IMAGE_EDIT_ASYNC_FOLLOWUP_GRACE_SECS: u64 = 45;
         let mut stream = response.bytes_stream();
+        let mut pending_utf8 = Vec::new();
         let mut body_text = String::new();
         let mut short_ack_seen_at: Option<Instant> = None;
         let mut async_followup_ready_seen_at: Option<Instant> = None;
@@ -73,7 +74,7 @@ impl UpstreamClient {
                     return Err(classify_network_error(&error, Some(provider)));
                 }
             };
-            body_text.push_str(String::from_utf8_lossy(&chunk).as_ref());
+            append_utf8(&mut body_text, &mut pending_utf8, &chunk);
 
             if gemini_canvas::extract_stream_generate_media_assets(&body_text, operation).is_ok() {
                 if allow_early_locator
@@ -118,6 +119,9 @@ impl UpstreamClient {
             }
         }
 
+        if !pending_utf8.is_empty() {
+            body_text.push(char::REPLACEMENT_CHARACTER);
+        }
         Ok(body_text)
     }
 
@@ -241,5 +245,44 @@ impl UpstreamClient {
         };
         let _ = req;
         Ok(canonical)
+    }
+}
+
+// Only an incomplete final code point crosses a transport chunk boundary.
+fn append_utf8(text: &mut String, pending: &mut Vec<u8>, chunk: &[u8]) {
+    pending.extend_from_slice(chunk);
+    let mut bytes = pending.as_slice();
+    while !bytes.is_empty() {
+        match std::str::from_utf8(bytes) {
+            Ok(valid) => {
+                text.push_str(valid);
+                bytes = &[];
+            }
+            Err(error) => {
+                let (valid, tail) = bytes.split_at(error.valid_up_to());
+                text.push_str(std::str::from_utf8(valid).expect("validated prefix"));
+                let Some(length) = error.error_len() else {
+                    bytes = tail;
+                    break;
+                };
+                text.push(char::REPLACEMENT_CHARACTER);
+                bytes = &tail[length..];
+            }
+        }
+    }
+    let consumed = pending.len() - bytes.len();
+    pending.drain(..consumed);
+}
+
+#[test]
+fn canvas_incremental_utf8_matches_whole_body_at_every_split() {
+    let bytes = b"a\xf0\x9f\x90\xbe\xe4\xb8\xad\xff\xc2";
+    for split in 0..=bytes.len() {
+        let (mut text, mut pending) = (String::new(), Vec::new());
+        append_utf8(&mut text, &mut pending, &bytes[..split]);
+        assert!(pending.len() <= 3);
+        append_utf8(&mut text, &mut pending, &bytes[split..]);
+        text.push_str(&String::from_utf8_lossy(&pending));
+        assert_eq!(text, String::from_utf8_lossy(bytes));
     }
 }

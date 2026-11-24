@@ -110,30 +110,8 @@ pub fn classify_provider_failure(
     }
     let haystack = normalize_failure_text(error_code, error_message);
 
-    if contains_any(
-        &haystack,
-        &[
-            "invalidapikey",
-            "invalidapi",
-            "invalidtoken",
-            "unauthorized",
-            "incorrectapikey",
-            "badcredentials",
-            "credentialinvalid",
-        ],
-    ) || matches!(upstream_status, Some(401) | Some(403))
-        && contains_any(
-            &haystack,
-            &["key", "token", "credential", "auth", "unauthorized"],
-        )
-    {
-        return ProviderFailureClassification {
-            class: ProviderFailureClass::CredentialInvalid,
-            scope: ProviderFailureScope::Credential,
-            permanent: true,
-        };
-    }
-
+    // Check token/session expiry BEFORE generic 401/403 credential invalidation so
+    // refreshable OAuth/session credentials enter Cooling rather than permanent Blocked.
     if contains_any(
         &haystack,
         &[
@@ -141,6 +119,8 @@ pub fn classify_provider_failure(
             "tokenexpired",
             "expiredcredential",
             "sessionexpired",
+            "accesstokenexpired",
+            "jwtisexpired",
         ],
     ) {
         return ProviderFailureClassification {
@@ -150,6 +130,8 @@ pub fn classify_provider_failure(
         };
     }
 
+    // Model-level entitlement or group-availability refusals must only scope to CredentialModel,
+    // never permanently block the whole credential across other supported models.
     if contains_any(
         &haystack,
         &[
@@ -158,9 +140,54 @@ pub fn classify_provider_failure(
             "modelunsupported",
             "unsupportedmodel",
             "unknownmodel",
+            "isnotavailableforthisgroup",
+            "notauthorizedtoaccessmodel",
+            "doesnothaveaccesstomodel",
         ],
-    ) || matches!(upstream_status, Some(404)) && haystack.contains("model")
+    ) {
+        return ProviderFailureClassification {
+            class: ProviderFailureClass::ModelUnsupported,
+            scope: ProviderFailureScope::CredentialModel,
+            permanent: true,
+        };
+    }
+
+    if contains_any(
+        &haystack,
+        &[
+            "invalidapikey",
+            "invalidapi",
+            "invalidtoken",
+            "incorrectapikey",
+            "badcredentials",
+            "credentialinvalid",
+            "tokenrevoked",
+            "tokeninvalidated",
+            "accountdisabled",
+            "deactivatedworkspace",
+        ],
+    ) || matches!(upstream_status, Some(401))
+        && contains_any(&haystack, &["apikey", "unauthorized", "credential"])
+        || matches!(upstream_status, Some(403))
+            && contains_any(
+                &haystack,
+                &[
+                    "invalidapikey",
+                    "incorrectapikey",
+                    "badcredentials",
+                    "revoked",
+                    "suspended",
+                ],
+            )
     {
+        return ProviderFailureClassification {
+            class: ProviderFailureClass::CredentialInvalid,
+            scope: ProviderFailureScope::Credential,
+            permanent: true,
+        };
+    }
+
+    if matches!(upstream_status, Some(404)) && haystack.contains("model") {
         return ProviderFailureClassification {
             class: ProviderFailureClass::ModelUnsupported,
             scope: ProviderFailureScope::CredentialModel,
@@ -272,6 +299,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn explicit_invalid_key_takes_priority_over_generic_model_404() {
+        let result = classify_provider_failure(
+            Some(404),
+            Some("invalid_api_key"),
+            Some("Invalid API key for this model"),
+        );
+        assert_eq!(result.class, ProviderFailureClass::CredentialInvalid);
+    }
+
+    #[test]
     fn bulk_probe_ip_block_is_provider_scoped_not_a_bad_credential() {
         let classification = classify_provider_failure(
             Some(403),
@@ -283,6 +320,31 @@ mod tests {
             ProviderFailureClass::ProviderTransient
         );
         assert_eq!(classification.scope, ProviderFailureScope::Provider);
+        assert!(!classification.permanent);
+    }
+
+    #[test]
+    fn expired_bearer_token_on_401_is_transient_not_permanent_invalid() {
+        let classification = classify_provider_failure(
+            Some(401),
+            Some("token_expired"),
+            Some("Unauthorized: Bearer access token expired"),
+        );
+        assert_eq!(
+            classification.class,
+            ProviderFailureClass::CredentialExpired
+        );
+        assert_eq!(classification.scope, ProviderFailureScope::Credential);
+        assert!(!classification.permanent);
+    }
+
+    #[test]
+    fn generic_invalid_response_wording_on_401_does_not_permanently_burn_session_credential() {
+        let classification = classify_provider_failure(
+            Some(401),
+            Some("lobsterai_upstream_rejected"),
+            Some("LobsterAI returned a failed or invalid Chat response"),
+        );
         assert!(!classification.permanent);
     }
 }

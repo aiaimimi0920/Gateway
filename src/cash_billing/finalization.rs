@@ -7,7 +7,7 @@ use crate::{
     state::AppState,
 };
 use std::sync::{
-    atomic::{AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
     Arc, Weak,
 };
 
@@ -15,6 +15,7 @@ pub struct CashGuard {
     id: String,
     state: Weak<AppState>,
     attempts: Arc<AtomicU32>,
+    settled: AtomicBool,
 }
 
 impl std::fmt::Debug for CashGuard {
@@ -32,12 +33,16 @@ impl CashGuard {
             id,
             state: Arc::downgrade(state),
             attempts,
+            settled: AtomicBool::new(false),
         }
     }
 }
 
 impl Drop for CashGuard {
     fn drop(&mut self) {
+        if self.settled.load(Ordering::Acquire) {
+            return;
+        }
         let (Some(state), Ok(runtime)) =
             (self.state.upgrade(), tokio::runtime::Handle::try_current())
         else {
@@ -60,13 +65,16 @@ impl Drop for CashGuard {
     }
 }
 
-async fn finish(id: &str, outcome: CashOutcome, state: &AppState) {
+async fn finish(id: &str, outcome: CashOutcome, state: &AppState) -> bool {
     let result = match AccessBalanceStore::from_state(state) {
         Ok(store) => store.finish_cash(id, outcome).await,
         Err(error) => Err(error),
     };
     if let Err(error) = result {
         tracing::error!(request_id = id, code = ?error.code, "Cash settlement failed; reservation retained");
+        false
+    } else {
+        true
     }
 }
 
@@ -87,7 +95,7 @@ pub async fn success(ctx: &PipelineContext, usage: Option<TokenUsage>, state: &A
             .as_deref()
             .or(ctx.selected_real_credential_ref.as_deref()),
     );
-    finish(
+    if finish(
         &charge.id,
         CashOutcome::Success {
             provider,
@@ -100,7 +108,10 @@ pub async fn success(ctx: &PipelineContext, usage: Option<TokenUsage>, state: &A
         },
         state,
     )
-    .await;
+    .await
+    {
+        charge.settled.store(true, Ordering::Release);
+    }
 }
 
 pub async fn stream_success(
@@ -113,7 +124,7 @@ pub async fn stream_success(
     };
     let provider = snapshot.provider_account_id.clone().unwrap_or_default();
     let credential = credential_id(&provider, snapshot.cash_credential_id.as_deref());
-    finish(
+    if finish(
         &charge.id,
         CashOutcome::Success {
             provider,
@@ -126,20 +137,26 @@ pub async fn stream_success(
         },
         state,
     )
-    .await;
+    .await
+    {
+        charge.settled.store(true, Ordering::Release);
+    }
 }
 
-pub async fn failure(charge: Option<&Arc<CashGuard>>, attempts: u32, state: &AppState) {
+pub async fn failure(charge: Option<&Arc<CashGuard>>, not_sent: bool, state: &AppState) {
     if let Some(charge) = charge {
-        finish(
+        if finish(
             &charge.id,
-            if attempts == 0 {
+            if not_sent {
                 CashOutcome::NotSent
             } else {
                 CashOutcome::Unknown
             },
             state,
         )
-        .await;
+        .await
+        {
+            charge.settled.store(true, Ordering::Release);
+        }
     }
 }

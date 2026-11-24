@@ -37,6 +37,11 @@ struct Connection {
 }
 impl Drop for Connection {
     fn drop(&mut self) {
+        // If an evicted HTTP/2 connection still has active streams leased, let its
+        // driver task finish draining naturally instead of aborting mid-stream.
+        if matches!(self.sender, Sender::H2(_)) && self.activity.borrow().0 > 0 {
+            return;
+        }
         self.driver.abort();
     }
 }
@@ -149,9 +154,9 @@ impl Pool {
             _admission: admission,
             body_complete: false,
         };
-        wire::prepare_profile(&mut request, matches!(conn.sender, Sender::H2(_)), profile)?;
         match &mut conn.sender {
             Sender::H1(_) => {
+                wire::prepare_profile(&mut request, false, profile)?;
                 let mut pending = H1Pending(Some(guard));
                 let connection = pending
                     .0
@@ -170,10 +175,56 @@ impl Pool {
                 Ok((result, lease))
             }
             Sender::H2(sender) => {
-                let mut sender = sender.clone();
-                drop(guard);
-                sender.ready().await.map_err(|_| Error::Network)?;
-                let result = sender
+                let mut ready_sender = sender.clone();
+                if ready_sender.ready().await.is_err() {
+                    // Upstream sent GOAWAY or closed new-stream admission: evict the stale H2
+                    // connection from this slot (in-flight streams keep running) and dial fresh.
+                    *guard = Some(
+                        tokio::time::timeout(
+                            Duration::from_secs(15),
+                            open(origin, tls, proxy, profile),
+                        )
+                        .await
+                        .map_err(|_| Error::Timeout)??,
+                    );
+                    let conn = guard.as_mut().ok_or(Error::Network)?;
+                    conn.activity.send_modify(|(count, _)| *count += 1);
+                    lease.activity.send_modify(|(count, last)| {
+                        *count -= 1;
+                        *last = Instant::now();
+                    });
+                    lease.activity = conn.activity.clone();
+                    match &mut conn.sender {
+                        Sender::H2(fresh) => {
+                            ready_sender = fresh.clone();
+                            drop(guard);
+                            ready_sender.ready().await.map_err(|_| Error::Network)?;
+                        }
+                        Sender::H1(_) => {
+                            wire::prepare_profile(&mut request, false, profile)?;
+                            let mut pending = H1Pending(Some(guard));
+                            let connection = pending
+                                .0
+                                .as_mut()
+                                .and_then(|g| g.as_mut())
+                                .ok_or(Error::Network)?;
+                            let Sender::H1(h1) = &mut connection.sender else {
+                                unreachable!()
+                            };
+                            h1.ready().await.map_err(|_| Error::Network)?;
+                            let result = h1
+                                .try_send_request(request)
+                                .await
+                                .map_err(|_| Error::Network)?;
+                            lease._h1 = pending.0.take();
+                            return Ok((result, lease));
+                        }
+                    }
+                } else {
+                    drop(guard);
+                }
+                wire::prepare_profile(&mut request, true, profile)?;
+                let result = ready_sender
                     .try_send_request(request)
                     .await
                     .map_err(|_| Error::Network)?;

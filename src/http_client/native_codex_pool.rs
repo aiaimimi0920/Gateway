@@ -6,7 +6,7 @@ use std::{sync::Arc, time::Duration};
 #[derive(Default)]
 struct Pool {
     generation: u64,
-    clients: [Option<reqwest::Client>; 4],
+    clients: [Option<reqwest::Client>; 8],
 }
 
 /// Request/response clones retain their transport when the connection's cached generation is retired.
@@ -21,19 +21,34 @@ impl NativeCodexConnection {
     }
 
     pub(crate) fn client(&self, timeout: Duration) -> (reqwest::Client, u64) {
-        self.select(timeout, false)
+        self.select(timeout, false, true)
     }
 
     pub(crate) fn session_client(&self, timeout: Duration) -> (reqwest::Client, u64) {
-        self.select(timeout, true)
+        self.select(timeout, true, true)
     }
 
-    fn select(&self, timeout: Duration, session: bool) -> (reqwest::Client, u64) {
-        let slot =
+    pub(crate) fn client_for_profile(
+        &self,
+        timeout: Duration,
+        session: bool,
+        codex_tls12: bool,
+    ) -> (reqwest::Client, u64) {
+        self.select(timeout, session, codex_tls12)
+    }
+
+    fn select(
+        &self,
+        timeout: Duration,
+        session: bool,
+        codex_tls12: bool,
+    ) -> (reqwest::Client, u64) {
+        let base =
             usize::from(crate::request_wait::transport::managed()) * 2 + usize::from(session);
+        let slot = if codex_tls12 { base } else { base + 4 };
         let mut pool = self.0.lock();
         let client = pool.clients[slot]
-            .get_or_insert_with(|| super::build(timeout, false, session))
+            .get_or_insert_with(|| super::build(timeout, false, session, codex_tls12))
             .clone();
         // Capture the generation under the same lock as client selection.
         (client, pool.generation)

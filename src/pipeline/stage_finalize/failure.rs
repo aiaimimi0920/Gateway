@@ -7,12 +7,9 @@ pub async fn run_failure(
     ctx: &PipelineContext,
     state: &Arc<AppState>,
 ) {
-    crate::cash_billing::finalization::failure(
-        ctx.cash_charge.as_ref(),
-        ctx.route_attempt_count(),
-        state,
-    )
-    .await;
+    // The last candidate's refusal says nothing about delivery to earlier candidates.
+    let not_sent = ctx.route_attempt_count() == 0;
+    crate::cash_billing::finalization::failure(ctx.cash_charge.as_ref(), not_sent, state).await;
     refund_pre_deducted_quota(ctx, state).await;
     finalize_request_audit_failure(ctx, error, state).await;
 
@@ -82,7 +79,7 @@ pub async fn run_stream_failure(
 ) {
     crate::cash_billing::finalization::failure(
         snapshot.request_audit.cash_charge.as_ref(),
-        snapshot.request_audit.route_attempt_count,
+        snapshot.request_audit.route_attempt_count == 0,
         state,
     )
     .await;

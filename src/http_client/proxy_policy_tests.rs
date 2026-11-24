@@ -137,6 +137,7 @@ async fn system_only_proxy_respects_empty_absent_and_explicit_bypass_on_wire() {
             (Some("127.0.0.1"), "not-matching.invalid", true),
             (Some("not-matching.invalid"), "127.0.0.1", false),
             (None, "*.fixture.invalid; 127.0.0.1", true),
+            (None, "*fixture.invalid; 127.*", false),
         ] {
             let origin = TcpListener::bind("127.0.0.1:0").await.unwrap();
             let proxy = TcpListener::bind("127.0.0.1:0").await.unwrap();

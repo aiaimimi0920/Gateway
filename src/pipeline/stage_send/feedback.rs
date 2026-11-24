@@ -15,6 +15,10 @@ pub(super) fn should_try_next_candidate(e: &GatewayError) -> bool {
     if e.code.as_deref() == Some("rate_limit_admission_indeterminate") {
         return false;
     }
+    // Pre-origin connect failures never delivered bytes to this candidate; switch cleanly.
+    if e.native_connect_retry_allowed() {
+        return true;
+    }
     // A local capacity wait prohibits this send, not another already-authorized
     // account. Keep Retry timing for the caller without reopening same-account retry.
     if e.kind == crate::error::ErrorKind::ModelCapacity

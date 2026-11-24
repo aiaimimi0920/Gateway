@@ -6,32 +6,46 @@ use crate::error::GatewayError;
 
 const SCRIPT: &str = "scripts/gemini-canvas-browser-pool.mjs";
 
-fn resolve_script(
+fn resolve_relative_script(
+    relative: &str,
     payload: Option<&Path>,
     executable: Option<&Path>,
     development: &Path,
 ) -> PathBuf {
     // An explicit payload is authoritative. A broken install must not run checkout code.
     if let Some(payload) = payload {
-        return payload.join(SCRIPT);
+        return payload.join(relative);
     }
     if let Some(executable) = executable {
         if let Some(parent) = executable.parent() {
-            let adjacent = parent.join(SCRIPT);
+            let adjacent = parent.join(relative);
             if adjacent.is_file() || !executable.starts_with(development.join("target")) {
                 return adjacent;
             }
         }
     }
-    development.join(SCRIPT)
+    development.join(relative)
 }
 
-pub(super) fn script_path() -> PathBuf {
-    resolve_script(
+fn resolve_script(
+    payload: Option<&Path>,
+    executable: Option<&Path>,
+    development: &Path,
+) -> PathBuf {
+    resolve_relative_script(SCRIPT, payload, executable, development)
+}
+
+pub(crate) fn resolve_worker_script(relative: &str) -> PathBuf {
+    resolve_relative_script(
+        relative,
         gateway_local_data::env_path("GATEWAY_RELEASE_PAYLOAD_ROOT").as_deref(),
         std::env::current_exe().ok().as_deref(),
         Path::new(env!("CARGO_MANIFEST_DIR")),
     )
+}
+
+pub(super) fn script_path() -> PathBuf {
+    resolve_worker_script(SCRIPT)
 }
 
 fn log_path_from_values(values: ConsoleConfigValues) -> Result<PathBuf, ConsoleConfigError> {

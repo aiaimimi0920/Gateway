@@ -227,9 +227,7 @@ async fn refresh_once(
                 } else {
                     tracing::warn!(provider = %provider.id, cred_id = %cred.id,
                         "OAuth grant has permanent evidence; automatic re-exchange is blocked");
-                    if attempt.lobsterai.is_some() {
-                        attempt.record_failure(true);
-                    }
+                    attempt.record_failure(true);
                     continue;
                 }
             }

@@ -42,7 +42,7 @@ impl UpstreamClient {
                 .retry(rquest::retry::Policy::never())
                 .build()
                 .expect("failed to build LobsterAI client"),
-            wait_native_http: Default::default(),
+            fallback_native_http: Default::default(),
             wait_http: Default::default(),
             sensenova_fixture_http: None,
             commandcode_fixture_http: None,

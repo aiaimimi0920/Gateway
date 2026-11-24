@@ -92,6 +92,8 @@ pub(super) async fn apply(
     let account = preferred_account(ctx, state);
     let now = time::OffsetDateTime::now_utc().unix_timestamp();
     let snapshot = state.route_config.snapshot();
+    let mut pricing_cache: std::collections::HashMap<String, Option<serde_json::Value>> =
+        std::collections::HashMap::new();
     let mut scored = Vec::new();
     for (index, candidate) in ctx.candidates.iter().enumerate() {
         let measured = policy
@@ -109,16 +111,22 @@ pub(super) async fn apply(
             }
         }
         if !price.is_finite() {
-            if let Ok(payload) =
-                crate::cash_billing::pricing::payload(state, &candidate.provider_account_id).await
-            {
+            let cached_payload = match pricing_cache.entry(candidate.provider_account_id.clone()) {
+                std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+                std::collections::hash_map::Entry::Vacant(entry) => entry.insert(
+                    crate::cash_billing::pricing::payload(state, &candidate.provider_account_id)
+                        .await
+                        .ok(),
+                ),
+            };
+            if let Some(payload) = cached_payload {
                 if let Ok(quote) = crate::cash_billing::pricing::quote(
                     &snapshot,
                     candidate,
                     model,
                     None,
                     ctx.account_group_id.as_deref(),
-                    &payload,
+                    payload,
                 ) {
                     // Equal input/output workload; all candidates use the same units and weights.
                     price = (quote.prompt_micros_per_1k_tokens as f64

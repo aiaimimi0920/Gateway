@@ -242,13 +242,15 @@ async fn run_candidates(
                     if let (Some(previous_access_key_id), Some(pg_pool)) =
                         (ctx.quota_credential_id.as_deref(), state.pg_pool.as_ref())
                     {
-                        let _ = db::refund_access_key_balance(
+                        db::refund_access_key_balance(
                             pg_pool,
                             &state.redis_pool,
                             previous_access_key_id,
                             ctx.quota_pre_deducted_tokens,
                         )
-                        .await;
+                        .await?;
+                        ctx.quota_credential_id = None;
+                        ctx.quota_pre_deducted_tokens = 0;
                     }
                     if let Some(pg_pool) = state.pg_pool.as_ref() {
                         let estimated = crate::redis::usage_tracking::estimate_token_count(

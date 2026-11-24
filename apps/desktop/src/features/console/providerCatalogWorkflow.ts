@@ -38,7 +38,7 @@ const HEALTH_ADAPTERS: Record<string, SiteHealthConfig["adapter"]> = {
   "chatgpt-codex-oauth-official-api": "openai-status", anthropic: "anthropic-status", "gemini-api": "gemini-status",
   "azure-api": "azure-status", "cohere-chat": "cohere-status", "groq-openai": "groq-status",
   "nvidia-openai": "nvidia-status", "together-openai": "together-status", "deepseek-api": "deepseek-status",
-  "mistral-api": "mistral-status", "mistral-studio-api": "mistral-status", "xai-api": "xai-status",
+  "mistral-api": "mistral-status", "mistral-studio-api": "mistral-status", "mistral-vibe-api": "mistral-status", "xai-api": "xai-status",
   "perplexity-api": "perplexity-status", "openrouter-openai": "openrouter-status", "poe-openai": "poe-status",
   linkup: "linkup-status", tavily: "tavily-status", you: "you-status", exa: "exa-status",
   jina: "jina-status",

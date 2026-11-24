@@ -16,9 +16,9 @@ use tracing::debug;
 
 const CHATGPT_WEB_REFRESH_TIMEOUT_SECS: u64 = 150;
 fn chatgpt_web_session_worker_script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts")
-        .join("chatgpt-web-session-worker.mjs")
+    crate::upstream::gemini_canvas_pool_paths::resolve_worker_script(
+        "scripts/chatgpt-web-session-worker.mjs",
+    )
 }
 
 pub(super) async fn execute_chatgpt_web_session_worker_internal(
@@ -70,7 +70,8 @@ pub(super) async fn execute_chatgpt_web_session_worker_internal(
         .arg(&script_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
     #[cfg(not(target_os = "windows"))]
     {
         // Linux/WSL gateway workers commonly run without a usable X server even

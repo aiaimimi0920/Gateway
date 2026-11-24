@@ -240,6 +240,7 @@ fn map_cohere_finish_reason(
 struct PendingCohereToolCall {
     id: String,
     name: String,
+    started: bool,
 }
 
 struct CohereStreamState {
@@ -348,6 +349,15 @@ impl CohereStreamState {
             .and_then(|value| value.get("finish_reason"))
             .and_then(|value| value.as_str())
         {
+            let mut indices: Vec<usize> = self.pending_tools.keys().copied().collect();
+            indices.sort_unstable();
+            for index in indices {
+                if let Some(tool) = self.pending_tools.remove(&index) {
+                    if tool.started {
+                        self.emit("tool-call-end", json!({ "index": index }));
+                    }
+                }
+            }
             let usage = self.latest_usage.as_ref().map(|usage| {
                 json!({
                     "input_tokens": usage.prompt_tokens,
@@ -388,6 +398,7 @@ impl CohereStreamState {
                         .map(str::to_string)
                         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
                     name: String::new(),
+                    started: false,
                 });
 
             if let Some(id) = tool_call.get("id").and_then(|value| value.as_str()) {
@@ -402,20 +413,25 @@ impl CohereStreamState {
             {
                 if !name.trim().is_empty() {
                     entry.name = name.to_string();
-                    start_payload = Some(json!({
-                        "index": index,
-                        "delta": {
-                            "message": {
-                                "tool_calls": [{
-                                    "id": entry.id,
-                                    "function": {
-                                        "name": entry.name
-                                    }
-                                }]
+                }
+            }
+            if !entry.started && !entry.name.is_empty() {
+                entry.started = true;
+                start_payload = Some(json!({
+                    "index": index,
+                    "delta": {
+                        "message": {
+                            "tool_calls": {
+                                "id": entry.id,
+                                "type": "function",
+                                "function": {
+                                    "name": entry.name,
+                                    "arguments": ""
+                                }
                             }
                         }
-                    }));
-                }
+                    }
+                }));
             }
 
             if let Some(arguments) = tool_call
@@ -471,64 +487,5 @@ impl CohereStreamState {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::collections::HashMap;
-
-    fn base_request() -> CanonicalRelayRequest {
-        CanonicalRelayRequest {
-            protocol_family: ProtocolFamily::OpenAi,
-            endpoint_kind: crate::protocol::canonical::EndpointKind::ChatCompletions,
-            requested_model: Some("command-r".to_string()),
-            stream: false,
-            messages: vec![CanonicalMessage {
-                role: MessageRole::User,
-                content: vec![ContentPart::Text {
-                    text: "hi".to_string(),
-                }],
-                name: None,
-                tool_call_id: None,
-                tool_calls: vec![],
-            }],
-            tools: vec![],
-            tool_choice: None,
-            reasoning: None,
-            metadata: None,
-            raw_body: json!({}),
-            previous_response_id: None,
-            explicit_session_key: None,
-            extra: HashMap::new(),
-        }
-    }
-
-    #[test]
-    fn packs_tool_choice_required() {
-        let mut req = base_request();
-        req.tool_choice = Some(json!("required"));
-        let body = pack_cohere(&req, "command-r", false);
-        assert_eq!(body["tool_choice"], "REQUIRED");
-    }
-
-    #[test]
-    fn packs_assistant_tool_calls() {
-        let mut req = base_request();
-        req.messages.push(CanonicalMessage {
-            role: MessageRole::Assistant,
-            content: vec![],
-            name: None,
-            tool_call_id: None,
-            tool_calls: vec![CanonicalToolCall {
-                id: Some("call_1".to_string()),
-                call_type: "function".to_string(),
-                name: Some("weather".to_string()),
-                arguments: Some("{\"city\":\"Hangzhou\"}".to_string()),
-                raw: HashMap::new(),
-            }],
-        });
-        let body = pack_cohere(&req, "command-r", false);
-        assert_eq!(
-            body["messages"][1]["tool_calls"][0]["function"]["name"],
-            "weather"
-        );
-    }
-}
+#[path = "cohere_tests.rs"]
+mod tests;

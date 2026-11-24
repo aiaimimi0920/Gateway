@@ -8,6 +8,7 @@
 **/*.rs.bk
 
 # Node dependencies and generated frontend output
+/node_modules/
 /scripts/node_modules/
 /scripts/.runtime/
 /scripts/output/
@@ -19,6 +20,7 @@
 *.tsbuildinfo
 
 # Importable copies written by scripts/tests/gemini-canvas-browser-pool.test.mjs
+/scripts/.gemini-canvas-browser-pool-testable-*.mjs
 /scripts/tests/.gemini-canvas-browser-pool-testable-*.mjs
 
 # Browser helper screenshots saved when no output path is supplied

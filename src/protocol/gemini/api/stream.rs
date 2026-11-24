@@ -174,7 +174,8 @@ pub fn translate_openai_sse_to_gemini_stream_with_error<E: Send + 'static>(
 ) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static {
     futures::stream::unfold(
         Some((
-            Box::pin(inner) as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
+            Box::pin(inner.fuse())
+                as std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, E>> + Send>>,
             GeminiStreamState::new(model),
         )),
         |state| async move {
@@ -192,7 +193,11 @@ pub fn translate_openai_sse_to_gemini_stream_with_error<E: Send + 'static>(
                     }
                     // 错误是终态；交付错误前释放上游和缓冲，后续不可恢复或伪造完成。
                     Some(Err(error)) => return Some((Err(error), None)),
-                    None => return None,
+                    None => {
+                        state.flush_pending_tools();
+                        let output = state.outputs.pop_front()?;
+                        return Some((Ok(Bytes::from(output)), Some((inner, state))));
+                    }
                 }
             }
         },
@@ -250,6 +255,7 @@ impl GeminiStreamState {
 
     fn handle_frame(&mut self, frame: SseFrame) {
         if frame.data == "[DONE]" {
+            self.flush_pending_tools();
             return;
         }
         let Ok(raw) = serde_json::from_str::<Value>(&frame.data) else {
@@ -308,6 +314,7 @@ impl GeminiStreamState {
             .and_then(|value| value.get("finish_reason"))
             .and_then(|value| value.as_str())
         {
+            self.flush_pending_tools();
             let mut payload = json!({
                 "candidates": [{
                     "index": 0,
@@ -325,75 +332,83 @@ impl GeminiStreamState {
         }
     }
 
+    fn flush_pending_tools(&mut self) {
+        let mut indices: Vec<usize> = self.pending_tools.keys().copied().collect();
+        indices.sort_unstable();
+        for index in indices {
+            let Some(entry) = self.pending_tools.remove(&index) else {
+                continue;
+            };
+            if entry.name.is_empty() {
+                continue;
+            }
+            let trimmed = entry.arguments.trim();
+            let args = if trimmed.is_empty() {
+                json!({})
+            } else {
+                let Ok(value @ Value::Object(_)) = serde_json::from_str::<Value>(trimmed) else {
+                    continue;
+                };
+                value
+            };
+            self.emit_candidate(json!({
+                "candidates": [{
+                    "index": 0,
+                    "content": {
+                        "role": "model",
+                        "parts": [{
+                            "functionCall": {
+                                "id": entry.id,
+                                "name": entry.name,
+                                "args": args,
+                            }
+                        }]
+                    }
+                }]
+            }));
+        }
+    }
+
     fn handle_tool_call_delta(&mut self, tool_call: &Value, fallback_index: usize) {
         let index = tool_call
             .get("index")
             .and_then(|value| value.as_u64())
             .map(|value| value as usize)
             .unwrap_or(fallback_index);
-        let payload = {
-            let entry = self
-                .pending_tools
-                .entry(index)
-                .or_insert_with(|| PendingGeminiToolCall {
-                    id: tool_call
-                        .get("id")
-                        .and_then(|value| value.as_str())
-                        .map(str::to_string)
-                        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-                    name: String::new(),
-                    arguments: String::new(),
-                });
+        let entry = self
+            .pending_tools
+            .entry(index)
+            .or_insert_with(|| PendingGeminiToolCall {
+                id: tool_call
+                    .get("id")
+                    .and_then(|value| value.as_str())
+                    .map(str::to_string)
+                    .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+                name: String::new(),
+                arguments: String::new(),
+            });
 
-            if let Some(id) = tool_call.get("id").and_then(|value| value.as_str()) {
-                if !id.trim().is_empty() {
-                    entry.id = id.to_string();
-                }
+        if let Some(id) = tool_call.get("id").and_then(|value| value.as_str()) {
+            if !id.trim().is_empty() {
+                entry.id = id.to_string();
             }
-            if let Some(name) = tool_call
-                .get("function")
-                .and_then(|value| value.get("name"))
-                .and_then(|value| value.as_str())
-            {
-                if !name.trim().is_empty() {
-                    entry.name = name.to_string();
-                }
+        }
+        if let Some(name) = tool_call
+            .get("function")
+            .and_then(|value| value.get("name"))
+            .and_then(|value| value.as_str())
+        {
+            if !name.trim().is_empty() {
+                entry.name = name.to_string();
             }
-            if let Some(arguments) = tool_call
-                .get("function")
-                .and_then(|value| value.get("arguments"))
-                .and_then(|value| value.as_str())
-            {
-                entry.arguments.push_str(arguments);
-            }
-
-            if entry.name.is_empty() {
-                None
-            } else {
-                let args =
-                    serde_json::from_str::<Value>(&entry.arguments).unwrap_or_else(|_| json!({}));
-                Some(json!({
-                    "candidates": [{
-                        "index": 0,
-                        "content": {
-                            "role": "model",
-                            "parts": [{
-                                "functionCall": {
-                                    "id": entry.id,
-                                    "name": entry.name,
-                                    "args": args,
-                                }
-                            }]
-                        }
-                    }]
-                }))
-            }
-        };
-
-        let Some(payload) = payload else {
-            return;
-        };
-        self.emit_candidate(payload);
+        }
+        if let Some(arguments) = tool_call
+            .get("function")
+            .and_then(|value| value.get("arguments"))
+            .and_then(|value| value.as_str())
+        {
+            entry.arguments.push_str(arguments);
+        }
     }
 
     fn emit_candidate(&mut self, payload: Value) {

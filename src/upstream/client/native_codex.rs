@@ -264,6 +264,11 @@ impl UpstreamClient {
             };
             url.set_query(Some(&merged));
         }
+        let codex_tls12 = payload.request_client_profile == Some(RequestClientProfile::CodexCli)
+            || url.host_str().is_some_and(|host| {
+                host.eq_ignore_ascii_case("chatgpt.com")
+                    || host.to_ascii_lowercase().ends_with(".chatgpt.com")
+            });
         // Production requests use the accepted connection's pool. Internal
         // callers without wire evidence retain the existing client behavior.
         let (http, generation) = wire
@@ -273,20 +278,22 @@ impl UpstreamClient {
                     .map(|socket| (socket.client(self.timeout).clone(), None))
                     .or_else(|| {
                         w.connection.as_ref().map(|connection| {
-                            let (client, generation) = if w.native_session.is_some() {
-                                connection.session_client(self.timeout)
-                            } else {
-                                connection.client(self.timeout)
-                            };
+                            let (client, generation) = connection.client_for_profile(
+                                self.timeout,
+                                w.native_session.is_some(),
+                                codex_tls12,
+                            );
                             (client, Some(generation))
                         })
                     })
             })
             .unwrap_or_else(|| {
-                let client = if crate::request_wait::transport::managed() {
-                    self.wait_native_http
-                        .get_or_init(|| crate::http_client::native_codex_client(self.timeout))
-                        .clone()
+                let session = wire.is_some_and(|w| w.native_session.is_some());
+                let client = if !codex_tls12 || session || crate::request_wait::transport::managed()
+                {
+                    self.fallback_native_http
+                        .client_for_profile(self.timeout, session, codex_tls12)
+                        .0
                 } else {
                     self.native_http.clone()
                 };

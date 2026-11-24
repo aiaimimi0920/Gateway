@@ -8,7 +8,10 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 // this work runs under the SQLite writer lock even when there is nothing to clean up.
 pub(super) const AUDIT_INDEXES: &str =
     "CREATE INDEX IF NOT EXISTS audit_running_owner ON request_audits(owner) WHERE status = 'running';
-     CREATE INDEX IF NOT EXISTS audit_retention_age ON request_audits(julianday(created)) WHERE status != 'running';";
+     CREATE INDEX IF NOT EXISTS audit_retention_age ON request_audits(julianday(created)) WHERE status != 'running';
+     CREATE INDEX IF NOT EXISTS audit_luma_pending ON request_audits(created) WHERE json_extract(payload, '$.routeTrace.lumaReconciliation.state') = 'pending';
+     CREATE INDEX IF NOT EXISTS credential_model_states_updated ON credential_model_states(updated DESC);
+     CREATE INDEX IF NOT EXISTS refill_tasks_expiry_lease ON refill_tasks(expires, lease_until);";
 
 pub(super) const CANCEL_ORPHANED_AUDITS: &str = "UPDATE request_audits SET status = 'cancelled',
     payload = json_set(payload, '$.status', 'cancelled', '$.completedAt', ?, '$.updatedAt', ?,

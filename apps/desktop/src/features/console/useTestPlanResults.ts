@@ -12,36 +12,63 @@ export function useTestPlanResults(providerIds: string[], loader: TestResultLoad
   const expanded = useRef(new Map<string, TestPlanRow>());
   const [responses, setResponses] = useState<ConsoleProviderProbeResponse[]>([]);
   const [summaryResponses, setSummaryResponses] = useState<ConsoleProviderProbeResponse[]>([]);
+  const lastSummaries = useRef(new Map<string, ConsoleProviderProbeResponse>());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
   const key = JSON.stringify(providerIds);
-  useEffect(() => { expanded.current.clear(); setResponses([]); setSummaryResponses([]); }, [key]);
+  useEffect(() => { expanded.current.clear(); lastSummaries.current.clear(); setResponses([]); setSummaryResponses([]); }, [key]);
   useEffect(() => {
     const current = ++generation.current;
     if (!enabled || !loader) { setLoading(false); return; }
     let timer: ReturnType<typeof setTimeout> | undefined;
     const load = async () => {
       if (current !== generation.current) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        timer = setTimeout(() => void load(), TEST_RESULT_REFRESH_MS);
+        return;
+      }
       if (inFlight.current) { timer = setTimeout(() => void load(), TEST_RESULT_REFRESH_MS); return; }
       inFlight.current = true; setLoading(true);
       try {
-        const summary: ConsoleProviderProbeResponse[] = [];
+        const refreshed = new Map(lastSummaries.current);
         const details: ConsoleProviderProbeResponse[] = [];
-        for (const providerId of providerIds.slice(0, 32)) {
-          const response = await loader(providerId, undefined, { includePlans: true });
+        const replaced: [string, string][] = [];
+        let firstFailure: string | null = null;
+        const targetProviders = providerIds.slice(0, 32);
+        for (let idx = 0; idx < targetProviders.length; idx += 4) {
+          const batch = targetProviders.slice(idx, idx + 4);
+          const settled = await Promise.allSettled(
+            batch.map((providerId) => loader(providerId, undefined, { includePlans: true })),
+          );
           if (current !== generation.current) return;
-          if (!response) throw new Error("测试结果暂不可用，将自动重试。");
-          summary.push(response);
+          for (const [i, item] of settled.entries()) {
+            if (item.status === "fulfilled" && item.value) refreshed.set(batch[i], item.value);
+            else if (!firstFailure) firstFailure = item.status === "rejected" ? (item.reason instanceof Error ? item.reason.message : String(item.reason)) : "测试结果暂不可用，将自动重试。";
+          }
         }
-        for (const row of expanded.current.values()) {
-          if (!providerIds.includes(row.providerId) || row.legacy) continue;
-          const response = await loader(row.providerId, undefined, { planId: row.id });
+        const expandedRows = [...expanded.current.values()].filter(
+          (row) => providerIds.includes(row.providerId) && !row.legacy,
+        );
+        for (let idx = 0; idx < expandedRows.length; idx += 4) {
+          const batch = expandedRows.slice(idx, idx + 4);
+          const settled = await Promise.allSettled(
+            batch.map((row) => loader(row.providerId, undefined, { planId: row.id })),
+          );
           if (current !== generation.current) return;
-          if (!response) throw new Error("计划结果暂不可用，将自动重试。");
-          details.push(response);
+          for (const [i, item] of settled.entries()) {
+            if (item.status === "fulfilled" && item.value) {
+              details.push(item.value);
+              replaced.push([batch[i].providerId, batch[i].id]);
+            }
+            else if (!firstFailure) firstFailure = item.status === "rejected" ? (item.reason instanceof Error ? item.reason.message : String(item.reason)) : "计划结果暂不可用，将自动重试。";
+          }
         }
-        setSummaryResponses(summary); setResponses(mergeResponses(details, summary, [...expanded.current.values()].filter((row) => !row.legacy).map((row) => [row.providerId, row.id]))); setError(null);
+        lastSummaries.current = refreshed;
+        const summary = targetProviders.flatMap((id) => refreshed.get(id) ?? []);
+        setSummaryResponses(summary);
+        setResponses(mergeResponses(details, summary, replaced));
+        setError(firstFailure);
       } catch (cause) { if (current === generation.current) setError(cause instanceof Error ? cause.message : String(cause)); }
       finally {
         inFlight.current = false;

@@ -203,6 +203,34 @@ pub(super) fn configure_auto(builder: ClientBuilder) -> ClientBuilder {
     apply(builder, addresses, resolve_bypass(environment, system))
 }
 
+pub(super) fn configure_auto_reqwest(
+    mut builder: reqwest::ClientBuilder,
+) -> reqwest::ClientBuilder {
+    let addresses = frozen_addresses();
+    #[cfg(target_os = "macos")]
+    if addresses.is_empty() {
+        return builder;
+    }
+    let environment = std::env::var("NO_PROXY")
+        .or_else(|_| std::env::var("no_proxy"))
+        .ok();
+    let system = environment.is_none().then(platform_bypass).flatten();
+    let bypass =
+        bypass_text(environment, system).and_then(|value| reqwest::NoProxy::from_string(&value));
+    builder = builder.no_proxy();
+    if let Some(address) = &addresses.http {
+        if let Ok(proxy) = reqwest::Proxy::http(address.as_str()) {
+            builder = builder.proxy(proxy.no_proxy(bypass.clone()));
+        }
+    }
+    if let Some(address) = &addresses.https {
+        if let Ok(proxy) = reqwest::Proxy::https(address.as_str()) {
+            builder = builder.proxy(proxy.no_proxy(bypass));
+        }
+    }
+    builder
+}
+
 #[cfg(feature = "cpa-rust-transport")]
 pub(crate) mod native;
 

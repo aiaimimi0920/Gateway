@@ -51,6 +51,7 @@ impl LocalRuntime {
             .busy_timeout(Duration::from_secs(10));
         let pool = SqlitePoolOptions::new()
             .max_connections(4)
+            .acquire_timeout(Duration::from_secs(10))
             .connect_with(options)
             .await?;
         let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;

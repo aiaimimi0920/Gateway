@@ -26,12 +26,12 @@ pub(crate) async fn rotate(
 
 impl AccessBalanceStore<'_> {
     pub async fn cash_supported(self) -> Result<bool, GatewayError> {
-        let mut tx = CashTransaction::begin(self).await?;
+        let mut tx = CashTransaction::begin_read(self).await?;
         tx.connection().supported().await
     }
 
     pub async fn cash_balance(self, key: &str) -> Result<Option<CashBalance>, GatewayError> {
-        let mut tx = CashTransaction::begin(self).await?;
+        let mut tx = CashTransaction::begin_read(self).await?;
         let mut db = tx.connection();
         if !db.supported().await? {
             return Ok(None);
@@ -46,7 +46,7 @@ impl AccessBalanceStore<'_> {
         self,
         balances: &mut [GatewayAccessKeyBalanceView],
     ) -> Result<(), GatewayError> {
-        let mut tx = CashTransaction::begin(self).await?;
+        let mut tx = CashTransaction::begin_read(self).await?;
         let mut db = tx.connection();
         if !db.supported().await? {
             return Ok(());
@@ -74,7 +74,7 @@ impl AccessBalanceStore<'_> {
     }
 
     pub async fn cash_ledger(self, key: &str) -> Result<Vec<CashReceipt>, GatewayError> {
-        let mut tx = CashTransaction::begin(self).await?;
+        let mut tx = CashTransaction::begin_read(self).await?;
         let mut db = tx.connection();
         if !db.supported().await? {
             return Ok(Vec::new());

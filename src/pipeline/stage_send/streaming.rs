@@ -200,14 +200,9 @@ pub(super) async fn send(
             // Do NOT call controller.on_success() here — the
             // TrackedStream callback will call it when the stream
             // finishes successfully, avoiding a double-success report.
-            // This product used to aggregate before headers; its new live source still generates
-            // after handoff. Transfer capacity to the existing terminal owner, not a detached task.
-            let permit = if candidate.adapter == "perplexity_web_compatible" {
-                Some(permit)
-            } else {
-                drop(permit);
-                None
-            };
+            // Hold concurrency permit in terminal::Owner across the active SSE body so AIMD
+            // active_concurrency and capacity-weighted routing reflect live streaming load.
+            let permit = Some(permit);
 
             let mut tracked = terminal::track(
                 ctx,

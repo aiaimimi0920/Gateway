@@ -143,7 +143,7 @@ pub(crate) fn rquest(builder: rquest::ClientBuilder, policy: &Policy) -> rquest:
 
 pub(crate) fn reqwest(builder: reqwest::ClientBuilder, policy: &Policy) -> reqwest::ClientBuilder {
     match policy.mode {
-        Mode::Auto => builder,
+        Mode::Auto => super::proxy_policy::configure_auto_reqwest(builder),
         Mode::Off => builder.no_proxy(),
         Mode::Custom => builder.no_proxy().proxy(
             reqwest::Proxy::all(&policy.url)

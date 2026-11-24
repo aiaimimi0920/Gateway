@@ -380,3 +380,19 @@ fn request_without_account_group_selector_preserves_compatibility() {
         Some("request-42")
     );
 }
+
+#[test]
+fn public_routing_order_header_does_not_require_management_token_or_set_account_group() {
+    let fixture = TestConsoleAuthFixture::without_management_token();
+    let mut ctx = make_ctx();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-gateway-routing-order",
+        "availability,intelligence,price".parse().unwrap(),
+    );
+
+    apply_public_request_headers(&mut ctx, &headers, &make_config(&[]), &fixture.runtime, &[])
+        .expect("public routing order header should not fail closed as account group");
+
+    assert_eq!(ctx.account_group_id, None);
+}

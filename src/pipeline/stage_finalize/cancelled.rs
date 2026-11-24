@@ -4,7 +4,7 @@ use super::*;
 pub async fn run_cancelled(ctx: &PipelineContext, state: &Arc<AppState>) {
     crate::cash_billing::finalization::failure(
         ctx.cash_charge.as_ref(),
-        ctx.route_attempt_count(),
+        ctx.route_attempt_count() == 0,
         state,
     )
     .await;

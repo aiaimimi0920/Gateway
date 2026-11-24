@@ -13,7 +13,7 @@ use crate::metrics::model_evidence::ModelObservationMeta;
 use crate::metrics::request::GatewayMetrics;
 use crate::protocol::model_declaration::{ModelDeclaration, ModelDeclarationSource};
 
-const MAX_FRAME_BYTES: usize = 64 * 1024;
+const MAX_FRAME_BYTES: usize = 1024 * 1024;
 const MAX_OBSERVED_BYTES: usize = 8 * 1024 * 1024;
 
 pub(crate) fn tap_model_declaration<S, E>(

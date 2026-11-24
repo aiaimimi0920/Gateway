@@ -192,12 +192,43 @@ pub fn build_candidate_queue_with_latency(
 
     match selection_strategy {
         "round_robin" => {
+            scored.retain(|item| !item.excluded);
             // Sort healthy candidates by priority (descending), blocked to end.
             scored.sort_by(|a, b| match (a.blocked, b.blocked) {
                 (true, false) => std::cmp::Ordering::Greater,
                 (false, true) => std::cmp::Ordering::Less,
                 _ => b.candidate.priority.cmp(&a.candidate.priority),
             });
+            // Rotate within each contiguous equal-priority slice of healthy candidates.
+            let healthy_len = scored.iter().take_while(|s| !s.blocked).count();
+            if healthy_len > 1 {
+                let mut start = 0;
+                while start < healthy_len {
+                    let prio = scored[start].candidate.priority;
+                    let mut end = start + 1;
+                    while end < healthy_len && scored[end].candidate.priority == prio {
+                        end += 1;
+                    }
+                    let group_len = end - start;
+                    if group_len > 1 {
+                        use std::hash::{Hash, Hasher};
+                        let mut key = std::collections::hash_map::DefaultHasher::new();
+                        prio.hash(&mut key);
+                        for item in &scored[start..end] {
+                            let c = &item.candidate;
+                            (
+                                &c.provider_account_id,
+                                &c.provider_credential_id,
+                                &c.upstream_model,
+                            )
+                                .hash(&mut key);
+                        }
+                        let tick = next_round_robin(key.finish());
+                        scored[start..end].rotate_left(tick % group_len);
+                    }
+                    start = end;
+                }
+            }
         }
         "random" => {
             let mut rng = rand::thread_rng();
@@ -260,6 +291,20 @@ pub fn build_candidate_queue_with_latency(
     }
 
     queue.into_iter().map(|entry| entry.candidate).collect()
+}
+
+// Key by eligible tier rather than by request, and cap memory across config churn.
+fn next_round_robin(key: u64) -> usize {
+    static CURSORS: std::sync::LazyLock<parking_lot::Mutex<HashMap<u64, usize>>> =
+        std::sync::LazyLock::new(Default::default);
+    let mut cursors = CURSORS.lock();
+    if cursors.len() >= 4096 && !cursors.contains_key(&key) {
+        cursors.clear();
+    }
+    let next = cursors.entry(key).or_default();
+    let tick = *next;
+    *next = tick.wrapping_add(1);
+    tick
 }
 
 // ---------------------------------------------------------------------------
@@ -476,6 +521,25 @@ mod tests {
         assert_eq!(q[0].priority, 3);
         assert_eq!(q[1].priority, 2);
         assert_eq!(q[2].priority, 1);
+    }
+
+    #[test]
+    fn round_robin_rotates_equal_priority_candidates() {
+        let candidates = vec![
+            make_candidate("top", 10, 10),
+            make_candidate("eq-a", 5, 10),
+            make_candidate("eq-b", 5, 10),
+            make_candidate("eq-c", 5, 10),
+        ];
+        let q1 = build_candidate_queue(&candidates, "round_robin", None, &HashMap::new(), None);
+        for id in ["other-a", "other-b"] {
+            let other = vec![make_candidate(id, 5, 10), make_candidate("other-c", 5, 10)];
+            build_candidate_queue(&other, "round_robin", None, &HashMap::new(), None);
+        }
+        let q2 = build_candidate_queue(&candidates, "round_robin", None, &HashMap::new(), None);
+        assert_eq!(q1[0].provider_account_id, "top");
+        assert_eq!(q2[0].provider_account_id, "top");
+        assert_ne!(q1[1].provider_account_id, q2[1].provider_account_id);
     }
 
     // ── random strategy ──────────────────────────────────────────────────

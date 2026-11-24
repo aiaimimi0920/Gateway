@@ -349,7 +349,7 @@ pub struct UpstreamClient {
     plain_http: Client,
     native_claude_http: Client,
     native_http: reqwest::Client,
-    wait_native_http: std::sync::OnceLock<reqwest::Client>,
+    fallback_native_http: crate::http_client::NativeCodexConnection,
     wait_http: std::sync::OnceLock<Client>,
     pub(crate) sensenova_fixture_http: Option<Client>,
     pub(crate) commandcode_fixture_http: Option<Client>,

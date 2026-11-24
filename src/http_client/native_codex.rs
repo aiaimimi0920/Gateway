@@ -14,18 +14,18 @@ pub(crate) use pool::NativeCodexConnection;
 mod timeout_tests;
 
 pub(crate) fn client(timeout: Duration) -> reqwest::Client {
-    build(timeout, false, false)
+    build(timeout, false, false, true)
 }
 
 pub(crate) fn websocket_client(timeout: Duration) -> reqwest::Client {
-    build(timeout, true, false)
+    build(timeout, true, false, true)
 }
 
 pub(crate) fn websocket_tls() -> Result<rustls::ClientConfig, &'static str> {
     custom_ca::websocket_tls()
 }
 
-fn build(timeout: Duration, websocket: bool, session: bool) -> reqwest::Client {
+fn build(timeout: Duration, websocket: bool, session: bool, codex_tls12: bool) -> reqwest::Client {
     // Use the same environment/system proxy discovery as the reference CLI;
     // do not mutate the process environment or reuse the browser emulation factory.
     let base =
@@ -37,19 +37,22 @@ fn build(timeout: Duration, websocket: bool, session: bool) -> reqwest::Client {
         // reqwest enables it by default. Keep this choice local to WS.
         builder.http1_only().tcp_nodelay(false)
     } else {
+        // Evict idle pooled sockets before Cloudflare/relays silently half-close them (~30-60s).
         builder
+            .pool_idle_timeout(Duration::from_secs(20))
+            .tcp_keepalive(Duration::from_secs(15))
     };
     // Codex 0.155.1 locks native-tls 0.2.14: its Windows Schannel backend
-    // offers at most TLS 1.2. Reproduce that ceiling only in this native lane;
-    // retain certificate validation and the maintained TLS dependency.
+    // offers at most TLS 1.2. Reproduce that ceiling only for official Codex/ChatGPT
+    // profiles; generic third-party OpenAI relays frequently require TLS 1.3.
     #[cfg(windows)]
-    let builder = if has_custom_ca {
+    let builder = if has_custom_ca || !codex_tls12 {
         builder
     } else {
         builder.max_tls_version(reqwest::tls::Version::TLS_1_2)
     };
     #[cfg(not(windows))]
-    let _ = has_custom_ca;
+    let _ = (has_custom_ca, codex_tls12);
     let builder = builder
         // Cookie sessions never replay manually attached cookies on a redirect.
         .redirect(if session {
@@ -62,6 +65,7 @@ fn build(timeout: Duration, websocket: bool, session: bool) -> reqwest::Client {
     let builder = if websocket {
         builder.timeout(timeout)
     } else if crate::request_wait::transport::managed() {
+        // Managed requests own the response deadline, including quiet SSE periods.
         builder.connect_timeout(timeout.min(Duration::from_secs(15)))
     } else {
         builder.connect_timeout(timeout).read_timeout(timeout)

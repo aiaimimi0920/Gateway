@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { stripUtf8Bom } from "./payload.mjs";
@@ -17,7 +17,14 @@ export async function readStdin() {
 export async function printJsonAndExit(payload, exitCode = 0, resultFilePath = null) {
   const serialized = `${JSON.stringify(payload)}\n`;
   if (normalizeString(resultFilePath)) {
-    await writeFile(resultFilePath, serialized, "utf8");
+    // The caller assigns a unique result path per worker and owns cleanup after cancellation.
+    const tmpPath = `${resultFilePath}.partial`;
+    try {
+      await writeFile(tmpPath, serialized, { encoding: "utf8", flag: "wx", mode: 0o600 });
+      await rename(tmpPath, resultFilePath);
+    } finally {
+      await rm(tmpPath, { force: true });
+    }
   } else {
     await new Promise((resolve, reject) => {
       process.stdout.write(serialized, "utf8", (error) => {

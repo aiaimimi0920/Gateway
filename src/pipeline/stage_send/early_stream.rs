@@ -12,7 +12,9 @@ pub(super) async fn check(mut stream: ByteStream) -> Result<ByteStream, GatewayE
     let mut decoder = BoundedSseDecoder::new(PREFIX_LIMIT);
     while let Some(item) = stream.next().await {
         let bytes = item.map_err(|error| match error {
-            StreamError::Protocol(ref protocol) => classify(&protocol.to_string(), ""),
+            StreamError::Protocol(ref protocol) => {
+                classify(&protocol.to_string(), "upstream_stream_error")
+            }
             StreamError::NativeTransport(error) => {
                 crate::error::classify_native_network_error(error, "stream_preflight")
             }
@@ -60,7 +62,8 @@ pub(super) async fn check(mut stream: ByteStream) -> Result<ByteStream, GatewayE
                             .and_then(|v| v.as_str())
                             .unwrap_or("");
                         // Keep known admission messages intact for their narrow classifiers.
-                        if crate::error::is_account_balance_rejection(403, message)
+                        if matches!(code, "" | "channel_not_found" | "model_not_available")
+                            || crate::error::is_account_balance_rejection(403, message)
                             || crate::error::is_model_pricing_failure(
                                 502,
                                 Some(code),
@@ -135,8 +138,20 @@ fn classify(message: &str, code: &str) -> GatewayError {
     let model_missing = code == "model_not_found";
     let balance_rejected = crate::error::is_account_balance_rejection(403, message);
     let pricing_rejected = crate::error::is_model_pricing_failure(502, Some(code), Some(message));
-    let body = serde_json::json!({"error": {"message": message,
-        "code": if model_missing { "model_not_found" } else if code == "get_channel_failed" || pricing_rejected { code } else { "upstream_stream_error" }}});
+    let preserved = model_missing
+        || pricing_rejected
+        || matches!(
+            code,
+            "get_channel_failed" | "channel_not_found" | "model_not_available"
+        );
+    let wire_code = if preserved {
+        Some(code)
+    } else if code.is_empty() {
+        None
+    } else {
+        Some("upstream_stream_error")
+    };
+    let body = serde_json::json!({"error": {"message": message, "code": wire_code}});
     let mut error = crate::error::classify_upstream_error(
         // SSE has HTTP 200; synthesize the semantic admission status only before handoff.
         if model_missing {

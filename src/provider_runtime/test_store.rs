@@ -5,8 +5,10 @@ use sha2::{Digest, Sha256};
 
 pub(crate) const LOCAL_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS credential_test_results (
     id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS credential_test_results_updated ON credential_test_results(updated);
     CREATE TABLE IF NOT EXISTS credential_test_slots (
-    id TEXT PRIMARY KEY, next INTEGER NOT NULL);";
+    id TEXT PRIMARY KEY, next INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS credential_test_slots_next ON credential_test_slots(next);";
 const RETENTION: i64 = 30 * 24 * 3600;
 
 pub(crate) fn identity(namespace: &str, provider: &str, credential: &str) -> String {

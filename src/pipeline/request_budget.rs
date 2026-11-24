@@ -178,11 +178,15 @@ impl RequestBudget {
 
     /// Only the outer candidate-switch boundary may grant this slot, not recovery.
     pub fn allow_rejected_candidate_fallback(&self, error: &GatewayError) {
+        if error.native_transport.is_some() {
+            if self.0.lock().rejected_conversation_fallback {
+                self.allow_connect_readmission(error);
+            }
+            return;
+        }
         if error.request_budget_stop_reason().is_none() {
             let mut state = self.0.lock();
-            // Explicit admission refusals and recognized non-API diagnostic pages may advance.
-            // Grant only the next slot, never reset attempts/deadline or revive a stop.
-            // Other HTTP failures, uncertain delivery and post-handoff errors stay closed.
+            // Explicit admission refusals may advance; transport readmission is counted above.
             if state.rejected_conversation_fallback
                 && state.stop.is_none()
                 && !state.handed_off

@@ -22,6 +22,27 @@ it("expansion cannot change the summary sample and repeated expansion replaces r
 
 afterEach(() => vi.useRealTimers());
 
+it("keeps a failed provider's summary and does not erase a plan when its detail refresh fails", async () => {
+  vi.useFakeTimers();
+  let partial = false;
+  const loader = vi.fn().mockImplementation(async (provider, _scope, query) => {
+    if (partial && (provider === "q" || query.planId)) throw new Error("offline");
+    const value = response(provider === "p" ? "first" : "second");
+    value.result.providerId = provider;
+    value.result.results[0].providerId = provider;
+    return value;
+  });
+  const hook = renderHook(() => useTestPlanResults(["p", "q"], loader, true));
+  await act(async () => {});
+  await act(() => hook.result.current.expand({ key: "first", id: "first", name: "First", providerId: "p",
+    legacy: false, policy: defaultTestPolicy(), scopes: [{ kind: "pool", providerId: "p" }] }));
+  partial = true;
+  await act(async () => { await vi.advanceTimersByTimeAsync(TEST_RESULT_REFRESH_MS); });
+  expect(hook.result.current.error).toBe("offline");
+  expect(hook.result.current.results.map((row) => row.providerId)).toEqual(["p", "q"]);
+  hook.unmount();
+});
+
 it("refreshes summaries and expanded plans automatically without overlapping pending reads", async () => {
   vi.useFakeTimers();
   let complete!: (response: ConsoleProviderProbeResponse) => void;

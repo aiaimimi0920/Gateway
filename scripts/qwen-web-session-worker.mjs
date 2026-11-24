@@ -163,12 +163,12 @@ async function main() {
     if (credentialFile) {
       result.credentialFile = credentialFile;
     }
-    printAndExit(result);
+    return result;
   } catch (error) {
-    printAndExit({
+    return {
       ok: false,
       error: serializeError(error),
-    }, 1);
+    };
   } finally {
     await context?.close().catch(() => {});
     if (clonedUserDataDir) {
@@ -442,8 +442,10 @@ async function readStdin() {
 }
 
 function printAndExit(payload, exitCode = 0) {
-  process.stdout.write(`${JSON.stringify(payload)}\n`);
-  process.exit(exitCode);
+  process.stdout.write(`${JSON.stringify(payload)}\n`, () => {
+    process.exit(exitCode);
+  });
 }
 
-await main();
+const result = await main();
+printAndExit(result, result.ok ? 0 : 1);

@@ -94,6 +94,14 @@ pub(crate) enum CashTransaction {
 }
 
 impl CashTransaction {
+    pub(crate) async fn begin_read(store: AccessBalanceStore<'_>) -> Result<Self, GatewayError> {
+        match store {
+            AccessBalanceStore::Sqlite(local) => local.pool.begin().await.map(Self::Sqlite),
+            AccessBalanceStore::Postgres(pool) => pool.begin().await.map(Self::Postgres),
+        }
+        .map_err(sql_error)
+    }
+
     pub(crate) async fn begin(store: AccessBalanceStore<'_>) -> Result<Self, GatewayError> {
         match store {
             AccessBalanceStore::Sqlite(local) => local

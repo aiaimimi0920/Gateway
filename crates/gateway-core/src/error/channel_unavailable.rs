@@ -2,12 +2,20 @@
 use super::GatewayError;
 
 pub fn is_channel_unavailable(error: &GatewayError) -> bool {
-    if !matches!(error.http_status, Some(404 | 500 | 502 | 503))
-        || !matches!(
-            error.code.as_deref(),
-            Some("model_not_found" | "upstream_stream_model_not_found" | "get_channel_failed")
+    if !matches!(error.http_status, Some(400 | 404 | 500 | 502 | 503)) {
+        return false;
+    }
+    let known_code = matches!(
+        error.code.as_deref(),
+        None | Some(
+            "model_not_found"
+                | "upstream_stream_model_not_found"
+                | "get_channel_failed"
+                | "channel_not_found"
+                | "model_not_available"
         )
-    {
+    );
+    if !known_code {
         return false;
     }
     let message = error.message.trim();
@@ -16,7 +24,34 @@ pub fn is_channel_unavailable(error: &GatewayError) -> bool {
         .strip_prefix("model_not_found: ")
         .or_else(|| message.strip_prefix("get_channel_failed: "))
         .unwrap_or(message);
-    let message = message.split(" (request id: ").next().unwrap_or(message);
+    let message = message
+        .split(" (request id: ")
+        .next()
+        .unwrap_or(message)
+        .trim();
+    if let Some(model) = message
+        .strip_prefix("Model \"")
+        .and_then(|v| v.strip_suffix("\" is not available for this group"))
+    {
+        return !model.trim().is_empty();
+    }
+    if let Some(detail) = message.strip_prefix("当前分组 ").and_then(|v| {
+        v.strip_suffix(" 无可用渠道")
+            .or_else(|| v.strip_suffix(" 无可用渠道（distributor）"))
+            .or_else(|| v.strip_suffix(" 无可用渠道 (distributor)"))
+    }) {
+        return detail
+            .split_once(" 下对于模型 ")
+            .or_else(|| detail.split_once(" 下模型 "))
+            .is_some_and(|(group, model)| !group.trim().is_empty() && !model.trim().is_empty());
+    }
+    if !matches!(
+        error.code.as_deref(),
+        Some("model_not_found" | "upstream_stream_model_not_found" | "get_channel_failed")
+    ) || !matches!(error.http_status, Some(404 | 500 | 502 | 503))
+    {
+        return false;
+    }
     if let Some(detail) = message
         .strip_prefix("No available channel for model ")
         .and_then(|v| v.strip_suffix(" (distributor)"))
@@ -48,6 +83,8 @@ mod tests {
             (503, "model_not_found", "No available channel for model deepseek-v4.1-flash under group auto (distributor) (request id: fixture)"),
             (503, "model_not_found", "分组 default 下模型 deepseek-v4.1-flash 无可用渠道（distributor）"),
             (500, "get_channel_failed", "分组 auto 下模型 deepseek-v4.1-flash 的可用渠道不存在（retry） (request id: fixture)"),
+            (400, "model_not_available", "Model \"gpt-5.4\" is not available for this group"),
+            (503, "channel_not_found", "当前分组 default 下对于模型 gpt-5.4 无可用渠道 (request id: fixture)"),
         ] {
             let body = serde_json::json!({"error": {"code": code, "message": message}});
             let error = classify_upstream_error(status, &body.to_string(), None);

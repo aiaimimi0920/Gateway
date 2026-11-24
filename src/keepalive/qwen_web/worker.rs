@@ -13,9 +13,9 @@ use tracing::debug;
 
 const QWEN_WEB_REFRESH_TIMEOUT_SECS: u64 = 120;
 fn qwen_web_session_worker_script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts")
-        .join("qwen-web-session-worker.mjs")
+    crate::upstream::gemini_canvas_pool_paths::resolve_worker_script(
+        "scripts/qwen-web-session-worker.mjs",
+    )
 }
 
 pub(in crate::keepalive) async fn execute_qwen_web_session_worker(
@@ -66,6 +66,7 @@ pub(in crate::keepalive) async fn execute_qwen_web_session_worker(
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .kill_on_drop(true)
         .spawn()
         .map_err(|error| {
             GatewayError::server_error(format!(

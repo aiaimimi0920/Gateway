@@ -1310,6 +1310,8 @@ CREATE INDEX gateway_provider_credentials_status_cooldown_idx ON public.gateway_
 
 CREATE INDEX gateway_request_audits_access_key_created_idx ON public.gateway_request_audits USING btree (access_key_id, created_at);
 
+CREATE INDEX IF NOT EXISTS gateway_request_audits_created_idx ON public.gateway_request_audits USING btree (created_at DESC, request_id DESC);
+
 
 --
 -- Name: gateway_request_audits_project_created_idx; Type: INDEX; Schema: public; Owner: -

@@ -190,6 +190,8 @@ impl UpstreamClient {
             .with_code("aistudio_browser_worker_input_serialize_failed")
         })?;
 
+        // Declare before the child: on cancellation kill_on_drop runs before file cleanup.
+        let _result_cleanup = ResultCleanup(input.result_file_path.clone());
         let script_path = aistudio_browser_worker_script_path();
         let mut child = Command::new(
             std::env::var("AISTUDIO_BROWSER_NODE_BIN").unwrap_or_else(|_| "node".to_string()),
@@ -198,6 +200,7 @@ impl UpstreamClient {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .kill_on_drop(true)
         .spawn()
         .map_err(|error| {
             GatewayError::server_error(format!(
@@ -255,9 +258,8 @@ impl UpstreamClient {
                     let _ = tokio::time::timeout(Duration::from_secs(2), child.wait()).await;
                     return serde_json::from_str(serialized.trim()).map_err(|error| {
                         GatewayError::server_error(format!(
-                            "Failed to parse AI Studio browser worker result file {}: {error}. body: {}",
-                            result_file_path,
-                            serialized.trim()
+                            "Failed to parse AI Studio browser worker result file {}: {error}",
+                            result_file_path
                         ))
                         .with_provider(provider)
                         .with_code("aistudio_browser_worker_result_file_parse_failed")
@@ -371,5 +373,21 @@ impl UpstreamClient {
             .with_provider(provider)
             .with_code("aistudio_browser_worker_output_parse_failed")
         })
+    }
+}
+
+struct ResultCleanup(Option<String>);
+
+impl Drop for ResultCleanup {
+    fn drop(&mut self) {
+        if let Some(path) = &self.0 {
+            for file in [path.clone(), format!("{path}.partial")] {
+                if let Err(error) = std::fs::remove_file(file) {
+                    if error.kind() != std::io::ErrorKind::NotFound {
+                        tracing::warn!(%error, "Could not clean up browser worker result");
+                    }
+                }
+            }
+        }
     }
 }

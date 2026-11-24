@@ -13,6 +13,7 @@ const DEFAULT_INBOUND_API_KEY_HEADERS: &[&str] = &["x-api-key", "api-key", "x-go
 const DEFAULT_TRUSTED_FORWARDED_HEADERS: &[&str] =
     &["x-credential-ref", "x-neuro-user", "x-neuro-cred-source"];
 const DEFAULT_TRACE_HEADERS: &[&str] = &["x-request-id", "traceparent", "tracestate"];
+const ACCOUNT_GROUP_HEADERS: &[&str] = &["x-neuro-account-group", "x-account-group-id"];
 pub(crate) const INTERNAL_GATEWAY_HEADER_DENYLIST: &[&str] = &[
     "x-neuro-account-group",
     "x-account-group-id",
@@ -151,7 +152,7 @@ fn header_value(headers: &HeaderMap, name: &str) -> Option<String> {
 }
 
 fn trusted_account_group_value(headers: &HeaderMap) -> Option<String> {
-    for header_name in INTERNAL_GATEWAY_HEADER_DENYLIST {
+    for header_name in ACCOUNT_GROUP_HEADERS {
         if let Some(value) = header_value(headers, header_name) {
             return Some(value);
         }

@@ -328,6 +328,10 @@ impl ConsoleAuthRuntime {
             )
             .with_code("console_bootstrap_required"));
         };
+        let cache_key = format!("v1:{}:{}", record.token_hash, token_fingerprint(token));
+        if self.key_verifications.lock().contains_key(&cache_key) {
+            return Ok(());
+        }
         let parsed_hash = PasswordHash::new(&record.token_hash).map_err(|error| {
             GatewayError::service_unavailable(format!(
                 "Gateway console admin record is invalid: {error}"
@@ -336,7 +340,13 @@ impl ConsoleAuthRuntime {
         })?;
         Argon2::default()
             .verify_password(token.as_bytes(), &parsed_hash)
-            .map_err(|_| console_invalid_token_error())
+            .map_err(|_| console_invalid_token_error())?;
+        let mut cache = self.key_verifications.lock();
+        if cache.len() >= 64 {
+            cache.clear();
+        }
+        cache.insert(cache_key, "admin".to_string());
+        Ok(())
     }
 
     fn load_admin_record(&self) -> Result<Option<AdminRecord>, GatewayError> {

@@ -7,7 +7,7 @@ use crate::{error::GatewayError, local_runtime::FinalizerGuard, state::AppState}
 use std::sync::{Arc, OnceLock};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
-const LIFECYCLE_SLOTS: usize = 128;
+const LIFECYCLE_SLOTS: usize = 512;
 static ADMISSION: OnceLock<Arc<Semaphore>> = OnceLock::new();
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

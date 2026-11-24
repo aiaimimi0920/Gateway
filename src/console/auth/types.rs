@@ -21,9 +21,16 @@ impl ConsoleRequestContext {
     }
 
     pub fn new(client_ip: IpAddr, origin_key: String) -> Self {
-        let loopback = client_ip.is_loopback();
+        let normalized_ip = match client_ip {
+            IpAddr::V6(v6) => v6
+                .to_ipv4_mapped()
+                .map(IpAddr::V4)
+                .unwrap_or(IpAddr::V6(v6)),
+            ip => ip,
+        };
+        let loopback = normalized_ip.is_loopback();
         Self {
-            client_ip,
+            client_ip: normalized_ip,
             origin_key,
             loopback,
         }

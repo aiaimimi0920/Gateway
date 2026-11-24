@@ -24,20 +24,38 @@ impl BoundedSseDecoder {
 
     /// Push a chunk of upstream bytes and drain all complete SSE frames.
     pub fn push_chunk(&mut self, chunk: &[u8]) -> Result<Vec<SseEventFrame>, String> {
-        if self.buffer.len().saturating_add(chunk.len()) > self.max_buffer_bytes {
-            self.buffer.clear();
-            return Err(format!(
-                "SSE frame exceeded maximum buffer of {} bytes",
-                self.max_buffer_bytes
-            ));
-        }
-        self.buffer.extend_from_slice(chunk);
         let mut frames = Vec::new();
-        while let Some((frame_end, delimiter_len)) = find_frame_boundary(&self.buffer) {
-            let raw = self.buffer[..frame_end].to_vec();
-            self.buffer.drain(..frame_end + delimiter_len);
-            if let Some(parsed) = parse_raw_frame(&raw)? {
-                frames.push(parsed);
+        let mut offset = 0;
+        while offset < chunk.len() {
+            let room = self.max_buffer_bytes.saturating_sub(self.buffer.len());
+            let take = (chunk.len() - offset).min(room.max(1));
+            if self.buffer.len().saturating_add(take) > self.max_buffer_bytes {
+                self.buffer.clear();
+                return Err(format!(
+                    "SSE frame exceeded maximum buffer of {} bytes",
+                    self.max_buffer_bytes
+                ));
+            }
+            self.buffer.extend_from_slice(&chunk[offset..offset + take]);
+            offset += take;
+
+            let mut consumed = 0;
+            while let Some((rel_end, delimiter_len)) = find_frame_boundary(&self.buffer[consumed..])
+            {
+                let frame_end = consumed + rel_end;
+                let parsed = parse_raw_frame(&self.buffer[consumed..frame_end]);
+                consumed = frame_end + delimiter_len;
+                match parsed {
+                    Ok(Some(frame)) => frames.push(frame),
+                    Ok(None) => {}
+                    Err(err) => {
+                        self.buffer.clear();
+                        return Err(err);
+                    }
+                }
+            }
+            if consumed > 0 {
+                self.buffer.drain(..consumed);
             }
         }
         Ok(frames)
@@ -56,16 +74,20 @@ impl BoundedSseDecoder {
 fn find_frame_boundary(buf: &[u8]) -> Option<(usize, usize)> {
     let mut idx = 0;
     while idx + 1 < buf.len() {
-        if buf[idx] == b'\n' && buf[idx + 1] == b'\n' {
-            return Some((idx, 2));
-        }
-        if idx + 3 < buf.len()
-            && buf[idx] == b'\r'
-            && buf[idx + 1] == b'\n'
-            && buf[idx + 2] == b'\r'
-            && buf[idx + 3] == b'\n'
-        {
-            return Some((idx, 4));
+        if buf[idx] == b'\n' {
+            if buf[idx + 1] == b'\n' {
+                return Some((idx, 2));
+            }
+            if idx + 2 < buf.len() && buf[idx + 1] == b'\r' && buf[idx + 2] == b'\n' {
+                return Some((idx, 3));
+            }
+        } else if buf[idx] == b'\r' && buf[idx + 1] == b'\n' && idx + 2 < buf.len() {
+            if buf[idx + 2] == b'\n' {
+                return Some((idx, 3));
+            }
+            if idx + 3 < buf.len() && buf[idx + 2] == b'\r' && buf[idx + 3] == b'\n' {
+                return Some((idx, 4));
+            }
         }
         idx += 1;
     }

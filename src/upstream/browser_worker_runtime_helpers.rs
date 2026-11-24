@@ -5,39 +5,31 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::error::GatewayError;
 
 pub(crate) fn lumalabs_browser_worker_script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts")
-        .join("lumalabs-browser-worker.mjs")
+    super::gemini_canvas_pool_paths::resolve_worker_script("scripts/lumalabs-browser-worker.mjs")
 }
 
 pub(crate) fn aistudio_browser_worker_script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts")
-        .join("aistudio-web-browser-worker.mjs")
+    super::gemini_canvas_pool_paths::resolve_worker_script(
+        "scripts/aistudio-web-browser-worker.mjs",
+    )
 }
 
 pub(crate) fn gemini_canvas_http_replay_worker_script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts")
-        .join("gemini-canvas-http-replay-worker.mjs")
+    super::gemini_canvas_pool_paths::resolve_worker_script(
+        "scripts/gemini-canvas-http-replay-worker.mjs",
+    )
 }
 
 pub(crate) fn producer_browser_worker_script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts")
-        .join("producer-browser-worker.mjs")
+    super::gemini_canvas_pool_paths::resolve_worker_script("scripts/producer-browser-worker.mjs")
 }
 
 pub(crate) fn suno_browser_worker_script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts")
-        .join("suno-browser-worker.mjs")
+    super::gemini_canvas_pool_paths::resolve_worker_script("scripts/suno-browser-worker.mjs")
 }
 
 pub(crate) fn udio_browser_worker_script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts")
-        .join("udio-browser-worker.mjs")
+    super::gemini_canvas_pool_paths::resolve_worker_script("scripts/udio-browser-worker.mjs")
 }
 
 pub(crate) fn udio_browser_request_timeout(

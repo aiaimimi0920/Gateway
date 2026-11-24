@@ -121,11 +121,16 @@ export function createGatewayApiClient({
         referrerPolicy: "no-referrer",
       });
       if (!response.ok) {
-        if (notifyAuthenticationFailure && (response.status === 401 || response.status === 403)) {
+        const payload = await decodeGatewayError(response);
+        const gatewayError = parseGatewayError(payload, response.status);
+        if (
+          notifyAuthenticationFailure &&
+          (response.status === 401 ||
+            (response.status === 403 && gatewayError.code !== "console_secret_access_required"))
+        ) {
           onAuthenticationFailure?.(response.status, managementToken);
         }
-        const payload = await decodeGatewayError(response);
-        throw parseGatewayError(payload, response.status);
+        throw gatewayError;
       }
 
       const payload = await decodeJson(response, path);

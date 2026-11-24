@@ -10,7 +10,7 @@ import crypto from "node:crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const REPO_ROOT = path.resolve(__dirname, "..");
 const PORT = Number.parseInt(process.env.LOCAL_BROWSER_EXECUTOR_PORT || "42341", 10);
 const BEARER_TOKEN =
   typeof process.env.GATEWAY_BROWSER_EXECUTOR_BEARER_TOKEN === "string" &&

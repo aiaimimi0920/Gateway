@@ -1,3 +1,4 @@
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -198,9 +199,16 @@ function createFixtureResponseCapture(page, { onResponse }) {
 }
 `;
   await fs.writeFile(tempPath, `${testSource}\n${responseTransport}\n${exportBlock}`, "utf8");
+  const cleanupOnExit = () => {
+    try {
+      fsSync.rmSync(tempPath, { force: true });
+    } catch {}
+  };
+  process.once("exit", cleanupOnExit);
   try {
     return await import(pathToFileURL(tempPath).href);
   } finally {
+    process.removeListener("exit", cleanupOnExit);
     await fs.rm(tempPath, { force: true });
   }
 }

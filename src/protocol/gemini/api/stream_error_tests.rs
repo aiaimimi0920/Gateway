@@ -37,7 +37,7 @@ async fn fragmented_text_tools_usage_and_finish_wire_remain_unchanged() {
     )
     .collect()
     .await;
-    assert_eq!(outputs.len(), 4);
+    assert_eq!(outputs.len(), 3);
     let payloads: Vec<Value> = outputs
         .into_iter()
         .map(|output| {
@@ -50,13 +50,13 @@ async fn fragmented_text_tools_usage_and_finish_wire_remain_unchanged() {
         payloads[0]["candidates"][0]["content"]["parts"][0]["text"],
         "你好"
     );
-    let call = &payloads[2]["candidates"][0]["content"]["parts"][0]["functionCall"];
+    let call = &payloads[1]["candidates"][0]["content"]["parts"][0]["functionCall"];
     assert_eq!(call["id"], "weather-1");
     assert_eq!(call["name"], "weather");
     assert_eq!(call["args"], json!({"city": "杭州"}));
-    assert_eq!(payloads[3]["candidates"][0]["finishReason"], "STOP");
+    assert_eq!(payloads[2]["candidates"][0]["finishReason"], "STOP");
     assert_eq!(
-        payloads[3]["usageMetadata"],
+        payloads[2]["usageMetadata"],
         json!({
             "promptTokenCount": 4, "candidatesTokenCount": 2, "totalTokenCount": 6,
         })
@@ -65,6 +65,29 @@ async fn fragmented_text_tools_usage_and_finish_wire_remain_unchanged() {
 
 #[derive(Debug)]
 struct Marker(u64);
+
+#[tokio::test]
+async fn complete_tool_is_emitted_once_at_done_or_clean_eof() {
+    for done in [false, true] {
+        let mut chunks = vec![Ok::<_, std::io::Error>(frame(json!({"choices":[{"delta":{
+            "tool_calls":[{"function":{"name":"lookup","arguments":"{\"k\":1}"}}]
+        }}]})))];
+        if done {
+            chunks.push(Ok(Bytes::from_static(b"data: [DONE]\n\n")));
+        }
+        let outputs: Vec<_> = translate_openai_sse_to_gemini_stream_with_error(
+            futures::stream::iter(chunks),
+            "test".into(),
+        )
+        .collect()
+        .await;
+        assert_eq!(outputs.len(), 1);
+        let bytes = outputs[0].as_ref().unwrap();
+        assert!(std::str::from_utf8(bytes)
+            .unwrap()
+            .contains("\"args\":{\"k\":1}"));
+    }
+}
 
 #[tokio::test]
 async fn nonzero_error_object_is_terminal_after_partial_output() {

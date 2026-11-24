@@ -23,6 +23,7 @@ const page = {
         actionId: null, resolvedActionType: "create_image_uni_1", realmId: "realm-fixture",
         mediaOperation: "image", artifactField: "image", state: "completed" };
   },
+  close: async () => {},
 };
 const context = { addCookies: async () => {}, newPage: async () => page };
 chromium.launch = async () => {
