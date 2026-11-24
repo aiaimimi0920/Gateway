@@ -300,8 +300,7 @@ use crate::upstream::gemini_canvas_text_helpers::{
 use crate::upstream::gemini_canvas_upload_http::upload_gemini_canvas_image_edit_inputs_with_http;
 use crate::upstream::grok as grok_upstream;
 use crate::upstream::header_map_helpers::header_map_string;
-use crate::upstream::headers::build_inference_headers;
-use crate::upstream::headers::build_upstream_headers_with;
+use crate::upstream::headers::{build_inference_headers, build_upstream_headers_with};
 use crate::upstream::kiro as kiro_upstream;
 use crate::upstream::openai_compatible_request_plan as openai_compatible_request_plan_modular;
 use crate::upstream::producer_media_helpers::{
@@ -340,6 +339,7 @@ pub use crate::upstream::browser_worker_types::{
 /// Thin wrapper around [`rquest::Client`] that knows how to talk to AI
 /// provider APIs.
 pub struct UpstreamClient {
+    cloudflare_neurons: std::sync::Arc<crate::upstream::cloudflare_neuron_guard::Guard>,
     pub(crate) luma_web_sessions:
         std::sync::Arc<std::sync::OnceLock<crate::luma_web_session::SessionStore>>,
     pub(crate) lobsterai_http: rquest::Client,

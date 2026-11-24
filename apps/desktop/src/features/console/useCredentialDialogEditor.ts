@@ -11,6 +11,7 @@ import { applyAccountDiscovery, supportsAccountDiscovery } from "./accountDiscov
 import { registerChatgptCredentialModels } from "./chatgptCredentialModels";
 import { CHATGPT_POOL_CATEGORIES } from "./chatgptPool";
 import { applyOfficialCatalog, catalogProviderKind } from "./officialModelCatalog";
+import { normalizeCloudflareCredential } from "./cloudflareWorkersAi";
 import { applyModelSelection, dialogModelSelection, selectedModels } from "./credentialModelSelection";
 import { applyChatgptWebMaterial } from "./chatgptWebMaterial";
 import { applyProviderSessionMaterial } from "./providerSessionMaterialApply";
@@ -33,6 +34,7 @@ import { freebuffBusinessFields } from "./freebuffBusiness";
 import { dimCatalogFields } from "./dimModelCatalog";
 import { lobsteraiCatalogFields } from "./lobsteraiModelCatalog";
 import { commandcodeZdrFields } from "./commandcodeZdr";
+import { filterVercelAccountModels, registerVercelModels, VERCEL_CREDIT_AUTH_MODE, VERCEL_PRESET } from "./vercelFreeCatalog";
 
 type CredentialDialogEditorOptions = {
   editorText: string;
@@ -62,7 +64,8 @@ export function useCredentialDialogEditor({
       const provider = parseRouteDocument(editorText).providers.find((p) => p && typeof p === "object"
         && (p as Record<string, unknown>).id === providerId) as Record<string, unknown> | undefined;
       if (provider && !isQwenProvider(provider) && !catalogProviderKind(provider) && provider.preset !== "chatgpt-codex-oauth-official-api") {
-        initialValue.manualModelsText = Array.isArray(provider.supported_models) ? provider.supported_models.filter((id) => typeof id === "string").join("\n") : "";
+        const models = Array.isArray(provider.supported_models) ? provider.supported_models.filter((id) => typeof id === "string") : [];
+        initialValue.manualModelsText = filterVercelAccountModels(provider.preset, undefined, models).join("\n");
         initialValue.fetchedModelsText = "";
         initialValue.supportedModelsText = initialValue.manualModelsText;
       }
@@ -156,8 +159,12 @@ export function useCredentialDialogEditor({
 
       const provider = document.providers.find((p) => p && typeof p === "object" &&
         (p as Record<string, unknown>).id === value.providerId) as Record<string, unknown> | undefined;
-      try { value = normalizeQwenCredentialDraft(provider, value, credentialDialogState?.mode === "edit"
-        ? credentialDialogValueFromDocument(document, value.providerId, value.credentialId) : null); }
+      try {
+        const previous = credentialDialogState?.mode === "edit"
+          ? credentialDialogValueFromDocument(document, value.providerId, value.credentialId) : null;
+        value = provider?.preset === "cloudflare-workers-ai" ? normalizeCloudflareCredential(value, previous)
+          : normalizeQwenCredentialDraft(provider, value, previous);
+      }
       catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
       try { value = normalizeVertexExpressDraft(provider, isVertexExpressProvider(provider) ? withModelEditors(value) : value, credentialDialogState?.mode === "edit"); }
       catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
@@ -172,7 +179,10 @@ export function useCredentialDialogEditor({
       catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
       try { selection = dialogModelSelection(value, modelIdPolicy(provider, { discovery: value.discovery })); }
       catch { setError(t("模型列表无效。", "Invalid model list.")); return; }
-      const supportedModels = selection ? selectedModels(selection) : parseSupportedModelsText(value.supportedModelsText);
+      const vercelAuthMode = value.vercelMonthlyCredit ? VERCEL_CREDIT_AUTH_MODE : "vercel_free_key";
+      const filterModels = (models: string[]) => filterVercelAccountModels(provider?.preset, vercelAuthMode, models);
+      if (selection) selection = { manual: filterModels(selection.manual), fetched: filterModels(selection.fetched) };
+      const supportedModels = selection ? selectedModels(selection) : filterModels(parseSupportedModelsText(value.supportedModelsText));
       let businessFields;
       try { businessFields = { ...freebuffBusinessFields(provider, value), ...dimCatalogFields(provider, value), ...lobsteraiCatalogFields(provider, value) }; }
       catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
@@ -181,6 +191,7 @@ export function useCredentialDialogEditor({
       const fields: Record<string, unknown> = {
         ...businessFields,
         ...commandcodeZdrFields(provider, value),
+        ...(provider?.preset === VERCEL_PRESET ? { auth_mode: vercelAuthMode } : {}),
         ...(provider?.preset === "chatgpt-codex-oauth-official-api" && CHATGPT_POOL_CATEGORIES.some((group) => group.id === value.chatgptGroup)
           ? { credential_identity_category_id: value.chatgptGroup } : {}),
         // Token import is additive only; editing must preserve existing OAuth headers/refresh state.
@@ -223,7 +234,8 @@ export function useCredentialDialogEditor({
                 },
               });
         const completeDocument = provider?.preset === "chatgpt-codex-oauth-official-api"
-          ? registerChatgptCredentialModels(nextDocument, value.providerId, supportedModels) : nextDocument;
+          ? registerChatgptCredentialModels(nextDocument, value.providerId, supportedModels)
+          : registerVercelModels(nextDocument, value.providerId, supportedModels);
         const discoveredDocument = value.modelCatalog
           ? applyOfficialCatalog(completeDocument, value.providerId, value.credentialId, value.modelCatalog)
           : value.discovery ? applyAccountDiscovery(nextDocument, value.providerId, value.credentialId, value.discovery)

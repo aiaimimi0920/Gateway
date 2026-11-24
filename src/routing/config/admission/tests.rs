@@ -70,3 +70,78 @@ fn dynamic_recovery_never_reenables_manually_disabled_credentials_or_rules() {
         .candidates
         .is_empty());
 }
+
+#[test]
+fn vercel_catalog_applies_the_actual_account_tier_and_mapped_target() {
+    let store = RouteConfigStore::new();
+    let zero = "recursive/flint-v1.0";
+    let credit = "alibaba/qwen-3-14b";
+    let retired = "reflection/beam-free";
+    store.replace_document(serde_json::from_value(serde_json::json!({
+        "providers": [
+            {"id":"vercel", "preset":"vercel-ai-gateway", "base_url":"https://ai-gateway.vercel.sh/v1",
+             "supported_models":[zero, credit, retired],
+             "model_map":{"old-single":retired, "credit-single":credit},
+             "model_map_targets":{"old-multi":[retired], "mixed-targets":[retired,zero]},
+             "credentials":[
+                 {"id":"free", "api_key":"fixture", "supported_models":[zero, credit, retired]},
+                 {"id":"credit", "api_key":"other-fixture", "auth_mode":"vercel_monthly_credit_key",
+                  "model_selection":{"manual":[credit,retired],"fetched":[]}}
+             ]},
+            {"id":"other","preset":"openai","base_url":"https://example.invalid","api_key":"fixture","supported_models":["shared"]}
+        ],
+        "aliases":{"old-alias":"old-single"},
+        "model_routes":[
+            {"pattern":"*","provider_ids":["vercel"]},
+            {"pattern":"shared","priority":20,"provider_ids":["vercel","other"]}
+        ],
+        "account_groups":[{"id":"free-only","name":"Free","provider_credential_ids":["free"]}]
+    })).unwrap()).unwrap();
+    let snapshot = store.snapshot();
+    let all = snapshot.account_group_constraint(None).unwrap();
+    let free_only = snapshot
+        .account_group_constraint(Some("free-only"))
+        .unwrap();
+    let allow = |_: &str, _: &str, _: &str| true;
+    let listed: HashSet<_> = snapshot
+        .list_models()
+        .into_iter()
+        .map(|row| row.id)
+        .collect();
+    for model in [retired, "old-single", "old-multi", "old-alias"] {
+        assert!(!listed.contains(model), "{model}");
+        assert!(
+            !snapshot.has_admitted_candidate(model, None, None, &allow),
+            "{model}"
+        );
+        assert!(
+            snapshot.resolve_candidates(Some(model)).is_empty(),
+            "{model}"
+        );
+    }
+    for model in [credit, "credit-single"] {
+        assert!(listed.contains(model), "{model}");
+        assert!(
+            !snapshot.has_admitted_candidate(model, Some(&free_only), None, &allow),
+            "{model}"
+        );
+        let resolved = snapshot.resolve_candidates_admitted(Some(model), &all, &allow, false);
+        assert_eq!(resolved.candidates.len(), 1);
+        assert_eq!(
+            resolved.candidates[0].payload.credential_id.as_deref(),
+            Some("credit")
+        );
+    }
+    assert!(listed.contains("mixed-targets"));
+    assert_eq!(
+        snapshot.resolve_candidates(Some("mixed-targets"))[0]
+            .upstream_model
+            .as_deref(),
+        Some(zero)
+    );
+    assert!(listed.contains("shared"));
+    assert_eq!(
+        snapshot.resolve_candidates(Some("shared"))[0].provider_account_id,
+        "other"
+    );
+}

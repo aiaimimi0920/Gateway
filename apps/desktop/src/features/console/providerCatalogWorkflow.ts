@@ -104,7 +104,7 @@ export function defaultCatalogWorkflow(template: ProviderCatalogTemplate): Catal
     callAdapter: template.compatibility === "anthropic" ? "anthropic" : template.id === "gemini-api" ? "gemini"
       : template.preset === "cohere-chat" ? "cohere" : "auto",
     specialAdapter: special ?? "none",
-    mappings: {}, testPolicy, poolMin: 1, poolMax: 100,
+    mappings: {}, testPolicy, poolMin: template.id === "kilo-free" ? 0 : 1, poolMax: 100,
     driverId: "", autoRefill: false, autoPrune: false, permanentDelete: false,
     // Public health reads are independent of paid account tests; unmatched products stay unsupported.
     health: siteHealthConfigSchema.parse({ enabled: Boolean(catalogHealthAdapter(template)), adapter: catalogHealthAdapter(template) ?? "auto" }),

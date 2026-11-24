@@ -80,6 +80,9 @@ pub(super) fn model_has_available_candidate(
                 .iter()
                 .find(|provider| provider.id == id)
                 .is_some_and(|provider| {
+                    if crate::protocol::vercel_free::owns_payload(&provider.payload) {
+                        return admission::provider_available(provider, resolved_model, None, None);
+                    }
                     super::search_tools::allows_model(provider, Some(resolved_model))
                         && model_mapping::mapping_available(provider, resolved_model)
                         && (provider.model_map_targets.contains_key(resolved_model)

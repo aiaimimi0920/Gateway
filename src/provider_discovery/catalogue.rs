@@ -2,6 +2,10 @@
 use super::{registry, transport, DiscoveredProtocol as P};
 use serde_json::Value;
 
+pub(super) fn valid_model_id(id: &str) -> bool {
+    !id.trim().is_empty() && id.len() <= 256 && !id.chars().any(char::is_control)
+}
+
 pub(super) fn parse(body: &Value) -> Vec<String> {
     if body.get("error").is_some_and(|e| !e.is_null()) {
         return Vec::new();
@@ -21,11 +25,7 @@ pub(super) fn parse(body: &Value) -> Vec<String> {
             .and_then(Value::as_str)
             .unwrap_or_default();
         let id = id.strip_prefix("models/").unwrap_or(id).trim();
-        if !id.is_empty()
-            && id.len() <= 256
-            && !id.chars().any(char::is_control)
-            && !models.iter().any(|m| m == id)
-        {
+        if valid_model_id(id) && !models.iter().any(|m| m == id) {
             models.push(id.to_owned());
         }
     }

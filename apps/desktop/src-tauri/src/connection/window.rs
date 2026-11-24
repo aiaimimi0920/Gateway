@@ -51,6 +51,10 @@ pub fn show_category(app: &AppHandle, category: &str) {
     show_settings(app);
 }
 
+fn is_current_console(current: &Url, requested: &Url) -> bool {
+    current.origin() == requested.origin() && current.path().starts_with(requested.path())
+}
+
 pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
     *app.state::<ConnectionState>()
         .origin
@@ -58,6 +62,22 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
         .map_err(|_| "Connection lock poisoned")? = Some(url.origin().ascii_serialization());
     super::panel::enqueue(app, super::panel::Request::Close);
     if let Some(window) = app.get_window("gateway-console") {
+        let webview = app
+            .get_webview("gateway-console")
+            .ok_or("Console webview unavailable")?;
+        // Reopening the connected console must not unload its route draft.
+        if webview
+            .url()
+            .is_ok_and(|current| is_current_console(&current, &url))
+        {
+            window.show().map_err(|error| error.to_string())?;
+            window.unminimize().map_err(|error| error.to_string())?;
+            let _ = window.set_focus();
+            if let Some(settings) = app.get_webview_window("main") {
+                let _ = settings.hide();
+            }
+            return Ok(());
+        }
         window
             .set_decorations(true)
             .map_err(|error| error.to_string())?;
@@ -65,10 +85,7 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
             .set_menu(native_menu(app)?)
             .map_err(|error| error.to_string())?;
         window.hide().map_err(|error| error.to_string())?;
-        app.get_webview("gateway-console")
-            .ok_or("Console webview unavailable")?
-            .navigate(url)
-            .map_err(|error| error.to_string())?;
+        webview.navigate(url).map_err(|error| error.to_string())?;
     } else {
         let menu = native_menu(app)?;
         let navigation_app = app.clone();
@@ -143,6 +160,27 @@ pub fn open(app: &AppHandle, url: Url) -> Result<(), String> {
             .map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reopening_the_same_console_keeps_its_current_document() {
+        let target = Url::parse("http://127.0.0.1:4200/ui/").unwrap();
+        for (address, expected) in [
+            ("http://127.0.0.1:4200/ui/", true),
+            ("http://127.0.0.1:4200/ui/providers?kilo=1#pool", true),
+            ("http://127.0.0.1:4200/ui-other", false),
+            ("http://127.0.0.1:4400/ui/", false),
+        ] {
+            assert_eq!(
+                is_current_console(&Url::parse(address).unwrap(), &target),
+                expected
+            );
+        }
+    }
 }
 
 fn native_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, String> {

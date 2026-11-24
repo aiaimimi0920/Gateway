@@ -11,6 +11,7 @@ import type {
 } from "./accountCatalogTypes";
 import { providerBrandLabel } from "./providerBrandLabel";
 import { modelSelectionSchema, selectedModels } from "./credentialModelSelection";
+import { filterVercelAccountModels } from "./vercelFreeCatalog";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -159,7 +160,8 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
           hostLabel: hostLabelFromUrl(baseUrl),
           mode: "credential",
           enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
-          supportedModels: selection || supportedModels.length > 0 ? supportedModels : providerSupportedModels,
+          supportedModels: filterVercelAccountModels(providerPreset, credential.auth_mode ?? provider.auth_mode,
+            selection || supportedModels.length > 0 ? supportedModels : providerSupportedModels),
           groupIds: accountGroups.map((group) => group.id),
           groupNames: accountGroups.map((group) => group.name),
         };
@@ -185,7 +187,7 @@ export function buildRouteAccountCatalog(document: ConsoleRouteDocument): RouteA
         hostLabel: hostLabelFromUrl(providerBaseUrl),
         mode: "provider-default",
         enabled: typeof provider.enabled === "boolean" ? provider.enabled : true,
-        supportedModels: providerSupportedModels,
+        supportedModels: filterVercelAccountModels(providerPreset, provider.auth_mode, providerSupportedModels),
         groupIds: accountGroups.map((group) => group.id),
         groupNames: accountGroups.map((group) => group.name),
       };

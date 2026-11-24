@@ -2,6 +2,8 @@ import { CHATGPT_POOL_CATEGORIES } from "./chatgptPool";
 import { writeRequestClientProfile, type RequestClientProfile } from "./requestClientProfile";
 import { writeCatalogWorkflow, type CatalogWorkflow } from "./providerCatalogWorkflow";
 import { writeProviderCallFlow } from "./providerCallFlow";
+import { KILO_FREE_ID, KILO_FREE_TEMPLATE } from "./kiloFreeCatalog";
+import { VERCEL_FREE_TEMPLATE } from "./vercelFreeCatalog";
 import { WEB_CATALOG_TEMPLATES } from "./providerWebCatalog";
 import { webCatalogAnchor } from "./providerSessionCatalog";
 import { writeRecoveryWait, type RecoveryWaitChoice } from "./requestWait";
@@ -19,7 +21,7 @@ import { SENSENOVA_TEMPLATE } from "./sensenovaCatalog";
 import { COMMANDCODE_TEMPLATE } from "./commandcodeCatalog";
 import { SAP_TEMPLATE, writeSapProvider, type SapTarget } from "./sapAiCore";
 import { CUSTOM_API_TEMPLATE } from "./customApiCatalog";
-import { CLOUDFLARE_TEMPLATE, requireCloudflareBase } from "./cloudflareWorkersAi";
+import { CLOUDFLARE_TEMPLATE } from "./cloudflareWorkersAi";
 import { DIM_TEMPLATES, writeDimProvider } from "./dimCatalog";
 import { NOUS_TEMPLATE, writeNousProvider } from "./nousCatalog";
 import { LOBSTERAI_TEMPLATE, writeLobsterAiProvider } from "./lobsteraiCatalog";
@@ -55,7 +57,6 @@ export type ProviderCatalogTemplate = {
 
 export type ProviderCatalogDraft = {
   sapTarget?: SapTarget;
-  cloudflareAccountId?: string;
   kiroProfileArn?: string;
   vertexTarget?: VertexTarget;
   qwenEndpoint?: QwenEndpointDraft;
@@ -344,6 +345,8 @@ const STANDARD_CATALOG_TEMPLATES = [
     supportedModels: [],
   },
   ...SEARCH_CATALOG_TEMPLATES,
+  KILO_FREE_TEMPLATE,
+  VERCEL_FREE_TEMPLATE,
   RIVER_TEMPLATE,
   AGNES_TEMPLATE,
   ...MINIMAX_TEMPLATES,
@@ -402,7 +405,7 @@ export function providerDefinitionFromCatalogDraft(
     label: draft.providerLabel,
     vendor_key: draft.vendorKey,
     vendor_name: draft.vendorName,
-    base_url: template.id === "cloudflare-workers-ai" ? requireCloudflareBase(draft.baseUrl) : template.id === "vertex-oauth" ? vertexOAuthCatalogBase(draft) : template.preset === "qwen-official-api" ? qwenCatalogBase(draft) : draft.baseUrl,
+    base_url: template.id === "cloudflare-workers-ai" ? "" : template.id === "vertex-oauth" ? vertexOAuthCatalogBase(draft) : template.preset === "qwen-official-api" ? qwenCatalogBase(draft) : draft.baseUrl,
     supported_models: [...draft.supportedModels],
   };
   writeRequestClientProfile(provider, draft.requestClientProfile ?? "auto");
@@ -427,7 +430,9 @@ export function providerDefinitionFromCatalogDraft(
   }
   if (draft.workflow) {
     writeCatalogWorkflow(provider, draft.workflow);
-    writeProviderCallFlow(provider, template, draft);
+    // The anonymous preset owns its wire profile; generic "auto" can inherit
+    // a client fingerprint from the rest of the route document.
+    if (template.id !== KILO_FREE_ID) writeProviderCallFlow(provider, template, draft);
   }
   if (template.id === "lumalabs-api") validateLumaAgentsProvider(provider);
   writeDimProvider(provider, template);

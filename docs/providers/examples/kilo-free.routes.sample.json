@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "id": "kilo-free",
+      "preset": "kilo-free",
+      "base_url": "https://api.kilo.ai/api/gateway",
+      "supported_models": ["kilo-auto/free"]
+    }
+  ],
+  "model_routes": [
+    { "pattern": "kilo-auto/free", "provider_ids": ["kilo-free"] }
+  ]
+}

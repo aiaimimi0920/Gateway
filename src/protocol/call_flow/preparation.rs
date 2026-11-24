@@ -40,6 +40,7 @@ pub fn prepare(payload: &ProviderAccountPayload) -> Result<PreparedCallFlow<'_>,
     crate::protocol::nous_portal::runtime::validate(payload, payload.canonical_adapter())?;
     crate::protocol::dim_oauth::runtime::validate(payload, payload.canonical_adapter())?;
     crate::protocol::cloudflare_workers_ai::validate(payload, payload.canonical_adapter())?;
+    crate::protocol::kilo_free::validate(payload, payload.canonical_adapter())?;
     crate::protocol::luma_agents::validate(payload, payload.canonical_adapter())?;
     crate::protocol::vertex_express::validate(payload, payload.canonical_adapter())?;
     crate::protocol::vertex_oauth::business::validate(payload, payload.canonical_adapter())?;
@@ -129,6 +130,7 @@ pub fn prepare(payload: &ProviderAccountPayload) -> Result<PreparedCallFlow<'_>,
         updated.request_client_profile = profile;
     }
     crate::protocol::vertex_express::validate(effective.as_ref(), adapter)?;
+    crate::protocol::kilo_free::validate(effective.as_ref(), adapter)?;
     crate::protocol::vertex_oauth::business::validate(effective.as_ref(), adapter)?;
     crate::protocol::nous_portal::runtime::validate(effective.as_ref(), adapter)?;
     tracing::trace!(call_adapter = adapter, executor = %payload.adapter,

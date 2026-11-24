@@ -7,7 +7,7 @@ import { sapBase } from "./sapAiCoreTestFixtures";
 
 it.each(PROVIDER_CATALOG_TEMPLATES)("$id preserves its provider identity and accepts localized labels", (template) => {
   // Canvas is a distinct existing product identity; adding channels must not rename it.
-  if (template.id === "gemini-canvas" || template.id === "cloudflare-workers-ai") expect(template.providerId).toBe(template.id);
+  if (["gemini-canvas", "cloudflare-workers-ai", "kilo-free"].includes(template.id)) expect(template.providerId).toBe(template.id);
   else if (template.id === "lobsterai-session") expect(template.providerId).toBe("lobsterai");
   else expect(template.providerId).toMatch(/-(oauth|api|web)$/);
   expect(template.labelZh.trim()).not.toBe("");

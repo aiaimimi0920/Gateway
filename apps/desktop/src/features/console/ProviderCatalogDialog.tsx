@@ -12,7 +12,6 @@ import { catalogWorkflowError, compatibleCatalogDrivers, defaultCatalogWorkflow 
 import { qwenCatalogBase } from "./qwenEndpoint";
 import { vertexOAuthCatalogBase } from "./vertexOAuthCatalog";
 import { kiroOAuthCatalogBase } from "./kiroOAuthCatalog";
-import { requireCloudflareBase } from "./cloudflareWorkersAi";
 import { supportsCatalogApiKey } from "./catalogFirstAccount";
 import { providerAccessKind } from "./providerAccessKind";
 
@@ -74,10 +73,9 @@ export function ProviderCatalogDialog({ open, existingProviderIds, existingCrede
     if (existingProviderIds.some((id) => id.trim() === providerId)) return fail(t(`Provider ID ${providerId} 已存在，请使用其他 ID。`, `Provider ID ${providerId} already exists.`));
     if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(providerId) || providerId.length > 256) return fail(t("请输入有效的 Provider ID。", "Enter a valid Provider ID."));
     if (selectedTemplate.preset === "qwen-official-api") { try { qwenCatalogBase(draft); } catch (error) { return fail(String(error instanceof Error ? error.message : error)); } }
-    if (selectedTemplate.id === "cloudflare-workers-ai") { try { requireCloudflareBase(draft.baseUrl); } catch (error) { return fail(String(error instanceof Error ? error.message : error)); } }
     if (selectedTemplate.id === "vertex-oauth") { try { vertexOAuthCatalogBase(draft); } catch (error) { return fail(String(error instanceof Error ? error.message : error)); } }
     if (selectedTemplate.id === "kiro-oauth") { try { kiroOAuthCatalogBase(draft); } catch (error) { return fail(String(error instanceof Error ? error.message : error)); } }
-    if (!validUrl(baseUrl)) return fail(t("请输入有效的 HTTP(S) Base URL，不能包含凭据、查询参数或片段。", "Enter an HTTP(S) base URL without credentials, query or fragment."));
+    if (selectedTemplate.id !== "cloudflare-workers-ai" && !validUrl(baseUrl)) return fail(t("请输入有效的 HTTP(S) Base URL，不能包含凭据、查询参数或片段。", "Enter an HTTP(S) base URL without credentials, query or fragment."));
     if (selectedTemplate.id === "accio-oauth" && baseUrl !== "https://phoenix-gw.alibaba.com") return fail(t("Accio OAuth 仅支持固定的服务地址。", "Accio OAuth requires its fixed gateway endpoint."));
     if (selectedTemplate.id === "kiro-api-key" && baseUrl !== selectedTemplate.baseUrl) return fail(t("Kiro CLI API Key 仅支持固定的 US East runtime 地址。", "Kiro CLI API Key requires its fixed US East runtime endpoint."));
     if (selectedTemplate.id === "vertex-express-api" && baseUrl !== selectedTemplate.baseUrl) return fail(t("Vertex Express API Key 仅支持固定的 global publisher-model 地址。", "Vertex Express API Key requires its fixed global publisher-model endpoint."));

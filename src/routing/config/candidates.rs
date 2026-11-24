@@ -264,7 +264,10 @@ fn select_credential_filtered(
         if allowed_account_ids.is_some_and(|allowed| !allowed.contains(&default_account_id)) {
             return None;
         }
-        if !admits(
+        if !crate::protocol::vercel_free::account_allows(
+            &provider.payload,
+            translated_model.or(original_model),
+        ) || !admits(
             admission,
             &provider.id,
             &default_account_id,
@@ -282,6 +285,12 @@ fn select_credential_filtered(
         .iter()
         .enumerate()
         .filter(|(_, credential)| credential.enabled && !credential.discovery_required)
+        .filter(|(_, c)| {
+            crate::protocol::vercel_free::account_allows(
+                &c.payload,
+                translated_model.or(original_model),
+            )
+        })
         .filter(|(_, credential)| {
             credential
                 .refresh_config
@@ -368,6 +377,9 @@ pub(super) fn credential_supports_model(
     original: Option<&str>,
     translated: Option<&str>,
 ) -> bool {
+    if !crate::protocol::vercel_free::account_allows(&credential.payload, translated.or(original)) {
+        return false;
+    }
     if credential.explicit_model_selection && credential.supported_models.is_empty() {
         return false;
     }

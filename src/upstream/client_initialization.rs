@@ -37,6 +37,7 @@ impl UpstreamClient {
         let request_time_browser_policy = RequestTimeBrowserPolicy::from_env();
 
         Self {
+            cloudflare_neurons: Default::default(),
             luma_web_sessions: Default::default(),
             lobsterai_http: crate::http_client::builder()
                 .retry(rquest::retry::Policy::never())

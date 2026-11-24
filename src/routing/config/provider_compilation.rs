@@ -28,6 +28,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
     crate::protocol::commandcode::validate_declaration(&cfg)?;
     crate::protocol::sap_aicore::validate_declaration(&cfg)?;
     crate::protocol::minimax::validate_declaration(&cfg)?;
+    crate::protocol::kilo_free::validate_declaration(&cfg)?;
     luma_mcp::validate_declaration(&cfg)?;
     luma_agents::validate_declaration(&cfg)?;
     grok_oauth::validate_declaration(&cfg)?;
@@ -64,16 +65,25 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
         None,
         cfg.codex_basispoints_enabled,
         None,
-        !qwen_workspace::is_template(&cfg),
+        !qwen_workspace::is_template(&cfg) && !cloudflare_workers_ai::is_template(&cfg),
     )?;
     qwen_workspace::validate_parent(&cfg, &payload)?;
-    cloudflare_workers_ai::validate_final(&cfg, &payload)?;
+    if cloudflare_workers_ai::is_template(&cfg) {
+        anyhow::ensure!(
+            cfg.api_key.is_empty() && cfg.auth_token.is_none(),
+            "Cloudflare pool authentication belongs on the explicit account."
+        );
+    } else {
+        cloudflare_workers_ai::validate_final(&cfg, &payload)?;
+    }
     crate::protocol::agnes::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::luma_inference::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::sensenova::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::commandcode::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::sap_aicore::validate(&payload, payload.canonical_adapter())?;
     crate::protocol::minimax::validate(&payload, payload.canonical_adapter())?;
+    crate::protocol::kilo_free::validate(&payload, payload.canonical_adapter())?;
+    crate::protocol::vercel_free::validate(&cfg, &payload)?;
     luma_mcp::validate_final(&cfg, &payload)?;
     luma_agents::validate_final(&cfg, &payload)?;
     grok_oauth::validate_final(&cfg, &payload)?;
@@ -130,7 +140,7 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                 let mut cred_payload = build_base_payload(
                     &cfg,
                     cred.base_url.as_deref(),
-                    cred.api_key.as_deref(),
+                    cloudflare_workers_ai::account_key(&cfg, cred),
                     cred.auth_token.as_deref(),
                     if cred.headers.is_empty() {
                         None
@@ -179,7 +189,8 @@ pub(super) fn compile_provider(cfg: ProviderConfigYaml) -> Result<CompiledProvid
                     true,
                 )?;
                 qwen_workspace::validate_final(&cfg, &cred_payload)?;
-                cloudflare_workers_ai::validate_final(&cfg, &cred_payload)?;
+                cloudflare_workers_ai::validate_account(&cfg, cred, &cred_payload)?;
+                crate::protocol::vercel_free::validate(&cfg, &cred_payload)?;
                 crate::protocol::agnes::validate(&cred_payload, cred_payload.canonical_adapter())?;
                 crate::protocol::luma_inference::validate(
                     &cred_payload,

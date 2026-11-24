@@ -36,6 +36,10 @@ impl Endpoint {
             self.base_url.trim_end_matches("/v1")
         )
     }
+
+    pub fn account_id(&self) -> &str {
+        &self.base_url[PREFIX.len()..PREFIX.len() + 32]
+    }
 }
 
 pub fn owns_payload(payload: &ProviderAccountPayload) -> bool {

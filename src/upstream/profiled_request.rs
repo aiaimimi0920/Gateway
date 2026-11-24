@@ -8,6 +8,9 @@ pub(crate) struct Pending {
     provider: String,
     rust: bool,
     timeout: Duration,
+    cloudflare: Option<super::cloudflare_neuron_guard::Check>,
+    vercel: Option<super::vercel_credit_guard::Check>,
+    kilo_free: bool,
 }
 impl Pending {
     pub(crate) fn new(
@@ -27,7 +30,15 @@ impl Pending {
             provider: provider.into(),
             rust,
             timeout,
+            cloudflare: None,
+            vercel: None,
+            kilo_free: false,
         })
+    }
+
+    pub(crate) fn with_kilo_free(mut self, enabled: bool) -> Self {
+        self.kilo_free = enabled;
+        self
     }
 
     pub(crate) fn with_provider(mut self, provider: &str) -> Self {
@@ -35,17 +46,51 @@ impl Pending {
         self
     }
 
+    pub(crate) fn with_cloudflare(
+        mut self,
+        check: Option<super::cloudflare_neuron_guard::Check>,
+    ) -> Self {
+        self.cloudflare = check;
+        self
+    }
+
+    pub(crate) fn with_vercel(mut self, check: Option<super::vercel_credit_guard::Check>) -> Self {
+        self.vercel = check;
+        self
+    }
+
     pub(crate) async fn send(self) -> Result<Response, GatewayError> {
+        if let Some(check) = self.cloudflare {
+            check.admit().await?;
+        }
+        if let Some(check) = &self.vercel {
+            check
+                .admit()
+                .await
+                .map_err(|error| error.with_provider(&self.provider))?;
+        }
         #[cfg(feature = "cpa-rust-transport")]
         if self.rust {
             return send_rust(self.builder, &self.provider, self.timeout).await;
         }
         #[cfg(not(feature = "cpa-rust-transport"))]
         let _ = (self.rust, self.timeout);
-        self.builder
+        let response = self
+            .builder
             .send()
             .await
-            .map_err(|e| classify_network_error(&e, Some(&self.provider)))
+            .map_err(|e| classify_network_error(&e, Some(&self.provider)))?;
+        if let Some(check) = self
+            .vercel
+            .filter(|check| check.is_metered() && response.status().as_u16() == 402)
+        {
+            return Err(check.payment_error(response, &self.provider).await);
+        }
+        if self.kilo_free && response.status().as_u16() == 429 {
+            return Err(crate::protocol::kilo_free::rate_limit(response.headers())
+                .with_provider(&self.provider));
+        }
+        Ok(response)
     }
 }
 

@@ -30,6 +30,15 @@ pub(crate) async fn probe_console_target_with_request(
         provider.id == target.provider_id && provider.preset.as_deref() == Some("nvidia-openai")
     }) || target.provider_id == "nvidia";
     let point = super::provider_payload_probe_point(&target.payload);
+    if crate::protocol::vercel_free::owns_payload(&target.payload) {
+        return (
+            point,
+            report(
+                ProviderPayloadProbeStatus::Unsupported,
+                "Test Vercel through its configured chat route; no upstream probe was sent.",
+            ),
+        );
+    }
     let strict_product = crate::protocol::commandcode::owns_payload(&target.payload)
         || crate::protocol::sensenova::owns_payload(&target.payload)
         || crate::protocol::agnes::owns_payload(&target.payload)

@@ -44,6 +44,36 @@ async fn cloudflare_catalog_paginates_official_text_models_with_exact_token() {
 }
 
 #[tokio::test]
+async fn cloudflare_catalog_accepts_filtered_pages_without_total_pages() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let app = Router::new().route("/models", get(|Query(query): Query<HashMap<String, String>>| async move {
+        let page: u64 = query["page"].parse().unwrap();
+        assert!((1..=3).contains(&page));
+        let entries = if page < 3 { vec![json!({"name":format!("@cf/org/model-{page}")})] } else { vec![] };
+        Json(json!({"success":true,"result":entries,"result_info":{"page":page,"count":entries.len(),"per_page":100,"total_count":338}}))
+    }));
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let endpoint = Endpoint::parse(&format!(
+        "https://api.cloudflare.com/client/v4/accounts/{}/ai/v1",
+        "a".repeat(32)
+    ))
+    .unwrap();
+    let client = rquest::Client::builder().no_proxy().build().unwrap();
+    let catalog = fetch_from(
+        &client,
+        &endpoint,
+        "synthetic-token",
+        &format!("http://{address}/models?page=1"),
+    )
+    .await
+    .unwrap();
+    assert_eq!(catalog.models, ["@cf/org/model-1", "@cf/org/model-2"]);
+    server.abort();
+    assert!(server.await.unwrap_err().is_cancelled());
+}
+
+#[tokio::test]
 async fn cloudflare_catalog_fails_closed_on_vendor_error_bad_ids_empty_or_unbounded_pages() {
     for body in [
         json!({"success":false,"result":[{"name":"@cf/model"}]}),

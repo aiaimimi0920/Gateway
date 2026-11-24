@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "gateway-line-manifest/v0-draft-1",
+  "id": "kilo-free",
+  "identity": {
+    "serviceProviderKey": "kilo", "serviceProviderLabel": "Kilo",
+    "providerSurfaceKey": "kilo-free", "providerSurfaceLabel": "Kilo AI Gateway Free",
+    "protocolProfile": "kilo_free", "implementationLine": "aggregator_api", "adapter": "openai_compatible",
+    "sourceKind": "aggregator_api", "executionMode": "direct_http", "templateFamily": "openai_compatible_official_api_common"
+  },
+  "capabilities": { "families": ["conversation"], "supportsModelsEndpoint": false },
+  "credentials": {
+    "materialKinds": [], "samplePath": "docs/providers/examples/kilo-free.routes.sample.json",
+    "fieldsDocPath": "docs/providers/kilo-free.md"
+  },
+  "docs": { "overviewDocPath": "docs/providers/kilo-free.md", "buildDocPath": "docs/devtest-build.md" },
+  "verification": {
+    "recommendedCargoTargetDirSlug": "kilo-free-verify", "focusedCargoFilters": ["protocol::kilo_free::tests"],
+    "fixtureSuiteId": "kilo_free_fixture", "liveSuiteId": "kilo_free_live", "useNoDefaultFeatures": true
+  },
+  "compilation": {
+    "compileLayer": "line_compile_gate", "lineFeature": "line-kilo-free",
+    "familyCommonFeatures": ["family-openai-compatible-official-api"], "binaryInclusionGroup": "kilo-free"
+  },
+  "implementation": {
+    "protocolModule": "gateway/src/protocol/kilo_free.rs", "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+    "platformDeltaModule": "gateway/src/upstream/profiled_request.rs"
+  }
+}

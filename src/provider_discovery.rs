@@ -123,12 +123,13 @@ impl CredentialDiscovery {
             !self.models.is_empty() && self.models.len() <= 2048,
             "Discovery model catalogue is empty or too large."
         );
+        // Old catalogue snapshots may contain malformed, unprobed rows. Only
+        // checked protocol evidence is consumed by the compiled payload.
+        let valid_evidence_model =
+            |m: &String| catalogue::valid_model_id(m) && self.models.contains(m);
         anyhow::ensure!(
-            self.models.iter().all(|m| !m.trim().is_empty()
-                && m.len() <= 256
-                && !m.chars().any(char::is_control))
-                && !self.verified_models.is_empty()
-                && self.verified_models.iter().all(|m| self.models.contains(m)),
+            !self.verified_models.is_empty()
+                && self.verified_models.iter().all(valid_evidence_model),
             "Discovery requires valid model IDs and a verified catalogue model."
         );
         anyhow::ensure!(
@@ -163,7 +164,7 @@ impl CredentialDiscovery {
                         .verified_models
                         .iter()
                         .chain(&capability.failed_models)
-                        .all(|m| self.models.contains(m)),
+                        .all(valid_evidence_model),
                 "Invalid protocol discovery evidence."
             );
         }

@@ -47,6 +47,8 @@ pub mod grok;
 pub mod grok;
 pub mod grok_oauth;
 pub mod hooks;
+pub mod kilo_free;
+pub(crate) mod vercel_free;
 #[cfg(feature = "line-kiro-official-vendor-api")]
 pub mod kiro;
 #[cfg(not(feature = "line-kiro-official-vendor-api"))]

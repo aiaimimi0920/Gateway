@@ -58,6 +58,7 @@ runtime-defaults = [
     "line-nvidia-openai-official-vendor-api",
     "line-together-openai-aggregator-api",
     "line-openrouter-openai-aggregator-api",
+    "line-kilo-free",
     "line-muyuan-openai-aggregator-api",
     "line-poe-openai-aggregator-api",
     "line-longcat-openai-official-model-api",
@@ -122,6 +123,7 @@ line-nous-portal-oauth = ["family-openai-compatible-official-api"]
 line-nvidia-openai-official-vendor-api = ["family-openai-compatible-official-api"]
 line-together-openai-aggregator-api = ["family-openai-compatible-official-api"]
 line-openrouter-openai-aggregator-api = ["family-openai-compatible-official-api"]
+line-kilo-free = ["family-openai-compatible-official-api"]
 line-muyuan-openai-aggregator-api = ["family-openai-compatible-official-api"]
 line-poe-openai-aggregator-api = ["family-openai-compatible-official-api"]
 line-longcat-openai-official-model-api = ["family-openai-compatible-official-api"]

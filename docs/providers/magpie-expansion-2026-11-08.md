@@ -100,9 +100,12 @@
 ## Cloudflare Workers AI 原生实现
 
 - 预设：`cloudflare-workers-ai`；profile：`cloudflare_workers_ai`；feature：`line-cloudflare-workers-ai`。
-- 创建空池时显式填写 32 位小写十六进制 Cloudflare Account ID；URL 由描述符生成并只读。
-- 一个池绑定一个 Cloudflare Account ID；该池可保存多个同目标 API Token。更换 Account ID 时不能 Keep 原 token，需有敏感权限明确 Replace/Clear。
+- 创建服务商不填 Account ID 或 Base URL，可先保存空池。同一池可添加多个账号；在账号表单填写 32 位小写十六进制 Cloudflare Account ID 和 API Token，网关由 ID 生成该账号的官方 URL。
+- 模型目录、推理和额度查询使用同一条选中账号记录。更换 Account ID 必须录入该账号的 token，不沿用旧值；已有配置中没有账号 URL 的记录仍可使用原池地址。
 - 账号使用 Workers AI API Token，不支持旧式 Global API Key + Email。推理通常需要 `Workers AI Write` 权限，目录支持 Read/Write。
+- 推理令牌还需目标账号的 `Account Analytics: Read`。Gateway 在发送推理前通过 Cloudflare GraphQL Analytics 核对该 Account ID 的 UTC 当日 `sum.totalNeurons`，覆盖 Cloudflare 已纳入统计的其他应用用量；不使用模型目录或本地 Token 估算冒充账户额度。查询参考 `hefy2027/cf-manager` 的 `getAiUsageToday`，不引入该项目运行时。
+- 有请求时最多复用 30 秒的成功查询；空闲时不轮询。达到 9,000 神经元后，同一 Account ID 下所有模型和令牌暂停到下一次 UTC 00:00（北京时间 08:00），随后由首个请求重新查询。权限不足、HTTP/GraphQL 错误或无该账号数据时，不发送推理；重启会在发送前重新查询，不复用旧快照。目录查询不消耗这条推理门禁。
+- 这是保护阈值，不是 Cloudflare 的硬费用上限。分析数据可能滞后，其他应用也可继续消耗该账号额度；Workers Paid 仍可能产生超额费用。未完成真实账号计量验收前，不用本功能承诺零超额。
 - Chat/SSE 和 Embeddings 复用 OpenAI family。Responses 只允许
   `@cf/openai/gpt-oss-120b`、`@cf/openai/gpt-oss-20b` 且 `stream:false`；其他组合在网络请求前拒绝。
 - 目录来自账号下官方 `/ai/models/search?task=Text%20Generation&per_page=100&page=1`。

@@ -2,12 +2,13 @@
 import type { ConsoleRouteDocument } from "../../api/contracts";
 import { isRecord } from "./routeDocument";
 import { addCatalogFirstAccount } from "./catalogFirstAccount";
+import { KILO_FREE_ID } from "./kiloFreeCatalog";
 import { providerDefinitionFromCatalogDraft, type ProviderCatalogDraft, type ProviderCatalogTemplate } from "./providerCatalog";
 
 export function addCatalogProvider(document: ConsoleRouteDocument, template: ProviderCatalogTemplate, value: ProviderCatalogDraft): ConsoleRouteDocument {
   if (document.providers.some((provider) => isRecord(provider) && provider.id === value.providerId)) throw new Error(`Provider '${value.providerId}' already exists.`);
   const provider = providerDefinitionFromCatalogDraft(template, value);
-  provider.explicit_credentials_only = true;
+  provider.explicit_credentials_only = template.id !== KILO_FREE_ID;
   provider.credentials = [];
   const next = structuredClone(document);
   next.providers.push(provider);

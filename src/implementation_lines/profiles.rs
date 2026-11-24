@@ -72,6 +72,7 @@ pub fn line_for_protocol_profile(profile: &str) -> Option<RefactoredImplementati
         "cloudflare_workers_ai" | "cloudflare-workers-ai" => {
             Some(RefactoredImplementationLine::CloudflareWorkersAi)
         }
+        "kilo_free" | "kilo-free" => Some(RefactoredImplementationLine::KiloFree),
         "nvidia" | "nvidia-openai" | "nvidia_openai" | "nvidia-nim" | "nvidia_nim" => {
             Some(RefactoredImplementationLine::NvidiaOpenAiOfficialVendorApi)
         }

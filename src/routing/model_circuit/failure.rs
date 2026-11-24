@@ -38,6 +38,7 @@ pub(crate) fn failure_outcome(error: &GatewayError) -> super::Outcome {
 
 pub(crate) fn failure_delay(error: &GatewayError) -> Option<u64> {
     if crate::protocol::sap_aicore::errors::neutral(error)
+        || crate::upstream::vercel_credit_guard::local_denial(error)
         || error.request_budget_stop_reason().is_some()
         || error.kind == ErrorKind::ModelCapacity
         || matches!(

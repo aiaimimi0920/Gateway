@@ -147,6 +147,8 @@ mod producer_browser_worker_tree;
 mod producer_media_helpers;
 mod producer_session_helpers;
 pub(crate) mod profiled_request;
+pub(crate) mod cloudflare_neuron_guard;
+pub(crate) mod vercel_credit_guard;
 pub mod qwen;
 mod request_profile;
 pub(crate) use request_profile::context as request_identity_context;

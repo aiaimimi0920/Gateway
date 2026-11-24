@@ -75,14 +75,24 @@ async fn fetch_from(
             let finished = match body.get("result_info") {
                 Some(info) => {
                     let current = info["page"].as_u64().ok_or_else(unavailable)?;
-                    let pages = info["total_pages"]
-                        .as_u64()
-                        .filter(|n| *n <= 21)
-                        .ok_or_else(unavailable)?;
-                    if current != page || pages < page && !entries.is_empty() {
+                    if current != page {
                         return Err(unavailable());
                     }
-                    current >= pages
+                    match info.get("total_pages") {
+                        Some(value) => {
+                            let pages = value
+                                .as_u64()
+                                .filter(|n| *n <= 21)
+                                .ok_or_else(unavailable)?;
+                            if pages < page && !entries.is_empty() {
+                                return Err(unavailable());
+                            }
+                            current >= pages
+                        }
+                        // Cloudflare can report a global total_count for a filtered search.
+                        // With no page total, only an empty page proves exhaustion.
+                        None => entries.is_empty(),
+                    }
                 }
                 None => entries.len() < 100,
             };

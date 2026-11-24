@@ -14,6 +14,7 @@ import { dimSite } from "./dimCatalog";
 import { lobsteraiModelCatalogSchema, savedLobsterAiBinding } from "./lobsteraiModelCatalog";
 import { isLobsterAiProvider } from "./lobsteraiCatalog";
 import { commandcodeZdrDraft } from "./commandcodeZdr";
+import { filterVercelAccountModels, VERCEL_CREDIT_AUTH_MODE, VERCEL_PRESET } from "./vercelFreeCatalog";
 
 export type ProviderDraftRow = {
   id: string;
@@ -94,7 +95,9 @@ export function credentialDialogValueFromDocument(
   if (!isRecord(credential)) {
     return null;
   }
-  const selection = modelSelectionSchemaFor(modelIdPolicy(provider, credential)).safeParse(credential.model_selection).data;
+  const filterModels = (models: string[]) => filterVercelAccountModels(provider.preset, credential.auth_mode, models);
+  const storedSelection = modelSelectionSchemaFor(modelIdPolicy(provider, credential)).safeParse(credential.model_selection).data;
+  const selection = storedSelection && { manual: filterModels(storedSelection.manual), fetched: filterModels(storedSelection.fetched) };
   const discovery = accountDiscoverySchema.safeParse(credential.discovery).data;
   const modelCatalog = officialCatalogSchema.safeParse(credential.model_catalog).data;
   const dimCatalog = dimModelCatalogSchema.safeParse(credential.dim_catalog).data;
@@ -115,6 +118,7 @@ export function credentialDialogValueFromDocument(
     chatgptGroup: optionalString(credential, "credential_identity_category_id") ?? undefined,
     codexBasispointsEnabled: typeof credential.codex_basispoints_enabled === "boolean" ? credential.codex_basispoints_enabled : undefined,
     commandcodeZdr: commandcodeZdrDraft(provider, credential),
+    vercelMonthlyCredit: provider.preset === VERCEL_PRESET && credential.auth_mode === VERCEL_CREDIT_AUTH_MODE,
     discovery,
     modelCatalog,
     dimCatalog,
@@ -122,8 +126,8 @@ export function credentialDialogValueFromDocument(
     discoveryStatus: isRecord(credential.discovery_job) ? optionalString(credential.discovery_job, "status") ?? undefined : undefined,
     accountName: optionalString(credential, "account_name") ?? "",
     enabled: typeof credential.enabled === "boolean" ? credential.enabled : true,
-    baseUrl: optionalString(credential, "base_url") ?? "",
-    supportedModelsText: [...new Set(effective)].join("\n"),
+    baseUrl: optionalString(credential, "base_url") ?? (provider.preset === "cloudflare-workers-ai" ? optionalString(provider, "base_url") ?? "" : ""),
+    supportedModelsText: [...new Set(filterModels(effective))].join("\n"),
     ...(selection ? { fetchedModelsText: selection.fetched.join("\n"), manualModelsText: selection.manual.join("\n") } : {}),
     apiKeyOperation: "keep",
     apiKeyValue: "",
@@ -138,7 +142,7 @@ export function duplicateCredentialDialogValue(
   const copiedValue = credentialDialogValueFromDocument(document, providerId, account.accountId);
   const provider = document.providers.find((entry) => isRecord(entry) && entry.id === providerId);
   // A duplicate has no Key; another account's fetched directory is not manual authorization.
-  const models = isRecord(provider) && isQwenProvider(provider)
+  const models = isRecord(provider) && (isQwenProvider(provider) || provider.preset === "cloudflare-workers-ai")
     ? copiedValue?.manualModelsText ?? "" : copiedValue?.supportedModelsText ?? "";
   return {
     providerId,

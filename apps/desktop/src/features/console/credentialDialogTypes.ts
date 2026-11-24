@@ -35,6 +35,8 @@ export type CredentialDialogValue = {
   accountName: string;
   enabled: boolean;
   baseUrl: string;
+  cloudflareAccountId?: string;
+  vercelMonthlyCredit?: boolean;
   supportedModelsText: string;
   fetchedModelsText?: string;
   manualModelsText?: string;
@@ -43,6 +45,7 @@ export type CredentialDialogValue = {
 };
 
 export type CredentialDialogProviderOption = {
+  preset?: string;
   id: string;
   label: string;
 };

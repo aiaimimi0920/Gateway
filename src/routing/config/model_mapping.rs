@@ -53,13 +53,14 @@ pub(super) fn eligible_credentials(
         if !provider.credential_pool_auth_policy.is_any() {
             return None;
         }
-        return (candidates::admits(
-            admission,
-            &provider.id,
-            &provider_default_account_id(&provider.id),
-            Some(target),
-        ) && allowed
-            .is_none_or(|ids| ids.contains(&provider_default_account_id(&provider.id)))
+        return (crate::protocol::vercel_free::account_allows(&provider.payload, Some(target))
+            && candidates::admits(
+                admission,
+                &provider.id,
+                &provider_default_account_id(&provider.id),
+                Some(target),
+            )
+            && allowed.is_none_or(|ids| ids.contains(&provider_default_account_id(&provider.id)))
             && (provider.supported_models.is_empty()
                 || provider
                     .supported_models

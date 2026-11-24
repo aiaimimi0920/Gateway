@@ -48,8 +48,8 @@ export function ProviderConnectionSettings({ providerId, document, locked, pendi
     <div className="nt-provider-connection__fields">
       <Field label={t("服务商名称", "Provider name")}><Input compact value={value.label} disabled={locked} maxLength={256}
         onChange={event => change("label", event.target.value)} /></Field>
-      <Field label={t("目标网址", "Target URL")}><Input compact type="url" value={value.baseUrl} readOnly={!editableTarget} disabled={locked}
-        placeholder="https://api.example.com/v1" onChange={event => change("baseUrl", event.target.value)} /></Field>
+      {provider.preset !== "cloudflare-workers-ai" && <Field label={t("目标网址", "Target URL")}><Input compact type="url" value={value.baseUrl} readOnly={!editableTarget} disabled={locked}
+        placeholder="https://api.example.com/v1" onChange={event => change("baseUrl", event.target.value)} /></Field>}
     </div>
     <div className="nt-provider-connection__actions">
       <span role="status">{submitted ? error ? t("保存失败", "Save failed") : pending ? t("正在保存…", "Saving…") : t("已保存", "Saved")

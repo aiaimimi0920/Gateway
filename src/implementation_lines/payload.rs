@@ -33,6 +33,9 @@ pub fn line_for_payload(payload: &ProviderAccountPayload) -> Option<RefactoredIm
     if crate::protocol::cloudflare_workers_ai::owns_payload(payload) {
         return Some(RefactoredImplementationLine::CloudflareWorkersAi);
     }
+    if crate::protocol::kilo_free::owns_payload(payload) {
+        return Some(RefactoredImplementationLine::KiloFree);
+    }
     if payload.adapter.trim() == "openai_compatible"
         && url::Url::parse(&payload.base_url)
             .is_ok_and(|url| url.host_str() == Some("api.river.ai"))

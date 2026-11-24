@@ -32,6 +32,16 @@ impl UpstreamClient {
         crate::upstream::vertex_express::finalize_headers(payload, plan, &mut headers)?;
         crate::upstream::vertex_oauth::finalize_headers(payload, plan, &mut headers)?;
         crate::protocol::cloudflare_workers_ai::finalize_headers(payload, plan, &mut headers)?;
+        crate::protocol::kilo_free::finalize_headers(payload, plan, &mut headers)?;
+        crate::protocol::vercel_free::finalize(payload, plan, &mut headers)?;
+        let vercel =
+            crate::upstream::vercel_credit_guard::Check::for_plan(&self.plain_http, payload, plan)?;
+        let kilo = crate::protocol::kilo_free::owns_payload(payload);
+        let cloudflare = crate::upstream::cloudflare_neuron_guard::Check::for_payload(
+            &self.cloudflare_neurons,
+            &self.plain_http,
+            payload,
+        )?;
         crate::protocol::dim_oauth::runtime::validate_plan(payload, plan)?;
         if crate::protocol::dim_oauth::business::owns_payload(payload) {
             headers = crate::protocol::dim_oauth::runtime::headers(payload);
@@ -70,6 +80,9 @@ impl UpstreamClient {
         let plan = dim_plan.as_ref().unwrap_or(plan);
         #[cfg(all(test, feature = "line-cloudflare-workers-ai"))]
         let cf_plan = super::super::tests::cloudflare_wire_tests::transport_plan(payload, plan);
+        // Legacy transport-only fixtures do not make live analytics requests.
+        #[cfg(all(test, feature = "line-cloudflare-workers-ai"))]
+        let cloudflare = cloudflare.filter(|_| cf_plan.is_none());
         #[cfg(all(test, feature = "line-cloudflare-workers-ai"))]
         let plan = cf_plan.as_ref().unwrap_or(plan);
         #[cfg(all(test, feature = "line-qwen-official-api"))]
@@ -124,6 +137,9 @@ impl UpstreamClient {
             || crate::protocol::luma_inference::owns_payload(payload)
             || crate::protocol::sensenova::owns_payload(payload)
             || crate::protocol::minimax::owns_payload(payload)
+            || crate::protocol::cloudflare_workers_ai::owns_payload(payload)
+            || kilo
+            || crate::protocol::vercel_free::owns_payload(payload)
         {
             // A shared Client's ambient headers must not add a second credential after validation.
             builder
@@ -133,7 +149,6 @@ impl UpstreamClient {
             || payload.canonical_adapter() == "bedrock_converse_compatible"
             || payload.canonical_adapter() == "kiro_compatible"
             || crate::protocol::qwen::workspace_api::owns_payload(payload)
-            || crate::protocol::cloudflare_workers_ai::owns_payload(payload)
             || crate::protocol::grok_oauth::business::owns_payload(payload)
             || crate::protocol::vertex_express::owns_payload(payload)
             || crate::protocol::vertex_oauth::business::owns_payload(payload)
@@ -150,5 +165,11 @@ impl UpstreamClient {
             rust,
             self.timeout,
         )
+        .map(|pending| {
+            pending
+                .with_cloudflare(cloudflare)
+                .with_kilo_free(kilo)
+                .with_vercel(vercel)
+        })
     }
 }

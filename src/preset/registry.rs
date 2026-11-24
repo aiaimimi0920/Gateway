@@ -145,6 +145,9 @@ pub fn builtin_presets() -> HashMap<String, ProviderPreset> {
     {
         presets.push(openrouter_openai_preset());
     }
+    #[cfg(feature = "line-kilo-free")]
+    presets.push(super::openai::kilo_free_preset());
+    presets.push(super::openai::vercel_free_preset());
     #[cfg(feature = "line-poe-openai-aggregator-api")]
     {
         presets.push(poe_openai_preset());

@@ -14,6 +14,7 @@ import { normalizeVertexOAuthDraft } from "./vertexOAuth";
 import { normalizeLumaAgentsDraft } from "./lumaAgents";
 import { normalizeLumaInferenceCredential } from "./lumaInferenceCredential";
 import { normalizeSapCredential } from "./sapAiCore";
+import { normalizeCloudflareCredential } from "./cloudflareWorkersAi";
 
 function emptyValue(providerId = ""): CredentialDialogValue {
   return {
@@ -77,7 +78,9 @@ export function useCredentialDialog({
   const [catalogRead, setCatalogRead] = useState(false);
   const initialized = useRef<{ mode: CredentialDialogMode; initialValue: CredentialDialogProps["initialValue"] } | null>(null);
   const qwen = qwenProvider?.(value.providerId);
-  const requestFence = `${mode}:${value.providerId}:${value.credentialId}:${value.baseUrl}:${value.apiKeyOperation}:${value.apiKeyValue}:${qwen?.base_url}:${qwen?.auth_mode}:${qwen?.preset}`;
+  const requestedCatalogKind = catalogProviderKind?.(value.providerId);
+  const cloudflare = requestedCatalogKind === "cloudflare-workers-ai";
+  const requestFence = `${mode}:${value.providerId}:${value.credentialId}:${value.baseUrl}:${value.cloudflareAccountId}:${value.apiKeyOperation}:${value.apiKeyValue}:${qwen?.base_url}:${qwen?.auth_mode}:${qwen?.preset}`;
   const discovery = useDiscoverySubmission(open && hasSecretAccess, onDiscover, requestFence);
   const catalog = useDiscoverySubmission(open && hasSecretAccess, onDiscoverChatgptModels, `${requestFence}:${value.chatgptAccountId}:${authenticationMode}`);
   const official = useDiscoverySubmission(open && hasSecretAccess, onDiscoverProviderModels, requestFence);
@@ -136,7 +139,8 @@ export function useCredentialDialog({
     if (reauthenticationOnly?.(value.providerId) && (mode === "add" || value.apiKeyOperation !== "keep")) return;
     if (locked || busy) return;
     let normalized = value;
-    try { normalized = normalizeQwenCredentialDraft(qwen, value, mode === "edit" ? initialValue : null); }
+    try { normalized = cloudflare ? normalizeCloudflareCredential(value, mode === "edit" ? initialValue : null)
+      : normalizeQwenCredentialDraft(qwen, value, mode === "edit" ? initialValue : null); }
     catch (error) { setValidationError(error instanceof Error ? error.message : String(error)); return; }
     if ((manualCodex || value.apiKeyOperation !== "keep") && !hasSecretAccess) { onRequestSecretAccess(); return; }
     try { normalized = normalizeVertexExpressDraft(express, normalized, mode === "edit"); }
@@ -226,7 +230,7 @@ export function useCredentialDialog({
       if (catalogKind !== "mistral" && !value.modelCatalog && !submission.supportedModelsText && mode === "add") {
         if (submission.baseUrl && !officialCatalogBase(catalogKind, submission.baseUrl)) { setValidationError("模型目录仅支持官方 API 地址。"); return; }
         if (!onDiscoverProviderModels) { setValidationError("模型目录服务不可用，请重新连接后重试。"); return; }
-        void official.run({ providerId, apiKey: submission.apiKeyValue }, (modelCatalog) => {
+        void official.run({ providerId, apiKey: submission.apiKeyValue, ...(cloudflare ? { accountBaseUrl: submission.baseUrl } : {}) }, (modelCatalog) => {
           onSubmit(editModelSources({ ...submission, modelCatalog }, modelCatalog.models.join("\n"), submission.manualModelsText ?? "")); onOpenChange(false);
         });
         return;
@@ -258,7 +262,6 @@ export function useCredentialDialog({
     }, result.models.join("\n"), current.manualModelsText ?? "")));
   };
 
-  const requestedCatalogKind = catalogProviderKind?.(value.providerId);
   const catalogKind = sap || bedrock || vertex || lumaAgents || qwen && requestedCatalogKind !== "qwen" ? undefined : requestedCatalogKind;
   const chatgpt = webSession || Boolean(supportsBasispoints?.(value.providerId));
   const customTarget = discoveryProvider?.(value.providerId);
@@ -294,8 +297,12 @@ export function useCredentialDialog({
         } catch (error) { setValidationError(error instanceof Error ? error.message : String(error)); }
         return;
       }
-      if (value.baseUrl && !officialCatalogBase(catalogKind, value.baseUrl)) { setValidationError("模型目录仅支持官方 API 地址。"); return; }
-      void official.run(stored ? { credentialId: value.credentialId } : { providerId: value.providerId, apiKey: value.apiKeyValue.trim() },
+      let baseUrl = value.baseUrl;
+      try { if (cloudflare) baseUrl = normalizeCloudflareCredential(value, mode === "edit" ? initialValue : null).baseUrl; }
+      catch (error) { setValidationError(error instanceof Error ? error.message : String(error)); return; }
+      if (baseUrl && !officialCatalogBase(catalogKind, baseUrl)) { setValidationError("模型目录仅支持官方 API 地址。"); return; }
+      void official.run(stored ? { credentialId: value.credentialId } : {
+        providerId: value.providerId, apiKey: value.apiKeyValue.trim(), ...(cloudflare ? { accountBaseUrl: baseUrl } : {}) },
         (modelCatalog) => setValue((current) => editModelSources({ ...current, modelCatalog }, modelCatalog.models.join("\n"), current.manualModelsText ?? "")));
     }
   };

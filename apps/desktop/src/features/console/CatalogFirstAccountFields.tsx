@@ -3,11 +3,13 @@ import type { Dispatch, SetStateAction } from "react";
 import type { ProviderCatalogDraft, ProviderCatalogTemplate } from "./providerCatalog";
 import { CatalogField } from "./ProviderCatalogFields";
 import { supportsCatalogApiKey } from "./catalogFirstAccount";
+import { KILO_FREE_ID } from "./kiloFreeCatalog";
 
 export function CatalogFirstAccountFields({ template, draft, setDraft, locked, t }: {
   template: ProviderCatalogTemplate; draft: ProviderCatalogDraft; setDraft: Dispatch<SetStateAction<ProviderCatalogDraft>>;
   locked: boolean; t(zh: string, en: string): string;
 }) {
+  if (template.id === KILO_FREE_ID) return <p className="n-muted">{t("添加后即可匿名调用 kilo-auto/free；无需账号或 API Key。", "Use kilo-auto/free anonymously after adding the provider. No account or API key is required.")}</p>;
   if (!supportsCatalogApiKey(template)) return <p className="n-muted">{t("添加服务商后，在账号列表中完成授权或导入。", "After adding the provider, authorize or import from its account list.")}</p>;
   return <div className="nt-stack">
     <Checkbox label={t("同时添加首个账号", "Add first account")} checked={Boolean(draft.credentialId)} disabled={locked}

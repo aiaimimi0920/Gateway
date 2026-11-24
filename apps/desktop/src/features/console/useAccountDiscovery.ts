@@ -10,6 +10,7 @@ import { applyChatgptCatalog, chatgptCatalogResponseSchema, isChatgptCatalogProv
 import { nvidiaCatalogResponseSchema, type NvidiaCatalogInput } from "./nvidiaModelCatalog";
 import { applyOfficialCatalog, catalogProviderKind, catalogMatchesProvider, officialCatalogResponseSchema, type CatalogInput } from "./officialModelCatalog";
 import { requireQwenEndpoint } from "./qwenEndpoint";
+import { requireCloudflareBase } from "./cloudflareWorkersAi";
 
 type Options = {
   editorBusy?: boolean;
@@ -76,14 +77,15 @@ export function useAccountDiscovery(options: Options) {
       : Array.isArray(p.credentials) && p.credentials.some((c) => isRecord(c) && c.id === input.credentialId)));
     const kind = isRecord(provider) ? catalogProviderKind(provider) : undefined;
     if (!kind || !isRecord(provider)) throw new Error("此服务商不支持官方模型目录。");
-    if (kind === "qwen" && "credentialId" in input && (current.current.draftDirty || current.current.editorBusy)) {
+    if ((kind === "qwen" || kind === "cloudflare-workers-ai") && "credentialId" in input && (current.current.draftDirty || current.current.editorBusy)) {
       throw new Error("请先保存当前配置，再使用已保存账号拉取目录；新 Key 可使用显式录入模式。");
     }
     const credential = "credentialId" in input && Array.isArray(provider.credentials)
       ? provider.credentials.find((c) => isRecord(c) && c.id === input.credentialId) : undefined;
     const base = "providerId" in input && kind === "qwen" ? requireQwenEndpoint(input.accountBaseUrl ?? "")
+      : "providerId" in input && kind === "cloudflare-workers-ai" ? requireCloudflareBase(input.accountBaseUrl ?? "")
       : isRecord(credential) ? credential.base_url ?? provider.base_url : provider.base_url;
-    if (kind !== "qwen" && "accountBaseUrl" in input) throw new Error("此目录不接受动态账号目标。");
+    if (kind !== "qwen" && kind !== "cloudflare-workers-ai" && "accountBaseUrl" in input) throw new Error("此目录不接受动态账号目标。");
     const result = await requestDiscovery(`/v1/internal/gateway/console/${kind}-model-catalog`, officialCatalogResponseSchema, input, signal);
     if (!catalogMatchesProvider(provider, base, result.catalog)) throw new Error("模型目录与服务商或账号目标不匹配。");
     return result.catalog;

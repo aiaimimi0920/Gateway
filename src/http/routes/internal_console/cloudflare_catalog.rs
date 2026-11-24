@@ -1,4 +1,4 @@
-//! Catalog reads bind the token to the pool Account ID; no caller-selected URLs or generation.
+//! Catalog reads bind the token to a validated official account endpoint.
 use super::{console_request_context, json_with_no_store, required_console_management_token};
 use crate::{
     error::GatewayError, http::extractors::OptionalBearerToken,
@@ -19,6 +19,7 @@ pub struct CatalogRequest {
     credential_id: Option<String>,
     provider_id: Option<String>,
     api_key: Option<String>,
+    account_base_url: Option<String>,
 }
 
 pub async fn read_cloudflare_model_catalog(
@@ -51,7 +52,7 @@ pub async fn read_cloudflare_model_catalog(
         .map_err(|_| GatewayError::conflict("Discovery is busy; try again shortly."))?;
     let snapshot = state.route_config.snapshot();
     let (base, key) = if let Some(id) = body.credential_id {
-        if body.provider_id.is_some() || body.api_key.is_some() {
+        if body.provider_id.is_some() || body.api_key.is_some() || body.account_base_url.is_some() {
             return Err(cf::invalid());
         }
         let target = snapshot
@@ -66,10 +67,7 @@ pub async fn read_cloudflare_model_catalog(
                     && p.credentials.iter().any(|c| c.id.as_deref() == Some(&id))
             })
             .ok_or_else(cf::invalid)?;
-        if provider.preset.as_deref() != Some(cf::PRESET)
-            || cf::Endpoint::parse(&provider.base_url).map(|e| e.base_url)
-                != cf::Endpoint::parse(&target.payload.base_url).map(|e| e.base_url)
-        {
+        if provider.preset.as_deref() != Some(cf::PRESET) {
             return Err(cf::invalid());
         }
         cf::validate(&target.payload, &target.payload.adapter)?;
@@ -84,7 +82,13 @@ pub async fn read_cloudflare_model_catalog(
                     && p.preset.as_deref() == Some(cf::PRESET)
             })
             .ok_or_else(cf::invalid)?;
-        (provider.base_url.clone(), body.api_key.unwrap_or_default())
+        // Omitted target remains compatible with older clients using a legacy pool.
+        let base = body
+            .account_base_url
+            .as_deref()
+            .unwrap_or(&provider.base_url);
+        let endpoint = cf::Endpoint::parse(base).ok_or_else(cf::invalid)?;
+        (endpoint.base_url, body.api_key.unwrap_or_default())
     };
     let catalog = model_catalog::fetch_cloudflare_catalog(&base, &key).await?;
     state

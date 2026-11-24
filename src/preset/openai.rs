@@ -99,6 +99,16 @@ fn generic_openai_compatible_profile_preset(id: &str) -> ProviderPreset {
     }
 }
 
+pub(super) fn vercel_free_preset() -> ProviderPreset {
+    use crate::protocol::vercel_free::{AUTH_MODE, MODEL, PRESET};
+    ProviderPreset {
+        auth_mode: Some(AUTH_MODE.into()),
+        default_model: Some(MODEL.into()),
+        chat_completions_path: Some("/chat/completions".into()),
+        ..generic_openai_compatible_profile_preset(PRESET)
+    }
+}
+
 /// Returns the built-in "groq-openai" preset for Groq's OpenAI-compatible API.
 pub fn groq_openai_preset() -> ProviderPreset {
     ProviderPreset {
@@ -156,6 +166,17 @@ pub fn together_openai_preset() -> ProviderPreset {
 /// Returns the built-in "openrouter-openai" preset for OpenRouter's OpenAI-compatible API.
 pub fn openrouter_openai_preset() -> ProviderPreset {
     generic_openai_compatible_profile_preset("openrouter-openai")
+}
+
+#[cfg(feature = "line-kilo-free")]
+pub(super) fn kilo_free_preset() -> ProviderPreset {
+    use crate::protocol::kilo_free::{AUTH_MODE, MODEL, PRESET};
+    ProviderPreset {
+        auth_mode: Some(AUTH_MODE.into()),
+        default_model: Some(MODEL.into()),
+        chat_completions_path: Some("/chat/completions".into()),
+        ..generic_openai_compatible_profile_preset(PRESET)
+    }
 }
 
 /// Returns the built-in "poe-openai" preset for Poe's OpenAI-compatible API.

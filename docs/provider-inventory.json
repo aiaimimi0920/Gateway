@@ -1,8 +1,8 @@
 {
   "$schema": "provider-inventory.schema.json",
   "schemaVersion": "gateway-product-inventory/v1",
-  "generatedAt": "2026-11-01T22:23:13Z",
-  "sourceRevision": "7969f12c85efceacf2a5e384e143b5c39a550981",
+  "generatedAt": "2026-11-24T09:57:52Z",
+  "sourceRevision": "7dbf21bb31fa7973b51dbc2f08d7d36c59dc6a32",
   "sources": {
     "manifestRoot": "manifests/lines",
     "cargoManifest": "Cargo.toml",
@@ -14,7 +14,7 @@
     "mode": "offline",
     "counts": {
       "compiled": 0,
-      "metadata_only": 54,
+      "metadata_only": 57,
       "fixture_passed": 0,
       "live_passed": 0,
       "external_gate": 0,
@@ -157,8 +157,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -312,8 +312,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -461,8 +461,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -609,8 +609,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -761,8 +761,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -913,8 +913,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1070,8 +1070,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1211,8 +1211,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1369,8 +1369,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1533,8 +1533,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1676,8 +1676,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1833,8 +1833,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -1985,8 +1985,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2140,8 +2140,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2299,8 +2299,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2461,8 +2461,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2611,8 +2611,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2752,8 +2752,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -2904,8 +2904,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3053,8 +3053,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3194,8 +3194,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3334,8 +3334,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3491,8 +3491,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3639,8 +3639,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3787,8 +3787,159 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "kilo-free",
+      "manifestPath": "manifests/lines/kilo/free.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "kilo-free",
+        "identity": {
+          "serviceProviderKey": "kilo",
+          "serviceProviderLabel": "Kilo",
+          "providerSurfaceKey": "kilo-free",
+          "providerSurfaceLabel": "Kilo AI Gateway Free",
+          "protocolProfile": "kilo_free",
+          "implementationLine": "aggregator_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "aggregator_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation"
+          ],
+          "supportsModelsEndpoint": false
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/kilo-free.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "kilo-free-verify",
+          "focusedCargoFilters": [
+            "protocol::kilo_free::tests"
+          ],
+          "fixtureSuiteId": "kilo_free_fixture",
+          "liveSuiteId": "kilo_free_live",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-kilo-free",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "kilo-free"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/kilo_free.rs",
+          "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+          "platformDeltaModule": "gateway/src/upstream/profiled_request.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "kilo",
+        "serviceProviderLabel": "Kilo",
+        "providerSurfaceKey": "kilo-free",
+        "providerSurfaceLabel": "Kilo AI Gateway Free",
+        "protocolProfile": "kilo_free",
+        "implementationLine": "aggregator_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "aggregator_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "credentials": {
+        "materialKinds": [],
+        "samplePath": "docs/providers/examples/kilo-free.routes.sample.json",
+        "fieldsDocPath": "docs/providers/kilo-free.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/kilo-free.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "kilo-free-verify",
+        "focusedCargoFilters": [
+          "protocol::kilo_free::tests"
+        ],
+        "fixtureSuiteId": "kilo_free_fixture",
+        "liveSuiteId": "kilo_free_live",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-kilo-free",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "kilo-free",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/kilo_free.rs",
+        "upstreamModule": "gateway/src/upstream/openai_compatible_official_api_common.rs",
+        "platformDeltaModule": "gateway/src/upstream/profiled_request.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "KiloFree",
+        "canonicalProtocolProfile": "kilo_free",
+        "featureName": null,
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -3921,8 +4072,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4075,8 +4226,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4230,8 +4381,161 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "lumalabs-inference-official-api",
+      "manifestPath": "manifests/lines/lumalabs/inference-official-api.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "lumalabs-inference-official-api",
+        "identity": {
+          "serviceProviderKey": "lumalabs-inference",
+          "serviceProviderLabel": "Luma Inference",
+          "providerSurfaceKey": "lumalabs-inference-api",
+          "providerSurfaceLabel": "Luma LLM Inference API",
+          "protocolProfile": "lumalabs_inference",
+          "implementationLine": "official_vendor_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "official_vendor_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation"
+          ],
+          "supportsModelsEndpoint": false
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/lumalabs-inference-contract.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "lumalabs-inference-verify",
+          "focusedCargoFilters": [
+            "luma_inference"
+          ],
+          "fixtureSuiteId": "luma_inference_fixture",
+          "liveSuiteId": "luma_inference_live_pending",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-lumalabs-inference-official-api",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "lumalabs-inference-official-api"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/luma_inference.rs",
+          "upstreamModule": "gateway/src/upstream/openai_compatible_request_plan.rs",
+          "platformDeltaModule": "gateway/src/provider_runtime/luma_inference_model_probe.rs"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "lumalabs-inference",
+        "serviceProviderLabel": "Luma Inference",
+        "providerSurfaceKey": "lumalabs-inference-api",
+        "providerSurfaceLabel": "Luma LLM Inference API",
+        "protocolProfile": "lumalabs_inference",
+        "implementationLine": "official_vendor_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "official_vendor_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "credentials": {
+        "materialKinds": [
+          "api_key"
+        ],
+        "samplePath": "docs/providers/examples/lumalabs-inference.routes.sample.json",
+        "fieldsDocPath": "docs/providers/lumalabs-inference-contract.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/lumalabs-inference-contract.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "lumalabs-inference-verify",
+        "focusedCargoFilters": [
+          "luma_inference"
+        ],
+        "fixtureSuiteId": "luma_inference_fixture",
+        "liveSuiteId": "luma_inference_live_pending",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-lumalabs-inference-official-api",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "lumalabs-inference-official-api",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/luma_inference.rs",
+        "upstreamModule": "gateway/src/upstream/openai_compatible_request_plan.rs",
+        "platformDeltaModule": "gateway/src/provider_runtime/luma_inference_model_probe.rs"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "LumaLabsInferenceOfficialApi",
+        "canonicalProtocolProfile": "lumalabs_inference",
+        "featureName": "line-lumalabs-inference-official-api",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4381,8 +4685,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4529,8 +4833,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4688,8 +4992,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -4843,8 +5147,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5000,8 +5304,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5157,8 +5461,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5314,8 +5618,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5471,8 +5775,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5619,8 +5923,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5755,8 +6059,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -5910,8 +6214,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6059,8 +6363,158 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
+            "mode": "offline",
+            "classification": {
+              "failureClass": "none",
+              "failureCode": "offline_metadata_only",
+              "message": "Manifest, Cargo feature, implementation metadata, and source paths are present; Cargo execution was not observed by the inventory generator."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "quick-oauth",
+      "manifestPath": "manifests/lines/quick/oauth.json",
+      "manifest": {
+        "schemaVersion": "gateway-line-manifest/v0-draft-1",
+        "id": "quick-oauth",
+        "identity": {
+          "serviceProviderKey": "amazon-quick",
+          "serviceProviderLabel": "Amazon Quick",
+          "providerSurfaceKey": "quick-oauth",
+          "providerSurfaceLabel": "Amazon Quick Social OAuth",
+          "protocolProfile": "quick_oauth",
+          "implementationLine": "web_reverse_api",
+          "adapter": "openai_compatible",
+          "sourceKind": "web_reverse_api",
+          "executionMode": "direct_http",
+          "templateFamily": "openai_compatible_official_api_common"
+        },
+        "capabilities": {
+          "families": [
+            "conversation"
+          ],
+          "supportsModelsEndpoint": false
+        },
+        "credentials": "<redacted>",
+        "docs": {
+          "overviewDocPath": "docs/providers/quick-oauth-contract.md",
+          "buildDocPath": "docs/devtest-build.md"
+        },
+        "verification": {
+          "recommendedCargoTargetDirSlug": "quick-oauth-verify",
+          "focusedCargoFilters": [
+            "quick_oauth"
+          ],
+          "fixtureSuiteId": "quick_oauth_local_fixture",
+          "useNoDefaultFeatures": true
+        },
+        "compilation": {
+          "compileLayer": "line_compile_gate",
+          "lineFeature": "line-quick-oauth",
+          "familyCommonFeatures": [
+            "family-openai-compatible-official-api"
+          ],
+          "binaryInclusionGroup": "quick-oauth"
+        },
+        "implementation": {
+          "protocolModule": "gateway/src/protocol/quick_oauth.rs",
+          "upstreamModule": "gateway/src/protocol/quick_oauth/runtime.rs",
+          "platformDeltaModule": "gateway/src/console/quick_oauth"
+        }
+      },
+      "identity": {
+        "serviceProviderKey": "amazon-quick",
+        "serviceProviderLabel": "Amazon Quick",
+        "providerSurfaceKey": "quick-oauth",
+        "providerSurfaceLabel": "Amazon Quick Social OAuth",
+        "protocolProfile": "quick_oauth",
+        "implementationLine": "web_reverse_api",
+        "adapter": "openai_compatible",
+        "sourceKind": "web_reverse_api",
+        "executionMode": "direct_http",
+        "templateFamily": "openai_compatible_official_api_common"
+      },
+      "capabilities": {
+        "families": [
+          "conversation"
+        ],
+        "supportsModelsEndpoint": false
+      },
+      "credentials": {
+        "materialKinds": [
+          "bearer_token"
+        ],
+        "fieldsDocPath": "docs/providers/quick-oauth-contract.md"
+      },
+      "docs": {
+        "overviewDocPath": "docs/providers/quick-oauth-contract.md",
+        "buildDocPath": "docs/devtest-build.md"
+      },
+      "verification": {
+        "recommendedCargoTargetDirSlug": "quick-oauth-verify",
+        "focusedCargoFilters": [
+          "quick_oauth"
+        ],
+        "fixtureSuiteId": "quick_oauth_local_fixture",
+        "useNoDefaultFeatures": true
+      },
+      "compilation": {
+        "compileLayer": "line_compile_gate",
+        "lineFeature": "line-quick-oauth",
+        "familyCommonFeatures": [
+          "family-openai-compatible-official-api"
+        ],
+        "binaryInclusionGroup": "quick-oauth",
+        "cargo": {
+          "lineFeatureDeclared": true,
+          "declaredDependencies": [
+            "family-openai-compatible-official-api"
+          ],
+          "familyFeaturesDeclared": {
+            "family-openai-compatible-official-api": true
+          },
+          "defaultEnabled": false
+        }
+      },
+      "implementation": {
+        "protocolModule": "gateway/src/protocol/quick_oauth.rs",
+        "upstreamModule": "gateway/src/protocol/quick_oauth/runtime.rs",
+        "platformDeltaModule": "gateway/src/console/quick_oauth"
+      },
+      "implementationLineMetadata": {
+        "enumVariant": "QuickOauth",
+        "canonicalProtocolProfile": "quick_oauth",
+        "featureName": "line-quick-oauth",
+        "protocolProfileMapped": true,
+        "adapterMapped": false,
+        "featureMapped": true,
+        "sourcePath": "src/implementation_lines.rs"
+      },
+      "routeMetadata": {
+        "wireProtocolFamilies": [
+          "openai_audio_speech",
+          "openai_audio_transcriptions",
+          "openai_chat",
+          "openai_embeddings",
+          "openai_legacy_completions",
+          "openai_responses"
+        ],
+        "sourcePaths": [
+          "src/routing/protocol_resolution.rs",
+          "src/protocol/registry.rs"
+        ]
+      },
+      "evidence": {
+        "state": "metadata_only",
+        "records": [
+          {
+            "state": "metadata_only",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6221,8 +6675,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6361,8 +6815,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6516,8 +6970,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6669,8 +7123,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6824,8 +7278,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -6977,8 +7431,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7125,8 +7579,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7282,8 +7736,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7433,8 +7887,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7581,8 +8035,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7738,8 +8192,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -7878,8 +8332,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -8035,8 +8489,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",
@@ -8183,8 +8637,8 @@
         "records": [
           {
             "state": "metadata_only",
-            "timestamp": "2026-11-01T22:23:13Z",
-            "observedAt": "2026-11-01T22:23:13Z",
+            "timestamp": "2026-11-24T09:57:52Z",
+            "observedAt": "2026-11-24T09:57:52Z",
             "mode": "offline",
             "classification": {
               "failureClass": "none",

@@ -144,10 +144,12 @@ pub(super) fn collect_document_diagnostics(document: &RouteConfigYaml) -> RouteC
             }
         }
         let websocket_transport = provider_uses_websocket_transport(provider);
-        // A Qwen pool may defer its target to each explicit credential; it is not a default account.
+        // These pools may defer the target to their explicit accounts.
         if !(crate::routing::config::copilot::is_provider(provider) && provider.base_url.is_empty())
-            && !(provider.preset.as_deref() == Some("qwen-official-api")
-                && !provider.uses_provider_default_account()
+            && !(matches!(
+                provider.preset.as_deref(),
+                Some("qwen-official-api" | "cloudflare-workers-ai")
+            ) && !provider.uses_provider_default_account()
                 && provider.base_url.is_empty())
         {
             validate_provider_url(

@@ -37,6 +37,7 @@ pub(super) fn should_try_next_candidate(e: &GatewayError) -> bool {
 pub(super) fn should_record_provider_failure(error: &GatewayError) -> bool {
     error.native_transport.is_none()
         && !crate::protocol::sap_aicore::errors::neutral(error)
+        && !crate::upstream::vercel_credit_guard::local_denial(error)
         && error.request_budget_stop_reason().is_none()
         && error.kind != crate::error::ErrorKind::ModelCapacity
         && !matches!(

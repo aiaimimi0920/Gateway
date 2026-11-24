@@ -12,6 +12,8 @@ import { editModelSources } from "./credentialModelSelection";
 import { clearQwenEvidence } from "./qwenCredentialDraft";
 import { sapEndpoint } from "./sapAiCore";
 import type { CredentialDialogState } from "./useCredentialDialog";
+import { cloudflareEndpoint } from "./cloudflareWorkersAi";
+import { VERCEL_PRESET, vercelModels } from "./vercelFreeCatalog";
 
 /** Account-specific fields and secret audience transitions remain owned by Gateway. */
 export function CredentialAccountFields({ model, ...props }: CredentialDialogProps & { model: CredentialDialogState }) {
@@ -20,6 +22,9 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
     onCaptureWebBrowser, onRequestSecretAccess, onRevealKey } = props;
   const { value, setValue, authentication, manualCodex, qwen, canFetch, fetchModels, busy, catalog, official, customCatalog,
     webSession, managedWeb, productSession, bedrock, bedrockMaterial, manual } = model;
+  const cloudflare = props.catalogProviderKind?.(value.providerId) === "cloudflare-workers-ai";
+  const cloudflareId = value.cloudflareAccountId ?? cloudflareEndpoint(value.baseUrl)?.accountId ?? "";
+  const vercel = providerOptions.some((option) => option.id === value.providerId && option.preset === VERCEL_PRESET);
   return <fieldset className="nt-credential-fields" disabled={locked || busy}>
     <Field label="Provider">
       <Select compact value={value.providerId} disabled={locked || mode === "edit"} onChange={(event) => {
@@ -28,7 +33,7 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
           ...current, providerId, accountName: "", baseUrl: "", qwenEndpoint: undefined,
           apiKeyValue: "", webSessionMaterial: undefined, sessionMaterial: undefined, bedrockMaterial: undefined,
           chatgptAccountId: "", chatgptGroup: undefined, apiKeyOperation: "replace", discovery: undefined,
-          commandcodeZdr: undefined,
+          commandcodeZdr: undefined, cloudflareAccountId: undefined, vercelMonthlyCredit: undefined,
           modelCatalog: undefined, supportedModelsText: "", fetchedModelsText: "", manualModelsText: ""
         }));
       }}>
@@ -43,6 +48,24 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
           <option value="required">{t("强制开启", "Required")}</option>
         </Select>
       </Field>}
+      {vercel && <>
+        <Field label={t("Vercel 额度模式", "Vercel credit mode")}>
+          <Select compact value={value.vercelMonthlyCredit ? "monthly" : "zero"} onChange={(event) => {
+            const vercelMonthlyCredit = event.currentTarget.value === "monthly";
+            const zero = new Set(vercelModels(false));
+            const onlyZero = (models?: string) => (models ?? "").split("\n").filter((id) => zero.has(id.trim())).join("\n");
+            setValue((current) => vercelMonthlyCredit ? { ...current, vercelMonthlyCredit } : editModelSources(
+              { ...current, vercelMonthlyCredit }, onlyZero(current.fetchedModelsText), onlyZero(current.manualModelsText)));
+          }}>
+            <option value="zero">{t("只用零价模型", "Zero-price models only")}</option>
+            <option value="monthly">{t("确认团队只用月赠额（未购买额度、未启用自动充值或 BYOK）", "Team uses monthly free credit only (no purchases, auto top-up, or BYOK)")}</option>
+          </Select>
+        </Field>
+        <button type="button" onClick={() => setValue((current) => editModelSources(current, current.fetchedModelsText ?? "",
+          [...new Set([...(current.manualModelsText ?? "").split("\n").filter(Boolean), ...vercelModels(Boolean(current.vercelMonthlyCredit))])].join("\n")))}>
+          {t("添加推荐的 Vercel 模型", "Add recommended Vercel models")}
+        </button>
+      </>}
       {supportsBasispoints?.(value.providerId) && <Field label={t("订阅分组", "Subscription group")}>
         <Select compact value={value.chatgptGroup ?? "free"} onChange={(event) => setValue((current) => ({ ...current, chatgptGroup: event.target.value }))}>
           {CHATGPT_POOL_CATEGORIES.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
@@ -64,6 +87,15 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
         }} />
       </Field>
       {qwen && <QwenCredentialEndpoint provider={qwen} value={value} onChange={setValue} disabled={locked || busy} t={t} />}
+      {cloudflare && <Field label="Cloudflare Account ID">
+        <Input compact autoComplete="off" spellCheck={false} maxLength={32} value={cloudflareId}
+          onChange={(event) => {
+            const cloudflareAccountId = event.currentTarget.value;
+            setValue((current) => editModelSources({ ...current, cloudflareAccountId, baseUrl: "",
+              apiKeyValue: "", apiKeyOperation: "replace", modelCatalog: undefined, discovery: undefined,
+            }, "", current.manualModelsText ?? ""));
+          }} />
+      </Field>}
       {model.sap ? <Field label={t("部署 ID", "Deployment ID")}><Input compact readOnly value={sapEndpoint(String(model.sap.base_url ?? ""))?.deployment ?? ""} /></Field> : <CredentialModelEditors value={value} disabled={locked || busy} canFetch={canFetch && value.apiKeyOperation !== "clear"}
         manualOnly={Boolean(model.express || model.vertex || model.lumaAgents)} busy={catalog.busy || official.busy || customCatalog.busy} onFetch={fetchModels} onChange={setValue} />}
       {open && webSession && <ChatgptWebSessionImport key={`web:${value.providerId}:${initialValue?.credentialId ?? ""}`}
@@ -82,12 +114,12 @@ export function CredentialAccountFields({ model, ...props }: CredentialDialogPro
       {open && bedrock && bedrockMaterial && <BedrockMaterialField value={bedrockMaterial} keeping={value.apiKeyOperation === "keep"}
         disabled={locked || busy || !hasSecretAccess} onReplace={() => setValue((current) => ({ ...current, apiKeyOperation: "replace" }))}
         onChange={(material) => setValue((current) => ({ ...current, bedrockMaterial: material, apiKeyOperation: "replace" }))} />}
-      {open && !props.reauthenticationOnly?.(value.providerId) && !webSession && !managedWeb && !productSession && !bedrock && <CredentialSecretField key={`${value.providerId}:${value.credentialId}`}
-        label={model.sap ? "Service Key JSON" : manual?.secretLabel} value={value.apiKeyValue} existing={mode === "edit" && value.apiKeyOperation === "keep"}
+      {open && !props.reauthenticationOnly?.(value.providerId) && !webSession && !managedWeb && !productSession && !bedrock && <CredentialSecretField key={`${value.providerId}:${value.credentialId}:${cloudflare ? cloudflareId : ""}`}
+        label={cloudflare ? "API Token" : model.sap ? "Service Key JSON" : manual?.secretLabel} value={value.apiKeyValue} existing={mode === "edit" && value.apiKeyOperation === "keep"}
         disabled={locked || busy} hasSecretAccess={hasSecretAccess} onRequestSecretAccess={onRequestSecretAccess} onReveal={onRevealKey}
         onLoaded={(apiKeyValue) => setValue((current) => ({ ...current, apiKeyValue }))}
         onChange={(apiKeyValue) => setValue((current) => {
-          const next = { ...current, apiKeyValue, apiKeyOperation: apiKeyValue ? "replace" as const : mode === "edit" ? "clear" as const : "keep" as const, discovery: undefined, modelCatalog: undefined };
+          const next = { ...current, apiKeyValue, apiKeyOperation: apiKeyValue ? "replace" as const : mode === "edit" ? "clear" as const : "keep" as const, discovery: undefined, modelCatalog: undefined, vercelMonthlyCredit: undefined };
           return qwen ? clearQwenEvidence(next) : next;
         })} />}
     </>}

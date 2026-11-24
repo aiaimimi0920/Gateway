@@ -11,6 +11,8 @@ import re
 import sys
 from typing import Any
 
+from provider_inventory.contracts import CANONICAL_PROVIDER_LINE_IDS
+
 
 GATEWAY_ROOT = pathlib.Path(__file__).resolve().parents[1]
 MANIFEST_ROOT = GATEWAY_ROOT / "manifests" / "lines"
@@ -44,64 +46,6 @@ SECRET_VALUE_RE = re.compile(
     r"ya29\.[A-Za-z0-9._-]+)",
     re.IGNORECASE,
 )
-
-CANONICAL_PROVIDER_LINE_IDS = {
-    "agnes-official-api",
-    "minimax-m-plan",
-    "sensenova-token-plan",
-    "commandcode-provider-api",
-    "sap-aicore-chat",
-    "cloudflare-workers-ai",
-    "dim-user-oauth",
-    "nous-portal-oauth",
-    "perplexity-web-reverse-api",
-    "river-official-api",
-    "accio-web-reverse-api",
-    "aistudio-official",
-    "aistudio-web-reverse",
-    "anthropic-messages-official-model-api",
-    "aws-bedrock-converse-official-model-api",
-    "azure-openai-official-vendor-api",
-    "chataibot-web-reverse",
-    "chatgpt-codex-oauth-official",
-    "chatgpt-official-api",
-    "chatgpt-web-reverse",
-    "cohere-chat-official-model-api",
-    "deepseek-openai-official-model-api",
-    "exa-search-official-vendor-api",
-    "freebuff-web-reverse-api",
-    "gemini-canvas-program",
-    "gemini-web-reverse",
-    "google-agent-platform-official",
-    "grok-web-reverse-api",
-    "groq-openai-official-vendor-api",
-    "jina-reader-official-vendor-api",
-    "jina-search-official-vendor-api",
-    "kiro-official-vendor-api",
-    "linkup-search-official-vendor-api",
-    "longcat-openai-official-model-api",
-    "lumalabs-web-reverse-api",
-    "mistral-openai-official-model-api",
-    "muyuan-openai-aggregator-api",
-    "nvidia-openai-official-vendor-api",
-    "openrouter-openai-aggregator-api",
-    "perplexity-chat-official-vendor-api",
-    "perplexity-search-official-vendor-api",
-    "producer-web-reverse-api",
-    "poe-openai-aggregator-api",
-    "qwen-official-api",
-    "qwen-web-reverse",
-    "suno-web-reverse-api",
-    "tavily-search-official-vendor-api",
-    "together-openai-aggregator-api",
-    "udio-web-reverse-api",
-    "websearchapi-search-official-vendor-api",
-    "xai-openai-official-vendor-api",
-    "xfyun-native-websocket-official-vendor-api",
-    "xfyun-openai-official-vendor-api",
-    "you-search-official-vendor-api",
-}
-
 
 def issue(code: str, path: str, message: str) -> dict[str, str]:
     return {"code": code, "path": path, "message": message}

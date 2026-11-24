@@ -95,6 +95,7 @@ pub fn default_protocol_profile_for_preset(preset_id: &str) -> &'static str {
         "sap-aicore-chat" => "sap_aicore_chat",
         "minimax-m-plan" | "minimax-m-plan-cn" => "minimax_m_plan",
         "cloudflare-workers-ai" => "cloudflare_workers_ai",
+        "kilo-free" => "kilo_free",
         "dim-cn-oauth" | "dim-global-oauth" => "dim_user_oauth",
         "nous-portal-oauth" => "nous_portal_oauth",
         "quick-oauth" => "quick_oauth",

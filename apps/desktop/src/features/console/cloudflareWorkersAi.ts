@@ -1,5 +1,6 @@
-// A pool is bound to one Cloudflare account; API tokens are saved by the normal secret owner.
+// Each account owns its endpoint; tokens are saved by the normal secret owner.
 import type { ProviderCatalogTemplate } from "./providerCatalog";
+import type { CredentialDialogValue } from "./credentialDialogTypes";
 
 export const CLOUDFLARE_TEMPLATE = {
   id: "cloudflare-workers-ai", providerId: "cloudflare-workers-ai", labelZh: "cloudflare-workers-ai", labelEn: "cloudflare-workers-ai",
@@ -24,4 +25,13 @@ export function requireCloudflareBase(base: string): string {
   const endpoint = cloudflareEndpoint(base);
   if (!endpoint) throw new Error("请填写 32 位小写十六进制 Cloudflare Account ID；仅支持官方 Workers AI 地址。");
   return endpoint.baseUrl;
+}
+
+export function normalizeCloudflareCredential(value: CredentialDialogValue, previous?: CredentialDialogValue | null): CredentialDialogValue {
+  const baseUrl = requireCloudflareBase(value.cloudflareAccountId === undefined ? value.baseUrl : cloudflareBase(value.cloudflareAccountId.trim()) ?? "");
+  const previousBase = cloudflareEndpoint(previous?.baseUrl ?? "")?.baseUrl;
+  if ((!previous || previousBase !== baseUrl) && (value.apiKeyOperation !== "replace" || !value.apiKeyValue.trim())) {
+    throw new Error("新增或更换 Cloudflare Account ID 时，必须为该账号填写 API Token。");
+  }
+  return { ...value, baseUrl };
 }

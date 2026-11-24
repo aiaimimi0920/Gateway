@@ -105,7 +105,7 @@ ModelScope msmoli 是辅助能力而非推理服务商，但仍保留在用户�
 | 62 | 豆包工作 | 固定快照缺实现文件，先取得可用协议合同 |
 | 63 | Dola | 固定快照缺实现文件，先取得可用协议合同 |
 | 64 | CodeBuddy IDE | 原生接入与产品验收 |
-| 65 | Kilo 免费池 | 使用资格核对与原生实现 |
+| 65 | Kilo 免费池 | 匿名免费入口已接入，见 [`kilo-free`](kilo-free.md)；不含付费池 |
 | 66 | EAC 授权聚合网关 | 原生 owner，不下载执行原 runtime 代替实现，不重复统计底层模型厂商 |
 | 67 | Gemini Code Assist / Antigravity | 核对既有 Cloud Code 路线及缺口；不等同 Gemini Web，也不以 direct HTTP 关闭第 41 项 CLI 路线 |
 

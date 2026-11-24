@@ -15,7 +15,6 @@ import { buildQwenEndpoint, emptyQwenEndpoint } from "./qwenEndpoint";
 import { VertexTargetFields } from "./VertexTargetFields";
 import { vertexTargetBase } from "./vertexOAuth";
 import { kiroProfileTarget } from "./kiroOAuthCatalog";
-import { cloudflareBase } from "./cloudflareWorkersAi";
 import { CatalogFirstAccountFields } from "./CatalogFirstAccountFields";
 import { setCatalogDeploymentUrl } from "./sapAiCore";
 import { SapAiCoreFields } from "./SapAiCoreFields";
@@ -40,19 +39,15 @@ export function ProviderCatalogForm({ t, selectedTemplate, draft, setDraft, lock
   const fields = { t, workflow: draft.workflow!, update, locked };
   const allTabs = [["basics", t("基础与账号", "Basics & account")], ["request", t("调用配置", "Call settings")], ["mapping", t("模型映射", "Model mapping")],
   ["tests", t("自动测试", "Automatic tests")], ["pool", t("账号池", "Account pool")], ["health", t("站点健康", "Site health")]] as const;
-  const tabs = allTabs.filter(([id]) => selectedTemplate.id !== "lumalabs-mcp" || id === "basics");
+  const tabs = allTabs.filter(([id]) => !["lumalabs-mcp", "kilo-free"].includes(selectedTemplate.id) || id === "basics");
   const basics = (
     <div className="nt-provider-catalog__basics">
       <CatalogField name={t("名称", "Name")}><Input value={draft.providerLabel} disabled={locked} onChange={event => setDraft(current => ({ ...current, providerLabel: event.target.value }))} /></CatalogField>
       <CatalogField name="Provider ID"><Input value={draft.providerId} maxLength={256} disabled={locked}
         onChange={(event) => setDraft((current) => ({ ...current, providerId: event.target.value }))} /></CatalogField>
-      <CatalogField name="Base URL"><Input type="url" value={draft.baseUrl} disabled={locked}
+      {selectedTemplate.id !== "cloudflare-workers-ai" && <CatalogField name="Base URL"><Input type="url" value={draft.baseUrl} disabled={locked}
         readOnly={!selectedTemplate.custom && !["azure-api", "sap-aicore-chat"].includes(selectedTemplate.id)} spellCheck={false}
-        onChange={(event) => setDraft((current) => setCatalogDeploymentUrl(current, event.target.value))} /></CatalogField>
-      {selectedTemplate.id === "cloudflare-workers-ai" && <CatalogField name="Cloudflare Account ID"><Input
-        value={draft.cloudflareAccountId ?? ""} disabled={locked} maxLength={32} spellCheck={false}
-        onChange={(event) => { const cloudflareAccountId = event.target.value;
-          setDraft((current) => ({ ...current, cloudflareAccountId, baseUrl: cloudflareBase(cloudflareAccountId) ?? "" })); }} /></CatalogField>}
+        onChange={(event) => setDraft((current) => setCatalogDeploymentUrl(current, event.target.value))} /></CatalogField>}
       {selectedTemplate.id === "sap-aicore-chat" && <SapAiCoreFields draft={draft} setDraft={setDraft} disabled={locked}
         discover={tab === "basics" ? discoverSapDeployments : undefined} hasSecretAccess={hasSecretAccess} onRequestSecretAccess={onRequestSecretAccess} />}
       {selectedTemplate.preset === "qwen-official-api" && <div className="nt-provider-catalog__qwen"><QwenEndpointFields t={t} disabled={locked}

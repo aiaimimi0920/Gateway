@@ -23,6 +23,10 @@ impl RouteConfigSnapshot {
             let translated = model.and_then(|m| p.model_map.get(m).map(String::as_str));
             if p.uses_provider_default_account() {
                 return allowed.is_none_or(|ids| ids.contains(&provider_default_account_id(&p.id)))
+                    && crate::protocol::vercel_free::account_allows(
+                        &p.payload,
+                        translated.or(model),
+                    )
                     && model.is_none_or(|m| {
                         p.supported_models.is_empty()
                             || model_mapping::provider_supports_model(p, m)
@@ -75,7 +79,7 @@ impl RouteConfigSnapshot {
     }
 }
 
-fn provider_available(
+pub(super) fn provider_available(
     p: &CompiledProvider,
     model: &str,
     accounts: Option<&HashSet<String>>,
@@ -90,6 +94,7 @@ fn provider_available(
     if p.uses_provider_default_account() {
         let id = provider_default_account_id(&p.id);
         return p.credential_pool_auth_policy.is_any()
+            && crate::protocol::vercel_free::account_allows(&p.payload, Some(upstream))
             && accounts.is_none_or(|ids| ids.contains(&id))
             && (accounts.is_none()
                 || p.supported_models.is_empty()
@@ -97,7 +102,10 @@ fn provider_available(
             && candidates::admits(admit, &p.id, &id, Some(upstream));
     }
     let available = |c: &&CompiledCredential| {
-        c.enabled && !c.discovery_required && accounts.is_none_or(|ids| ids.contains(&c.id))
+        c.enabled
+            && !c.discovery_required
+            && accounts.is_none_or(|ids| ids.contains(&c.id))
+            && crate::protocol::vercel_free::account_allows(&c.payload, Some(upstream))
     };
     let matched = |c: &&CompiledCredential| {
         candidates::credential_supports_model(c, Some(model), Some(upstream))
@@ -112,7 +120,11 @@ fn provider_available(
         (if has_static_match {
             matched(&c)
         } else {
-            accounts.is_none() && p.credential_pool_auth_policy.is_any() && c.discovery.is_none()
+            accounts.is_none()
+                && p.credential_pool_auth_policy.is_any()
+                && c.discovery.is_none()
+                && (!crate::protocol::vercel_free::owns_payload(&p.payload)
+                    || !c.explicit_model_selection)
         }) && candidates::admits(admit, &p.id, &c.id, Some(upstream))
     })
 }

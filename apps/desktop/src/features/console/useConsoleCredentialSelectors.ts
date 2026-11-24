@@ -61,6 +61,7 @@ export function useConsoleCredentialSelectors({
         return [
           {
             id,
+            preset: optionalString(provider, "preset") ?? undefined,
             // Match provider cards without changing the persisted option value.
             label: providerAccessLabel({
               providerId: id,
